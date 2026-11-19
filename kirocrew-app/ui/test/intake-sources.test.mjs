@@ -116,7 +116,12 @@ for (const width of [375, 768, 1280])
     for (const part of ['GitHub (issues in this repository)', 'avoozl:ready', 'example-bot', 'plan me', 'Open Repository setup']) assert.ok(text.includes(part), part)
     assert.doesNotMatch(text, /Remove/)
     // Each box is titled for screen readers, and nothing runs off the page.
-    assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-intake-source-row]')].every((el) => document.getElementById(el.getAttribute('aria-labelledby'))?.tagName === 'H4')`), true)
+    assert.equal(
+      await page.evaluate(
+        `[...document.querySelectorAll('[data-intake-source-row]')].every((el) => document.getElementById(el.getAttribute('aria-labelledby'))?.tagName === 'H4')`,
+      ),
+      true,
+    )
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
     await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Add a source').click()`)
     await page.until(`Boolean(document.querySelector('[data-modal="avoozl-intake-add"]'))`)

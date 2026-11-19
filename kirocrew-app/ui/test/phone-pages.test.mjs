@@ -44,7 +44,11 @@ async function goto(name, width) {
     await click(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(name)}))`)
     // Specs opens to its filters in the menu and keeps it open; close it.
     await wait(100)
-    if (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list] [data-nav-section="plans"][data-open] [data-nav-slot]') && !document.querySelector('[data-top-rail-list] [data-nav-section="plans"][data-open] [data-nav-children] > [data-nav-item]'))`))
+    if (
+      await page.evaluate(
+        `Boolean(document.querySelector('[data-top-rail-list] [data-nav-section="plans"][data-open] [data-nav-slot]') && !document.querySelector('[data-top-rail-list] [data-nav-section="plans"][data-open] [data-nav-children] > [data-nav-item]'))`,
+      )
+    )
       await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   } else await click(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(name)}))`)
   await wait(500)
@@ -115,7 +119,9 @@ for (const dark of [false, true]) {
     assert.equal(await echo(), '1', 'the compact title shows once the big one has scrolled out')
     // The details are a box in the Overview; the header's title is the one big title.
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-detail-title], #avoozl-plan-title').length`), 1, 'one big title')
-    const inBox = await page.evaluate(`(() => { const main = document.querySelector('#avoozl-plan-main'), box = document.querySelector('[data-spec-details-box]'); return Boolean(box && main.contains(box) && box.contains(document.querySelector('[data-spec-rail]')) && box.getBoundingClientRect().width <= main.getBoundingClientRect().width + 1) })()`)
+    const inBox = await page.evaluate(
+      `(() => { const main = document.querySelector('#avoozl-plan-main'), box = document.querySelector('[data-spec-details-box]'); return Boolean(box && main.contains(box) && box.contains(document.querySelector('[data-spec-rail]')) && box.getBoundingClientRect().width <= main.getBoundingClientRect().width + 1) })()`,
+    )
     assert.equal(inBox, true, 'the rail is in the details box inside the main column')
     assert.equal(await has('[data-spec-menu]'), false, 'no spec hamburger')
     await back()

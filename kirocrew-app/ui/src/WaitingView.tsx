@@ -16,11 +16,7 @@ export type { WaitingSection }
 export const SECTIONS = WAITING_SECTIONS
 
 // The section is picked in the left nav; this page shows only that one.
-export default function WaitingView(props: {
-  workspaceId: string | null
-  section: WaitingSection
-  onOpenSources?: () => void
-}) {
+export default function WaitingView(props: { workspaceId: string | null; section: WaitingSection; onOpenSources?: () => void }) {
   const open = props.section
   const section = SECTIONS.find((s) => s.key === open) ?? SECTIONS[0]
   return (

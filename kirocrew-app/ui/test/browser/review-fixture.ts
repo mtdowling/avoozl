@@ -4,7 +4,15 @@ import type { FindingAction, ReviewFinding, ReviewViewData } from '../../src/rev
 
 const H = 'c0ffee12'.repeat(8),
   H0 = 'aaaa1111'.repeat(8)
-const finding = (id: string, severity: ReviewFinding['severity'], state: ReviewFinding['state'], file: string, line: number, claim: string, extra: Partial<ReviewFinding> = {}): ReviewFinding => ({
+const finding = (
+  id: string,
+  severity: ReviewFinding['severity'],
+  state: ReviewFinding['state'],
+  file: string,
+  line: number,
+  claim: string,
+  extra: Partial<ReviewFinding> = {},
+): ReviewFinding => ({
   id,
   roundId: 'round-1',
   revisionHash: H0,
@@ -49,7 +57,17 @@ export function reviewFixture(): { data: ReviewViewData; decide: (input: { id: s
         'Text SHALL convert to and from UTF-8 byte strings.',
       ].join('\n'),
       'design.md': ['# Design', '', 'The loader reads `bytes.toml` once at start.', '', '## Layout', '', 'Bytes pack into words of eight.'].join('\n'),
-      'tasks.md': ['# Tasks', '', '- [ ] 1.1 Add the byte type', '  - Facts:', '    - done: A byte holds 0 to 255', '- [ ] 1.2 Wrap on overflow', '  - Facts:', '    - after: 1.1', '    - done: 256 wraps to 0'].join('\n'),
+      'tasks.md': [
+        '# Tasks',
+        '',
+        '- [ ] 1.1 Add the byte type',
+        '  - Facts:',
+        '    - done: A byte holds 0 to 255',
+        '- [ ] 1.2 Wrap on overflow',
+        '  - Facts:',
+        '    - after: 1.1',
+        '    - done: 256 wraps to 0',
+      ].join('\n'),
     },
     rounds: [
       {

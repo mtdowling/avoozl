@@ -218,7 +218,13 @@ export default function GraphPage(props: {
               active={showDrafts}
               onClick={() => setShowDrafts(!showDrafts)}
               attrs={{ 'data-rail-drafts': '' }}
-              trail={draftCount > 0 ? <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-opacity="0.7">{draftCount}</Box> : undefined}
+              trail={
+                draftCount > 0 ? (
+                  <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-opacity="0.7">
+                    {draftCount}
+                  </Box>
+                ) : undefined
+              }
             />
           </RailBlock>
         </div>
@@ -227,11 +233,25 @@ export default function GraphPage(props: {
         Graph
       </ViewHeading>
       <Box
-        css-border-color="border" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" css-letter-spacing=".08em" flex flexWrap items="center" gapX="3" gapY="2" border="b" pb="2" size="11" tone="muted"
+        css-border-color="border"
+        css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+        css-letter-spacing=".08em"
+        flex
+        flexWrap
+        items="center"
+        gapX="3"
+        gapY="2"
+        border="b"
+        pb="2"
+        size="11"
+        tone="muted"
         data-graph-header
       >
         <Box as="span" whitespace="nowrap">
-          DEPENDENCIES · <Box as="span" css-color="text-strong-text" weight="semibold">{props.workspaceName ?? workspaceId ?? ''}</Box>
+          DEPENDENCIES ·{' '}
+          <Box as="span" css-color="text-strong-text" weight="semibold">
+            {props.workspaceName ?? workspaceId ?? ''}
+          </Box>
         </Box>
         <Row role="tablist" aria-label="Dependency views" gap={1} wrap={false}>
           {TABS.map((t) => (
@@ -275,7 +295,17 @@ export default function GraphPage(props: {
               aria-invalid={jumpError ? true : undefined}
               aria-describedby={jumpError ? 'avoozl-graph-jump-error' : undefined}
               data-graph-jump
-              css-background="card" css-border-color="border-strong-border" css-color="text" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" w40 rounded="sm" border="all" px="2.5" py="1" size="11" mdW52
+              css-background="card"
+              css-border-color="border-strong-border"
+              css-color="text"
+              css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+              w40
+              rounded="sm"
+              border="all"
+              px="2.5"
+              py="1"
+              size="11"
+              mdW52
             />
           </form>
           <datalist id="avoozl-graph-jump-list">
@@ -299,13 +329,17 @@ export default function GraphPage(props: {
         </ErrorText>
       )}
       {!workspaceId ? (
-        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
+        <Hint as="p" size="sm">
+          Choose a workspace in the header.
+        </Hint>
       ) : !graph ? (
         <Hint as="p" size="sm" role="status">
           {source.busy ? 'Loading…' : ''}
         </Hint>
       ) : graph.total === 0 ? (
-        <Hint as="p" size="sm">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</Hint>
+        <Hint as="p" size="sm">
+          No tasks yet. Store and approve a spec in the Specs tab to fill the graph.
+        </Hint>
       ) : place.tab === 'frontier' ? (
         <Frontier ready={lists!.ready} waiting={lists!.waiting} onOpenTree={(id) => openTree({ kind: 'task', id })} onOpen={(id) => openItem({ kind: 'task', id })} />
       ) : place.tab === 'focus' ? (
@@ -322,13 +356,30 @@ export default function GraphPage(props: {
         />
       )}
       {place.tab !== 'all' && graph && graph.total > 0 && (
-        <Box id={HINT_ID} css-border-color="border" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" flex flexWrap items="baseline" justify="between" gapX="4" gapY="1" border="t" pt="2" size="11" tone="muted" data-graph-hint>
+        <Box
+          id={HINT_ID}
+          css-border-color="border"
+          css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+          flex
+          flexWrap
+          items="baseline"
+          justify="between"
+          gapX="4"
+          gapY="1"
+          border="t"
+          pt="2"
+          size="11"
+          tone="muted"
+          data-graph-hint
+        >
           <Box as="span" minW0 flex1>
             {place.tab === 'frontier'
               ? 'Newly unlocked tasks have every blocker on record done. Open a row to see why, or open its tree.'
               : 'The live dependency tree of the selected task or spec. Click a card or press Enter to drill into its tree; O, Space or ↗ opens its details. Arrow keys move between cards. Dashed = sequence only, struck = done.'}
           </Box>
-          <Box as="span" flexNone tabularNums>{lists?.ready.length ?? 0} newly unlocked</Box>
+          <Box as="span" flexNone tabularNums>
+            {lists?.ready.length ?? 0} newly unlocked
+          </Box>
         </Box>
       )}
       {modal && graph && (
@@ -356,7 +407,18 @@ function NavArrow(props: { label: string; icon: 'back' | 'forward'; disabled: bo
           aria-disabled={props.disabled || undefined}
           data-graph-nav={props.icon}
           onClick={() => !props.disabled && props.onClick()}
-          css-border-color="border" css-color={props.disabled ? 'muted' : 'text'} css-opacity={props.disabled ? '0.4' : '1'} css-background="transparent" inlineFlex h7 w7 cursorPointer items="center" justify="center" rounded="md" border="all"
+          css-border-color="border"
+          css-color={props.disabled ? 'muted' : 'text'}
+          css-opacity={props.disabled ? '0.4' : '1'}
+          css-background="transparent"
+          inlineFlex
+          h7
+          w7
+          cursorPointer
+          items="center"
+          justify="center"
+          rounded="md"
+          border="all"
         >
           <Icon size={13} aria-hidden="true" />
         </PlainButton>
@@ -377,7 +439,11 @@ export function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]
       <Box as="p" css-color="muted-strong-muted" mb="3.5" mt="0.5" size="10" data-frontier-sub>
         {ready.length} newly unlocked · {waiting.length} still waiting
       </Box>
-      {ready.length === 0 && waiting.length === 0 && <Box as="p" size="11" tone="muted">No task has a blocker on record.</Box>}
+      {ready.length === 0 && waiting.length === 0 && (
+        <Box as="p" size="11" tone="muted">
+          No task has a blocker on record.
+        </Box>
+      )}
       {ready.map((item) => (
         <FrontierRow key={item.task.id} item={item} unlocked {...props} />
       ))}
@@ -398,14 +464,13 @@ function Chip({ task }: { task: GraphTask }) {
   const go = state === 'ready' || state === 'running'
   return (
     <Box as="span" inlineFlex flexNone items="center" gap="1.5" data-state-chip={state}>
-      <span
-        aria-hidden="true"
-        className="inline-block h-[7px] w-[7px] rounded-full"
-        style={go ? { background: COLOR[state] } : { border: `1.5px solid ${COLOR[state]}` }}
-      />
+      <span aria-hidden="true" className="inline-block h-[7px] w-[7px] rounded-full" style={go ? { background: COLOR[state] } : { border: `1.5px solid ${COLOR[state]}` }} />
       <span className="text-[9px]" style={{ color: COLOR[state], letterSpacing: '.12em' }}>
         {STATE_CHIP[state]}
-        <Box as="span" srOnly> ({STATE_WORD[state]})</Box>
+        <Box as="span" srOnly>
+          {' '}
+          ({STATE_WORD[state]})
+        </Box>
       </span>
     </Box>
   )
@@ -437,7 +502,15 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
         aria-expanded={open}
         aria-controls={why}
         onClick={() => setOpen((o) => !o)}
-        css-background="transparent" flex wFull cursorPointer items="baseline" gap="2.5" px="3.5" py="2.5" align="left"
+        css-background="transparent"
+        flex
+        wFull
+        cursorPointer
+        items="baseline"
+        gap="2.5"
+        px="3.5"
+        py="2.5"
+        align="left"
       >
         <Box as="span" css-color={props.unlocked ? 'accent' : 'warn-muted'} flexNone size="12" weight="bold">
           {task.id}
@@ -503,7 +576,12 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
     })
   }, [first, root.kind, root.id])
 
-  if (!tree || !layout) return <Hint as="p" size="sm">Nothing named {root.id} is in this workspace’s graph.</Hint>
+  if (!tree || !layout)
+    return (
+      <Hint as="p" size="sm">
+        Nothing named {root.id} is in this workspace’s graph.
+      </Hint>
+    )
   const label = root.kind === 'spec' ? `spec ${root.id}` : root.id
   const nodes = layout.nodes
   const focusNode = (id: string | null) => {
@@ -522,7 +600,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
       // A phone's one column goes by list order; the drawing by position.
       const order = [...nodes].sort((a, b) => a.x - b.x || a.y - b.y).map((n) => n.id)
       const at = order.indexOf(id)
-      const next = phone ? order[at + (event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1)] ?? null : nextNode(nodes, id, event.key)
+      const next = phone ? (order[at + (event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1)] ?? null) : nextNode(nodes, id, event.key)
       if (next) {
         event.preventDefault()
         focusNode(next)
@@ -541,7 +619,16 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
           {rootTitle(graph, root)}
         </Box>
         {root.kind === 'task' && (
-          <PlainButton type="button" css-color="accent" css-background="transparent" css-letter-spacing="0" cursorPointer underline underlineOffset2 onClick={() => props.onOpen(root)}>
+          <PlainButton
+            type="button"
+            css-color="accent"
+            css-background="transparent"
+            css-letter-spacing="0"
+            cursorPointer
+            underline
+            underlineOffset2
+            onClick={() => props.onOpen(root)}
+          >
             details
           </PlainButton>
         )}
@@ -550,14 +637,34 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
         ref={box}
         className="overflow-auto rounded border"
         // overflow inline too: panning needs a real scroll box, host CSS or not.
-        style={{ borderColor: 'var(--border)', background: 'var(--bg)', overflow: 'auto', maxHeight: phone ? undefined : '70vh', cursor: pan.panning ? 'grabbing' : 'grab', userSelect: pan.panning ? 'none' : undefined }}
+        style={{
+          borderColor: 'var(--border)',
+          background: 'var(--bg)',
+          overflow: 'auto',
+          maxHeight: phone ? undefined : '70vh',
+          cursor: pan.panning ? 'grabbing' : 'grab',
+          userSelect: pan.panning ? 'none' : undefined,
+        }}
         data-tree-scroll
         data-panning={pan.panning || undefined}
         {...pan.handlers}
       >
         {phone ? (
           // A phone: one column of cards, upstream first, the page scrolls.
-          <Box role="group" aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`} aria-describedby={HINT_ID} as="ol" css-list-style="none" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" m0 flex flexCol gap="2" p="2" data-tree-list>
+          <Box
+            role="group"
+            aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`}
+            aria-describedby={HINT_ID}
+            as="ol"
+            css-list-style="none"
+            css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+            m0
+            flex
+            flexCol
+            gap="2"
+            p="2"
+            data-tree-list
+          >
             {[...nodes]
               .sort((a, b) => a.x - b.x || a.y - b.y)
               .map((node) => {
@@ -577,10 +684,18 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       onKeyDown={(e) => onKey(e, node.id)}
                       onFocus={() => setCursor(node.id)}
                       className="avoozl-tree-row flex cursor-pointer flex-col gap-0.5 rounded-[3px] border px-3 py-2"
-                      style={{ background: 'var(--card)', borderColor: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))', borderWidth: isRoot ? 2 : 1, borderStyle: draft ? 'dashed' : 'solid' }}
+                      style={{
+                        background: 'var(--card)',
+                        borderColor: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))',
+                        borderWidth: isRoot ? 2 : 1,
+                        borderStyle: draft ? 'dashed' : 'solid',
+                      }}
                     >
                       <Box as="span" flex items="baseline" gap="2">
-                        <span className="text-[12px] font-bold" style={{ color: faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state], textDecoration: faded ? 'line-through' : undefined }}>
+                        <span
+                          className="text-[12px] font-bold"
+                          style={{ color: faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state], textDecoration: faded ? 'line-through' : undefined }}
+                        >
                           {node.id}
                         </span>
                         <span className="ml-auto text-[9px]" style={{ color: COLOR[node.state], letterSpacing: '.1em' }}>
@@ -591,7 +706,12 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                           tabIndex={-1}
                           aria-label={`Open ${node.id} details`}
                           data-tree-open={node.id}
-                          css-color="muted" css-background="transparent" inlineFlex cursorPointer items="center" p="0.5"
+                          css-color="muted"
+                          css-background="transparent"
+                          inlineFlex
+                          cursorPointer
+                          items="center"
+                          p="0.5"
                           onClick={(e) => {
                             e.stopPropagation()
                             setCursor(node.id)
@@ -622,98 +742,112 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
               })}
           </Box>
         ) : (
-        <svg
-          role="group"
-          aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`}
-          aria-describedby={HINT_ID}
-          width="100%"
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="xMinYMin meet"
-          style={{ display: 'block', fontFamily: MONO, maxWidth: width, minWidth: Math.round(width * 0.85) }}
-        >
-          <defs>
-            <marker id="avoozl-tree-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={6} markerHeight={6} orient="auto">
-              <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />
-            </marker>
-          </defs>
-          {layout.edges.map((edge) => {
-            const target = nodes.find((n) => n.id === edge.to)
-            const color = edge.satisfied ? 'var(--muted-strong, var(--muted))' : COLOR[target?.state ?? 'waiting']
-            return (
-              <path
-                key={`${edge.from}->${edge.to}`}
-                d={edgePath(edge.points)}
-                fill="none"
-                data-tree-edge={`${edge.from}->${edge.to}`}
-                data-met={edge.satisfied || undefined}
-                strokeWidth={1.6}
-                strokeDasharray={edge.kind === 'sequence' ? '3 6' : edge.satisfied ? '2 5' : undefined}
-                markerEnd="url(#avoozl-tree-arrow)"
-                style={{ stroke: color, opacity: edge.satisfied ? 0.4 : 0.8 }}
-              />
-            )
-          })}
-          {nodes.map((node) => {
-            const task = node.task!
-            const isRoot = tree.roots.has(node.id)
-            const faded = tree.ghosts.has(node.id) || node.state === 'done'
-            const draft = node.state === 'draft'
-            const color = COLOR[node.state]
-            return (
-              <g key={node.id} transform={`translate(${node.x},${node.y})`} opacity={faded ? 0.5 : draft ? 0.65 : 1} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined}>
+          <svg
+            role="group"
+            aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`}
+            aria-describedby={HINT_ID}
+            width="100%"
+            viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="xMinYMin meet"
+            style={{ display: 'block', fontFamily: MONO, maxWidth: width, minWidth: Math.round(width * 0.85) }}
+          >
+            <defs>
+              <marker id="avoozl-tree-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={6} markerHeight={6} orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />
+              </marker>
+            </defs>
+            {layout.edges.map((edge) => {
+              const target = nodes.find((n) => n.id === edge.to)
+              const color = edge.satisfied ? 'var(--muted-strong, var(--muted))' : COLOR[target?.state ?? 'waiting']
+              return (
+                <path
+                  key={`${edge.from}->${edge.to}`}
+                  d={edgePath(edge.points)}
+                  fill="none"
+                  data-tree-edge={`${edge.from}->${edge.to}`}
+                  data-met={edge.satisfied || undefined}
+                  strokeWidth={1.6}
+                  strokeDasharray={edge.kind === 'sequence' ? '3 6' : edge.satisfied ? '2 5' : undefined}
+                  markerEnd="url(#avoozl-tree-arrow)"
+                  style={{ stroke: color, opacity: edge.satisfied ? 0.4 : 0.8 }}
+                />
+              )
+            })}
+            {nodes.map((node) => {
+              const task = node.task!
+              const isRoot = tree.roots.has(node.id)
+              const faded = tree.ghosts.has(node.id) || node.state === 'done'
+              const draft = node.state === 'draft'
+              const color = COLOR[node.state]
+              return (
                 <g
-                  role="button"
-                  tabIndex={node.id === cursor ? 0 : -1}
-                  aria-label={`${node.id}, ${STATE_WORD[node.state]}${faded ? ', satisfied' : ''}${isRoot ? ', root' : ''}: ${task.title}`}
-                  data-tree-node={node.id}
-                  onClick={() => props.onReRoot({ kind: 'task', id: node.id })}
-                  onKeyDown={(e) => onKey(e, node.id)}
-                  onFocus={() => setCursor(node.id)}
-                  style={{ cursor: 'pointer', outline: 'none' }}
-                  className="avoozl-tree-node"
+                  key={node.id}
+                  transform={`translate(${node.x},${node.y})`}
+                  opacity={faded ? 0.5 : draft ? 0.65 : 1}
+                  data-tree-card={node.id}
+                  data-root={isRoot || undefined}
+                  data-draft={draft || undefined}
                 >
-                  {isRoot && <rect x={-4} y={-4} width={CARD.w + 8} height={CARD.h + 8} rx={6} fill="none" style={{ stroke: 'var(--accent)', opacity: 0.35 }} />}
-                  <rect
-                    width={CARD.w}
-                    height={CARD.h}
-                    rx={3}
-                    strokeWidth={isRoot ? 2 : 1.2}
-                    strokeDasharray={draft ? '5 3' : undefined}
-                    style={{ fill: 'var(--card)', stroke: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))' }}
-                  />
-                  <text x={11} y={20} fontSize={13} fontWeight={700} textDecoration={faded ? 'line-through' : undefined} style={{ fill: faded ? 'var(--muted-strong, var(--muted))' : color }}>
-                    {clip(node.id, 18)}
-                  </text>
-                  <text x={CARD.w - 30} y={20} fontSize={10.5} letterSpacing=".1em" textAnchor="end" style={{ fill: color }}>
-                    {faded && tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
-                  </text>
-                  <text x={11} y={39} fontSize={11.5} style={{ fill: 'var(--muted)' }}>
-                    {clip(task.title, 24)}
-                  </text>
-                </g>
-                <g
-                  role="button"
-                  tabIndex={-1}
-                  aria-label={`Open ${node.id} details`}
-                  data-tree-open={node.id}
-                  transform={`translate(${CARD.w - 24},4)`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setCursor(node.id)
-                    props.onOpen({ kind: 'task', id: node.id })
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <title>Open {node.id} details</title>
-                  <rect width={20} height={20} rx={4} style={{ fill: 'transparent' }} />
-                  <g transform="translate(4,4)" style={{ color: 'var(--muted)' }}>
-                    <ExternalLink size={12} aria-hidden="true" />
+                  <g
+                    role="button"
+                    tabIndex={node.id === cursor ? 0 : -1}
+                    aria-label={`${node.id}, ${STATE_WORD[node.state]}${faded ? ', satisfied' : ''}${isRoot ? ', root' : ''}: ${task.title}`}
+                    data-tree-node={node.id}
+                    onClick={() => props.onReRoot({ kind: 'task', id: node.id })}
+                    onKeyDown={(e) => onKey(e, node.id)}
+                    onFocus={() => setCursor(node.id)}
+                    style={{ cursor: 'pointer', outline: 'none' }}
+                    className="avoozl-tree-node"
+                  >
+                    {isRoot && <rect x={-4} y={-4} width={CARD.w + 8} height={CARD.h + 8} rx={6} fill="none" style={{ stroke: 'var(--accent)', opacity: 0.35 }} />}
+                    <rect
+                      width={CARD.w}
+                      height={CARD.h}
+                      rx={3}
+                      strokeWidth={isRoot ? 2 : 1.2}
+                      strokeDasharray={draft ? '5 3' : undefined}
+                      style={{ fill: 'var(--card)', stroke: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))' }}
+                    />
+                    <text
+                      x={11}
+                      y={20}
+                      fontSize={13}
+                      fontWeight={700}
+                      textDecoration={faded ? 'line-through' : undefined}
+                      style={{ fill: faded ? 'var(--muted-strong, var(--muted))' : color }}
+                    >
+                      {clip(node.id, 18)}
+                    </text>
+                    <text x={CARD.w - 30} y={20} fontSize={10.5} letterSpacing=".1em" textAnchor="end" style={{ fill: color }}>
+                      {faded && tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
+                    </text>
+                    <text x={11} y={39} fontSize={11.5} style={{ fill: 'var(--muted)' }}>
+                      {clip(task.title, 24)}
+                    </text>
+                  </g>
+                  <g
+                    role="button"
+                    tabIndex={-1}
+                    aria-label={`Open ${node.id} details`}
+                    data-tree-open={node.id}
+                    transform={`translate(${CARD.w - 24},4)`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setCursor(node.id)
+                      props.onOpen({ kind: 'task', id: node.id })
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <title>Open {node.id} details</title>
+                    <rect width={20} height={20} rx={4} style={{ fill: 'transparent' }} />
+                    <g transform="translate(4,4)" style={{ color: 'var(--muted)' }}>
+                      <ExternalLink size={12} aria-hidden="true" />
+                    </g>
                   </g>
                 </g>
-              </g>
-            )
-          })}
-        </svg>
+              )
+            })}
+          </svg>
         )}
       </div>
       <TreeStyle />
@@ -746,7 +880,9 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
   const row = (label: string, value: ReactNode) => (
     <>
       <Hint as="dt">{label}</Hint>
-      <Box as="dd" m0>{value}</Box>
+      <Box as="dd" m0>
+        {value}
+      </Box>
     </>
   )
   const openTree = (id: string) => props.onTree({ kind: 'task', id })
@@ -801,14 +937,18 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
             {members.map((t) => (
               <Box key={t.id} as="li" flex items="baseline" gap="2">
                 {link(t.id)}
-                <Box as="span" minW0 flex1 truncate>{t.title}</Box>
+                <Box as="span" minW0 flex1 truncate>
+                  {t.title}
+                </Box>
                 <Chip task={t} />
               </Box>
             ))}
           </Box>
         </Box>
       ) : (
-        <Hint as="p" size="sm" flush>{item.id} is not in this workspace’s graph.</Hint>
+        <Hint as="p" size="sm" flush>
+          {item.id} is not in this workspace’s graph.
+        </Hint>
       )}
     </Modal>
   )

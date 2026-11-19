@@ -289,8 +289,7 @@ test("the guarded GitHub client blocks a matching write and lets the rest throug
   const github = guardGitHub(
     {
       createIssue: async (config, input) => (
-        writes.push(input.title),
-        { number: 1 }
+        writes.push(input.title), { number: 1 }
       ),
       issue: async () => ({ title: "zorblat may be read" }),
     },

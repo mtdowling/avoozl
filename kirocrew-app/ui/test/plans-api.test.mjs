@@ -58,9 +58,7 @@ test('plans client names the workspace on every call', async () => {
 })
 
 test('approve sends the shown hash and the previewed database revision', async () => {
-  const { api, calls } = fakeApi((body) =>
-    body.operation === 'plan.preview' ? { reviewedHash: hash, expectedRevision: 7 } : { id: 'receipt' },
-  )
+  const { api, calls } = fakeApi((body) => (body.operation === 'plan.preview' ? { reviewedHash: hash, expectedRevision: 7 } : { id: 'receipt' }))
   await plansClient(api).approve('ws', 'config', hash)
   assert.deepEqual(calls[1].body, {
     operation: 'plan.approve',
@@ -92,7 +90,10 @@ test('a move between the check and plan.approve reads as the same change; other 
 
 test('approveMany names each moved spec and sends nothing', async () => {
   const { api, calls } = fakeApi((body) => ({ reviewedHash: body.input.id === 'moved' ? 'b'.repeat(64) : hash }))
-  const result = await plansClient(api).approveMany('ws', [{ id: 'same', expectedHash: hash }, { id: 'moved', expectedHash: hash }])
+  const result = await plansClient(api).approveMany('ws', [
+    { id: 'same', expectedHash: hash },
+    { id: 'moved', expectedHash: hash },
+  ])
   assert.deepEqual([result.ok, result.changed.map((entry) => entry.id)], [false, ['moved']])
   assert.ok(calls.every((call) => call.body.operation === 'plan.preview'))
   const fresh = fakeApi((body) => (body.operation === 'plan.preview' ? { reviewedHash: hash } : { ok: true, failures: [] }))
@@ -113,8 +114,14 @@ test('a revision change lists changed files with line counts and findings newly 
   )
   assert.deepEqual([change.from, change.to], ['h1', 'h2'])
   assert.deepEqual(change.files, [{ file: 'a.md', added: 2, removed: 1 }])
-  assert.deepEqual(change.fixed.map((f) => f.id), ['f1'])
-  assert.deepEqual(change.moved.map((f) => f.id), ['f2'])
+  assert.deepEqual(
+    change.fixed.map((f) => f.id),
+    ['f1'],
+  )
+  assert.deepEqual(
+    change.moved.map((f) => f.id),
+    ['f2'],
+  )
 })
 
 test('a spec row reads as one line', () => {
@@ -156,15 +163,7 @@ test('the GitHub preview reads one plan and lines up its writes by repository', 
     { kind: 'project.fields', repository: 'o/a', taskId: 't1', issue: null, fields: { Release: 'one', Wave: 1 } },
     { kind: 'issue.update', repository: 'o/a', taskId: 't3', issue: 9, fields: ['body', 'title'] },
   ]
-  assert.deepEqual(
-    writes.map(describeWrite),
-    [
-      'Create t1: First (Epic)',
-      't2 blocked by t1',
-      'Set Release one, Wave 1 on t1',
-      'Update t3 (#9): body, title',
-    ],
-  )
+  assert.deepEqual(writes.map(describeWrite), ['Create t1: First (Epic)', 't2 blocked by t1', 'Set Release one, Wave 1 on t1', 'Update t3 (#9): body, title'])
   assert.deepEqual(
     writesByRepository(writes).map(([repository, list]) => [repository, list.length]),
     [
@@ -177,7 +176,10 @@ test('the GitHub preview reads one plan and lines up its writes by repository', 
 test('stored plans with no spec folder are listed beside the folders', () => {
   const specs = {
     root: '/plans',
-    items: [{ name: 'config', plan: { id: 'config' } }, { name: 'draft', plan: null }],
+    items: [
+      { name: 'config', plan: { id: 'config' } },
+      { name: 'draft', plan: null },
+    ],
   }
   const stored = {
     total: 2,
@@ -214,12 +216,7 @@ const row = (name, extra = {}) => ({
 })
 
 test('rows group by authored category, Uncategorized last', () => {
-  const groups = groupByCategory([
-    row('zeta'),
-    row('beta', { category: 'Runtime' }),
-    row('alpha', { category: 'Runtime' }),
-    row('gamma', { category: 'Compiler' }),
-  ])
+  const groups = groupByCategory([row('zeta'), row('beta', { category: 'Runtime' }), row('alpha', { category: 'Runtime' }), row('gamma', { category: 'Compiler' })])
   assert.deepEqual(
     groups.map((g) => [g.category, g.rows.map((r) => r.name)]),
     [
@@ -238,7 +235,14 @@ test('progress is done over total, and no tasks is not 0%', () => {
 
 test('row buttons follow the row', () => {
   assert.deepEqual(rowActions(row('a')), { review: true, scoped: true, importable: true, deletable: false, archivable: false, unarchivable: false })
-  assert.deepEqual(rowActions(row('a', { status: 'approved', planId: 'a' })), { review: false, scoped: true, importable: false, deletable: true, archivable: true, unarchivable: false })
+  assert.deepEqual(rowActions(row('a', { status: 'approved', planId: 'a' })), {
+    review: false,
+    scoped: true,
+    importable: false,
+    deletable: true,
+    archivable: true,
+    unarchivable: false,
+  })
   assert.deepEqual(rowActions(row('a', { kind: 'old-style', spec: null, planId: 'p', status: 'draft' })), {
     review: false,
     scoped: true,
@@ -289,8 +293,14 @@ test('the Specs list filters by epic and sorts by name, last update or tasks', (
     row('alpha', { epic: null, lastChange: '2026-11-12T00:00:00Z', tasks: { total: 2, done: 0 } }),
     row('gamma', { epic: 'e1', epicTitle: 'Runtime', lastChange: null, tasks: { total: 9, done: 0 } }),
   ]
-  assert.deepEqual(filterRows(rows, { epic: 'e1' }).map((r) => r.name), ['beta', 'gamma'])
-  assert.deepEqual(filterRows(rows, { epic: NO_EPIC }).map((r) => r.name), ['alpha'])
+  assert.deepEqual(
+    filterRows(rows, { epic: 'e1' }).map((r) => r.name),
+    ['beta', 'gamma'],
+  )
+  assert.deepEqual(
+    filterRows(rows, { epic: NO_EPIC }).map((r) => r.name),
+    ['alpha'],
+  )
   assert.deepEqual(rowChoices(rows).epics, [
     { value: 'e1', label: 'Runtime', count: 2 },
     { value: NO_EPIC, label: 'No epic', count: 1 },

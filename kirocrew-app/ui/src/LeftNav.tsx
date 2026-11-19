@@ -21,22 +21,65 @@ export const NAV_CARD = { border: '1px solid var(--border)', borderRadius: 12, b
 export const TOP_CARD = { ...NAV_CARD, border: '1px solid var(--border-strong, var(--border))' } as const
 export { NAV_ROW }
 // The nav's small icon buttons (Stop the line, Refresh): 28px, icon only.
-export const NAV_ICON = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, padding: 0, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' } as const
+export const NAV_ICON = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 28,
+  height: 28,
+  padding: 0,
+  borderRadius: 6,
+  border: '1px solid var(--border)',
+  background: 'transparent',
+  cursor: 'pointer',
+} as const
 // The same icons on the page's top line: square, as tall as the row (the
 // Plan a goal button beside them), never over 28px.
-export const SQUARE = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', aspectRatio: '1 / 1', minWidth: 24, maxHeight: 28, padding: 0, boxSizing: 'border-box', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' } as const
+export const SQUARE = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  alignSelf: 'stretch',
+  aspectRatio: '1 / 1',
+  minWidth: 24,
+  maxHeight: 28,
+  padding: 0,
+  boxSizing: 'border-box',
+  borderRadius: 6,
+  border: '1px solid var(--border)',
+  background: 'transparent',
+  cursor: 'pointer',
+} as const
 // The small section under the nav card that holds those icons, drawn only
 // when there is something to put in it.
 export function NavLine(props: { children: ReactNode }) {
   return (
-    <Box data-nav-line css-border="1px-solid-border" css-border-radius="12" css-background="bg-elevated" css-box-shadow="0-1px-2px-rgba-0-0-0-0.05" css-display="flex" css-align-items="center" css-gap="6" css-padding="4">
+    <Box
+      data-nav-line
+      css-border="1px-solid-border"
+      css-border-radius="12"
+      css-background="bg-elevated"
+      css-box-shadow="0-1px-2px-rgba-0-0-0-0.05"
+      css-display="flex"
+      css-align-items="center"
+      css-gap="6"
+      css-padding="4"
+    >
       {props.children}
     </Box>
   )
 }
 
 // `top` is the workspace pill, first in the nav as Radar's repo switcher is.
-export function LeftNav(props: { groups: NavGroup[]; value: string; child?: string | null; onPick: (key: string, child?: string) => void; line?: ReactNode; brand?: ReactNode; top?: ReactNode }) {
+export function LeftNav(props: {
+  groups: NavGroup[]
+  value: string
+  child?: string | null
+  onPick: (key: string, child?: string) => void
+  line?: ReactNode
+  brand?: ReactNode
+  top?: ReactNode
+}) {
   const [width, setWidthState] = useState(() => readWidth(pageStorage(), NAV))
   const [collapsed, setCollapsedState] = useState(() => readFlag(pageStorage(), NAV_COLLAPSED_KEY))
   const root = useRef<HTMLElement>(null)
@@ -62,15 +105,64 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
   }, [])
   if (collapsed)
     return (
-      <nav ref={root} aria-label="Avoozl pages" data-left-nav="collapsed" data-top-row style={{ flex: `0 0 ${NAV_COLLAPSED_WIDTH}px`, width: NAV_COLLAPSED_WIDTH, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 4, padding: '4px 2px', borderRight: '1px solid var(--border)', minHeight: 0, overflowY: 'auto' }}>
-        <PlainButton type="button" aria-label="Expand the nav" data-nav-expand onClick={() => setCollapsed(false)} css-display="flex" css-justify-content="center" css-padding="6px-0" css-background="none" css-border="0" css-color="muted" css-cursor="pointer">
+      <nav
+        ref={root}
+        aria-label="Avoozl pages"
+        data-left-nav="collapsed"
+        data-top-row
+        style={{
+          flex: `0 0 ${NAV_COLLAPSED_WIDTH}px`,
+          width: NAV_COLLAPSED_WIDTH,
+          boxSizing: 'border-box',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          gap: 4,
+          padding: '4px 2px',
+          borderRight: '1px solid var(--border)',
+          minHeight: 0,
+          overflowY: 'auto',
+        }}
+      >
+        <PlainButton
+          type="button"
+          aria-label="Expand the nav"
+          data-nav-expand
+          onClick={() => setCollapsed(false)}
+          css-display="flex"
+          css-justify-content="center"
+          css-padding="6px-0"
+          css-background="none"
+          css-border="0"
+          css-color="muted"
+          css-cursor="pointer"
+        >
           <ChevronRight size={16} aria-hidden="true" />
         </PlainButton>
         <Box role="group" aria-label="Avoozl views" css-display="flex" css-flex-direction="column" css-gap="4">
           {props.groups.map((group) => {
             const selected = group.key === props.value
             return (
-              <PlainButton key={group.key} type="button" data-nav-collapsed-item={group.key} aria-current={selected ? 'page' : undefined} aria-label={group.aria ?? group.text} onClick={() => props.onPick(group.key)} css-writing-mode="vertical-rl" css-transform="rotate-180deg" css-padding="10px-0" css-width="100%" css-background={selected ? 'accent-subtle-bg-hover-bg-elevated' : 'none'} css-border="0" css-border-radius="6" css-color={selected ? 'accent' : 'muted'} css-cursor="pointer" css-font-size="12.5" css-font-weight={selected ? '600' : '500'} css-white-space="nowrap">
+              <PlainButton
+                key={group.key}
+                type="button"
+                data-nav-collapsed-item={group.key}
+                aria-current={selected ? 'page' : undefined}
+                aria-label={group.aria ?? group.text}
+                onClick={() => props.onPick(group.key)}
+                css-writing-mode="vertical-rl"
+                css-transform="rotate-180deg"
+                css-padding="10px-0"
+                css-width="100%"
+                css-background={selected ? 'accent-subtle-bg-hover-bg-elevated' : 'none'}
+                css-border="0"
+                css-border-radius="6"
+                css-color={selected ? 'accent' : 'muted'}
+                css-cursor="pointer"
+                css-font-size="12.5"
+                css-font-weight={selected ? '600' : '500'}
+                css-white-space="nowrap"
+              >
                 {group.text}
               </PlainButton>
             )
@@ -80,11 +172,42 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
     )
   return (
     <>
-      <nav ref={root} aria-label="Avoozl pages" data-left-nav="open" data-top-row style={{ flex: `0 0 ${width}px`, width, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 8px 4px 0', minHeight: 0, overflowY: 'auto' }}>
+      <nav
+        ref={root}
+        aria-label="Avoozl pages"
+        data-left-nav="open"
+        data-top-row
+        style={{
+          flex: `0 0 ${width}px`,
+          width,
+          boxSizing: 'border-box',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          padding: '8px 8px 4px 0',
+          minHeight: 0,
+          overflowY: 'auto',
+        }}
+      >
         {props.top}
         <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} />
         {props.line}
-        <PlainButton type="button" aria-label="Collapse the nav" data-nav-collapse onClick={() => setCollapsed(true)} css-display="flex" css-align-items="center" css-gap="6" css-height="28" css-padding="0-10px" css-background="none" css-border="0" css-color="muted" css-cursor="pointer" css-font-size="12">
+        <PlainButton
+          type="button"
+          aria-label="Collapse the nav"
+          data-nav-collapse
+          onClick={() => setCollapsed(true)}
+          css-display="flex"
+          css-align-items="center"
+          css-gap="6"
+          css-height="28"
+          css-padding="0-10px"
+          css-background="none"
+          css-border="0"
+          css-color="muted"
+          css-cursor="pointer"
+          css-font-size="12"
+        >
           <Box aria-hidden="true" as="span" css-display="inline-flex" css-transform="rotate-180deg">
             <ChevronRight size={14} />
           </Box>

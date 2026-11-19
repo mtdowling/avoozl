@@ -8,7 +8,6 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 
-
 export function SaveFooter(props: {
   dirty: boolean
   saving?: boolean
@@ -27,7 +26,17 @@ export function SaveFooter(props: {
       data-save-footer
       role="group"
       aria-label="Save changes"
-      css-position="sticky" css-bottom="0" css-z-index={LAYER.raised} css-padding="10px-0" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-justify-content="flex-end" css-gap="12" css-background="bg-accent-bg-elevated" css-border-top="1px-solid-border"
+      css-position="sticky"
+      css-bottom="0"
+      css-z-index={LAYER.raised}
+      css-padding="10px-0"
+      css-display="flex"
+      css-flex-wrap="wrap"
+      css-align-items="center"
+      css-justify-content="flex-end"
+      css-gap="12"
+      css-background="bg-accent-bg-elevated"
+      css-border-top="1px-solid-border"
     >
       <Box as="span" css-margin-right="auto" size="xs" tone="muted">
         {props.dirty ? 'Unsaved changes. ' : ''}

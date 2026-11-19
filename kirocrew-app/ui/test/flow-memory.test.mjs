@@ -40,8 +40,7 @@ test('Retros has Retros and Proposals pages, Flow keeps its charts, and every wr
   assert.match(view, /data-timing-versions/)
   // Revert asks first (a confirm dialog naming the item).
   assert.match(memory, /title: `Revert \$\{p\.target\}\?`/)
-  for (const part of ['data-prompt-drift', 'Approve rebase'])
-    assert.ok(memory.includes(part), part)
+  for (const part of ['data-prompt-drift', 'Approve rebase']) assert.ok(memory.includes(part), part)
   assert.doesNotMatch(memory, /LessonsView|Export lessons|sharePreview/)
 })
 

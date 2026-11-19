@@ -54,14 +54,12 @@ export function projectionClient(api: AppApi) {
   }
   return {
     // Every write the projection would make for these batches; none is made.
-    preview: (workspaceId: string, planId: string, batches: string[][]) =>
-      run<ProjectionDetail>('plan.issues.preview', { planId, batches }, workspaceId),
+    preview: (workspaceId: string, planId: string, batches: string[][]) => run<ProjectionDetail>('plan.issues.preview', { planId, batches }, workspaceId),
     // The only call that writes. `release` is Create and release.
     create: (workspaceId: string, planId: string, batches: string[][], release: boolean) =>
       run<unknown>('github.project', { planId, batches, ...(release ? { release: true } : {}) }, workspaceId),
     changed: (workspaceId: string, planId: string) => run<SpecChange>('spec.changed.preview', { planId }, workspaceId),
-    apply: (workspaceId: string, planId: string) =>
-      run<{ planId: string; done: { taskId: string; action: string }[] }>('spec.changed.apply', { planId }, workspaceId),
+    apply: (workspaceId: string, planId: string) => run<{ planId: string; done: { taskId: string; action: string }[] }>('spec.changed.apply', { planId }, workspaceId),
   }
 }
 

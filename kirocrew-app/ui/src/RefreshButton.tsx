@@ -32,7 +32,11 @@ export function useRefreshCountdown(workspaceId: string | null, onRefresh: () =>
   const limited = limitedFor(rate, now)
 
   const readRate = useCallback(() => {
-    if (workspaceId) settings.get(workspaceId).then((s) => setRate(s.rate ?? null), () => {})
+    if (workspaceId)
+      settings.get(workspaceId).then(
+        (s) => setRate(s.rate ?? null),
+        () => {},
+      )
   }, [settings, workspaceId])
   useEffect(readRate, [readRate])
 
@@ -84,7 +88,17 @@ export function RefreshIcon({ state, look = 'square' }: { state: RefreshState; l
   }[look]
   return (
     <Tooltip text={state.tip}>
-      <button type="button" {...looks.attrs} data-refresh data-refresh-age={age} data-limited={limited > 0 ? '' : undefined} onClick={refresh} disabled={busy} aria-label={label} style={looks.style}>
+      <button
+        type="button"
+        {...looks.attrs}
+        data-refresh
+        data-refresh-age={age}
+        data-limited={limited > 0 ? '' : undefined}
+        onClick={refresh}
+        disabled={busy}
+        aria-label={label}
+        style={looks.style}
+      >
         <RefreshCw size={look === 'bare' ? 13 : 14} aria-hidden="true" />
       </button>
     </Tooltip>

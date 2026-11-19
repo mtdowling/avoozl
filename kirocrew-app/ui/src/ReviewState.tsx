@@ -18,8 +18,7 @@ import { Row } from './ui/Row'
 import { Box } from './ui/Box'
 import { PlainLink } from './ui/Plain'
 
-const model = (requested: string | null, served: string | null) =>
-  `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
+const model = (requested: string | null, served: string | null) => `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
 
 // Each review chat or verdict: role, round, models, verdict, Session, Info.
 export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => void; compact?: boolean }) {
@@ -39,11 +38,7 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
           )}
           <Box as="span" ml="auto" flex flexWrap items="center" gap="1.5">
             {run.link && (
-              <PlainLink
-                href={linkHref(run.link)}
-                inlineFlex items="center" gap="1" underline
-                aria-label={`Session: the ${run.role} chat, round ${run.round}`}
-              >
+              <PlainLink href={linkHref(run.link)} inlineFlex items="center" gap="1" underline aria-label={`Session: the ${run.role} chat, round ${run.round}`}>
                 <CirclePlus size={12} aria-hidden="true" />
                 Session
               </PlainLink>
@@ -94,11 +89,10 @@ export function HandSetReview(props: {
     }
   }
   return (
-    <Box
-      data-hand-set-review
-      css-border-color="mix-warn-muted-55%-border" flex flexCol gap="2" rounded="base" border="all" p="2" size={props.compact ? 'xs' : 'sm'}
-    >
-      <Box as="span" weight="medium">{noSessionLabel(task.noSession)}</Box>
+    <Box data-hand-set-review css-border-color="mix-warn-muted-55%-border" flex flexCol gap="2" rounded="base" border="all" p="2" size={props.compact ? 'xs' : 'sm'}>
+      <Box as="span" weight="medium">
+        {noSessionLabel(task.noSession)}
+      </Box>
       {task.nextAction ? (
         <span>
           <Hint>Next: </Hint>
@@ -112,7 +106,12 @@ export function HandSetReview(props: {
           Discuss
         </IconLabel>
         {local && done && !confirming && (
-          <IconLabel icon={Check} disabled={busy || props.revision === null} tooltip="Mark it done. Tasks that wait on it may start. You confirm first." onClick={() => setConfirming(true)}>
+          <IconLabel
+            icon={Check}
+            disabled={busy || props.revision === null}
+            tooltip="Mark it done. Tasks that wait on it may start. You confirm first."
+            onClick={() => setConfirming(true)}
+          >
             Mark done
           </IconLabel>
         )}
@@ -134,7 +133,9 @@ export function HandSetReview(props: {
       </Box>
       {confirming && done && (
         <Row role="group" aria-label="Confirm mark done" gap={2} data-confirm-done>
-          <span>Mark {task.title} {done}? Tasks that wait on it may start. Edit can set it back.</span>
+          <span>
+            Mark {task.title} {done}? Tasks that wait on it may start. Edit can set it back.
+          </span>
           <Btn type="button" onClick={() => setConfirming(false)}>
             Cancel
           </Btn>

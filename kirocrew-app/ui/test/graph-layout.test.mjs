@@ -113,18 +113,13 @@ function entersBox([x1, y1], [x2, y2], box, inset = 0.5) {
 function assertClean(layout) {
   for (const e of layout.edges)
     for (let i = 0; i + 1 < e.points.length; i++)
-      for (const node of layout.nodes)
-        assert.ok(
-          !entersBox(e.points[i], e.points[i + 1], node),
-          `edge ${e.from}->${e.to} segment ${i} passes under ${node.id}`,
-        )
+      for (const node of layout.nodes) assert.ok(!entersBox(e.points[i], e.points[i + 1], node), `edge ${e.from}->${e.to} segment ${i} passes under ${node.id}`)
   const boxes = layout.nodes
   for (let i = 0; i < boxes.length; i++)
     for (let j = i + 1; j < boxes.length; j++) {
       const a = boxes[i]
       const b = boxes[j]
-      const apart =
-        a.x + NODE_WIDTH <= b.x || b.x + NODE_WIDTH <= a.x || a.y + NODE_HEIGHT <= b.y || b.y + NODE_HEIGHT <= a.y
+      const apart = a.x + NODE_WIDTH <= b.x || b.x + NODE_WIDTH <= a.x || a.y + NODE_HEIGHT <= b.y || b.y + NODE_HEIGHT <= a.y
       assert.ok(apart, `${a.id} overlaps ${b.id}`)
     }
   for (const node of layout.nodes) {
@@ -201,7 +196,10 @@ test('nodes sit in columns by rank, and only blocking edges are drawn', () => {
   assert.equal(layout.waves, 3)
   // A task with no blocking edge goes to the grid, labelled by its epic.
   assert.equal(at.loose.loose, true)
-  assert.deepEqual(layout.loose.map((g) => [g.title, g.count]), [['No epic', 1]])
+  assert.deepEqual(
+    layout.loose.map((g) => [g.title, g.count]),
+    [['No epic', 1]],
+  )
   assert.ok(at.loose.y > Math.max(at.a.y, at.b.y, at.c.y, at.d.y, at.x.y))
   // Each epic's nodes in a column share one box; one box per epic is labelled.
   assert.deepEqual(
@@ -225,7 +223,13 @@ test('routes leave the source on the right and reach the target on the left', ()
   // It spans columns, so it runs out, along a row gutter, and in.
   assert.equal(long.points.length, 6)
   assertClean(layout)
-  assert.match(edgePath([[0, 0], [10, 5]]), /^M0,0 L10,5$/)
+  assert.match(
+    edgePath([
+      [0, 0],
+      [10, 5],
+    ]),
+    /^M0,0 L10,5$/,
+  )
 })
 
 test('a chain runs straight across', () => {
@@ -264,10 +268,7 @@ test('a Nupp-sized graph has no edge under a node and fewer crossings than the n
   assert.equal(layout.nodes.length, 141)
   assert.equal(layout.edges.length, 130)
   assertClean(layout)
-  assert.ok(
-    layout.crossings < naive.crossings,
-    `sweeps leave ${layout.crossings} crossings, the naive order ${naive.crossings}`,
-  )
+  assert.ok(layout.crossings < naive.crossings, `sweeps leave ${layout.crossings} crossings, the naive order ${naive.crossings}`)
   // Unconnected tasks fill rows, not one column.
   const looseRows = new Set(layout.nodes.filter((n) => n.loose).map((n) => n.y))
   const looseCount = layout.nodes.filter((n) => n.loose).length
@@ -292,7 +293,10 @@ test('the layout is smaller than with the v2 spacing, and a source sits just bef
 })
 
 test('lineage walks upstream and downstream', () => {
-  const { up, down } = lineage(graph.edges.filter((e) => e.blocking), 'b')
+  const { up, down } = lineage(
+    graph.edges.filter((e) => e.blocking),
+    'b',
+  )
   assert.deepEqual([...up], ['a'])
   assert.deepEqual([...down].sort(), ['d', 'x'])
 })

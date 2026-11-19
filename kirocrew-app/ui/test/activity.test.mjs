@@ -8,7 +8,18 @@ import { PAGE } from '../src/paging.ts'
 
 const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
-const row = (extra = {}) => ({ seq: 1, at: '2026-11-13T00:00:00Z', source: 'local', actor: 'owner', kind: 'dispatch', summary: 'Dispatched a1', targetId: null, link: null, redacted: false, ...extra })
+const row = (extra = {}) => ({
+  seq: 1,
+  at: '2026-11-13T00:00:00Z',
+  source: 'local',
+  actor: 'owner',
+  kind: 'dispatch',
+  summary: 'Dispatched a1',
+  targetId: null,
+  link: null,
+  redacted: false,
+  ...extra,
+})
 
 test('a task row opens the drawer, a GitHub row opens its https link, anything else goes nowhere', () => {
   assert.deepEqual(rowTarget(row({ targetId: 'a1', task: true })), { kind: 'task', id: 'a1' })
@@ -19,15 +30,29 @@ test('a task row opens the drawer, a GitHub row opens its https link, anything e
 })
 
 test('filter choices come from the log with their counts, and keep the one in use', () => {
-  const page = { items: [], total: 0, sources: ['github', 'local'], kinds: ['dispatch'], actors: ['owner'], counts: { source: { github: 2, local: 5 }, kind: { dispatch: 7 } }, retentionDays: 30 }
+  const page = {
+    items: [],
+    total: 0,
+    sources: ['github', 'local'],
+    kinds: ['dispatch'],
+    actors: ['owner'],
+    counts: { source: { github: 2, local: 5 }, kind: { dispatch: 7 } },
+    retentionDays: 30,
+  }
   const choices = filterChoices(page, { kind: 'github.close' })
   assert.deepEqual(
     choices.sources.map((o) => [o.label, o.count]),
-    [['GitHub', 2], ['This workspace', 5]],
+    [
+      ['GitHub', 2],
+      ['This workspace', 5],
+    ],
   )
   assert.deepEqual(
     choices.kinds.map((o) => [o.value, o.count]),
-    [['dispatch', 7], ['github.close', 0]],
+    [
+      ['dispatch', 7],
+      ['github.close', 0],
+    ],
   )
   // An older app sends no counts: each choice counts 0, and still shows.
   assert.deepEqual(filterChoices({ ...page, counts: undefined }, {}).actors, [{ value: 'owner', label: 'owner', count: 0 }])
@@ -74,7 +99,8 @@ test('the tab: its own nav entry and icon, the shared heading, filter panel and 
 // A fake clock so the 800 ms pause runs without waiting.
 function autosave(known = '') {
   const sent = []
-  let now = 0, next = 1
+  let now = 0,
+    next = 1
   const timers = new Map()
   const box = retentionAutosave({
     save: (days) => sent.push(days),
@@ -84,7 +110,7 @@ function autosave(known = '') {
   box.reset(known)
   const wait = (ms) => {
     now += ms
-    for (const [id, t] of [...timers]) if (t.at <= now) (timers.delete(id), t.run())
+    for (const [id, t] of [...timers]) if (t.at <= now) timers.delete(id), t.run()
   }
   return { box, sent, wait }
 }
@@ -102,7 +128,7 @@ test('Keep activity: typing then a pause saves once, after 800 ms', () => {
 
 test('Keep activity: fast typing saves once, with the last value', () => {
   const { box, sent, wait } = autosave()
-  for (const text of ['1', '12', '120']) (box.change(text), wait(300))
+  for (const text of ['1', '12', '120']) box.change(text), wait(300)
   assert.deepEqual(sent, [])
   wait(800)
   assert.deepEqual(sent, [120])
@@ -110,7 +136,7 @@ test('Keep activity: fast typing saves once, with the last value', () => {
 
 test('Keep activity: an invalid value never saves, not even on blur', () => {
   const { box, sent, wait } = autosave()
-  for (const bad of ['0', '366', '2.5', 'ten']) (box.change(bad), wait(900), box.flush(bad))
+  for (const bad of ['0', '366', '2.5', 'ten']) box.change(bad), wait(900), box.flush(bad)
   assert.deepEqual(sent, [])
 })
 

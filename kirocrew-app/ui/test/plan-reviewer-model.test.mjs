@@ -33,9 +33,12 @@ for (const width of [390, 1280]) {
     await page.until(`document.querySelector('[data-save-footer] [data-save]')?.disabled === false`)
     await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)
-    assert.deepEqual(await page.evaluate(`window.__harness.calls.filter((call) => call.operation === 'models.settings.update').map((call) => call.input)`), [{
-      roles: { planner: { model: 'fake-writer' }, planReviewer: { model: 'fake-reviewer' } }, expectedHash: 'models-before',
-    }])
+    assert.deepEqual(await page.evaluate(`window.__harness.calls.filter((call) => call.operation === 'models.settings.update').map((call) => call.input)`), [
+      {
+        roles: { planner: { model: 'fake-writer' }, planReviewer: { model: 'fake-reviewer' } },
+        expectedHash: 'models-before',
+      },
+    ])
     assert.equal(await page.evaluate(`document.querySelector('#avoozl-model-planReviewer').value`), 'fake-reviewer')
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
   })

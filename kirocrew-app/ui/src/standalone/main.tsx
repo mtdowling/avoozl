@@ -8,18 +8,7 @@ import manifest from '../../../app.json'
 import App from '../App.tsx'
 import { StartSession } from './StartSession.tsx'
 import { Notices } from './Notices.tsx'
-import {
-  applyTheme,
-  clearNotice,
-  installCsrf,
-  navigate,
-  notify,
-  readTheme,
-  saveTheme,
-  signOut,
-  useNotice,
-  type ThemeChoice,
-} from './host.ts'
+import { applyTheme, clearNotice, installCsrf, navigate, notify, readTheme, saveTheme, signOut, useNotice, type ThemeChoice } from './host.ts'
 import './app.css'
 
 installCsrf()

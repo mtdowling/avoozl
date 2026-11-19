@@ -28,7 +28,9 @@ export default function ArmedPulls(props: { workspaceId: string | null; stopped:
   }
   return (
     <Box data-armed-pulls css-display="flex" css-flex-direction="column" css-gap="4" flex flexCol gap="1" size="sm">
-      <Box as="span" weight="medium">Armed to merge by themselves while the line is stopped:</Box>
+      <Box as="span" weight="medium">
+        Armed to merge by themselves while the line is stopped:
+      </Box>
       {pulls.map((pull) => (
         <Box key={`${pull.repository}#${pull.number}`} as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2">
           <Box as="span" css-overflow-wrap="anywhere">

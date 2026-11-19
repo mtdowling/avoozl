@@ -13,13 +13,19 @@ test('opening one fold closes the others in its group', () => {
   const folds = [{ open: true }, { open: false }, { open: true }]
   folds[1].open = true
   closeOthers(folds[1], folds)
-  assert.deepEqual(folds.map((f) => f.open), [false, true, false])
+  assert.deepEqual(
+    folds.map((f) => f.open),
+    [false, true, false],
+  )
 })
 
 test('closing a fold leaves the others alone', () => {
   const folds = [{ open: true }, { open: false }]
   closeOthers(folds[1], folds)
-  assert.deepEqual(folds.map((f) => f.open), [true, false])
+  assert.deepEqual(
+    folds.map((f) => f.open),
+    [true, false],
+  )
 })
 
 test('Fold uses native <details name>, with the toggle fallback scoped to its own group', () => {

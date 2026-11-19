@@ -38,7 +38,10 @@ test('the table starts most calls first, and a header click sorts both ways', { 
   let m = await page.evaluate(READ)
   assert.deepEqual(m.order, ['tick', 'crew', 'view', 'review', 'setup'])
   assert.deepEqual(m.sort, { source: 'none', calls: 'descending', notModified: 'none', cached: 'none' })
-  assert.deepEqual(m.align.map((a) => (a === 'start' ? 'left' : a)), ['left', 'right', 'right', 'right'])
+  assert.deepEqual(
+    m.align.map((a) => (a === 'start' ? 'left' : a)),
+    ['left', 'right', 'right', 'right'],
+  )
   await click('calls')
   m = await page.evaluate(READ)
   assert.deepEqual(m.order, ['setup', 'review', 'view', 'crew', 'tick'])

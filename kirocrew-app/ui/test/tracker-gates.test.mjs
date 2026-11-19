@@ -24,7 +24,10 @@ test('the client reads gate.list and clears with a reason', async () => {
 
 test('Waiting on you lists only failed or twice-unknown gates; Clear is for open ones', () => {
   const rows = [row('open'), row('failed', { needsYou: true }), row('unknown'), row('cleared')]
-  assert.deepEqual(waitingGates(rows).map((r) => r.state), ['failed'])
+  assert.deepEqual(
+    waitingGates(rows).map((r) => r.state),
+    ['failed'],
+  )
   assert.deepEqual(rows.map(clearable), [true, true, true, false])
 })
 

@@ -36,7 +36,9 @@ async function openGitHub(width, extra = {}) {
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(150)
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`,
+  )
   await wait(150)
   if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   assert.ok(await page.evaluate(click(`${scope} [data-nav-item]`, 'GitHub')))
@@ -144,7 +146,9 @@ test('a tab with unsaved changes shows a dot until Save or Discard', { skip }, a
   await openGitHub(1280)
   assert.ok(await page.evaluate(click('[role=tab]', 'Sync pace')))
   assert.deepEqual((await page.evaluate(READ)).dots, [])
-  await page.evaluate(`(() => { const input = document.getElementById('avoozl-settings-writes-minute'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '30'); input.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)
+  await page.evaluate(
+    `(() => { const input = document.getElementById('avoozl-settings-writes-minute'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '30'); input.dispatchEvent(new Event('input', { bubbles: true })); return true })()`,
+  )
   await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
   let m = await page.evaluate(READ)
   assert.deepEqual(m.dots, ['sync'])
@@ -166,7 +170,9 @@ test('on a phone the bar scrolls sideways and the page does not', { skip }, asyn
   assert.ok(await page.evaluate(click('[role=tab]', 'GitHub calls')))
   await wait(50)
   // The open tab is scrolled into the bar's view.
-  const seen = await page.evaluate(`(() => { const bar = document.querySelector('[data-tabs="avoozl-github-tab"]'), t = bar.querySelector('[aria-selected=true]').getBoundingClientRect(), b = bar.getBoundingClientRect(); return t.left >= b.left - 1 && t.right <= b.right + 1 })()`)
+  const seen = await page.evaluate(
+    `(() => { const bar = document.querySelector('[data-tabs="avoozl-github-tab"]'), t = bar.querySelector('[aria-selected=true]').getBoundingClientRect(), b = bar.getBoundingClientRect(); return t.left >= b.left - 1 && t.right <= b.right + 1 })()`,
+  )
   assert.equal(seen, true)
 })
 

@@ -43,13 +43,17 @@ export function RoleChoice(props: {
   return (
     <Box flex flexCol gap="1.5" data-role-choice>
       <Box htmlFor={`${props.id}-role`} as="label" flex flexCol gap="1" size="sm">
-        <Box as="span" srOnly={props.titled} weight={props.titled ? undefined : 'medium'}>Role</Box>
+        <Box as="span" srOnly={props.titled} weight={props.titled ? undefined : 'medium'}>
+          Role
+        </Box>
         <SelectField
           id={`${props.id}-role`}
           value={role}
           disabled={Boolean(props.fixed)}
           onChange={(event) => props.onChange(event.target.value, source)}
-          aria-label={`Role of ${props.name}`} look="field" maxWidth="24rem"
+          aria-label={`Role of ${props.name}`}
+          look="field"
+          maxWidth="24rem"
         >
           {ROLE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -64,8 +68,17 @@ export function RoleChoice(props: {
       {(props.fixed || line) && <Hint size="xs">{props.fixed || line}</Hint>}
       {role === MIRROR_ROLE && props.withSource !== false && (
         <Box htmlFor={`${props.id}-source`} as="label" flex flexCol gap="1" size="sm">
-          <Box as="span" weight="medium">Public repository</Box>
-          <Input id={`${props.id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => props.onChange(role, event.target.value)} css-max-width="24rem" />
+          <Box as="span" weight="medium">
+            Public repository
+          </Box>
+          <Input
+            id={`${props.id}-source`}
+            value={source}
+            placeholder="owner/name"
+            aria-label="Public repository"
+            onChange={(event) => props.onChange(role, event.target.value)}
+            css-max-width="24rem"
+          />
           {problem && (
             <ErrorText role="alert" as="span" size="xs">
               {problem}
@@ -92,13 +105,33 @@ function Facts({ facts }: { facts: [string, ReactNode][] }) {
   )
 }
 
-export function ViewRepository(props: { row: RepositoryRow; roleText: string; entry: RepositoryForm | null; onClose: () => void; onReveal: (folder: string) => void; githubUrl: string | null }) {
+export function ViewRepository(props: {
+  row: RepositoryRow
+  roleText: string
+  entry: RepositoryForm | null
+  onClose: () => void
+  onReveal: (folder: string) => void
+  githubUrl: string | null
+}) {
   const { row, entry } = props
   const where: [string, ReactNode][] = [
     ['Role', props.roleText],
     ['Folder', row.folder ?? 'No folder on this computer'],
     ['Tasks land on', <code key="b">{row.branch}</code>],
-    ['GitHub', row.github ? (props.githubUrl ? <TextLink href={linkHref(props.githubUrl)} target="_blank" rel="noopener noreferrer">{row.github}</TextLink> : row.github) : 'No GitHub remote'],
+    [
+      'GitHub',
+      row.github ? (
+        props.githubUrl ? (
+          <TextLink href={linkHref(props.githubUrl)} target="_blank" rel="noopener noreferrer">
+            {row.github}
+          </TextLink>
+        ) : (
+          row.github
+        )
+      ) : (
+        'No GitHub remote'
+      ),
+    ],
   ]
   const facts: [string, ReactNode][] = []
   if (entry) {
@@ -111,13 +144,7 @@ export function ViewRepository(props: { row: RepositoryRow; roleText: string; en
     if (entry.mirror.source && entry.mirror.mirror) facts.push(['Private mirror', `${entry.mirror.mirror} of ${entry.mirror.source}`])
   }
   return (
-    <Modal
-      id="avoozl-repo-view"
-      title={row.name}
-      onDismiss={props.onClose}
-      attrs={{ 'data-repository-view': row.key }}
-      focusClose
-    >
+    <Modal id="avoozl-repo-view" title={row.name} onDismiss={props.onClose} attrs={{ 'data-repository-view': row.key }} focusClose>
       <FormSection title="Repository">
         <Facts facts={where} />
         {row.folder && (
@@ -220,7 +247,17 @@ export function EditRepository(props: {
       <TabPanel id={`${id}-tabs`} current={tab}>
         {tab === 'general' && (
           <FormSection title="Role">
-            <RoleChoice id={id} name={row.name} github={row.github} role={role} source={source} fixed={fixed} titled withSource={false} onChange={(nextRole) => setRole(nextRole)} />
+            <RoleChoice
+              id={id}
+              name={row.name}
+              github={row.github}
+              role={role}
+              source={source}
+              fixed={fixed}
+              titled
+              withSource={false}
+              onChange={(nextRole) => setRole(nextRole)}
+            />
             {mirror && (
               <Box as="p" size="xs">
                 <PlainButton type="button" underline onClick={() => setTab('mirror')}>
@@ -240,8 +277,17 @@ export function EditRepository(props: {
           (mirror ? (
             <FormSection title="Public repository" blurb="This repository is a private copy of a public one. Crews work here, in private.">
               <Box htmlFor={`${id}-source`} as="label" flex flexCol gap="1" size="sm">
-                <Box as="span" srOnly>Public repository</Box>
-                <Input id={`${id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => setSource(event.target.value)} css-max-width="24rem" />
+                <Box as="span" srOnly>
+                  Public repository
+                </Box>
+                <Input
+                  id={`${id}-source`}
+                  value={source}
+                  placeholder="owner/name"
+                  aria-label="Public repository"
+                  onChange={(event) => setSource(event.target.value)}
+                  css-max-width="24rem"
+                />
                 {problem && (
                   <ErrorText role="alert" as="span" size="xs">
                     {problem}

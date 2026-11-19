@@ -184,9 +184,7 @@ export function publicCrewsClient(api: AppApi) {
 
 export function untriagedClient(api: AppApi) {
   const run = (workspaceId: string, input: Record<string, unknown>) =>
-    api
-      .post<{ result: UntriagedList }>(COMMAND_PATH, { operation: 'untriaged.view', input, workspaceId })
-      .then((reply) => reply.result)
+    api.post<{ result: UntriagedList }>(COMMAND_PATH, { operation: 'untriaged.view', input, workspaceId }).then((reply) => reply.result)
   return {
     view: (workspaceId: string) => run(workspaceId, {}),
     refresh: (workspaceId: string) => run(workspaceId, { refresh: true }),
@@ -267,7 +265,7 @@ export interface HandOffReply {
 }
 
 export function radarClient(api: AppApi) {
-  const call = <T,>(workspaceId: string, operation: string, input: Record<string, unknown>) =>
+  const call = <T>(workspaceId: string, operation: string, input: Record<string, unknown>) =>
     api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId }).then((reply) => reply.result)
   return {
     crews: (workspaceId: string, repository: string) => call<CrewList>(workspaceId, 'untriaged.crews', { repository }),
@@ -281,11 +279,9 @@ export function sendable(items: UntriagedItem[]): { ok: boolean; reason: string;
   if (!items.length) return { ok: false, reason: 'Select issues to send them to an Issue Radar crew.', repository: null }
   if (items.some((item) => sourceOf(item) !== 'github'))
     return { ok: false, reason: 'Issue Radar works GitHub issues. Unselect the items from other sources first.', repository: null }
-  if (items.some((item) => item.kind !== 'issue'))
-    return { ok: false, reason: 'Crews work issues. Unselect the pull requests first.', repository: null }
+  if (items.some((item) => item.kind !== 'issue')) return { ok: false, reason: 'Crews work issues. Unselect the pull requests first.', repository: null }
   const repository = items[0].repository
-  if (items.some((item) => item.repository !== repository))
-    return { ok: false, reason: 'Each crew works one repository. Select issues from one repository.', repository: null }
+  if (items.some((item) => item.repository !== repository)) return { ok: false, reason: 'Each crew works one repository. Select issues from one repository.', repository: null }
   return {
     ok: true,
     reason: `Pick a crew and send ${items.length === 1 ? `#${items[0].number}` : `${items.length} issues`} to it. You confirm the label first.`,
@@ -359,8 +355,7 @@ export const KIND_OPTIONS: Option[] = [
   { value: 'review', label: 'Reviews' },
 ]
 
-export const filterActive = (filter: UntriagedFilter) =>
-  Boolean(filter.source || filter.repository || filter.kind || filter.age || filter.author || filter.label)
+export const filterActive = (filter: UntriagedFilter) => Boolean(filter.source || filter.repository || filter.kind || filter.age || filter.author || filter.label)
 
 export const sourceOf = (item: Pick<UntriagedItem, 'source'>) => item.source ?? 'github'
 
@@ -383,8 +378,7 @@ export function matchesFilter(item: UntriagedItem, filter: UntriagedFilter, now 
 
 // The dropdown choices the items on hand allow.
 export function filterOptions(list: UntriagedList | null) {
-  const sorted = (values: Iterable<string>) =>
-    [...new Set(values)].sort((a, b) => a.localeCompare(b)).map((value) => ({ value, label: value }))
+  const sorted = (values: Iterable<string>) => [...new Set(values)].sort((a, b) => a.localeCompare(b)).map((value) => ({ value, label: value }))
   const items = list?.items ?? []
   return {
     sources: sorted([...(list?.sources ?? []).map((row) => row.id), ...items.map(sourceOf)]),
@@ -465,8 +459,7 @@ export function emptyText(list: UntriagedList): { title: string; subtitle: strin
   const failed = list.repositories.find((row) => row.error)
   if (!list.repositories.length && (list.sources ?? []).length)
     return { title: 'Nothing untriaged', subtitle: 'Items from your intake sources that no trigger rule takes show here.' }
-  if (!list.repositories.length)
-    return { title: 'No repository yet', subtitle: 'Add a GitHub repository in Settings › Repositories, and its untriaged items show here.' }
+  if (!list.repositories.length) return { title: 'No repository yet', subtitle: 'Add a GitHub repository in Settings › Repositories, and its untriaged items show here.' }
   if (list.repositories.every((row) => !row.checkedAt))
     return {
       title: 'Not checked yet',

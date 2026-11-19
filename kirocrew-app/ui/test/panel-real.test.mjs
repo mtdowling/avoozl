@@ -71,8 +71,11 @@ test('a Spec Builder chat shows the spec check for a real spec', { skip }, async
 test('a crew chat shows the claim of a real crew', { skip }, async () => {
   const row = replies['panel.view'].crews.rows.find((item) => item.crewId)
   assert.ok(row, 'the sample has a crew with an id')
-  await open(`crew-${row.crewId}`, `Boolean(document.querySelector('[data-panel-crew]')) && document.querySelector('[data-panel-crew]').textContent.includes(${JSON.stringify(row.title)})`)
-  assert.equal(await count('[data-rail-step]') > 0, true)
+  await open(
+    `crew-${row.crewId}`,
+    `Boolean(document.querySelector('[data-panel-crew]')) && document.querySelector('[data-panel-crew]').textContent.includes(${JSON.stringify(row.title)})`,
+  )
+  assert.equal((await count('[data-rail-step]')) > 0, true)
   await shot('crew-chat')
 })
 

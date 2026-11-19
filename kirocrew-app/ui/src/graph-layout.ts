@@ -199,9 +199,7 @@ function drawnGraph(graph: Graph, collapsed: ReadonlySet<string>) {
     if (!members.has(group)) members.set(group, [])
     members.get(group)!.push(task)
   }
-  const keys = [...members.keys()].sort(
-    (a, b) => (a === null ? 1e9 : (order.get(a) ?? 1e8)) - (b === null ? 1e9 : (order.get(b) ?? 1e8)),
-  )
+  const keys = [...members.keys()].sort((a, b) => (a === null ? 1e9 : (order.get(a) ?? 1e8)) - (b === null ? 1e9 : (order.get(b) ?? 1e8)))
   const nodeOf = new Map<string, string>()
   const nodes: LaidNode[] = []
   for (const group of keys) {
@@ -210,10 +208,7 @@ function drawnGraph(graph: Graph, collapsed: ReadonlySet<string>) {
       const id = `group:${groupKey(group)}`
       const states = new Set(tasks.map(nodeState))
       // The most urgent member state colors the whole group.
-      const state =
-        (['needs-you', 'running', 'ready', 'waiting', 'deferred', 'done', 'draft'] as NodeState[]).find((s) =>
-          states.has(s),
-        ) ?? 'waiting'
+      const state = (['needs-you', 'running', 'ready', 'waiting', 'deferred', 'done', 'draft'] as NodeState[]).find((s) => states.has(s)) ?? 'waiting'
       for (const task of tasks) nodeOf.set(task.id, id)
       nodes.push({
         id,
@@ -282,9 +277,7 @@ function rank(ids: string[], edges: { from: string; to: string }[]) {
       }
     }
   }
-  const pairs = edges.map((edge) =>
-    reversed.has(`${edge.from}\u0000${edge.to}`) ? { lo: edge.to, hi: edge.from } : { lo: edge.from, hi: edge.to },
-  )
+  const pairs = edges.map((edge) => (reversed.has(`${edge.from}\u0000${edge.to}`) ? { lo: edge.to, hi: edge.from } : { lo: edge.from, hi: edge.to }))
   const before = new Map<string, string[]>(ids.map((id) => [id, []]))
   for (const pair of pairs) before.get(pair.hi)!.push(pair.lo)
   const ranks = new Map<string, number>()
@@ -369,7 +362,10 @@ function reorder(layer: string[], items: Map<string, Item>, fixed: string[], sid
   const at = new Map(fixed.map((id, i) => [id, i]))
   const bary = new Map<string, number>()
   layer.forEach((id, i) => {
-    const near = items.get(id)![side].map((n) => at.get(n)!).filter((n) => n !== undefined)
+    const near = items
+      .get(id)!
+      [side].map((n) => at.get(n)!)
+      .filter((n) => n !== undefined)
     bary.set(id, near.length ? near.reduce((a, b) => a + b, 0) / near.length : (i / Math.max(1, layer.length - 1)) * fixed.length)
   })
   const blocks = new Map<string, number[]>()
@@ -383,12 +379,7 @@ function reorder(layer: string[], items: Map<string, Item>, fixed: string[], sid
   return [...layer].sort((a, b) => {
     const ca = items.get(a)!.cluster
     const cb = items.get(b)!.cluster
-    return (
-      mean.get(ca)! - mean.get(cb)! ||
-      (ca < cb ? -1 : ca > cb ? 1 : 0) ||
-      bary.get(a)! - bary.get(b)! ||
-      index.get(a)! - index.get(b)!
-    )
+    return mean.get(ca)! - mean.get(cb)! || (ca < cb ? -1 : ca > cb ? 1 : 0) || bary.get(a)! - bary.get(b)! || index.get(a)! - index.get(b)!
   })
 }
 
@@ -520,9 +511,7 @@ export function layoutGraph(
   const aspect = options.aspect ?? ASPECT
   const ranked = layers.map((layer) => layer.filter((id) => byId.has(id)))
   const longest = Math.max(0, ...ranked.map((layer) => layer.length))
-  const looseColumnsFor = (mainColumns: number) =>
-    options.looseColumns ??
-    (mainColumns || Math.max(1, Math.round(Math.sqrt((loose.length * aspect * cellH) / cellW))))
+  const looseColumnsFor = (mainColumns: number) => options.looseColumns ?? (mainColumns || Math.max(1, Math.round(Math.sqrt((loose.length * aspect * cellH) / cellW))))
   const shape = (rows: number) => {
     const columns = ranked.reduce((n, layer) => n + Math.max(1, Math.ceil(layer.length / rows)), 0)
     const looseColumns = looseColumnsFor(columns)
@@ -532,8 +521,7 @@ export function layoutGraph(
     return { columns, looseColumns, score: Math.abs(Math.log(width / Math.max(1, height) / aspect)) }
   }
   let rows = longest
-  if (!options.rows)
-    for (let r = 1; r <= longest; r++) if (shape(r).score < shape(rows).score - 1e-9) rows = r
+  if (!options.rows) for (let r = 1; r <= longest; r++) if (shape(r).score < shape(rows).score - 1e-9) rows = r
   if (options.rows) rows = Math.min(longest, options.rows)
   const { columns, looseColumns } = rows ? shape(rows) : { columns: 0, looseColumns: looseColumnsFor(0) }
 
@@ -610,8 +598,16 @@ export function layoutGraph(
         ...edge,
         points:
           sy === ty
-            ? [[source.x + NODE_WIDTH, sy], [target.x, ty]]
-            : [[source.x + NODE_WIDTH, sy], [out, sy], [out, ty], [target.x, ty]],
+            ? [
+                [source.x + NODE_WIDTH, sy],
+                [target.x, ty],
+              ]
+            : [
+                [source.x + NODE_WIDTH, sy],
+                [out, sy],
+                [out, ty],
+                [target.x, ty],
+              ],
       }
     // The row gutter beside the target on the source's side.
     const above = target.y - ROW_GAP / 2
@@ -708,11 +704,7 @@ export function layoutGraph(
     crossings,
     rows,
     width: MARGIN * 2 + used * cellW - COLUMN_GAP,
-    height: Math.max(
-      looseRows ? looseTop + looseRows * cellH - ROW_GAP + MARGIN : 0,
-      graphBottom + MARGIN,
-      MARGIN * 2,
-    ),
+    height: Math.max(looseRows ? looseTop + looseRows * cellH - ROW_GAP + MARGIN : 0, graphBottom + MARGIN, MARGIN * 2),
   }
 }
 
@@ -742,11 +734,13 @@ export function drillGraph(graph: Graph, drill: Drill | null): Graph {
   const pick = (test: (t: GraphTask) => boolean) => new Set(graph.tasks.filter(test).map((t) => t.id))
   if (drill.kind === 'epic') keep = pick((t) => (t.epic ?? null) === drill.id)
   else if (drill.kind === 'plan') keep = pick((t) => (t.planId ?? null) === drill.id)
-  else if (drill.kind === 'phase')
-    keep = pick((t) => (t.planId ?? null) === drill.plan && (t.phase?.id ?? null) === drill.id)
+  else if (drill.kind === 'phase') keep = pick((t) => (t.planId ?? null) === drill.plan && (t.phase?.id ?? null) === drill.id)
   else if (drill.kind === 'spec') keep = pick((t) => (t.planId ?? null) === drill.id)
   else {
-    const { up, down } = lineage(graph.edges.filter((e) => e.blocking), drill.id)
+    const { up, down } = lineage(
+      graph.edges.filter((e) => e.blocking),
+      drill.id,
+    )
     keep = new Set([drill.id, ...up, ...down])
   }
   return {
@@ -787,9 +781,7 @@ export function neighbors(graph: Graph, id: string) {
   const title = new Map(graph.tasks.map((t) => [t.id, t.title]))
   const blocking = graph.edges.filter((e) => e.blocking)
   return {
-    waitsOn: blocking
-      .filter((e) => e.to === id)
-      .map((e) => ({ id: e.from, title: title.get(e.from) ?? e.from, satisfied: e.satisfied, condition: e.condition })),
+    waitsOn: blocking.filter((e) => e.to === id).map((e) => ({ id: e.from, title: title.get(e.from) ?? e.from, satisfied: e.satisfied, condition: e.condition })),
     blocks: blocking.filter((e) => e.from === id).map((e) => ({ id: e.to, title: title.get(e.to) ?? e.to })),
   }
 }
@@ -831,12 +823,7 @@ const sameDrill = (a: Drill | null, b: Drill | null) => (a?.kind ?? null) === (b
 
 // A filter change inside a drill joins the Back stack; at the top level it
 // does not. A run of search-text edits keeps the filter from before the run.
-export function pushFilter(
-  stack: DrillEntry[],
-  leaving: DrillEntry,
-  before: Record<string, unknown>,
-  after: Record<string, unknown>,
-): DrillEntry[] {
+export function pushFilter(stack: DrillEntry[], leaving: DrillEntry, before: Record<string, unknown>, after: Record<string, unknown>): DrillEntry[] {
   if (!leaving.drill) return stack
   const keys = new Set([...Object.keys(before), ...Object.keys(after)])
   const changed = [...keys].filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
@@ -856,8 +843,7 @@ export function drillCrumbs(stack: DrillEntry[], current: Drill | null): { at: n
     .map(({ at, entry }) => ({ at, label: drillLabel(entry.drill) }))
 }
 
-export const drillLabel = (drill: Drill | null) =>
-  !drill ? 'All tasks' : drill.kind === 'focus' ? `Focus: ${drill.title}` : drill.title
+export const drillLabel = (drill: Drill | null) => (!drill ? 'All tasks' : drill.kind === 'focus' ? `Focus: ${drill.title}` : drill.title)
 
 // What each level groups by (Requirement 59.10): All by epic, an epic by
 // plan, a plan by phase. A phase or a Focus chain groups by plan. Each task
@@ -866,8 +852,7 @@ export function groupGraph(graph: Graph, drill: Drill | null): Graph {
   const level = !drill ? 'epic' : drill.kind === 'epic' ? 'plan' : drill.kind === 'plan' ? 'phase' : 'plan'
   const plans = graph.plans ?? []
   const planTitle = new Map(plans.map((p) => [p.id, p.title]))
-  const of = (task: GraphTask): string | null =>
-    level === 'epic' ? (task.epic ?? null) : level === 'plan' ? (task.planId ?? null) : (task.phase?.id ?? null)
+  const of = (task: GraphTask): string | null => (level === 'epic' ? (task.epic ?? null) : level === 'plan' ? (task.planId ?? null) : (task.phase?.id ?? null))
   const groups: { id: string | null; title: string }[] =
     level === 'epic'
       ? graph.epics.map((e) => ({ id: e.id, title: e.title }))
@@ -876,8 +861,7 @@ export function groupGraph(graph: Graph, drill: Drill | null): Graph {
         : (plans.find((p) => p.id === (drill as { id: string | null }).id)?.phases ?? [])
             .filter((phase) => phase.id !== null)
             .map((phase) => ({ id: phase.id, title: phase.title ?? phase.id! }))
-  const titleOf = (task: GraphTask) =>
-    level === 'phase' ? (task.phase?.title ?? null) : level === 'plan' ? (planTitle.get(task.planId ?? '') ?? task.planId ?? null) : null
+  const titleOf = (task: GraphTask) => (level === 'phase' ? (task.phase?.title ?? null) : level === 'plan' ? (planTitle.get(task.planId ?? '') ?? task.planId ?? null) : null)
   for (const task of graph.tasks) {
     const id = of(task)
     if (id !== null && !groups.some((g) => g.id === id)) groups.push({ id, title: titleOf(task) ?? id })

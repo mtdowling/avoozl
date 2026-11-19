@@ -23,7 +23,6 @@ import { PanelCss } from './ui/PageStyles'
 
 export type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'muted'
 
-
 export function PanelStyles() {
   return <PanelCss />
 }
@@ -110,7 +109,16 @@ export function PanelChip(props: { tone?: Tone; tip?: string; href?: string | nu
 // The one thin line at the top: the name ("Avoozl" opens the app page), small
 // icon tools (Refresh, then fold all), and the line's pause button at the far
 // right.
-export function PanelHeader(props: { name: string; instance?: string | null; workspace?: string | null; tip?: string; onName?: () => void; nameTip?: string; tools?: ReactNode; end?: ReactNode }) {
+export function PanelHeader(props: {
+  name: string
+  instance?: string | null
+  workspace?: string | null
+  tip?: string
+  onName?: () => void
+  nameTip?: string
+  tools?: ReactNode
+  end?: ReactNode
+}) {
   const folds = useContext(FoldsContext)
   const label = folds?.allOpen ? 'Collapse all sections' : 'Expand all sections'
   const Icon = folds?.allOpen ? ChevronsDownUp : ChevronsUpDown
@@ -246,7 +254,18 @@ export function PanelRow(props: {
 // A row's action: a link when it has `href`, else a button.
 // `narrowIcon` shows only the icon on a narrow panel; `name` is then its
 // accessible name (and the tooltip says the rest).
-export function PanelAct(props: { label: string; icon?: LucideIcon; href?: string; onClick?: () => void; disabled?: boolean; primary?: boolean; tip?: string; narrowIcon?: boolean; name?: string; [attr: `data-${string}`]: unknown }) {
+export function PanelAct(props: {
+  label: string
+  icon?: LucideIcon
+  href?: string
+  onClick?: () => void
+  disabled?: boolean
+  primary?: boolean
+  tip?: string
+  narrowIcon?: boolean
+  name?: string
+  [attr: `data-${string}`]: unknown
+}) {
   const { label, icon: Icon, href, onClick, disabled, primary, tip, narrowIcon, name, ...rest } = props
   const inner = (
     <>

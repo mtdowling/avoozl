@@ -52,10 +52,8 @@ export function specBuilderProblem(caught: unknown): { message: string; fallback
       message: "Avoozl can't reach Spec Builder yet. Approve Avoozl's new Spec Builder permission in Kiro Crew under Apps › Updates, then try again.",
       fallback: true,
     }
-  if (error?.status === 404)
-    return { message: 'Spec Builder is not installed in this Kiro Crew.', fallback: true }
-  if (code === 'spec_exists' || code === 'spec_files_exist')
-    return { message: `Spec Builder already has a spec with this name. Pick another name. (${text})`, fallback: false }
+  if (error?.status === 404) return { message: 'Spec Builder is not installed in this Kiro Crew.', fallback: true }
+  if (code === 'spec_exists' || code === 'spec_files_exist') return { message: `Spec Builder already has a spec with this name. Pick another name. (${text})`, fallback: false }
   return { message: `Spec Builder refused the spec: ${text || error?.message || 'unknown error'}`, fallback: false }
 }
 

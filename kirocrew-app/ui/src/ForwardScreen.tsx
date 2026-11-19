@@ -78,27 +78,52 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
             {note}
           </Box>
         )}
-        {busy && !review && <Hint as="p" size="sm">Preparing the public change…</Hint>}
+        {busy && !review && (
+          <Hint as="p" size="sm">
+            Preparing the public change…
+          </Hint>
+        )}
         {review && (
           <>
             <Hint as="p" size="sm">
-              This is exactly what is pushed to {review.target.split(':')[0]} as {review.person}, on branch {review.branch}. Nothing is pushed until you press Forward, and only if it still matches.
+              This is exactly what is pushed to {review.target.split(':')[0]} as {review.person}, on branch {review.branch}. Nothing is pushed until you press Forward, and only if
+              it still matches.
             </Hint>
             <section>
-              <Box as="h3" size="sm" weight="medium">Title</Box>
-              <Box as="p" whitespace="pre-wrap" breakWords size="sm" data-forward-title>{review.title}</Box>
+              <Box as="h3" size="sm" weight="medium">
+                Title
+              </Box>
+              <Box as="p" whitespace="pre-wrap" breakWords size="sm" data-forward-title>
+                {review.title}
+              </Box>
             </section>
             <section>
-              <Box as="h3" size="sm" weight="medium">Body</Box>
-              <Box as="pre" whitespace="pre-wrap" breakWords size="sm" data-forward-body>{review.body}</Box>
+              <Box as="h3" size="sm" weight="medium">
+                Body
+              </Box>
+              <Box as="pre" whitespace="pre-wrap" breakWords size="sm" data-forward-body>
+                {review.body}
+              </Box>
             </section>
             <section>
-              <Box as="h3" size="sm" weight="medium">Files ({review.paths.length})</Box>
-              <Box as="ul" size="sm">{review.paths.map((path) => <li key={path}><code>{path}</code></li>)}</Box>
+              <Box as="h3" size="sm" weight="medium">
+                Files ({review.paths.length})
+              </Box>
+              <Box as="ul" size="sm">
+                {review.paths.map((path) => (
+                  <li key={path}>
+                    <code>{path}</code>
+                  </li>
+                ))}
+              </Box>
             </section>
             <section>
-              <Box as="h3" size="sm" weight="medium">Diff</Box>
-              <Box as="pre" css-border-color="border" maxH96 overflow="auto" rounded="base" border="all" p="2" size="xs" data-forward-diff>{review.diff}</Box>
+              <Box as="h3" size="sm" weight="medium">
+                Diff
+              </Box>
+              <Box as="pre" css-border-color="border" maxH96 overflow="auto" rounded="base" border="all" p="2" size="xs" data-forward-diff>
+                {review.diff}
+              </Box>
             </section>
           </>
         )}

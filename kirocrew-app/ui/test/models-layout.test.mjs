@@ -46,7 +46,9 @@ for (const width of [390, 1280]) {
     assert.match(await page.evaluate(`document.querySelector('[data-second-model]').textContent`), /different model than the planner \(fake-writer\)/)
     if (width === 1280) {
       // Harness, model and source sit on one line with the role name.
-      const tops = await page.evaluate(`['[data-model-role="retro"] > div', '[data-field-row="avoozl-harness-retro"]', '[data-field-row="avoozl-model-retro"]'].map((q) => Math.round(document.querySelector(q).getBoundingClientRect().top))`)
+      const tops = await page.evaluate(
+        `['[data-model-role="retro"] > div', '[data-field-row="avoozl-harness-retro"]', '[data-field-row="avoozl-model-retro"]'].map((q) => Math.round(document.querySelector(q).getBoundingClientRect().top))`,
+      )
       assert.ok(Math.abs(tops[0] - tops[1]) < 4 && Math.abs(tops[1] - tops[2]) < 4, tops.join())
     }
     // A harness with no model drops the model and shows why.

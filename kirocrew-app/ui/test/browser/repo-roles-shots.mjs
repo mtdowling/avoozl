@@ -29,9 +29,7 @@ try {
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
   const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
   const menu = (width) =>
-    width >= 768
-      ? 'true'
-      : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
+    width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
   const head = (width) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
   const item = (width, text) =>
@@ -50,7 +48,13 @@ try {
       for (const [name, roles, tab, help] of shots) {
         const size = { width, height: 900, dark: theme === 'dark' }
         const url = harness.url({ page: 'app', radar: '1', theme, roles })
-        const steps = [menu(width), head(width), item(width, tab), ...(tab === 'Repository setup' ? [press('Configure repository setup')] : []), ...(help ? [press('What the roles make')] : [])]
+        const steps = [
+          menu(width),
+          head(width),
+          item(width, tab),
+          ...(tab === 'Repository setup' ? [press('Configure repository setup')] : []),
+          ...(help ? [press('What the roles make')] : []),
+        ]
         await page.open(url, size)
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
         for (const step of steps) {

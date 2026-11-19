@@ -66,17 +66,40 @@ const item = (id, extra = {}) => ({
 
 test('Plans hides archived plans until Show archived', () => {
   const rows = [row('live'), row('old', { archived: { at: '2026-11-12T00:00:00Z', by: 'Owner' } })]
-  assert.deepEqual(filterRows(rows, {}).map((r) => r.name), ['live'])
-  assert.deepEqual(filterRows(rows, { archived: true }).map((r) => r.name), ['live', 'old'])
+  assert.deepEqual(
+    filterRows(rows, {}).map((r) => r.name),
+    ['live'],
+  )
+  assert.deepEqual(
+    filterRows(rows, { archived: true }).map((r) => r.name),
+    ['live', 'old'],
+  )
   assert.equal(planEventLine({ action: 'archived', by: 'Owner' }), 'Archived by Owner')
   assert.match(ARCHIVE_LINES.join(' '), /Unarchive undoes all of it/)
 })
 
 test('Graph and Delivery hide archived tasks unless Show archived or that plan is picked', () => {
-  const graph = { revision: 1, epics: [], statuses: [], repositories: [], total: 2, tasks: [task('a'), task('b', { planArchived: 'p', planId: 'p', state: 'deferred' })], edges: [] }
-  assert.deepEqual(filterGraph(graph, {}).tasks.map((t) => t.id), ['a'])
-  assert.deepEqual(filterGraph(graph, { archived: true }).tasks.map((t) => t.id), ['a', 'b'])
-  assert.deepEqual(filterGraph(graph, { plan: 'plan:p' }).tasks.map((t) => t.id), ['b'])
+  const graph = {
+    revision: 1,
+    epics: [],
+    statuses: [],
+    repositories: [],
+    total: 2,
+    tasks: [task('a'), task('b', { planArchived: 'p', planId: 'p', state: 'deferred' })],
+    edges: [],
+  }
+  assert.deepEqual(
+    filterGraph(graph, {}).tasks.map((t) => t.id),
+    ['a'],
+  )
+  assert.deepEqual(
+    filterGraph(graph, { archived: true }).tasks.map((t) => t.id),
+    ['a', 'b'],
+  )
+  assert.deepEqual(
+    filterGraph(graph, { plan: 'plan:p' }).tasks.map((t) => t.id),
+    ['b'],
+  )
   assert.equal(matches({ ...task('b'), wave: 1, planArchived: 'p' }, {}), false)
   const stored = { getItem: () => JSON.stringify({ archived: true }) }
   assert.deepEqual(readFilter(stored, 'w'), { archived: true })
@@ -89,7 +112,13 @@ test('the Dashboard leaves archived work out of its counts but keeps live chats'
     graph,
     delivery: [item('b', { status: 'running', planArchived: 'p', sessions: [live] })],
     conflicts: [{ kind: 'decision', taskId: 'b', title: 'b', detail: 'x', planArchived: 'p' }],
-    plans: { items: [{ id: 'p', state: 'approved', archivedAt: 't' }, { id: 'q', state: 'approved' }], total: 2 },
+    plans: {
+      items: [
+        { id: 'p', state: 'approved', archivedAt: 't' },
+        { id: 'q', state: 'approved' },
+      ],
+      total: 2,
+    },
   })
   assert.equal(summary.counts.ready, 1)
   assert.equal(summary.attention.length, 0)
@@ -101,7 +130,18 @@ test('a hand-set review is not drawn as reviewing and offers no settle action', 
   const byHand = task('h', { status: 'review', state: 'needs-you', handSetReview: true, nextAction: 'Owner decision: pick.' })
   assert.equal(laneOf(byHand, item('h', { handSetReview: true })), 'needs-you')
   assert.equal(laneOf(task('r', { status: 'review', state: 'running' }), item('r')), 'reviewing')
-  const graph = { revision: 1, epics: [], statuses: [{ id: 'planned', label: 'Planned', complete: false }, { id: 'accepted', label: 'Accepted', complete: true }], repositories: [], total: 1, tasks: [byHand], edges: [] }
+  const graph = {
+    revision: 1,
+    epics: [],
+    statuses: [
+      { id: 'planned', label: 'Planned', complete: false },
+      { id: 'accepted', label: 'Accepted', complete: true },
+    ],
+    repositories: [],
+    total: 1,
+    tasks: [byHand],
+    edges: [],
+  }
   const card = deliveryLanes(graph, [item('h', { handSetReview: true, nextAction: 'Owner decision: pick.' })])['needs-you'][0]
   assert.deepEqual([card.handSetReview, card.nextAction], [true, 'Owner decision: pick.'])
   assert.equal(doneStatus(graph), 'accepted')
@@ -117,9 +157,41 @@ test('a review run shows role, round, models, verdict and its chat', () => {
     item('r', {
       sessions: [
         { slot: 'chat-w', role: 'worker', attempt: 1, title: null, status: 'closed', statusAt: null, boundAt: null },
-        { slot: 'chat-r', role: 'reviewer', attempt: 2, title: null, status: 'running', statusAt: null, boundAt: null, model: 'opus', served: { model: 'opus-5.5', withheld: false, changed: false }, link: '/chat/chat-r' },
+        {
+          slot: 'chat-r',
+          role: 'reviewer',
+          attempt: 2,
+          title: null,
+          status: 'running',
+          statusAt: null,
+          boundAt: null,
+          model: 'opus',
+          served: { model: 'opus-5.5', withheld: false, changed: false },
+          link: '/chat/chat-r',
+        },
       ],
-      rounds: [{ commit: 'c', current: true, verdicts: [{ role: 'reviewer', attempt: 1, outcome: 'rejected', verdict: 'changes-requested', model: 'opus', served: 'opus-5.5', commit: 'c', stale: false, cause: null, slot: 'chat-old', link: '/chat/chat-old', findings: [] }] }],
+      rounds: [
+        {
+          commit: 'c',
+          current: true,
+          verdicts: [
+            {
+              role: 'reviewer',
+              attempt: 1,
+              outcome: 'rejected',
+              verdict: 'changes-requested',
+              model: 'opus',
+              served: 'opus-5.5',
+              commit: 'c',
+              stale: false,
+              cause: null,
+              slot: 'chat-old',
+              link: '/chat/chat-old',
+              findings: [],
+            },
+          ],
+        },
+      ],
     }),
   )
   assert.deepEqual(

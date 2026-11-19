@@ -60,7 +60,9 @@ for (const theme of ['light', 'dark'])
 
 test('the main action is the primary variant at the far right', { skip }, async () => {
   await open('archive-plan', 'Open the dialog')
-  const last = await page.evaluate(`(() => { const all = [...${TOP}.querySelectorAll('[data-modal-footer] button')]; const b = all.at(-1); return { text: b.textContent.trim(), primary: b.hasAttribute('data-primary') || b.dataset.variant === 'primary' } })()`)
+  const last = await page.evaluate(
+    `(() => { const all = [...${TOP}.querySelectorAll('[data-modal-footer] button')]; const b = all.at(-1); return { text: b.textContent.trim(), primary: b.hasAttribute('data-primary') || b.dataset.variant === 'primary' } })()`,
+  )
   assert.equal(last.text, 'Archive spec')
   assert.equal(last.primary, true)
 })
