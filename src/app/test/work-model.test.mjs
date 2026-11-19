@@ -127,14 +127,14 @@ test("task.update writes work-model fields but never authority", async (t) => {
     ops = new Operations(store),
     task = await ops.execute("task.update", {
       id: "sample-task",
-      route: "plugin:remote",
+      route: "github",
       completion: "released",
       repository: "code",
       checks: ["unit"],
     });
   assert.deepEqual(
     [task.route, task.completion, task.repository, task.checks],
-    ["plugin:remote", "released", "code", ["unit"]],
+    ["github", "released", "code", ["unit"]],
   );
   await assert.rejects(
     ops.execute("task.update", { id: "sample-task", authority: "github" }),

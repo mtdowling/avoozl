@@ -126,4 +126,15 @@ export const needsContextItems = [
     openedAt: at(20),
     context: { task: next('search.6', 'Search page'), spec, source: { path: '.kiro/specs/recipe-search/tasks.md', lineStart: 34, lineEnd: 38 }, unblocks: { total: 0, tasks: [] }, links: null },
   },
+  {
+    kind: 'needs-human',
+    reason: 'blocked',
+    id: 'needs-human:search.8:blocked',
+    taskId: 'search.8',
+    authority: 'local',
+    title: 'search.8 is blocked',
+    detail: 'Marked blocked by hand. Nothing starts until you unblock it.',
+    link: null,
+    openedAt: at(600),
+  },
 ]

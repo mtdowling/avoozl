@@ -186,18 +186,13 @@ test("supersede copies edges unless told, picks an ID, and refuses cycles and ta
   assert.ok(ready(ops).includes("c"));
 });
 
-test("supersede is refused for GitHub and plugin tasks", async (t) => {
+test("supersede is refused for GitHub tasks", async (t) => {
   const { ops } = workspace(t, {
     tasks: [
       leaf("gh", { github: { repository: "example/fixture", number: 4 } }),
-      leaf("pl", { authority: "plugin:tracker" }),
     ],
   });
   await refused(ops.execute("task.supersede", { id: "gh", create: {} }));
-  await refused(
-    ops.execute("task.supersede", { id: "pl", create: {} }),
-    /plugin:tracker/,
-  );
   assert.equal(task(ops, "gh").status, "planned");
 });
 
