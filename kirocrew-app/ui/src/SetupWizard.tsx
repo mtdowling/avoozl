@@ -27,6 +27,7 @@ import { TextLink } from './ui/TextLink'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { BADGE_STYLE } from './ui/looks/SetupWizard.ts'
+import { Glyph } from './ui/Glyph'
 
 type Client = ReturnType<typeof settingsClient>
 
@@ -305,7 +306,7 @@ export default function SetupWizard(props: {
       {state.kind === 'checking' && <Hint as="p" size="sm">Checking GitHub…</Hint>}
       {state.kind === 'set-up' && (
         <Box flex flexWrap items="center" gap="2" size="sm">
-          <CircleCheck size={ICON + 2} aria-hidden="true" style={{ color: 'var(--ok)' }} />
+          <Glyph icon={CircleCheck} size={ICON + 2} aria-hidden="true" css-color="ok" />
           <span>GitHub is set up.</span>
           <Tooltip text={new Date(state.at).toLocaleString()}>
             <Hint size="xs">Checked {relativeTime(state.at, Date.now())}</Hint>
@@ -327,7 +328,7 @@ export default function SetupWizard(props: {
       {state.kind === 'error' && (
         <Box flex flexCol gap="1" size="sm" role="alert">
           <Box as="span" inlineFlex items="center" gap="1.5">
-            <X size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} />
+            <Glyph icon={X} size={ICON} aria-hidden="true" css-color="danger" />
             Avoozl can't check GitHub: {state.reason}
           </Box>
           {state.fix && (

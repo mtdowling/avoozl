@@ -45,6 +45,7 @@ import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
 import { BADGE } from './ui/looks/Onboard.ts'
+import { Glyph } from './ui/Glyph'
 
 const MODE_ICONS = { local: Laptop, 'plans-repo': Lock, 'single-repo': GitBranch } as const
 type Change = { target: { value: string } }
@@ -75,7 +76,7 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
 function Done({ children }: { children: ReactNode }) {
   return (
     <Box as="p" flex items="center" gap="1.5" size="sm" data-step-done>
-      <Check size={14} aria-hidden="true" style={{ color: 'var(--ok)' }} />
+      <Glyph icon={Check} size={14} aria-hidden="true" css-color="ok" />
       {children}
     </Box>
   )
@@ -459,7 +460,7 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
       <Box as="ol" flex flexWrap gapX="3" gapY="1" size="xs" aria-label="Steps">
         {steps.map((key, i) => (
           <li key={key} aria-current={key === step ? 'step' : undefined} className={`inline-flex items-center gap-1 ${key === step ? 'font-semibold' : 'text-muted'}`}>
-            {isDone(key) && <Check size={11} aria-label="done" style={{ color: 'var(--ok)' }} />}
+            {isDone(key) && <Glyph icon={Check} size={11} aria-label="done" css-color="ok" />}
             {i + 1}. {ONBOARD_STEPS.find((s) => s.key === key)!.title}
           </li>
         ))}
@@ -479,7 +480,7 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
               <Box as="span" w5 flexNone align="right" tone="muted">{i + 1}.</Box>
               <Box as="span" minW0 flex1>
                 <Box as="span" flex items="center" gap="1.5">
-                  {write.done || setupDone ? <Check size={13} aria-label="done" style={{ color: 'var(--ok)' }} /> : null}
+                  {write.done || setupDone ? <Glyph icon={Check} size={13} aria-label="done" css-color="ok" /> : null}
                   {write.title}
                   {write.confirm && !write.done && !setupDone && <Badge variant="warning">asks first</Badge>}
                 </Box>

@@ -51,7 +51,7 @@ export function PairedCard(props: { title?: ReactNode; label: string; meta?: Rea
   const card: LookProps = { ...(props.tinted ? TINTED : {}), ...(paired ? { 'css-flex': props.width ? `0 0 ${props.width}` : `${props.grow ?? 1} 1 0`, 'css-min-width': props.minWidth ?? 0, 'css-min-height': 0, 'css-display': 'flex', 'css-flex-direction': 'column' } : { 'css-min-width': 0 }) }
   return (
     <Card {...card}>
-      {props.title ? <SectionHeading title={props.title} meta={props.meta} className="mb-2" /> : null}
+      {props.title ? <SectionHeading title={props.title} meta={props.meta} mb="2" /> : null}
       <div
         ref={body}
         data-paired-body

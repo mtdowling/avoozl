@@ -109,3 +109,25 @@ for (const theme of ["light", "dark"])
       ]);
     },
   );
+
+for (const theme of ["light", "dark"])
+  test(
+    `Glyph draws its icon in the tone it names in ${theme}`,
+    { skip },
+    async () => {
+      await page.open(harness.url({ theme }), {
+        width: 600,
+        height: 900,
+        dark: theme === "dark",
+      });
+      await page.until(
+        `Boolean(document.querySelector('[data-part="glyph"] svg'))`,
+      );
+      const glyph = await page.evaluate(
+        `(() => { const svg = document.querySelector('[data-part="glyph"] svg'); return { width: svg.getAttribute('width'), color: getComputedStyle(svg).color, danger: getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() } })()`,
+      );
+      assert.equal(glyph.width, "14");
+      assert.notEqual(glyph.danger, "");
+      assert.ok(glyph.color.startsWith("rgb"));
+    },
+  );
