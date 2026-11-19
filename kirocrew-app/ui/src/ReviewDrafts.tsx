@@ -42,7 +42,7 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
   return (
     <div data-review-drafts>
       <Card css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
-        <SectionHeading title="Review drafts" className="mb-0" />
+        <SectionHeading title="Review drafts" mb="0" />
         <Hint as="p" size="xs">Draft reviews Avoozl made when someone added the review label. Each one waits on GitHub, seen only by that person, until they submit it.</Hint>
         {(value?.searches ?? []).map((search) => (
           <Box key={search.label} data-draft-search css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2" size="sm">

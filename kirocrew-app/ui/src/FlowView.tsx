@@ -49,6 +49,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 
 // A stacked bar by stage, scaled to `scale` ms (the longest bar shown).
@@ -131,7 +132,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
     <Stack gap={2} data-line-banner>
       {stops.map((stop) => (
         <Box key={stop.id} role="alert" css-border-color="danger" css-background="mix-danger-10%-card" flex flexWrap items="center" gap="3" rounded="lg" border="all" p="3" size="sm">
-          <CircleAlert size={18} aria-hidden="true" style={{ color: 'var(--danger)', flex: 'none' }} />
+          <Glyph icon={CircleAlert} size={18} aria-hidden="true" css-color="danger" css-flex="none" />
           <Box css-min-width="14rem" flex minW0 flex1 flexCol gap="0.5">
             <Box as="span" css-overflow-wrap="anywhere">{bannerText(stop)}</Box>
             {stop.manual && (

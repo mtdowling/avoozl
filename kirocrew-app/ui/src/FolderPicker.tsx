@@ -12,6 +12,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 export function FolderField(props: {
   id: string
@@ -104,7 +105,7 @@ export function FolderField(props: {
                   onClick={() => pick(folder.path)}
                   css-background="none" css-border="0" css-color="text" css-cursor="pointer" flex wFull items="center" gap="2" px="2" py="1" align="left" size="sm"
                 >
-                  <Folder size={14} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
+                  <Glyph icon={Folder} size={14} aria-hidden="true" css-color="muted" css-flex-shrink="0" />
                   <Box as="span" minW0 flex1 truncate>{folder.name}</Box>
                   {folder.workspace && <Badge variant="info">Workspace</Badge>}
                 </PlainButton>
