@@ -450,14 +450,21 @@ export const commands = [
         "worker setup",
         "Worker mode: preview login, access, grants and executor",
       ),
+      help(
+        "machine",
+        "worker attempt --grant ID [--json]",
+        "Worker mode: the attempt this machine runs for one grant (read-only)",
+      ),
     ],
-    async run({ positionals, localOrRequest }) {
+    async run({ positionals, options, localOrRequest }) {
       // Worker mode (R90): this machine pulls offers from spec journals.
-      if (!["pull", "accept", "setup"].includes(positionals[0]))
-        throw Error("Use worker pull|accept|setup.");
+      if (!["pull", "accept", "setup", "attempt"].includes(positionals[0]))
+        throw Error("Use worker pull|accept|setup|attempt.");
       console.log(
         JSON.stringify(
-          await localOrRequest(`worker.${positionals[0]}`),
+          positionals[0] === "attempt"
+            ? await localOrRequest("worker.attempt", { grant: options.grant })
+            : await localOrRequest(`worker.${positionals[0]}`),
           null,
           2,
         ),

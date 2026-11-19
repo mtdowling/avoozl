@@ -28,6 +28,11 @@ import {
 } from "../delivery/delivery.mjs";
 import { sessionUrl } from "../tick/notifications.mjs";
 import { processSessionDetails } from "../executors/process-view.mjs";
+import {
+  attemptDestination,
+  grantedTasks,
+  grantView,
+} from "./direct-links.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { taskSourceRefs } from "../../task-identity.mjs";
 import { listSpans, taskFlow } from "../flow/flow.mjs";
@@ -699,8 +704,9 @@ export function reviewRounds(delivery) {
 }
 
 // `config` is the workspace's saved config, which says the executor a
-// batch would run on (batchRules).
-export function deliveryView(store, data, { config } = {}) {
+// batch would run on (batchRules). `destinations` says where a chat opens:
+// {standalone, links} (direct-links D2).
+export function deliveryView(store, data, { config, destinations = {} } = {}) {
   const byTask = (rows) => {
     const map = new Map();
     for (const row of rows) {
@@ -724,6 +730,29 @@ export function deliveryView(store, data, { config } = {}) {
     machineAvoozlPaths(),
   );
   const bindings = byTask(bindingRows),
+    granted = new Map(
+      grantedTasks(store).map((row) => [
+        row.taskId,
+        grantView(row, destinations.links),
+      ]),
+    ),
+    // Worker starts queued but not bound yet.
+    starting = new Set(
+      optionalList(store, "session_requests")
+        .filter(
+          (row) =>
+            row.kind === "start" &&
+            ["pending", "claimed"].includes(row.state) &&
+            (row.request?.role ?? "worker") === "worker" &&
+            !bindingRows.some(
+              (b) =>
+                b?.taskId === row.request?.task &&
+                b.role === "worker" &&
+                (b.attempt ?? 1) === (row.request?.attempt ?? 1),
+            ),
+        )
+        .map((row) => row.request?.task),
+    ),
     evidence = byTask(optionalList(store, "evidence")),
     deliveries = byTask(optionalList(store, "task_deliveries")),
     worktrees = byTask(optionalList(store, "task_worktrees")),
@@ -800,6 +829,9 @@ export function deliveryView(store, data, { config } = {}) {
       !pullRequests.length &&
       !links.length &&
       !task.github?.unlinked &&
+      // A task a worker machine holds the grant for (worker pull).
+      !granted.has(id) &&
+      !starting.has(id) &&
       // A planner-grouped task shows its batch or why it runs alone.
       !task.batch
     )
@@ -860,7 +892,16 @@ export function deliveryView(store, data, { config } = {}) {
             ? { process: processDetails.get(binding.slot) }
             : {}),
         }))
+        .map((session) => ({
+          ...session,
+          // Where this exact attempt opens (direct-links D2).
+          open: attemptDestination(session, destinations),
+        }))
         .sort((a, b) => a.attempt - b.attempt || a.role.localeCompare(b.role)),
+      // A worker start queued and not bound yet: Waiting for worker chat.
+      starting: starting.has(id),
+      // The worker machine holding this task's grant (worker pull).
+      worker: granted.get(id) ?? null,
       evidence: [
         ...links.map((text) => ({ text: String(text) })),
         ...(evidence.get(id) || []).map((record) => ({
@@ -1091,7 +1132,7 @@ export function taskDetailView(
   store,
   data,
   detail,
-  { plan = null, approved = false, config } = {},
+  { plan = null, approved = false, config, destinations } = {},
 ) {
   const id = detail.id,
     graph = graphView(store, data, {}),
@@ -1121,7 +1162,7 @@ export function taskDetailView(
           ...data,
           tasks: data.tasks.filter((task) => task.id === id),
         },
-        { config },
+        { config, destinations },
       ).items[0] || null,
     conflicts = conflictsView(store, data).items.filter(
       (item) => item.taskId === id,

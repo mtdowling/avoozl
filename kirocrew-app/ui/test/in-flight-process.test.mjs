@@ -38,9 +38,11 @@ test('a process row shows its log tail and cost, and Attach copies the command',
   const row = `[...document.querySelectorAll('[data-in-flight-row]')].find((r) => r.querySelector('[data-process-status]'))`
   assert.match(await page.evaluate(`${row}.querySelector('[data-process-status]').textContent`), /claude-code · running · run 2 · \$0\.83/)
   assert.match(await page.evaluate(`${row}.querySelector('[data-process-log]').textContent`), /Writing \.avoozl\/result\.json/)
-  // No chat link for a child; the Kiro Crew reviewer row keeps its Session.
-  assert.equal(await page.evaluate(`${row}.querySelectorAll('a[aria-label^="Session"]').length`), 0)
-  assert.equal(await page.evaluate(`document.querySelectorAll('a[aria-label^="Session"]').length`), 1)
+  // No chat link for a child, which shows View worker log; the Kiro Crew
+  // reviewer row keeps its chat link (direct-links D2).
+  assert.equal(await page.evaluate(`${row}.querySelectorAll('[data-attempt-link]').length`), 0)
+  assert.equal(await page.evaluate(`${row}.querySelectorAll('button[aria-label^="View worker log"]').length`), 1)
+  assert.equal(await page.evaluate(`document.querySelectorAll('[data-attempt-link]').length`), 1)
   await page.evaluate(
     `(() => { window.__copied = null; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t } } }) })()`,
   )

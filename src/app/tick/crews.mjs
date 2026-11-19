@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fail } from "../store/store.mjs";
 import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
+import { validateLinks } from "../api/direct-links.mjs";
 
 const SNAPSHOT = "crews.snapshot";
 
@@ -54,6 +55,16 @@ export function writeMachineFile(file, mutate, expectedHash) {
   fs.writeFileSync(pending, text, { mode: 0o600 });
   fs.renameSync(pending, file);
   return { value, hash: digest(text) };
+}
+
+// Where this machine opens worker chats (`links`, direct-links D2), checked;
+// none when the file holds none or cannot be read.
+export function machineLinks(file = globalAvoozlConfigPath()) {
+  try {
+    return validateLinks(machineFile(file).value.links);
+  } catch {
+    return {};
+  }
 }
 
 // What the app backend (or a test driver) last read from Kiro Crew:

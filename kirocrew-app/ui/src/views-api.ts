@@ -124,6 +124,14 @@ export interface GraphFilter {
   spec?: string
 }
 
+// What a notice's link found (direct-links D3): its item is open (and
+// marked `linked`), closed, or unknown here.
+export interface DecisionTarget {
+  state: 'open' | 'closed' | 'unknown'
+  taskId?: string | null
+  newer?: boolean
+}
+
 // A worker chat on another machine's crew, from a runner over SSH (R84).
 export interface RemoteWorker {
   host: string
@@ -139,6 +147,28 @@ export interface RemoteWorker {
   // The last read of the runner failed; this is its last answer.
   stale: boolean
   lastOkAt: string | null
+}
+
+// The worker machine holding a task's grant (worker pull, R90), on its
+// delivery item. `machine` is the worker's Remote Crew ID when this machine
+// names one (links.workers), else its login (direct-links D2).
+export interface GrantedWorker {
+  taskId: string
+  spec: string | null
+  worker: string
+  grant: string
+  at: string | null
+  machine: string
+}
+
+// Where one attempt opens (direct-links D2): a chat, its log, a crew to
+// connect, or nothing, with the label and the machine it runs on.
+export interface AttemptDestination {
+  action: 'chat' | 'log' | 'connect' | 'none'
+  label: string | null
+  href: string | null
+  machine: string
+  note?: string | null
 }
 
 export interface DeliverySession {
@@ -163,6 +193,8 @@ export interface DeliverySession {
   executor?: string
   // A live `process` session's details from the supervisor (R98.1).
   process?: ProcessDetails
+  // Where this exact attempt opens (direct-links D2); older backends omit it.
+  open?: AttemptDestination
 }
 
 export interface ProcessDetails {
@@ -240,6 +272,10 @@ export interface DeliveryItem extends TaskOwner {
   batchGroup?: DeliveryBatch | null
   alone?: string | null
   sessions: DeliverySession[]
+  // A worker start queued and not bound yet (direct-links DL1.3).
+  starting?: boolean
+  // The worker machine holding this task's grant (worker pull).
+  worker?: GrantedWorker | null
   evidence: {
     id?: string
     kind?: string | null
@@ -303,6 +339,8 @@ export interface ReviewTask extends TaskOwner {
 
 export interface ConflictItem extends TaskOwner {
   context?: ItemContext
+  // The item a notice's link opened (direct-links D3).
+  linked?: boolean
   planReview?: { planId: string; revisionHash: string }
   // A spec pull request adopted into its spec (R107.5).
   specPull?: SpecPull
@@ -434,7 +472,8 @@ export function viewsClient(api: AppApi) {
     supersede: (workspaceId: string, id: string, create: { id?: string; title?: string }) =>
       run<{ superseded: { id: string }; task: { id: string } }>('task.supersede', { id, create }, workspaceId),
     conflicts: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId).then((r) => r.items),
-    conflictsPage: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId),
+    conflictsPage: (workspaceId: string, decision?: string | null) =>
+      run<{ revision: number; items: ConflictItem[]; target?: DecisionTarget }>('conflicts.view', decision ? { decision } : {}, workspaceId),
     // Local tasks only: the backend refuses edits to a github task's row.
     updateTask: (workspaceId: string, id: string, change: Record<string, unknown>, expectedRevision: number) =>
       run<unknown>('task.update', { id, ...change }, workspaceId, expectedRevision),
@@ -491,12 +530,15 @@ export function safeHref(value: unknown): string | null {
 }
 
 // Kiro Crew's own pages and chats: the only relative links the app makes.
-const APP_PATH = /^\/(?:chat\?sid=|apps\/)[^\s\\]*$/
+// A Remote Crew chat is `/chat?crew=…&crewSid=…` (direct-links D2), and the
+// desktop app's registered link opens a local chat.
+const APP_PATH = /^\/(?:chat\?(?:sid|crew)=|apps\/|settings\/instances$)[^\s\\]*$/
+const DESKTOP = /^kirocrew:\/\/chat\?sid=[A-Za-z0-9._:%-]+$/
 
 // Every href in the UI: an http(s) URL (safeHref) or one of Kiro Crew's own
 // pages. Anything else is undefined, so the anchor renders as plain text.
 export function linkHref(value: unknown): string | undefined {
-  if (typeof value === 'string' && APP_PATH.test(value)) return value
+  if (typeof value === 'string' && (APP_PATH.test(value) || DESKTOP.test(value))) return value
   return safeHref(value) ?? undefined
 }
 

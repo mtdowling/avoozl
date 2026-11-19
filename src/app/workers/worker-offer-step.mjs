@@ -20,9 +20,9 @@ import { replayJournal } from "../specs/spec-journal.mjs";
 import { taskDefinition } from "../specs/task-outcomes.mjs";
 import { publishOffer, reserveGrants } from "./worker-grants.mjs";
 import { workerId } from "./worker-offers.mjs";
+import { OFFERED } from "../api/direct-links.mjs";
 
 const run = promisify(execFile);
-const OFFERED = "worker.offered";
 const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 
 // The logins `workers.offerTo` names, checked; throws naming the key.
@@ -130,6 +130,30 @@ export async function workerOffersStep(
     });
     result.acknowledged.push(...(answered.acknowledged ?? []));
     result.declined.push(...(answered.declined ?? []));
+    // The grant each offered task holds now, so In flight can name its
+    // worker and find the exact attempt on it (direct-links D2). A released
+    // or newer grant replaces the old one.
+    const current = [
+      ...state.grants.filter((g) => g.generation === state.generation),
+      ...(answered.acknowledged ?? []).map((a) => ({
+        id: a.record,
+        worker: a.worker,
+        tasks: [{ task: a.task }],
+      })),
+    ];
+    for (const task of Object.keys(offered))
+      if (offered[task].spec === spec) {
+        const grant = current.findLast((g) => g.tasks[0].task === task),
+          before = offered[task].grant;
+        if (grant)
+          offered[task].grant = {
+            id: String(grant.id),
+            worker: grant.worker,
+            at:
+              before?.id === String(grant.id) ? before.at : (grant.at ?? now()),
+          };
+        else delete offered[task].grant;
+      }
   }
   store.setMeta(OFFERED, offered);
   return result;

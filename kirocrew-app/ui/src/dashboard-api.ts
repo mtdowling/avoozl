@@ -14,6 +14,7 @@ import {
   type GraphTask,
   type ProcessDetails,
   type RemoteWorker,
+  type GrantedWorker,
   type TaskLinks,
 } from './views-api.ts'
 import { TONE } from './ui/tones.ts'
@@ -77,6 +78,10 @@ export interface InFlight {
   session: DeliverySession
   // Set for a worker on a runner's crew (R84); Session opens its dashboard.
   remote?: RemoteWorker
+  // Set for a task a worker machine holds the grant for (worker pull).
+  granted?: GrantedWorker
+  // A worker start queued and not bound yet.
+  starting?: boolean
   // The task's branch, pull request and checks (R92.6); null when the
   // backend sent none.
   links: TaskLinks | null
@@ -189,6 +194,48 @@ function remoteRow(worker: RemoteWorker, links: TaskLinks | null): InFlight {
   }
 }
 
+// A task a worker machine holds the grant for, as an In flight row. Its
+// chat lives on that machine, so the row names the machine, not a link.
+function grantedRow(item: DeliveryItem, worker: GrantedWorker, links: TaskLinks | null): InFlight {
+  return {
+    slot: `grant:${worker.grant}`,
+    role: 'worker',
+    focus: null,
+    taskId: item.id,
+    title: item.title,
+    epic: null,
+    attempt: 1,
+    model: null,
+    startedAt: worker.at,
+    lastAt: worker.at,
+    status: null,
+    session: { slot: '', role: 'worker', attempt: 1, title: null, status: null, statusAt: worker.at, boundAt: worker.at, link: null, crew: worker.machine },
+    granted: worker,
+    links,
+  }
+}
+
+// A worker start queued and not bound yet: one row that says Waiting for
+// worker chat until the session binds (direct-links DL1.3).
+function startingRow(item: DeliveryItem, links: TaskLinks | null): InFlight {
+  return {
+    slot: `starting:${item.id}`,
+    role: 'worker',
+    focus: null,
+    taskId: item.id,
+    title: item.title,
+    epic: null,
+    attempt: item.sessions.length + 1,
+    model: null,
+    startedAt: null,
+    lastAt: null,
+    status: 'starting',
+    session: { slot: '', role: 'worker', attempt: item.sessions.length + 1, title: null, status: 'starting', statusAt: null, boundAt: null, link: null },
+    starting: true,
+    links,
+  }
+}
+
 export function summarize(input: {
   graph: Graph | null
   delivery: DeliveryItem[] | null
@@ -278,6 +325,16 @@ export function summarize(input: {
       }),
     )
     .concat((input.remote ?? []).map((worker) => remoteRow(worker, linksOf.get(worker.taskId) ?? null)))
+    .concat(
+      (allDelivery ?? [])
+        .filter((item) => !item.complete && item.worker && !item.sessions.some((s) => !ENDED.has(s.status ?? '')))
+        .map((item) => grantedRow(item, item.worker!, linksOf.get(item.id) ?? null)),
+    )
+    .concat(
+      (allDelivery ?? [])
+        .filter((item) => !item.complete && item.starting && !item.sessions.some((s) => !ENDED.has(s.status ?? '')))
+        .map((item) => startingRow(item, linksOf.get(item.id) ?? null)),
+    )
     .sort((a, b) => (b.lastAt ?? '').localeCompare(a.lastAt ?? ''))
 
   const wave = graph ? waves(graph) : new Map<string, number>()

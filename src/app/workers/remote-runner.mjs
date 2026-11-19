@@ -181,6 +181,7 @@ export function validateEnvelope(value, config) {
 }
 
 const tasksOf = (store) => store.getMeta(TASKS) || {};
+export const runnerTasks = tasksOf;
 export const hasRemoteTask = (store, id) => Boolean(tasksOf(store)[id]);
 export function runnerSessionHold(store, id) {
   const record = tasksOf(store)[id];
@@ -309,6 +310,12 @@ export async function acceptWork(store, workspaceRoot, github) {
     acceptEnvelope(store, workspaceRoot, JSON.stringify(envelope), {
       pulled: true,
     });
+    // The grant this attempt runs under, beside the envelope so its digest
+    // is unchanged: the driver finds the attempt by it (direct-links D2).
+    if (offer.ack != null)
+      update(store, offer.task, {
+        grant: { id: String(offer.ack), spec: offer.spec },
+      });
     forgetRequest(store, offer);
     free -= 1;
     result.started.push({ spec: offer.spec, task: offer.task });

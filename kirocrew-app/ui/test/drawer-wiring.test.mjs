@@ -60,8 +60,10 @@ test('In flight rows have Info and a Session link to their chat', () => {
   assert.match(dashboard, /<IconBtn icon=\{DetailsIcon\} label=\{`Details for \$\{row\.title\}`\} tooltip="Open the task drawer" onClick=\{onInfo\} \/>/)
   // A remote chat attaches only through Kiro Crew's MC-10 (R41.14); a
   // `process` child has no chat, so it has no Session link (R98.1).
-  assert.match(dashboard, /href = processRow \? null : attachHref\(row\.session\)/)
-  assert.match(dashboard, /href=\{linkHref\(href\)\}/)
+  // Each attempt opens its own session through its destination
+  // (direct-links D2); a `process` child shows its log instead.
+  assert.match(dashboard, /<AttemptLink session=\{row\.session\} title=\{row\.title\} \/>/)
+  assert.match(source('WorkerLink.tsx'), /href=\{linkHref\(action\.href\)\}/)
   // Needs you comes first in reading order, In flight beside it.
   assert.ok(dashboard.indexOf('Needs you (') < dashboard.indexOf('In flight ('))
 })

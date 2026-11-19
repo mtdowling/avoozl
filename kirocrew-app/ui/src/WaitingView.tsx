@@ -16,7 +16,14 @@ export type { WaitingSection }
 export const SECTIONS = WAITING_SECTIONS
 
 // The section is picked in the left nav; this page shows only that one.
-export default function WaitingView(props: { workspaceId: string | null; section: WaitingSection; onOpenSources?: () => void }) {
+// `decision` is a notice's link to one decision (direct-links D3).
+export default function WaitingView(props: {
+  workspaceId: string | null
+  section: WaitingSection
+  onOpenSources?: () => void
+  decision?: string | null
+  onLeaveDecision?: () => void
+}) {
   const open = props.section
   const section = SECTIONS.find((s) => s.key === open) ?? SECTIONS[0]
   return (
@@ -28,7 +35,11 @@ export default function WaitingView(props: { workspaceId: string | null; section
         {section.line}
       </Hint>
       <Box minH0 flex1 data-waiting-section={section.key} data-open="true">
-        {open === 'agent' ? <GitHubItemsView workspaceId={props.workspaceId} kind="all" ownerOnly embedded /> : <ConflictsView workspaceId={props.workspaceId} embedded />}
+        {open === 'agent' ? (
+          <GitHubItemsView workspaceId={props.workspaceId} kind="all" ownerOnly embedded />
+        ) : (
+          <ConflictsView workspaceId={props.workspaceId} embedded decision={props.decision ?? null} onLeaveDecision={props.onLeaveDecision} />
+        )}
       </Box>
     </Box>
   )

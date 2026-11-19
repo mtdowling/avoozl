@@ -1,12 +1,13 @@
 import { itemsClient } from './github-items-api.ts'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
 import Badge from './ui/Badge.tsx'
 import { attentionTarget, checkDot, processLine, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
 import { answerLabel, ciHealth, homeTiles, landedRows, stuckRows, QUIET_MS, type CiHealth, type LandedRow, type StuckRow } from './home-api.ts'
-import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
+import { attemptAction, duration, relativeTime, sessionHref } from './task-api.ts'
+import { AttemptLink, GrantedWorker } from './WorkerLink.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem, type LandingView } from './views-api.ts'
@@ -398,12 +399,24 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
   )
 }
 
-export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: number; onInfo: () => void; onSend?: (text: string) => Promise<void> }) {
+export function InFlightRow({
+  row,
+  now,
+  onInfo,
+  onSend,
+  workspaceId = null,
+}: {
+  row: InFlight
+  now: number
+  onInfo: () => void
+  onSend?: (text: string) => Promise<void>
+  workspaceId?: string | null
+}) {
   const [writing, setWriting] = useState(false)
+  const logRef = useRef<HTMLElement | null>(null)
   const child = row.session.executor === 'process' ? (row.session.process ?? null) : null,
     processRow = row.session.executor === 'process',
-    href = processRow ? null : attachHref(row.session),
-    remote = row.session.crew && row.session.crew !== 'local'
+    machine = row.granted ? row.granted.machine : attemptAction(row.session).machine
   return (
     <Box data-in-flight-row as="li" css-border-color="border" flex flexWrap items="start" gap="2" border="t" py="2" firstBorderT0>
       {/* Fixed columns, so every row's title and actions start at the same x. */}
@@ -423,14 +436,15 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
         )}
         {processRow ? (
           <Hint size="xs" block data-process-status>
-            {child ? processLine(child) : 'process · no supervisor record'} · {row.model ?? 'model not named'} · running {duration(row.startedAt, now)}
+            {child ? processLine(child) : 'process · no supervisor record'} · {row.model ?? 'model not named'} · on {machine} · running {duration(row.startedAt, now)}
           </Hint>
         ) : (
           <Hint size="xs" block>
             {row.session.agent ? `${row.session.agent} / ` : ''}
-            {row.model ?? 'model not named'}
-            {remote ? ` · on ${row.session.crew}` : ''} · running {duration(row.startedAt, now)} ·{' '}
-            {row.session.crewUnreachable ? 'crew unreachable' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
+            {row.model ?? 'model not named'} · on {machine}
+            {row.starting ? '' : ` · running ${duration(row.startedAt, now)}`} ·{' '}
+            {row.session.crewUnreachable ? 'crew unreachable' : row.starting ? 'waiting for worker chat' : row.granted ? 'granted' : (row.status ?? 'not observed')}{' '}
+            {relativeTime(row.lastAt, now)}
           </Hint>
         )}
         {row.links && <FlightChips links={row.links} title={row.title} />}
@@ -438,6 +452,9 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
           // column-reverse keeps the newest line in view without a scroll effect.
           <Box
             data-process-log
+            ref={(element: HTMLElement | null) => {
+              logRef.current = element
+            }}
             as="span"
             css-border-color="border"
             css-max-height="7.5em"
@@ -465,26 +482,20 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
           <IconBtn icon={MessageSquare} label={`Send message to the ${row.role} for ${row.title}`} tooltip="Send message" onClick={() => setWriting((open) => !open)} />
         )}
         {processRow ? (
-          child?.attach ? (
-            <CopyAttach command={child.attach} title={row.title} />
-          ) : (
-            <Hint size="xs">No attach command</Hint>
-          )
-        ) : !href ? (
-          <Hint size="xs">Session waits on Kiro Crew</Hint>
+          <>
+            <SmallBtn onClick={() => logRef.current?.focus()} attrs={{ 'aria-label': `View worker log for ${row.title}` }}>
+              View worker log
+            </SmallBtn>
+            {child?.attach ? <CopyAttach command={child.attach} title={row.title} /> : null}
+          </>
+        ) : row.starting ? (
+          <Hint size="xs" data-attempt-waiting>
+            Waiting for worker chat
+          </Hint>
+        ) : row.granted ? (
+          <GrantedWorker worker={row.granted} />
         ) : (
-          <PlainLink
-            href={linkHref(href)}
-            css-display="inline-flex"
-            css-align-items="center"
-            css-gap="4"
-            size="sm"
-            underline
-            aria-label={`Session: the ${row.role} chat for ${row.title}`}
-          >
-            <CirclePlus size={14} aria-hidden="true" />
-            Session
-          </PlainLink>
+          <AttemptLink session={row.session} title={row.title} />
         )}
       </Box>
     </Box>
@@ -583,7 +594,7 @@ export default function DashboardView(props: {
   const ci = ciHealth(flow.value ?? null)
   const ciDays = flow.value?.ci?.repositories[0]?.windowDays
   const landed = landedRows(landing.value ?? null, core?.delivery ?? null)
-  const stuck = stuckRows(summary ?? null, now, (row) => attachHref(row.session))
+  const stuck = stuckRows(summary ?? null, now, (row) => attemptAction(row.session).href)
 
   return (
     <section aria-labelledby="avoozl-dashboard-title" data-home>
@@ -713,6 +724,7 @@ export default function DashboardView(props: {
                       key={row.slot}
                       row={row}
                       now={now}
+                      workspaceId={workspaceId}
                       onInfo={() => drawer.openTask(row.taskId)}
                       onSend={
                         workspaceId && row.session.executor === 'process'

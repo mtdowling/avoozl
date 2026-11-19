@@ -372,7 +372,9 @@ export function machineLoads(items: DeliveryItem[], workers: RemoteWorker[], lan
   const hostsOf = new Map<string, string[]>()
   const running = new Map<string, number>()
   for (const row of rows) {
-    const host = row.remote?.host ?? THIS_MAC
+    // A start not bound yet runs nowhere yet.
+    if (row.starting) continue
+    const host = row.granted?.machine ?? row.remote?.host ?? THIS_MAC
     running.set(host, (running.get(host) ?? 0) + 1)
     const hosts = hostsOf.get(row.taskId) ?? []
     if (!hosts.includes(host)) hosts.push(host)

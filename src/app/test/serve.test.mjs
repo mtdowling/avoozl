@@ -230,6 +230,62 @@ test("the cookie is HttpOnly, SameSite=Strict, Path=/, has no Domain and a port 
   assert.ok(cookie.split(";")[0].split("=")[1].length >= 43);
 });
 
+// direct-links D1: a decision link opened before sign-in is where sign-in
+// lands, and nothing but a checked app page path can be.
+test("sign-in returns to the decision a link asked for, and never off the page", async (t) => {
+  const s = await serve(t);
+  const asked = await s.call(
+    "/apps/avoozl?workspace=main&decision=AbCdEfGhIjKlMnOp&x=1",
+  );
+  assert.equal(asked.status, 401);
+  const next = asked.headers["set-cookie"][0];
+  assert.match(next, new RegExp(`^avoozl_next_${s.port}=`));
+  assert.match(next, /; HttpOnly; SameSite=Lax; Path=\/login; Max-Age=600/);
+  const signed = await s.call(`/login?token=${s.token}`, {
+    headers: { Cookie: next.split(";")[0] },
+  });
+  assert.equal(signed.status, 303);
+  assert.equal(
+    signed.headers.location,
+    "/apps/avoozl?workspace=main&decision=AbCdEfGhIjKlMnOp",
+  );
+  assert.match(
+    signed.headers["set-cookie"][1],
+    /^avoozl_next_\d+=; .*Max-Age=0/,
+  );
+  // A page with no valid decision sets nothing to return to.
+  for (const bad of [
+    "/apps/avoozl",
+    "/apps/avoozl?decision=../../x",
+    "/apps/avoozl?decision=AbCdEfGhIjKl&workspace=Bad!",
+  ]) {
+    const res = await s.call(bad);
+    assert.equal(res.status, 401);
+    assert.equal(res.headers["set-cookie"], undefined, bad);
+  }
+  // A forged cookie that names another site lands on the page itself.
+  const { LinkStore } = await import("../serve/serve-auth.mjs");
+  const links = new LinkStore(s.stateDirectory);
+  for (const forged of [
+    "%2F%2Fevil.example%2F",
+    "https%3A%2F%2Fevil.example%2Fapps%2Favoozl%3Fdecision%3DAbCdEfGhIjKl",
+    "%2Fapps%2Favoozl%2F..%2F..%2Flogout",
+  ]) {
+    const value = links.make(s.clock.now);
+    const res = await s.call(`/login?token=${value}`, {
+      headers: { Cookie: `avoozl_next_${s.port}=${forged}` },
+    });
+    assert.equal(res.status, 303);
+    // Always this page's own path: rebuilt from checked parts, never copied.
+    assert.match(
+      res.headers.location,
+      /^\/apps\/avoozl(\?decision=[A-Za-z0-9_-]+)?$/,
+      forged,
+    );
+  }
+  links.close();
+});
+
 test("without a session a page gets how to sign in and the API gets 401 JSON (SW4.5)", async (t) => {
   const s = await serve(t);
   const page = await s.call("/apps/avoozl");

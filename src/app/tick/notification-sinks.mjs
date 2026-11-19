@@ -94,10 +94,14 @@ export function validateNotifications(value, where = "notifications") {
 }
 
 // The link a notice carries: the standalone page's address when that page
-// is on, else the command that shows the item. Never a Kiro Crew path.
-export const noticeLink = (id, pageUrl = null) =>
+// is on, else the command that shows the item. Never a Kiro Crew path. A
+// decision links to its exact row in Needs you (direct-links D3).
+export const noticeLink = (id, pageUrl = null, decision = null) =>
   pageUrl
-    ? new URL(id ? `?task=${encodeURIComponent(id)}` : "", pageUrl).href
+    ? new URL(
+        decision ? decision : id ? `?task=${encodeURIComponent(id)}` : "",
+        pageUrl,
+      ).href
     : id
       ? `avoozl show ${id}`
       : "avoozl status";
@@ -124,7 +128,11 @@ export function sinkPayload(payload, row, { store = null, pageUrl } = {}) {
     title,
     id,
     at: row?.queuedAt ?? new Date().toISOString(),
-    link: noticeLink(id, pageUrl),
+    link: noticeLink(
+      id,
+      pageUrl,
+      row?.decision ? (row.payload?.url ?? null) : null,
+    ),
   };
 }
 

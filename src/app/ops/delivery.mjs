@@ -34,19 +34,23 @@ import {
   readRunnerConfig,
   reportDone,
   runnerStatus,
+  runnerTasks,
 } from "../workers/remote-runner.mjs";
 import { nextView } from "../workers/runner.mjs";
 import { fail } from "../store/store.mjs";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
 import { previewWorker } from "../workers/worker-setup.mjs";
+import { grantAttempt } from "../api/direct-links.mjs";
+import { machineLinks } from "../tick/crews.mjs";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
   // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
   // shortcut: no machine reports remote workers to a driver now, so the
   // list is always empty. The page's In flight and Delivery still read it;
-  // remove it with their remote rows, which need new screenshots.
+  // remove it with their remote rows, which need new screenshots. A task a
+  // worker machine holds the grant for is on its delivery item instead.
   {
     name: "remote.view",
     class: "observe",
@@ -55,6 +59,25 @@ export const entries = [
     ),
     handler({}) {
       return { workers: [] };
+    },
+  },
+  // Worker side (direct-links D2): which attempt holds one exact grant. Read
+  // by the owner at the worker machine's command line, so only a person's
+  // local command may ask.
+  {
+    name: "worker.attempt",
+    class: "observe",
+    policy: person("Only a person reads a worker's attempts."),
+    handler({ input, context }) {
+      if (context.local !== true || context.caller || context.mcp)
+        fail("Run avoozl worker attempt on the worker machine.", 403);
+      return {
+        attempt: grantAttempt(
+          runnerTasks(this.store),
+          readRunnerConfig(this.workspaceRoot)?.crewId ?? null,
+          input.grant,
+        ),
+      };
     },
   },
 
@@ -338,7 +361,13 @@ export const entries = [
     handler({}) {
       const store = this.store;
       return {
-        ...deliveryView(store, this.read(), { config: this.savedConfig() }),
+        ...deliveryView(store, this.read(), {
+          config: this.savedConfig(),
+          destinations: {
+            standalone: this.kirocrewAbsent,
+            links: machineLinks(),
+          },
+        }),
         // How many chats this Mac runs at once (R88.5); null when delivery is off.
         laneLimit:
           readDeliveryPolicy(this.workspaceRoot).delivery?.concurrency ?? null,

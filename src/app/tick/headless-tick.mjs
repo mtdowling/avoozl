@@ -91,11 +91,18 @@ export async function tickWorkspace(
 }
 
 // This machine's sinks, from `notifications.sinks` in the machine file
-// (NK7.2). A bad value sends nothing and says why.
+// (NK7.2). A bad value sends nothing and says why. With the standalone page
+// on a fixed port, each link opens that page (direct-links D3).
 export function machineSinks(file) {
-  return sinkPushers(
-    validateNotifications(machineFile(file).value.notifications).sinks,
-  );
+  const { value } = machineFile(file),
+    serve = value.serve,
+    pageUrl =
+      serve?.enabled === true && Number.isInteger(serve.port)
+        ? `http://127.0.0.1:${serve.port}/apps/avoozl`
+        : null;
+  return sinkPushers(validateNotifications(value.notifications).sinks, {
+    pageUrl,
+  });
 }
 
 // Every enabled workspace in turn; one failure never stops the rest.

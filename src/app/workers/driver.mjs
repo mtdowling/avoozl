@@ -539,6 +539,7 @@ async function readGitHubDriver(
       if (decision?.state !== "open")
         notify.push({
           channel: "decision",
+          record: "driver:" + plan.id,
           title: `No single driver for ${specName(plan)}`,
           text,
         });

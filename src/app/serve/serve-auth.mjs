@@ -11,6 +11,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { pageTarget } from "../api/direct-links.mjs";
 
 export const LINK_TTL_MS = 10 * 60 * 1000;
 export const IDLE_MS = 12 * 60 * 60 * 1000;
@@ -103,6 +104,7 @@ export class ServeAuth {
     // ends every session, and no cookie hash reaches the disk.
     this.sessions = new Map();
     this.cookieName = `avoozl_session_${port}`;
+    this.nextName = `avoozl_next_${port}`;
     this.origins = new Set([
       `http://127.0.0.1:${port}`,
       `http://localhost:${port}`,
@@ -146,6 +148,28 @@ export class ServeAuth {
   signOut(session) {
     this.sessions.delete(session.id);
     return `${this.cookieName}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
+  }
+
+  // The page a link asked for before sign-in (direct-links D1): only /login
+  // reads it, for as long as a sign-in link lives. Lax, so the top-level
+  // open of the sign-in link carries it. It holds a page path, never a
+  // credential, and is checked again when read.
+  rememberNext(target) {
+    return `${this.nextName}=${encodeURIComponent(target)}; HttpOnly; SameSite=Lax; Path=/login; Max-Age=${LINK_TTL_MS / 1000}`;
+  }
+
+  clearNext() {
+    return `${this.nextName}=; HttpOnly; SameSite=Lax; Path=/login; Max-Age=0`;
+  }
+
+  nextTarget(req) {
+    const value = cookies(req.headers.cookie).get(this.nextName);
+    if (!value) return null;
+    try {
+      return pageTarget(new URL(decodeURIComponent(value), "http://127.0.0.1"));
+    } catch {
+      return null;
+    }
   }
 
   end() {

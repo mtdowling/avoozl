@@ -4,7 +4,7 @@ completion: integrated
 ---
 # Tasks: Direct links to work and decisions
 
-- [ ] dl-1 Open exact decisions from notices [DL2, DL3] (D1, D3)
+- [x] dl-1 Open exact decisions from notices [DL2, DL3] (D1, D3)
   - $done: A notice opens its exact decision in the right workspace in both views. Sign-in and reload preserve the target. Filters cannot silently hide it. A closed decision or a new decision for the same task does not redirect the old link to the new decision.
   - Wire the Needs you route and the existing Avoozl app and standalone notification payloads to the same stable decision target.
 

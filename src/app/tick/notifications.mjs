@@ -10,6 +10,7 @@
 import { createHash } from "node:crypto";
 import { gatewayClient } from "../executors/kirocrew/gateway-client.mjs";
 import { fail } from "../store/store.mjs";
+import { decisionPath, decisionReference } from "../api/direct-links.mjs";
 
 // app.json notifications.channels ids. The Intake tab's channel keeps its
 // first id, `untriaged`, so a person's channel settings carry over; `intake`
@@ -52,6 +53,8 @@ export function notificationPayload(notice) {
 
 // Queue notices for the backend. The same notice twice is one row, so a
 // repeated tick cannot notify twice. Returns the number of new rows.
+// A decision notice records its occurrence (direct-links D3) and links to
+// that exact decision in Needs you instead of the session.
 export function queueNotifications(store, notices, now = Date.now()) {
   if (!notices?.length) return 0;
   const at = new Date(now).toISOString();
@@ -64,10 +67,15 @@ export function queueNotifications(store, notices, now = Date.now()) {
           .digest("hex")
           .slice(0, 32);
       if (store.get("app_notifications", id)) continue;
+      const decision =
+        payload.channel === "decision" ? decisionReference(notice) : null;
+      if (decision)
+        payload.url = decisionPath(store.getMeta("workspaceId"), decision.id);
       store.put("app_notifications", {
         id,
         task: notice.task ?? null,
         slot: notice.slot ?? null,
+        ...(decision ? { decision } : {}),
         payload,
         queuedAt: at,
       });

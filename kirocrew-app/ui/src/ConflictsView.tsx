@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { closedLine } from './decision-link.ts'
 import { PlanReviewDecision } from './PlanReviewDecision.tsx'
 import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
@@ -36,7 +37,7 @@ import { useRead } from './useRead.ts'
 import { Authority } from './Authority.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
-import { DangerBtn, IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './ui/controls.tsx'
+import { DangerBtn, IconBtn, IconLabel, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './ui/controls.tsx'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { usePhone } from './list-detail.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
@@ -629,7 +630,19 @@ function ConflictDetail(props: {
   )
 }
 
-export default function ConflictsView({ workspaceId, embedded }: { workspaceId: string | null; embedded?: boolean }) {
+export default function ConflictsView({
+  workspaceId,
+  embedded,
+  decision = null,
+  onLeaveDecision,
+}: {
+  workspaceId: string | null
+  embedded?: boolean
+  // A notice's link to one decision (direct-links D3): its row is selected,
+  // even when the filters would hide it.
+  decision?: string | null
+  onLeaveDecision?: () => void
+}) {
   const api = useAppApi()
   const client = useMemo(() => viewsClient(api), [api])
   const tasks = useMemo(() => taskClient(api), [api])
@@ -637,10 +650,10 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
   const ask = useConfirm()
   const load = useCallback(
     async (id: string) => {
-      const [page, graph, delivery] = await Promise.all([client.conflictsPage(id), client.graph(id).catch(() => null), client.delivery(id).catch(() => [])])
+      const [page, graph, delivery] = await Promise.all([client.conflictsPage(id, decision), client.graph(id).catch(() => null), client.delivery(id).catch(() => [])])
       return { page, graph, delivery }
     },
-    [client],
+    [client, decision],
   )
   const { value, error, busy, reload } = useRead(workspaceId, load)
   const [filter, setFilter] = useStoredFilter(workspaceId, CONFLICT_STORE)
@@ -659,6 +672,16 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
     setRevision(value?.page.revision ?? 0)
     setSelected(new Set())
   }, [value])
+
+  // A linked decision opens once per link; after that the person moves freely.
+  const target = decision ? (value?.page.target ?? null) : null
+  const linked = decision ? ((items ?? []).find((item) => item.linked) ?? null) : null
+  const openedFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (!decision || !linked || openedFor.current === decision) return
+    openedFor.current = decision
+    setFocus(itemKey(linked))
+  }, [decision, linked])
 
   // Each task's plan, by the spec folder or plan ID graph.view names.
   const plans = useMemo(() => {
@@ -696,9 +719,11 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
   const now = Date.now()
   // Every item the filters keep; the list shows the first pages of them.
   const matching = all.filter((item) => matchesConflict(item, filter, tasksById.get(conflictTaskId(item) ?? ''), now))
+  // A linked item the filters hide is still shown, first, and says so.
+  const hidden = linked && !matching.includes(linked) ? linked : null
   const shown = pages.take('conflicts', matching)
-  // A settled or filtered-out item closes its detail.
-  const current = focus ? (matching.find((item) => itemKey(item) === focus) ?? null) : null
+  // A settled or filtered-out item closes its detail, except the linked one.
+  const current = focus ? (matching.find((item) => itemKey(item) === focus) ?? (hidden && itemKey(hidden) === focus ? hidden : null)) : null
   // Bulk acts on exactly the selected matching items, shown or not.
   const picked = matching.filter((item) => selected.has(itemKey(item)))
   const allShown = shown.length > 0 && shown.every((item) => selected.has(itemKey(item)))
@@ -754,6 +779,18 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
       {message && (
         <Box role={message.ok ? 'status' : 'alert'} as="p" size="sm" tone={message.ok ? 'muted' : 'danger'}>
           {message.text}
+        </Box>
+      )}
+      {target && (
+        <Box flex flexWrap items="center" gap="2" size="sm" data-decision-link={target.state} role="status">
+          <Hint as="span" size="sm">
+            {target.state === 'open' ? 'Opened from a notice.' : closedLine(target)}
+          </Hint>
+          {onLeaveDecision && (
+            <SmallBtn primary={target.state !== 'open'} onClick={onLeaveDecision}>
+              {target.state === 'open' ? 'Show all of Needs you' : 'Open Needs you'}
+            </SmallBtn>
+          )}
         </Box>
       )}
       {!workspaceId ? (
@@ -857,6 +894,23 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                 )}
               </Box>
               <Box as="ul" m0 flex listNone flexCol p="0" data-conflict-list>
+                {hidden && (
+                  <>
+                    <Box as="li" flex flexWrap items="center" gap="2" py="1" size="xs" data-linked-hidden>
+                      <Hint size="xs">Your filters hide this item. It is shown because a link opened it.</Hint>
+                      <SmallBtn onClick={() => setFilter({})}>Clear filters</SmallBtn>
+                    </Box>
+                    <ConflictListRow
+                      key={`linked:${itemKey(hidden)}`}
+                      item={hidden}
+                      focused={focus === itemKey(hidden)}
+                      selectable={false}
+                      selected={false}
+                      onSelect={() => undefined}
+                      onFocus={() => setFocus(itemKey(hidden))}
+                    />
+                  </>
+                )}
                 {shown.map((item) => (
                   <ConflictListRow
                     key={itemKey(item)}
@@ -870,7 +924,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                 ))}
               </Box>
               <ShowMore {...pages.more('conflicts', matching.length)} />
-              {matching.length === 0 && (
+              {matching.length === 0 && !hidden && (
                 <Hint as="p" size="sm">
                   No item matches these filters.
                 </Hint>

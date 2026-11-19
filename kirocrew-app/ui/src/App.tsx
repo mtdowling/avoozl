@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { parseDecisionLink, withoutDecisionLink } from './decision-link.ts'
 import { useAppApi, useNavigate } from './host.ts'
 import { SpecLinkContext } from './spec-link.ts'
 import { specTabLink } from './review-view.ts'
@@ -137,6 +138,10 @@ function AvoozlPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(saved.workspaceId)
   const [list, setList] = useState<WorkspaceList | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // A notice's link to one decision, read once as the page opens; it stays in
+  // the address, so a reload or sign-in opens it again (direct-links D3).
+  const [decisionLink, setDecisionLink] = useState(() => parseDecisionLink(window.location.search))
+  const linkWorkspaceSet = useRef(false)
 
   // The header's catalog. Settings > Workspaces hands over a fresh one after
   // it adds or refreshes, so a new workspace appears here too.
@@ -152,6 +157,15 @@ function AvoozlPage() {
   useEffect(() => {
     writePageState(storage(), { workspaceId })
   }, [workspaceId])
+
+  // The link's workspace, once the catalog confirms it exists. The demo keeps
+  // its own sample.
+  useEffect(() => {
+    if (!decisionLink?.workspace || !list || demo.active || linkWorkspaceSet.current) return
+    linkWorkspaceSet.current = true
+    if (list.items.some((w) => w.id === decisionLink.workspace)) setWorkspaceId(decisionLink.workspace)
+    else setError(`This link is for workspace ${decisionLink.workspace}, which this page does not list.`)
+  }, [decisionLink, list, demo.active])
 
   // Every change of tab or Settings section is a Back step that keeps
   // where the page was (changePage).
@@ -218,8 +232,10 @@ function AvoozlPage() {
 
   // Read once, when the page opens.
   useEffect(() => {
+    // ?decision=D (&workspace=W) opens Needs you on that decision.
+    if (decisionLink) go({ tab: 'waiting', waitingSection: 'decisions', focus: null, drill: null })
     // ?tree=task:<id> or ?graph=frontier opens the Graph there (FocusTree.tsx).
-    if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
+    else if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
     // ?view=review&plan=P and ?plan=P&tab=T open the Specs page on that spec's tab.
     else if (parseReviewLink(window.location.search) || parseSpecTab(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
     // ?github=<tab> opens Settings › GitHub, which opens that tab.
@@ -451,7 +467,22 @@ function AvoozlPage() {
                         }}
                       />
                     ) : tab === 'waiting' ? (
-                      <WaitingView workspaceId={active} section={waitingSection} onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })} />
+                      <WaitingView
+                        workspaceId={active}
+                        section={waitingSection}
+                        onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
+                        decision={decisionLink && !demo.active && (!decisionLink.workspace || decisionLink.workspace === active) ? decisionLink.decision : null}
+                        onLeaveDecision={() => {
+                          setDecisionLink(null)
+                          const base = urlBase(window.location.pathname)
+                          if (base)
+                            try {
+                              hostNavigate(base + withoutDecisionLink(window.location.search))
+                            } catch {
+                              // The address is a convenience; the page has let go.
+                            }
+                        }}
+                      />
                     ) : tab === 'github' ? (
                       githubPage === 'agent' ? (
                         <TriageAgentView workspaceId={active} />

@@ -5,6 +5,7 @@ import type { TaskTimingDetail } from './flow-api.ts'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { ConflictItem, DeliveryItem, DeliverySession } from './views-api.ts'
+import { linkHref } from './views-api.ts'
 
 export interface TaskLink {
   id: string
@@ -476,6 +477,22 @@ export function sessionHref(session: Pick<DeliverySession, 'slot' | 'link'>): st
   if (session.link) return session.link
   const key = session.slot.startsWith('dashboard:') ? session.slot.slice('dashboard:'.length) : session.slot
   return `/chat?sid=${encodeURIComponent(key)}`
+}
+
+// What one attempt's action shows (direct-links D2): the backend's
+// destination for this exact session, or, from an older backend, the chat
+// link Session used. `href` is null when there is nothing to open; `note`
+// then says why or where to go.
+export function attemptAction(session: DeliverySession): { label: string | null; href: string | null; note: string | null; machine: string } {
+  const open = session.open
+  if (open) return { label: open.label, href: linkHref(open.href) ?? null, note: open.note ?? null, machine: open.machine }
+  const href = attachHref(session)
+  return {
+    label: href ? (session.role === 'worker' ? 'Open worker chat' : 'Open chat') : null,
+    href,
+    note: href ? null : 'Session waits on Kiro Crew',
+    machine: session.crew && session.crew !== 'local' ? session.crew : 'this machine',
+  }
 }
 
 // One step of a task's Timeline (src/app/tasks/task-steps.mjs). `at` is a stored

@@ -1371,21 +1371,36 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
     return { id: 'send:1', state: 'queued', slot: input.slot, taskId: 'm3' }
   })
 }
+// A running task of the Meal planner spec, and that spec's graph, for the
+// In flight scenarios (&links=1, &direct=1).
+const meal = (id: string, title: string) => ({
+  ...task(id, 'e1'),
+  title,
+  planId: 'meal-planner',
+  spec: 'meal-planner',
+  repository: 'recipe-box',
+  phase: null,
+  state: 'running',
+  status: 'running',
+})
+const mealPlannerGraph = (tasks: unknown[]) => ({
+  revision: 1,
+  epics: [{ id: 'e1', title: 'Meal planner', count: tasks.length }],
+  plans: [{ id: 'meal-planner', title: 'Meal planner' }],
+  statuses: [
+    { id: 'planned', label: 'Planned', complete: false },
+    { id: 'done', label: 'Done', complete: true },
+  ],
+  repositories: ['recipe-box'],
+  total: tasks.length,
+  tasks,
+  edges: [],
+})
 // &links=1: Home's In flight with PR and branch chips (task 44.4): checks
 // pass, running, fail and stale, a long branch name, and a row with a branch
 // but no pull request. Repositories and numbers are made up.
 if (query.get('page') === 'app' && query.get('links') === '1') {
   const at = new Date(Date.now() - 9 * 60000).toISOString()
-  const t = (id: string, title: string) => ({
-    ...task(id, 'e1'),
-    title,
-    planId: 'meal-planner',
-    spec: 'meal-planner',
-    repository: 'recipe-box',
-    phase: null,
-    state: 'running',
-    status: 'running',
-  })
   const rows: [string, string, string, string, number | null, string | null][] = [
     ['m3', 'Sync pantry items between devices', 'worker', 'avoozl/meal-planner/m3-sync-pantry-items-between-devices', 412, 'pass'],
     ['s1', 'Index recipes by ingredient', 'reviewer', 'avoozl/s1', 415, 'pending'],
@@ -1393,19 +1408,7 @@ if (query.get('page') === 'app' && query.get('links') === '1') {
     ['s4', 'Keep the shopping list in sync', 'worker', 'avoozl/s4-list-sync', 420, 'stale'],
     ['s5', 'Add a print view for one recipe', 'worker', 'avoozl/s5-print-view', null, null],
   ]
-  answer('graph.view', () => ({
-    revision: 1,
-    epics: [{ id: 'e1', title: 'Meal planner', count: rows.length }],
-    plans: [{ id: 'meal-planner', title: 'Meal planner' }],
-    statuses: [
-      { id: 'planned', label: 'Planned', complete: false },
-      { id: 'done', label: 'Done', complete: true },
-    ],
-    repositories: ['recipe-box'],
-    total: rows.length,
-    tasks: rows.map(([id, title]) => t(id, title)),
-    edges: [],
-  }))
+  answer('graph.view', () => mealPlannerGraph(rows.map(([id, title]) => meal(id, title))))
   const repo = 'https://github.com/acme/recipe-box'
   answer('delivery.view', () => ({
     revision: 1,
@@ -1455,6 +1458,116 @@ if (query.get('page') === 'app' && query.get('links') === '1') {
     })),
     contentReports: [],
   }))
+}
+// ?page=app&direct=1: direct links (spec direct-links). In flight holds a
+// local chat, a Remote Crew chat, a crew that does not answer, a `process`
+// worker's log, a start not bound yet and a task a worker machine holds the
+// grant for. Needs you answers a notice's link: &decision=LinkedDecision01
+// opens task m3's decision; any other ID is closed. &hide=1 saves a filter
+// that hides it. Names and numbers are made up.
+if (query.get('page') === 'app' && query.get('direct') === '1') {
+  const at = new Date(Date.now() - 12 * 60000).toISOString()
+  const rows: [string, string][] = [
+    ['m3', 'Sync pantry items between devices'],
+    ['s1', 'Index recipes by ingredient'],
+    ['s3', 'Show prep time on each card'],
+    ['s4', 'Keep the shopping list in sync'],
+    ['s5', 'Add a print view for one recipe'],
+    ['s6', 'Cache the pantry index'],
+  ]
+  answer('graph.view', () => mealPlannerGraph(rows.map(([id, title]) => meal(id, title))))
+  const chat = (slot: string, extra = {}) => ({
+    slot,
+    role: 'worker',
+    attempt: 1,
+    title: null,
+    status: 'working',
+    statusAt: at,
+    boundAt: at,
+    agent: 'kirocrew-worker',
+    model: 'claude-sonnet',
+    crew: 'local',
+    executor: 'kirocrew',
+    link: `/chat?sid=${slot}`,
+    open: { action: 'chat', label: 'Open worker chat', href: `/chat?sid=${slot}`, machine: 'this machine' },
+    ...extra,
+  })
+  const item = (id: string, sessions: unknown[], extra = {}) => ({
+    id,
+    title: rows.find((row) => row[0] === id)![1],
+    status: 'running',
+    complete: false,
+    repository: 'recipe-box',
+    authority: 'local',
+    evidence: [],
+    integration: null,
+    pullRequests: [],
+    deliveries: [{ state: 'running', updatedAt: at }],
+    worktrees: [],
+    issue: null,
+    sessions,
+    ...extra,
+  })
+  answer('delivery.view', () => ({
+    revision: 1,
+    items: [
+      item('m3', [
+        chat('avoozl_m3_1', { attempt: 1, status: 'closed', open: { action: 'chat', label: 'Open ended worker chat', href: '/chat?sid=avoozl_m3_1', machine: 'this machine' } }),
+        chat('avoozl_m3_2', { attempt: 2 }),
+      ]),
+      item('s1', [
+        chat('avoozl_s1', {
+          crew: 'dev-desktop',
+          link: null,
+          open: { action: 'chat', label: 'Open worker chat', href: '/chat?crew=dev-desktop&crewSid=avoozl_s1', machine: 'dev-desktop' },
+        }),
+      ]),
+      item('s3', [
+        chat('avoozl_s3', {
+          crew: 'build-box',
+          link: null,
+          crewUnreachable: true,
+          open: {
+            action: 'connect',
+            label: 'Connect build-box',
+            href: '/settings/instances',
+            machine: 'build-box',
+            note: 'build-box does not answer. Connect it in Kiro Crew Settings › Instances.',
+          },
+        }),
+      ]),
+      item('s4', [
+        chat('proc-s4', {
+          executor: 'process',
+          link: null,
+          process: { harness: 'claude-code', state: 'running', exitCode: null, run: 1, logTail: 'Reading src/sync.ts\nRunning npm test', cost: 0.42, attach: null },
+          open: { action: 'log', label: 'View worker log', href: null, machine: 'this machine' },
+        }),
+      ]),
+      item('s5', [], { starting: true }),
+      item('s6', [], { worker: { taskId: 's6', spec: 'meal-planner', worker: 'alice', grant: '4021', at, machine: 'dev-desktop' } }),
+    ],
+    contentReports: [],
+  }))
+  const decision = (taskId: string, title: string, extra = {}) => ({
+    kind: 'decision',
+    taskId,
+    title,
+    detail: 'Pick the sync conflict rule.',
+    authority: 'local',
+    openedAt: at,
+    ...extra,
+  })
+  answer('conflicts.view', (body) => {
+    const asked = (body.input as { decision?: string } | undefined)?.decision
+    const linked = asked === 'LinkedDecision01'
+    return {
+      revision: 1,
+      items: [decision('m3', 'Sync pantry items between devices', linked ? { linked: true } : {}), decision('s1', 'Index recipes by ingredient')],
+      ...(asked ? { target: linked ? { state: 'open' } : { state: 'closed', taskId: 'm3', newer: true } } : {}),
+    }
+  })
+  if (query.get('hide') === '1') localStorage.setItem('avoozl.conflict-filters.w', JSON.stringify({ q: 'Index' }))
 }
 // ?page=app&basic=1: the Dashboard on a quiet workspace with nothing in flight.
 if (query.get('basic') === '1') {

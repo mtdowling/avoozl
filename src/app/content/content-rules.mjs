@@ -1176,6 +1176,7 @@ export function enforce(
       notify.push({
         channel: "decision",
         ...(taskId ? { task: taskId } : {}),
+        record: id,
         title: `Content rule ${first.set} blocked a write`,
         text: `${findings.map(findingText).join("; ")} (${input.boundary}). Nothing was written.`,
         resume:
@@ -1198,6 +1199,7 @@ export function enforce(
       });
       notify.push({
         channel: "decision",
+        record: id,
         title: `Content rule set ${missing.set} is unavailable`,
         text: `Avoozl writes nothing the set covers until it is available again: ${missing.reason}.`,
         resume:

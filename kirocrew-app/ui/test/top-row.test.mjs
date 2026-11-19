@@ -210,10 +210,10 @@ test('an In flight title opens the task drawer, and Back closes it and returns f
     return { tag: b.tagName, text: b.textContent, underline: getComputedStyle(b).textDecorationLine }
   })()`)
   assert.deepEqual(link, { tag: 'BUTTON', text: 'Task a1', underline: 'underline' })
-  // Session and Info stay on the row.
+  // The chat link and Info stay on the row.
   assert.ok(
     await page.evaluate(
-      `Boolean(document.querySelector('a[aria-label="Session: the worker chat for Task a1"]') && document.querySelector('button[aria-label="Details for Task a1"]'))`,
+      `Boolean(document.querySelector('a[aria-label^="Open worker chat: the worker for Task a1"]') && document.querySelector('button[aria-label="Details for Task a1"]'))`,
     ),
   )
   await page.evaluate(`(() => { const b = document.querySelector('[data-task-title="a1"]'); b.focus(); b.click(); return true })()`)

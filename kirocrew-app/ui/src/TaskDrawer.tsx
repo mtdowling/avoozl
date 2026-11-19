@@ -6,10 +6,10 @@ import Badge from './ui/Badge.tsx'
 import { TaskDrawerContext, useTaskDrawer, type TaskDrawerApi } from './drawer-context.ts'
 import { modelLabel, safeHref, viewsClient, canSupersede, type ConflictItem, type DeliveryItem, type Graph } from './views-api.ts'
 import {
+  attemptAction,
   duration,
   linkParts,
   relativeTime,
-  sessionHref,
   sourceExcerpt,
   sourceLine,
   taskClient,
@@ -49,6 +49,7 @@ import { ManualTask, TaskLinks } from './TaskNotes.tsx'
 import { ReviewTaskContext, SpecLink } from './NeedsYouContext.tsx'
 import { TaskScmLinks } from './TaskScmLinks.tsx'
 import { TaskSteps } from './TaskSteps.tsx'
+import { AttemptLink } from './WorkerLink.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
@@ -616,15 +617,24 @@ function TaskPanel(props: {
                   <Box as="ul" flex flexCol gap="1" size="sm">
                     {delivery.sessions.map((session) => (
                       <li key={session.slot}>
-                        <TextLink href={linkHref(sessionHref(session))}>
-                          {session.role} attempt {session.attempt}
-                        </TextLink>{' '}
+                        {session.role} attempt {session.attempt} <AttemptLink session={session} title={task.title ?? task.id} />{' '}
                         <Hint size="xs">
-                          {session.status ?? 'not observed'} · {modelLabel(session) ?? 'model not named'} · started {relativeTime(session.boundAt)}
+                          {session.status ?? 'not observed'} · on {attemptAction(session).machine} · {modelLabel(session) ?? 'model not named'} · started{' '}
+                          {relativeTime(session.boundAt)}
                           {session.statusAt ? ` · last activity ${relativeTime(session.statusAt)}` : ''}
                         </Hint>
                       </li>
                     ))}
+                  </Box>
+                )}
+                {delivery.starting && (
+                  <Hint as="p" size="sm" data-attempt-waiting>
+                    Waiting for worker chat
+                  </Hint>
+                )}
+                {delivery.worker && (
+                  <Box as="p" flex flexWrap items="center" gap="1.5" size="sm" data-granted-worker>
+                    Worker {delivery.worker.worker} holds the grant · on {delivery.worker.machine}. Its chat is on that machine.
                   </Box>
                 )}
                 {deliveryState === 'decision' && (

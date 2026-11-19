@@ -30,6 +30,8 @@ import { describeWorkspace } from "../api/client.mjs";
 import { settleConflicts } from "../delivery/conflict-actions.mjs";
 import { startNow } from "../delivery/delivery.mjs";
 import { diskNeedsYou } from "../workspace/disk-space.mjs";
+import { resolveDecision } from "../api/direct-links.mjs";
+import { machineLinks } from "../tick/crews.mjs";
 import { taskEvidence } from "../tasks/evidence.mjs";
 import { fixToSpec, startFix } from "../intake/fix.mjs";
 import { lineBanner } from "../flow/flow-line.mjs";
@@ -428,7 +430,7 @@ export const entries = [
     name: "conflicts.view",
     class: "observe",
     policy: routed,
-    handler({}) {
+    handler({ input }) {
       const store = this.store;
 
       const data = this.read(),
@@ -470,6 +472,17 @@ export const entries = [
         ),
       );
       addItemContext(store, data, view.items);
+      // A notice's link (direct-links D3): which item it names, marked so the
+      // page opens it even when filters would hide it. Reads only.
+      if (input?.decision !== undefined) {
+        const { item, ...target } = resolveDecision(
+          store.list("app_notifications"),
+          view.items,
+          String(input.decision),
+        );
+        if (item) item.linked = true;
+        view.target = target;
+      }
       return view;
     },
   },
@@ -562,6 +575,10 @@ export const entries = [
         plan: plan && !plan.deletedAt ? plan : null,
         approved: Boolean(plan && this.planApproved(plan)),
         config: this.savedConfig(),
+        destinations: {
+          standalone: this.kirocrewAbsent,
+          links: machineLinks(),
+        },
       });
       return {
         ...view,

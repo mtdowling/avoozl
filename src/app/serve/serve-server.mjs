@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { commandContext, dispatchCommand } from "../api/command-dispatch.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { pageTarget } from "../api/direct-links.mjs";
 import {
   LINK_REFUSAL,
   LinkStore,
@@ -185,12 +186,14 @@ export async function startServe({
           }),
           LINK_REFUSAL,
         );
+      // The page a link asked for before sign-in, checked again here
+      // (direct-links D1); else the page itself.
       return reply(
         res,
         303,
         headers({
-          Location: APP_PATH,
-          "Set-Cookie": cookie,
+          Location: auth.nextTarget(req) ?? APP_PATH,
+          "Set-Cookie": [cookie, auth.clearNext()],
           "Cache-Control": "no-store",
         }),
       );
@@ -200,6 +203,8 @@ export async function startServe({
     if (who.status) {
       const page =
         req.method === "GET" && !url.pathname.startsWith(`${APP_PATH}/api/`);
+      // A decision link opened before sign-in is kept for /login to return to.
+      const next = page && who.status === 401 ? pageTarget(url) : null;
       return page
         ? reply(
             res,
@@ -207,6 +212,7 @@ export async function startServe({
             headers({
               "Content-Type": "text/plain; charset=utf-8",
               "Cache-Control": "no-store",
+              ...(next ? { "Set-Cookie": auth.rememberNext(next) } : {}),
             }),
             who.message === SIGN_IN_PAGE ? SIGN_IN_PAGE : who.message,
           )
