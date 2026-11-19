@@ -4,7 +4,7 @@ Delivery is how an approved task becomes landed code: a worker writes it, Avoozl
 checks it, and Avoozl lands it. Avoozl calls delivery Autopilot in the app.
 
 ```sh
-node cli.mjs repository configure code --workspace ~/plans \
+avoozl repository configure code --workspace ~/plans \
   --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"],"diff":["git","diff","--check"]}}'
 ```
 
@@ -26,8 +26,8 @@ A task lands only from the workspace that drives its spec. With no GitHub,
 make this workspace the driver once per approved spec:
 
 ```sh
-node cli.mjs spec publish NAME --workspace ~/plans
-node cli.mjs spec takeover NAME --workspace ~/plans
+avoozl spec publish NAME --workspace ~/plans
+avoozl spec takeover NAME --workspace ~/plans
 ```
 
 See [Drivers](drivers.md) for how a spec's driver is chosen.

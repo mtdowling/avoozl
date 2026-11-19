@@ -9,6 +9,7 @@
     "build:kirocrew-app": "node scripts/build-kirocrew-app.mjs",
     "build:agents": "node src/app/executors/kirocrew/build-agents.mjs",
     "check:agents": "node src/app/executors/kirocrew/build-agents.mjs --check",
+    "postinstall": "node src/app/link-global.mjs",
     "prepack": "npm run build",
     "pretest": "node scripts/check-no-images.mjs && npm run check:agents && npm run build",
     "workspace": "node cli.mjs",
