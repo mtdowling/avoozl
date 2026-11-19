@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { bannerText, barSegments, duration, metricCards, pdcaText, proposalText, toFlowForm, toFlowSection } from '../src/flow-api.ts'
+import { bannerText, barSegments, duration, metricCards, pdcaText, proposalText, stopRows, toFlowForm, toFlowSection } from '../src/flow-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const empty = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
@@ -166,4 +166,32 @@ test('charts and usage use theme colors and no yellow', async () => {
   assert.equal(usageText({ input: 12000, output: 800, credits: 0, turns: 3 }), '12k in · 800 out')
   assert.equal(usageText({ input: 0, output: 0, credits: 1.5, turns: 1 }), '1.50 credits')
   assert.match(source('flow-api.ts'), /Not available:/)
+})
+
+test('Flow lists every line stop, pulled and automatic, newest first, with its time to fix (R64.11)', () => {
+  const rows = stopRows([
+    { id: 'a', manual: false, check: 'npm test', branch: 'main', projectId: 'r1', openedAt: '2026-11-19T04:17:00Z', closedAt: '2026-11-19T04:20:00Z', timeToFixMs: 180_000 },
+    { id: 'p', manual: true, by: { kind: 'agent', name: 'session:s1' }, reason: 'broken base', scope: 'repo', projectId: 'r2', openedAt: '2026-11-19T04:01:00Z', closedAt: null },
+    {
+      id: 'q',
+      manual: true,
+      by: { kind: 'person', name: 'Owner' },
+      reason: 'bad base',
+      scope: 'task',
+      taskId: 't1',
+      openedAt: '2026-11-19T04:30:00Z',
+      closedAt: '2026-11-19T04:50:00Z',
+      timeToFixMs: 20 * 60_000,
+    },
+  ])
+  assert.deepEqual(
+    rows.map((r) => [r.id, r.kind, r.what, r.who, r.fix]),
+    [
+      ['q', 'Pulled', 'bad base (task t1 and its dependents)', 'Owner', '20 m'],
+      ['a', 'Automatic', '\`npm test\` failed on main', null, '3 m'],
+      ['p', 'Pulled', 'broken base (repository r2)', 'session:s1', 'open'],
+    ],
+  )
+  const flow = source('FlowView.tsx')
+  assert.match(flow, /<LineStops stops=\{view\.stops\} \/>/)
 })
