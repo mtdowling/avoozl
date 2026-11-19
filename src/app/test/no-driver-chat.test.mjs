@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { MODEL_ROLES } from "../chat-models.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 
 const read = (file) =>
   fs.readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");

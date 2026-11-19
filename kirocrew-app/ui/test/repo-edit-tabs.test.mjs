@@ -138,7 +138,7 @@ test('the Mirror tab offers Set up mirror, and names the public repository for t
 test('saving from any tab saves every tab', { skip }, async () => {
   await openEdit('recipe-box')
   await tab('github')
-  await type('[data-repository-edit] input[id$="-cache"]', '120')
+  await type('[data-repository-edit] input[id$="-actors"]', 'sam')
   await tab('landing')
   await type('[data-repository-edit] input[id$="-base"]', 'trunk')
   await settle()
@@ -150,6 +150,6 @@ test('saving from any tab saves every tab', { skip }, async () => {
   const write = await page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'github.settings.update').at(-1)?.input`)
   const entry = write.github.repositories['acme/recipe-box']
   assert.equal(entry.baseBranch, 'trunk')
-  assert.equal(entry.cacheSeconds, 120)
+  assert.deepEqual(entry.allowedActors, ['sam'])
   assert.deepEqual(page.errors, [])
 })

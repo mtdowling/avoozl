@@ -1,17 +1,12 @@
 // The Proposals operations (design §4.18, Requirement 68): what the Flow
 // tab's Proposals view reads, and the person-only acts on prompt overrides.
-// Operations routes each name here; every write is a person's, and
+// The entries below are registered with the other operations; every write is a person's, and
 // sessions, MCP, the app token and plugins get 403.
 import { fail } from "./store.mjs";
 import { listOr } from "./flow.mjs";
 import { currentPrompts, overridesFile, retroMemory } from "./retro-memory.mjs";
 import { rebasePrompt, revertPrompt, shippedPrompts } from "./prompts.mjs";
-
-export const RETRO_READS = new Set(["flow.proposals"]);
-export const RETRO_WRITES = new Set([
-  "prompt.override.revert",
-  "prompt.override.rebase",
-]);
+import { notOnMcp, person } from "./operation-policy.mjs";
 
 const memory = (store) => {
   const m = retroMemory(store);
@@ -62,29 +57,15 @@ function proposalsView(store) {
   };
 }
 
-export async function retroOperation(
-  store,
-  name,
-  input = {},
-  context = {},
-  { by = "dashboard", now = Date.now() } = {},
-) {
-  if (name === "flow.proposals") return proposalsView(store);
-  const m = memory(store);
-  if (
-    RETRO_WRITES.has(name) &&
-    (context.caller || context.mcp || context.plugin)
-  )
-    fail("Only a person changes prompt overrides, in the Avoozl page.", 403);
-  const at = new Date(now).toISOString();
-  if (name === "prompt.override.revert")
-    return revertPrompt(
+const overrides = {
+  "prompt.override.revert": (store, input, m, by, at) =>
+    revertPrompt(
       overridesFile(store),
       { target: input.target, by, at },
       m.shipped || shippedPrompts(),
-    );
-  if (name === "prompt.override.rebase")
-    return rebasePrompt(
+    ),
+  "prompt.override.rebase": (store, input, m, by, at) =>
+    rebasePrompt(
       overridesFile(store),
       {
         target: input.target,
@@ -94,6 +75,37 @@ export async function retroOperation(
         at,
       },
       m.shipped || shippedPrompts(),
-    );
-  fail("Unknown operation " + name, 404);
+    ),
+};
+
+function overrideHandler({ name, input, context }) {
+  const m = memory(this.store);
+  if (context.caller || context.mcp || context.plugin)
+    fail("Only a person changes prompt overrides, in the Avoozl page.", 403);
+  return overrides[name](
+    this.store,
+    input,
+    m,
+    context.local ? "cli" : this.operator || "dashboard",
+    new Date().toISOString(),
+  );
 }
+
+export const entries = [
+  {
+    name: "flow.proposals",
+    class: "observe",
+    policy: notOnMcp(
+      "The Flow tab's Proposals view; proposals are a person's to decide.",
+    ),
+    handler() {
+      return proposalsView(this.store);
+    },
+  },
+  ...Object.keys(overrides).map((name) => ({
+    name,
+    class: "execute",
+    policy: person("Only a person changes prompt overrides."),
+    handler: overrideHandler,
+  })),
+];

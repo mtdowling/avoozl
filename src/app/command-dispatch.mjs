@@ -10,7 +10,7 @@ import { Store } from "./store.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
-import { classifyOperation } from "./operation-kinds.mjs";
+import { classifyOperation } from "./operation-table.mjs";
 import { workspaceConfig } from "./config.mjs";
 import { machineAvoozlPaths, WorkspaceRegistry } from "./host-config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";

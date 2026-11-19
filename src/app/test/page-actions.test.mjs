@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { principalAllows } from "../app-backend.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 

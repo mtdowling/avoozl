@@ -17,7 +17,7 @@ import {
   tickSnapshot,
 } from "../activity-log.mjs";
 import { groupedCall } from "../mcp-tools.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
