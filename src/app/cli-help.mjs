@@ -95,11 +95,11 @@ export const HELP_GROUPS = Object.freeze([
         "Stop, restart, or remove a plugin; its tasks park as needs you",
       ),
       entry(
-        "plugins pack-preview ID [--repo OWNER/REPO]",
+        "plugins pack-preview ID [--github OWNER/REPO]",
         "What importing a plugin's pack would create, change, or keep",
       ),
       entry(
-        "plugins pack-import ID --preview HASH [--repo OWNER/REPO] [--accept-lowered] [--confirm-public]",
+        "plugins pack-import ID --preview HASH [--github OWNER/REPO] [--accept-lowered] [--confirm-public]",
         "Import the exact preview",
       ),
       entry("skill --workspace PATH", "Print the portable workflow skill"),

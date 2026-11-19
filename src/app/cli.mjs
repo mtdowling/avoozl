@@ -603,7 +603,9 @@ try {
           "plugin.pack.preview",
           {
             id,
-            ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+            ...(options.github
+              ? { repositories: [options.github].flat() }
+              : {}),
           },
         ],
         "pack-import": () => [
@@ -611,7 +613,9 @@ try {
           {
             id,
             previewHash: options.preview,
-            ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+            ...(options.github
+              ? { repositories: [options.github].flat() }
+              : {}),
             acceptLowered: Boolean(options["accept-lowered"]),
             confirmPublic: Boolean(options["confirm-public"]),
           },
