@@ -12,6 +12,7 @@ import { NAV_PILL } from './nav-style.ts'
 import Badge from './ui/Badge.tsx'
 import { Box } from './ui/Box'
 import { NavStyle } from './ui/PageStyles'
+import { TONE } from './ui/tones.ts'
 
 export interface NavChild {
   key: string
@@ -36,9 +37,9 @@ export interface NavGroup {
 const CARD = {
   position: 'relative',
   overflow: 'hidden',
-  border: '1px solid var(--border)',
+  border: TONE.hairline,
   borderRadius: 16,
-  background: 'var(--bg-elevated)',
+  background: TONE.bgElevated,
   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
   flexShrink: 0,
 } as const

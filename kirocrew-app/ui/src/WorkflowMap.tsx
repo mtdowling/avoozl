@@ -13,6 +13,7 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 export const WORKFLOW_BLURB = 'How work flows through this repository, read from its saved settings. A value in a card opens the field that sets it.'
 
@@ -65,10 +66,10 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
     <li
       className="flex min-w-0 flex-col gap-1 rounded border p-2 text-sm"
       style={{
-        borderColor: 'var(--border)',
+        borderColor: TONE.border,
         borderInlineStartColor: WHO_COLOR[card.who],
         borderInlineStartWidth: 4,
-        background: 'var(--card, transparent)',
+        background: TONE.cardTransparent,
         opacity: muted ? 0.65 : 1,
         flex: '1 1 11rem',
         maxWidth: '16rem',

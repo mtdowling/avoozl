@@ -54,6 +54,7 @@ import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { LaneStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput, PlainLink, SvgRoot } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -204,7 +205,7 @@ function LaneCardView(props: {
 export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
   const still = useMedia('(prefers-reduced-motion: reduce)')
   const label = phase === 'running' ? 'Running: a worker is coding' : 'Reviewing: a reviewer or checks chat is reading'
-  const color = phase === 'running' ? 'var(--tile-purple, var(--accent))' : 'var(--accent)'
+  const color = phase === 'running' ? TONE.purpleOrAccent : TONE.accent
   return (
     <SvgRoot width={18} height={18} viewBox="0 0 24 24" role="img" aria-label={label} css-flex="none" css-margin-top="2" css-color={color}>
       <title>{label}</title>
@@ -302,7 +303,7 @@ export function DeliveryBoard(props: {
               key={lane.id}
               aria-label={`${lane.label}: ${cards.length}`}
               className={`flex min-w-0 flex-col gap-2 rounded-lg border ${compact ? 'py-2' : 'py-3'}`}
-              style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', ['--lane-line' as string]: laneBackground(lane.tint) }}
+              style={{ background: TONE.bg, borderColor: TONE.border, color: TONE.text, ['--lane-line' as string]: laneBackground(lane.tint) }}
             >
               <PlainButton
                 type="button"

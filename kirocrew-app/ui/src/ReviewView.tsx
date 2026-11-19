@@ -47,6 +47,7 @@ import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { REVIEW_ACCENT, ReviewCss } from './ui/PageStyles'
 import { PlainButton, PlainTextarea } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
@@ -166,8 +167,8 @@ function FindingCard(props: {
         border: `1.5px solid ${SEVERITY_COLOR[finding.severity]}`,
         borderRadius: 12,
         padding: '10px 12px',
-        background: 'var(--card, var(--bg))',
-        color: 'var(--text)',
+        background: TONE.cardBg,
+        color: TONE.text,
         overflowWrap: 'anywhere',
         boxSizing: 'border-box',
       }}

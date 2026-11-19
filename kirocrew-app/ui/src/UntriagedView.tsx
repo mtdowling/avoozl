@@ -72,15 +72,16 @@ import { TextLink } from './ui/TextLink'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 const ROW: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }
 const LINK_BUTTON: CSSProperties = {
   ...ROW,
   padding: '4px 6px',
-  border: '1px solid var(--border)',
+  border: TONE.hairline,
   borderRadius: 6,
-  color: 'var(--text)',
-  background: 'var(--card, transparent)',
+  color: TONE.text,
+  background: TONE.cardTransparent,
 }
 
 // A link styled as the page's icon button. Kiro Crew pages open in the
@@ -127,7 +128,7 @@ function PullState({ item }: { item: UntriagedItem }) {
     <Box as="span" inlineFlex flexWrap items="center" gap="1.5" size="xs">
       {item.draft && <Badge>draft</Badge>}
       {checks && (
-        <Box as="span" css-color={checks === 'passing' ? 'var(--ok)' : checks === 'failing' ? 'var(--danger)' : 'var(--muted)'} inlineFlex items="center" gap="1">
+        <Box as="span" css-color={checks === 'passing' ? TONE.ok : checks === 'failing' ? TONE.danger : TONE.muted} inlineFlex items="center" gap="1">
           {checks === 'passing' ? <Check size={12} aria-hidden="true" /> : checks === 'failing' ? <X size={12} aria-hidden="true" /> : null}
           {CHECK_TEXT[checks]}
         </Box>

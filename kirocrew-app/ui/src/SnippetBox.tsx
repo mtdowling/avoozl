@@ -6,6 +6,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight } from './icons.ts'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 export function SnippetBox(props: {
   title: ReactNode
@@ -25,7 +26,7 @@ export function SnippetBox(props: {
     props.onToggle?.(!open)
   }
   return (
-    <div className="rounded border text-xs" style={{ borderColor: 'var(--border)' }} data-snippet data-open={open ? 'true' : 'false'} {...(props.attr ? { [props.attr]: '' } : {})}>
+    <div className="rounded border text-xs" style={{ borderColor: TONE.border }} data-snippet data-open={open ? 'true' : 'false'} {...(props.attr ? { [props.attr]: '' } : {})}>
       <Box flex flexWrap items="center" gap="2" px="2" py="1">
         <PlainButton
           type="button"

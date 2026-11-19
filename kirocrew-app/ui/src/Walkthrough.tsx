@@ -13,6 +13,7 @@ import { Box } from './ui/Box'
 import { WalkStyle } from './ui/PageStyles'
 import { PlainButton } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
+import { TONE } from './ui/tones.ts'
 
 export interface WalkStep {
   title: string
@@ -122,9 +123,9 @@ export function Flow(props: { boxes: string[]; on?: number; note?: string }) {
             <span
               className="rounded-md px-2 py-1 text-xs font-medium"
               style={{
-                border: `${i === props.on ? 2 : 1}px solid ${i === props.on ? 'var(--accent)' : 'var(--border)'}`,
-                background: i === props.on ? 'color-mix(in srgb, var(--accent) 12%, var(--card))' : 'var(--card)',
-                color: 'var(--text)',
+                border: `${i === props.on ? 2 : 1}px solid ${i === props.on ? TONE.accent : TONE.border}`,
+                background: i === props.on ? TONE.mixAccent12pctCard : TONE.card,
+                color: TONE.text,
               }}
             >
               {box}

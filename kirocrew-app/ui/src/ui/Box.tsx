@@ -72,6 +72,7 @@ export type BoxTag =
   | 'caption'
   | 'figcaption'
   | 'hr'
+  | 'form'
 
 export type BoxProps = Omit<HTMLAttributes<HTMLElement>, 'className' | 'style'> &
   Pick<TdHTMLAttributes<HTMLElement>, 'colSpan' | 'rowSpan' | 'scope'> & { htmlFor?: string; open?: boolean; children?: ReactNode; as?: BoxTag } & { [K in Flags]?: boolean } & {

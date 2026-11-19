@@ -54,6 +54,7 @@ import { TreeStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput, SvgG, SvgPath, SvgRect, SvgRoot, SvgText } from './ui/Plain'
 import { COLOR } from './ui/looks/FocusTree.ts'
 import { StatusDot } from './ui/StatusDot'
+import { TONE } from './ui/tones.ts'
 
 const STATE_WORD = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
 const CARD = { w: 204, h: 52 }
@@ -280,8 +281,9 @@ export default function GraphPage(props: {
         <Box ml="auto" flex items="center" gap="1.5">
           <NavArrow label="Back" icon="back" disabled={trail.at <= 0} onClick={back} />
           <NavArrow label="Forward" icon="forward" disabled={trail.at >= trail.list.length - 1} onClick={forward} />
-          <form
-            className="contents"
+          <Box
+            as="form"
+            contents
             onSubmit={(event) => {
               event.preventDefault()
               onJump()
@@ -311,7 +313,7 @@ export default function GraphPage(props: {
               size="11"
               mdW52
             />
-          </form>
+          </Box>
           <datalist id="avoozl-graph-jump-list">
             {options.map((o) => (
               <option key={o.value} value={o.value}>
@@ -644,8 +646,8 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
         className="overflow-auto rounded border"
         // overflow inline too: panning needs a real scroll box, host CSS or not.
         style={{
-          borderColor: 'var(--border)',
-          background: 'var(--bg)',
+          borderColor: TONE.border,
+          background: TONE.bg,
           overflow: 'auto',
           maxHeight: phone ? undefined : '70vh',
           cursor: pan.panning ? 'grabbing' : 'grab',
@@ -706,7 +708,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       <Box as="span" flex items="baseline" gap="2">
                         <Box
                           as="span"
-                          css-color={faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state]}
+                          css-color={faded ? TONE.mutedStrongMuted : COLOR[node.state]}
                           css-text-decoration={faded ? 'line-through' : undefined}
                           size="12"
                           weight="bold"
@@ -776,7 +778,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
             </defs>
             {layout.edges.map((edge) => {
               const target = nodes.find((n) => n.id === edge.to)
-              const color = edge.satisfied ? 'var(--muted-strong, var(--muted))' : COLOR[target?.state ?? 'waiting']
+              const color = edge.satisfied ? TONE.mutedStrongMuted : COLOR[target?.state ?? 'waiting']
               return (
                 <SvgPath
                   key={`${edge.from}->${edge.to}`}
@@ -828,14 +830,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       css-fill="card"
                       css-stroke={isRoot ? 'accent' : 'border-strong-border'}
                     />
-                    <SvgText
-                      x={11}
-                      y={20}
-                      fontSize={13}
-                      fontWeight={700}
-                      textDecoration={faded ? 'line-through' : undefined}
-                      css-fill={faded ? 'var(--muted-strong, var(--muted))' : color}
-                    >
+                    <SvgText x={11} y={20} fontSize={13} fontWeight={700} textDecoration={faded ? 'line-through' : undefined} css-fill={faded ? TONE.mutedStrongMuted : color}>
                       {clip(node.id, 18)}
                     </SvgText>
                     <SvgText x={CARD.w - 30} y={20} fontSize={10.5} letterSpacing=".1em" textAnchor="end" css-fill={color}>

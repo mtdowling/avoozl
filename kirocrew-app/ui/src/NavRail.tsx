@@ -10,6 +10,7 @@ import { Box } from './ui/Box'
 import { RailCss } from './ui/PageStyles'
 import { PlainButton, PlainInput } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
+import { TONE } from './ui/tones.ts'
 
 export function RailStyle() {
   return <RailCss />
@@ -78,7 +79,7 @@ export function RailSortList<K extends string>(props: { fields: RailSort<K>[]; s
             trail={
               on ? (
                 <>
-                  <Dir size={14} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--accent)' }} />
+                  <Dir size={14} aria-hidden="true" style={{ flexShrink: 0, color: TONE.accent }} />
                   <Box as="span" srOnly>
                     {props.dir === 'asc' ? ', ascending' : ', descending'}
                   </Box>
