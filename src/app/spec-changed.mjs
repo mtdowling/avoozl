@@ -91,7 +91,7 @@ export function planSpecChange({ name, before, after, issues = new Map() }) {
   });
 }
 
-export const changeComment = (row) =>
+const changeComment = (row) =>
   `Spec changed: task ${row.taskId} ${PAST[row.change]}. This issue is not edited while it is claimed or shared. See the spec diff.`;
 
 // Write the changes. Refused until the spec is approved again. `project()`

@@ -10,8 +10,8 @@ import { check } from "./content-rules.mjs";
 export const GATE_RECORDS = "gate_records";
 // Minutes between reads: the first read, then these gaps; the last repeats.
 export const BACKOFF_MINUTES = Object.freeze([1, 2, 5, 15, 30]);
-export const GATE_TIMEOUT_MS = 30_000;
-export const WITHHELD = "withheld by content rules";
+const GATE_TIMEOUT_MS = 30_000;
+const WITHHELD = "withheld by content rules";
 
 const DONE = new Set(["done", "order"]);
 

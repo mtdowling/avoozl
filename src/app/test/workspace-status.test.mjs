@@ -80,7 +80,6 @@ test("status reports a named workspace that this machine has not registered", ()
     tasksByStatus: { planned: 1 },
     documents: 0,
     plans: 0,
-    runsByState: {},
   });
   // The machine view is still there, beside the workspace.
   assert.deepEqual(status.workspaces, []);

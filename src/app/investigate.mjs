@@ -26,14 +26,14 @@ import { addEvidence } from "./evidence.mjs";
 
 export const TABLE = "task_investigations";
 export const CONFIDENCE = Object.freeze(["low", "medium", "high"]);
-export const INVESTIGATE_MODES = Object.freeze(["all", "not-small", "off"]);
-export const INVESTIGATE_DEFAULTS = Object.freeze({
+const INVESTIGATE_MODES = Object.freeze(["all", "not-small", "off"]);
+const INVESTIGATE_DEFAULTS = Object.freeze({
   mode: "not-small",
   minConfidence: "high",
   agent: "avoozl-falsifier",
 });
-export const FALSIFIER_VERDICTS = Object.freeze(["stands", "refuted"]);
-export const INVESTIGATION_ACTIONS = Object.freeze(["go", "again", "stop"]);
+const FALSIFIER_VERDICTS = Object.freeze(["stands", "refuted"]);
+const INVESTIGATION_ACTIONS = Object.freeze(["go", "again", "stop"]);
 const MIN_CONFIDENCE = new Set(["medium", "high"]);
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
@@ -73,7 +73,7 @@ export function investigateSettings(value, where = "delivery.investigate") {
 }
 
 // The settings that apply to one repository: its own over the workspace's.
-export function investigatePolicy(policy, repository) {
+function investigatePolicy(policy, repository) {
   return {
     ...INVESTIGATE_DEFAULTS,
     ...(policy?.investigate || {}),
@@ -210,7 +210,7 @@ export function investigateLines(
   ];
 }
 
-export function getInvestigation(store, taskId) {
+function getInvestigation(store, taskId) {
   try {
     return store.get(TABLE, taskId);
   } catch {
@@ -381,7 +381,7 @@ function current(row, bindings) {
 // read-only job: find evidence that they are wrong.
 // With `cliReport` ({token, workspace}) a chat reports by command line and
 // needs no MCP sharing; without it, by plans_report.
-export function falsifierBrief(task, project, round, cliReport = null) {
+function falsifierBrief(task, project, round, cliReport = null) {
   const verdict = `{"verdict": "stands" | "refuted", "evidence": "<what you found, with paths>", "confidence": "low" | "medium" | "high"}`,
     where = cliReport?.workspace
       ? ` --workspace ${JSON.stringify(cliReport.workspace)}`
@@ -616,7 +616,7 @@ function headOf(folder) {
 
 // The falsifier session opened for a round: the newest one bound since
 // its findings came in, or null.
-export function falsifierFor(
+function falsifierFor(
   store,
   taskId,
   round,

@@ -22,7 +22,7 @@ import { needsKirocrewStep } from "./needs-kirocrew.mjs";
 
 // The enabled workspace roots in the machine catalog, synced from the
 // machine config first so a hand edit counts.
-export function catalogTickRoots({ stateDirectory, configDirectory }) {
+function catalogTickRoots({ stateDirectory, configDirectory }) {
   const registry = new WorkspaceRegistry({
     configPath: path.join(path.resolve(configDirectory), "config.json"),
     catalogPath: path.join(path.resolve(stateDirectory), "catalog.sqlite"),

@@ -64,7 +64,7 @@ export function readDocument(root, relative) {
       .filter((href) => !href.startsWith("..")),
   };
 }
-export function catalogTask(document, block) {
+function catalogTask(document, block) {
   const id = "plan-" + digest(document.id + "#" + block.key).slice(0, 18);
   return {
     id,

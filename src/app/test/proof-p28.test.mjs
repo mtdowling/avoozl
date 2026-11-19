@@ -540,7 +540,6 @@ test(
       "task_worktrees",
       "integration",
       "evidence",
-      "runs",
     ];
     const records =
       JSON.stringify(tables.map((name) => store.list(name))) +

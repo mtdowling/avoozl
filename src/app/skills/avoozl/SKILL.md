@@ -151,8 +151,7 @@ For operation arguments, task-block examples, validation/integration, models and
 MCP exposes the same workflow through tools including `plans_query`,
 `plans_task {action: "update"}`, `plans_get_plan`, `plans_review {action: "extract"}`,
 `plans_review {action: "extraction"}`, `plans_submit_extraction`, `plans_review {action: "dispose_fact"}`,
-`plans_approve_plan`, `plans_task {action: "handoff"}`, `plans_run {action: "get"}`, `plans_task {action: "validate"}`
-and `plans_task {action: "integrate"}`. Inspect `tools/list` for each tool's current input
+`plans_approve_plan`, `plans_task {action: "handoff"}`, and `plans_task {action: "integrate"}`. Inspect `tools/list` for each tool's current input
 schema. Approval and integration remain subject to the user's authorization.
 
 To refresh an installed copy, print the maintained skill with `{{CLI}} skill` and replace the installed `SKILL.md` with that output.

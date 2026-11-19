@@ -109,17 +109,9 @@ test("authorized assigned issues become exact ready tasks and body changes quara
     at: "2026-11-10T12:30:00Z",
   };
   store.commit(withExecution, "Record linked code");
-  store.put("runs", {
-    id: "run-linked",
-    taskId: task.id,
-    provider: "openhands",
-    state: "running",
-    branch: "avoozl/run-linked",
-    worktree: "/tmp/worktrees/run-linked",
-  });
   const detail = await ops.execute("task.get", { id: task.id });
-  assert.equal(detail.executionLocation.branch, "avoozl/run-linked");
-  assert.equal(detail.executionLocation.worktree, "/tmp/worktrees/run-linked");
+  assert.equal(detail.executionLocation.branch, "main");
+  assert.equal(detail.executionLocation.worktree, null);
   assert.equal(
     detail.codeChanges.commits[0].url,
     "https://example.test/example/code/commit/abcdef0123456789",

@@ -57,13 +57,14 @@ function reviewWorkspace(t, planReviewOptions = {}) {
       plugins: null,
       planReviewOptions,
     });
-  store.put("runs", {
+  store.put("session_bindings", {
     id: "fake-drafting-run",
+    slot: "fake-drafting-run",
     taskId: "plan:reader",
-    state: "done",
-    actualModel: "fake-writer",
+    status: "done",
+    served: { model: "fake-writer" },
   });
-  recordPlanReviewWriter(store, plan, { runId: "fake-drafting-run" });
+  recordPlanReviewWriter(store, plan, { slot: "fake-drafting-run" });
   return { root, store, plan, ops };
 }
 

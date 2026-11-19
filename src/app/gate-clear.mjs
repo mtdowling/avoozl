@@ -10,12 +10,7 @@ import { isGate } from "../work-model.mjs";
 import { fail } from "./store.mjs";
 
 const STRANGERS = "gateStrangers";
-export const CLEAR_ROUTES = Object.freeze([
-  "label",
-  "command",
-  "mcp",
-  "control",
-]);
+const CLEAR_ROUTES = Object.freeze(["label", "command", "mcp", "control"]);
 
 // The same allowed-actor or minimum-permission check the trigger labels use.
 export async function allowedToClear(github, policy, repository, login) {

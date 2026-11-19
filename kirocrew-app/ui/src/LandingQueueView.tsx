@@ -17,8 +17,8 @@ import { baseTitle, batchTime, holdVariant, holdWord, itemCount, itemLinks, land
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
+import { DOT } from './ui/looks/LandingQueueView.ts'
 
-const DOT: Record<string, string> = { pass: 'var(--ok)', fail: 'var(--danger)', pending: 'var(--warn, var(--accent))', stale: 'var(--muted)' }
 const DOT_TEXT: Record<string, string> = { pass: 'Checks passed', fail: 'Checks failed', pending: 'Checks running', stale: 'Checks are for an older head' }
 
 function CheckDot(props: { checks: LandingItem['checks'] }) {
@@ -152,7 +152,7 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
         value.bases.map((base) => (
           <Card key={base.key}>
             <div data-landing-base={base.key}>
-              <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} className="mb-1" />
+              <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} mb="1" />
               <MergeBatches base={base} now={now} />
               {base.size && <SectionHeading level={4} title={`Waiting (${base.items.length})`} />}
               <Box as="ul" flex wFull flexCol>

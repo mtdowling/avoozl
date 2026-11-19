@@ -82,11 +82,6 @@ export function projectItemRecords(store) {
   );
 }
 
-// The last sync outcome, for Settings: {status, reason, fix, problems}.
-export function projectSyncStatus(store) {
-  return store.get("receipts", SYNC);
-}
-
 const optionName = (option) =>
   option?.name?.raw ?? option?.name ?? option?.title?.raw ?? option?.title;
 

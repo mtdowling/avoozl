@@ -315,12 +315,12 @@
       "warning-c90": "var(--warning, #c90)"
     },
     "border-radius": {
-      "10": 10,
-      "12": 12,
       "3": 3,
       "4": 4,
       "6": 6,
       "8": 8,
+      "10": 10,
+      "12": 12,
       "999": 999
     },
     "border-style": {
@@ -372,10 +372,10 @@
       "warning-text": "var(--warning, var(--text))"
     },
     "column-gap": {
+      "8": 8,
       "12": 12,
       "16": 16,
-      "24": 24,
-      "8": 8
+      "24": 24
     },
     "contain": {
       "inline-size": "inline-size"
@@ -394,6 +394,7 @@
       "inline-flex": "inline-flex"
     },
     "flex": {
+      "1": 1,
       "0-0-11rem": "0 0 11rem",
       "0-0-7.5rem": "0 0 7.5rem",
       "0-0-88px": "0 0 88px",
@@ -401,7 +402,6 @@
       "0-0-9rem": "0 0 9rem",
       "0-0-auto": "0 0 auto",
       "0-1-auto": "0 1 auto",
-      "1": 1,
       "1-1-0%": "1 1 0%",
       "1-1-12rem": "1 1 12rem",
       "1-1-160px": "1 1 160px",
@@ -434,20 +434,20 @@
     "font-family": {
       "font-mono-ui-monospace-monospace": "var(--font-mono, ui-monospace, monospace)",
       "inherit": "inherit",
-      "mono-ui-monospace-SFMono-Regular-Menlo-monospace": "var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
       "mono-ui-monospace-monospace": "var(--mono, ui-monospace, monospace)",
+      "mono-ui-monospace-SFMono-Regular-Menlo-monospace": "var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
       "ui-monospace-SFMono-Regular-Menlo-monospace": "ui-monospace, SFMono-Regular, Menlo, monospace"
     },
     "font-size": {
-      "0.75rem": "0.75rem",
-      "1.25rem": "1.25rem",
       "11": 11,
       "12": 12,
-      "12.5": 12.5,
       "13": 13,
       "14": 14,
       "20": 20,
-      "27": 27
+      "27": 27,
+      "0.75rem": "0.75rem",
+      "1.25rem": "1.25rem",
+      "12.5": 12.5
     },
     "font-variant-numeric": {
       "tabular-nums": "tabular-nums"
@@ -459,18 +459,18 @@
       "700": 700
     },
     "gap": {
-      "0-12px": "0 12px",
-      "0.75rem": "0.75rem",
       "1": 1,
-      "12": 12,
       "2": 2,
-      "20": 20,
-      "2px-8px": "2px 8px",
       "3": 3,
       "4": 4,
-      "4px-12px": "4px 12px",
       "6": 6,
-      "8": 8
+      "8": 8,
+      "12": 12,
+      "20": 20,
+      "0-12px": "0 12px",
+      "0.75rem": "0.75rem",
+      "2px-8px": "2px 8px",
+      "4px-12px": "4px 12px"
     },
     "grid-column": {
       "1-1": "1 / -1"
@@ -499,14 +499,14 @@
     },
     "height": {
       "1": 1,
-      "100%": "100%",
-      "12": 12,
-      "220": 220,
-      "24": 24,
-      "28": 28,
       "8": 8,
       "9": 9,
-      "90": 90
+      "12": 12,
+      "24": 24,
+      "28": 28,
+      "90": 90,
+      "220": 220,
+      "100%": "100%"
     },
     "justify-content": {
       "center": "center",
@@ -517,12 +517,12 @@
       "0": 0
     },
     "letter-spacing": {
+      "0": 0,
       ".04em": ".04em",
       ".08em": ".08em",
       ".1em": ".1em",
       ".24em": ".24em",
       ".26em": ".26em",
-      "0": 0,
       "0.05em": "0.05em"
     },
     "line-height": {
@@ -546,33 +546,35 @@
       "4px-0-12px": "4px 0 12px"
     },
     "margin-bottom": {
+      "8": 8,
       "12": 12,
-      "14": 14,
-      "8": 8
+      "14": 14
     },
     "margin-left": {
       "0": 0,
-      "12": 12,
       "2": 2,
       "4": 4,
       "8": 8,
+      "12": 12,
       "auto": "auto"
     },
     "margin-right": {
       "auto": "auto"
     },
     "margin-top": {
+      "1": 1,
       "2": 2,
       "3": 3,
       "auto": "auto"
     },
     "max-height": {
-      "16rem": "16rem",
       "200": 200,
       "260": 260,
+      "16rem": "16rem",
       "7.5em": "7.5em"
     },
     "max-width": {
+      "820": 820,
       "100%": "100%",
       "13rem": "13rem",
       "14rem": "14rem",
@@ -584,41 +586,40 @@
       "44rem": "44rem",
       "75ch": "75ch",
       "80ch": "80ch",
-      "820": 820,
       "8rem": "8rem",
       "calc-100vw-16px": "calc(100vw - 16px)",
       "min-28rem-60vw": "min(28rem, 60vw)"
     },
     "min-height": {
       "0": 0,
-      "3.5em": "3.5em",
       "32": 32,
-      "34": 34
+      "34": 34,
+      "3.5em": "3.5em"
     },
     "min-width": {
       "0": 0,
-      "10rem": "10rem",
+      "18": 18,
+      "36": 36,
       "112": 112,
+      "160": 160,
+      "200": 200,
+      "10rem": "10rem",
       "12rem": "12rem",
       "14rem": "14rem",
-      "160": 160,
       "16rem": "16rem",
-      "18": 18,
       "18rem": "18rem",
-      "200": 200,
       "30rem": "30rem",
-      "36": 36,
       "8rem": "8rem"
     },
     "opacity": {
       "0": 0,
+      "1": 1,
       "0.4": 0.4,
       "0.5": 0.5,
       "0.6": 0.6,
       "0.7": 0.7,
       "0.8": 0.8,
-      "0.9": 0.9,
-      "1": 1
+      "0.9": 0.9
     },
     "outline": {
       "none": "none"
@@ -642,37 +643,37 @@
     },
     "padding": {
       "0": 0,
+      "2": 2,
+      "4": 4,
+      "6": 6,
+      "8": 8,
+      "12": 12,
       "0-10px": "0 10px",
       "0-12px": "0 12px",
       "0-4px": "0 4px",
       "0-6px": "0 6px",
       "0-8px": "0 8px",
       "10px-0": "10px 0",
-      "12": 12,
       "12px-0": "12px 0",
       "12px-14px": "12px 14px",
       "1px-8px": "1px 8px",
-      "2": 2,
       "2px-0": "2px 0",
       "2px-12px-2px-0": "2px 12px 2px 0",
       "2px-12px-8px": "2px 12px 8px",
       "2px-4px": "2px 4px",
       "3px-4px": "3px 4px",
       "3px-6px": "3px 6px",
-      "4": 4,
       "4px-10px": "4px 10px",
       "4px-4px": "4px 4px",
       "4px-4px-4px-8px": "4px 4px 4px 8px",
       "4px-6px": "4px 6px",
       "4px-8px": "4px 8px",
-      "6": 6,
       "6px-0": "6px 0",
       "6px-10px": "6px 10px",
       "6px-12px": "6px 12px",
       "6px-14px": "6px 14px",
       "6px-28px-6px-12px": "6px 28px 6px 12px",
       "6px-8px": "6px 8px",
-      "8": 8,
       "8px-0": "8px 0",
       "8px-12px": "8px 12px",
       "8px-12px-12px": "8px 12px 12px",
@@ -689,8 +690,8 @@
     "padding-top": {
       "0": 0,
       "2": 2,
-      "20": 20,
-      "8": 8
+      "8": 8,
+      "20": 20
     },
     "position": {
       "absolute": "absolute",
@@ -703,10 +704,10 @@
       "6": 6
     },
     "row-gap": {
-      "12": 12,
       "2": 2,
       "4": 4,
-      "8": 8
+      "8": 8,
+      "12": 12
     },
     "scroll-margin-top": {
       "12": 12,
@@ -759,17 +760,17 @@
     },
     "width": {
       "1": 1,
-      "100%": "100%",
+      "2": 2,
+      "9": 9,
       "12": 12,
       "14": 14,
       "18": 18,
-      "2": 2,
-      "20ch": "20ch",
       "24": 24,
       "28": 28,
+      "100%": "100%",
+      "20ch": "20ch",
       "28ch": "28ch",
       "4.5rem": "4.5rem",
-      "9": 9,
       "fit-content": "fit-content"
     },
     "writing-mode": {

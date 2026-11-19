@@ -1,13 +1,8 @@
 // The MCP protocol layer shared by every Avoozl server: request checks,
 // initialize, ping and the view resources. Tools live in src/app/mcp.mjs.
-import { resolveTaskId } from "./task-identity.mjs";
 import { readView, viewResources } from "./app/mcp-views.mjs";
-export const MCP_VERSIONS = [
-  "2026-07-28",
-  "2025-11-25",
-  "2025-06-18",
-  "2025-03-26",
-];
+import { resolveTaskId } from "./task-identity.mjs";
+const MCP_VERSIONS = ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"];
 const identity = { name: "avoozl", version: "0.1.0" };
 export function auditPlans(data, { scope = "all" } = {}) {
   const ids = new Set(data.tasks.map((t) => t.id)),

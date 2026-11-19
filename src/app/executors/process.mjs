@@ -37,7 +37,7 @@ import { processRow } from "../role-table.mjs";
 import { loadHarnessDefinition } from "../harness-definitions.mjs";
 import { sessionServedModel } from "../process-view.mjs";
 
-export const PROCESS_EXECUTOR = "process";
+const PROCESS_EXECUTOR = "process";
 // The harness a `process` project runs when it names none.
 export const DEFAULT_HARNESS = "claude-code";
 const CONSUMER = "supervisor";
@@ -932,12 +932,29 @@ export async function drainProcessRequests(
           );
           // A role whose rule is about which model ran reads the served
           // model from the harness output (NK5.2).
-          if (result?.state && processRow(binding.role)?.served)
+          // It is kept on the session, as Kiro Crew's reading is for a chat,
+          // so the planner that wrote a revision has a proven model too, even
+          // when it writes no result file.
+          if (result && processRow(binding.role)?.served) {
             result.served = servedModelOf(
               stateDirectory,
               binding.slot,
               ops.configDirectory,
             );
+            if (result.served)
+              recordSessionStatus(
+                store,
+                { slot: binding.slot, status: binding.status },
+                {
+                  served: {
+                    model: result.served,
+                    requested: binding.model ?? null,
+                    changed: false,
+                    withheld: false,
+                  },
+                },
+              );
+          }
           // A retro that wrote no good result still ends its retro, as
           // failed, so the next one can start.
           if (

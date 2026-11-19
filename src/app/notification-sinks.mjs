@@ -9,7 +9,7 @@ import { execFile } from "node:child_process";
 import { check } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
 
-export const SINK_KINDS = Object.freeze(["command", "webhook"]);
+const SINK_KINDS = Object.freeze(["command", "webhook"]);
 export const COMMAND_SINK_KEYS = Object.freeze([
   "id",
   "kind",

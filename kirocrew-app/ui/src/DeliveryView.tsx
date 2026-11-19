@@ -87,7 +87,7 @@ function LaneCardView(props: {
           {/* In a narrow lane the title wraps below its icon rather than split words. */}
           <div className={`flex items-start gap-2 ${props.compact ? 'flex-wrap' : ''}`}>
             {props.phase && <StateIcon phase={props.phase} />}
-            <TaskTitleLink id={card.id} title={card.title} className={`${props.compact ? 'text-sm' : 'text-base'} font-semibold leading-tight`} />
+            <TaskTitleLink id={card.id} title={card.title} size={props.compact ? 'sm' : 'base'} weight="semibold" tight />
           </div>
           <Box mt="1" flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
             <span>{card.id}</span>
@@ -121,7 +121,7 @@ function LaneCardView(props: {
               <Box as="ul" mt="1" flex flexCol gap="0.5" aria-label="Tasks in this batch">
                 {card.batch.members.map((member) => (
                   <li key={member.id} data-batch-member={member.id}>
-                    <TaskTitleLink id={member.id} title={`${member.id} ${member.title}`} className="text-xs" />
+                    <TaskTitleLink id={member.id} title={`${member.id} ${member.title}`} size="xs" />
                   </li>
                 ))}
               </Box>
@@ -601,7 +601,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
               {superseded.map((item) => (
                 <li key={item.id}>
                   <Card>
-                    <SectionHeading title={item.title} meta={<Hint size="sm">{item.id}</Hint>} className="mb-2" />
+                    <SectionHeading title={item.title} meta={<Hint size="sm">{item.id}</Hint>} mb="2" />
                     <ItemDetails item={item} onSupersede={onSupersede} />
                   </Card>
                 </li>
@@ -619,7 +619,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
 function ContentReports({ reports }: { reports: ContentReport[] }) {
   return (
     <Card>
-      <SectionHeading title="Content rule reports" className="mb-2" />
+      <SectionHeading title="Content rule reports" mb="2" />
       <Box as="p" mt="1" size="xs" tone="muted">
         A rule set whose action is report lets the content through and records the match here. Change the set to block once
         its rules are right.

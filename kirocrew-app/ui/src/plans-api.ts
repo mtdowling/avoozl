@@ -7,6 +7,7 @@ import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { SEVERITIES, STATES } from './review-view.ts'
 import type { TaskOwner } from './views-api.ts'
+import { TONE } from './ui/tones.ts'
 
 export interface Counts {
   error: number
@@ -119,13 +120,13 @@ export function scmLinkText(link: ScmLink): string {
 // A check dot's words and color. A dot for an older head is grey and says
 // so, never its old state (R92.3).
 export function checkDot(checks: CheckState | null, relative: (at: string | null) => string): { label: string; color: string } {
-  if (!checks) return { label: 'No checks recorded', color: 'var(--muted)' }
+  if (!checks) return { label: 'No checks recorded', color: TONE.muted }
   const when = relative(checks.readAt)
   const age = when ? `, read ${when}` : ''
-  if (checks.dot === 'stale') return { label: `Checks are for an older commit${age}`, color: 'var(--muted)' }
-  if (checks.dot === 'pass') return { label: `Checks passed${age}`, color: 'var(--ok)' }
-  if (checks.dot === 'fail') return { label: `Checks failed${age}`, color: 'var(--danger)' }
-  return { label: `Checks running${age}`, color: 'var(--warn, #d29922)' }
+  if (checks.dot === 'stale') return { label: `Checks are for an older commit${age}`, color: TONE.muted }
+  if (checks.dot === 'pass') return { label: `Checks passed${age}`, color: TONE.ok }
+  if (checks.dot === 'fail') return { label: `Checks failed${age}`, color: TONE.danger }
+  return { label: `Checks running${age}`, color: TONE.warnOrAmber }
 }
 
 export interface PlanReviewSummary {

@@ -38,6 +38,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink, PlainTextarea } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
 
@@ -322,7 +323,7 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
       {branch && links.branch && (
         <Tooltip text={links.branch.ref}>
           <PlainLink data-branch-chip href={linkHref(links.branch.url)} target="_blank" rel="noopener noreferrer" css-display="inline-flex" css-align-items="center" css-gap="4" css-max-width="100%" css-min-width="0" css-padding="0-6px" css-border="1px-solid-border" css-border-radius="999" css-color="text" css-line-height="18px" css-text-decoration="none" aria-label={`Branch ${links.branch.ref} for ${title}`}>
-            <GitBranch size={12} aria-hidden="true" style={{ flex: '0 0 auto' }} />
+            <Glyph icon={GitBranch} size={12} aria-hidden="true" css-flex="0-0-auto" />
             <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{links.branch.ref}</Box>
           </PlainLink>
         </Tooltip>
@@ -388,7 +389,7 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
         <Badge>{roleLabel(row)}</Badge>
       </Box>
       <Box as="span" css-flex-basis="12rem" minW0 flex1>
-        <TaskTitleLink id={row.taskId} title={row.title} className="font-medium" />{' '}
+        <TaskTitleLink id={row.taskId} title={row.title} weight="medium" />{' '}
         <Hint size="xs">
           {row.taskId}
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}

@@ -5,13 +5,6 @@ import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { fail } from "./store.mjs";
 const exec = promisify(execFile);
-const DIFF_TEXT_LIMIT = 2 * 1024 * 1024;
-export const WORKING_STATES = [
-  "starting",
-  "running",
-  "waiting-input",
-  "waiting-approval",
-];
 function liveLocks(store, projectId) {
   const rows = store.db
     .prepare("SELECT * FROM work_locks WHERE project_id=?")
@@ -78,7 +71,7 @@ export async function git(cwd, args, { env } = {}) {
 // refuses a worker commit that holds one.
 const AVOOZL_FILES = ":(glob)**/.avoozl/**";
 const EXCLUDE_AVOOZL = ":(exclude,glob)**/.avoozl/**";
-export const isAvoozlPath = (file) =>
+const isAvoozlPath = (file) =>
   /(^|\/)\.avoozl(\/|$)/.test(file.replaceAll("\\", "/"));
 // Changes in the worktree, Avoozl's own files left out.
 export const worktreeChanges = (worktree) =>
@@ -137,15 +130,6 @@ export async function checkoutRoot(root, label) {
   }
   if (prefix) fail(`The ${label} must be the Git checkout root.`);
   return real;
-}
-async function gitFile(cwd, args) {
-  return (
-    await exec("git", args, {
-      cwd,
-      maxBuffer: 8 * 1024 * 1024,
-      encoding: "buffer",
-    })
-  ).stdout;
 }
 export function githubRepositoryFromRemote(value) {
   const match = String(value || "")
@@ -582,128 +566,14 @@ export async function commandEvidence(
     };
   }
 }
-function diffText(contents) {
-  if (contents.length > DIFF_TEXT_LIMIT)
-    return { text: "", truncated: true, binary: false };
-  if (contents.includes(0)) return { text: "", truncated: false, binary: true };
-  return { text: contents.toString("utf8"), truncated: false, binary: false };
-}
-function worktreeFile(worktree, file) {
-  const root = fs.realpathSync.native(worktree),
-    candidate = path.resolve(root, file);
-  if (candidate !== root && !candidate.startsWith(root + path.sep))
-    fail("Use a repository-relative path.");
-  if (!fs.existsSync(candidate)) return Buffer.alloc(0);
-  const full = fs.realpathSync.native(candidate);
-  if (!full.startsWith(root + path.sep) || !fs.statSync(full).isFile())
-    fail("Use a repository-relative path.");
-  return fs.readFileSync(full);
-}
-// The changes a run has made in its own worktree, bounded so a large branch
-// cannot produce an unbounded response. Read-only: it never checks out,
-// rebases, or stages anything.
-export async function runChanges(store, { id, path: file, limit = 400 }) {
-  const run = store.get("runs", id);
-  if (!run) fail("Run not found.", 404);
-  if (!run.worktree || run.readOnly)
-    fail("This conversation has no worktree of its own.", 409);
-  if (!fs.existsSync(run.worktree))
-    fail("This conversation's worktree has been removed.", 409);
-  const base = run.baseCommit || run.branch + "^";
-  const head = await git(run.worktree, ["rev-parse", "HEAD"]);
-  if (file) {
-    // One file's previous contents, so a client can show a real diff against
-    // the revision the run started from.
-    if (file.includes("..") || path.isAbsolute(file))
-      fail("Use a repository-relative path.");
-    let previous = Buffer.alloc(0);
-    try {
-      previous = await gitFile(run.worktree, ["show", base + ":" + file]);
-    } catch {
-      previous = Buffer.alloc(0);
-    }
-    const before = diffText(previous),
-      after = diffText(worktreeFile(run.worktree, file));
-    return {
-      id,
-      path: file,
-      base,
-      head,
-      before: before.text,
-      after: after.text,
-      binary: before.binary || after.binary,
-      truncated: before.truncated || after.truncated,
-    };
-  }
-  const committed = await git(run.worktree, [
-    "diff",
-    "--numstat",
-    "--find-renames",
-    base,
-    "HEAD",
-  ]);
-  const uncommitted = (
-    await gitFile(run.worktree, ["status", "--porcelain"])
-  ).toString("utf8");
-  const files = committed
-    .split("\n")
-    .filter(Boolean)
-    .slice(0, limit)
-    .map((line) => {
-      const [additions, deletions, name] = line.split("\t");
-      return {
-        path: name,
-        additions: additions === "-" ? null : Number(additions),
-        deletions: deletions === "-" ? null : Number(deletions),
-        state: "committed",
-      };
-    });
-  const pending = uncommitted
-    .split("\n")
-    .filter(Boolean)
-    .slice(0, limit)
-    .map((line) => ({
-      path: line.slice(3).trim(),
-      status: line.slice(0, 2).trim(),
-      state: "uncommitted",
-    }));
-  return {
-    id,
-    branch: run.branch,
-    worktree: run.worktree,
-    base,
-    head,
-    files,
-    uncommitted: pending,
-    truncated:
-      committed.split("\n").filter(Boolean).length > limit ||
-      uncommitted.split("\n").filter(Boolean).length > limit,
-  };
-}
-export async function validateRun(store, runId) {
-  const run = store.get("runs", runId);
-  if (!run) fail("Run not found.", 404);
-  return withWorkLock(
-    store,
-    { id: "validation:" + runId, projectId: run.projectId, kind: "validation" },
-    () => validateUnlocked(store, runId),
-  );
-}
-// `source` stands in for the run when the work is not a run: a Kiro Crew
-// delivery's integration entry (delivery.mjs).
-async function validateUnlocked(
+// `source` is the integration entry of a Kiro Crew delivery (delivery.mjs).
+export async function validateUnlocked(
   store,
   runId,
   { phase = "validation", source } = {},
 ) {
-  const run = source || store.get("runs", runId);
+  const run = source;
   if (!run?.worktree) fail("Run has no worktree.");
-  if (
-    ["running", "starting", "waiting-approval", "waiting-input"].includes(
-      run.state,
-    )
-  )
-    fail("Finish or interrupt the agent before validation.", 409);
   const project = store.get("projects", run.projectId);
   if (!project) fail("Project configuration is missing.");
   const head = await git(run.worktree, ["rev-parse", "HEAD"]),
@@ -897,7 +767,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   await refuseAvoozlPaths(entry.worktree, target, "HEAD");
   const revalidated = await validateUnlocked(store, id, {
     phase: "integration",
-    source: entry.runId ? undefined : { ...entry, state: "integrating" },
+    source: { ...entry, state: "integrating" },
   });
   if (!revalidated.passed)
     fail("Rebased work did not pass acceptance checks.", 409);
@@ -938,24 +808,10 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
       };
   });
   store.event(id, "integration.completed", { entry });
-  // The base moved: worktrees of runs still working are now behind it. A
-  // steering signal for those runs and the UI, not a correctness step.
   store.event(null, "project.base.moved", {
     projectId: project.id,
     baseBranch: target,
     commit: head,
-    behind: store
-      .list("runs")
-      .filter(
-        (r) =>
-          r.projectId === project.id &&
-          r.id !== entry.runId &&
-          !r.readOnly &&
-          ["running", "starting", "waiting-approval", "waiting-input"].includes(
-            r.state,
-          ),
-      )
-      .map((r) => r.id),
   });
   // Remove only the exact worktree created for this run, after its branch landed.
   if (

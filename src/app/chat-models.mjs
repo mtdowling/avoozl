@@ -81,7 +81,7 @@ export function harnessExecutor(harness) {
 // The roles after the chat roles pick only a harness: each runs on its
 // agent's own model (without-kirocrew NK1.3). One entry per row of the role
 // table (role-table.mjs); a test keeps them equal.
-export const HARNESS_ONLY_ROLES = Object.freeze([
+const HARNESS_ONLY_ROLES = Object.freeze([
   "verifier",
   "reviewer",
   "responder",

@@ -12,8 +12,8 @@ import { SEND_MAX_CHARS } from "./session-send.mjs";
 import { processSessionDetails } from "./process-view.mjs";
 import { fail } from "./store.mjs";
 
-export const OPEN_KIND = "assist-session";
-export const DEFAULT_ROLE = "assist";
+const OPEN_KIND = "assist-session";
+const DEFAULT_ROLE = "assist";
 const DEFAULT_HARNESS = "claude-code";
 const TITLE_CHARS = 60;
 
@@ -22,7 +22,7 @@ const TITLE_CHARS = 60;
 // shortcut: only `assist` opens here; the write roles run on tasks and specs,
 // which the tick starts. Add a role to OPENABLE when one can start on a
 // message alone.
-export const OPENABLE = ["assist"];
+const OPENABLE = ["assist"];
 export function roleFor(agent) {
   const role = typeof agent === "string" ? agent.replace(/^avoozl-/, "") : "";
   return OPENABLE.includes(role) ? role : DEFAULT_ROLE;
@@ -125,7 +125,7 @@ export function openSession(
 }
 
 // The slot of a page-opened session once the drain has started it, or null.
-export function openedSlot(store, id) {
+function openedSlot(store, id) {
   return (
     store
       .list("session_bindings")

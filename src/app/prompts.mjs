@@ -124,7 +124,7 @@ export function overridesPath(configDirectory, workspaceId) {
   return path.join(configDirectory, "prompts", `${workspaceId}.json`);
 }
 
-export function readOverrides(file) {
+function readOverrides(file) {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
     if (value && typeof value === "object" && value.targets) return value;
@@ -221,12 +221,6 @@ export function historicTexts(file, target, shipped = shippedPrompts()) {
       ),
     );
   return [...new Set(out)];
-}
-
-// The standing rules a worker or review brief ends with, and the version.
-export function briefRules(state, target) {
-  const entry = state[target];
-  return { text: entry.text.trim(), version: entry.version };
 }
 
 // For agent prompts the shipped prompt stays in the installed app; the seed

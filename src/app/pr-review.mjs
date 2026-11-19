@@ -13,11 +13,11 @@ import { fail } from "./store.mjs";
 import { sessionUrl } from "./notifications.mjs";
 import { readCache, untriagedView } from "./untriaged.mjs";
 
-export const REVIEW_KIND = "pr-review";
+const REVIEW_KIND = "pr-review";
 export const REVIEW_ROLE = "pr-review";
 // Read-only: files, and a shell Kiro Crew limits to `gh` reads of one pull
 // request (kirocrew-app/agents/avoozl-code-review.json). No write, no post.
-export const REVIEW_AGENT = "avoozl-code-review";
+const REVIEW_AGENT = "avoozl-code-review";
 
 const lower = (value) => String(value).toLocaleLowerCase();
 export const reviewId = (repository, number) =>

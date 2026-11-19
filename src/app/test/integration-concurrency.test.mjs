@@ -2,15 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fixture, recordedRun } from "./fixtures.mjs";
+import { fixture, recordedRun, validateRun } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import {
-  git,
-  createWorktree,
-  validateRun,
-  integrateRun,
-  withWorkLock,
-} from "../git.mjs";
+import { git, createWorktree, integrateRun, withWorkLock } from "../git.mjs";
 
 // A project checkout, a validated run on sample-task, and a second run left
 // working, recorded as the removed agent host left them. Validation passes while check.mjs exits 0; rewriting it to exit 1
@@ -44,13 +38,9 @@ async function project(t, { extraTask = "dependent-task" } = {}) {
     await git(run.worktree, ["add", "."]);
     await git(run.worktree, ["commit", "-m", "Work in " + run.id]);
   };
-  // A run the removed agent host had started on a task, still running.
   const start = (input) =>
-    recordedRun(store, { projectId: "fixture", state: "running", ...input });
-  // The turn ended, as the host recorded it.
-  const complete = (run) =>
-    store.put("runs", { ...store.get("runs", run.id), state: "completed" });
-  return { store, repo, check, start, complete, ops, commit };
+    recordedRun(store, { projectId: "fixture", ...input });
+  return { store, repo, check, start, ops, commit };
 }
 
 test("run worktrees inherit the execution repository Git identity", async (t) => {
@@ -81,7 +71,7 @@ test("run worktrees inherit the execution repository Git identity", async (t) =>
 });
 
 test("integration lands while another run on the project is still working", async (t) => {
-  const { store, repo, start, complete, ops, commit } = await project(t);
+  const { store, repo, start, commit } = await project(t);
   const working = await start({
     id: "run-working",
     taskId: "dependent-task",
@@ -90,10 +80,8 @@ test("integration lands while another run on the project is still working", asyn
     id: "run-landing",
     taskId: "sample-task",
   });
-  assert.equal(store.get("runs", working.id).state, "running");
   await commit(landing, "landing.txt", "landing");
-  complete(landing);
-  const validation = await validateRun(store, landing.id);
+  const validation = await validateRun(store, landing);
   assert.equal(validation.passed, true);
   // The base moves under the validated run before it integrates.
   fs.writeFileSync(path.join(repo, "moved.txt"), "base moved");
@@ -107,7 +95,6 @@ test("integration lands while another run on the project is still working", asyn
   });
   // It landed, with the other run untouched and still working.
   assert.equal(entry.state, "integrated");
-  assert.equal(store.get("runs", working.id).state, "running");
   assert.equal(fs.existsSync(working.worktree), true);
   assert.equal(
     fs.readFileSync(path.join(repo, "landing.txt"), "utf8"),
@@ -130,24 +117,22 @@ test("integration lands while another run on the project is still working", asyn
   assert.equal(revalidation[0].commit, entry.integratedCommit);
   assert.equal(revalidation[0].exitCode, 0);
   assert.deepEqual(entry.revalidatedEvidenceIds, [revalidation[0].id]);
-  // The moved base is reported, naming the run that is now behind it.
+  // The moved base is reported.
   const moved = store
     .events({ limit: 1000 })
     .filter((e) => e.kind === "project.base.moved");
   assert.equal(moved.length, 1);
   assert.equal(moved[0].commit, entry.integratedCommit);
-  assert.deepEqual(moved[0].behind, [working.id]);
 });
 
 test("revalidation failure after rebase refuses the merge and leaves the entry ready", async (t) => {
-  const { store, repo, check, start, complete, ops, commit } = await project(t);
+  const { store, repo, check, start, commit } = await project(t);
   const run = await start({
     id: "run-stale",
     taskId: "sample-task",
   });
   await commit(run, "stale.txt", "stale");
-  complete(run);
-  const validation = await validateRun(store, run.id);
+  const validation = await validateRun(store, run);
   assert.equal(validation.passed, true);
   // The base moves and breaks the check this work was validated against.
   fs.writeFileSync(check, "process.exit(1)");
@@ -171,14 +156,13 @@ test("revalidation failure after rebase refuses the merge and leaves the entry r
 });
 
 test("the project work lock still serializes integration against itself and validation", async (t) => {
-  const { store, start, complete, commit } = await project(t);
+  const { store, start, commit } = await project(t);
   const run = await start({
     id: "run-locked",
     taskId: "sample-task",
   });
   await commit(run, "locked.txt", "locked");
-  complete(run);
-  const validation = await validateRun(store, run.id);
+  const validation = await validateRun(store, run);
   assert.equal(validation.passed, true);
   let release;
   const held = new Promise((resolve) => {
@@ -202,7 +186,7 @@ test("the project work lock still serializes integration against itself and vali
     );
   for (const attempt of [
     integrateRun(store, { id: run.id, expectedCommit: validation.commit }),
-    validateRun(store, run.id),
+    validateRun(store, run),
     createWorktree(store, store.get("projects", "fixture"), "run-racing"),
   ]) {
     const error = await contends(attempt);

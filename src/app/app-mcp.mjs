@@ -25,7 +25,7 @@ import { callerSlot } from "./delivery.mjs";
 import { dispatchMcp } from "../mcp.mjs";
 
 // kiro_crew/mcp_caller.py CALLER_CAPABILITY_KEY and caller_identity_capability().
-export const CALLER_CAPABILITY = "kirocrew.caller-identity";
+const CALLER_CAPABILITY = "kirocrew.caller-identity";
 // Methods answered without a workspace.
 const STATIC = new Set([
   "initialize",
