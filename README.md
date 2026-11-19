@@ -228,7 +228,7 @@ Register the Git checkout the work changes, with its base branch, a worktree
 directory, and its named checks:
 
 ```sh
-node cli.mjs project configure code --workspace ~/plans \
+node cli.mjs repository configure code --workspace ~/plans \
   --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"],"diff":["git","diff","--check"],"ui":{"run":["npm","run","test:ui"],"paths":["src/ui/**"]}}}'
 ```
 
@@ -245,10 +245,10 @@ Checks run in the repository's isolation. By default each runs in the
 process sandbox (sandbox-exec on macOS, bubblewrap on Linux): it writes only
 its folder, its own temp folder, a cache folder and the paths you list, and
 the network is off. Set it in Settings › Repository setup › Landing, or with
-`project configure`:
+`repository configure`:
 
 ```sh
-node cli.mjs project configure code --workspace ~/plans \
+node cli.mjs repository configure code --workspace ~/plans \
   --json '{"isolation":{"run":"sandbox","network":"on","prepare":["npm","ci"]}}'
 ```
 
@@ -331,7 +331,7 @@ check or review. Each repository has a `landing` setting:
 When the base moves and a merge conflicts, or the checks fail, the task goes
 back to its worker chat, for at most `landing.conflictRounds` rounds (default
 2); after that it goes to Needs you. Stop the line pauses the queue.
-`avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|off`
+`avoozl setup OWNER/REPO --repo ID --checks NAME --landing pr|direct|off`
 previews the repository setup and `--yes` applies it. Its `--checks` names
 the required GitHub checks a pull request needs, not the repository's
 own checks above.
@@ -439,7 +439,7 @@ one `roles` table in `.avoozl.json`, for example
 A row's `harness` is `kirocrew` for a Kiro Crew chat, or the name of a
 harness definition in this machine's config; only the worker and the
 falsifier take an `agent`. A field left out, or `auto`, keeps the role's
-default: its agent's own model and its project's executor. A task's
+default: its agent's own model and its repository's executor. A task's
 `session` pin wins over its role's row. The worker, planner and retro
 follow the harness; the falsifier, plan reviewer and review drafts still
 run as Kiro Crew chats. Avoozl moves no running chat to another model.

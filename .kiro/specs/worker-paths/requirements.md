@@ -29,7 +29,7 @@ The routes, counted at `deca253`:
 | #   | Route                                | Selected by                                       |
 | --- | ------------------------------------ | ------------------------------------------------- |
 | 1   | Tick, Kiro Crew chat, local task     | default                                           |
-| 2   | Tick, `process` child                | `harnesses.worker`, `projects.*.executor`, a pin  |
+| 2   | Tick, `process` child                | `harnesses.worker`, `repositories.*.executor`, a pin  |
 | 3   | Tick, batch of tasks in one chat     | the tasks' `batch` facts                          |
 | 4   | Tick, worker pushes and opens the PR | the task's GitHub route                           |
 | 5   | Crew Mode conductor claims and relays | `delivery.runner: "crew-mode"`                   |

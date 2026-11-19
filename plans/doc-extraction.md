@@ -219,9 +219,9 @@ Four changes:
 2. Add a `plan.extract` branch to `workflowCategory`
    (`src/app/agent-instructions.mjs:281`), keyed off the run's extraction
    binding the way `plan.review` is keyed off `run.review`.
-3. Pass the design's project context when matching, so a repository-scoped
+3. Pass the design's repository context when matching, so a repository-scoped
    rule applies. `selectorMatches` rejects a repository-scoped rule when the
-   subject has no `projectId` (`src/app/agent-instructions.mjs:252`), and an
+   subject has no `repositoryId` (`src/app/agent-instructions.mjs:252`), and an
    extraction has no task to carry one.
 4. Add a `paths` selector, so a rule can apply to the documents it is about.
 
@@ -259,23 +259,23 @@ covers it.
 | `plan` | Other designs proposing the same deliverable |
 | `issue` | `github_issues` records and Queue issue items |
 | `pull-request` | Queue pull-request items |
-| `code` | The execution project's repository contents |
+| `code` | The execution repository's contents |
 
 ### Scoring
 
 `src/app/github-overlap.mjs` already does this in the opposite direction:
-it scores an incoming GitHub item against local tasks and plans with project
-and repository gating, explicit-reference detection, title and body term
+it scores an incoming GitHub item against local tasks and plans with repository
+ID and owner/name gating, explicit-reference detection, title and body term
 overlap, and a weighted reason list the UI can display
 (`src/app/github-overlap.mjs:231`, `src/app/github-overlap.mjs:314`).
 
 Three changes let a fact be the query instead:
 
 1. Make the scorer symmetric, so query and candidate are both reduced to a
-   normalized title, terms, projects, and repositories.
+   normalized title, terms, repository IDs, and owner/names.
 2. Index `github_issues` records and Queue pull-request items as candidates,
    which today are only ever the query side.
-3. Add a code candidate source: a bounded search of the project worktree for
+3. Add a code candidate source: a bounded search of the repository worktree for
    the fact's distinctive terms and any identifiers quoted in the document,
    returning file and line hits.
 

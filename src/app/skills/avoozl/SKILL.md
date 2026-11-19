@@ -161,7 +161,7 @@ To refresh an installed copy, print the maintained skill with `{{CLI}} skill` an
 Every chat, Issue Radar and the Avoozl tick share one GitHub login and its rate limit (5,000 REST calls an hour). To wait on a pull request's checks, run `gh pr checks <number>` once every 2 to 3 minutes. Do not use `gh pr checks --watch`, `gh run watch`, or a loop that polls faster. While Avoozl shows "GitHub rate limit reached", make no GitHub calls until the time it gives.
 
 `session.discover` lists local session metadata
-inside the task's projects. The site also offers **Link Claude session** when a
+inside the task's repositories. The site also offers **Link Claude session** when a
 worker has no transcript. Choose the exact session/subagent; do not guess from
 a similar name. `task.sessions` (MCP `plans_task {action: "sessions"}`) resolves the explicit
 link first, then the exact reported provider/run ID, then active managed runs.
