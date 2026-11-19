@@ -124,7 +124,6 @@ of the other specs.
       - Expected: (1) the question is answered with a citation; the collaborator's bug is reproduced, fixed and landed; the stranger's bug waits as Fix ready; the feature goes to the owner; the hostile issue changes nothing outside its rules; the small pull request gets a full review and the large one a partial review that says so; (2) each page action makes its one write; (3) the page's call counts stay under one hundred for the hour and show every write.
       - Expected result observed; receipt under `docs/evidence/`, with no image committed.
     - manual: true
-    - completion: person
     - after: ta-1.1, ta-2.3, ta-3.2, ta-4.2, ta-4.3, ta-4.4, ta-4.5, ta-4.6
   - Setup: a scratch public repository with a small test suite and docs; issues for each class, written by a collaborator and by a second account without write access, including one that asks the agent to do something it must not; two pull requests from the second account, one small and one large; the triage agent on, on Claude Code.
   - Action: (1) run the tick for an hour; (2) act on the owner queue from the pages; (3) read the Triage agent page.

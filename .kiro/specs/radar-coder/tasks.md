@@ -408,7 +408,6 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
   - Facts:
     - done:
       - Without the grant nothing changes; with it, crews and counts show.
-    - completion: person
     - after: rc-8.1
     - manual: true
   - One grant in `permissions.api`; a Crews strip and cost per stage; behind the grant only.
@@ -466,7 +465,6 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
   - Facts:
     - done:
       - A public repository with no sign-off releases nothing and says why; once that work lands the check reads its sign-off.
-    - completion: person
     - after: rc-4.1
     - manual: true
   - Release and arming refuse a public repository (or one whose visibility cannot be read) until the sign-off of "Crews on public repositories" in `.kiro/specs/avoozl/` is complete. This task waits for that work to land; it adds no layer of its own.
@@ -502,7 +500,6 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
   - Facts:
     - done:
       - The report states the release, the five differences and whether stale detection may use `updated=`.
-    - completion: person
     - manual: true
   - On each new release compare five claim markers' `updated=` with GitHub's `updated_at`; record the answer.
 - [ ] rc-q5 Q5: a crew with no access to the plans repository, after rc-3.4 [RC12.2] (§D16)
@@ -530,7 +527,6 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
   - Facts:
     - done:
       - The report states the choice: switch on, or spec moved into the code repository.
-    - completion: person
     - after: rc-2.2
     - manual: true
   - Show the owner a sample public marker with the plans repository named; record the owner's choice.
@@ -539,7 +535,6 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
   - Facts:
     - done:
       - The report lists each label, its source and the decision; defaults in `rc-1.1` match.
-    - completion: person
     - manual: true
   - Read the label set Kiro Crew's own repository uses and compare it with design D2; change the defaults to match or record why not.
   - Comparison in `docs/evidence/radar-coder-q9-label-defaults.md`: Radar's two labels match; Avoozl's defaults differ from D2 (RC21). Kiro Crew's own repository label set was not read and needs the owner, so not ticked.
@@ -547,7 +542,6 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
   - Facts:
     - done:
       - Expected result observed live and accepted by a person; receipt under `docs/evidence/`. Q1 and Q2 are answered in it.
-    - completion: person
     - after:
       - rc-p1
       - rc-p2
@@ -578,7 +572,6 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
   - Facts:
     - done:
       - A recorded owner decision exists before any removal task starts.
-    - completion: person
     - after: rc-p11
     - manual: true
   - The owner reads Proof 11 and decides: retire for Radar-coded repositories only, or delete the code. The decision is recorded in `docs/evidence/`.
@@ -1431,14 +1424,12 @@ after `rc-p31` has about a week of receipts.
   - Facts:
     - done:
       - The tests pass and `npm test` passes.
-    - completion: person
     - manual: true
   - Tests first: one slow run opens nothing; the sample count does; non-comparable receipts do not count.
 - [ ] rc-32.2 One deduped repair issue; later breaches comment; pre-approved classes, after rc-32.1 [RC33.3, RC33.4] (§D38)
   - Facts:
     - done:
       - The tests pass and `npm test` passes.
-    - completion: person
     - after: rc-32.1
     - manual: true
   - Tests first: a second breach comments only; only the named classes get the ready label on creation.
@@ -1446,7 +1437,6 @@ after `rc-p31` has about a week of receipts.
   - Facts:
     - done:
       - The tests pass and `npm test` passes.
-    - completion: person
     - after: rc-32.2
     - manual: true
   - Tests first: a diff that removes a test file, adds a skip marker or removes an assertion blocks the close; a missing before or after receipt blocks it.
@@ -1454,7 +1444,6 @@ after `rc-p31` has about a week of receipts.
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
-    - completion: person
     - after: rc-32.1, rc-32.2, rc-32.3
     - manual: true
   - Setup: a scratch repository with a planted slow step. Action: let the samples accrue and run ticks. Expected: one issue, later hits comment, a skip-the-test fix is refused, a real fix closes it with before and after receipts. Failure means: Avoozl could accept a faster build that checks less. Next decision: keep perf repair off.

@@ -595,7 +595,6 @@ new `plans_intake_*` tools. No earlier task changes.
     - done:
       - Expected: only the combinations the rules describe match; the disallowed account's labels cause no match and no write; the edited issue is quarantined; trigger and managed labels never overlap.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after:
       - 3.1
       - 3.2
@@ -627,7 +626,6 @@ new `plans_intake_*` tools. No earlier task changes.
     - done:
       - Expected: one parent issue of type Epic with three sub-issues, issue dependencies matching the `requires` and `sequence` edges, a `supports` edge present only in the marker, the ready label only on the unblocked leaf; the second apply changes nothing.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after:
       - 3.1
       - 3.2
@@ -691,7 +689,6 @@ new `plans_intake_*` tools. No earlier task changes.
     - done:
       - Expected: each human-edited issue field is reported as a conflict and left unchanged; untouched fields update; resolving in Conflicts applies the chosen value; no Project edit opens a conflict; the Done drag closes its issue through Auto-close issue and is judged as an order (P11 proves its effects), not a conflict; Deferred and Release are handled per §6.7 (P16 proves their effects). Changed 2026-11-12.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after:
       - 3.1
       - 3.2
@@ -725,7 +722,6 @@ new `plans_intake_*` tools. No earlier task changes.
     - done:
       - Expected: A's closed issue is a decision, not done; B completes and releases D in the same tick; in plans-repo mode GitHub closes B's planning issue with the pull request as closer, and the fork pull request closes nothing and counts for nothing; Avoozl closes no leaf issue in either mode; C and F are done by order, not verified: their dependents E and G are released in the next tick (both levels count; E shows as ready but paused), G's brief says the blocker closed without merged code (closer, reason, time) and to check for the missing code first, with the issue link in single-repo mode and task ID and title only in plans-repo mode, and the receipt and marker hold the order; F's close event names the person who dragged (record which source named the closer); H's dependent J stays held with a decision while GitHub shows it unblocked, and H stays closed; after the reopens, E is waiting again and gets no session, G's running session is left alone, and both orders are gone from the markers; the non-default-base merge leaves its issue open and opens a decision.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after:
       - 3.1
       - 3.2
@@ -758,7 +754,6 @@ new `plans_intake_*` tools. No earlier task changes.
     - done:
       - Expected: every managed issue from both repositories is on the Project, at Todo from the Item added workflow; Avoozl makes no Status write at any point (no Status change by the token's account in any item's history); the running leaf moves to In progress when its pull request opens and to Done when GitHub closes the issue, by `@github-project-automation`; blocked leaves show GitHub's Blocked icon; Release matches each issue's milestone and parents take their children's latest; Iteration is set only where a task's facts name one; the second sync writes nothing. Board drags: the Deferred leaf gets no new session, no linked branch, and no ready label over both ticks, and the owner gets one Kiro Crew notification; dragged back, it resumes and dispatches, and its card stays at Todo; the drag to Done closes the issue through Auto-close issue and the task becomes done by order (P11 proves the release and brief note), with no GitHub comment; the running session under a Deferred card keeps running; the Release change is kept on later ticks, the parent's Release follows it, a facts change moving that task is drafted for review, and nothing is committed; the disallowed account's Deferred drag is not reverted, does not pause dispatch, and shows in Delivery; no board edit opens a conflict. The report says which writer source (timeline, item change record, or value only) was readable. Wave reads a1 1, b1 1, a2 2, b2 3, b3 4 (the `supports` edge adds nothing); a1 stays 1 after it is done and no other wave moves; b3's hand-set 9 is reverted to 4 in the next tick with a Kiro Crew notification; after the edge removal the next tick writes a2 1, b2 2, b3 3 and nothing else, and the tick after it writes nothing; without the scope, Settings reports Project sync unavailable and issue projection still works.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after:
       - 3.1
       - 3.2
@@ -853,7 +848,6 @@ new `plans_intake_*` tools. No earlier task changes.
     - done:
       - Expected: the preview lists every write before any is made. Run 1 creates a private planning repository with issues on, a private org Project with Status options Todo, In progress, Done, and Deferred, Release with the named release, a Wave number field, a Board view with Status columns and the `Table by wave` view the person asked for, no Roadmap view, the `Epic` type, and the managed labels, and the `.avoozl.json` change validates. Run 2 shows "Nothing to change" and writes nothing (no object's `updated_at` moves). The T2 run turns on issues and adds the missing labels, leaves the existing label's color as it was, reports the missing `project` scope with `gh auth refresh -s project`, and makes no Project call that writes. The run after the fix creates a private user Project with Release holding both milestones, and reports the `Epic` step as not available on a user account. The template-Project run adds only Deferred, keeps Todo, In progress, and Done with their option `id`s, leaves the item at In progress, and its `.avoozl.json` diff maps `todo`, `inProgress`, `done`, and `deferred` to those four options. Every run reads the built-in workflows and writes none: its checklist lists each workflow whose `enabled` differs from the recommendation (a Project with Auto-close issue off gets "turn on Auto-close issue"; `nupp-lang` Project #2, already on, gets no Auto-close item) and the column and filter lines it cannot read. No run deletes or renames anything. Each run ends with the checklist and its links, and the checklist has no date-field item. The report records whether REST views worked on each account (settling L7b): if REST grouped the views, they are grouped by Release and by Wave and the checklist has no grouping item; if it fell back to GraphQL, the checklist says "Group by Release, then Save" (and the same for Wave) and following it gives the grouped views.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after:
       - 3.1
       - 3.2
@@ -886,7 +880,6 @@ new `plans_intake_*` tools. No earlier task changes.
     - done:
       - Expected: both planning issues close as `COMPLETED` with the pull request as closer within one tick; the Project item moves to Done by `@github-project-automation`; no logged-out fetch and no notification to a code-repository-only watcher names the planning repository; the result for the merger without planning access is recorded either way. Write the receipt under `docs/evidence/` in the Avoozl repository.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after:
       - 3.1
       - 3.2
@@ -1099,7 +1092,6 @@ applies to both.
     - done:
       - Expected: each merges through Issue Radar or GitHub auto-merge under required checks; Avoozl's completion check accepts it; the parent closes after the last child.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, avoozl-p12, avoozl-p17
     - manual: true
   - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
@@ -1114,7 +1106,6 @@ applies to both.
     - done:
       - Expected: issues, sub-issues, and the dependency exist only in the planning repository; Avoozl creates the first leaf's linked branch `avoozl/<task-id>` before its brief, and the worker opens a pull request from it with no closing keyword; after merge with passing checks, GitHub closes the planning issue as completed with the pull request as closer, the Item closed workflow sets Status to Done, Avoozl closes nothing and writes no Status, and the second leaf is released in the same tick; neither public pull request, its commits, nor its branch names the planning repository, and the public repository shows no Project event or link into it to a logged-out viewer; the third leaf's leak opens a decision and does not complete until the text is fixed. Changed 2026-11-12.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9
     - manual: true
   - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
@@ -1129,7 +1120,6 @@ applies to both.
     - done:
       - Expected: the P17 results hold across organizations, including GitHub closing the A planning issue through a linked branch in B (changed 2026-11-12); the pull request lookup in B works with read access; the cross-organization sub-issue is accepted (F38); the cross-organization dependency is accepted or refused, and the result is recorded in design F39.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9
     - manual: true
   - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
@@ -1273,7 +1263,6 @@ receipts are that workspace's.
       - Prepare one cutover change in the planning repository with manifest, mapping report, reconciliation report, and finished-task baseline for owner approval
       - Run the Set up GitHub wizard (3.18) in the chosen mode for the setup in §10.1 (issues on in the planning repository, Project with Status and Release, optional `Epic` type) and follow its workflow checklist; Auto-close issue stays on (F55) (changed 2026-11-12: was to turn it off); set each code repository's `baseBranch` to its default branch. Changed 2026-11-12.
       - The report names what was done and where the result is.
-    - completion: person
     - after: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
     - manual: true
   - Works in the planning repository being moved and its GitHub org, which this workspace does not register.
@@ -1285,7 +1274,6 @@ receipts are that workspace's.
       - Project the cutover into the chosen GitHub mode
       - Epics as parent issues, unfinished tasks as sub-issues, blocking edges as issue dependencies, every issue on the Project with Release from the milestones; deferred tasks get Status Deferred once, as the owner's recorded order, and Avoozl writes no other Status; the SQLite database becomes a read-only archive. Changed 2026-11-12.
       - The report names what was done and where the result is.
-    - completion: person
     - after: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
     - manual: true
   - Works in the moved workspace's issues and Project, which this workspace does not register.
@@ -1319,7 +1307,6 @@ receipts are that workspace's.
     - done:
       - Expected: every task and edge keeps its ID and kind across the baseline and the issues; finished tasks are in the baseline with no issues; one issue per epic and one sub-issue per unfinished task, with deferred tasks at Status Deferred, blocked tasks held by issue dependencies or a decision, review tasks pointing at their open pull request, and no other Status written by Avoozl (changed 2026-11-12); blocking edges as issue dependencies and `supports` edges in markers; each issue's Release matches its milestone; zero new tasks from document-derived entries; every unmatched entry listed; no leaf ready under an unreconciled partial task; the second tick writes nothing; the original database unchanged.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11
     - manual: true
   - Setup: the frozen copy, the rebased code, and a scratch private planning repository and Project standing in for the real planning repository.
@@ -1334,7 +1321,6 @@ receipts are that workspace's.
       - Expected: each listed file has one reason naming its evidence, and no listed file holds an unfinished task without an issue or is linked from an open issue, task facts, current plan, or steering file; the commit deletes only the listed files; the preview and tick show no issue or marker change; the revert restores every file byte for byte.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
       - The report names what was done and where the result is.
-    - completion: person
     - after: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11
     - manual: true
   - Proof. Runs against the planning repository being moved, which this workspace does not register.
@@ -1350,7 +1336,6 @@ receipts are that workspace's.
       - Expected: every current plan is a spec folder that passes validation; every task ID and issue link is unchanged; the preview shows no issue created, closed, re-parented, or re-linked, and only marker source pins change; the second tick writes nothing; nothing reads the workspace through the migration read path afterward.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
       - The report names what was done and where the result is.
-    - completion: person
     - after: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, avoozl-p22
     - manual: true
   - Proof. Runs against the planning repository being moved, which this workspace does not register.
@@ -1405,7 +1390,6 @@ receipts are that workspace's.
     - done:
       - Publish the npm package, the app package, and a signed GitHub release; dogfood the GitHub loop on Avoozl's own repository.
       - The report names what was done and where the result is.
-    - completion: person
     - after: avoozl-p14, avoozl-p22, avoozl-p23
     - manual: true
   - Publishes packages and a release; spends no code change in this repository.
@@ -1416,7 +1400,6 @@ receipts are that workspace's.
     - done:
       - Expected: local delivery completes with no GitHub; GitHub features report unavailable until `gh` or a token exists, then work; no step needs private context.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
     - manual: true
   - Setup: a fresh machine or user account with Kiro Crew, Node, and Git only; no `gh`.
@@ -1701,7 +1684,6 @@ receipts are that workspace's.
     - done:
       - Add MCP App views (`ui://` resources) to `plans_graph`, `plans_preview`, `plans_project_preview`, and `plans_decision`
       - Buttons call the same operations with expected revisions. [R20] (§8.1) Optional: only for small focused views; the app page stays the main view. Proof below.
-    - completion: person
     - after:
       - avoozl-p1
       - avoozl-p2
@@ -1737,7 +1719,6 @@ receipts are that workspace's.
     - done:
       - Expected: the preview renders in the chat; the first Approve records the exact revision; the second is refused as stale; the chat shows the result.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-    - completion: person
     - after: 8.5, avoozl-p4
     - manual: true
   - Setup: the Avoozl app installed with its MCP server; the server routed in MCP Management; the P4 draft plan.
@@ -2214,7 +2195,6 @@ never move.
       - MC-13 upstream ask
       - File the standalone request with Kiro Crew for an app-scoped tool-call read with end time and exit code, covering sessions bound to the app's tasks, local and remote; change no Kiro Crew code; when it ships, record its contract in §7.1 and switch 12.2 to it, keeping markers for older hosts.
       - The report names what was done and where the result is.
-    - completion: person
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
     - manual: true
   - Files an upstream request with Kiro Crew; changes no code here.
@@ -2325,7 +2305,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
       - Read-only crew list upstream ask
       - File the standalone request with Kiro Crew for an app-reachable, read-only crew list (names, state, scope labels, needs-human label) that does not also grant crew writes; change no Kiro Crew code; when it ships, switch 13.7's reader to it.
       - The report names what was done and where the result is.
-    - completion: person
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
     - manual: true
   - Files an upstream request with Kiro Crew; changes no code here.
@@ -2453,7 +2432,6 @@ never move.
       - MC-15 upstream ask
       - Removed 2026-11-14: the separate review app was dropped, so there is no ask to file and no `review` rule action.
       - The report names what was done and where the result is.
-    - completion: person
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
     - manual: true
   - Files an upstream request with Kiro Crew; changes no code here.
@@ -3927,7 +3905,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
     - done:
       - Review Avoozl repository settings against owner policy
       - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
-    - completion: person
     - after: 42.3
     - manual: true
   - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
@@ -4947,7 +4924,6 @@ proof or run a real workspace to get past that wait.
       - Also record: source and target repository/ref/SHA identities, both logins' permission results, PR head and merge SHA, standing review/check evidence, sanitized discovery and reconstruction records, export issue/link counts and import/forward ancestry. No credentials or private planning data in the receipt.
       - Write a live docs/evidence/ receipt; do not tick from tests or unavailable second-account behavior. Failure means a permission bypass, assumed upstream source branch, stale head or private disclosure.
       - Next decision: enable fork heads in ordinary worker pulls, or fix source resolution and permissions before enabling them.
-    - completion: person
     - after: avoozl-p66, 42.1, 42.2, 56.9, 56.10
     - manual: true
   - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.
@@ -5025,7 +5001,6 @@ approval before merge.
       - Expected: severities, categories and quote anchors; grey, yellow and red borders with an aligned rail and highlighted lines; history with owner and revision; a follow-up with no task; the dialog updates in place with no error; the extra round does not repeat the rejected finding; approval at the revision on screen with zero GitHub calls. Screenshots at 390 and 1280 px, light and dark, approved by the owner.
       - Write a live docs/evidence/ receipt. Failure means wrong anchor lines, an agent deciding a finding, a blocker changing approval, or a dialog that makes the person reopen it.
       - Next decision: search other files for moved quotes, or keep same-file anchoring.
-    - completion: person
     - after: 57.1, 57.2, 57.3, 57.4, 57.5, 57.6, avoozl-p63
     - manual: true
   - Setup: an isolated workspace and Kiro Crew home, a scratch planning repository with one draft spec that names a missing file, hides an order in prose and has one vague criterion, and real planner and reviewer chats on two different owner-selected models with `planReview.rounds: 1`.

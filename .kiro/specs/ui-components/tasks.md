@@ -106,7 +106,6 @@ of the other specs.
       - Expected: (1) every hint on every view changes, and no view file changed; (2) the check fails naming only files in `src/ui/`; (3) every such file is in `src/ui/`.
       - Expected result observed; receipt under `docs/evidence/`, with no image committed.
     - manual: true
-    - completion: person
     - after: uc-1.2, uc-4.1, uc-4.2
   - Setup: the repository at the commit that lands uc-4.2, and a running Kiro Crew at the pinned release.
   - Action: (1) change `Hint`'s size and color in `src/ui/` only; (2) rename one CSS variable in a scratch copy of Kiro Crew's stylesheet and run the class check against it; (3) count the files that write a class or a variable.

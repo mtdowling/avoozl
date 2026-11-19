@@ -72,7 +72,6 @@ of the other specs.
       - Expected: (1) each worker reports findings and each falsifier gives a verdict; (2) the first task lands, the second investigates again and then lands; (3) every session has executor `process` and no request for `kirocrew` was written.
       - Expected result observed; receipt under `docs/evidence/`.
     - manual: true
-    - completion: person
     - after: nk-2.1, nk-2.2, nk-2.3
   - Setup: as proof P59, an isolated workspace and a scratch repository with a bare remote, with every role on `process` and an approved Claude Code definition, and `worker-paths` wp-1.2 landed. The owner runs it from his own terminal, as in P57.
   - Action: (1) run the tick on a two-task spec with investigate first on; (2) press Go ahead on one task and Investigate again on the other; (3) read the session list.
@@ -160,7 +159,6 @@ of the other specs.
       - Expected: (1) to (5) each step finishes and every session has executor `process`; the pending review is on GitHub and not submitted; (6) the file holds one line per decision and failure, each with only a channel, a title, an ID and a time, and `status` shows nothing waiting on Kiro Crew; (7) the receipt lists each role Codex ran and each it could not, with the reason.
       - Expected result observed; receipt under `docs/evidence/`.
     - manual: true
-    - completion: person
     - after: nk-p1, nk-3.1, nk-3.2, nk-3.3, nk-4.2, nk-4.3, nk-5.1, nk-6.2, nk-7.1
   - Setup: a machine user with no Kiro Crew installed; an isolated workspace, a scratch GitHub repository, approved Claude Code and Codex definitions, the supervisor with the tick, one `command` sink that appends to a file, and `worker-paths` wp-p1 landed. The owner runs it from his own terminal.
   - Action: (1) start a spec from a goal; (2) let the plan review run with a second model and answer one finding; (3) approve from the command line; (4) run the tick until the tasks land, with investigate first on; (5) label a pull request for a review draft and ask for a reply on an issue; (6) read the sink's file and `avoozl status`; (7) repeat steps 1 to 5 with every role on Codex.

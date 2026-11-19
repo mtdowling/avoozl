@@ -39,22 +39,31 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
     epic = manifest.kind === "epic",
     entries = structuredClone(manifest.tasks),
     front = [];
+  // A manual leaf completes by a person without saying so.
+  for (const entry of Object.values(entries))
+    if (entry.manual === true && entry.completion === "person")
+      delete entry.completion;
   const leaves = Object.values(entries).filter(
     (entry) => !epic && entry.kind !== "package",
   );
   const hoisted = {};
   if (defaults && leaves.length > 1) {
-    for (const name of ["repository", "completion"]) {
-      const top = mode(leaves.map((entry) => entry[name]));
+    // A manual leaf takes no checks or completion default.
+    const checked = leaves.filter((entry) => entry.manual !== true);
+    for (const [name, among] of [
+      ["repository", leaves],
+      ["completion", checked],
+    ]) {
+      const top = mode(among.map((entry) => entry[name]));
       if (
         top &&
         top.value !== undefined &&
-        leaves.every((entry) => entry[name] !== undefined)
+        among.length &&
+        among.every((entry) => entry[name] !== undefined)
       )
         hoisted[name] = top.value;
     }
-    const checked = leaves.filter((entry) => entry.manual !== true),
-      top = mode(checked.map((entry) => entry.checks));
+    const top = mode(checked.map((entry) => entry.checks));
     if (
       top &&
       Array.isArray(top.value) &&
@@ -116,7 +125,7 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
     if (!epic) drop("kind", "leaf");
     if (!epic && own.kind !== "package")
       for (const [name, value] of Object.entries(hoisted))
-        if (!(name === "checks" && own.manual === true)) drop(name, value);
+        if (!(own.manual === true && name !== "repository")) drop(name, value);
     const indent = /^\s*/.exec(row)[0].length + 2;
     out.push(
       ...factsLines(own, { indent }),

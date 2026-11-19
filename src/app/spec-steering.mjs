@@ -65,9 +65,9 @@ wants other rules. Avoozl never overwrites a changed copy.
   - \`done:\`, then one nested bullet per result someone can check.
 - Put values most tasks share in front-matter at the top of \`tasks.md\`,
   such as \`repo: app\` and \`checks: npm test\`. A task's own fact wins.
-- A step only a person does is a manual task: \`manual: true\`,
-  \`completion: person\`, what the person checks under \`done:\`, and no
-  checks.
+- A step only a person does is a manual task: \`manual: true\`, what the
+  person checks under \`done:\`, and no checks. It completes by a person;
+  never write \`completion: person\`.
 - Kiro's \`_Requirements: 1.2_\` line is a note. Keep it.
 
   \`\`\`markdown

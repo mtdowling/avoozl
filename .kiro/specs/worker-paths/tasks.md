@@ -62,7 +62,6 @@ of the other specs.
       - Expected: (1) every task lands on both executors, the batch as one chat on `kirocrew` and as three children on `process`; (2) each investigated task codes only after Go ahead, in the same session it investigated in; (3) no brief names an MCP tool or a bare `avoozl`, and no `process` brief asks for a commit; MCP sharing for `avoozl:avoozl` is off for the whole `kirocrew` run.
       - Expected result observed; receipt under `docs/evidence/`.
     - manual: true
-    - completion: person
     - after: wp-1.1, wp-1.2, wp-1.3, wp-1.4
   - Setup: an isolated workspace and a scratch repository with a bare remote; one single task, one task with investigate first, one three-task batch and one task whose first landing fails, each run once with every role on `kirocrew` and once on `process` with an approved Claude Code definition. The owner runs the `process` half from his own terminal, as in P57.
   - Action: (1) run the tick until every task lands or waits; (2) press Go ahead on each investigated task; (3) read each session's brief from its record.

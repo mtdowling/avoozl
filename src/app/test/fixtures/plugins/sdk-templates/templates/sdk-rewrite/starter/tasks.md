@@ -62,7 +62,6 @@
     - repo: {{repository}}
     - done:
       - The team agreed the runtime and protocol results are good enough to cut over
-    - completion: person
     - after: protocol-tests-proof
     - manual: true
   - The team reviews the runtime and protocol results before cutover.

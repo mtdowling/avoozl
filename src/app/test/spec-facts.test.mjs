@@ -188,21 +188,51 @@ test("each wrong shape is refused at its line in tasks.md", () => {
   }
 });
 
-test("a manual leaf takes no checks default", () => {
+test("a manual leaf takes no checks or completion default", () => {
   const parsed = parse(
     lines(
       "---",
       "checks: npm test",
+      "completion: integrated",
       "---",
       "- [ ] 1.1 Review with the team",
       "  - Facts:",
       "    - manual: true",
-      "    - completion: person",
       "    - repo: app",
       "    - done: The team agreed",
     ),
   );
+  assert.deepEqual(codes(parsed), []);
   assert.equal(parsed.proposals[0].checks, undefined);
+  assert.equal(parsed.proposals[0].completion, undefined);
+});
+
+test("completion person is refused in facts and front-matter, naming manual", () => {
+  const fact = parse(
+      lines(
+        "- [ ] 1.1 Review with the team",
+        "  - Facts:",
+        "    - manual: true",
+        "    - completion: person",
+        "    - repo: app",
+        "    - done: The team agreed",
+      ),
+    ),
+    front = parse(
+      lines(
+        "---",
+        "completion: person",
+        "---",
+        "- [ ] 1.1 Review with the team",
+        "  - Facts:",
+        "    - manual: true",
+        "    - repo: app",
+        "    - done: The team agreed",
+      ),
+    );
+  assert.deepEqual(codes(fact), ["facts.person-completion tasks.md:4"]);
+  assert.deepEqual(codes(front), ["facts.person-completion tasks.md:2"]);
+  assert.match(fact.diagnostics[0].message, /manual: true/);
 });
 
 // A task's own prose bullets say what it delivers.

@@ -67,6 +67,9 @@ const KEYS = {
   step: { as: "step", type: "text" },
 };
 const FACT_KEYS = Object.keys(KEYS);
+// A person's task is `manual: true`; `completion: person` is not written.
+const PERSON =
+  "A task a person does is `manual: true`, which completes by a person. Write that, and delete this line.";
 // Facts that are gone, and what to do with a line that still has one.
 const REMOVED = {
   summary:
@@ -235,6 +238,8 @@ function readFront(rows) {
     }
     const read = readValue(key, spec, inline, nested);
     if (read.error) out.problems.push(problem("facts.value", line, read.error));
+    else if (key === "completion" && read.value === "person")
+      out.problems.push(problem("facts.person-completion", line, PERSON));
     else out.values[key] = read.value;
   }
   return out;
@@ -383,6 +388,14 @@ export function readFacts(text, items) {
         );
         continue;
       }
+      if (key === "completion" && read.value === "person") {
+        problems.push(
+          problem("facts.person-completion", at + 1, PERSON, {
+            key: item.key,
+          }),
+        );
+        continue;
+      }
       entry[spec.as] = read.value;
       factLine.set(`${item.key}\0${spec.as}`, at + 1);
     }
@@ -442,10 +455,11 @@ export function readFacts(text, items) {
       const fill = {};
       if (entry.kind === undefined) fill.kind = "leaf";
       if (entry.kind !== "package")
-        // A manual leaf runs no checks (Requirement 61.9): it takes none.
+        // A manual leaf runs no checks (Requirement 61.9) and completes by
+        // a person: it takes neither default.
         for (const [name, spec] of Object.entries(DEFAULTS))
           if (
-            !(name === "checks" && entry.manual === true) &&
+            !(entry.manual === true && name !== "repo") &&
             front.values[name] !== undefined &&
             entry[spec.as] === undefined
           )

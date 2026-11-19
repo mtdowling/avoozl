@@ -62,7 +62,6 @@ of the other specs.
       - Expected: (1) every good task lands, the bad one and the later of the pair go back to their workers, the flaky one lands; (2) the limit starts at 1, grows while batches land, and halves after each culprit; no ref but the base branch appears on the remote.
       - Expected result observed; receipt under `docs/evidence/`, with no image committed.
     - manual: true
-    - completion: person
     - after: mb-1.1, mb-1.2, mb-1.3, mb-1.4
   - Setup: an isolated workspace and a scratch repository with a bare remote and a real check that takes about a minute; twelve verified tasks across two specs, of which one breaks the check alone, one fails once and then passes, and two break it only together.
   - Action: (1) run the tick until the queue is empty; (2) read the Landing queue status after each merge batch.
