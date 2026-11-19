@@ -1188,7 +1188,8 @@ if (query.get('page') === 'app' && query.get('crewmode') === '1') {
         id: 'crew-mode',
         taskId: null,
         title: 'The tick does not start this workspace yet',
-        detail: 'This workspace\'s .avoozl.json still says "runner": "crew-mode", from before the tick started every task. Avoozl starts nothing here until you let the tick run it.',
+        detail:
+          'This workspace\'s .avoozl.json still says "runner": "crew-mode", from before the tick started every task. Avoozl starts nothing here until you let the tick run it.',
         hash: 'h1',
       },
     ],
