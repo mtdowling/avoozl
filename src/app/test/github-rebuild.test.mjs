@@ -131,7 +131,7 @@ async function openWorkspace(t, root, github, codeRoot = "/tmp/code") {
 const leaf = (id, extra = {}) => ({
   id,
   title: "Task " + id,
-  summary: "Summary " + id,
+  prose: "Summary " + id,
   acceptance: [id + " passes"],
   projectId: "code",
   ...extra,
@@ -213,7 +213,7 @@ function graphState(store, { verdicts = "all" } = {}) {
       .map((task) => ({
         id: task.id,
         title: task.title,
-        summary: task.summary,
+        prose: task.prose,
         nextAction: task.nextAction,
         acceptance: task.acceptance,
         kind: taskKind(task),
@@ -655,7 +655,7 @@ test("rebuild never touches a local task that shares an ID and skips duplicate i
   );
 });
 
-test("the managed section yields plan, summary, acceptance and requires", () => {
+test("the managed section yields plan, prose, acceptance and requires", () => {
   const body = [
     "<!-- avoozl:managed:start -->",
     "This issue is projected from approved design `graph` at `0123456789ab`.",
@@ -676,7 +676,7 @@ test("the managed section yields plan, summary, acceptance and requires", () => 
   ].join("\n");
   assert.deepEqual(parseManagedSection(body), {
     planId: "graph",
-    summary: "Do the thing",
+    prose: "Do the thing",
     acceptance: ["First", "Second"],
     requires: ["graph-alpha"],
     notes: [],

@@ -115,7 +115,10 @@ test("lint refuses each agent field on a manual leaf, by name, and person on any
   });
   await person.execute("plan.create", { spec: "sdk" });
   assert.ok(
-    (await errors(person)).some(([code]) => code === "spec.person-completion"),
+    (await errors(person)).some(
+      ([code, message]) =>
+        code === "facts.person-completion" && /manual: true/.test(message),
+    ),
   );
 });
 

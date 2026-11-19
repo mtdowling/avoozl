@@ -1394,7 +1394,7 @@ export function taskDetailView(
     task: {
       id,
       title: detail.title ?? id,
-      summary: detail.summary ?? "",
+      prose: detail.prose ?? "",
       acceptance: detail.acceptance || [],
       checks: detail.checks || [],
       // Its plan's epic and its phase inside the plan (Requirement 59).

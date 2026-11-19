@@ -32,7 +32,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { realClaude } from "./real-claude.mjs";
+import { claudeBinaries } from "./real-claude.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = path.join(REPO, "cli.mjs");
@@ -81,7 +81,8 @@ P.proxyLog = path.join(ROOT, "proxy.log");
 // the run's own Claude config folder); set once, before the isolated home.
 let AGENT_ENV = null;
 function bedrockEnvironment() {
-  const claude = claudeBinary();
+  const { exportWith, child: claude } = binaries();
+  if (!exportWith || !claude) throw Error("Claude Code was not found.");
   const settings = JSON.parse(
     fs.readFileSync(
       path.join(realEnv.HOME ?? os.homedir(), ".claude", "settings.json"),
@@ -89,7 +90,9 @@ function bedrockEnvironment() {
     ),
   );
   const creds = JSON.parse(
-    execFileSync(claude, ["default-credential-export"], {
+    // The person's own command, in the person's own environment: the login
+    // that issues the keys is theirs, as in nk-p1.
+    execFileSync(exportWith, ["default-credential-export"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       env: realEnv,
@@ -141,17 +144,22 @@ const cli = (...args) =>
   });
 const imp = (file) => import(pathToFileURL(path.join(REPO, file)).href);
 
-function claudeBinary() {
-  const named =
-    process.env.SWP1_CLAUDE ||
+// Which binary exports the credentials and which one the child runs.
+function binaries() {
+  const onPath =
     spawnSync("command -v claude", {
       shell: true,
       encoding: "utf8",
       env: realEnv,
-    }).stdout.trim() ||
-    null;
-  return realClaude(named, realEnv.HOME ?? os.homedir());
+    }).stdout.trim() || null;
+  return claudeBinaries({
+    named: realEnv.SWP1_CLAUDE || null,
+    onPath,
+    home: realEnv.HOME ?? os.homedir(),
+  });
 }
+// The real binary, for the sandboxed child.
+const claudeBinary = () => binaries().child;
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -876,35 +884,84 @@ async function step5(page, port, supervisor, machine, restart) {
 
 // ── Main ─────────────────────────────────────────────────────────────────
 
-// `claude --version` with the environment the proof gives it: an isolated home,
-// its own config folder and the Bedrock settings, not the person's.
-function claudeRuns() {
-  const claude = claudeBinary();
-  if (!claude) return false;
-  const home = fs.mkdtempSync(path.join(tmp, "swp1-claude-"));
+// One real model turn, the way the proof's child runs: the real binary, an
+// isolated HOME and Claude config folder, the Bedrock keys from the person's
+// export, and only the loopback proxy for the network. Prints what failed.
+async function claudeAnswers() {
+  let env;
   try {
-    const env = {
+    env = bedrockEnvironment();
+  } catch (error) {
+    console.log(
+      `  the credential export failed: ${error.message.split("\n")[0]}`,
+    );
+    return false;
+  }
+  const claude = binaries().child;
+  const home = fs.mkdtempSync(path.join(tmp, "swp1-claude-"));
+  const proxyLog = path.join(home, "proxy.log");
+  const proxy = spawn(
+    process.execPath,
+    [
+      path.join(REPO, "scripts", "live-proofs", "p57-model-proxy.mjs"),
+      String(PROXY_PORT),
+      proxyLog,
+    ],
+    { stdio: "ignore" },
+  );
+  try {
+    await sleep(1000);
+    const isolated = {
       ...Object.fromEntries(
         Object.entries(realEnv).filter(
           ([name]) =>
-            !/^(KIROCREW|AVOOZL|AICOMMANDER|NUPP_WORKSPACE)/.test(name),
+            !/^(KIROCREW|AVOOZL|AICOMMANDER|NUPP_WORKSPACE|AWS_|ANTHROPIC)/.test(
+              name,
+            ),
         ),
       ),
+      ...env,
       HOME: home,
       USERPROFILE: home,
       XDG_CONFIG_HOME: path.join(home, "config"),
       XDG_STATE_HOME: path.join(home, "state"),
       CLAUDE_CONFIG_DIR: path.join(home, "claude-config"),
-      CLAUDE_CODE_USE_BEDROCK: "1",
-      PATH: `${path.dirname(claude)}:${realEnv.PATH}`,
     };
-    const ran = spawnSync(claude, ["--version"], {
-      env,
-      encoding: "utf8",
-      timeout: 60_000,
+    fs.mkdirSync(isolated.CLAUDE_CONFIG_DIR, { recursive: true });
+    const ran = await new Promise((resolve) => {
+      const child = spawn(
+        claude,
+        ["-p", "--model", MODEL, "Reply with the single word ok."],
+        { cwd: home, env: isolated, stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let out = "",
+        err = "";
+      child.stdout.on("data", (chunk) => (out += chunk));
+      child.stderr.on("data", (chunk) => (err += chunk));
+      const timer = setTimeout(() => child.kill("SIGKILL"), 180_000);
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        resolve({ code, out, err });
+      });
+      child.on("error", (error) => {
+        clearTimeout(timer);
+        resolve({ code: -1, out, err: error.message });
+      });
     });
-    return ran.status === 0 && ran.stdout.trim().length > 0;
+    if (ran.code === 0 && /\bok\b/i.test(ran.out)) return true;
+    console.log(`  claude -p exited ${ran.code}:`);
+    for (const line of `${ran.err}\n${ran.out}`.trim().split("\n").slice(-8))
+      console.log(`    ${line}`);
+    if (fs.existsSync(proxyLog))
+      for (const line of fs
+        .readFileSync(proxyLog, "utf8")
+        .trim()
+        .split("\n")
+        .slice(-4))
+        console.log(`    proxy: ${line}`);
+    return false;
   } finally {
+    proxy.kill("SIGTERM");
     fs.rmSync(home, { recursive: true, force: true });
   }
 }
@@ -943,10 +1000,6 @@ async function preflight() {
             Boolean(claudeBinary()),
           ],
           [
-            "the Claude Code binary runs under the isolated environment",
-            claudeRuns(),
-          ],
-          [
             "~/.claude/settings.json is readable",
             fs.existsSync(
               path.join(
@@ -955,17 +1008,6 @@ async function preflight() {
                 "settings.json",
               ),
             ),
-          ],
-          [
-            "`claude default-credential-export` gives short-lived keys",
-            (() => {
-              try {
-                bedrockEnvironment();
-                return true;
-              } catch {
-                return false;
-              }
-            })(),
           ],
           [
             "sandbox-exec works here (a terminal outside Kiro Crew)",
@@ -982,7 +1024,16 @@ async function preflight() {
   ];
   for (const [what, ok] of checks)
     console.log(`${ok ? "ok     " : "MISSING"} ${what}`);
-  return checks.every(([, ok]) => ok);
+  if (AGENT !== "claude") return checks.every(([, ok]) => ok);
+  const { exportWith, child } = binaries();
+  console.log(`        credential export with ${exportWith ?? "(none)"}`);
+  console.log(`        the child runs ${child ?? "(none)"}`);
+  // Last, since it spends one small model turn.
+  const answered = await claudeAnswers();
+  console.log(
+    `${answered ? "ok     " : "FAILED "} one \`claude -p\` turn under the isolated environment, through the proxy`,
+  );
+  return answered && checks.every(([, ok]) => ok);
 }
 
 async function prove() {

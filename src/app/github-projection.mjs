@@ -107,7 +107,7 @@ function managedSection(
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${issueHash(plan).slice(0, 12)}\`.
 ${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}${parentRef ? `\nParent: ${parentRef}\n` : ""}
-${task.summary || task.nextAction || ""}
+${task.prose || task.nextAction || ""}
 
 ## Acceptance criteria
 
