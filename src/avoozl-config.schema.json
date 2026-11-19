@@ -2060,12 +2060,8 @@
         "conflicts": {
           "type": "object",
           "additionalProperties": false,
-          "description": "What Avoozl does with a conflict: merges the base in and fixes it, or only asks a person.",
+          "description": "How many times a landing conflict goes back to the worker before it asks a person.",
           "properties": {
-            "onSourceConflict": {
-              "enum": ["fix", "ask"],
-              "default": "fix"
-            },
             "maxAttempts": {
               "type": "integer",
               "minimum": 0,

@@ -10,7 +10,7 @@ import { FieldBox } from './FieldBox.tsx'
 import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
-import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, valueSource, type RepositoryForm } from './settings-api.ts'
+import { AVOOZL_LABELS, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, valueSource, type RepositoryForm } from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
@@ -41,11 +41,11 @@ type Part = { id: string; repository: RepositoryForm; set: (change: Partial<Repo
 export const CREW_PART_TEXT = {
   conflicts: {
     title: 'Conflicts',
-    blurb: "How Avoozl handles a merge conflict, and how many tries it makes before it asks you. A landing conflict goes back to the task's worker chat; a crew pull request gets one resolver chat that merges the base in.",
+    blurb: "How many times a landing conflict goes back to the task's worker chat before Avoozl asks you.",
   },
   merge: {
     title: 'Who merges',
-    blurb: 'How verified work lands here, who merges its pull request, and the merge method. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.',
+    blurb: 'How verified work lands here, who merges its pull request, and the merge method.',
   },
 } as const
 
@@ -99,19 +99,6 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
 export function ConflictFields({ id, repository, set }: Part) {
   return (
     <Stack gap={3} data-conflicts>
-      <div id={`${id}-on-source-conflict`}>
-        <RadioFold
-          name={`${id}-on-source-conflict`}
-          label="On a source conflict"
-          value={(repository.onSourceConflict || CONFLICT_DEFAULTS.onSourceConflict) as (typeof CONFLICT_ACTIONS)[number]}
-          onChange={(value) => set({ onSourceConflict: value })}
-          sections={CONFLICT_ACTIONS.map((action) => ({
-            key: action,
-            title: action === 'fix' ? 'Fix it (conflicts.onSourceConflict: fix)' : 'Ask me (conflicts.onSourceConflict: ask)',
-            line: `${CONFLICT_ACTION_TEXT[action]}.${!repository.onSourceConflict && action === CONFLICT_DEFAULTS.onSourceConflict ? ' Not set on this repository; this is the default.' : ''}`,
-          }))}
-        />
-      </div>
       <Line id={`${id}-max-attempts`} label="Attempts per conflict" raw="conflicts.maxAttempts" type="number" help="After this many, the conflict waits for you. 0 asks you at once." value={repository.maxAttempts} fallback={CONFLICT_DEFAULTS.maxAttempts} onChange={(value) => set({ maxAttempts: value })} />
     </Stack>
   )

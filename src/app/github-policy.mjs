@@ -175,7 +175,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "cacheSeconds",
   ],
   approval: ["decisionRecord"],
-  conflicts: ["onSourceConflict", "maxAttempts"],
+  conflicts: ["maxAttempts"],
   merge: ["method"],
   landing: ["mode", "autoMerge", "method"],
   untriaged: ["filter", "triageLabels", "ignoreOlderThanDays", "notify"],
@@ -736,23 +736,12 @@ function repositoryInput(value, id, mode) {
   };
 }
 
-// What Avoozl does with a crew's pull request that conflicts in source code
-// (RC28.5): Avoozl merges the base into it with one resolver chat, or only
-// asks a person.
-export const CONFLICT_ACTIONS = Object.freeze(["fix", "ask"]);
 export const MAX_ATTEMPTS = 10;
-// One count for crew pull requests and landing (R87.6, RC28.4). A
-// repository that sets none reads `landing.conflictRounds`, then this.
-export const CONFLICT_DEFAULTS = Object.freeze({
-  onSourceConflict: "fix",
-  maxAttempts: 2,
-});
+// How many times a landing conflict goes back to the worker (R87.6). A
+// repository that sets none reads `landing.conflictRounds`, then 2.
 function conflictsInput(value, label) {
   const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.conflicts, label);
-  const action = input.onSourceConflict ?? CONFLICT_DEFAULTS.onSourceConflict,
-    count = input.maxAttempts ?? null;
-  if (!CONFLICT_ACTIONS.includes(action))
-    fail(`${label}.onSourceConflict must be fix or ask.`);
+  const count = input.maxAttempts ?? null;
   if (
     count !== null &&
     (!Number.isSafeInteger(count) || count < 0 || count > MAX_ATTEMPTS)
@@ -760,11 +749,10 @@ function conflictsInput(value, label) {
     fail(
       `${label}.maxAttempts must be a whole number from 0 to ${MAX_ATTEMPTS}.`,
     );
-  return { onSourceConflict: action, maxAttempts: count };
+  return { maxAttempts: count };
 }
 
-// How a crew pull request lands when Avoozl arms auto-merge (RC28.7):
-// `squash` (one commit per pull request on the base) or `merge`.
+// How a pull request lands: `squash` (one commit per pull request on the base) or `merge`.
 export const MERGE_METHODS = Object.freeze(["squash", "merge"]);
 export const MERGE_METHOD_DEFAULT = "squash";
 // GitHub's repository setting for each method, and its name on screen.

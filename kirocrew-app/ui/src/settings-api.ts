@@ -333,8 +333,7 @@ export interface RepositoryForm {
   // is the shown default.
   planLabel: string
   conflictLabel: string
-  // conflicts.onSourceConflict (fix or ask) and conflicts.maxAttempts; blank is the default.
-  onSourceConflict: string
+  // conflicts.maxAttempts; blank is the default.
   maxAttempts: string
   // The landing block (design §4.25): landing.mode (direct, pr, train,
   // off), landing.autoMerge ('on', 'off') and landing.method (squash or
@@ -541,7 +540,6 @@ export function emptyRepository(name = ''): RepositoryForm {
     approvalLabel: '',
     planLabel: '',
     conflictLabel: '',
-    onSourceConflict: '',
     maxAttempts: '',
     landingMode: '',
     autoMerge: '',
@@ -597,7 +595,6 @@ export function toForm(github: Policy): SettingsForm {
         approvalLabel: str(record(entry.radar).approvalLabel),
         planLabel: str(record(entry.radar).planLabel),
         conflictLabel: str(record(entry.radar).conflictLabel),
-        onSourceConflict: str(record(entry.conflicts).onSourceConflict),
         maxAttempts: str(record(entry.conflicts).maxAttempts),
         landingMode: str(record(entry.landing).mode),
         autoMerge: (() => {
@@ -722,7 +719,7 @@ export function toPolicy(form: SettingsForm): Policy {
                 return Object.keys(radar).length ? radar : undefined
               })(),
               conflicts: (() => {
-                const conflicts = compact({ ...record(repository.rest.conflicts), onSourceConflict: blank(repository.onSourceConflict), maxAttempts: count(repository.maxAttempts) })
+                const conflicts = compact({ ...record(repository.rest.conflicts), maxAttempts: count(repository.maxAttempts) })
                 return Object.keys(conflicts).length ? conflicts : undefined
               })(),
               // One landing block; the older merge.method moves into it.
@@ -1231,15 +1228,10 @@ export const AVOOZL_LABELS = [
   { key: 'trackerLabel', label: 'Waiting on tracker', raw: 'radar.trackerLabel', job: 'Shows a task waits on an item in another tracker.', writer: 'Avoozl adds and removes it.' },
 ] as const
 
-// What Avoozl does with a crew's pull request that conflicts in source code (RC28.5).
-export const CONFLICT_ACTIONS = ['fix', 'ask'] as const
-export const CONFLICT_DEFAULTS = { onSourceConflict: 'fix', maxAttempts: '2' } as const
-export const CONFLICT_ACTION_TEXT: Record<(typeof CONFLICT_ACTIONS)[number], string> = {
-  fix: 'A resolver chat merges the base into the branch and keeps both sides',
-  ask: 'Only ask me; write nothing',
-}
+// The default number of landing conflict tries.
+export const CONFLICT_DEFAULTS = { maxAttempts: '2' } as const
 
-// How a crew pull request lands when Avoozl arms auto-merge (RC28.7).
+// How a pull request lands.
 export const MERGE_METHODS = ['squash', 'merge'] as const
 export const MERGE_METHOD_TEXT: Record<(typeof MERGE_METHODS)[number], { title: string; line: string }> = {
   squash: { title: 'Squash', line: 'One commit per pull request on the base, with its title and body. The repository must allow squash merging.' },

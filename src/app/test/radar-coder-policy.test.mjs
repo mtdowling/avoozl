@@ -147,22 +147,16 @@ test("radar.showPlansRepo is unset by default, read when set, and refuses a non-
   );
 });
 
-// rc-27.1: what Avoozl does with a crew's pull request that conflicts in source.
-test("conflicts defaults to fix with the count unset, and bad values are refused by key", () => {
+test("conflicts leaves the count unset by default, and bad values are refused by key", () => {
   // An unset count reads landing.conflictRounds, then 2 (design §4.25).
-  assert.deepEqual(repo("single-repo").conflicts, {
-    onSourceConflict: "fix",
-    maxAttempts: null,
-  });
+  assert.deepEqual(repo("single-repo").conflicts, { maxAttempts: null });
   assert.deepEqual(
-    repo("single-repo", {
-      conflicts: { onSourceConflict: "ask", maxAttempts: 3 },
-    }).conflicts,
-    { onSourceConflict: "ask", maxAttempts: 3 },
+    repo("single-repo", { conflicts: { maxAttempts: 3 } }).conflicts,
+    { maxAttempts: 3 },
   );
   assert.throws(
-    () => repo("single-repo", { conflicts: { onSourceConflict: "merge" } }),
-    /conflicts\.onSourceConflict must be fix or ask/,
+    () => repo("single-repo", { conflicts: { onSourceConflict: "ask" } }),
+    /onSourceConflict/,
   );
   for (const maxAttempts of [-1, 11, 1.5, "2"])
     assert.throws(

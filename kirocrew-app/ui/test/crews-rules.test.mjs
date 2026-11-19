@@ -29,9 +29,8 @@ test('no field asks for a model price', () => {
 
 test('Crews and rules modes are radio fold-outs, not selects', () => {
   const text = readFileSync(new URL('../src/CrewsRulesSettings.tsx', import.meta.url), 'utf8')
-  // The source-conflict action, the merge method and who merges
-  // (landing.autoMerge, design §4.25).
-  assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 3)
+  // The merge method and who merges (landing.autoMerge, design §4.25).
+  assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 2)
   assert.doesNotMatch(text, /<select|type="checkbox"/)
   assert.match(text, /<Fold title="Avoozl labels"/)
   // Labels are a section of Settings › Issue Radar; who merges and
@@ -107,8 +106,8 @@ after(async () => {
 for (const width of [320, 768, 1280])
   test(`at ${width} px the modes are radio fold-outs and the labels are folded`, { skip }, async () => {
     await page.open(harness.url({ page: 'crews-rules' }), { width, height: 900, dark: false })
-    await page.until(`document.querySelectorAll('[data-radio-fold]').length === 2`)
-    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-radio-fold]')].map((element) => element.dataset.radioFold)`), ['t-on-source-conflict', 't-merge-method'])
+    await page.until(`document.querySelectorAll('[data-radio-fold]').length === 1`)
+    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-radio-fold]')].map((element) => element.dataset.radioFold)`), ['t-merge-method'])
     // Advanced labels are folded until opened.
     assert.equal(await page.evaluate(`document.querySelector('[data-fold] ').open`), false)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no sideways scroll: ${(await page.overflow()).join('; ')}`)

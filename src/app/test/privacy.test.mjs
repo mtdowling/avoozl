@@ -78,7 +78,6 @@ function fakeGitHub(store) {
       "createBranch",
       "createLinkedBranch",
       "mergeBranch",
-      "armAutoMerge",
       "createPendingReview",
     ].map((name) => [name, record(name)]),
   );
@@ -135,8 +134,6 @@ const PUBLIC_FIELDS = {
       head: "main",
       message: `Merge on ${v}`,
     }),
-  "squash message": (g, v) =>
-    g.armAutoMerge(REPO, "PR_1", "SQUASH", { headline: `Land ${v}`, body: "" }),
   "review draft": (g, v) =>
     g.createPendingReview(REPO, 4, {
       commit_id: "abc1234",

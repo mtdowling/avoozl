@@ -390,13 +390,12 @@ export interface ConflictItem extends TaskOwner {
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
   // a review draft made from the review label (RC20).
-  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'merge-method' | 'forward' | 'forward-audit' | 'public-branch' | 'tracker-gate'
+  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'forward' | 'forward-audit' | 'public-branch' | 'tracker-gate'
   // A crew's needs-human row for a trusted escalation (R103.8): the GitHub
   // item, what the crew wrote, and Intake's Plan this and Deliver this.
   item?: { source: 'github'; id: string }
   escalation?: Escalation
   start?: { plan: boolean; deliver: boolean }
-  // A source conflict Avoozl asked about (RC28): the pull request and the choices.
   // A forward item (RC24.9): the mirror change the Forward screen shows.
   forwardId?: string
   // A branch-landing item (RC16.6): the branch and the head a person may approve.
@@ -520,7 +519,6 @@ export function viewsClient(api: AppApi) {
     radarCrews: (workspaceId: string) => run<RadarCrews>('radar.crews', {}, workspaceId),
     conflictsPage: (workspaceId: string) =>
       run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId),
-    // Resolve myself or Dismiss on a source conflict (RC28.3).
     // A person's choice for one conflicted managed field; the next
     // projection applies it.
     resolveConflict: (workspaceId: string, taskId: string, field: string, choice: 'desired' | 'github') =>

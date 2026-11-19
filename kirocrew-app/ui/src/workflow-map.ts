@@ -35,7 +35,6 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
 export type JumpField =
   | 'plan'
   | 'conflict'
-  | 'onSourceConflict'
   | 'mergeMethod'
   | 'autoMerge'
   | 'approval'
@@ -53,7 +52,6 @@ export interface Jump {
 const TAB: Record<JumpField, Jump['tab']> = {
   plan: 'radar',
   conflict: 'radar',
-  onSourceConflict: 'landing',
   mergeMethod: 'landing',
   autoMerge: 'landing',
   approval: 'radar',
@@ -291,7 +289,6 @@ export const fieldSelector = (id: string, field: JumpField): string =>
   ({
     plan: '#' + id + '-label-planLabel',
     conflict: `#${id}-label-conflictLabel`,
-    onSourceConflict: `#${id}-on-source-conflict input:checked, #${id}-on-source-conflict`,
     mergeMethod: `#${id}-merge-method input:checked, #${id}-merge-method`,
     autoMerge: `#${id}-auto-merge input:checked, #${id}-auto-merge`,
     approval: `#${id}-label-approvalLabel`,

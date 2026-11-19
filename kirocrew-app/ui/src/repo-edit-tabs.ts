@@ -16,7 +16,7 @@ export type EditTab = (typeof EDIT_TABS)[number]['key']
 // repository on Mirror; both are kept apart from the entry.
 export const EDIT_TAB_FIELDS: Record<EditTab, readonly (keyof RepositoryForm)[]> = {
   general: ['name'],
-  landing: ['baseBranch', 'releaseCapacity', 'landingMode', 'autoMerge', 'mergeMethod', 'onSourceConflict', 'maxAttempts', 'requiredChecks', 'pullRequestReviews', 'reviewApprovals'],
+  landing: ['baseBranch', 'releaseCapacity', 'landingMode', 'autoMerge', 'mergeMethod', 'maxAttempts', 'requiredChecks', 'pullRequestReviews', 'reviewApprovals'],
   github: ['cacheSeconds', 'rules', 'managedLabels', 'untriaged', 'minimumPermission', 'allowedActors', 'priority'],
   mirror: ['mirror'],
   map: [],
