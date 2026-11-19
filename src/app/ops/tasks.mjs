@@ -1,6 +1,8 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { applyActivity } from "../../activity.mjs";
 import { captureTask } from "../../capture.mjs";
+import { fixToSpec, startFix } from "../fix.mjs";
+import { withWorkLock } from "../git.mjs";
 import { dispatchMcp } from "../../mcp.mjs";
 import {
   blocks,
@@ -95,7 +97,7 @@ import {
   summaryFacts,
   taskSummaryView,
 } from "../task-summary.mjs";
-import { readDeliveryPolicy } from "../tick.mjs";
+import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick.mjs";
 import {
   handoffReceipts,
   radarNeedsYou,
@@ -346,6 +348,33 @@ export const entries = [
     },
   },
 
+  {
+    name: "fix.start",
+    class: "protect",
+    policy: person("Only a person starts a fix; starting it approves it."),
+    handler({ input, context }) {
+      if (context.caller || context.mcp)
+        fail("Only a person starts a fix or makes it a spec.", 403);
+      return withWorkLock(this.store, WORKSPACE_LOCK, async () =>
+        startFix(this.store, input, {
+          workspaceRoot: this.workspaceRoot,
+          actor: this.operator,
+        }),
+      );
+    },
+  },
+  {
+    name: "fix.spec",
+    class: "protect",
+    policy: person("Only a person makes a fix a spec."),
+    handler({ input, context }) {
+      if (context.caller || context.mcp)
+        fail("Only a person starts a fix or makes it a spec.", 403);
+      return withWorkLock(this.store, WORKSPACE_LOCK, async () =>
+        fixToSpec(this.store, this.workspaceRoot, input),
+      );
+    },
+  },
   {
     name: "task.start",
     class: "protect",

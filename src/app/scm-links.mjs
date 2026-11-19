@@ -17,6 +17,7 @@
 // - Check state carries the head SHA it was read for and its read time. It
 //   is `current` only when that head is the task's current commit; any
 //   other head shows as "stale", never as its old state.
+import { fixIssue } from "./fix.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
 
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
@@ -312,7 +313,7 @@ function taskSet(rows, links, task, now) {
       null,
     source:
       issueLink(links, task.intake?.issue, rows.resolve) ??
-      issueLink(links, task.fix?.issue, rows.resolve) ??
+      issueLink(links, fixIssue(task), rows.resolve) ??
       null,
   };
 }

@@ -34,6 +34,37 @@ async function runTaskDone({ options, positionals, localOrRequest, need }) {
 
 export const commands = [
   {
+    command: "fix",
+    help: [
+      help(
+        "deliver",
+        'fix "TEXT" --repo ID',
+        "Start one change with no spec files; starting it approves it (a person only)",
+      ),
+      help(
+        "deliver",
+        "fix spec TASK_ID",
+        "Make a fix that grew into a draft spec folder (a person only)",
+      ),
+    ],
+    async run({ options, positionals, localOrRequest, need }) {
+      const result =
+        positionals[0] === "spec"
+          ? await localOrRequest("fix.spec", {
+              taskId: need(positionals[1], "fix spec TASK_ID"),
+            })
+          : await localOrRequest("fix.start", {
+              text: need(positionals.join(" ").trim(), 'fix "TEXT" --repo ID'),
+              repository: need(options.repo, 'fix "TEXT" --repo ID'),
+            });
+      console.log(
+        result.spec
+          ? `${result.taskId} is now spec ${result.spec} (${result.folder}); the fix is archived.`
+          : `Started ${result.taskId}.`,
+      );
+    },
+  },
+  {
     command: "tick",
     help: [
       help(

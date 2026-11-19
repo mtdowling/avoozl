@@ -262,5 +262,5 @@ test("intake.deliver takes a GitHub issue for a person and refuses MCP", async (
   });
   assert.deepEqual(result.writes, ["label", "comment"]);
   const task = w.store.read().tasks.find((entry) => entry.id === result.taskId);
-  assert.equal(task.fix.kind, "bounded-fix");
+  assert.equal(task.fix.v, 2);
 });

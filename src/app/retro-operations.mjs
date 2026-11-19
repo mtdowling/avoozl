@@ -86,7 +86,7 @@ function overrideHandler({ name, input, context }) {
     this.store,
     input,
     m,
-    context.local ? "cli" : "dashboard",
+    context.local ? "cli" : this.operator || "dashboard",
     new Date().toISOString(),
   );
 }

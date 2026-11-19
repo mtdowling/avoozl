@@ -388,7 +388,7 @@ export const entries = [
       if (context.caller || context.mcp)
         fail("Only a person releases a phase, in the Avoozl page.", 403);
       return releaseStep(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     },
   },
@@ -439,7 +439,7 @@ export const entries = [
           403,
         );
       return landBranch(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     },
   },

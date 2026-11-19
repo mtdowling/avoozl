@@ -309,6 +309,8 @@ function recordFlaky(store, project, check, commit, now) {
     );
 }
 
+// A head Avoozl integrated: a merge it recorded, or a `direct` landing,
+// which marks the delivery integrated at the pushed commit.
 const integratedHead = (store, project, head) =>
   store
     .list("integration")
@@ -317,7 +319,12 @@ const integratedHead = (store, project, head) =>
         e.projectId === project.id &&
         e.state === "integrated" &&
         e.integratedCommit === head,
-    );
+    ) ||
+  store.list("task_deliveries").some((d) => {
+    if (d.state !== "integrated" || d.integratedCommit !== head) return false;
+    const task = store.read().tasks.find((t) => t.id === d.taskId);
+    return Boolean(task) && taskRepository(task) === project.id;
+  });
 
 // Results of the repository's checks at its landing branch head, one run
 // each in a scratch worktree. Before any check is known green, a head

@@ -90,7 +90,22 @@ import { Info } from 'lucide-react'
 // something on the page.
 export const DetailsIcon = Info
 
-import { CircleAlert, CircleCheck, ClipboardCheck, FileText, Gauge, GitPullRequest, HardDrive, History, Inbox, LayoutDashboard, LayoutGrid, Network, Settings } from 'lucide-react'
+import {
+  CircleAlert,
+  CircleCheck,
+  ClipboardCheck,
+  FileText,
+  Gauge,
+  GitPullRequest,
+  HardDrive,
+  History,
+  Inbox,
+  LayoutDashboard,
+  LayoutGrid,
+  Network,
+  Settings,
+  GitPullRequestDraft,
+} from 'lucide-react'
 // One icon per top-level view, shared by its nav tab and its page heading.
 // Network and LayoutGrid match the Graph and Delivery row buttons.
 export const VIEW_ICONS = {
@@ -111,6 +126,8 @@ export const VIEW_ICONS = {
   untriaged: Inbox,
   // Needs you reuses the Conflicts icon.
   waiting: CircleAlert,
+  // The GitHub pages: Issues, Pull requests and the Triage agent.
+  github: GitPullRequestDraft,
   // History is in the list above: the log of what happened.
   activity: History,
   settings: Settings,

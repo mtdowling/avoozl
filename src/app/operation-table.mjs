@@ -21,6 +21,7 @@ import { entries as specs } from "./ops/specs.mjs";
 import { entries as tasks } from "./ops/tasks.mjs";
 import { entries as workspace } from "./ops/workspace.mjs";
 import { entries as retro } from "./retro-operations.mjs";
+import { entries as triage } from "./triage-operations.mjs";
 
 export const TABLES = {
   content,
@@ -34,6 +35,7 @@ export const TABLES = {
   sessions,
   specs,
   tasks,
+  triage,
   workspace,
 };
 

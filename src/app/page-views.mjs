@@ -23,6 +23,7 @@ import {
   claimedTaskIds,
   deliveryFindings,
   dispatchOrder,
+  liveAttempt,
   startNowIds,
 } from "./delivery.mjs";
 import { sessionUrl } from "./notifications.mjs";
@@ -130,14 +131,17 @@ function needsTextReview(data, task) {
 }
 
 // Tasks with a live Avoozl session (worker, checks, reviewer, planner):
-// bound, not closed, lost, gone or dismissed. The Graph's Running state and
-// the Dashboard's In flight list both read this, so they always agree.
+// bound, not closed, lost, gone or dismissed, and not past its done or
+// blocked report. A Kiro Crew chat that reported done stays open and its
+// last read status stays "working" (P39 live), so the report ends it here.
+// The Graph's Running state and the Dashboard's In flight list both read
+// this, so they always agree.
 function liveSessions(store) {
   const ids = new Set();
   for (const row of optionalList(store, "session_bindings"))
     if (
       typeof row?.taskId === "string" &&
-      !FINAL_STATUSES.has(row.status) &&
+      liveAttempt(row) &&
       row.status !== "gone" &&
       !row.dismissedAt
     )

@@ -315,7 +315,7 @@ export const entries = [
           403,
         );
       return runAnyway(store, input, {
-        operator: context.local ? "cli" : "dashboard",
+        operator: context.local ? "cli" : this.operator || "dashboard",
       });
     },
   },
@@ -334,7 +334,10 @@ export const entries = [
         if (context.caller || context.mcp)
           fail("Only a person stops all agents. Do it in the Avoozl app.", 403);
         return pullFullStop(store, input, {
-          by: { kind: "person", name: context.local ? "cli" : "dashboard" },
+          by: {
+            kind: "person",
+            name: context.local ? "cli" : this.operator || "dashboard",
+          },
           stopSession: this.sessionStopper,
         });
       }
@@ -345,7 +348,10 @@ export const entries = [
                 kind: "agent",
                 name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
               }
-            : { kind: "person", name: context.local ? "cli" : "dashboard" },
+            : {
+                kind: "person",
+                name: context.local ? "cli" : this.operator || "dashboard",
+              },
       });
     },
   },
@@ -363,7 +369,7 @@ export const entries = [
           403,
         );
       return resumeStop(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     },
   },
