@@ -25,6 +25,7 @@ const KEYS = {
     hint: 'Write epic as the epic\'s spec folder name, such as "epic: rewrite".',
   },
 };
+export const PROSE_KEYS = Object.keys(KEYS);
 
 // { lines, category, epic, epicLine, problem }. `lines` is how many lines
 // the block takes, fences included (0 when the text has none). `problem` is

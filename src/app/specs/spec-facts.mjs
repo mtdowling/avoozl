@@ -70,7 +70,8 @@ const KEYS = {
   plan: { as: "plan", type: "text" },
   step: { as: "step", type: "text" },
 };
-const FACT_KEYS = Object.keys(KEYS);
+// docs/specs.md has a row for each (spec-facts-docs.test.mjs).
+export const FACT_KEYS = Object.keys(KEYS);
 // A person's task is `manual: true`; `completion: person` is not written.
 const PERSON =
   "A task a person does is `$manual: true`, which completes by a person. Write that, and delete this line.";
@@ -95,7 +96,7 @@ const SPEC_KEYS = [
   "publicBranch",
   "kind",
 ];
-const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
+export const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
 
 // The order a task's keys have in the text the revision hash reads. It is the
 // order the manifest files had, so a converted spec hashes as it did.
