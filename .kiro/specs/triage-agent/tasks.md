@@ -84,6 +84,7 @@ of the other specs.
   - Facts:
     - done:
       - Tests with fake executors: a new item gets one run and an unchanged item none; the 51st new item of a day waits with one Needs you item; a result that is not valid records the error and writes nothing; a write that matches a content rule is held; the run has no network and no credentials on `process`.
+      - Tests: a comment by the item's author or a collaborator starts a run; a comment by anyone else starts none and is in the next run's snapshot.
   - The role on either executor with the snapshot and the brief's context; one result shape and its validator; `triage.agent`, `triage.dailyRuns`, `triage.labels` and `triage.reviews` per repository; content rules on every write; the author's permission read with the item. Needs nk-1.1 and nk-1.2 of `without-kirocrew`.
 - [ ] ta-4.2 Questions, after ta-4.1 [TA2] (§D3)
   - Facts:

@@ -27,7 +27,10 @@ with `triage.agent: on`:
 
 1. Read what changed (D7). New items get a row on the item table.
 2. For each new item, oldest first, within the daily cap and the rate
-   budget, write one session request with role `triage`.
+   budget, write one session request with role `triage`. A new comment
+   starts a run only when its author is the item's author or a collaborator
+   (TA1.5, TA7.8); the tick reads the author's permission with the comment.
+   Anyone else's comment waits on the item as data for its next run.
 3. When a run's result arrives, carry out its writes through the client
    (D7) after the content rules pass, and record them on the item.
 
@@ -220,3 +223,4 @@ Kept and renamed: the content hook moves to `src/app/content-hook.mjs`.
 | A stranger's issue steers what Avoozl runs | A run names files, never commands; only the configured checks run, sandboxed (TA7.7) |
 | GitHub limits hit by a busy repository                     | Conditional lists, batched counts, cached detail, the daily cap, triage yields |
 | An item gets runs over and over                            | A new run only on a person's ask or an answer to its question (TA1.5)   |
+| A stranger's comments start runs                           | Only the item's author or a collaborator starts one; other comments are data (TA7.8) |

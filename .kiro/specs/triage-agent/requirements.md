@@ -129,7 +129,11 @@ at once by an agent, so that nothing waits for me to read it first.
    and then act by TA2 to TA5. Every decision and every write SHALL be
    recorded on the item with its run.
 5. An item SHALL get a new triage run only when a person asks, or when its
-   author answers a question the agent asked (TA3.4).
+   author answers a question the agent asked (TA3.4). A comment SHALL start
+   a run only when its author is the item's author or a collaborator on the
+   repository (TA7.8); anyone else's comment is data for the item's next run
+   and never starts one. (Changed 2026-11-18: who may start a run from a
+   comment.)
 
 ### Requirement TA2: Questions
 
@@ -247,6 +251,10 @@ do damage.
 7. A triage run SHALL name files, never commands. Avoozl SHALL run only the
    repository's configured checks, and SHALL run them for a reproduction
    with no network and no credentials.
+8. Only a comment by the item's author or by a collaborator on the
+   repository SHALL start a triage run. A comment by anyone else SHALL be
+   read as data in the item's next run and SHALL NOT start, resume or
+   queue one. (Changed 2026-11-18: added.)
 
 ### Requirement TA8: The Issues and Pull requests pages
 
