@@ -39,7 +39,6 @@ export interface PluginRow {
 
 export interface PluginList {
   supportedContracts: number[]
-  routes: string[]
   plugins: PluginRow[]
 }
 
@@ -144,9 +143,7 @@ export const locationOf = (form: PluginForm) => form[form.where].trim()
 export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
   pack: { title: 'Settings pack', line: 'Settings you preview and copy into .avoozl.json once. Runs no code.' },
   rules: { title: 'Content rules', line: 'Rule sets supplied while Avoozl runs. The terms never go into Git.' },
-  tracker: { title: 'Tracker', line: 'Keeps task records in another system.' },
   intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
-  route: { title: 'Delivery route', line: 'Delivers tasks somewhere other than a local worker.' },
   // Still listed by older plugins; Avoozl reads nothing from it (RC30.4).
   lessons: { title: 'Lessons pack (removed)', line: 'Avoozl no longer reads lessons packs. Remove lessons from provides.' },
 }
@@ -230,7 +227,7 @@ export function sharedBlocked(form: PluginForm): string | null {
 export function addInput(form: PluginForm, confirmPublic = false): { input?: Record<string, unknown>; error?: string } {
   const id = form.id.trim()
   if (!/^[a-z][a-z0-9-]{0,60}$/.test(id)) return { error: 'Give the plugin a lowercase id.' }
-  if (id === 'local' || id === 'github') return { error: `${id} is a built-in route.` }
+  if (id === 'local' || id === 'github') return { error: `${id} is a reserved id.` }
   const location = locationOf(form)
   if (!location)
     return {
@@ -413,7 +410,7 @@ export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; e
   }
 }
 
-// "Plugin ticket-tracker" or "MCP", from a source's `via`.
+// "Plugin ticket-intake" or "MCP", from a source's `via`.
 export function viaLabel(via: unknown): string {
   const text = String(via ?? '')
   return text.startsWith('plugin:') ? `Plugin ${text.slice(7)}` : text === 'mcp' ? 'MCP (a script or cron job sends items)' : text === 'github' ? 'GitHub (issues in this repository)' : text || 'Unknown'
@@ -459,7 +456,7 @@ export function sourceTriggers(row: IntakeSourceRow, plugins: PluginRow[]): { le
     return { level: 'Untriaged only', line: 'Rules can only pause or quarantine its items. You start work with Plan this or Deliver this.' }
   const id = via.slice(7)
   const plugin = plugins.find((p) => p.id === id)
-  if (plugin && !plugin.capabilities?.tracker?.includes('actor'))
+  if (plugin && !plugin.capabilities?.intake?.includes('actor'))
     return { level: 'No rules', line: `Plugin ${id} can't say who acted, so no rule runs. Items wait in Untriaged.` }
   return { level: 'Full rules', line: 'Its rules can start, deliver, pause or quarantine work, when the person who acted counts.' }
 }

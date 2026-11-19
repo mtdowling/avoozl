@@ -7,7 +7,6 @@ import { mirrorConfig, refusePrivateToSource } from "./mirror-sync.mjs";
 import { digest, queryTasks, statusComplete } from "../model.mjs";
 import {
   completionReached,
-  isGate,
   isManual,
   taskKind,
   taskRepository,
@@ -73,10 +72,6 @@ const FIELDS = ["title", "body", "labels", "blockers"];
 // on the issue (R61.23).
 export const MANUAL_LINE =
   "Manual task: a person closes this issue or marks it done in Avoozl. No agent works on it.";
-// A gate says what it waits on and what counts as done (RC23.3). The values
-// are plain text from the approved spec, never a credential.
-export const gateLine = (task) =>
-  `Tracker gate: waits on ${task.gate?.plugin} item ${task.gate?.item}. Done when: ${task.gate?.done}. No agent works on it.`;
 // A public-safe issue that waits on a private task says only this (RC25.9).
 export const PRIVATE_WAIT_LINE = "Waits on a private task.";
 // One line per workspace rule a Radar crew must follow (task.implement and
@@ -113,7 +108,7 @@ ${task.summary || task.nextAction || ""}
 ## Acceptance criteria
 
 ${(task.acceptance || []).map((item) => `- [ ] ${item}`).join("\n")}
-${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${isGate(task) ? `\n> ${gateLine(task)}\n` : ""}${entries ? `\n## Links\n\n${entries}\n` : ""}${ruleLines ? `\n## Agent rules\n\n${AGENT_RULES_LINE}\n\n${ruleLines}\n` : ""}
+${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${entries ? `\n## Links\n\n${entries}\n` : ""}${ruleLines ? `\n## Agent rules\n\n${AGENT_RULES_LINE}\n\n${ruleLines}\n` : ""}
 <!-- avoozl:managed:end -->`;
 }
 

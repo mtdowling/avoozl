@@ -77,8 +77,6 @@ export function blockerNotes(data, task) {
     const blocker = data.tasks.find((candidate) => candidate.id === edge.from),
       order =
         (blocker?.githubVerdict?.state === "order" && blocker.githubVerdict) ||
-        (blocker?.trackerVerdict?.state === "order" &&
-          blocker.trackerVerdict) ||
         (blocker?.intakeVerdict?.state === "order" && blocker.intakeVerdict);
     if (!order) continue;
     const name = order.issue

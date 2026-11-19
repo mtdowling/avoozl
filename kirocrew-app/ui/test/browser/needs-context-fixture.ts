@@ -126,15 +126,4 @@ export const needsContextItems = [
     openedAt: at(20),
     context: { task: next('search.6', 'Search page'), spec, source: { path: '.kiro/specs/recipe-search/tasks.md', lineStart: 34, lineEnd: 38 }, unblocks: { total: 0, tasks: [] }, links: null },
   },
-  {
-    kind: 'needs-human',
-    reason: 'tracker-gate',
-    id: 'gate:search.8:waiting',
-    taskId: 'search.8',
-    authority: 'github',
-    title: 'Tracker gate search.8 is waiting',
-    detail: 'tracker item OPS-12: no detail. Avoozl does not clear a gate; clear it or edit the plan.',
-    link: null,
-    openedAt: at(600),
-  },
 ]

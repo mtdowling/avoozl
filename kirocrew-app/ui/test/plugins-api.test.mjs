@@ -30,7 +30,7 @@ test('Add plugin builds one entry and catches what a person must fix', () => {
   assert.match(addInput({ ...form, where: 'git', git: '../repo' }).error, /tag, branch or commit/)
   assert.match(addInput({ ...form, where: 'git', git: '' }).error, /git URL/)
   assert.match(addInput({ ...form, id: 'Bad Id' }).error, /lowercase id/)
-  assert.match(addInput({ ...form, id: 'github' }).error, /built-in/)
+  assert.match(addInput({ ...form, id: 'github' }).error, /reserved/)
   assert.match(addInput({ ...form, path: ' ' }).error, /folder/)
   assert.match(addInput({ ...form, config: '[1]' }).error, /JSON object/)
 })
@@ -105,9 +105,9 @@ test('preview is its own read-only call', async () => {
 
 test('a bundle plugin lists its parts, and Import waits for approval and acceptance', async () => {
   const { importBlocked, importInput, packCounts, partTitles, shortValue } = await import('../src/plugins-api.ts')
-  assert.deepEqual(partTitles({ provides: ['pack', 'rules', 'tracker', 'intake'] }), ['Settings pack', 'Content rules', 'Tracker', 'Intake source'])
+  assert.deepEqual(partTitles({ provides: ['pack', 'rules', 'intake'] }), ['Settings pack', 'Content rules', 'Intake source'])
   // A plugin from before `provides` has one part per kind.
-  assert.deepEqual(partTitles({ kinds: ['route'] }), ['Delivery route'])
+  assert.deepEqual(partTitles({ kinds: ['rules'] }), ['Content rules'])
   const preview = {
     id: 'sdk-team',
     version: '1.1.0',

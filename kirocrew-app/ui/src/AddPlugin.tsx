@@ -69,13 +69,13 @@ function SourceFields({ form, set }: { form: PluginForm; set: (patch: Partial<Pl
   const fields: Record<PluginForm['where'], ReactNode> = {
     path: (
       <Field label="Folder" marker="required" raw="path" hint="Absolute, or relative to this computer’s Avoozl settings. A shared plugin uses a path inside the repository.">
-        <Input value={form.path} placeholder="~/plugins/example-tracker" onChange={(e: Change) => set({ path: e.target.value })} />
+        <Input value={form.path} placeholder="~/plugins/example-intake" onChange={(e: Change) => set({ path: e.target.value })} />
       </Field>
     ),
     package: (
       <Box css-grid-template-columns="minmax-0-2fr-minmax-6rem-1fr" grid gap="2">
         <Field label="Package name" marker="required" raw="package">
-          <Input value={form.package} placeholder="@example/avoozl-tracker" onChange={(e: Change) => set({ package: e.target.value })} />
+          <Input value={form.package} placeholder="@example/avoozl-intake" onChange={(e: Change) => set({ package: e.target.value })} />
         </Field>
         <Field label="Version" marker="optional" hint="Checked against what is installed.">
           <Input value={form.version} placeholder="1.2.0" onChange={(e: Change) => set({ version: e.target.value })} />
@@ -149,7 +149,7 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
           ))}
       </Box>
       <Field label="Id" marker="required" raw="id" hint={preview.id ? 'From the plugin’s own avoozl-plugin.json.' : 'It must match the id in the plugin’s avoozl-plugin.json. Add checks it.'}>
-        <Input value={form.id} disabled={Boolean(preview.id)} placeholder="example-tracker" onChange={(e: Change) => set({ id: e.target.value })} />
+        <Input value={form.id} disabled={Boolean(preview.id)} placeholder="example-intake" onChange={(e: Change) => set({ id: e.target.value })} />
       </Field>
       <Field label={CONTRACT_LABEL} marker="required" raw="contract" hint={fromManifest ? `From the plugin’s own avoozl-plugin.json. ${CONTRACT_HINT}` : CONTRACT_HINT}>
         {fromManifest ? (

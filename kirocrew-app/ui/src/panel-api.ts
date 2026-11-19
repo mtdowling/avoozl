@@ -165,11 +165,10 @@ export interface PanelInput {
 // Items a person settles. Local worker items (a stale session, a delivery
 // decision, findings, a hand-set review, Integrate) are not here: local
 // workers are retired.
-const WAITING_KINDS = new Set(['needs-human', 'github-conflict', 'tracker-conflict', 'review', 'ready-to-merge', 'branch-landing', 'content-match', 'content-unavailable'])
+const WAITING_KINDS = new Set(['needs-human', 'github-conflict', 'review', 'ready-to-merge', 'branch-landing', 'content-match', 'content-unavailable'])
 const LABELS: Record<string, string> = {
   'needs-human': 'Needs you',
   'github-conflict': 'GitHub edit',
-  'tracker-conflict': 'Tracker edit',
   review: 'Review',
   'ready-to-merge': 'Ready to merge',
   'branch-landing': 'Ready to land',

@@ -92,7 +92,6 @@ export function noActionReason(item: ConflictItem): string | null {
         ? 'Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes.'
         : 'GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick.'
   if (item.kind === 'resource') return 'Two active runs share a resource. Stop one run, or wait for one to finish.'
-  if (item.kind === 'tracker-conflict') return 'The tracker record owns this field. Change it there or in the spec.'
   if (item.kind === 'content-unavailable')
     return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
   if (item.kind === 'content-match') return null
@@ -119,11 +118,8 @@ export function noActionReason(item: ConflictItem): string | null {
   // Review drafts (RC20): the person acts on GitHub; the row clears itself.
   if (item.kind === 'needs-human' && item.reason === 'review-draft')
     return 'Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone.'
-  // A tracker gate (RC23.9): a person clears it from the Release queue or the CLI.
-  if (item.kind === 'needs-human' && item.reason === 'tracker-gate')
-    return 'Clear the gate in the Release queue, or change the spec. Avoozl never clears a gate itself; the row closes when the tracker reports done.'
   if (item.kind === 'review' && settleActionOf(item) === null)
-    return 'GitHub or a plugin owns these tasks. Review them where they live.'
+    return 'GitHub owns these tasks. Review them where they live.'
   if (settleActionOf(item) === null && item.kind !== 'github-conflict')
     return `${item.authority} owns this task. Settle it where it lives.`
   return null
@@ -136,7 +132,7 @@ export const CONFLICT_TABS: { key: string; label: string; keep: (item: ConflictI
   { key: 'github-conflict', label: 'GitHub edits', keep: (item) => item.kind === 'github-conflict' },
   { key: 'decision', label: 'Decisions', keep: (item) => ['decision', 'content-match', 'content-unavailable'].includes(item.kind) },
   { key: 'needs-human', label: 'Needs you', keep: (item) => ['needs-human', 'review', 'investigation', 'ready-to-merge', 'tick-failed', 'branch-landing'].includes(item.kind) },
-  { key: 'other', label: 'Sessions and resources', keep: (item) => ['stale-session', 'resource', 'tracker-conflict'].includes(item.kind) },
+  { key: 'other', label: 'Sessions and resources', keep: (item) => ['stale-session', 'resource'].includes(item.kind) },
 ]
 
 export function tabCounts(items: ConflictItem[]): Record<string, number> {
@@ -150,7 +146,6 @@ export function whyLine(item: ConflictItem): string {
   if (item.kind === 'needs-human' && item.reason === 'crew') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'review-draft') return item.detail
-  if (item.kind === 'needs-human' && item.reason === 'tracker-gate') return item.detail
   if (item.kind === 'needs-human')
     return item.reason === 'blocked' ? 'Marked blocked: nothing starts until you unblock it.' : 'New or edited: it waits for your review before it can start.'
   if (item.kind === 'review') return item.detail

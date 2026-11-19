@@ -2,7 +2,7 @@
 // where work comes in from, one list. A GitHub source is a repository whose
 // issues may start work; it is set in Repository setup and shows here with
 // a link there. The GitHub box is the Triage reader: what no source covers.
-// Any other source is a tracker plugin with poll, or `mcp` for a script or
+// Any other source is a plugin that provides intake, or `mcp` for a script or
 // cron job that sends items. Each source is one box with
 // its status (on or off, last poll, items, last error), what it can set
 // off, and who counts. A source is declared on this computer by default;
@@ -299,7 +299,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<{ text: string; field?: keyof SourceForm } | null>(null)
   const set = (patch: Partial<SourceForm>) => setForm({ ...form, ...patch })
-  const pollers = props.plugins.filter((row) => row.id && row.capabilities?.tracker?.includes('poll'))
+  const pollers = props.plugins.filter((row) => row.id && row.provides?.includes('intake'))
   const plugin = form.via !== 'mcp'
   const dirty = JSON.stringify(form) !== JSON.stringify(emptySourceForm())
   const invalid = (field: keyof SourceForm) => (problem?.field === field ? true : undefined)
@@ -393,7 +393,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
         </Group>
         <Group legend="Comes from (required)">
           <RadioFold name="intake-via" label="Comes from" value={form.via} onChange={(value) => set({ via: value })} sections={via} />
-          {!pollers.length && <Hint as="p" size="xs" flush>No plugin with poll is installed. Add one above to poll a tracker.</Hint>}
+          {!pollers.length && <Hint as="p" size="xs" flush>No plugin provides intake. Add one above to poll it.</Hint>}
         </Group>
         <Group legend="Item fields">
           <Field id="intake-labelFields" label="Fields as labels" marker="optional" raw="labelFields" hint="Comma list. Each adds a field:value label before rules match.">
@@ -524,7 +524,7 @@ export default function IntakeSources({ workspaceId, plugins, onOpenGitHub, onOp
           <Box css-border-color="border" css-border-style="dashed" mt="3" rounded="lg" border="all" p="3" data-intake-empty>
             <EmptyState
               title="No other source yet"
-              subtitle="Add one to poll a tracker plugin, or to take items a script or cron job sends through MCP."
+              subtitle="Add one to poll an intake plugin, or to take items a script or cron job sends through MCP."
               // TODO: add the shared "Ask for help" chat link here once it is on main.
               action={addButton}
             />

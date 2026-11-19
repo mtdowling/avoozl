@@ -22,8 +22,6 @@ export function askLine(item: ConflictItem): string {
       return 'Approve this exact head, then merge the branch on GitHub yourself.'
     case 'github-conflict':
       return 'Choose whose value stays: Avoozl’s or the edit made on GitHub.'
-    case 'tracker-conflict':
-      return 'Change the field where the tracker owns it, or change the spec.'
     case 'stale-session':
       return 'Read why the chat ended, then retry the delivery or dismiss this row.'
     case 'resource':

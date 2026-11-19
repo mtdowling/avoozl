@@ -110,7 +110,6 @@ export function installInlineFixture() {
   let disabled = false
   const plugins = () => ({
     supportedContracts: [1],
-    routes: [],
     plugins: [{ id: 'team-pack', source: 'repository', version: '1.0.0', contract: 1, kinds: [], state: disabled ? 'disabled' : 'approved', reason: null, health: null }],
   })
   answer('plugins.list', () => plugins())

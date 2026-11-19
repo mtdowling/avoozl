@@ -139,7 +139,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   repositories:
     "Each repository's role says where its tasks live. Its labels, Workflow map, checks and reviews are tabs under its name. Issue Radar settings have their own page. Save only writes .avoozl.json.",
   plugins:
-    'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
+    'A plugin can bring a team’s settings pack, content rules, an intake source or workflow templates. Each one runs or imports only after you approve it on this machine.',
   content:
     'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',

@@ -370,7 +370,7 @@ export interface ConflictItem extends TaskOwner {
   planReview?: { planId: string; revisionHash: string }
   // A spec pull request adopted into its spec (R107.5).
   specPull?: SpecPull
-  kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'resource' | 'github-conflict' | 'tracker-conflict' | string
+  kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'resource' | 'github-conflict' | string
   // Null for a review group, which stands for many tasks.
   taskId: string | null
   title: string
@@ -390,7 +390,7 @@ export interface ConflictItem extends TaskOwner {
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
   // a review draft made from the review label (RC20).
-  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'conflict-fix' | 'merge-method' | 'forward' | 'forward-audit' | 'public-branch' | 'tracker-gate'
+  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'conflict-fix' | 'merge-method' | 'forward' | 'forward-audit' | 'public-branch'
   // A crew's needs-human row for a trusted escalation (R103.8): the GitHub
   // item, what the crew wrote, and Intake's Plan this and Deliver this.
   item?: { source: 'github'; id: string }
@@ -726,7 +726,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
 }
 
 // A local task that is not already replaced may be superseded by hand. GitHub
-// and plugin tasks are replaced in their plan or tracker instead.
+// tasks are replaced in their plan instead.
 export function canSupersede(item: DeliveryItem): boolean {
   return (item.authority ?? 'local') === 'local' && !item.supersededBy && item.status !== 'superseded'
 }

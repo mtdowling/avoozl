@@ -168,7 +168,7 @@ for (const [width, height] of [
 // Home's reads, by name. A new read on Home (or one that calls GitHub) has
 // to be added here on purpose. landing.view reads Avoozl's own store only
 // (landing-view.test.mjs checks it makes no GitHub call).
-const HOME_READS = new Set(['workspaces.list', 'instance.view', 'flow.view', 'graph.view', 'delivery.view', 'conflicts.view', 'plan.list', 'radar.crews', 'repositories.list', 'github.settings.get', 'untriaged.view', 'radar.releasequeue', 'gate.list', 'integration.view', 'review.drafts', 'landing.view'])
+const HOME_READS = new Set(['workspaces.list', 'instance.view', 'flow.view', 'graph.view', 'delivery.view', 'conflicts.view', 'plan.list', 'radar.crews', 'repositories.list', 'github.settings.get', 'untriaged.view', 'radar.releasequeue', 'integration.view', 'review.drafts', 'landing.view'])
 
 test('Home sends only its own reads, and shows its cards before the slow Radar read lands', { skip }, async () => {
   await page.open(harness.url({ page: 'app', theme: 'light', needs: '3', slowradar: '1' }), { width: 1280, height: 800 })
