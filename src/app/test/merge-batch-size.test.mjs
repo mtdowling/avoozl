@@ -73,7 +73,7 @@ test("a number in landing.mergeBatch replaces the limit, and 1 keeps batches to 
 
 test("the record survives a restart, and a culprit stays alone until it lands", (t) => {
   const file = path.join(temporaryDirectory("avoozl-size-"), "w.sqlite"),
-    Q = { projectId: "app", base: "main" };
+    Q = { repositoryId: "app", base: "main" };
   let store = new Store(file);
   assert.deepEqual(sizeRecord(store, Q), emptySize());
   recordBatch(store, Q, { landed: ["a", "b"], held: 2, waiting: 4 });

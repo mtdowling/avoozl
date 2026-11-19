@@ -70,7 +70,7 @@ const RETIRED_LANDING =
 
 // One line per base for `landing status`.
 const landingStatusLine = (b) =>
-  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting` +
+  `${b.repository ?? b.repositoryId} ${b.base}: ${b.items.length} waiting` +
   (b.testing
     ? `, testing ${b.testing.members.length} (${b.testing.step})`
     : "") +
@@ -603,7 +603,9 @@ try {
           "plugin.pack.preview",
           {
             id,
-            ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+            ...(options.github
+              ? { repositories: [options.github].flat() }
+              : {}),
           },
         ],
         "pack-import": () => [
@@ -611,7 +613,9 @@ try {
           {
             id,
             previewHash: options.preview,
-            ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+            ...(options.github
+              ? { repositories: [options.github].flat() }
+              : {}),
             acceptLowered: Boolean(options["accept-lowered"]),
             confirmPublic: Boolean(options["confirm-public"]),
           },
@@ -748,9 +752,9 @@ try {
         await localOrRequest("repository.setup", {
           repository: need(
             positionals[0],
-            "setup OWNER/REPO --project ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+            "setup OWNER/REPO --repo ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
           ),
-          project: options.project,
+          repositoryId: options.repo,
           methods: list(options.methods),
           landing: options.landing,
           confirm: Boolean(options.yes),
@@ -1084,7 +1088,7 @@ try {
       operation = "github.configure";
       value = {
         repository: options.repository || positionals[1],
-        projectId: options.project,
+        repositoryId: options.repo,
         assignee: options.assignee,
         provider: options.provider,
         model: options.model,
@@ -1271,13 +1275,13 @@ try {
         2,
       ),
     );
-  } else if (command === "project") {
+  } else if (command === "repository") {
     const action = positionals[0],
       provided = input();
-    if (action !== "configure") throw Error("Choose project configure.");
+    if (action !== "configure") throw Error("Choose repository configure.");
     console.log(
       JSON.stringify(
-        await localOrRequest("project.configure", {
+        await localOrRequest("repository.configure", {
           ...provided,
           id: options.id || positionals[1] || provided.id,
           root: options.root || provided.root,
@@ -1722,6 +1726,21 @@ try {
     } finally {
       store.close();
     }
+  } else if (command === "fix") {
+    const result =
+      positionals[0] === "spec"
+        ? await localOrRequest("fix.spec", {
+            taskId: need(positionals[1], "fix spec TASK_ID"),
+          })
+        : await localOrRequest("fix.start", {
+            text: need(positionals.join(" ").trim(), 'fix "TEXT" --repo ID'),
+            repository: need(options.repo, 'fix "TEXT" --repo ID'),
+          });
+    console.log(
+      result.spec
+        ? `${result.taskId} is now spec ${result.spec} (${result.folder}); the fix is archived.`
+        : `Started ${result.taskId}.`,
+    );
   } else if (command === "show") {
     const id = need(positionals[0], "show TASK_ID");
     // A pull request review a `process` child wrote (NK4.4).

@@ -602,7 +602,7 @@ test("real scratch code views are detached, clean, recorded at the default head,
   git(code, "commit", "-m", "Start");
   git(code, "remote", "add", "origin", remote);
   git(code, "push", "origin", "main");
-  env.store.put("projects", {
+  env.store.put("repositories", {
     id: "app",
     root: code,
     worktreeRoot: path.join(root, "views"),

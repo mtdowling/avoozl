@@ -1,4 +1,4 @@
-// The tick lands `direct` projects on their remote (task 41.9). Real git (a
+// The tick lands `direct` repositories on their remote (task 41.9). Real git (a
 // bare "origin" and a checkout) and real checks; nothing live.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -10,8 +10,9 @@ import { Store } from "../store.mjs";
 import { integrateVerified } from "../delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landDirect } from "../direct-landing.mjs";
+import { graphView } from "../page-views.mjs";
 import { takeOverSpec } from "../spec-takeover.mjs";
-import { snapshot } from "./fixtures.mjs";
+import { snapshot, verifiedTask } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
@@ -59,7 +60,7 @@ async function workspace(t) {
     tasks: [leaf("t1"), leaf("t2")],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -78,40 +79,7 @@ async function workspace(t) {
   return { root, origin, checkout: fs.realpathSync.native(checkout), store };
 }
 
-// A task worktree with one commit, a verified delivery and a worker chat.
-function verified(w, taskId, file = `${taskId}.txt`) {
-  const branch = `avoozl/${taskId}`,
-    wt = path.join(w.root, "wt", taskId);
-  git(w.checkout, "worktree", "add", "-q", "-b", branch, wt, "main");
-  fs.writeFileSync(path.join(wt, file), taskId + "\n");
-  git(wt, "add", ".");
-  git(wt, "commit", "-qm", "Do " + taskId);
-  const commit = git(wt, "rev-parse", "HEAD");
-  w.store.put("task_worktrees", {
-    id: taskId,
-    taskId,
-    path: wt,
-    branch,
-    repository: "app",
-  });
-  w.store.put("task_deliveries", {
-    id: taskId,
-    taskId,
-    state: "verified",
-    commit,
-    attempts: [],
-    verifications: [],
-  });
-  w.store.put("session_bindings", {
-    id: "slot-" + taskId,
-    slot: "slot-" + taskId,
-    taskId,
-    role: "worker",
-    attempt: 1,
-    status: "working",
-  });
-  return { commit, wt, branch };
-}
+const verified = verifiedTask;
 
 const step = (w) =>
   landDirect(w.store, { workspaceRoot: w.root, rounds: 2, machine: {} });
@@ -124,7 +92,7 @@ test("a verified task is queued, checked at the candidate and pushed by the tick
   // Queued, not pushed.
   assert.equal(git(w.origin, "rev-parse", "main"), start);
   assert.equal(
-    landingQueue(w.store, { projectId: "app", base: "main" }).length,
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     1,
   );
   const result = await step(w);
@@ -147,6 +115,16 @@ test("a verified task is queued, checked at the candidate and pushed by the tick
   // A second step has nothing to do.
   await step(w);
   assert.equal(git(w.origin, "rev-parse", "main"), landed);
+  // A Kiro Crew chat that reported done keeps its last read status, working:
+  // the landed task is not drawn as running (P39 live).
+  const state = () =>
+    graphView(w.store, w.store.read()).tasks.find((x) => x.id === "t1").state;
+  assert.equal(state(), "running");
+  w.store.put("session_bindings", {
+    ...w.store.get("session_bindings", "slot-t1"),
+    report: { kind: "done", commit },
+  });
+  assert.notEqual(state(), "running");
 });
 
 test("a failed check at the candidate goes back to the chat and pushes nothing", async (t) => {
@@ -209,7 +187,7 @@ test("without a take over nothing is queued or pushed", async (t) => {
   assert.match(notify[0].text, /spec takeover/);
   assert.equal(w.store.get("task_deliveries", "t2").state, "decision");
   assert.equal(
-    landingQueue(w.store, { projectId: "app", base: "main" }).length,
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     0,
   );
   assert.equal(git(w.origin, "rev-parse", "main"), start);
@@ -217,9 +195,9 @@ test("without a take over nothing is queued or pushed", async (t) => {
 
 test("the tick lands a merge batch, then each landed member's ref is gone and the remote holds only main", async (t) => {
   const w = await workspace(t);
-  w.store.put("projects", {
-    ...w.store.get("projects", "app"),
-    repository: "acme/app",
+  w.store.put("repositories", {
+    ...w.store.get("repositories", "app"),
+    github: "acme/app",
   });
   const config = {
     github: {

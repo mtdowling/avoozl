@@ -99,7 +99,7 @@ test("Prepare starts a task from its spec's working head and records the exact b
     tasks: [leaf("a", { planId: "reader" }), leaf("b")],
     edges: [],
   });
-  store.put("projects", { id: "app", root: checkout, baseBranch: "main" });
+  store.put("repositories", { id: "app", root: checkout, baseBranch: "main" });
   store.put("plans", { id: "reader", spec: "reader", state: "approved" });
   const work = commitOn(checkout, workingBranch("reader"), "main", {
       "w.txt": "verified\n",
@@ -117,7 +117,7 @@ test("Prepare starts a task from its spec's working head and records the exact b
     commit: ref.ref.source.commit,
     kind: "working",
   });
-  // A task with no spec keeps the project's base branch.
+  // A task with no spec keeps the repository's base branch.
   const plain = await ops.execute("worktree.prepare", { taskId: "b" });
   assert.equal(plain.head, git(checkout, "rev-parse", "main"));
   assert.equal(store.get("task_worktrees", "b").base.kind, "base");

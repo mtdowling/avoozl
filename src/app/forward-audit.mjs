@@ -61,7 +61,7 @@ function raise(store, repository, source, findings, now) {
       by: { kind: "system", name: "forward audit" },
       reason: `The forward audit found a difference on ${source}.`,
       scope: "repo",
-      projectId: repository,
+      repositoryId: repository,
       planId: null,
       spec: null,
       taskId: null,

@@ -54,7 +54,7 @@ const OWN_VALUES = [
   "session",
   "session_uuid",
   "permission",
-  "project_allow_commands",
+  "repository_allow_commands",
 ];
 const stamp = () => new Date().toISOString();
 
@@ -161,7 +161,7 @@ export function requestChild(db, request) {
     if (!list.every((item) => typeof item === "string"))
       fail(`Value {${key}} must be a string or a list of strings.`);
   }
-  // The project's allow-list and network (R94.4c, R95.6), checked here and
+  // The repository's allow-list and network (R94.4c, R95.6), checked here and
   // again at start, so a bad request fails where it was made.
   const settings = {
     allowCommands: sandboxAllowCommands(request.allowCommands, {
@@ -732,7 +732,7 @@ export function startSupervisor({
         ...(messageFile ? { message_file: messageFile } : {}),
       };
       // start or resume, then the model when one is named, then the
-      // project's allow-list, checked again here (R94.4c).
+      // repository's allow-list, checked again here (R94.4c).
       const argv = [
         ...fillHarnessArgv(
           message ? definition.resume : definition.start,
@@ -760,7 +760,7 @@ export function startSupervisor({
         permissionClass: row.permission_class,
         worktree: row.worktree,
         tmp: values.tmp,
-        cacheDirs: values.project_cache_dirs ?? [],
+        cacheDirs: values.repository_cache_dirs ?? [],
         gitCommonDir: gitCommonDir(row.worktree),
         configDirectory,
       });
@@ -787,7 +787,7 @@ export function startSupervisor({
         readRoots: [
           row.worktree,
           ...(values.tmp ? [values.tmp] : []),
-          ...(values.project_cache_dirs ?? []),
+          ...(values.repository_cache_dirs ?? []),
           ...(gitCommonDir(row.worktree) ? [gitCommonDir(row.worktree)] : []),
           ...harnessReads(definition, env.HOME || os.homedir()),
           ...GIT_USER_CONFIG.map((file) =>

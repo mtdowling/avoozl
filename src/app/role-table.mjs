@@ -3,20 +3,21 @@
 // recorded read these rows, so a role is described once. `setting` is the
 // role's key in the `roles` table (Settings › Models); `roleRun` resolves the
 // executor every dispatch uses: the task's `session.harness` pin, then the
-// role's saved harness, then the project's executor.
+// role's saved harness, then the repository's executor.
 import { harnessExecutor, roleHarness } from "./chat-models.mjs";
+import { TRIAGE_OUTPUT_LIMIT, triageOutput } from "./triage-result.mjs";
 
-// The executor a project's sessions run on: its `executor` setting, else
+// The executor a repository's sessions run on: its `executor` setting, else
 // `kirocrew` (R93.5; a repository opts in, as the Nupp compiler's does).
-export const projectExecutor = (project) =>
-  project?.executor === "process" ? "process" : "kirocrew";
+export const repositoryExecutor = (repository) =>
+  repository?.executor === "process" ? "process" : "kirocrew";
 
 // What a child does instead of the Avoozl tools it cannot reach (R96.1): a
 // sandboxed child has no database, so its report is the result file.
 const RESULT_LIMIT =
   "Write no other file, keep the result file under 8 KB, then exit.";
 
-// A verdict child runs unattended, so only the project's allow-list runs in
+// A verdict child runs unattended, so only the repository's allow-list runs in
 // its shell, and a command line runs only when every part of it is listed
 // (P59: a verifier that chained `od` and `cat` onto the check was refused
 // and reported blocked).
@@ -40,7 +41,7 @@ const verdictFinish = (allowCommands) => [
 //   setting  the role's key in the `roles` table
 //   roles    the dispatch role names the row covers
 //   prompt   the role's prompt file, put at the top of a child's brief
-//   process  true once the role can run as a child; until then a project's
+//   process  true once the role can run as a child; until then a repository's
 //            `process` executor does not move it (a saved harness does)
 //   access   what the child may do to files
 //   folder   how the drain makes the child's folder: worktree (the task's),
@@ -59,7 +60,7 @@ const verdictFinish = (allowCommands) => [
 //            (tasksummary.submit, as the session), falsifier
 //            (session.report with the verdict and no commit)
 //   finish   the lines that replace the Avoozl tools in a child's brief
-//   offline  true when the child gets no network, whatever its project
+//   offline  true when the child gets no network, whatever its repository
 //            allows: it reads only its folder and brief
 // A plan review's output file: {findings: [...], summary?}. The findings'
 // own rules are plans_submit_review's.
@@ -319,6 +320,28 @@ export const ROLE_TABLE = Object.freeze({
       "Write no other file, then exit.",
     ],
   },
+  // The triage agent (triage-agent §D2): one item's snapshot, read only and
+  // offline; its one result goes in an output file, and Avoozl makes every
+  // GitHub write after the content rules pass.
+  triage: {
+    setting: "triage",
+    roles: ["triage"],
+    prompt: "triage",
+    process: true,
+    access: "read",
+    folder: "snapshot",
+    scratch: "avoozl-triage-",
+    offline: true,
+    snapshot: async (store, request, options) =>
+      (await import("./triage.mjs")).triageSnapshot(store, request, options),
+    hands: "triage",
+    output: { limit: TRIAGE_OUTPUT_LIMIT, validate: triageOutput },
+    finish: () => [
+      "You run without Avoozl's tools or network. Read README.md in the current folder first: the item is in item/, a pull request's diff in pull-request/, and the repository's files in repo/. Do not run gh or any command.",
+      'Write your one result to .avoozl/output/triage.json as the JSON object your instructions describe, then write .avoozl/result.json as {"state": "done", "output": "triage.json"}. Cite repository files by their path under repo/, without the repo/ prefix.',
+      "Write no other file, then exit.",
+    ],
+  },
   // The page's Open chat on a machine with no Kiro Crew (standalone-web SW7):
   // a read-only child in the workspace root that answers and proposes.
   assist: {
@@ -355,13 +378,15 @@ export const processRow = (role) => {
 
 // The executor a role's request names: the task's `session.harness` pin
 // (where the role has a task), else the role's harness saved in Settings ›
-// Models, else the project's executor; a row that cannot run as a child yet
-// keeps `kirocrew` there, so a project's setting never breaks it.
+// Models, else the repository's executor; a row that cannot run as a child yet
+// keeps `kirocrew` there, so a repository's setting never breaks it.
 // Returns {executor, harness?}.
-export function roleRun(setting, { config, task, project } = {}) {
+export function roleRun(setting, { config, task, repository } = {}) {
   const row = ROLE_TABLE[setting];
   if (!row) throw Error(`${setting} is not a role in the role table.`);
   const named = task?.session?.harness ?? roleHarness(config, setting);
   if (named) return harnessExecutor(named);
-  return { executor: row.process ? projectExecutor(project) : "kirocrew" };
+  return {
+    executor: row.process ? repositoryExecutor(repository) : "kirocrew",
+  };
 }

@@ -232,13 +232,13 @@ function readTemplate(folder, name = path.basename(folder)) {
     files = Object.fromEntries(
       Object.entries(starter).map(([f, t]) => [f, fill(t, sample)]),
     ),
-    projects = inputs
+    repositories = inputs
       .filter((input) => input.type === "repositories")
       .map((input) => ({ id: sample[input.id], checks: ["sample check"] })),
     lint = lintSpec({
       spec: { name: value.id, exists: true, files },
       plan: { id: value.id },
-      data: { tasks: [], projects },
+      data: { tasks: [], repositories },
     }),
     error = lint.diagnostics.find((d) => d.severity === "error");
   if (error)

@@ -31,7 +31,7 @@ function emptySnapshot() {
     schemaVersion: 1,
     revision: 1,
     updatedAt: new Date(0).toISOString(),
-    project: { name: "Synthetic", title: "Synthetic workspace" },
+    repository: { name: "Synthetic", title: "Synthetic workspace" },
     statuses: [
       { id: "planned", label: "Planned", complete: false },
       { id: "implemented", label: "Implemented", complete: false },
@@ -136,7 +136,7 @@ export async function largeWorkspace(
   );
   const store = new Store(path.join(root, "workspace.sqlite"));
   store.importSnapshot(emptySnapshot());
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",

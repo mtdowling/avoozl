@@ -63,7 +63,7 @@ export interface BatchSize {
 
 export interface LandingBase {
   key: string
-  projectId: string
+  repositoryId: string
   repository: string | null
   base: string
   landing: string | null
@@ -115,8 +115,8 @@ const WORD: Record<HoldKind, string> = {
 }
 export const holdWord = (kind: HoldKind) => WORD[kind] ?? 'Held'
 
-// A group's heading: the repository (or project ID) and the base it lands on.
-export const baseTitle = (base: LandingBase) => `${base.repository ?? base.projectId} → ${base.base}`
+// A group's heading: the repository (or repository ID) and the base it lands on.
+export const baseTitle = (base: LandingBase) => `${base.repository ?? base.repositoryId} → ${base.base}`
 
 // How the group lands, for its heading's side note.
 export const landingNote = (base: LandingBase) =>

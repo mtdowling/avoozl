@@ -115,7 +115,7 @@ async function workspace(t, delivery) {
   fs.writeFileSync(path.join(root, ".avoozl.json"), policy(delivery));
   const ops = new Operations(store, { workspaceRoot: root });
   // Integration runs the repository's validation script at the landed commit.
-  await ops.execute("project.configure", {
+  await ops.execute("repository.configure", {
     id: "app",
     root: checkout,
     baseBranch: "main",

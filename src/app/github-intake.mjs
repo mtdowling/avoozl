@@ -17,8 +17,8 @@
 // shortcut: no unattended path writes these yet. Before a rule may start
 // GitHub intake on its own, a scratch proof must show crews skip an issue
 // that carries only crew:avoozl (design §4.32.11, P66).
-import { digest } from "../model.mjs";
-import { canonical, fail } from "./store.mjs";
+import { fail } from "./store.mjs";
+import { fixIssue, fixRecord } from "./fix.mjs";
 import { enforce } from "./content-rules.mjs";
 import { AVOOZL_CREW_LABEL, hasAvoozlLabel } from "./github.mjs";
 import { CREW_LABEL_DEFAULTS } from "./github-policy.mjs";
@@ -33,7 +33,6 @@ import {
   withPolicy,
 } from "./intake.mjs";
 
-const FIX_VERSION = 1;
 export const INTAKE_MARKER = "<!-- avoozl-intake:v1 -->";
 const ITEM_ID =
   /^([A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100})#([1-9]\d{0,9})$/;
@@ -44,22 +43,6 @@ function parseItemId(id) {
   const found = ITEM_ID.exec(String(id ?? ""));
   if (!found) fail("Name the GitHub item as owner/repository#number.");
   return { repository: found[1], number: Number(found[2]) };
-}
-
-// The compact acceptance of a bounded fix. `definition` digests every other
-// field, so a changed issue text is a changed definition.
-export function boundedFix({ repository, number, title, body }) {
-  const fields = {
-    v: FIX_VERSION,
-    kind: "bounded-fix",
-    issue: { repository, number },
-    snapshot: digest(`${title}\n\n${body || ""}`),
-    acceptance: [
-      `The change does what ${repository}#${number} asks, as its text read when it was started.`,
-      "The repository's checks pass on the exact head that lands.",
-    ],
-  };
-  return { ...fields, definition: digest(canonical(fields)) };
 }
 
 // The one status comment. Fixed text, plus `spec` ({repository, number}),
@@ -89,7 +72,7 @@ export const reusableInput = (input, home) =>
 // Deliver this, and only in the issue's own repository. Plan this, another
 // repository and every other task get none.
 export function closingLine(task, repository) {
-  const issue = task?.fix?.issue;
+  const issue = fixIssue(task);
   if (task?.intake?.by !== "person" || !issue) return null;
   return lower(issue.repository) === lower(repository)
     ? `Fixes #${issue.number}`
@@ -210,11 +193,11 @@ export async function startGitHubItem(store, github, policy, input = {}) {
         id: "github",
         repository: name,
         github: name,
-        project: repo?.localCheckout ? repo.id : null,
+        executionRepository: repo?.localCheckout ? repo.id : null,
       },
       policy,
     );
-  if (action === "deliver" && !source.project)
+  if (action === "deliver" && !source.executionRepository)
     fail(
       `Repository ${name} has no local checkout, so Avoozl cannot code it.`,
       409,
@@ -265,15 +248,15 @@ export async function startGitHubItem(store, github, policy, input = {}) {
   patchTask(store, taskId, `Tie ${taskId} to ${id}`, (task) => {
     task.intake.issue = { repository: name, number, nodeId: issue.node_id };
     if (action !== "deliver") return;
-    const fix = boundedFix({
-      repository: name,
-      number,
+    const fix = fixRecord({
+      issue: { repository: name, number },
       title: item.title,
       body: item.body,
     });
     // The input issue holds this fix's journal; there is no spec issue.
     task.fix = { ...fix, journal: { repository: name, number } };
     task.acceptance = fix.acceptance;
+    task.approvedSource = { hash: fix.definition, text: item.body };
   });
   const next = {
     ...row,

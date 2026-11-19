@@ -33,15 +33,15 @@ function workspace(
     checkout = path.join(root, "checkout");
   fs.mkdirSync(checkout, { recursive: true });
   data.tasks = tasks ?? [
-    leaf("a", { projectId: "app" }),
-    leaf("b", { projectId: "app", rank: 1 }),
-    leaf("c", { projectId: "app" }),
-    leaf("d", { projectId: "app" }),
+    leaf("a", { repositoryId: "app" }),
+    leaf("b", { repositoryId: "app", rank: 1 }),
+    leaf("c", { repositoryId: "app" }),
+    leaf("d", { repositoryId: "app" }),
     leaf("loose"),
   ];
   data.edges = edges;
   store.importSnapshot(data);
-  store.put("projects", { id: "app", name: "app", root: checkout });
+  store.put("repositories", { id: "app", name: "app", root: checkout });
   if (delivery)
     fs.writeFileSync(
       path.join(root, ".avoozl.json"),
@@ -164,7 +164,7 @@ test("activity.recent lists task events newest first", async (t) => {
 
 test("chat.context seeds a chat with the item, its task, plan and history, and writes nothing", async (t) => {
   const { store, ops } = workspace(t, {
-    tasks: [leaf("x", { decision: "Pick a format", projectId: "app" })],
+    tasks: [leaf("x", { decision: "Pick a format", repositoryId: "app" })],
   });
   const before = store.read().revision;
   const { message } = await ops.execute("chat.context", {

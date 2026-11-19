@@ -5,7 +5,7 @@ import { fail } from "./store.mjs";
 const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
   "all",
   "chat",
-  "chat.project",
+  "chat.repository",
   "chat.scoped",
   "plan",
   "plan.create",
@@ -257,7 +257,10 @@ function includesOrAll(selected, value) {
 
 function selectorMatches(rule, task, data) {
   const when = rule.when || {};
-  if (rule.source?.repositoryId && rule.source.repositoryId !== task?.projectId)
+  if (
+    rule.source?.repositoryId &&
+    rule.source.repositoryId !== task?.repositoryId
+  )
     return false;
   if (
     !includesOrAll(when.scopes, task?.scope) ||
@@ -312,8 +315,8 @@ export function workflowCategory(run) {
   if (run.context?.conversationPurpose === "review") return "task.review";
   if (run.context?.conversationPurpose === "new-task")
     return run.context?.scoped === false ? "task.create" : "task.create.scoped";
-  if (run.context?.conversationPurpose === "project-chat")
-    return run.context?.scoped === false ? "chat.project" : "chat.scoped";
+  if (run.context?.conversationPurpose === "repository-chat")
+    return run.context?.scoped === false ? "chat.repository" : "chat.scoped";
   if (run.context?.conversationPurpose === "issue-triage")
     return "github.issue.triage";
   if (run.context?.conversationPurpose === "issue-implement")

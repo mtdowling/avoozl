@@ -87,14 +87,14 @@ const files = {
 for (let n = 1; n <= 12; n += 1)
   tasks.push(leaf(`t${n}`, n <= 6 ? "s1" : "s2"));
 store.importSnapshot({ ...snapshot(), tasks, edges: [] });
-store.put("projects", {
+store.put("repositories", {
   id: "app",
   root: fs.realpathSync.native(checkout),
   baseBranch: "main",
   landing: "direct",
   checks: [[process.execPath, script]],
   worktreeRoot: path.join(root, "wt"),
-  repository: "scratch/app",
+  github: "scratch/app",
 });
 for (const spec of ["s1", "s2"]) {
   store.put("plans", { id: spec, spec, hash: digest("plan " + spec) });
@@ -141,7 +141,7 @@ for (const task of tasks) {
 }
 await integrateVerified(store);
 
-const Q = { projectId: "app", base: "main" },
+const Q = { repositoryId: "app", base: "main" },
   config = {
     github: {
       repositories: { "scratch/app": { baseBranch: "main", landing: {} } },

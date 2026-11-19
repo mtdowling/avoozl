@@ -347,7 +347,7 @@ written back into the prose as a second authority.
 
 For each approved task block, Avoozl:
 
-1. resolves the target code repository and project policy;
+1. resolves the target code repository and its policy;
 2. creates or updates one GitHub issue with a deterministic marker;
 3. copies human-readable scope and acceptance criteria;
 4. stores design provenance by repository, commit, document path, and block
@@ -632,7 +632,7 @@ uneventful.
 
 ### Andon
 
-Andon is a button in the primary, scoped to a task, project, or workspace, and
+Andon is a button in the primary, scoped to a task, repository, or workspace, and
 it is ordinary operational equipment rather than an emergency. It means "work
 may be unsafe, so hold the gates." `plans/andon-cord.md` owns the full design,
 including incident state, server-side enforcement, and resume preconditions.
@@ -646,7 +646,7 @@ The two modes in that plan are exactly the two stops worth having:
   finishing the current turn is safer than cutting it off.
 - **Safe interrupt** — stop now. Every freeze rule, plus a durable interrupt
   intent recorded per affected run, and an interrupt request sent to the
-  provider. This is the default for a newly raised project or workspace
+  provider. This is the default for a newly raised repository or workspace
   incident.
 
 Both propagate to every target carrying affected jobs, and both preserve

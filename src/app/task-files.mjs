@@ -111,8 +111,8 @@ async function locate(store, data, taskId) {
   const task = data.tasks.find((candidate) => candidate.id === id);
   if (!task) fail("Task not found.", 404);
   const record = store.get("task_worktrees", task.id);
-  const project = store.get(
-    "projects",
+  const repository = store.get(
+    "repositories",
     record?.repository || taskRepository(task) || "",
   );
   const branch = record?.branch || "avoozl/" + task.id;
@@ -122,10 +122,10 @@ async function locate(store, data, taskId) {
   const crew =
     bindings.sort((a, b) => (a.attempt ?? 0) - (b.attempt ?? 0)).at(-1)?.crew ??
     "local";
-  const github = project?.repository
-    ? `https://github.com/${project.repository}/tree/${branch.split("/").map(encodeURIComponent).join("/")}`
+  const github = repository?.github
+    ? `https://github.com/${repository.github}/tree/${branch.split("/").map(encodeURIComponent).join("/")}`
     : null;
-  const where = { task, project, branch, remote: crew !== "local", github };
+  const where = { task, repository, branch, remote: crew !== "local", github };
   let worktree = null;
   if (record?.path && fs.existsSync(record.path))
     try {
@@ -133,7 +133,9 @@ async function locate(store, data, taskId) {
     } catch {}
   const cwd =
     worktree ||
-    (project?.root && fs.existsSync(project.root) ? project.root : null);
+    (repository?.root && fs.existsSync(repository.root)
+      ? repository.root
+      : null);
   if (!cwd) return { ...where, mode: "none" };
   const head = worktree
     ? await commit(cwd, "HEAD")
@@ -143,8 +145,8 @@ async function locate(store, data, taskId) {
   // The base is where the branch left the line it lands on.
   let landing = null;
   for (const ref of [
-    project?.integrationBranch,
-    project?.baseBranch || "main",
+    repository?.integrationBranch,
+    repository?.baseBranch || "main",
   ]) {
     landing = ref ? await commit(cwd, ref) : null;
     if (landing) break;

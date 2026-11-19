@@ -74,3 +74,23 @@ export async function buildHarness({ hostCss, scripts = {}, entry = path.join(he
   )
   return { dir: out, url: (query) => `file://${path.join(out, 'index.html')}?${new URLSearchParams(query)}`, remove: () => fs.rmSync(out, { recursive: true, force: true }) }
 }
+
+// A screenshot script's start: the out folder from argv, Chrome, the
+// harness (with the host's stylesheet when AVOOZL_HOST_CSS names one) and a
+// browser. Exits with the usage line when no folder is named.
+export async function startShots(script) {
+  const { findChrome, launch } = await import('./chrome.mjs')
+  const [out] = process.argv.slice(2)
+  if (!out) {
+    console.error(`Usage: ${script} <out dir>`)
+    process.exit(2)
+  }
+  const chrome = findChrome()
+  if (!chrome) {
+    console.error('No Chrome found; set AVOOZL_CHROME.')
+    process.exit(1)
+  }
+  fs.mkdirSync(out, { recursive: true })
+  const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
+  return { out, harness, browser: await launch(chrome) }
+}

@@ -64,14 +64,14 @@ const failedAttempt = (store, task, { worker, cause, state, at }) =>
     });
   });
 
-// Lands a spec's working branch on its project's base branch in the
+// Lands a spec's working branch on its repository's base branch in the
 // driver's checkout: a fast-forward, after merging a moved base into the
 // working branch first. The checkout must be on its base branch with no
 // tracked change; it is never stashed or reset. Throws with the reason.
-export async function landWorkingBranch(store, project, { spec, task, at }) {
+export async function landWorkingBranch(store, repository, { spec, task, at }) {
   const git = async (...args) =>
-      (await run("git", args, { cwd: project.root })).stdout.trim(),
-    base = project.baseBranch || "main",
+      (await run("git", args, { cwd: repository.root })).stdout.trim(),
+    base = repository.baseBranch || "main",
     working = `refs/heads/${workingBranch(spec)}`;
   if ((await git("branch", "--show-current")) !== base)
     throw Error(`the checkout is not on ${base}`);
@@ -166,9 +166,9 @@ export async function workerResultsStep(
         task = store
           .read()
           .tasks.find((t) => t.id === id && (t.planId ?? spec) === spec),
-        project = task && store.get("projects", task.repository ?? ""),
+        repository = task && store.get("repositories", task.repository ?? ""),
         source = offer?.refs?.[0]?.repository;
-      if (settled || !offer || !task || !project?.root || !source) continue;
+      if (settled || !offer || !task || !repository?.root || !source) continue;
       const branch = checkpointBranch(spec, id),
         head = await headOf(registry, source, branch);
       if (!head || head === offer.base) {
@@ -177,11 +177,11 @@ export async function workerResultsStep(
       }
       if (judged[key]?.commit === head) continue;
       const target = {
-          repository: project.repository || project.id,
-          base: project.baseBranch || "main",
+          repository: repository.github || repository.id,
+          base: repository.baseBranch || "main",
         },
         verdict = await verify({
-          root: project.root,
+          root: repository.root,
           registry,
           ref: { source: { repository: source, branch, commit: head }, target },
           expected: expectedCheckpoint({
@@ -193,19 +193,19 @@ export async function workerResultsStep(
           github,
           declared: task.paths ?? [],
           protectedPaths,
-          checks: declaredArgv(task, project),
+          checks: declaredArgv(task, repository),
         });
       let outcome = verdict.state,
         cause = `the worker's result ${head.slice(0, 12)} was ${verdict.state}: ${verdict.reason ?? verdict.problem ?? "see the checks"}`;
       if (verdict.state === "verified") {
         try {
-          await ensureWorkingBranch(project.root, {
+          await ensureWorkingBranch(repository.root, {
             spec,
             repository: target.repository,
             target,
             baseCommit: offer.base,
           });
-          await integrateVerified(project.root, {
+          await integrateVerified(repository.root, {
             spec,
             task: id,
             commit: head,
@@ -213,7 +213,7 @@ export async function workerResultsStep(
           });
           outcome = "landed";
           // The working branch then lands on the base branch here (wp-p3).
-          await landWorkingBranch(store, project, {
+          await landWorkingBranch(store, repository, {
             spec,
             task: id,
             at: now(),

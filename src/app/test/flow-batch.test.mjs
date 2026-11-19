@@ -54,7 +54,7 @@ function setup(t, tasks, { flow, edges = [] } = {}) {
   store.importSnapshot({ ...snapshot(), tasks, edges });
   // The spec revision the groups came from was approved by a person.
   store.put("approvals", { id: "approval-1", planId: "p1", hash: "h1" });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -352,8 +352,8 @@ test("batching has no setting, and flow.batch is refused", async (t) => {
 test("a group on process runs as single tasks and lands one commit each, with the reason shown", async (t) => {
   const ids = ["a1", "a2", "a3"],
     { root, store, ops } = setup(t, grouped(ids));
-  store.put("projects", {
-    ...store.get("projects", "app"),
+  store.put("repositories", {
+    ...store.get("repositories", "app"),
     executor: "process",
   });
   fs.writeFileSync(
@@ -408,7 +408,7 @@ test("a group on process runs as single tasks and lands one commit each, with th
   }
   assert.equal(landed(), ids.length, "each task landed");
   // One commit per task on the base branch, whatever order they landed in.
-  const checkout = store.get("projects", "app").root,
+  const checkout = store.get("repositories", "app").root,
     subjects = git(checkout, "log", "--format=%s", "main").split("\n");
   for (const id of ids) assert.ok(subjects.includes("Do " + id), id);
 });

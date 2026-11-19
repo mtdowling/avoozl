@@ -46,7 +46,7 @@ import { ENTRY_KEYS } from "../plugins.mjs";
 import {
   CONVERSATION_KEYS,
   PLANNING_REPOSITORY_KEYS,
-  PROJECT_KEYS,
+  REPOSITORY_KEYS,
   SANDBOX_KEYS,
 } from "../repository-settings.mjs";
 import { CHECK_KEYS } from "../repository-checks.mjs";
@@ -105,12 +105,12 @@ const PAIRS = [
   ["#/$defs/agentInstructionWhen", [...whenKeys]],
   ["#/$defs/conversations", [...CONVERSATION_KEYS]],
   // `flow` is the repository's own flow settings: Settings > Flow writes it
-  // and flowPolicy in flow.mjs reads it, beside the keys projectInput lists.
-  ["#/$defs/project", PROJECT_KEYS],
-  ["#/$defs/project/properties/sandbox", SANDBOX_KEYS],
-  ["#/$defs/project/properties/isolation", ISOLATION_KEYS],
+  // and flowPolicy in flow.mjs reads it, beside the keys repositoryInput lists.
+  ["#/$defs/repository", REPOSITORY_KEYS],
+  ["#/$defs/repository/properties/sandbox", SANDBOX_KEYS],
+  ["#/$defs/repository/properties/isolation", ISOLATION_KEYS],
   [
-    "#/$defs/project/properties/checks/oneOf/0/additionalProperties/oneOf/1",
+    "#/$defs/repository/properties/checks/oneOf/0/additionalProperties/oneOf/1",
     CHECK_KEYS,
   ],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
@@ -125,6 +125,7 @@ const PAIRS = [
   [`${REPOSITORY}/pullRequestReviews`, GITHUB_BLOCK_KEYS.pullRequestReviews],
   [`${REPOSITORY}/discussions`, GITHUB_BLOCK_KEYS.discussions],
   [`${REPOSITORY}/untriaged`, GITHUB_BLOCK_KEYS.untriaged],
+  [`${REPOSITORY}/triage`, GITHUB_BLOCK_KEYS.triage],
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],
   [`${REPOSITORY}/merge`, GITHUB_BLOCK_KEYS.merge],
   [`${REPOSITORY}/landing`, GITHUB_BLOCK_KEYS.landing],
@@ -170,7 +171,7 @@ const OPEN = new Map([
       "runner",
       "agentInstructions",
       "conversations",
-      "projects",
+      "repositories",
       "receipts",
       "github",
       "roles",

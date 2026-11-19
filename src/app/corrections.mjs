@@ -154,8 +154,8 @@ export function ruleProblem(p, retro, store, data) {
   for (const task of data.tasks)
     if (task.id.length >= 2 && words(task.id).test(text))
       return "a rule names no task ID";
-  for (const project of store.list("projects"))
-    if (project.id !== repository && words(project.id).test(text))
+  for (const other of store.list("repositories"))
+    if (other.id !== repository && words(other.id).test(text))
       return "a rule names no other repository";
   if (/\b[\w.-]+\/[\w.-]+#\d+|github\.com\/[\w.-]+\/[\w.-]+/i.test(text))
     return "a rule names no other repository";
@@ -209,13 +209,13 @@ export async function revertCorrections(store) {
         integrated.set(sha, d.taskId);
   if (!integrated.size) return [];
   const found = [];
-  for (const project of store.list("projects")) {
-    if (!project.root) continue;
-    const branch = project.integrationBranch || project.baseBranch;
+  for (const repository of store.list("repositories")) {
+    if (!repository.root) continue;
+    const branch = repository.integrationBranch || repository.baseBranch;
     if (!branch || branch.startsWith("-")) continue;
     let log;
     try {
-      log = await git(project.root, [
+      log = await git(repository.root, [
         "log",
         "-n",
         "50",
@@ -233,7 +233,7 @@ export async function revertCorrections(store) {
         taskId = reverted && integrated.get(reverted);
       if (!taskId) continue;
       const row = recordCorrection(store, {
-        key: `revert:${project.id}:${sha}`,
+        key: `revert:${repository.id}:${sha}`,
         taskId,
         by: author || null,
         kind: "reverted",

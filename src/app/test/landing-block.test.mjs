@@ -8,12 +8,12 @@ import { mergeMethodOf, normalizeGitHubPolicy } from "../github-policy.mjs";
 import { applyLandingModes, landingSettings } from "../landing-config.mjs";
 import { effectiveShip } from "../radar-merge-path.mjs";
 
-// A store with only the project rows these readers touch.
-function projectStore(...projects) {
-  const rows = new Map(projects.map((p) => [p.id, { ...p }]));
+// A store with only the repository rows these readers touch.
+function repositoryStore(...repositories) {
+  const rows = new Map(repositories.map((p) => [p.id, { ...p }]));
   return {
-    get: (table, id) => (table === "projects" ? rows.get(id) : undefined),
-    list: (table) => (table === "projects" ? [...rows.values()] : []),
+    get: (table, id) => (table === "repositories" ? rows.get(id) : undefined),
+    list: (table) => (table === "repositories" ? [...rows.values()] : []),
     put: (table, row) => rows.set(row.id, { ...row }),
   };
 }
@@ -21,7 +21,7 @@ const repositoryOf = (config, name) =>
   normalizeGitHubPolicy(config.github).repositories[name];
 
 test("Avoozl's own repository keeps pr, auto-merge, squash and 2 rounds", () => {
-  // Its .avoozl.json sets none of these keys; the project row holds `pr`.
+  // Its .avoozl.json sets none of these keys; the repository row holds `pr`.
   const config = {
       version: 1,
       repository: {
@@ -30,9 +30,9 @@ test("Avoozl's own repository keeps pr, auto-merge, squash and 2 rounds", () => 
         baseBranch: "main",
       },
     },
-    project = { id: "avoozl", repository: "mtdowling/avoozl", landing: "pr" },
-    store = projectStore(project);
-  assert.deepEqual(landingSettings(config, "mtdowling/avoozl", project), {
+    repository = { id: "avoozl", github: "mtdowling/avoozl", landing: "pr" },
+    store = repositoryStore(repository);
+  assert.deepEqual(landingSettings(config, "mtdowling/avoozl", repository), {
     mode: "pr",
     autoMerge: true,
     method: "squash",
@@ -42,7 +42,7 @@ test("Avoozl's own repository keeps pr, auto-merge, squash and 2 rounds", () => 
   const task = { id: "t", repository: "avoozl" };
   assert.equal(shipMode(deliveryPolicy(config), task, store), "auto-merge");
   assert.deepEqual(applyLandingModes(store, config), []);
-  assert.equal(store.get("projects", "avoozl").landing, "pr");
+  assert.equal(store.get("repositories", "avoozl").landing, "pr");
 });
 
 test("Nupp keeps its workspace delivery.ship and core-dev landing", () => {
@@ -55,15 +55,15 @@ test("Nupp keeps its workspace delivery.ship and core-dev landing", () => {
         },
       },
     },
-    project = {
+    repository = {
       id: "nupp",
-      repository: "nupp-lang/nupp-planning",
+      github: "nupp-lang/nupp-planning",
       baseBranch: "core-dev",
       landing: "direct",
     },
-    store = projectStore(project),
+    store = repositoryStore(repository),
     settings = repositoryOf(config, "nupp-lang/nupp-planning");
-  assert.deepEqual(landingSettings(config, project.repository, project), {
+  assert.deepEqual(landingSettings(config, repository.github, repository), {
     mode: "direct",
     autoMerge: true,
     method: "squash",
@@ -75,7 +75,7 @@ test("Nupp keeps its workspace delivery.ship and core-dev landing", () => {
     "auto-merge",
   );
   assert.equal(
-    effectiveShip(config.delivery, project.repository, settings),
+    effectiveShip(config.delivery, repository.github, settings),
     "auto-merge",
   );
   assert.equal(mergeMethodOf(settings), "SQUASH");
@@ -94,9 +94,9 @@ test("older keys map to the block, and the block wins over them", () => {
         },
       },
     },
-    project = { id: "app", repository: "o/app", landing: "off" },
-    store = projectStore(project);
-  assert.deepEqual(landingSettings(old, "o/app", project), {
+    repository = { id: "app", github: "o/app", landing: "off" },
+    store = repositoryStore(repository);
+  assert.deepEqual(landingSettings(old, "o/app", repository), {
     mode: "off",
     autoMerge: false,
     method: "merge",
@@ -116,7 +116,7 @@ test("older keys map to the block, and the block wins over them", () => {
     method: "squash",
   };
   next.github.repositories["o/app"].conflicts = { maxAttempts: 3 };
-  assert.deepEqual(landingSettings(next, "o/app", project), {
+  assert.deepEqual(landingSettings(next, "o/app", repository), {
     mode: "pr",
     autoMerge: true,
     method: "squash",
@@ -139,12 +139,12 @@ test("older keys map to the block, and the block wins over them", () => {
     ),
     "manual",
   );
-  // The tick copies the mode onto the checkout's project row.
+  // The tick copies the mode onto the checkout's repository row.
   assert.deepEqual(
     applyLandingModes(store, next).map((p) => p.landing),
     ["pr"],
   );
-  assert.equal(store.get("projects", "app").landing, "pr");
+  assert.equal(store.get("repositories", "app").landing, "pr");
 });
 
 test("the block is validated, and 0 tries asks at once", () => {

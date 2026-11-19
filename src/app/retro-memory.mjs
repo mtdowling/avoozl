@@ -139,18 +139,18 @@ function pluginFolders(store) {
 // path stays in this workspace's database, never in a proposal.
 function skillTarget(store, file, taskId = null) {
   if (!isSkillPath(file) || !path.isAbsolute(file)) return null;
-  const projects = store.list("projects").filter((p) => p.root),
+  const repositories = store.list("repositories").filter((p) => p.root),
     worktree = taskId ? store.get("task_worktrees", taskId) : null;
   if (worktree?.path) {
     const rel = inside(worktree.path, file),
-      project =
-        projects.find((p) => p.id === worktree.projectId) ||
-        projects.find((p) => worktree.path.includes(p.id));
-    if (rel && project) return `repo:${project.id}:${rel}`;
+      repository =
+        repositories.find((p) => p.id === worktree.repositoryId) ||
+        repositories.find((p) => worktree.path.includes(p.id));
+    if (rel && repository) return `repo:${repository.id}:${rel}`;
   }
-  for (const project of projects) {
-    const rel = inside(project.root, file);
-    if (rel) return `repo:${project.id}:${rel}`;
+  for (const repository of repositories) {
+    const rel = inside(repository.root, file);
+    if (rel) return `repo:${repository.id}:${rel}`;
   }
   for (const { id, location } of pluginFolders(store)) {
     const rel = inside(location, file);
@@ -169,8 +169,8 @@ export function skillText(store, target) {
     rel = rest.join(":");
   let file = null;
   if (kind === "repo") {
-    const project = store.get("projects", owner);
-    if (project?.root) file = path.join(project.root, rel);
+    const repository = store.get("repositories", owner);
+    if (repository?.root) file = path.join(repository.root, rel);
   } else if (kind === "external" && owner === "local") {
     file = (store.getMeta("skills.paths") || {})[target] || null;
   } else if (kind === "external") {

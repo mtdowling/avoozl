@@ -15,7 +15,7 @@ import { batchOf, landNext, landingQueue } from "../landing-queue.mjs";
 import { directSteps, memberRef, queuePortion } from "../merge-batch.mjs";
 import { workingBranch } from "../working-heads.mjs";
 
-const Q = { projectId: "fixture", base: "main" };
+const Q = { repositoryId: "fixture", base: "main" };
 const BATCH = { limit: 4, bisect: true };
 const owner = { login: "owner", from: "spec" };
 const person = { kind: "person", login: "owner" };
@@ -286,7 +286,7 @@ test("a batch of one lands as direct landing did, and a base that moved gets new
   const ran = [];
   let moved = false;
   const s = x.steps({
-    run: async (project, commit, argv) => {
+    run: async (repository, commit, argv) => {
       const { runCheckAt } = await import("../flow-line.mjs");
       ran.push(commit);
       if (!moved) {
@@ -301,7 +301,7 @@ test("a batch of one lands as direct landing did, and a base that moved gets new
         await git(other, ["commit", "-q", "-m", "Other work"]);
         await git(other, ["push", "-q", "origin", "main"]);
       }
-      return runCheckAt(project, commit, argv);
+      return runCheckAt(repository, commit, argv);
     },
   });
   const first = await landNext(x.store, Q, s);
@@ -337,9 +337,9 @@ test("a push never forces", async (t) => {
 // is checked and passes the second.
 function fakeRunner() {
   const seen = new Map();
-  return async (project, commit, argv) => {
+  return async (repository, commit, argv) => {
     const files = (
-      await git(project.root, ["ls-tree", "-r", "--name-only", commit])
+      await git(repository.root, ["ls-tree", "-r", "--name-only", commit])
     ).split("\n");
     const key = `${commit}:${argv.join(" ")}`;
     seen.set(key, (seen.get(key) ?? 0) + 1);

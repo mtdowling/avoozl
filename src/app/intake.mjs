@@ -265,7 +265,7 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
       else
         row.source = {
           ...row.source,
-          project: repository.localCheckout ? repository.id : null,
+          executionRepository: repository.localCheckout ? repository.id : null,
           github: repository.github || null,
         };
     }
@@ -472,7 +472,7 @@ export function judgeItem(
 // ---------------------------------------------------------------------------
 // Tasks.
 
-function ensureInbox(data) {
+export function ensureInbox(data) {
   if (!data.tracks.some((track) => track.id === "catalog"))
     data.tracks.push({ id: "catalog", label: "General" });
 }
@@ -512,7 +512,7 @@ function leafFor(row, source, how) {
     scope: "runtime",
     kind: "leaf",
     authority: "local",
-    repository: source.project,
+    repository: source.executionRepository,
     track: "catalog",
     tags: ["intake", `source:${item.source}`],
     // Pinned to this snapshot of the item (R50.15, R12).
@@ -1169,7 +1169,7 @@ export function startByPerson(
   if (row.taskId && store.read().tasks.some((task) => task.id === row.taskId))
     fail(`${itemId} is already tied to task ${row.taskId}.`, 409);
   const bound = withPolicy(source, githubPolicy);
-  if (action === "deliver" && !bound.project)
+  if (action === "deliver" && !bound.executionRepository)
     fail(
       `Repository ${source.repository} has no local checkout, so Avoozl cannot code it.`,
       409,
@@ -1243,8 +1243,8 @@ function deliverRetroItem(
   githubPolicy,
   { retro, proposal, repository, title, body, reason },
 ) {
-  const project = store.get("projects", repository);
-  if (!project?.root)
+  const registered = store.get("repositories", repository);
+  if (!registered?.root)
     fail(
       `Repository ${repository} has no local checkout, so Avoozl cannot code it.`,
       409,
@@ -1292,8 +1292,8 @@ function deliverRetroItem(
       {
         id: "retro",
         repository,
-        project: project.id,
-        github: project.github || null,
+        executionRepository: registered.id,
+        github: registered.github || null,
       },
       githubPolicy,
     ),
@@ -1425,7 +1425,7 @@ export function intakeTab(view, store, declared) {
             plan: item.kind !== "review",
             deliver:
               item.kind !== "review" &&
-              Boolean(bySource.get(row.source).project),
+              Boolean(bySource.get(row.source).executionRepository),
           },
         };
       });

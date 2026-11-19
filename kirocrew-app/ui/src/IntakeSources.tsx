@@ -249,8 +249,8 @@ function SourceRow({
         </Fact>
         {github && (
           <>
-            <Fact label="Work runs in" raw="project">
-              {String(entry.project ?? '')}
+            <Fact label="Work runs in" raw="executionRepository">
+              {String(entry.executionRepository ?? '')}
             </Fact>
             <Fact label="Assigned to" raw="assignee">
               {String(entry.assignee ?? '')}

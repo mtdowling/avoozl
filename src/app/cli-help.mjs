@@ -52,9 +52,9 @@ export const HELP_GROUPS = Object.freeze([
       entry("workspace remove|start|drain|resume|stop|set-default ID"),
       entry("workspace rebuild", "Rebuild the catalog from configuration"),
       entry(
-        "project configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]",
+        "repository configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]",
       ),
-      entry("github configure OWNER/REPO --project ID [--assignee LOGIN]"),
+      entry("github configure OWNER/REPO --repo ID [--assignee LOGIN]"),
       entry(
         "github setup --mode plans-repo|single-repo [--planning-repository OWNER/REPO]\n[--repositories A,B] [--no-epic]",
         "Preview the GitHub setup; add --confirm --preview-hash HASH to apply",
@@ -64,7 +64,7 @@ export const HELP_GROUPS = Object.freeze([
         "Dry run of the mirror setup; add --confirm --preview-hash HASH to apply",
       ),
       entry(
-        "setup OWNER/REPO --project ID\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+        "setup OWNER/REPO --repo ID\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
         "Preview repository setup for landing; the required checks and base branch come from the repository's settings; --yes applies it",
       ),
       entry(
@@ -93,11 +93,11 @@ export const HELP_GROUPS = Object.freeze([
         "Stop, restart, or remove a plugin; its tasks park as needs you",
       ),
       entry(
-        "plugins pack-preview ID [--repo OWNER/REPO]",
+        "plugins pack-preview ID [--github OWNER/REPO]",
         "What importing a plugin's pack would create, change, or keep",
       ),
       entry(
-        "plugins pack-import ID --preview HASH [--repo OWNER/REPO] [--accept-lowered] [--confirm-public]",
+        "plugins pack-import ID --preview HASH [--github OWNER/REPO] [--accept-lowered] [--confirm-public]",
         "Import the exact preview",
       ),
       entry("skill --workspace PATH", "Print the portable workflow skill"),
@@ -194,6 +194,14 @@ export const HELP_GROUPS = Object.freeze([
     title: "Deliver",
     summary: "Run agents on ready tasks, steer them and stop the line",
     entries: [
+      entry(
+        'fix "TEXT" --repo ID',
+        "Start one change with no spec files; starting it approves it (a person only)",
+      ),
+      entry(
+        "fix spec TASK_ID",
+        "Make a fix that grew into a draft spec folder (a person only)",
+      ),
       entry(
         "tick --workspace PATH",
         "Run one workspace tick and print its intents",

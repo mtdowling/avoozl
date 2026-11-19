@@ -12,7 +12,7 @@ import {
   pausedBy,
 } from "../landing-queue.mjs";
 
-const Q = { projectId: "fixture", base: "main" };
+const Q = { repositoryId: "fixture", base: "main" };
 
 // A bare upstream, the landing checkout and a second clone that can move
 // the base behind the queue's back.
@@ -172,7 +172,7 @@ test("Stop the line pauses the queue and keeps its order", async (t) => {
     manual: true,
     scope: "task",
     taskId: "t1",
-    projectId: "fixture",
+    repositoryId: "fixture",
     openedAt: new Date().toISOString(),
     closedAt: null,
   };
@@ -191,7 +191,11 @@ test("Stop the line pauses the queue and keeps its order", async (t) => {
   // A repository stop pauses it too; another repository's does not.
   store.put("flow_stops", { ...stop, scope: "repo", taskId: null });
   assert.ok(pausedBy(store, landingQueue(store, Q)[1]));
-  store.put("flow_stops", { ...stop, projectId: "elsewhere", scope: "repo" });
+  store.put("flow_stops", {
+    ...stop,
+    repositoryId: "elsewhere",
+    scope: "repo",
+  });
   assert.equal(pausedBy(store, landingQueue(store, Q)[1]), null);
   // Resume: the same order lands.
   store.put("flow_stops", { ...stop, closedAt: new Date().toISOString() });
@@ -209,7 +213,7 @@ test("a stop pulled while checks run keeps the head queued and pushes nothing", 
       store.put("flow_stops", {
         id: "stop:late",
         scope: "all",
-        projectId: null,
+        repositoryId: null,
         openedAt: new Date().toISOString(),
         closedAt: null,
       });
@@ -230,10 +234,10 @@ test("checks run outside the integration lock; only the ref move holds it", asyn
   const s = steps(r, {
     check: async () => {
       seen.check = locks(store);
-      // A validation elsewhere in the project may run during the checks.
+      // A validation elsewhere in the repository may run during the checks.
       await withWorkLock(
         store,
-        { id: "other-run", projectId: "fixture", kind: "validation" },
+        { id: "other-run", repositoryId: "fixture", kind: "validation" },
         async () => {},
       );
       return { ok: true };
@@ -262,7 +266,7 @@ test("a held validation lock makes the landing wait without losing its place", a
   let release;
   const held = withWorkLock(
     store,
-    { id: "other-run", projectId: "fixture", kind: "validation" },
+    { id: "other-run", repositoryId: "fixture", kind: "validation" },
     () => new Promise((resolve) => (release = resolve)),
   );
   const s = steps(r);
@@ -370,7 +374,8 @@ test("one step per base at a time in a process", async (t) => {
   assert.deepEqual([a.state, b.state].sort(), ["landed", "running"]);
   // Another base has its own queue.
   assert.equal(
-    (await landNext(store, { projectId: "fixture", base: "release" }, s)).state,
+    (await landNext(store, { repositoryId: "fixture", base: "release" }, s))
+      .state,
     "empty",
   );
 });

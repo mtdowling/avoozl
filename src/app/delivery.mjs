@@ -1,7 +1,7 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { briefCell } from "./worker-briefs.mjs";
 import { cliCommand } from "./report-command.mjs";
-import { projectExecutor } from "./executors/process.mjs";
+import { repositoryExecutor } from "./executors/process.mjs";
 import { resolveRoles } from "./chat-models.mjs";
 import { allowedShell, roleRun } from "./role-table.mjs";
 import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
@@ -267,9 +267,9 @@ function shipSetting(value, where) {
 // The ship mode for one task (R80.1): the task's manifest pin, then its
 // spec's, then its GitHub repository's `landing.autoMerge`, then the older
 // `delivery.ship` of the repository and of the workspace. `store` finds the
-// task's GitHub repository from its project row.
+// task's GitHub repository from its repository row.
 export function shipMode(policy, task, store = null) {
-  const github = store?.get("projects", taskRepository(task) || "")?.repository,
+  const github = store?.get("repositories", taskRepository(task) || "")?.github,
     on = github ? policy?.autoMerge?.[github] : undefined;
   return (
     task?.ship ??
@@ -354,18 +354,18 @@ function findTask(store, id) {
   return task;
 }
 
-function taskProject(store, task) {
-  const project = store.get("projects", taskRepository(task) || "");
-  if (!project?.root)
+function taskRepositoryRecord(store, task) {
+  const repository = store.get("repositories", taskRepository(task) || "");
+  if (!repository?.root)
     fail(`Task ${task.id} names no repository with a local checkout.`, 409);
-  return project;
+  return repository;
 }
 
 // A split batch's first task retries alone (§4.11): its worktree holds the
 // whole batch's commits, so the branch is kept under another name and the
 // task starts again from the base. Nothing is lost: the old branch stays,
 // and a worktree with uncommitted changes is refused instead of removed.
-async function retireBatchWorktree(store, project, taskId, branch) {
+async function retireBatchWorktree(store, repository, taskId, branch) {
   const delivery = store.get("task_deliveries", taskId),
     current = store.get("task_worktrees", taskId);
   if (!delivery?.batchSplit || delivery.batchWorktreeRetired || !current?.path)
@@ -379,7 +379,7 @@ async function retireBatchWorktree(store, project, taskId, branch) {
     n = 1;
   for (;;) {
     try {
-      await git(project.root, [
+      await git(repository.root, [
         "rev-parse",
         "--verify",
         "--quiet",
@@ -390,8 +390,8 @@ async function retireBatchWorktree(store, project, taskId, branch) {
       break;
     }
   }
-  await git(project.root, ["branch", "-m", branch, name]);
-  await git(project.root, ["worktree", "remove", current.path]);
+  await git(repository.root, ["branch", "-m", branch, name]);
+  await git(repository.root, ["worktree", "remove", current.path]);
   store.transaction(() => {
     store.remove("task_worktrees", taskId);
     store.put("task_deliveries", { ...delivery, batchWorktreeRetired: name });
@@ -410,22 +410,22 @@ export async function prepareWorktree(store, input = {}) {
     task.id.endsWith(".lock")
   )
     fail(`Task ID ${task.id} cannot name a branch.`, 409);
-  const project = taskProject(store, task),
+  const repository = taskRepositoryRecord(store, task),
     branch = "avoozl/" + task.id;
-  await retireBatchWorktree(store, project, task.id, branch);
+  await retireBatchWorktree(store, repository, task.id, branch);
   // Prepare and the spec's qualified reference resolve the same base
   // (spec-base.mjs): the spec's working branch, else a legacy integration
-  // branch, else the project's base branch.
+  // branch, else the repository's base branch.
   const plan = task.planId ? store.get("plans", task.planId) : null,
-    base = await specBase(project.root, {
+    base = await specBase(repository.root, {
       spec: plan?.spec,
-      base: project.baseBranch || "main",
+      base: repository.baseBranch || "main",
       legacy: [
         plan ? integrationBranchOf(store, plan) : null,
-        project.integrationBranch,
+        repository.integrationBranch,
       ],
     }).catch(() => null);
-  const prepared = await prepareTaskWorktree(store, project, {
+  const prepared = await prepareTaskWorktree(store, repository, {
     branch,
     name: "avoozl-" + task.id,
     start: base?.branch ?? null,
@@ -433,7 +433,7 @@ export async function prepareWorktree(store, input = {}) {
   const record = {
     id: task.id,
     taskId: task.id,
-    repository: project.id,
+    repository: repository.id,
     branch,
     path: prepared.worktree,
   };
@@ -742,18 +742,18 @@ export const openFindings = (delivery, role = null) =>
 
 // The branch a delivery lands on: the integration branch once it exists,
 // else the base branch.
-async function landingBranch(project) {
-  if (project.integrationBranch)
+async function landingBranch(repository) {
+  if (repository.integrationBranch)
     try {
-      await git(project.root, [
+      await git(repository.root, [
         "rev-parse",
         "--verify",
         "--quiet",
-        "refs/heads/" + project.integrationBranch,
+        "refs/heads/" + repository.integrationBranch,
       ]);
-      return project.integrationBranch;
+      return repository.integrationBranch;
     } catch {}
-  return project.baseBranch || "main";
+  return repository.baseBranch || "main";
 }
 
 async function patchId(root, diff) {
@@ -796,9 +796,9 @@ async function taskChangeDiffers(root, base, earlier, current, file) {
 
 // Refuse a review verdict that leaves a finding unanswered, closes one the
 // diff contradicts, or disagrees with its own findings (R37.2–R37.5).
-async function checkReview(project, delivery, roleId, commit, payload) {
+async function checkReview(repository, delivery, roleId, commit, payload) {
   const open = new Map(openFindings(delivery, roleId).map((f) => [f.ref, f])),
-    base = await landingBranch(project);
+    base = await landingBranch(repository);
   let defects = payload.findings.filter((f) => f.kind === "defect").length;
   for (const closure of payload.closures) {
     const finding = open.get(closure.finding);
@@ -811,7 +811,7 @@ async function checkReview(project, delivery, roleId, commit, payload) {
     for (const file of finding.paths)
       if (
         await taskChangeDiffers(
-          project.root,
+          repository.root,
           base,
           finding.commit,
           commit,
@@ -937,7 +937,7 @@ export async function reportSession(
         ? input.checks === undefined &&
           !declaredChecks(
             task,
-            store.get("projects", taskRepository(task) || ""),
+            store.get("repositories", taskRepository(task) || ""),
           ).length
           ? undefined
           : checkResults(input.checks)
@@ -948,7 +948,10 @@ export async function reportSession(
     judgment =
       binding.role === "verifier" &&
       kind === "done" &&
-      needsJudgment(task, store.get("projects", taskRepository(task) || ""));
+      needsJudgment(
+        task,
+        store.get("repositories", taskRepository(task) || ""),
+      );
   if (judgment && !VERDICTS.includes(input.verdict))
     fail(
       'This bar needs judgment: report done with verdict "approved" or "changes-requested", and say why in text.',
@@ -976,11 +979,11 @@ export async function reportSession(
       409,
     );
   if (kind === "done" && !falsifier) {
-    const project = taskProject(store, task);
+    const repository = taskRepositoryRecord(store, task);
     try {
-      await git(project.root, ["cat-file", "-e", commit + "^{commit}"]);
+      await git(repository.root, ["cat-file", "-e", commit + "^{commit}"]);
     } catch {
-      fail(`Commit ${commit} is not in ${project.id}.`, 409);
+      fail(`Commit ${commit} is not in ${repository.id}.`, 409);
     }
     if (review) {
       const delivery = store.get("task_deliveries", task.id),
@@ -990,13 +993,13 @@ export async function reportSession(
           `This review judges ${subject}; report on that commit, not ${commit}.`,
           409,
         );
-      await checkReview(project, delivery, roleId, subject, review);
+      await checkReview(repository, delivery, roleId, subject, review);
     }
     // A worker's added lines are checked before the report is taken; a
     // match refuses the call so the worker fixes it in its session (§4.9).
     if (binding.role === "worker" && contentBinding(store)?.workspaceRoot)
       enforceDiff(store, {
-        project,
+        repository,
         head: commit,
         taskId: task.id,
         mode: "refuse",
@@ -1638,7 +1641,7 @@ export function startNow(store, input = {}, { policy = null } = {}) {
     fail(
       !ready
         ? `${task.id} is not ready: it waits on a prerequisite, a decision or a review.`
-        : !store.get("projects", taskRepository(task) || "")?.root
+        : !store.get("repositories", taskRepository(task) || "")?.root
           ? `${task.id} names no repository with a local checkout, so Avoozl cannot code it.`
           : `${task.id} is not one Avoozl codes itself (Issue Radar starts it), or it is paused.`,
       409,
@@ -1671,11 +1674,11 @@ export function startNow(store, input = {}, { policy = null } = {}) {
 }
 
 // Where a leaf's worktree lives (prepareTaskWorktree), without creating it.
-export function worktreePath(task, project) {
+export function worktreePath(task, repository) {
   return path.join(
     path.resolve(
-      project.worktreeRoot ||
-        path.join(path.dirname(project.root), ".avoozl-worktrees"),
+      repository.worktreeRoot ||
+        path.join(path.dirname(repository.root), ".avoozl-worktrees"),
     ),
     "avoozl-" + task.id,
   );
@@ -1689,7 +1692,7 @@ export const EDIT_ONLY_STEP =
 // The steps that finish a local leaf: its own worktree, a commit, a report.
 // Task 4.7 passes its own plans-repo steps (push avoozl/<task-id>, open one
 // pull request, enable auto-merge) to workerBrief instead.
-export function localSteps(task, project, { cliReport = null } = {}) {
+export function localSteps(task, repository, { cliReport = null } = {}) {
   const report = `{"input": {"taskId": "${task.id}", "kind": "done"}}`,
     // R88.2: report by command line from the worktree, no MCP sharing needed.
     // The worktree is outside the workspace, so the command names it (P50:
@@ -1718,7 +1721,7 @@ export function localSteps(task, project, { cliReport = null } = {}) {
 
 // The steps of a `process` child (R96.1, R94.4a): it runs in its task
 // worktree, only edits, and finishes with the result file as its last step.
-// `allowCommands`, the project's sandbox list, names what its shell may run.
+// `allowCommands`, the repository's sandbox list, names what its shell may run.
 export function processSteps(
   task,
   { branch = `avoozl/${task.id}`, allowCommands } = {},
@@ -1777,12 +1780,12 @@ function taskLines(task, heading, outside, { summary = true } = {}) {
 // It never names a planning issue or repository.
 export function workerBrief(
   task,
-  project,
+  repository,
   {
     attempt,
     worktree,
     previous,
-    steps = localSteps(task, project),
+    steps = localSteps(task, repository),
     notes = [],
     findings = [],
     repositoryLine = null,
@@ -1793,12 +1796,12 @@ export function workerBrief(
   },
 ) {
   const own = taskLines(task, `Avoozl task ${task.id}`, outside);
-  const checks = checksLine(project);
+  const checks = checksLine(repository);
   const lines = [
     own.heading,
     "",
     repositoryLine ||
-      `Repository: ${project.id}, checkout ${project.root}, base branch ${project.baseBranch || "main"}.`,
+      `Repository: ${repository.id}, checkout ${repository.root}, base branch ${repository.baseBranch || "main"}.`,
     ...(outside ? [checks, ...own.text] : [...own.text, checks]),
     ...(notes.length ? ["", ...notes] : []),
     // Links people and agents left (R61.20), framed as data.
@@ -1863,11 +1866,11 @@ export function busyTaskIds(store, bindings = listSessionBindings(store)) {
 }
 
 // Ready leaves a runner may start now, by rank then graph order, within
-// the workspace's and each repository's free capacity: [{task, project,
+// the workspace's and each repository's free capacity: [{task, repository,
 // attempt, delivery}]. The tick and `avoozl next` both read this. Reads only.
 export function readyLeaves(store, policy, { skip = new Set() } = {}) {
   const data = store.read(),
-    projects = new Map(store.list("projects").map((p) => [p.id, p])),
+    repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),
     workers = bindings.filter((b) => b.role === "worker"),
     live = [...runnerAttempts(bindings).values()].filter(liveAttempt);
@@ -1876,18 +1879,18 @@ export function readyLeaves(store, policy, { skip = new Set() } = {}) {
   const ready = readyCandidates(store, {
     skip,
     data,
-    projects,
+    repositories,
     bindings,
   });
   const leaves = [];
   for (const task of ready) {
     if (free <= 0) break;
-    const project = projects.get(taskRepository(task));
-    if (!project?.root) continue;
+    const repository = repositories.get(taskRepository(task));
+    if (!repository?.root) continue;
     const own = workers.filter((b) => b.taskId === task.id);
     const leaf = {
       task,
-      project,
+      repository,
       attempt: Math.max(0, ...own.map((b) => b.attempt)) + 1,
       delivery: store.get("task_deliveries", task.id),
     };
@@ -1906,7 +1909,7 @@ export function readyCandidates(
   {
     skip = new Set(),
     data = store.read(),
-    projects = new Map(store.list("projects").map((p) => [p.id, p])),
+    repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),
     paused = true,
   } = {},
@@ -1914,7 +1917,7 @@ export function readyCandidates(
   const line = paused ? linePausedTaskIds(store, data) : new Set();
   return queryTasks(data, {
     scope: "all",
-    repositories: [...projects.keys()],
+    repositories: [...repositories.keys()],
     claimed: busyTaskIds(store, bindings),
     q: "ready:true",
   })
@@ -1971,9 +1974,9 @@ export function leafBrief(store, data, leaf, options = {}) {
 
 // The executor a worker runs on: its task's `session.harness` pin (R98.4),
 // else the worker harness saved in Settings › Models (R98.3), else its
-// project's executor (R93.5). Returns {executor, harness?}.
-export function workerExecutor(task, project, config) {
-  return roleRun("worker", { config, task, project });
+// repository's executor (R93.5). Returns {executor, harness?}.
+export function workerExecutor(task, repository, config) {
+  return roleRun("worker", { config, task, repository });
 }
 
 function composeLeafBrief(
@@ -1983,10 +1986,10 @@ function composeLeafBrief(
   {
     investigate = false,
     ship = null,
-    executor = projectExecutor(leaf.project),
+    executor = repositoryExecutor(leaf.repository),
   } = {},
 ) {
-  const { task, project, attempt, delivery } = leaf,
+  const { task, repository, attempt, delivery } = leaf,
     options = {
       investigate,
       attempt,
@@ -2003,15 +2006,15 @@ function composeLeafBrief(
     { cell } = briefCell(via, investigate ? "investigate" : "single"),
     cliReport = token
       ? {
-          worktree: options.worktree?.path || worktreePath(task, project),
+          worktree: options.worktree?.path || worktreePath(task, repository),
           token,
           workspace: contentBinding(store)?.workspaceRoot ?? null,
         }
       : null;
-  return workerBrief(task, project, {
+  return workerBrief(task, repository, {
     ...options,
     findingsVia: { executor: via, cliReport },
-    steps: cell.steps({ task, project, cliReport }),
+    steps: cell.steps({ task, repository, cliReport }),
   });
 }
 
@@ -2037,7 +2040,7 @@ function keptAgent(store, taskId, policy) {
 // if the loader ever allows a definition with no `resume`.
 const NO_RESUME =
   "its harness definition has no resume command, so Avoozl cannot send Go ahead to the child";
-const harnessOf = (run, leaf) => run.harness ?? leaf.project.harness ?? null;
+const harnessOf = (run, leaf) => run.harness ?? leaf.repository.harness ?? null;
 
 // The tick's worker dispatches for ready leaves. Reads only.
 export function planReadyDispatches(store, policy, options = {}) {
@@ -2059,7 +2062,7 @@ export function planReadyDispatches(store, policy, options = {}) {
     );
   let health = null;
   return leaves.flatMap((leaf) => {
-    const run = workerExecutor(leaf.task, leaf.project, options.config),
+    const run = workerExecutor(leaf.task, leaf.repository, options.config),
       pin = leaf.task.session || {};
     // Investigate first (R75.5): never for a batch, whose brief is one
     // stretch of small tasks, and never where the pair table declines it.
@@ -2094,7 +2097,7 @@ export function planReadyDispatches(store, policy, options = {}) {
         taskId: leaf.task.id,
         role: "worker",
         brief,
-        repository: leaf.project.repository || leaf.project.id,
+        repository: leaf.repository.github || leaf.repository.id,
       })
     )
       return [];
@@ -2127,16 +2130,16 @@ export function planReadyDispatches(store, policy, options = {}) {
         ...(investigate ? { investigate: true } : {}),
         ...(skipped ? { investigateSkipped: skipped } : {}),
         // A worker on `process` runs as a supervisor child (R93.5), on the
-        // harness its pin or Settings › Models names, else its project's
+        // harness its pin or Settings › Models names, else its repository's
         // (R98.3, R98.4); other roles move in Phase 49.
         ...run,
         // A local worker opens with `project: false` (R88.2, §4.26 Work): its
         // brief names the worktree, so the sidebar folder needs no project
         // directory.
-        ...kirocrewDetachedSession(leaf.project.id),
+        ...kirocrewDetachedSession(leaf.repository.id),
         agent,
         ...(model ? { model } : {}),
-        checkout: leaf.project.root,
+        checkout: leaf.repository.root,
         brief,
       }),
     ];
@@ -2150,8 +2153,8 @@ const VERIFIER_AGENT = "avoozl-verifier";
 
 // The repository's checks as one brief line, each with the paths that pick
 // it, or null when it has none.
-export function checksLine(project) {
-  const checks = selectedChecks(project);
+export function checksLine(repository) {
+  const checks = selectedChecks(repository);
   if (!checks.length) return null;
   return `Checks: ${checks
     .map(
@@ -2164,8 +2167,8 @@ export function checksLine(project) {
 // The checks a commit runs, as [{name, argv, paths}]: the repository's,
 // keeping a check with paths only when `files` touches one (every check
 // without a file list). Tasks never name checks.
-export const declaredChecks = (_task, project, files = null) =>
-  selectedChecks(project, files);
+export const declaredChecks = (_task, repository, files = null) =>
+  selectedChecks(repository, files);
 
 // Not run (R38.1): the check could not start, timed out, or was not
 // reported. Exit codes 126 and 127 are the shell's "cannot run" codes.
@@ -2185,10 +2188,10 @@ const notRun = (result) =>
 // selection, else every repository check.
 export function verdictCause(
   task,
-  project,
+  repository,
   commit,
   report,
-  expected = declaredChecks(task, project),
+  expected = declaredChecks(task, repository),
 ) {
   if (report.commit !== commit)
     return {
@@ -2223,17 +2226,17 @@ export function verdictCause(
 
 // One finished check run's record (check-runs.mjs): judged like a verifier
 // report, with the output tails kept beside each check.
-function runRecord(task, project, run) {
+function runRecord(task, repository, run) {
   const held = pathOutcome(run);
   if (held) return { ...held, checks: run.checks };
   // The run's own selection: the checks its diff picked.
-  const all = declaredChecks(task, project),
+  const all = declaredChecks(task, repository),
     expected = Array.isArray(run.selected)
       ? all.filter((check) => run.selected.includes(check.name))
       : all,
     verdict = verdictCause(
       task,
-      project,
+      repository,
       run.commit,
       { commit: run.commit, checks: run.checks },
       expected,
@@ -2354,7 +2357,7 @@ function servedRefusal(store, delivery, role, reviewer) {
 }
 
 // What one finished role session decided, or null while it is still working.
-function roleRecord(task, project, subject, binding) {
+function roleRecord(task, repository, subject, binding) {
   if (binding.interrupted)
     return { outcome: "interrupted", cause: INTERRUPTED };
   const roleId = reviewRoleId(binding.role);
@@ -2378,9 +2381,9 @@ function roleRecord(task, project, subject, binding) {
             }),
       };
     }
-    const verdict = verdictCause(task, project, subject, {
+    const verdict = verdictCause(task, repository, subject, {
       ...binding.report,
-      judged: needsJudgment(task, project),
+      judged: needsJudgment(task, repository),
     });
     return {
       ...(verdict
@@ -2446,7 +2449,7 @@ export function reconcileVerifications(
   for (const delivery of store.list("task_deliveries")) {
     const task = data.tasks.find((t) => t.id === delivery.taskId);
     if (!task) continue;
-    const project = store.get("projects", taskRepository(task) || ""),
+    const repository = store.get("repositories", taskRepository(task) || ""),
       roles = deliveryRoles(policy, task),
       bound = new Set(
         bindings
@@ -2484,15 +2487,15 @@ export function reconcileVerifications(
       const subject = binding.commit || next.commit,
         current = next.state === "done" && subject === next.commit;
       let record = run
-        ? runRecord(task, project, run)
-        : roleRecord(task, project, subject, binding);
+        ? runRecord(task, repository, run)
+        : roleRecord(task, repository, subject, binding);
       // While the line is stopped, a failure of the stopped check on this
       // task's commit is not judged: the gate stays shut and no writer
       // attempt is spent (R44.6, R38).
       const stopped =
         record?.outcome === "rejected" &&
         roleId === "checks" &&
-        heldByStop(store, project?.id, record.checks);
+        heldByStop(store, repository?.id, record.checks);
       if (stopped)
         record = {
           ...record,
@@ -2679,17 +2682,17 @@ export function holdUnprovenReviews(
   return { notify };
 }
 
-function detachedWorktree(project, task, label, attempt) {
+function detachedWorktree(repository, task, label, attempt) {
   return path.join(
-    project.worktreeRoot ||
-      path.join(path.dirname(project.root), ".avoozl-worktrees"),
+    repository.worktreeRoot ||
+      path.join(path.dirname(repository.root), ".avoozl-worktrees"),
     `avoozl-${task.id}-${label}-${attempt}`,
   );
 }
 
-export function verifierBrief(task, project, commit, attempt) {
-  const checks = declaredChecks(task, project),
-    worktree = detachedWorktree(project, task, "verify", attempt),
+export function verifierBrief(task, repository, commit, attempt) {
+  const checks = declaredChecks(task, repository),
+    worktree = detachedWorktree(repository, task, "verify", attempt),
     own = taskLines(
       task,
       `Avoozl verification for task ${task.id}`,
@@ -2706,12 +2709,12 @@ export function verifierBrief(task, project, commit, attempt) {
   return [
     own.heading,
     "",
-    `Repository: ${project.id}, checkout ${project.root}.`,
+    `Repository: ${repository.id}, checkout ${repository.root}.`,
     `Commit: ${commit}`,
     ...own.text,
     `Repository checks: ${checks.length ? checks.map((check) => `${check.name}: ${checkCommand(check)}`).join("; ") : "none"}`,
     "",
-    `1. Run \`git -C ${project.root} worktree add --detach ${worktree} ${commit}\`, and work only there.`,
+    `1. Run \`git -C ${repository.root} worktree add --detach ${worktree} ${commit}\`, and work only there.`,
     checks.length
       ? `2. Confirm \`git rev-parse HEAD\` prints ${commit}. Run each declared check from the worktree root and note its exit code. Then judge whether the commit meets each acceptance line above.`
       : `2. Confirm \`git rev-parse HEAD\` prints ${commit}. Judge whether the commit meets each acceptance line above; read and run what you need.`,
@@ -2724,14 +2727,14 @@ export function verifierBrief(task, project, commit, attempt) {
 
 // A review role's brief (§5.2 step 3): the task, the exact commit, the role's
 // focus, and its own open findings quoted as data. No other role's verdict.
-export function reviewBrief(task, project, commit, attempt, role, open) {
+export function reviewBrief(task, repository, commit, attempt, role, open) {
   const worktree = detachedWorktree(
-      project,
+      repository,
       task,
       "review-" + role.id,
       attempt,
     ),
-    base = project.baseBranch || "main",
+    base = repository.baseBranch || "main",
     report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "${commit}", "verdict": "approved" | "changes-requested", "findings": [{"id": "F1", "kind": "defect" | "observation", "paths": ["<repository path>"], "text": "<what and why>"}], "closures": [{"finding": "<reference>", "state": "fixed" | "unchanged", "note": "<why>"}]}}`;
   const own = taskLines(
     task,
@@ -2744,13 +2747,13 @@ export function reviewBrief(task, project, commit, attempt, role, open) {
   return [
     own.heading,
     "",
-    `Repository: ${project.id}, checkout ${project.root}, base branch ${base}.`,
+    `Repository: ${repository.id}, checkout ${repository.root}, base branch ${base}.`,
     `Commit: ${commit}`,
     `Focus: ${role.focus}`,
     ...own.text,
-    checksLine(project),
+    checksLine(repository),
     "",
-    `1. Run \`git -C ${project.root} worktree add --detach ${worktree} ${commit}\`, and work only there. Confirm \`git rev-parse HEAD\` prints ${commit}.`,
+    `1. Run \`git -C ${repository.root} worktree add --detach ${worktree} ${commit}\`, and work only there. Confirm \`git rev-parse HEAD\` prints ${commit}.`,
     `2. Review the task's change (\`git diff $(git merge-base ${base} HEAD) HEAD\`) for your focus. Read and run what you need; edit, commit, merge, and push nothing.`,
     `3. Call plans_report with ${report}.`,
     'Every finding names at least one path. "approved" lists no defect and leaves none open; "changes-requested" lists at least one defect. Close every open finding below: fixed when the change touched its paths, unchanged when it did not. A defect closed unchanged stays open. If plans_report refuses your verdict, correct it and report again. If you cannot judge the commit, report kind "blocked" with the reason.',
@@ -2774,7 +2777,7 @@ export function reviewBrief(task, project, commit, attempt, role, open) {
 }
 
 // The deliveries whose current commit may be judged now, each with its task,
-// project, writer model and recorded attempts. Shared by the verifier and
+// repository, writer model and recorded attempts. Shared by the verifier and
 // review dispatch and by the check-run queue, so both obey the same holds.
 function judgeable(store, data) {
   const out = [];
@@ -2783,8 +2786,8 @@ function judgeable(store, data) {
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "done") continue;
     const task = data.tasks.find((t) => t.id === delivery.taskId),
-      project = store.get("projects", taskRepository(task) || "");
-    if (!task || !project?.root) continue;
+      repository = store.get("repositories", taskRepository(task) || "");
+    if (!task || !repository?.root) continue;
     // A superseded task gets no new session (R39.1); a running one finishes.
     if (task.status === "superseded") continue;
     // A batch is checked and reviewed once, on its head: the last task's
@@ -2806,10 +2809,10 @@ function judgeable(store, data) {
       (delivery.verifications || []).some(
         (v) => v.outcome === "held" && v.commit === delivery.commit,
       ) &&
-      openStops(store).some((s) => s.projectId === project.id)
+      openStops(store).some((s) => s.repositoryId === repository.id)
     )
       continue;
-    out.push({ delivery, task, project });
+    out.push({ delivery, task, repository });
   }
   return out;
 }
@@ -2835,8 +2838,8 @@ export function planCheckRuns(store, policy = null) {
     bindings = listSessionBindings(store),
     retries = policy?.retries ?? DELIVERY_DEFAULTS.retries,
     queue = [];
-  for (const { delivery, task, project } of judgeable(store, data)) {
-    if (needsJudgment(task, project)) continue;
+  for (const { delivery, task, repository } of judgeable(store, data)) {
+    if (needsJudgment(task, repository)) continue;
     if (approvedOn(delivery, "checks", delivery.commit)) continue;
     if (roleFailures(delivery, "checks", delivery.commit) > retries) continue;
     const recorded = new Set(
@@ -2849,7 +2852,7 @@ export function planCheckRuns(store, policy = null) {
       continue;
     queue.push({
       task,
-      project,
+      repository,
       commit: delivery.commit,
       attempt: nextChecksAttempt(store, bindings, task.id),
     });
@@ -2868,7 +2871,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
     bindings = listSessionBindings(store),
     retries = policy?.retries ?? DELIVERY_DEFAULTS.retries,
     dispatch = [];
-  for (const { delivery, task, project } of judgeable(store, data)) {
+  for (const { delivery, task, repository } of judgeable(store, data)) {
     const writer = writerModel(store, delivery),
       recorded = new Set(
         (delivery.verifications || []).map(
@@ -2876,7 +2879,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         ),
       );
     for (const base of deliveryRoles(policy, task)) {
-      if (base.id === "checks" && !needsJudgment(task, project)) continue;
+      if (base.id === "checks" && !needsJudgment(task, repository)) continue;
       if (approvedOn(delivery, base.id, delivery.commit)) continue;
       if (roleFailures(delivery, base.id, delivery.commit) > retries) continue;
       const role = base;
@@ -2897,12 +2900,12 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         sha = delivery.commit.slice(0, 12),
         brief =
           role.id === "checks"
-            ? verifierBrief(task, project, delivery.commit, attempt)
+            ? verifierBrief(task, repository, delivery.commit, attempt)
             : withRules(
                 store,
                 reviewBrief(
                   task,
-                  project,
+                  repository,
                   delivery.commit,
                   attempt,
                   role,
@@ -2915,7 +2918,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           taskId: task.id,
           role: role.id,
           brief,
-          repository: project.repository || project.id,
+          repository: repository.github || repository.id,
         })
       )
         continue;
@@ -2923,7 +2926,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         run = roleRun(role.id === "checks" ? "verifier" : "reviewer", {
           config: options.config,
           task,
-          project,
+          repository,
         }),
         processRun = run.executor === "process";
       dispatch.push(
@@ -2941,12 +2944,12 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           // Avoozl adds it before the child starts (R97.3).
           ...run,
           ...(processRun
-            ? { worktree: detachedWorktree(project, task, label, attempt) }
-            : kirocrewDetachedSession(project.id)),
+            ? { worktree: detachedWorktree(repository, task, label, attempt) }
+            : kirocrewDetachedSession(repository.id)),
           ...(processRun ? {} : { agent: role.agent }),
           ...(role.model ? { model: role.model } : {}),
           commit: delivery.commit,
-          checkout: project.root,
+          checkout: repository.root,
           brief,
         }),
       );
@@ -2959,10 +2962,10 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
 // commit's base, merge it into the task's worktree (R77.5). A new head is a new round: it
 // becomes the delivery's commit and every role judges it before anything
 // merges (R36.9). Returns {head, onto}, or null when no rebase was needed.
-export async function rebaseForIntegration(project, worktree, commit) {
-  const target = await landingBranch(project);
+export async function rebaseForIntegration(repository, worktree, commit) {
+  const target = await landingBranch(repository);
   try {
-    await git(project.root, ["merge-base", "--is-ancestor", target, commit]);
+    await git(repository.root, ["merge-base", "--is-ancestor", target, commit]);
     return null;
   } catch {}
   // Avoozl's own files (a child's .avoozl/ result folder) are not changes.
@@ -3063,13 +3066,13 @@ export async function integrateVerified(
     try {
       if (!worktree?.path)
         fail(`${delivery.taskId} has no worktree to integrate from.`, 409);
-      const project = store.get(
-          "projects",
+      const repository = store.get(
+          "repositories",
           worktree.repository || taskRepository(task),
         ),
-        viaPullRequest = isPullRequestLanding(project),
-        viaDirect = isDirectLanding(project);
-      // A `pr` project lands on GitHub (task 42.6) and a `direct` one on its
+        viaPullRequest = isPullRequestLanding(repository),
+        viaDirect = isDirectLanding(repository);
+      // A `pr` repository lands on GitHub (task 42.6) and a `direct` one on its
       // remote (41.9): bring the remote base here first; a queued task
       // waits unless its base moved.
       if (viaPullRequest || viaDirect) {
@@ -3078,11 +3081,11 @@ export async function integrateVerified(
             `A batch does not land ${viaDirect ? "directly" : "by pull request"} yet.`,
             409,
           );
-        await syncBase(project).catch(() => null);
-        if (await stillQueued(store, { delivery, project })) continue;
+        await syncBase(repository).catch(() => null);
+        if (await stillQueued(store, { delivery, repository })) continue;
       }
       const rebased = await rebaseForIntegration(
-        project,
+        repository,
         worktree,
         delivery.commit,
       );
@@ -3104,7 +3107,7 @@ export async function integrateVerified(
       // match holds the delivery with a decision; the work stays on its branch.
       if (contentBinding(store)?.workspaceRoot) {
         const content = enforceDiff(store, {
-          project,
+          repository,
           head: delivery.commit,
           taskId: delivery.taskId,
           mode: "decide",
@@ -3133,7 +3136,7 @@ export async function integrateVerified(
       if (viaPullRequest) {
         next = await queuePullRequest(store, {
           delivery,
-          project,
+          repository,
           worktree,
           task,
           at,
@@ -3143,7 +3146,7 @@ export async function integrateVerified(
         continue;
       }
       if (viaDirect) {
-        next = queueDirect(store, { delivery, project, task, at });
+        next = queueDirect(store, { delivery, repository, task, at });
         store.transaction(() => store.put("task_deliveries", next));
         continue;
       }
@@ -3152,7 +3155,7 @@ export async function integrateVerified(
           store.put("integration", {
             id,
             taskId: delivery.taskId,
-            projectId: worktree.repository || taskRepository(task),
+            repositoryId: worktree.repository || taskRepository(task),
             branch: worktree.branch,
             worktree: worktree.path,
             commit: delivery.commit,
@@ -3258,9 +3261,9 @@ function batchOrder(store, batchId) {
 // own if the chain does not have one commit per task).
 async function integrateMembers(store, head, entry, at) {
   const order = batchOrder(store, head.batch),
-    project = store.get("projects", entry.projectId),
+    repository = store.get("repositories", entry.repositoryId),
     chain = (
-      await git(project.root, [
+      await git(repository.root, [
         "rev-list",
         "--reverse",
         "-n",

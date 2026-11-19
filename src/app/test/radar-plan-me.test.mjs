@@ -121,7 +121,7 @@ function workspace(t, github, { policy = POLICY() } = {}) {
     id: REPO,
     owner: "mtdowling",
     repo: "avoozl-radar-test",
-    projectId: "code",
+    repositoryId: "code",
     activeMachine: machineIdentity(store).id,
   });
   const ops = new Operations(store, { github, workspaceRoot: root });

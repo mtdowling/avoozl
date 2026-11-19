@@ -6,10 +6,10 @@ import { fixture, recordedRun, validateRun } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { git, createWorktree, integrateRun, withWorkLock } from "../git.mjs";
 
-// A project checkout, a validated run on sample-task, and a second run left
+// A repository checkout, a validated run on sample-task, and a second run left
 // working, recorded as the removed agent host left them. Validation passes while check.mjs exits 0; rewriting it to exit 1
 // makes the revalidation after rebase fail at the moment of integration.
-async function project(t, { extraTask = "dependent-task" } = {}) {
+async function repository(t, { extraTask = "dependent-task" } = {}) {
   const { store, root } = fixture(t),
     repo = path.join(root, "repo");
   fs.mkdirSync(repo);
@@ -28,7 +28,7 @@ async function project(t, { extraTask = "dependent-task" } = {}) {
     });
   });
   const ops = new Operations(store);
-  await ops.execute("project.configure", {
+  await ops.execute("repository.configure", {
     id: "fixture",
     root: repo,
     checks: [[process.execPath, "check.mjs"]],
@@ -39,15 +39,15 @@ async function project(t, { extraTask = "dependent-task" } = {}) {
     await git(run.worktree, ["commit", "-m", "Work in " + run.id]);
   };
   const start = (input) =>
-    recordedRun(store, { projectId: "fixture", ...input });
+    recordedRun(store, { repositoryId: "fixture", ...input });
   return { store, repo, check, start, ops, commit };
 }
 
 test("run worktrees inherit the execution repository Git identity", async (t) => {
-  const { store } = await project(t);
+  const { store } = await repository(t);
   const worktree = await createWorktree(
     store,
-    store.get("projects", "fixture"),
+    store.get("repositories", "fixture"),
     "run-identity",
   );
   assert.equal(
@@ -70,8 +70,8 @@ test("run worktrees inherit the execution repository Git identity", async (t) =>
   );
 });
 
-test("integration lands while another run on the project is still working", async (t) => {
-  const { store, repo, start, commit } = await project(t);
+test("integration lands while another run on the repository is still working", async (t) => {
+  const { store, repo, start, commit } = await repository(t);
   const working = await start({
     id: "run-working",
     taskId: "dependent-task",
@@ -120,13 +120,13 @@ test("integration lands while another run on the project is still working", asyn
   // The moved base is reported.
   const moved = store
     .events({ limit: 1000 })
-    .filter((e) => e.kind === "project.base.moved");
+    .filter((e) => e.kind === "repository.base.moved");
   assert.equal(moved.length, 1);
   assert.equal(moved[0].commit, entry.integratedCommit);
 });
 
 test("revalidation failure after rebase refuses the merge and leaves the entry ready", async (t) => {
-  const { store, repo, check, start, commit } = await project(t);
+  const { store, repo, check, start, commit } = await repository(t);
   const run = await start({
     id: "run-stale",
     taskId: "sample-task",
@@ -150,13 +150,15 @@ test("revalidation failure after rebase refuses the merge and leaves the entry r
   assert.equal(fs.existsSync(path.join(repo, "stale.txt")), false);
   assert.equal(store.read().tasks[0].integration, undefined);
   assert.equal(
-    store.events({ limit: 1000 }).some((e) => e.kind === "project.base.moved"),
+    store
+      .events({ limit: 1000 })
+      .some((e) => e.kind === "repository.base.moved"),
     false,
   );
 });
 
-test("the project work lock still serializes integration against itself and validation", async (t) => {
-  const { store, start, commit } = await project(t);
+test("the repository work lock still serializes integration against itself and validation", async (t) => {
+  const { store, start, commit } = await repository(t);
   const run = await start({
     id: "run-locked",
     taskId: "sample-task",
@@ -172,7 +174,7 @@ test("the project work lock still serializes integration against itself and vali
     store,
     {
       id: "integration:fixture",
-      projectId: "fixture",
+      repositoryId: "fixture",
       kind: "integration",
     },
     () => held,
@@ -187,7 +189,7 @@ test("the project work lock still serializes integration against itself and vali
   for (const attempt of [
     integrateRun(store, { id: run.id, expectedCommit: validation.commit }),
     validateRun(store, run),
-    createWorktree(store, store.get("projects", "fixture"), "run-racing"),
+    createWorktree(store, store.get("repositories", "fixture"), "run-racing"),
   ]) {
     const error = await contends(attempt);
     assert.equal(error?.status, 409);
@@ -205,7 +207,7 @@ test("the project work lock still serializes integration against itself and vali
   // And an integration refuses while a validation holds the lock.
   const validating = withWorkLock(
     store,
-    { id: "validation:other", projectId: "fixture", kind: "validation" },
+    { id: "validation:other", repositoryId: "fixture", kind: "validation" },
     () =>
       new Promise((resolve) => {
         release = resolve;

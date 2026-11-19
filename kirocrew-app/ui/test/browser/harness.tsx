@@ -40,6 +40,7 @@ import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
+import { detailFor, listFor, triageView } from './triage-fixture.ts'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
@@ -51,6 +52,7 @@ import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import { reviewFixture } from './review-fixture.ts'
 import { needsContextItems } from './needs-context-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
+import NewFixDrawer from '../../src/NewFixDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
@@ -440,6 +442,15 @@ export const SCENARIOS: Record<string, Scenario> = {
       document.body,
     ),
   ),
+  // New fix beside New spec (triage-agent TA9.2).
+  'new-fix': shown((close) =>
+    createPortal(
+      <div {...{ [APP_ATTR]: '' }}>
+        <NewFixDrawer workspaceId="w" onClose={close} />
+      </div>,
+      document.body,
+    ),
+  ),
   'new-spec-template': shown((close) =>
     createPortal(
       <div {...{ [APP_ATTR]: '' }}>
@@ -641,6 +652,16 @@ answer('untriaged.view', () => ({
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 // &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).
 if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
+
+// GitHub › Issues, Pull requests and Triage agent (triage-agent-shots.mjs):
+// &agent=1 fills them; without it every list is empty.
+answer('items.list', (body) => {
+  const input = (body.input ?? {}) as { kind?: string; owner?: boolean }
+  return query.get('agent') === '1' ? listFor(input) : { kind: input.kind ?? 'issue', total: 0, items: [], labels: [], repositories: [], ownerQueue: 0 }
+})
+answer('items.detail', (body) => detailFor((body.input ?? {}) as { number?: number }))
+answer('triage.view', () => (query.get('agent') === '1' ? triageView : { ...triageView, repositories: [], inProgress: [], runs: [], days: [], ownerQueue: 0 }))
+answer('fix.start', () => ({ taskId: 'fix-1' }))
 
 // Dashboards › Landing queue: empty by default; &landing=1 has two bases
 // with every hold reason (landing-queue-shots.mjs).
@@ -1683,7 +1704,49 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     previous: metrics,
     bottleneck: null,
     tasks: [task],
-    stops: [],
+    // ?stops=1: a pulled stop still open, a pulled one resumed and an
+    // automatic one fixed, for Flow's Line stops list (R64.11).
+    stops: query.get('stops')
+      ? [
+          {
+            id: 'stop:pulled:1',
+            manual: true,
+            by: { kind: 'person', name: 'Michael Dowling' },
+            reason: 'bad base',
+            scope: 'task',
+            taskId: 'search.3',
+            projectId: 'acme/recipe-box',
+            openedAt: '2026-11-15T10:30:00Z',
+            closedAt: '2026-11-15T10:56:00Z',
+            timeToFixMs: 26 * 60000,
+            branch: 'main',
+            check: null,
+          },
+          {
+            id: 'stop:r1:1',
+            manual: false,
+            check: 'npm test',
+            branch: 'main',
+            projectId: 'acme/recipe-box',
+            culprit: null,
+            openedAt: '2026-11-15T10:17:00Z',
+            closedAt: '2026-11-15T10:20:00Z',
+            timeToFixMs: 3 * 60000,
+          },
+          {
+            id: 'stop:pulled:2',
+            manual: true,
+            by: { kind: 'agent', name: 'session:dashboard:worker-a1' },
+            reason: 'worker found a broken base in acme/recipe-box',
+            scope: 'repo',
+            projectId: 'acme/recipe-box',
+            openedAt: '2026-11-15T10:01:00Z',
+            closedAt: null,
+            branch: 'main',
+            check: null,
+          },
+        ]
+      : [],
     line: [],
     flaky: [],
     ciOnly: [],

@@ -421,7 +421,7 @@ test("lost bindings are rediscovered from avoozl:<task-id> titles", async (t) =>
 test("a session request dispatches once, and a closed session is read once", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: "/checkout/app",
     baseBranch: "main",

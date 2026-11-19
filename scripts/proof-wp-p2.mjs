@@ -165,7 +165,7 @@ try {
     ],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(P.checkout),
     baseBranch: "main",

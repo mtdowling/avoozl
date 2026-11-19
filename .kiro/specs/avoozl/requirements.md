@@ -449,8 +449,8 @@ execution.
    budget running low.
 10. Issue text SHALL NOT choose where its work runs: an issue's task block
     MAY set title, summary, acceptance, requires, tags, resources, epic and
-    track, and its `projectId` SHALL be ignored; the issue's registered
-    repository decides the execution project (added 2026-11-13, injection
+    track, and its `repositoryId` SHALL be ignored; the issue's registered
+    repository decides the execution repository (added 2026-11-13, injection
     audit).
 11. Outside text quoted into a brief or a relayed message SHALL be capped:
     each pull request comment, review, or steering comment keeps its first
@@ -3698,7 +3698,7 @@ step by hand when I want it.
 4. With auto-merge off in Local only mode, integration SHALL wait for a
    person's **Integrate** on the Ready to merge item. A Local only
    workspace has no GitHub repository entries, so it keeps reading
-   `delivery.ship` and each project's `landing`.
+   `delivery.ship` and each repository's `landing`.
 5. Avoozl SHALL still never merge a pull request itself.
 6. With auto-merge off, WHEN a writer's pull request closes without merging
    THEN Avoozl SHALL send the writer one message, as one feedback round, to
@@ -3810,9 +3810,9 @@ chatty agent cannot reach my secrets or my approvals.
    existing workspace SHALL be tightened on open. The docs SHALL say what
    happens on Windows.
 4. `docs/policies.md` SHALL name the repository-owned code that runs on its
-   own. `scripts/worktree` SHALL run only when the project's `worktreeHelper`
+   own. `scripts/worktree` SHALL run only when the repository's `worktreeHelper`
    equals its SHA-256 hash; otherwise the refusal SHALL show the hash.
-5. A project MAY set `checksEnv`, a list of variable names. Check processes
+5. A repository MAY set `checksEnv`, a list of variable names. Check processes
    SHALL then get only those, the basics needed to start, and never the
    gateway credentials. Without it, checks SHALL get what they get today.
 6. A local-folder plugin SHALL be hashed again just before it starts and
@@ -3996,8 +3996,8 @@ pressing merge.
    mode SHALL be `off` until Set up (Requirement 89) writes another. Under
    `off` Avoozl SHALL push nothing and SHALL list the verified commit in
    Needs you. (Changed 2026-11-18, simplification audit F3: the mode was
-   the project's `landing`, the method `merge.method`, and who merges
-   `delivery.ship`.) The project's `landing` SHALL still load as the mode,
+   the repository's `landing`, the method `merge.method`, and who merges
+   `delivery.ship`.) The repository's `landing` SHALL still load as the mode,
    and `merge.method` as the method, of a repository whose block sets none,
    with no warning. Avoozl SHALL NOT write them. A key in the block wins
    over its older key. Avoozl's own repository and Nupp SHALL land as they
@@ -4067,7 +4067,7 @@ instead of a stuck chat.
    in its brief, as runner mode does. The earlier claim that an ordinary
    local worker already skips Kiro Crew's project folder and MCP sharing was
    wrong: only runner mode did (`src/app/remote-runner.mjs`); a local worker
-   used `leaf.project` and `plans_report` needed MCP sharing.
+   used `leaf.repository` and `plans_report` needed MCP sharing.
 4. WHEN Kiro Crew reports a worker chat gone THEN Avoozl SHALL open one new
    chat in the same worktree with the same brief and the last report
    quoted as data. A second vanish of the same task SHALL go to Needs you.
@@ -4089,7 +4089,7 @@ instead of a stuck chat.
 Added 2026-11-15. Design §4.26.
 
 **User story:** As the owner, I want one command that shows what it will
-change in the project settings and on GitHub and then does it, so that a new
+change in the repository settings and on GitHub and then does it, so that a new
 repository is ready to land in minutes.
 
 #### Acceptance criteria
@@ -4097,7 +4097,7 @@ repository is ready to land in minutes.
 1. `avoozl setup REPO` SHALL preview every change, then apply it only after
    `--yes` or a confirm on the page. A second run with nothing to change
    SHALL say "Nothing to change" and write nothing.
-2. It SHALL write the project config: root, base branch, checks, declared
+2. It SHALL write the repository config: root, base branch, checks, declared
    protected paths, the worktree helper hash after the person read it, and
    the landing setting.
 3. For a GitHub repository under `pr` it SHALL: update the branch ruleset to
@@ -4351,7 +4351,7 @@ that I approve, so that a new agent CLI needs no code change.
 4. Permission for unattended children, settled by the owner: a write role
    SHALL use the harness's workspace-write sandbox, whose write roots are
    the task folder, the temp directory, and the cache directories the
-   project config names (`sandbox.writeRoots`, for example a compiler cache
+   repository config names (`sandbox.writeRoots`, for example a compiler cache
    such as sccache); a read-only role SHALL use its read-only mode.
 4a. A task worktree's git directory lives in the main checkout
     (`git rev-parse --git-common-dir`), outside those roots, so a confined
@@ -4374,7 +4374,7 @@ that I approve, so that a new agent CLI needs no code change.
     and value of 4b stays refused, `permission.read` included, and tests
     SHALL show it refused without the Avoozl sandbox, allowed with it, and
     the other bypass values still refused.
-4c. Each project SHALL have a command allow-list for unattended children
+4c. Each repository SHALL have a command allow-list for unattended children
     (`sandbox.allowCommands`: its build and test commands), passed to the
     harness's allow setting, so a child does not stall on a prompt.
     `git push` SHALL never be allowed, and adding it SHALL be refused.
@@ -4418,7 +4418,7 @@ restart, and its exit is never lost.
    sandbox: for a `process` child the workspace database, the GitHub and
    other credentials, and the Kiro Crew home SHALL be outside its read and
    write roots, and its network SHALL be off or restricted to what the
-   project names. A harness that cannot do this SHALL be refused for
+   repository names. A harness that cannot do this SHALL be refused for
    unattended roles unless the owner opts in for that machine.
 7. For a `kirocrew` chat, person-only refusal SHALL stay a speed bump, and
    the docs and Settings SHALL say so plainly.
@@ -5543,8 +5543,9 @@ once under `intake.sources`, so that I read and change intake in one place.
 
 1. `intake.sources` SHALL accept `via: "github"` beside `plugin:<id>` and
    `mcp`. A GitHub source names the GitHub `repository` (owner/name) and
-   SHALL carry the keys `github.issueIntake` held: `project` (the execution
-   project), optional `workspaceRepository` when it differs from `project`,
+   SHALL carry the keys `github.issueIntake` held: `executionRepository` (the
+   execution repository), optional `workspaceRepository` when it differs
+   from `executionRepository`,
    `assignee`, `autoStart`, `provider` and `model`. A source has no label
    and no trust list: the ready label is `managedLabels.ready` and who counts
    is `allowedActors` and `minimumPermission`, both on the repository's
@@ -5555,7 +5556,7 @@ once under `intake.sources`, so that I read and change intake in one place.
    did. One declared in this machine's settings SHALL be listed with the
    reason it is not used. At most one GitHub source SHALL name a GitHub
    repository.
-3. `github configure`, `github.project.connect` and Repository setup's
+3. `github configure`, `github.repository.connect` and Repository setup's
    "issues here" SHALL write a GitHub source and SHALL NOT write
    `github.issueIntake` or `github.queue`. Removing a repository or
    turning its issues off SHALL remove its GitHub source.
@@ -5683,13 +5684,13 @@ commit cannot read my credentials or reach the network through its checks.
 
 #### Acceptance criteria
 
-1. A project SHALL have one `isolation` setting, `{run, image, network,
-   readable, writable, prepare}`, kept in its project settings. `run` SHALL
+1. A repository SHALL have one `isolation` setting, `{run, image, network,
+   readable, writable, prepare}`, kept in its repository settings. `run` SHALL
    be `sandbox` (the default), `container` or `unconfined`; `network` SHALL
    be `off` (the default) or `on`; `image` SHALL be required with
    `container`; `readable` and `writable` SHALL be absolute paths; `prepare`
    SHALL be command arguments. Only a person SHALL set it, with
-   `project.configure` or Settings › Repository setup › Landing.
+   `repository.configure` or Settings › Repository setup › Landing.
 2. With `sandbox`, every check (Avoozl's own check runs, integration's and
    landing's candidate runs) SHALL run in the process sandbox, writing only
    the check's folder, its own temp folder, a per-repository cache folder

@@ -106,7 +106,7 @@ function fakeGitHub(issues, { events = {}, permissions = {} } = {}) {
 
 const PERMISSIONS = { owner: "admin", stranger: "read" };
 
-function workspace(t, github, extra = {}, { projectId = REPO } = {}) {
+function workspace(t, github, extra = {}, { repositoryId = REPO } = {}) {
   const { store } = fixture(t),
     root = temporaryDirectory();
   fs.writeFileSync(
@@ -131,11 +131,11 @@ function workspace(t, github, extra = {}, { projectId = REPO } = {}) {
     id: REPO,
     owner: "example",
     repo: "app",
-    projectId: projectId === REPO ? "code" : projectId,
+    repositoryId: repositoryId === REPO ? "code" : repositoryId,
     activeMachine: machineIdentity(store).id,
   });
-  store.put("projects", {
-    id: projectId,
+  store.put("repositories", {
+    id: repositoryId,
     name: "app",
     root: temporaryDirectory("avoozl-repo-"),
   });
@@ -219,7 +219,12 @@ test("Plan this starts a planner chat and records the issue as the source", asyn
 
 test("Plan this names the workspace repository when its id is not owner/name", async (t) => {
   const github = fakeGitHub([issue(7)], { permissions: PERMISSIONS });
-  const { ops, store, intake } = workspace(t, github, {}, { projectId: "app" });
+  const { ops, store, intake } = workspace(
+    t,
+    github,
+    {},
+    { repositoryId: "app" },
+  );
   await intake();
   await ops.execute("untriaged.plan", { repository: REPO, number: 7 });
   const request = pendingNewPlans(store).at(-1);

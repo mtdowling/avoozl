@@ -2,6 +2,7 @@
 // Avoozl's own release state (phase gate, release count, held reason), the
 // specs that are not on GitHub yet. Read only. The Release queue rows carry each held reason; this file only groups.
 import { statusComplete } from "../model.mjs";
+import { crossPlanEpics } from "./epics.mjs";
 
 const phaseOf = (task) => task.phase?.id ?? "";
 
@@ -55,7 +56,7 @@ function whyUnprojected(plan, tasks) {
 
 export function epicsView(store, queue) {
   const data = store.read(),
-    epicsOf = data.epics ?? [],
+    epicsOf = crossPlanEpics(data),
     plans = new Map(store.list("plans").map((plan) => [plan.id, plan])),
     rows = queue.repositories.flatMap((entry) => entry.rows),
     tasksOf = (planId) => data.tasks.filter((task) => task.planId === planId),

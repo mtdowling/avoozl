@@ -1,4 +1,4 @@
-// A repository's checks: the only checks there are. A project's `checks`
+// A repository's checks: the only checks there are. A repository's `checks`
 // maps a name to an argv array, or to {run: argv, paths: [glob, ...]}; a
 // check with paths runs only for a change that touches one of them. Tasks
 // never name checks. An older setting, a list of argv arrays, still loads:
@@ -66,8 +66,8 @@ export function checksSetting(value, label = "checks") {
 
 // The repository's checks as [{name, argv, paths}], in their written order.
 // `paths` is null for a check that runs on every change.
-export function repositoryChecks(project) {
-  const value = project?.checks;
+export function repositoryChecks(repository) {
+  const value = repository?.checks;
   if (Array.isArray(value))
     return value
       .filter(isArgv)
@@ -95,8 +95,8 @@ export const checkApplies = (check, files) =>
   files.some((file) => check.paths.some((glob) => matchesPath(glob, file)));
 
 // The checks a change runs (`files`: its changed paths, or null for all).
-export const selectedChecks = (project, files = null) =>
-  repositoryChecks(project).filter((check) => checkApplies(check, files));
+export const selectedChecks = (repository, files = null) =>
+  repositoryChecks(repository).filter((check) => checkApplies(check, files));
 
 // The command text a check shows, for display.
 export const checkCommand = (check) => check.argv.join(" ");

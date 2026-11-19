@@ -112,7 +112,12 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
   // A repository, so the reads have GitHub to call.
   const seed = new Store(config.dbPath);
   const [owner, repo] = REPO.split("/");
-  seed.put("github_repositories", { id: REPO, owner, repo, projectId: "code" });
+  seed.put("github_repositories", {
+    id: REPO,
+    owner,
+    repo,
+    repositoryId: "code",
+  });
   seed.close();
 
   // GitHub never answers; the test's own loopback calls go through.

@@ -198,7 +198,7 @@ test("owner invalidation cannot leave an already projected consumer released", a
   const w = interleaved(t);
   await approve(w, "left");
   await approve(w, "right");
-  w.store.mutate("Fixture projects one consumer", (data) => {
+  w.store.mutate("Fixture repositories one consumer", (data) => {
     data.tasks.find((task) => task.id === "left-finish").github = { number: 7 };
   });
   await assert.rejects(

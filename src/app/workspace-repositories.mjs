@@ -1,24 +1,26 @@
 import { fail } from "./store.mjs";
 
 export function workspaceRepositories(store) {
-  const projects = store.list("projects");
+  const repositories = store.list("repositories");
   const authorization = store.list("github_repositories");
   const byId = new Map();
 
-  for (const project of projects)
-    byId.set(project.id, {
-      id: project.id,
-      name: project.name || project.id,
-      github: project.repository || null,
-      localCheckout: project.root,
-      worktreeRoot: project.worktreeRoot || null,
-      planning: Boolean(project.planning),
-      editable: project.editable !== false,
-      baseBranch: project.baseBranch || "main",
-      landing: project.landing || null,
-      harness: project.harness || null,
-      checks: structuredClone(project.checks || []),
-      isolation: project.isolation ? structuredClone(project.isolation) : null,
+  for (const repository of repositories)
+    byId.set(repository.id, {
+      id: repository.id,
+      name: repository.name || repository.id,
+      github: repository.github || null,
+      localCheckout: repository.root,
+      worktreeRoot: repository.worktreeRoot || null,
+      planning: Boolean(repository.planning),
+      editable: repository.editable !== false,
+      baseBranch: repository.baseBranch || "main",
+      landing: repository.landing || null,
+      harness: repository.harness || null,
+      checks: structuredClone(repository.checks || []),
+      isolation: repository.isolation
+        ? structuredClone(repository.isolation)
+        : null,
       queue: {
         enabled: false,
         issues: false,
@@ -28,11 +30,11 @@ export function workspaceRepositories(store) {
       issueAuthorization: { enabled: false },
     });
 
-  const ensure = (repository, projectId) => {
-    const matched = projectId
-      ? byId.get(projectId)
+  const ensure = (repository, repositoryId) => {
+    const matched = repositoryId
+      ? byId.get(repositoryId)
       : [...byId.values()].find((item) => item.github === repository);
-    const id = matched?.id || projectId || repository;
+    const id = matched?.id || repositoryId || repository;
     if (!byId.has(id))
       byId.set(id, {
         id,
@@ -58,7 +60,7 @@ export function workspaceRepositories(store) {
   for (const entry of authorization) {
     const item = ensure(
       entry.id,
-      entry.workspaceRepositoryId || entry.projectId,
+      entry.workspaceRepositoryId || entry.repositoryId,
     );
     item.github = entry.id;
     item.issueAuthorization = {
@@ -77,7 +79,7 @@ export function workspaceRepositories(store) {
 export function assertRepositoryRemovable(store, repository) {
   if (repository.localCheckout) {
     const locked = store.db
-      .prepare("SELECT id FROM work_locks WHERE project_id=? LIMIT 1")
+      .prepare("SELECT id FROM work_locks WHERE repository_id=? LIMIT 1")
       .get(repository.id);
     if (locked)
       fail(
@@ -96,7 +98,9 @@ export function removeWorkspaceRepositoryRecords(store, repository) {
         .run(repository.github);
     }
     if (repository.localCheckout)
-      store.db.prepare("DELETE FROM projects WHERE id=?").run(repository.id);
+      store.db
+        .prepare("DELETE FROM repositories WHERE id=?")
+        .run(repository.id);
     store.event(null, "workspace.repository.removed", {
       repositoryId: repository.id,
       github: repository.github,

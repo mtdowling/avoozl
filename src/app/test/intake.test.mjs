@@ -75,7 +75,7 @@ test("an intake source is checked like a plugins entry", () => {
   const GITHUB_ENTRY = {
     via: "github",
     repository: "o/app",
-    project: "app",
+    executionRepository: "app",
     assignee: "bot",
   };
   assert.deepEqual(
@@ -99,7 +99,7 @@ test("an intake source is checked like a plugins entry", () => {
     plugin: null,
     repository: "o/app",
     github: "o/app",
-    projectId: "app",
+    repositoryId: "app",
     assignee: "bot",
     enabled: true,
     autoStart: false,

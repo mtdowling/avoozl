@@ -16,7 +16,7 @@ function setup(t, tasks, edges = []) {
       prefix: "avoozl-line-",
       tasks,
       edges,
-      project: { checks: [["node", "check.mjs"]] },
+      repository: { checks: [["node", "check.mjs"]] },
       config: { version: 1 },
       files: (root) => ({
         "check.mjs": `import fs from "node:fs";
@@ -29,8 +29,8 @@ if (fs.existsSync("broken")) { console.error("assertion failed: broken"); proces
     counter = path.join(root, "flaky-count");
   // The check keeps its flaky counter beside the checkout: a sandboxed
   // check may write there only when the repository lists it.
-  store.put("projects", {
-    ...store.get("projects", "app"),
+  store.put("repositories", {
+    ...store.get("repositories", "app"),
     isolation: { writable: [root] },
   });
   // Land a commit on main as if Avoozl integrated task `id`.
@@ -53,7 +53,7 @@ if (fs.existsSync("broken")) { console.error("assertion failed: broken"); proces
     store.put("integration", {
       id: "i:" + commit,
       taskId: "x",
-      projectId: "app",
+      repositoryId: "app",
       state: "integrated",
       integratedCommit: commit,
     });
@@ -135,6 +135,23 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   );
 });
 
+test("a direct landing's integrated delivery is the first green head", async (t) => {
+  const s = setup(t, [leaf("c2"), leaf("a1")]);
+  const start = s.land("c2", "c2.txt");
+  // `direct` landing writes no integration row: only the delivery.
+  s.store.put("task_deliveries", {
+    id: "c2",
+    taskId: "c2",
+    state: "integrated",
+    integratedCommit: start,
+  });
+  await watchLine(s.store, s.config);
+  s.land("a1", "broken");
+  const { notify } = await watchLine(s.store, s.config);
+  assert.equal(notify.length, 1);
+  assert.match(notify[0].title, /Line stopped: node check\.mjs fails on main/);
+});
+
 test("a failure that passes on rerun is flaky, not a stop", async (t) => {
   const s = setup(t, [leaf("a1")]);
   s.integrated(s.land(null, "one.txt"));
@@ -155,10 +172,10 @@ test("the culprit is bisected among task commits, else unknown with its range", 
   s.land("a1", "a1.txt");
   s.land("a2", "broken");
   const red = s.land("a3", "a3.txt");
-  const project = s.store.get("projects", "app"),
+  const repository = s.store.get("repositories", "app"),
     found = await findCulprit(
       s.store,
-      project,
+      repository,
       ["node", "check.mjs"],
       green,
       red,
@@ -167,7 +184,7 @@ test("the culprit is bisected among task commits, else unknown with its range", 
   assert.ok(found.runs > 0 && found.runs <= 8);
   const none = await findCulprit(
     s.store,
-    project,
+    repository,
     ["node", "check.mjs"],
     red,
     red,
@@ -176,7 +193,7 @@ test("the culprit is bisected among task commits, else unknown with its range", 
   // With an unknown culprit, the dependents scope pauses the repository.
   s.store.put("flow_stops", {
     id: "x",
-    projectId: "app",
+    repositoryId: "app",
     check: "node check.mjs",
     culprit: null,
     scope: "dependents",
@@ -199,7 +216,7 @@ test("Run anyway is a person's: confirmed, recorded, and refused to sessions", a
   );
   s.store.put("flow_stops", {
     id: "stop-1",
-    projectId: "app",
+    repositoryId: "app",
     check: "node check.mjs",
     culprit: "a1",
     scope: "dependents",
@@ -248,11 +265,11 @@ test("a worker's check run runs the repository's checks on its commit", async (t
   const worktree = path.join(s.root, "wt");
   git(s.checkout, "worktree", "add", "-q", worktree, "-b", "avoozl/g1");
   const head = git(worktree, "rev-parse", "HEAD"),
-    project = s.store.get("projects", "app");
+    repository = s.store.get("repositories", "app");
   const ran = await runLocalChecks({
     cwd: worktree,
-    root: project.root,
-    project,
+    root: repository.root,
+    repository,
   });
   assert.equal(ran.passed, true);
   assert.equal(ran.checks[0].commit, head);

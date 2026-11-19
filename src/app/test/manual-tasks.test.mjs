@@ -42,7 +42,7 @@ const REVIEW = {
 
 function workspace(t, review = REVIEW) {
   const { root, store } = fixture(t);
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: temporaryDirectory(),
     baseBranch: "main",

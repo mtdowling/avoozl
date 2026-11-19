@@ -42,7 +42,7 @@ function seed(t) {
       }),
     ],
   });
-  store.put("projects", { id: "code", repository: "example/code" });
+  store.put("repositories", { id: "code", github: "example/code" });
   store.put("plans", {
     id: "s",
     spec: "s",
@@ -92,7 +92,7 @@ function seed(t) {
   });
   store.put("landing_queue", {
     id: "code\0main\0landed",
-    projectId: "code",
+    repositoryId: "code",
     base: "main",
     key: "landed",
     commit: sha("b"),

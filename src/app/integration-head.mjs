@@ -55,7 +55,7 @@ function holdLine(store, target, plan, reason, now) {
     by: { kind: "app", name: "integration branch" },
     reason,
     scope: "spec",
-    projectId: null,
+    repositoryId: null,
     planId: plan.id,
     spec: plan.spec || null,
     taskId: null,

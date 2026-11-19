@@ -1,7 +1,7 @@
-// The tick lands `pr` projects' verified work through pull requests (task
+// The tick lands `pr` repositories' verified work through pull requests (task
 // 42.6, Requirements 87.3-87.6 and 89.3, design §4.26).
 //
-// - A verified task in a project with `landing: "pr"` is pushed to its task
+// - A verified task in a repository with `landing: "pr"` is pushed to its task
 //   branch (`pushHead`: scanned, never forced) and queued as one portion
 //   for its base (`enqueueLanding`). Nothing lands locally.
 // - Each tick takes the head of each queue one step (`landNext` with
@@ -36,6 +36,7 @@ import {
 import { listSessionBindings } from "./session-bindings.mjs";
 import { driverIdOf, publicTaskName } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
+import { landingSpecOf, specRevision } from "./fix.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { pushHead, sourceRegistry } from "./working-heads.mjs";
 import { fail } from "./store.mjs";
@@ -50,7 +51,8 @@ const fenced = (text) => {
   return `${ticks}\n${text}\n${ticks}`;
 };
 const ERRORS = "prLandingErrors";
-export const isPullRequestLanding = (project) => project?.landing === "pr";
+export const isPullRequestLanding = (repository) =>
+  repository?.landing === "pr";
 
 async function isAncestor(root, older, newer) {
   try {
@@ -61,31 +63,31 @@ async function isAncestor(root, older, newer) {
   }
 }
 
-async function registryOf(project) {
-  if (!project.repository)
+async function registryOf(repository) {
+  if (!repository.github)
     fail(
-      `Project ${project.id} has no GitHub origin to open pull requests on.`,
+      `Repository ${repository.id} has no GitHub origin to open pull requests on.`,
       409,
     );
-  const url = await git(project.root, ["remote", "get-url", "origin"]);
-  return sourceRegistry({ [project.repository]: { url } });
+  const url = await git(repository.root, ["remote", "get-url", "origin"]);
+  return sourceRegistry({ [repository.github]: { url } });
 }
 
 // Brings origin's base into the local base branch by fast-forward only.
 // A diverged local base, or a checkout on the base with changes, is left
 // as it is.
-export async function syncBase(project, { env } = {}) {
-  const base = project.baseBranch || "main";
-  await git(project.root, ["fetch", "--quiet", "origin", base], {
+export async function syncBase(repository, { env } = {}) {
+  const base = repository.baseBranch || "main";
+  await git(repository.root, ["fetch", "--quiet", "origin", base], {
     env: { ...(env ?? process.env), ...NO_PROMPT },
   });
-  const remote = await git(project.root, ["rev-parse", "FETCH_HEAD"]),
-    local = await git(project.root, ["rev-parse", `refs/heads/${base}`]);
-  if (remote === local || !(await isAncestor(project.root, local, remote)))
+  const remote = await git(repository.root, ["rev-parse", "FETCH_HEAD"]),
+    local = await git(repository.root, ["rev-parse", `refs/heads/${base}`]);
+  if (remote === local || !(await isAncestor(repository.root, local, remote)))
     return local;
-  const current = await git(project.root, ["branch", "--show-current"]);
+  const current = await git(repository.root, ["branch", "--show-current"]);
   if (current !== base) {
-    await git(project.root, [
+    await git(repository.root, [
       "update-ref",
       `refs/heads/${base}`,
       remote,
@@ -94,23 +96,27 @@ export async function syncBase(project, { env } = {}) {
     return remote;
   }
   if (
-    await git(project.root, ["status", "--porcelain", "--untracked-files=no"])
+    await git(repository.root, [
+      "status",
+      "--porcelain",
+      "--untracked-files=no",
+    ])
   )
     return local;
-  await git(project.root, ["merge", "--ff-only", "--quiet", remote]);
+  await git(repository.root, ["merge", "--ff-only", "--quiet", remote]);
   return remote;
 }
 
 // For a delivery already queued: true while its portion still waits on the
 // current base. A moved base withdraws it so it is merged and verified again.
-export async function stillQueued(store, { delivery, project }) {
+export async function stillQueued(store, { delivery, repository }) {
   if (delivery.landing?.commit !== delivery.commit) return false;
-  const base = project.baseBranch || "main";
-  if (await isAncestor(project.root, `refs/heads/${base}`, delivery.commit))
+  const base = repository.baseBranch || "main";
+  if (await isAncestor(repository.root, `refs/heads/${base}`, delivery.commit))
     return true;
   withdrawLanding(
     store,
-    { projectId: project.id, base, key: delivery.taskId },
+    { repositoryId: repository.id, base, key: delivery.taskId },
     "base-moved",
   );
   return false;
@@ -122,7 +128,7 @@ export async function queuePullRequest(
   store,
   {
     delivery,
-    project,
+    repository,
     worktree,
     task,
     at,
@@ -132,36 +138,36 @@ export async function queuePullRequest(
     workspaceRoot,
   },
 ) {
-  const planId = task?.planId,
+  const planId = landingSpecOf(task),
     driver = planId ? driverIdOf(store, planId) : null;
   if (!driver)
     fail(
       `Take over ${planId ?? "the spec"} before it lands: avoozl spec takeover ${planId ?? "SPEC"}.`,
       409,
     );
-  const registry = await registryOf(project),
-    base = project.baseBranch || "main",
-    since = await git(project.root, ["rev-parse", `refs/heads/${base}`]),
+  const registry = await registryOf(repository),
+    base = repository.baseBranch || "main",
+    since = await git(repository.root, ["rev-parse", `refs/heads/${base}`]),
     // A private plan's task goes by an opaque name on a public repository:
     // its remote branch, pull request title and trailer.
     named = publicTaskName(store, {
       workspaceRoot,
       planId,
       taskId: delivery.taskId,
-      repository: project.repository,
+      repository: repository.github,
     }),
     source = {
-      repository: project.repository,
+      repository: repository.github,
       branch: named ? `avoozl/${named}` : worktree.branch,
     };
   await pushHead(
-    project.root,
+    repository.root,
     { ...source, commit: delivery.commit },
     registry,
     { since, env, machine, configFile, store },
   );
   enqueueLanding(store, {
-    projectId: project.id,
+    repositoryId: repository.id,
     base,
     key: delivery.taskId,
     commit: delivery.commit,
@@ -300,7 +306,7 @@ export function markLanded(store, entry, { mergeCommit, branch, at }) {
   });
 }
 
-// One step for each `pr` project's queue. Returns {notify, messages}.
+// One step for each `pr` repository's queue. Returns {notify, messages}.
 export async function landPullRequests(
   store,
   {
@@ -317,11 +323,13 @@ export async function landPullRequests(
     messages = [],
     at = new Date(now).toISOString();
   if (!github) return { notify, messages };
-  for (const project of store.list("projects").filter(isPullRequestLanding)) {
-    // `rounds` is a count or, per repository, a function of the project.
-    const tries = typeof rounds === "function" ? rounds(project) : rounds,
-      base = project.baseBranch || "main",
-      queue = landingQueue(store, { projectId: project.id, base });
+  for (const repository of store
+    .list("repositories")
+    .filter(isPullRequestLanding)) {
+    // `rounds` is a count or, per repository, a function of the repository.
+    const tries = typeof rounds === "function" ? rounds(repository) : rounds,
+      base = repository.baseBranch || "main",
+      queue = landingQueue(store, { repositoryId: repository.id, base });
     if (!queue.length) continue;
     const head = queue[0];
     try {
@@ -330,8 +338,8 @@ export async function landPullRequests(
           { github, workspaceRoot },
           head.spec,
         ),
-        plan = store.get("plans", head.spec),
-        registry = await registryOf(project),
+        revision = specRevision(store, head.spec),
+        registry = await registryOf(repository),
         // GitHub rights are the signed-in login's; a local journal's login
         // is this workspace's operator, which GitHub does not know.
         githubLogin = authority.journal.local
@@ -340,8 +348,8 @@ export async function landPullRequests(
         steps = pullSteps({
           github,
           registry,
-          root: project.root,
-          target: project.repository,
+          root: repository.root,
+          target: repository.github,
           base,
           login: githubLogin,
           method: "merge",
@@ -356,18 +364,18 @@ export async function landPullRequests(
               driver: head.driver,
               owner: authority.owner,
               login: authority.login,
-              revision: plan.hash,
+              revision,
             },
           }),
         });
       const result = await landNext(
         store,
-        { projectId: project.id, base },
+        { repositoryId: repository.id, base },
         steps,
       );
       if (result.state === "landed") {
         const pull = await github.pullRequest(
-          project.repository,
+          repository.github,
           result.entry.pr,
         );
         markLanded(store, result.entry, {
@@ -375,7 +383,7 @@ export async function landPullRequests(
           branch: head.source?.branch,
           at,
         });
-        await syncBase(project, { env }).catch(() => null);
+        await syncBase(repository, { env }).catch(() => null);
       } else if (result.state === "failed") {
         const sent = sendFailureBack(store, result, { rounds: tries, now });
         messages.push(...sent.messages);

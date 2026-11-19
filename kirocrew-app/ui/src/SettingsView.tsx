@@ -1183,7 +1183,7 @@ function RepositoriesTab(props: {
       body: (
         <>
           {own.body}
-          <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} projectId={row.checkout.id} value={row.checkout.isolation} />
+          <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} repositoryId={row.checkout.id} value={row.checkout.isolation} />
         </>
       ),
     }

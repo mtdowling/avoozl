@@ -34,7 +34,7 @@ import {
   finishProcessSession,
   planQuotaHold,
   processExecutor,
-  projectExecutor,
+  repositoryExecutor,
   withChildOutput,
   NOTHING_COMMITTED,
   writeSnapshot,
@@ -123,7 +123,7 @@ test("the supervisor sets each tmpEnv variable to the session's temp folder", as
   });
   const executor = processExecutor({
     stateDirectory,
-    projectFor: () => ({ harness: "fake-cli" }),
+    repositoryFor: () => ({ harness: "fake-cli" }),
   });
   const id = await executor.start(
     "worker",
@@ -161,10 +161,10 @@ test("keepEnv refuses GitHub, git, SSH, Kiro Crew and Avoozl names", () => {
     );
 });
 
-test("a project opts into process; everything else stays on kirocrew", () => {
-  assert.equal(projectExecutor({ executor: "process" }), "process");
-  assert.equal(projectExecutor({}), "kirocrew");
-  assert.equal(projectExecutor(null), "kirocrew");
+test("a repository opts into process; everything else stays on kirocrew", () => {
+  assert.equal(repositoryExecutor({ executor: "process" }), "process");
+  assert.equal(repositoryExecutor({}), "kirocrew");
+  assert.equal(repositoryExecutor(null), "kirocrew");
   assert.equal(bindingStatus("exited 3"), "closed");
   assert.equal(bindingStatus("gone"), "gone");
   assert.equal(bindingStatus("working"), "working");
@@ -295,7 +295,7 @@ test("start, status, send by resume, and stop through the executor", async (t) =
   const { root, stateDirectory, worktree, supervisor } = machine(t);
   const executor = processExecutor({
     stateDirectory,
-    projectFor: () => ({ harness: "fake-cli" }),
+    repositoryFor: () => ({ harness: "fake-cli" }),
   });
   const seen = () =>
     fs.existsSync(path.join(worktree, "seen.txt"))
@@ -348,7 +348,7 @@ test("a session that never ran refuses messages", async (t) => {
   const { stateDirectory, worktree, supervisor } = machine(t);
   const executor = processExecutor({
     stateDirectory,
-    projectFor: () => ({ harness: "missing-cli" }),
+    repositoryFor: () => ({ harness: "missing-cli" }),
   });
   const id = await executor.start(
     "worker",
@@ -370,7 +370,7 @@ test("the drain hands process requests to the supervisor and records status", as
   const data = snapshot();
   data.tasks[0].repository = "app";
   store.importSnapshot(data);
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: worktree,
     executor: "process",
@@ -452,7 +452,7 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
   const data = snapshot();
   data.tasks[0].repository = "app";
   store.importSnapshot(data);
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: checkout,
     executor: "process",
@@ -558,7 +558,7 @@ test("a low plan quota holds new sessions and leaves running ones", async (t) =>
   const data = snapshot();
   data.tasks[0].repository = "app";
   store.importSnapshot(data);
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: worktree,
     executor: "process",
@@ -648,7 +648,7 @@ test("the supervisor reads the exit code and result file; bad ones take the retr
   const { stateDirectory, worktree, supervisor } = machine(t);
   const executor = processExecutor({
     stateDirectory,
-    projectFor: () => ({ harness: "fake-cli" }),
+    repositoryFor: () => ({ harness: "fake-cli" }),
   });
   const run = async (brief) => {
     const id = await executor.start(
@@ -791,7 +791,7 @@ test("a write worker's done with nothing committed is refused", async (t) => {
   const data = snapshot();
   data.tasks[0].repository = "app";
   store.importSnapshot(data);
-  store.put("projects", { id: "app", root: checkout, baseBranch: "main" });
+  store.put("repositories", { id: "app", root: checkout, baseBranch: "main" });
   const reports = [];
   const ops = { execute: async (name, input) => reports.push(input) };
   const binding = {
@@ -839,15 +839,15 @@ test("a write worker's done with nothing committed is refused", async (t) => {
 });
 
 // R98.3, R98.4: a request that names a harness runs on it, not on its
-// project's.
-test("a start's own harness wins over its project's", async (t) => {
+// repository's.
+test("a start's own harness wins over its repository's", async (t) => {
   const { root, stateDirectory, worktree, defer } = machine(t);
   const store = new Store(path.join(root, "workspace.sqlite"));
   defer(() => store.close());
   const data = snapshot();
   data.tasks[0].repository = "app";
   store.importSnapshot(data);
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: worktree,
     executor: "process",
@@ -894,7 +894,7 @@ test("a fake child's output file is read once with the role's limit and validato
   const { stateDirectory, worktree, supervisor } = machine(t);
   const executor = processExecutor({
     stateDirectory,
-    projectFor: () => ({ harness: "fake-cli" }),
+    repositoryFor: () => ({ harness: "fake-cli" }),
   });
   const run = async (brief) => {
     // The fake CLI writes beside its result, so it runs in the write class;
@@ -1027,7 +1027,7 @@ test("a definition with no resultAllow is refused for a read role and runs a wri
   const { stateDirectory, worktree, supervisor } = machine(t);
   const executor = processExecutor({
     stateDirectory,
-    projectFor: () => ({ harness: "fake-cli" }),
+    repositoryFor: () => ({ harness: "fake-cli" }),
   });
   const run = async (role, permissionClass) => {
     const id = await executor.start(
@@ -1094,7 +1094,7 @@ test("a definition with no resultAllow is refused for a read role and runs a wri
   const { stateDirectory, worktree, supervisor } = machine(t);
   const executor = processExecutor({
     stateDirectory,
-    projectFor: () => ({ harness: "fake-cli" }),
+    repositoryFor: () => ({ harness: "fake-cli" }),
   });
   const run = async (role, permissionClass) => {
     const id = await executor.start(

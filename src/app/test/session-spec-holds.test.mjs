@@ -13,7 +13,7 @@ function workspace(t) {
     path.join(root, ".avoozl.json"),
     JSON.stringify({ version: 1, github: { mode: "local" } }),
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: "/checkout/app",
     baseBranch: "main",
@@ -44,7 +44,7 @@ function draft(w, spec, entries) {
   });
   return createSpecPlan(
     w.store,
-    { id: spec, context: { projectId: "app" } },
+    { id: spec, context: { repositoryId: "app" } },
     readSpecFolder(w.root, spec),
   );
 }

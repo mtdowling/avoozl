@@ -326,7 +326,7 @@ async function approveSpec(ops, name) {
     ops.store.get("plans", name) ||
     (await ops.execute("plan.create", {
       spec: name,
-      context: { projectId: "plans" },
+      context: { repositoryId: "plans" },
     }));
   const preview = await ops.execute("plan.preview", { id: plan.id });
   return ops.execute("plan.approve", {
@@ -371,18 +371,18 @@ async function workspace(
   t.after(() => store.close());
   store.importSnapshot(snapshot());
   // The planning checkout holds the spec folders; code is a plain folder.
-  store.put("projects", {
+  store.put("repositories", {
     id: "plans",
     root,
     planning: true,
     baseBranch: "main",
     checks: [["npm", "test"]],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: checkout,
     baseBranch: "main",
-    repository: CODE,
+    github: CODE,
     checks: [["npm", "test"]],
   });
   const github = world?.as(login);
@@ -399,7 +399,7 @@ async function workspace(
       id: PLANS,
       owner: "example",
       repo: "plans",
-      projectId: "plans",
+      repositoryId: "plans",
       managedLabel: "avoozl",
       label: "avoozl-ready",
       activeMachine: machine,

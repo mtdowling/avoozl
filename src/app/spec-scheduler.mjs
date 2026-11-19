@@ -165,7 +165,7 @@ export function scheduleReady({
 // or complete. Reads only.
 export function scheduleHolds(store, { github = null, skip = new Set() } = {}) {
   const data = store.read(),
-    projects = new Map(store.list("projects").map((p) => [p.id, p])),
+    repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),
     claimed = busyTaskIds(store, bindings),
     flight = data.tasks.filter(
@@ -180,12 +180,12 @@ export function scheduleHolds(store, { github = null, skip = new Set() } = {}) {
         skip,
         github,
         data,
-        projects,
+        repositories,
         bindings,
       }),
       flight,
       pinned: new Set([...lineFirstIds(store), ...startNowIds(store)]),
-      baseOf: (id) => projects.get(id)?.baseBranch || "main",
+      baseOf: (id) => repositories.get(id)?.baseBranch || "main",
     });
   return { ...result, skip: new Set(result.held.keys()) };
 }

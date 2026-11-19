@@ -75,9 +75,10 @@ export function supersedingTask(byId, id) {
   return task;
 }
 
-// The one repository a leaf targets. `projectId` is the older name.
+// The one repository a leaf targets: its `repository` fact, else the
+// `repositoryId` its plan gave it.
 export function taskRepository(task) {
-  return task?.repository ?? task?.projectId ?? null;
+  return task?.repository ?? task?.repositoryId ?? null;
 }
 
 // Whether `task` has reached `level`. Without a level this is the task's own

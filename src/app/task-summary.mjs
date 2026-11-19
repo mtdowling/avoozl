@@ -116,11 +116,11 @@ export function requestTaskSummary(
   return { state: "working", text: null, hash: view.hash };
 }
 
-// The project of the task a summary is for, whose executor it runs on.
-function projectOf(store, receipt) {
+// The repository of the task a summary is for, whose executor it runs on.
+function repositoryOf(store, receipt) {
   const task = store.read().tasks.find((t) => t.id === receipt.taskId);
   const id = taskRepository(task);
-  return id ? (store.get("projects", id) ?? null) : null;
+  return id ? (store.get("repositories", id) ?? null) : null;
 }
 
 // The tick's dispatch entries: one per queued summary with no chat yet. The
@@ -143,7 +143,10 @@ export function taskSummaryDispatches(store, { config } = {}) {
       kirocrewRequest(store, {
         task: r.id,
         role: SUMMARY_ROLE,
-        ...roleRun("taskSummary", { config, project: projectOf(store, r) }),
+        ...roleRun("taskSummary", {
+          config,
+          repository: repositoryOf(store, r),
+        }),
         attempt: r.attempt,
         title: `avoozl:task-summary ${r.taskId} (attempt ${r.attempt})`,
         ...kirocrewDetachedSession(),

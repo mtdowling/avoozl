@@ -122,7 +122,7 @@ function workspace(t, delivery) {
     })),
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",

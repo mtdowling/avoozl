@@ -19,23 +19,23 @@ async function recordDir(root) {
 // makes: a check with paths only when the commit's diff against the base
 // touches one. `dir` is a checkout that holds the commit. A diff that
 // cannot be read picks every check.
-export async function commitChecks(project, commit, dir = project.root) {
+export async function commitChecks(repository, commit, dir = repository.root) {
   try {
     const { paths } = await changedPaths(
       dir,
-      project.baseBranch || "main",
+      repository.baseBranch || "main",
       commit,
     );
-    return selectedChecks(project, paths);
+    return selectedChecks(repository, paths);
   } catch {
-    return selectedChecks(project);
+    return selectedChecks(repository);
   }
 }
 
 // flow.checks.run: run the checks the worktree's HEAD picks and record the
 // result. Returns the entries for the done report.
-export async function runLocalChecks({ cwd, root, project, env }) {
-  if (!selectedChecks(project).length)
+export async function runLocalChecks({ cwd, root, repository, env }) {
+  if (!selectedChecks(repository).length)
     fail("This repository has no checks.", 409);
   const top = await git(cwd, ["rev-parse", "--show-toplevel"]).catch(
     () => null,
@@ -47,7 +47,7 @@ export async function runLocalChecks({ cwd, root, project, env }) {
   if (await git(cwd, ["status", "--porcelain", "--untracked-files=no"]))
     fail("Commit your change first: checks are recorded for a commit.", 409);
   const commit = await git(cwd, ["rev-parse", "HEAD"]),
-    checks = await commitChecks(project, commit, cwd),
+    checks = await commitChecks(repository, commit, cwd),
     entries = [];
   for (const check of checks) {
     const started = Date.now(),

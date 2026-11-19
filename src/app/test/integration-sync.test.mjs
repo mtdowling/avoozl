@@ -325,9 +325,9 @@ test("the sync code has no way to rewrite history", () => {
     assert.ok(!text.includes(method), method);
 });
 
-test("targets: a leaf that names a project ID syncs the repository of that project", (t) => {
+test("targets: a leaf that names a repository ID syncs the repository of that repository", (t) => {
   const { store } = fixture(t);
-  store.put("projects", { id: "code", root: "/tmp/code", repository: REPO });
+  store.put("repositories", { id: "code", root: "/tmp/code", github: REPO });
   plan(store, "byid", {
     integrationBranch: BRANCH,
     tasks: { 1: leaf("code") },

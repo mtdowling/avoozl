@@ -29,7 +29,12 @@ function setup(t, n) {
   t.after(() => store.close());
   const ids = Array.from({ length: n }, (_, i) => "t" + (i + 1));
   store.importSnapshot({ ...snapshot(), tasks: ids.map(leaf), edges: [] });
-  store.put("projects", { id: "app", root, baseBranch: "main", checks: [] });
+  store.put("repositories", {
+    id: "app",
+    root,
+    baseBranch: "main",
+    checks: [],
+  });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({ version: 1 }, null, 2) + "\n",

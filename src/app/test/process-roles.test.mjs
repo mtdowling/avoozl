@@ -21,7 +21,7 @@ import { planVerifierDispatches } from "../delivery.mjs";
 import {
   drainProcessRequests,
   processBrief,
-  sessionProject,
+  sessionRepository,
 } from "../executors/process.mjs";
 import { enqueueSessionRequests } from "../session-requests.mjs";
 import { newPlanStarts, newPlanTask } from "../new-plan.mjs";
@@ -51,7 +51,7 @@ test("Claude Code's read class is dontAsk and may write only its result file", (
     [path.resolve(tmp), path.join(path.resolve(worktree), ".avoozl")],
     "never the task folder itself",
   );
-  // The harness's own cache folders from project config (P59: Claude Code
+  // The harness's own cache folders from repository config (P59: Claude Code
   // writes its config folder at start), but none inside the task folder.
   const cache = path.join(os.tmpdir(), "avoozl-read-claude-config");
   assert.deepEqual(
@@ -179,7 +179,7 @@ function machine(t) {
   const data = snapshot();
   data.tasks[0].repository = "app";
   store.importSnapshot(data);
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: checkout,
     executor: "process",
@@ -309,7 +309,7 @@ test("a retro runs in a scratch folder and its result file is its reply", async 
   assert.equal(retro.bottleneck.stage, "review");
 });
 
-test("a process project's verifier and new-plan planner requests name process", (t) => {
+test("a process repository's verifier and new-plan planner requests name process", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-roles-route-"));
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => {
@@ -320,7 +320,7 @@ test("a process project's verifier and new-plan planner requests name process", 
   Object.assign(data.tasks[0], { repository: "app", verify: "agent" });
   store.importSnapshot(data);
   const checkout = path.join(root, "app");
-  store.put("projects", { id: "app", root: checkout, executor: "process" });
+  store.put("repositories", { id: "app", root: checkout, executor: "process" });
   store.put("task_deliveries", {
     id: "sample-task",
     taskId: "sample-task",
@@ -355,7 +355,7 @@ test("a process project's verifier and new-plan planner requests name process", 
     planner.worktree,
     path.join(checkout, ".kiro", "specs", "cache"),
   );
-  store.put("projects", { id: "app", root: checkout });
+  store.put("repositories", { id: "app", root: checkout });
   assert.equal(newPlanStarts(store, {})[0].executor, "kirocrew");
   assert.equal(newPlanStarts(store, {})[0].worktree, checkout);
 });
@@ -369,7 +369,7 @@ test("a process planner whose spec folder is in no checkout runs with its reposi
   });
   store.importSnapshot(snapshot());
   const sandbox = { network: ["localhost:1"] };
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: path.join(root, "app"),
     executor: "process",
@@ -394,7 +394,7 @@ test("a process planner whose spec folder is in no checkout runs with its reposi
     planner.worktree,
     path.join(specRoot, ".kiro", "specs", "cache"),
   );
-  assert.deepEqual(sessionProject(store, planner)?.sandbox, sandbox);
+  assert.deepEqual(sessionRepository(store, planner)?.sandbox, sandbox);
   const [chat] = newPlanStarts(store, { harness: "kirocrew" });
   assert.equal(chat.executor, "kirocrew");
   assert.equal(chat.repository, undefined, "a chat keeps its Specs folder");

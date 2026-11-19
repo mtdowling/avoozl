@@ -39,7 +39,7 @@ test('the banner names who pulled it, why, and what it covers', () => {
   }
   assert.equal(bannerText(stop), 'Line stopped by dashboard: bad base. Scope: task a1 and its dependents. 2 tasks paused.')
   assert.equal(scopeText({ scope: 'all' }), 'everything in this workspace')
-  assert.equal(scopeText({ scope: 'repo', projectId: 'r1' }), 'repository r1')
+  assert.equal(scopeText({ scope: 'repo', repositoryId: 'r1' }), 'repository r1')
   assert.equal(scopeText({ scope: 'spec', planId: 's1' }), 'spec s1')
 })
 

@@ -115,7 +115,7 @@ function onTheTick(t) {
     tasks: [leaf("a"), leaf("b")],
     edges: [],
   });
-  ws.store.put("projects", {
+  ws.store.put("repositories", {
     id: "app",
     root: repository(path.join(ws.root, "app")),
     baseBranch: "main",

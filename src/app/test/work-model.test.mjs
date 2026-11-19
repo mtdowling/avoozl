@@ -25,8 +25,8 @@ const leaf = (id, extra = {}) => ({
   checks: ["npm test"],
   ...extra,
 });
-const lint = (text, projects = []) =>
-  lintPlan({ text, plan: { context: {} }, data: { projects, tasks: [] } });
+const lint = (text, repositories = []) =>
+  lintPlan({ text, plan: { context: {} }, data: { repositories, tasks: [] } });
 const codes = (result) => result.diagnostics.map((item) => item.code);
 
 test("legacy rows read with work-model defaults and are not rewritten", (t) => {
@@ -230,10 +230,13 @@ test("validation reports a repeated task ID at its line", () => {
 });
 
 test("a leaf names exactly one repository", () => {
-  const two = lint(block(leaf("alpha", { repository: "x", projectId: "y" })), [
-    { id: "x", checks: [["t"]] },
-    { id: "y", checks: [["t"]] },
-  ]);
+  const two = lint(
+    block(leaf("alpha", { repository: "x", repositoryId: "y" })),
+    [
+      { id: "x", checks: [["t"]] },
+      { id: "y", checks: [["t"]] },
+    ],
+  );
   assert.ok(codes(two).includes("leaf.repository"));
   const none = lint(block(leaf("alpha")), [
     { id: "x", checks: [["t"]] },

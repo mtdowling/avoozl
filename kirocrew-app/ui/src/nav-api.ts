@@ -1,11 +1,12 @@
 // The page's top-level views. Kept free of JSX so node can test it directly.
 
-// The nav row: Dashboards, Specs, Needs you, Flow, Retros, Activity,
-// Settings. Dashboards' key is 'dashboard' (its Home).
+// The nav row: Dashboards, Specs, Needs you, GitHub, Flow, Retros,
+// Activity, Settings. Dashboards' key is 'dashboard' (its Home).
 export const TABS = [
   { key: 'dashboard', label: 'Dashboards' },
   { key: 'plans', label: 'Specs' },
   { key: 'waiting', label: 'Needs you' },
+  { key: 'github', label: 'GitHub' },
   { key: 'flow', label: 'Flow' },
   { key: 'retros', label: 'Retros' },
   { key: 'activity', label: 'Activity' },
@@ -22,9 +23,18 @@ export const RETROS_PAGES: { key: RetrosPage; label: string }[] = [
   { key: 'retros', label: 'Retros' },
   { key: 'proposals', label: 'Proposals' },
 ]
-export type WaitingSection = 'decisions' | 'triage' | 'radar'
+// GitHub's pages (triage-agent TA6, TA8): Issues, Pull requests and the
+// Triage agent.
+export type GitHubPage = 'issues' | 'pulls' | 'agent'
+export const GITHUB_PAGES: { key: GitHubPage; label: string }[] = [
+  { key: 'issues', label: 'Issues' },
+  { key: 'pulls', label: 'Pull requests' },
+  { key: 'agent', label: 'Triage agent' },
+]
+export type WaitingSection = 'decisions' | 'agent' | 'triage' | 'radar'
 export const WAITING_SECTIONS: { key: WaitingSection; title: string; line: string }[] = [
   { key: 'decisions', title: 'Decisions', line: 'A crew handed work back, a spec or issue was edited by hand, or a task needs your choice.' },
+  { key: 'agent', title: 'From the agent', line: 'Issues and pull requests the triage agent handed to you, each with its reason.' },
   { key: 'triage', title: 'Triage', line: 'New issues and pull requests nothing covers yet. You choose which become work.' },
   { key: 'radar', title: 'Issue Radar', line: 'Issues you sent to an Issue Radar crew, or that one is holding.' },
 ]

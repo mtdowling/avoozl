@@ -7,7 +7,7 @@ export const GITHUB_VIA = "github";
 export const GITHUB_SOURCE_KEYS = Object.freeze([
   "via",
   "repository",
-  "project",
+  "executionRepository",
   "workspaceRepository",
   "assignee",
   "autoStart",
@@ -30,9 +30,9 @@ function text(value, label, { nullable = false } = {}) {
 // shape the settings diff compares (appliedActions in repository-settings).
 function settings(fields, where) {
   return {
-    projectId: text(fields.projectId, `${where} project`),
+    repositoryId: text(fields.repositoryId, `${where} execution repository`),
     ...(fields.workspaceRepositoryId &&
-    fields.workspaceRepositoryId !== fields.projectId
+    fields.workspaceRepositoryId !== fields.repositoryId
       ? {
           workspaceRepositoryId: text(
             fields.workspaceRepositoryId,
@@ -64,7 +64,7 @@ export function validateGitHubSource(value, where) {
     settings: settings(
       {
         ...value,
-        projectId: value.project,
+        repositoryId: value.executionRepository,
         workspaceRepositoryId: value.workspaceRepository,
       },
       where,
@@ -77,9 +77,9 @@ export function sourceEntry(repository, value) {
   return {
     via: GITHUB_VIA,
     repository,
-    project: value.projectId,
+    executionRepository: value.repositoryId,
     ...(value.workspaceRepositoryId &&
-    value.workspaceRepositoryId !== value.projectId
+    value.workspaceRepositoryId !== value.repositoryId
       ? { workspaceRepository: value.workspaceRepositoryId }
       : {}),
     assignee: value.assignee,

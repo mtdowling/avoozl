@@ -14,7 +14,7 @@ import {
   SPECS_DIRECTORY,
   specName,
 } from "./spec-plans.mjs";
-import { sessionProject } from "./executors/process.mjs";
+import { sessionRepository } from "./executors/process.mjs";
 import { roleRun } from "./role-table.mjs";
 import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
 import { steeringOptions, withSeed } from "./retro-memory.mjs";
@@ -352,7 +352,7 @@ export const newPlanTask = (name) => "new-plan:" + name;
 // requests: one per request attempt, until its folder is stored as a plan.
 // An entry from before the tick opened these chats has no brief; its chat
 // was opened by the page, so nothing is started for it. It runs on the
-// executor of the project whose checkout holds the folder (R97.3), else
+// executor of the repository whose checkout holds the folder (R97.3), else
 // `kirocrew`, unless the caller names one. A `harness` saved for the
 // planner in Settings › Models (R98.3) wins over both.
 export function newPlanStarts(
@@ -375,24 +375,27 @@ export function newPlanStarts(
         ),
     )
     .map((entry) => {
-      const holder = sessionProject(store, { worktree: entry.root });
+      const holder = sessionRepository(store, { worktree: entry.root });
       const run = roleRun("planner", {
         config: harness ? { roles: { planner: { harness } } } : {},
-        project: holder,
+        repository: holder,
       });
       const chosen = harness ? run.executor : (executor ?? run.executor);
-      // A `process` planner's sandbox and network come from the project
+      // A `process` planner's sandbox and network come from the repository
       // whose checkout holds the folder, else the plan's first repository,
       // as when a local workspace's own folder holds its specs.
       // shortcut: the first repository only; choose per repository if
       // plans across repositories with different sandboxes become common.
       const first = entry.repositories?.[0],
-        project =
-          holder ?? (first ? store.get("projects", first.id ?? first) : null);
+        repository =
+          holder ??
+          (first ? store.get("repositories", first.id ?? first) : null);
       return {
         executor: chosen,
         ...(run.harness ? { harness: run.harness } : {}),
-        ...(chosen === "process" && project ? { repository: project.id } : {}),
+        ...(chosen === "process" && repository
+          ? { repository: repository.id }
+          : {}),
         role: "planner",
         task: newPlanTask(entry.name),
         // A `process` child writes only its spec folder: a write root over

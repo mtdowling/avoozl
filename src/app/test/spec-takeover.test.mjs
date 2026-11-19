@@ -39,7 +39,7 @@ async function workspace(t, { github = null } = {}) {
     workspaceRoot: root,
     driver: { settingsFile: path.join(temporaryDirectory(), "driver.json") },
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root,
     baseBranch: "main",
@@ -49,14 +49,14 @@ async function workspace(t, { github = null } = {}) {
   if (github)
     await ops.execute("github.configure", {
       repository: REPOSITORY,
-      projectId: "code",
+      repositoryId: "code",
       allowedActors: ["maintainer"],
     });
   writeSpec(root, "config");
   const plan = await ops.execute("plan.create", {
     spec: "config",
     prompt: "Load config",
-    context: { projectId: "code" },
+    context: { repositoryId: "code" },
   });
   return { store, root, ops, plan };
 }

@@ -40,8 +40,8 @@ function setup(t) {
     ],
     edges: [{ from: "a1", to: "a2", kind: "requires" }],
   });
-  store.put("projects", { id: "r1" });
-  store.put("projects", { id: "r2" });
+  store.put("repositories", { id: "r1" });
+  store.put("repositories", { id: "r2" });
   store.put("plans", { id: "s1", title: "Spec one" });
   fs.mkdirSync(path.join(root, ".avoozl", "local", "content-rules"), {
     recursive: true,
@@ -170,7 +170,7 @@ test("a pulled stop never resumes by itself, and Resume leaves automatic stops a
   });
   store.put("flow_stops", {
     id: "stop-auto",
-    projectId: "r1",
+    repositoryId: "r1",
     check: "npm test",
     culprit: "a1",
     scope: "dependents",

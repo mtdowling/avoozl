@@ -62,14 +62,14 @@
     "conversations": {
       "$ref": "#/$defs/conversations"
     },
-    "projects": {
-      "description": "Machine-local execution repositories keyed by a stable project ID.",
+    "repositories": {
+      "description": "Machine-local registered repositories keyed by a stable repository ID.",
       "type": "object",
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9-]{1,60}$"
       },
       "additionalProperties": {
-        "$ref": "#/$defs/project"
+        "$ref": "#/$defs/repository"
       }
     },
     "receipts": {
@@ -156,6 +156,9 @@
           "$ref": "#/$defs/harnessRole"
         },
         "prReview": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "triage": {
           "$ref": "#/$defs/harnessRole"
         }
       }
@@ -300,13 +303,13 @@
                 "type": "string",
                 "description": "For github, the owner/name GitHub repository. Otherwise the registered workspace repository whose rules apply and where a delivered item's task lands."
               },
-              "project": {
+              "executionRepository": {
                 "type": "string",
-                "description": "GitHub sources only: the execution project its work runs in."
+                "description": "GitHub sources only: the registered repository its work runs in."
               },
               "workspaceRepository": {
                 "type": "string",
-                "description": "GitHub sources only: the workspace repository, when it is not the project."
+                "description": "GitHub sources only: the workspace repository, when it is not the execution repository."
               },
               "assignee": {
                 "type": "string",
@@ -434,7 +437,7 @@
               }
             }
           },
-          "description": "One repository's own delivery settings, by project ID, over the workspace's."
+          "description": "One repository's own delivery settings, by repository ID, over the workspace's."
         }
       }
     },
@@ -900,7 +903,7 @@
             "enum": [
               "all",
               "chat",
-              "chat.project",
+              "chat.repository",
               "chat.scoped",
               "plan",
               "plan.create",
@@ -986,7 +989,7 @@
       },
       "additionalProperties": false
     },
-    "project": {
+    "repository": {
       "type": "object",
       "required": ["root"],
       "properties": {
@@ -1097,7 +1100,7 @@
           "description": "Agents may create worktrees and prepare changes in this checkout."
         },
         "executor": {
-          "description": "What runs this project's sessions: a Kiro Crew chat, or a process child of the supervisor.",
+          "description": "What runs this repository's sessions: a Kiro Crew chat, or a process child of the supervisor.",
           "enum": ["kirocrew", "process"]
         },
         "harness": {
@@ -1372,7 +1375,7 @@
           "properties": {
             "mode": {
               "enum": ["direct", "pr", "off", "train"],
-              "description": "How Avoozl lands verified work. Unset reads the checkout's projects.<id>.landing, else off."
+              "description": "How Avoozl lands verified work. Unset reads the checkout's repositories.<id>.landing, else off."
             },
             "autoMerge": {
               "type": "boolean",
@@ -1558,6 +1561,33 @@
                 "minLength": 1
               }
             }
+          }
+        },
+        "triage": {
+          "type": "object",
+          "description": "The triage agent for this repository: it answers, reproduces, fixes and reviews new issues and pull requests.",
+          "additionalProperties": false,
+          "properties": {
+            "agent": { "enum": ["on", "off"], "default": "off" },
+            "existing": {
+              "enum": ["take", "skip"],
+              "default": "skip",
+              "description": "Whether the agent takes the open items already there when it is turned on, or only new ones."
+            },
+            "dailyRuns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 50
+            },
+            "fullReviewMaxLines": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 300
+            },
+            "labels": { "enum": ["suggest", "add"], "default": "suggest" },
+            "reviews": { "enum": ["post", "draft"], "default": "post" }
           }
         },
         "untriaged": {

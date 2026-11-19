@@ -284,7 +284,7 @@ newer version arrives, approve it, and the card offers its preview again;
 importing it records the new version. At the command line:
 
 ```sh
-avoozl plugins pack-preview sdk-team
+avoozl plugins pack-preview sdk-team [--github OWNER/REPO]
 avoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]
 ```
 

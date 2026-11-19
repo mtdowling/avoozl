@@ -30,8 +30,8 @@ const text = `document.body.innerText`
 
 test('the nav row has Dashboards, Specs, Needs you, Flow, Retros, Activity and Settings, and no Trace', { skip }, async () => {
   await open({ radar: '1' })
-  await page.until(`${tabs}.length === 7`)
-  assert.deepEqual(await page.evaluate(tabs), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'])
+  await page.until(`${tabs}.length === 8`)
+  assert.deepEqual(await page.evaluate(tabs), ['Dashboards', 'Specs', 'Needs you', 'GitHub', 'Flow', 'Retros', 'Activity', 'Settings'])
   assert.deepEqual(page.errors, [])
 })
 
@@ -79,7 +79,7 @@ test('a repository on the local worker shows no retired banner in Settings', { s
   assert.doesNotMatch(await page.evaluate('document.body.textContent'), /Local workers are retired|Switch to Issue Radar/)
 })
 
-test('Needs you holds Decisions, Triage and Issue Radar as three nav pages, one shown at a time', { skip }, async () => {
+test('Needs you holds Decisions, From the agent, Triage and Issue Radar as four nav pages, one shown at a time', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`Boolean(${tab('Needs you')})`)
   await click(tab('Needs you'))
@@ -87,6 +87,7 @@ test('Needs you holds Decisions, Triage and Issue Radar as three nav pages, one 
   assert.equal(await page.evaluate(`document.querySelector('[data-waiting-section][data-open="true"]').dataset.waitingSection`), 'decisions')
   assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-nav-children="waiting"] [data-nav-item]')].map((el) => el.dataset.navItem)`), [
     'waiting/decisions',
+    'waiting/agent',
     'waiting/triage',
     'waiting/radar',
   ])

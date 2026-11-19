@@ -589,13 +589,13 @@ function readPolicy(workspaceRoot) {
   }
 }
 
-// Registered repositories a set may name: local projects and GitHub ones.
+// Registered repositories a set may name: local repositories and GitHub ones.
 function registeredRepositories(store, policy) {
   const names = new Set();
   try {
-    for (const project of store.list("projects")) {
-      names.add(project.id);
-      if (project.repository) names.add(project.repository);
+    for (const repository of store.list("repositories")) {
+      names.add(repository.id);
+      if (repository.github) names.add(repository.github);
     }
     for (const repo of store.list("github_repositories")) names.add(repo.id);
   } catch {}
@@ -1766,16 +1766,16 @@ export function revision(value) {
 }
 
 // The commit a task's work is measured against: the merge base of `head`
-// with the project's integration branch when it exists, else its base.
-export function diffBase(project, head) {
+// with the repository's integration branch when it exists, else its base.
+export function diffBase(repository, head) {
   revision(head);
   for (const branch of [
-    project.integrationBranch,
-    project.baseBranch || "main",
+    repository.integrationBranch,
+    repository.baseBranch || "main",
   ])
     if (branch)
       try {
-        return gitSync(project.root, [
+        return gitSync(repository.root, [
           "merge-base",
           head,
           `refs/heads/${branch}`,
@@ -1887,27 +1887,27 @@ export function pushLines(root, base, head, refs) {
 // {ok, findings, unavailable, notify}, or a 422 in "refuse" mode.
 export function enforceDiff(
   store,
-  { project, head, taskId, mode = "decide", refs },
+  { repository, head, taskId, mode = "decide", refs },
 ) {
-  const base = diffBase(project, head),
+  const base = diffBase(repository, head),
     added = pushLines(
-      project.root,
+      repository.root,
       base,
       head,
-      refs ?? [currentBranch(project.root)],
+      refs ?? [currentBranch(repository.root)],
     );
   const result = enforce(
     store,
     {
       boundary: "diff",
-      repository: project.repository || project.id,
+      repository: repository.github || repository.id,
       target: `diff:${taskId}`,
       added,
     },
     {
       mode,
       taskId,
-      source: { kind: "commit", root: project.root, commit: head },
+      source: { kind: "commit", root: repository.root, commit: head },
     },
   );
   // A finding's own file goes in the decision's source, for the matched
@@ -1928,7 +1928,7 @@ export function enforceDiff(
             file: first.target,
             source: {
               kind: "commit",
-              root: project.root,
+              root: repository.root,
               commit: head,
               file: first.target,
             },
@@ -2027,6 +2027,20 @@ export function allowWrite(
   return result.ok;
 }
 
+// A review's text for the content rules: its body and line comments.
+function reviewWrite(args) {
+  return {
+    text: [],
+    extra: [
+      args[2]?.body,
+      ...(Array.isArray(args[2]?.comments)
+        ? args[2].comments.map((c) => c?.body)
+        : []),
+    ],
+    target: `review:${repositoryOf(args[0])}:${args[1]}`,
+  };
+}
+
 // A GitHub client whose text writes pass content rules first (§4.9
 // `github`): every issue, comment and discussion write Avoozl makes. A
 // block throws 422 with `contentBlocked`, after opening a decision; the
@@ -2093,32 +2107,13 @@ const GITHUB_WRITES = {
     extra: [args[2]?.description, args[2]?.context, args[2]?.target_url],
     target: `status:${repositoryOf(args[0])}:${args[1]}`,
   }),
-  createPendingReview: (args) => ({
-    text: [],
-    extra: [
-      args[2]?.body,
-      ...(Array.isArray(args[2]?.comments)
-        ? args[2].comments.map((c) => c?.body)
-        : []),
-    ],
-    target: `review:${repositoryOf(args[0])}:${args[1]}`,
-  }),
+  createPendingReview: (args) => reviewWrite(args),
+  submitReview: (args) => reviewWrite(args),
 };
 
-// The writes whose text is a post: each gets broken mentions and the
-// posted marker (github-posted.mjs) before content rules read it, unless a
-// person's own operation writes it.
-const POSTS = {
-  createIssueComment: (args) => [args[0], args[1], postedText(args[2])],
-  updateIssueComment: (args) => [args[0], args[1], postedText(args[2])],
-  createCommitComment: (args) => [args[0], args[1], postedText(args[2])],
-  updateCommitComment: (args) => [args[0], args[1], postedText(args[2])],
-  addDiscussionComment: (args) => [args[0], postedText(args[1])],
-  createPullRequest: (args) => [
-    args[0],
-    { ...args[1], body: postedText(args[1]?.body) },
-  ],
-  createPendingReview: (args) => [
+// A review's text: its body and each line comment.
+function postedReview(args) {
+  return [
     args[0],
     args[1],
     {
@@ -2133,7 +2128,24 @@ const POSTS = {
           }
         : {}),
     },
+  ];
+}
+
+// The writes whose text is a post: each gets broken mentions and the
+// posted marker (github-posted.mjs) before content rules read it, unless a
+// person's own operation writes it.
+const POSTS = {
+  createIssueComment: (args) => [args[0], args[1], postedText(args[2])],
+  updateIssueComment: (args) => [args[0], args[1], postedText(args[2])],
+  createCommitComment: (args) => [args[0], args[1], postedText(args[2])],
+  updateCommitComment: (args) => [args[0], args[1], postedText(args[2])],
+  addDiscussionComment: (args) => [args[0], postedText(args[1])],
+  createPullRequest: (args) => [
+    args[0],
+    { ...args[1], body: postedText(args[1]?.body) },
   ],
+  createPendingReview: (args) => postedReview(args),
+  submitReview: (args) => postedReview(args),
 };
 
 const repositoryOf = (value) =>
