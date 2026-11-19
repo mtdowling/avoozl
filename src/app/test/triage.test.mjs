@@ -35,6 +35,14 @@ test("a new item gets one run and an unchanged item none", async (t) => {
   assert.equal(runRows(w.store).length, 1);
   assert.equal(triageDispatches(w.store).length, 1);
   assert.equal(triageDispatches(w.store)[0].role, "triage");
+  // The request names the item's repository, so a `process` child gets its
+  // sandbox: the model proxy above all, or it cannot reach its model.
+  const { sessionRepository } = await import("../executors/process.mjs");
+  assert.equal(triageDispatches(w.store)[0].repository, "app");
+  assert.equal(
+    sessionRepository(w.store, triageDispatches(w.store)[0])?.id,
+    "app",
+  );
   await w.tick();
   await w.tick();
   assert.equal(runRows(w.store).length, 1, "no second run for the same item");

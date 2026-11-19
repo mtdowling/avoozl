@@ -444,12 +444,16 @@ export function triageDispatches(store, { config } = {}) {
   return runRows(store)
     .filter((run) => run.state === "queued" && !bound.has(run.id))
     .map((run) => {
-      const executor = roleRun("triage", { config }),
-        registered = registeredOf(store, run.repository);
+      const registered = registeredOf(store, run.repository),
+        // The item's repository row: its executor, and on `process` its
+        // sandbox (the model proxy the child reaches its model through).
+        record = registered && store.get("repositories", registered.id),
+        executor = roleRun("triage", { config, repository: record });
       return kirocrewRequest(store, {
         task: run.id,
         role: TRIAGE_ROLE,
         ...executor,
+        ...(registered ? { repository: registered.id } : {}),
         attempt: 1,
         title: `avoozl:triage ${run.repository}#${run.number}`,
         ...kirocrewDetachedSession(),
