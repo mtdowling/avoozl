@@ -9,6 +9,7 @@ import { ArrowDown, ArrowUp, Search, X, type LucideIcon } from './icons.ts'
 import { Box } from './ui/Box'
 import { RailCss } from './ui/PageStyles'
 import { PlainButton, PlainInput } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 export function RailStyle() {
   return <RailCss />
@@ -41,7 +42,7 @@ export function RailRow(props: { label: string; active: boolean; onClick: () => 
   const Icon = props.icon
   return (
     <button type="button" data-rail-row aria-pressed={props.active} disabled={props.disabled} onClick={props.onClick} {...props.attrs}>
-      {Icon && <Icon size={14} aria-hidden="true" style={{ flexShrink: 0 }} />}
+      {Icon && <Glyph icon={Icon} size={14} aria-hidden="true" css-flex-shrink="0" />}
       <span data-rail-text>{props.label}</span>
       {props.trail}
     </button>

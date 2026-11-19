@@ -70,7 +70,7 @@ export default function MirrorSetup(props: { workspaceId: string; repository: st
 
   return (
     <Box data-mirror-setup css-border-color="border" flex flexCol gap="2" rounded="lg" border="all" p="3">
-      <SectionHeading level={4} title="Set up the mirror" className="mb-0" />
+      <SectionHeading level={4} title="Set up the mirror" mb="0" />
       <Hint as="p" size="sm">
         Set up the private copy crews work in: {props.repository} for {props.source}. Each button shows a dry run first and writes nothing until you confirm.
       </Hint>

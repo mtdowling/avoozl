@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Ellipsis, type LucideIcon } from './icons.ts'
 import { LAYER } from './layers.ts'
 import { PlainButton } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 // `icon` replaces the ellipsis (a filter menu uses a filter icon); `on`
 // marks the button as holding something set.
@@ -58,7 +59,7 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
         css-color="text"
         css-cursor="pointer"
       >
-        <Icon size={props.icon ? 14 : 18} aria-hidden="true" style={props.on ? { color: 'var(--accent)' } : undefined} />
+        <Glyph icon={Icon} size={props.icon ? 14 : 18} aria-hidden="true" css-color={props.on ? 'accent' : undefined} />
       </PlainButton>
       {open && (
         <div

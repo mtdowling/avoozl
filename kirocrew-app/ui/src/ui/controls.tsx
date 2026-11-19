@@ -22,7 +22,7 @@ import { usePhone } from '../list-detail.ts'
 import { ErrorText } from '../ui/ErrorText'
 import { Hint } from '../ui/Hint'
 import { PlainLink } from './Plain'
-import type { LookProps } from './Box'
+import { Box, type LookProps } from './Box'
 
 export const ICON = 14
 
@@ -426,10 +426,17 @@ export function AskForHelp(props: { workspaceId: string | null; help: HelpSeed; 
 // A task's title as a link that opens its drawer (a Back step), in every
 // list of running or in-flight tasks. The page's link style: underlined
 // text on a native button, so it takes the browser's focus ring.
-export function TaskTitleLink(props: { id: string; title: string; className?: string }) {
+export function TaskTitleLink(props: { id: string; title: string; size?: 'xs' | 'sm' | 'base'; weight?: 'medium' | 'semibold'; tight?: boolean }) {
   const drawer = useTaskDrawer()
   return (
-    <button type="button" className={`min-w-0 text-left underline ${props.className ?? ''}`} onClick={() => drawer.openTask(props.id)} data-task-title={props.id}>
+    <button
+      type="button"
+      className={['min-w-0 text-left underline', props.size && `text-${props.size}`, props.weight && `font-${props.weight}`, props.tight && 'leading-tight']
+        .filter(Boolean)
+        .join(' ')}
+      onClick={() => drawer.openTask(props.id)}
+      data-task-title={props.id}
+    >
       {props.title}
     </button>
   )
@@ -491,7 +498,8 @@ export function SectionHeading(props: {
   // On a phone, the actions go into a More menu so the heading stays one row.
   phoneMenu?: boolean
   blurb?: ReactNode
-  className?: string
+  // Space under the heading, from the scale (`mb="2"`).
+  mb?: '0' | '1' | '2' | '3'
 }) {
   const level = props.level ?? 3
   const phone = usePhone()
@@ -499,7 +507,7 @@ export function SectionHeading(props: {
   const H = `h${level}` as 'h2' | 'h3' | 'h4'
   const Icon = props.view ? VIEW_ICONS[props.view] : props.icon
   return (
-    <div className={props.className} data-section-heading={level}>
+    <Box mb={props.mb} data-section-heading={level}>
       <div className={`flex items-center gap-x-3 gap-y-2 ${menu ? 'flex-nowrap' : 'flex-wrap'}`}>
         <div className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 ${menu ? 'flex-1' : ''}`} data-heading-title>
           <H id={props.id} className={`m-0 flex min-w-0 items-center gap-2 font-semibold leading-snug ${HEADING_SIZE[level]}`} style={{ overflowWrap: 'anywhere' }}>
@@ -527,7 +535,7 @@ export function SectionHeading(props: {
           {props.blurb}
         </p>
       )}
-    </div>
+    </Box>
   )
 }
 

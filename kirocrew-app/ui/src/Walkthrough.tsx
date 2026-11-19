@@ -12,6 +12,7 @@ import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { WalkStyle } from './ui/PageStyles'
 import { PlainButton } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 export interface WalkStep {
   title: string
@@ -117,7 +118,7 @@ export function Flow(props: { boxes: string[]; on?: number; note?: string }) {
       <Box flex flexWrap items="center" gap="1.5">
         {props.boxes.map((box, i) => (
           <Box key={box} as="span" inlineFlex items="center" gap="1.5">
-            {i > 0 && <ArrowRight size={14} style={{ color: 'var(--muted)' }} />}
+            {i > 0 && <Glyph icon={ArrowRight} size={14} css-color="muted" />}
             <span
               className="rounded-md px-2 py-1 text-xs font-medium"
               style={{

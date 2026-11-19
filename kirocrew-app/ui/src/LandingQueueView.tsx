@@ -202,7 +202,7 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
         value.bases.map((base) => (
           <Card key={base.key}>
             <div data-landing-base={base.key}>
-              <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} className="mb-1" />
+              <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} mb="1" />
               <MergeBatches base={base} now={now} />
               {base.size && <SectionHeading level={4} title={`Waiting (${base.items.length})`} />}
               <Box as="ul" flex wFull flexCol>

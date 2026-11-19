@@ -9,6 +9,7 @@ import { NAV_PILL } from './nav-style.ts'
 import type { WorkspaceList } from './workspace-api.ts'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 export function WorkspacePill(props: { list: WorkspaceList | null; value: string | null; onChange: (id: string) => void; onManage: () => void }) {
   const { list } = props
@@ -65,7 +66,7 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
         css-text-align="left"
         css-font-size="14"
       >
-        <Folder size={16} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--muted)' }} />
+        <Glyph icon={Folder} size={16} aria-hidden="true" css-flex-shrink="0" css-color="muted" />
         <Box
           as="span"
           css-min-width="0"
@@ -78,7 +79,7 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
         >
           {name}
         </Box>
-        <ChevronDown size={15} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--muted)' }} />
+        <Glyph icon={ChevronDown} size={15} aria-hidden="true" css-flex-shrink="0" css-color="muted" />
       </PlainButton>
       {open && (
         // Fixed under the pill, so the nav's own scroll box does not cut it.
@@ -134,11 +135,11 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
                 css-cursor="pointer"
                 css-font-weight={here ? '500' : '400'}
               >
-                <Folder size={13} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--muted)' }} />
+                <Glyph icon={Folder} size={13} aria-hidden="true" css-flex-shrink="0" css-color="muted" />
                 <Box as="span" css-min-width="0" css-flex="1-1-auto" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">
                   {item.name}
                 </Box>
-                {here && <Check size={13} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--accent)' }} />}
+                {here && <Glyph icon={Check} size={13} aria-hidden="true" css-flex-shrink="0" css-color="accent" />}
               </PlainButton>
             )
           })}
@@ -167,7 +168,7 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
             css-cursor="pointer"
             css-color="muted"
           >
-            <Settings size={13} aria-hidden="true" style={{ flexShrink: 0 }} />
+            <Glyph icon={Settings} size={13} aria-hidden="true" css-flex-shrink="0" />
             <Box as="span" css-min-width="0" css-flex="1-1-auto" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">
               Manage workspaces
             </Box>

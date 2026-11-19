@@ -24,6 +24,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { SelectField } from './ui/SelectField'
 import { Box, type LookProps } from './ui/Box'
+import { Glyph } from './ui/Glyph'
 
 const FILL = { 'css-display': 'inline-flex', 'css-align-items': 'center', 'css-gap': 6 } as const satisfies LookProps
 // Stopped: a red frame on a red tint, the text in the theme's own color.
@@ -141,7 +142,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
             {...(stopped ? STOPPED : FILL)}
             css-padding="4px-6px"
           >
-            <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
+            <Glyph icon={Pause} size={ICON} aria-hidden="true" css-color={stopped ? 'danger' : undefined} />
             <Box as="span" srOnly>
               {stopped ? 'Line stopped' : 'Stop the line'}
             </Box>
@@ -245,7 +246,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       }
       title={
         <Box as="span" inlineFlex items="center" gap="1.5">
-          <Pause size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} /> Stop the line
+          <Glyph icon={Pause} size={ICON} aria-hidden="true" css-color="danger" /> Stop the line
         </Box>
       }
       onDismiss={close}

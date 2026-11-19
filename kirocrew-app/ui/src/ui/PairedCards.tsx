@@ -71,7 +71,7 @@ export function PairedCard(props: {
   }
   return (
     <Card {...card}>
-      {props.title ? <SectionHeading title={props.title} meta={props.meta} className="mb-2" /> : null}
+      {props.title ? <SectionHeading title={props.title} meta={props.meta} mb="2" /> : null}
       <div
         ref={body}
         data-paired-body
