@@ -60,29 +60,33 @@ of the other specs.
 
 ## Phase 3: Kiro Crew's parts
 
-- [ ] uc-3.1 `Select` and `Toggle` for the raw controls, after uc-2.2 [UC1.1, UC1.4] (§D3)
+- [x] uc-3.1 `Select` and `Toggle` for the raw controls, after uc-2.2 [UC1.1, UC1.4] (§D3)
   - Facts:
     - done:
       - No view renders a raw `<select>` or checkbox; each moved control keeps its label, its `aria-describedby` and its keyboard behavior, checked by test; differences found are listed in the pull request; screenshots go to the owner.
     - after: uc-2.2
+  - Built: PR #644, with checkboxes moved to Toggle in PR #654.
   - The 19 `<select>` and the checkbox `<input>` elements move to Kiro Crew's `Select` and `Toggle`; their declarations join `kirocrew-app-sdk.d.ts`.
-- [ ] uc-3.2 `Modal`, after uc-2.2 [UC1.1, UC1.3] (§D3)
+- [x] uc-3.2 `Modal`, after uc-2.2 [UC1.1, UC1.3] (§D3)
   - Facts:
     - done:
       - The modal tests pass with assertions unchanged, or each changed one is listed with the reason; screenshots of three dialogs go to the owner.
     - after: uc-2.2
+  - Built: PR #651.
   - Compare `Modal.tsx` with Kiro Crew's `Modal` on focus, Escape and the footer order the tests hold; swap, or keep Avoozl's in `src/ui/` with the owner's decision recorded.
-- [ ] uc-3.3 `InfoTip`, `PageHeader`, `CardTitle`, `StatCard` and `ErrorNotice`, after uc-2.2 [UC1.1, UC1.3, UC1.4] (§D3)
+- [x] uc-3.3 `InfoTip`, `PageHeader`, `CardTitle`, `StatCard` and `ErrorNotice`, after uc-2.2 [UC1.1, UC1.3, UC1.4] (§D3)
   - Facts:
     - done:
-      - The tooltip and heading tests pass with assertions unchanged, or each changed one is listed; Home's tiles use `StatCard`; screenshots go to the owner.
+      - The tooltip and heading tests pass with assertions unchanged, or each changed one is listed; Home's tiles use the shared Avoozl `StatTile`; screenshots go to the owner.
     - after: uc-2.2
-  - Each replaces the page's own version where one exists; the touch behavior of `InfoTip` is compared first.
-- [ ] uc-3.4 `MarkdownRenderer`, after uc-2.2 [UC1.1, UC1.3] (§D3)
+  - Built: PR #658.
+  - Each replaces the page's own version where one exists; the touch behavior of `InfoTip` is compared first. Where Kiro Crew's part lacks a prop the page needs or draws it differently, Avoozl's stays in `src/ui/` (UC1.3), and the pull request lists each kept part and why. Home's tiles use one shared Avoozl `StatTile` in `src/ui/` (value, label, sub line, warm tone), built on Kiro Crew's classes and theme variables.
+- [x] uc-3.4 `MarkdownRenderer`, after uc-2.2 [UC1.1, UC1.3] (§D3)
   - Facts:
     - done:
       - The markdown tests pass with assertions unchanged, or each changed one is listed; screenshots of a spec page and a task drawer go to the owner.
     - after: uc-2.2
+  - Built: PR #652.
   - Compare with `Markdown.tsx` on code highlighting, outside links and the size cap; swap, or keep Avoozl's with the owner's decision recorded.
 
 ## Phase 4: Settings and the rest of the views
