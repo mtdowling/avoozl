@@ -701,6 +701,12 @@ a person-only act is the sandbox the supervisor wraps it in:
   the Kiro Crew home (`KIROCREW_HOME`, or `~/.kiro/crew`), the `gh` config,
   `~/.git-credentials`, `~/.config/git/credentials`, `~/.netrc`, `~/.ssh`,
   `~/.aws` and, on macOS, the keychain.
+- Under your home folder it reads only its task folder, its temp and cache
+  folders, the repository's git directory, the harness's own config (the
+  definition's `reads`, such as `~/.claude` and `~/.claude.json` for
+  Claude Code), `~/.gitconfig`, `~/.config/git` and the repository's
+  `isolation.readable` paths. Your other projects and documents are not
+  readable. System and toolchain folders outside home stay readable.
 - It writes only to its task folder, its own temp folder and the project's
   cache folders. Read-only roles write nowhere.
 - Its network is off. On macOS a project can name loopback ports instead

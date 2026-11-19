@@ -214,6 +214,8 @@ export function sandboxProfile({
   readable = [],
   writable = [],
   network,
+  home = null,
+  readRoots = [],
 }) {
   // `on` (a repository check's network setting) leaves the network open.
   const lines = [
@@ -236,6 +238,19 @@ export function sandboxProfile({
       ].join(" ")})`,
     );
   }
+  // Home confined: no file under it is readable but the read roots and the
+  // write roots. Metadata stays readable, so a path through home still
+  // resolves; listing or opening anything else under it is refused.
+  if (home) {
+    lines.push(
+      `(deny file-read-data file-read-xattr (subpath ${quote(home)}))`,
+    );
+    const open = [...readRoots, ...(writeRoots ?? [])];
+    if (open.length)
+      lines.push(
+        `(allow file-read-data file-read-xattr ${open.map(rule).join(" ")})`,
+      );
+  }
   if (secrets.length)
     lines.push(`(deny file-read* file-write* ${secrets.map(rule).join(" ")})`);
   if (readable.length)
@@ -250,7 +265,15 @@ export function sandboxProfile({
   return lines.join("\n");
 }
 
-function bwrapArgs({ writeRoots, secrets, readable, writable, network }) {
+function bwrapArgs({
+  writeRoots,
+  secrets,
+  readable,
+  writable,
+  network,
+  home = null,
+  readRoots = [],
+}) {
   if (network.mode === "restricted")
     fail(
       "On Linux the sandbox turns the network off; a list of loopback ports is not supported yet.",
@@ -271,6 +294,16 @@ function bwrapArgs({ writeRoots, secrets, readable, writable, network }) {
     fail(
       "On Linux the sandbox needs write roots; it cannot leave writes open.",
     );
+  // Home confined: an empty home, then only the read roots bound into it
+  // (read-only) and the write roots below.
+  const remount = [];
+  if (home) {
+    args.push("--tmpfs", home);
+    for (const file of readRoots)
+      if (fs.existsSync(file) && inside(file, home))
+        args.push("--ro-bind", file, file);
+    remount.push("--remount-ro", home);
+  }
   for (const root of writeRoots) {
     fs.mkdirSync(root, { recursive: true });
     args.push("--bind", root, root);
@@ -279,7 +312,6 @@ function bwrapArgs({ writeRoots, secrets, readable, writable, network }) {
   // missing path needs nothing: the root is read-only. The readable and
   // writable files are bound into the empty folders before they turn
   // read-only, since bwrap makes their mount points there.
-  const remount = [];
   for (const file of secrets) {
     if (!fs.existsSync(file)) continue;
     if (fs.statSync(file).isDirectory()) {
@@ -310,8 +342,11 @@ function optedIn(configDirectory, definition) {
 // harnessPermission: a list (read roles: empty), or null for a harness the
 // person let write anywhere, which still keeps secrets and network out.
 // `readable` names files under a secret folder the child must read (its
-// brief), and `writable` the ones it must also write (its log). Returns { argv, env, sandbox }; sandbox is null only with the
-// per-machine opt-in.
+// brief), and `writable` the ones it must also write (its log). With
+// `readRoots`, nothing under `home` is readable but those paths and the
+// write roots; system and toolchain folders outside home stay readable.
+// Returns { argv, env, sandbox }; sandbox is null only with the per-machine
+// opt-in.
 export function confineChild(
   argv,
   {
@@ -325,6 +360,8 @@ export function confineChild(
     env = process.env,
     keepEnv = [],
     kind = sandboxKind(),
+    home = os.homedir(),
+    readRoots = null,
   },
 ) {
   if (!Array.isArray(argv) || !argv.length) fail("No command to confine.");
@@ -366,6 +403,9 @@ export function confineChild(
     readable: readable.map(realPath),
     writable: writable.map(realPath),
     network,
+    ...(Array.isArray(readRoots)
+      ? { home: realPath(home), readRoots: readRoots.map(realPath) }
+      : {}),
   };
   if (kind === "sandbox-exec")
     return {
