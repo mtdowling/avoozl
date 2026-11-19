@@ -1,8 +1,8 @@
 // Counts of open review findings by severity, as small colored badges:
 // blocker red, warn yellow, info grey, the same theme colors as the finding
 // borders (review-view.ts). A zero count shows nothing.
-import { SEVERITIES, SEVERITY_INK, SEVERITY_LABEL, type FindingSeverity } from './review-view.ts'
-import { Box } from './ui/Box'
+import { SEVERITIES, SEVERITY_INK, SEVERITY_LABEL, type FindingSeverity } from '../review-view.ts'
+import { Box } from './Box'
 
 export function SeverityBadges(props: { counts?: Partial<Record<FindingSeverity, number>> | Record<string, number> | null; label?: string }) {
   const shown = SEVERITIES.filter((s) => (props.counts?.[s] ?? 0) > 0)

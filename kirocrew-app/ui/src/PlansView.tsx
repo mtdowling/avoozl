@@ -64,7 +64,7 @@ import { PlanReviewSummary, REVIEW_POLL_MS, ReviewWorking, RevisionChanged } fro
 import { SpecGraph } from './SpecGraph.tsx'
 import { DocTabs, ReviewView } from './ReviewView.tsx'
 import { parseReviewLink, parseSpecTab, renderText, reviewClient, reviewHref, reviewLink, specTabLink, type ReviewPlace } from './review-view.ts'
-import { SeverityBadges } from './SeverityBadges.tsx'
+import { SeverityBadges } from './ui/SeverityBadges.tsx'
 import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
