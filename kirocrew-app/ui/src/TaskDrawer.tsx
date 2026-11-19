@@ -693,10 +693,10 @@ function TaskPanel(props: {
                 {task.owner && <Row label="Assignee">{task.owner}</Row>}
               </Box>
             </SectionBox>
-            {(task.summary || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
+            {(task.prose || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
               <SectionBox id="description" title="Description">
                 <Stack gap={3}>
-                  {task.summary && <Markdown text={task.summary} />}
+                  {task.prose && <Markdown text={task.prose} />}
                   {task.acceptance.length > 0 && (
                     <div>
                       <Box as="h4" size="sm" weight="semibold">

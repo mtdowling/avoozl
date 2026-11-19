@@ -116,7 +116,7 @@ function taskForPublication(store, task) {
     schemaVersion: 1,
     id: task.id,
     title: task.title,
-    summary: task.summary || "",
+    prose: task.prose || "",
     acceptance: task.acceptance || [],
     status: task.status,
     scope: task.scope,
@@ -422,7 +422,7 @@ function importedTask(value) {
   return {
     id: value.id,
     title: value.title,
-    summary: value.summary || "",
+    prose: value.prose || "",
     acceptance: value.acceptance,
     status: value.status || "planned",
     scope: value.scope || "catalog",

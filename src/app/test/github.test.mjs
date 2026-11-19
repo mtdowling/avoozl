@@ -413,11 +413,11 @@ test("approved tasks project native dependencies across repositories", async (t)
       text: `# Cross-repository plan
 
 \`\`\`task
-{"id":"design-change","title":"Land planning change","summary":"Update the plan.","acceptance":["Plan passes"],"projectId":"planning"}
+{"id":"design-change","title":"Land planning change","prose":"Update the plan.","acceptance":["Plan passes"],"projectId":"planning"}
 \`\`\`
 
 \`\`\`task
-{"id":"code-change","title":"Land code change","summary":"Update the code.","acceptance":["Code passes"],"requires":["design-change"],"projectId":"code"}
+{"id":"code-change","title":"Land code change","prose":"Update the code.","acceptance":["Code passes"],"requires":["design-change"],"projectId":"code"}
 \`\`\`
 `,
     }),
@@ -456,7 +456,7 @@ test("dependency drift is a conflict that withdraws readiness and keeps the edge
       text: `# Dependency drift
 
 \`\`\`task
-{"id":"only-task","title":"Only task","summary":"One task.","acceptance":["It passes"],"projectId":"code"}
+{"id":"only-task","title":"Only task","prose":"One task.","acceptance":["It passes"],"projectId":"code"}
 \`\`\`
 `,
     }),
@@ -745,7 +745,7 @@ async function projectedWorkspace(t, tasks, policy = {}) {
 const leaf = (id, extra = {}) => ({
   id,
   title: "Task " + id,
-  summary: "Summary " + id,
+  prose: "Summary " + id,
   acceptance: [id + " passes"],
   projectId: "code",
   ...extra,
@@ -896,7 +896,7 @@ test("human edits to managed fields are conflicts; untouched fields update", asy
     for (const task of data.tasks)
       if ([editedId, quietId].includes(task.id)) {
         task.title += " v2";
-        task.summary += " v2";
+        task.prose += " v2";
       }
   });
   const result = await ops.execute("github.project", { planId: plan.id });
@@ -993,7 +993,7 @@ test("human edits to managed fields are conflicts; untouched fields update", asy
   await ops.execute("github.project", { planId: plan.id });
   assert.match(edited.body, /Human summary/);
   store.mutate("Change the summary again", (data) => {
-    data.tasks.find((task) => task.id === editedId).summary = "Third summary";
+    data.tasks.find((task) => task.id === editedId).prose = "Third summary";
   });
   await ops.execute("github.project", { planId: plan.id });
   assert.match(edited.body, /Third summary/);

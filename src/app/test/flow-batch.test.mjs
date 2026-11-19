@@ -417,3 +417,28 @@ test("a group on process runs as single tasks and lands one commit each, with th
     subjects = git(checkout, "log", "--format=%s", "main").split("\n");
   for (const id of ids) assert.ok(subjects.includes("Do " + id), id);
 });
+
+// Found by worker-paths wp-p1: the batch head touches every member's file,
+// so its paths are judged against every member's declared paths.
+test("a batch head may touch each member's declared paths", async (t) => {
+  const ids = ["a1", "a2"],
+    { store, ops } = setup(
+      t,
+      ids.map((id) =>
+        leaf(id, { batch: group("g1", ids), paths: [id + ".txt"] }),
+      ),
+    );
+  const [batch] = workersOf(await tick(ops));
+  assert.deepEqual(batch.batch.tasks, ids);
+  const commits = await runBatch(ops, batch, "w-batch");
+  await tick(ops, ["w-batch"]);
+  await drainCheckRuns(store);
+  await tick(ops, ["w-batch"]);
+  assert.deepEqual(
+    ids.map(
+      (id) => store.read().tasks.find((x) => x.id === id).integration?.commit,
+    ),
+    commits,
+    "the batch integrated, not split",
+  );
+});

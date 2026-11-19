@@ -46,7 +46,7 @@ const specName = (task) => {
 };
 
 const textOf = (task) => ({
-  summary: typeof task.summary === "string" ? task.summary : null,
+  prose: typeof task.prose === "string" ? task.prose : null,
   acceptance: Array.isArray(task.acceptance)
     ? task.acceptance.map(String)
     : typeof task.acceptance === "string"

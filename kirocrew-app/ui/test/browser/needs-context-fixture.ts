@@ -18,7 +18,7 @@ export const needsContextItems = [
       spec,
       source,
       text: {
-        summary: 'Build the search index from the recipe folder.',
+        prose: 'Build the search index from the recipe folder.',
         acceptance: ['Index is rebuilt when a recipe changes.', 'Search returns results in under 200 ms for 5,000 recipes.'],
       },
       prior: null,
@@ -43,10 +43,10 @@ export const needsContextItems = [
           spec,
           source: { path: '.kiro/specs/recipe-search/tasks.md', lineStart: 20, lineEnd: 24 },
           text: {
-            summary: 'Parse quoted phrases and minus terms.',
+            prose: 'Parse quoted phrases and minus terms.',
             acceptance: ['"low sugar" matches the phrase.', '-nuts drops recipes that list nuts.', 'Empty queries return no results.'],
           },
-          prior: { title: 'Query parser', summary: 'Parse quoted phrases.', acceptance: ['"low sugar" matches the phrase.', 'Empty queries return no results.'] },
+          prior: { title: 'Query parser', prose: 'Parse quoted phrases.', acceptance: ['"low sugar" matches the phrase.', 'Empty queries return no results.'] },
         },
       },
       {
@@ -57,7 +57,7 @@ export const needsContextItems = [
           task: next('search.7', 'Search history'),
           spec,
           source: { path: '.kiro/specs/recipe-search/tasks.md', lineStart: 40, lineEnd: 43 },
-          text: { summary: 'Keep the last 20 searches per person.', acceptance: ['History is stored on this machine only.'] },
+          text: { prose: 'Keep the last 20 searches per person.', acceptance: ['History is stored on this machine only.'] },
           prior: null,
         },
       },
@@ -95,7 +95,7 @@ export const needsContextItems = [
       task: next('search.2', 'Folder watcher'),
       spec,
       source: { path: '.kiro/specs/recipe-search/tasks.md', lineStart: 8, lineEnd: 11 },
-      text: { summary: 'Watch the recipe folder for changes.', acceptance: ['A new file shows up in the index within 2 seconds.'] },
+      text: { prose: 'Watch the recipe folder for changes.', acceptance: ['A new file shows up in the index within 2 seconds.'] },
       unblocks: { total: 1, tasks: [next('search.3', 'Index builder')] },
       links: {
         branch: { ref: 'task/folder-watcher', url: 'https://github.com/acme/recipe-box/tree/task/folder-watcher' },

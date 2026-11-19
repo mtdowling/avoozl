@@ -62,7 +62,7 @@ function repositoryFor(store, task, named) {
 
 function bodyOf(task, key) {
   return [
-    task.summary || task.title || task.id,
+    task.prose || task.title || task.id,
     ...(task.acceptance?.length
       ? ["", "## Acceptance", "", ...task.acceptance.map((line) => `- ${line}`)]
       : []),

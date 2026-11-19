@@ -19,7 +19,8 @@ export interface TaskDetail {
   task: {
     id: string
     title: string
-    summary: string
+    // The task's own prose: its spec item's bullets, or an issue's body.
+    prose: string
     acceptance: string[]
     checks: string[]
     epic: string | null
@@ -375,7 +376,7 @@ export interface Prerequisite {
 export interface TaskForm {
   id: string
   title: string
-  summary: string
+  prose: string
   repository: string
   acceptance: string
   checks: string
@@ -391,14 +392,14 @@ const lines = (text: string) =>
     .filter(Boolean)
 
 export function emptyForm(): TaskForm {
-  return { id: '', title: '', summary: '', repository: '', acceptance: '', checks: '', prerequisites: [] }
+  return { id: '', title: '', prose: '', repository: '', acceptance: '', checks: '', prerequisites: [] }
 }
 
 export function formFrom(detail: TaskDetail): TaskForm {
   return {
     id: detail.task.id,
     title: detail.task.title,
-    summary: detail.task.summary,
+    prose: detail.task.prose,
     repository: detail.task.repository ?? '',
     acceptance: detail.task.acceptance.join('\n'),
     checks: detail.task.checks.join('\n'),
@@ -417,7 +418,7 @@ export function taskInput(form: TaskForm, original: TaskForm | null): Record<str
     if (!original || JSON.stringify(value) !== JSON.stringify(before)) input[key] = value
   }
   set('title', form.title.trim(), original?.title.trim())
-  set('summary', form.summary.trim(), original?.summary.trim())
+  set('prose', form.prose.trim(), original?.prose.trim())
   set('acceptance', lines(form.acceptance), original ? lines(original.acceptance) : undefined)
   set('checks', lines(form.checks), original ? lines(original.checks) : undefined)
   set('repository', form.repository.trim() || undefined, original ? original.repository.trim() || undefined : undefined)
@@ -429,7 +430,7 @@ export function taskInput(form: TaskForm, original: TaskForm | null): Record<str
   if (!original) {
     input.create = true
     input.needsReview = true
-  } else if (['title', 'summary', 'acceptance', 'checks'].some((key) => key in input)) input.needsReview = true
+  } else if (['title', 'prose', 'acceptance', 'checks'].some((key) => key in input)) input.needsReview = true
   return input
 }
 

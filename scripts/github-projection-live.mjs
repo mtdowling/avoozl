@@ -58,7 +58,7 @@ function taskBlock({ id, title, projectId, requires = [] }) {
   return `\`\`\`task\n${JSON.stringify({
     id,
     title,
-    summary: `${title} for the GitHub projection proof.`,
+    prose: `${title} for the GitHub projection proof.`,
     acceptance: [`${title} is represented by one GitHub issue.`],
     requires,
     epic: "proof",
