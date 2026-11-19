@@ -1426,10 +1426,6 @@ export class Operations {
     const text = [
         pack.description,
         Object.values(crews.labels ?? {}),
-        crews.models,
-        crews.reviewRules,
-        crews.template,
-        crews.prompt,
       ]
         .flat()
         .filter((entry) => typeof entry === "string")

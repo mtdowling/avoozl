@@ -67,7 +67,7 @@ import {
   settingsTitle,
 } from './settings-api.ts'
 import SetupWizard from './SetupWizard.tsx'
-import { AVOOZL_LABELS_LINE, AutoMergeFields, AvoozlLabelFields, CREW_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields, ReviewRulesFields } from './CrewsRulesSettings.tsx'
+import { AVOOZL_LABELS_LINE, AutoMergeFields, AvoozlLabelFields, CREW_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './CrewsRulesSettings.tsx'
 import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
@@ -1414,11 +1414,6 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
               />
             ))}
           </div>
-        </Section>
-      </Card>
-      <Card>
-        <Section title="Crew review rules" blurb={CREW_PART_TEXT.rules.blurb}>
-          <ReviewRulesFields {...part} />
         </Section>
       </Card>
     </Box>

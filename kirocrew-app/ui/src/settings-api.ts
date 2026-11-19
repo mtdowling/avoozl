@@ -329,8 +329,8 @@ export interface RepositoryForm {
   crewLabels: Record<string, string>
   // The label that approves a drafted plan (radar.approvalLabel); blank is the default.
   approvalLabel: string
-  // Issue Radar crew settings (radar.planLabel, radar.conflictLabel,
-  // radar.reviewRules); blank is the shown default.
+  // Issue Radar crew labels (radar.planLabel, radar.conflictLabel); blank
+  // is the shown default.
   planLabel: string
   conflictLabel: string
   // conflicts.onSourceConflict (fix or ask) and conflicts.maxAttempts; blank is the default.
@@ -347,7 +347,6 @@ export interface RepositoryForm {
   draftedLabel: string
   // Waiting on tracker (RC23.4): radar.trackerLabel.
   trackerLabel: string
-  reviewRules: string
   rules: RuleForm[]
   // The Untriaged list (design §8.5), each optional.
   untriaged: UntriagedForm
@@ -550,7 +549,6 @@ export function emptyRepository(name = ''): RepositoryForm {
     reviewLabel: '',
     draftedLabel: '',
     trackerLabel: '',
-    reviewRules: '',
     rules: [],
     untriaged: emptyUntriaged(),
     mirror: emptyMirror(),
@@ -610,7 +608,6 @@ export function toForm(github: Policy): SettingsForm {
         reviewLabel: str(record(entry.radar).reviewLabel),
         draftedLabel: str(record(entry.radar).draftedLabel),
         trackerLabel: str(record(entry.radar).trackerLabel),
-        reviewRules: str(record(entry.radar).reviewRules),
         rules: (Array.isArray(entry.rules) ? entry.rules : []).map((item) => {
           const rule = record(item)
           return {
@@ -721,7 +718,6 @@ export function toPolicy(form: SettingsForm): Policy {
                   reviewLabel: blank(repository.reviewLabel),
                   draftedLabel: blank(repository.draftedLabel),
                   trackerLabel: blank(repository.trackerLabel),
-                  reviewRules: blank(repository.reviewRules),
                 })
                 return Object.keys(radar).length ? radar : undefined
               })(),
@@ -1256,7 +1252,6 @@ export const OLD_LABEL_NOTE =
 export const valueSource = (value: string, fallback: string, unit = '') =>
   value.trim() ? `Set on this repository: ${value.trim()}${unit}.` : `Not set on this repository. Using the default (${fallback}${unit}).`
 
-export const rulesMode = (form: Pick<RepositoryForm, 'reviewRules'>): 'default' | 'custom' => (form.reviewRules.trim() ? 'custom' : 'default')
 
 // Every page but Workspaces reads and writes the selected workspace's own
 // settings, so its title names that workspace. Workspaces lists the machine's.

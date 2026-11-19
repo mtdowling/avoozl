@@ -1638,9 +1638,8 @@ function HomePage() {
 }
 
 // ?page=app&epics=empty|full: the Epics screen above the spec list.
-const RADAR_GRAPH = { url: '/issue-radar', focus: false }
 if (query.get('epics') === 'empty') {
-  answer('epics.view', () => ({ epics: [], unprojected: [], radarGraph: RADAR_GRAPH }))
+  answer('epics.view', () => ({ epics: [], unprojected: [] }))
 }
 if (query.get('epics') === 'full') {
   const phase = (id: string, title: string, gate: string, total: number, merged: number, released: number, held: string | null) => ({ id, title, gate, total, merged, released, held })
@@ -1659,7 +1658,6 @@ if (query.get('epics') === 'full') {
       },
     ],
     unprojected: [{ id: 'notes', title: 'Notes export', state: 'draft', tasks: 4, reason: 'Draft spec. Not approved. Approve it in the Spec Builder chat or its side panel.' }],
-    radarGraph: RADAR_GRAPH,
   }))
 }
 const page = query.get('page')
@@ -1828,7 +1826,7 @@ function CrewsRulesPage() {
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
       <HarnessBoundary>
         <CrewsRulesSettings id="t" repository={repository} set={(change) => setRepository((before) => ({ ...before, ...change }))} />
-        <pre data-form style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify({ rules: repository.reviewRules, plan: repository.planLabel })}</pre>
+        <pre data-form style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify({ plan: repository.planLabel })}</pre>
       </HarnessBoundary>
     </div>
   )

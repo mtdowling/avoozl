@@ -296,9 +296,9 @@ test('Settings › Issue Radar holds every Radar intake setting, each in its own
   const page = body('function RadarSettings(')
   const titles = [...page.matchAll(/<Section title=\{?["']?([^"'}]+)/g)].map((m) => m[1])
   // Conflicts and the merge method are on the repository's Landing tab (§4.25).
-  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Handoff to Avoozl', 'Labels Radar uses', 'Crew review rules'])
+  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Handoff to Avoozl', 'Labels Radar uses'])
   assert.equal((page.match(/<Section title=/g) ?? []).length, (page.match(/<Section title=[^>]*blurb=/g) ?? []).length)
-  for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}', '<ReviewRulesFields'])
+  for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}'])
     assert.ok(page.includes(part), part)
   // Each section box is a Card around one Section; nothing loose between them.
   const tops = [...page.slice(page.indexOf('data-radar-settings')).matchAll(/\n {6}(<\w+|\{\w+)/g)].map((m) => m[1])

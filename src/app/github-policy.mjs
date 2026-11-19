@@ -89,8 +89,6 @@ export const RADAR_KEYS = Object.freeze([
   "trackerLabel",
   "clearPlanLabel",
   "showPlansRepo",
-  "reviewRules",
-  "crew",
   "escalationDraft",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
@@ -176,7 +174,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "landing",
     "cacheSeconds",
   ],
-  crew: ["count", "models", "template"],
   approval: ["decisionRecord"],
   conflicts: ["onSourceConflict", "maxAttempts"],
   merge: ["method"],
@@ -570,49 +567,6 @@ function repositoryInput(value, id, mode) {
   ])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
-  // Text Set up proposes for `AGENTS.md` (RC7.1); a pull request, never a write.
-  if (radarInput.reviewRules !== undefined) {
-    if (
-      typeof radarInput.reviewRules !== "string" ||
-      !radarInput.reviewRules.trim() ||
-      radarInput.reviewRules.length > 4000
-    )
-      fail(`${label}.radar.reviewRules must be 1 to 4000 characters of text.`);
-    radar.reviewRules = radarInput.reviewRules.trim();
-  }
-  // What Set up shows for the crew (a team pack fills it). Avoozl creates no crew.
-  if (radarInput.crew !== undefined) {
-    const crew = onlyKeys(
-        radarInput.crew,
-        GITHUB_BLOCK_KEYS.crew,
-        `${label}.radar.crew`,
-      ),
-      { models, count } = crew;
-    if (
-      count !== undefined &&
-      !(Number.isSafeInteger(count) && count >= 1 && count <= 8)
-    )
-      fail(`${label}.radar.crew.count must be a whole number from 1 to 8.`);
-    if (
-      models !== undefined &&
-      !(
-        Array.isArray(models) &&
-        models.length >= 1 &&
-        models.length <= 8 &&
-        models.every((m) => typeof m === "string" && m.trim() && m.length <= 80)
-      )
-    )
-      fail(`${label}.radar.crew.models must be 1 to 8 model names.`);
-    if (
-      crew.template !== undefined &&
-      !(
-        typeof crew.template === "string" &&
-        /^[a-z][a-z0-9-]{0,60}$/.test(crew.template)
-      )
-    )
-      fail(`${label}.radar.crew.template must be a lowercase template ID.`);
-    radar.crew = crew;
-  }
   if (radarInput.clearPlanLabel !== undefined) {
     if (typeof radarInput.clearPlanLabel !== "boolean")
       fail(`${label}.radar.clearPlanLabel must be true or false.`);

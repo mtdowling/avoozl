@@ -31,16 +31,13 @@ test("the shipped sdk-team example validates and names no agent or prompt", () =
 });
 
 test("a crews section with a bad value is refused by name", () => {
-  refused((c) => (c.count = 0), /count/);
-  refused((c) => (c.count = 9), /count/);
   refused((c) => (c.agent = "avoozl-crew"), /crews\.agent/);
-  refused((c) => (c.models = []), /models/);
   refused((c) => (c.prompt = "run anything"), /crews\.prompt/);
   refused((c) => (c.surprise = true), /crews\.surprise/);
   refused((c) => (c.labels.extra = "x"), /labels\.extra/);
   refused((c) => (c.labels.plan = c.labels.ready), /./);
-  refused((c) => (c.template = "Not A Template"), /template/);
-  refused((c) => (c.reviewRules = ""), /reviewRules/);
+  refused((c) => (c.count = 2), /crews\.count/);
+  refused((c) => (c.reviewRules = "x"), /crews\.reviewRules/);
 });
 
 const plugin = { id: "sdk-team", version: "1.0.0", hash: "h" };
@@ -52,7 +49,7 @@ const current = (extra = {}) => ({
   },
 });
 
-test("the preview lists each value as a setting, creates nothing in Radar and fills Set up", () => {
+test("the preview lists each label as a setting and creates nothing in Radar", () => {
   const pack = validatePack(example()),
     preview = packPreview({ plugin, pack, current: current() });
   const names = preview.changes.map((c) => c.setting);
@@ -60,17 +57,8 @@ test("the preview lists each value as a setting, creates nothing in Radar and fi
     `github.repositories.${REPO}.managedLabels.ready`,
     `github.repositories.${REPO}.radar.planLabel`,
     `github.repositories.${REPO}.radar.conflictLabel`,
-    `github.repositories.${REPO}.radar.reviewRules`,
-    `github.repositories.${REPO}.radar.crew`,
   ]);
   assert.ok(preview.changes.every((c) => c.action === "create"));
-  // The result is a valid policy, and Set up's model comes from the pack.
-  const entry = preview.next.github.repositories[REPO];
-  assert.deepEqual(entry.radar.crew, {
-    count: 2,
-    models: ["model-a", "model-b"],
-    template: "sdk-change",
-  });
   // Nothing in the preview asks for a crew, a model price or a prompt write.
   assert.equal(
     names.some((name) => /prompt|price/i.test(name)),
@@ -172,7 +160,9 @@ async function install(ops) {
 }
 
 test("a pack with a private name is refused, and a clean one imports only after its preview", async (t) => {
-  const bad = setup(t, { reviewRules: "- Ask the zebra team." });
+  const bad = setup(t, {
+    labels: { plan: "zebra", ready: "ready", conflict: "merge conflict" },
+  });
   await install(bad.ops);
   await assert.rejects(
     bad.ops.execute("plugin.pack.preview", { id: "sdk-team" }),
@@ -200,7 +190,7 @@ test("a pack with a private name is refused, and a clean one imports only after 
   const preview = await good.ops.execute("plugin.pack.preview", {
     id: "sdk-team",
   });
-  assert.ok(preview.changes.some((c) => c.setting.endsWith("radar.crew")));
+  assert.ok(preview.changes.some((c) => c.setting.endsWith("radar.planLabel")));
   const file = path.join(good.root, ".avoozl.json"),
     untouched = fs.readFileSync(file, "utf8");
   assert.equal(
@@ -216,10 +206,9 @@ test("a pack with a private name is refused, and a clean one imports only after 
     REPO
   ];
   assert.equal(entry.radar.planLabel, "to plan");
-  assert.equal(entry.radar.crew.count, 2);
   assert.equal(entry.managedLabels.ready, "ready");
   // Only settings were written; no crew exists anywhere to create.
-  assert.equal(entry.radar.crew.agent, undefined);
+  assert.equal(entry.radar.crew, undefined);
 });
 
 test("the shipped sdk-team example folder has a manifest plugins add accepts", () => {
