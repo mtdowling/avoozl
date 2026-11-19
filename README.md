@@ -204,6 +204,11 @@ branches, unsaved edits, and `[~]` or `[-]` marks do nothing. If a tick is
 taken out of a done task, the task stays done and Needs you offers Reopen or
 Keep done.
 
+The tick works the other way too, and it is how coworkers share task state:
+the commit that lands a task ticks its box in `tasks.md` on the base branch
+(a spec kept in a separate plans repository gets its own commit there). Another
+machine that reads the branch marks the task done on its own database.
+
 To let an agent approve for you, name it once from your own terminal:
 
 ```sh
