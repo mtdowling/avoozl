@@ -2,7 +2,6 @@ import { bindSessionRequest } from "./session-requests.mjs";
 import { saveKirocrewIntent } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 import { queryTasks } from "../query.mjs";
-import { pendingProjection } from "../work-model.mjs";
 // Kiro Crew session bindings: which visible session (slot key) works on which
 // task. Kiro Crew owns the sessions; Avoozl keeps only this pointer, and a lost
 // pointer is recovered from the session title `avoozl:<task-id> <short title>`.
@@ -361,7 +360,6 @@ export function sessionRequestHold(data, taskId, role = "worker") {
     const task = tasks.get(taskId);
     if (
       !task ||
-      pendingProjection(task) ||
       !queryTasks(data, { scope: "all", q: "ready:true" }).some(
         (row) => row.id === taskId,
       )

@@ -111,11 +111,14 @@ repository**, a private copy that the work happens in.
 
 That gives three modes:
 
-| Mode              | `github.mode` | Tasks live in                   | Pull requests     | Who closes issues |
-| ----------------- | ------------- | ------------------------------- | ----------------- | ----------------- |
-| Local only        | `local`       | The workspace database          | None; local merge | No issues         |
-| Plans repository  | `plans-repo`  | Issues in a planning repository | Code repositories | Avoozl            |
-| Single repository | `single-repo` | Issues in the code repository   | The same repo     | `Closes #N`       |
+| Mode              | `github.mode` | Spec issues live in        | Pull requests     |
+| ----------------- | ------------- | -------------------------- | ----------------- |
+| Local only        | `local`       | No issues                  | None; local merge |
+| Plans repository  | `plans-repo`  | The planning repository    | Code repositories |
+| Single repository | `single-repo` | The code repository        | The same repo     |
+
+Tasks always live in the workspace database. A task never gets a GitHub
+issue; it completes when its work lands.
 
 Local only is the default. Only a repository with a GitHub remote can take a
 role other than `local`. Switching to Local only keeps your GitHub settings
@@ -186,11 +189,9 @@ request, checked and merged like any other task.
 For dependencies across specs, load each referenced spec as a stored draft
 first. Preview distinguishes a declared task from an existing approved task.
 You approve each spec separately; approval creates only that spec's tasks.
-A dependency on a draft owner stays pending and blocks delivery and GitHub
-projection until the owning spec is actually approved. An unrelated newer
-draft does not erase its last real approval. Retiring an owner restores the
-hold; if a dependent is already projected, revise its links before invalidating
-the owner so an old ready label cannot authorize work.
+A dependency on a draft owner stays pending and blocks delivery until the
+owning spec is actually approved. An unrelated newer draft does not erase its
+last real approval. Retiring an owner restores the hold.
 
 `plan approve NAME...` approves exactly the specs it names. A draft spec one of
 their tasks waits on is not pulled in: the preview counts the tasks that wait,
@@ -335,9 +336,12 @@ previews the repository setup and `--yes` applies it. Its `--checks` names
 the required GitHub checks a pull request needs, not the repository's
 own checks above.
 
-To let a Crew Mode conductor claim leaves instead, set
-`"delivery": {"runner": "crew-mode"}` and follow
-[the app package notes](kirocrew-app/README.md).
+To take one task by hand while the tick runs the rest, run
+`avoozl claim TASK`. It prints the task's worktree and the report command;
+commit there and run `avoozl runner report TASK done`, and Avoozl runs the
+checks. `avoozl claim TASK --release` gives it back. A workspace whose
+`.avoozl.json` still says `"runner": "crew-mode"` starts nothing until a
+person chooses **Let the tick run it** in Needs you.
 
 Avoozl never replaces a worker only because its activity went quiet. It
 checks durable session and delivery records first.
@@ -347,19 +351,20 @@ checks durable session and delivery records first.
 Give each repository a role in **Settings > Repository setup**, then use
 **Set up GitHub** under **Settings > GitHub**, or **Add repository** and then
 **Set up GitHub and import specs** for a new folder. Both
-read GitHub first and preview every write (labels, Project fields, issue
-types); nothing is written until you confirm. Approved specs become issues,
-sub-issues, and blocked-by links, with a Project board as the view. Public and
-private repositories both work.
+read GitHub first and preview every write (labels and issue types); nothing
+is written until you confirm. **Publish issue** gives a spec one issue, its
+journal; its tasks get none. Public and private repositories both work.
 
 For a mirror, private specs live on its orphan plans branch. Approval pull
 requests target that branch.
 
-Avoozl ships with no trigger rule, so no label starts any work until you add
-one. Each rule names an action, a `match` line in GitHub's issue-search
+A label never starts work on a GitHub issue. A person presses **Deliver
+this** or **Plan this** in Triage, and the task lands like any other, with
+the issue only linked. Rules can respond to, pause or quarantine an issue.
+Each rule names an action and a `match` line in GitHub's issue-search
 syntax (for example `label:agent:go -label:hold`), and is checked against
-**Who counts**: who may give orders with a label, a board drag, or a close.
-With nobody named, that is anyone with `write` permission. See
+**Who counts**: who may give orders with a label. With nobody named, that is
+anyone with `write` permission. See
 [trigger rules and example policies](docs/policies.md).
 
 Intake sources, content rules, settings packs and workflow templates plug
@@ -380,13 +385,13 @@ and says why.
   finish, writes an export file to a folder you pick, and links the plan
   issue for you to reassign. Avoozl never reassigns it. The file may hold
   private notes; Avoozl never uploads, commits, or pushes it.
-- **Take over** on the other machine takes the export, or rebuilds from
-  GitHub when the old machine is gone, and lists what a rebuild loses
+- **Take over** on the other machine takes the export. When the old
+  machine is gone it takes over without one, and lists what that loses
   first. **Force take over** assigns the plan issue to you, and asks you to
   type the spec name first. An old driver that comes back reads only.
 - Nothing moves the role because a machine went quiet. A task that was
-  running on the old driver is "away": it completes from GitHub when its
-  pull request merges, or waits for you to start it here.
+  running on the old driver is "away": it waits for you to start it here,
+  or completes if its work lands.
 - Plugin approvals, terms files, retro instructions, crews and
   SSH host keys stay on each machine. After a take-over the page lists
   what to set up again.
@@ -396,8 +401,8 @@ last check, at most one tick's worth, can overlap; it shows as away on the
 new driver. In Local only mode the lock is a row in the workspace database:
 it guards only instances that open that file or a copy, cannot see another
 machine, and has no forced take-over. CLI: `avoozl driver status`,
-`avoozl driver handoff`, `avoozl driver takeover --file PATH` or
-`--rebuild`, and `--force --confirm SPEC`.
+`avoozl driver handoff`, `avoozl driver takeover [--file PATH]`, and
+`--force --confirm SPEC [--yes]`.
 
 ## Flow
 
@@ -449,21 +454,6 @@ Delivery**, is the Andon cord: a
 person, or an agent through MCP, stops new work for everything, one
 repository, one spec, or one task, with a one-line reason. Running sessions
 keep going. Only a person presses **Resume**.
-
-## Pull request feedback
-
-For each leaf an Avoozl worker codes on a linked branch, the tick reads its
-open pull request and sends what is new to the worker that wrote it: failed
-checks, changes requested, comments by people Who counts allows, merge
-conflicts, and auto-merge turned off. One message per pull request per tick.
-Avoozl writes nothing to GitHub here. It is on by default, for at most 5
-rounds per leaf; set `delivery.prFeedback` and `delivery.feedbackRounds`, or
-use **Settings > Delivery**.
-
-When a pull request's base branch moves and the pull request then conflicts
-with it, or falls behind a base that requires branches to be up to date, the
-writer gets one message to merge the base branch in with a merge commit.
-Avoozl never asks for a force push, and drops any brief or message that does.
 
 ## Investigate first, evidence, and who merges
 

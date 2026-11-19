@@ -67,11 +67,8 @@ import { parseReviewLink, parseSpecTab, renderText, reviewClient, reviewHref, re
 import { SeverityBadges } from './ui/SeverityBadges.tsx'
 import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
-import { ProjectionModal } from './ProjectionModal.tsx'
-import { SpecChangedModal } from './SpecChangedModal.tsx'
 import { SpecPullBox } from './SpecPullBox.tsx'
 import { specPullClient, type SpecPull } from './spec-pr-api.ts'
-import { projectionClient } from './projection-api.ts'
 import {
   UNCATEGORIZED,
   approveBlocker,
@@ -79,7 +76,6 @@ import {
   scmLinkText,
   type SpecLinks,
   changeMessage,
-  describeWrite,
   discussSeed,
   documentTabs,
   filterRows,
@@ -110,7 +106,6 @@ import {
   revisionDiff,
   type PlanReviewSummary as ReviewSummary,
   type RevisionChange,
-  writesByRepository,
   type PlanListFilter,
   SORT_FIRST,
   sortRows,
@@ -118,14 +113,12 @@ import {
   type PlanRow,
   type PlanTable,
   type Preview,
-  type ProjectionPreview,
   type SpecDocuments,
   type SpecPlan,
   type SpecSummary,
 } from './plans-api'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
-import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Checkbox } from './ui/Checkbox'
@@ -135,6 +128,7 @@ import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 import { PILL, cell } from './ui/looks/PlansView.ts'
 import { Glyph } from './ui/Glyph'
+import { TONE } from './ui/tones.ts'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -201,7 +195,7 @@ export function SpecCard(props: { title: string; id?: string; actions?: ReactNod
 
 function RailSection(props: { title: string; edit?: { label: string; onClick: () => void }; children: ReactNode; attrs?: Record<string, string> }) {
   return (
-    <section data-rail-section={props.title} {...props.attrs} style={{ paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid var(--border)' }}>
+    <Box data-rail-section={props.title} {...props.attrs} as="section" css-padding-bottom="14" css-margin-bottom="14" css-border-bottom="1px-solid-border">
       <Box css-display="flex" css-align-items="center" css-justify-content="space-between" css-gap="8" css-margin-bottom="8">
         <Box as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase" css-color="muted">
           {props.title}
@@ -215,7 +209,7 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
         )}
       </Box>
       {props.children}
-    </section>
+    </Box>
   )
 }
 
@@ -260,14 +254,24 @@ function MenuItem(props: { icon: LucideIcon; label: string; tooltip?: string; on
 }
 
 function StatePill(props: { status: string; archived?: boolean }) {
-  const look = PILL[props.status] ?? { color: 'var(--muted)', background: 'var(--bg-hover)' }
+  const look = PILL[props.status] ?? { color: TONE.muted, background: TONE.bgHover }
   return (
-    <span
+    <Box
+      as="span"
       data-spec-state={props.status}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 500, lineHeight: '18.6px', ...look }}
+      css-display="inline-flex"
+      css-align-items="center"
+      css-gap={4}
+      css-padding="2px 8px"
+      css-border-radius={999}
+      css-font-size={12}
+      css-font-weight="500"
+      css-line-height="18.6px"
+      css-color={look.color}
+      css-background={look.background}
     >
       {props.archived ? 'Archived' : (STATUS_LABEL[props.status] ?? props.status)}
-    </span>
+    </Box>
   )
 }
 
@@ -395,73 +399,6 @@ function SpecTabs(props: { tabs: string[]; current: string; plan: SpecPlan | nul
   )
 }
 
-// What projecting the approved plan would write to GitHub. Nothing is written.
-function GitHubPreview(props: { projection: ProjectionPreview | null; busy: boolean; onPreview: () => void; onProject: () => void; onChanged: () => void }) {
-  const { projection, busy } = props
-  return (
-    <SpecCard
-      title="GitHub preview"
-      actions={
-        <Row gap={2} align="start">
-          <TipBtn {...COMPACT} tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
-            {projection ? 'Preview again' : 'Preview GitHub writes'}
-          </TipBtn>
-          <TipBtn primary {...COMPACT} tooltip="Preview, choose batches and create the issues. Nothing is written until you confirm." onClick={props.onProject} disabled={busy}>
-            Project to GitHub…
-          </TipBtn>
-          <TipBtn {...COMPACT} tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
-            Spec changed…
-          </TipBtn>
-        </Row>
-      }
-    >
-      <Hint as="p" size="sm">
-        Lists every write a projection would make. Nothing is written.
-      </Hint>
-      {projection && (
-        <Box mt="3" flex flexCol gap="2" size="sm">
-          {projection.previewOnly.length > 0 && (
-            <p>
-              <Badge>preview only</Badge> Another machine writes {projection.previewOnly.join(', ')}.
-            </p>
-          )}
-          {projection.writes.length === 0 ? (
-            <Hint as="p">GitHub already matches this revision.</Hint>
-          ) : (
-            writesByRepository(projection.writes).map(([repository, writes]) => (
-              <div key={repository}>
-                <Box as="p" weight="medium">
-                  {repository} · {writes.length} writes
-                </Box>
-                <Box as="ul" mt="1" flex flexCol gap="0.5">
-                  {writes.map((write, index) => (
-                    <li key={index}>{describeWrite(write)}</li>
-                  ))}
-                </Box>
-              </div>
-            ))
-          )}
-          {projection.conflicts.map((conflict) => (
-            <p key={`${conflict.taskId}:${conflict.field}`}>
-              <Badge variant="danger">conflict</Badge> <code>{conflict.taskId}</code> {conflict.reason}
-            </p>
-          ))}
-          {[...projection.notes, ...(projection.project.problems ?? [])].map((note) => (
-            <Hint key={note} as="p">
-              {note}
-            </Hint>
-          ))}
-          {projection.project.status === 'unavailable' && (
-            <Hint as="p">
-              Project fields not previewed: {projection.project.reason} Fix: <code>{projection.project.fix}</code>
-            </Hint>
-          )}
-        </Box>
-      )}
-    </SpecCard>
-  )
-}
-
 // The spec Summary. A reviewer writes the plain summary once per revision and
 // the page reads it from Avoozl's own store (never a model call on open, no
 // GitHub call). While the review runs the shared AI working box shows; if
@@ -526,12 +463,8 @@ function SpecDetail(props: {
   spec: SpecSummary
   plan: SpecPlan | null
   preview: Preview | null
-  projection: ProjectionPreview | null
   graph: Graph | null
   busy: boolean
-  onProjection: () => void
-  onProject: () => void
-  onChanged: () => void
   onOpenTask: (id: string) => void
   onReview?: () => void
   // The spec's open pull request, adopted into it (R107.4).
@@ -547,7 +480,7 @@ function SpecDetail(props: {
   details: ReactNode
   onTasks: () => void
 }) {
-  const { spec, plan, preview, busy, tab } = props
+  const { spec, plan, preview, tab } = props
   const overview = tab === 'overview' || !plan
   const blocker = approveBlocker(plan)
   const critique = plan?.disk.critique ?? spec.critique
@@ -697,10 +630,6 @@ function SpecDetail(props: {
             </SpecCard>
           )}
 
-          {plan?.state === 'approved' && (
-            <GitHubPreview projection={props.projection} busy={busy} onPreview={props.onProjection} onProject={props.onProject} onChanged={props.onChanged} />
-          )}
-
           {plan && plan.approvals.length > 0 && (
             <SpecCard title="Approvals">
               <Box as="ul" flex flexCol gap="1" size="sm">
@@ -814,7 +743,7 @@ export function ProgressBar({ tasks }: { tasks: { total: number; done: number } 
     width: `${shown}%`,
     height: '100%',
     borderRadius: 999,
-    background: 'linear-gradient(90deg, color-mix(in srgb, var(--ok) 70%, var(--card)), var(--ok))',
+    background: TONE.okBar,
     transition: still ? 'none' : 'width 700ms cubic-bezier(0.2, 0.8, 0.2, 1)',
   }
   return (
@@ -1319,17 +1248,23 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
   const PrimaryIcon = primaryButton.icon
   const titleRef = useDetailTitleRef()
   const pad = props.flush ? 0 : 12
-  const divider = { borderBottom: '1px solid var(--border)', marginLeft: props.flush ? 0 : -12, paddingLeft: props.flush ? 0 : 24, paddingRight: pad }
+  const divider = { borderBottom: TONE.hairline, marginLeft: props.flush ? 0 : -12, paddingLeft: props.flush ? 0 : 24, paddingRight: pad }
   return (
     <header data-spec-header>
       <Box css-padding={`20px ${pad}px 0`} css-margin-left={props.flush ? 0 : -12} css-padding-left={props.flush ? '0' : '24'}>
-        <h1
+        <Box
           id="avoozl-plan-title"
           ref={titleRef ?? undefined}
-          style={{ margin: 0, fontSize: 27, fontWeight: 700, lineHeight: 1.25, color: 'var(--text-strong, var(--text))', overflowWrap: 'anywhere' }}
+          as="h1"
+          css-margin="0"
+          css-font-size="27"
+          css-font-weight="700"
+          css-line-height="1.25"
+          css-color="text-strong-text"
+          css-overflow-wrap="anywhere"
         >
           {row.name}
-        </h1>
+        </Box>
         <Box
           data-spec-meta
           as="p"
@@ -1451,7 +1386,7 @@ function GithubLink(props: { link: { url: string }; children: ReactNode }) {
 // local, so a private spec issue shows here and nowhere public.
 function LinksSection(props: { links: SpecLinks | null | undefined; loading: boolean }) {
   const links = props.links
-  const muted = 'var(--muted)'
+  const muted = TONE.muted
   const none = (
     <Box as="span" css-color={muted}>
       {props.loading ? '…' : 'None'}
@@ -1592,7 +1527,7 @@ function SpecRail(props: {
   const repositories = [...new Set(leaves.map((t) => t.repository).filter((name): name is string => Boolean(name)))].sort()
   const decisions = (graph?.tasks ?? []).filter((t) => t.decision)
   const tabs = documentTabs(docs)
-  const muted = 'var(--muted)'
+  const muted = TONE.muted
   const date = (label: string, at: string | null | undefined) => (
     <Box flex items="baseline" justify="between" gap="3" data-rail-date={label}>
       <Box as="span" css-color={muted}>
@@ -1984,18 +1919,13 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
 }
 
 function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection | null; phone: boolean }) {
-  const writesOf = (id: string) => {
-    const found = props.selection?.specs.find((entry) => entry.id === id)
-    if (!props.selection) return '…'
-    return found?.writes === null || found?.writes === undefined ? '—' : String(found.writes)
-  }
-  const columns = props.phone ? ['auto', '5rem'] : ['auto', '8.5rem', '5rem', '5rem']
+  const columns = props.phone ? ['auto'] : ['auto', '8.5rem', '5rem']
   return (
     <Box data-approve-list css-border-color="border" overflow="x-auto" rounded="base" border="all">
       <Box as="table" css-table-layout="fixed" css-border-collapse="collapse" css-min-width={props.phone ? undefined : '30rem'} wFull size="sm">
         <colgroup>
           {columns.map((width, at) => (
-            <col key={at} style={{ width }} />
+            <Box key={at} as="col" css-width={width} />
           ))}
         </colgroup>
         <thead>
@@ -2041,26 +1971,11 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
                 Tasks
               </Box>
             )}
-            <Box
-              as="th"
-              css-padding="6px-10px"
-              css-font-weight="600"
-              css-white-space="nowrap"
-              css-color="text-muted-muted"
-              css-background="bg-elevated"
-              css-border-bottom="1px-solid-border"
-              css-text-align="right"
-              css-font-variant-numeric="tabular-nums"
-            >
-              Writes
-            </Box>
           </tr>
         </thead>
         <tbody>
           {props.entries.map((entry) => {
-            const tip = props.phone
-              ? `${entry.spec} · revision ${shortHash(entry.hash)} · ${entry.tasks} ${entry.tasks === 1 ? 'task' : 'tasks'} · ${writesOf(entry.id)} writes`
-              : entry.spec
+            const tip = props.phone ? `${entry.spec} · revision ${shortHash(entry.hash)} · ${entry.tasks} ${entry.tasks === 1 ? 'task' : 'tasks'}` : entry.spec
             return (
               <tr key={entry.id} data-approve-row={entry.id}>
                 <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-overflow="hidden">
@@ -2082,9 +1997,6 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
                     {entry.tasks}
                   </Box>
                 )}
-                <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-text-align="right" css-font-variant-numeric="tabular-nums">
-                  {writesOf(entry.id)}
-                </Box>
               </tr>
             )
           })}
@@ -2491,7 +2403,6 @@ export default function PlansView(props: {
   const api = useAppApi()
   const { openChat } = useChatLauncher()
   const plans = useMemo(() => plansClient(api), [api])
-  const projections = useMemo(() => projectionClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const reviews = useMemo(() => reviewClient(api), [api])
   const drawer = useTaskDrawer()
@@ -2568,8 +2479,6 @@ export default function PlansView(props: {
   const [plan, setPlan] = useState<SpecPlan | null>(null)
   const [singleApproval, setSingleApproval] = useState<{ workspaceId: string; plan: SpecPlan } | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
-  const [projection, setProjection] = useState<ProjectionPreview | null>(null)
-  const [dialog, setDialog] = useState<'project' | 'changed' | null>(null)
   const [docs, setDocs] = useState<SpecDocuments | null>(null)
   const [docsError, setDocsError] = useState<string | null>(null)
   const [planGraph, setPlanGraph] = useState<Graph | null>(null)
@@ -2709,7 +2618,6 @@ export default function PlansView(props: {
     async (workspaceId: string, planId: string | null) => {
       setPlan(null)
       setPreview(null)
-      setProjection(null)
       if (!planId) return
       const [stored, shown] = await Promise.all([plans.get(workspaceId, planId), plans.preview(workspaceId, planId).catch(() => null)])
       setPlan(stored)
@@ -2982,12 +2890,8 @@ export default function PlansView(props: {
               spec={spec}
               plan={plan}
               preview={preview}
-              projection={projection}
               graph={planGraph}
               busy={busy}
-              onProjection={() => plan && workspace && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
-              onProject={() => setDialog('project')}
-              onChanged={() => setDialog('changed')}
               onOpenTask={(id) => drawer.openTask(id)}
               onRetrySummary={retrySummary}
               onReview={row.planId ? () => pickTab('review') : undefined}
@@ -3153,30 +3057,6 @@ export default function PlansView(props: {
             )
           }
         />
-      )}
-      {dialog && workspace && plan && (
-        <>
-          {dialog === 'project' && (
-            <ProjectionModal
-              workspaceId={workspace}
-              client={projections}
-              planId={plan.id}
-              title={plan.title}
-              onClose={() => setDialog(null)}
-              onCreated={() => void loadPlan(workspace, plan.id)}
-            />
-          )}
-          {dialog === 'changed' && (
-            <SpecChangedModal
-              workspaceId={workspace}
-              client={projections}
-              planId={plan.id}
-              title={plan.title}
-              onClose={() => setDialog(null)}
-              onApplied={() => void loadPlan(workspace, plan.id)}
-            />
-          )}
-        </>
       )}
     </Box>
   )

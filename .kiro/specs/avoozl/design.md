@@ -992,6 +992,8 @@ allow host: \bbuild0\.corp\.example\b
 
 ### 4.10 Agent and model per session
 
+Replaced 2026-11-18 by the worker-paths spec (D9): every session runs on this machine.
+
 **Decided**, owner 2026-11-18: every session Avoozl opens runs on this
 machine, on the executor its harness names (§4.28). `src/app/session-pins.mjs`
 checks a task's `session` fact: `agent`, `model` or `harness`, and
@@ -3970,11 +3972,8 @@ label: on Kiro Crew main, removing it hands the issue back to a crew. Once
 `crew:avoozl` is on, a person may clear it and crews still skip the issue. If a live
 crew claim is present, Plan this says so and asks to confirm. Send to Issue Radar
 stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
-- **Offboarding:** `avoozl spec export-issues SPEC`, with a preview: one issue per task
-  that is not complete, then blocked-by links, then `Status: Exported`. This is the
-  only code that writes task issues. Exported issues never carry `crew:avoozl` (owner
-  decision, 2026-11-16): export hands work away from Avoozl, so Issue Radar and people
-  may take them. A test checks that no export create request sets it.
+- **Offboarding:** none in code (changed 2026-11-18). The issue export was deleted
+  with per-task issues; no Avoozl code writes task issues.
 
 #### 4.32.12 Smaller rules
 
@@ -3996,18 +3995,11 @@ live in authorized forks in each layout. Mirror imports use reviewed PRs;
 forwarding recognizes imports whose second parent is upstream ancestry and
 does not propose those commits back upstream.
 
-Retire task-issue bindings in this order:
-1. Hold release and stop that workspace's ticks.
-2. Install the build that disables task projection and close reconciliation.
-3. Preview and retire issue numbers, node IDs, verdicts and dispatch flags;
-   preserve task statuses and approved source files.
-4. Run one tick: unchanged ready set, no task-issue reads/writes or recreation.
-5. Only then close obsolete task issues. Existing spec issues remain journals.
-
-An allowed close currently means done by order or skipped and releases
-successors (`github-close.mjs`), so step 5 cannot precede step 4. A failed
-migration stays held and reports its unchanged/changed bindings; retry is
-idempotent. No live workspace is migrated by a spec-editing pull request.
+Task-issue bindings are gone (changed 2026-11-18, 45.4). Task projection,
+close reconciliation, Project sync, rebuild from GitHub and the binding
+migration were deleted together. A tick reads and writes no task issue and
+ignores an old binding row, so closing an obsolete task issue by hand changes
+nothing in Avoozl. Existing spec issues remain journals.
 
 Retain the legacy fact spellings `route: github` (landing queue) and
 `merged-pr` (accepted landing). Do not rewrite approved plans to rename them.
@@ -4016,7 +4008,7 @@ Retain the legacy fact spellings `route: github` (landing queue) and
 
 - Replace task projection/sync/rebuild/close/completion and Project state
   with journal validation, outcome reduction and spec issue publication.
-  Keep epic issue links. Move task rendering to the explicit export path.
+  Keep epic issue links. Task rendering to issues is deleted (45.4).
 - Generalize integration and spec homes to qualified working heads. Keep
   checkpoint push plumbing; stop publishing task snapshots as GitHub state.
 - Replace the old issue-marker driver claim with generations/intents; keep
@@ -4026,10 +4018,10 @@ Retain the legacy fact spellings `route: github` (landing queue) and
 - Phase 44 becomes links from specs and in-flight work plus a Landing queue
   page (§4.27), not a GitHub browser.
 - Phase 56 supplies outcomes, journal, migration, qualified branches, driver
-  safety, refresh, recovery, epic/intake/export and mirror import changes.
+  safety, refresh, recovery, epic/intake and mirror import changes.
   Direct and PR landing remain Phases 41–42; worker claims remain Phase 43.
-  Phase 45 removes shared projection callers only after migration and the
-  replacement landing, worker and UI proofs. Phase 55's receipts remain.
+  Phase 45 deleted the shared projection callers (45.4) after the
+  replacement landing and UI proofs. Phase 55's receipts remain.
 
 Build Phase 56's foundation while the live executor proof waits; branch
 integration still depends on verified worker preparation. Scratch proofs
@@ -4562,7 +4554,7 @@ is a grant to check, a record of who acted, and a revocation.
 
 ### 4.39 One intake list
 
-Added 2026-11-18 (Requirement 110; `docs/simplification-audit.md` item 6,
+Added 2026-11-18 (Requirement 110; `docs/research/simplification-audit.md` item 6,
 F5). Changes §4.12's source list and the issue intake keys of §4.4.
 
 **Why.** Five paths turned an issue into work: `github.issueIntake` (a
@@ -4863,6 +4855,8 @@ Notes:
   session before dispatching anything (Requirement 8.3, 26.12).
 
 ### 5.1 Crew Mode spike result (2026-11-11)
+
+Replaced 2026-11-18 by the worker-paths spec (D6, D7): the tick is the one dispatcher, and a person takes a task by hand with `avoozl claim`.
 
 **Verified.** A Crew Mode conductor delivered a four-task Avoozl graph
 (`slug`, `clamp`; `post-url` requires `slug`; `page-url` requires `post-url` and
@@ -5730,6 +5724,26 @@ approved revision. A plan record gains `epic` (from front-matter, or null).
 A task gains `phase` (ID and title) and loses `epic`; its epic is always
 its plan's epic, so a task cannot disagree with its plan.
 
+**Epics from before Requirement 59.** Changed 2026-11-19: approving an epic
+folder used to drop every `epics` row with no `planId`, and published tasks
+still named those rows in their old `epic` value (an Inbox, the W1–W7 waves
+of one plan). Such rows stay, each with an owner, and are not cross-plan
+epics, since they have no member list:
+
+- A **plan epic** (`kind: "plan"`) is owned by one plan: the spec folder its
+  `context.document` lies in, or else the one plan every task naming it
+  comes from (`planId`, then its source and context documents). `planId`
+  names that plan.
+- A **doc epic** (`kind: "doc"`) has no single owning plan. It stands for
+  itself: `planId` is its own ID.
+
+No write drops an `epics` row that a stored task names: commit puts it
+back from the stored snapshot, or else from the last import's baseline,
+which still has the rows an older approval dropped. Commit then gives each
+row with no `planId` its owner. Opening a writable database that has such
+a row, or lacks a baseline row a task names, makes that one commit, so a
+second open or run changes nothing.
+
 **GitHub layering.** Projection order (§6.3) adds two parent kinds before
 tasks:
 
@@ -6206,6 +6220,8 @@ shortcut: S4 is a speed bump and S7 leaves a small window between the hash and
 the child's read; upgrade S4 with the upstream request, S7 by copying first.
 
 ### 6.13 Runner mode over SSH
+
+Replaced 2026-11-18 by the worker-paths spec (D8): worker pull on the tick is the one remote route.
 
 Requirement 84. Prototype in `src/app/remote-runner.mjs`; research in
 `docs/research/runner-mode-ssh.md`.

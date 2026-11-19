@@ -603,7 +603,7 @@ new `plans_intake_*` tools. No earlier task changes.
   - Expected: one parent issue of type Epic with three sub-issues, issue dependencies matching the `requires` and `sequence` edges, a `supports` edge present only in the marker, the ready label only on the unblocked leaf; the second apply changes nothing.
   - Failure means: projection order or idempotence is broken.
   - Next decision: fix before cross-repository work.
-  - Superseded 2026-11-17: proves per-task issue projection with sub-issues and dependencies, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
+  - Superseded 2026-11-17: proves per-task issue projection with sub-issues and dependencies, which Phase 56 (R102.20, §4.32) retires and 45.4 deleted; not run.
 - [x] avoozl-p9 P9 Proof: cross-repository dependencies and fresh-workspace recovery [R13.2, R14, R19]
   - Facts:
     - done:
@@ -666,7 +666,7 @@ new `plans_intake_*` tools. No earlier task changes.
   - Expected: each human-edited issue field is reported as a conflict and left unchanged; untouched fields update; resolving in Conflicts applies the chosen value; no Project edit opens a conflict; the Done drag closes its issue through Auto-close issue and is judged as an order (P11 proves its effects), not a conflict; Deferred and Release are handled per §6.7 (P16 proves their effects). Changed 2026-11-12.
   - Failure means: conflict detection misses a field or overwrites silently.
   - Next decision: decide whether any field should be human-owned outright.
-  - Superseded 2026-11-17: proves managed-field conflicts on projected task issues and Project fields, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
+  - Superseded 2026-11-17: proves managed-field conflicts on projected task issues and Project fields, which Phase 56 (R102.20, §4.32) retires and 45.4 deleted; not run.
 - [x] avoozl-p11 P11 Proof: exact pull-request completion [R16, R33]
   - Facts:
     - done:
@@ -698,7 +698,7 @@ new `plans_intake_*` tools. No earlier task changes.
   - Expected: A's closed issue is a decision, not done; B completes and releases D in the same tick; in plans-repo mode GitHub closes B's planning issue with the pull request as closer, and the fork pull request closes nothing and counts for nothing; Avoozl closes no leaf issue in either mode; C and F are done by order, not verified: their dependents E and G are released in the next tick (both levels count; E shows as ready but paused), G's brief says the blocker closed without merged code (closer, reason, time) and to check for the missing code first, with the issue link in single-repo mode and task ID and title only in plans-repo mode, and the receipt and marker hold the order; F's close event names the person who dragged (record which source named the closer); H's dependent J stays held with a decision while GitHub shows it unblocked, and H stays closed; after the reopens, E is waiting again and gets no session, G's running session is left alone, and both orders are gone from the markers; the non-default-base merge leaves its issue open and opens a decision.
   - Failure means: completion logic or its wiring is wrong, or the closer of a close cannot be read.
   - Next decision: decide whether release levels need a `released` check before Phase 4; if Auto-close names no person, require hand closes for orders. Changed 2026-11-12 (twice: native closing, then close-without-code orders).
-  - Superseded 2026-11-17: proves task completion by issue close and linked-branch close, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
+  - Superseded 2026-11-17: proves task completion by issue close and linked-branch close, which Phase 56 (R102.20, §4.32) retires and 45.4 deleted; not run.
 - [x] avoozl-p16 P16 Proof: GitHub Project sync [R29, R31.3, R33]
   - Facts:
     - done:
@@ -730,7 +730,7 @@ new `plans_intake_*` tools. No earlier task changes.
   - Expected: every managed issue from both repositories is on the Project, at Todo from the Item added workflow; Avoozl makes no Status write at any point (no Status change by the token's account in any item's history); the running leaf moves to In progress when its pull request opens and to Done when GitHub closes the issue, by `@github-project-automation`; blocked leaves show GitHub's Blocked icon; Release matches each issue's milestone and parents take their children's latest; Iteration is set only where a task's facts name one; the second sync writes nothing. Board drags: the Deferred leaf gets no new session, no linked branch, and no ready label over both ticks, and the owner gets one Kiro Crew notification; dragged back, it resumes and dispatches, and its card stays at Todo; the drag to Done closes the issue through Auto-close issue and the task becomes done by order (P11 proves the release and brief note), with no GitHub comment; the running session under a Deferred card keeps running; the Release change is kept on later ticks, the parent's Release follows it, a facts change moving that task is drafted for review, and nothing is committed; the disallowed account's Deferred drag is not reverted, does not pause dispatch, and shows in Delivery; no board edit opens a conflict. The report says which writer source (timeline, item change record, or value only) was readable. Wave reads a1 1, b1 1, a2 2, b2 3, b3 4 (the `supports` edge adds nothing); a1 stays 1 after it is done and no other wave moves; b3's hand-set 9 is reverted to 4 in the next tick with a Kiro Crew notification; after the edge removal the next tick writes a2 1, b2 2, b3 3 and nothing else, and the tick after it writes nothing; without the scope, Settings reports Project sync unavailable and issue projection still works.
   - Failure means: Project fields cannot be kept current from the tick, the built-in workflows do not move Status as expected, or Deferred cannot be read reliably on a 60-second poll.
   - Next decision: drop Iteration, move field writes from REST to GraphQL, or replace the Deferred order with a pause label. Changed 2026-11-12.
-  - Superseded 2026-11-17: proves per-task GitHub Project sync, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
+  - Superseded 2026-11-17: proves per-task GitHub Project sync, which Phase 56 (R102.20, §4.32) retires and 45.4 deleted; not run.
 - [x] avoozl-p20 P20 Proof: local and github tasks in one workspace [R28.2–R28.5, R31.4]
   - Facts:
     - done:
@@ -854,7 +854,7 @@ new `plans_intake_*` tools. No earlier task changes.
   - Expected: both planning issues close as `COMPLETED` with the pull request as closer within one tick; the Project item moves to Done by `@github-project-automation`; no logged-out fetch and no notification to a code-repository-only watcher names the planning repository; the result for the merger without planning access is recorded either way. Write the receipt under `docs/evidence/` in the Avoozl repository.
   - Failure means: inside an organization GitHub does not close the private issue through a linked branch, or leaks its name.
   - Next decision: if it does not close, fall back to Avoozl closing plans-repo issues after its own verdict (the pre-2026-11-12 rule) for that organization; if it leaks, require a private code repository for plans-repo mode. Must pass before Phase 4 builds on it (4.7) and before Phase 6.
-  - Superseded 2026-11-17: proves linked-branch close of a private task issue inside an organization, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
+  - Superseded 2026-11-17: proves linked-branch close of a private task issue inside an organization, which Phase 56 (R102.20, §4.32) retires and 45.4 deleted; not run.
 
 ## Phase 4: Delivery loops
 
@@ -1038,7 +1038,7 @@ applies to both.
   - Expected: each merges through Issue Radar or GitHub auto-merge under required checks; Avoozl's completion check accepts it; the parent closes after the last child.
   - Failure means: merge needs a human step in this configuration.
   - Next decision: document the repository settings required, or keep merge manual by policy.
-  - Superseded 2026-11-17: its open plans-repo half needs P17 and proves worker auto-merge closing a task issue through a linked branch, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
+  - Superseded 2026-11-17: its open plans-repo half needs P17 and proves worker auto-merge closing a task issue through a linked branch, which Phase 56 (R102.20, §4.32) retires and 45.4 deleted; not run.
 - [x] avoozl-p17 P17 Proof: plans-repo mode in one organization, public code repository [R28.6–R28.11, R31.2]
   - Facts:
     - done:
@@ -1052,7 +1052,7 @@ applies to both.
   - Expected: issues, sub-issues, and the dependency exist only in the planning repository; Avoozl creates the first leaf's linked branch `avoozl/<task-id>` before its brief, and the worker opens a pull request from it with no closing keyword; after merge with passing checks, GitHub closes the planning issue as completed with the pull request as closer, the Item closed workflow sets Status to Done, Avoozl closes nothing and writes no Status, and the second leaf is released in the same tick; neither public pull request, its commits, nor its branch names the planning repository, and the public repository shows no Project event or link into it to a logged-out viewer; the third leaf's leak opens a decision and does not complete until the text is fixed. Changed 2026-11-12.
   - Failure means: plans-repo mode leaks the private repository or cannot complete without a closing keyword.
   - Next decision: tighten the brief and leak screen, or require a private code repository for plans-repo mode.
-  - Superseded 2026-11-17: proves plans-repo task issues, linked branches and Project status, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
+  - Superseded 2026-11-17: proves plans-repo task issues, linked branches and Project status, which Phase 56 (R102.20, §4.32) retires and 45.4 deleted; not run.
 - [x] avoozl-p18 P18 Proof: plans-repo mode across two organizations [R28.10, R31.1]
   - Facts:
     - done:
@@ -1066,7 +1066,7 @@ applies to both.
   - Expected: the P17 results hold across organizations, including GitHub closing the A planning issue through a linked branch in B (changed 2026-11-12); the pull request lookup in B works with read access; the cross-organization sub-issue is accepted (F38); the cross-organization dependency is accepted or refused, and the result is recorded in design F39.
   - Failure means: some part of the loop needs both repositories in one organization.
   - Next decision: if dependencies fail across organizations, refuse cross-organization edges in validation.
-  - Superseded 2026-11-17: proves plans-repo task issues and linked-branch close across two organizations, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
+  - Superseded 2026-11-17: proves plans-repo task issues and linked-branch close across two organizations, which Phase 56 (R102.20, §4.32) retires and 45.4 deleted; not run.
 - [x] avoozl-p19 P19 Proof: single-repo mode end to end [R28.9, R16, R31.1]
   - Facts:
     - done:
@@ -3707,7 +3707,7 @@ GitHub, and a race between two workers shows exactly one claim wins.
 Requirement 92 (design §4.27). Owner decision 2026-11-17: no Issues or Pull
 requests pages; specs and in-flight work link to their GitHub items instead.
 No dedicated SCM links page. Phase 44 is no longer paused and Phase 45 is no
-longer paused (45.2 merged in #509; 45.4 waits on P53, P54 and P66).
+longer paused (45.2 merged in #509).
 Screenshot approval remains owner work.
 
 - [x] 44.1 One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3, 56.8, 56.14 [R92.1, R92.2, R92.3] (§4.27)
@@ -3802,7 +3802,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
   - Facts:
     - done:
       - Delete the remote coder, the relay and the router chat with their agents
-- [ ] 45.4 Retire shared task projection and synchronization callers, after 45.1, 45.2, 45.3, avoozl-p54, 56.5, 56.9, avoozl-p66 [R86.1, R91.2, R91.3, R102.20] (§4.32)
+- [x] 45.4 Retire shared task projection and synchronization callers, after 45.1, 45.2, 45.3, avoozl-p54, 56.5, 56.9, avoozl-p66 [R86.1, R91.2, R91.3, R102.20] (§4.32)
   - Facts:
     - done:
       - Retire shared task projection and synchronization callers
@@ -3811,6 +3811,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
   - Remove per-task projection, Project sync, issue close/completion/rebuild and old driver markers after binding retirement and replacement proofs. Keep spec issue publication, epic links, journals, explicit export, ranking, setup, receipts and the executor seam. No task-issue reconciliation remains.
   - The `coder` setting and every coder route are removed by 45.6; this task removes what is left of the shared callers, including the Radar-only operations 45.6 left answering empty (`radar.releasequeue` rows, `radar.flow` reads, `radar.mergepath` without a repository, `radar.preflight`, `untriaged.plan`) and the Release queue card that shows them.
   - Changed 2026-11-18: P53 (two machines claiming) is no longer a prerequisite; it stays its own person-run proof.
+  - Owner decision 2026-11-18: per-task issues are retired outright (R102, Phase 56), with the rule-driven deliver, breakdown and issue planner path, rebuild from GitHub and the issue export. The Radar-only operations above and the Release queue card stay for their own cleanup; they make no task issue.
 
 - [x] 45.6 Remove Who codes; the Avoozl worker is the only coder [R86.1, R91.6] (§4.26)
   - Facts:
@@ -3820,7 +3821,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
   - Delete `CODERS`, the coder default by mode, the schema's `coder` property and every `coder === "issue-radar"` branch (operations, plans-repo coverage, marker, projection hand-over and coder split, integration sync, coder adapter, Radar release queue, merge path, conflict fixes, crew claim reconcile, Radar source, Radar flow); delete modules left with no caller. The UI loses `CoderPicker.tsx` and its coding tour, `CODER_CARDS`, `coderSource`, `defaultCoder`, the Who codes field and summary, the Radar crew card and the Workflow map's Who codes step.
   - A stored `coder` loads and is ignored with no warning (one test). Keep Radar intake (56.8), Radar escalations in Triage (56.14), back-links (44.6) and Settings › Issue Radar; one test shows a `coder: issue-radar` repository still feeds Triage and its Radar escalations. Screenshots of Repository setup and Settings › Issue Radar under `docs/evidence/remove-who-codes/`.
 
-- [ ] 45.5 Docs say one path; old names stay deleted, after 45.4, 45.6 [R91.4] (§4.26)
+- [x] 45.5 Docs say one path; old names stay deleted, after 45.4, 45.6 [R91.4] (§4.26)
   - Facts:
     - done:
       - Docs say one path; the narrow `plans_*` tools an agent, prompt or brief names still resolve, and no old environment or command name (`AICOMMANDER_*`, `NUPP_WORKSPACE_*`, `aicommander`) comes back.
@@ -3828,8 +3829,9 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
     - after: 45.4, 45.6
   - `docs/research/` and `docs/evidence/` untouched except new receipts.
   - Changed 2026-11-18: backward compatibility was removed by #698, which deleted the old names and rewrote R91.4. What is left is the docs after 45.4.
+  - README, docs/policies.md and docs/plugins.md describe one path: a task lands, and an issue is only linked. `src/app/test/compatibility.test.mjs` checks that only `AVOOZL_*`, the `avoozl` command and the narrow `plans_*` tools remain.
 
-- [ ] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5, 45.6 [R91] (§4.26)
+- [x] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5, 45.6 [R91] (§4.26)
   - Facts:
     - done:
       - Proof: after removal there is one delivery path
@@ -3840,6 +3842,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
   - Expected: the task lands; no Radar, relay, router or crew agent or module remains; the narrow `plans_*` tools resolve and no old name does.
   - Failure means: removal broke the loop or a narrow tool, or an old name still answers.
   - Next decision: restore the removed piece.
+  - Receipt: docs/evidence/p55-one-delivery-path.md (2026-11-19). The task landed; no crew, relay, router or remote coder agent or module remains; the names R91.4 keeps resolve. Radar intake modules stay (R91.6), and the Radar coder leftovers stay for their own cleanup.
 
 ## Phase 46: Name the executor seam
 
@@ -4430,6 +4433,7 @@ proof or run a real workspace to get past that wait.
   - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
   - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.
+  - Owner decision 2026-11-18: 45.4 deleted the export with per-task issues.
 
 - [x] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
   - Facts:
@@ -4677,7 +4681,7 @@ Owner request 2026-11-18 (Requirement 109, design §4.38). One build task.
 ## Phase 63: One intake list
 
 Owner decision 2026-11-18 (Requirement 110, design §4.39;
-`docs/simplification-audit.md` item 6). One build task. Other
+`docs/research/simplification-audit.md` item 6). One build task. Other
 simplification items run in parallel and touch settings files; merge main
 often and keep theirs on a clash.
 

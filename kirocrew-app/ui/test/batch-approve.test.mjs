@@ -53,9 +53,8 @@ test('Approve N specs sends each shown hash and uses small buttons in the shared
 test('the approve dialog lists specs in a bordered table that scrolls on its own', () => {
   assert.match(plans, /<Box data-approve-list css-border-color="border" overflow="x-auto" rounded="base" border="all">/)
   assert.match(plans, /css-table-layout="fixed"/)
-  assert.match(plans, /<Box\s+as="th"[^>]*css-text-align="right"\s+css-font-variant-numeric="tabular-nums"\s*>\s*Writes\s*<\/Box>/)
-  // A phone shows the name and writes; the rest is in the row tooltip.
-  assert.match(plans, /props\.phone \? \['auto', '5rem'\]/)
+  // A phone shows the name; the rest is in the row tooltip.
+  assert.match(plans, /props\.phone \? \['auto'\]/)
   assert.match(plans, /<Tooltip text=\{tip\} display="block">/)
 })
 
@@ -65,5 +64,4 @@ test('every Specs page button uses the compact host style, one primary per group
   // A spec's Approve is the header's one primary button (data-spec-primary).
   assert.match(plans, /approve: \{ label: 'Approve', icon: ClipboardCheck/)
   assert.match(plans, /<Btn\s+type="button"\s+primary\s+data-spec-primary=\{primary\}/)
-  assert.match(plans, /<TipBtn primary \{\.\.\.COMPACT\}/)
 })

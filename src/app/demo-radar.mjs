@@ -212,17 +212,18 @@ export function seedRadar(store, { repository, now = Date.now() }) {
   });
   store.mutate("Demo Radar state", (data) => {
     const by = new Map(data.tasks.map((task) => [task.id, task]));
-    // Two pull requests merged: GitHub's word on them, which Flow, the phase
-    // gates and the side panel's recent merges read.
+    // Two pull requests merged and landed, which Flow, the phase gates and
+    // the side panel's recent merges read.
     for (const [id, pr] of [
       ["recipe-import.1.1", 20],
       ["recipe-import.1.2", 21],
-    ])
-      by.get(id).githubVerdict = {
-        state: "verified",
-        mergedAt: radarOverlay(now, repository).pulls[pr].merged_at,
-        pullRequest: pr,
+    ]) {
+      const pull = radarOverlay(now, repository).pulls[pr];
+      by.get(id).integration = {
+        commit: "c".repeat(40),
+        at: pull.merged_at,
       };
+    }
     // The ready label is on: Draco has claimed the first, nobody the second.
     by.get("recipe-import.2.1").dispatch = { ready: true };
     by.get("shopping-list.1.1").dispatch = { ready: true };

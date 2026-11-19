@@ -19,20 +19,20 @@ const fn = (text, name) => {
 
 test('the repository, workspace and plugin dialogs group fields with FormSection, not boxes', () => {
   const modals = source('RepositoryModals.tsx')
-  assert.match(slice(modals, 'export function ViewRepository', 'export function EditRepository'), /<FormSection title="Repository">/)
-  assert.match(slice(modals, 'export function EditRepository'), /<FormSection title="Role">/)
-  assert.match(slice(modals, 'export function EditRepository'), /<FormSection title="Public repository"/)
+  assert.match(slice(modals, 'export function ViewRepository', 'export function EditRepository'), /<FieldGroup title="Repository">/)
+  assert.match(slice(modals, 'export function EditRepository'), /<FieldGroup title="Role">/)
+  assert.match(slice(modals, 'export function EditRepository'), /<FieldGroup title="Public repository"/)
   const settings = source('SettingsView.tsx')
   for (const from of ['export function RepositoryEditor(', 'function LocalRepository(', 'function MirrorBox(', 'function UntriagedSettings(', 'function ReviewRoles(']) {
     const body = fn(settings, from)
-    assert.match(body, /<FormSection/, from)
-    assert.doesNotMatch(body, /<Card|<Section\b|<FieldBox|rounded(-lg)? border/, from)
+    assert.match(body, /<FieldGroup/, from)
+    assert.doesNotMatch(body, /<Card|<Section\b|<FieldGroup boxed|rounded(-lg)? border/, from)
   }
   const workspace = slice(source('WorkspaceView.tsx'), 'id="avoozl-ws-edit"', 'id="avoozl-ws-remove"')
-  assert.match(workspace, /<FormSection title="Workspace">[\s\S]*<FormSection title="Running">/)
-  assert.match(slice(source('AddPlugin.tsx'), 'data-plugin-review'), /<FormSection title="Settings pack"/)
+  assert.match(workspace, /<FieldGroup title="Workspace">[\s\S]*<FieldGroup title="Running">/)
+  assert.match(slice(source('AddPlugin.tsx'), 'data-plugin-review'), /<FieldGroup title="Settings pack"/)
   // One shared part, with the border in the theme's color.
-  const part = source('FormSection.tsx') + source('ui/PageStyles.tsx')
+  const part = source('ui/FieldGroup.tsx') + source('ui/PageStyles.tsx')
   assert.match(part, /\[data-form-section\] ~ \[data-form-section\] \{ border-top: 1px solid var\(--border\); padding-top: 16px; \}/)
 })
 

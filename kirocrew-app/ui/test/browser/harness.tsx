@@ -34,9 +34,6 @@ import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
-import { ProjectionModal } from '../../src/ProjectionModal.tsx'
-import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
-import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import type { EditTab } from '../../src/repo-edit-tabs.ts'
@@ -115,69 +112,6 @@ answer('graph.view', () => ({
   ],
 }))
 
-// Project to GitHub and Spec changed: sample replies. Every call is recorded
-// in __harness.calls so a test can see what was written and when.
-const write = (kind: string, taskId: string | null, extra = {}) => ({ kind, repository: 'example/recipe-box', taskId, issue: null, ...extra })
-answer('plan.issues.preview', (body) => {
-  state.calls.push(body)
-  const batched = ((body.input as { batches?: string[][] }).batches ?? []).length > 0
-  const ids = ['S1', 'S2', 'S3', 'S7', 'S8']
-  return {
-    planId: 'search-v2',
-    planHash: 'h',
-    conflicts: [],
-    notes: ['Project fields: Release "search-v2", Wave 1 to 3.'],
-    previewOnly: [],
-    project: { status: 'ok' },
-    simulated: false,
-    // 927 issues, their sub-issue and blocked-by links, at the default pace.
-    pace: { writes: 1813, perMinute: 60, perHour: 400, finishAt: '2026-11-15T14:04:00.000Z', minutes: 244 },
-    suggestedBatches: [['S1', 'S2', 'S3']],
-    writes: [
-      ...ids
-        .filter((id) => !(batched && ['S2', 'S3'].includes(id)))
-        .map((id) => write('issue.create', id, { title: `Task ${id}: a title long enough to wrap on a narrow screen` })),
-      write('blocker.add', 'S8', { blockerTaskId: 'S7' }),
-      ...ids.map((id) => write('project.add', id)),
-      write('label.add', 'S1', { labels: ['ready'] }),
-    ],
-  }
-})
-answer('github.project', (body) => {
-  state.calls.push(body)
-  return { projected: ['search-v2'] }
-})
-const changeRow = (taskId: string, title: string, change: string, issueState: string, action: string, text: string, number: number | null) => ({
-  taskId,
-  title,
-  change,
-  issueState,
-  action,
-  text,
-  number,
-  repository: 'example/recipe-box',
-})
-answer('spec.changed.preview', (body) => {
-  state.calls.push(body)
-  return {
-    planId: 'search-v2',
-    hash: 'h2',
-    approved: query.get('approved') !== '0',
-    applied: null,
-    rows: [
-      changeRow('S8', 'Ranking: acceptance edited', 'edited', 'unclaimed', 'update', 'Update the issue body and the approval hash.', 54),
-      changeRow('S5', 'Index builder: new step', 'edited', 'claimed', 'comment', 'Do not edit. Comment that the spec changed.', 52),
-      changeRow('S14', 'Telemetry', 'added', 'none', 'create', 'Create the issue.', null),
-      changeRow('S12', 'Docs', 'removed', 'unclaimed', 'close', 'Close as not planned.', 58),
-    ],
-  }
-})
-answer('spec.changed.apply', (body) => {
-  state.calls.push(body)
-  return { planId: 'search-v2', done: [] }
-})
-const projections = projectionClient(useAppApi() as never)
-
 const row = {
   key: 'p1',
   kind: 'spec',
@@ -250,7 +184,6 @@ const baseDetail = () => ({
     context: '',
     manual: true,
     manualDone: null,
-    onGitHub: true,
   },
   plan: null,
   locked: null,
@@ -494,11 +427,9 @@ export const SCENARIOS: Record<string, Scenario> = {
       <TaskFiles workspaceId="w" taskId="a1" active />
     </div>
   )),
-  projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
-  'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
   'review-info': own('Open the dialog', <OpenReview />),
-  'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
+  'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
   // New spec with nothing picked: categories and epics to choose from.
   'new-spec': shown((close) =>
@@ -846,19 +777,13 @@ if (query.get('page') === 'app') {
   const roles = query.get('roles')
   const rolesGithub =
     roles === 'single'
-      ? {
-          mode: 'single-repo',
-          defaultAuthority: 'github',
-          repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } },
-        }
+      ? { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
       : roles === 'local'
         ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
         : {
             mode: 'plans-repo',
             planningRepository: 'acme/plans',
-            defaultAuthority: 'github',
             epicIssueType: 'Epic',
-            project: { owner: 'acme', number: 7 },
             repositories: {
               'acme/recipe-box': {
                 baseBranch: 'main',
@@ -1091,7 +1016,6 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
     items: [
       need('n1', 'decision', 's2', 'Rank results by cooking time', 'Pick a ranking rule: total time, or active time only. Dependents wait on this answer.'),
       need('n2', 'needs-human', 'm2', 'Scale servings in the recipe card', 'The crew asks whether servings round up or down when scaling.'),
-      need('n3', 'github-conflict', 'm1', 'Add the shopping list export', 'The title changed on GitHub and in Avoozl. Pick the one to keep.'),
       need('n4', 'branch-landing', null, 'Search v2 integration branch', 'Checks passed on the branch head. Approve it to land on main.'),
     ],
   }))
@@ -1195,6 +1119,25 @@ if (query.get('page') === 'app' && query.get('inline') === '1') installInlineFix
 // with Plan this and Deliver this) and one in Needs you with the same two
 // buttons. &escalations=before: the same issues as main's backend sends
 // them, with no escalation fields (task 56.14's before/after shots).
+// &crewmode=1: a workspace a Crew Mode conductor drove, held for a person.
+if (query.get('page') === 'app' && query.get('crewmode') === '1') {
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: [
+      {
+        kind: 'needs-human',
+        reason: 'crew-mode',
+        id: 'crew-mode',
+        taskId: null,
+        title: 'The tick does not start this workspace yet',
+        detail:
+          'This workspace\'s .avoozl.json still says "runner": "crew-mode", from before the tick started every task. Avoozl starts nothing here until you let the tick run it.',
+        hash: 'h1',
+      },
+    ],
+  }))
+  answer('delivery.runner.release', () => ({ released: true }))
+}
 if (query.get('page') === 'app' && query.get('escalations')) {
   const after = query.get('escalations') === 'after'
   const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
@@ -1416,7 +1359,6 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
           authority: 'local',
           route: 'local',
           issue: null,
-          onGitHub: false,
           state: 'running',
           status: 'running',
           repository: 'recipe-box',
@@ -2305,9 +2247,6 @@ const PAGES: Record<string, () => ReactNode> = {
   'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
-  // The two modals, open at once, for the screenshots.
-  projection: () => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onCreated={() => undefined} />,
-  'spec-changed': () => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onApplied={() => undefined} />,
 }
 function SettingsPage({ name }: { name: string }) {
   const render = PAGES[name]
@@ -2986,14 +2925,6 @@ if (page === 'panel') {
             detail: 'Draco: tokenizer A or B? Crew paused with the needs-human label.',
             link: 'https://github.test/acme/recipe-box/issues/52',
           },
-          {
-            kind: 'github-conflict',
-            taskId: 'S8',
-            field: 'title',
-            title: 'Ranking: acceptance edited',
-            detail: 'Someone changed the title on GitHub.',
-            choices: ['desired', 'github'],
-          },
           { kind: 'stale-session', taskId: 'S9', title: 'A retired worker row', detail: 'must not show' },
         ]
       : [],
@@ -3087,7 +3018,6 @@ if (page === 'panel') {
         ),
     }
   })
-  answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
   // The line, read by the pause button: ?stopped=1 opens a stop; Resume closes it.
   let panelStops = query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : []
   answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [], retros: [] }))

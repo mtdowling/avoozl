@@ -161,6 +161,14 @@ protected paths, run the checks on that head, and hand it to the landing
 queue (R90.2). A fetched result that fails is a failed attempt on the
 driver, not on the worker machine.
 
+With `workers.offerTo` set (WP5.7), the driver's tick first offers
+(`src/app/worker-offer-step.mjs`): each ready task of a driven spec goes to
+each named login once, at the base branch's head, and is held from local
+dispatch. The same step answers claim requests as `spec claims` does. After
+a result is checked into the working branch, the tick lands that branch on
+the base branch in the driver's checkout: a fast-forward, after merging a
+moved base in, never a rebase.
+
 Removed: the driver half of `remote-runner.mjs` (V: `commandFor`,
 `transportFor`, `handoff`, `pullStatus`, `remoteView` and `driverTick`,
 about 210 lines from `:619`), the `remote.accept`, `remote.handoff` and

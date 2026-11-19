@@ -37,10 +37,11 @@ import { Row } from './ui/Row'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink, PlainTextarea } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
+import { TONE } from './ui/tones.ts'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
 
-const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Delivery', 'github-conflict': 'GitHub edit', manual: 'Manual' }
+const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Delivery', manual: 'Manual' }
 
 // Needs you shows this many cards (two rows of three); the rest are one
 // click away in Needs you.
@@ -274,7 +275,7 @@ export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
               css-width="16"
               css-height="8"
               css-border-radius="3"
-              css-background={step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)'}
+              css-background={step.state === 'done' ? TONE.ok : step.state === 'now' ? TONE.accent : TONE.border}
             />
           ))}
         </Box>
@@ -431,9 +432,13 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
     }
   }
   return (
-    <form
+    <Box
       data-send-message
-      className="mt-1 flex flex-col gap-1"
+      as="form"
+      mt="1"
+      flex
+      flexCol
+      gap="1"
       onSubmit={(event) => {
         event.preventDefault()
         void send()
@@ -462,7 +467,7 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
           {state.kind === 'queued' ? 'Queued; it goes in when the run ends.' : state.kind === 'error' ? state.message : ''}
         </Hint>
       </Box>
-    </form>
+    </Box>
   )
 }
 

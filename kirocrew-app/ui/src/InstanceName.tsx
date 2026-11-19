@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Input } from './ui/Input'
 import { useAppApi } from './host.ts'
-import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
+import { Field, fieldDescribedBy } from './ui/Field.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { NAME_RULE, instanceClient, nameFor, validName, type InstanceView } from './instance-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -69,7 +69,7 @@ export function InstanceNickname(props: { workspaceId: string }) {
   }
   return (
     <Stack data-instance-nickname gap={2}>
-      <FieldRow
+      <Field
         id="avoozl-instance-nickname"
         label="Nickname"
         width="md"
@@ -87,7 +87,7 @@ export function InstanceNickname(props: { workspaceId: string }) {
             setOk(null)
           }}
         />
-      </FieldRow>
+      </Field>
       <SaveFooter
         dirty={dirty}
         saving={saving}

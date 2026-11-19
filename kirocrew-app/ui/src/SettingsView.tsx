@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { CheckRow, FieldRow, Marker, RawKey, fieldDescribedBy, type FieldWidth } from './FieldRow.tsx'
+import { CheckRow, Field, Marker, RawKey, fieldDescribedBy, type FieldWidth } from './ui/Field.tsx'
 import { Tabs, TabPanel, useTabParam } from './ui/Tabs.tsx'
 import { dirtyTabs } from './tabs.ts'
 import { useAppApi } from './host.ts'
@@ -11,8 +11,6 @@ import Badge from './ui/Badge.tsx'
 import { RoleHelp } from './RoleHelp.tsx'
 import {
   MANAGED_LABEL_TEXT,
-  PROJECT_DEFAULTS,
-  PROJECT_FIELD_RULES,
   REPOSITORY_FIELD_RULES,
   checkRows,
   emptyRepository,
@@ -44,7 +42,6 @@ import {
   type SettingsChoices,
   type SettingsForm,
   LOCAL_HIDDEN_LINE,
-  SUB_ISSUE_LINE,
   OLD_LABEL_NOTE,
   isGitHubMode,
   rateLines,
@@ -63,7 +60,6 @@ import {
   tasksLiveLine,
   withRepositoryEdit,
   unusedInLocal,
-  visibleSettings,
   SETTINGS_HOME,
   settingsTitle,
 } from './settings-api.ts'
@@ -76,7 +72,7 @@ import SetupRepository from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
 import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
 import type { EditTab } from './repo-edit-tabs.ts'
-import { FormSection } from './FormSection.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import IsolationPanel from './IsolationPanel.tsx'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import PluginsSettings from './PluginsSettings.tsx'
@@ -157,13 +153,6 @@ export const REPOSITORY_BLURBS = {
   reviews: "Avoozl follows this branch's review rule on GitHub. To change it, change the rule on GitHub.",
 } as const
 
-const FIELD_LABELS: Record<string, string> = {
-  status: 'Status field',
-  release: 'Release field',
-  wave: 'Wave field',
-  iteration: 'Iteration field',
-  avoozlState: 'Avoozl state field',
-}
 // The escalation label is Issue Radar's "needs-human label" setting. A crew
 // adds it when it gives an issue up, and Avoozl takes such an issue in, so
 // the name Avoozl recommends does not say a person is needed.
@@ -173,21 +162,15 @@ const CREW_LABELS: Record<string, string> = {
   claim: 'Claim label',
   needsHuman: 'Escalation label',
 }
-const STATUS_LABELS: Record<string, string> = {
-  todo: 'Ready option',
-  inProgress: 'In progress option',
-  done: 'Done option',
-  deferred: 'Deferred option',
-}
 
-// Every field here is the shared FieldRow (FieldRow.tsx).
+// Every field here is the shared Field (ui/Field.tsx).
 export { Marker }
 
-function Field(props: { id: string; label: string; raw?: string; rule?: FieldRule; width?: FieldWidth; help?: string; children: ReactNode }) {
+function SettingField(props: { id: string; label: string; raw?: string; rule?: FieldRule; width?: FieldWidth; help?: string; children: ReactNode }) {
   return (
-    <FieldRow id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
+    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
       {props.children}
-    </FieldRow>
+    </Field>
   )
 }
 
@@ -204,7 +187,7 @@ function Text(props: {
   help?: string
 }) {
   return (
-    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
+    <SettingField id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
       <Input
         id={props.id}
         type={props.type}
@@ -214,7 +197,7 @@ function Text(props: {
         aria-required={props.rule?.required || undefined}
         onChange={(event) => props.onChange(event.target.value)}
       />
-    </Field>
+    </SettingField>
   )
 }
 
@@ -230,7 +213,7 @@ function Choice(props: {
   width?: FieldWidth
 }) {
   return (
-    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
+    <SettingField id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
       <SelectField id={props.id} value={props.value} aria-describedby={fieldDescribedBy(props.id, props)} onChange={(event) => props.onChange(event.target.value)} look="field">
         <option value="">{props.none}</option>
         {props.options.map((option) => (
@@ -239,7 +222,7 @@ function Choice(props: {
           </option>
         ))}
       </SelectField>
-    </Field>
+    </SettingField>
   )
 }
 
@@ -317,7 +300,7 @@ function MatchField(props: {
   const errorId = `${props.id}-error`
   return (
     <Box flex minW0 flexCol gap="1" size="sm">
-      <Field
+      <SettingField
         id={props.id}
         label={untriaged ? 'Untriaged filter' : 'Matches issues'}
         raw={untriaged ? 'untriaged.filter' : 'match'}
@@ -340,7 +323,7 @@ function MatchField(props: {
         <Box as="span" size="xs" tone="muted">
           {MATCH_HELP}
         </Box>
-      </Field>
+      </SettingField>
       {!line && (
         <Box as="span" size="xs" tone="muted">
           {untriaged
@@ -450,7 +433,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
   const toggle = (name: string, on: boolean) =>
     set({ triageLabels: on ? [...value.triageLabels, name] : value.triageLabels.filter((label) => label.toLocaleLowerCase() !== name.toLocaleLowerCase()) })
   return (
-    <FormSection level={4} title="Untriaged" blurb="What Needs you › Triage lists for this repository: open issues and pull requests no rule, triage label or task covers.">
+    <FieldGroup level={4} title="Untriaged" blurb="What Needs you › Triage lists for this repository: open issues and pull requests no rule, triage label or task covers.">
       <MatchField
         id={`${id}-untriaged-filter`}
         value={value.filter}
@@ -525,7 +508,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
           onChange={(notify) => set({ notify })}
         />
       </Row>
-    </FormSection>
+    </FieldGroup>
   )
 }
 
@@ -550,12 +533,6 @@ function RuleEditor(props: { id: string; rule: RuleForm; actions: string[]; repo
       </Box>
       <MatchField id={`${id}-match`} value={rule.match} repository={props.repository} workspaceId={props.workspaceId} onChange={(value) => set({ match: value })} />
       <Row gap={3}>
-        <CheckRow
-          label="Publish a clean breakdown's sub-issues without a re-label"
-          raw="autoPublishChildren"
-          checked={rule.autoPublishChildren}
-          onChange={(autoPublishChildren) => set({ autoPublishChildren })}
-        />
         <Box as="span" ml="auto">
           <DangerBtn
             icon={Trash2}
@@ -601,7 +578,7 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
   const own = review.repositories[repository]
   const roles = own ?? review.reviewers
   return (
-    <FormSection
+    <FieldGroup
       level={4}
       title="Avoozl reviewer chats"
       blurb="Fresh chats that review each local delivery's exact commit before it merges. Edit them under delivery.reviewers in .avoozl.json."
@@ -620,7 +597,7 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
           <Roles roles={roles} />
         </>
       )}
-    </FormSection>
+    </FieldGroup>
   )
 }
 
@@ -753,7 +730,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
   const { mirror, id } = props
   const set = (change: Partial<MirrorForm>) => props.onChange({ ...mirror, ...change })
   return (
-    <FormSection title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
+    <FieldGroup title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
       <Box {...grid()}>
         <Text id={`${id}-source`} label="Public repository" raw="mirror.source" placeholder="owner/name" value={mirror.source} onChange={(value) => set({ source: value })} />
         <Text id={`${id}-mirror`} label="Private mirror" raw="mirror.mirror" placeholder="owner/name-private" value={mirror.mirror} onChange={(value) => set({ mirror: value })} />
@@ -851,7 +828,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
         </Box>
         <CheckRow label="Squash into one commit" help="On by default." raw="mirror.squash" checked={mirror.squash} onChange={(squash) => set({ squash })} />
       </Fold>
-    </FormSection>
+    </FieldGroup>
   )
 }
 
@@ -914,11 +891,11 @@ export function RepositoryEditor(props: {
     }
   }, [tab, name, repository.baseBranch, props.workspaceId, inspectRepository])
   // Fragments: its sections are siblings of the dialog's own, so the shared
-  // FormSection rule draws the line between them.
+  // FieldGroup rule draws the line between them.
   return (
     <>
       {tab === 'general' && (
-        <FormSection title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
+        <FieldGroup title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
           <Box as="p" size="xs" tone="muted">
             Workspace mode:{' '}
             <Box as="span" css-color="text" weight="medium">
@@ -937,11 +914,11 @@ export function RepositoryEditor(props: {
               onChange={(value) => set({ name: value })}
             />
           </Box>
-        </FormSection>
+        </FieldGroup>
       )}
       {tab === 'landing' && (
         <>
-          <FormSection title="Where tasks land" blurb={REPOSITORY_BLURBS.landing}>
+          <FieldGroup title="Where tasks land" blurb={REPOSITORY_BLURBS.landing}>
             <Box {...grid()}>
               <Text
                 id={`${id}-base`}
@@ -966,8 +943,8 @@ export function RepositoryEditor(props: {
                 onChange={(value) => set({ releaseCapacity: value })}
               />
             </Box>
-          </FormSection>
-          <FormSection title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
+          </FieldGroup>
+          <FieldGroup title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
             <Box {...grid()}>
               <Choice
                 id={`${id}-landing-mode`}
@@ -982,17 +959,17 @@ export function RepositoryEditor(props: {
               />
             </Box>
             <AutoMergeFields id={id} repository={repository} set={set} inherited={inheritedShip} />
-          </FormSection>
-          <FormSection title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
+          </FieldGroup>
+          <FieldGroup title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
             <MergeMethodFields id={id} repository={repository} set={set} />
-          </FormSection>
-          <FormSection title={CREW_PART_TEXT.conflicts.title} blurb={CREW_PART_TEXT.conflicts.blurb}>
+          </FieldGroup>
+          <FieldGroup title={CREW_PART_TEXT.conflicts.title} blurb={CREW_PART_TEXT.conflicts.blurb}>
             <ConflictFields id={id} repository={repository} set={set} />
-          </FormSection>
-          <FormSection title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
+          </FieldGroup>
+          <FieldGroup title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
             <ChecksEditor id={id} value={repository.requiredChecks} inspect={inspect} repository={name} onChange={(value) => set({ requiredChecks: value })} />
-          </FormSection>
-          <FormSection title="Pull-request reviews" blurb={REPOSITORY_BLURBS.reviews}>
+          </FieldGroup>
+          <FieldGroup title="Pull-request reviews" blurb={REPOSITORY_BLURBS.reviews}>
             <ReviewRule
               inspect={inspect}
               repository={name}
@@ -1000,13 +977,13 @@ export function RepositoryEditor(props: {
               approvals={repository.reviewApprovals}
               onDropDeprecated={() => set({ pullRequestReviews: false, reviewApprovals: '' })}
             />
-          </FormSection>
+          </FieldGroup>
           <ReviewRoles review={props.review} repository={name} />
         </>
       )}
       {tab === 'github' && (
         <>
-          <FormSection title="Sync" blurb="How long Avoozl keeps GitHub's answers about this repository before it asks again.">
+          <FieldGroup title="Sync" blurb="How long Avoozl keeps GitHub's answers about this repository before it asks again.">
             <Box {...grid()}>
               <Text
                 id={`${id}-cache`}
@@ -1020,8 +997,8 @@ export function RepositoryEditor(props: {
                 onChange={(value) => set({ cacheSeconds: value })}
               />
             </Box>
-          </FormSection>
-          <FormSection title="Label rules" blurb={REPOSITORY_BLURBS.github}>
+          </FieldGroup>
+          <FieldGroup title="Label rules" blurb={REPOSITORY_BLURBS.github}>
             {repository.rules.length === 0 && (
               <Box as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm" tone="muted">
                 <span>No rules yet, so labels start nothing. Add one to let a label start work.</span>
@@ -1055,11 +1032,8 @@ export function RepositoryEditor(props: {
             <div>
               <Btn onClick={() => set({ rules: [...repository.rules, emptyRule()] })}>Add rule</Btn>
             </div>
-          </FormSection>
-          <FormSection
-            title="Managed labels"
-            blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict."
-          >
+          </FieldGroup>
+          <FieldGroup title="Managed labels" blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict.">
             <Box {...grid(200)}>
               {/* Ready is edited with Avoozl's other labels in Crews and rules. */}
               {choices.managedLabels
@@ -1076,9 +1050,9 @@ export function RepositoryEditor(props: {
                   />
                 ))}
             </Box>
-          </FormSection>
+          </FieldGroup>
           <UntriagedSettings id={id} value={repository.untriaged} repository={name} workspaceId={props.workspaceId} onChange={(untriaged) => set({ untriaged })} />
-          <FormSection
+          <FieldGroup
             title="Who counts"
             blurb="GitHub still decides who has access. This sets how much GitHub permission a person needs for a label, a board drag or a close to count."
           >
@@ -1105,8 +1079,8 @@ export function RepositoryEditor(props: {
                 onChange={(value) => set({ allowedActors: value })}
               />
             </Row>
-          </FormSection>
-          <FormSection title="Priority" blurb="Ready tasks carrying a higher label here start first.">
+          </FieldGroup>
+          <FieldGroup title="Priority" blurb="Ready tasks carrying a higher label here start first.">
             <Text
               id={`${id}-priority`}
               label="Priority labels, highest first"
@@ -1117,12 +1091,12 @@ export function RepositoryEditor(props: {
               value={repository.priority}
               onChange={(value) => set({ priority: value })}
             />
-          </FormSection>
+          </FieldGroup>
         </>
       )}
       {tab === 'mirror' && <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />}
       {tab === 'map' && (
-        <FormSection title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+        <FieldGroup title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
           <WorkflowMap
             workspaceId={props.workspaceId}
             mode={props.mode}
@@ -1134,7 +1108,7 @@ export function RepositoryEditor(props: {
               setPending(jump)
             }}
           />
-        </FormSection>
+        </FieldGroup>
       )}
     </>
   )
@@ -1263,7 +1237,7 @@ function RepositoriesTab(props: {
       return {
         tabs: [],
         body: tab === 'general' && (
-          <FormSection title="Settings" blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
+          <FieldGroup title="Settings" blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
             <IconLabel
               icon={Plus}
               tooltip="Add an entry you can change; written when you press Save"
@@ -1271,18 +1245,18 @@ function RepositoriesTab(props: {
             >
               Add GitHub settings for {row.github}
             </IconLabel>
-          </FormSection>
+          </FieldGroup>
         ),
       }
     return {
       tabs: ['landing'],
       body: tab === 'landing' && (
-        <FormSection title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
+        <FieldGroup title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
           <Box as="p" size="sm" data-local-checks>
             Required checks apply only to GitHub pull requests. Here Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches
             them.
           </Box>
-        </FormSection>
+        </FieldGroup>
       ),
     }
   }
@@ -1401,18 +1375,18 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
   const { row, tab } = props
   if (tab === 'general')
     return (
-      <FormSection title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
+      <FieldGroup title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
         {props.kept && (
           <Box as="p" size="xs" tone="muted">
             Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.
           </Box>
         )}
-      </FormSection>
+      </FieldGroup>
     )
   if (tab === 'landing')
     return (
       <>
-        <FormSection title="Where tasks land">
+        <FieldGroup title="Where tasks land">
           <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm">
             <Box as="dt" tone="muted">
               Landing branch
@@ -1424,15 +1398,15 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
           <Box as="p" size="sm" data-local-checks>
             Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches them.
           </Box>
-        </FormSection>
+        </FieldGroup>
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />
       </>
     )
   if (tab === 'map')
     return (
-      <FormSection title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+      <FieldGroup title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
         <WorkflowMap workspaceId={props.workspaceId} mode="local" repository={{ ...emptyRepository(row.name), baseBranch: row.branch }} />
-      </FormSection>
+      </FieldGroup>
     )
   return null
 }
@@ -1443,9 +1417,8 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
 // and a tab with unsaved changes shows a dot. Switching a role never
 // deletes a stored setting.
 export const GITHUB_TABS = [
-  { key: 'issues', label: 'New tasks' },
+  { key: 'issues', label: 'Epic issues' },
   { key: 'sync', label: 'Sync pace' },
-  { key: 'project', label: 'Project' },
   { key: 'setup', label: 'Set up GitHub' },
   { key: 'calls', label: 'GitHub calls' },
 ] as const
@@ -1453,9 +1426,8 @@ export type GitHubTab = (typeof GITHUB_TABS)[number]['key']
 const GITHUB_TAB_KEYS = GITHUB_TABS.map((tab) => tab.key)
 // The form keys each tab edits; Set up and GitHub calls edit none.
 export const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[]> = {
-  issues: ['defaultAuthority', 'epicIssueType', 'maxPerParent', 'includeDone'],
+  issues: ['epicIssueType'],
   sync: ['cacheSeconds', 'writesPerMinute', 'writesPerHour'],
-  project: ['projectOwner', 'projectNumber', 'fields', 'statusValues'],
   setup: [],
   calls: [],
 }
@@ -1468,9 +1440,8 @@ function WorkspaceGitHub(props: {
   setup: ReactNode
   rate: RateView | undefined
 }) {
-  const { form, choices, set } = props
+  const { form, set } = props
   const [tab, pick] = useTabParam<GitHubTab>('github', GITHUB_TAB_KEYS, 'issues', 'Back to the last GitHub tab')
-  const shown = visibleSettings(form.mode)
   const kept = unusedInLocal(form)
   if (!isGitHubMode(form.mode))
     return (
@@ -1500,19 +1471,8 @@ function WorkspaceGitHub(props: {
       <TabPanel id="avoozl-github-tab" current={tab}>
         {tab === 'issues' && (
           <Card>
-            <Section title="New tasks and issues" blurb="Who owns a new task, and how its GitHub issue is made. For every repository in this workspace.">
+            <Section title="Epic issues" blurb="The issue type a published epic issue gets. For every repository in this workspace.">
               <Box {...grid()}>
-                <Choice
-                  id="avoozl-settings-authority"
-                  label="New tasks belong to"
-                  raw="defaultAuthority"
-                  rule={{ required: false, blank: form.mode ? 'blank: github' : 'blank: local' }}
-                  value={form.defaultAuthority}
-                  options={choices.authorities}
-                  none={`Default: ${form.mode ? 'github' : 'local'}`}
-                  width="md"
-                  onChange={(value) => set({ defaultAuthority: value })}
-                />
                 <Text
                   id="avoozl-settings-epic"
                   label="Epic issue type"
@@ -1523,27 +1483,7 @@ function WorkspaceGitHub(props: {
                   value={form.epicIssueType}
                   onChange={(value) => set({ epicIssueType: value })}
                 />
-                {shown.has('subIssueCap') && (
-                  <Text
-                    id="avoozl-settings-sub-issues"
-                    label="Sub-issues per parent"
-                    raw="subIssues.maxPerParent"
-                    rule={{ required: false, blank: SUB_ISSUE_LINE }}
-                    placeholder="100"
-                    type="number"
-                    width="sm"
-                    value={form.maxPerParent}
-                    onChange={(value) => set({ maxPerParent: value })}
-                  />
-                )}
               </Box>
-              <CheckRow
-                label="Make issues for tasks already done when a spec is approved"
-                help="Off: only open tasks get issues."
-                raw="issues.includeDone"
-                checked={form.includeDone}
-                onChange={(includeDone) => set({ includeDone })}
-              />
             </Section>
           </Card>
         )}
@@ -1588,14 +1528,9 @@ function WorkspaceGitHub(props: {
             </Section>
           </Card>
         )}
-        {tab === 'project' && (
-          <Card>
-            <ProjectFields form={form} choices={choices} set={set} />
-          </Card>
-        )}
         {tab === 'setup' && (
           <Card>
-            <Section title="Set up GitHub" blurb="Creates the labels, Project and fields the other tabs name. It reads GitHub first and shows every write before making one.">
+            <Section title="Set up GitHub" blurb="Creates the labels and epic issue type the other tabs name. It reads GitHub first and shows every write before making one.">
               {props.setup}
             </Section>
           </Card>
@@ -1701,81 +1636,8 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
   )
 }
 
-// The Project board Avoozl adds issues to and fills. One Project serves
-// every repository in the workspace.
-export function ProjectFields({ form, choices, set }: { form: SettingsForm; choices: SettingsChoices; set: (change: Partial<SettingsForm>) => void }) {
-  return (
-    <div>
-      <Section
-        title="Project fields"
-        blurb="The GitHub Project board Avoozl adds managed issues to and fills with Release, Wave and Avoozl state. People move Status; Avoozl never writes it. Leave every field blank to turn Project sync off."
-      >
-        <Box {...grid(180)}>
-          <Text
-            id="avoozl-settings-project-owner"
-            label="Owner"
-            raw="project.owner"
-            rule={PROJECT_FIELD_RULES.owner}
-            placeholder="org or user"
-            width="md"
-            value={form.projectOwner}
-            onChange={(value) => set({ projectOwner: value })}
-          />
-          <Text
-            id="avoozl-settings-project-number"
-            label="Number"
-            raw="project.number"
-            rule={PROJECT_FIELD_RULES.number}
-            placeholder="2"
-            type="number"
-            width="md"
-            value={form.projectNumber}
-            onChange={(value) => set({ projectNumber: value })}
-          />
-        </Box>
-        {choices.fields.length > 0 && (
-          <Section level="sub" title="Field names" blurb="The names of the Project's fields Avoozl fills. Blank uses the name shown.">
-            <Box {...grid(180)}>
-              {choices.fields.map((key) => (
-                <Text
-                  key={key}
-                  id={`avoozl-settings-field-${key}`}
-                  label={FIELD_LABELS[key] ?? key}
-                  raw={`project.fields.${key}`}
-                  rule={PROJECT_FIELD_RULES[key]}
-                  placeholder={PROJECT_DEFAULTS[key] || 'none'}
-                  value={form.fields[key] ?? ''}
-                  onChange={(value) => set({ fields: { ...form.fields, [key]: value } })}
-                />
-              ))}
-            </Box>
-          </Section>
-        )}
-        {choices.statusValues.length > 0 && (
-          <Section level="sub" title="Status options" blurb="The Status options Avoozl reads. Blank uses the name shown.">
-            <Box {...grid(180)}>
-              {choices.statusValues.map((key) => (
-                <Text
-                  key={key}
-                  id={`avoozl-settings-status-${key}`}
-                  label={STATUS_LABELS[key] ?? key}
-                  raw={`project.statusValues.${key}`}
-                  rule={PROJECT_FIELD_RULES[key]}
-                  placeholder={PROJECT_DEFAULTS[key]}
-                  value={form.statusValues[key] ?? ''}
-                  onChange={(value) => set({ statusValues: { ...form.statusValues, [key]: value } })}
-                />
-              ))}
-            </Box>
-          </Section>
-        )}
-      </Section>
-    </div>
-  )
-}
-
 // What Set up GitHub takes from the form above it, so each setting has one
-// place: the mode, planning repository, repositories and Project.
+// place: the mode, planning repository and repositories.
 function sharedSetup(form: SettingsForm) {
   return {
     mode: form.mode,
@@ -1784,8 +1646,6 @@ function sharedSetup(form: SettingsForm) {
       .map((r) => r.name.trim())
       .filter(Boolean)
       .join(', '),
-    projectOwner: form.projectOwner,
-    projectNumber: form.projectNumber,
   }
 }
 

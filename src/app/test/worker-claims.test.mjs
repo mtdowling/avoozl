@@ -513,8 +513,8 @@ async function driverWorld(
   git(seed, "push", "-q", "origin", "main");
   const base = git(seed, "rev-parse", "HEAD");
   git(dir, "clone", "-q", "--bare", target, fork);
-  fs.mkdirSync(root);
-  git(root, "init", "-q", "-b", "main");
+  // The driver's own checkout of the target, on its base branch.
+  git(dir, "clone", "-q", target, root);
   git(root, "config", "user.name", "Driver");
   git(root, "config", "user.email", "driver@example.com");
   const store = new Store(path.join(dir, "workspace.sqlite"));
@@ -608,6 +608,15 @@ test("a pushed result lands on the driver's tick with no command run by hand", a
     head,
     "the working branch merged the verified head",
   );
+  // The working branch landed on the driver's base branch (wp-p3).
+  assert.equal(
+    git(d.root, "rev-parse", "main"),
+    git(d.root, "rev-parse", "refs/heads/avoozl/demo/work"),
+  );
+  assert.equal(
+    d.store.read().tasks.find((task) => task.id === "t1").integration.into,
+    "main",
+  );
   // The same head is judged once.
   assert.deepEqual((await d.step()).landed, []);
 });
@@ -667,4 +676,96 @@ test("worker-results.mjs has an importer that is not a test", () => {
       ),
     );
   assert.ok(sources.includes("worker-result-step.mjs"), sources.join(", "));
+});
+
+// wp-p3: with workers.offerTo, the driver's tick offers each ready task of a
+// driven spec once, holds it from local dispatch, and answers the claim.
+test("the driver's tick offers ready tasks once, holds them here and acknowledges the claim", async (t) => {
+  const { taskDefinition } = await import("../task-outcomes.mjs");
+  const { offeredTaskIds, workerOffersStep } = await import(
+    "../worker-offer-step.mjs"
+  );
+  const dir = temporaryDirectory("avoozl-driver-offers-"),
+    root = path.join(dir, "code");
+  fs.mkdirSync(root);
+  git(root, "init", "-q", "-b", "main");
+  fs.writeFileSync(path.join(root, "a.txt"), "a\n");
+  git(root, "add", ".");
+  git(
+    root,
+    "-c",
+    "user.name=D",
+    "-c",
+    "user.email=d@example.com",
+    "commit",
+    "-qm",
+    "Start",
+  );
+  const store = new Store(path.join(dir, "workspace.sqlite"));
+  t.after(() => store.close());
+  const task = {
+    id: "t1",
+    title: "Task t1",
+    kind: "leaf",
+    scope: "catalog",
+    status: "planned",
+    epic: "sample",
+    track: "catalog",
+    tags: [],
+    acceptance: ["Works."],
+    repository: "example/code",
+    planId: SPEC,
+  };
+  store.importSnapshot({ ...snapshot(), tasks: [task], edges: [] });
+  store.put("projects", {
+    id: "example/code",
+    repository: "example/code",
+    root,
+    baseBranch: "main",
+  });
+  const w = world(),
+    { journal } = await started(w),
+    step = () =>
+      workerOffersStep(store, {
+        driving: [SPEC],
+        logins: ["worker-a"],
+        authorityFor: async () => ({
+          journal,
+          options: OPTIONS,
+          login: "owner",
+          owner: OWNER,
+          driver: DRIVER,
+          github: w.as("owner"),
+        }),
+      });
+  const first = await step();
+  assert.deepEqual(first.offered, [{ task: "t1", worker: "worker-a" }]);
+  assert.ok(offeredTaskIds(store).has("t1"), "held from local dispatch");
+  // Nearby input: a second tick offers nothing new.
+  assert.deepEqual((await step()).offered, []);
+  const definition = taskDefinition({
+    id: "t1",
+    title: "Task t1",
+    acceptance: ["Works."],
+  });
+  await w
+    .as("worker-a")
+    .createIssueComment(
+      "example/plans",
+      1,
+      requestBody({ spec: SPEC, task: "t1", definition, generation: 1 }),
+    );
+  const answered = await step();
+  assert.equal(answered.acknowledged.length, 1);
+  assert.equal(answered.acknowledged[0].task, "t1");
+  assert.ok(w.branches.has(`example/code:${claimBranch(SPEC, "t1")}`));
+  // Without workers.offerTo the step does nothing.
+  const none = await workerOffersStep(store, {
+    driving: [SPEC],
+    logins: [],
+    authorityFor: async () => {
+      throw Error("not called");
+    },
+  });
+  assert.deepEqual(none.offered, []);
 });

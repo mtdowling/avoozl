@@ -9,7 +9,6 @@
 // before its next write (github.setup.cancel) and reports what was done.
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Btn } from './ui/Btn'
-import { Input } from './ui/Input'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { IconBtn, IconLabel, ICON } from './ui/controls.tsx'
 import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
@@ -32,10 +31,10 @@ import { Glyph } from './ui/Glyph'
 type Client = ReturnType<typeof settingsClient>
 
 // The values the workspace GitHub settings and the repository roles hold; the wizard never asks again.
-export type SharedSetup = Pick<SetupForm, 'mode' | 'planningRepository' | 'repositories' | 'projectOwner' | 'projectNumber'>
+export type SharedSetup = Pick<SetupForm, 'mode' | 'planningRepository' | 'repositories'>
 
 const STEP_TEXT = [
-  ['What to set up', 'Avoozl reads GitHub first. Pick the extras; the mode, repositories and Project come from this tab.'],
+  ['What to set up', 'Avoozl reads GitHub first. Pick the extras; the mode and repositories come from this tab.'],
   ['Check each change', 'Every write Avoozl would make on GitHub. It never deletes or renames anything.'],
   ['Making the changes', 'Avoozl makes them one at a time. Cancel stops before the next one.'],
   ['Save the settings file', 'Write the names GitHub gave back into .avoozl.json. Nothing is saved until you press Save.'],
@@ -163,32 +162,10 @@ export function SetupDialog(props: {
         <Box flex flexCol gap="2" size="sm">
           <Hint as="p" size="xs" data-setup-shared>
             Mode {form.mode}
-            {form.mode === 'plans-repo' ? `, planning repository ${form.planningRepository || 'not set'}` : ''}, repositories {form.repositories || 'none yet'}, Project{' '}
-            {form.projectOwner ? `${form.projectOwner}/${form.projectNumber || 'new'}` : 'not set'}.
+            {form.mode === 'plans-repo' ? `, planning repository ${form.planningRepository || 'not set'}` : ''}, repositories {form.repositories || 'none yet'}.
           </Hint>
-          {!/^\d+$/.test(form.projectNumber.trim()) && (
-            <Box as="label" flex flexCol gap="1">
-              New Project title <Hint size="xs">(optional)</Hint>
-              <Input
-                id="avoozl-setup-title-field"
-                value={form.projectTitle}
-                placeholder="Avoozl"
-                onChange={(e: { target: { value: string } }) => props.set({ projectTitle: e.target.value })}
-              />
-            </Box>
-          )}
-          <Box as="label" flex flexCol gap="1">
-            Releases, if no spec names one <Hint size="xs">(optional)</Hint>
-            <Input id="avoozl-setup-releases" value={form.releases} placeholder="v1, v2" onChange={(e: { target: { value: string } }) => props.set({ releases: e.target.value })} />
-          </Box>
           <Row gap={3} align="start">
-            {(
-              [
-                ['iteration', 'Iteration field'],
-                ['tableByWave', 'Table by wave view'],
-                ['epic', 'Epic issue type'],
-              ] as const
-            ).map(([key, label]) => (
+            {([['epic', 'Epic issue type']] as const).map(([key, label]) => (
               <Switch key={key} label={label} gap={1.5} checked={form[key]} onChange={(on) => props.set({ [key]: on })}>
                 {label}
               </Switch>

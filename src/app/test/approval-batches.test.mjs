@@ -290,7 +290,7 @@ test("the CLI preview without --yes writes nothing; --yes approves", () => {
   const preview = run("plan", "approve", "--batch", "1");
   assert.equal(preview.status, 0, preview.stderr + preview.stdout);
   assert.match(preview.stdout, /Nothing approved/);
-  assert.match(preview.stdout, /1 specs, 1 tasks, 0 GitHub issue writes/);
+  assert.match(preview.stdout, /1 specs, 1 tasks\./);
   assert.equal(
     read((s) => s.list("approvals").length),
     0,

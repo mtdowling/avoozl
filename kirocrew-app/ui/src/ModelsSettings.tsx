@@ -12,8 +12,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Input } from './ui/Input'
 import { useAppApi } from './host.ts'
 import Badge from './ui/Badge.tsx'
-import { FieldRow } from './FieldRow.tsx'
-import { FormSection } from './FormSection.tsx'
+import { Field } from './ui/Field.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import { Picker } from './Picker.tsx'
 import { optionItems } from './picker.ts'
 import { SmallBtn } from './ui/controls.tsx'
@@ -105,7 +105,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
   return (
     <Stack gap={4} data-models-settings>
       <ModelRowsStyle />
-      <FormSection title="Harnesses on this machine" blurb="Harness files live in this machine’s Avoozl config. Each is approved by its file hash.">
+      <FieldGroup title="Harnesses on this machine" blurb="Harness files live in this machine’s Avoozl config. Each is approved by its file hash.">
         <Box as="ul" css-column-gap="24" css-row-gap="8" flex flexWrap size="sm" data-models-harnesses>
           <Box as="li" flex items="center" gap="2">
             Kiro Crew chat <Badge variant="success">built in</Badge>
@@ -125,8 +125,8 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           ))}
         </Box>
         {definitions.length === 0 && <Hint size="xs">No harness files here. Roles run as Kiro Crew chats or on their project’s executor.</Hint>}
-      </FormSection>
-      <FormSection
+      </FieldGroup>
+      <FieldGroup
         title="Roles"
         blurb="Each role runs on its default until you set it here. This is the only place a role’s harness, agent or model is picked. A task’s session pin wins over its role."
       >
@@ -148,7 +148,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     {ROLE_ACCESS[role.key] === 'write' ? 'Writes files' : 'Read-only'}
                   </Hint>
                 </Box>
-                <FieldRow id={`avoozl-harness-${role.key}`} label="Harness">
+                <Field id={`avoozl-harness-${role.key}`} label="Harness">
                   <Picker
                     id={`avoozl-harness-${role.key}`}
                     label={
@@ -167,22 +167,22 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                       Not approved: it will not start until its hash is approved.
                     </ErrorText>
                   )}
-                </FieldRow>
+                </Field>
                 {role.agent ? (
-                  <FieldRow id={`avoozl-agent-${role.key}`} label="Agent">
+                  <Field id={`avoozl-agent-${role.key}`} label="Agent">
                     <Input
                       id={`avoozl-agent-${role.key}`}
                       value={row.agent ?? ''}
                       placeholder={DEFAULT_AGENTS[role.key]}
                       onChange={(e) => set(role.key, { agent: e.target.value })}
                     />
-                  </FieldRow>
+                  </Field>
                 ) : (
                   <Box as="span" css-align-self="end" size="xs" tone="muted" data-fixed-agent>
                     Agent: Avoozl’s own.
                   </Box>
                 )}
-                <FieldRow id={`avoozl-model-${role.key}`} label="Model">
+                <Field id={`avoozl-model-${role.key}`} label="Model">
                   {modelFree || !role.model ? (
                     <Hint size="xs" data-no-model>
                       {role.model ? `${harness} takes no model.` : 'The harness’s own.'}
@@ -202,7 +202,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                       plain
                     />
                   )}
-                </FieldRow>
+                </Field>
                 <Box css-align-self="end" flex flexWrap items="center" gap="2">
                   <Badge variant={isSet ? 'info' : undefined}>{isSet ? 'set here' : 'default'}</Badge>
                   {isSet && (
@@ -228,7 +228,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
             )
           })}
         </Stack>
-      </FormSection>
+      </FieldGroup>
       <Hint as="p" size="xs" data-models-person-only>
         Kiro Crew chats run as you. Avoozl refuses person-only actions in them, but that only slows an agent down: it is not a lock.
       </Hint>

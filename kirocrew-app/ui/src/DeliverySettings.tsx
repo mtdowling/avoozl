@@ -6,10 +6,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
-import { Input } from './ui/Input'
 import { SaveFooter } from './SaveFooter.tsx'
 import { Section } from './SettingsView.tsx'
-import { CheckRow, FieldRow } from './FieldRow.tsx'
+import { Field } from './ui/Field.tsx'
 import { AskForHelp, useConfirm } from './ui/controls.tsx'
 import { useRead } from './useRead.ts'
 import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
@@ -23,12 +22,12 @@ import { SelectField } from './ui/SelectField'
 const OPTIONAL = { required: false } as const
 const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its investigate and pull request settings show here then.'
 
-// A field: the shared FieldRow, every Delivery value optional.
+// A field: the shared Field, every Delivery value optional.
 // `byDefault` is the value a blank field uses; `reset` shows when the field
 // holds another value and puts the default back.
 function Labeled(props: { id: string; label: string; raw: string; width: string; note?: string; byDefault?: string; reset?: () => void; children: React.ReactNode }) {
   return (
-    <FieldRow
+    <Field
       id={props.id}
       label={props.label}
       raw={props.raw}
@@ -40,7 +39,7 @@ function Labeled(props: { id: string; label: string; raw: string; width: string;
       defaultText={props.byDefault}
     >
       {props.children}
-    </FieldRow>
+    </Field>
   )
 }
 
@@ -140,7 +139,6 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         </Section>
       </Card>
     )
-  const feedback = form.prFeedback ? form.prFeedback === 'on' : DELIVERY_DEFAULTS.prFeedback
   // A field that does nothing under another's value is disabled with why.
   const offInvestigate = form.investigateMode === 'off' ? 'Off while Which tasks is Off.' : null
   return (
@@ -194,36 +192,6 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
               </SelectField>
             </Labeled>
           </Row>
-        </Section>
-        <Section
-          title="Pull request feedback"
-          blurb="Send failed checks and allowed reviewers' comments back to the chat that wrote the pull request. Matters only in a GitHub mode."
-        >
-          <CheckRow
-            label="Send pull request feedback to the writer"
-            help="On by default."
-            raw="delivery.prFeedback"
-            checked={feedback}
-            onChange={(on) => set({ prFeedback: on ? 'on' : 'off' })}
-          />
-          <Labeled
-            id="avoozl-delivery-rounds"
-            label="Most feedback rounds per task"
-            raw="delivery.feedbackRounds"
-            width="9rem"
-            note={feedback ? 'Whole number, 1–20. Then Avoozl stops and asks you.' : 'Off while pull request feedback is off.'}
-            byDefault={String(DELIVERY_DEFAULTS.feedbackRounds)}
-            reset={form.feedbackRounds.trim() && form.feedbackRounds.trim() !== String(DELIVERY_DEFAULTS.feedbackRounds) ? () => set({ feedbackRounds: '' }) : undefined}
-          >
-            <Input
-              id="avoozl-delivery-rounds"
-              inputMode="numeric"
-              disabled={!feedback}
-              value={form.feedbackRounds}
-              placeholder={String(DELIVERY_DEFAULTS.feedbackRounds)}
-              onChange={(e) => set({ feedbackRounds: e.target.value })}
-            />
-          </Labeled>
         </Section>
       </Card>
       <SaveFooter

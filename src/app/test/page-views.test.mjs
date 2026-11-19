@@ -306,11 +306,7 @@ test("the views are observe operations any app principal may read", () => {
 });
 
 test("the page's resolution actions are the owner's alone", () => {
-  for (const operation of [
-    "github.conflict.resolve",
-    "delivery.retry",
-    "task.update",
-  ]) {
+  for (const operation of ["delivery.retry", "task.update"]) {
     assert.equal(principalAllows({ kind: "owner-session" }, operation), true);
     for (const kind of ["app-token", "agent-tool", "none"])
       assert.equal(principalAllows({ kind }, operation), false, kind);

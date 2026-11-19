@@ -78,7 +78,6 @@ for (const data of [
     .filter((name) => name.endsWith(".json"))
     .map((name) => path.join("src", name)),
   path.join("src", "app", "skills"),
-  path.join("src", "app", "runner"),
   // Started as its own process by plugins.mjs, so the bundle never imports it.
   path.join("src", "app", "plugin-child.mjs"),
   "examples",

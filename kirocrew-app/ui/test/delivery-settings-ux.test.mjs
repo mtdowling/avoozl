@@ -43,22 +43,20 @@ async function openDelivery(width) {
   await wait(200)
   if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   assert.ok(await page.evaluate(click(`${scope} [data-nav-item]`, 'Delivery')), 'Delivery nav item')
-  await page.until(`Boolean(document.getElementById('avoozl-delivery-rounds'))`)
+  await page.until(`Boolean(document.getElementById('avoozl-delivery-investigate'))`)
 }
 
 for (const width of [1280, 390]) {
   test(`Delivery fields name their default, reset and disable with a reason at ${width} px`, { skip }, async () => {
     await openDelivery(width)
     // Every field row says what a blank value uses.
-    for (const id of ['investigate', 'confidence', 'rounds']) assert.match((await text(`[data-field-row="avoozl-delivery-${id}"] [data-field-default]`)) ?? '', /^Default: /, id)
-    // The fixture saves 3 rounds: an override, so Reset shows and clears it.
-    assert.equal(await text('[data-field-reset="avoozl-delivery-rounds"]'), 'Reset to default (5)')
-    await page.evaluate(`document.querySelector('[data-field-reset="avoozl-delivery-rounds"]').click()`)
-    await page.until(`document.getElementById('avoozl-delivery-rounds').value === '' && !document.querySelector('[data-field-reset="avoozl-delivery-rounds"]')`)
-    // Feedback off disables the rounds box and says why.
-    await page.evaluate(`document.querySelector('[data-check-row="delivery.prFeedback"] [role="switch"]').click()`)
-    await page.until(`document.getElementById('avoozl-delivery-rounds').disabled`)
-    assert.match((await text('[data-field-row="avoozl-delivery-rounds"] [data-field-help]')) ?? '', /Off while pull request feedback is off/)
+    for (const id of ['investigate', 'confidence']) assert.match((await text(`[data-field-row="avoozl-delivery-${id}"] [data-field-default]`)) ?? '', /^Default: /, id)
+    // An override shows Reset, which clears it.
+    await set('#avoozl-delivery-investigate', 'all')
+    await page.until(`Boolean(document.querySelector('[data-field-reset="avoozl-delivery-investigate"]'))`)
+    assert.equal(await text('[data-field-reset="avoozl-delivery-investigate"]'), 'Reset to default (All but small tasks)')
+    await page.evaluate(`document.querySelector('[data-field-reset="avoozl-delivery-investigate"]').click()`)
+    await page.until(`document.getElementById('avoozl-delivery-investigate').value === 'not-small' && !document.querySelector('[data-field-reset="avoozl-delivery-investigate"]')`)
     // Investigate Off disables Sure enough at and says why.
     await set('#avoozl-delivery-investigate', 'off')
     await page.until(`document.getElementById('avoozl-delivery-confidence').disabled`)

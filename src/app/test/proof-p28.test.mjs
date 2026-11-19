@@ -10,6 +10,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { snapshot } from "./fixtures.mjs";
 import { pathToFileURL } from "node:url";
 import { handleMcp } from "../mcp.mjs";
 import { Operations } from "../operations.mjs";
@@ -21,7 +22,6 @@ import {
   enforce,
   loadRulePlugins,
 } from "../content-rules.mjs";
-import { snapshot } from "./fixtures.mjs";
 import { commitIn, fakeCrew, git } from "./fake-crew.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -617,121 +617,4 @@ test("P28 (3), (7): a GitHub issue write and a reply naming a fake term", async 
     (error) => error.status === 422,
   );
   assert.equal(store.list("content_decisions").length, before);
-});
-
-test("P28 (6): a pull request body naming a fake term holds completion and opens a decision", async (t) => {
-  const { workspace: plansRepo } = await import("./plans-repo-github.mjs");
-  const { store, github, run, task } = plansRepo(t),
-    { contentBinding } = await import("../content-rules.mjs"),
-    workspaceRoot = contentBinding(store)?.workspaceRoot;
-  assert.ok(workspaceRoot, "the workspace's Operations bound content rules");
-  const file = path.join(workspaceRoot, ".avoozl.json"),
-    value = JSON.parse(fs.readFileSync(file, "utf8"));
-  value.contentRules = { sets: [{ id: "fake-terms" }] };
-  fs.writeFileSync(file, JSON.stringify(value));
-  const terms = path.join(workspaceRoot, ".avoozl", "local", "content-rules");
-  fs.mkdirSync(terms, { recursive: true });
-  fs.writeFileSync(
-    path.join(terms, "fake-terms.txt"),
-    "codename: \\bzorblat\\b\n",
-  );
-  await run();
-  const pull = github.pull("b");
-  pull.body = "Ships the zorblat part.";
-  const result = await run();
-  const verdict = task("b").githubVerdict;
-  assert.equal(verdict?.state, "held");
-  assert.match(
-    verdict.reason,
-    /content rule fake-terms rule codename matches its body line 1/,
-  );
-  assert.doesNotMatch(JSON.stringify(verdict), /zorblat/);
-  assert.ok(
-    store
-      .list("content_decisions")
-      .some(
-        (d) =>
-          d.state === "open" && d.target.endsWith(":body") && d.taskId === "b",
-      ),
-  );
-  assert.doesNotMatch(JSON.stringify(result), /zorblat/);
-});
-
-test("P28 (3): projection writes nothing for an issue whose title holds an encoded term, and projects the other", async (t) => {
-  const { FakeGitHub } = await import("./fake-github.mjs"),
-    { fixture } = await import("./fixtures.mjs"),
-    { store } = fixture(t),
-    github = new FakeGitHub(),
-    root = temporaryDirectory("avoozl-p28-project-");
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({ version: 1, namespace: "avz_p28p28p28p28p28p" }),
-  );
-  const ops = new Operations(store, { github, workspaceRoot: root });
-  store.put("projects", {
-    id: "code",
-    root: "/tmp/code",
-    baseBranch: "main",
-    worktreeRoot: "/tmp/code-worktrees",
-    checks: [["npm", "test"]],
-  });
-  await ops.execute("github.configure", {
-    repository: "example/code",
-    projectId: "code",
-  });
-  const task = (id, title) =>
-    "```task\n" +
-    JSON.stringify({
-      id,
-      title,
-      summary: "Do it.",
-      acceptance: ["It works"],
-      projectId: "code",
-    }) +
-    "\n```\n";
-  const plan = await ops.execute("plan.create", {
-    id: "titles",
-    prompt: "Two issues",
-    text: `# Titles\n\n${task("one", "Ship zorbl&#97;t")}\n${task("two", "Ship two")}`,
-  });
-  const approved = await ops.execute("plan.approve", {
-    id: plan.id,
-    expectedHash: plan.hash,
-    expectedRevision: store.read().revision,
-  });
-  // The rule set arrives after approval; projection is the boundary here.
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({
-      version: 1,
-      namespace: "avz_p28p28p28p28p28p",
-      contentRules: { sets: [{ id: "fake-terms" }] },
-    }),
-  );
-  const terms = path.join(root, ".avoozl", "local", "content-rules");
-  fs.mkdirSync(terms, { recursive: true });
-  fs.writeFileSync(
-    path.join(terms, "fake-terms.txt"),
-    "codename: \\bzorblat\\b\n",
-  );
-  const projected = await ops.execute("github.project", { planId: plan.id });
-  assert.deepEqual(
-    github.created.map((issue) => issue.title),
-    ["Ship two"],
-  );
-  assert.deepEqual(
-    projected.issues.map((issue) => issue.taskId),
-    [approved.taskIds[1]],
-  );
-  const [decision] = store
-    .list("content_decisions")
-    .filter((d) => d.state === "open");
-  assert.deepEqual(
-    [decision.set, decision.rules, decision.boundary, decision.line],
-    ["fake-terms", ["codename"], "github", 1],
-  );
-  assert.doesNotMatch(
-    JSON.stringify(store.list("app_notifications")),
-    /zorbl/i,
-  );
 });

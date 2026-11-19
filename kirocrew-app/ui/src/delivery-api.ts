@@ -286,8 +286,6 @@ export const RETRY_TIP = 'Starts a new attempt for this task.'
 // Settings > Delivery (R53.3, R54.8): the backend's defaults, shown as
 // placeholders (src/app/delivery.mjs DELIVERY_DEFAULTS).
 export const DELIVERY_DEFAULTS = {
-  prFeedback: true,
-  feedbackRounds: 5,
   ship: 'auto-merge',
   investigateMode: 'not-small',
   minConfidence: 'high',
@@ -300,16 +298,12 @@ export interface DeliverySettings {
   hash: string | null
   on: boolean
   delivery: {
-    prFeedback?: boolean
-    feedbackRounds?: number
     ship?: ShipMode
     investigate?: { mode?: InvestigateMode; minConfidence?: 'medium' | 'high'; agent?: string; model?: string }
   }
 }
 
 export interface DeliveryForm {
-  prFeedback: '' | 'on' | 'off'
-  feedbackRounds: string
   ship?: ShipMode
   investigateMode?: InvestigateMode
   minConfidence?: 'medium' | 'high'
@@ -319,8 +313,6 @@ export interface DeliveryForm {
 
 export function toDeliveryForm(delivery: DeliverySettings['delivery'] = {}): DeliveryForm {
   return {
-    prFeedback: delivery.prFeedback === undefined ? '' : delivery.prFeedback ? 'on' : 'off',
-    feedbackRounds: delivery.feedbackRounds === undefined ? '' : String(delivery.feedbackRounds),
     ship: delivery.ship ?? DELIVERY_DEFAULTS.ship,
     investigateMode: delivery.investigate?.mode ?? DELIVERY_DEFAULTS.investigateMode,
     minConfidence: delivery.investigate?.minConfidence ?? DELIVERY_DEFAULTS.minConfidence,
@@ -334,12 +326,6 @@ export function toDeliveryForm(delivery: DeliverySettings['delivery'] = {}): Del
 // The keys to write; a blank field is left out, so its default applies.
 export function toDeliverySection(form: DeliveryForm): { delivery?: DeliverySettings['delivery']; error?: string } {
   const delivery: DeliverySettings['delivery'] = {}
-  if (form.prFeedback) delivery.prFeedback = form.prFeedback === 'on'
-  if (form.feedbackRounds.trim()) {
-    const n = Number(form.feedbackRounds)
-    if (!Number.isInteger(n) || n < 1 || n > 20) return { error: 'Feedback rounds is a whole number 1–20.' }
-    delivery.feedbackRounds = n
-  }
   // A default value is left out, so a later default change still applies.
   if (form.ship && form.ship !== DELIVERY_DEFAULTS.ship) delivery.ship = form.ship
   const investigate = {

@@ -297,8 +297,8 @@ test("reads names the harness's own config under home, and nothing else", () => 
     reads: ["~/.claude", "~/.claude.json"],
   });
   assert.deepEqual(harnessReads(definition, "/home/me"), [
-    "/home/me/.claude",
-    "/home/me/.claude.json",
+    path.join("/home/me", ".claude"),
+    path.join("/home/me", ".claude.json"),
   ]);
   for (const reads of [
     ["/etc/passwd"],

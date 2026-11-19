@@ -313,17 +313,13 @@ test("a failed check sends the task back to its chat", async (t) => {
   git(wt, "add", ".");
   git(wt, "commit", "-qm", "Fix");
   const fixed = git(wt, "rev-parse", "HEAD");
+  // The person's claim reports again from its worktree.
   await reportSession(
     w.store,
-    { taskId: "t1", slot: "slot-t1", kind: "done", commit: fixed },
-    null,
-    { local: true },
+    { taskId: "t1", kind: "done", commit: fixed },
+    { sessionKey: "dashboard:slot-t1" },
   );
-  reconcileDeliveries(
-    w.store,
-    deliveryPolicy({ delivery: { runner: "crew-mode" } }),
-    {},
-  );
+  reconcileDeliveries(w.store, deliveryPolicy({ delivery: {} }), {});
   const delivery = w.store.get("task_deliveries", "t1");
   assert.equal(delivery.state, "done");
   assert.equal(delivery.commit, fixed);

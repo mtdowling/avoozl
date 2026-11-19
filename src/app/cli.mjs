@@ -30,7 +30,6 @@ import {
 } from "./supervisor-unit.mjs";
 import { reportByToken } from "./report-match.mjs";
 import { HOLDS_TASKS, readRunnerConfig } from "./remote-runner.mjs";
-import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
@@ -99,15 +98,12 @@ try {
           "kirocrew",
           "hook",
           "confirm",
-          "iteration",
-          "table-by-wave",
           "no-epic",
           "push",
           "accept-lowered",
           "full",
           "confirm-public",
           "untriaged",
-          "rebuild",
           "force",
           "unfinished",
           "cancel",
@@ -769,33 +765,7 @@ try {
     console.log(
       JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
     );
-  else if (command === "next" && options.hook) {
-    // An AgentSpawn hook: brief a Crew Mode conductor whose session starts in
-    // one of this workspace's checkouts while delivery.runner is crew-mode.
-    // Anything else prints nothing, and no failure ever blocks a session.
-    try {
-      const event = await hookEvent(process.stdin),
-        cwd =
-          typeof event?.cwd === "string" && path.isAbsolute(event.cwd)
-            ? event.cwd
-            : process.cwd();
-      if (fs.existsSync(dbPath)) {
-        const store = new Store(dbPath);
-        try {
-          const brief = runnerHookBrief(store, {
-            workspaceRoot: config.workspaceRoot,
-            cwd,
-            command: `node ${JSON.stringify(process.argv[1])}`,
-          });
-          if (brief) process.stdout.write(brief);
-        } finally {
-          store.close();
-        }
-      }
-    } catch {
-      // A hook that cannot brief stays silent; the session starts as usual.
-    }
-  } else if (command === "next")
+  else if (command === "next")
     console.log(JSON.stringify(await localOrRequest("runner.next"), null, 2));
   else if (command === "checks" && positionals[0] === "run")
     console.log(
@@ -955,7 +925,7 @@ try {
           taskId: positionals[1],
           state,
         });
-    } else throw Error("Use runner accept|status|report|handoff|pull.");
+    } else throw Error("Use runner status|report.");
     console.log(JSON.stringify(result, null, 2));
   } else if (command === "worker") {
     // Worker mode (R90): this machine pulls offers from spec journals.
@@ -999,14 +969,11 @@ try {
         result = await localOrRequest("driver.takeover", {
           planId,
           ...(file ? { file } : {}),
-          ...(options.rebuild
-            ? { rebuild: true, acknowledgeLoss: options.yes === true }
-            : {}),
         });
-      // A rebuild shows what it loses first; --yes runs it.
+      // Without an export it shows what is lost first; --yes runs it.
       if (result?.needs === "acknowledge")
         result =
-          "A rebuild from GitHub loses:\n" +
+          "A take-over without an export loses:\n" +
           result.lost.map((line) => "  - " + line).join("\n") +
           "\nRun again with --yes to go on.";
     } else if (action === "set")
@@ -1041,31 +1008,14 @@ try {
       JSON.stringify(
         await localOrRequest("runner.claim", {
           taskId: positionals[0],
-          slot: options.slot,
           ...(options.release ? { release: true } : {}),
           ...(options.discard ? { discard: true } : {}),
-          ...(options.title ? { title: options.title } : {}),
-          ...(options.model ? { model: options.model } : {}),
         }),
         null,
         2,
       ),
     );
-  } else if (command === "report")
-    console.log(
-      JSON.stringify(
-        await localOrRequest("session.report", {
-          taskId: positionals[0],
-          slot: options.slot,
-          kind: options.kind,
-          ...(options.text !== undefined ? { text: options.text } : {}),
-          ...(options.commit !== undefined ? { commit: options.commit } : {}),
-        }),
-        null,
-        2,
-      ),
-    );
-  else if (command === "verify" && positionals[0] === "allow")
+  } else if (command === "verify" && positionals[0] === "allow")
     console.log(
       JSON.stringify(
         await localOrRequest("verify.allow", {
@@ -1105,17 +1055,7 @@ try {
     }
     console.log(JSON.stringify(await response.json(), null, 2));
     if (!response.ok) process.exitCode = 1;
-  } else if (command === "rebuild")
-    console.log(
-      JSON.stringify(
-        await localOrRequest("workspace.rebuild", {
-          repository: options.repository || positionals[0],
-        }),
-        null,
-        2,
-      ),
-    );
-  else if (command === "seed")
+  } else if (command === "seed")
     console.log(
       JSON.stringify(
         // No name installs the default pack (`examples` says which).
@@ -1160,16 +1100,6 @@ try {
           .map((entry) => entry.trim())
           .filter(Boolean),
       };
-    } else if (action === "project" || action === "preview") {
-      operation =
-        action === "project" ? "github.project" : "github.project.preview";
-      value = {
-        planId: need(
-          options.plan || positionals[1],
-          `github ${action} PLAN_ID [--repository OWNER/REPO]`,
-        ),
-        repository: options.repository,
-      };
     } else if (action === "setup") {
       // Preview first; rerun with --confirm --preview-hash HASH to write.
       const list = (value) =>
@@ -1185,39 +1115,11 @@ try {
         planningRepository:
           options["planning-repository"] ?? provided.planningRepository,
         repositories: list(options.repositories) ?? provided.repositories,
-        project:
-          options["project-owner"] ||
-          options["project-number"] ||
-          options["project-title"]
-            ? {
-                owner: options["project-owner"],
-                number: options["project-number"]
-                  ? Number(options["project-number"])
-                  : undefined,
-                title: options["project-title"],
-              }
-            : provided.project,
-        releases: list(options.releases) ?? provided.releases,
-        iteration: options.iteration ?? provided.iteration,
-        tableByWave: options["table-by-wave"] ?? provided.tableByWave,
         epic: options["no-epic"] ? false : provided.epic,
         confirm: options.confirm ?? provided.confirm,
         previewHash: options["preview-hash"] ?? provided.previewHash,
       };
-    } else if (action === "retire-issues") {
-      // Retire task-issue bindings in order (R102.20): preview, hold,
-      // apply, verify, close. Each step is a person's own act.
-      const step = positionals[1] || "preview";
-      if (!["preview", "hold", "apply", "verify", "close"].includes(step))
-        throw Error(
-          "Choose github retire-issues preview, hold, apply, verify, or close [--reason completed|not_planned].",
-        );
-      operation = "github.retireTaskIssues";
-      value = { step, ...(options.reason ? { reason: options.reason } : {}) };
-    } else
-      throw Error(
-        "Choose github status, configure, sync, project, preview, setup, start, or retire-issues.",
-      );
+    } else throw Error("Choose github status, configure, sync, or setup.");
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
@@ -1316,31 +1218,23 @@ try {
     );
   } else if (command === "spec") {
     const action = positionals[0];
-    if (!["publish", "takeover", "export-issues"].includes(action))
-      throw Error("Choose spec publish, spec takeover or spec export-issues.");
+    if (!["publish", "takeover"].includes(action))
+      throw Error("Choose spec publish or spec takeover.");
     const planId = need(
       options.plan || positionals[1],
       action === "takeover"
         ? "spec takeover SPEC"
-        : `spec ${action} SPEC [--repository OWNER/REPO]${action === "export-issues" ? " [--confirm]" : ""}`,
+        : `spec ${action} SPEC [--repository OWNER/REPO]`,
     );
     // Publish the spec issue or local journal (R102.2) and take it over
-    // (R102.13): each a person's own act. Export issues (R102.19): preview
-    // first; --confirm creates the spec's unfinished task issues and stops
-    // Avoozl driving it.
+    // (R102.13): each a person's own act.
     console.log(
       JSON.stringify(
         await localOrRequest(
-          action === "export-issues" ? "spec.exportIssues" : `spec.${action}`,
+          `spec.${action}`,
           action === "takeover"
             ? { planId }
-            : action === "publish"
-              ? { planId, repository: options.repository }
-              : {
-                  planId,
-                  repository: options.repository,
-                  confirm: Boolean(options.confirm),
-                },
+            : { planId, repository: options.repository },
         ),
         null,
         2,
@@ -1665,9 +1559,7 @@ try {
       console.log("Nothing approved. These specs would be approved:");
       for (const entry of selection.specs) console.log("  " + batchLine(entry));
       const tasks = selection.specs.reduce((sum, e) => sum + e.tasks, 0);
-      console.log(
-        `${selection.specs.length} specs, ${tasks} tasks, ${selection.writes} GitHub issue writes when projected.`,
-      );
+      console.log(`${selection.specs.length} specs, ${tasks} tasks.`);
       if (selection.pullRequest)
         console.log(
           `${selection.pullRequest} of these are approved through one approval pull request: --yes opens it, and running the same command again after it merges approves them.`,
@@ -1865,12 +1757,9 @@ try {
       ),
     );
   else if (command === "task" && positionals[0] === "links") {
-    // Task links (R61.22): list and add for anyone; edit, remove and
-    // show on the issue are a person's, as the command line is.
-    const taskId = need(
-        positionals[1],
-        "task links TASK_ID [add|edit|remove|show]",
-      ),
+    // Task links (R61.22): list and add for anyone; edit and remove are a
+    // person's, as the command line is.
+    const taskId = need(positionals[1], "task links TASK_ID [add|edit|remove]"),
       action = positionals[2] || "list",
       entry = () => ({ kind: "link", url: options.link, label: options.label });
     const name = {
@@ -1878,10 +1767,9 @@ try {
       add: "task.notes.add",
       edit: "task.notes.edit",
       remove: "task.notes.remove",
-      show: "task.notes.show",
     }[action];
     if (!name)
-      throw Error("Choose task links TASK_ID list, add, edit, remove or show.");
+      throw Error("Choose task links TASK_ID list, add, edit or remove.");
     const id =
         action === "list" || action === "add"
           ? undefined
@@ -1893,9 +1781,7 @@ try {
             ? { taskId, ...entry() }
             : action === "edit"
               ? { taskId, id, ...entry() }
-              : action === "show"
-                ? { taskId, id, onIssue: !options.off }
-                : { taskId, id };
+              : { taskId, id };
     console.log(JSON.stringify(await localOrRequest(name, input), null, 2));
   } else if (
     command === "task" &&
@@ -2045,7 +1931,7 @@ try {
     helpCommands().includes(command)
   )
     console.error(helpPointer(command));
-  process.exitCode = command === "next" && options.hook ? 0 : 1;
+  process.exitCode = 1;
 }
 
 // One spec in `plan batches` and the approve preview.

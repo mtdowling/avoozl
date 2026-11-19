@@ -161,7 +161,7 @@ function writePolicy(root, untriaged, mode = "single-repo") {
                     managed: "avoozl:managed",
                     ready: "avoozl:ready",
                   },
-                  rules: [{ id: "go", action: "deliver", match: "label:go" }],
+                  rules: [{ id: "go", action: "pause", match: "label:go" }],
                   untriaged,
                 },
               },

@@ -25,7 +25,11 @@ import { taskRepository } from "../work-model.mjs";
 import { INTERRUPTED, liveAttempt, rebaseForIntegration } from "./delivery.mjs";
 import { fence } from "./github-respond.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
-import { checkOptions, prepareChecks } from "./check-isolation.mjs";
+import {
+  checkOptions,
+  containerBlindness,
+  prepareChecks,
+} from "./check-isolation.mjs";
 import { requireDiskSpace } from "./disk-space.mjs";
 import {
   checkCommand,
@@ -52,6 +56,8 @@ export async function runCheckAt(project, commit, argv) {
         durationMs: 0,
         tail: `prepare failed: ${String(ready.stderr || "").split("\n")[0]}`,
       };
+    const blind = await containerBlindness(project, dir);
+    if (blind) return { exitCode: null, durationMs: 0, tail: blind };
     const started = Date.now(),
       result = await commandEvidence(dir, argv, checkOptions(project, dir));
     return {

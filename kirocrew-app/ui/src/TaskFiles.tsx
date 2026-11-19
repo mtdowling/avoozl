@@ -39,6 +39,7 @@ import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 // A diff longer than this many lines shows its start, then a button.
 export const DIFF_LINES = 1500
@@ -52,9 +53,9 @@ function pageStorage(): Storage | null {
 }
 
 const LINE_BG = {
-  add: 'color-mix(in srgb, var(--ok) 16%, transparent)',
-  del: 'color-mix(in srgb, var(--danger) 16%, transparent)',
-  hunk: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+  add: TONE.mixOk16pctTransparent,
+  del: TONE.mixDanger16pctTransparent,
+  hunk: TONE.mixAccent10pctTransparent,
 } as const
 
 function StatusBadge({ change }: { change: FileChange }) {

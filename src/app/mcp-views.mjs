@@ -12,7 +12,6 @@ const LIMIT = 25;
 export const VIEW_URIS = {
   plans_graph: "ui://avoozl/graph",
   plans_preview: "ui://avoozl/preview",
-  plans_project_preview: "ui://avoozl/project-preview",
   plans_decision: "ui://avoozl/decision",
 };
 
@@ -38,15 +37,6 @@ export const VIEW_TOOLS = {
     description:
       "Show the tasks approving a plan would publish, with findings, as a small view. Input: {id}. Reads only; approval is a person's, in the Avoozl app.",
     inputSchema: input({ id: { type: "string" } }, ["id"]),
-  },
-  plans_project_preview: {
-    operation: "github.project.preview",
-    description:
-      "Show every GitHub write projecting an approved plan would make, as a small view, without making any: issue creates and updates, sub-issue links, blocked-by edges, labels, and Project fields (Release, Wave, Iteration; never Status). Input: {planId, repository?}. Repositories this machine does not write are listed in previewOnly. Reads only.",
-    inputSchema: input(
-      { planId: { type: "string" }, repository: { type: "string" } },
-      ["planId"],
-    ),
   },
   plans_decision: {
     operation: "conflicts.view",
@@ -191,22 +181,6 @@ button("Refresh",async()=>{const r=await call("plans_plan",{action:"preview",inp
 onResult=(r)=>draw(r.structuredContent);
 `;
 
-const PROJECT = `
-const draw=(p)=>{reset();el("h2","GitHub writes ").append(Object.assign(document.createElement("small"),{textContent:p.writes.length+" for plan "+p.planId}));
-const counts={};for(const w of p.writes)counts[w.kind||w.type||"write"]=(counts[w.kind||w.type||"write"]||0)+1;
-const ul=el("ul");for(const [k,n] of Object.entries(counts))el("li",n+" x "+k,"",ul);
-if(p.conflicts?.length)el("div",p.conflicts.length+" conflicts; Avoozl leaves those alone.","bad");
-if(p.previewOnly?.length)el("div","Not written by this machine: "+p.previewOnly.join(", "),"sub");
-let armed=false;const b=button("Project",async()=>{
-if(!armed){armed=true;b.textContent="Confirm: write "+p.writes.length+" changes to GitHub";return}
-const now=await call("plans_plan",{action:"project_preview",input:{planId:p.planId}});
-if(now.planHash!==p.planHash){draw(now);show("The plan changed after this view. Check the new list and press Project again.",true);return}
-const r=await call("plans_github",{action:"project",input:{planId:p.planId}});
-show("Projected."+(r&&r.issues?" "+r.issues.length+" issues.":""))});
-$.append(status)};
-onResult=(r)=>draw(r.structuredContent);
-`;
-
 const DECISION = `
 const draw=(d)=>{reset();if(!d.decision){el("h2","No open decision");el("div","Nothing waits on you here.","sub");button("Refresh",refresh);$.append(status);return}
 el("h2",d.decision.title+" ");el("div",d.decision.detail);
@@ -225,7 +199,6 @@ onResult=(r)=>draw(r.structuredContent);
 const HTML = {
   [VIEW_URIS.plans_graph]: page("Avoozl graph", GRAPH),
   [VIEW_URIS.plans_preview]: page("Avoozl plan preview", PREVIEW),
-  [VIEW_URIS.plans_project_preview]: page("Avoozl GitHub preview", PROJECT),
   [VIEW_URIS.plans_decision]: page("Avoozl decision", DECISION),
 };
 

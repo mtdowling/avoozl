@@ -37,27 +37,16 @@ test('each call names its operation', async () => {
   await client.addLink('w', 't', ' https://a.test ', ' A ')
   await client.edit('w', 't', entry, { url: 'https://b.test', label: 'B' })
   await client.remove('w', 't', 'note-1')
-  await client.show('w', 't', 'note-1', true)
   await client.allowOnce('w', 'content:abc', 'why')
   await client.markDone('w', 't', { choice: 'skipped' })
   await client.reopen('w', 't')
   await client.templates('w')
   assert.deepEqual(
     sent.map((body) => body.operation),
-    [
-      'task.notes.list',
-      'task.notes.add',
-      'task.notes.edit',
-      'task.notes.remove',
-      'task.notes.show',
-      'content.allow',
-      'task.manual.complete',
-      'task.manual.reopen',
-      'template.list',
-    ],
+    ['task.notes.list', 'task.notes.add', 'task.notes.edit', 'task.notes.remove', 'content.allow', 'task.manual.complete', 'task.manual.reopen', 'template.list'],
   )
   assert.deepEqual(sent[1].input, { taskId: 't', kind: 'link', url: 'https://a.test', label: 'A' })
-  assert.deepEqual(sent[6].input, { taskId: 't', choice: 'skipped' })
+  assert.deepEqual(sent[5].input, { taskId: 't', choice: 'skipped' })
   assert.equal('addNote' in client, false)
 })
 

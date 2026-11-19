@@ -7,6 +7,8 @@ import { Box } from '../../src/ui/Box.tsx'
 import { PlainButton, PlainInput, PlainLink, PlainTextarea, SvgG, SvgPath, SvgRect, SvgRoot, SvgText } from '../../src/ui/Plain.tsx'
 import { Glyph } from '../../src/ui/Glyph.tsx'
 import { Check } from '../../src/icons.ts'
+import { Field } from '../../src/ui/Field.tsx'
+import { FieldGroup } from '../../src/ui/FieldGroup.tsx'
 import { Checkbox } from '../../src/ui/Checkbox.tsx'
 import { Row } from '../../src/ui/Row.tsx'
 import { SelectField } from '../../src/ui/SelectField.tsx'
@@ -79,6 +81,14 @@ createRoot(document.getElementById('root')!).render(
         </SvgText>
       </SvgG>
     </SvgRoot>
+    <FieldGroup title="Group one">
+      <Field id="part-field" label="Name" help="Your name">
+        <input id="part-field" defaultValue="x" />
+      </Field>
+    </FieldGroup>
+    <FieldGroup boxed title="Boxed group" blurb="Inside a frame">
+      <span data-part="boxed-child">child</span>
+    </FieldGroup>
     <StatTileStyle />
     <StatTile data-part="tile" name="Needs you: 3" value={3} label="Needs you" sub="2 decisions" warm />
     <StatTile data-part="tile-cool" name="Flow: 1" value={1} label="Flow" sub="" />

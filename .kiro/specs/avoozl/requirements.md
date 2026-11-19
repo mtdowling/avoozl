@@ -1603,8 +1603,8 @@ public or shared repositories cannot leak what the company keeps private.
 
 ### Requirement 41: Retired
 
-Retired 2026-11-18 (owner decision). Nothing here exists. Every session
-Avoozl opens runs on this machine, on the executor its harness names
+Retired 2026-11-18 by the worker-paths spec (WP6). Nothing here exists.
+Every session Avoozl opens runs on this machine, on the executor its harness names
 (Requirement 98). The number stays so that other requirements keep their
 references.
 
@@ -3820,6 +3820,10 @@ chatty agent cannot reach my secrets or my approvals.
 
 ### Requirement 84: Runner mode over SSH
 
+Retired 2026-11-18 by the worker-paths spec (WP5): worker pull (Requirement
+90) is the one way a task runs on another machine. The text below is the
+record and is not built.
+
 Added 2026-11-14 (owner request). Design §6.13. Prototype, off by default.
 
 **User story:** As the owner, I want one Avoozl to hand a task to an Avoozl on
@@ -4154,8 +4158,10 @@ plan and without trusting those machines.
    through the driver. Quiet, expired leases, lost connectivity and vanished
    chats SHALL NOT release a claim automatically. After `workers.claimStaleAfter`
    (default 24 h), Needs you SHALL offer person-only Release claim.
-7. SSH push of an envelope (the runner mode of Requirement 84) SHALL stay
-   only for a machine with no GitHub access.
+7. Retired 2026-11-18 by the worker-paths spec (WP5.5): a machine with no
+   GitHub access is not a worker machine. The record: "SSH push of an
+   envelope (the runner mode of Requirement 84) SHALL stay only for a
+   machine with no GitHub access."
 8. `avoozl worker setup` SHALL preview the worker configuration, check
    login, allowed source/fork pushes and readable target repositories, and
    check the configured executor. Kiro Crew SHALL be required only for the
@@ -4177,11 +4183,10 @@ removed, so that the app has one way to deliver work.
    marker, the `avoozl-crew` agent and the Issue Radar grant, and the remote
    coder, the relay and the router chat with their agents.
 2. Avoozl SHALL retain PR landing, release ranking, setup push plumbing,
-   build receipts and the executor seam. It SHALL retire per-task projection,
-   Project synchronization and task-issue completion only after the ordered
-   binding migration and its proof (Requirement 102). Spec issue publication,
-   epic links and journals SHALL remain. Export issues SHALL be the sole
-   explicit offboarding path allowed to create task issues.
+   build receipts and the executor seam. Per-task projection, Project
+   synchronization, task-issue completion, rebuild from GitHub and the issue
+   export SHALL be deleted (changed 2026-11-18: no path creates task issues).
+   Spec issue publication, epic links and journals SHALL remain.
 3. Leaf modules MAY be audited and already unreferenced ones deleted at any
    time. Task 45.2 SHALL wait for P52 to prove replacement PR landing.
    Tasks 45.2 and 45.3 MAY edit their shared callers. Remaining
@@ -4219,8 +4224,8 @@ removed, so that the app has one way to deliver work.
      reads, the handoff labels, crew review rules, conflicts and merge
      method. A test SHALL show that a repository whose file still says
      `coder: issue-radar` feeds Triage and its Radar escalations.
-   - The shared task projection and synchronization callers SHALL stay
-     for 45.4 (criterion 2), less their coder handling.
+   - The shared task projection and synchronization callers are deleted
+     by 45.4 (criterion 2).
 
 ### Requirement 92: Links to related GitHub items, and the landing queue
 
@@ -4444,8 +4449,9 @@ in a way Avoozl reads the same, so that Avoozl reads one kind of result.
 4. A child that exits with no result file, an unreadable one, or a non-zero
    exit code with `done` SHALL be treated as `exited <code>`, and its task
    SHALL follow the retry path (Requirement 8).
-5. `avoozl next`, `avoozl claim` and the report SHALL stay as the manual
-   path for a person or a harness Avoozl does not start.
+5. `avoozl claim`, `avoozl next` and `avoozl runner report` SHALL stay as
+   the manual path for a person. (Changed 2026-11-18 by the worker-paths
+   spec, WP9.1.)
 
 ### Requirement 97: Role prompts as files
 
@@ -4486,7 +4492,7 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
    `avoozl runner status --json`. Avoozl SHALL host no other UI.
 
 Added 2026-11-18 (owner approval of the simplification audit, item 8 and
-F7 in `docs/simplification-audit.md`): one roles table. Today a role's
+F7 in `docs/research/simplification-audit.md`): one roles table. Today a role's
 model is picked in seven places, and the worker's is on Settings ›
 Delivery while the others are on Settings › Models.
 
@@ -4798,8 +4804,7 @@ GitHub issue per task or exposing private planning information.
 
 1. Git SHALL hold design and implementation; the spec issue SHALL hold
    ownership and durable outcomes; SQLite SHALL cache local execution.
-   There SHALL be one issue per published spec and epic, never per task,
-   except the explicit, idempotent offboarding export in criterion 19.
+   There SHALL be one issue per published spec and epic, never per task.
 2. Publish issue SHALL be an explicit per-spec act in its home repository,
    independent of approval. Approval alone SHALL make no GitHub write.
    A fork checkout SHALL NOT move the registered issue home or require fork issues.
@@ -4901,13 +4906,12 @@ GitHub issue per task or exposing private planning information.
     home/visibility match. Initial intake SHALL make at most two idempotent
     writes: an ownership label and a privacy-safe status comment. Deliver this
     alone MAY use same-repository Fixes; input closure SHALL mean withdrawal,
-    not task completion. Export issues SHALL preview, create only incomplete
-    task issues and their blocked-by links once, then mark the spec Exported
-    and cease driving it. Existing bindings SHALL not be duplicated on retry.
-20. Migration SHALL hold release and stop ticks, disable task projection/close
-    reconciliation, preview and retire issue bindings without status changes,
-    run one tick with unchanged readiness and no task-issue reads/writes, then
-    and only then allow closing obsolete task issues. Spec issues SHALL remain.
+    not task completion. (Changed 2026-11-18: the issue export is deleted;
+    no path creates task issues.)
+20. Task projection, close reconciliation and issue bindings SHALL be gone:
+    a tick makes no task-issue reads or writes, and an old binding row is
+    ignored. Obsolete task issues MAY be closed by hand. Spec issues SHALL
+    remain. (Changed 2026-11-18: the migration path is deleted with them.)
     `route: github` and `merged-pr` SHALL retain their accepted source syntax,
     meaning queue landing and accepted landing, without rewriting approved files.
 21. Private mirror sync SHALL import upstream changes by a reviewed PR after
@@ -4953,7 +4957,7 @@ GitHub issue per task or exposing private planning information.
 Added 2026-11-16 (owner decision). Design §4.32.11. Planning only. Extends
 Requirement 102. Where they conflict it supersedes Requirement 52.7 and,
 in `radar-coder`, the hand-over of projected issues (RC1.6, RC2) and the
-claim at approval (RC19). Phase 45 is no longer paused: 45.2 landed in #509; 45.4 waits on P53, P54 and P66.
+claim at approval (RC19). Phase 45 is no longer paused: 45.2 landed in #509.
 
 The owner's words: Issue Radar should not take on Avoozl-created issues.
 It can take on maintenance and triage, and can punt an issue to Avoozl to
@@ -4999,10 +5003,11 @@ skip is a rule in the crew's prompt, not code.
    confirms, through the write pacer, and idempotently on retry. An issue a
    crew already claimed SHALL be left alone and shown once in Needs you.
    Avoozl SHALL NOT remove a crew's claim or needs-human label.
+   (Changed 2026-11-18: 45.4 deleted per-task issues, so there are no
+   projected task issues left to label.)
 6. Export issues (56.9) SHALL NOT set `crew:avoozl` on any issue they
-   create (owner decision, 2026-11-16). Export hands the work away from
-   Avoozl, so Issue Radar and people may take those issues. A test SHALL
-   check that no export create request carries `crew:avoozl`.
+   create (owner decision, 2026-11-16). (Changed 2026-11-18: 45.4 deleted
+   the issue export.)
 7. Radar SHALL keep maintenance and triage of issues Avoozl did not create.
    Send to Issue Radar (Requirement 52) SHALL stay for those issues and
    SHALL refuse an issue that carries `crew:avoozl`.
@@ -5525,7 +5530,7 @@ approval does not wait on me or drag in specs nobody asked about.
 
 ### Requirement 110: One intake list
 
-Added 2026-11-18 (owner decision on `docs/simplification-audit.md` item 6
+Added 2026-11-18 (owner decision on `docs/research/simplification-audit.md` item 6
 and F5). Design §4.39. Changes Requirement 50.6 and the issue intake part
 of Requirement 10; keeps Requirements 49, 52 and 103.8 to 103.11.
 

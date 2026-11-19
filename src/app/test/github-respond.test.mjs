@@ -316,7 +316,7 @@ test("a respond rule needs a configured responding label", () => {
         [REPO]: {
           baseBranch: "main",
           allowedActors: ["maintainer"],
-          rules: [{ id: "go", action: "deliver", labelsAll: ["go"] }],
+          rules: [{ id: "go", action: "pause", labelsAll: ["go"] }],
         },
       },
     }),

@@ -8,6 +8,7 @@ import { checksSetting, repositoryChecks } from "./repository-checks.mjs";
 import { requireDiskSpace } from "./disk-space.mjs";
 import {
   checkOptions,
+  containerBlindness,
   isolationSetting,
   prepareChecks,
 } from "./check-isolation.mjs";
@@ -641,6 +642,8 @@ export async function validateUnlocked(
         .split("\n")[0]
         .slice(0, 200)}`,
     );
+  const blind = await containerBlindness(project, run.worktree);
+  if (blind) fail(blind, 409);
   for (const { name, argv } of checks) {
     store.event(runId, "validation.started", { argv, name, phase });
     const record = await commandEvidence(

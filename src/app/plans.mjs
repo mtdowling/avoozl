@@ -6,7 +6,6 @@ import { COMPLETIONS, TASK_KINDS, isSource } from "../work-model.mjs";
 import { fail } from "./store.mjs";
 import { validateSession } from "./session-pins.mjs";
 import { frontMatterCategory } from "../front-matter.mjs";
-import { newTaskAuthority } from "./github-policy.mjs";
 import {
   checkedItems,
   epicMembers,
@@ -438,12 +437,10 @@ function approveEpic(
   plan.mapping = {};
   plan.approvalId = receipt.id;
   store.put("plans", plan);
-  // The store keeps cross-plan epics only (design §6.9): rows from before
-  // Requirement 59 (no planId) are dropped with this write.
+  // This epic's row replaces its last one. Every other row stays: rows
+  // from before Requirement 59 are still named by tasks (design §6.9).
   data.epics = [
-    ...(data.epics || []).filter(
-      (epic) => epic.planId && epic.id !== plan.spec,
-    ),
+    ...(data.epics || []).filter((epic) => epic.id !== plan.spec),
     {
       id: plan.spec,
       title: specTitle({ name: plan.spec, files: plan.files }),
@@ -781,20 +778,7 @@ export function approvePlan(
           ...design.batch,
           tasks: design.batch.tasks.map((ref) => mapping[ref] || ref),
         };
-      // With a GitHub mode a task defaults to github and shows as pending
-      // projection until its issue exists; local stays opt-in (R28.2–R28.3).
-      const authority = newTaskAuthority(githubPolicy, proposal.authority);
-      if (authority !== "local" || proposal.authority === "local")
-        design.authority = authority;
-      if (
-        existing?.planId === id &&
-        authority === "local" &&
-        (existing.github?.number || existing.github?.nodeId)
-      )
-        fail(
-          `Task ${taskId} already has a GitHub issue. Take it back local explicitly instead of marking it local in the plan.`,
-          409,
-        );
+      if (proposal.authority === "local") design.authority = "local";
       if (existing && existing.planId !== id) {
         existing.contextDocuments = [
           ...new Set([...(existing.contextDocuments || []), documentId]),

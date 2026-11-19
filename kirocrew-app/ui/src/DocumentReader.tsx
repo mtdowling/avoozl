@@ -154,9 +154,14 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
           )}
         </Box>
       )}
-      <div
-        className="min-h-0 grow"
-        style={narrow ? { display: 'flex', flexDirection: 'column', overflowY: 'auto' } : { display: 'grid', gridTemplateColumns: '15rem minmax(0, 1fr)', minHeight: 0 }}
+      <Box
+        css-display={narrow ? 'flex' : 'grid'}
+        css-flex-direction={narrow ? 'column' : undefined}
+        css-overflow-y={narrow ? 'auto' : undefined}
+        css-grid-template-columns={narrow ? undefined : '15rem-minmax-0-1fr'}
+        css-min-height={narrow ? undefined : '0'}
+        minH0
+        grow
         ref={narrow ? body : undefined}
       >
         {headings.length > 0 &&
@@ -175,10 +180,13 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
               <Outline headings={headings} onJump={jump} />
             </Box>
           ))}
-        <div
+        <Box
           ref={narrow ? undefined : body}
-          className="min-w-0 px-5 py-4"
-          style={narrow ? undefined : { overflowY: 'auto', gridColumn: headings.length ? undefined : '1 / -1' }}
+          css-overflow-y={narrow ? undefined : 'auto'}
+          css-grid-column={narrow ? undefined : headings.length ? undefined : '1-1'}
+          minW0
+          px="5"
+          py="4"
           aria-label={`Contents of ${target.document}`}
         >
           {doc.error ? (
@@ -195,8 +203,8 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
               <Markdown text={doc.text} idPrefix={PREFIX} measure={PROSE_MEASURE} />
             </>
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
     </Modal>
   )
 }

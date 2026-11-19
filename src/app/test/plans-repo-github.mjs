@@ -189,7 +189,7 @@ export class FakeGitHub {
 
 // Leaves a (issue 1) and b (issue 2); a-next (issue 3) requires a; both
 // (issue 4) requires a and b.
-export function workspace(t, { repository = {}, runner = "tick" } = {}) {
+export function workspace(t, { repository = {} } = {}) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
     checkout = temporaryDirectory(),
@@ -199,7 +199,7 @@ export function workspace(t, { repository = {}, runner = "tick" } = {}) {
     JSON.stringify({
       version: 1,
       namespace: NAMESPACE,
-      delivery: { concurrency: 4, runner },
+      delivery: { concurrency: 4 },
       github: {
         mode: "plans-repo",
         planningRepository: PLANS,
