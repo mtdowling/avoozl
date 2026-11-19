@@ -225,3 +225,56 @@ Kept and renamed: the content hook moves to `src/app/content/content-hook.mjs`.
 | GitHub limits hit by a busy repository                     | Conditional lists, batched counts, cached detail, the daily cap, triage yields |
 | An item gets runs over and over                            | A new run only on a person's ask or an answer to its question (TA1.5)   |
 | A stranger's comments start runs                           | Only the item's author or a collaborator starts one; other comments are data (TA7.8) |
+
+## D12. Set up triage and the plugin block (TA13)
+
+Onboarding stays as it is: Set up GitHub, `avoozl setup` and Settings ›
+Repository setup write no `triage` key and make no label (checked in
+`src/app/github/github-setup.mjs` and `src/app/workspace/repository-setup.mjs`,
+V: neither names triage or a label write). `triageStep` reads nothing for a
+workspace with no repository on, so epic delivery never touches triage.
+
+Two operations in `src/app/intake/triage-operations.mjs`, both
+`person(...)` and refused in the handler for a bound or MCP caller:
+
+- `triage.setup {repository}` previews: the defaults, `TRIAGE_LABELS`
+  (`bug`, `question`, `enhancement`, `performance`, GitHub's default
+  colors) each with whether the repository has it (one `listLabels` read),
+  and the harnesses (`auto`, `kirocrew`, each approved harness). With
+  `{confirm, existing, dailyRuns, fullReviewMaxLines, harness, createLabels}`
+  it saves the triage block with `agent: on` first, so a value
+  `.avoozl.json` refuses makes no label, then `roles.triage.harness`, then
+  each chosen missing label through `ensureLabel`. Rerunning it is safe.
+- `triage.off {repository}` sets `agent: off` and touches no label.
+
+`triage.settings` refuses `agent`. The CLI entry `triage` in
+`src/app/commands/setup.mjs` runs both: `avoozl triage setup OWNER/REPO
+[--existing take|skip] [--daily-runs N] [--review-lines N] [--harness NAME]
+[--labels a,b] [--confirm]` and `avoozl triage off OWNER/REPO`.
+
+The page (`TriageAgentView.tsx`, `TriageSetup.tsx`): with no repository on
+and no runs, one empty state with **Set up triage**; the flow is an inline
+panel with the questions, a line saying what it will make, and **Turn
+triage on**. Each off repository row has **Set up**, each on row **Pause**
+and **Turn off**.
+
+The block is a fifth plugin part, `policy`, data only like `pack` and
+`template`:
+
+```json
+{ "provides": ["policy"], "policy": { "triage": "blocked", "reason": "..." } }
+```
+
+Why this shape: the plugin contract already has data-only parts checked at
+load and approved by hash per machine, so a new part needs no new trust
+path. A pack would not do: it copies settings into `.avoozl.json`, which
+writes the repository and can be edited back. `triageBlock(options)` in
+`plugins.mjs` returns `{plugin, reason}` for the first plugin that is
+approved, declared in this machine's `plugins.json` (`source: machine`) and
+provides the policy; a plugin `.avoozl.json` declares is skipped, so a
+repository cannot set a machine's policy. It only reads. The tick passes it
+to `triageStep` (no repository is read or started), `triage.view` returns it
+as `blocked` with every repository `on: false`, `triage.setup` refuses with
+the reason, and `conflicts.view` adds one `needs-human` row,
+`reason: triage-blocked`, per repository whose file still has the agent on.
+Turn off works while blocked and clears the row.

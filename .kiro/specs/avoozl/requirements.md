@@ -1099,6 +1099,10 @@ repositories before Nupp moves, so that the default is safe.
 
 ### Requirement 32: GitHub setup wizard
 
+**Changed 2026-11-19 (triage-agent TA13).** Set up GitHub, like all
+repository onboarding, asks nothing about triage, writes no `triage` key and
+makes no triage label; Set up triage on the Triage agent page does that.
+
 **User story:** As a maintainer, I want Avoozl to set up GitHub for me from
 its Settings view, so that I never configure repositories, Projects, fields,
 issue types, or labels by hand.

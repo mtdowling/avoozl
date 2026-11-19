@@ -112,8 +112,10 @@ at once by an agent, so that nothing waits for me to read it first.
 
 #### Acceptance criteria
 
-1. Each repository SHALL have `triage.agent`, `on` or `off` (default `off`),
-   set on Settings › Repository setup. Turning it on SHALL ask whether to
+1. Each repository SHALL have `triage.agent`, `on` or `off` (default `off`).
+   (Changed 2026-11-19 by TA13: Set up triage on the Triage agent page turns
+   it on and asks the questions; repository setup never does. It was
+   "set on Settings › Repository setup".) Turning it on SHALL ask whether to
    take the open items already there or only new ones.
 2. The tick SHALL find new and changed items with the reads of TA10 and
    SHALL start one triage run for each new item, within the repository's
@@ -385,3 +387,44 @@ is built, so that a later reader does not rebuild what this removes.
 2. `README.md` and `docs/policies.md` SHALL describe the triage agent, the
    pages and fixes, and SHALL no longer describe label commands or Issue
    Radar.
+
+### Requirement TA13: Triage is opt-in, apart from onboarding
+
+Added 2026-11-19 (owner request).
+
+**User story:** As the owner, I want triage set up only when I choose it on
+the Triage agent page, so that onboarding a repository and delivering epics
+never ask about it, and a plugin can keep it off on a machine.
+
+#### Acceptance criteria
+
+1. Repository onboarding (Settings › Repository setup, Set up GitHub,
+   `avoozl setup`, `avoozl init` and setup from git) SHALL NOT ask about
+   triage, write a `triage` key or make a label. A freshly onboarded
+   repository SHALL have the agent off, and epic delivery SHALL work with
+   triage never set up.
+2. The Triage agent page SHALL show, while no repository has the agent on,
+   one empty state with a **Set up triage** button. That flow SHALL be the
+   only way `triage.agent` becomes `on`. It SHALL ask which repository,
+   whether to take the open items already there, the daily cap
+   (`triage.dailyRuns`), the full-review size (`triage.fullReviewMaxLines`)
+   and the harness (`roles.triage.harness`). It SHALL read the repository's
+   labels, offer the missing ones of `bug`, `question`, `enhancement` and
+   `performance`, say what it will make, and only on **Turn triage on** make
+   the chosen labels and turn the agent on.
+3. `avoozl triage setup OWNER/REPO` SHALL preview the same and, with
+   `--confirm`, do the same. The `triage.setup` operation SHALL be a
+   person's only: MCP and bound callers SHALL be refused, and so SHALL a
+   supervisor child on the CLI. `triage.settings` SHALL refuse `agent`.
+4. **Turn off**, `avoozl triage off OWNER/REPO` and `triage.off` SHALL set
+   the agent off in one step, a person's only, and SHALL leave every label
+   as it is.
+5. A plugin's `policy` part, `{"triage": "blocked", "reason": "..."}`, SHALL
+   block triage on a machine that declares the plugin in its own
+   `plugins.json` and approves it. A plugin `.avoozl.json` declares SHALL set
+   no policy. While it holds, the Triage agent page SHALL show the reason in
+   place of **Set up triage**, `triage.setup` and the CLI SHALL refuse with
+   the reason, and a repository whose agent is on SHALL be treated as off:
+   the tick reads and starts nothing for it, and Needs you shows one row per
+   such repository until it is turned off. The block SHALL never write the
+   repository.

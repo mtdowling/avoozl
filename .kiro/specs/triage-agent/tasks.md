@@ -6,7 +6,7 @@ completion: integrated
 
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
-brackets (`TA1` to `TA12`, in `requirements.md`); `D` sections refer to this
+brackets (`TA1` to `TA13`, in `requirements.md`); `D` sections refer to this
 spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
 
 Two tasks need parts of `.kiro/specs/without-kirocrew/` that a manifest
@@ -113,3 +113,9 @@ of the other specs.
   - $done: `node scripts/spec-lint.mjs` reports 0 errors; a search of `src/`, `kirocrew-app/`, `README.md` and `docs/*.md` finds no `radar-coder` citation, no Send to Issue Radar and no label-command section.
   - $after: ta-5.1, ta-5.2
   - `.kiro/specs/radar-coder/` deleted and code comments citing it renamed; Requirements 49, 52, 85, 91.6, 92, 103, 107 and 110 marked with what changed; README and policies describe the agent, the pages and fixes.
+
+## Phase 6: Triage is opt-in
+
+- [x] ta-6.1 Set up triage on the Triage agent page, apart from onboarding, and a plugin block [TA13] (§D12)
+  - $done: Tests: onboarding (Set up GitHub in single-repo mode) makes no label and proposes no `triage` key; Set up triage previews with no write, then makes only the missing chosen labels and turns the agent on; `triage.settings` refuses `agent`; Turn off leaves labels alone; MCP, a bound caller and a supervisor child cannot set up triage or turn it off; an approved machine plugin's `policy` refuses setup with its reason, shows every repository off, adds one Needs you row and makes the tick read nothing; a plugin `.avoozl.json` declares blocks nothing; screenshots of the empty state, the flow and the blocked page, phone and desktop, light and dark, go to the owner.
+  - `triage.setup` and `triage.off` operations, `avoozl triage setup|off`, the empty state and the Set up triage panel, the `policy` plugin part, `triageBlock`, and the `triage-blocked` Needs you row.
