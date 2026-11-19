@@ -785,9 +785,9 @@ test("a process worker's brief names its file tools and allowed commands", () =>
 // done with no commit since its base is refused, recorded blocked with why,
 // so the task takes the retry path with that feedback.
 test("a write worker's done with nothing committed is refused", async (t) => {
-  const { root, checkout, worktree } = machine(t);
+  const { root, checkout, worktree, defer } = machine(t);
   const store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
+  defer(() => store.close());
   const data = snapshot();
   data.tasks[0].repository = "app";
   store.importSnapshot(data);
