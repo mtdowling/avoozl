@@ -583,9 +583,9 @@ that other tools call removed by accident.
    RC14.1); the code goes only after proof rc-p11. Local-only mode SHALL be
    SQLite plans that are not projected; they cannot be coded until a GitHub
    repository is attached.
-4. These SHALL stay: the `plans_*` MCP names, the `NUPP_WORKSPACE` and
-   `AICOMMANDER_*` environment aliases, the `aicommander` command and the
-   `aicommander.*` editor settings (AGENTS.md).
+4. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) The narrow `plans_*` MCP tools a shipped agent, prompt or brief
+   names SHALL stay. No older environment alias, command name or editor
+   setting SHALL stay.
 5. Plan approval, implementation, integration and whole-head acceptance SHALL
    stay four separate things. The Radar path SHALL map them as: approval =
    RC3.6; implementation = the crew's pull request; integration = the merge

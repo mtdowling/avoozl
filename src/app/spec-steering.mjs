@@ -50,7 +50,11 @@ wants other rules. Avoozl never overwrites a changed copy.
 
 - Every item has one \`Facts:\` bullet as its first child. Under it, write
   one \`key: value\` bullet per fact. A list is \`key: a, b\` or \`key:\` with
-  nested bullets. Sub-items come after \`Facts:\`. Other bullets are notes.
+  nested bullets. Sub-items come after \`Facts:\`.
+- Other bullets under an item are its summary: what it delivers and how. Its
+  worker reads the title, then the summary as written, then \`done:\`. Write
+  one only when it adds to the title: lint refuses one that repeats it. Do
+  not repeat \`done:\` either, and write no \`Done when:\` bullet.
 - An item with sub-items is a group: its facts say \`kind: package\` and
   \`after:\` its sub-items. It is done when its sub-items are.
 - Every other item is one task for one agent session in one repository.
@@ -62,9 +66,9 @@ wants other rules. Avoozl never overwrites a changed copy.
   - \`done:\`, then one nested bullet per result someone can check.
 - Put values most tasks share in front-matter at the top of \`tasks.md\`,
   such as \`repo: app\` and \`checks: npm test\`. A task's own fact wins.
-- A step only a person does is a manual task: \`manual: true\`,
-  \`completion: person\`, what the person checks under \`done:\`, and no
-  checks.
+- A step only a person does is a manual task: \`manual: true\`, what the
+  person checks under \`done:\`, and no checks. It completes by a person;
+  never write \`completion: person\`.
 - Kiro's \`_Requirements: 1.2_\` line is a note. Keep it.
 
   \`\`\`markdown

@@ -103,7 +103,6 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
         repositories: {
           [REPO]: {
             baseBranch: "main",
-            coder: "issue-radar",
             requiredChecks: ["build"],
           },
         },

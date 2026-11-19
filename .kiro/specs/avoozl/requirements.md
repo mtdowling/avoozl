@@ -803,8 +803,10 @@ clean machine, so that I can use it without private context.
 3. Execution in any repository, public or private, SHALL require an explicit
    repository rule; installing Avoozl SHALL enable no trigger rule.
 4. Third-party licenses SHALL be audited and noticed.
-5. Existing compatibility surfaces (`plans_*` MCP names, `AICOMMANDER_*` and
-   `NUPP_WORKSPACE_*` variables, the `aicommander` command) SHALL keep working.
+5. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) Only `AVOOZL_*` variables and the `avoozl` command SHALL
+   work; older environment aliases, command names, editor settings and
+   settings keys SHALL NOT be read. A configuration file with an unknown
+   top-level key SHALL fail to load, naming the file and the key.
 
 ### Requirement 25: Assessment deliverable quality
 
@@ -2600,7 +2602,11 @@ nothing a person must decide can be done from a chat.
    current tool, so no agent's allowedTools grows. Agents, prompts and briefs
    SHALL name only registered tools, and a test SHALL fail when one names a
    tool that is not registered or when a read-only role is given a grouped
-   tool with write actions.
+   tool with write actions. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) The old plan-file MCP server's tools
+   SHALL NOT be listed. The planner's four reads (`plans_query`,
+   `plans_get_task`, `plans_documents`, `plans_get_document`) SHALL be
+   narrow tools over the `query`, `task.get`, `plan.table` and
+   `document.get` operations.
 4. A session MAY archive and unarchive a plan, and the record SHALL name
    the session. This replaces Requirement 51.1.
 5. A grouped tool that keeps an old read-only name SHALL stay read only, so
@@ -4292,10 +4298,9 @@ removed, so that the app has one way to deliver work.
    shared-module edits SHALL be made last, after Phases 40–44 have landed.
    (Changed 2026-11-18: the rule to wait for no other lane editing the same
    files is dropped.)
-4. Every compatibility name that RC11.4 tests (the `plans_*` MCP
-   names, `AVOOZL_*`, `AICOMMANDER_*` and `NUPP_WORKSPACE*` variables, the
-   `aicommander` command and the `aicommander.*` settings) SHALL still
-   resolve after the deletion.
+4. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) After the deletion, the narrow `plans_*` tools a shipped agent,
+   prompt or brief names SHALL still resolve, and `AVOOZL_*` variables and
+   the `avoozl` command SHALL be the only environment and command names.
 5. A public Nupp setup SHALL land `direct` on the public `core-dev` branch
    from the start, with `scripts/worktree` as the helper and
    `scripts/test-changed` as the check. Its plans SHALL stay in a private

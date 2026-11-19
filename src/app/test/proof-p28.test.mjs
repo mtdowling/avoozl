@@ -518,8 +518,8 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
     },
     ops,
   );
-  assert.equal(reply.body.result.isError, true);
-  assert.match(reply.body.result.content[0].text, /Only a person/);
+  // There is no MCP tool for it under any name.
+  assert.match(reply.body.error.message, /Unknown tool/);
 
   // (11) No blocking term, plain or encoded, in Avoozl's own records or in
   // the landed history. `plans` and `approvals` hold the plan text a person

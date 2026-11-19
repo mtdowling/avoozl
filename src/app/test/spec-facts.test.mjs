@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { factsLines, readFacts } from "../spec-facts.mjs";
 import { parseSpec, specHash, specItems } from "../spec-plans.mjs";
+import { workerBrief } from "../delivery.mjs";
 import { foldManifest, legacyHash } from "./legacy-facts.mjs";
 import { legacySpecFiles } from "./spec-fixture.mjs";
 
@@ -63,7 +64,6 @@ test("every key the reader uses round-trips through Facts bullets", () => {
   const entry = {
     kind: "leaf",
     repository: "app",
-    summary: "Read it.",
     acceptance: ["It reads, with commas, in one line."],
     completion: "integrated",
     checks: ["npm test"],
@@ -189,21 +189,150 @@ test("each wrong shape is refused at its line in tasks.md", () => {
   }
 });
 
-test("a manual leaf takes no checks default", () => {
+test("a manual leaf takes no checks or completion default", () => {
   const parsed = parse(
     lines(
       "---",
       "checks: npm test",
+      "completion: integrated",
       "---",
       "- [ ] 1.1 Review with the team",
       "  - Facts:",
       "    - manual: true",
-      "    - completion: person",
       "    - repo: app",
       "    - done: The team agreed",
     ),
   );
+  assert.deepEqual(codes(parsed), []);
   assert.equal(parsed.proposals[0].checks, undefined);
+  assert.equal(parsed.proposals[0].completion, undefined);
+});
+
+test("completion person is refused in facts and front-matter, naming manual", () => {
+  const fact = parse(
+      lines(
+        "- [ ] 1.1 Review with the team",
+        "  - Facts:",
+        "    - manual: true",
+        "    - completion: person",
+        "    - repo: app",
+        "    - done: The team agreed",
+      ),
+    ),
+    front = parse(
+      lines(
+        "---",
+        "completion: person",
+        "---",
+        "- [ ] 1.1 Review with the team",
+        "  - Facts:",
+        "    - manual: true",
+        "    - repo: app",
+        "    - done: The team agreed",
+      ),
+    );
+  assert.deepEqual(codes(fact), ["facts.person-completion tasks.md:4"]);
+  assert.deepEqual(codes(front), ["facts.person-completion tasks.md:2"]);
+  assert.match(fact.diagnostics[0].message, /manual: true/);
+});
+
+// A task's own summary bullets say what it delivers.
+const described = lines(
+  "---",
+  "repo: app",
+  "checks: npm test",
+  "---",
+  "- [ ] 1 Load configuration",
+  "  - Facts:",
+  "    - kind: package",
+  "    - after: 1.1",
+  "  - The loader and its tests.",
+  "  - [ ] 1.1 Read the config file",
+  "    - Facts:",
+  "      - done:",
+  "        - A missing file yields defaults.",
+  "    - Per file: read config.json from the working directory,",
+  "      then parse it.",
+  "      - Keep comments out.",
+  "    - Done when: A missing file yields defaults.",
+  "    - A missing file is not an error.",
+);
+
+test("a task's summary is its bullets as written, without facts, Done when or sub-items", () => {
+  const parsed = parse(described),
+    summary = (key) => parsed.proposals.find((p) => p.specKey === key).summary;
+  assert.deepEqual(codes(parsed), []);
+  assert.equal(
+    summary("1.1"),
+    [
+      "- Per file: read config.json from the working directory,",
+      "  then parse it.",
+      "  - Keep comments out.",
+      "- A missing file is not an error.",
+    ].join("\n"),
+  );
+  assert.equal(summary("1"), "- The loader and its tests.");
+  // The summary is not a fact: the manifest the revision hash reads has none.
+  const facts = readFacts(described, specItems("config", described));
+  assert.equal(facts.manifest.tasks["1.1"].summary, undefined);
+});
+
+test("a summary that repeats the title is refused and never reaches the brief", () => {
+  const repeating = parse(
+      described.replace(
+        "    - A missing file is not an error.",
+        "    - Read the config file.",
+      ),
+    ),
+    project = { id: "app", root: "/repo", baseBranch: "main" },
+    brief = (proposal) =>
+      workerBrief({ ...proposal, id: `config.${proposal.specKey}` }, project, {
+        attempt: 1,
+        worktree: "/wt",
+        steps: [],
+      });
+  assert.deepEqual(codes(repeating), [
+    "task.summary-repeats-title tasks.md:18",
+  ]);
+  assert.match(repeating.diagnostics[0].message, /repeats the title/);
+  const kept = repeating.proposals.find((p) => p.specKey === "1.1");
+  assert.doesNotMatch(kept.summary, /Read the config file/);
+  // One that adds context passes and reaches the brief.
+  const adds = parse(described).proposals.find((p) => p.specKey === "1.1");
+  assert.match(
+    brief(adds),
+    /\nSummary:\n- Per file: read config\.json[\s\S]*\nAcceptance: A missing file/,
+  );
+  // A stored summary that repeats the title stays out of the brief too.
+  assert.doesNotMatch(
+    brief({ ...adds, summary: "Read the config file." }),
+    /Summary:/,
+  );
+});
+
+test("a summary fact is refused, naming the line to delete", () => {
+  const parsed = parse(
+    described.replace(
+      "      - done:",
+      "      - summary: Read it.\n      - done:",
+    ),
+  );
+  assert.deepEqual(codes(parsed), ["facts.removed-key tasks.md:12"]);
+  assert.match(parsed.diagnostics[0].message, /Delete this line/);
+});
+
+test("a long title stays whole and is refused over the limit", () => {
+  const long = "Read the config file: " + "and report each problem. ".repeat(8),
+    whole = parse(described.replace("1.1 Read the config file", `1.1 ${long}`));
+  assert.ok(long.trim().length <= 240);
+  assert.equal(
+    whole.proposals.find((p) => p.specKey === "1.1").title,
+    long.trim(),
+  );
+  const over = parse(
+    described.replace("1.1 Read the config file", `1.1 ${long.repeat(2)}`),
+  );
+  assert.deepEqual(codes(over), ["task.title-length tasks.md:10"]);
 });
 
 test("an epic folder reads its rows from facts", () => {
@@ -215,7 +344,7 @@ test("an epic folder reads its rows from facts", () => {
       "- [ ] 1 Native runtime",
       "  - Facts:",
       "    - plan: native-runtime",
-      "    - summary: Direction and work",
+      "  - Direction and work",
       "- [ ] 2 Review it",
       "  - Facts:",
       "    - plan: native-runtime",
@@ -226,7 +355,7 @@ test("an epic folder reads its rows from facts", () => {
   assert.deepEqual(
     parsed.members.map((m) => [m.key, m.plan, m.step, m.summary]),
     [
-      ["1", "native-runtime", "implement", "Direction and work"],
+      ["1", "native-runtime", "implement", "- Direction and work"],
       ["2", "native-runtime", "review", ""],
     ],
   );
@@ -235,9 +364,8 @@ test("an epic folder reads its rows from facts", () => {
 test("a pure conversion keeps the revision hash; a changed fact changes it", () => {
   // The old layout as Avoozl's writers left it: version 1, each task's keys
   // in the usual order.
-  const leaf = (summary, acceptance, extra = {}) => ({
+  const leaf = (acceptance, extra = {}) => ({
     kind: "leaf",
-    summary,
     acceptance: [acceptance],
     completion: "integrated",
     checks: ["npm test"],
@@ -252,21 +380,15 @@ test("a pure conversion keeps the revision hash; a changed fact changes it", () 
             tasks: {
               1: {
                 kind: "package",
-                summary: "The goal.",
                 acceptance: [
                   "The CLI reads, validates, and reports its config.",
                 ],
                 requires: ["1.1", "1.2"],
               },
-              1.1: leaf(
-                "Parse config.json from the working directory.",
-                "A missing file yields defaults.",
-              ),
-              1.2: leaf(
-                "Report unknown keys.",
-                "An unknown key is reported with its path.",
-                { requires: ["1.1"] },
-              ),
+              1.1: leaf("A missing file yields defaults."),
+              1.2: leaf("An unknown key is reported with its path.", {
+                requires: ["1.1"],
+              }),
             },
           },
           null,
@@ -300,9 +422,35 @@ test("a pure conversion keeps the revision hash; a changed fact changes it", () 
   const changed = {
     ...converted,
     "tasks.md": converted["tasks.md"].replace(
-      "summary: Report unknown keys.",
-      "summary: Report unknown keys and types.",
+      "- An unknown key is reported with its path.",
+      "- An unknown key is reported with its JSON path.",
     ),
   };
   assert.notEqual(specHash(changed), specHash(converted));
+  // Summary beside the facts is tasks.md text, not a fact: the hash reads it
+  // as the text it is, and the facts text stays the manifest's.
+  const described = {
+      ...old,
+      "tasks.md": old["tasks.md"].replace(
+        "  - [ ] 1.1 Read the config file",
+        "  - [ ] 1.1 Read the config file\n    - Read it from the working directory.",
+      ),
+    },
+    withSummary = foldManifest(described).files;
+  assert.equal(specHash(withSummary), legacyHash(described));
+});
+
+test("an old record's summary folds into the item's summary", () => {
+  const old = legacySpecFiles(),
+    converted = foldManifest(old).files,
+    parsed = parseSpec({ name: "config", exists: true, files: converted });
+  assert.match(
+    converted["tasks.md"],
+    /1\.1 Read the config file\n {4}- Facts:\n(?: {6}.*\n)+ {4}- Parse config\.json from the working directory\./,
+  );
+  assert.deepEqual(codes(parsed), []);
+  assert.equal(
+    parsed.proposals.find((p) => p.specKey === "1.1").summary,
+    "- Parse config.json from the working directory.",
+  );
 });

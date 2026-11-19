@@ -106,7 +106,7 @@ function workspace(t, crewReader) {
       github: {
         mode: "single-repo",
         repositories: {
-          [REPO]: { baseBranch: "main", coder: "issue-radar" },
+          [REPO]: { baseBranch: "main" },
         },
       },
     }),

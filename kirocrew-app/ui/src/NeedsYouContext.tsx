@@ -96,9 +96,9 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
       >
         {evidence.kind === 'diff'
           ? evidence.lines.map((line, i) => (
-              <span key={i} data-diff={line.kind} style={{ display: 'block', color: DIFF_INK[line.kind] }}>
+              <Box key={i} data-diff={line.kind} as="span" css-display="block" css-color={DIFF_INK[line.kind]}>
                 {DIFF_MARK[line.kind]} {line.text}
-              </span>
+              </Box>
             ))
           : evidence.lines.join('\n')}
       </Box>

@@ -154,8 +154,7 @@ test("the verifier agent ships with tool refs on the server key Kiro Crew regist
   initializeWorkspace(workspace);
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_|^NUPP_WORKSPACE$/.test(name))
-      delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   const served = JSON.parse(
     execFileSync(
       "python3",

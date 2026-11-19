@@ -439,6 +439,25 @@ async function finishReviewDraft(ops, binding, result, store) {
 // retro's reply is recorded as its chat reply is; a planner's folder is
 // stored by the tick's plan import, so its result records nothing.
 const VERDICT_FIELDS = ["verdict", "findings", "closures", "checks", "text"];
+export const NOTHING_COMMITTED =
+  "The worker reported done, but nothing was committed: the worktree has no change since its base. Make the change with your file tools, check the files are there, then report done.";
+
+// True when the worktree's HEAD holds nothing new: it is the commit the
+// task's branch started from, or already in the project's base branch.
+async function nothingCommitted(store, taskId, worktree) {
+  const base =
+    store.get("task_worktrees", taskId)?.base?.commit ??
+    sessionProject(store, { task: taskId })?.baseBranch ??
+    "main";
+  try {
+    await git(worktree, ["merge-base", "--is-ancestor", "HEAD", base]);
+    return true;
+  } catch {
+    // Not an ancestor (exit 1), or a base git cannot read: not refused.
+    return false;
+  }
+}
+
 export async function finishProcessSession(ops, binding, result, store = null) {
   result = withChildOutput(processRow(binding.role), result);
   const hands = processRow(binding.role)?.hands;
@@ -589,12 +608,29 @@ export async function finishProcessSession(ops, binding, result, store = null) {
       undefined,
       { caller: cliReportCaller(binding) },
     );
+  const commit = result.state === "done" ? await head() : null;
+  // A write worker's done with nothing committed since its base is refused,
+  // as a runner's is (remote-runner.mjs reportDone): it is recorded blocked
+  // with that reason, so the next attempt reads why (R96.4, R8).
+  if (
+    commit &&
+    store &&
+    binding.permissionClass === "write" &&
+    processRow(binding.role)?.folder === "worktree" &&
+    (await nothingCommitted(store, binding.taskId, result.worktree))
+  )
+    return ops.execute(
+      "session.report",
+      { taskId: binding.taskId, kind: "blocked", text: NOTHING_COMMITTED },
+      undefined,
+      { caller: cliReportCaller(binding) },
+    );
   const input =
     result.state === "done"
       ? {
           taskId: binding.taskId,
           kind: "done",
-          commit: await head(),
+          commit,
           ...(reportsVerdict(binding.role) && result.report
             ? Object.fromEntries(
                 VERDICT_FIELDS.filter(

@@ -141,7 +141,6 @@ export const APP_OPERATIONS = new Set([
   "driver.takeover",
   "driver.forceTakeover",
   "driver.away.decide",
-  "relay.forget",
   "providers.view",
   "provider.switch.preview",
   "provider.switch.dryRun",

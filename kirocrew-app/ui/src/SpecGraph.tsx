@@ -10,7 +10,7 @@ import { linkHref, type Graph } from './views-api.ts'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
-import { PlainLink } from './ui/Plain'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 type Mode = 'frontier' | 'tree'
 
@@ -37,21 +37,25 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
     setMode('tree')
   }
   const tab = (key: Mode, label: string) => (
-    <button
+    <PlainButton
       type="button"
       role="tab"
       aria-selected={mode === key}
       data-spec-graph-tab={key}
       onClick={() => (key === 'tree' ? drill({ kind: 'spec', id: planId }) : setMode('frontier'))}
-      className="h-6 cursor-pointer whitespace-nowrap rounded-sm border px-3 text-[11px]"
-      style={
-        mode === key
-          ? { borderColor: 'var(--border-strong, var(--border))', color: 'var(--accent)', background: 'var(--card)' }
-          : { borderColor: 'transparent', color: 'var(--muted)', background: 'transparent' }
-      }
+      css-border-color={mode === key ? 'border-strong-border' : 'transparent'}
+      css-color={mode === key ? 'accent' : 'muted'}
+      css-background={mode === key ? 'card' : 'transparent'}
+      h6
+      cursorPointer
+      whitespace="nowrap"
+      rounded="sm"
+      border="all"
+      px="3"
+      size="11"
     >
       {label}
-    </button>
+    </PlainButton>
   )
   return (
     <Box flex minW0 flexCol gap="2" data-spec-graph>

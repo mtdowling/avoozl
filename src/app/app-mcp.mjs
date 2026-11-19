@@ -185,7 +185,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
     ) {
       if (message.method === "tools/list")
         return (await handleMcp(message, null)).body;
-      const reply = dispatchMcp(message, {}).body;
+      const reply = dispatchMcp(message).body;
       // Pooled operation: the gateway injects the caller block only into a
       // backend that advertises this (kiro_crew/mcp_gateway/backend_handshake.py
       // _parse_initialize_response).

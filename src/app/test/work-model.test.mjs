@@ -4,6 +4,8 @@ import { Operations } from "../operations.mjs";
 import { lintPlan } from "../plan-quality.mjs";
 import { queryTasks, validate } from "../../model.mjs";
 import {
+  isGate,
+  isManual,
   taskAuthority,
   taskCompletion,
   taskKind,
@@ -269,4 +271,32 @@ test("an old merged-pr completion reads as landed on every route", () => {
       ).includes("leaf.completion"),
       false,
     );
+});
+
+test("a stored row with completion person reads as manual; a gate stays a gate", () => {
+  const stored = { id: "r", kind: "leaf", completion: "person" },
+    manual = { id: "m", kind: "leaf", manual: true },
+    gate = { id: "g", kind: "leaf", completion: "tracker" };
+  assert.equal(isManual(stored), true);
+  assert.equal(taskCompletion(stored), "person");
+  assert.equal(taskCompletion(manual), "person");
+  assert.equal(isGate(stored), false);
+  assert.equal(isGate(gate), true);
+  assert.equal(isManual(gate), false);
+  assert.equal(isManual({ ...stored, kind: "package" }), false);
+});
+
+test("a row stored with prose loads with it as its summary", (t) => {
+  const { store } = fixture(t),
+    [first] = store.read().tasks;
+  store.db
+    .prepare("UPDATE entities SET body=? WHERE kind='task' AND id=?")
+    .run(
+      JSON.stringify({ ...first, summary: undefined, prose: "- Old text." }),
+      first.id,
+    );
+  store.cache = null;
+  const task = store.read().tasks.find((x) => x.id === first.id);
+  assert.equal(task.summary, "- Old text.");
+  assert.equal(task.prose, undefined);
 });

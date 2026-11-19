@@ -81,7 +81,7 @@ test('the review and drafted labels round-trip, and ready stays in managedLabels
 test('the three values round-trip and a blank one leaves the file', () => {
   const policy = {
     mode: 'single-repo',
-    repositories: { 'example/code': { baseBranch: 'main', coder: 'issue-radar', radar: { planLabel: 'to plan', reviewRules: '- Run lint.', clearPlanLabel: true } } },
+    repositories: { 'example/code': { baseBranch: 'main', radar: { planLabel: 'to plan', reviewRules: '- Run lint.', clearPlanLabel: true } } },
   }
   const form = toForm(policy)
   const repository = form.repositories[0]

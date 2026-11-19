@@ -49,7 +49,7 @@ function isolatedEnv(root) {
     APPDATA: path.join(root, "roaming"),
   };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   return env;
 }
 

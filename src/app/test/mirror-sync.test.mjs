@@ -17,10 +17,9 @@ const policy = {
   mode: "single-repo",
   repositories: {
     [SOURCE]: {
-      coder: "issue-radar",
       mirror: { source: SOURCE, mirror: MIRROR, forward: "nudge" },
     },
-    "example/other": { coder: "issue-radar" },
+    "example/other": {},
   },
 };
 

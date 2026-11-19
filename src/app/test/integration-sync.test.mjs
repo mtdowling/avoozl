@@ -15,7 +15,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const T0 = Date.parse("2026-11-14T00:00:00Z");
 const policy = {
   mode: "single-repo",
-  repositories: { [REPO]: { baseBranch: "main", coder: "issue-radar" } },
+  repositories: { [REPO]: { baseBranch: "main" } },
 };
 
 // `fresh`: commits on main the branch lacks. `own`: commits on the branch main
@@ -267,8 +267,8 @@ test("targets: two repositories, or none to pick, are named as problems, not gue
     syncTargets(none, {
       ...policy,
       repositories: {
-        a: { coder: "issue-radar" },
-        b: { coder: "issue-radar" },
+        a: {},
+        b: {},
       },
     }).problems.length,
     1,

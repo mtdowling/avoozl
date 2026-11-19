@@ -65,7 +65,6 @@ test("diffSpec names edited, added and removed tasks", () => {
 async function scenario(t) {
   const context = await workspace(t, {
       mode: "single-repo",
-      coder: "issue-radar",
     }),
     spec = await approvedSpec(context, { overrides: BATCH_SPEC });
   await context.ops.execute("github.project", { planId: spec.plan.id });

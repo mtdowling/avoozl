@@ -11,7 +11,7 @@ import { initializeWorkspace } from "../workspace.mjs";
 import { Store } from "../store.mjs";
 import { recordPlanReviewWriter } from "../plan-review-authorship.mjs";
 import { mcpRefusal, cliRefusal } from "../mcp-policy.mjs";
-import { OLD_TOOLS, handleMcp } from "../mcp.mjs";
+import { NARROW_TOOLS, handleMcp } from "../mcp.mjs";
 import { groupedCall } from "../mcp-tools.mjs";
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
 const plan = {
@@ -44,8 +44,8 @@ test("current revision reads exclude old findings, and MCP aliases preserve boun
     ),
     ["current"],
   );
-  assert.equal(OLD_TOOLS.plans_plan_review[0], "plan.review.findings");
-  assert.equal(OLD_TOOLS.plans_answer_review[0], "plan.review.answer");
+  assert.equal(NARROW_TOOLS.plans_plan_review[0], "plan.review.findings");
+  assert.equal(NARROW_TOOLS.plans_answer_review[0], "plan.review.answer");
   assert.equal(
     groupedCall("plans_review", { action: "answer", input: {} }).operation,
     "plan.review.answer",
@@ -83,7 +83,7 @@ test("CLI reads current review and queues an inherited reviewer only as a person
     path.join(xdg, "avoozl", "config.json"),
     JSON.stringify({
       version: 1,
-      models: { planReviewer: "fake-reviewer" },
+      roles: { planReviewer: { model: "fake-reviewer" } },
       planReview: { mode: "auto" },
     }),
   );

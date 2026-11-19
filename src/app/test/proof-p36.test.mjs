@@ -442,15 +442,10 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
       /Resolve plan diagnostic (spec|facts)\./,
     );
 
-  // (7) Changed 2026-11-18 (R108.8): batching has no setting, so the old
-  // batch key "epic" is ignored and a save that carries it still works.
-  assert.equal(
-    "batch" in flowPolicy({ flow: { batch: { by: "epic" } } }).workspace,
-    false,
+  // (7) Changed 2026-11-18 (R108.8): batching has no setting, so a batch
+  // key is refused.
+  assert.throws(
+    () => flowPolicy({ flow: { batch: { by: "epic" } } }),
+    /flow\.batch is not a flow setting/,
   );
-  const settings = await ops.execute("flow.settings.get", {});
-  await ops.execute("flow.settings.update", {
-    flow: { batch: { by: "epic" } },
-    expectedHash: settings.hash,
-  });
 });

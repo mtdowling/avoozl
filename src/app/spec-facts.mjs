@@ -29,7 +29,6 @@ const STATUS = /^Status:/;
 const KEYS = {
   kind: { as: "kind", type: "text" },
   repo: { as: "repository", type: "text" },
-  summary: { as: "summary", type: "text" },
   done: { as: "acceptance", type: "list" },
   completion: { as: "completion", type: "text" },
   checks: { as: "checks", type: "list" },
@@ -68,6 +67,14 @@ const KEYS = {
   step: { as: "step", type: "text" },
 };
 const FACT_KEYS = Object.keys(KEYS);
+// A person's task is `manual: true`; `completion: person` is not written.
+const PERSON =
+  "A task a person does is `manual: true`, which completes by a person. Write that, and delete this line.";
+// Facts that are gone, and what to do with a line that still has one.
+const REMOVED = {
+  summary:
+    "The summary fact is gone: a task's summary is its own bullets under the item. Delete this line.",
+};
 
 // Front-matter: defaults for a leaf, and values for the whole spec.
 const DEFAULTS = {
@@ -90,7 +97,6 @@ const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
 const ORDER = [
   "kind",
   "repository",
-  "summary",
   "acceptance",
   "completion",
   "checks",
@@ -232,6 +238,8 @@ function readFront(rows) {
     }
     const read = readValue(key, spec, inline, nested);
     if (read.error) out.problems.push(problem("facts.value", line, read.error));
+    else if (key === "completion" && read.value === "person")
+      out.problems.push(problem("facts.person-completion", line, PERSON));
     else out.values[key] = read.value;
   }
   return out;
@@ -342,6 +350,14 @@ export function readFacts(text, items) {
       }
       const [, key, inline] = match,
         spec = Object.hasOwn(KEYS, key) ? KEYS[key] : null;
+      if (Object.hasOwn(REMOVED, key)) {
+        problems.push(
+          problem("facts.removed-key", at + 1, REMOVED[key], {
+            key: item.key,
+          }),
+        );
+        continue;
+      }
       if (!spec) {
         problems.push(
           problem(
@@ -369,6 +385,14 @@ export function readFacts(text, items) {
       if (read.error) {
         problems.push(
           problem("facts.value", at + 1, read.error, { key: item.key }),
+        );
+        continue;
+      }
+      if (key === "completion" && read.value === "person") {
+        problems.push(
+          problem("facts.person-completion", at + 1, PERSON, {
+            key: item.key,
+          }),
         );
         continue;
       }
@@ -431,10 +455,11 @@ export function readFacts(text, items) {
       const fill = {};
       if (entry.kind === undefined) fill.kind = "leaf";
       if (entry.kind !== "package")
-        // A manual leaf runs no checks (Requirement 61.9): it takes none.
+        // A manual leaf runs no checks (Requirement 61.9) and completes by
+        // a person: it takes neither default.
         for (const [name, spec] of Object.entries(DEFAULTS))
           if (
-            !(name === "checks" && entry.manual === true) &&
+            !(entry.manual === true && name !== "repo") &&
             front.values[name] !== undefined &&
             entry[spec.as] === undefined
           )
@@ -493,6 +518,74 @@ export function readFacts(text, items) {
     frontLine: (key) => front.at[key] ?? 1,
     batchLine: (id) => front.at[`batch-${id}`] ?? batchLine[id] ?? 1,
   };
+}
+
+// The description bullets of each item in tasks.md: its child bullets other
+// than the Facts bullet, nested checklist items and a `Done when:` bullet,
+// each with its nested lines, as written. Returns item line ->
+// [{line, text}], for items that have any. They are not facts: the revision
+// hash reads them only as tasks.md text.
+export function itemBullets(text, items) {
+  const rows = String(text)
+      .split("\n")
+      .map((row) => row.replace(/\r$/, "")),
+    itemLines = new Set(items.map((item) => item.line)),
+    out = new Map();
+  for (const item of items) {
+    const base = indentOf(rows[item.line - 1] ?? ""),
+      kept = [];
+    let child = null,
+      own = null,
+      fenced = false;
+    for (let at = item.line; at < rows.length; at++) {
+      const raw = rows[at],
+        indent = indentOf(raw);
+      if (!fenced && !raw.trim()) continue;
+      if (!fenced && indent <= base) break;
+      if (!fenced && (child === null || indent <= child)) {
+        child ??= indent;
+        const bullet = BULLET.exec(raw);
+        own =
+          bullet &&
+          !itemLines.has(at + 1) &&
+          !FACTS.test(bullet[2]) &&
+          !/^Done when:/.test(bullet[2])
+            ? { line: at + 1, lines: [] }
+            : null;
+        if (own) kept.push(own);
+      }
+      if (own) own.lines.push(raw.slice(Math.min(indent, child)).trimEnd());
+      if (FENCE.test(raw)) fenced = !fenced;
+    }
+    if (kept.length)
+      out.set(
+        item.line,
+        kept.map(({ line, lines }) => ({ line, text: lines.join("\n") })),
+      );
+  }
+  return out;
+}
+
+// Each item's summary: its description bullets joined, as written.
+export const itemSummaries = (text, items) =>
+  new Map(
+    [...itemBullets(text, items)].map(([line, bullets]) => [
+      line,
+      bullets.map((bullet) => bullet.text).join("\n"),
+    ]),
+  );
+
+// A task's summary as bullets under its item at column `indent`: lines that
+// are already bullets stay as written, and other text becomes one bullet.
+export function summaryLines(summary, { indent = 2 } = {}) {
+  const text = typeof summary === "string" ? summary.trim() : "";
+  if (!text) return [];
+  const pad = " ".repeat(indent);
+  return /^[-*+][ \t]/.test(text)
+    ? text.split(/\r?\n/).map((line) => pad + line)
+    : text
+        .split(/\r?\n/)
+        .map((line, at) => (at ? `${pad}  ${line}` : `${pad}- ${line}`));
 }
 
 // `entry` with each key of `fill` placed before the first key of `entry` that

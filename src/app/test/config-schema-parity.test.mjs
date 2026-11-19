@@ -17,17 +17,13 @@ import { CONTENT_RULES_KEYS, RULE_SET_KEYS } from "../content-rules.mjs";
 import {
   AGENT_ROLE_FIELDS,
   HARNESS_ROLE_FIELDS,
-  HARNESS_ROLES,
-  MODEL_ROLES,
   PLAN_REVIEW_KEYS,
-  RETIRED_ROLES,
   ROLE_FIELDS,
   ROLES,
 } from "../chat-models.mjs";
 import {
   DELIVERY_KEYS,
   DELIVERY_REPOSITORY_KEYS,
-  RETIRED_DELIVERY_KEYS,
   REVIEWER_KEYS,
 } from "../delivery.mjs";
 import { FLOW_PATHS } from "../flow.mjs";
@@ -35,7 +31,6 @@ import { BEHAVIOR_NAMES } from "../github-label-behaviors.mjs";
 import {
   CREW_LABEL_KEYS,
   GITHUB_BLOCK_KEYS,
-  LEGACY_KEYS,
   MANAGED_LABEL_KEYS,
   POLICY_KEYS,
   RADAR_KEYS,
@@ -51,10 +46,8 @@ import { MIRROR_KEYS } from "../mirror-policy.mjs";
 import { ENTRY_KEYS } from "../plugins.mjs";
 import {
   CONVERSATION_KEYS,
-  ISSUE_INTAKE_KEYS,
   PLANNING_REPOSITORY_KEYS,
   PROJECT_KEYS,
-  QUEUE_KEYS,
   SANDBOX_KEYS,
 } from "../repository-settings.mjs";
 
@@ -77,8 +70,6 @@ const flowGroup = (group) =>
 
 // Each closed schema object and the keys its validator accepts.
 const PAIRS = [
-  ["#/properties/models", [...MODEL_ROLES, ...RETIRED_ROLES]],
-  ["#/properties/harnesses", HARNESS_ROLES],
   ["#/properties/roles", ROLES],
   ["#/$defs/chatRole", ROLE_FIELDS],
   ["#/$defs/agentRole", AGENT_ROLE_FIELDS],
@@ -97,12 +88,12 @@ const PAIRS = [
     "#/properties/intake/properties/sources/additionalProperties",
     [...new Set([...SOURCE_KEYS, ...GITHUB_SOURCE_KEYS])],
   ],
-  ["#/properties/delivery", [...DELIVERY_KEYS, ...RETIRED_DELIVERY_KEYS]],
+  ["#/properties/delivery", DELIVERY_KEYS],
   ["#/$defs/deliveryInvestigate", INVESTIGATE_KEYS],
   ["#/$defs/deliveryReviewer", REVIEWER_KEYS],
   [
     "#/properties/delivery/properties/repositories/additionalProperties",
-    [...DELIVERY_REPOSITORY_KEYS, ...RETIRED_DELIVERY_KEYS],
+    DELIVERY_REPOSITORY_KEYS,
   ],
   ["#/$defs/flow", [...new Set(FLOW_PATHS.map((path) => path.split(".")[0]))]],
   ...["stopTheLine", "retro", "ci", "verify"].map((group) => [
@@ -117,10 +108,8 @@ const PAIRS = [
   ["#/$defs/project", PROJECT_KEYS],
   ["#/$defs/project/properties/sandbox", SANDBOX_KEYS],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
-  ["#/$defs/github", [...LEGACY_KEYS, ...POLICY_KEYS]],
+  ["#/$defs/github", POLICY_KEYS],
   ["#/$defs/githubRule", GITHUB_BLOCK_KEYS.rule],
-  ["#/$defs/githubIssueIntake", ISSUE_INTAKE_KEYS],
-  ["#/$defs/githubQueueRepository", QUEUE_KEYS],
   ["#/$defs/githubLabelBehaviors", BEHAVIOR_NAMES],
   ["#/$defs/githubMirror", MIRROR_KEYS],
   ["#/$defs/githubRepositoryPolicy", GITHUB_BLOCK_KEYS.repository],
@@ -180,8 +169,6 @@ const OPEN = new Map([
       "projects",
       "receipts",
       "github",
-      "models",
-      "harnesses",
       "roles",
       "planReview",
       "lanes",
@@ -199,15 +186,6 @@ const OPEN = new Map([
       "lease",
       "notifications",
       "serve",
-      // Still parsed by layered-config.mjs so old files load (audit D8).
-      "ahp",
-      "ahpPort",
-      "ahpHost",
-      "ahpProjection",
-      "ahpTokens",
-      "ahpManifest",
-      "canvasOrigins",
-      "agentManifest",
     ],
   ],
   // conflictRounds and validateLandingConfig in landing-config.mjs.
@@ -242,26 +220,10 @@ const OPEN = new Map([
     ["spec", "repository", "target", "claims", "issue", "base", "visibility"],
   ],
   ["#/$defs/runner/properties/sources/additionalProperties", ["url", "parent"]],
-  ["#/$defs/ahp", ["port", "host", "projection", "tokens", "manifest"]],
 ]);
 
 // Keys a validator accepts only so an old file loads, and never reads.
-const AHP = "It configured the removed VS Code extension's agent host.";
 const IGNORED = new Map([
-  ...[
-    "ahp",
-    "ahpPort",
-    "ahpHost",
-    "ahpProjection",
-    "ahpTokens",
-    "ahpManifest",
-    "canvasOrigins",
-    "agentManifest",
-  ].map((key) => [`#/properties/${key}`, AHP]),
-  ...[...RETIRED_ROLES].map((role) => [
-    `#/properties/models/properties/${role}`,
-    "chat-models.mjs drops retired roles",
-  ]),
   ...[
     "#/properties/landing/properties/trains",
     "#/properties/machine/properties/platforms",
@@ -271,20 +233,6 @@ const IGNORED = new Map([
     pointer,
     "Retired by merge batches (landing-config.mjs)",
   ]),
-  [`${REPOSITORY}/coder`, "Who codes was removed (R91.6)"],
-  ...RETIRED_DELIVERY_KEYS.flatMap((key) => [
-    [
-      `#/properties/delivery/properties/${key}`,
-      "PR feedback was removed (45.4)",
-    ],
-    [
-      `#/properties/delivery/properties/repositories/additionalProperties/properties/${key}`,
-      "PR feedback was removed (45.4)",
-    ],
-  ]),
-  [`${REPOSITORY}/concurrency`, "github-policy.mjs releaseInput"],
-  ["#/$defs/flow/properties/lessons", "flowSection drops it"],
-  ["#/$defs/flow/properties/batch", "flowSection drops it"],
 ]);
 
 // Deprecated keys a reader still reads as an older spelling of a new key.

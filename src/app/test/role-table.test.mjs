@@ -110,7 +110,9 @@ test("a pin wins over the saved harness, which wins over the project", () => {
     harness: "claude-code",
   });
   assert.deepEqual(
-    roleRun("reviewDraft", { config: { harnesses: { reviewDraft: "codex" } } }),
+    roleRun("reviewDraft", {
+      config: { roles: { reviewDraft: { harness: "codex" } } },
+    }),
     { executor: "process", harness: "codex" },
   );
   // With every role able to run as a child, the project's executor applies.

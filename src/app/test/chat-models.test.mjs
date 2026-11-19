@@ -7,7 +7,6 @@ import {
   chatModel,
   resolveRoles,
   roleHarness,
-  validateModels,
   validateRoles,
   withChatModels,
 } from "../chat-models.mjs";
@@ -17,24 +16,22 @@ import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
-test("models names only Avoozl's own roles, each a model name or auto", () => {
-  assert.deepEqual(validateModels({ planner: "m1", retro: "auto" }), {
-    planner: "m1",
-    retro: "auto",
-  });
-  assert.throws(() => validateModels({ worker: "m1" }), /not a role/);
-  assert.throws(() => validateModels({ retro: "" }), /model name or "auto"/);
-  // The removed driver chat's role still loads from an old file, and is dropped.
-  assert.deepEqual(validateModels({ driver: "m1", retro: "r" }), {
-    retro: "r",
-  });
-  assert.throws(() => validateModels([]), /must be an object/);
-  assert.equal(chatModel({ models: { retro: "auto" } }, "retro"), null);
+test("a role's auto model is no model", () => {
+  assert.equal(
+    chatModel({ roles: { retro: { model: "auto" } } }, "retro"),
+    null,
+  );
   assert.equal(chatModel({}, "retro"), null);
 });
 
 test("planner, retro and review-draft dispatches ask for the saved model", () => {
-  const config = { models: { planner: "p", retro: "r", reviewDraft: "d" } };
+  const config = {
+    roles: {
+      planner: { model: "p" },
+      retro: { model: "r" },
+      reviewDraft: { model: "d" },
+    },
+  };
   const out = withChatModels(
     [
       { task: "a", role: "planner" },
@@ -110,8 +107,6 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
 // R98.6, R98.8: one roles table; older keys read in silently, `roles` wins.
 test("the roles table reads the older keys in, and roles wins field by field", () => {
   const older = {
-    models: { planner: "p-old", retro: "r-new" },
-    harnesses: { worker: "codex" },
     delivery: {
       agent: "old-worker",
       model: "w-old",
@@ -120,17 +115,16 @@ test("the roles table reads the older keys in, and roles wins field by field", (
     flow: { retro: { model: "r-old" } },
   };
   assert.deepEqual(resolveRoles(older), {
-    retro: { model: "r-new" },
-    worker: { agent: "old-worker", model: "w-old", harness: "codex" },
+    retro: { model: "r-old" },
+    worker: { agent: "old-worker", model: "w-old" },
     falsifier: { agent: "old-falsifier", model: "f-old" },
-    planner: { model: "p-old" },
   });
   const config = {
     ...older,
     roles: {
-      worker: { model: "w-new" },
+      worker: { model: "w-new", harness: "codex" },
       falsifier: { model: "auto" },
-      planner: { harness: "kirocrew" },
+      planner: { harness: "kirocrew", model: "p-old" },
     },
   };
   assert.equal(chatModel(config, "planner"), "p-old");
@@ -193,12 +187,10 @@ test("roles names only known roles and fields; agent only for the worker and fal
     () => validateRoles({ roles: { worker: { agent: "bad agent" } } }),
     /agent name/,
   );
-  // The plan reviewer check holds across the older key and the table.
   assert.throws(
     () =>
       validateRoles({
-        models: { planner: "same" },
-        roles: { planReviewer: { model: "same" } },
+        roles: { planner: { model: "same" }, planReviewer: { model: "same" } },
       }),
     /planReviewer.model must differ/,
   );
@@ -206,7 +198,7 @@ test("roles names only known roles and fields; agent only for the worker and fal
 
 // R98.9: a Models save writes `roles` and drops the older keys; delivery
 // stays on, and Delivery's own save keeps an older agent and model.
-test("a Models save moves the older keys into roles; Delivery keeps delivery on", (t) => {
+test("a Models save moves the older delivery and flow keys into roles; Delivery keeps delivery on", (t) => {
   const root = temporaryDirectory("avoozl-roles-move-"),
     filename = path.join(root, ".avoozl.json"),
     store = new Store(path.join(root, "workspace.sqlite"));
@@ -215,13 +207,11 @@ test("a Models save moves the older keys into roles; Delivery keeps delivery on"
     filename,
     JSON.stringify({
       version: 1,
-      models: { planner: "p1" },
-      harnesses: { worker: "claude-code" },
+      roles: { planner: { model: "p1" }, worker: { harness: "claude-code" } },
       delivery: {
         agent: "alt-worker",
         model: "w1",
         investigate: { agent: "alt-falsifier" },
-        prFeedback: false,
       },
       flow: { retro: { model: "r1" } },
     }),
@@ -257,9 +247,7 @@ test("a Models save moves the older keys into roles; Delivery keeps delivery on"
   assert.deepEqual(saved.roles, before.roles);
   const file = JSON.parse(fs.readFileSync(filename, "utf8"));
   assert.deepEqual(file.roles, before.roles);
-  for (const key of ["models", "harnesses", "flow"])
-    assert.equal(file[key], undefined, key);
-  // A Settings save drops the retired prFeedback.
+  for (const key of ["flow"]) assert.equal(file[key], undefined, key);
   assert.deepEqual(file.delivery, { ship: "manual" });
   assert.equal(deliveryPolicy(file).agent, "alt-worker");
 });

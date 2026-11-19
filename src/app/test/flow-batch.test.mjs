@@ -329,27 +329,22 @@ test("a member that already ran alone keeps the rest of its group alone", async 
   );
 });
 
-test("batching has no setting, and an old flow.batch is ignored", async (t) => {
+test("batching has no setting, and flow.batch is refused", async (t) => {
   assert.deepEqual(
     Object.keys(FLOW_KEYS).filter((key) => key.startsWith("batch")),
     [],
   );
   assert.equal("batch" in FLOW_DEFAULTS, false);
-  assert.deepEqual(flowSection({ batch: { max: 9, by: "epic" } }), {});
-  // An old file with flow.batch loads, and the planner's group still runs.
+  assert.throws(
+    () => flowSection({ batch: { max: 9, by: "epic" } }),
+    /flow\.batch is not a flow setting/,
+  );
+  // The planner's group runs with no setting.
   const { ops } = setup(t, grouped(["a1", "a2"]), {
-    flow: { batch: { max: 1, by: "epic" }, localChecksFirst: true },
+    flow: { localChecksFirst: true },
   });
   const workers = workersOf(await tick(ops));
   assert.deepEqual(workers[0].batch.tasks, ["a1", "a2"]);
-  const settings = await ops.execute("flow.settings.get", {});
-  // A save that still carries the old key never fails.
-  const saved = await ops.execute("flow.settings.update", {
-    flow: { ...settings.flow, localChecksFirst: false },
-    expectedHash: settings.hash,
-  });
-  assert.equal(saved.flow.localChecksFirst, false);
-  await tick(ops);
 });
 
 // WP3.3: a `process` child makes no commits, so a group on it runs as single
@@ -416,4 +411,29 @@ test("a group on process runs as single tasks and lands one commit each, with th
   const checkout = store.get("projects", "app").root,
     subjects = git(checkout, "log", "--format=%s", "main").split("\n");
   for (const id of ids) assert.ok(subjects.includes("Do " + id), id);
+});
+
+// Found by worker-paths wp-p1: the batch head touches every member's file,
+// so its paths are judged against every member's declared paths.
+test("a batch head may touch each member's declared paths", async (t) => {
+  const ids = ["a1", "a2"],
+    { store, ops } = setup(
+      t,
+      ids.map((id) =>
+        leaf(id, { batch: group("g1", ids), paths: [id + ".txt"] }),
+      ),
+    );
+  const [batch] = workersOf(await tick(ops));
+  assert.deepEqual(batch.batch.tasks, ids);
+  const commits = await runBatch(ops, batch, "w-batch");
+  await tick(ops, ["w-batch"]);
+  await drainCheckRuns(store);
+  await tick(ops, ["w-batch"]);
+  assert.deepEqual(
+    ids.map(
+      (id) => store.read().tasks.find((x) => x.id === id).integration?.commit,
+    ),
+    commits,
+    "the batch integrated, not split",
+  );
 });

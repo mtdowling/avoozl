@@ -85,16 +85,7 @@ export const RADAR_DEFAULTS = Object.freeze({
   clearPlanLabel: false,
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
-export const LEGACY_KEYS = Object.freeze(["issueIntake", "queue"]);
-// Task issues and the Project were retired (R102.20): these keys of an old
-// file are ignored, and a Settings save drops them.
-export const RETIRED_KEYS = Object.freeze([
-  "project",
-  "defaultAuthority",
-  "subIssues",
-  "issues",
-]);
-// The `github` keys the Settings view edits; the legacy keys stay as written.
+// The `github` keys the Settings view edits.
 export const POLICY_KEYS = Object.freeze([
   "mode",
   "planningRepository",
@@ -128,13 +119,10 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "folder",
     "baseBranch",
     "role",
-    // Who codes was removed (R91.6): an old file's `coder` is ignored.
-    "coder",
     "allowedActors",
     "minimumPermission",
     "requiredChecks",
     "pullRequestReviews",
-    "concurrency",
     "release",
     "priority",
     "priorityLabels",
@@ -314,8 +302,7 @@ export const RELEASE_MODES = Object.freeze(["automatic", "step", "hold"]);
 
 // Release capacity (RC4.2): `release.capacity` is N, the most ready issues at
 // once; `release.scopes` gives a label its own N. It defaults to 1; 0
-// releases nothing. The older `concurrency` key only set Avoozl's retired local
-// workers; it is still accepted and ignored, so an old file reads without error.
+// releases nothing.
 function releaseInput(value, label) {
   const input = value.release ?? {};
   if (!record(input)) fail(`${label}.release must be an object.`);
@@ -812,12 +799,10 @@ export function priorityRank(priority, labels) {
   return index < 0 ? list.length : index;
 }
 
-// The `github` block of `.avoozl.json`. `issueIntake` and `queue` are the
-// older settings: github-sources.mjs reads `issueIntake` as intake sources
-// and ignores `queue` (§4.39).
+// The `github` block of `.avoozl.json`.
 export function normalizeGitHubPolicy(value) {
   if (value === undefined || value === null) value = {};
-  onlyKeys(value, [...LEGACY_KEYS, ...POLICY_KEYS, ...RETIRED_KEYS], "github");
+  onlyKeys(value, POLICY_KEYS, "github");
   // Roles decide the mode (R105.2); a block with none is read as written.
   try {
     resolveRoles(value);

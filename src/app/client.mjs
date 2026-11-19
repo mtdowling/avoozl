@@ -14,20 +14,8 @@ const CLIENT_API_VERSION = "1.0.0";
 export const CLIENT_OPERATIONS = Object.freeze([
   "client.describe",
   "workspace",
-  "concurrency.status",
   "workspace.examples",
   "workspace.seed",
-  "safety.status",
-  "safety.raise",
-  "safety.note",
-  "safety.interrupt.retry",
-  "safety.remediation.request",
-  "safety.remediation.grant",
-  "safety.remediation.revoke",
-  "safety.review",
-  "safety.resolve",
-  "safety.resume",
-  "safety.coordinator.ack",
   "configuration.get",
   "configuration.update",
   "local.ignore.status",
@@ -79,27 +67,12 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.review.finding.decide",
   "plan.review.view",
   "plan.review.apply",
-  "plan.review.pipeline",
   "plan.review.pipeline.get",
-  "driver.open",
-  "driver.context",
-  "run.context",
   "run.start",
-  "run.send",
-  "run.answer",
-  "run.interrupt",
-  "run.resume",
-  "run.approvals",
-  "run.model",
-  "run.unsend",
-  "run.queue",
   "integration.merge",
   "intent.submit",
   "intent.get",
-  "models",
   "handoff",
-  "metrics",
-  "usage.limits",
   "project.configure",
   "project.remove",
   "github.configure",
@@ -107,7 +80,6 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "github.issues",
   "github.sync",
   "github.authorize",
-  "github.start",
   "repositories.list",
   "repositories.detect",
   "repositories.configure",
@@ -126,10 +98,6 @@ const CLIENT_CONTRACT = Object.freeze({
   idempotency: Object.freeze({
     "intent.submit":
       "Reuse submissionId to retry. A different prompt under the same submissionId is rejected with 409.",
-    "run.send":
-      "submissionId is required and deduplicates delivery. Reconnecting and retrying the same submissionId delivers once.",
-    "run.answer":
-      "Answers match one pending request. A second answer, or an answer to a resolved or interrupted request, is rejected with 409.",
     "workspace.seed":
       "Seeding is transactional and installed once; a retry returns the first receipt.",
     "plan.approve":
@@ -157,8 +125,6 @@ const CLIENT_CONTRACT = Object.freeze({
     "integrated",
     "observing",
   ]),
-  moved:
-    "Run, safety, and team operations from the removed agent host answer with {moved: true, message, sessions?}: where the work went in Kiro Crew. Past runs stay readable.",
 });
 
 export function describeWorkspace(store) {
@@ -345,15 +311,6 @@ export class WorkspaceClient {
       retitled,
     });
   }
-  openDriver(input = {}) {
-    return this.call("driver.open", input);
-  }
-  updateDriverContext(input) {
-    return this.call("driver.context", input);
-  }
-  runContext(runId) {
-    return this.call("run.context", { runId });
-  }
   events(input = {}) {
     if (this.transport.events) return this.transport.events(input);
     return this.call("state").then(() => {
@@ -367,38 +324,8 @@ export class WorkspaceClient {
   submission(submissionId) {
     return this.call("intent.get", { submissionId });
   }
-  send({ id, text, submissionId, mode }) {
-    if (!submissionId) fail("A message submission ID is required.");
-    return this.call("run.send", { id, text, submissionId, mode });
-  }
-  answer(input) {
-    return this.call("run.answer", input);
-  }
-  interrupt(id, reason) {
-    return this.call("run.interrupt", { id, reason });
-  }
-  resume(input) {
-    return this.call("run.resume", input);
-  }
-  approvals(input) {
-    return this.call("run.approvals", input);
-  }
-  setModel({ id, model }) {
-    return this.call("run.model", { id, model });
-  }
-  // Withdraw a follow-up that has not reached the provider. Anything already
-  // sent stays on the record.
-  unsend({ id, submissionId }) {
-    return this.call("run.unsend", { id, submissionId });
-  }
-  reorderQueue({ id, order }) {
-    return this.call("run.queue", { id, order });
-  }
   integrate({ id, expectedCommit }) {
     return this.call("integration.merge", { id, expectedCommit });
-  }
-  models(provider) {
-    return this.call("models", { provider });
   }
   examples() {
     return this.call("workspace.examples");

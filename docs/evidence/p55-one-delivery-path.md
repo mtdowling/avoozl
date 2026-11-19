@@ -26,14 +26,12 @@ local bare repository.
 | App agents (`kirocrew-app/agents/`) | `avoozl-code-review`, `avoozl-conflict-fix`, `avoozl-falsifier`, `avoozl-plan-answer-read`, `avoozl-plan-review`, `avoozl-planner`, `avoozl-responder`, `avoozl-retro`, `avoozl-review-draft`, `avoozl-reviewer`, `avoozl-task-summary`, `avoozl-verifier`. No crew, relay, router or remote coder agent. |
 | Relay, router and remote coder modules | none in `src/app` |
 | Task-issue modules | none: projection, Project sync, issue close, completion, linked branches, rebuild from GitHub, export, breakdown and issue planner are deleted |
-| Compatibility names | `node --test src/app/test/compatibility.test.mjs`: 4 pass. It covers the kept `plans_*` MCP tools, the `AVOOZL_*`, `AICOMMANDER_*` and `NUPP_WORKSPACE*` workspace, database, documents and URL variables, and the `aicommander` command. |
+| Kept names (R91.4) | `node --test src/app/test/compatibility.test.mjs`: 4 pass. Only `AVOOZL_*` variables name the workspace and its paths, `package.json` names only the `avoozl` command, the old plan-file MCP tools are not listed, and an unknown top-level config key fails to load. The owner removed the older aliases on 2026-11-18 (#698). |
 
 ## Limits
 
 - The worker is a fake harness: this proves the loop's plumbing, not a
   model's work.
-- `aicommander.*` settings have no reader on `origin/main` either; nothing
-  is left to resolve.
 - Radar modules remain. Most serve what Requirement 91.6 keeps: Radar
   intake (56.8), Radar asks in Triage (56.14), back-links (44.6) and
   Settings › Issue Radar. The Radar coder leftovers (`radar-coder-queue`,

@@ -56,9 +56,11 @@ export const pluginId = (source) =>
     : null;
 
 // A leaf only a person does (Requirement 61.9): never dispatched, marked
-// done by a person, complete at every level once done.
+// done by a person, complete at every level once done. A row stored with
+// completion "person" and no manual flag reads as manual.
 export const isManual = (task) =>
-  task?.manual === true && taskKind(task) === "leaf";
+  (task?.manual === true || task?.completion === "person") &&
+  taskKind(task) === "leaf";
 
 // A manual leaf a person settled as refused (a no-go): it never completes,
 // so its dependents stay held until a person reopens it.

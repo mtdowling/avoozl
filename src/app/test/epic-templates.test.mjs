@@ -7,7 +7,12 @@ import path from "node:path";
 import test from "node:test";
 import { applicationRoot } from "../config.mjs";
 import { integrationOf } from "../integration-branch.mjs";
-import { lintSpec, readSpecFolder, specFacts } from "../spec-plans.mjs";
+import {
+  lintSpec,
+  parseSpec,
+  readSpecFolder,
+  specFacts,
+} from "../spec-plans.mjs";
 import { RULES, scanText } from "../../../scripts/release-scan.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 // The statement in use, from its one source; the templates repeat it.
@@ -66,10 +71,18 @@ test("migration: every repository task needs stage one and removal needs every r
 });
 
 test("codegen: each regeneration task names its command and its compare check", () => {
-  const tasks = specFacts(load("codegen-change").files).tasks;
-  for (const [id, entry] of Object.entries(tasks))
-    if (id.startsWith("regenerate-"))
-      assert.match(entry.summary, /<generate command>.*<compare command>/, id);
+  const { proposals } = parseSpec({
+    name: "codegen-change",
+    exists: true,
+    files: load("codegen-change").files,
+  });
+  for (const proposal of proposals)
+    if (proposal.specKey.startsWith("regenerate-"))
+      assert.match(
+        proposal.summary,
+        /<generate command>.*<compare command>/,
+        proposal.specKey,
+      );
 });
 
 test("the wording is generic: the release scan finds nothing in any template file", () => {

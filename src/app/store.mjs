@@ -300,8 +300,14 @@ export class Store {
       .all()) {
       const value = JSON.parse(row.body);
       stored.set(row.kind + "\0" + row.id, row.ordinal + "\0" + row.body);
-      if (row.kind === "task") data.tasks.push(value);
-      else if (row.kind === "document") data.documents[row.id] = value;
+      // A row stored while the field was named `prose` loads as summary.
+      if (row.kind === "task") {
+        if (value.prose !== undefined) {
+          value.summary ??= value.prose;
+          delete value.prose;
+        }
+        data.tasks.push(value);
+      } else if (row.kind === "document") data.documents[row.id] = value;
       else if (row.kind === "edge") data.edges.push(value);
     }
     this.cache = data;

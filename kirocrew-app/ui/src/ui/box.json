@@ -265,6 +265,7 @@
     "background": {
       "accent": "var(--accent)",
       "accent-subtle-bg-elevated": "var(--accent-subtle, var(--bg-elevated))",
+      "accent-subtle-bg-hover": "var(--accent-subtle, var(--bg-hover))",
       "accent-subtle-bg-hover-bg-elevated": "var(--accent-subtle, var(--bg-hover, var(--bg-elevated)))",
       "bg": "var(--bg)",
       "bg-accent-bg-elevated": "var(--bg-accent, var(--bg-elevated))",
@@ -311,6 +312,7 @@
       "danger": "var(--danger)",
       "mix-info-accent-40%-transparent": "color-mix(in srgb, var(--info, var(--accent)) 40%, transparent)",
       "mix-warn-muted-55%-border": "color-mix(in srgb, var(--warn, var(--muted)) 55%, var(--border))",
+      "transparent": "transparent",
       "warning-border": "var(--warning, var(--border))",
       "warning-c90": "var(--warning, #c90)"
     },
@@ -318,13 +320,15 @@
       "1px-solid-border": "1px solid var(--border)"
     },
     "border-radius": {
+      "2": 2,
       "3": 3,
       "4": 4,
       "6": 6,
       "8": 8,
       "10": 10,
       "12": 12,
-      "999": 999
+      "999": 999,
+      "50%": "50%"
     },
     "border-style": {
       "dashed": "dashed",
@@ -357,6 +361,7 @@
     "color": {
       "accent": "var(--accent)",
       "aim-7c3aed": "var(--aim, #7c3aed)",
+      "card": "var(--card)",
       "danger": "var(--danger)",
       "danger-c0392b": "var(--danger, #c0392b)",
       "danger-inherit": "var(--danger, inherit)",
@@ -387,6 +392,8 @@
     "cursor": {
       "col-resize": "col-resize",
       "default": "default",
+      "grab": "grab",
+      "grabbing": "grabbing",
       "pointer": "pointer"
     },
     "display": {
@@ -396,6 +403,14 @@
       "grid": "grid",
       "inline-block": "inline-block",
       "inline-flex": "inline-flex"
+    },
+    "fill": {
+      "accent": "var(--accent)",
+      "bg-elevated": "var(--bg-elevated)",
+      "card": "var(--card)",
+      "muted": "var(--muted)",
+      "text": "var(--text)",
+      "transparent": "transparent"
     },
     "flex": {
       "1": 1,
@@ -509,6 +524,7 @@
       "1": 1,
       "8": 8,
       "9": 9,
+      "10": 10,
       "12": 12,
       "24": 24,
       "28": 28,
@@ -528,6 +544,7 @@
       "0": 0,
       ".04em": ".04em",
       ".08em": ".08em",
+      ".12em": ".12em",
       ".1em": ".1em",
       ".24em": ".24em",
       ".26em": ".26em",
@@ -626,6 +643,7 @@
     "opacity": {
       "0": 0,
       "1": 1,
+      "0.35": 0.35,
       "0.4": 0.4,
       "0.5": 0.5,
       "0.6": 0.6,
@@ -731,6 +749,12 @@
       "12": 12,
       "48": 48
     },
+    "stroke": {
+      "accent": "var(--accent)",
+      "border": "var(--border)",
+      "border-strong-border": "var(--border-strong, var(--border))",
+      "muted": "var(--muted)"
+    },
     "table-layout": {
       "fixed": "fixed"
     },
@@ -766,6 +790,9 @@
       "background-120ms": "background 120ms",
       "opacity-150ms": "opacity 150ms"
     },
+    "user-select": {
+      "none": "none"
+    },
     "vertical-align": {
       "top": "top"
     },
@@ -775,12 +802,15 @@
     },
     "white-space": {
       "nowrap": "nowrap",
+      "pre": "pre",
       "pre-wrap": "pre-wrap"
     },
     "width": {
       "1": 1,
       "2": 2,
+      "8": 8,
       "9": 9,
+      "10": 10,
       "12": 12,
       "14": 14,
       "18": 18,
@@ -817,6 +847,12 @@
     "top",
     "right",
     "bottom",
-    "transform"
+    "transform",
+    "color",
+    "background",
+    "background-color",
+    "fill",
+    "stroke",
+    "border-color"
   ]
 }

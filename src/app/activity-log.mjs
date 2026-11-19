@@ -291,7 +291,6 @@ const SETTINGS = {
   "github.settings.update": "GitHub",
   "flow.settings.update": "Flow",
   "flow.instructions.update": "retro instructions",
-  "relay.forget": "relay chat",
   "conversations.settings.update": "conversation",
   "content.sets.update": "content rule set",
   "content.terms.update": "content rule terms",

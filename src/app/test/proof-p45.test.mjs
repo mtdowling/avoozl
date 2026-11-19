@@ -12,7 +12,11 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
-import { deliveryPolicy, rebaseForIntegration } from "../delivery.mjs";
+import {
+  deliveryPolicy,
+  integrateVerified,
+  rebaseForIntegration,
+} from "../delivery.mjs";
 import { conflictsView } from "../page-views.mjs";
 import { flowView } from "../flow.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
@@ -370,6 +374,36 @@ test("P45 (5) local: a task branch behind the integration branch is merged forwa
   assert.ok(parents.includes(commit), "the reviewed commit is kept as it was");
 });
 
+test("P45 (5) local: a conflict when merging the base forward goes back to the worker chat", async (t) => {
+  const w = local(t, { investigate: { mode: "off" } });
+  await w.bind("a1", "w-a1", { attempt: 1 });
+  const tree = await w.ops.execute("worktree.prepare", { taskId: "a1" });
+  fs.writeFileSync(path.join(tree.path, "same.txt"), "from the task\n");
+  git(tree.path, "add", ".");
+  git(tree.path, "commit", "-m", "a1");
+  const commit = git(tree.path, "rev-parse", "HEAD");
+  fs.writeFileSync(path.join(w.checkout, "same.txt"), "from main\n");
+  git(w.checkout, "add", ".");
+  git(w.checkout, "commit", "-m", "Main moves");
+  w.store.put("task_deliveries", {
+    id: "a1",
+    taskId: "a1",
+    state: "verified",
+    commit,
+    attempts: [{ attempt: 1, slot: "w-a1", outcome: "done", commit }],
+    verifications: [],
+  });
+  const { messages, notify } = await integrateVerified(w.store, {});
+  assert.deepEqual(notify, []);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].slot, "w-a1");
+  assert.match(messages[0].text, /same\.txt/);
+  const delivery = w.store.get("task_deliveries", "a1");
+  assert.equal(delivery.state, "running");
+  assert.equal(delivery.landingConflicts.length, 1);
+  assert.equal(git(tree.path, "rev-parse", "HEAD"), commit, "nothing merged");
+});
+
 test("P45 (7): the fix-work share counts the bugfix spec's task", async (t) => {
   const w = local(t, { investigate: { mode: "off" } });
   await w.tick();
@@ -414,7 +448,6 @@ test("P45 (8) local: manual ship waits for a person's Integrate", async (t) => {
     attempts: [],
     verifications: [],
   });
-  const { integrateVerified } = await import("../delivery.mjs");
   const policy = deliveryPolicy(
     JSON.parse(fs.readFileSync(path.join(w.root, ".avoozl.json"), "utf8")),
   );

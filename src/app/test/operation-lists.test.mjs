@@ -6,18 +6,12 @@ import fs from "node:fs";
 import test from "node:test";
 import { OPERATION_NAMES, classifyOperation } from "../operation-kinds.mjs";
 import { NOT_ON_MCP, PERSON_ONLY } from "../mcp-policy.mjs";
-import { MOVED_OPERATIONS } from "../moved-operations.mjs";
 
 const read = (name) =>
   fs.readFileSync(new URL(`../${name}`, import.meta.url), "utf8");
-const HANDLER_FILES = [
-  "operations.mjs",
-  "retro-operations.mjs",
-  "moved-operations.mjs",
-];
+const HANDLER_FILES = ["operations.mjs", "retro-operations.mjs"];
 const handlerText = HANDLER_FILES.map(read).join("\n");
-const listed = (name) =>
-  Boolean(classifyOperation(name)) || MOVED_OPERATIONS.has(name);
+const listed = (name) => Boolean(classifyOperation(name));
 const NAME = /^[a-z][A-Za-z0-9]*(\.[A-Za-z0-9]+)*$/;
 
 test("every listed operation has a handler", () => {

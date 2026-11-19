@@ -200,7 +200,7 @@ function operations(t, github) {
       namespace: "avz_0123456789abcdef",
       github: {
         mode: "single-repo",
-        repositories: { [REPO]: { baseBranch: "main", coder: "issue-radar" } },
+        repositories: { [REPO]: { baseBranch: "main" } },
       },
     }),
   );

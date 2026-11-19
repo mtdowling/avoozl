@@ -298,7 +298,7 @@ test("CI collection, triggers, brief and PDCA share validated layered settings a
     globalFile,
     JSON.stringify({
       version: 1,
-      models: { planner: "fake-writer" },
+      roles: { planner: { model: "fake-writer" } },
       flow: {
         ci: { docsOnlyMinutes: 17, classes: { docs: ["manual/"] } },
         retro: { everyTasks: 2 },
