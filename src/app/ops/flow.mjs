@@ -28,7 +28,10 @@ import { buildRows, buildView } from "../build-receipt-read.mjs";
 import { peekInstance } from "../instance.mjs";
 import { withWorkLock } from "../git.mjs";
 import { readGitHubPolicyOrNull } from "../github-policy.mjs";
-import { listHarnessDefinitions } from "../harness-definitions.mjs";
+import {
+  approveHarnessByName,
+  listHarnessDefinitions,
+} from "../harness-definitions.mjs";
 import { deliverRetroRule, deliverRetroSkill } from "../intake.mjs";
 import { runOn } from "../needs-kirocrew.mjs";
 import { createPlan } from "../plans.mjs";
@@ -127,6 +130,29 @@ export const entries = [
         // This machine's harness definitions a role may pick (R98.3).
         harnessDefinitions: listHarnessDefinitions(this.configDirectory),
       };
+    },
+  },
+  // The harness files on this machine and whether each is approved.
+  {
+    name: "harness.list",
+    class: "observe",
+    policy: notOnMcp("Harness files are this machine's; a chat has no use."),
+    handler({}) {
+      return listHarnessDefinitions(this.configDirectory);
+    },
+  },
+  // Approving a harness file lets a program run on this machine.
+  {
+    name: "harness.approve",
+    class: "execute",
+    policy: person("Only a person approves a program to run on this machine."),
+    handler({ input, context }) {
+      if (context.caller || context.mcp)
+        fail("Only a person approves a harness, in the app or CLI.", 403);
+      return approveHarnessByName({
+        configDirectory: this.configDirectory,
+        name: input.name,
+      });
     },
   },
   // Run on (NK8.2): a person moves a role that waits on Kiro Crew to one

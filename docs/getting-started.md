@@ -67,6 +67,22 @@ node cli.mjs status --workspace ~/plans
 Any stdio MCP client can run `node /path/to/avoozl/cli.mjs mcp --workspace
 /path/to/my-plans`.
 
+## Approve a harness
+
+A harness file in this machine's config (`harnesses/NAME.json`) runs a program
+here, so a person approves its exact bytes by hash. A changed file waits for a
+new approval.
+
+```sh
+avoozl harness list
+avoozl harness approve NAME
+```
+
+`list` shows each harness as approved, not approved, or changed since approval.
+`approve` prints the name, path and hash it approved. **Settings › Models** has
+the same **Approve** button. Only a person can approve; MCP and supervisor
+children are refused.
+
 ## Create a workspace
 
 A workspace is a directory you own, separate from the checkout:

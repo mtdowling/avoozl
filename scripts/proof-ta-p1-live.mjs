@@ -43,6 +43,7 @@ import {
   isolateHome,
   needSandbox,
   originFile as originText,
+  preflightModel,
   printResult,
   processRepository,
   proofHarness,
@@ -636,6 +637,14 @@ async function prove() {
     RUN,
     SCRIPT,
     HOUR_MS / 1000 + 10 * 60,
+    () =>
+      preflightModel(RUN, MACHINE, {
+        role: "triage",
+        repository: processRepository(RUN, ["node", "test.mjs"], {
+          github: GH,
+        }),
+        env: agentEnv(RUN, { noProxy: "127.0.0.1" }),
+      }),
   );
   let state,
     page = [];

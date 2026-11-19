@@ -140,6 +140,9 @@ export const SANDBOX_KEYS = Object.freeze([
   "writeRoots",
   "allowCommands",
   "network",
+  // Loopback ports of the model proxy: every role gets them, even one with
+  // no network, or its agent cannot reach its model.
+  "modelProxy",
 ]);
 export const PLANNING_REPOSITORY_KEYS = Object.freeze([
   "root",
@@ -225,12 +228,13 @@ function executorInput(value, id) {
     for (const key of Object.keys(value.sandbox))
       if (!SANDBOX_KEYS.includes(key))
         fail(`Unknown repository setting repositories.${id}.sandbox.${key}.`);
-    const { writeRoots, allowCommands, network } = value.sandbox;
+    const { writeRoots, allowCommands, network, modelProxy } = value.sandbox;
     sandboxWriteRoots(writeRoots);
     sandboxAllowCommands(allowCommands, {
       source: `repositories.${id}.sandbox.allowCommands`,
     });
     sandboxNetwork(network);
+    sandboxNetwork(modelProxy, "sandbox.modelProxy");
     out.sandbox = structuredClone(value.sandbox);
   }
   if (value.isolation !== undefined)

@@ -4761,9 +4761,9 @@ Owner request 2026-11-19 (Requirement 114, design §4.42).
 - [x] 66.1 Approvals are approvers' authored commits on main, after 65.2 [R114.1, R114.2, R114.3, R114.4, R114.5, R114.6] (§4.42)
   - Facts:
     - done:
-      - A commit on main whose author email is an approver approves the spec as its tree holds it, whatever its committer; Avoozl's and its agents' commits are authored by the agent identity and never approve; Approve writes and pushes the person's commit; no Status line, marker or decision record is written.
+      - A commit on main whose author email is an approver approves the spec as its tree holds it, whatever its committer; Avoozl's and its agents' commits use the checkout's git identity with no Co-authored-by, and spec drafts reach main only through Approve; Approve writes and pushes the person's commit; no Status line, marker or decision record is written.
     - after: 65.2
-  - `git-approvals.mjs`, `approveInGit` in `operations.mjs`, `spec-approval.mjs`, `agentAuthorEnv` in `git.mjs`.
+  - `git-approvals.mjs`, `approveInGit` in `operations.mjs`, `spec-approval.mjs`.
 - [x] 66.2 Landing trailers, recoverable intake and `avoozl rebuild`, after 66.1 [R114.7, R114.8, R114.9, R114.10] (§4.42)
   - Facts:
     - done:

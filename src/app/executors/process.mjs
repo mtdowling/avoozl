@@ -58,6 +58,20 @@ function withDatabase(stateDirectory, use) {
 // `sandbox` ({writeRoots, allowCommands, network}) shape the child.
 // `harnessFor(task, role)` names the harness a request asked for (R98.3,
 // R98.4), or null for the repository's.
+// The loopback ports a session may reach: the repository's model proxy for
+// every role, and its network too unless the role reads only its folder
+// (NK2.2). Without the proxy an offline role could never reach its model.
+export function sessionNetwork(sandbox, offline) {
+  const ports = (value) => (Array.isArray(value) ? value : []);
+  const list = [
+    ...new Set([
+      ...ports(sandbox.modelProxy),
+      ...(offline ? [] : ports(sandbox.network)),
+    ]),
+  ];
+  return list.length ? list : undefined;
+}
+
 export function processExecutor({
   stateDirectory,
   repositoryFor = () => null,
@@ -93,8 +107,7 @@ export function processExecutor({
           allowCommands: sandbox.allowCommands,
           // Home paths the repository lets its checks and sessions read.
           readable: repository.isolation?.readable ?? [],
-          // A role that reads only its folder gets no network (NK2.2).
-          network: offline ? undefined : sandbox.network,
+          network: sessionNetwork(sandbox, offline),
         }),
       );
     },

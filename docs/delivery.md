@@ -124,6 +124,14 @@ batch, lands the tasks before it, and sends it back. The batch size starts at
 caps it, from 1 to 16. The **Landing queue** page shows the waiting tasks, the
 batch under test, recent batches, and the current size.
 
+A repository whose checks enforce a commit-message format can set
+`landing.commitPrefix`, such as `"chore: "`. Every subject Avoozl writes there
+then starts with it: landing commits, the merge-forward commit, tick commits,
+the merge into an integration branch, and landing pull request titles. With no
+prefix, Avoozl keeps its own subjects (`Land KEY`, `Merge main into BRANCH`,
+`Tick IDS`). A worker's own commit, `Avoozl task ID, attempt N`, is not
+prefixed yet.
+
 ### Conflicts
 
 When the base moves and a merge conflicts, or the checks fail, the task goes

@@ -243,7 +243,7 @@ export function processRepository(run, check, extra = {}) {
         ["git", "status"],
         ["git", "log"],
       ],
-      network: [`localhost:${run.proxyPort}`],
+      modelProxy: [`localhost:${run.proxyPort}`],
     },
     ...extra,
   };
@@ -353,7 +353,7 @@ export async function runBackend(
 
 // The backend as a child of the prover (this same script, `backend`), and
 // the model proxy when the agent is Claude Code.
-export async function startMachine(run, script, seconds) {
+export async function startMachine(run, script, seconds, preflight = null) {
   let proxy = null;
   if (run.agent === "claude") {
     proxy = spawn(
@@ -367,6 +367,12 @@ export async function startMachine(run, script, seconds) {
     );
     await sleep(1000);
     run.event("proxy.start", { pid: proxy.pid, port: run.proxyPort });
+    try {
+      await preflight?.();
+    } catch (error) {
+      proxy.kill("SIGTERM");
+      throw error;
+    }
   }
   const out = fs.openSync(run.paths.backendLog, "a");
   const backend = spawn(
@@ -386,6 +392,69 @@ export async function startMachine(run, script, seconds) {
   fs.closeSync(out);
   run.event("backend.start", { pid: backend.pid });
   return { backend, proxy };
+}
+
+// One real model turn before the tick: `role`'s session through Avoozl's
+// own process executor and supervisor, so it gets that role's sandbox and
+// network. It must exit 0 with a call through the proxy; else the proof
+// stops in seconds with the child's log, instead of after every run fails.
+export async function preflightModel(run, machine, { role, repository, env }) {
+  const { processExecutor } = await import(
+    "../../src/app/executors/process.mjs"
+  );
+  const {
+    childRecord,
+    launchSupervisor,
+    openSupervisorDatabase,
+    runningSupervisor,
+  } = await import("../../src/app/supervisor.mjs");
+  const folder = path.join(run.root, "preflight");
+  fs.mkdirSync(folder, { recursive: true });
+  const executor = processExecutor({
+    stateDirectory: machine.stateDirectory,
+    repositoryFor: () => repository,
+    harnessFor: () => run.harness,
+  });
+  const id = await executor.start(
+    role,
+    "preflight",
+    folder,
+    "Preflight: reply with the single word ok and do nothing else.",
+    run.model,
+    "read",
+  );
+  launchSupervisor({
+    stateDirectory: machine.stateDirectory,
+    configDirectory: machine.configDirectory,
+    env,
+  });
+  const end = Date.now() + 240_000;
+  let status = await executor.status(id);
+  while (!status.startsWith("exited") && Date.now() < end) {
+    await sleep(2000);
+    status = await executor.status(id);
+  }
+  const db = openSupervisorDatabase(machine.stateDirectory);
+  const row = childRecord(db, id);
+  db.close();
+  const tail = (file, lines) =>
+    fs.existsSync(file ?? "")
+      ? fs.readFileSync(file, "utf8").trim().split("\n").slice(-lines)
+      : [];
+  const proxied = tail(run.paths.proxyLog, 1000).some((line) =>
+    / allow connect /.test(line),
+  );
+  run.event("preflight", { role, status, proxied });
+  if (status === "exited 0" && proxied) return;
+  // The proof stops here: the supervisor it started goes too.
+  const sup = runningSupervisor(machine.stateDirectory, {});
+  if (sup?.pid) process.kill(sup.pid, "SIGTERM");
+  throw Error(
+    [
+      `Preflight: one ${role} turn ${status}, ${proxied ? "with" : "with no"} call through the model proxy.`,
+      ...tail(row?.log_file, 12),
+    ].join("\n"),
+  );
 }
 
 // A file's text on origin's main, or null when it is not there: landed

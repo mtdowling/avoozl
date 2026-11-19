@@ -338,6 +338,14 @@ function harnessFile(configDirectory, name) {
   return path.join(directory, name + ".json");
 }
 
+// The file must exist as a regular file, never a symlink.
+function requireRegularFile(file) {
+  if (!fs.existsSync(file)) fail(`No harness definition at ${file}.`, 404);
+  const stat = fs.lstatSync(file);
+  if (stat.isSymbolicLink() || !stat.isFile())
+    fail(`${file} must be a regular file and cannot be a symlink.`);
+}
+
 function readApprovals(configDirectory) {
   const file = path.join(path.resolve(configDirectory), HARNESS_APPROVALS);
   if (!fs.existsSync(file)) return {};
@@ -350,10 +358,7 @@ function readApprovals(configDirectory) {
 // hash, valid as a definition. Every refusal names the file.
 export function loadHarnessDefinition({ configDirectory, name }) {
   const file = harnessFile(configDirectory, name);
-  if (!fs.existsSync(file)) fail(`No harness definition at ${file}.`, 404);
-  const stat = fs.lstatSync(file);
-  if (stat.isSymbolicLink() || !stat.isFile())
-    fail(`${file} must be a regular file and cannot be a symlink.`);
+  requireRegularFile(file);
   const bytes = fs.readFileSync(file);
   const seen = harnessDefinitionHash(bytes);
   const approved = readApprovals(configDirectory)[name];
@@ -409,9 +414,13 @@ export function listHarnessDefinitions(configDirectory) {
       } catch {
         // A bad file lists without a model; a session refuses it.
       }
+      const hash = harnessDefinitionHash(bytes);
       return {
         name,
-        approved: approvals[name] === harnessDefinitionHash(bytes),
+        path: path.join(directory, `${name}.json`),
+        hash,
+        approved: approvals[name] === hash,
+        changed: Boolean(approvals[name]) && approvals[name] !== hash,
         model: value?.model !== undefined,
         readRoles: readRoleProblem({ name, resultAllow: value?.resultAllow }),
         proved: Array.isArray(value?.proved)
@@ -434,6 +443,16 @@ export function approveHarnessDefinition({ configDirectory, name, hash }) {
   fs.writeFileSync(temporary, JSON.stringify(approvals, null, 2) + "\n");
   fs.renameSync(temporary, file);
   return approvals;
+}
+
+// A person's approval of one file as it is now: the hash is read here, so
+// the caller shows the name, path and hash it approved.
+export function approveHarnessByName({ configDirectory, name }) {
+  const file = harnessFile(configDirectory, name);
+  requireRegularFile(file);
+  const hash = harnessDefinitionHash(fs.readFileSync(file));
+  approveHarnessDefinition({ configDirectory, name, hash });
+  return { name, path: file, hash, approved: true };
 }
 
 // Fill a validated argv list. Every placeholder used must have a value;

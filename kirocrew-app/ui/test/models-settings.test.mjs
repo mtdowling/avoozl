@@ -112,3 +112,10 @@ test('a role is default until a harness, agent or model is set, and an unusable 
   assert.equal(roleProblem('worker', { worker: { agent: 'ok-agent' } }, defs), null)
   assert.match(roleProblem('falsifier', { falsifier: { agent: 'bad agent!' } }, defs), /agent name/)
 })
+
+test('an unapproved harness has an Approve button that calls harness.approve', () => {
+  const models = source('ModelsSettings.tsx')
+  assert.match(models, /!d\.approved && \(\s*<SmallBtn onClick=\{\(\) => approve\(d\.name\)\}/)
+  assert.match(models, /changed since approval/)
+  assert.match(source('models-api.ts'), /'harness\.approve', \{ name \}/)
+})

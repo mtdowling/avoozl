@@ -7,7 +7,7 @@ export const LANDING_MODES = Object.freeze(["direct", "pr", "off"]);
 // The one landing block of a GitHub repository (design §4.25, R87.1): a key
 // in the block wins, then the default. `github` is the owner/name, and
 // `repository` the checkout's repository row, for its `landing`.
-// {mode, autoMerge, method, mergeBatch, maxAttempts}; `mode` is null when nothing sets it.
+// {mode, autoMerge, method, mergeBatch, commitPrefix, maxAttempts}; `mode` is null when nothing sets it.
 export function landingSettings(config, github, repository = null) {
   const entry = config?.github?.repositories?.[github],
     block = isRecord(entry?.landing) ? entry.landing : {};
@@ -16,21 +16,38 @@ export function landingSettings(config, github, repository = null) {
     autoMerge: block.autoMerge ?? true,
     method: block.method ?? "squash",
     mergeBatch: block.mergeBatch ?? "auto",
+    commitPrefix: block.commitPrefix ?? "",
     maxAttempts: entry?.conflicts?.maxAttempts ?? DEFAULT_CONFLICT_ROUNDS,
   };
 }
 
-// The tick and the settings loader copy each repository's `landing.mode`
-// onto the repository rows of its checkouts, because the landing code reads the
-// mode from the repository (design §4.25). Returns the repositories it changed.
+// A commit subject that follows the repository's `landing.commitPrefix`
+// (such as "chore: "); with no prefix, the subject as written.
+export const commitSubject = (prefix, text) => `${prefix || ""}${text}`;
+
+// The tick and the settings loader copy each repository's `landing.mode` and
+// `landing.commitPrefix` onto the repository rows of its checkouts, because
+// the landing code reads them from the repository (design §4.25). Returns the
+// repositories it changed.
 export function applyLandingModes(store, config) {
   const changed = [];
   for (const repository of store.list("repositories")) {
-    const mode =
-      repository.github &&
-      config?.github?.repositories?.[repository.github]?.landing?.mode;
-    if (!LANDING_MODES.includes(mode) || repository.landing === mode) continue;
-    const next = { ...repository, landing: mode };
+    const block = repository.github
+        ? config?.github?.repositories?.[repository.github]?.landing
+        : null,
+      mode = LANDING_MODES.includes(block?.mode)
+        ? block.mode
+        : repository.landing,
+      commitPrefix = block ? block.commitPrefix || undefined : undefined;
+    if (!block) continue;
+    if (repository.landing === mode && repository.commitPrefix === commitPrefix)
+      continue;
+    const { commitPrefix: _old, ...rest } = repository,
+      next = {
+        ...rest,
+        landing: mode,
+        ...(commitPrefix ? { commitPrefix } : {}),
+      };
     store.put("repositories", next);
     changed.push(next);
   }

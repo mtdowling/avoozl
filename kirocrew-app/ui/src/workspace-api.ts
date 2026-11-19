@@ -125,7 +125,7 @@ export function workspaceClient(api: AppApi) {
     detectRepository: (workspaceId: string, folder: string) => run<DetectedCheckout>('repositories.detect', { folder }, workspaceId),
     // Stops Avoozl using a checkout. Refused while a run or lock uses it.
     removeRepository: (workspaceId: string, id: string) => run<Repository & { removed: boolean }>('repositories.remove', { id }, workspaceId),
-    registerRepository: (workspaceId: string, input: { id: string; localCheckout: string; baseBranch?: string }) =>
+    registerRepository: (workspaceId: string, input: { id: string; localCheckout: string; baseBranch?: string; planning?: boolean }) =>
       run<Repository>('repositories.configure', { ...input }, workspaceId),
   }
 }

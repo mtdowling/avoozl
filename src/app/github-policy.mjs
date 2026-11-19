@@ -60,7 +60,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "triage",
   ],
   conflicts: ["maxAttempts"],
-  landing: ["mode", "autoMerge", "method", "mergeBatch"],
+  landing: ["mode", "autoMerge", "method", "mergeBatch", "commitPrefix"],
   triage: [
     "agent",
     "existing",
@@ -241,7 +241,7 @@ export const MERGE_METHOD_SETTING = Object.freeze({
   squash: { key: "allow_squash_merge", name: "Allow squash merging" },
   merge: { key: "allow_merge_commit", name: "Allow merge commits" },
 });
-// `landing` {mode, autoMerge, method, mergeBatch}, unset values null and
+// `landing` {mode, autoMerge, method, mergeBatch, commitPrefix}, unset values null and
 // the method defaulted. Null reads as unset, so a normalized policy
 // normalizes to itself.
 function landingInput(value, label) {
@@ -260,6 +260,13 @@ function landingInput(value, label) {
     )
   )
     fail(`${label}.mergeBatch must be "auto" or a whole number 1-16.`);
+  if (
+    block.commitPrefix != null &&
+    (typeof block.commitPrefix !== "string" ||
+      block.commitPrefix.length > 40 ||
+      /[\r\n]/.test(block.commitPrefix))
+  )
+    fail(`${label}.commitPrefix must be one line of at most 40 characters.`);
   if (block.method != null && !MERGE_METHODS.includes(block.method))
     fail(`${label}.method must be squash or merge.`);
   return {
@@ -267,6 +274,7 @@ function landingInput(value, label) {
     autoMerge: block.autoMerge ?? null,
     method: block.method ?? MERGE_METHOD_DEFAULT,
     mergeBatch: block.mergeBatch ?? null,
+    commitPrefix: block.commitPrefix ?? null,
   };
 }
 // The method a repository's settings merge a pull request with.

@@ -1611,9 +1611,13 @@ export class Operations {
       approved,
       retros,
       drafts: names.filter((name) => !approved.includes(name)),
+      // The adopted specs' tasks that came in done (statusComplete takes a status id).
       done: ((data) =>
         data.tasks
-          .filter((task) => statusComplete(data, task.id))
+          .filter(
+            (task) =>
+              names.includes(task.planId) && statusComplete(data, task.status),
+          )
           .map((task) => task.id))(store.read()),
       landed,
     };

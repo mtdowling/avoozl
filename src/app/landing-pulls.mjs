@@ -26,6 +26,7 @@
 // only; a repository that requires none needs `checks` names passed in.
 // Upgrade when setup (42.2) records a repository's check names.
 import { landingMessage } from "./landing-trailers.mjs";
+import { commitSubject } from "./landing-config.mjs";
 import { branchReviewRule } from "./github-branch-rules.mjs";
 import { reviewVerdict } from "./github-reviews.mjs";
 import { headGuardedMerge } from "./driver-generations.mjs";
@@ -103,6 +104,7 @@ async function requiredChecks(github, target, base, declared) {
 //   method      merge method (default "merge")
 //   intent(spec, entries) -> {journal, input, options} as in directSteps
 //   store       the workspace, whose content rules check every push
+//   commitPrefix  the repository's landing.commitPrefix, for pull request titles
 export function pullSteps({
   github,
   registry,
@@ -117,6 +119,7 @@ export function pullSteps({
   machine,
   configFile,
   store,
+  commitPrefix = "",
 }) {
   if (typeof intent !== "function")
     fail("Pull request landing writes an intent before every merge.", 400);
@@ -276,7 +279,10 @@ export function pullSteps({
           sameOwner =
             fork && lower(sourceOwner) === lower(target.split("/")[0]);
         pull = await github.createPullRequest(target, {
-          title: `Land ${entry.tasks.length === 1 && entry.tasks[0].public ? entry.tasks[0].public : entry.key}`,
+          title: commitSubject(
+            commitPrefix,
+            `Land ${entry.tasks.length === 1 && entry.tasks[0].public ? entry.tasks[0].public : entry.key}`,
+          ),
           head:
             fork && !sameOwner
               ? `${sourceOwner}:${ref.source.branch}`
@@ -376,7 +382,7 @@ export function pullSteps({
         // private task keeps its public name and no metrics.
         () =>
           headGuardedMerge(github, target, pull.number, candidate, method, {
-            title: `${pull.title ?? `Land ${entry.key}`} (#${pull.number})`,
+            title: `${pull.title ?? commitSubject(commitPrefix, `Land ${entry.key}`)} (#${pull.number})`,
             message: landingMessage(
               "",
               entry.tasks

@@ -147,6 +147,9 @@ export class FakeGitHubApi {
     if (section === "labels")
       return json(this.repoLabels.map((name) => ({ name })));
     if (url.pathname === "/user") return json({ login: "owner" });
+    // The CI read (github.mjs workflowRuns): the fake runs no workflow.
+    if (section === "actions" && number === "runs")
+      return json({ total_count: 0, workflow_runs: [] });
     return json({ message: "Not Found" }, 404);
   }
 
@@ -288,6 +291,47 @@ export class FakeGitHubApi {
           : null;
       }
       return json({ data: { repository } });
+    }
+    // The open pull requests read (github.mjs readOpenPullRequests): one
+    // page of the fake's open pull requests, and none merged or closed.
+    if (/pullRequests\(states:OPEN/.test(query)) {
+      const nodes = [...this.items.values()]
+        .filter((item) => item.pull_request && item.state === "open")
+        .map((item) => ({
+          number: item.number,
+          url: item.html_url,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
+          isDraft: false,
+          author: { login: item.user.login },
+          headRefName: item.branch ?? `branch-${item.number}`,
+          headRefOid: item.head,
+          baseRefName: "main",
+          baseRef: null,
+          mergeable: "UNKNOWN",
+          mergeStateStatus: "UNKNOWN",
+          reviewDecision: null,
+          autoMergeRequest: null,
+          labels: {
+            nodes: item.labels.map((label) => ({ name: label.name ?? label })),
+          },
+          closingIssuesReferences: { nodes: [] },
+          files: { totalCount: item.changedFiles, nodes: [] },
+          commits: this.checks(item),
+        }));
+      return json({
+        data: {
+          repository: {
+            ...(/recent:pullRequests/.test(query)
+              ? { recent: { nodes: [] } }
+              : {}),
+            pullRequests: {
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes,
+            },
+          },
+        },
+      });
     }
     return json({ data: null, errors: [{ message: "unknown query" }] });
   }
