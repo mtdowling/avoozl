@@ -46,7 +46,6 @@ Radar.
 | Merge conflict                                     | `radar.conflictLabel`   | `avoozl:merge-conflict`       | Avoozl           |
 | Review (starts a draft)                            | `radar.reviewLabel`     | `avoozl:review`               | A person         |
 | Drafted                                            | `radar.draftedLabel`    | `avoozl:drafted`              | Avoozl           |
-| Waiting on tracker (a gate, or a task held by one) | `radar.trackerLabel`    | `avoozl:waiting-on-tracker`   | Avoozl           |
 | Accepted (a skipped issue may be planned)          | `acceptedLabel`         | unset                         | An allowed person |
 | Task states: ready, blocked, review, quarantined   | `githubLabelBehaviors`  | `avoozl:ready`, `avoozl:blocked`, `avoozl:review`, `avoozl:quarantined` | Avoozl |
 | Radar's claim                                      | `crewLabels.claim`      | `crew: in progress`           | Radar            |

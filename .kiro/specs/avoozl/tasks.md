@@ -1515,18 +1515,11 @@ receipts are that workspace's.
 
 ## Phase 8: Later, only after P1–P25 pass
 
-- [x] 8.1 Delivery plugin seam [R22] (§4.8, §12, §14)
+- [x] 8.1 Retired 2026-11-18
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See R22; §4.8, §12, §14.
+    - summary: Retired 2026-11-18: route plugins retired; worker-paths is the one dispatch path.
     - done:
-      - Delivery plugin seam
-      - Route schema with submit, status, completion, and cancel; Settings lists routes; local and GitHub remain the only built-in routes, and any other route comes from a plugin (8.6). Starts only when the R22.4 gate holds: P1–P25 pass and a second real route exists (a private code-review route counts; fakes do not).
-      - Optional per-task `route` in the delivery manifest, overriding the workspace or repository route. [R22.5]
-      - Dispatch calls `submit` for a non-local ready leaf and opens no session. [R22.6]
-      - The tick reads `status` for each remote leaf not done; waiting on a person shows as "needs you" with the route's link. [R22.7]
-      - A remote leaf is done only on the route's `completion`, never from a GitHub issue closer. [R22.8]
-      - `completion` returns a result (pull request link, answer, or both), quoted as data in each released dependent's brief. [R22.9]
-      - Verify with a test-only fake route in the test tree: a local -> fake -> local chain dispatches, waits, shows "needs you", completes, and the third leaf's brief carries the result. [R22.3, R22.4]
+      - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after:
       - avoozl-p1
@@ -1555,14 +1548,6 @@ receipts are that workspace's.
       - avoozl-p22
       - avoozl-p23
       - avoozl-p15
-  - Route schema with submit, status, completion, and cancel; Settings lists routes; local and GitHub remain the only built-in routes, and any other route comes from a plugin (8.6). Starts only when the R22.4 gate holds: P1–P25 pass and a second real route exists (a private code-review route counts; fakes do not).
-  - Optional per-task `route` in the delivery manifest, overriding the workspace or repository route. [R22.5]
-  - Dispatch calls `submit` for a non-local ready leaf and opens no session. [R22.6]
-  - The tick reads `status` for each remote leaf not done; waiting on a person shows as "needs you" with the route's link. [R22.7]
-  - A remote leaf is done only on the route's `completion`, never from a GitHub issue closer. [R22.8]
-  - `completion` returns a result (pull request link, answer, or both), quoted as data in each released dependent's brief. [R22.9]
-  - Verify with a test-only fake route in the test tree: a local -> fake -> local chain dispatches, waits, shows "needs you", completes, and the third leaf's brief carries the result. [R22.3, R22.4]
-  - Built: `8bc3b04`.
 - [x] 8.6 Plugin loading, after 8.1 [R22.10, R34.1–R34.9, R34.11] (§4.4, §4.7, §4.8)
   - Facts:
     - summary: Phase 8 (Later, only after P1–P25 pass). See R22.10, R34.1–R34.9, R34.11; §4.4, §4.7, §4.8.
@@ -1602,12 +1587,11 @@ receipts are that workspace's.
   - `plugins` entries in `.avoozl.json` and in machine-local settings (`id`, one of `package` or `path`, `contract`, non-secret `config`); validation per §4.4; `avoozl-plugin.json` manifest (`id`, `version`, `contract`, `kinds`, capabilities, `entry`), reserved ids `local` and `github`; Settings **Add plugin**, approve, disable, remove; approval per id, version, and content hash, stored on this machine only, never by the tick or example installation; a warning before saving a `plugins` entry into a public repository's `.avoozl.json`; one Node child process per plugin over stdio, no port, a listening-socket check that stops a plugin that listens; reply schema validation, replies quoted as untrusted data; per-call time limit inside the tick budget; a missing, unapproved, crashed, timed-out, invalid, or wrong-contract plugin parks its tasks as "needs you" and the tick finishes everything else; supported contract versions listed and others refused. Move 8.1's fake route behind the loader.
   - Git sources: an entry with `git`, `ref`, and optional `subdir` (exactly one of `package`, `path`, or `git`); Add and Update resolve `ref` to a full commit, store the pin on this machine, and fetch only that commit shallow into `<plugins>/git/<id>/<commit>/` with the person's git, hooks off, no submodules, no install; approval binds to the commit, version, and hash, and a new commit needs a new approval; refuse credentialed URLs, a `subdir` that escapes, a missing manifest, and unshipped dependencies; the tick never fetches. Settings **Add from git** shows the resolved commit before approval. Tests use local `file://` repositories only. [R34.12–R34.15] (§4.8)
   - Built: `8662302` and `773b2f2`; git sources `be12bc0` and `91f3b6a`.
-- [x] 8.7 Tracker plugin contract, after 8.6, and only when a real tracker plugin is being written (§14) [R19, R35] (§3.1, §3.2, §3.3, §4.8)
+- [x] 8.7 Retired 2026-11-18
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See §14; R19, R35; §3.1, §3.2, §3.3, §4.8.
+    - summary: Retired 2026-11-18: tracker plugins and gates retired; tasks keep one record, local or GitHub.
     - done:
-      - Tracker plugin contract, after 8.6, and only when a real tracker plugin is being written
-      - `authority: plugin:<id>` for tasks whose plugin declares `tracker`; `project`, `read`, `list`, `close`; the stored marker (namespace, task ID, last applied values) and refusal of a tracker that cannot store it; edges from the approved manifest cached in SQLite when the plugin lacks `edges`, the tracker's own links as managed fields when it has `edges`; 409 on direct edits of plugin rows, as 2.2 does for github rows; three-way conflicts on managed fields; Avoozl's completion verdict then `close(id, "completed")`; outside closes and pauses judged as orders with the plugin-reported actor, held with a decision when the actor is unknown; local -> `plugin:<id>` only through an approved projection, and "take back local" back; rebuild from `list`, `read`, and the manifest.
+      - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after:
       - avoozl-p1
@@ -1637,8 +1621,6 @@ receipts are that workspace's.
       - avoozl-p23
       - avoozl-p15
       - 8.6
-  - `authority: plugin:<id>` for tasks whose plugin declares `tracker`; `project`, `read`, `list`, `close`; the stored marker (namespace, task ID, last applied values) and refusal of a tracker that cannot store it; edges from the approved manifest cached in SQLite when the plugin lacks `edges`, the tracker's own links as managed fields when it has `edges`; 409 on direct edits of plugin rows, as 2.2 does for github rows; three-way conflicts on managed fields; Avoozl's completion verdict then `close(id, "completed")`; outside closes and pauses judged as orders with the plugin-reported actor, held with a decision when the actor is unknown; local -> `plugin:<id>` only through an approved projection, and "take back local" back; rebuild from `list`, `read`, and the manifest.
-  - Built: `2699722`.
 - [x] 8.8 Private integration boundary, with 8.6 [R34.10, R34.11, R24.2] (§4.8, §13)
   - Facts:
     - summary: Phase 8 (Later, only after P1–P25 pass). See R34.10, R34.11, R24.2; §4.8, §13.
@@ -1675,20 +1657,13 @@ receipts are that workspace's.
       - avoozl-p15
   - A public guide to writing a route or tracker plugin that uses only the fake plugins as examples; the fake route and fake tracker live under `test/fixtures/plugins/`; extend the 7.4 scan to plugin docs and fixtures so no company-internal tool name lands in the public tree.
   - Built: `e13890b`.
-- [x] avoozl-p26 P26 Proof: fake tracker and fake route plugins end to end [R22.5–R22.10, R34, R35] (§4.8)
+- [x] avoozl-p26 Retired 2026-11-18
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). Proof. See R22.5–R22.10, R34, R35; §4.8.
+    - summary: Retired 2026-11-18: route and tracker plugins retired; worker-paths is the one dispatch path.
     - done:
-      - Expected: (1) nothing loads and every task shows "needs you"; (2) the tracker holds five records with markers and no edges, `a` runs in a local worker, and `b` goes through `submit` with no worker session; (3) the crash and then the listener each mark the route plugin broken and park only `b`, while the tick finishes and `x` keeps advancing; no plugin child process is left listening; (4) `y` is held and a decision opens, and `x`'s record is not reopened; (5) `b` shows "needs you" with the fake link, then `completion`; `c`'s brief quotes `b`'s result as data; `a`, `b`, and `c` close as `completed` only after Avoozl's verdict; (6) the hand edit is a conflict and is left alone, and the direct edit is refused with 409; (7) the version change stops loading until re-approval and parks the tracker's tasks meanwhile; (8) rebuild matches every task, edge, status, verdict, and baseline from the fake tracker and the manifest; the public tree still passes the 7.4 scan.
-      - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
+      - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: 8.1, 8.6, 8.7, 8.8
-  - Setup: an isolated temporary workspace; the fake tracker plugin (records kept in a JSON file in the temp folder, no `edges` capability, `actor` capability on, `allowedActors` of one name) and the fake route plugin from `test/fixtures/plugins/`, declared in machine-local settings; an approved spec with chain `a -> b -> c` and pair `x -> y`, all with `authority: plugin:fake-tracker`; `b` has `route: plugin:fake-route`, the rest are local.
-  - Action: (1) tick before approving either plugin; (2) approve both and tick until `b` is submitted; (3) make the fake route crash on `status` and tick; then make it open a listening socket and tick; restore it; (4) close `x`'s record as an actor not in `allowedActors`; (5) tick until `c` is done; (6) edit `a`'s title in the fake tracker by hand, and try a direct title edit of `c` through operations; (7) change the fake tracker's version and tick, then re-approve; (8) delete the SQLite file, run `avoozl rebuild`, then `avoozl tick`.
-  - Expected: (1) nothing loads and every task shows "needs you"; (2) the tracker holds five records with markers and no edges, `a` runs in a local worker, and `b` goes through `submit` with no worker session; (3) the crash and then the listener each mark the route plugin broken and park only `b`, while the tick finishes and `x` keeps advancing; no plugin child process is left listening; (4) `y` is held and a decision opens, and `x`'s record is not reopened; (5) `b` shows "needs you" with the fake link, then `completion`; `c`'s brief quotes `b`'s result as data; `a`, `b`, and `c` close as `completed` only after Avoozl's verdict; (6) the hand edit is a conflict and is left alone, and the direct edit is refused with 409; (7) the version change stops loading until re-approval and parks the tracker's tasks meanwhile; (8) rebuild matches every task, edge, status, verdict, and baseline from the fake tracker and the manifest; the public tree still passes the 7.4 scan.
-  - Failure means: the seam cannot hold a non-GitHub tracker, or a plugin can stop the tick or run without consent.
-  - Next decision: narrow the tracker contract to the jobs that passed, or keep trackers out and ship routes only.
-  - Built: pass, receipt `docs/evidence/p26-fake-plugins.md`, `64bd862`.
 - [x] 8.2 Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering. [R27.13]
   - Facts:
     - summary: Phase 8 (Later, only after P1–P25 pass). See R27.13.
