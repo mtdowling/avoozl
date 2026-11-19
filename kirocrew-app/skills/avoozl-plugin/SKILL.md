@@ -90,7 +90,7 @@ or make it match.
    and `flow`. Use `{{<input id>}}` only for real input IDs. The starter
    must lint clean with sample values put in, and `phases` must match its
    headings. Put a step only a person does in it as a manual task
-   (`"manual": true`, completion `person`, no checks). Copy the
+   (`"manual": true`, no checks; it completes by a person). Copy the
    `sdk-templates` sample (`src/app/test/fixtures/plugins/sdk-templates/`)
    and its proof (`src/app/test/proof-p37.test.mjs`).
 

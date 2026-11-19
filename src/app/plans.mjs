@@ -131,6 +131,11 @@ export function validateProposal(item) {
         item[field].some((x) => typeof x !== "string"))
     )
       fail(field + " must be a list of strings.");
+  // A proposal stored while the field was named `prose` loads as summary.
+  if (item.prose !== undefined) {
+    item.summary ??= item.prose;
+    delete item.prose;
+  }
   for (const field of [
     "summary",
     "nextAction",
@@ -683,9 +688,9 @@ export function approvePlan(
         design = {
           id: taskId,
           title: proposal.title,
-          summary: proposal.summary || "",
+          ...(proposal.summary ? { summary: proposal.summary } : {}),
           acceptance: proposal.acceptance,
-          nextAction: proposal.nextAction || proposal.summary || proposal.title,
+          nextAction: proposal.nextAction || proposal.title,
           track,
           tags: proposal.tags || [],
           resources: proposal.resources || [],

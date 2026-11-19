@@ -65,7 +65,7 @@ export function parseManagedSection(body) {
             .filter(Boolean);
   return {
     planId,
-    // The `Parent: #N` line is a link projection adds, not summary text.
+    // The `Parent: #N` line is a link projection adds, not the task's summary.
     summary: lines
       .slice(1, acceptanceAt === -1 ? lines.length : acceptanceAt)
       .filter((line) => !/^Parent: #\d+$/.test(line))
@@ -554,9 +554,10 @@ function taskRow({
     ...base,
     id: taskId,
     title: issue.title,
-    summary:
-      section.summary && section.summary !== issue.title ? section.summary : "",
-    nextAction: section.summary || issue.title,
+    ...(section.summary && section.summary !== issue.title
+      ? { summary: section.summary }
+      : {}),
+    nextAction: issue.title,
     kind,
     authority: "github",
     track: base.track || "catalog",

@@ -64,7 +64,7 @@ const range = (source: { lineStart: number | null; lineEnd: number | null }) =>
 // The snippet header: file path, then its lines when the record has them.
 export const sourceLine = (source: NonNullable<ItemContext['source']>) => [source.path, range(source)].filter(Boolean).join(' · ')
 
-// A task's text as lines: its title, summary and each acceptance line.
+// A task's text as lines: its title, its summary and each acceptance line.
 export function taskLines(title: string | null | undefined, text: TaskText | undefined): string[] {
   return [title ?? '', text?.summary ?? '', ...(text?.acceptance ?? []).map((line) => `- ${line}`)].filter((line) => line.trim() !== '')
 }

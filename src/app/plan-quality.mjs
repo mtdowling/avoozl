@@ -71,14 +71,14 @@ const MANUAL_REFUSED = [
   "route",
 ];
 
-// A manual leaf: acceptance, a repository for its issue, completion person
-// and nothing an agent would use. `person` is a manual leaf's only.
+// A manual leaf: acceptance, a repository for its issue, and nothing an
+// agent would use. It completes by a person; `manual: true` says so.
 function manualDiagnostics(task, projectId, add) {
   if (task.manual !== true) {
     if (task.completion === "person")
       add(
         "spec.person-completion",
-        `Completion "person" is only for a manual task; "${task.id}" is not manual.`,
+        `"${task.id}" has completion "person". A task a person does is "manual: true": write that instead.`,
       );
     return;
   }
@@ -90,7 +90,7 @@ function manualDiagnostics(task, projectId, add) {
   if (task.completion !== undefined && task.completion !== "person")
     add(
       "spec.manual-field",
-      `Manual task "${task.id}" has completion "${task.completion}"; a manual task completes by "person".`,
+      `Manual task "${task.id}" has completion "${task.completion}"; a manual task completes by a person, so remove it.`,
     );
   for (const key of MANUAL_REFUSED)
     if (task[key] !== undefined)
@@ -318,17 +318,8 @@ export function lintPlan({
       );
     else normalizedTitles.set(titleKey, task);
 
-    if (!task.summary?.trim())
-      diagnostics.push(
-        diagnostic(
-          "task.basis",
-          "warning",
-          "Explain what this deliverable changes and why it is required by the design.",
-          at.lineStart,
-          at.lineEnd,
-          { taskId: task.id },
-        ),
-      );
+    // A task without a summary is fine: one exists only when it adds to
+    // the title.
     for (const acceptance of task.acceptance || [])
       if (placeholderAcceptance(acceptance))
         diagnostics.push(
