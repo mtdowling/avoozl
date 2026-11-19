@@ -52,7 +52,7 @@ One result shape for every class, checked by one validator:
   "labels": ["bug"],
   "duplicateOf": null,
   "answer": null,
-  "reproduction": { "path": "tests/regress_122.nupp", "command": ["nupp", "test", "tests/regress_122.nupp"] },
+  "reproduction": { "path": "tests/regress_122.nupp" },
   "fix": { "bounded": true, "why": "the loader reuses a stale check; one function" },
   "review": null,
   "toOwner": null
@@ -73,17 +73,18 @@ when it is `suggest` (default).
 
 ## D4. Reproduce, then fix
 
-A run proposes a reproduction; Avoozl does not take the run's word for it.
-Avoozl runs the reproduction command in a clean worktree at the base branch
-and records the result:
+A run proposes a reproduction as a file; Avoozl does not take the run's
+word for it, and runs no command the run names. In a clean worktree at the
+base branch it runs the repository's configured checks twice, without the
+file and with it, under the `process` executor's sandbox (NK1): no network,
+no credentials. A file under a protected path is refused.
 
-- **Fails, as the run said:** reproduced. With `fix.bounded`, Avoozl starts
-  a fix (TA9) whose brief includes the reproduction file, and adds the
-  reproduction command to that fix's checks, so the fix is landed only when
-  the reproduction passes.
-- **Passes:** not reproduced. The run is told once, by resume, and may try
-  again; after that, TA3.4 or TA3.5.
-- **Cannot run:** owner queue.
+- **Pass without, fail with:** reproduced. With `fix.bounded`, Avoozl
+  starts a fix (TA9) whose first commit is the file, so the repository's
+  checks, which landing runs, fail until the fix makes them pass.
+- **Pass both times:** not reproduced. The run is told once, by resume, and
+  may try again; after that, TA3.4 or TA3.5.
+- **Fail without the file, or cannot run:** owner queue.
 
 Who may land without the owner is decided by the author's permission, read
 from GitHub when the item is first read (TA7.3), not by anything the item
@@ -216,5 +217,6 @@ Kept and renamed: the content hook moves to `src/app/content-hook.mjs`.
 | A hostile issue steers the agent                           | TA7: text is data; no network or credentials; Avoozl writes; content rules; collaborators only for unattended landing |
 | A wrong answer posted in your name                         | Citation required; "written by an agent" line; D10.2                      |
 | A fix that passes checks but is wrong                      | The reproduction is a check; protected paths need you; landing's own checks |
+| A stranger's issue steers what Avoozl runs | A run names files, never commands; only the configured checks run, sandboxed (TA7.7) |
 | GitHub limits hit by a busy repository                     | Conditional lists, batched counts, cached detail, the daily cap, triage yields |
 | An item gets runs over and over                            | A new run only on a person's ask or an answer to its question (TA1.5)   |

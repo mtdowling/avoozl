@@ -16,8 +16,10 @@ pages in Avoozl that show each item, what the agent did with it, and the
 actions that are left. One change, a fix, needs no spec files.
 
 This replaces Avoozl's label commands and its Issue Radar integration.
-Issue Radar covers about half of this workflow and needs Kiro Crew; Avoozl
-already has most of the parts (design D1).
+Issue Radar fixes issues and helps a person review and act on pull
+requests, but it does not answer questions, review on its own, or land, and
+it runs only inside Kiro Crew; Avoozl already has most of the parts
+(design D1).
 
 This spec is a draft. Approving it, creating issues and starting agents are
 separate acts that a person does later. Nothing in it changes code,
@@ -33,9 +35,27 @@ Claims about today's code carry one label: **V**, read in the file cited at
   partial), and sends bigger items to the owner; a view shows what it is
   doing and stops it. Avoozl shows the owner what needs attention and lets
   them act on it: tag, review, fix, or go to GitHub.
-- **Issue Radar does not fill it.** Its crews do not answer questions or
-  review pull requests, never merge, and run only inside Kiro Crew (V: its
-  crew brief, `crew_brief.md`, Kiro Crew 0.12.2).
+- **Issue Radar does not fill it.** Read in Kiro Crew 0.12.2, under
+  `src/kiro_crew/apps/builtins/issue_radar/` (`B`) and
+  `website/src/apps/issue-radar/` (`W`):
+  - Its crews pick an issue at random within a label scope, reproduce it,
+    and open a fix with a regression test (V: `B/backend/crew_brief.md:106`,
+    `:373`, `:438`). They pass on new features, design questions and
+    architecture with a `needs human` label (V: `:175`, `:592`).
+  - No crew answers a question: a crew only asks the author for missing
+    detail (V: `crew_brief.md:135`).
+  - No crew reviews someone else's pull request; a crew answers review
+    comments on its own pull requests (V: `crew_brief.md:52`). On the page,
+    **Review** opens a chat that drafts comments for a person to post (V:
+    `W/lib/review.prompt.ts`), and **Auto review** lists CI and review-bot
+    checks, not an AI review (V: `W/components/PrDetail.tsx:469`).
+  - A crew never merges; it re-arms auto-merge on an approved pull request
+    (V: `crew_brief.md:53`, `:649`). A person can merge one pull request
+    at a time from the page (V: `B/backend/http_routes/pr_actions.py:54`).
+  - It runs only inside the Kiro Crew gateway (V: `B/backend/watch.py:33`).
+  - Its page is what this spec's pages learn from: AI summaries, label
+    suggestions applied by a click, person actions on issues and pull
+    requests, and CI runs (V: `B/app.json:16`, `B/backend/routes.py:759`).
 - **Label commands are unused weight.** Trigger rules with seven actions,
   Who counts, six managed labels and a plan label exist (V:
   `RULE_ACTIONS` and `MANAGED_LABEL_KEYS`, `src/app/github-policy.mjs:19`),
@@ -67,9 +87,10 @@ Claims about today's code carry one label: **V**, read in the file cited at
 
 - A long-running agent. The tick is code; each item gets one short session
   (design D2).
-- Mirroring GitHub: no diff viewer, no inline comments other than the
-  agent's draft review, no editing of issue text, milestones or Projects,
-  and no notification for every GitHub event.
+- More of GitHub on the pages: a diff viewer, inline comments outside the
+  agent's draft review, editing of issue text, milestones and Projects, and
+  notifications for other GitHub events. None is ruled out; a later spec
+  may add any of them on the same reads (TA10).
 - Closing issues on its own, and approving or requesting changes on a pull
   request on its own.
 
@@ -132,11 +153,14 @@ fixed and landed without me, so that simple problems close themselves.
 #### Acceptance criteria
 
 1. For a `bug` or `optimization`, the run SHALL first try to reproduce it:
-   a failing test or a script that shows the problem, in a sandboxed copy of
-   the repository at its base branch.
+   a test file that shows the problem, placed where the repository's own
+   checks run it. Avoozl SHALL run those checks at the base branch with and
+   without the file (TA7.7); the bug is reproduced when they pass without it
+   and fail with it.
 2. WHEN it reproduces and the fix is bounded (one change, justified by the
    report alone, not a design decision) THEN Avoozl SHALL start a fix
-   (TA9) whose first commit is the reproduction and whose checks include it.
+   (TA9) whose first commit is the reproduction, so the repository's checks
+   run it.
 3. WHEN the issue's author is a collaborator THEN the fix SHALL land by the
    repository's landing setting. Otherwise it SHALL stop at "Fix ready" in
    the owner queue, with its pull request or verified commit, for the owner
@@ -220,6 +244,9 @@ do damage.
    or request changes on a pull request.
 6. The agent MAY add labels the repository already has, and SHALL NOT
    create labels.
+7. A triage run SHALL name files, never commands. Avoozl SHALL run only the
+   repository's configured checks, and SHALL run them for a reproduction
+   with no network and no credentials.
 
 ### Requirement TA8: The Issues and Pull requests pages
 
@@ -251,9 +278,7 @@ act on it without leaving Avoozl for the common decisions.
    be a person's.
 6. A pull request that only adds a spec SHALL keep **Review as spec**
    (Requirement 107).
-7. The pages SHALL NOT show a diff or let a person write inline comments
-   other than in the agent's draft review.
-8. These pages replace Requirement 92's rule that Avoozl has no Issues or
+7. These pages replace Requirement 92's rule that Avoozl has no Issues or
    Pull requests pages, and replace the Triage list (the Untriaged list of
    Requirement 49, inside the one intake list of Requirement 110).
 
