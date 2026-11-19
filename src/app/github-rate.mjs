@@ -67,6 +67,15 @@ export const countFilePath = () =>
     "gh-calls.jsonl",
   );
 
+export function recordWrapperCall(
+  source,
+  at = Date.now(),
+  file = countFilePath(),
+) {
+  mkdirSync(path.dirname(file), { recursive: true });
+  appendFileSync(file, JSON.stringify({ at, source }) + "\n");
+}
+
 const readLines = (file) => {
   try {
     return readFileSync(file, "utf8")
