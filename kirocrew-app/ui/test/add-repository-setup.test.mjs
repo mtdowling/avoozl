@@ -25,7 +25,6 @@ test('the repository modals add no Close or Cancel beside the shell Close', () =
   assert.doesNotMatch(view, /footer=/)
   assert.doesNotMatch(view, /\n\s*Close\n/)
   assert.doesNotMatch(modals.slice(modals.indexOf('export function EditRepository')), /\n\s*(Close|Cancel)\n/)
-  assert.doesNotMatch(source('MirrorSetup.tsx'), /\n\s*Close\n/)
 })
 
 const chrome = findChrome()

@@ -12,7 +12,6 @@ import { listExamples, seedExample } from "../workspace/examples.mjs";
 import { repositoryConfig, withWorkLock } from "../git/git.mjs";
 import { expandHome } from "../workspace/folder-browse.mjs";
 import { detectRepository } from "../workspace/repository-kind.mjs";
-import { normalizeGitHubPolicy } from "../github/github-policy.mjs";
 import {
   machineIdentity,
   prepareGitHubRepository,
@@ -26,10 +25,6 @@ import {
   ensureGlobalLocalIgnore,
   globalLocalIgnoreStatus,
 } from "../workspace/local-ignore.mjs";
-import {
-  requireMirrorsPrivate,
-  requirePlansBranches,
-} from "../mirror/mirror-policy.mjs";
 import { importNewPlans, newPlanStarts } from "../specs/new-plan.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import {
@@ -150,7 +145,6 @@ export const entries = [
         command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} ${cliCommand()}`,
       });
       if (remote) return remote;
-      await this.refreshPrivateSpecs();
       await this.applyBaseTicks();
       // An approver's spec commit that reached main approves it (§4.42).
       await this.applyMainApprovals();
@@ -380,15 +374,6 @@ export const entries = [
     async handler({ input }) {
       if (!this.configuration)
         fail("Configuration editing is unavailable from this server.", 404);
-      // The raw file is held to the same private-mirror rule as the form.
-      let raw = null;
-      try {
-        raw = normalizeGitHubPolicy(JSON.parse(input.text).github);
-      } catch {
-        // An unparsable or invalid file is refused by the update itself.
-      }
-      await requireMirrorsPrivate(raw, this.github);
-      await requirePlansBranches(raw, this.github, { create: true });
       return this.configuration.updateConfiguration(input);
     },
   },

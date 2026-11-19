@@ -3576,6 +3576,7 @@ proof or run a real workspace to get past that wait.
   - $after: 42.1, 56.3
   - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
   - Test divergent mirror updates and a second import; forwarding proposes nothing for imported upstream changes and still screens genuine private changes.
+  - Removed 2026-11-19 (Requirement 117, task 69.1): the mirror and forwarding are deleted.
 
 - [x] 56.11 Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.11, R102.12, R102.23, R102.24, R102.25] (§4.32)
   - $done: Privacy enforcement for checkpoints and public metadata
@@ -3720,7 +3721,7 @@ picker. The owner waived screenshot review for this task.
   - $done: Repository roles replace Where tasks live, after 3.14, 20.2
   - $done: Repository setup shows an in-place role picker per repository (local, code, planning, both); the mode and planningRepository derive from roles through one resolver that also reads old files without writing; mixed roles are refused; the Where tasks live page is gone with its link opening Repository setup and workspace-wide settings in Settings › Workspaces. Tests cover the mapping, migration and screens, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/repo-roles/.
   - $after: 3.14, 20.2
-  - Changed 2026-11-17 (#484): Repository setup is a compact list with a read-only role badge and View, Edit and Remove icons. The role is chosen in Edit and Add repository, and `mirror` (a private mirror of a public repository) is one of the choices. The in-place picker and the separate Mirror box are gone.
+  - Changed 2026-11-17 (#484): Repository setup is a compact list with a read-only role badge and View, Edit and Remove icons. The role is chosen in Edit and Add repository, and `mirror` (a private mirror of a public repository) is one of the choices. The in-place picker and the separate Mirror box are gone. (Changed 2026-11-19, Requirement 117: the `mirror` choice is gone too.)
   - One resolver in `github-policy.mjs` maps roles to mode and `planningRepository` and back, refuses mixed roles, and runs in the config loader; the schema gains `role` and keeps `mode` and `planningRepository`. Repository setup shows an in-place role picker per repository, the "Tasks live in" line and a synthesized "GitHub only" planning row; the Where tasks live page and tab are removed, the workspace-wide settings move to Settings › Workspaces, and the old link opens Repository setup. Tests for the mapping, migration, refused mixes and screens; screenshots (phone and desktop, light and dark, in the full app shell) under `docs/evidence/repo-roles/`.
 
 ## Phase 59: Trace moves into task details
@@ -3866,3 +3867,12 @@ Owner decision 2026-11-19 (Requirement 116, design §4.44).
   - $done: Each approved spec's row says You drive, Taken by <login>, Not shared, Nobody drives, Your other machine, Handed off or N assignees, from the cache; the chip says the same; Hand off's last step says Avoozl unassigned you and its first step has Release; phone and desktop, light and dark screenshots go to the owner.
   - $after: 68.1
   - `plansTableView` `driver`, `rowDriverText` and `chipText` in `driver-api.ts`, `SpecList`, `HandOffDialog`.
+
+## Phase 69: The specs branch
+
+Owner decision 2026-11-19 (Requirement 117, design §4.45).
+
+- [x] 69.1 Delete the mirror and the plans branch; a repository names its specs branch, after 66.1 [R117.1, R117.2, R117.3, R117.4, R117.5, R117.6] (§4.45)
+  - $done: `src/app/mirror/`, `spec-homes.mjs`, `repo-files.mjs`, the instance publish step and the mirror UI are gone; `specs.branch` decides where specs, approvals and ticks are read and written; tests cover plans-repo mode on a specs branch.
+  - $after: 66.1
+  - `specs-branch.mjs`, `git-approvals.mjs` `approvalBase`, `spec-ticks.mjs` `tickPlansRepo`, `spec-ticks-landing.test.mjs`, `git-approvals.test.mjs`.

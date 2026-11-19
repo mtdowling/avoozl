@@ -291,16 +291,6 @@ const tools = {
     summary:
       "GitHub reads. Setup writes and settings are a person's, in the app.",
     actions: {
-      mirror_adopt_preview: [
-        "mirror.adopt",
-        "dry run of Adopt existing setup for a private mirror: what exists and what would be written (repository, source)",
-        ({ confirm, ...input }) => input,
-      ],
-      mirror_create_preview: [
-        "mirror.create",
-        "dry run of Create setup for a private mirror: the steps that would run, in order (repository, source)",
-        ({ confirm, ...input }) => input,
-      ],
       gap_report: [
         "gap.preview",
         "read a gap report from an issue: a repository by requirement table and one proposed task per failing cell; accepting is a person's",
@@ -319,7 +309,7 @@ const tools = {
       ],
       release_queue: [
         "radar.releasequeue",
-        "mirror forwards merged in a private mirror and not yet public",
+        "the Release queue, empty since labels stopped releasing work",
       ],
       integration_branch: [
         "radar.integrationbranch",

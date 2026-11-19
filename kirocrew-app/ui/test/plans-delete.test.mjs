@@ -32,11 +32,11 @@ test('only a stored plan offers Delete, red, last in the spec menu', () => {
   assert.match(plans, /disabled=\{!preview \|\| busy \|\| blocked\}/)
 })
 
-test('every spec is in one list: name, status chip, task count, epic and where it lives', () => {
+test('every spec is in one list: name, status chip, task count and epic', () => {
   assert.match(plans, /export function SpecList/)
   assert.match(plans, /<Badge variant=\{SPEC_CHIP_VARIANT\[chip\]\}>\{SPEC_CHIP_LABEL\[chip\]\}<\/Badge>/)
   assert.match(plans, /row\.epicTitle \?\? 'No epic'/)
-  assert.match(plans, /<HomeBadge home=\{row\.home\} \/>/)
+  assert.doesNotMatch(plans, /HomeBadge/)
   assert.doesNotMatch(plans, /data-plan-group|EpicsView/)
 })
 

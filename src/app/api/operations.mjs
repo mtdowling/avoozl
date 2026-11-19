@@ -34,7 +34,11 @@ import {
   gapProposals,
   parseGapReport,
 } from "../specs/gap-report.mjs";
-import { originRepositorySync, withWorkLock } from "../git/git.mjs";
+import {
+  currentBranchSync,
+  originRepositorySync,
+  withWorkLock,
+} from "../git/git.mjs";
 import { clampLimits, runView } from "../github/github-pacer.mjs";
 import {
   MODE_CHOICES,
@@ -54,7 +58,6 @@ import {
   GitHubClient,
   defaultGitHubClient,
   personOf,
-  parseRepository,
   requirePrivateRepository,
 } from "../github/github.mjs";
 import { pollSources, sourceMap } from "../intake/intake.mjs";
@@ -69,7 +72,7 @@ import {
   reviewSettings,
   taskCodeChanges,
 } from "./operation-support.mjs";
-import { OPERATIONS, classifyOperation } from "./operation-table.mjs";
+import { OPERATIONS } from "./operation-table.mjs";
 import { flushOutbox } from "../store/outbox.mjs";
 import { processGrants, withJob } from "../github/github-jobs.mjs";
 import { recordMissingLabels } from "../github/github-setup.mjs";
@@ -107,7 +110,6 @@ import {
 import { mergePath } from "../landing/merge-path.mjs";
 import { pluginChecksView } from "../plugins/plugin-checks.mjs";
 import { localRequired, taskPluginChecks } from "../plugins/check-stages.mjs";
-import { RepoFiles } from "../git/repo-files.mjs";
 import { RepositorySettings } from "../settings/repository-settings.mjs";
 import { bindRetroMemory } from "../flow/retro-memory.mjs";
 import {
@@ -131,13 +133,7 @@ import {
   retroText,
   writeRetroFiles,
 } from "../flow/retro-files.mjs";
-import {
-  locateLocalSpec,
-  mergeHomes,
-  mirrorOf,
-  privateDependencies,
-  readPrivateSpecs,
-} from "../specs/spec-homes.mjs";
+import { specsBranch, specsBranchSetting } from "../specs/specs-branch.mjs";
 import {
   createSpecPlan,
   epicMembers,
@@ -291,10 +287,6 @@ export class Operations {
     this.tickPolicy = {};
     this.planReviewOptions = planReviewOptions;
     this.configDirectory = configDirectory;
-    // Specs read from the plans branch on the last tick (RC25.2).
-    this.privateSpecs = [];
-    this.privateSpecsAt = 0;
-    this.privateSpecsHead = null;
     this.repositoryBindingGuard = repositoryBindingGuard;
     this.pendingIntents = new Map();
     if (workspaceRoot && driver?.settingsFile)
@@ -545,59 +537,6 @@ export class Operations {
         .map((repository) => repository.root),
     });
   }
-  // Repository files by git, with the API as the fallback (repo-files.mjs).
-  // The cache lives in this workspace's git-ignored state folder.
-  repoFiles() {
-    this.files ??= new RepoFiles({
-      github: this.github,
-      root: this.workspaceRoot
-        ? path.join(this.workspaceRoot, ".avoozl", "local", "git-cache")
-        : null,
-    });
-    return this.files;
-  }
-  // Read the plans branch into `privateSpecs`. A failed read keeps the last
-  // good list, so a network error never makes private specs vanish.
-  // `cached` (a read): do nothing inside github.cacheSeconds of the last
-  // check. Past it, one branch call decides whether the files are read
-  // again. Without `cached` the head is still compared, so an unchanged
-  // branch costs one call, not one per spec file.
-  async refreshPrivateSpecs({ cached = false } = {}) {
-    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-      mirror =
-        policy?.mode && policy.mode !== "local" ? mirrorOf(policy) : null;
-    if (!mirror) {
-      this.privateSpecs = [];
-      return;
-    }
-    if (!this.github?.available?.()) return;
-    const now = Date.now();
-    if (
-      cached &&
-      this.privateSpecsAt &&
-      now - this.privateSpecsAt < this.cacheSeconds() * 1000
-    )
-      return;
-    try {
-      let head = null;
-      try {
-        head = await this.repoFiles().head(mirror.mirror, mirror.plansBranch);
-      } catch {
-        // No head to compare: read the files.
-      }
-      if (!head || head !== this.privateSpecsHead) {
-        this.privateSpecs = await readPrivateSpecs(
-          this.repoFiles(),
-          mirror,
-          head,
-        );
-        this.privateSpecsHead = head;
-      }
-      this.privateSpecsAt = now;
-    } catch {
-      // Keep the last list.
-    }
-  }
   // A tick on a spec's base branch completes its task (spec-ticks.mjs). Read
   // again only when the branch head or the approved revision moved.
   // With `land`, a task that is done and ticked on the branch, and has no
@@ -605,7 +544,6 @@ export class Operations {
   async applyBaseTicks({ land = false } = {}) {
     this.ticksSeen ??= new Map();
     this.ticksFetched = new Set();
-    const repositories = this.store.list("repositories");
     for (const plan of this.store.list("plans")) {
       if (
         !plan.spec ||
@@ -616,18 +554,11 @@ export class Operations {
       try {
         if (pullFor(this.store, plan.spec)) continue;
         const spec = this.readSpec(plan.spec);
-        if (!spec.exists) continue;
-        const branch = spec.root
-            ? spec.home === "plansBranch"
-              ? spec.ref
-              : repositories.find((p) => p.root === spec.root)?.baseBranch ||
-                "main"
-            : spec.ref,
-          read = spec.root
-            ? await baseTasks(spec.root, branch, plan.spec, {
-                fetched: this.ticksFetched,
-              })
-            : { head: this.privateSpecsHead, text: spec.files["tasks.md"] };
+        if (!spec.exists || !spec.root) continue;
+        const branch = specsBranch(this.store, this.workspaceRoot, spec.root),
+          read = await baseTasks(spec.root, branch, plan.spec, {
+            fetched: this.ticksFetched,
+          });
         if (!read?.text) continue;
         const seen = `${read.head}:${plan.approvalId}`;
         if (read.head && this.ticksSeen.get(plan.id) === seen) continue;
@@ -635,12 +566,7 @@ export class Operations {
           ...read,
           branch,
           land,
-          // shortcut: the plans branch is cached with no history, so a tick
-          // there names the branch head it was first read at; use the
-          // contents API's commit list for the exact commit if that matters.
-          commits: spec.root
-            ? () => tickCommits(spec.root, read.head, plan.spec)
-            : async () => null,
+          commits: () => tickCommits(spec.root, read.head, plan.spec),
         });
         this.ticksSeen.set(plan.id, seen);
       } catch {
@@ -648,72 +574,37 @@ export class Operations {
       }
     }
   }
-  // Every spec folder the mode reads, in both homes (RC25.2), each with its
-  // root (null for a private spec). specList and graph.view read it.
+  // Every spec folder the mode reads, each with its root. specList and
+  // graph.view read it. With `specs.branch` set, a checkout on another
+  // branch is named in `errors`: its folders are not the specs Avoozl
+  // approves and ticks.
   specHomes() {
     const roots = this.specRoots(),
-      policy = readGitHubPolicyOrNull(this.workspaceRoot),
-      mirror = mirrorOf(policy);
-    // Both homes in one list (RC25.2). The plans branch is read on each tick
-    // into `privateSpecs`; a name or task ID in both homes is refused.
-    const publicSpecs = roots.flatMap((root) =>
-        listSpecFolders(root).map((name) => ({
-          root,
-          spec: locateLocalSpec(
-            { ...readSpecFolder(root, name), root },
-            mirror,
-            policy,
-          ),
-        })),
-      ),
-      merged = mirror
-        ? mergeHomes(
-            publicSpecs
-              .filter((entry) => entry.spec.home !== "plansBranch")
-              .map((entry) => entry.spec),
-            [
-              ...publicSpecs
-                .filter((entry) => entry.spec.home === "plansBranch")
-                .map((entry) => entry.spec),
-              ...this.privateSpecs.filter(
-                (spec) =>
-                  !publicSpecs.some(
-                    (entry) =>
-                      entry.spec.home === "plansBranch" &&
-                      entry.spec.name === spec.name,
-                  ),
-              ),
-            ],
-          )
-        : {
-            specs: publicSpecs.map((entry) => ({
-              home: "main",
-              spec: entry.spec,
-            })),
-            errors: [],
-          };
+      wanted = specsBranchSetting(this.workspaceRoot),
+      errors = [];
+    for (const root of roots) {
+      const branch = wanted && currentBranchSync(root);
+      if (branch && branch !== wanted)
+        errors.push(
+          `Specs live on ${wanted}, but ${root} has ${branch} checked out. Check out ${wanted} there.`,
+        );
+    }
     const adopted = pullSpecs(this.store, roots[0] ?? null);
     return {
       roots,
-      mirror,
-      errors: merged.errors,
+      errors,
       homes: [
-        ...merged.specs
-          .filter(
-            ({ spec }) => !adopted.some((pull) => pull.name === spec.name),
-          )
-          .map(({ home, spec }) => ({
-            home,
-            spec,
-            root:
-              spec.root ??
-              (home === "main"
-                ? publicSpecs.find((entry) => entry.spec === spec).root
-                : null),
-          })),
+        ...roots.flatMap((root) =>
+          listSpecFolders(root)
+            .filter((name) => !adopted.some((pull) => pull.name === name))
+            .map((name) => ({
+              root,
+              spec: { ...readSpecFolder(root, name), root },
+            })),
+        ),
         // An adopted spec pull request replaces the checkout's folder, or
         // adds the folder it proposes (R107.3).
-        ...adopted.map((spec) => ({ home: "main", spec, root: spec.root })),
+        ...adopted.map((spec) => ({ spec, root: spec.root })),
       ].sort((a, b) => a.spec.name.localeCompare(b.spec.name)),
     };
   }
@@ -731,12 +622,12 @@ export class Operations {
         .list("plans")
         .filter((plan) => plan.spec && !plan.deletedAt),
       approvals = store.list("approvals"),
-      { roots, mirror, homes, errors: homeErrors } = this.specHomes(),
+      { roots, homes, errors: homeErrors } = this.specHomes(),
       declarations = specDeclarations(plans);
     return {
       root: roots[0],
       roots,
-      items: homes.map(({ home, root, spec: disk }) => {
+      items: homes.map(({ root, spec: disk }) => {
         const name = disk.name,
           plan = plans.find((entry) => entry.spec === name) || null,
           quality = this.withContentDiagnostics(
@@ -758,7 +649,6 @@ export class Operations {
         return {
           name,
           root,
-          ...(mirror ? { home } : {}),
           title: specTitle(disk),
           category: front.category,
           categoryProblem: front.problem?.message ?? null,
@@ -799,11 +689,7 @@ export class Operations {
     if (spec.exists && (context.caller || context.mcp))
       enforceSpec(store, spec, { mode: "refuse" });
     const previousHash = store.get("plans", input.id || input.spec)?.hash;
-    const created = createSpecPlan(
-      store,
-      { ...input, ...(spec.home ? { home: spec.home } : {}) },
-      spec,
-    );
+    const created = createSpecPlan(store, input, spec);
     recordPlanReviewWriter(store, created, {
       previousHash,
       caller: context.caller,
@@ -826,38 +712,12 @@ export class Operations {
       );
     return roots[0];
   }
-  // A folder on disk, or else a private spec read from the plans branch
-  // (RC25.2). A private spec has no `root`, so nothing writes it to disk.
-  // shortcut: spec edits that write files (manifest, status) refuse a private
-  // spec for now; they move to a contents write when Spec Builder needs them.
+  // A folder on disk by name.
   readSpec(name) {
     // An adopted spec pull request's files stand for the folder (R107.3).
     const adopted = pullFor(this.store, name);
     if (adopted) return this.pullSpec(adopted);
-    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-      mirror = mirrorOf(policy),
-      local = locateLocalSpec(
-        findSpecFolder(this.specRoots(), specName(name)),
-        mirror,
-        policy,
-      ),
-      privateSpec = (this.privateSpecs || []).find(
-        (entry) => entry.name === name,
-      );
-    if (local.exists && local.home === "plansBranch") return local;
-    if (local.exists && privateSpec)
-      fail(
-        `Spec ${name} exists in both homes: main and plansBranch. Rename one.`,
-        409,
-      );
-    return privateSpec
-      ? {
-          ...privateSpec,
-          home: "plansBranch",
-          repository: privateSpec.repository ?? privateSpec.specRepository,
-          ref: privateSpec.ref ?? privateSpec.plansRef,
-        }
-      : local;
+    return findSpecFolder(this.specRoots(), specName(name));
   }
   // The folder an adopted spec pull request holds. Its root is the planning
   // checkout when there is one, which the review chat reads beside it.
@@ -902,65 +762,6 @@ export class Operations {
       wanted && origin && origin.toLowerCase() === wanted.toLowerCase(),
     );
   }
-  // Where a spec's approval pull request opens (D5.2, RC3.6, R86.8): only a
-  // spec whose home is a mirror's protected plans branch. Every other spec
-  // keeps the plain approval, the local hash receipt.
-  approvalPullRequestTarget(plan) {
-    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-    if (!policy?.mode || !plan.spec) return null;
-    const spec = this.readSpec(plan.spec);
-    if (spec.approvalBlocked)
-      fail(
-        "Publish the private spec revision on the configured plans branch before requesting approval.",
-        409,
-      );
-    const entries = Object.entries(policy.repositories || {}),
-      home = spec.home ?? plan.home,
-      hidden =
-        home === "plansBranch"
-          ? []
-          : privateDependencies(
-              { name: plan.spec, files: plan.files ?? spec.files },
-              this.privateSpecs || [],
-            ),
-      repository =
-        spec.repository ?? spec.specRepository ?? plan.specRepository;
-    if (hidden.length)
-      fail(
-        `This public spec names private tasks (${hidden.join(", ")}) as dependencies, and its approval would publish them. Remove it there and list the public task in the private task's unblocks list instead.`,
-        409,
-      );
-    // Source-home validation runs before the private shortcut. A task-branch
-    // draft must never use stored home metadata to bypass its publication hold.
-    if (home === "plansBranch") {
-      const mirror = repository
-        ? entries
-            .map(([, entry]) => entry.mirror)
-            .find(
-              (entry) =>
-                entry?.mirror.toLowerCase() === repository.toLowerCase(),
-            )
-        : mirrorOf(policy);
-      if (!mirror)
-        fail("The private spec home does not match a configured mirror.", 409);
-      const ref =
-        spec.ref ??
-        spec.plansRef ??
-        plan.ref ??
-        plan.plansRef ??
-        mirror.plansBranch;
-      if (ref !== mirror.plansBranch)
-        fail(
-          "The private spec branch no longer matches its configured mirror.",
-          409,
-        );
-      return {
-        repository: parseRepository(mirror.mirror),
-        ref,
-      };
-    }
-    return null;
-  }
   // Approve ends in a commit a crew can read: open the approval pull request,
   // and approve in Avoozl only once it has merged. Returns null when no pull
   // request applies, `{ pending }` while it is open, `{ merged }` after.
@@ -973,9 +774,7 @@ export class Operations {
       pullFor(this.store, plan.spec)?.hash === plan.hash
     )
       return { pull: true };
-    const target = this.approvalPullRequestTarget(plan);
-    if (!target || this.planApproved(plan)) return null;
-    return target;
+    return null;
   }
   // Who approves a spec. GitHub records the approver as a login (the approval
   // pull request checks it, and the issue write-back names it), so with
@@ -1339,9 +1138,8 @@ export class Operations {
       .some((a) => a.planId === plan.id && a.hash === plan.hash);
   }
   // The git checkout a spec's approval commit goes in (§4.42): the top of
-  // the work tree that holds its folder. Null for a spec read from GitHub (a
-  // private plans branch or an adopted pull request, which approve through
-  // their pull request) and for a folder outside git.
+  // the work tree that holds its folder. Null for an adopted pull request,
+  // which approves through its pull request, and for a folder outside git.
   // shortcut: a spec folder outside git keeps only the database receipt and
   // is not rebuilt; require git once every workspace is a checkout.
   async approvalCheckout(plan) {
@@ -1352,7 +1150,7 @@ export class Operations {
     } catch {
       return null;
     }
-    if (!spec?.exists || spec.home === "plansBranch" || !spec.root) return null;
+    if (!spec?.exists || !spec.root) return null;
     const top = await gitTop(spec.root);
     if (!top) return null;
     try {
@@ -1384,9 +1182,7 @@ export class Operations {
           : `${repository.owner}/${repository.repo}`,
       policy = readGitHubPolicyOrNull(this.workspaceRoot),
       entry = Object.entries(policy?.repositories || {}).find(
-        ([id, value]) =>
-          id.toLowerCase() === name.toLowerCase() ||
-          value.mirror?.mirror?.toLowerCase() === name.toLowerCase(),
+        ([id]) => id.toLowerCase() === name.toLowerCase(),
       )?.[1] ?? { allowedActors: [], minimumPermission: "write" };
     return approverCheck({
       repository: entry,
@@ -1421,7 +1217,9 @@ export class Operations {
           `${author.email} is not on this repository's approvers list (github.repositories allowedActors), so a commit by it approves nothing.`,
           403,
         );
-      const base = await approvalBase(root),
+      const base = await approvalBase(root, {
+          branch: specsBranchSetting(this.workspaceRoot),
+        }),
         committed = await approvalCommits(root, {
           allowed,
           ref: base.head,
@@ -1444,6 +1242,7 @@ export class Operations {
             Object.fromEntries(
               open.map((plan) => [plan.spec, plan.files || {}]),
             ),
+            { branch: specsBranchSetting(this.workspaceRoot) },
           )
         : null;
       for (const plan of group) {
@@ -1545,9 +1344,8 @@ export class Operations {
   // spec's text did, the rebuild reader runs over the specs whose text on
   // disk has no approval. A spec an approver committed with exactly that
   // text is approved as that commit's author. Writes nothing to git.
-  // shortcut: specs read only from GitHub (plans branch, adopted pull
-  // requests) keep their approval pull request; a spec folder with no plan
-  // waits for import.
+  // shortcut: adopted pull requests keep their approval pull request; a
+  // spec folder with no plan waits for import.
   async applyMainApprovals() {
     this.approvalsSeen ??= new Map();
     this.mainApprovers ??= new Map();
@@ -1567,11 +1365,9 @@ export class Operations {
         roots.get(root).push({ plan, disk });
       } catch {}
     }
-    const repositories = store.list("repositories");
     for (const [root, group] of roots)
       try {
-        const branch =
-            repositories.find((p) => p.root === root)?.baseBranch || "main",
+        const branch = specsBranch(store, this.workspaceRoot, root),
           { head } = await baseHead(root, branch, {
             fetched: (this.ticksFetched ??= new Set()),
           }),
@@ -1644,7 +1440,9 @@ export class Operations {
         root = await this.approvalCheckout(plan);
       if (!root) continue;
       if (!approvers.has(root)) {
-        const base = await approvalBase(root).catch(() => null);
+        const base = await approvalBase(root, {
+          branch: specsBranchSetting(this.workspaceRoot),
+        }).catch(() => null);
         approvers.set(root, {
           allowed: given ?? (await this.approverOf(root)),
           ref: base?.head ?? "HEAD",
@@ -2237,14 +2035,6 @@ export class Operations {
       const refusal = mcpRefusal(name, input);
       if (refusal) fail(refusal, 403);
     }
-    // CLI/MCP spec operations must not depend on a prior app tick. This is
-    // read-only, and refreshPrivateSpecs does nothing outside a GitHub mirror.
-    // plan.list reads stored plans only. Reads may use the list checked within
-    // the cache window; a change re-reads the branch.
-    if (name.startsWith("plan.") && name !== "plan.list")
-      await this.refreshPrivateSpecs({
-        cached: classifyOperation(name) === "observe",
-      });
     // Rules plugins' sets live in memory (§4.9); reload them when stale so a
     // boundary in this process never checks with sets it has not loaded.
     if (this.workspaceRoot && rulePluginsStale(store))

@@ -11,8 +11,8 @@ AN4.2 are superseded because Ideas and the lessons store were removed.
 
 This spec gathers the Avoozl work that is still open, has no owner and no open
 pull request, into one plan that Avoozl can project onto its own repository.
-It was refreshed against the main branch after the mirror, forward target,
-Create and Adopt setup, instance name and In flight work merged.
+It was refreshed against the main branch after the instance name and In
+flight work merged.
 It adds no new product behavior. Each requirement below points at the
 criteria in `.kiro/specs/radar-coder/requirements.md` (RC) or
 `.kiro/specs/avoozl/requirements.md` (R) that stay the source of truth for
@@ -44,23 +44,13 @@ issues and starting agents are separate acts that a person does later.
 Retired 2026-11-18 (owner decision). Tracker gates went with tracker
 plugins. The number stays so that other requirements keep their references.
 
-### Requirement AN2: Private plans on the mirror's plans branch
+### Requirement AN2: Retired
 
-**User story:** As the owner of a public repository worked through a private
-mirror, I want private plans kept on an orphan branch of the mirror, projected
-with public plans into one graph, so that private plan text never reaches the
-public repository.
-
-#### Acceptance criteria
-
-1. The behavior of RC25.3 to RC25.5 (marker `ref`, approval on the plans
-   branch, `verify-issue`) SHALL hold.
-2. The behavior of RC25.6 (containment: sync, forward, leak scan, explicit
-   refspecs) SHALL hold.
-3. The behavior of RC25.7 to RC25.10 (issues from both homes, edges across
-   homes) SHALL hold.
-4. A fake-GitHub proof SHALL show both plan kinds in one graph, a cross edge,
-   and a planted plans-branch name that blocks a forward, with a receipt.
+Retired 2026-11-19 (owner decision): Avoozl does not forward pull requests or
+code between repositories, so the private mirror, its orphan plans branch and
+the two-home spec reader are deleted. A repository names the branch its specs
+live on instead (`specs.branch`, Avoozl Requirement 117). The number stays so
+that other requirements keep their references.
 
 ### Requirement AN3: Crews on public repositories
 

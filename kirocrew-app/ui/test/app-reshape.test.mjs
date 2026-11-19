@@ -1,6 +1,6 @@
 // The reshaped page in a real Chrome (test/browser/harness.tsx ?page=app):
-// the nav row, Home's empty states, the Settings hub with the Mirror setup
-// buttons, no retired-worker banner, and Needs you
+// the nav row, Home's empty states, the Settings hub, no retired-worker
+// banner, and Needs you
 // holding what Conflicts and Intake used to. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -65,8 +65,6 @@ test('Settings lists its sections in the nav, shows only the picked one, and lis
   await page.until(`Boolean(document.querySelector('[data-repository-list], [data-repositories-empty]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-open-settings], [data-settings-dialog]'))`), false)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
-  // No separate Mirror box: its buttons live in a repository's Edit dialog.
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup], [data-setup-action]'))`), false)
   assert.deepEqual(page.errors, [])
 })
 

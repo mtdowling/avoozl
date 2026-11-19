@@ -40,7 +40,6 @@ try {
     `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => !x.disabled && (x.getAttribute('aria-label') || x.textContent).trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
   const shots = [
     ['repo-edit', 'Repository setup', [click('[data-repository-list] button', 'Edit ')]],
-    ['repo-edit-mirror', 'Repository setup', [click('[data-repository-list] button', 'Edit ')], '[data-form-section="Private mirror"]'],
     ['repo-view', 'Repository setup', [click('[data-repository-list] button', 'View ')]],
     ['workspace-edit', 'Workspaces', [`(() => { document.querySelector('[data-edit-workspace]')?.click(); return true })()`]],
   ]

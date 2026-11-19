@@ -87,10 +87,6 @@ export class FakeGitHub {
       ),
     );
   }
-  createOrphanBranch(_repository, name) {
-    this.branches.set(name, `orphan:${name}`);
-    return Promise.resolve({ ref: `refs/heads/${name}` });
-  }
   available() {
     return true;
   }

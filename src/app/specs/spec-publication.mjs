@@ -8,9 +8,7 @@
 // - No GitHub: the same journal protocol in a local file.
 // Publishing again writes nothing.
 //
-// shortcut: the home is the named or only configured repository; a private
-// mirror's home rule (RC24.3) still comes from projection until 56.3
-// generalizes spec homes.
+// shortcut: the home is the named or only configured repository.
 import path from "node:path";
 import { fail } from "../store/store.mjs";
 import { epicOfPlan } from "../epics/epics.mjs";

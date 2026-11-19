@@ -110,7 +110,6 @@ import {
   type BatchEntry,
   type BatchSelection,
   progressPercent,
-  homeBadge,
   specChip,
   SPEC_CHIP_LABEL,
   type SpecChip,
@@ -1054,12 +1053,6 @@ function RowButtons(props: {
 // last) in groups that fold. No pages: a group over PAGE rows shows that
 // many and a Show more button. A click on a row or its name opens the
 // plan; the buttons do their own thing and never open it as well.
-// Private specs live on the mirror's plans branch only; public ones follow the code (RC25.2).
-function HomeBadge(props: { home?: 'main' | 'plansBranch' }) {
-  const badge = homeBadge(props.home)
-  return badge ? <Badge variant={badge.warn ? 'warning' : undefined}>{badge.label}</Badge> : null
-}
-
 // Every spec in one list (follows Kiro Crew's list-detail pattern): the
 // name, one status chip, the task count, the epic and where it lives.
 // Picking a row opens it in the detail column.
@@ -1141,7 +1134,6 @@ export function SpecList(props: {
                 <Box as="span" truncate>
                   {row.kind === 'epic' ? 'Epic' : (row.epicTitle ?? 'No epic')}
                 </Box>
-                <HomeBadge home={row.home} />
                 {rowDriverText(row.driver) && (
                   <>
                     <span>·</span>
@@ -1586,10 +1578,9 @@ function SpecRail(props: {
             None in its front-matter
           </Box>
         )}
-        {(row.type || row.home) && (
+        {row.type && (
           <Box as="span" mt="1" flex flexWrap gap="1">
-            {row.type && <Badge>{row.type}</Badge>}
-            <HomeBadge home={row.home} />
+            <Badge>{row.type}</Badge>
           </Box>
         )}
       </RailSection>

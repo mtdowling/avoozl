@@ -8,7 +8,7 @@ import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
-import { MIRROR_ROLE, MIRROR_ROLE_LABEL, MIRROR_ROLE_LINE, ROLE_OPTIONS, mirrorSourceProblem, roleFromMode, type RepositoryForm } from './settings-api.ts'
+import { ROLE_OPTIONS, roleFromMode, type RepositoryForm } from './settings-api.ts'
 import { DangerBtn, IconBtn, IconLabel, type ConfirmCopy } from './ui/controls.tsx'
 import { Eye, Pencil, Plus, Trash2, Workflow } from './icons.ts'
 import { RoleChoice } from './RepositoryModals.tsx'
@@ -57,9 +57,8 @@ export function RepositoryList(props: {
   rows: RepositoryRow[]
   // The role badge's text; a role is changed in Edit, never in the list.
   roleText: (row: RepositoryRow) => string
-  // The saved settings of a row, and the public repository a private mirror copies.
+  // The saved settings of a row.
   entryOf: (row: RepositoryRow) => RepositoryForm | null
-  mirrorOf: (row: RepositoryRow) => string
   busy: boolean
   onView: (row: RepositoryRow) => void
   onEdit: (row: RepositoryRow) => void
@@ -112,7 +111,7 @@ export function RepositoryList(props: {
               )}
             </>
           }
-          facts={repositoryFacts(row, props.entryOf(row), props.mirrorOf(row))}
+          facts={repositoryFacts(row, props.entryOf(row))}
           actions={
             <>
               {row.checkout && (
@@ -162,7 +161,7 @@ export function removeCopy(row: RepositoryRow): ConfirmCopy {
 
 // Add repository: a guided dialog. Pick the folder; Avoozl reads it and
 // guesses what kind of repository it is (Local only, Code repository,
-// Planning repository, Code and planning, or a private mirror) and why. Yes
+// Planning repository, or Code and planning) and why. Yes
 // adds it as that; No opens the full form in the same dialog.
 // What the person chose for the new repository's role, handed to the page to save.
 export interface AddedRole {
@@ -171,7 +170,6 @@ export interface AddedRole {
   github: string | null
   branch: string
   role: string
-  source: string
   // False when the role is the one its mode already gives: nothing to save.
   changed: boolean
 }
@@ -179,8 +177,7 @@ export interface AddedRole {
 type AddStep = 'folder' | 'guess' | 'form'
 
 // The kind's name and its one line, for the guess.
-export function kindCopy(role: string, source: string): { label: string; line: string } {
-  if (role === MIRROR_ROLE) return { label: source ? `Private mirror of ${source}` : MIRROR_ROLE_LABEL, line: MIRROR_ROLE_LINE }
+export function kindCopy(role: string): { label: string; line: string } {
   const option = ROLE_OPTIONS.find((item) => item.value === role) ?? ROLE_OPTIONS[0]
   return { label: option.label, line: option.line }
 }
@@ -195,7 +192,6 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
   const [id, setId] = useState('')
   const [branch, setBranch] = useState('')
   const [role, setRole] = useState('local')
-  const [source, setSource] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const detect = async () => {
@@ -207,7 +203,6 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
       setId(next.id ?? '')
       setBranch(next.baseBranch)
       setRole(next.kind.role)
-      setSource(next.kind.source)
       setStep('guess')
     } catch (caught) {
       setError(errorMessage(caught))
@@ -230,8 +225,7 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
         github: found.github,
         branch: landing,
         role,
-        source: source.trim(),
-        changed: Boolean(found.github) && (role !== given || role === MIRROR_ROLE),
+        changed: Boolean(found.github) && role !== given,
       })
       props.onClose()
     } catch (caught) {
@@ -239,7 +233,7 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
       setBusy(false)
     }
   }
-  const blocked = busy || !id.trim() || (role === MIRROR_ROLE && Boolean(mirrorSourceProblem(source, found?.github ?? null)))
+  const blocked = busy || !id.trim()
   const footer =
     step === 'folder' ? (
       <Btn type="button" primary disabled={busy || !folder.trim()} onClick={() => void detect()}>
@@ -303,21 +297,10 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
               </>
             )}
           </Box>
-          {step === 'guess' ? <KindGuess found={found} role={role} source={source} /> : null}
+          {step === 'guess' ? <KindGuess found={found} role={role} /> : null}
           {step === 'form' && (
             <Box data-step="form">
-              <RoleChoice
-                id="avoozl-repo-add"
-                name={found.root}
-                github={found.github}
-                role={role}
-                source={source}
-                fixed={found.github ? null : 'No GitHub remote, so its tasks stay local.'}
-                onChange={(nextRole, nextSource) => {
-                  setRole(nextRole)
-                  setSource(nextSource)
-                }}
-              />
+              <RoleChoice id="avoozl-repo-add" name={found.root} role={role} fixed={found.github ? null : 'No GitHub remote, so its tasks stay local.'} onChange={setRole} />
             </Box>
           )}
           {(step === 'form' || !found.id) && (
@@ -348,8 +331,8 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
 }
 
 // What Avoozl thinks the folder is, why, and the question.
-function KindGuess(props: { found: DetectedCheckout; role: string; source: string }) {
-  const { label, line } = kindCopy(props.role, props.source)
+function KindGuess(props: { found: DetectedCheckout; role: string }) {
+  const { label, line } = kindCopy(props.role)
   return (
     <Box css-background="bg-elevated-transparent" rounded="md" p="3" flex flexCol gap="2" data-step="guess" data-guess={props.role}>
       <div>

@@ -58,12 +58,10 @@ export interface Repository {
 }
 
 // The kind of repository a folder looks like (repository-kind.mjs): a role,
-// or 'mirror' with the public repository in `source`, and why.
+// and why.
 export interface DetectedKind {
   role: string
-  source: string
   reasons: string[]
-  upstream: { remote: string; github: string } | null
   code: string | null
   specs: number
   visibility: 'public' | 'private' | null

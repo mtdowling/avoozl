@@ -246,12 +246,8 @@ test("no network git call in src/app runs outside remoteGit", () => {
     })
       .split("\n")
       .filter((f) => f.endsWith(".mjs") && !f.includes("/test/")),
-    // Plugin fetches keep the person's own git (R34.13). The mirror modules
-    // go with spec/drop-mirror and are exempt until then.
-    exempt = (f) =>
-      f.endsWith("plugin-git.mjs") ||
-      f.includes("/mirror/") ||
-      f.endsWith("git/git.mjs"),
+    // Plugin fetches keep the person's own git (R34.13).
+    exempt = (f) => f.endsWith("plugin-git.mjs") || f.endsWith("git/git.mjs"),
     found = [];
   for (const file of files) {
     if (exempt(file)) continue;
@@ -272,8 +268,4 @@ test("no network git call in src/app runs outside remoteGit", () => {
     .map((f) => fs.readFileSync(path.join(APP, "..", "..", f), "utf8"))
     .join("\n");
   assert.doesNotMatch(all, /gh auth git-credential/);
-  assert.doesNotMatch(
-    fs.readFileSync(path.join(APP, "git", "repo-files.mjs"), "utf8"),
-    /extraheader/,
-  );
 });

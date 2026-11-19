@@ -42,13 +42,6 @@ try {
     ['list', []],
     ['view', [click('[data-repository-list] button', 'View ')]],
     ['edit', [click('[data-repository-list] button', 'Edit ')]],
-    [
-      'edit-mirror',
-      [
-        click('[data-repository-list] button', 'Edit '),
-        `(() => { const s = document.querySelector('dialog select'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, 'mirror'); s.dispatchEvent(new Event('change', { bubbles: true })); return true })()`,
-      ],
-    ],
     ['confirm', [click('[data-repository-list] button', 'Remove ')]],
   ]
   for (const theme of ['light', 'dark'])

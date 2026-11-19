@@ -1,7 +1,6 @@
 // Instance names. Each install picks a short display name once, from its own
 // word list, and keeps a fixed ID beside it. The ID, never the name, goes in
-// hidden markers; the name is for people and can be renamed. Neither leaves a
-// mirror for a public repository (stripInstance, assertNoInstance).
+// hidden markers; the name is for people and can be renamed.
 // shortcut: stored in the workspace database like machineIdentity, so a second
 // workspace on one machine picks its own. Move to the catalog store when one
 // install should share a name across workspaces.
@@ -102,41 +101,10 @@ export function recordSeenInstance(store, id) {
   if (!seen.includes(id)) store.setMeta(SEEN, [...seen, id]);
 }
 
-// The Actions variable a mirror holds for one Avoozl. GitHub names allow
-// letters, digits and underscores only, so `inst-ab12...` becomes
-// `AVOOZL_INSTANCE_INST_AB12...` (names are stored upper case).
-export const instanceVariableName = (id) =>
-  `AVOOZL_INSTANCE_${String(id).replace("-", "_").toUpperCase()}`;
-
 // `shared` is true once another instance was seen; until then the name shows
 // in the header only.
 export function instanceView(store) {
   const { id, name } = instanceIdentity(store);
   const others = store.getMeta(SEEN) || [];
   return { id, name, others, shared: others.length > 0 };
-}
-
-const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-// Text bound for a public repository: no instance ID, no name, no `instance=`
-// or `name=` marker field. Foreign IDs go by their shape.
-export function stripInstance(text, { id, name } = {}) {
-  let out = String(text ?? "")
-    .replace(/\s*\binstance=\S+/g, "")
-    .replace(/,\s*"instance"\s*:\s*"[^"]*"/g, "")
-    .replace(/"instance"\s*:\s*"[^"]*"\s*,?/g, "")
-    .replace(/<!--\s*avoozl-driver[^>]*-->\s*/g, "")
-    .replace(ID_SHAPE, "");
-  if (id) out = out.split(id).join("");
-  if (name) out = out.replace(new RegExp(`\\b${escape(name)}\\b`, "g"), "");
-  return out;
-}
-
-export function assertNoInstance(text, identity) {
-  if (stripInstance(text, identity) !== String(text ?? ""))
-    fail(
-      "Text for a public repository must not carry the instance ID or name.",
-      422,
-    );
-  return text;
 }

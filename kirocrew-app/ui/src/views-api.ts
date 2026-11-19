@@ -361,9 +361,6 @@ export interface ConflictItem extends TaskOwner {
     | 'crew-mode'
     | 'hand-set-review'
     | 'approval'
-    | 'forward'
-    | 'forward-audit'
-    | 'public-branch'
     | 'disk'
     | 'phase-check'
     | 'required-check'
@@ -371,8 +368,6 @@ export interface ConflictItem extends TaskOwner {
   // A failed phase plugin check (plugin-checks D7): the proposed fix, whose
   // text holds the check's output as untrusted data, and the run it is for.
   phaseFix?: { run: string; plan: string; phase: string; repository: string; text: string }
-  // A forward item (RC24.9): the mirror change the Forward screen shows.
-  forwardId?: string
   // A branch-landing item (RC16.6): the branch and the head a person may approve.
   repository?: string
   branch?: string

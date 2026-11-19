@@ -8,7 +8,7 @@
 // first 300 each, as GitHub lists them). Upgrade when a conflict list is needed.
 import { commitSubject } from "../landing/landing-config.mjs";
 import { integrationOf } from "./integration-branch.mjs";
-import { planManifest } from "../mirror/forward-epics.mjs";
+import { specFacts } from "../specs/spec-plans.mjs";
 import { ruleBranch } from "../github/github-branch-rules.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 
@@ -16,6 +16,12 @@ const META = "integrationSync";
 const DAY = 24 * 60 * 60 * 1000;
 const EVERY = { daily: DAY, weekly: 7 * DAY };
 const keyOf = (repository, branch) => `${repository}@${branch}`;
+
+// The facts of the spec a plan was approved from, or null.
+function planManifest(store, plan) {
+  const files = store.get("approvals", plan?.approvalId)?.files;
+  return files?.["tasks.md"] === undefined ? null : specFacts(files);
+}
 
 // { targets: [{spec, repository, branch, sync}], problems: [text] } from the
 // approved plans whose manifest names an integration branch. The repository

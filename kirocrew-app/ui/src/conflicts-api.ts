@@ -93,14 +93,6 @@ export function noActionReason(item: ConflictItem): string | null {
   // Findings and Ready to merge carry their own actions (ConflictsView.tsx).
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'branch-landing') return null
   if (item.kind === 'tick-failed') return 'Fix the error shown. Avoozl runs the tick again by itself, and this row clears after the first tick that works.'
-  // A forward row carries its own button (ConflictsView.tsx ForwardButton).
-  if (item.kind === 'needs-human' && item.reason === 'forward') return null
-  // A public branch ready to land (RC26.4): a person merges it on GitHub.
-  if (item.kind === 'needs-human' && item.reason === 'public-branch')
-    return 'Merge the public branch on GitHub yourself. Avoozl never merges it, and the row clears when it has landed.'
-  // The forward audit (RC26.5.6): the stop is resumed from the Dashboard banner.
-  if (item.kind === 'needs-human' && item.reason === 'forward-audit')
-    return 'Check the public repository, then resume the stop from the banner. Avoozl forwards nothing until you do.'
   if (item.kind === 'spec-pull') return null
   // The Crew Mode hold carries its own button (ConflictsView.tsx).
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null

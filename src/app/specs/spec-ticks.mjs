@@ -16,9 +16,8 @@ import { recordActivity } from "../store/activity-log.mjs";
 import { FINAL_STATUSES } from "../sessions/session-bindings.mjs";
 import { checkedItems, specItems } from "./spec-plans.mjs";
 import { statusComplete } from "../../query.mjs";
-import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
-import { mirrorOf } from "./spec-homes.mjs";
 import { specsPath } from "./specs-path.mjs";
+import { specsBranch } from "./specs-branch.mjs";
 
 const exec = promisify(execFile);
 // tasks.md of a spec, as a path in the checkout at `root`.
@@ -133,9 +132,8 @@ export async function tickEntry(store, dir, entry) {
 
 // A spec that lives in a plans repository other than the code repository:
 // its tick is its own commit there, after the code landed. Does nothing for a spec the code
-// repository holds, whose landing commit carried the tick.
-// shortcut: a plans branch with no local checkout (private specs read over
-// the API) is not written; add a contents write when such a spec needs it.
+// repository holds, whose landing commit carried the tick. The tick goes on
+// the workspace's specs branch (specs-branch.mjs).
 export async function tickPlansRepo(
   store,
   { entry, candidate, repository, workspaceRoot, env },
@@ -143,23 +141,19 @@ export async function tickPlansRepo(
   const plan = store.get("plans", entry.spec);
   if (!plan?.spec || (await inCandidate(repository, candidate, plan.spec)))
     return null;
-  const policy = readGitHubPolicyOrNull(workspaceRoot),
-    roots = [
-      store.getMeta("workspaceRepository")?.root,
-      ...store
-        .list("repositories")
-        .filter((p) => p.planning && p.root)
-        .map((p) => p.root),
-      workspaceRoot,
-    ].filter(
-      (root, i, all) =>
-        root && root !== repository.root && all.indexOf(root) === i,
-    );
+  const roots = [
+    store.getMeta("workspaceRepository")?.root,
+    ...store
+      .list("repositories")
+      .filter((p) => p.planning && p.root)
+      .map((p) => p.root),
+    workspaceRoot,
+  ].filter(
+    (root, i, all) =>
+      root && root !== repository.root && all.indexOf(root) === i,
+  );
   for (const root of roots) {
-    const branch =
-      mirrorOf(policy)?.plansBranch ??
-      store.list("repositories").find((p) => p.root === root)?.baseBranch ??
-      "main";
+    const branch = specsBranch(store, workspaceRoot, root);
     const out = await tickBranch(root, {
       branch,
       files: [{ spec: plan.spec, ids: idsOf(plan, entry) }],

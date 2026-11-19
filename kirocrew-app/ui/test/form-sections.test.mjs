@@ -21,9 +21,8 @@ test('the repository, workspace and plugin dialogs group fields with FormSection
   const modals = source('RepositoryModals.tsx')
   assert.match(slice(modals, 'export function ViewRepository', 'export function EditRepository'), /<FieldGroup title="Repository">/)
   assert.match(slice(modals, 'export function EditRepository'), /<FieldGroup title="Role">/)
-  assert.match(slice(modals, 'export function EditRepository'), /<FieldGroup title="Public repository"/)
   const settings = source('SettingsView.tsx')
-  for (const from of ['export function RepositoryEditor(', 'function LocalRepository(', 'function MirrorBox(', 'function ReviewRoles(']) {
+  for (const from of ['export function RepositoryEditor(', 'function LocalRepository(', 'function ReviewRoles(']) {
     const body = fn(settings, from)
     assert.match(body, /<FieldGroup/, from)
     assert.doesNotMatch(body, /<Card|<Section\b|<FieldGroup boxed|rounded(-lg)? border/, from)

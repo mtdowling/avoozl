@@ -34,7 +34,7 @@ import {
 import { driverState, heldTasks } from "../workers/driver-generations.mjs";
 import { lineFirstIds } from "../flow/flow.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
-import { pathsOverlap, unblockCounts } from "../mirror/release-ranking.mjs";
+import { pathsOverlap, unblockCounts } from "./release-ranking.mjs";
 import { localJournalFile } from "./spec-publication.mjs";
 import {
   githubJournal,

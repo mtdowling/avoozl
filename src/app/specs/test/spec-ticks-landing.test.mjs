@@ -35,13 +35,19 @@ const TASKS = [
 const mainOf = (w) => git(w.origin, "rev-parse", "main");
 const tick = (text, n) => text.replace(`- [ ] 1.${n} `, `- [x] 1.${n} `);
 
-// Another machine: its own database and a fresh clone of origin, after one
-// read of the ticks. Returns the store and its tasks by ID.
-async function machine(t, w, name) {
+// Another machine: its own database and a fresh clone of `origin` (the code
+// repository's unless named) at `branch`, after one read of the ticks.
+// Returns the store and its tasks by ID.
+async function machine(
+  t,
+  w,
+  name,
+  { origin = w.origin, branch = "main" } = {},
+) {
   const clone = path.join(w.root, name),
     store = new Store(path.join(w.root, `${name}.sqlite`));
   t.after(() => store.close());
-  git(w.root, "clone", "-q", w.origin, clone);
+  git(w.root, "clone", "-q", "-b", branch, origin, clone);
   store.initialize({
     ...snapshot(),
     tasks: [leaf("t1"), leaf("t2")],
@@ -341,6 +347,42 @@ test("a spec in a separate plans repository is ticked there, as its own commit, 
   );
   assert.ok(fs.existsSync(marker), "the race happened");
   assert.deepEqual(whoAndTrailers(plans.origin, head), IDENTITY);
+});
+
+test("with specs.branch, a plans repository's specs are ticked and read on that branch, and code lands on the code repository's base", async (t) => {
+  const w = await workspace(t, { specInCode: false }),
+    config = JSON.stringify({ version: 1, specs: { branch: "avoozl-plans" } }),
+    plans = repo(w.root, "plans", { "README.md": "plans\n" });
+  // The specs live on their own branch of the plans repository, beside the
+  // workspace settings that name it.
+  git(plans.checkout, "checkout", "-q", "-b", "avoozl-plans");
+  fs.mkdirSync(path.dirname(path.join(plans.checkout, FILE)), {
+    recursive: true,
+  });
+  fs.writeFileSync(path.join(plans.checkout, FILE), TASKS);
+  fs.writeFileSync(path.join(plans.checkout, ".avoozl.json"), config);
+  git(plans.checkout, "add", ".");
+  git(plans.checkout, "commit", "-qm", "Plans");
+  git(plans.checkout, "push", "-q", "origin", "avoozl-plans");
+  fs.writeFileSync(path.join(w.root, ".avoozl.json"), config);
+  w.store.setMeta("workspaceRepository", { root: plans.checkout });
+  const plansMain = git(plans.origin, "rev-parse", "main"),
+    codeMain = mainOf(w);
+  await land(w, "t1");
+  assert.equal(show(plans.origin, "avoozl-plans"), tick(TASKS, 1));
+  assert.equal(
+    git(plans.origin, "log", "-1", "--format=%s", "avoozl-plans"),
+    "Tick s.1.1",
+  );
+  assert.equal(git(plans.origin, "rev-parse", "main"), plansMain);
+  assert.notEqual(mainOf(w), codeMain, "the code landed on its own main");
+  // Another machine reads the tick from the specs branch.
+  const other = await machine(t, w, "reader", {
+    origin: plans.origin,
+    branch: "avoozl-plans",
+  });
+  assert.equal(other.task("t1").status, "accepted");
+  assert.equal(other.task("t2").status, "planned");
 });
 
 // Avoozl's commits use the checkout's own git identity as author and

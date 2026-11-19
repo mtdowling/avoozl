@@ -165,8 +165,7 @@ const CHECKS = {
   23: [{ name: "test", status: "IN_PROGRESS", conclusion: null }],
 };
 
-// Two other Avoozl instances, so In flight shows more than one group. The
-// fake mirror holds their name variables (demoGitHub `listRepoVariables`).
+// Two other Avoozl instances, so In flight shows more than one group.
 const DEMO_INSTANCES = Object.freeze([
   { id: "inst-00000000a001", name: "Mira" },
   { id: "inst-00000000b002", name: "Juno" },
@@ -350,11 +349,7 @@ export function demoGitHub(sample = demoGitHubData()) {
       { name: "idea" },
       { name: "avoozl" },
     ],
-    listRepoVariables: async () =>
-      DEMO_INSTANCES.map(({ id, name }) => ({
-        name: `AVOOZL_INSTANCE_${id.replace("-", "_").toUpperCase()}`,
-        value: name,
-      })),
+    listRepoVariables: async () => [],
     listIssueComments: async () => [],
     issueLinks: async () => [],
     listIssueTypes: async () => [],

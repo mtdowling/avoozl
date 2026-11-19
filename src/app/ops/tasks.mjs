@@ -36,10 +36,8 @@ import { taskEvidence } from "../tasks/evidence.mjs";
 import { fixToSpec, startFix } from "../intake/fix.mjs";
 import { lineBanner } from "../flow/flow-line.mjs";
 import { flowView } from "../flow/flow.mjs";
-import { forwardAuditRows } from "../mirror/forward-audit.mjs";
 import { withWorkLock } from "../git/git.mjs";
 import { paceNeedsYou } from "../github/github-pacer.mjs";
-import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import { rateNeedsYou } from "../github/github-rate.mjs";
 import { credentialsNeedsYou } from "../github/github-credentials.mjs";
 import { leftBranchesNeedsYou } from "./specs.mjs";
@@ -57,9 +55,6 @@ import { syncNeedsYou } from "../epics/integration-sync.mjs";
 import { decideInvestigation } from "../delivery/investigate.mjs";
 import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
 import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
-import { publicBranchRows } from "../mirror/mirror-forward-batch.mjs";
-import { mirrorForwardRows } from "../mirror/mirror-forward.mjs";
-import { mirrorNeedsYou } from "../mirror/mirror-sync.mjs";
 import { needsKirocrewItems } from "../tick/needs-kirocrew.mjs";
 import { addItemContext } from "../api/needs-you-context.mjs";
 import {
@@ -457,8 +452,7 @@ export const entries = [
       const store = this.store;
 
       const data = this.read(),
-        view = conflictsView(store, data),
-        policy = readGitHubPolicyOrNull(this.workspaceRoot);
+        view = conflictsView(store, data);
       // A workspace a conductor drove waits for a person (WP1.3).
       if (readDeliveryPolicy(this.workspaceRoot).delivery?.crewModeHeld)
         view.items.push({
@@ -485,10 +479,6 @@ export const entries = [
       view.items.push(...leftBranchesNeedsYou(store));
       view.items.push(...missingLabelsNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
-      view.items.push(...mirrorNeedsYou(store));
-      view.items.push(...mirrorForwardRows(store, policy));
-      view.items.push(...forwardAuditRows(store));
-      view.items.push(...publicBranchRows(store));
       // A role waiting on Kiro Crew on a machine with none, with this
       // machine's approved harnesses for Run on (NK8.2).
       view.items.push(

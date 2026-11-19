@@ -48,11 +48,9 @@ export const sourceOfOperation = (name) =>
     ? "tick"
     : /setup/.test(name)
       ? "setup"
-      : /^mirror\.forward|^forward/.test(name)
-        ? "forward"
-        : /review/.test(name)
-          ? "review"
-          : "view";
+      : /review/.test(name)
+        ? "review"
+        : "view";
 
 const BUCKET_MS = 5 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;

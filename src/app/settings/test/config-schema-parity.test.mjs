@@ -40,7 +40,6 @@ import {
 } from "../../delivery/investigate.mjs";
 import { DEFAULT_LANES } from "../../tick/lanes.mjs";
 import { avoozlConfigSchemaPath, SPECS_KEYS } from "../layered-config.mjs";
-import { MIRROR_KEYS } from "../../mirror/mirror-policy.mjs";
 import { ENTRY_KEYS } from "../../plugins/plugins.mjs";
 import {
   CONVERSATION_KEYS,
@@ -116,7 +115,6 @@ const PAIRS = [
   ],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
   ["#/$defs/github", POLICY_KEYS],
-  ["#/$defs/githubMirror", MIRROR_KEYS],
   ["#/$defs/githubRepositoryPolicy", GITHUB_BLOCK_KEYS.repository],
   [`${REPOSITORY}/discussions`, GITHUB_BLOCK_KEYS.discussions],
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],
@@ -142,6 +140,7 @@ const UNPAIRED = new Map([
   ["#/properties/activity", "validateActivitySettings in activity-log.mjs"],
   ["#/$defs/agentInstructions", "agent-instructions.mjs accepts only rules"],
   ["#/properties/workers", "grantStaleMs in worker-release.mjs"],
+  ["#/properties/specs", "validateSpecs in layered-config.mjs"],
 ]);
 
 // Open schema objects (unknown keys pass) and the keys their readers read.
@@ -171,6 +170,7 @@ const OPEN = new Map([
       "lanes",
       "landing",
       "planningRepository",
+      "specs",
       "plugins",
       "intake",
       "activity",

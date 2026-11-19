@@ -3879,7 +3879,7 @@ Added 2026-11-15 (owner decision, a change of direction). Design §4.26.
 This supersedes the Issue Radar path of the `radar-coder` spec (RC1–RC6,
 RC10, RC11, RC14, RC15, RC28) and cancels its Phase 12, the retirement
 of Avoozl's workers. The mirror and its forward pull request flow
-(RC24–RC26) still stand as the "Private mirror" repository role.
+(RC24–RC26) were removed 2026-11-19 (Requirement 117).
 
 **User story:** As the owner, I want one coder that Avoozl runs end to end,
 from picking a task to landing it, so that work lands overnight without a
@@ -4163,9 +4163,9 @@ removed, so that the app has one way to deliver work.
 5. A public Nupp setup SHALL land `direct` on the public `core-dev` branch
    from the start, with `scripts/worktree` as the helper and
    `scripts/test-changed` as the check. Its plans SHALL stay in a private
-   planning workspace. The private mirror, forwarding and the leak scan of
-   RC24–RC26 SHALL NOT be used for this setup; the pre-push content rule
-   (Requirement 87.9) SHALL be its one leak guard. The freeze on public
+   planning workspace, on the specs branch `avoozl-plans` of the planning
+   repository (Requirement 117). The pre-push content rule (Requirement
+   87.9) SHALL be its one leak guard. The freeze on public
    `core-dev` is lifted.
 6. (Changed 2026-11-19, triage-agent TA11.2: the Issue Radar intake source this
    criterion kept, with Radar escalations, Send to Issue Radar
@@ -4891,9 +4891,8 @@ GitHub issue per task or exposing private planning information.
     remain. (Changed 2026-11-18: the migration path is deleted with them.)
     `route: github` and `merged-pr` SHALL retain their accepted source syntax,
     meaning queue landing and accepted landing, without rewriting approved files.
-21. Private mirror sync SHALL import upstream changes by a reviewed PR after
-    divergence, rather than stopping forever at the first private commit.
-    Forwarding SHALL recognize import ancestry and propose no re-export of it.
+21. (Removed 2026-11-19, Requirement 117: Avoozl has no private mirror and
+    forwards nothing.)
 22. Scratch-repository proofs SHALL exercise checkpoint recovery, fork PR
     landing without an upstream source branch, privacy rejection, replay,
     mutation/duplicate handling, takeover before push, migration and held
@@ -4957,8 +4956,7 @@ skip is a rule in the crew's prompt, not code.
 
 1. Every GitHub issue Avoozl creates SHALL carry the `crew:avoozl` label
    in its create call: spec and epic issues at publication, sub-issues
-   created under an epic, intake-owned issues, mirror follow-up and
-   conflict issues, task issues projected before retirement, and any create
+   created under an epic, intake-owned issues, task issues projected before retirement, and any create
    path added later. Avoozl SHALL NOT add it by a later label edit. The only
    exception is criterion 6.
 2. The label SHALL be added in one place, the GitHub client's issue create
@@ -5159,7 +5157,7 @@ per file on the spec page.
 
 **Status 2026-11-19.** Add repository is a guided dialog (owner request). Avoozl reads the folder (a leading `~` is the home folder) and guesses its kind: Local only, Code repository, Planning repository, Code and planning, or a private mirror. It uses the GitHub remote, an upstream remote, GitHub visibility, code and spec files, and the roles the workspace already has (`repositories.detect`, repository-kind.mjs). It lists why and asks "Is this right?". Yes adds it as that kind. No opens the full form (role, short ID, branch) in the same dialog. The "What the roles make" help is gone.
 
-**Status 2026-11-18.** Criterion 4 changed (#484): Repository setup is a compact list with a read-only role badge and View, Edit and Remove icon buttons, not an in-place picker. The role is chosen in Edit and in Add repository. A fifth choice, `mirror` ("Private mirror of a public repository", a private copy that crews work in), is part of that choice and replaces the separate Mirror box. Criterion 5 and the one "Tasks live in" line are unchanged.
+**Status 2026-11-18.** Criterion 4 changed (#484): Repository setup is a compact list with a read-only role badge and View, Edit and Remove icon buttons, not an in-place picker. The role is chosen in Edit and in Add repository. A fifth choice, `mirror` ("Private mirror of a public repository", a private copy that crews work in), is part of that choice and replaces the separate Mirror box (removed 2026-11-19 with the mirror, Requirement 117). Criterion 5 and the one "Tasks live in" line are unchanged.
 
 Added 2026-11-17 (owner request). Design §4.34. Extends Requirement 28.
 Where they conflict it supersedes the part of Requirement 28.1 that says a
@@ -5707,8 +5705,7 @@ rebuilds its database from main and GitHub.
    reviewed revision, and push it without force. It SHALL refuse a person
    who is not an approver. When main already holds that exact text from a
    non-approver, it SHALL refuse and say to edit through a spec branch.
-6. A spec Avoozl reads only from GitHub (a private plans branch, an adopted
-   spec pull request) SHALL be approved by a pull request whose merge
+6. A spec Avoozl reads only from GitHub (an adopted spec pull request) SHALL be approved by a pull request whose merge
    commit's author is an approver; its commit SHALL hold the spec's files
    unchanged. Avoozl SHALL write no `Status:` line, no `avoozl/approval.json`
    and no decision record.
@@ -5906,3 +5903,38 @@ drive one spec.
     assignees hold both machines and raise one Needs you item; Hand off
     unassigns and the other machine's Take over assigns; Release unassigns;
     a fully landed spec closes its issue once.
+
+### Requirement 117: A repository names the branch its specs live on
+
+Added 2026-11-19 (owner decision). Design §4.45. Removes the private mirror,
+forwarding and the orphan plans branch (RC24 to RC27, RC25's two homes,
+avoozl-next AN2, and criterion 21 of Requirement 102), and reads "the specs
+branch" for "main" in Requirement 114.1, 114.5 and 114.9.
+
+**User story:** As the owner, I want a private or public repository to say
+which branch its specs live on, so that plans can sit on their own branch
+(as Nupp's do on `avoozl-plans`) with no mirror and no forwarding.
+
+#### Acceptance criteria
+
+1. `.avoozl.json` SHALL accept `specs.branch`, one branch name. Unset SHALL
+   mean the spec repository's base branch. No other key SHALL say where
+   specs live.
+2. Avoozl SHALL read `.kiro/specs/` from the spec checkout, and the Specs
+   page SHALL name the problem when that checkout has another branch checked
+   out.
+3. An approval SHALL be an approver's commit on the specs branch, Approve
+   SHALL write its commit there, and ticks SHALL be read and written there.
+   Code SHALL still land on each code repository's own base branch.
+4. Plans-repo mode with the specs on a branch of the planning repository
+   SHALL work with this setting alone.
+5. Avoozl SHALL NOT forward pull requests or code between repositories. The
+   mirror setting, its operations, CLI command, MCP actions, tick steps,
+   Needs you rows, Settings tab, the Private mirror role and the forward-only
+   leak scan SHALL be gone. The pre-push content rule for normal landing
+   SHALL stay.
+6. Tests SHALL show: in plans-repo mode with `specs.branch`, a landing ticks
+   the spec on that branch and leaves the planning repository's main alone,
+   and another machine reads the tick there; Approve commits on the specs
+   branch; an approver's commit there approves on the tick; and a checkout on
+   another branch is named.

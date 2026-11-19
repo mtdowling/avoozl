@@ -106,10 +106,11 @@ export function approverCheck({
   };
 }
 
-// The branch approvals land on and the commit it is at: origin's default
-// branch, fetched, when the checkout has an origin; else local main, else
-// the branch checked out. {branch, head, remote}.
-export async function approvalBase(root) {
+// The branch approvals land on and the commit it is at: `wanted` (the
+// workspace's specs.branch) or origin's default branch, fetched, when the
+// checkout has an origin; else that local branch or main, else the branch
+// checked out. {branch, head, remote}.
+export async function approvalBase(root, { branch: wanted = null } = {}) {
   const remote = await git(root, ["remote", "get-url", "origin"]).then(
     () => "origin",
     () => null,
@@ -117,13 +118,15 @@ export async function approvalBase(root) {
   let branch = null;
   if (remote) {
     branch =
+      wanted ||
       (
         await git(root, [
           "symbolic-ref",
           "-q",
           "refs/remotes/origin/HEAD",
         ]).catch(() => "")
-      ).replace(/^refs\/remotes\/origin\//, "") || "main";
+      ).replace(/^refs\/remotes\/origin\//, "") ||
+      "main";
     await remoteGit(root, ["fetch", "--quiet", "origin", branch], {
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     });
@@ -133,7 +136,7 @@ export async function approvalBase(root) {
       remote,
     };
   }
-  for (const name of ["main", null]) {
+  for (const name of [wanted || "main", null]) {
     const ref = name
       ? `refs/heads/${name}`
       : await git(root, ["symbolic-ref", "-q", "HEAD"]).catch(() => "");
@@ -163,10 +166,10 @@ export async function approvalBase(root) {
 export async function commitOnMain(
   root,
   files,
-  { message, env = {}, replace = [] },
+  { message, env = {}, replace = [], branch = null },
 ) {
   files = { ...files };
-  const base = await approvalBase(root),
+  const base = await approvalBase(root, { branch }),
     index = path.join(
       fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-main-")),
       "index",
@@ -237,7 +240,11 @@ export async function commitOnMain(
 // branch: drafts never reach main before it (design §4.42). Refuses when
 // main already holds exactly this text, since git keeps no record of an
 // empty commit under a path. Returns {commit, author, branch}.
-export async function commitApproval(root, files, { message } = {}) {
+export async function commitApproval(
+  root,
+  files,
+  { message, branch = null } = {},
+) {
   const specs = Object.keys(files),
     author = await gitAuthor(root);
   const paths = {};
@@ -247,6 +254,7 @@ export async function commitApproval(root, files, { message } = {}) {
         paths[`${specPath(root, spec)}/${file}`] = files[spec][file];
   const made = await commitOnMain(root, paths, {
     replace: specs.map((spec) => specPath(root, spec)),
+    branch,
     message:
       message ??
       (specs.length === 1

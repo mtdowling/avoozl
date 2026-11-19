@@ -237,8 +237,9 @@ delegation.
 
 ### Approval commits
 
-An approval is a commit on the spec repository's main branch that changes the
-spec's files and whose author is an approver. The approvers are
+An approval is a commit on the spec repository's specs branch (see
+[The specs branch](#the-specs-branch)) that changes the spec's files and whose
+author is an approver. The approvers are
 `github.repositories.<repo>.allowedActors`, or the people with write access
 when it names nobody. In Local only mode the approver is this checkout's
 `user.email`.
@@ -283,6 +284,26 @@ Ticks on other branches, unsaved edits, and `[~]` or `[-]` marks do nothing.
 
 If a tick is taken out of a done task, the task stays done, and **Needs you**
 offers **Reopen** or **Keep done**.
+
+## The specs branch
+
+Specs live on one branch of the spec repository: the planning repository in
+plans-repo mode, else the repository that holds `.kiro/specs/`. It is the
+repository's base branch unless `.avoozl.json` names another:
+
+```json [.avoozl.json]
+{
+  "specs": {
+    "branch": "avoozl-plans"
+  }
+}
+```
+
+Avoozl reads `.kiro/specs/` from that branch, an approval is an approver's
+commit there, and ticks are read and written there. Code still lands on each
+code repository's own base branch. Keep the spec checkout on that branch:
+when it has another branch checked out, the Specs page names the problem.
+The repository can be private or public; nothing else changes.
 
 ## Older plan files
 

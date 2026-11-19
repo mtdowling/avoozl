@@ -3048,8 +3048,9 @@ their coder handling.
 stay in a private planning workspace and code lands `direct` on the public
 `core-dev`. Nothing private is pushed: the brief carries no plan text into
 commit messages, branch names are `avoozl/<task id>` with task IDs checked
-by the content rule, and the pre-push content rule screens each push. The
-mirror and forward flow (RC24–RC26) is not used for this setup.
+by the content rule, and the pre-push content rule screens each push. Its
+plans sit on the planning repository's `avoozl-plans` branch (`specs.branch`,
+§4.45).
 
 **Phases and exits.**
 
@@ -3431,7 +3432,7 @@ tick's GitHub check, per repository
 
 **File classes.** Each changed path takes the first class whose globs match,
 in this order. A path that matches none is `code`, so an unknown file never
-looks like waste. Globs use `globToRegex` from `src/app/mirror/forward-guard.mjs`
+looks like waste. Globs use `globToRegex` in `src/app/flow/flow-ci.mjs`
 (`*` inside a folder, `**` across folders, a trailing `/` for a folder).
 
 | Class   | Default globs                                                                        |
@@ -4134,8 +4135,7 @@ Resume. Previously authorized landings that finish after take over are handled a
 (the one create call, REST and GraphQL) adds `crew:avoozl` to `labels` before the
 request, so the label lands in the create itself and the write pacer's zero-edit
 rule holds. Today's callers are task projection and its extracted-design parent
-(`src/app/github-projection.mjs`), and the mirror follow-up and conflict issues
-(`src/app/mirror/mirror-forward-poll.mjs`, `src/app/mirror/mirror-forward-run.mjs`); spec and epic
+(`src/app/github-projection.mjs`); spec and epic
 publication (56.2) and intake join them. Only export passes the named opt-out. A
 source test lists every `createIssue` caller in `src/` and fails on any other
 opt-out. `crew:avoozl` is Avoozl's own: Untriaged and the plan-me hand-off skip it,
@@ -4188,12 +4188,10 @@ stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
 
 #### 4.32.13 Repository layouts and migration
 
-The same loop supports code and plans together, public code with private
-plans, and private mirrors. Repository layout determines visibility; fork
-location never chooses a different loop. Working heads and checkpoints may
-live in authorized forks in each layout. Mirror imports use reviewed PRs;
-forwarding recognizes imports whose second parent is upstream ancestry and
-does not propose those commits back upstream.
+The same loop supports code and plans together, and public code with
+private plans on their own specs branch (§4.45). Repository layout
+determines visibility; fork location never chooses a different loop.
+Working heads and checkpoints may live in authorized forks in each layout.
 
 Task-issue bindings are gone (changed 2026-11-18, 45.4). Task projection,
 close reconciliation, Project sync, rebuild from GitHub and the binding
@@ -4215,7 +4213,7 @@ nothing in Avoozl. Existing spec issues remain journals.
 - Phase 44 becomes links from specs and in-flight work plus a Landing queue
   page (§4.27), not a GitHub browser.
 - Phase 56 supplies outcomes, journal, migration, qualified branches, driver
-  safety, refresh, recovery, epic/intake and mirror import changes.
+  safety, refresh, recovery and epic/intake changes.
   Direct and PR landing remain Phases 41–42; worker grants remain Phase 43.
   Phase 45 deleted the shared projection callers (45.4) after the
   replacement landing and UI proofs. Phase 55's receipts remain.
@@ -4836,10 +4834,10 @@ enough.
 
 **What it does.** On each tick of the workspace, `applyBaseTicks`
 (`operations.mjs`) takes each approved spec and reads its `tasks.md` from the
-base branch by git (`spec-ticks.mjs` `baseTasks`): the repository's
-`baseBranch`, or the plans branch for a plans-repository spec. The working
-tree is never read, so an unsaved edit and a worker branch count for nothing.
-A private spec read from the plans branch uses that read. A read runs again
+base branch by git (`spec-ticks.mjs` `baseTasks`): the specs branch
+(§4.45), which is the repository's `baseBranch` unless `specs.branch` names
+another. The working tree is never read, so an unsaved edit and a worker
+branch count for nothing. A read runs again
 only when the branch head or the approved revision moved. `applyTicks`
 compares the `[x]` items with the database:
 
@@ -4888,11 +4886,10 @@ is found from the tick commit (§4.31, R101.14).
   machine looks up its `integration.commit`, the batch head. Upgrade: map a
   tick commit to the next first-parent commit with a push run.
 - A spec in another repository (`tickPlansRepo`): after the push, the
-  workspace's planning checkout fetches the plans branch, ticks in a
+  workspace's planning checkout fetches the specs branch, ticks in a
   detached worktree, commits, and pushes without
   force; a rejected push
-  fetches again and starts over, five times. A plans branch with no local
-  checkout is not written.
+  fetches again and starts over, five times.
 - A task Avoozl landed has `integration.commit`, so the read side treats its
   tick as known (no Activity line, no worker released).
 - The read side fetches `origin/<base>` (once per checkout and tick) and reads
@@ -4925,7 +4922,7 @@ without force and moves the local branch forward; a checked-out branch has
 only the spec paths of its index reset. An unchanged tree refuses ("edit it
 through a spec branch"). The receipt names the commit and the author email.
 
-A spec read from GitHub (§4.36, RC25) keeps its approval pull request, now
+An adopted spec pull request (§4.36) keeps its approval pull request, now
 one commit of the spec's own files. On merge, `reconcileApproval` reads the
 merge commit's author (`github.commit`, else the pull request's author) and
 records `refused` for a non-approver.
@@ -5122,6 +5119,30 @@ assignees) from the `drivers` table. The Specs list shows it under the
 title, and the spec's chip uses the same words (`rowDriverText` and
 `chipText` in `driver-api.ts`). Hand off's last step says Avoozl unassigned
 you, and the dialog's first step has **Release**.
+
+### 4.45 The specs branch
+
+**Why.** The private mirror existed so crews could work a private copy of a
+public repository and forward finished work. Avoozl does not forward pull
+requests or code between repositories, so the mirror, its orphan plans branch
+and the two-home reader are deleted (Requirement 117). What stays is one
+setting: the branch specs live on.
+
+**Setting.** `specs.branch` in `.avoozl.json`, checked by `validateSpecs` in
+`layered-config.mjs`. `specs-branch.mjs` reads it: `specsBranchSetting` gives
+the setting or null, and `specsBranch(store, workspaceRoot, root)` gives the
+setting, else the checkout's repository `baseBranch`, else `main`.
+
+**Readers and writers.** Spec folders are read from the spec checkout on disk
+(`specHomes`); a checkout with another branch checked out adds one line to
+`homeErrors`. `applyBaseTicks` and `applyMainApprovals` read the specs branch
+with `baseHead`. `tickPlansRepo` ticks there. `approvalBase(root, {branch})`
+and `commitApproval(..., {branch})` make Approve's commit there. Landing still
+targets each code repository's base.
+
+**Plans-repo mode.** The planning checkout holds `.avoozl.json` and is on
+the specs branch; code repositories land on their own base. This is Nupp's
+shape (`nupp-planning` on `avoozl-plans`, code in `nupp-lang/nupp`).
 
 ## 5. Local workflow
 
@@ -7433,7 +7454,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P64   | Steady CI waste caught on a real repository with no Avoozl tasks (Phase 54) |
 | P65   | Every receipt kept, failed attempts included, and a build breakdown compared by key in a retro (Phase 55) |
 | P66   | Live journal/checkpoint recovery, privacy, ordered migration and pause-before-push takeover on isolated scratch repositories (Phase 56) |
-| P67   | Fork PR source without upstream branch copies, separate contributor/maintainer permissions, idempotent export and mirror import (Phase 56) |
+| P67   | Fork PR source without upstream branch copies, separate contributor/maintainer permissions, idempotent export (Phase 56; the mirror import went with the mirror, Requirement 117) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.

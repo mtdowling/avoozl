@@ -8,7 +8,6 @@ import {
 import {
   normalizeGitHubPolicy,
   policySection,
-  readGitHubPolicyOrNull,
   requireDefaultBranches,
 } from "../github/github-policy.mjs";
 import {
@@ -20,11 +19,6 @@ import {
   configureGitHubRepository,
   machineIdentity,
 } from "../github/github-sync.mjs";
-import {
-  requireMirrorsPrivate,
-  requirePlansBranches,
-} from "../mirror/mirror-policy.mjs";
-import { refuseSourceAsExecution } from "../mirror/mirror-sync.mjs";
 import { fail } from "../store/store.mjs";
 import { person, routed } from "../api/operation-policy.mjs";
 
@@ -148,8 +142,6 @@ export const entries = [
         const policy = normalizeGitHubPolicy(policySection(input.github));
         if (this.github?.available?.())
           await requireDefaultBranches(policy, this.github);
-        await requireMirrorsPrivate(policy, this.github);
-        await requirePlansBranches(policy, this.github);
         return { valid: true, error: null, policy };
       } catch (error) {
         return { valid: false, error: error.message, policy: null };
@@ -235,8 +227,6 @@ export const entries = [
       const policy = normalizeGitHubPolicy(policySection(input.github));
       if (this.github?.available?.())
         await requireDefaultBranches(policy, this.github);
-      await requireMirrorsPrivate(policy, this.github);
-      await requirePlansBranches(policy, this.github, { create: true });
       this.settingsFile().updateGitHubSettings(input);
       this.cachePolicy = null;
       this.configuration?.reload();
@@ -291,10 +281,6 @@ export const entries = [
       const store = this.store;
 
       this.configuration?.assertWritable();
-      refuseSourceAsExecution(
-        readGitHubPolicyOrNull(this.workspaceRoot)?.repositories,
-        input.repository,
-      );
       const configured = await configureGitHubRepository(
         store,
         this.github,

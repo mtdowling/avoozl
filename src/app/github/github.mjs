@@ -1710,24 +1710,6 @@ export class GitHubClient {
     });
   }
 
-  // A branch with no parent: an empty tree, one root commit, and one ref
-  // written by its full name (RC25.1). shortcut: assumes GitHub accepts an
-  // empty tree through the API; not yet tried against a live repository.
-  async createOrphanBranch(value, name) {
-    const { owner, repo } =
-        typeof value === "string" ? parseRepository(value) : value,
-      git = `/repos/${owner}/${repo}/git`,
-      tree = await this.request("POST", `${git}/trees`, { body: { tree: [] } }),
-      commit = await this.request("POST", `${git}/commits`, {
-        body: {
-          message: "Start the plans branch",
-          tree: tree.sha,
-          parents: [],
-        },
-      });
-    return this.createBranch({ owner, repo }, name, commit.sha);
-  }
-
   // A file (base64 `content`) or a folder (an array) at `ref`.
   contents(value, pathname, ref) {
     const { owner, repo } =

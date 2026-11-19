@@ -337,6 +337,20 @@ export function originRepositorySync(root) {
     return null;
   }
 }
+// The branch a checkout has checked out, or null (detached, or not git).
+export function currentBranchSync(root) {
+  try {
+    return (
+      execFileSync("git", ["branch", "--show-current"], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || null
+    );
+  } catch {
+    return null;
+  }
+}
 export async function repositoryGitHubRemote(store, input = {}) {
   const repository = store.get("repositories", input.repositoryId);
   if (!repository) fail("Choose a registered repository.");

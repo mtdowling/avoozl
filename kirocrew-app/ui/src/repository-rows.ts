@@ -66,7 +66,7 @@ export function ruleLabels(match: string): string[] {
 
 // What a row shows under its title: every fact the View dialog shows, in
 // the list's order. A fact with no value is left blank and not rendered.
-export function repositoryFacts(row: RepositoryRow, entry: RepositoryForm | null, mirrorSource = ''): ListFact[] {
+export function repositoryFacts(row: RepositoryRow, entry: RepositoryForm | null): ListFact[] {
   const harness = row.checkout?.harness
   const landing = row.checkout?.landing
   return [
@@ -76,6 +76,5 @@ export function repositoryFacts(row: RepositoryRow, entry: RepositoryForm | null
     { label: 'Merge', value: entry?.mergeMethod },
     { label: 'Checks', value: entry?.requiredChecks, mono: true, truncate: true },
     { label: 'Who may start work', value: entry?.allowedActors || (entry?.minimumPermission ? `permission ${entry.minimumPermission} or higher` : ''), truncate: true },
-    { label: 'Mirror of', value: mirrorSource, mono: true },
   ]
 }

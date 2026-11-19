@@ -210,7 +210,7 @@
     },
     "specs": {
       "type": "object",
-      "description": "Where this repository's spec folders live.",
+      "description": "Where this repository's spec folders live: the folder and the branch.",
       "additionalProperties": false,
       "properties": {
         "path": {
@@ -220,11 +220,18 @@
           "pattern": "^(?!(.*/)?\\.\\.?(/|$))[A-Za-z0-9._-]+(/(?!\\.\\.?(/|$))[A-Za-z0-9._-]+)*/?$",
           "default": ".kiro/specs",
           "description": "The folder, relative to the repository root, that holds one folder per spec. Unset means .kiro/specs. It may not leave the repository, name . or .., or be a symlink out of the checkout."
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[A-Za-z0-9._/-]+$",
+          "description": "The branch of the spec repository that holds .kiro/specs/. Avoozl reads specs, approvals and ticks there; code still lands on each code repository's base branch. Unset means the spec repository's base branch."
         }
       }
     },
     "plugins": {
-      "description": "Plugins this repository declares (design §4.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
+      "description": "Plugins this repository declares (design \u00a74.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
       "type": "array",
       "items": {
         "type": "object",
@@ -279,7 +286,7 @@
       }
     },
     "intake": {
-      "description": "Every source that brings work in (design §4.12, §4.39): GitHub repositories (via github, set in Repository setup), intake plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
+      "description": "Every source that brings work in (design \u00a74.12, \u00a74.39): GitHub repositories (via github, set in Repository setup), intake plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -500,7 +507,7 @@
     },
     "packs": {
       "type": "object",
-      "description": "Written by a pack import (design §4.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
+      "description": "Written by a pack import (design \u00a74.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
       "additionalProperties": {
         "type": "object",
         "properties": {
@@ -1175,7 +1182,7 @@
     },
     "github": {
       "type": "object",
-      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design §4.4), Remote setup remains an explicit action.",
+      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design \u00a74.4), Remote setup remains an explicit action.",
       "properties": {
         "mode": {
           "enum": ["local", "plans-repo", "single-repo"],
@@ -1245,7 +1252,7 @@
       "properties": {
         "role": {
           "enum": ["local", "code", "planning", "both"],
-          "description": "What this repository is for (design §4.34). local: tasks stay in the workspace database. code: pull requests land here and issues live in the planning repository. planning: holds the issues and specs, no code. both: code and its own issues. The mode and planningRepository derive from the roles."
+          "description": "What this repository is for (design \u00a74.34). local: tasks stay in the workspace database. code: pull requests land here and issues live in the planning repository. planning: holds the issues and specs, no code. both: code and its own issues. The mode and planningRepository derive from the roles."
         },
         "checkout": {
           "type": "string",
@@ -1372,100 +1379,9 @@
               }
             }
           }
-        },
-        "mirror": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/githubMirror"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "additionalProperties": false
-    },
-    "githubMirror": {
-      "type": "object",
-      "description": "Crews work a private mirror of a public repository; Avoozl forwards finished work to the source.",
-      "additionalProperties": false,
-      "required": ["source", "mirror"],
-      "properties": {
-        "source": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
-        },
-        "mirror": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
-          "description": "The private mirror. It must differ from source."
-        },
-        "forwardTo": {
-          "type": "string",
-          "pattern": "^(source|fork:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$",
-          "default": "source"
-        },
-        "forward": {
-          "description": "auto needs at least one trusted person.",
-          "enum": ["off", "nudge", "auto"],
-          "default": "nudge"
-        },
-        "branchPrefix": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9_][A-Za-z0-9._/-]*$",
-          "default": "avoozl/"
-        },
-        "squash": {
-          "type": "boolean",
-          "default": true
-        },
-        "trustedPersons": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "plansBranch": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9_][A-Za-z0-9._/-]*$",
-          "default": "avoozl-plans",
-          "description": "Must differ from the default branch and not start with branchPrefix."
-        },
-        "forwardTarget": {
-          "description": "branch needs publicBranch.",
-          "enum": ["each", "branch", "batch"],
-          "default": "each"
-        },
-        "publicBranch": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 200,
-          "pattern": "^[A-Za-z0-9._/-]+$"
-        },
-        "forwardMaxFileBytes": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "forwardExclude": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "description": "Relative paths or patterns never forwarded, such as docs/private/ or **/*.pem."
-        },
-        "forwardAllow": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          }
-        }
-      }
     },
     "planningRepository": {
       "type": "object",

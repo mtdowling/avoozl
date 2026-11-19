@@ -34,7 +34,6 @@ import { declaredPlugins, readPluginSettings } from "../plugins/plugins.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { epicOfPlan } from "../epics/epics.mjs";
 import { fail } from "../store/store.mjs";
-import { mirrorConfig } from "../mirror/mirror-sync.mjs";
 import { exportEvidence, importEvidence } from "../tasks/evidence.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 
@@ -270,19 +269,14 @@ function planIssueConfig(store, plan, identity) {
       (configs.length === 1 ? configs[0] : null);
   if (!config)
     fail(`No GitHub repository is registered for spec ${plan.id}.`, 409);
-  // A repository with a private mirror keeps its plan issue there (RC24.3).
-  return mirrorConfig(config, identity.repositories);
+  return config;
 }
 
-// The registered entry for a stored repository ID, which is the mirror's for
-// a repository that has one.
-function configById(store, id, identity) {
+// The registered entry for a stored repository ID.
+function configById(store, id) {
   return (
     store.get("github_repositories", id) ??
-    store
-      .list("github_repositories")
-      .map((entry) => mirrorConfig(entry, identity.repositories))
-      .find((entry) => same(entry.id, id)) ??
+    store.list("github_repositories").find((entry) => same(entry.id, id)) ??
     null
   );
 }

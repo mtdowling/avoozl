@@ -69,14 +69,11 @@ test("detect reads a leading ~ as the home folder", async (t) => {
   await assert.rejects(detectCheckout("~other/x", home), /starts with ~\//);
 });
 
-test("folder facts: the upstream remote, the file that shows code, and specs", async (t) => {
+test("folder facts: the file that shows code, and specs", async (t) => {
   const { root, git } = checkout(t, "facts");
   git("remote", "add", "origin", "git@github.com:octo/facts.git");
-  git("remote", "add", "fork", "git@github.com:octo/facts.git");
-  git("remote", "add", "upstream", "https://github.com/acme/facts.git");
-  let facts = await folderFacts(root, "octo/facts");
+  let facts = await folderFacts(root);
   assert.deepEqual(facts, {
-    upstream: { remote: "upstream", github: "acme/facts" },
     code: null,
     specs: 0,
   });
@@ -84,26 +81,24 @@ test("folder facts: the upstream remote, the file that shows code, and specs", a
   fs.mkdirSync(path.join(root, "docs"));
   fs.writeFileSync(path.join(root, "docs", "build.py"), "");
   git("add", "-A");
-  facts = await folderFacts(root, "octo/facts");
+  facts = await folderFacts(root);
   assert.equal(facts.code, null, "a script under docs/ is not the code");
   assert.equal(facts.specs, 1);
   fs.mkdirSync(path.join(root, "src"));
   fs.writeFileSync(path.join(root, "src", "main.rs"), "");
   fs.writeFileSync(path.join(root, "Cargo.toml"), "");
   git("add", "-A");
-  assert.equal((await folderFacts(root, "octo/facts")).code, "Cargo.toml");
+  assert.equal((await folderFacts(root)).code, "Cargo.toml");
 });
 
 test("the guessed kind", () => {
   const facts = (extra = {}) => ({
-    upstream: null,
     code: "package.json",
     specs: 0,
     ...extra,
   });
   const workspace = (others = [], extra = {}) => ({
     own: null,
-    mirrorOf: null,
     others,
     ...extra,
   });
@@ -113,34 +108,10 @@ test("the guessed kind", () => {
   // No GitHub remote: local, whatever else it has.
   assert.deepEqual(guessKind({ github: null, remote: null, facts: facts() }), {
     role: "local",
-    source: "",
     reasons: ["It has no GitHub remote."],
   });
   // Settings already name it.
   assert.equal(role({ workspace: workspace([], { own: "code" }) }), "code");
-  const mirrored = guessKind({
-    github: "octo/app",
-    facts: facts(),
-    workspace: workspace([], { mirrorOf: "acme/app" }),
-  });
-  assert.deepEqual([mirrored.role, mirrored.source], ["mirror", "acme/app"]);
-  // An upstream remote on another repository: a private mirror, unless it is public.
-  const upstream = { remote: "upstream", github: "acme/app" };
-  const mirror = guessKind({
-    github: "octo/app",
-    facts: facts({ upstream }),
-    visibility: "private",
-  });
-  assert.deepEqual([mirror.role, mirror.source], ["mirror", "acme/app"]);
-  assert.match(mirror.reasons.join(" "), /octo\/app is private/);
-  assert.equal(
-    role({ facts: facts({ upstream }), visibility: "public" }),
-    "both",
-  );
-  assert.equal(
-    role({ facts: facts({ upstream }), upstreamVisibility: "private" }),
-    "both",
-  );
   // Alone on GitHub: code and planning, or planning when it has specs and no code.
   assert.equal(role({}), "both");
   assert.equal(role({ facts: facts({ code: null, specs: 2 }) }), "planning");

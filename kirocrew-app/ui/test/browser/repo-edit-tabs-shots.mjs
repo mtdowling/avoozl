@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Screenshots of a repository's Edit dialog (Settings > Repository setup),
 // one per tab, in the full app shell on fake data (harness
-// ?page=app&roles=plans). `mirror-role` is the Mirror tab after Set up
-// mirror. 1280 and 390 px, light and dark: <out>/<name>-<width>-<theme>.png.
+// ?page=app&roles=plans). 1280 and 390 px, light and dark:
+// <out>/<name>-<width>-<theme>.png.
 // With names after <out>, only those shots. `before` takes the dialog as it
 // opens, for a tree without tabs.
 //
@@ -45,8 +45,6 @@ try {
     ['general', [tab('general')]],
     ['landing', [tab('landing')]],
     ['github', [tab('github')]],
-    ['mirror', [tab('mirror')]],
-    ['mirror-role', [tab('mirror'), click('[data-repository-edit] [role=tabpanel] button', 'Set up mirror')]],
     ['map', [tab('map')]],
     // The Isolation panel under Landing, scrolled into view.
     ['isolation', [tab('landing')]],
@@ -54,8 +52,7 @@ try {
   for (const theme of ['light', 'dark'])
     for (const width of [1280, 390])
       for (const [name, extra] of shots) {
-        const size = { width, height: 900, dark: theme === 'dark' }
-        await page.open(harness.url({ page: 'app', basic: '1', theme, roles: 'plans' }), size)
+        await page.open(harness.url({ page: 'app', basic: '1', theme, roles: 'plans' }), { width, height: 900, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
         for (const step of [menu(width), head(width), item(width), click('[data-repository-list] button', 'Edit recipe-box'), ...extra]) {
           await settle()

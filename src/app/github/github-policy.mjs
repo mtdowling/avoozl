@@ -8,7 +8,6 @@ import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { fail } from "../store/store.mjs";
 import { MAX_WRITES_PER_HOUR, MAX_WRITES_PER_MINUTE } from "./github-pacer.mjs";
 import { parseRepository } from "./github.mjs";
-import { mirrorInput } from "../mirror/mirror-policy.mjs";
 import {
   ROLES,
   deriveGitHubKeys,
@@ -57,7 +56,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "waitingLabels",
     "buildReceipts",
     "discussions",
-    "mirror",
     "conflicts",
     "landing",
   ],
@@ -202,9 +200,6 @@ function repositoryInput(value, id, mode) {
     conflicts: conflictsInput(value.conflicts, `${label}.conflicts`),
     // One landing block (design §4.25).
     landing: landingInput(value.landing, `${label}.landing`),
-    ...(value.mirror === undefined || value.mirror === null
-      ? {}
-      : { mirror: mirrorInput(value.mirror, `${label}.mirror`, baseBranch) }),
   };
 }
 

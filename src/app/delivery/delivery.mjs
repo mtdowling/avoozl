@@ -64,7 +64,7 @@ import {
   quietStep,
 } from "../sessions/session-bindings.mjs";
 import { queryTasks, statusComplete } from "../../query.mjs";
-import { unblockCounts } from "../mirror/release-ranking.mjs";
+import { unblockCounts } from "../specs/release-ranking.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { recordCorrection } from "../flow/corrections.mjs";
 import {

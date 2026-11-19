@@ -430,41 +430,6 @@ export const commands = [
     },
   },
   {
-    command: "mirror",
-    help: [
-      help(
-        "setup",
-        "mirror adopt|create OWNER/MIRROR --source OWNER/REPO [--ticked IDS]",
-        "Dry run of the mirror setup; add --confirm --preview-hash HASH to apply",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      // Preview first; rerun with --confirm --preview-hash HASH to apply.
-      const action = positionals[0];
-      if (action !== "adopt" && action !== "create")
-        throw Error("Choose mirror adopt or mirror create.");
-      console.log(
-        JSON.stringify(
-          await localOrRequest(`mirror.${action}`, {
-            repository: need(
-              options.repository || positionals[1],
-              `mirror ${action} OWNER/MIRROR --source OWNER/REPO`,
-            ),
-            source: options.source,
-            confirm: options.confirm,
-            previewHash: options["preview-hash"],
-            ticked: options.ticked
-              ?.split(",")
-              .map((entry) => entry.trim())
-              .filter(Boolean),
-          }),
-          null,
-          2,
-        ),
-      );
-    },
-  },
-  {
     command: "setup",
     help: [
       help(

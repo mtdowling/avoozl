@@ -1,5 +1,5 @@
 // Settings > Repository setup > Edit: every setting sits on a tab of the
-// shared tab bar, Mirror has its own tab, and the one Save writes every
+// shared tab bar, and the one Save writes every
 // tab's changes. Logic in node; the dialog in real Chrome on the harness
 // (?page=app&roles=plans). The browser tests skip when no Chrome is found.
 import assert from 'node:assert/strict'
@@ -17,18 +17,18 @@ test('each edited field belongs to exactly one tab', () => {
   assert.equal(new Set(all).size, all.length)
   assert.deepEqual(
     EDIT_TABS.map((t) => t.key),
-    ['general', 'landing', 'github', 'mirror', 'map'],
+    ['general', 'landing', 'github', 'map'],
   )
 })
 
 test('a tab shows a dot for its own unsaved changes and errors', () => {
   const saved = { ...emptyRepository('o/app'), baseBranch: 'main' }
-  assert.deepEqual([...dirtyTabs({ saved, entry: null, roleChanged: false, sourceChanged: false })], [])
+  assert.deepEqual([...dirtyTabs({ saved, entry: null, roleChanged: false })], [])
   const entry = { ...saved, baseBranch: 'trunk', minimumPermission: 'maintain' }
-  assert.deepEqual([...dirtyTabs({ saved, entry, roleChanged: true, sourceChanged: true })].sort(), ['general', 'github', 'landing', 'mirror'])
+  assert.deepEqual([...dirtyTabs({ saved, entry, roleChanged: true })].sort(), ['general', 'github', 'landing'])
   // A new entry is unsaved on every tab with fields.
-  assert.deepEqual([...dirtyTabs({ saved: null, entry: saved, roleChanged: false, sourceChanged: false })].sort(), ['general', 'github', 'landing', 'mirror'])
-  assert.deepEqual([...errorTabs({ ...saved, name: ' ', baseBranch: '' }, 'Name the public repository as owner/name.')].sort(), ['general', 'landing', 'mirror'])
+  assert.deepEqual([...dirtyTabs({ saved: null, entry: saved, roleChanged: false })].sort(), ['general', 'github', 'landing'])
+  assert.deepEqual([...errorTabs({ ...saved, name: ' ', baseBranch: '' })].sort(), ['general', 'landing'])
 })
 
 test('the dialog uses the shared tab bar and keeps nothing outside it', () => {
@@ -104,9 +104,9 @@ test('no setting renders outside a tab, on any tab', { skip }, async () => {
   )
   assert.deepEqual(
     (await tabs()).map((t) => t.key),
-    ['general', 'landing', 'github', 'mirror', 'map'],
+    ['general', 'landing', 'github', 'map'],
   )
-  for (const key of ['general', 'landing', 'github', 'mirror', 'map']) {
+  for (const key of ['general', 'landing', 'github', 'map']) {
     await tab(key)
     const got = await page.evaluate(`(() => {
       const body = document.querySelector('[data-repository-edit] [data-modal-body]')
@@ -122,27 +122,6 @@ test('no setting renders outside a tab, on any tab', { skip }, async () => {
   assert.deepEqual(page.errors, [])
 })
 
-test('the Mirror tab offers Set up mirror, and names the public repository for the mirror role', { skip }, async () => {
-  await openEdit('recipe-box')
-  await tab('mirror')
-  assert.equal(await page.evaluate(`Boolean(document.getElementById('avoozl-repo-edit-source'))`), false)
-  assert.equal(await press('[data-repository-edit] [role=tabpanel] button', 'Set up mirror'), true)
-  await settle()
-  // The role changed on General; the public repository is still blank.
-  assert.equal(await page.evaluate(`Boolean(document.getElementById('avoozl-repo-edit-source'))`), true)
-  const marks = Object.fromEntries((await tabs()).map((t) => [t.key, t]))
-  assert.equal(marks.general.dirty, true)
-  assert.equal(marks.mirror.error, true)
-  assert.equal(await page.evaluate(`[...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Save').disabled`), true)
-  await type('#avoozl-repo-edit-source', 'acme/recipe-box-public')
-  await settle()
-  assert.equal((await tabs()).find((t) => t.key === 'mirror').error, false)
-  // Picking the role on General shows the same tab.
-  await tab('general')
-  assert.equal(await page.evaluate(`document.getElementById('avoozl-repo-edit-role').value`), 'mirror')
-  assert.deepEqual(page.errors, [])
-})
-
 test('saving from any tab saves every tab', { skip }, async () => {
   await openEdit('recipe-box')
   await tab('github')
@@ -151,7 +130,7 @@ test('saving from any tab saves every tab', { skip }, async () => {
   await type('[data-repository-edit] input[id$="-base"]', 'trunk')
   await settle()
   const marks = Object.fromEntries((await tabs()).map((t) => [t.key, t.dirty]))
-  assert.deepEqual(marks, { general: false, landing: true, github: true, mirror: false, map: false })
+  assert.deepEqual(marks, { general: false, landing: true, github: true, map: false })
   await tab('map')
   assert.equal(await press('dialog[open] button', 'Save'), true)
   await page.until(`!document.querySelector('[data-repository-edit]')`)

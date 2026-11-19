@@ -4,7 +4,7 @@ Status 2026-11-18: see `tasks.md`. Most of the plan is built.
 
 Requirements are in `requirements.md` (AN1 to AN4). This spec adds no design
 of its own. Behavior is defined in `.kiro/specs/radar-coder/design.md`
-(D30 private plans; D28 gates were retired 2026-11-18) and `.kiro/specs/avoozl/design.md` (§6.14 public
+(D28 gates were retired 2026-11-18, D30 private plans on 2026-11-19) and `.kiro/specs/avoozl/design.md` (§6.14 public
 crews, and §4.11, §4.18, §4.19, §8.7, §8.8 for the proofs). This file says how
 the open work was chosen, how it is ordered, and what a person must do.
 
@@ -36,14 +36,12 @@ only for Avoozl's own workers.
 
 ```text
 Phase 1 gates:   retired 2026-11-18
-Phase 2 plans:   an-2.1 -> an-2.3 -> an-p2   (an-2.2 joins an-p2)
+Phase 2 plans:   retired 2026-11-19
 Phase 3 public:  an-3.1 -> an-3.2 -> an-3.3 / an-3.4 -> an-3.5 -> an-p3
 Phase 4 proofs:  an-4.1, an-4.2, an-4.3, an-4.4   (independent)
 ```
 
-Outside the graph: `an-2.2` edits the forward path that `rc-25.4` to
-`rc-25.7` also edit. This spec's `after` facts name only its own tasks, so
-start `an-2.2` after those pull requests merge. Phases 1, 3 and 4 do not wait.
+Phases 3 and 4 do not wait on each other.
 
 ## Owner steps
 
@@ -57,8 +55,8 @@ in this plan; `docs/evidence/` receipts record them when done.
    marker choice (Q8) and the default label names (Q9).
 3. `rc-p11`: the whole path on a real repository, then `rc-12.1`, the decision
    to retire worker code.
-4. `rc-p23`, `rc-p24`, `rc-p25`, `rc-p26`: the mirror proofs on scratch
-   repositories. The first dogfood run is in `docs/dogfood-checklist.md`.
+4. Retired 2026-11-19: the mirror proofs (`rc-p23` to `rc-p26`) went with
+   the mirror.
 5. Live GitHub proofs of `avoozl`: P7, P8, P10, P11, P13, P16, P24, P25, and
    P17, P18 (scratch organizations).
 6. Nupp cutover: 6.8, 6.9, then P14, P22, P23.

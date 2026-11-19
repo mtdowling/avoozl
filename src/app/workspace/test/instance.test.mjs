@@ -1,6 +1,5 @@
-// Instance names: a short display name picked once, a fixed ID beside it, the
-// ID (never the name) in hidden markers, and a guard that strips both before
-// text leaves a mirror for a public repository.
+// Instance names: a short display name picked once, a fixed ID beside it, and
+// the ID (never the name) in hidden markers.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,12 +7,10 @@ import test from "node:test";
 import { workspaceConfig } from "../../settings/config.mjs";
 import {
   INSTANCE_NAMES,
-  assertNoInstance,
   instanceIdentity,
   instanceView,
   recordSeenInstance,
   renameInstance,
-  stripInstance,
 } from "../instance.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
@@ -119,35 +116,6 @@ test("one instance is quiet; another one seen in a marker turns the name on", (t
   recordSeenInstance(store, "not an id");
   assert.equal(instanceView(store).shared, true);
   assert.deepEqual(instanceView(store).others, ["inst-aaaaaaaaaaaa"]);
-});
-
-test("the mirror guard strips the ID, the name and their markers from outgoing text", (t) => {
-  const { store } = setup(t);
-  const identity = instanceIdentity(store);
-  renameInstance(store, "Mira");
-  const { id } = identity;
-  const text = [
-    `Mira hands the driver role to Juno. <!-- avoozl-approval v=1 approver=me instance=${id} -->`,
-    `<!-- avoozl-driver instance=${id} name=Mira -->`,
-    `Owned by ${id}.`,
-    "Plain text stays.",
-  ].join("\n");
-  const clean = stripInstance(text, { id, name: "Mira" });
-  assert.ok(!clean.includes(id));
-  assert.ok(!/\bMira\b/.test(clean));
-  assert.ok(!/instance=/.test(clean));
-  assert.ok(clean.includes("Plain text stays."));
-  assert.doesNotThrow(() => assertNoInstance(clean, { id, name: "Mira" }));
-  assert.throws(
-    () => assertNoInstance(text, { id, name: "Mira" }),
-    /instance/i,
-  );
-  // A foreign ID (another instance's) is stripped by its shape too.
-  assert.ok(
-    !stripInstance("by inst-0123456789ab here", { id, name: "Mira" }).includes(
-      "inst-0123456789ab",
-    ),
-  );
 });
 
 test("the operations read and rename the instance", async (t) => {

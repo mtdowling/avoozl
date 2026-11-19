@@ -396,12 +396,12 @@ test("worker mode is off unless the config names it, and a lost binding is found
   assert.equal(readRunnerConfig(ws.root).workerMode, "trust");
 });
 
-test("no module outside the plugin and mirror code runs ssh", () => {
+test("no module outside the plugin code runs ssh", () => {
   const dir = fileURLToPath(new URL("..", import.meta.url)),
     offenders = fs
       .readdirSync(dir)
       .filter((name) => name.endsWith(".mjs"))
-      .filter((name) => !/^(plugin|mirror)/.test(name))
+      .filter((name) => !/^plugin/.test(name))
       .filter((name) =>
         /["'`]ssh["'`]/.test(fs.readFileSync(path.join(dir, name), "utf8")),
       );

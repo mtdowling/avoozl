@@ -8,7 +8,6 @@
 // through the client's cache) and at most one workflow runs read per
 // repository per check. Writes: `pr_ci` and `ci_runs` rows.
 import { CI_CLASSES, flowPolicy, listOr } from "./flow.mjs";
-import { globToRegex } from "../mirror/forward-guard.mjs";
 import { DEFAULT_SPECS_PATH, specsPathOf } from "../specs/specs-path.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import {
@@ -49,6 +48,18 @@ export const CLASS_GLOBS = Object.freeze({
     ".editorconfig",
   ],
 });
+
+// `*` is any run inside one folder, `**` any run across folders, a trailing
+// `/` a whole folder. A pattern with none of these is one exact path.
+function globToRegex(pattern) {
+  const source = String(pattern)
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*\*/g, "\0")
+    .replace(/\*/g, "[^/]*")
+    .replace(/\0/g, ".*")
+    .replace(/\?/g, "[^/]");
+  return new RegExp(`^${source}${pattern.endsWith("/") ? ".*" : ""}$`);
+}
 
 const lower = (value) => String(value || "").toLowerCase();
 const ms = (iso) => (iso ? Date.parse(iso) : NaN);

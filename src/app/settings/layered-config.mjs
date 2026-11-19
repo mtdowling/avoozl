@@ -12,6 +12,7 @@ import {
 } from "../landing/landing-config.mjs";
 import { deriveGitHubKeys } from "../workspace/repository-roles.mjs";
 import { specsPathProblem } from "../specs/specs-path.mjs";
+import { branchNameProblem } from "../epics/integration-branch.mjs";
 
 export const avoozlConfigSchemaPath = fileURLToPath(
   new URL("../../avoozl-config.schema.json", import.meta.url),
@@ -338,9 +339,10 @@ function validateRunnerRole(runner) {
     );
 }
 
-// `specs`, where spec folders live: `path` (specs-path.mjs). The symlink
-// check needs the checkout, so specsPath makes it when it reads.
-export const SPECS_KEYS = ["path"];
+// `specs`, where spec folders live: `path` (specs-path.mjs) and `branch`
+// (specs-branch.mjs). The symlink check needs the checkout, so specsPath
+// makes it when it reads.
+export const SPECS_KEYS = ["path", "branch"];
 function validateSpecs(value) {
   if (value === undefined) return;
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -350,11 +352,14 @@ function validateSpecs(value) {
       throw Error(
         `specs.${key} is not a setting; use ${SPECS_KEYS.join(", ")}.`,
       );
-  if (value.path === undefined) return;
-  const problem = specsPathProblem(value.path);
-  if (problem) throw Error(problem);
+  if (value.path !== undefined) {
+    const problem = specsPathProblem(value.path);
+    if (problem) throw Error(problem);
+  }
+  const problem =
+    value.branch === undefined ? null : branchNameProblem(value.branch);
+  if (problem) throw Error(`specs.branch: ${problem}`);
 }
-
 export function loadLayeredConfig({
   workspaceRoot,
   options = {},

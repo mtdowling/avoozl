@@ -152,7 +152,7 @@ test('markers read (required) or (optional) in plain muted text, never red or bo
 
 test('who counts is one row on the GitHub tab, with write as the default; no separate tab', () => {
   assert.doesNotMatch(settings, /key: 'people'/)
-  const triggers = settings.slice(settings.indexOf("{tab === 'github' && ("), settings.indexOf("{tab === 'mirror' && <MirrorBox"))
+  const triggers = settings.slice(settings.indexOf("{tab === 'github' && ("), settings.indexOf("{tab === 'map' && ("))
   assert.match(triggers, /title="Who counts"/)
   assert.match(triggers, /raw="minimumPermission"/)
   assert.match(triggers, /raw="allowedActors"/)

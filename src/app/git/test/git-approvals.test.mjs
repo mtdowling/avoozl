@@ -136,11 +136,11 @@ test("landing trailers name each task and what it cost", () => {
   );
 });
 
-function workspace() {
+function workspace(settings = {}) {
   const r = repo();
   fs.writeFileSync(
     path.join(r.root, ".avoozl.json"),
-    JSON.stringify({ version: 1, github: { mode: "local" } }),
+    JSON.stringify({ version: 1, github: { mode: "local" }, ...settings }),
   );
   fs.writeFileSync(path.join(r.root, ".gitignore"), "*.sqlite*\n.avoozl/\n");
   r.run(["add", ".gitignore", ".avoozl.json"]);
@@ -427,5 +427,48 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
   assert.match(
     tickApprovals(store)[0].summary,
     new RegExp(pushed.slice(0, 12)),
+  );
+});
+
+test("with specs.branch, approvals and ticks are read and written on that branch, and main is left alone", async (t) => {
+  const r = workspace({ specs: { branch: "plans" } });
+  r.run(["checkout", "-q", "-b", "plans"]);
+  const main = r.run(["rev-parse", "main"]),
+    { store, ops } = open(r.root, "workspace.sqlite");
+  t.after(() => store.close());
+  // A click commits the approval on the specs branch.
+  writeSpec(r.root, "feature", specFiles());
+  await ops.execute("plan.create", { spec: "feature" });
+  await approve(ops, "feature");
+  assert.equal(
+    r.run(["log", "-1", "--format=%B", "plans"]),
+    "Approve spec feature",
+  );
+  // An approver's commit on the specs branch approves on the tick.
+  writeSpec(r.root, "merged", specFiles());
+  await ops.execute("plan.create", { spec: "merged" });
+  commitSpec(r, "merged", { author: OWNER, committer: OWNER });
+  await ops.execute("workspace.tick", {});
+  assert.equal(store.get("plans", "merged").state, "approved");
+  // A tick committed on the specs branch is read there.
+  const tasks = path.join(r.root, ".kiro/specs/feature/tasks.md");
+  fs.writeFileSync(
+    tasks,
+    fs.readFileSync(tasks, "utf8").replace("- [ ] 1.1 ", "- [x] 1.1 "),
+  );
+  r.run(["commit", "-qam", "Tick feature.1.1"]);
+  await ops.applyBaseTicks();
+  const id = store.get("plans", "feature").mapping["feature.1.1"];
+  assert.equal(
+    store.read().tasks.find((task) => task.id === id).tickCommit,
+    r.run(["rev-parse", "plans"]),
+  );
+  assert.equal(r.run(["rev-parse", "main"]), main, "main is untouched");
+  // A spec checkout on another branch is named, since its folders are not
+  // the specs.
+  r.run(["checkout", "-q", "main"]);
+  assert.match(
+    ops.specList().homeErrors.join(" "),
+    /Specs live on plans, but .+ has main checked out\./,
   );
 });

@@ -219,8 +219,6 @@ export interface PlanRow {
   type: 'feature' | 'bugfix' | null
   category: string | null
   categoryProblem: string | null
-  // Where the spec lives when a private mirror is set (RC25.2).
-  home?: 'main' | 'plansBranch'
   // An open pull request proposes a change to it (R107.5); the PR chip.
   pull?: { number: number; draft: boolean }
   errors: number
@@ -637,7 +635,6 @@ export function planEventLine(entry: { action: string; by: string | null }): str
   return entry.by ? `${what} by ${entry.by}` : what
 }
 
-// The badge a spec shows for its home (RC25.2); none when no mirror is set.
 // The one status chip a spec row shows: Draft, Approved, On GitHub or Done.
 // Changed on disk and not imported are drafts until approved again.
 export type SpecChip = 'draft' | 'approved' | 'github' | 'done'
@@ -646,11 +643,6 @@ export function specChip(row: Pick<PlanRow, 'status' | 'onGitHub'>): SpecChip {
   if (row.status === 'done') return 'done'
   if (row.status !== 'approved') return 'draft'
   return row.onGitHub ? 'github' : 'approved'
-}
-
-export function homeBadge(home?: 'main' | 'plansBranch'): { label: string; warn: boolean } | null {
-  if (!home) return null
-  return home === 'plansBranch' ? { label: 'Private', warn: true } : { label: 'Public', warn: false }
 }
 
 // The revision a person last approved, else the one before this; null when

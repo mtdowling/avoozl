@@ -46,9 +46,8 @@ test('a row has the folder, landing, merge method and checks, and no labels', ()
   assert.equal(facts.Checks, 'ci')
 })
 
-test('a mirror row names its source, and the harness shows', () => {
+test('the harness shows', () => {
   const row = rowFor('o/bare', { harness: 'kiro' })
-  assert.equal(shown(repositoryFacts(row, form.repositories[row.policy], 'o/pub'))['Mirror of'], 'o/pub')
   assert.equal(shown(repositoryFacts({ ...row, policy: 0 }, form.repositories[0])).Harness, 'kiro')
 })
 

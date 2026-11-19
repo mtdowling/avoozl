@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { CheckRow, Field, Marker, RawKey, fieldDescribedBy, type FieldWidth } from './ui/Field.tsx'
+import { Field, Marker, RawKey, fieldDescribedBy, type FieldWidth } from './ui/Field.tsx'
 import { Tabs, TabPanel, useTabParam } from './ui/Tabs.tsx'
 import { dirtyTabs } from './tabs.ts'
 import { useAppApi } from './host.ts'
@@ -17,10 +17,6 @@ import {
   reviewRuleText,
   settingsClient,
   toggleCheck,
-  MIRROR_DEFAULT_TEXT,
-  MIRROR_FORWARD_MODES,
-  MIRROR_FORWARD_TARGETS,
-  type MirrorForm,
   type FieldRule,
   type RepositoryInspect,
   toForm,
@@ -44,8 +40,6 @@ import {
   type UsageSort,
   type RateView,
   modeKey,
-  MIRROR_ROLE,
-  mirrorSourceOf,
   roleLabel,
   roleOfRow,
   tasksLiveLine,
@@ -74,7 +68,6 @@ import DeliverySettings from './DeliverySettings.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
-import { Fold } from './ui/controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading } from './ui/controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
@@ -382,113 +375,6 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
   )
 }
 
-// Private mirror (RC24.1): crews work a private copy of a public repository.
-function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: MirrorForm) => void }) {
-  const { mirror, id } = props
-  const set = (change: Partial<MirrorForm>) => props.onChange({ ...mirror, ...change })
-  return (
-    <FieldGroup title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
-      <Box {...grid()}>
-        <Text id={`${id}-source`} label="Public repository" raw="mirror.source" placeholder="owner/name" value={mirror.source} onChange={(value) => set({ source: value })} />
-        <Text id={`${id}-mirror`} label="Private mirror" raw="mirror.mirror" placeholder="owner/name-private" value={mirror.mirror} onChange={(value) => set({ mirror: value })} />
-        <Choice
-          id={`${id}-forward`}
-          label="Forward mode"
-          raw="mirror.forward"
-          rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forward }}
-          value={mirror.forward}
-          options={[...MIRROR_FORWARD_MODES]}
-          none="Default (nudge)"
-          onChange={(value) => set({ forward: value })}
-        />
-        <Choice
-          id={`${id}-target`}
-          label="Forward target"
-          raw="mirror.forwardTarget"
-          rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forwardTarget }}
-          value={mirror.forwardTarget}
-          options={[...MIRROR_FORWARD_TARGETS]}
-          none="Default (each)"
-          onChange={(value) => set({ forwardTarget: value })}
-        />
-        <Text
-          id={`${id}-public-branch`}
-          label="Public branch"
-          raw="mirror.publicBranch"
-          placeholder="needed for the branch target"
-          value={mirror.publicBranch}
-          onChange={(value) => set({ publicBranch: value })}
-        />
-      </Box>
-      <Hint as="p" size="xs">
-        each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's tasks.md
-        front-matter can set its own forwardTarget and publicBranch.
-      </Hint>
-      <Fold id={`${id}-more`} title="Advanced: mirror">
-        <Box {...grid()}>
-          <Text
-            id={`${id}-forward-to`}
-            label="Forward to"
-            raw="mirror.forwardTo"
-            placeholder="source or fork:owner/name"
-            value={mirror.forwardTo}
-            onChange={(value) => set({ forwardTo: value })}
-          />
-          <Text
-            id={`${id}-prefix`}
-            label="Branch prefix"
-            raw="mirror.branchPrefix"
-            placeholder="avoozl/"
-            value={mirror.branchPrefix}
-            onChange={(value) => set({ branchPrefix: value })}
-          />
-          <Text
-            id={`${id}-plans-branch`}
-            label="Private specs branch"
-            raw="mirror.plansBranch"
-            placeholder="avoozl-plans"
-            value={mirror.plansBranch}
-            onChange={(value) => set({ plansBranch: value })}
-          />
-          <Text
-            id={`${id}-max-bytes`}
-            label="Largest forwarded file (bytes)"
-            raw="mirror.forwardMaxFileBytes"
-            placeholder={MIRROR_DEFAULT_TEXT.forwardMaxFileBytes}
-            value={mirror.forwardMaxFileBytes}
-            onChange={(value) => set({ forwardMaxFileBytes: value })}
-          />
-          <Text
-            id={`${id}-exclude`}
-            label="Never forward these paths"
-            raw="mirror.forwardExclude"
-            placeholder={MIRROR_DEFAULT_TEXT.forwardExclude}
-            value={mirror.forwardExclude}
-            onChange={(value) => set({ forwardExclude: value })}
-          />
-          <Text
-            id={`${id}-allow`}
-            label="Forward these paths anyway"
-            raw="mirror.forwardAllow"
-            placeholder={MIRROR_DEFAULT_TEXT.forwardAllow}
-            value={mirror.forwardAllow}
-            onChange={(value) => set({ forwardAllow: value })}
-          />
-          <Text
-            id={`${id}-trusted`}
-            label="Trusted persons"
-            raw="mirror.trustedPersons"
-            placeholder="login, login"
-            value={mirror.trustedPersons}
-            onChange={(value) => set({ trustedPersons: value })}
-          />
-        </Box>
-        <CheckRow label="Squash into one commit" help="On by default." raw="mirror.squash" checked={mirror.squash} onChange={(squash) => set({ squash })} />
-      </Fold>
-    </FieldGroup>
-  )
-}
-
 export function RepositoryEditor(props: {
   index: number
   repository: RepositoryForm
@@ -547,7 +433,6 @@ export function RepositoryEditor(props: {
             <Text
               id={`${id}-name`}
               label="Repository"
-              raw="key"
               rule={REPOSITORY_FIELD_RULES.name}
               placeholder="owner/name"
               value={repository.name}
@@ -644,7 +529,6 @@ export function RepositoryEditor(props: {
           </FieldGroup>
         </>
       )}
-      {tab === 'mirror' && <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />}
       {tab === 'map' && (
         <FieldGroup title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
           <WorkflowMap
@@ -664,7 +548,7 @@ export function RepositoryEditor(props: {
 }
 
 // The tabs the repository editor fills.
-export const EDITOR_TABS: readonly EditTab[] = ['general', 'landing', 'github', 'mirror', 'map']
+export const EDITOR_TABS: readonly EditTab[] = ['general', 'landing', 'github', 'map']
 
 const MODE_TITLES: Record<string, string> = { local: 'Local only', 'plans-repo': 'Plans repository', 'single-repo': 'Single repository' }
 
@@ -698,11 +582,7 @@ function RepositoriesTab(props: {
   const [offer, setOffer] = useState<string | null>(null)
   const setupBlocked = props.dirty ? 'Save or discard your settings changes first: setting up writes .avoozl.json.' : null
   const openRow = open ? rows.find((row) => row.key === open.key) : undefined
-  const roleValue = (row: RepositoryRow) => (mirrorSourceOf(form, row.github) ? MIRROR_ROLE : roleOfRow(form, row))
-  const roleText = (row: RepositoryRow) => {
-    const source = mirrorSourceOf(form, row.github)
-    return source ? `Private mirror of ${source}` : roleLabel(roleOfRow(form, row))
-  }
+  const roleText = (row: RepositoryRow) => roleLabel(roleOfRow(form, row))
   // A repository leaves the list: its checkout is unregistered, or, with no
   // checkout, its GitHub settings leave the file.
   const removeRow = async (target: RepositoryRow) => {
@@ -728,9 +608,7 @@ function RepositoriesTab(props: {
     await Promise.all([reload(), props.onRegistryChanged()])
     setOffer(role.folder)
     if (role.changed && role.github) {
-      const failure = await props.onCommit((current) =>
-        withRepositoryEdit(current, { github: role.github, branch: role.branch, policy: -1 }, { entry: null, role: role.role, source: role.source }),
-      )
+      const failure = await props.onCommit((current) => withRepositoryEdit(current, { github: role.github, branch: role.branch, policy: -1 }, { entry: null, role: role.role }))
       if (failure) return setMessage({ ok: false, text: `Added ${id}, but its role was not saved. ${failure}` })
     }
     setMessage({ ok: true, text: `Added ${id}.` })
@@ -831,7 +709,6 @@ function RepositoriesTab(props: {
               rows={rows}
               roleText={roleText}
               entryOf={(row) => (row.policy >= 0 ? form.repositories[row.policy] : null)}
-              mirrorOf={(row) => mirrorSourceOf(form, row.github)}
               busy={busy}
               onView={(row) => setOpen({ kind: 'view', key: row.key })}
               onEdit={(row) => setOpen({ kind: 'edit', key: row.key })}
@@ -881,13 +758,10 @@ function RepositoriesTab(props: {
         <EditRepository
           key={openRow.key}
           row={openRow}
-          workspaceId={props.workspaceId}
-          role={roleValue(openRow)}
-          source={mirrorSourceOf(form, openRow.github)}
+          role={roleOfRow(form, openRow)}
           saved={openRow.policy >= 0 ? form.repositories[openRow.policy] : null}
           settings={(view) => settingsFor(openRow, view)}
           onSave={(edit) => props.onCommit((current) => withRepositoryEdit(current, openRow, edit))}
-          onApplied={() => void props.onRegistryChanged()}
           onClose={() => setOpen(null)}
         />
       )}

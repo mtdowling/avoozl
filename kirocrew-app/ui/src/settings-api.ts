@@ -286,77 +286,9 @@ export interface RepositoryForm {
   landingMode: string
   autoMerge: string
   mergeMethod: string
-  // The private mirror (RC24.1); blank source and mirror mean none.
-  mirror: MirrorForm
   // Settings this form does not show (checkout, folder),
   // written back unchanged.
   rest: Record<string, unknown>
-}
-
-export interface MirrorForm {
-  source: string
-  mirror: string
-  forwardTo: string
-  forward: string
-  branchPrefix: string
-  squash: boolean
-  trustedPersons: string
-  plansBranch: string
-  forwardTarget: string
-  publicBranch: string
-  forwardMaxFileBytes: string
-  forwardExclude: string
-  forwardAllow: string
-}
-
-export const emptyMirror = (): MirrorForm => ({
-  source: '',
-  mirror: '',
-  forwardTo: '',
-  forward: '',
-  branchPrefix: '',
-  squash: true,
-  trustedPersons: '',
-  plansBranch: '',
-  forwardTarget: '',
-  publicBranch: '',
-  forwardMaxFileBytes: '',
-  forwardExclude: '',
-  forwardAllow: '',
-})
-
-// What a blank mirror field means (src/app/mirror/mirror-policy.mjs MIRROR_DEFAULTS).
-export const MIRROR_FORWARD_MODES = ['off', 'nudge', 'auto'] as const
-export const MIRROR_FORWARD_TARGETS = ['each', 'branch', 'batch'] as const
-export const MIRROR_DEFAULT_TEXT = {
-  forwardMaxFileBytes: 'blank: 1000000 bytes (1 MB)',
-  forwardTarget: 'blank: each, one public pull request per merged change',
-  forward: 'blank: nudge, a Forward button you press',
-  forwardTo: 'blank: the public repository',
-  branchPrefix: 'blank: avoozl/',
-  trustedPersons: 'blank: nobody, so Auto stays off',
-  plansBranch: 'blank: avoozl-plans',
-  forwardExclude: 'blank: only the built-in exclusions (.kiro/, AGENTS.md, steering, the specs branch)',
-  forwardAllow: 'blank: nothing is allowed past the exclusions',
-}
-
-function mirrorPolicy(form: MirrorForm) {
-  if (!form.source.trim() && !form.mirror.trim()) return undefined
-  return compact({
-    source: blank(form.source),
-    mirror: blank(form.mirror),
-    forwardTo: blank(form.forwardTo),
-    forward: blank(form.forward),
-    branchPrefix: blank(form.branchPrefix),
-    squash: form.squash ? undefined : false,
-    trustedPersons: splitList(form.trustedPersons),
-    plansBranch: blank(form.plansBranch),
-    forwardTarget: blank(form.forwardTarget),
-    publicBranch: blank(form.publicBranch),
-    forwardMaxFileBytes: form.forwardMaxFileBytes.trim() ? Number(form.forwardMaxFileBytes) : undefined,
-    forwardExclude: splitList(form.forwardExclude),
-    forwardAllow: splitList(form.forwardAllow),
-  })
 }
 
 export interface SettingsForm {
@@ -395,7 +327,7 @@ function count(text: string): number | string | undefined {
   return /^\d+$/.test(trimmed) ? Number(trimmed) : trimmed
 }
 
-const SHOWN = new Set(['role', 'baseBranch', 'allowedActors', 'minimumPermission', 'requiredChecks', 'priorityLabels', 'mirror', 'conflicts', 'landing'])
+const SHOWN = new Set(['role', 'baseBranch', 'allowedActors', 'minimumPermission', 'requiredChecks', 'priorityLabels', 'conflicts', 'landing'])
 
 export function emptyRepository(name = ''): RepositoryForm {
   return {
@@ -410,7 +342,6 @@ export function emptyRepository(name = ''): RepositoryForm {
     landingMode: '',
     autoMerge: '',
     mergeMethod: '',
-    mirror: emptyMirror(),
     rest: {},
   }
 }
@@ -440,24 +371,6 @@ export function toForm(github: Policy): SettingsForm {
           return typeof on === 'boolean' ? (on ? 'on' : 'off') : on === undefined || on === null ? '' : String(on)
         })(),
         mergeMethod: str(record(entry.landing).method),
-        mirror: (() => {
-          const mirror = record(entry.mirror)
-          return {
-            source: str(mirror.source),
-            mirror: str(mirror.mirror),
-            forwardTo: str(mirror.forwardTo),
-            forward: str(mirror.forward),
-            branchPrefix: str(mirror.branchPrefix),
-            squash: mirror.squash !== false,
-            trustedPersons: joined(mirror.trustedPersons),
-            plansBranch: str(mirror.plansBranch),
-            forwardTarget: str(mirror.forwardTarget),
-            publicBranch: str(mirror.publicBranch),
-            forwardMaxFileBytes: str(mirror.forwardMaxFileBytes),
-            forwardExclude: joined(mirror.forwardExclude),
-            forwardAllow: joined(mirror.forwardAllow),
-          }
-        })(),
         rest: Object.fromEntries(Object.entries(entry).filter(([key]) => !SHOWN.has(key))),
       }
     }),
@@ -504,7 +417,6 @@ export function toPolicy(form: SettingsForm): Policy {
                 })
                 return Object.keys(landing).length ? landing : undefined
               })(),
-              mirror: mirrorPolicy(repository.mirror),
             }),
           ]),
         )
@@ -683,9 +595,9 @@ export const isGitHubMode = (mode: string) => modeKey(mode) !== 'local'
 // them (repository-roles.mjs); this file only draws them and builds the edit.
 export const ROLE_OPTIONS = [
   { value: 'local', label: 'Local only', line: "Tasks stay in this workspace's database. Nothing goes to GitHub." },
-  { value: 'code', label: 'Code repository', line: 'Pull requests land here. Its issues live in the planning repository.' },
-  { value: 'planning', label: 'Planning repository', line: 'Holds the issues, sub-issues and specs. No code pull requests land here.' },
-  { value: 'both', label: 'Code and planning', line: 'Pull requests land here, and its own issues and specs live here too.' },
+  { value: 'code', label: 'Code repository', line: 'Pull requests land here. Its specs live in the planning repository.' },
+  { value: 'planning', label: 'Planning repository', line: 'Holds the specs and their issues. No code pull requests land here.' },
+  { value: 'both', label: 'Code and planning', line: 'Pull requests land here, and its own specs live here too.' },
 ] as const
 
 export const roleLabel = (role: string) => ROLE_OPTIONS.find((option) => option.value === role)?.label ?? 'Local only'
@@ -735,53 +647,11 @@ export function withRole(form: SettingsForm, row: RoleRow & { branch: string }, 
   return { ...form, repositories, mode: modeFromRoles(repositories.map((entry) => entry.role)), planningRepository: planning }
 }
 
-// A private mirror is a role a repository can have besides the four above: it
-// is the private copy crews work in, of a public repository. It is stored as
-// the public repository's `mirror` setting (source = the public one, mirror =
-// this one), the same config the old Mirror box wrote.
-export const MIRROR_ROLE = 'mirror'
-export const MIRROR_ROLE_LABEL = 'Private mirror of a public repository'
-export const MIRROR_ROLE_LINE = 'Crews work in this private copy of a public repository. It must be private.'
-const REPOSITORY_NAME = /^[\w.-]+\/[\w.-]+$/
-
-// The public repository this one mirrors, or '' when it mirrors none.
-export function mirrorSourceOf(form: Pick<SettingsForm, 'repositories'>, github: string | null): string {
-  if (!github) return ''
-  return form.repositories.find((entry) => entry.mirror.source && entry.mirror.mirror && sameRepository(entry.mirror.mirror, github))?.mirror.source ?? ''
-}
-
-// What is wrong with the public repository's name, or null.
-export function mirrorSourceProblem(source: string, github: string | null): string | null {
-  if (!REPOSITORY_NAME.test(source.trim())) return 'Name the public repository as owner/name.'
-  if (github && sameRepository(source, github)) return 'The public repository must be a different repository.'
-  return null
-}
-
-function withoutMirror(form: SettingsForm, github: string): SettingsForm {
-  return {
-    ...form,
-    repositories: form.repositories.map((entry) => (entry.mirror.mirror && sameRepository(entry.mirror.mirror, github) ? { ...entry, mirror: emptyMirror() } : entry)),
-  }
-}
-
-// Make `github` the private mirror of `source`: the public repository's entry
-// (added when it has none) names both.
-function withMirror(form: SettingsForm, github: string, source: string): SettingsForm {
-  const cleared = withoutMirror(form, github)
-  const name = source.trim()
-  const at = cleared.repositories.findIndex((entry) => sameRepository(entry.name, name))
-  const repositories = cleared.repositories.slice()
-  if (at < 0) repositories.push({ ...emptyRepository(name), mirror: { ...emptyMirror(), source: name, mirror: github } })
-  else repositories[at] = { ...repositories[at], mirror: { ...repositories[at].mirror, source: name, mirror: github } }
-  return { ...cleared, repositories }
-}
-
 export interface RepositoryEdit {
   // New settings for the repository's own entry, if the person changed any.
   entry: RepositoryForm | null
-  // A role value, or MIRROR_ROLE with its public repository in `source`.
+  // A role value.
   role: string
-  source: string
 }
 
 // The form after one repository's Edit is saved. The row is found by its name,
@@ -795,8 +665,6 @@ export function withRepositoryEdit(form: SettingsForm, row: { github: string | n
   }
   if (!row.github) return next
   const target = { github: row.github, branch: row.branch, policy: find(next) }
-  if (edit.role === MIRROR_ROLE) return sameRepository(mirrorSourceOf(next, row.github), edit.source) ? next : withMirror(next, row.github, edit.source)
-  if (mirrorSourceOf(next, row.github)) next = withoutMirror(next, row.github)
   return edit.role === roleOfRow(next, target) ? next : withRole(next, target, edit.role)
 }
 

@@ -49,30 +49,22 @@ Retired 2026-11-18 (owner decision): tracker gates went with tracker plugins. Th
 
 ## Phase 2: Private plans on the mirror's plans branch
 
-Requirement AN2 (RC25, D30). The mirror itself (settings, sync, tracking, forward, public poll, conflicts, Create and Adopt setup) and the `plansBranch` setting with the two-home reader are merged. Forward targets (`rc-25.1` to `rc-25.3`) are merged; `rc-25.4` to `rc-25.7` are with another worker (pull request 191 and later). Start `an-2.2` after those land, because both edit the forward path.
+Retired 2026-11-19 (owner decision): Avoozl does not forward pull requests or code between repositories. The tasks keep their IDs so that references hold; nothing in them exists.
 
-- [x] an-2.1 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands (was rc-24.3) [AN2.1]
-  - $done: Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one.
-  - Built: PR #202 (was rc-24.3). `verify-issue` was removed later (#509, task 45.2).
-  - Marker writer and parser gain `ref`; approval of a private spec opens its pull request against `plansBranch`; `commit` check uses `<ref>...<commit>` and requires an orphan branch; `--json` prints the fetch and show commands; the one-line prompt is unchanged.
-  - Design: D30 of the retired product spec (private plans).
-- [x] an-2.2 Containment: sync, forward, leak scan, explicit refspecs (was rc-24.4) [AN2.2]
-  - $done: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
-  - Built: PR #202 (was rc-24.4).
-  - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
-  - Design: D30 of the retired product spec (private plans).
-- [x] an-2.3 Issues from public and private plans, with edges across homes (was rc-24.5), after an-2.1 [AN2.3]
-  - $done: A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a public task waits on a private one and the reverse, each releases on its blocker's own rule, and the public body holds no private title, text, ID or link.
+- [x] an-2.1 Retired 2026-11-19
+  - $done: Retired 2026-11-19. Nothing to do.
+  - Retired 2026-11-19: the private mirror and its plans branch are deleted; a repository names its specs branch instead (Requirement 117).
+- [x] an-2.2 Retired 2026-11-19
+  - $done: Retired 2026-11-19. Nothing to do.
+  - Retired 2026-11-19: the private mirror and its plans branch are deleted; a repository names its specs branch instead (Requirement 117).
+- [x] an-2.3 Retired 2026-11-19
+  - $done: Retired 2026-11-19. Nothing to do.
   - $after: an-2.1
-  - Built: PR #204 (was rc-24.5).
-  - Private-plan issues stay in the mirror and never go to the source; public-plan issue bodies stand alone with no private text and no `plansBranch`; both homes project into the same mirror and release under the same rules; a `requires` edge across homes is allowed both ways, and a public-safe body says only `Waits on a private task.`
-  - Design: D30 of the retired product spec (private plans).
-- [x] an-p2 Proof: a public and a private plan in one mirror, with a fake GitHub, after an-2.1, an-2.2, an-2.3 [AN2.4]
-  - $done: Expected result observed with the fake GitHub; receipt under `docs/evidence/`. The run on real scratch repositories (`rc-p24`) is an owner step.
+  - Retired 2026-11-19: the private mirror and its plans branch are deleted; a repository names its specs branch instead (Requirement 117).
+- [x] an-p2 Retired 2026-11-19
+  - $done: Retired 2026-11-19. Nothing to do.
   - $after: an-2.1, an-2.2, an-2.3
-  - Built: PR #242 (rc-p24 rerun and receipt).
-  - Setup: a fake GitHub with a public-visibility source and a private mirror. Action: one public and one private plan, active together, one public task waiting on a private one; approve both, project, run `verify-issue` on one issue of each, forward a change for each, then plant the plans branch name in a forward. Expected: both plans in one graph; the cross edge holds and releases; the public issue says only that it waits on a private task; both verify; the planted forward is blocked.
-  - Design: D30 of the retired product spec (private plans).
+  - Retired 2026-11-19: the private mirror and its plans branch are deleted; a repository names its specs branch instead (Requirement 117).
 
 ## Phase 3: Crews on public repositories
 

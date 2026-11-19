@@ -25,7 +25,6 @@ import {
 } from "../specs/design-extraction.mjs";
 import { epicsView } from "../epics/epics-view.mjs";
 import { crossPlanEpics, epicOfPlan } from "../epics/epics.mjs";
-import { planningIdentity } from "../github/github-marker.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { requestNewPlan } from "../specs/new-plan.mjs";
 import { epicView, ownership, plansTableView } from "../api/page-views.mjs";
@@ -66,7 +65,6 @@ import {
   savePlan,
 } from "../specs/plans.mjs";
 import { pickTemplate } from "../plugins/plugins.mjs";
-import { releaseQueue } from "../mirror/release-queue.mjs";
 import { recordFindingDecision } from "../reviews/review-findings.mjs";
 import { specLinks } from "../tasks/scm-links.mjs";
 import { approvalEvidence } from "../specs/spec-approval.mjs";
@@ -211,11 +209,9 @@ export const entries = [
     github: "check-in",
     policy: routed,
     handler({}) {
-      const store = this.store;
-      return epicsView(
-        store,
-        releaseQueue(store, planningIdentity(this.workspaceRoot)),
-      );
+      // shortcut: the Release queue holds no rows since labels stopped
+      // releasing work (TA11.1); drop the parameter with the queue card.
+      return epicsView(this.store, { repositories: [] });
     },
   },
   // An external gap report becomes proposed tasks in the sub-specs; nothing is

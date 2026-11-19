@@ -35,7 +35,6 @@ export function askLine(item: ConflictItem): string {
       return 'Choose who drives this work: start it here, or wait for its pull request.'
     case 'needs-human':
       if (item.reason === 'blocked') return 'Unblock the task, or leave it blocked.'
-      if (item.reason === 'forward') return 'Read the exact public diff, then forward it or not.'
       if (item.reason === 'crew-mode') return "Choose Let the tick run it. Avoozl then starts this workspace's ready tasks; until then it starts none."
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
       if (item.reason === 'disk') return 'Free space on that volume. The work resumes by itself on the next tick.'

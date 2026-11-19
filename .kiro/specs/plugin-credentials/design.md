@@ -261,9 +261,7 @@ Rules the table follows:
   grant prefix (V: `grantBranch` in `src/app/workers/worker-grants.mjs`)
   and that its head on GitHub is the commit Avoozl's journal says it
   pushed there; any other branch is refused and needs `branch-delete`.
-- Mirror modules and `instance-publish` have no row: `spec/drop-mirror`
-  deletes them, and spec take over goes with the approval cut-down
-  (handing off is reassigning the spec issue, which is `spec-issues`).
+- Handing a spec off is reassigning its issue, which is `spec-issues`.
 
 **Binding a job.** `withJob(job, fn)` runs `fn` with the job in an
 `AsyncLocalStorage`, as `withSource` does for call sources (V:
@@ -410,17 +408,11 @@ search for `push`, `fetch`, `ls-remote` and `clone` arguments):
 | `spec-ticks.mjs` (:183, :213, :237) | `origin` | Same |
 | `workspace-repository.mjs` (:250, :330), `remote-runner.mjs` (:409, :550) | the configured remote | Same |
 | `plan-review-worktrees.mjs` (:79, :88) | `origin` | Same |
-| `mirror-setup.mjs` `pushMirror` (:38-56) | `https://github.com/...` | Same (deleted by `spec/drop-mirror`) |
-| `repo-files.mjs` (:76-89) | `github.gitRemote` (https) | The API token as `http.<origin>.extraheader`, through `GIT_CONFIG_*` environment variables |
-| `mirror-forward-git.mjs` (:34-42, :67-205) | URL | Helpers cleared; the person's own `gh` token as `http.extraheader` in the arguments (deleted by `spec/drop-mirror`) |
-| `mirror-sync.mjs` `gitCopy` (:85-112) | `https://github.com/...` | Helpers cleared, then `credential.helper=!gh auth git-credential`: gh's helper, set by Avoozl (deleted by `spec/drop-mirror`) |
 | `plugin-git.mjs` | plugin source | The person's own git, by design (R34.13) |
 
-So Avoozl relies on gh's credential helper explicitly in one place
-(`mirror-sync`, which `spec/drop-mirror` deletes). Everywhere else it relies on whatever the person's git
-config does for that URL: often gh's helper after `gh auth setup-git`, an
-OS keychain, or an SSH key (A: depends on each machine). Two places put a
-token where git hooks and same-user process listings can read it.
+So Avoozl relies on whatever the person's git config does for that URL:
+often gh's helper after `gh auth setup-git`, an OS keychain, or an SSH key
+(A: depends on each machine).
 
 ### After
 
@@ -443,9 +435,8 @@ quoted form (V: used by `src/app/delivery/delivery.mjs`), so `avoozl` need
 not be on `PATH`. The `insteadOf` rewrites keep `origin` by name, so
 remote-tracking refs still update.
 
-Every row of the table above but `plugin-git.mjs` and the mirror rows
-(gone with `spec/drop-mirror`) calls `remoteGit`. `repo-files.mjs` loses
-its own token handling. A test scans `src/app` for a `git` call whose
+Every row of the table above but `plugin-git.mjs` calls `remoteGit`. A
+test scans `src/app` for a `git` call whose
 arguments hold `push`, `fetch`, `ls-remote` or `clone` outside `remoteGit`
 and `plugin-git.mjs` (PC6.1).
 
@@ -622,10 +613,7 @@ The owner settled the questions the first draft left open (2026-11-19):
 5. **`own-branch-delete` is `low`**, limited to branches under Avoozl's
    grant prefix at a commit it pushed; every other delete stays `high`
    (PC13.1, D6, D7).
-6. **No mirror or instance-publish jobs.** `spec/drop-mirror` deletes those
-   modules, and the approval cut-down deletes spec take over, so neither
-   has a row in D6 or D12.
-7. **`owners` now.** A plugin may list the owners it serves; every other
+6. **`owners` now.** A plugin may list the owners it serves; every other
    owner on the host uses `env` or `gh`. No-fallback holds per owner: an
    owner the plugin claims never falls back to `gh` (PC1.2, PC2.1, PC7.2,
    D3).

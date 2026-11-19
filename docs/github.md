@@ -51,10 +51,9 @@ take a role other than `local`.
 | `planning` | The repository itself | None | Yes |
 | `both` | The repository itself | The repository | Yes |
 
-**Edit** and **Add repository** also offer **Private mirror of a public
-repository**, a private copy the work happens in. A mirror keeps its private
-specs on an orphan plans branch, and approval pull requests target that
-branch.
+The planning repository's specs may live on a branch other than its base
+branch, such as `avoozl-plans`. Name it with `specs.branch`; see
+[The specs branch](avoozl-specs.md#the-specs-branch).
 
 ## GitHub modes
 

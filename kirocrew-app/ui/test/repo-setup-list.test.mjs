@@ -1,9 +1,9 @@
 // Settings > Repository setup as a compact list: View, Edit and Remove per
-// row, and a private mirror as a role of a repository.
+// row.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { MIRROR_ROLE, emptyMirror, emptyRepository, mirrorSourceOf, mirrorSourceProblem, toForm, toPolicy, withRepositoryEdit } from '../src/settings-api.ts'
+import { toForm, withRepositoryEdit } from '../src/settings-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const base = () =>
@@ -45,36 +45,11 @@ test('View is a read-only dialog; Edit has role, Save and Cancel in the shared m
   assert.match(edit, /Save/)
 })
 
-test('a private mirror role writes the config the old Mirror box wrote', () => {
-  const next = withRepositoryEdit(base(), row('o/pub-private'), { entry: null, role: MIRROR_ROLE, source: 'o/pub' })
-  const policy = toPolicy(next)
-  assert.deepEqual({ source: policy.repositories['o/pub'].mirror.source, mirror: policy.repositories['o/pub'].mirror.mirror }, { source: 'o/pub', mirror: 'o/pub-private' })
-  // The old box typed the same two names into the public repository's entry.
-  const old = base()
-  old.repositories[0].mirror = { ...emptyMirror(), source: 'o/pub', mirror: 'o/pub-private' }
-  assert.deepEqual(toPolicy(next), toPolicy(old))
-  assert.equal(mirrorSourceOf(next, 'o/pub-private'), 'o/pub')
-})
-
-test('changing a mirror to another role clears its mirror setting', () => {
-  const mirrored = withRepositoryEdit(base(), row('o/pub-private'), { entry: null, role: MIRROR_ROLE, source: 'o/pub' })
-  const back = withRepositoryEdit(mirrored, row('o/pub-private'), { entry: null, role: 'code', source: '' })
-  assert.equal(mirrorSourceOf(back, 'o/pub-private'), '')
-  assert.equal(toPolicy(back).repositories['o/pub'].mirror, undefined)
-})
-
-test('a mirror needs an owner/name public repository that is another repository', () => {
-  assert.match(mirrorSourceProblem('pub', 'o/m'), /owner\/name/)
-  assert.match(mirrorSourceProblem('o/m', 'o/m'), /different/)
-  assert.equal(mirrorSourceProblem('o/pub', 'o/m'), null)
-})
-
 test('an edited entry replaces the saved one by name, and a role change keeps it', () => {
   const form = base()
   const edited = { ...form.repositories[0], baseBranch: 'trunk' }
-  const next = withRepositoryEdit(form, { github: 'o/pub', branch: 'main', policy: 7 }, { entry: edited, role: 'both', source: '' })
+  const next = withRepositoryEdit(form, { github: 'o/pub', branch: 'main', policy: 7 }, { entry: edited, role: 'both' })
   const entry = next.repositories.find((e) => e.name === 'o/pub')
   assert.equal(entry.baseBranch, 'trunk')
   assert.equal(entry.role, 'both')
-  assert.deepEqual(emptyRepository('x').mirror, emptyMirror())
 })

@@ -7,18 +7,16 @@ export const EDIT_TABS = [
   { key: 'general', label: 'General' },
   { key: 'landing', label: 'Landing' },
   { key: 'github', label: 'GitHub' },
-  { key: 'mirror', label: 'Mirror' },
   { key: 'map', label: 'Workflow map' },
 ] as const
 export type EditTab = (typeof EDIT_TABS)[number]['key']
 
-// The entry fields each tab edits. Role is on General and the public
-// repository on Mirror; both are kept apart from the entry.
+// The entry fields each tab edits. Role is on General, kept apart from the
+// entry.
 export const EDIT_TAB_FIELDS: Record<EditTab, readonly (keyof RepositoryForm)[]> = {
   general: ['name'],
   landing: ['baseBranch', 'landingMode', 'autoMerge', 'mergeMethod', 'maxAttempts', 'requiredChecks'],
   github: ['minimumPermission', 'allowedActors', 'priority'],
-  mirror: ['mirror'],
   map: [],
 }
 
@@ -30,13 +28,11 @@ export interface EditState {
   // The edited entry, or null while untouched.
   entry: RepositoryForm | null
   roleChanged: boolean
-  sourceChanged: boolean
 }
 
 export function dirtyTabs(state: EditState): Set<EditTab> {
   const dirty = new Set<EditTab>()
   if (state.roleChanged) dirty.add('general')
-  if (state.sourceChanged) dirty.add('mirror')
   const { entry, saved } = state
   if (!entry) return dirty
   for (const tab of EDIT_TABS) if (EDIT_TAB_FIELDS[tab.key].some((field) => !saved || !same(entry[field], saved[field]))) dirty.add(tab.key)
@@ -44,9 +40,8 @@ export function dirtyTabs(state: EditState): Set<EditTab> {
 }
 
 // A tab with a problem that blocks Save or a required field left blank.
-export function errorTabs(entry: RepositoryForm | null, mirrorProblem: string | null): Set<EditTab> {
+export function errorTabs(entry: RepositoryForm | null): Set<EditTab> {
   const errors = new Set<EditTab>()
-  if (mirrorProblem) errors.add('mirror')
   if (entry && !entry.name.trim()) errors.add('general')
   if (entry && !entry.baseBranch.trim()) errors.add('landing')
   return errors

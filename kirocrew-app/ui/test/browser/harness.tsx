@@ -40,8 +40,6 @@ import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
-import { ForwardScreen } from '../../src/ForwardScreen.tsx'
-import forwardLive from './forward-live-replies.json'
 import { AutoMergeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
@@ -766,7 +764,7 @@ if (query.get('page') === 'app') {
           : {
               role: 'code',
               source: '',
-              reasons: ["acme/plans is this workspace's planning repository, so its issues live there.", 'It has code (package.json).'],
+              reasons: ["acme/plans is this workspace's planning repository, so its specs live there.", 'It has code (package.json).'],
               upstream: null,
               code: 'package.json',
               specs: 0,
@@ -2654,18 +2652,6 @@ function NeedsPage() {
     </>
   )
 }
-// ?page=forward[&state=ok|blocked|stopped]: the Forward screen on replies the
-// real operations gave in the live scratch run (forward-live-replies.json).
-if (page === 'forward') {
-  const state = query.get('state') ?? 'ok'
-  answer('mirror.forward.review', () =>
-    state === 'blocked'
-      ? { ok: false, blocked: true, reason: forwardLive.blockedReason }
-      : state === 'stopped'
-        ? { ok: false, stopped: forwardLive.stopped, review: forwardLive.review }
-        : { ok: true, ready: true, review: forwardLive.review },
-  )
-}
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
 // &plugins=many|none: Settings > Plugins with eight plugins, or none.
@@ -2689,10 +2675,7 @@ if (query.get('rules')) {
     error: null,
     configHash: 'h1',
     mode: 'single-repo',
-    builtins: [
-      { id: 'secrets', appliesAt: 'Every write' },
-      { id: 'private-paths', appliesAt: 'Mirror pushes' },
-    ],
+    builtins: [{ id: 'secrets', appliesAt: 'Every write' }],
     choices: { repositories: ['recipe-box'], plugins: [] },
     sets,
   }))
@@ -2852,15 +2835,6 @@ class HarnessBoundary extends Component<{ children: ReactNode }, { error: string
     return this.state.error ? <pre data-harness-crash>{this.state.error}</pre> : this.props.children
   }
 }
-function ForwardPage() {
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <ForwardScreen workspaceId="w" forwardId="live" title="Forward mirror pull request #7" onClose={() => {}} />
-      </HarnessBoundary>
-    </div>
-  )
-}
 // ?page=crews-rules: the Landing tab's fields on one repository form.
 function CrewsRulesPage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('example/code'))
@@ -2948,8 +2922,6 @@ createRoot(document.getElementById('root')!).render(
     <WorkflowMapPage />
   ) : page === 'crews-rules' ? (
     <CrewsRulesPage />
-  ) : page === 'forward' ? (
-    <ForwardPage />
   ) : intake ? (
     <IntakePage />
   ) : page === 'home' ? (

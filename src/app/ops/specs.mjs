@@ -10,19 +10,8 @@ import {
   updateMachineSettings,
 } from "../workers/driver.mjs";
 import { planningIdentity } from "../github/github-marker.mjs";
-import {
-  actorAllowed,
-  readGitHubPolicyOrNull,
-} from "../github/github-policy.mjs";
-import { parseRepository } from "../github/github.mjs";
-import { instanceIdentity } from "../workspace/instance.mjs";
+import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
-import { forwardRecord } from "../mirror/mirror-forward-run.mjs";
-import {
-  mirrorEntryKey,
-  mirrorGit,
-  mirrorSetup,
-} from "../mirror/mirror-setup.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import { repositorySetup } from "../workspace/repository-setup.mjs";
 import { publishSpec } from "../specs/spec-publication.mjs";
@@ -61,87 +50,6 @@ function driverTakeoverHandler({ name, input }) {
         notify: (notices) => queueNotifications(store, notices),
       });
 }
-// An epic's integration branch (RC16.1): exists, not the default,
-// protected. Read only; refuses a branch that is not ready.
-// The mirror setup buttons (RC27): a dry run, or a confirmed apply with
-// {confirm, previewHash, ticked}. `this.mirrorGit` is a test seam.
-function mirrorAdoptHandler({ name, input }) {
-  if (!input.repository) fail("Name the mirror repository.", 400);
-  if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-  const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-    key = mirrorEntryKey(policy?.repositories, input);
-  return mirrorSetup(
-    name === "mirror.adopt" ? "adopt" : "create",
-    {
-      github: this.github,
-      entry: policy?.repositories?.[key] ?? null,
-      git: this.mirrorGit ?? mirrorGit,
-      identity: instanceIdentity(this.store),
-      saveSetting: (_mirror, value, baseBranch) => {
-        const file = this.settingsFile(),
-          current = file.readGitHubSettings(),
-          github = structuredClone(current.github),
-          entry = github.repositories?.[key] ?? { baseBranch };
-        github.repositories = {
-          ...github.repositories,
-          [key]: { ...entry, mirror: value },
-        };
-        file.updateGitHubSettings({ github, expectedHash: current.hash });
-        this.configuration?.reload();
-      },
-      saveMergeMethod: (method) => {
-        const file = this.settingsFile(),
-          current = file.readGitHubSettings(),
-          github = structuredClone(current.github),
-          entry = github.repositories?.[key] ?? {};
-        // The landing block holds the method (§4.25).
-        github.repositories = {
-          ...github.repositories,
-          [key]: {
-            ...entry,
-            landing: { ...(entry.landing ?? {}), method },
-          },
-        };
-        file.updateGitHubSettings({ github, expectedHash: current.hash });
-        this.configuration?.reload();
-      },
-    },
-    input,
-  );
-}
-// Forward one merged mirror change (RC24.9): the Forward button. The
-// person is the signed-in GitHub user, who must pass the actor check.
-async function mirrorForwardHandler({ name, input }) {
-  if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-  const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-    record = this.store.get("mirror_forward", String(input.id ?? "")),
-    entry = record && policy?.repositories?.[record.repository];
-  if (!entry?.mirror) fail("That mirror change is not known.", 404);
-  const person = (await this.github.currentUser())?.login;
-  if (!person) fail("Sign in to GitHub first.", 401);
-  const held = await this.github.permission(
-      parseRepository(entry.mirror.source),
-      person,
-    ),
-    check = actorAllowed(entry, person, held?.permission ?? held);
-  if (!check.allowed) fail(check.reason, 403);
-  // The Forward screen's read shows the exact public diff, title and body
-  // and pushes nothing; the Forward button pushes only the hash it saw.
-  const look = name === "mirror.forward.review",
-    result = await forwardRecord(this.store, this.github, record.id, {
-      policy,
-      person,
-      push: !look,
-      review: true,
-      seenHash: input.seenHash ?? null,
-      files: this.repoFiles(),
-      ...(this.forwardGit ? { git: this.forwardGit } : {}),
-    });
-  if (!result.ok && !result.blocked && !result.changed)
-    fail(result.reason, 409);
-  return result;
-}
-
 async function specprAdoptHandler({ name, input, context }) {
   const store = this.store;
 
@@ -416,38 +324,6 @@ export const entries = [
     github: "spec-issues",
     policy: person("Only a person takes over a spec's driver by force."),
     handler: driverTakeoverHandler,
-  },
-  {
-    name: "mirror.adopt",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person applies mirror setup.", (input) =>
-      Boolean(input?.confirm),
-    ),
-    handler: mirrorAdoptHandler,
-  },
-  {
-    name: "mirror.create",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person applies mirror setup.", (input) =>
-      Boolean(input?.confirm),
-    ),
-    handler: mirrorAdoptHandler,
-  },
-  {
-    name: "mirror.forward",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person forwards a change to the public repository."),
-    handler: mirrorForwardHandler,
-  },
-  {
-    name: "mirror.forward.review",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person reviews a change before it is forwarded."),
-    handler: mirrorForwardHandler,
   },
   // Spec pull requests (R107): the view reads the store only.
   {

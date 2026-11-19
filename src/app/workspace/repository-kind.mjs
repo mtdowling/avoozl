@@ -1,13 +1,8 @@
 // What kind of repository a folder looks like, for Add repository (R105):
-// Local only, Code repository, Planning repository, Code and planning, or a
-// private mirror of a public repository. It is a guess from the folder, its
-// remotes, GitHub's visibility and the roles the workspace already has, for
-// the person to confirm or change. Read only.
-import {
-  git,
-  detectCheckout,
-  githubRepositoryFromRemote,
-} from "../git/git.mjs";
+// Local only, Code repository, Planning repository, or Code and planning. It
+// is a guess from the folder, its remote and the roles the workspace already
+// has, for the person to confirm or change. Read only.
+import { git, detectCheckout } from "../git/git.mjs";
 import { listSpecFolders } from "../specs/spec-plans.mjs";
 import { specsPath } from "../specs/specs-path.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
@@ -17,7 +12,6 @@ export const KIND_LABELS = Object.freeze({
   code: "Code repository",
   planning: "Planning repository",
   both: "Code and planning",
-  mirror: "Private mirror",
 });
 
 // Files that mean a folder builds or runs something.
@@ -49,30 +43,13 @@ export function codeEvidence(files) {
   );
 }
 
-// What the folder itself says: its upstream (a GitHub remote besides origin
-// that names another repository, `upstream` first), the file that shows it
-// has code, and its spec folders.
-export async function folderFacts(root, github) {
-  const quiet = (args) => git(root, args).catch(() => null);
-  const remotes = ((await quiet(["remote"])) || "")
-    .split("\n")
-    .filter((name) => name && name !== "origin")
-    .sort((a, b) => (b === "upstream") - (a === "upstream"));
-  let upstream = null;
-  for (const remote of remotes) {
-    const repository = githubRepositoryFromRemote(
-      await quiet(["remote", "get-url", remote]),
-    );
-    if (repository && !same(repository, github)) {
-      upstream = { remote, github: repository };
-      break;
-    }
-  }
-  const listed = await quiet(["ls-files", "-z"]),
+// What the folder itself says: the file that shows it has code, and its
+// spec folders.
+export async function folderFacts(root) {
+  const listed = await git(root, ["ls-files", "-z"]).catch(() => null),
     // Files in the specs folder are specs, wherever specs.path puts it.
     specsRoot = `${specsPath(root)}/`;
   return {
-    upstream,
     code: codeEvidence(
       listed === null
         ? null
@@ -128,20 +105,13 @@ function workspaceRoles(settings, checkouts, github) {
     });
   const own = github ? roles.get(github.toLowerCase()) : undefined;
   if (github) roles.delete(github.toLowerCase());
-  const mirror = Object.values(entries).find(
-    (entry) =>
-      record(entry?.mirror) &&
-      entry.mirror.source &&
-      same(entry.mirror.mirror, github),
-  );
   return {
     own: own && Object.hasOwn(entries, own.name) ? own.role : null,
-    mirrorOf: mirror ? mirror.mirror.source : null,
     others: [...roles.values()],
   };
 }
 
-const guess = (role, reasons, source = "") => ({ role, source, reasons });
+const guess = (role, reasons) => ({ role, reasons });
 
 // The guess itself, from the facts above. Pure, so each rule is tested alone.
 export function guessKind({
@@ -149,9 +119,7 @@ export function guessKind({
   remote,
   name = "",
   facts,
-  visibility = null,
-  upstreamVisibility = null,
-  workspace = { own: null, mirrorOf: null, others: [] },
+  workspace = { own: null, others: [] },
 }) {
   if (!github)
     return guess("local", [
@@ -159,30 +127,11 @@ export function guessKind({
         ? `Its ${remote} remote is not on GitHub.`
         : "It has no GitHub remote.",
     ]);
-  if (workspace.mirrorOf)
-    return guess(
-      "mirror",
-      [
-        `.avoozl.json already names it the private mirror of ${workspace.mirrorOf}.`,
-      ],
-      workspace.mirrorOf,
-    );
   if (workspace.own)
     return guess(workspace.own, [
       `.avoozl.json already gives ${github} the role ${KIND_LABELS[workspace.own] ?? workspace.own}.`,
     ]);
-  const { upstream, code, specs } = facts;
-  if (upstream && visibility !== "public" && upstreamVisibility !== "private")
-    return guess(
-      "mirror",
-      [
-        `Its ${upstream.remote} remote is ${upstream.github}, another GitHub repository.`,
-        visibility === "private"
-          ? `${github} is private.`
-          : `GitHub could not be read to check that ${github} is private.`,
-      ],
-      upstream.github,
-    );
+  const { code, specs } = facts;
   const has = code
     ? `It has code (${code}).`
     : specs
@@ -198,12 +147,12 @@ export function guessKind({
     ]);
   if (planning)
     return guess("code", [
-      `${planning.name} is this workspace's planning repository, so its issues live there.`,
+      `${planning.name} is this workspace's planning repository, so its specs live there.`,
       has,
     ]);
   if (both)
     return guess("both", [
-      `${both.name} holds its own issues and specs, so this one does too.`,
+      `${both.name} holds its own specs, so this one does too.`,
       has,
     ]);
   if (others.some((entry) => entry.role === "code"))
@@ -230,13 +179,10 @@ export function guessKind({
 // the kind of repository it looks like.
 export async function detectRepository({ store, github, settings, folder }) {
   const found = await detectCheckout(folder);
-  const facts = await folderFacts(found.root, found.github);
-  const [visibility, upstreamVisibility] = found.github
-    ? await Promise.all([
-        visibilityOf(github, found.github),
-        visibilityOf(github, facts.upstream?.github),
-      ])
-    : [null, null];
+  const facts = await folderFacts(found.root);
+  const visibility = found.github
+    ? await visibilityOf(github, found.github)
+    : null;
   let section = null;
   try {
     section = settings?.() ?? null;
@@ -251,8 +197,6 @@ export async function detectRepository({ store, github, settings, folder }) {
     remote: found.remote,
     name: found.github?.split("/")[1] ?? found.id ?? "",
     facts,
-    visibility,
-    upstreamVisibility,
     workspace: workspaceRoles(section, checkouts, found.github),
   });
   return { ...found, kind: { ...kind, ...facts, visibility } };

@@ -97,18 +97,6 @@ import {
   withChatModels,
 } from "../settings/chat-models.mjs";
 import { syncStep, syncTargets } from "../epics/integration-sync.mjs";
-import { mirrorSyncStep } from "../mirror/mirror-sync.mjs";
-import { publishInstanceStep } from "../workspace/instance-publish.mjs";
-import { mirrorForwardStep } from "../mirror/mirror-forward.mjs";
-import { mirrorForwardRunStep } from "../mirror/mirror-forward-run.mjs";
-import { RepoFiles } from "../git/repo-files.mjs";
-import { mirrorForwardAuditStep } from "../mirror/forward-audit.mjs";
-import { publicBranchesOf } from "../mirror/forward-epics.mjs";
-import {
-  mirrorBatchStep,
-  publicBranchStep,
-} from "../mirror/mirror-forward-batch.mjs";
-import { mirrorPublicPollStep } from "../mirror/mirror-forward-poll.mjs";
 import { headStep } from "../epics/integration-head.mjs";
 import { recordHealth } from "../plugins/plugin-session.mjs";
 import { repositoryPlugins } from "../plugins/plugins.mjs";
@@ -717,76 +705,6 @@ async function runTick(
         // Dependents are released by readiness below, in this same tick.
         completeParents(store);
       }
-      // The private mirror follows its source before anything is projected
-      // (RC24.4): fast-forward only, one row for a divergence.
-      if (script && github)
-        try {
-          const policy = readGitHubPolicyOrNull(workspaceRoot),
-            publicBranches = (repository, mirror) =>
-              publicBranchesOf(store, policy, repository, mirror),
-            step = await mirrorSyncStep(store, github, {
-              policy,
-              publicBranches,
-            });
-          planned.notify.push(...step.notify);
-          for (const text of [
-            ...step.errors,
-            ...(await publishInstanceStep(store, github, { policy })).errors,
-            ...(
-              await under("forward", "check-in", mirrorForwardStep)(
-                store,
-                github,
-                {
-                  policy,
-                  publicBranches,
-                },
-              )
-            ).errors,
-            ...(await mirrorBatchStep(store, github, { policy })).errors,
-            ...(
-              await under("forward", "check-in", mirrorForwardRunStep)(
-                store,
-                github,
-                {
-                  policy,
-                  files: new RepoFiles({
-                    github,
-                    root: workspaceRoot
-                      ? path.join(
-                          workspaceRoot,
-                          ".avoozl",
-                          "local",
-                          "git-cache",
-                        )
-                      : null,
-                  }),
-                },
-              )
-            ).errors,
-            ...(
-              await under("forward", "check-in", mirrorPublicPollStep)(
-                store,
-                github,
-                {
-                  policy,
-                },
-              )
-            ).errors,
-            ...(await mirrorForwardAuditStep(store, github, { policy })).errors,
-            ...(await publicBranchStep(store, github, { policy })).errors,
-          ])
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not sync a mirror",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not sync a mirror",
-            text: error.message,
-          });
-        }
       // Main into each epic's integration branch (RC16.6): one merge commit
       // per schedule, from the machine that holds the repository.
       if (script && github)

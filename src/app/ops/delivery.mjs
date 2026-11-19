@@ -5,7 +5,6 @@ import {
   retryDelivery,
 } from "../delivery/delivery.mjs";
 import { integrateRun } from "../git/git.mjs";
-import { planningIdentity } from "../github/github-marker.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import {
   checkIntegrationBranch,
@@ -27,7 +26,6 @@ import {
   switchPreview,
   updateProviders,
 } from "../flow/provider-health.mjs";
-import { releaseQueue } from "../mirror/release-queue.mjs";
 import {
   acceptWork,
   pullWork,
@@ -390,16 +388,15 @@ export const entries = [
       });
     },
   },
-  // The Release queue: mirror forwards merged in a private mirror and not
-  // yet public. Read only.
+  // The Release queue: empty since labels stopped releasing work (TA11.1).
+  // shortcut: a Radar leftover; delete it with the Release queue card.
   {
     name: "radar.releasequeue",
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
-      const store = this.store;
-      return releaseQueue(store, planningIdentity(this.workspaceRoot));
+    handler() {
+      return { repositories: [] };
     },
   },
 

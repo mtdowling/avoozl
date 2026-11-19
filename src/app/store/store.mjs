@@ -116,7 +116,6 @@ const BODY_TABLES = new Set([
   "task_deliveries",
   "github_linked_branches",
   "app_notifications",
-  "mirror_forward",
   "plugin_health",
   "content_decisions",
   "content_allowances",
@@ -290,7 +289,6 @@ export class Store {
    CREATE TABLE IF NOT EXISTS task_deliveries(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_linked_branches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS app_notifications(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS mirror_forward(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS plugin_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS content_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS content_allowances(id TEXT PRIMARY KEY,body TEXT NOT NULL);
