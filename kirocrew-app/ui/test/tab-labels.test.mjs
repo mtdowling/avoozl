@@ -42,12 +42,16 @@ const READ = `(() => {
   }))
 })()`
 
-for (const [width, height] of [[390, 800], [1280, 800]])
+for (const [width, height] of [
+  [390, 800],
+  [1280, 800],
+])
   for (const dark of [false, true])
     test(`every tab shows a readable label when inactive at ${width} px ${dark ? 'dark' : 'light'}`, { skip }, async () => {
       await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light' }), { width, height, dark })
       // A phone shows the tabs as the top rail's list, once the bar is open.
-      const openRail = () => page.evaluate(`(() => { const bar = document.querySelector('[data-top-rail-bar]'); if (bar && bar.getAttribute('aria-expanded') !== 'true') bar.click(); return true })()`)
+      const openRail = () =>
+        page.evaluate(`(() => { const bar = document.querySelector('[data-top-rail-bar]'); if (bar && bar.getAttribute('aria-expanded') !== 'true') bar.click(); return true })()`)
       await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head], [data-top-rail-bar]'))`)
       await openRail()
       await settle()

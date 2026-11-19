@@ -104,7 +104,6 @@ answer('graph.view', () => ({
   ],
 }))
 
-
 // Project to GitHub and Spec changed: sample replies. Every call is recorded
 // in __harness.calls so a test can see what was written and when.
 const write = (kind: string, taskId: string | null, extra = {}) => ({ kind, repository: 'example/recipe-box', taskId, issue: null, ...extra })
@@ -113,13 +112,20 @@ answer('plan.issues.preview', (body) => {
   const batched = ((body.input as { batches?: string[][] }).batches ?? []).length > 0
   const ids = ['S1', 'S2', 'S3', 'S7', 'S8']
   return {
-    planId: 'search-v2', planHash: 'h', conflicts: [], notes: ['Project fields: Release "search-v2", Wave 1 to 3.'], previewOnly: [], project: { status: 'ok' },
+    planId: 'search-v2',
+    planHash: 'h',
+    conflicts: [],
+    notes: ['Project fields: Release "search-v2", Wave 1 to 3.'],
+    previewOnly: [],
+    project: { status: 'ok' },
     simulated: false,
     // 927 issues, their sub-issue and blocked-by links, at the default pace.
     pace: { writes: 1813, perMinute: 60, perHour: 400, finishAt: '2026-11-15T14:04:00.000Z', minutes: 244 },
     suggestedBatches: [['S1', 'S2', 'S3']],
     writes: [
-      ...ids.filter((id) => !(batched && ['S2', 'S3'].includes(id))).map((id) => write('issue.create', id, { title: `Task ${id}: a title long enough to wrap on a narrow screen` })),
+      ...ids
+        .filter((id) => !(batched && ['S2', 'S3'].includes(id)))
+        .map((id) => write('issue.create', id, { title: `Task ${id}: a title long enough to wrap on a narrow screen` })),
       write('blocker.add', 'S8', { blockerTaskId: 'S7' }),
       ...ids.map((id) => write('project.add', id)),
       write('label.add', 'S1', { labels: ['ready'] }),
@@ -130,11 +136,23 @@ answer('github.project', (body) => {
   state.calls.push(body)
   return { projected: ['search-v2'] }
 })
-const changeRow = (taskId: string, title: string, change: string, issueState: string, action: string, text: string, number: number | null) => ({ taskId, title, change, issueState, action, text, number, repository: 'example/recipe-box' })
+const changeRow = (taskId: string, title: string, change: string, issueState: string, action: string, text: string, number: number | null) => ({
+  taskId,
+  title,
+  change,
+  issueState,
+  action,
+  text,
+  number,
+  repository: 'example/recipe-box',
+})
 answer('spec.changed.preview', (body) => {
   state.calls.push(body)
   return {
-    planId: 'search-v2', hash: 'h2', approved: query.get('approved') !== '0', applied: null,
+    planId: 'search-v2',
+    hash: 'h2',
+    approved: query.get('approved') !== '0',
+    applied: null,
     rows: [
       changeRow('S8', 'Ranking: acceptance edited', 'edited', 'unclaimed', 'update', 'Update the issue body and the approval hash.', 54),
       changeRow('S5', 'Index builder: new step', 'edited', 'claimed', 'comment', 'Do not edit. Comment that the spec changed.', 52),
@@ -149,14 +167,31 @@ answer('spec.changed.apply', (body) => {
 })
 const projections = projectionClient(useAppApi() as never)
 
-const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
+const row = {
+  key: 'p1',
+  kind: 'spec',
+  name: 'Modal plan',
+  spec: 'modal-plan',
+  folder: '.kiro/specs/modal-plan',
+  planId: 'modal-plan',
+  type: 'feature',
+  category: null,
+  categoryProblem: null,
+  errors: 0,
+  status: 'approved',
+  tasks: { total: 3, done: 1 },
+  now: { ready: 1, running: 0, needsYou: 0 },
+  epics: 1,
+  lastChange: null,
+}
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
 // A manual task waiting for a person, with links (R61).
 // The AI summary (?summary=none|working|ready|failed): what task.detail
 // carries, and what task.summary.request answers. A request for a summary that
 // is not written yet answers working, then ready on the next one.
-const SUMMARY_TEXT = 'Team review is the last gate before cutover. It is waiting on you: the protocol tests passed, and nothing else blocks it. Cutover starts once you mark it done.'
+const SUMMARY_TEXT =
+  'Team review is the last gate before cutover. It is waiting on you: the protocol tests passed, and nothing else blocks it. Cutover starts once you mark it done.'
 const summaryAt = (name: string) => ({ state: name, text: name === 'ready' ? SUMMARY_TEXT : null, hash: 'h1' })
 let summaryAsks = 0
 answer('task.summary.request', (body) => {
@@ -170,23 +205,48 @@ const SPEC_LINES = Array.from({ length: 40 }, (_, i) => `Spec line ${i + 1}`)
 answer('document.get', () => ({ id: '.kiro/specs/team/tasks.md', title: 'tasks.md', text: SPEC_LINES.join('\n') }))
 const baseDetail = () => ({
   origin: {
-    kind: 'spec', label: 'Spec task', text: 'From .kiro/specs/team/tasks.md, lines 20–21.', spec: null, plan: null,
+    kind: 'spec',
+    label: 'Spec task',
+    text: 'From .kiro/specs/team/tasks.md, lines 20–21.',
+    spec: null,
+    plan: null,
     sources: [{ document: '.kiro/specs/team/tasks.md', title: null, lineStart: 20, lineEnd: 21, checked: null, readable: true }],
   },
   summary: summaryAt(query.get('summary') ?? 'none'),
   revision: 1,
   task: {
-    id: 'team-review', title: 'Review with team', summary: 'The team reviews the results before cutover.',
-    acceptance: ['The team agreed the runtime and protocol results are good enough to cut over'], checks: ['npm run test:protocol'],
-    epic: null, epicTitle: null, phase: { id: 'review', title: 'Review' }, kind: 'leaf', authority: 'github', route: 'github',
-    completion: 'person', repository: 'sdk', status: 'planned', state: 'needs-you', ready: false, needsReview: false, decision: null,
-    owner: null, issue: { number: 47, url: 'https://github.example.test/o/sdk/issues/47', repository: 'o/sdk' }, wave: 5, context: '',
-    manual: true, manualDone: null, onGitHub: true,
+    id: 'team-review',
+    title: 'Review with team',
+    summary: 'The team reviews the results before cutover.',
+    acceptance: ['The team agreed the runtime and protocol results are good enough to cut over'],
+    checks: ['npm run test:protocol'],
+    epic: null,
+    epicTitle: null,
+    phase: { id: 'review', title: 'Review' },
+    kind: 'leaf',
+    authority: 'github',
+    route: 'github',
+    completion: 'person',
+    repository: 'sdk',
+    status: 'planned',
+    state: 'needs-you',
+    ready: false,
+    needsReview: false,
+    decision: null,
+    owner: null,
+    issue: { number: 47, url: 'https://github.example.test/o/sdk/issues/47', repository: 'o/sdk' },
+    wave: 5,
+    context: '',
+    manual: true,
+    manualDone: null,
+    onGitHub: true,
   },
-  plan: null, locked: null,
+  plan: null,
+  locked: null,
   waitsOn: [{ id: 'protocol-tests', title: 'Protocol tests', kind: 'requires', condition: null, satisfied: true }],
   blocks: [{ id: 'cutover', title: 'Cutover', kind: 'requires', condition: null, satisfied: false }],
-  delivery: null, conflicts: [],
+  delivery: null,
+  conflicts: [],
   timeline: [
     { at: '2026-11-13T10:05:00Z', text: 'Waiting for a person: Review with team' },
     { at: '2026-11-13T09:00:00Z', text: 'Protocol tests finished' },
@@ -194,12 +254,22 @@ const baseDetail = () => ({
   timing: null,
   // Its stored link set (R92.5): checks read for an older head show stale.
   links: {
-    task: 'team-review', repository: 'o/sdk',
+    task: 'team-review',
+    repository: 'o/sdk',
     branch: { kind: 'branch', repository: 'o/sdk', ref: 'avoozl/team-review', url: 'https://github.com/o/sdk/tree/avoozl/team-review' },
     worktree: { kind: 'worktree', path: '/w/avoozl-worktrees/team-review', local: true },
     head: 'b'.repeat(40),
     pr: { kind: 'pull', repository: 'o/sdk', number: 52, url: 'https://github.com/o/sdk/pull/52', state: 'open' },
-    checks: { state: 'pass', head: 'a'.repeat(40), readAt: '2026-11-13T09:30:00Z', ageMs: 1800000, current: false, dot: 'stale', source: 'pull-request', url: 'https://github.com/o/sdk/pull/52/checks' },
+    checks: {
+      state: 'pass',
+      head: 'a'.repeat(40),
+      readAt: '2026-11-13T09:30:00Z',
+      ageMs: 1800000,
+      current: false,
+      dot: 'stale',
+      source: 'pull-request',
+      url: 'https://github.com/o/sdk/pull/52/checks',
+    },
     landed: null,
     issue: { kind: 'issue', repository: 'o/sdk', number: 47, url: 'https://github.com/o/sdk/issues/47' },
     source: null,
@@ -212,7 +282,17 @@ const baseDetail = () => ({
     { key: 'started-2', label: 'Started (attempt 2)', at: '2026-11-13T09:00:00Z', state: 'done', detail: 'worker' },
     { key: 'checks', label: 'Checks', at: '2026-11-13T09:30:00Z', state: 'done', detail: '2 passed' },
     { key: 'landed', label: 'Landed', at: '2026-11-13T09:35:00Z', state: 'done', detail: 'Commit 0123456789ab' },
-    { key: 'builds', label: 'Builds', at: '2026-11-13T09:32:00Z', state: 'done', detail: '2 builds, 2 min in all · costliest test 1.5 min', builds: [{ phase: 'build', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 38000, failed: false }] }, { phase: 'test', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 90000, failed: true }] }] },
+    {
+      key: 'builds',
+      label: 'Builds',
+      at: '2026-11-13T09:32:00Z',
+      state: 'done',
+      detail: '2 builds, 2 min in all · costliest test 1.5 min',
+      builds: [
+        { phase: 'build', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 38000, failed: false }] },
+        { phase: 'test', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 90000, failed: true }] },
+      ],
+    },
     { key: 'integrated', label: 'Integrated', at: null, state: 'now' },
   ],
 })
@@ -224,20 +304,54 @@ answer('task.evidence', () => ({
 answer('task.notes.list', () => ({
   taskId: 'team-review',
   entries: [
-    { id: 'note-000000000002', taskId: 'team-review', kind: 'link', label: 'Protocol test results', url: 'https://docs.example.test/results', outcome: false, author: 'session:chat-1', at: '2026-11-13T10:05:00Z', onIssue: false },
-    { id: 'note-000000000001', taskId: 'team-review', kind: 'link', label: 'Review agenda', url: 'https://docs.example.test/agenda', outcome: false, author: 'person', login: 'alice', at: '2026-11-13T09:00:00Z', onIssue: true },
+    {
+      id: 'note-000000000002',
+      taskId: 'team-review',
+      kind: 'link',
+      label: 'Protocol test results',
+      url: 'https://docs.example.test/results',
+      outcome: false,
+      author: 'session:chat-1',
+      at: '2026-11-13T10:05:00Z',
+      onIssue: false,
+    },
+    {
+      id: 'note-000000000001',
+      taskId: 'team-review',
+      kind: 'link',
+      label: 'Review agenda',
+      url: 'https://docs.example.test/agenda',
+      outcome: false,
+      author: 'person',
+      login: 'alice',
+      at: '2026-11-13T09:00:00Z',
+      onIssue: true,
+    },
   ],
 }))
 answer('task.notes.add', (body) => {
   state.calls.push(body)
   const input = body.input as { taskId: string; url: string; label: string }
-  return { id: 'note-000000000003', taskId: input.taskId, kind: 'link', url: input.url, label: input.label, outcome: false, author: 'person', at: '2026-11-13T11:00:00Z', onIssue: false }
+  return {
+    id: 'note-000000000003',
+    taskId: input.taskId,
+    kind: 'link',
+    url: input.url,
+    label: input.label,
+    outcome: false,
+    author: 'person',
+    at: '2026-11-13T11:00:00Z',
+    onIssue: false,
+  }
 })
 answer('repositories.list', () => ({ items: [{ id: 'sdk', name: 'sdk', localCheckout: '/w/sdk', github: 'o/sdk', baseBranch: 'main' }] }))
 answer('template.list', () => ({
   templates: [
     {
-      plugin: 'sdk-templates', version: '1.0.0', id: 'sdk-rewrite', title: 'SDK rewrite',
+      plugin: 'sdk-templates',
+      version: '1.0.0',
+      id: 'sdk-rewrite',
+      title: 'SDK rewrite',
       description: 'Rewrite one SDK on the new runtime, phase by phase, with a team review before cutover.',
       inputs: [
         { id: 'sdk', label: 'Which SDK', type: 'text', required: true },
@@ -245,12 +359,19 @@ answer('template.list', () => ({
         { id: 'gaps', label: 'Gap list', type: 'file', required: false },
       ],
       phases: ['Inventory', 'Codegen', 'Runtime', 'Protocol tests', 'Review', 'Cutover'].map((title) => ({ id: title.toLowerCase(), title })),
-      proofKinds: ['Protocol tests pass', 'Cutover dry run'], settings: true,
+      proofKinds: ['Protocol tests pass', 'Cutover dry run'],
+      settings: true,
     },
   ],
 }))
 answer('plugin.pack.preview', () => ({
-  id: 'sdk-templates', version: '1.0.0', description: 'SDK rewrite settings', repositories: [], warnings: [], previewHash: 'h', imported: null,
+  id: 'sdk-templates',
+  version: '1.0.0',
+  description: 'SDK rewrite settings',
+  repositories: [],
+  warnings: [],
+  previewHash: 'h',
+  imported: null,
   changes: [
     { setting: 'flow.retro', action: 'create', to: { everyTasks: 10 } },
     { setting: 'flow.retro.everyTasks', action: 'change', from: 20, to: 10 },
@@ -270,7 +391,21 @@ function OpenTask() {
 // Review info from Needs you: a review group of two tasks.
 function OpenReview() {
   const drawer = useTaskDrawer()
-  const group = { key: 'g1', kind: 'review', taskId: null, title: 'Meal planner: sections changed', detail: 'Two tasks changed.', plan: 'meal-planner', epic: null, repository: null, since: '2026-11-14T10:00:00Z', tasks: [{ id: 'team-review', title: 'Review with team', status: 'planned' }, { id: 'cutover', title: 'Cutover', status: 'planned' }] }
+  const group = {
+    key: 'g1',
+    kind: 'review',
+    taskId: null,
+    title: 'Meal planner: sections changed',
+    detail: 'Two tasks changed.',
+    plan: 'meal-planner',
+    epic: null,
+    repository: null,
+    since: '2026-11-14T10:00:00Z',
+    tasks: [
+      { id: 'team-review', title: 'Review with team', status: 'planned' },
+      { id: 'cutover', title: 'Cutover', status: 'planned' },
+    ],
+  }
   return (
     <Btn type="button" onClick={() => drawer.openReview(group as never)}>
       Open the dialog
@@ -295,7 +430,14 @@ const shown = (dialog: (close: () => void) => ReactNode): Scenario => ({
 // A dialog that asks before it discards edits (Modal's `unsaved`).
 const repoEdit = (edited: boolean) =>
   shown((close) => (
-    <Modal id="avoozl-repo-edit" dismissLabel="Cancel" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
+    <Modal
+      id="avoozl-repo-edit"
+      dismissLabel="Cancel"
+      width="46rem"
+      title="avoozl"
+      unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }}
+      onDismiss={close}
+    >
       <label className="flex flex-col gap-1 text-sm">
         Base branch
         <input defaultValue="main" className="rounded border px-2 py-1" />
@@ -308,7 +450,9 @@ export const SCENARIOS: Record<string, Scenario> = {
   onboard: shown((close) => <SetupRepository workspaceId="w" folder="/work/avoozl" onChanged={async () => undefined} onClose={close} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
-  'setup-github': shown((close) => <SetupDialog workspaceId="w" client={idle} form={setupForm({})} set={() => undefined} first={null} onClose={close} onSaved={async () => undefined} />),
+  'setup-github': shown((close) => (
+    <SetupDialog workspaceId="w" client={idle} form={setupForm({})} set={() => undefined} first={null} onClose={close} onSaved={async () => undefined} />
+  )),
   'archive-plan': shown((close) => <ArchivePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   'delete-plan': shown((close) => <DeletePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   confirm: own(
@@ -319,7 +463,9 @@ export const SCENARIOS: Record<string, Scenario> = {
   ),
   'file-viewer': shown((close) => <DocumentReader workspaceId="w" target={{ document: 'docs/guide.md', lineStart: null, lineEnd: null }} text={text} onClose={close} />),
   'stop-line': own('Stop the line', <StopLineButton workspaceId="w" onPulled={() => undefined} />),
-  'pack-import': shown((close) => <PackImportDialog row={{ id: 'pack-1', version: '1.0.0' } as never} workspaceId="w" client={idle} onClose={close} onChanged={async () => undefined} />),
+  'pack-import': shown((close) => (
+    <PackImportDialog row={{ id: 'pack-1', version: '1.0.0' } as never} workspaceId="w" client={idle} onClose={close} onChanged={async () => undefined} />
+  )),
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
   // Not a modal: the drawer's Files fold, at a drawer's width.
   'task-files': shown(() => (
@@ -334,8 +480,22 @@ export const SCENARIOS: Record<string, Scenario> = {
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
   // New spec with nothing picked: categories and epics to choose from.
-  'new-spec': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={['Platform', 'Search']} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} onClose={close} /></div>, document.body)),
-  'new-spec-template': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} /></div>, document.body)),
+  'new-spec': shown((close) =>
+    createPortal(
+      <div {...{ [APP_ATTR]: '' }}>
+        <NewPlanDrawer workspaceId="w" taken={[]} categories={['Platform', 'Search']} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} onClose={close} />
+      </div>,
+      document.body,
+    ),
+  ),
+  'new-spec-template': shown((close) =>
+    createPortal(
+      <div {...{ [APP_ATTR]: '' }}>
+        <NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} />
+      </div>,
+      document.body,
+    ),
+  ),
 }
 
 // One In flight row, for the title link test.
@@ -358,7 +518,10 @@ const flightRow = {
 const FilterRowDemo = () => {
   const [q, setQ] = useState('')
   const [kind, setKind] = useState('')
-  const opts = [{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }]
+  const opts = [
+    { value: 'a', label: 'Alpha' },
+    { value: 'b', label: 'Beta' },
+  ]
   return (
     <div style={{ width: 'min(100%, 380px)' }} data-filter-demo>
       <FilterPanel
@@ -376,17 +539,41 @@ const FilterRowDemo = () => {
           { kind: 'select', key: 'changed-by', label: 'Changed by', value: '', options: opts, onChange: () => undefined },
         ]}
       >
-        <span role="status" className="text-xs text-muted">4 of 4</span>
+        <span role="status" className="text-xs text-muted">
+          4 of 4
+        </span>
         <IconBtn icon={RefreshCw} label="Refresh" tooltip="Refresh" onClick={() => undefined} />
       </FilterPanel>
     </div>
   )
 }
 SCENARIOS['filter-row'] = { opener: '', render: () => <FilterRowDemo /> }
-SCENARIOS['in-flight'] = { opener: '', render: () => <ul><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /></ul> }
+SCENARIOS['in-flight'] = {
+  opener: '',
+  render: () => (
+    <ul>
+      <InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} />
+    </ul>
+  ),
+}
 // Two rows with different roles, ids and actions: their columns must line up.
-const reviewRow = { ...flightRow, slot: 's2', role: 'review:style', taskId: 'b22', title: 'A much longer task title for the second row', session: { ...flightRow.session, slot: 's2', role: 'review:style', link: '/chat?sid=s2' } }
-SCENARIOS['in-flight-pair'] = { opener: '', render: () => <ul style={{ maxWidth: 900 }}><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /><InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} onPickAgain={undefined} /></ul> }
+const reviewRow = {
+  ...flightRow,
+  slot: 's2',
+  role: 'review:style',
+  taskId: 'b22',
+  title: 'A much longer task title for the second row',
+  session: { ...flightRow.session, slot: 's2', role: 'review:style', link: '/chat?sid=s2' },
+}
+SCENARIOS['in-flight-pair'] = {
+  opener: '',
+  render: () => (
+    <ul style={{ maxWidth: 900 }}>
+      <InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} />
+      <InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} onPickAgain={undefined} />
+    </ul>
+  ),
+}
 
 // The whole page's top row (?app=1): workspaces and the line, nothing else
 // answered, so each tab stays on its loading line. ?stopped=1 opens a stop.
@@ -396,7 +583,15 @@ if (query.get('app')) {
 }
 
 // The Files fold's reads: a worktree with each kind of change.
-const change = (path: string, status: string, additions: number | null, deletions: number | null, extra = {}) => ({ path, from: null, status, additions, deletions, binary: false, ...extra })
+const change = (path: string, status: string, additions: number | null, deletions: number | null, extra = {}) => ({
+  path,
+  from: null,
+  status,
+  additions,
+  deletions,
+  binary: false,
+  ...extra,
+})
 const changed = [
   change('README.md', 'modified', 3, 1),
   change('src/app/task-files.mjs', 'added', 256, 0),
@@ -418,7 +613,9 @@ answer('task.files', (body) => ({
   files: changed,
   totals: { files: changed.length, additions: 264, deletions: 43 },
   truncated: false,
-  all: (body.input as { all?: boolean })?.all ? { paths: ['README.md', 'package.json', 'src/app/store.mjs', 'src/app/operations.mjs', 'src/app/task-files.mjs', 'src/app/renamed.mjs'], truncated: false } : null,
+  all: (body.input as { all?: boolean })?.all
+    ? { paths: ['README.md', 'package.json', 'src/app/store.mjs', 'src/app/operations.mjs', 'src/app/task-files.mjs', 'src/app/renamed.mjs'], truncated: false }
+    : null,
 }))
 answer('task.diff', (body) => ({
   path: (body.input as { path: string }).path,
@@ -472,7 +669,12 @@ answer('workspaces.list', () => ({
 }))
 // The install's name: quiet with one instance, shown in more places with &shared=1.
 let instanceName = 'Mira'
-answer('instance.view', () => ({ id: 'inst-0123456789ab', name: instanceName, others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [], shared: query.get('shared') === '1' }))
+answer('instance.view', () => ({
+  id: 'inst-0123456789ab',
+  name: instanceName,
+  others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [],
+  shared: query.get('shared') === '1',
+}))
 answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: (instanceName = String((body.input as { name?: string }).name)), others: [], shared: false }))
 answer('untriaged.view', () => ({
   enabled: true,
@@ -506,15 +708,40 @@ function DeepLinkPage() {
 if (query.get('page') === 'app' && query.get('triage') === '1') {
   const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
   const row = (number: number, title: string) => ({
-    kind: 'issue', number, title, url: `https://github.com/acme/recipe-box/issues/${number}`, repository: 'acme/recipe-box', author: 'mira', createdAt: '2026-11-15T09:00:00Z', labels: ['bug'], comments: 1,
-    source: 'github', id: `acme/recipe-box#${number}`, links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null }, start: { plan: true, deliver: false },
+    kind: 'issue',
+    number,
+    title,
+    url: `https://github.com/acme/recipe-box/issues/${number}`,
+    repository: 'acme/recipe-box',
+    author: 'mira',
+    createdAt: '2026-11-15T09:00:00Z',
+    labels: ['bug'],
+    comments: 1,
+    source: 'github',
+    id: `acme/recipe-box#${number}`,
+    links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null },
+    start: { plan: true, deliver: false },
   })
   const held = (number: number, title: string) => ({ ...row(number, title), claimed: number % 2 === 0, needsHuman: false, needsHumanLabel: 'crew: needs human', handoff: null })
   answer('untriaged.view', () => ({
     enabled: true,
     mode: 'plans-repo',
     total: 2,
-    repositories: [{ repository: 'acme/recipe-box', checkedAt: '2026-11-16T09:00:00Z', error: null, searched: 4, read: 4, truncated: false, count: 4, query: null, filter: null, defaultFilter: '', notify: false }],
+    repositories: [
+      {
+        repository: 'acme/recipe-box',
+        checkedAt: '2026-11-16T09:00:00Z',
+        error: null,
+        searched: 4,
+        read: 4,
+        truncated: false,
+        count: 4,
+        query: null,
+        filter: null,
+        defaultFilter: '',
+        notify: false,
+      },
+    ],
     items: [row(44, 'Recipe photos load slowly on the list'), row(45, 'Add a shopping list export')],
     withRadar: [held(51, 'Search ignores accents'), held(52, 'Print view cuts off steps')],
   }))
@@ -525,7 +752,17 @@ if (query.get('page') === 'app' && query.get('triage') === '1') {
 // workspace one finished task (it has run before); without it, none has.
 if (query.get('page') === 'home' || query.get('page') === 'demo') {
   const ran = query.get('ran') === '1'
-  const item = { id: 'a1', title: 'Task a1', complete: true, deliveries: [], sessions: [], evidence: [], integration: { commit: 'c', branch: 'main', at: '2026-11-13T10:00:00Z' }, pullRequests: [], issue: null }
+  const item = {
+    id: 'a1',
+    title: 'Task a1',
+    complete: true,
+    deliveries: [],
+    sessions: [],
+    evidence: [],
+    integration: { commit: 'c', branch: 'main', at: '2026-11-13T10:00:00Z' },
+    pullRequests: [],
+    issue: null,
+  }
   answer('delivery.view', () => ({ revision: 1, items: ran ? [item] : [] }))
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
@@ -541,9 +778,34 @@ if (query.get('page') === 'app') {
   // &needs=N: N open Needs you items, so the nav shows its count. Home's
   // other reads answer empty, so Home fills in.
   const needs = Number(query.get('needs') ?? 0)
-  const item = (n: number) => ({ key: `k${n}`, kind: 'decision', taskId: `t${n}`, title: `Item ${n}`, detail: 'Waits on you.', plan: 'meal-planner', epic: null, repository: 'example/recipe-box', since: '2026-11-14T10:00:00Z' })
+  const item = (n: number) => ({
+    key: `k${n}`,
+    kind: 'decision',
+    taskId: `t${n}`,
+    title: `Item ${n}`,
+    detail: 'Waits on you.',
+    plan: 'meal-planner',
+    epic: null,
+    repository: 'example/recipe-box',
+    since: '2026-11-14T10:00:00Z',
+  })
   // &reviewgroup=1: one review group (two tasks changed in a spec) in Needs you.
-  const reviewGroup = { key: 'g1', kind: 'review', reason: 'review', taskId: null, title: 'Meal planner: sections changed', detail: 'Two tasks changed.', plan: 'meal-planner', epic: null, repository: null, since: '2026-11-14T10:00:00Z', tasks: [{ id: 'team-review', title: 'Review with team', status: 'planned' }, { id: 'cutover', title: 'Cutover', status: 'planned' }] }
+  const reviewGroup = {
+    key: 'g1',
+    kind: 'review',
+    reason: 'review',
+    taskId: null,
+    title: 'Meal planner: sections changed',
+    detail: 'Two tasks changed.',
+    plan: 'meal-planner',
+    epic: null,
+    repository: null,
+    since: '2026-11-14T10:00:00Z',
+    tasks: [
+      { id: 'team-review', title: 'Review with team', status: 'planned' },
+      { id: 'cutover', title: 'Cutover', status: 'planned' },
+    ],
+  }
   answer('conflicts.view', () => ({ revision: 1, items: [...Array.from({ length: needs }, (_, n) => item(n + 1)), ...(query.get('reviewgroup') === '1' ? [reviewGroup] : [])] }))
   // &needsctx=1: Needs you items that carry their context (needs-context-fixture.ts).
   if (query.get('needsctx') === '1') answer('conflicts.view', () => ({ revision: 1, items: needsContextItems }))
@@ -561,17 +823,42 @@ if (query.get('page') === 'app') {
   // &roles=plans|single|local: Repository setup with a role on each row
   // (R105), the planning repository without a checkout in &roles=plans.
   const roles = query.get('roles')
-  const rolesGithub = roles === 'single'
-    ? { mode: 'single-repo', defaultAuthority: 'github', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
-    : roles === 'local'
-      ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
-      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code', coder: 'worker', requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'], merge: { method: 'squash' }, rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['needs-triage'] } }, 'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' } } }
+  const rolesGithub =
+    roles === 'single'
+      ? {
+          mode: 'single-repo',
+          defaultAuthority: 'github',
+          repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } },
+        }
+      : roles === 'local'
+        ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
+        : {
+            mode: 'plans-repo',
+            planningRepository: 'acme/plans',
+            defaultAuthority: 'github',
+            epicIssueType: 'Epic',
+            project: { owner: 'acme', number: 7 },
+            repositories: {
+              'acme/recipe-box': {
+                baseBranch: 'main',
+                role: 'code',
+                coder: 'worker',
+                requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'],
+                merge: { method: 'squash' },
+                rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }],
+                untriaged: { triageLabels: ['needs-triage'] },
+              },
+              'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' },
+            },
+          }
   if (roles)
-    answer('repositories.list', () => ({ items: [
-      { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main', landing: 'pr', harness: 'kiro' },
-      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main', landing: 'direct' },
-      { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
-    ] }))
+    answer('repositories.list', () => ({
+      items: [
+        { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main', landing: 'pr', harness: 'kiro' },
+        { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main', landing: 'direct' },
+        { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
+      ],
+    }))
   // Add repository and Set up GitHub and import specs read a folder the same way.
   if (roles) {
     // Save writes are recorded in __harness.calls.
@@ -580,8 +867,20 @@ if (query.get('page') === 'app') {
         state.calls.push(body)
         return replyFor('github.settings.get')!({})
       })
-    answer('repositories.detect', (body) => ({ root: (body.input as { folder: string }).folder, id: 'new-service', baseBranch: 'main', remote: 'git@github.com:acme/new-service.git', github: 'acme/new-service' }))
-    answer('repositories.configure', (body) => ({ id: (body.input as { id: string }).id, name: (body.input as { id: string }).id, localCheckout: (body.input as { localCheckout: string }).localCheckout, github: 'acme/new-service', baseBranch: 'main' }))
+    answer('repositories.detect', (body) => ({
+      root: (body.input as { folder: string }).folder,
+      id: 'new-service',
+      baseBranch: 'main',
+      remote: 'git@github.com:acme/new-service.git',
+      github: 'acme/new-service',
+    }))
+    answer('repositories.configure', (body) => ({
+      id: (body.input as { id: string }).id,
+      name: (body.input as { id: string }).id,
+      localCheckout: (body.input as { localCheckout: string }).localCheckout,
+      github: 'acme/new-service',
+      baseBranch: 'main',
+    }))
     answer('onboarding.inspect', (body) => ({
       root: (body.input as { folder: string }).folder,
       baseBranch: 'main',
@@ -613,7 +912,13 @@ if (query.get('page') === 'app') {
       notModified: 0,
       notModifiedShare: null,
       hourCalls: 153,
-      bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
+      bySource: {
+        tick: { calls: 88, notModified: 40, cached: 0 },
+        crew: { calls: 41, notModified: 0, cached: 0 },
+        view: { calls: 17, notModified: 21, cached: 132 },
+        review: { calls: 5, notModified: 0, cached: 3 },
+        setup: { calls: 2, notModified: 0, cached: 0 },
+      },
       writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
     },
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
@@ -637,7 +942,13 @@ if (query.get('page') === 'app') {
         notModified: 61,
         notModifiedShare: 61 / 214,
         hourCalls: 153,
-        bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
+        bySource: {
+          tick: { calls: 88, notModified: 40, cached: 0 },
+          crew: { calls: 41, notModified: 0, cached: 0 },
+          view: { calls: 17, notModified: 21, cached: 132 },
+          review: { calls: 5, notModified: 0, cached: 3 },
+          setup: { calls: 2, notModified: 0, cached: 0 },
+        },
       },
     }))
     answer('radar.values', (body) => {
@@ -653,7 +964,14 @@ if (query.get('page') === 'app') {
 // relative to now so the quiet chat and this week's landings stay true.
 if (query.get('page') === 'app' && query.get('home') === '1') {
   const ago = (minutes: number) => new Date(Date.now() - minutes * 60000).toISOString()
-  const t = (id: string, title: string, epic: string, extra = {}) => ({ ...task(id, epic), title, planId: epic === 'e1' ? 'meal-planner' : 'search-v2', repository: 'recipe-box', phase: null, ...extra })
+  const t = (id: string, title: string, epic: string, extra = {}) => ({
+    ...task(id, epic),
+    title,
+    planId: epic === 'e1' ? 'meal-planner' : 'search-v2',
+    repository: 'recipe-box',
+    phase: null,
+    ...extra,
+  })
   const graphTasks = [
     t('m1', 'Add the shopping list export', 'e1', { state: 'ready', ready: true }),
     t('m2', 'Scale servings in the recipe card', 'e1', { state: 'ready', ready: true }),
@@ -681,21 +999,78 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
     tasks: graphTasks,
     edges: [],
   }))
-  answer('plan.list', () => ({ total: 2, items: [{ id: 'meal-planner', title: 'Meal planner', state: 'approved', archivedAt: null }, { id: 'search-v2', title: 'Search v2', state: 'approved', archivedAt: null }] }))
-  const session = (slot: string, role: string, status: string, minutes: number) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: ago(minutes + 20), statusAt: ago(minutes), agent: 'kirocrew-worker', model: null })
+  answer('plan.list', () => ({
+    total: 2,
+    items: [
+      { id: 'meal-planner', title: 'Meal planner', state: 'approved', archivedAt: null },
+      { id: 'search-v2', title: 'Search v2', state: 'approved', archivedAt: null },
+    ],
+  }))
+  const session = (slot: string, role: string, status: string, minutes: number) => ({
+    slot,
+    role,
+    status,
+    attempt: 1,
+    link: `/sessions/${slot}`,
+    boundAt: ago(minutes + 20),
+    statusAt: ago(minutes),
+    agent: 'kirocrew-worker',
+    model: null,
+  })
   const item = (id: string, title: string, extra = {}) => ({
-    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
+    id,
+    title,
+    status: 'planned',
+    complete: false,
+    repository: null,
+    authority: 'local',
+    sessions: [],
+    evidence: [],
+    integration: null,
+    pullRequests: [],
+    deliveries: [],
+    worktrees: [],
+    issue: null,
+    ...extra,
   })
   answer('delivery.view', () => ({
     revision: 1,
     items: [
-      item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding', 4)], deliveries: [{ state: 'running', updatedAt: ago(4) }] }),
-      item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading', 95)], deliveries: [{ state: 'done', updatedAt: ago(95) }] }),
-      item('s6', 'Recipe tags', { status: 'done', complete: true, integration: { commit: 'c1', branch: 'main', at: ago(60 * 26) }, pullRequests: [{ number: 41, url: 'https://github.com/acme/recipe-box/pull/41', merged: true }] }),
-      item('m5', 'Meal plan calendar', { status: 'done', complete: true, integration: { commit: 'c2', branch: 'main', at: ago(60 * 24 * 9) }, pullRequests: [{ number: 33, url: 'https://github.com/acme/recipe-box/pull/33', merged: true }] }),
+      item('m3', 'Sync pantry items between devices', {
+        status: 'running',
+        sessions: [session('chat-m3', 'worker', 'coding', 4)],
+        deliveries: [{ state: 'running', updatedAt: ago(4) }],
+      }),
+      item('s1', 'Index recipes by ingredient', {
+        status: 'review',
+        sessions: [session('chat-s1', 'reviewer', 'reading', 95)],
+        deliveries: [{ state: 'done', updatedAt: ago(95) }],
+      }),
+      item('s6', 'Recipe tags', {
+        status: 'done',
+        complete: true,
+        integration: { commit: 'c1', branch: 'main', at: ago(60 * 26) },
+        pullRequests: [{ number: 41, url: 'https://github.com/acme/recipe-box/pull/41', merged: true }],
+      }),
+      item('m5', 'Meal plan calendar', {
+        status: 'done',
+        complete: true,
+        integration: { commit: 'c2', branch: 'main', at: ago(60 * 24 * 9) },
+        pullRequests: [{ number: 33, url: 'https://github.com/acme/recipe-box/pull/33', merged: true }],
+      }),
     ],
   }))
-  const need = (key: string, kind: string, taskId: string | null, title: string, detail: string) => ({ key, kind, taskId, title, detail, plan: 'search-v2', epic: null, repository: 'acme/recipe-box', since: ago(50) })
+  const need = (key: string, kind: string, taskId: string | null, title: string, detail: string) => ({
+    key,
+    kind,
+    taskId,
+    title,
+    detail,
+    plan: 'search-v2',
+    epic: null,
+    repository: 'acme/recipe-box',
+    since: ago(50),
+  })
   answer('conflicts.view', () => ({
     revision: 1,
     items: [
@@ -707,26 +1082,93 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
   }))
   answer('landing.view', () => ({
     queue: [
-      { key: 'q1', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 's1', title: 'Index recipes by ingredient' }], pr: 47, url: 'https://github.com/acme/recipe-box/pull/47', position: 0, queuedAt: ago(12), held: 'Next to land; checks run on the next tick.' },
-      { key: 'q2', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 'm3', title: 'Sync pantry items between devices' }], pr: 48, url: 'https://github.com/acme/recipe-box/pull/48', position: 1, queuedAt: ago(6), held: 'Behind 1 portion.' },
+      {
+        key: 'q1',
+        base: 'main',
+        repository: 'acme/recipe-box',
+        tasks: [{ id: 's1', title: 'Index recipes by ingredient' }],
+        pr: 47,
+        url: 'https://github.com/acme/recipe-box/pull/47',
+        position: 0,
+        queuedAt: ago(12),
+        held: 'Next to land; checks run on the next tick.',
+      },
+      {
+        key: 'q2',
+        base: 'main',
+        repository: 'acme/recipe-box',
+        tasks: [{ id: 'm3', title: 'Sync pantry items between devices' }],
+        pr: 48,
+        url: 'https://github.com/acme/recipe-box/pull/48',
+        position: 1,
+        queuedAt: ago(6),
+        held: 'Behind 1 portion.',
+      },
     ],
     landed: [
-      { key: 'l1', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 's6', title: 'Recipe tags' }], pr: 41, url: 'https://github.com/acme/recipe-box/pull/41', at: ago(60 * 26) },
-      { key: 'l2', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 's7', title: 'Ingredient synonyms' }, { id: 's8', title: 'Synonym admin' }], pr: 39, url: 'https://github.com/acme/recipe-box/pull/39', at: ago(60 * 50) },
-      { key: 'l3', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 'm6', title: 'Pantry barcode scan' }], pr: 36, url: 'https://github.com/acme/recipe-box/pull/36', at: ago(60 * 24 * 4) },
+      {
+        key: 'l1',
+        base: 'main',
+        repository: 'acme/recipe-box',
+        tasks: [{ id: 's6', title: 'Recipe tags' }],
+        pr: 41,
+        url: 'https://github.com/acme/recipe-box/pull/41',
+        at: ago(60 * 26),
+      },
+      {
+        key: 'l2',
+        base: 'main',
+        repository: 'acme/recipe-box',
+        tasks: [
+          { id: 's7', title: 'Ingredient synonyms' },
+          { id: 's8', title: 'Synonym admin' },
+        ],
+        pr: 39,
+        url: 'https://github.com/acme/recipe-box/pull/39',
+        at: ago(60 * 50),
+      },
+      {
+        key: 'l3',
+        base: 'main',
+        repository: 'acme/recipe-box',
+        tasks: [{ id: 'm6', title: 'Pantry barcode scan' }],
+        pr: 36,
+        url: 'https://github.com/acme/recipe-box/pull/36',
+        at: ago(60 * 24 * 4),
+      },
     ],
     landedThisWeek: 3,
   }))
   const metrics = { tasks: 4, leadTimeMs: 52 * 60000, flowEfficiency: 0.62, firstPassRate: 0.75, changeFailureRate: 0, integrationsPerDay: 1.2, timeToFixMs: null }
   const byClass = { code: { task: { minutes: 64, pullRequests: 6 }, other: { minutes: 12, pullRequests: 2 } } }
   answer('flow.view', () => ({
-    window: { size: 10, since: null }, metrics, previous: metrics, bottleneck: null, tasks: [], stops: [], line: [],
-    flaky: [{ id: 'f1', check: 'test (windows)', commit: 'c1', at: ago(300) }], ciOnly: [], retros: [], batches: [], stages: [],
-    repositories: ['acme/recipe-box', 'acme/docs'], epics: [], series: { day: [], week: [] },
+    window: { size: 10, since: null },
+    metrics,
+    previous: metrics,
+    bottleneck: null,
+    tasks: [],
+    stops: [],
+    line: [],
+    flaky: [{ id: 'f1', check: 'test (windows)', commit: 'c1', at: ago(300) }],
+    ciOnly: [],
+    retros: [],
+    batches: [],
+    stages: [],
+    repositories: ['acme/recipe-box', 'acme/docs'],
+    epics: [],
+    series: { day: [], week: [] },
     usage: { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] },
     ci: {
       repositories: [
-        { repository: 'acme/recipe-box', windowDays: 14, byClass, waitShare: 0.18, waitLimit: 0.25, closedPullRequests: 14, repeats: [{ workflow: 'ci', commits: 2, extraRuns: 2, extraMinutes: 9 }] },
+        {
+          repository: 'acme/recipe-box',
+          windowDays: 14,
+          byClass,
+          waitShare: 0.18,
+          waitLimit: 0.25,
+          closedPullRequests: 14,
+          repeats: [{ workflow: 'ci', commits: 2, extraRuns: 2, extraMinutes: 9 }],
+        },
         { repository: 'acme/docs', windowDays: 14, byClass, waitShare: 0.34, waitLimit: 0.25, closedPullRequests: 5, repeats: [] },
       ],
     },
@@ -742,8 +1184,18 @@ if (query.get('page') === 'app' && query.get('escalations')) {
   const after = query.get('escalations') === 'after'
   const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
   const row = (number: number, title: string, createdAt: string, labels: string[]) => ({
-    kind: 'issue', number, title, url: `https://github.com/acme/recipe-box/issues/${number}`, repository: 'acme/recipe-box', author: 'mira', createdAt, labels, comments: 2,
-    source: 'github', id: `acme/recipe-box#${number}`, links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null },
+    kind: 'issue',
+    number,
+    title,
+    url: `https://github.com/acme/recipe-box/issues/${number}`,
+    repository: 'acme/recipe-box',
+    author: 'mira',
+    createdAt,
+    labels,
+    comments: 2,
+    source: 'github',
+    id: `acme/recipe-box#${number}`,
+    links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null },
   })
   const escalation = { ...row(41, 'Add a shopping list export', '2026-11-12T09:00:00Z', ['crew: needs human']), start: { plan: true, deliver: after } }
   const items = [
@@ -755,12 +1207,31 @@ if (query.get('page') === 'app' && query.get('escalations')) {
     enabled: true,
     mode: 'plans-repo',
     total: items.length,
-    repositories: [{ repository: 'acme/recipe-box', checkedAt: '2026-11-16T09:00:00Z', error: null, searched: 2, read: 2, truncated: false, count: 2, query: null, filter: null, defaultFilter: '', notify: false }],
+    repositories: [
+      {
+        repository: 'acme/recipe-box',
+        checkedAt: '2026-11-16T09:00:00Z',
+        error: null,
+        searched: 2,
+        read: 2,
+        truncated: false,
+        count: 2,
+        query: null,
+        filter: null,
+        defaultFilter: '',
+        notify: false,
+      },
+    ],
     items,
     withRadar: [],
   }))
   const crewRow = {
-    kind: 'needs-human', reason: 'crew', id: 'radar:acme/recipe-box#38', taskId: null, authority: 'github', since: '2026-11-15T12:00:00Z',
+    kind: 'needs-human',
+    reason: 'crew',
+    id: 'radar:acme/recipe-box#38',
+    taskId: null,
+    authority: 'github',
+    since: '2026-11-15T12:00:00Z',
     issue: { number: 38, url: 'https://github.com/acme/recipe-box/issues/38', repository: 'acme/recipe-box' },
     link: 'https://github.com/acme/recipe-box/issues/38',
     title: 'acme/recipe-box #38 needs a person: Should servings round up or down?',
@@ -768,7 +1239,11 @@ if (query.get('page') === 'app' && query.get('escalations')) {
       ? 'An Issue Radar crew added "crew: needs human". Plan this or Deliver this takes it into Avoozl and adds crew:avoozl, so crews skip it; the needs-human label stays. Or answer it on GitHub; the crew picks the issue up again when the label comes off.'
       : 'An Issue Radar crew added "crew: needs human". Answer it on GitHub; the crew picks the issue up again when the label comes off.',
     ...(after
-      ? { item: { source: 'github', id: 'acme/recipe-box#38' }, escalation: { label: 'crew: needs human', scope: 'needs-decision', claimed: false, draft: null }, start: { plan: true, deliver: true } }
+      ? {
+          item: { source: 'github', id: 'acme/recipe-box#38' },
+          escalation: { label: 'crew: needs human', scope: 'needs-decision', claimed: false, draft: null },
+          start: { plan: true, deliver: true },
+        }
       : {}),
   }
   answer('conflicts.view', () => ({ revision: 1, items: [crewRow] }))
@@ -776,7 +1251,15 @@ if (query.get('page') === 'app' && query.get('escalations')) {
 // &delivery=1: tasks in every Delivery lane across two epics and specs.
 if (query.get('page') === 'app' && query.get('delivery') === '1') {
   const at = '2026-11-16T09:00:00Z'
-  const t = (id: string, title: string, epic: string, planId: string, repository: string, extra = {}) => ({ ...task(id, epic), title, planId, spec: planId, repository, phase: null, ...extra })
+  const t = (id: string, title: string, epic: string, planId: string, repository: string, extra = {}) => ({
+    ...task(id, epic),
+    title,
+    planId,
+    spec: planId,
+    repository,
+    phase: null,
+    ...extra,
+  })
   const graphTasks = [
     t('m1', 'Add the shopping list export', 'e1', 'meal-planner', 'recipe-box', { state: 'ready', ready: true }),
     t('m2', 'Scale servings in the recipe card', 'e1', 'meal-planner', 'recipe-box', { state: 'ready', ready: true }),
@@ -806,9 +1289,32 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     tasks: graphTasks,
     edges: [{ from: 's1', to: 's3', kind: 'requires', blocking: true, satisfied: false }],
   }))
-  const session = (slot: string, role: string, status: string) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: at, statusAt: at, agent: 'kirocrew-worker', model: null })
+  const session = (slot: string, role: string, status: string) => ({
+    slot,
+    role,
+    status,
+    attempt: 1,
+    link: `/sessions/${slot}`,
+    boundAt: at,
+    statusAt: at,
+    agent: 'kirocrew-worker',
+    model: null,
+  })
   const item = (id: string, title: string, extra = {}) => ({
-    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
+    id,
+    title,
+    status: 'planned',
+    complete: false,
+    repository: null,
+    authority: 'local',
+    sessions: [],
+    evidence: [],
+    integration: null,
+    pullRequests: [],
+    deliveries: [],
+    worktrees: [],
+    issue: null,
+    ...extra,
   })
   const deliveryItems = [
     item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
@@ -823,25 +1329,61 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     laneLimit: query.get('machines') ? 3 : null,
   }))
   if (query.get('machines')) {
-    for (const [id, title] of [['r1', 'Cache the pantry index'], ['r2', 'Batch the sync uploads']]) {
+    for (const [id, title] of [
+      ['r1', 'Cache the pantry index'],
+      ['r2', 'Batch the sync uploads'],
+    ]) {
       graphTasks.push(t(id, title, 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
       deliveryItems.push(item(id, title, { status: 'running', deliveries: [{ state: 'running', updatedAt: at }] }))
     }
-    deliveryItems.push(item('m4', 'Export meal plans as PDF', { status: 'running', sessions: [session('chat-m4', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }))
+    deliveryItems.push(
+      item('m4', 'Export meal plans as PDF', { status: 'running', sessions: [session('chat-m4', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
+    )
     graphTasks.push(t('m4', 'Export meal plans as PDF', 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
-    const worker = (taskId: string, n: number) => ({ host: 'dev desktop', crewId: 'crew-dev', taskId, state: 'running', chatKey: `chat-${n}`, status: 'coding', updatedAt: at, attachUrl: null, stale: false, lastOkAt: at })
+    const worker = (taskId: string, n: number) => ({
+      host: 'dev desktop',
+      crewId: 'crew-dev',
+      taskId,
+      state: 'running',
+      chatKey: `chat-${n}`,
+      status: 'coding',
+      updatedAt: at,
+      attachUrl: null,
+      stale: false,
+      lastOkAt: at,
+    })
     answer('remote.view', () => ({ workers: [worker('r1', 1), worker('r2', 2)] }))
   }
   // &batch=1: a planner batch of three running in one chat (R108.9), and a
   // grouped task that runs alone because its group broke a rule.
   if (query.get('batch')) {
     const run = { id: 'batch:docs:m5+m6+m7', group: 'docs', tasks: ['m5', 'm6', 'm7'], leader: 'm5', reason: 'Three one-line fixes in the recipe card help text', state: 'running' }
-    for (const [id, title] of [['m5', 'Fix the servings tooltip'], ['m6', 'Fix the prep time label'], ['m7', 'Fix the allergen note link']]) {
+    for (const [id, title] of [
+      ['m5', 'Fix the servings tooltip'],
+      ['m6', 'Fix the prep time label'],
+      ['m7', 'Fix the allergen note link'],
+    ]) {
       graphTasks.push(t(id, title, 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
-      deliveryItems.push(item(id, title, { status: 'running', batch: run.id, batchGroup: run, sessions: id === 'm5' ? [session('chat-m5', 'worker', 'coding')] : [], deliveries: [{ state: 'running', updatedAt: at, batch: run.id }] }))
+      deliveryItems.push(
+        item(id, title, {
+          status: 'running',
+          batch: run.id,
+          batchGroup: run,
+          sessions: id === 'm5' ? [session('chat-m5', 'worker', 'coding')] : [],
+          deliveries: [{ state: 'running', updatedAt: at, batch: run.id }],
+        }),
+      )
     }
     graphTasks.push(t('s5', 'Rename the search box label', 'e2', 'search-v2', 'search', { state: 'running', status: 'running' }))
-    deliveryItems.push(item('s5', 'Rename the search box label', { status: 'running', alone: 's6 waits on s5', batchGroup: { id: null, group: 'labels', tasks: ['s5', 's6'], leader: 's5', reason: 'Two label renames', state: null }, sessions: [session('chat-s5', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }))
+    deliveryItems.push(
+      item('s5', 'Rename the search box label', {
+        status: 'running',
+        alone: 's6 waits on s5',
+        batchGroup: { id: null, group: 'labels', tasks: ['s5', 's6'], leader: 's5', reason: 'Two label renames', state: null },
+        sessions: [session('chat-s5', 'worker', 'coding')],
+        deliveries: [{ state: 'running', updatedAt: at }],
+      }),
+    )
     // Each member's details name the batch and link to its leader.
     answer('task.detail', (body) => {
       const id = (body.input as { id: string }).id
@@ -850,7 +1392,21 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
       return {
         ...base,
         summary: summaryAt('none'),
-        task: { ...base.task, id, title: delivery?.title ?? id, manual: false, completion: 'integrated', authority: 'local', route: 'local', issue: null, onGitHub: false, state: 'running', status: 'running', repository: 'recipe-box', phase: null },
+        task: {
+          ...base.task,
+          id,
+          title: delivery?.title ?? id,
+          manual: false,
+          completion: 'integrated',
+          authority: 'local',
+          route: 'local',
+          issue: null,
+          onGitHub: false,
+          state: 'running',
+          status: 'running',
+          repository: 'recipe-box',
+          phase: null,
+        },
         waitsOn: [],
         blocks: [],
         delivery,
@@ -861,7 +1417,17 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
   // Resume closes it. window.__lineCalls records both. &stopped=1 starts stopped.
   const lineWin = window as unknown as { __lineCalls: unknown[] }
   lineWin.__lineCalls = []
-  const open = (reason: string) => ({ id: 'l1', manual: true, by: { kind: 'person', name: 'you' }, reason, scope: 'all', closedAt: null, branch: 'main', check: null, openedAt: at })
+  const open = (reason: string) => ({
+    id: 'l1',
+    manual: true,
+    by: { kind: 'person', name: 'you' },
+    reason,
+    scope: 'all',
+    closedAt: null,
+    branch: 'main',
+    check: null,
+    openedAt: at,
+  })
   let stops = query.get('stopped') ? [open('bad base')] : []
   answer('flow.view', () => ({ line: stops, stages: [], tasks: [], retros: [] }))
   answer('flow.stop', (body) => {
@@ -886,7 +1452,10 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
     revision: 1,
     epics: [{ id: 'e1', title: 'Meal planner', count: 2 }],
     plans: [{ id: 'meal-planner', title: 'Meal planner' }],
-    statuses: [{ id: 'planned', label: 'Planned', complete: false }, { id: 'done', label: 'Done', complete: true }],
+    statuses: [
+      { id: 'planned', label: 'Planned', complete: false },
+      { id: 'done', label: 'Done', complete: true },
+    ],
     repositories: ['recipe-box'],
     total: 2,
     tasks: [t('m3', 'Sync pantry items between devices', { state: 'running', status: 'running' }), t('s1', 'Index recipes by ingredient', { state: 'running', status: 'review' })],
@@ -902,19 +1471,54 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
     'Writing .avoozl/result.json',
   ].join('\n')
   const item = (id: string, title: string, sessions: unknown[]) => ({
-    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
+    id,
+    title,
+    status: 'running',
+    complete: false,
+    repository: 'recipe-box',
+    authority: 'local',
+    sessions,
+    evidence: [],
+    integration: null,
+    pullRequests: [],
+    deliveries: [{ state: 'running', updatedAt: at }],
+    worktrees: [],
+    issue: null,
   })
   answer('delivery.view', () => ({
     revision: 1,
     items: [
       item('m3', 'Sync pantry items between devices', [
         {
-          slot: `process-${uuid}`, role: 'worker', attempt: 1, title: null, status: 'working', statusAt: at, boundAt: at, model: 'claude-sonnet', crew: 'local', executor: 'process', link: null,
+          slot: `process-${uuid}`,
+          role: 'worker',
+          attempt: 1,
+          title: null,
+          status: 'working',
+          statusAt: at,
+          boundAt: at,
+          model: 'claude-sonnet',
+          crew: 'local',
+          executor: 'process',
+          link: null,
           process: { harness: 'claude-code', state: 'running', exitCode: null, run: 2, logTail: log, cost: 0.83, attach: `cd /work/recipe-box-m3 && claude --resume ${uuid}` },
         },
       ]),
       item('s1', 'Index recipes by ingredient', [
-        { slot: 'chat-s1', role: 'reviewer', attempt: 1, title: null, status: 'reading', statusAt: at, boundAt: at, agent: 'kirocrew-worker', model: null, crew: 'local', executor: 'kirocrew', link: '/chat?sid=chat-s1' },
+        {
+          slot: 'chat-s1',
+          role: 'reviewer',
+          attempt: 1,
+          title: null,
+          status: 'reading',
+          statusAt: at,
+          boundAt: at,
+          agent: 'kirocrew-worker',
+          model: null,
+          crew: 'local',
+          executor: 'kirocrew',
+          link: '/chat?sid=chat-s1',
+        },
       ]),
     ],
     contentReports: [],
@@ -931,7 +1535,16 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
 // but no pull request. Repositories and numbers are made up.
 if (query.get('page') === 'app' && query.get('links') === '1') {
   const at = new Date(Date.now() - 9 * 60000).toISOString()
-  const t = (id: string, title: string) => ({ ...task(id, 'e1'), title, planId: 'meal-planner', spec: 'meal-planner', repository: 'recipe-box', phase: null, state: 'running', status: 'running' })
+  const t = (id: string, title: string) => ({
+    ...task(id, 'e1'),
+    title,
+    planId: 'meal-planner',
+    spec: 'meal-planner',
+    repository: 'recipe-box',
+    phase: null,
+    state: 'running',
+    status: 'running',
+  })
   const rows: [string, string, string, string, number | null, string | null][] = [
     ['m3', 'Sync pantry items between devices', 'worker', 'avoozl/meal-planner/m3-sync-pantry-items-between-devices', 412, 'pass'],
     ['s1', 'Index recipes by ingredient', 'reviewer', 'avoozl/s1', 415, 'pending'],
@@ -943,7 +1556,10 @@ if (query.get('page') === 'app' && query.get('links') === '1') {
     revision: 1,
     epics: [{ id: 'e1', title: 'Meal planner', count: rows.length }],
     plans: [{ id: 'meal-planner', title: 'Meal planner' }],
-    statuses: [{ id: 'planned', label: 'Planned', complete: false }, { id: 'done', label: 'Done', complete: true }],
+    statuses: [
+      { id: 'planned', label: 'Planned', complete: false },
+      { id: 'done', label: 'Done', complete: true },
+    ],
     repositories: ['recipe-box'],
     total: rows.length,
     tasks: rows.map(([id, title]) => t(id, title)),
@@ -953,13 +1569,46 @@ if (query.get('page') === 'app' && query.get('links') === '1') {
   answer('delivery.view', () => ({
     revision: 1,
     items: rows.map(([id, title, role, ref, pr, dot], index) => ({
-      id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
-      sessions: [{ slot: `chat-${id}`, role, attempt: 1, title: null, status: 'working', statusAt: new Date(Date.now() - (index + 1) * 60000).toISOString(), boundAt: at, agent: 'kirocrew-worker', model: 'claude-sonnet', crew: 'local', executor: 'kirocrew', link: `/chat?sid=chat-${id}` }],
+      id,
+      title,
+      status: 'running',
+      complete: false,
+      repository: 'recipe-box',
+      authority: 'local',
+      evidence: [],
+      integration: null,
+      pullRequests: [],
+      deliveries: [{ state: 'running', updatedAt: at }],
+      worktrees: [],
+      issue: null,
+      sessions: [
+        {
+          slot: `chat-${id}`,
+          role,
+          attempt: 1,
+          title: null,
+          status: 'working',
+          statusAt: new Date(Date.now() - (index + 1) * 60000).toISOString(),
+          boundAt: at,
+          agent: 'kirocrew-worker',
+          model: 'claude-sonnet',
+          crew: 'local',
+          executor: 'kirocrew',
+          link: `/chat?sid=chat-${id}`,
+        },
+      ],
       links: {
         branch: { kind: 'branch', repository: 'acme/recipe-box', ref, url: `${repo}/tree/${ref}` },
         pr: pr ? { kind: 'pull', repository: 'acme/recipe-box', number: pr, url: `${repo}/pull/${pr}`, state: 'open' } : null,
         checks: dot
-          ? { state: dot === 'stale' ? 'pass' : dot, dot, head: (dot === 'stale' ? 'b' : 'a').repeat(40), ageMs: (index + 2) * 60000, current: dot !== 'stale', url: `${repo}/pull/${pr}/checks` }
+          ? {
+              state: dot === 'stale' ? 'pass' : dot,
+              dot,
+              head: (dot === 'stale' ? 'b' : 'a').repeat(40),
+              ageMs: (index + 2) * 60000,
+              current: dot !== 'stale',
+              url: `${repo}/pull/${pr}/checks`,
+            }
           : null,
       },
     })),
@@ -974,8 +1623,18 @@ if (query.get('page') === 'app' && query.get('publiccrews')) {
   const after = query.get('publiccrews') === 'after'
   const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
   const items = [44, 45].map((number) => ({
-    kind: 'issue', number, title: number === 44 ? 'Recipe photos load slowly on the list' : 'Add a print view for one recipe', url: `https://github.com/acme/recipe-box/issues/${number}`, repository: 'acme/recipe-box', author: 'mira', createdAt: '2026-11-15T09:00:00Z', labels: ['bug'], comments: 1,
-    source: 'github', id: `acme/recipe-box#${number}`, links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null },
+    kind: 'issue',
+    number,
+    title: number === 44 ? 'Recipe photos load slowly on the list' : 'Add a print view for one recipe',
+    url: `https://github.com/acme/recipe-box/issues/${number}`,
+    repository: 'acme/recipe-box',
+    author: 'mira',
+    createdAt: '2026-11-15T09:00:00Z',
+    labels: ['bug'],
+    comments: 1,
+    source: 'github',
+    id: `acme/recipe-box#${number}`,
+    links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null },
   }))
   const check = (key: string, label: string, ok: boolean, line: string) => ({ key, label, ok, line })
   const ok = [
@@ -985,12 +1644,42 @@ if (query.get('page') === 'app' && query.get('publiccrews')) {
     check('audit', 'Audit on the tick', true, 'The tick audits this repository.'),
   ]
   const publicCrews = [
-    { repository: 'acme/recipe-box', visibility: 'public', home: '/srv/crew-homes/recipe-box', agent: 'avoozl-crew', signedOff: null, lapsed: false, banner: null, items: ok, ready: true },
-    { repository: 'acme/docs', visibility: 'public', home: '/srv/crew-homes/docs', agent: 'avoozl-crew', signedOff: { by: 'mira', at: '2026-11-17T09:12:00.000Z' }, lapsed: false, banner: null, items: ok, ready: true },
     {
-      repository: 'acme/web', visibility: 'unknown', home: '/srv/crew-homes/web', agent: 'avoozl-crew', signedOff: null, lapsed: true,
+      repository: 'acme/recipe-box',
+      visibility: 'public',
+      home: '/srv/crew-homes/recipe-box',
+      agent: 'avoozl-crew',
+      signedOff: null,
+      lapsed: false,
+      banner: null,
+      items: ok,
+      ready: true,
+    },
+    {
+      repository: 'acme/docs',
+      visibility: 'public',
+      home: '/srv/crew-homes/docs',
+      agent: 'avoozl-crew',
+      signedOff: { by: 'mira', at: '2026-11-17T09:12:00.000Z' },
+      lapsed: false,
+      banner: null,
+      items: ok,
+      ready: true,
+    },
+    {
+      repository: 'acme/web',
+      visibility: 'unknown',
+      home: '/srv/crew-homes/web',
+      agent: 'avoozl-crew',
+      signedOff: null,
+      lapsed: true,
       banner: 'No content rule set covers this public repository, so sign-off stays closed. Add one in Settings › Content rules.',
-      items: [ok[0], check('hook', 'Content hook', false, 'avoozl-crew has no preToolUse hook that runs `avoozl content hook` on shell calls.'), check('rules', 'Content rule sets', false, 'No rule set covers this repository.'), ok[3]],
+      items: [
+        ok[0],
+        check('hook', 'Content hook', false, 'avoozl-crew has no preToolUse hook that runs `avoozl content hook` on shell calls.'),
+        check('rules', 'Content rule sets', false, 'No rule set covers this repository.'),
+        ok[3],
+      ],
       ready: false,
     },
   ]
@@ -998,7 +1687,21 @@ if (query.get('page') === 'app' && query.get('publiccrews')) {
     enabled: true,
     mode: 'plans-repo',
     total: items.length,
-    repositories: [{ repository: 'acme/recipe-box', checkedAt: '2026-11-17T09:00:00Z', error: null, searched: 2, read: 2, truncated: false, count: 2, query: null, filter: null, defaultFilter: '', notify: false }],
+    repositories: [
+      {
+        repository: 'acme/recipe-box',
+        checkedAt: '2026-11-17T09:00:00Z',
+        error: null,
+        searched: 2,
+        read: 2,
+        truncated: false,
+        count: 2,
+        query: null,
+        filter: null,
+        defaultFilter: '',
+        notify: false,
+      },
+    ],
     items,
     withRadar: [],
     ...(after ? { publicCrews } : {}),
@@ -1009,7 +1712,21 @@ if (query.get('radar') === '1') {
   answer('delivery.view', () => ({ revision: 1, items: [] }))
   answer('conflicts.view', () => ({
     revision: 1,
-    items: query.get('tickfail') === '1' ? [{ kind: 'tick-failed', id: 'tick-failed', taskId: null, title: 'The tick failed 3 times in a row', detail: 'database is locked. Nothing is dispatched, merged or read from GitHub until a tick works.', failures: 3, openedAt: '2026-11-13T11:30:00Z', planArchived: null }] : [],
+    items:
+      query.get('tickfail') === '1'
+        ? [
+            {
+              kind: 'tick-failed',
+              id: 'tick-failed',
+              taskId: null,
+              title: 'The tick failed 3 times in a row',
+              detail: 'database is locked. Nothing is dispatched, merged or read from GitHub until a tick works.',
+              failures: 3,
+              openedAt: '2026-11-13T11:30:00Z',
+              planArchived: null,
+            },
+          ]
+        : [],
   }))
   answer('plan.list', () => ({ items: [] }))
   answer('remote.view', () => ({ workers: [] }))
@@ -1017,7 +1734,24 @@ if (query.get('radar') === '1') {
   const noUsage = { input: 0, output: 0, credits: 0, turns: 0 }
   answer('flow.view', () =>
     query.get('receipt')
-      ? { window: { size: 20, since: null }, metrics: noMetrics, previous: noMetrics, bottleneck: null, tasks: [], stops: [], line: [], flaky: [], ciOnly: [], retros: [], batches: [], stages: [], repositories: ['acme/recipe-box'], epics: [], series: { day: [], week: [] }, usage: { available: false, total: noUsage, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] } }
+      ? {
+          window: { size: 20, since: null },
+          metrics: noMetrics,
+          previous: noMetrics,
+          bottleneck: null,
+          tasks: [],
+          stops: [],
+          line: [],
+          flaky: [],
+          ciOnly: [],
+          retros: [],
+          batches: [],
+          stages: [],
+          repositories: ['acme/recipe-box'],
+          epics: [],
+          series: { day: [], week: [] },
+          usage: { available: false, total: noUsage, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] },
+        }
       : { line: [], stages: [], tasks: [], retros: [] },
   )
   answer('radar.releasequeue', () => ({ repositories: [] }))
@@ -1026,7 +1760,23 @@ if (query.get('radar') === '1') {
     stale: 0,
     errors: [],
     unseen: ['paused', 'machine', 'chat'],
-    rows: [{ repository: 'acme/recipe-box', number: 52, title: 'Index builder', url: 'https://github.com/acme/recipe-box/issues/52', crewId: 'c_022aea7f', crewName: 'Draco', phase: 'implementing', pr: 57, prUrl: 'https://github.com/acme/recipe-box/pull/57', updated: '2026-11-09T09:46:00Z', commentUrl: null, stale: false, noMarker: false }],
+    rows: [
+      {
+        repository: 'acme/recipe-box',
+        number: 52,
+        title: 'Index builder',
+        url: 'https://github.com/acme/recipe-box/issues/52',
+        crewId: 'c_022aea7f',
+        crewName: 'Draco',
+        phase: 'implementing',
+        pr: 57,
+        prUrl: 'https://github.com/acme/recipe-box/pull/57',
+        updated: '2026-11-09T09:46:00Z',
+        commentUrl: null,
+        stale: false,
+        noMarker: false,
+      },
+    ],
   }))
 }
 // ?page=app&flow=1: Flow and Settings ›
@@ -1035,8 +1785,33 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
   const metrics = { tasks: 1, leadTimeMs: 52 * 60000, flowEfficiency: 0.62, firstPassRate: 1, changeFailureRate: 0, integrationsPerDay: null, timeToFixMs: null }
   const usage = { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] }
   const stages = { queued: 4 * 60000, coding: 30 * 60000, tests: 8 * 60000, 'ci-wait': 10 * 60000 }
-  const task = { taskId: 'search.3', title: 'Index builder', repository: 'acme/recipe-box', epic: null, startedAt: '2026-11-15T09:00:00Z', finishedAt: '2026-11-15T09:52:00Z', leadMs: 52 * 60000, activeMs: 38 * 60000, stages, coarse: false, sources: ['tool-calls'], batch: null, firstPass: true }
-  answer('radar.flow', () => ({ readAt: null, count: 0, issues: [], skipped: [], median: null, medianLead: null, efficiency: null, bottleneck: null, errors: [], repositories: [] }))
+  const task = {
+    taskId: 'search.3',
+    title: 'Index builder',
+    repository: 'acme/recipe-box',
+    epic: null,
+    startedAt: '2026-11-15T09:00:00Z',
+    finishedAt: '2026-11-15T09:52:00Z',
+    leadMs: 52 * 60000,
+    activeMs: 38 * 60000,
+    stages,
+    coarse: false,
+    sources: ['tool-calls'],
+    batch: null,
+    firstPass: true,
+  }
+  answer('radar.flow', () => ({
+    readAt: null,
+    count: 0,
+    issues: [],
+    skipped: [],
+    median: null,
+    medianLead: null,
+    efficiency: null,
+    bottleneck: null,
+    errors: [],
+    repositories: [],
+  }))
   answer('flow.view', () => ({
     window: { size: 20, since: null },
     metrics,
@@ -1084,7 +1859,23 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
   const min = 60000
   const mk = (taskId: string, title: string, repository: string, plan: string, at: string, stages: Record<string, number>) => {
     const leadMs = Object.values(stages).reduce((a, b) => a + b, 0)
-    return { taskId, title, repository, epic: null, plan, phase: null, startedAt: `2026-11-${at}T09:00:00Z`, finishedAt: `2026-11-${at}T10:00:00Z`, leadMs, activeMs: leadMs, stages, coarse: false, sources: ['tool-calls'], batch: null, firstPass: true }
+    return {
+      taskId,
+      title,
+      repository,
+      epic: null,
+      plan,
+      phase: null,
+      startedAt: `2026-11-${at}T09:00:00Z`,
+      finishedAt: `2026-11-${at}T10:00:00Z`,
+      leadMs,
+      activeMs: leadMs,
+      stages,
+      coarse: false,
+      sources: ['tool-calls'],
+      batch: null,
+      firstPass: true,
+    }
   }
   const all = [
     mk('search.3', 'Index builder', 'acme/recipe-box', 'search', '15', { queued: 4 * min, coding: 30 * min, tests: 8 * min, 'ci-wait': 10 * min }),
@@ -1092,35 +1883,160 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
     mk('pantry.1', 'Shelf list', 'acme/pantry', 'pantry', '14', { queued: 6 * min, coding: 20 * min, review: 15 * min }),
   ]
   const retros = [
-    { id: 'retro-2', n: 2, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-16T12:00:00Z', finishedAt: '2026-11-16T12:09:00Z', model: 'claude-sonnet', chat: { slot: 'avoozl_retro_2', executor: 'kirocrew', harness: null, status: 'idle', link: '/chat?sid=avoozl_retro_2' }, bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' }, dropped: [], proposals: [
-      { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.retro.slowFactor', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'Retros fired on 6 normal tasks.', status: 'open' },
-      { id: 'p2', type: 'prompt', target: 'worker', section: 'Checks', diff: '@@ -1,2 +1,2 @@\n Run the checks.\n-Run all tests.\n+Run the tests you touched first.', metric: 'first-pass rate', direction: 'up', evidence: 'Two reviews asked for narrower runs.', status: 'open' },
-    ] },
-    { id: 'retro-4', n: 4, state: 'failed', failure: 'no-reply', waitedMs: 11 * min, error: 'the chat started but never replied (waited 11 minutes)', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-17T09:00:00Z', finishedAt: '2026-11-17T09:11:00Z', bottleneck: null, dropped: [], proposals: [],
-      chat: { slot: 'avoozl_retro_4', executor: 'process', harness: 'claude-code', status: 'closed', link: null, process: { state: 'exited', logTail: 'reading the window\nwriting the reply\nerror: the model call was cut off', attach: 'tail -n 20 -f /tmp/avoozl/retro-4.log' } } },
-    { id: 'retro-3', n: 3, state: 'failed', failure: 'lost', waitedMs: 11 * min, error: 'the chat was lost: Kiro Crew no longer lists it (waited 11 minutes)', triggers: [{ kind: 'manual', detail: 'started by hand' }], startedAt: '2026-11-16T20:00:00Z', finishedAt: '2026-11-16T20:11:00Z', bottleneck: null, dropped: [], proposals: [],
-      chat: { slot: 'avoozl_retro_3', executor: 'kirocrew', harness: null, status: 'gone', link: '/chat?sid=avoozl_retro_3' } },
-    { id: 'retro-1', n: 1, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-12T12:00:00Z', finishedAt: '2026-11-12T12:08:00Z', bottleneck: null, dropped: [], proposals: [
-      { id: 'p1', type: 'rule', text: 'Name the spec in every commit message.', metric: 'corrections', direction: 'down', evidence: { runs: ['search.1', 'search.2'], value: 2, effect: 'corrections' }, status: 'approved' },
-    ] },
+    {
+      id: 'retro-2',
+      n: 2,
+      state: 'done',
+      triggers: [{ kind: 'count', detail: '10 tasks finished' }],
+      startedAt: '2026-11-16T12:00:00Z',
+      finishedAt: '2026-11-16T12:09:00Z',
+      model: 'claude-sonnet',
+      chat: { slot: 'avoozl_retro_2', executor: 'kirocrew', harness: null, status: 'idle', link: '/chat?sid=avoozl_retro_2' },
+      bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' },
+      dropped: [],
+      proposals: [
+        {
+          id: 'p1',
+          type: 'settings',
+          file: 'workspace',
+          key: 'flow.retro.slowFactor',
+          from: 3,
+          to: 5,
+          metric: 'lead time',
+          direction: 'down',
+          evidence: 'Retros fired on 6 normal tasks.',
+          status: 'open',
+        },
+        {
+          id: 'p2',
+          type: 'prompt',
+          target: 'worker',
+          section: 'Checks',
+          diff: '@@ -1,2 +1,2 @@\n Run the checks.\n-Run all tests.\n+Run the tests you touched first.',
+          metric: 'first-pass rate',
+          direction: 'up',
+          evidence: 'Two reviews asked for narrower runs.',
+          status: 'open',
+        },
+      ],
+    },
+    {
+      id: 'retro-4',
+      n: 4,
+      state: 'failed',
+      failure: 'no-reply',
+      waitedMs: 11 * min,
+      error: 'the chat started but never replied (waited 11 minutes)',
+      triggers: [{ kind: 'count', detail: '10 tasks finished' }],
+      startedAt: '2026-11-17T09:00:00Z',
+      finishedAt: '2026-11-17T09:11:00Z',
+      bottleneck: null,
+      dropped: [],
+      proposals: [],
+      chat: {
+        slot: 'avoozl_retro_4',
+        executor: 'process',
+        harness: 'claude-code',
+        status: 'closed',
+        link: null,
+        process: { state: 'exited', logTail: 'reading the window\nwriting the reply\nerror: the model call was cut off', attach: 'tail -n 20 -f /tmp/avoozl/retro-4.log' },
+      },
+    },
+    {
+      id: 'retro-3',
+      n: 3,
+      state: 'failed',
+      failure: 'lost',
+      waitedMs: 11 * min,
+      error: 'the chat was lost: Kiro Crew no longer lists it (waited 11 minutes)',
+      triggers: [{ kind: 'manual', detail: 'started by hand' }],
+      startedAt: '2026-11-16T20:00:00Z',
+      finishedAt: '2026-11-16T20:11:00Z',
+      bottleneck: null,
+      dropped: [],
+      proposals: [],
+      chat: { slot: 'avoozl_retro_3', executor: 'kirocrew', harness: null, status: 'gone', link: '/chat?sid=avoozl_retro_3' },
+    },
+    {
+      id: 'retro-1',
+      n: 1,
+      state: 'done',
+      triggers: [{ kind: 'count', detail: '10 tasks finished' }],
+      startedAt: '2026-11-12T12:00:00Z',
+      finishedAt: '2026-11-12T12:08:00Z',
+      bottleneck: null,
+      dropped: [],
+      proposals: [
+        {
+          id: 'p1',
+          type: 'rule',
+          text: 'Name the spec in every commit message.',
+          metric: 'corrections',
+          direction: 'down',
+          evidence: { runs: ['search.1', 'search.2'], value: 2, effect: 'corrections' },
+          status: 'approved',
+        },
+      ],
+    },
   ].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
-  answer('radar.flow', () => ({ readAt: null, count: 0, issues: [], skipped: [], median: null, medianLead: null, efficiency: null, bottleneck: null, errors: [], repositories: [] }))
+  answer('radar.flow', () => ({
+    readAt: null,
+    count: 0,
+    issues: [],
+    skipped: [],
+    median: null,
+    medianLead: null,
+    efficiency: null,
+    bottleneck: null,
+    errors: [],
+    repositories: [],
+  }))
   answer('flow.view', (body) => {
     const input = ((body as { input?: Record<string, string> }).input ?? {}) as Record<string, string>
-    const tasks = all.filter((t) => (!input.repository || t.repository === input.repository) && (!input.plan || t.plan === input.plan) && (!input.stage || (t.stages[input.stage] ?? 0) > 0))
+    const tasks = all.filter(
+      (t) => (!input.repository || t.repository === input.repository) && (!input.plan || t.plan === input.plan) && (!input.stage || (t.stages[input.stage] ?? 0) > 0),
+    )
     const lead = tasks.length ? tasks.map((t) => t.leadMs).sort((a, b) => a - b)[Math.floor(tasks.length / 2)] : null
     const metrics = { tasks: tasks.length, leadTimeMs: lead, flowEfficiency: 0.6, firstPassRate: 1, changeFailureRate: 0, integrationsPerDay: null, timeToFixMs: null }
-    const point = (t: (typeof all)[number]) => ({ key: t.finishedAt.slice(0, 10), tasks: 1, leadTimeMs: t.leadMs, flowEfficiency: 0.6, firstPassRate: 1, timeToFixMs: null, stages: t.stages })
+    const point = (t: (typeof all)[number]) => ({
+      key: t.finishedAt.slice(0, 10),
+      tasks: 1,
+      leadTimeMs: t.leadMs,
+      flowEfficiency: 0.6,
+      firstPassRate: 1,
+      timeToFixMs: null,
+      stages: t.stages,
+    })
     return {
-      window: { size: Number(input.window ?? 20), since: null }, metrics, previous: metrics, bottleneck: null, tasks, stops: [], line: [], flaky: [], ciOnly: [], retros, batches: [],
-      stages: ['queued', 'coding', 'tests', 'ci-wait', 'review'], repositories: ['acme/pantry', 'acme/recipe-box'], epics: [],
-      plans: [{ id: 'pantry', title: 'Pantry' }, { id: 'search', title: 'Search' }], phases: [],
-      series: { day: tasks.map(point), week: tasks.map(point) }, usage: noUsage,
+      window: { size: Number(input.window ?? 20), since: null },
+      metrics,
+      previous: metrics,
+      bottleneck: null,
+      tasks,
+      stops: [],
+      line: [],
+      flaky: [],
+      ciOnly: [],
+      retros,
+      batches: [],
+      stages: ['queued', 'coding', 'tests', 'ci-wait', 'review'],
+      repositories: ['acme/pantry', 'acme/recipe-box'],
+      epics: [],
+      plans: [
+        { id: 'pantry', title: 'Pantry' },
+        { id: 'search', title: 'Search' },
+      ],
+      phases: [],
+      series: { day: tasks.map(point), week: tasks.map(point) },
+      usage: noUsage,
     }
   })
   answer('flow.proposals', () => ({
-    proposals: retros.flatMap((r) => r.proposals.map((p) => ({ retro: r.id, ...p }))), dropped: [],
-    prompts: [{ target: 'worker', version: 'built-in', shipped: 'abc', active: 0, versions: [], sections: [], drift: [] }], notes: [], available: true,
+    proposals: retros.flatMap((r) => r.proposals.map((p) => ({ retro: r.id, ...p }))),
+    dropped: [],
+    prompts: [{ target: 'worker', version: 'built-in', shipped: 'abc', active: 0, versions: [], sections: [], drift: [] }],
+    notes: [],
+    available: true,
   }))
   answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null, ciClassGlobs: {} }))
   answer('flow.retro.decide', () => ({ ok: true }))
@@ -1155,10 +2071,21 @@ if (query.get('page') === 'demo' && demo) {
 function TipPage() {
   const [clicks, setClicks] = useState(0)
   return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'flex-start' }}>
-      <Tooltip text="Opened 2026-11-14 by Mira"><span data-plain>opened 3 days ago</span></Tooltip>
-      <span data-info-wrap><InfoTip text="Details that do not fit on the page" /></span>
-      <Tooltip text="Stops all new work"><Btn data-act onClick={() => setClicks(clicks + 1)}>Stop</Btn></Tooltip>
+    <div
+      {...{ [APP_ATTR]: '' }}
+      style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'flex-start' }}
+    >
+      <Tooltip text="Opened 2026-11-14 by Mira">
+        <span data-plain>opened 3 days ago</span>
+      </Tooltip>
+      <span data-info-wrap>
+        <InfoTip text="Details that do not fit on the page" />
+      </span>
+      <Tooltip text="Stops all new work">
+        <Btn data-act onClick={() => setClicks(clicks + 1)}>
+          Stop
+        </Btn>
+      </Tooltip>
       <span data-clicks>{clicks}</span>
       <button data-elsewhere>Elsewhere</button>
     </div>
@@ -1170,16 +2097,48 @@ function Page() {
   if (query.get('page') === 'demo') return <DeepLinkPage />
   return (
     <>
-      <div data-host-header style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 48, zIndex: 1000, display: 'flex', alignItems: 'center', padding: '0 16px', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
+      <div
+        data-host-header
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 48,
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          background: 'var(--bg-elevated)',
+          borderBottom: '1px solid var(--border)',
+          color: 'var(--text)',
+        }}
+      >
         Host header
       </div>
-      <div data-host-pane style={{ position: 'fixed', top: 48, left: 0, right: 0, bottom: 0, overflowY: 'auto', transform: 'translateZ(0)', background: 'var(--bg)', color: 'var(--text)' }}>
+      <div
+        data-host-pane
+        style={{ position: 'fixed', top: 48, left: 0, right: 0, bottom: 0, overflowY: 'auto', transform: 'translateZ(0)', background: 'var(--bg)', color: 'var(--text)' }}
+      >
         <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
           <NavHistoryProvider>
             <ConfirmProvider>
               <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
                 <div style={{ display: 'flex', gap: 16, padding: 16, minHeight: 2400 }}>
-                  <aside data-sticky-column style={{ position: 'sticky', top: 8, alignSelf: 'flex-start', zIndex: LAYER.sticky, width: '28%', minHeight: 300, padding: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
+                  <aside
+                    data-sticky-column
+                    style={{
+                      position: 'sticky',
+                      top: 8,
+                      alignSelf: 'flex-start',
+                      zIndex: LAYER.sticky,
+                      width: '28%',
+                      minHeight: 300,
+                      padding: 8,
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-elevated)',
+                    }}
+                  >
                     Plans
                   </aside>
                   <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1212,12 +2171,43 @@ if (query.get('page') === 'release-queue') {
     ['rc-4.1', 'Release engine', 'held', 'Phase Phase 4 waits for phase p3 to merge (rc-3.1, rc-3.2, rc-3.3).', 'Phase 4'],
     ['rc-5.1', 'Merge path check', 'held', 'Step: waiting for a click to release phase Phase 5.', 'Phase 5'],
     ['rc-5.2', 'Arm GitHub auto-merge', 'held', 'The line is stopped: bad base on main.', 'Phase 5'],
-  ].map(([taskId, title, state, reason, phase], i) => ({ taskId, title, planId: 'radar-coder', spec: 'radar-coder', phase, scope: null, label: 'ready', number: 10 + i, url: null, manual: false, state, reason, used: 2, capacity: 2 }))
+  ].map(([taskId, title, state, reason, phase], i) => ({
+    taskId,
+    title,
+    planId: 'radar-coder',
+    spec: 'radar-coder',
+    phase,
+    scope: null,
+    label: 'ready',
+    number: 10 + i,
+    url: null,
+    manual: false,
+    state,
+    reason,
+    used: 2,
+    capacity: 2,
+  }))
   answer('delivery.view', () => ({ revision: 1, items: [] }))
   answer('radar.releasequeue', () => ({
     repositories: [
-      { repository: 'example/application-with-a-long-name', ready: 'ready', mode: 'step', capacity: 2, scopes: [], rows, steps: [{ planId: 'radar-coder', spec: 'radar-coder', phase: 'p5', title: 'Phase 5', released: false }] },
-      { repository: 'example/docs', ready: 'ready', mode: 'hold', capacity: 0, scopes: [], rows: [{ ...rows[2], taskId: 'd-1', state: 'held', reason: 'Release mode is Hold. Add the ready label by hand to release it.' }], steps: [] },
+      {
+        repository: 'example/application-with-a-long-name',
+        ready: 'ready',
+        mode: 'step',
+        capacity: 2,
+        scopes: [],
+        rows,
+        steps: [{ planId: 'radar-coder', spec: 'radar-coder', phase: 'p5', title: 'Phase 5', released: false }],
+      },
+      {
+        repository: 'example/docs',
+        ready: 'ready',
+        mode: 'hold',
+        capacity: 0,
+        scopes: [],
+        rows: [{ ...rows[2], taskId: 'd-1', state: 'held', reason: 'Release mode is Hold. Add the ready label by hand to release it.' }],
+        steps: [],
+      },
     ],
   }))
 }
@@ -1268,7 +2258,18 @@ function RepoModePage() {
   const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
   return (
     <NavHistoryProvider>
-      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" tab={tab} onTab={setTab} onChange={setRepository} />
+      <RepositoryEditor
+        index={0}
+        repository={repository}
+        choices={choices as never}
+        review={undefined}
+        mode="single-repo"
+        workspaceId="w"
+        planningRepository=""
+        tab={tab}
+        onTab={setTab}
+        onChange={setRepository}
+      />
     </NavHistoryProvider>
   )
 }
@@ -1279,7 +2280,14 @@ const wsWin = window as unknown as { __wsCalls: string[] }
 if (query.get('page') === 'workspaces') {
   wsWin.__wsCalls = []
   let items = [
-    { id: 'launch', name: 'Product launch', root: '/plans/launch', enabled: query.get('stopped') !== '1', state: query.get('stopped') === '1' ? 'stopped' : 'closed', served: true },
+    {
+      id: 'launch',
+      name: 'Product launch',
+      root: '/plans/launch',
+      enabled: query.get('stopped') !== '1',
+      state: query.get('stopped') === '1' ? 'stopped' : 'closed',
+      served: true,
+    },
     { id: 'nupp', name: 'Nupp plans', root: '/plans/nupp', enabled: true, state: 'closed', served: false },
   ]
   answer('workspaces.list', () => ({ defaultWorkspace: items[0]?.id ?? null, items }))
@@ -1350,7 +2358,10 @@ const PAGES: Record<string, () => ReactNode> = {
   'github-usage': () => (
     <RateBlock
       rate={{
-        resources: { core: { limit: 5000, remaining: 1078, resetAt: new Date(Date.now() + 22 * 60000).toISOString() }, graphql: { limit: 5000, remaining: 4890, resetAt: new Date(Date.now() + 40 * 60000).toISOString() } },
+        resources: {
+          core: { limit: 5000, remaining: 1078, resetAt: new Date(Date.now() + 22 * 60000).toISOString() },
+          graphql: { limit: 5000, remaining: 4890, resetAt: new Date(Date.now() + 40 * 60000).toISOString() },
+        },
         limitedUntil: null,
         limitedResource: null,
         calls: 214,
@@ -1358,7 +2369,13 @@ const PAGES: Record<string, () => ReactNode> = {
         notModifiedShare: 61 / 214,
         hourCalls: 153,
         writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
-        bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
+        bySource: {
+          tick: { calls: 88, notModified: 40, cached: 0 },
+          crew: { calls: 41, notModified: 0, cached: 0 },
+          view: { calls: 17, notModified: 21, cached: 132 },
+          review: { calls: 5, notModified: 0, cached: 3 },
+          setup: { calls: 2, notModified: 0, cached: 0 },
+        },
       }}
     />
   ),
@@ -1377,7 +2394,6 @@ function SettingsPage({ name }: { name: string }) {
     </div>
   )
 }
-
 
 // ?page=intake: Settings > Plugins with its Intake sources, on fake data
 // (intake-fixture.ts); &empty=1 with no source. For the intake screenshots.
@@ -1411,7 +2427,17 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
   const actors = ['mira', 'worker-chat', 'octo-reviewer', 'github-actions']
   const base = Array.from({ length: 24 }, (_, at) => {
     const seq = 24 - at
-    return { seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') - at * 3600e3).toISOString(), source: sources[at % 4], actor: actors[(at * 3) % 4], kind: kinds[at % kinds.length], summary: `${kinds[at % kinds.length]} entry ${seq}`, targetId: null, link: null, redacted: false }
+    return {
+      seq,
+      at: new Date(Date.parse('2026-11-13T10:00:00Z') - at * 3600e3).toISOString(),
+      source: sources[at % 4],
+      actor: actors[(at * 3) % 4],
+      kind: kinds[at % kinds.length],
+      summary: `${kinds[at % kinds.length]} entry ${seq}`,
+      targetId: null,
+      link: null,
+      redacted: false,
+    }
   })
   // New items from GitHub: the owner/repo#N text links to the item.
   if (query.get('ghitems') === '1') {
@@ -1420,7 +2446,17 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
     kinds.push('intake.item')
   }
   // The tick's own rows: a failure with a count, a stall and a recovery.
-  const tickRow = (seq: number, hours: number, kind: string, summary: string) => ({ seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') + hours * 3600e3).toISOString(), source: 'tick', actor: 'avoozl', kind, summary, targetId: null, link: null, redacted: false })
+  const tickRow = (seq: number, hours: number, kind: string, summary: string) => ({
+    seq,
+    at: new Date(Date.parse('2026-11-13T10:00:00Z') + hours * 3600e3).toISOString(),
+    source: 'tick',
+    actor: 'avoozl',
+    kind,
+    summary,
+    targetId: null,
+    link: null,
+    redacted: false,
+  })
   const all = [
     tickRow(27, 2, 'tick.recovered', 'Tick works again after 5 failures'),
     tickRow(26, 1.5, 'tick.failed', 'Tick failed 5 times in a row: database is locked'),
@@ -1437,7 +2473,15 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
   answer('activity.list', (body) => {
     const input = body.input as { source?: string; kind?: string; actor?: string }
     const items = all.filter((row) => (!input.source || row.source === input.source) && (!input.kind || row.kind === input.kind) && (!input.actor || row.actor === input.actor))
-    return { items, total: items.length, sources: [...sources].sort(), kinds: [...kinds].sort(), actors: [...actors].sort(), counts: { source: count('source'), kind: count('kind'), actor: count('actor') }, retentionDays: 30 }
+    return {
+      items,
+      total: items.length,
+      sources: [...sources].sort(),
+      kinds: [...kinds].sort(),
+      actors: [...actors].sort(),
+      counts: { source: count('source'), kind: count('kind'), actor: count('actor') },
+      retentionDays: 30,
+    }
   })
   let keepDays = 30
   answer('activity.settings.get', () => ({ hash: 'h', retentionDays: keepDays, default: 30 }))
@@ -1497,10 +2541,28 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     spec('load-config', 'approved', 3, { onGitHub: true, ...at(8) }),
     spec('window-design', 'not imported', 10),
   ]
-  const entry = (id: string, batch: number, tasks: number, hash: string, extra = {}) => ({ id, spec: id, title: id, hash: hash.repeat(64 / hash.length), batch, tasks, errors: 0, loop: false, needs: [], ...extra })
+  const entry = (id: string, batch: number, tasks: number, hash: string, extra = {}) => ({
+    id,
+    spec: id,
+    title: id,
+    hash: hash.repeat(64 / hash.length),
+    batch,
+    tasks,
+    errors: 0,
+    loop: false,
+    needs: [],
+    ...extra,
+  })
   const batches = [
     { batch: 1, specs: [entry('core-design-values', 1, 4, 'b9dc37bf'), entry('math-matrix-math', 1, 5, 'b18266e9'), entry('public-cli-module', 1, 3, '4b5afd31')] },
-    { batch: 2, specs: [entry('byte-types', 2, 8, '98f38c3b', { loop: true, needs: ['compression', 'core-design-values'] }), entry('compression', 2, 12, 'f1551aa3', { loop: true, needs: ['byte-types'] }), entry('nupp-native-runtime-winddown-2026-11-11', 2, 131, '3a271abe', { loop: true, needs: ['compression'] })] },
+    {
+      batch: 2,
+      specs: [
+        entry('byte-types', 2, 8, '98f38c3b', { loop: true, needs: ['compression', 'core-design-values'] }),
+        entry('compression', 2, 12, 'f1551aa3', { loop: true, needs: ['byte-types'] }),
+        entry('nupp-native-runtime-winddown-2026-11-11', 2, 131, '3a271abe', { loop: true, needs: ['compression'] }),
+      ],
+    },
     { batch: 3, specs: [entry('allocator', 3, 7, '4fb54994', { needs: ['byte-types'] })] },
   ]
   answer('plan.table', () => ({ root: '/repo', problem: null, specs: [], revision: 7, items }))
@@ -1511,7 +2573,17 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     const hash = fixture.data.revisionHash
     const files = fixture.data.files
     let at = hash
-    const summary = { name: 'byte-types', folder: '.kiro/specs/byte-types/', type: 'feature', hash, files: Object.keys(files), counts: { error: 0, warning: 0, info: 0 }, taskCount: 2, critique: null, plan: { id: 'byte-types', state: 'draft', hash, revision: 3, changed: false, approved: false } }
+    const summary = {
+      name: 'byte-types',
+      folder: '.kiro/specs/byte-types/',
+      type: 'feature',
+      hash,
+      files: Object.keys(files),
+      counts: { error: 0, warning: 0, info: 0 },
+      taskCount: 2,
+      critique: null,
+      plan: { id: 'byte-types', state: 'draft', hash, revision: 3, changed: false, approved: false },
+    }
     answer('plan.table', () => ({ root: '/repo', problem: null, specs: [summary], revision: 7, items }))
     answer('plan.preview', () => ({ reviewedHash: at, expectedRevision: 3, tasks: [], dependencies: [] }))
     answer('plan.spec.read', () => ({ name: 'byte-types', folder: '.kiro/specs/byte-types/', hash, documents: files }))
@@ -1521,18 +2593,38 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     // a dialog is open: one finding becomes fixed and one moves.
     for (const batch of batches) for (const spec of batch.specs) if (spec.id === 'byte-types') spec.hash = hash
     const moved = 'd00dfeed'.repeat(8)
-    const movedFiles = { ...files, 'requirements.md': files['requirements.md'] + '\n3. A test SHALL show 255 + 1 wraps to 0.', 'tasks.md': files['tasks.md'] + '\n- [ ] 1.3 Test overflow wraps' }
-    ;(window as unknown as { __moveRevision: () => void }).__moveRevision = () => { at = moved }
+    const movedFiles = {
+      ...files,
+      'requirements.md': files['requirements.md'] + '\n3. A test SHALL show 255 + 1 wraps to 0.',
+      'tasks.md': files['tasks.md'] + '\n- [ ] 1.3 Test overflow wraps',
+    }
+    ;(window as unknown as { __moveRevision: () => void }).__moveRevision = () => {
+      at = moved
+    }
     let summaryReady = false
-    ;(window as unknown as { __summaryReady: () => void }).__summaryReady = () => { summaryReady = true }
+    ;(window as unknown as { __summaryReady: () => void }).__summaryReady = () => {
+      summaryReady = true
+    }
     answer('graph.view', () => specGraph)
     const reviewOf = () => {
       const now = at === moved
-      const open = fixture.data.findings.filter((f) => f.state !== 'rejected').map((f) => ({
-        id: f.id, roundId: f.roundId, revisionHash: f.revisionHash, current: true, kind: f.category, severity: f.severity, file: f.anchor.file, line: f.anchor.lineStart, claim: f.claim, evidence: f.evidence, answer: f.answer,
-        state: now && f.id === 'f-blocker' ? 'fixed' : f.state,
-        anchor: { ...f.anchor, moved: f.id === 'f-moved' ? now : false },
-      }))
+      const open = fixture.data.findings
+        .filter((f) => f.state !== 'rejected')
+        .map((f) => ({
+          id: f.id,
+          roundId: f.roundId,
+          revisionHash: f.revisionHash,
+          current: true,
+          kind: f.category,
+          severity: f.severity,
+          file: f.anchor.file,
+          line: f.anchor.lineStart,
+          claim: f.claim,
+          evidence: f.evidence,
+          answer: f.answer,
+          state: now && f.id === 'f-blocker' ? 'fixed' : f.state,
+          anchor: { ...f.anchor, moved: f.id === 'f-moved' ? now : false },
+        }))
       const byState: Record<string, number> = { rejected: 1 }
       for (const f of open) byState[f.state] = (byState[f.state] ?? 0) + 1
       // Open findings by severity, live as the person decides them.
@@ -1541,16 +2633,61 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
       // &summary=running: the reviewer is still writing it (the AI working
       // box) until window.__summaryReady(); &summary=none: none, no review.
       const running = query.get('summary') === 'running' && !summaryReady
-      const summary = query.get('summary') === 'none' || running ? null : { text: 'Adds fixed-width byte types and byte strings to the runtime, with UTF-8 conversion. It covers three requirements and two tasks.', revisionHash: hash, current: !now }
-      return { state: running ? 'running' : 'done', planHash: at, reviewerModel: 'fake-reviewer', writerModel: 'fake-writer', revisionHash: hash, current: !now, found: fixture.data.findings.length, fixed: byState.fixed ?? 0, forYou: byState['for you'] ?? 0, bySeverity: fixture.data.bySeverity, openBySeverity, byState, summary, note: null, open }
+      const summary =
+        query.get('summary') === 'none' || running
+          ? null
+          : {
+              text: 'Adds fixed-width byte types and byte strings to the runtime, with UTF-8 conversion. It covers three requirements and two tasks.',
+              revisionHash: hash,
+              current: !now,
+            }
+      return {
+        state: running ? 'running' : 'done',
+        planHash: at,
+        reviewerModel: 'fake-reviewer',
+        writerModel: 'fake-writer',
+        revisionHash: hash,
+        current: !now,
+        found: fixture.data.findings.length,
+        fixed: byState.fixed ?? 0,
+        forYou: byState['for you'] ?? 0,
+        bySeverity: fixture.data.bySeverity,
+        openBySeverity,
+        byState,
+        summary,
+        note: null,
+        open,
+      }
     }
     const entryHash = (id: string) => batches.flatMap((b) => b.specs).find((e) => e.id === id)?.hash
     answer('plan.reviewSummary', (body) => {
       const id = (body.input as { planId: string }).planId
-      return id === 'byte-types' ? reviewOf() : { state: 'not-reviewed', planHash: entryHash(id), reviewerModel: null, revisionHash: null, current: false, found: 0, fixed: 0, forYou: 0, bySeverity: { blocker: 0, warn: 0, info: 0 }, byState: {}, note: null, open: [] }
+      return id === 'byte-types'
+        ? reviewOf()
+        : {
+            state: 'not-reviewed',
+            planHash: entryHash(id),
+            reviewerModel: null,
+            revisionHash: null,
+            current: false,
+            found: 0,
+            fixed: 0,
+            forYou: 0,
+            bySeverity: { blocker: 0, warn: 0, info: 0 },
+            byState: {},
+            note: null,
+            open: [],
+          }
     })
     answer('plan.get', () => ({
-      id: 'byte-types', spec: 'byte-types', title: 'Byte types', hash: at, revision: at === moved ? 4 : 3, state: 'draft', files: at === moved ? movedFiles : files, approvals: [],
+      id: 'byte-types',
+      spec: 'byte-types',
+      title: 'Byte types',
+      hash: at,
+      revision: at === moved ? 4 : 3,
+      state: 'draft',
+      files: at === moved ? movedFiles : files,
+      approvals: [],
       history: at === moved ? [{ revision: 3, hash, files }] : [],
       quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
       disk: { folder: '.kiro/specs/byte-types/', exists: true, hash: at, changed: false, critique: null },
@@ -1570,33 +2707,113 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     const draft = query.get('specpr') === 'draft'
     const diff = (lines: string[]) => lines.join('\n')
     const pull = {
-      id: 'spec-pr:acme/plans#12', spec: 'byte-types', planId: 'byte-types', title: 'Add overflow wrapping to byte types', repository: 'acme/plans', number: 12,
-      url: 'https://github.com/acme/plans/pull/12', author: 'mira', draft, checks: draft ? 'pending' : 'passing', head: 'a1b2c3d4'.repeat(5), hash: fixture.data.revisionHash, link: 'own', newSpec: false,
+      id: 'spec-pr:acme/plans#12',
+      spec: 'byte-types',
+      planId: 'byte-types',
+      title: 'Add overflow wrapping to byte types',
+      repository: 'acme/plans',
+      number: 12,
+      url: 'https://github.com/acme/plans/pull/12',
+      author: 'mira',
+      draft,
+      checks: draft ? 'pending' : 'passing',
+      head: 'a1b2c3d4'.repeat(5),
+      hash: fixture.data.revisionHash,
+      link: 'own',
+      newSpec: false,
       files: [
-        { file: 'requirements.md', status: 'changed', added: 2, removed: 1, diff: diff(['@@ -4,3 +4,4 @@', ' 2. A byte SHALL hold 0 to 255.', '-3. Arithmetic SHALL not overflow.', '+3. Arithmetic SHALL wrap modulo 256.', '+4. A test SHALL show 255 + 1 wraps to 0.']) },
+        {
+          file: 'requirements.md',
+          status: 'changed',
+          added: 2,
+          removed: 1,
+          diff: diff([
+            '@@ -4,3 +4,4 @@',
+            ' 2. A byte SHALL hold 0 to 255.',
+            '-3. Arithmetic SHALL not overflow.',
+            '+3. Arithmetic SHALL wrap modulo 256.',
+            '+4. A test SHALL show 255 + 1 wraps to 0.',
+          ]),
+        },
         { file: 'tasks.md', status: 'changed', added: 1, removed: 0, diff: diff(['@@ -6,2 +6,3 @@', ' - [ ] 1.2 Add byte strings', '+- [ ] 1.3 Test overflow wraps']) },
       ],
       tasks: [{ taskId: '1.3', title: 'Test overflow wraps', change: 'added' }],
-      review: { state: 'done', current: true, found: 4, bySeverity: { blocker: 1, warn: 2, info: 1 }, openBySeverity: { blocker: 1, warn: 2, info: 0 }, summary: 'Makes byte arithmetic wrap and adds one test task.' },
-      approved: false, merging: false, canApprove: !draft,
+      review: {
+        state: 'done',
+        current: true,
+        found: 4,
+        bySeverity: { blocker: 1, warn: 2, info: 1 },
+        openBySeverity: { blocker: 1, warn: 2, info: 0 },
+        summary: 'Makes byte arithmetic wrap and adds one test task.',
+      },
+      approved: false,
+      merging: false,
+      canApprove: !draft,
     }
     items[0] = { ...items[0], pull: { number: 12, draft } }
     answer('specpr.view', () => ({ items: [pull] }))
-    answer('plan.approve', () => ({ id: 'byte-types', hash: pull.hash, pending: true, approvalPullRequest: { repository: 'acme/plans', number: 12, branch: 'spec/byte-types', adopted: true } }))
+    answer('plan.approve', () => ({
+      id: 'byte-types',
+      hash: pull.hash,
+      pending: true,
+      approvalPullRequest: { repository: 'acme/plans', number: 12, branch: 'spec/byte-types', adopted: true },
+    }))
     answer('specpr.reject', () => ({ closed: true }))
     answer('specpr.requestChanges', () => ({ posted: 3 }))
     answer('conflicts.view', () => ({
       revision: 1,
-      items: [{ id: 'spec-pull:spec-pr:acme/plans#12', kind: 'spec-pull', taskId: null, plan: 'byte-types', title: 'Proposed change to byte-types: Add overflow wrapping to byte types', detail: draft ? 'A draft pull request. Read it now; approving waits until it is marked ready.' : 'Read the change and the review, then approve, request changes or reject.', link: pull.url, specPull: pull }],
+      items: [
+        {
+          id: 'spec-pull:spec-pr:acme/plans#12',
+          kind: 'spec-pull',
+          taskId: null,
+          plan: 'byte-types',
+          title: 'Proposed change to byte-types: Add overflow wrapping to byte types',
+          detail: draft
+            ? 'A draft pull request. Read it now; approving waits until it is marked ready.'
+            : 'Read the change and the review, then approve, request changes or reject.',
+          link: pull.url,
+          specPull: pull,
+        },
+      ],
     }))
     const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
     const row = (number: number, title: string, extra = {}) => ({
-      kind: 'pr', number, title, url: `https://github.com/acme/plans/pull/${number}`, repository: 'acme/plans', author: 'dave', createdAt: '2026-11-17T09:00:00Z', labels: [], comments: 0, draft: true, checks: 'passing',
-      source: 'github', id: `acme/plans#${number}`, links: { github: `https://github.com/acme/plans/pull/${number}`, issueRadar: link, review: { tooltip: 'Opens a Kiro Crew chat that reviews it.' } }, ...extra,
+      kind: 'pr',
+      number,
+      title,
+      url: `https://github.com/acme/plans/pull/${number}`,
+      repository: 'acme/plans',
+      author: 'dave',
+      createdAt: '2026-11-17T09:00:00Z',
+      labels: [],
+      comments: 0,
+      draft: true,
+      checks: 'passing',
+      source: 'github',
+      id: `acme/plans#${number}`,
+      links: { github: `https://github.com/acme/plans/pull/${number}`, issueRadar: link, review: { tooltip: 'Opens a Kiro Crew chat that reviews it.' } },
+      ...extra,
     })
     answer('untriaged.view', () => ({
-      enabled: true, mode: 'plans-repo', total: 2,
-      repositories: [{ repository: 'acme/plans', checkedAt: '2026-11-17T09:00:00Z', error: null, searched: 2, read: 3, truncated: false, count: 2, query: null, filter: null, defaultFilter: '', notify: false }],
+      enabled: true,
+      mode: 'plans-repo',
+      total: 2,
+      repositories: [
+        {
+          repository: 'acme/plans',
+          checkedAt: '2026-11-17T09:00:00Z',
+          error: null,
+          searched: 2,
+          read: 3,
+          truncated: false,
+          count: 2,
+          query: null,
+          filter: null,
+          defaultFilter: '',
+          notify: false,
+        },
+      ],
       items: [row(14, 'Draft the export spec', { specPull: { spec: 'export-formats' } }), row(15, 'Fix the build script', { draft: false })],
       withRadar: [],
     }))
@@ -1606,7 +2823,10 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
   answer('plan.approvalBatches', (body) => {
     const ids = (body.input as { ids?: string[] } | undefined)?.ids
     if (!ids) return { batches }
-    const specs = batches.flatMap((b) => b.specs).filter((e) => ids.includes(e.id)).map((e) => ({ ...e, writes: writes[e.id] ?? 3 }))
+    const specs = batches
+      .flatMap((b) => b.specs)
+      .filter((e) => ids.includes(e.id))
+      .map((e) => ({ ...e, writes: writes[e.id] ?? 3 }))
     return { batches, selection: { ok: true, specs, writes: specs.reduce((n, e) => n + e.writes, 0), failures: [], missing: [] } }
   })
   answer('plan.approveMany', (body) => {
@@ -1648,7 +2868,15 @@ if (query.get('epics') === 'empty') {
   answer('epics.view', () => ({ epics: [], unprojected: [], radarGraph: RADAR_GRAPH }))
 }
 if (query.get('epics') === 'full') {
-  const phase = (id: string, title: string, gate: string, total: number, merged: number, released: number, held: string | null) => ({ id, title, gate, total, merged, released, held })
+  const phase = (id: string, title: string, gate: string, total: number, merged: number, released: number, held: string | null) => ({
+    id,
+    title,
+    gate,
+    total,
+    merged,
+    released,
+    held,
+  })
   answer('epics.view', () => ({
     epics: [
       {
@@ -1658,7 +2886,16 @@ if (query.get('epics') === 'full') {
         merged: 5,
         running: 1,
         plans: [
-          { id: 'search-v2', title: 'Plan v3', state: 'approved', phases: [phase('p1', 'Index', 'passed', 3, 3, 3, null), phase('p2', 'Ranking', 'open', 4, 0, 1, '3 wait on #52 (CI)'), phase('p3', 'Cache', 'closed', 5, 0, 0, 'Phase Ranking waits for phase Index to merge.')] },
+          {
+            id: 'search-v2',
+            title: 'Plan v3',
+            state: 'approved',
+            phases: [
+              phase('p1', 'Index', 'passed', 3, 3, 3, null),
+              phase('p2', 'Ranking', 'open', 4, 0, 1, '3 wait on #52 (CI)'),
+              phase('p3', 'Cache', 'closed', 5, 0, 0, 'Phase Ranking waits for phase Index to merge.'),
+            ],
+          },
           { id: 'search-docs', title: 'Docs', state: 'approved', phases: [phase('d1', 'Write', 'open', 1, 0, 0, null)] },
         ],
       },
@@ -1671,32 +2908,68 @@ const page = query.get('page')
 // ?page=needs: Needs you's list column with four open items, for the filter
 // row and the count shown once.
 if (page === 'needs') {
-  const it = (n: number, kind: string) => ({ key: `k${n}`, kind, taskId: `t${n}`, title: `Item ${n}`, detail: 'Waits on you.', plan: 'meal-planner', epic: null, repository: 'example/recipe-box', since: '2026-11-14T10:00:00Z' })
-  answer('conflicts.view', () => ({ revision: 1, items: query.get('draftReview') === '1' ? [{
-    id: 'draft-review-1', kind: 'plan-review', taskId: null, plan: 'reader', title: 'Review draft reader?',
-    detail: 'Read this draft on a different model, or skip this revision.',
-    planReview: { planId: 'reader', revisionHash: 'a'.repeat(64) },
-  }] : [it(1, 'decision'), it(2, 'decision'), it(3, 'needs-human'), it(4, 'review')] }))
+  const it = (n: number, kind: string) => ({
+    key: `k${n}`,
+    kind,
+    taskId: `t${n}`,
+    title: `Item ${n}`,
+    detail: 'Waits on you.',
+    plan: 'meal-planner',
+    epic: null,
+    repository: 'example/recipe-box',
+    since: '2026-11-14T10:00:00Z',
+  })
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items:
+      query.get('draftReview') === '1'
+        ? [
+            {
+              id: 'draft-review-1',
+              kind: 'plan-review',
+              taskId: null,
+              plan: 'reader',
+              title: 'Review draft reader?',
+              detail: 'Read this draft on a different model, or skip this revision.',
+              planReview: { planId: 'reader', revisionHash: 'a'.repeat(64) },
+            },
+          ]
+        : [it(1, 'decision'), it(2, 'decision'), it(3, 'needs-human'), it(4, 'review')],
+  }))
   answer('plan.review.decide', (body) => {
     state.calls.push(body)
-    if (query.get('draftDelay') === '1') return new Promise((resolve) => {
-      window.addEventListener('release-draft-review', () => resolve({ state: (body.input as { action: string }).action }), { once: true })
-    })
+    if (query.get('draftDelay') === '1')
+      return new Promise((resolve) => {
+        window.addEventListener('release-draft-review', () => resolve({ state: (body.input as { action: string }).action }), { once: true })
+      })
     return { state: (body.input as { action: string }).action }
   })
   answer('delivery.view', () => ({ revision: 1, items: [] }))
 }
 function NeedsPage() {
   const [workspaceId, setWorkspaceId] = useState('w')
-  return <>
-    {query.get('draftReview') === '1' && <button data-review-workspace={workspaceId} onClick={() => setWorkspaceId('other')}>Switch workspace</button>}
-    <ConflictsView workspaceId={workspaceId} />
-  </>
+  return (
+    <>
+      {query.get('draftReview') === '1' && (
+        <button data-review-workspace={workspaceId} onClick={() => setWorkspaceId('other')}>
+          Switch workspace
+        </button>
+      )}
+      <ConflictsView workspaceId={workspaceId} />
+    </>
+  )
 }
 // ?page=radar-values[&grant=1]: the Radar values screen on a fake Radar read.
 if (page === 'radar-values') {
   const grant = query.get('grant') === '1'
-  const item = (id: string, label: string, value: string, status: string) => ({ id, label, value, controls: `What ${label} controls.`, status, note: status === 'ok' ? 'Issue Radar shows this value.' : 'Tick it yourself.' })
+  const item = (id: string, label: string, value: string, status: string) => ({
+    id,
+    label,
+    value,
+    controls: `What ${label} controls.`,
+    status,
+    note: status === 'ok' ? 'Issue Radar shows this value.' : 'Tick it yourself.',
+  })
   answer('radar.values', () => ({
     repository: 'example/code',
     grant,
@@ -1712,7 +2985,11 @@ if (page === 'radar-values') {
 if (page === 'forward') {
   const state = query.get('state') ?? 'ok'
   answer('mirror.forward.review', () =>
-    state === 'blocked' ? { ok: false, blocked: true, reason: forwardLive.blockedReason } : state === 'stopped' ? { ok: false, stopped: forwardLive.stopped, review: forwardLive.review } : { ok: true, ready: true, review: forwardLive.review },
+    state === 'blocked'
+      ? { ok: false, blocked: true, reason: forwardLive.blockedReason }
+      : state === 'stopped'
+        ? { ok: false, stopped: forwardLive.stopped, review: forwardLive.review }
+        : { ok: true, ready: true, review: forwardLive.review },
   )
 }
 const intake = page === 'intake'
@@ -1726,7 +3003,14 @@ if (query.get('plugins')) {
 // &rules=many|one: Settings > Content rules with fourteen rule sets, or one.
 if (query.get('rules')) {
   const count = query.get('rules') === 'many' ? 14 : 1
-  const sets = Array.from({ length: count }, (_, i) => ({ id: i ? `codenames-${i + 1}` : 'codenames', action: i % 3 ? 'block' : 'report', source: 'file', boundaries: ['plan', 'github'], available: true, ruleCount: 2 }))
+  const sets = Array.from({ length: count }, (_, i) => ({
+    id: i ? `codenames-${i + 1}` : 'codenames',
+    action: i % 3 ? 'block' : 'report',
+    source: 'file',
+    boundaries: ['plan', 'github'],
+    available: true,
+    ruleCount: 2,
+  }))
   answer('content.rules', () => ({
     error: null,
     configHash: 'h1',
@@ -1738,7 +3022,14 @@ if (query.get('rules')) {
     choices: { repositories: ['recipe-box'], plugins: [] },
     sets,
   }))
-  answer('content.terms.get', (body) => ({ id: (body.input as { id: string }).id, file: '~/.avoozl/codenames.terms', from: 'machine', editable: true, exists: true, text: 'zebra: zebra falcon\nheron: blue heron\n' }))
+  answer('content.terms.get', (body) => ({
+    id: (body.input as { id: string }).id,
+    file: '~/.avoozl/codenames.terms',
+    from: 'machine',
+    editable: true,
+    exists: true,
+    text: 'zebra: zebra falcon\nheron: blue heron\n',
+  }))
 }
 
 // ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
@@ -1747,8 +3038,39 @@ if (query.get('rules')) {
 // window.__panelCalls records writes.
 type PanelData = { conflicts: unknown[]; crews: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
 const panelWin = window as unknown as { __panel: PanelData; __panelReads: number; __panelCalls: unknown[] }
-const panelClaim = (number: number, crewId: string, crewName: string, phase: string, pr: number | null) => ({ repository: 'acme/recipe-box', number, title: number === 52 ? 'Index builder' : 'Ranking tests', url: `https://github.test/acme/recipe-box/issues/${number}`, crewId, crewName, phase, pr, prUrl: pr ? `https://github.test/acme/recipe-box/pull/${pr}` : null, updated: new Date(Date.now() - 600000).toISOString(), commentUrl: null, stale: false, noMarker: false, instanceId: 'inst-1', claimedAt: new Date(Date.now() - 1500000).toISOString() })
-const panelRow = (taskId: string, state: string, reason: string) => ({ taskId, title: `Task ${taskId}`, planId: 'search-v2', spec: 'search-v2', phase: 'one', scope: null, label: 'ready', number: null, url: null, manual: false, state, reason, used: 0, capacity: 2 })
+const panelClaim = (number: number, crewId: string, crewName: string, phase: string, pr: number | null) => ({
+  repository: 'acme/recipe-box',
+  number,
+  title: number === 52 ? 'Index builder' : 'Ranking tests',
+  url: `https://github.test/acme/recipe-box/issues/${number}`,
+  crewId,
+  crewName,
+  phase,
+  pr,
+  prUrl: pr ? `https://github.test/acme/recipe-box/pull/${pr}` : null,
+  updated: new Date(Date.now() - 600000).toISOString(),
+  commentUrl: null,
+  stale: false,
+  noMarker: false,
+  instanceId: 'inst-1',
+  claimedAt: new Date(Date.now() - 1500000).toISOString(),
+})
+const panelRow = (taskId: string, state: string, reason: string) => ({
+  taskId,
+  title: `Task ${taskId}`,
+  planId: 'search-v2',
+  spec: 'search-v2',
+  phase: 'one',
+  scope: null,
+  label: 'ready',
+  number: null,
+  url: null,
+  manual: false,
+  state,
+  reason,
+  used: 0,
+  capacity: 2,
+})
 if (page === 'panel') {
   const full = query.get('state') !== 'empty'
   panelWin.__panelReads = 0
@@ -1756,17 +3078,58 @@ if (page === 'panel') {
   panelWin.__panel = {
     conflicts: full
       ? [
-          { kind: 'needs-human', reason: 'crew', taskId: null, title: '#52 asks about the tokenizer', detail: 'Draco: tokenizer A or B? Crew paused with the needs-human label.', link: 'https://github.test/acme/recipe-box/issues/52' },
-          { kind: 'github-conflict', taskId: 'S8', field: 'title', title: 'Ranking: acceptance edited', detail: 'Someone changed the title on GitHub.', choices: ['desired', 'github'] },
+          {
+            kind: 'needs-human',
+            reason: 'crew',
+            taskId: null,
+            title: '#52 asks about the tokenizer',
+            detail: 'Draco: tokenizer A or B? Crew paused with the needs-human label.',
+            link: 'https://github.test/acme/recipe-box/issues/52',
+          },
+          {
+            kind: 'github-conflict',
+            taskId: 'S8',
+            field: 'title',
+            title: 'Ranking: acceptance edited',
+            detail: 'Someone changed the title on GitHub.',
+            choices: ['desired', 'github'],
+          },
           { kind: 'stale-session', taskId: 'S9', title: 'A retired worker row', detail: 'must not show' },
         ]
       : [],
     crews: full ? [panelClaim(52, 'abc', 'Draco', 'CI', 57), panelClaim(58, 'def', 'Orla', 'working', 59)] : [],
-    remote: full ? [{ host: 'box', crewId: 'r1', taskId: 'S5', state: 'running', chatKey: 'k', status: 'working', updatedAt: new Date().toISOString(), attachUrl: 'https://box.test/chat?sid=k', stale: false, lastOkAt: null }] : [],
+    remote: full
+      ? [
+          {
+            host: 'box',
+            crewId: 'r1',
+            taskId: 'S5',
+            state: 'running',
+            chatKey: 'k',
+            status: 'working',
+            updatedAt: new Date().toISOString(),
+            attachUrl: 'https://box.test/chat?sid=k',
+            stale: false,
+            lastOkAt: null,
+          },
+        ]
+      : [],
     queue: full ? [panelRow('S9', 'next', 'Waits on #52, then it is next.'), panelRow('S10', 'held', 'Held by the line.')] : [],
     tasks: full ? [{ taskId: 'S4', title: 'Tokenizer', repository: 'acme/recipe-box', finishedAt: new Date(Date.now() - 3600000).toISOString() }] : [],
     line: [],
-    specs: [{ name: 'search-v2', folder: '.kiro/specs/search-v2', type: 'feature', hash: 'h', files: ['requirements.md', 'design.md', 'tasks.md'], counts: { error: 0, warning: 1 }, taskCount: 12, critique: null, plan: { id: 'search-v2', state: 'draft', hash: 'h', revision: 1, changed: false, approved: false } }],
+    specs: [
+      {
+        name: 'search-v2',
+        folder: '.kiro/specs/search-v2',
+        type: 'feature',
+        hash: 'h',
+        files: ['requirements.md', 'design.md', 'tasks.md'],
+        counts: { error: 0, warning: 1 },
+        taskCount: 12,
+        critique: null,
+        plan: { id: 'search-v2', state: 'draft', hash: 'h', revision: 1, changed: false, approved: false },
+      },
+    ],
   }
   const data = () => {
     if (panelWin.__panel.fail) throw Object.assign(new Error('down'), { status: 500, body: '{"error":"down"}' })
@@ -1776,8 +3139,19 @@ if (page === 'panel') {
   // ?places=1: two workspaces, Avoozl's (/w) and Nupp's (/n, whose code
   // checkout is /src/nupp), and chats whose project folders sit in each.
   if (query.get('places')) {
-    answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Avoozl plans', root: '/w', enabled: true, state: 'ready', served: true }, { id: 'nupp', name: 'Nupp plans with a long name', root: '/n', enabled: true, state: 'ready', served: false }] }))
-    answer('repositories.list', (body) => ({ items: (body as { workspaceId?: string }).workspaceId === 'nupp' ? [{ id: 'nupp', name: 'nupp', localCheckout: '/src/nupp', github: 'o/nupp', baseBranch: 'main' }] : [{ id: 'av', name: 'avoozl', localCheckout: '/src/avoozl', github: 'o/avoozl', baseBranch: 'main' }] }))
+    answer('workspaces.list', () => ({
+      defaultWorkspace: 'w',
+      items: [
+        { id: 'w', name: 'Avoozl plans', root: '/w', enabled: true, state: 'ready', served: true },
+        { id: 'nupp', name: 'Nupp plans with a long name', root: '/n', enabled: true, state: 'ready', served: false },
+      ],
+    }))
+    answer('repositories.list', (body) => ({
+      items:
+        (body as { workspaceId?: string }).workspaceId === 'nupp'
+          ? [{ id: 'nupp', name: 'nupp', localCheckout: '/src/nupp', github: 'o/nupp', baseBranch: 'main' }]
+          : [{ id: 'av', name: 'avoozl', localCheckout: '/src/avoozl', github: 'o/avoozl', baseBranch: 'main' }],
+    }))
     answer('GET /api/chat/slots', () => [
       { key: 'nupp-chat', project: '/src/nupp/compiler' },
       { key: 'avoozl-chat', project: '/src/avoozl' },
@@ -1804,14 +3178,23 @@ if (page === 'panel') {
       flow: part(() => ({ tasks: data().tasks, line: data().line })),
       specs: part(() => data().specs),
       instance: { id: 'inst-1', name: 'Kelp' },
-      checks: crews && Object.fromEntries(crews.filter((c) => c.pr).map((c, i) => [`${c.repository}#${c.pr}`, i === 0 ? { state: 'passing', total: 3, done: 3, failed: [] } : { state: 'failing', total: 3, done: 3, failed: ['test'] }])),
+      checks:
+        crews &&
+        Object.fromEntries(
+          crews
+            .filter((c) => c.pr)
+            .map((c, i) => [`${c.repository}#${c.pr}`, i === 0 ? { state: 'passing', total: 3, done: 3, failed: [] } : { state: 'failing', total: 3, done: 3, failed: ['test'] }]),
+        ),
     }
   })
   answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
   // The line, read by the pause button: ?stopped=1 opens a stop; Resume closes it.
   let panelStops = query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : []
   answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [], retros: [] }))
-  answer('flow.resume', (body) => (panelWin.__panelCalls.push({ resume: (body.input as { stopId?: string }).stopId }), (panelStops = []), { stop: { id: 'l1', closedAt: new Date().toISOString() } }))
+  answer(
+    'flow.resume',
+    (body) => (panelWin.__panelCalls.push({ resume: (body.input as { stopId?: string }).stopId }), (panelStops = []), { stop: { id: 'l1', closedAt: new Date().toISOString() } }),
+  )
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
 }
 // ?page=panel&real=1: the panel on the replies a real backend gave over the
@@ -1820,7 +3203,7 @@ if (page === 'panel') {
 const realPanel = (window as unknown as { __REAL_PANEL?: Record<string, unknown> }).__REAL_PANEL
 if (page === 'panel' && query.get('real') === '1' && realPanel) {
   answer('panel.view', () => realPanel['panel.view'])
-  answer('GET /api/apps/spec-builder/specs', () => ({ specs: (((realPanel['panel.view'] as { specs?: { name: string }[] }).specs ?? [])).map((item) => ({ name: item.name })) }))
+  answer('GET /api/apps/spec-builder/specs', () => ({ specs: ((realPanel['panel.view'] as { specs?: { name: string }[] }).specs ?? []).map((item) => ({ name: item.name })) }))
 }
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
@@ -1847,23 +3230,71 @@ function CrewsRulesPage() {
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
       <HarnessBoundary>
         <CrewsRulesSettings id="t" repository={repository} set={(change) => setRepository((before) => ({ ...before, ...change }))} />
-        <pre data-form style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify({ rules: repository.reviewRules, plan: repository.planLabel })}</pre>
+        <pre data-form style={{ whiteSpace: 'pre-wrap' }}>
+          {JSON.stringify({ rules: repository.reviewRules, plan: repository.planLabel })}
+        </pre>
       </HarnessBoundary>
     </div>
   )
 }
 // ?page=tracker-gates: an open, a failed and a cleared gate, and the Waiting on you filter.
 const GATES: GateRow[] = [
-  { taskId: 'sdk.1', title: 'Wait for the review to ship', tracker: 'ticket-tracker', item: 'REV-1', done: 'the review shipped to the live release', state: 'open', lastCheck: '2026-11-14T12:00:00Z', nextCheck: '2026-11-14T12:02:00Z', evidence: 'In review', link: null, cleared: null, needsYou: false, held: ['sdk.2'] },
-  { taskId: 'sdk.5', title: 'A very long gate title that has to wrap on a phone without any sideways scrolling at all', tracker: 'ticket-tracker', item: 'https://tracker.example.test/a/very/long/path/that/must/wrap/REV-2', done: 'resolved', state: 'failed', lastCheck: '2026-11-14T12:00:00Z', nextCheck: '2026-11-14T12:30:00Z', evidence: 'Rejected by the owner', link: 'https://tracker.example.test/REV-2', cleared: null, needsYou: true, held: [] },
-  { taskId: 'sdk.6', title: 'Cut over', tracker: 'ticket-tracker', item: 'REV-3', done: 'resolved', state: 'cleared', lastCheck: null, nextCheck: null, evidence: null, link: null, cleared: { actor: 'alice', how: 'command', at: '2026-11-14T13:00:00Z', reason: 'Shipped by hand.', lastState: 'failed' }, needsYou: false, held: [] },
+  {
+    taskId: 'sdk.1',
+    title: 'Wait for the review to ship',
+    tracker: 'ticket-tracker',
+    item: 'REV-1',
+    done: 'the review shipped to the live release',
+    state: 'open',
+    lastCheck: '2026-11-14T12:00:00Z',
+    nextCheck: '2026-11-14T12:02:00Z',
+    evidence: 'In review',
+    link: null,
+    cleared: null,
+    needsYou: false,
+    held: ['sdk.2'],
+  },
+  {
+    taskId: 'sdk.5',
+    title: 'A very long gate title that has to wrap on a phone without any sideways scrolling at all',
+    tracker: 'ticket-tracker',
+    item: 'https://tracker.example.test/a/very/long/path/that/must/wrap/REV-2',
+    done: 'resolved',
+    state: 'failed',
+    lastCheck: '2026-11-14T12:00:00Z',
+    nextCheck: '2026-11-14T12:30:00Z',
+    evidence: 'Rejected by the owner',
+    link: 'https://tracker.example.test/REV-2',
+    cleared: null,
+    needsYou: true,
+    held: [],
+  },
+  {
+    taskId: 'sdk.6',
+    title: 'Cut over',
+    tracker: 'ticket-tracker',
+    item: 'REV-3',
+    done: 'resolved',
+    state: 'cleared',
+    lastCheck: null,
+    nextCheck: null,
+    evidence: null,
+    link: null,
+    cleared: { actor: 'alice', how: 'command', at: '2026-11-14T13:00:00Z', reason: 'Shipped by hand.', lastState: 'failed' },
+    needsYou: false,
+    held: [],
+  },
 ]
 function TrackerGatesPage() {
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
       <HarnessBoundary>
         <GateList gates={GATES} onClear={() => undefined} />
-        <pre data-waiting>{waitingGates(GATES).map((row) => row.taskId).join(',')}</pre>
+        <pre data-waiting>
+          {waitingGates(GATES)
+            .map((row) => row.taskId)
+            .join(',')}
+        </pre>
       </HarnessBoundary>
     </div>
   )
@@ -1923,5 +3354,33 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'needs' ? (
+    <NeedsPage />
+  ) : page === 'specs' ? (
+    <SpecsPage />
+  ) : page === 'tip' ? (
+    <TipPage />
+  ) : page === 'panel' ? (
+    <PanelPage />
+  ) : page === 'workflow-map' ? (
+    <WorkflowMapPage />
+  ) : page === 'crews-rules' ? (
+    <CrewsRulesPage />
+  ) : page === 'tracker-gates' ? (
+    <TrackerGatesPage />
+  ) : page === 'forward' ? (
+    <ForwardPage />
+  ) : intake ? (
+    <IntakePage />
+  ) : page === 'home' ? (
+    <HomePage />
+  ) : page === 'activity' ? (
+    <ActivityPage />
+  ) : page && page !== 'app' && page !== 'demo' ? (
+    <SettingsPage name={page} />
+  ) : query.get('app') ? (
+    <AppPage />
+  ) : (
+    <Page />
+  ),
 )

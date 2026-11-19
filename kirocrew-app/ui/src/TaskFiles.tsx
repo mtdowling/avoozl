@@ -63,7 +63,9 @@ function StatusBadge({ change }: { change: FileChange }) {
       <span aria-hidden="true">
         <Badge variant={STATUS_VARIANT[change.status]}>{STATUS_LETTER[change.status]}</Badge>
       </span>
-      <Box as="span" srOnly>{change.status}</Box>
+      <Box as="span" srOnly>
+        {change.status}
+      </Box>
     </span>
   )
 }
@@ -73,7 +75,12 @@ function Counts({ change }: { change: FileChange }) {
   if (change.additions === null) return null
   return (
     <Box as="span" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" shrink0 size="xs">
-      <Box as="span" css-color="ok">+{change.additions}</Box> <Box as="span" css-color="danger">−{change.deletions}</Box>
+      <Box as="span" css-color="ok">
+        +{change.additions}
+      </Box>{' '}
+      <Box as="span" css-color="danger">
+        −{change.deletions}
+      </Box>
     </Box>
   )
 }
@@ -88,7 +95,19 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
               type="button"
               aria-current={props.selected === node.path ? 'true' : undefined}
               onClick={() => props.onPick(node.path)}
-              css-padding-left={4 + props.depth * 14} css-background={props.selected === node.path ? 'bg-elevated' : undefined} css-color={node.change ? 'text' : 'muted'} flex wFull minW0 items="center" gap="2" rounded="base" px="1" py="0.5" align="left" size="sm"
+              css-padding-left={4 + props.depth * 14}
+              css-background={props.selected === node.path ? 'bg-elevated' : undefined}
+              css-color={node.change ? 'text' : 'muted'}
+              flex
+              wFull
+              minW0
+              items="center"
+              gap="2"
+              rounded="base"
+              px="1"
+              py="0.5"
+              align="left"
+              size="sm"
               data-file={node.path}
             >
               {node.change ? <StatusBadge change={node.change} /> : <Box as="span" css-width="18" aria-hidden="true" />}
@@ -104,7 +123,9 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
           <li key={node.path}>
             <Box css-padding-left={4 + props.depth * 14} flex items="center" gap="1" px="1" py="0.5" size="sm" tone="muted">
               <Folder size={14} aria-hidden="true" />
-              <Box as="span" truncate>{node.name}</Box>
+              <Box as="span" truncate>
+                {node.name}
+              </Box>
             </Box>
             <Tree nodes={node.children} depth={props.depth + 1} selected={props.selected} onPick={props.onPick} />
           </li>
@@ -269,7 +290,12 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
         {error}
       </ErrorText>
     )
-  if (!view) return props.box ? null : <Hint as="p" size="sm">Reading the task&apos;s branch…</Hint>
+  if (!view)
+    return props.box ? null : (
+      <Hint as="p" size="sm">
+        Reading the task&apos;s branch…
+      </Hint>
+    )
   if (props.box && view.mode === 'none') return null
 
   const github = safeHref(view.github) && view.github
@@ -303,7 +329,13 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
               {view.totals.files > 0 && (
                 <>
                   {' '}
-                  · <Box as="span" css-color="ok">+{view.totals.additions}</Box> <Box as="span" css-color="danger">−{view.totals.deletions}</Box>
+                  ·{' '}
+                  <Box as="span" css-color="ok">
+                    +{view.totals.additions}
+                  </Box>{' '}
+                  <Box as="span" css-color="danger">
+                    −{view.totals.deletions}
+                  </Box>
                 </>
               )}
             </>
@@ -345,17 +377,33 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
         </Switch>
       </Box>
       {tree.length === 0 ? (
-        <Hint as="p" size="sm">This task has not changed any files yet.</Hint>
+        <Hint as="p" size="sm">
+          This task has not changed any files yet.
+        </Hint>
       ) : (
         <Box css-border-color="border" maxH80 overflow="auto" rounded="base" border="all" p="1">
           <Tree nodes={tree} depth={0} selected={picked} onPick={pick} />
         </Box>
       )}
-      {(view.truncated || view.all?.truncated) && <Hint as="p" size="xs">Only the first files are listed.</Hint>}
+      {(view.truncated || view.all?.truncated) && (
+        <Hint as="p" size="xs">
+          Only the first files are listed.
+        </Hint>
+      )}
       {diff && (
         <Stack aria-label={`Diff of ${diff.path}`} as="section" gap={2}>
           <Row gap={2}>
-            <Box as="h4" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" css-overflow-wrap="anywhere" minW0 flex1 size="sm" weight="semibold">
+            <Box
+              as="h4"
+              css-font-family="mono-ui-monospace-monospace"
+              css-font-size="12"
+              css-line-height="18px"
+              css-overflow-wrap="anywhere"
+              minW0
+              flex1
+              size="sm"
+              weight="semibold"
+            >
               {diff.path}
             </Box>
             <Toggle
@@ -381,11 +429,19 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
           ) : diff.view ? (
             <Diff diff={diff.view} layout={layout} />
           ) : (
-            <Hint as="p" size="sm">Reading the diff…</Hint>
+            <Hint as="p" size="sm">
+              Reading the diff…
+            </Hint>
           )}
         </Stack>
       )}
     </Stack>
   )
-  return props.box ? <SectionBox id={props.box.id} title={props.box.title}>{body}</SectionBox> : body
+  return props.box ? (
+    <SectionBox id={props.box.id} title={props.box.title}>
+      {body}
+    </SectionBox>
+  ) : (
+    body
+  )
 }

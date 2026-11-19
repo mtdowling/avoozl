@@ -17,11 +17,23 @@ const items = [
 
 test('typing matches ID, title and spec, ignoring case, IDs first', () => {
   const index = pickIndex(items)
-  assert.deepEqual(pickMatches(index, '').shown.map((i) => i.id), ['24.1', '29.1', 'n.4'])
-  assert.deepEqual(pickMatches(index, 'STOP').shown.map((i) => i.id), ['24.1', '29.1'])
-  assert.deepEqual(pickMatches(index, 'nupp').shown.map((i) => i.id), ['n.4'])
+  assert.deepEqual(
+    pickMatches(index, '').shown.map((i) => i.id),
+    ['24.1', '29.1', 'n.4'],
+  )
+  assert.deepEqual(
+    pickMatches(index, 'STOP').shown.map((i) => i.id),
+    ['24.1', '29.1'],
+  )
+  assert.deepEqual(
+    pickMatches(index, 'nupp').shown.map((i) => i.id),
+    ['n.4'],
+  )
   // '24' starts 24.1's ID and is inside n.4's title: the ID match goes first.
-  assert.deepEqual(pickMatches(index, '24').shown.map((i) => i.id), ['24.1', 'n.4'])
+  assert.deepEqual(
+    pickMatches(index, '24').shown.map((i) => i.id),
+    ['24.1', 'n.4'],
+  )
   assert.deepEqual(pickMatches(index, 'zzz'), { shown: [], total: 0 })
   assert.equal(pickLabel(items[1]), '29.1: Stop all agents')
   assert.deepEqual(optionItems([{ value: 'spec:a', label: 'a' }]), [{ id: 'spec:a', title: 'a' }])
@@ -47,7 +59,16 @@ test('arrows, Home, End, Enter and Esc', () => {
 
 test('the picker is an ARIA combobox with a listbox, and shows state', () => {
   const picker = source('Picker.tsx')
-  for (const attribute of ['role="combobox"', 'aria-expanded=', 'aria-controls=', 'aria-autocomplete="list"', 'aria-activedescendant=', 'role="listbox"', 'role="option"', 'aria-selected='])
+  for (const attribute of [
+    'role="combobox"',
+    'aria-expanded=',
+    'aria-controls=',
+    'aria-autocomplete="list"',
+    'aria-activedescendant=',
+    'role="listbox"',
+    'role="option"',
+    'aria-selected=',
+  ])
     assert.ok(picker.includes(attribute), attribute)
   assert.match(picker, /item\.state &&/)
   assert.match(picker, /more; type to narrow/)

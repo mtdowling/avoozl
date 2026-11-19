@@ -20,13 +20,29 @@ const VARIANT: Record<RowState, BadgeVariant> = { released: 'success', claimed: 
 // `held` is a held-reason line the queue itself lacks: a sub-issue link the cap or GitHub left out.
 function Row({ row, held }: { row: QueueRow; held?: string }) {
   return (
-    <Box data-release-row={row.state} as="li" css-flex-direction="row" css-border-top="1px-solid-border" css-display="flex" css-flex-wrap="wrap" css-gap="4px-12px" css-align-items="baseline" css-padding="8px-0" css-list-style="none">
+    <Box
+      data-release-row={row.state}
+      as="li"
+      css-flex-direction="row"
+      css-border-top="1px-solid-border"
+      css-display="flex"
+      css-flex-wrap="wrap"
+      css-gap="4px-12px"
+      css-align-items="baseline"
+      css-padding="8px-0"
+      css-list-style="none"
+    >
       <span className="flex flex-none items-center gap-2 sm:w-28" style={{ flex: '0 0 88px' }}>
         <Badge variant={VARIANT[row.state]}>{STATE_LABEL[row.state]}</Badge>
       </span>
       <span className="min-w-0 text-sm sm:w-1/3" style={{ overflowWrap: 'anywhere', flex: '1 1 220px' }}>
-        <Box as="span" weight="medium">{row.title}</Box> <Hint size="xs">{row.taskId}</Hint>
-        <Box as="span" css-display="block" size="xs" tone="muted">{row.phase}</Box>
+        <Box as="span" weight="medium">
+          {row.title}
+        </Box>{' '}
+        <Hint size="xs">{row.taskId}</Hint>
+        <Box as="span" css-display="block" size="xs" tone="muted">
+          {row.phase}
+        </Box>
       </span>
       <Box as="span" css-overflow-wrap="anywhere" css-flex="2-1-240px" minW0 flex1 size="sm" tone="muted" data-release-reason>
         {row.reason}
@@ -52,9 +68,31 @@ function Repository({ repository, onStep, busy, held }: { repository: QueueRepos
         <Hint size="xs">{capacityText(repository.capacity)}</Hint>
       </Box>
       {steps.map((step) => (
-        <Box key={step.planId} data-release-step css-border-color="border" css-border="1px-solid-border" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" css-padding="8" flex flexWrap items="center" gap="2" rounded="md" border="all" p="2" size="sm">
+        <Box
+          key={step.planId}
+          data-release-step
+          css-border-color="border"
+          css-border="1px-solid-border"
+          css-display="flex"
+          css-flex-wrap="wrap"
+          css-align-items="center"
+          css-gap="8"
+          css-padding="8"
+          flex
+          flexWrap
+          items="center"
+          gap="2"
+          rounded="md"
+          border="all"
+          p="2"
+          size="sm"
+        >
           <Box as="span" css-overflow-wrap="anywhere" minW0 flex1>
-            Step is waiting for {step.spec ?? step.planId}, phase <Box as="span" weight="medium">{step.title}</Box>.
+            Step is waiting for {step.spec ?? step.planId}, phase{' '}
+            <Box as="span" weight="medium">
+              {step.title}
+            </Box>
+            .
           </Box>
           <Btn type="button" primary disabled={busy} onClick={() => onStep(step.planId)}>
             Release {step.title}
@@ -106,7 +144,8 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
         <Card flex hFull flexCol gap="2">
           <SectionHeading title="Release queue" mb="0" />
           <Hint as="p" size="sm">
-            Nothing is queued. The queue lists each task of an approved epic in the order Avoozl releases it, with the reason each one waits. It needs a repository and an approved spec.
+            Nothing is queued. The queue lists each task of an approved epic in the order Avoozl releases it, with the reason each one waits. It needs a repository and an approved
+            spec.
           </Hint>
           {props.onOpenSettings && (
             <div>
@@ -121,19 +160,25 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
   if (!value && !error) return null
   return (
     <Box data-release-queue hFull>
-    <Card css-display="flex" css-flex-direction="column" css-gap="12" flex hFull flexCol gap="3">
-      <SectionHeading title="Release queue" mb="0" />
-      <Hint as="p" size="xs">In the order the tick releases them. Each held task says why.</Hint>
-      {error && <Hint as="p" size="sm">The queue could not be read: {error}</Hint>}
-      {failure && (
-        <Box role="alert" as="p" css-color="danger" size="sm">
-          {failure}
-        </Box>
-      )}
-      {value?.repositories.map((repository) => (
-        <Repository key={repository.repository} repository={repository} onStep={(planId) => void step(planId)} busy={busy} held={value.held} />
-      ))}
-    </Card>
+      <Card css-display="flex" css-flex-direction="column" css-gap="12" flex hFull flexCol gap="3">
+        <SectionHeading title="Release queue" mb="0" />
+        <Hint as="p" size="xs">
+          In the order the tick releases them. Each held task says why.
+        </Hint>
+        {error && (
+          <Hint as="p" size="sm">
+            The queue could not be read: {error}
+          </Hint>
+        )}
+        {failure && (
+          <Box role="alert" as="p" css-color="danger" size="sm">
+            {failure}
+          </Box>
+        )}
+        {value?.repositories.map((repository) => (
+          <Repository key={repository.repository} repository={repository} onStep={(planId) => void step(planId)} busy={busy} held={value.held} />
+        ))}
+      </Card>
     </Box>
   )
 }

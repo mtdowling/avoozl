@@ -26,7 +26,12 @@ const set = (selector, value) =>
 const PAGES = {
   delivery: { label: 'Delivery', ready: 'avoozl-delivery-investigate', edit: set('#avoozl-delivery-rounds', '4') },
   models: { label: 'Models', ready: null, wait: "Boolean(document.querySelector('[data-models-settings]'))", edit: null },
-  content: { label: 'Content rules', ready: null, wait: `Boolean(document.querySelector('[data-rule-details]'))`, edit: `(() => { const l = [...document.querySelectorAll('[data-rule-details] label')].find((x) => x.textContent.includes('Incoming items')); l.querySelector('input').click(); return true })()` },
+  content: {
+    label: 'Content rules',
+    ready: null,
+    wait: `Boolean(document.querySelector('[data-rule-details]'))`,
+    edit: `(() => { const l = [...document.querySelectorAll('[data-rule-details] label')].find((x) => x.textContent.includes('Incoming items')); l.querySelector('input').click(); return true })()`,
+  },
   plugins: { label: 'Plugins', ready: null, wait: `Boolean(document.querySelector('[data-plugins-layout] button'))`, edit: null },
   repositories: { label: 'Repository setup', ready: 'avoozl-settings-repo-0-base', edit: set('#avoozl-settings-repo-0-base', 'develop') },
   flow: { label: 'Flow', ready: 'avoozl-flow-every', edit: set('#avoozl-flow-every', '12') },
@@ -35,7 +40,8 @@ const names = asked.length ? asked : Object.keys(PAGES)
 fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
 const browser = await launch(chrome)
-const click = (selector, text) => `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
+const click = (selector, text) =>
+  `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 try {
   const page = await browser.page()
   const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
@@ -50,9 +56,11 @@ try {
         await wait(200)
         await page.evaluate(click(`${scope} [data-nav-head]`, 'Settings'))
         await wait(200)
-        if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+          await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await page.evaluate(click(`${scope} [data-nav-item]`, spec.label))
-        if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+          await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(300)
         await page.until(spec.ready ? `Boolean(document.getElementById(${JSON.stringify(spec.ready)}))` : spec.wait)
         if (spec.edit) {

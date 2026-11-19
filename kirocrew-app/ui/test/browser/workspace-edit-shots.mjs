@@ -20,7 +20,10 @@ const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r,
 const click = (page, selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 try {
   const page = await browser.page()
-  for (const [width, height] of [[1280, 800], [390, 844]])
+  for (const [width, height] of [
+    [1280, 800],
+    [390, 844],
+  ])
     for (const theme of ['light', 'dark']) {
       const phone = width < 768
       const scope = phone ? '[data-top-rail-list]' : '[data-left-nav]'

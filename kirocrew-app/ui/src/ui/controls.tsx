@@ -4,15 +4,7 @@
 // can use (its exports are Badge, Btn, Card, CardTitle, Clickable,
 // EmptyState, Input, Modal, SegmentedControl and a few more, with untyped
 // props), so these use native elements and inline styles.
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher } from '../host.ts'
 import { Btn } from './Btn'
 import { Card } from './Card'
@@ -114,14 +106,7 @@ export function IconLink(props: { icon: LucideIcon; to: string; label: string; t
   )
 }
 
-export function IconBtn(props: {
-  icon: LucideIcon
-  label: string
-  tooltip?: string
-  onClick?: () => void
-  disabled?: boolean
-  look?: LookProps
-}) {
+export function IconBtn(props: { icon: LucideIcon; label: string; tooltip?: string; onClick?: () => void; disabled?: boolean; look?: LookProps }) {
   const Icon = props.icon
   return (
     <Tooltip text={props.tooltip ?? props.label}>
@@ -294,27 +279,27 @@ export function SectionBox(props: { id: string; title: ReactNode; open?: boolean
   const body = `avoozl-box-${props.id}`
   return (
     <section data-section-box={props.id} data-open={open ? 'true' : 'false'}>
-    <Card flex flexCol gap="2">
-      <h3 className="m-0 text-sm font-semibold">
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={body}
-          onClick={() => setOpen(!open)}
-          className="flex w-full items-center gap-2 text-left"
-          style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer' }}
-          data-section-toggle={props.id}
-        >
-          <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>
-            <ChevronRight size={ICON} />
-          </span>
-          {props.title}
-        </button>
-      </h3>
-      <div id={body} hidden={!open}>
-        {props.children}
-      </div>
-    </Card>
+      <Card flex flexCol gap="2">
+        <h3 className="m-0 text-sm font-semibold">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={body}
+            onClick={() => setOpen(!open)}
+            className="flex w-full items-center gap-2 text-left"
+            style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer' }}
+            data-section-toggle={props.id}
+          >
+            <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>
+              <ChevronRight size={ICON} />
+            </span>
+            {props.title}
+          </button>
+        </h3>
+        <div id={body} hidden={!open}>
+          {props.children}
+        </div>
+      </Card>
     </section>
   )
 }
@@ -444,7 +429,14 @@ export function AskForHelp(props: { workspaceId: string | null; help: HelpSeed; 
 export function TaskTitleLink(props: { id: string; title: string; size?: 'xs' | 'sm' | 'base'; weight?: 'medium' | 'semibold'; tight?: boolean }) {
   const drawer = useTaskDrawer()
   return (
-    <button type="button" className={['min-w-0 text-left underline', props.size && `text-${props.size}`, props.weight && `font-${props.weight}`, props.tight && 'leading-tight'].filter(Boolean).join(' ')} onClick={() => drawer.openTask(props.id)} data-task-title={props.id}>
+    <button
+      type="button"
+      className={['min-w-0 text-left underline', props.size && `text-${props.size}`, props.weight && `font-${props.weight}`, props.tight && 'leading-tight']
+        .filter(Boolean)
+        .join(' ')}
+      onClick={() => drawer.openTask(props.id)}
+      data-task-title={props.id}
+    >
       {props.title}
     </button>
   )
@@ -530,10 +522,12 @@ export function SectionHeading(props: {
               {props.actions}
             </div>
           </MoreMenu>
-        ) : props.actions && (
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2" style={props.wideActions ? { width: '100%' } : undefined} data-heading-actions>
-            {props.actions}
-          </div>
+        ) : (
+          props.actions && (
+            <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2" style={props.wideActions ? { width: '100%' } : undefined} data-heading-actions>
+              {props.actions}
+            </div>
+          )
         )}
       </div>
       {props.blurb && (
@@ -547,8 +541,28 @@ export function SectionHeading(props: {
 
 // A top-level view's page heading: its icon, then its word. The icon is the
 // same one its nav tab shows, sized to the text and hidden from readers.
-export function ViewHeading(props: { id: string; view: keyof typeof VIEW_ICONS; children: ReactNode; actions?: ReactNode; meta?: ReactNode; wideActions?: boolean; phoneMenu?: boolean; level?: 2 | 3 }) {
-  return <SectionHeading level={props.level ?? 2} id={props.id} view={props.view} title={props.children} meta={props.meta} actions={props.actions} wideActions={props.wideActions} phoneMenu={props.phoneMenu} />
+export function ViewHeading(props: {
+  id: string
+  view: keyof typeof VIEW_ICONS
+  children: ReactNode
+  actions?: ReactNode
+  meta?: ReactNode
+  wideActions?: boolean
+  phoneMenu?: boolean
+  level?: 2 | 3
+}) {
+  return (
+    <SectionHeading
+      level={props.level ?? 2}
+      id={props.id}
+      view={props.view}
+      title={props.children}
+      meta={props.meta}
+      actions={props.actions}
+      wideActions={props.wideActions}
+      phoneMenu={props.phoneMenu}
+    />
+  )
 }
 
 // The nav tab label: the view's icon, then its word.

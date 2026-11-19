@@ -148,14 +148,18 @@ export function blocks(source: string): Block[] {
 // A heading's anchor id inside one document: the prefix, then a slug of its
 // text, then its index so repeated headings stay apart.
 export const headingId = (prefix: string, text: string, index: number) =>
-  `${prefix}-${text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'section'}-${index}`
+  `${prefix}-${
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48) || 'section'
+  }-${index}`
 
 // The headings of a document, for the plan view's outline. `index` is the
 // block index Markdown.tsx gives the same heading.
 export function outline(source: string, prefix: string, maxLevel = 3): { level: number; text: string; id: string }[] {
   return blocks(source).flatMap((block, i) =>
-    block.kind === 'heading' && block.level <= maxLevel
-      ? [{ level: block.level, text: block.text.replace(/[*_`]/g, ''), id: headingId(prefix, block.text, i) }]
-      : [],
+    block.kind === 'heading' && block.level <= maxLevel ? [{ level: block.level, text: block.text.replace(/[*_`]/g, ''), id: headingId(prefix, block.text, i) }] : [],
   )
 }

@@ -44,8 +44,7 @@ test('the column is no taller than the visible part of the pane, so its end is r
 // The function this replaced: it skipped a pane that did not overflow yet,
 // so a column mounted before its plan loaded was sized to the window.
 function previousScrollParent(el) {
-  for (let node = el?.parentElement ?? null; node; node = node.parentElement)
-    if (/(auto|scroll|overlay)/.test(node.overflowY) && node.scrollHeight > node.clientHeight) return node
+  for (let node = el?.parentElement ?? null; node; node = node.parentElement) if (/(auto|scroll|overlay)/.test(node.overflowY) && node.scrollHeight > node.clientHeight) return node
   return null
 }
 

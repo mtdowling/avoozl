@@ -15,7 +15,20 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
       type="button"
       data-list-detail-back
       onClick={props.onBack}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, padding: '2px 8px', marginLeft: -4, background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        flexShrink: 0,
+        padding: '2px 8px',
+        marginLeft: -4,
+        background: 'none',
+        border: 0,
+        borderRadius: 6,
+        color: 'var(--muted)',
+        cursor: 'pointer',
+        fontSize: 14,
+      }}
     >
       <ArrowLeft size={14} aria-hidden="true" />
       {props.label}
@@ -32,7 +45,16 @@ export function DetailBar(props: { backLabel: string; onBack: () => void; title:
       <Box
         aria-hidden="true"
         data-detail-echo
-        as="span" css-min-width="0" css-flex="1" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap" css-font-size="14" css-font-weight="600" css-opacity={props.scrolledOut ? '1' : '0'} css-transition="opacity-150ms"
+        as="span"
+        css-min-width="0"
+        css-flex="1"
+        css-overflow="hidden"
+        css-text-overflow="ellipsis"
+        css-white-space="nowrap"
+        css-font-size="14"
+        css-font-weight="600"
+        css-opacity={props.scrolledOut ? '1' : '0'}
+        css-transition="opacity-150ms"
       >
         {props.title}
       </Box>

@@ -42,7 +42,10 @@ try {
       const dark = theme === 'dark'
       // Task details, opened from Home's Needs you row, scrolled to Links.
       await page.open(harness.url({ page: 'app', needs: '1', theme }), { width, height: SIZE[width], dark })
-      await page.until(`(() => { const b = [...document.querySelectorAll('button, a')].find((b) => b.getAttribute('aria-label') === 'Details for Item 1' || b.textContent.trim().startsWith('Details for Item 1')); b?.click(); return Boolean(b) })()`, 10000)
+      await page.until(
+        `(() => { const b = [...document.querySelectorAll('button, a')].find((b) => b.getAttribute('aria-label') === 'Details for Item 1' || b.textContent.trim().startsWith('Details for Item 1')); b?.click(); return Boolean(b) })()`,
+        10000,
+      )
       await page.until(`Boolean(${BOX}?.querySelector('[data-link-entry]'))`, 10000)
       await page.evaluate(`${BOX}.scrollIntoView({ block: 'start' })`)
       await shoot('1-task-links', width, theme)

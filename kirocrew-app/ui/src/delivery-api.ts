@@ -181,8 +181,7 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
   for (const item of items) if (item.status !== 'superseded') add(tasks.get(item.id) ?? null, item)
   // Leaves with no delivery record yet still belong in their lane, so each
   // lane holds every task the Dashboard's state counts name.
-  for (const task of graph?.tasks ?? [])
-    if (!seen.has(task.id) && task.kind === 'leaf' && task.status !== 'superseded') add(task, null)
+  for (const task of graph?.tasks ?? []) if (!seen.has(task.id) && task.kind === 'leaf' && task.status !== 'superseded') add(task, null)
   lanes.done.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   lanes.running.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   const names = new Map<string, string>([...tasks.values()].map((t) => [t.id, t.title]))
@@ -245,12 +244,7 @@ export function filterLanes(lanes: Record<LaneId, LaneCard[]>, filter: TaskFilte
   return Object.fromEntries(
     (Object.keys(lanes) as LaneId[]).map((lane) => [
       lane,
-      lanes[lane].filter((card) =>
-        matches(
-          { ...card, epic: card.epicId, decision: card.decision ?? (card.deliveryState === 'decision' ? 'delivery stopped' : null) },
-          filter,
-        ),
-      ),
+      lanes[lane].filter((card) => matches({ ...card, epic: card.epicId, decision: card.decision ?? (card.deliveryState === 'decision' ? 'delivery stopped' : null) }, filter)),
     ]),
   ) as Record<LaneId, LaneCard[]>
 }
@@ -375,7 +369,11 @@ export const SHIP_CHOICES: { key: ShipMode; title: string; line: string; who: [s
 ]
 
 // One chip per value with its card count, in the order `options` gives.
-export function chipCounts(options: { value: string; label: string }[], cards: LaneCard[], valueOf: (card: LaneCard) => string | null): { value: string; label: string; count: number }[] {
+export function chipCounts(
+  options: { value: string; label: string }[],
+  cards: LaneCard[],
+  valueOf: (card: LaneCard) => string | null,
+): { value: string; label: string; count: number }[] {
   const counts = new Map<string, number>()
   for (const card of cards) {
     const value = valueOf(card)

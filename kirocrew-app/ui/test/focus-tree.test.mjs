@@ -15,10 +15,25 @@ const source = (file) => readFileSync(new URL(`../src/${file}`, import.meta.url)
 
 test('Frontier: newly unlocked has every blocker met; waiting has one still open', () => {
   const { ready, waiting } = tree.frontier(chainsGraph)
-  assert.deepEqual(ready.map((f) => f.task.id), ['S3', 'B2'])
-  assert.deepEqual(ready[0].blockers.map((b) => [b.task.id, b.met]), [['S1', true], ['S2', true]])
-  assert.deepEqual(waiting.map((f) => f.task.id), ['S4', 'S5', 'S6', 'Y2', 'Y3', 'B3', 'B5'])
-  assert.deepEqual(waiting.find((f) => f.task.id === 'Y3').waitingOn.map((t) => t.id), ['Y2', 'S5'])
+  assert.deepEqual(
+    ready.map((f) => f.task.id),
+    ['S3', 'B2'],
+  )
+  assert.deepEqual(
+    ready[0].blockers.map((b) => [b.task.id, b.met]),
+    [
+      ['S1', true],
+      ['S2', true],
+    ],
+  )
+  assert.deepEqual(
+    waiting.map((f) => f.task.id),
+    ['S4', 'S5', 'S6', 'Y2', 'Y3', 'B3', 'B5'],
+  )
+  assert.deepEqual(
+    waiting.find((f) => f.task.id === 'Y3').waitingOn.map((t) => t.id),
+    ['Y2', 'S5'],
+  )
   // B4 waits only by sequence order, and Y1 on nothing: in neither list.
   assert.ok(![...ready, ...waiting].some((f) => ['B4', 'Y1', 'Y4'].includes(f.task.id)))
 })
@@ -32,7 +47,10 @@ test('a draft task is never newly unlocked, and drafts fold in only with the tog
   assert.ok(shown.tasks.filter((t) => t.state === 'draft').every((t) => !t.ready))
   const { ready, waiting } = tree.frontier(shown)
   // M1 waits only on done S1, yet its spec is a draft: not unlocked.
-  assert.deepEqual(ready.map((f) => f.task.id), ['S3', 'B2'])
+  assert.deepEqual(
+    ready.map((f) => f.task.id),
+    ['S3', 'B2'],
+  )
   assert.ok(!waiting.some((f) => f.task.id === 'M1'))
   assert.ok(waiting.some((f) => f.task.id === 'M2'))
   const m2 = tree.focusTree(shown, { kind: 'task', id: 'M2' })
@@ -56,7 +74,11 @@ test('a task tree is its live chain up and down, with met blockers as ghosts', (
 test('a spec tree roots on every task of the spec', () => {
   const billing = tree.focusTree(chainsGraph, { kind: 'spec', id: 'billing' })
   assert.deepEqual([...billing.roots].sort(), ['B1', 'B2', 'B3', 'B4', 'B5'])
-  for (const id of ['Y3', 'Y2', 'S5']) assert.ok(billing.graph.tasks.some((t) => t.id === id), `${id} is upstream`)
+  for (const id of ['Y3', 'Y2', 'S5'])
+    assert.ok(
+      billing.graph.tasks.some((t) => t.id === id),
+      `${id} is upstream`,
+    )
   assert.equal(tree.rootTitle(chainsGraph, { kind: 'spec', id: 'billing' }), 'Billing')
 })
 
@@ -68,7 +90,7 @@ test('the jump box takes a task ID or a spec name, and refuses an unclear one', 
   assert.equal(tree.jumpTarget(chainsGraph, '   '), null)
 })
 
-test('links round-trip, and only Kiro Crew\'s app route pushes browser entries', () => {
+test("links round-trip, and only Kiro Crew's app route pushes browser entries", () => {
   for (const place of [
     { tab: 'focus', root: { kind: 'task', id: 'meal-planner.1.2' } },
     { tab: 'focus', root: { kind: 'spec', id: 'search v2&x' } },
@@ -212,16 +234,24 @@ test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, a
   const detailReads = ['task.detail', 'task.notes.list', 'task.files', 'task.evidence']
   assert.equal(ops.filter((op) => op === 'graph.view').length, 1 + 2, ops.join(','))
   assert.equal(ops.filter((op) => op === 'task.detail').length, 2, ops.join(','))
-  assert.deepEqual([...new Set(ops)].filter((op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', 'task.summary.request', ...detailReads].includes(op)), [], ops.join(','))
+  assert.deepEqual(
+    [...new Set(ops)].filter((op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', 'task.summary.request', ...detailReads].includes(op)),
+    [],
+    ops.join(','),
+  )
 })
 
 test('the jump box roots the tree on a spec; a phone shows one column', { skip }, async () => {
   await openGraph(390)
-  await page.evaluate(`(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`)
+  await page.evaluate(
+    `(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`,
+  )
   await rooted('spec:billing')
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-tree-list]')) && !document.querySelector('[data-tree-scroll] > svg')`), true)
   assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no sideways scroll')
-  await page.evaluate(`(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'search'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`)
+  await page.evaluate(
+    `(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'search'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`,
+  )
   await page.until(`Boolean(document.querySelector('#avoozl-graph-jump-error'))`)
 })
 
@@ -262,13 +292,19 @@ const cursorAt = (x, y) => page.evaluate(`getComputedStyle(document.elementFromP
 test('drag to pan the Focus tree: left on empty space, middle anywhere; a drag never drills', { skip }, async () => {
   // A box smaller than the spec's tree, so it overflows both ways.
   await openGraph()
-  await page.evaluate(`(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`)
+  await page.evaluate(
+    `(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`,
+  )
   await rooted('spec:billing')
   await page.evaluate(`(document.querySelector('[data-tree-scroll]').style.cssText += ';width:480px;max-height:150px', true)`)
   // Past the new root's scroll-into-view frame, then from the top left.
   await page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
   await page.evaluate(`(document.querySelector('[data-tree-scroll]').scrollTo(0, 0), true)`)
-  assert.equal(await page.evaluate(`(() => { const b = document.querySelector('[data-tree-scroll]'); return b.scrollWidth > b.clientWidth + 100 && b.scrollHeight > b.clientHeight + 40 })()`), true, 'the tree overflows')
+  assert.equal(
+    await page.evaluate(`(() => { const b = document.querySelector('[data-tree-scroll]'); return b.scrollWidth > b.clientWidth + 100 && b.scrollHeight > b.clientHeight + 40 })()`),
+    true,
+    'the tree overflows',
+  )
   const empty = await spot()
   assert.ok(empty, 'an empty spot in the box')
   assert.equal(await cursorAt(empty.x, empty.y), 'grab')

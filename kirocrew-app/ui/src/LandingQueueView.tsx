@@ -13,7 +13,21 @@ import { RefreshButton } from './RefreshButton.tsx'
 import Badge from './ui/Badge.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { safeHref } from './views-api.ts'
-import { baseTitle, batchTime, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, sizeLine, testingLine, type FinishedBatch, type LandingBase, type LandingItem } from './landing-queue-api.ts'
+import {
+  baseTitle,
+  batchTime,
+  holdVariant,
+  holdWord,
+  itemCount,
+  itemLinks,
+  landingNote,
+  landingQueueClient,
+  sizeLine,
+  testingLine,
+  type FinishedBatch,
+  type LandingBase,
+  type LandingItem,
+} from './landing-queue-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
@@ -28,7 +42,13 @@ function CheckDot(props: { checks: LandingItem['checks'] }) {
   const text = `${DOT_TEXT[dot] ?? dot}${age}`
   return (
     <Tooltip text={text}>
-      <span data-check-dot={dot} role="img" aria-label={text} className="inline-block shrink-0 rounded-full" style={{ width: 8, height: 8, background: DOT[dot] ?? 'var(--muted)' }} />
+      <span
+        data-check-dot={dot}
+        role="img"
+        aria-label={text}
+        className="inline-block shrink-0 rounded-full"
+        style={{ width: 8, height: 8, background: DOT[dot] ?? 'var(--muted)' }}
+      />
     </Tooltip>
   )
 }
@@ -50,7 +70,9 @@ function Row(props: { item: LandingItem; now: number }) {
             {item.tasks.length > 1 ? ` +${item.tasks.length - 1}` : ''}
           </PlainButton>
         ) : (
-          <Box as="span" minW0 flex1 truncate>{item.key}</Box>
+          <Box as="span" minW0 flex1 truncate>
+            {item.key}
+          </Box>
         )}
         <Box as="span" shrink0>
           <Badge variant={holdVariant(item.hold.kind)}>{holdWord(item.hold.kind)}</Badge>
@@ -61,7 +83,18 @@ function Row(props: { item: LandingItem; now: number }) {
           {item.hold.text}
         </Box>
         {links.map((link) => (
-          <PlainLink key={link.key} href={safeHref(link.href) ?? undefined} target="_blank" rel="noopener noreferrer" inlineFlex minW0 items="center" gap="1" underline data-landing-link={link.key}>
+          <PlainLink
+            key={link.key}
+            href={safeHref(link.href) ?? undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            inlineFlex
+            minW0
+            items="center"
+            gap="1"
+            underline
+            data-landing-link={link.key}
+          >
             {link.key === 'pr' && <CheckDot checks={item.checks} />}
             <Box as="span" css-max-width="16rem" truncate>
               {link.label}
@@ -69,7 +102,11 @@ function Row(props: { item: LandingItem; now: number }) {
           </PlainLink>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
-        {item.since && <Box as="span" tabularNums>waiting {duration(item.since, props.now)}</Box>}
+        {item.since && (
+          <Box as="span" tabularNums>
+            waiting {duration(item.since, props.now)}
+          </Box>
+        )}
       </Box>
     </Box>
   )
@@ -87,8 +124,14 @@ function LastBatch(props: { batch: FinishedBatch; now: number }) {
       <Box as="span" tabularNums>
         {batch.size} {batch.size === 1 ? 'member' : 'members'}
       </Box>
-      {batch.seconds != null && <Box as="span" tabularNums>{batchTime(batch.seconds)}</Box>}
-      <Box as="span" tabularNums>{duration(batch.at, props.now)} ago</Box>
+      {batch.seconds != null && (
+        <Box as="span" tabularNums>
+          {batchTime(batch.seconds)}
+        </Box>
+      )}
+      <Box as="span" tabularNums>
+        {duration(batch.at, props.now)} ago
+      </Box>
     </Box>
   )
 }
@@ -100,7 +143,9 @@ function MergeBatches(props: { base: LandingBase; now: number }) {
   if (!base.size) return null
   return (
     <Box flex flexCol gap="2" mb="2" data-landing-batches>
-      <Hint as="p" size="xs" data-landing-size>{sizeLine(base.size)}</Hint>
+      <Hint as="p" size="xs" data-landing-size>
+        {sizeLine(base.size)}
+      </Hint>
       <Box as="p" size="xs" tone="muted" data-landing-testing>
         {base.testing ? `Testing: ${testingLine(base.testing)}.` : 'Testing: no merge batch right now.'}
       </Box>
@@ -134,14 +179,19 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
       >
         Landing queue
       </ViewHeading>
-      <Hint as="p" size="xs">What waits to land on each base, in landing order, and why; the merge batch being tested; the last merge batches; and the size limit. Read from Avoozl's own records; Refresh does not call GitHub.</Hint>
+      <Hint as="p" size="xs">
+        What waits to land on each base, in landing order, and why; the merge batch being tested; the last merge batches; and the size limit. Read from Avoozl's own records;
+        Refresh does not call GitHub.
+      </Hint>
       {error && (
         <Box role="alert" as="p" css-color="danger" size="sm">
           {error}
         </Box>
       )}
       {!value ? (
-        <Hint as="p" size="sm">Loading…</Hint>
+        <Hint as="p" size="sm">
+          Loading…
+        </Hint>
       ) : value.bases.length === 0 ? (
         <Card>
           <Hint as="p" size="sm" data-landing-empty>

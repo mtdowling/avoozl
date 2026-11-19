@@ -16,7 +16,18 @@ export type EditTab = (typeof EDIT_TABS)[number]['key']
 // repository on Mirror; both are kept apart from the entry.
 export const EDIT_TAB_FIELDS: Record<EditTab, readonly (keyof RepositoryForm)[]> = {
   general: ['name'],
-  landing: ['baseBranch', 'releaseCapacity', 'landingMode', 'autoMerge', 'mergeMethod', 'onSourceConflict', 'maxAttempts', 'requiredChecks', 'pullRequestReviews', 'reviewApprovals'],
+  landing: [
+    'baseBranch',
+    'releaseCapacity',
+    'landingMode',
+    'autoMerge',
+    'mergeMethod',
+    'onSourceConflict',
+    'maxAttempts',
+    'requiredChecks',
+    'pullRequestReviews',
+    'reviewApprovals',
+  ],
   github: ['cacheSeconds', 'rules', 'managedLabels', 'untriaged', 'minimumPermission', 'allowedActors', 'priority'],
   mirror: ['mirror'],
   map: [],
@@ -39,8 +50,7 @@ export function dirtyTabs(state: EditState): Set<EditTab> {
   if (state.sourceChanged) dirty.add('mirror')
   const { entry, saved } = state
   if (!entry) return dirty
-  for (const tab of EDIT_TABS)
-    if (EDIT_TAB_FIELDS[tab.key].some((field) => !saved || !same(entry[field], saved[field]))) dirty.add(tab.key)
+  for (const tab of EDIT_TABS) if (EDIT_TAB_FIELDS[tab.key].some((field) => !saved || !same(entry[field], saved[field]))) dirty.add(tab.key)
   return dirty
 }
 

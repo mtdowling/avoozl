@@ -47,7 +47,7 @@ test('Add plugin steps 1 and 3 use the shared radio fold-out', () => {
 test('Add rule set is the panel main action, styled like Add plugin and Add repository', () => {
   const rules = source('ContentRulesSettings.tsx')
   assert.match(rules, /<IconLabel icon=\{Plus\} primary onClick=\{\(\) => props\.onSelect\(\{ kind: 'new' \}\)\}[^>]*>\s*Add rule set/)
-  assert.match(rules, /<Box as="h3" size="sm" weight="semibold">Your rule sets<\/Box>\s*\{!\(value && !value\.sets\.length\) && add\}/)
+  assert.match(rules, /<Box as="h3" size="sm" weight="semibold">\s*Your rule sets\s*<\/Box>\s*\{!\(value && !value\.sets\.length\) && add\}/)
   assert.match(rules, /data-rule-empty>[\s\S]*?\{add\}/)
   assert.match(source('AddPlugin.tsx'), /<IconLabel\s+icon=\{Plus\}\s+primary/)
   assert.match(source('RepositoriesSettings.tsx'), /<IconLabel icon=\{Plus\} primary onClick=\{props\.onAdd\}>/)
@@ -69,6 +69,6 @@ test('Settings opens on Workspaces each visit and drops an unknown tab', async (
   assert.equal(settingsTabOnEnter('settings', 'settings', 'people', tabs), 'workspaces')
   const app = source('App.tsx')
   assert.match(app, /useState<SettingsTab>\(SETTINGS_HOME\)/)
-  assert.match(app, /settingsTab: settingsTabOnEnter\(tab, key, settingsTab,/)
+  assert.match(app, /settingsTab: settingsTabOnEnter\(\s*tab,\s*key,\s*settingsTab,/)
   assert.match(source('SettingsView.tsx'), /SETTINGS_TABS\.some\(\(t\) => t\.key === asked\) \? \(asked as SettingsTab\) : SETTINGS_HOME/)
 })

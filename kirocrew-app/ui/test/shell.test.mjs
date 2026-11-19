@@ -45,7 +45,10 @@ after(async () => {
   harness?.remove()
 })
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 120))')
-const box = (sel) => page.evaluate(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })()`)
+const box = (sel) =>
+  page.evaluate(
+    `(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })()`,
+  )
 
 for (const dark of [false, true]) {
   const theme = dark ? 'dark' : 'light'

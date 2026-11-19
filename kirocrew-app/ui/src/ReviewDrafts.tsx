@@ -43,7 +43,9 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
     <div data-review-drafts>
       <Card css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
         <SectionHeading title="Review drafts" mb="0" />
-        <Hint as="p" size="xs">Draft reviews Avoozl made when someone added the review label. Each one waits on GitHub, seen only by that person, until they submit it.</Hint>
+        <Hint as="p" size="xs">
+          Draft reviews Avoozl made when someone added the review label. Each one waits on GitHub, seen only by that person, until they submit it.
+        </Hint>
         {(value?.searches ?? []).map((search) => (
           <Box key={search.label} data-draft-search css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2" size="sm">
             <span>On GitHub:</span>
@@ -56,11 +58,30 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
           </Box>
         ))}
         <Box css-display="flex" css-flex-wrap="wrap" css-gap="12" flex flexWrap gap="3">
-          <FilterSelect id="review-drafts-repository" label="Repository" value={repository} options={repositories.map((name) => ({ value: name, label: name }))} onChange={setRepository} />
+          <FilterSelect
+            id="review-drafts-repository"
+            label="Repository"
+            value={repository}
+            options={repositories.map((name) => ({ value: name, label: name }))}
+            onChange={setRepository}
+          />
           <FilterSelect id="review-drafts-state" label="State" value={state} options={states.map((name) => ({ value: name, label: DRAFT_STATE_TEXT[name] }))} onChange={setState} />
         </Box>
         {shown.map((item) => (
-          <Box key={item.id} data-review-draft={item.state} css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-gap="4px-12px" flex flexWrap items="baseline" gapX="3" gapY="1" size="sm">
+          <Box
+            key={item.id}
+            data-review-draft={item.state}
+            css-display="flex"
+            css-flex-wrap="wrap"
+            css-align-items="baseline"
+            css-gap="4px-12px"
+            flex
+            flexWrap
+            items="baseline"
+            gapX="3"
+            gapY="1"
+            size="sm"
+          >
             <PlainLink href={linkHref(item.url)} target="_blank" rel="noreferrer" css-overflow-wrap="anywhere" weight="medium">
               {item.repository} #{item.number}
             </PlainLink>
@@ -76,7 +97,11 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
             )}
           </Box>
         ))}
-        {!shown.length && <Hint as="p" size="sm">No draft matches these filters.</Hint>}
+        {!shown.length && (
+          <Hint as="p" size="sm">
+            No draft matches these filters.
+          </Hint>
+        )}
       </Card>
     </div>
   )

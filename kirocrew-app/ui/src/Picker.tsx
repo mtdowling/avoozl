@@ -69,7 +69,11 @@ export function Picker(props: {
   }
   const expanded = open && (shown.length > 0 || editing)
   return (
-    <div className={`flex min-w-0 text-sm ${props.inline ? 'flex-row items-center gap-2' : 'flex-col gap-1'}`} data-picker-inline={props.inline ? '' : undefined} style={{ maxWidth: props.maxWidth ?? '100%', position: 'relative' }}>
+    <div
+      className={`flex min-w-0 text-sm ${props.inline ? 'flex-row items-center gap-2' : 'flex-col gap-1'}`}
+      data-picker-inline={props.inline ? '' : undefined}
+      style={{ maxWidth: props.maxWidth ?? '100%', position: 'relative' }}
+    >
       <Box htmlFor={id} as="label" whitespace={props.inline ? 'nowrap' : undefined}>
         {props.label}
       </Box>
@@ -108,7 +112,19 @@ export function Picker(props: {
       />
       <Box
         hidden={!expanded}
-        css-position="absolute" css-top="100%" css-left="0" css-right="0" css-z-index={LAYER.popover} css-margin-top="2" css-background="card-bg" css-border-color="border" css-max-height="16rem" css-overflow="auto" rounded="base" border="all" shadow
+        css-position="absolute"
+        css-top="100%"
+        css-left="0"
+        css-right="0"
+        css-z-index={LAYER.popover}
+        css-margin-top="2"
+        css-background="card-bg"
+        css-border-color="border"
+        css-max-height="16rem"
+        css-overflow="auto"
+        rounded="base"
+        border="all"
+        shadow
       >
         <ul ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} className="flex flex-col p-1">
           {shown.map((item, i) => (
@@ -127,14 +143,24 @@ export function Picker(props: {
               style={i === active ? { background: 'color-mix(in srgb, var(--text) 10%, transparent)' } : undefined}
             >
               {props.plain ? (
-                <Box as="span" minW0 flex1 truncate>{item.title}</Box>
+                <Box as="span" minW0 flex1 truncate>
+                  {item.title}
+                </Box>
               ) : (
                 <>
-                  <Box as="span" shrink0 size="xs" tone="muted">{item.id}</Box>
-                  <Box as="span" minW0 flex1 truncate>{item.title !== item.id ? item.title : ''}</Box>
+                  <Box as="span" shrink0 size="xs" tone="muted">
+                    {item.id}
+                  </Box>
+                  <Box as="span" minW0 flex1 truncate>
+                    {item.title !== item.id ? item.title : ''}
+                  </Box>
                 </>
               )}
-              {item.spec && <Box as="span" shrink0 size="xs" tone="muted">{item.spec}</Box>}
+              {item.spec && (
+                <Box as="span" shrink0 size="xs" tone="muted">
+                  {item.spec}
+                </Box>
+              )}
               {item.state && (
                 <Box as="span" css-border-color="border" shrink0 rounded="base" border="all" px="1" size="xs">
                   {item.state}
@@ -143,13 +169,22 @@ export function Picker(props: {
             </li>
           ))}
         </ul>
-        {total === 0 && <Box as="p" px="2" py="1" size="xs" tone="muted">No match.</Box>}
-        {total > shown.length && <Box as="p" px="2" py="1" size="xs" tone="muted">{total - shown.length} more; type to narrow.</Box>}
+        {total === 0 && (
+          <Box as="p" px="2" py="1" size="xs" tone="muted">
+            No match.
+          </Box>
+        )}
+        {total > shown.length && (
+          <Box as="p" px="2" py="1" size="xs" tone="muted">
+            {total - shown.length} more; type to narrow.
+          </Box>
+        )}
       </Box>
     </div>
   )
 }
 
 // A graph's tasks (epics left out) and stored specs as picker items.
-export const taskItems = (tasks: { id: string; title: string; kind?: string; spec?: string | null; planId?: string | null; state?: string | null; status?: string | null }[]): PickItem[] =>
-  tasks.filter((t) => t.kind !== 'package').map((t) => ({ id: t.id, title: t.title || t.id, spec: t.spec ?? t.planId ?? null, state: t.state ?? t.status ?? null }))
+export const taskItems = (
+  tasks: { id: string; title: string; kind?: string; spec?: string | null; planId?: string | null; state?: string | null; status?: string | null }[],
+): PickItem[] => tasks.filter((t) => t.kind !== 'package').map((t) => ({ id: t.id, title: t.title || t.id, spec: t.spec ?? t.planId ?? null, state: t.state ?? t.status ?? null }))

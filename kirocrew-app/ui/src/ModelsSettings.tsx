@@ -72,10 +72,14 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
         {error}
       </ErrorText>
     )
-  if (!value) return <Hint as="p" size="sm">Loading…</Hint>
-  const choices = (role: Role) => modelOptions(list, form[role]?.model ?? '').map((option) =>
-    role === 'planReviewer' && option.value === 'auto' ? { ...option, label: 'auto (no reviewer)' } : option,
-  )
+  if (!value)
+    return (
+      <Hint as="p" size="sm">
+        Loading…
+      </Hint>
+    )
+  const choices = (role: Role) =>
+    modelOptions(list, form[role]?.model ?? '').map((option) => (role === 'planReviewer' && option.value === 'auto' ? { ...option, label: 'auto (no reviewer)' } : option))
   const definitions = value.harnessDefinitions ?? []
   const changed = JSON.stringify(toRoles(form)) !== JSON.stringify(toRoles(value.roles ?? {}))
   const save = async () => {
@@ -122,7 +126,10 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
         </Box>
         {definitions.length === 0 && <Hint size="xs">No harness files here. Roles run as Kiro Crew chats or on their project’s executor.</Hint>}
       </FormSection>
-      <FormSection title="Roles" blurb="Each role runs on its default until you set it here. This is the only place a role’s harness, agent or model is picked. A task’s session pin wins over its role.">
+      <FormSection
+        title="Roles"
+        blurb="Each role runs on its default until you set it here. This is the only place a role’s harness, agent or model is picked. A task’s session pin wins over its role."
+      >
         <Stack gap={3}>
           {ROLES.map((role) => {
             const row = form[role.key] ?? {}
@@ -134,7 +141,9 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
             return (
               <Box key={role.key} data-model-role={role.key} data-source={isSet ? 'set here' : 'default'} minW0 size="sm">
                 <Box flex minW0 flexCol gap="0.5">
-                  <Box as="span" weight="medium">{role.label}</Box>
+                  <Box as="span" weight="medium">
+                    {role.label}
+                  </Box>
                   <Hint size="xs" data-role-access={ROLE_ACCESS[role.key]}>
                     {ROLE_ACCESS[role.key] === 'write' ? 'Writes files' : 'Read-only'}
                   </Hint>
@@ -142,18 +151,31 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                 <FieldRow id={`avoozl-harness-${role.key}`} label="Harness">
                   <Picker
                     id={`avoozl-harness-${role.key}`}
-                    label={<Box as="span" css-position="absolute" css-width="1" css-height="1" css-overflow="hidden" css-clip="rect-0-0-0-0">{role.label} harness</Box>}
+                    label={
+                      <Box as="span" css-position="absolute" css-width="1" css-height="1" css-overflow="hidden" css-clip="rect-0-0-0-0">
+                        {role.label} harness
+                      </Box>
+                    }
                     items={optionItems(harnessOptions(definitions, row.harness ?? '', ROLE_ACCESS[role.key], host))}
                     value={harness}
                     onPick={(next) => pickHarness(role.key, next)}
                     placeholder="Type to find a harness, or auto"
                     plain
                   />
-                  {picked && !picked.approved && <ErrorText as="span" size="xs">Not approved: it will not start until its hash is approved.</ErrorText>}
+                  {picked && !picked.approved && (
+                    <ErrorText as="span" size="xs">
+                      Not approved: it will not start until its hash is approved.
+                    </ErrorText>
+                  )}
                 </FieldRow>
                 {role.agent ? (
                   <FieldRow id={`avoozl-agent-${role.key}`} label="Agent">
-                    <Input id={`avoozl-agent-${role.key}`} value={row.agent ?? ''} placeholder={DEFAULT_AGENTS[role.key]} onChange={(e) => set(role.key, { agent: e.target.value })} />
+                    <Input
+                      id={`avoozl-agent-${role.key}`}
+                      value={row.agent ?? ''}
+                      placeholder={DEFAULT_AGENTS[role.key]}
+                      onChange={(e) => set(role.key, { agent: e.target.value })}
+                    />
                   </FieldRow>
                 ) : (
                   <Box as="span" css-align-self="end" size="xs" tone="muted" data-fixed-agent>
@@ -168,7 +190,11 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   ) : (
                     <Picker
                       id={`avoozl-model-${role.key}`}
-                      label={<Box as="span" css-position="absolute" css-width="1" css-height="1" css-overflow="hidden" css-clip="rect-0-0-0-0">{role.label} model</Box>}
+                      label={
+                        <Box as="span" css-position="absolute" css-width="1" css-height="1" css-overflow="hidden" css-clip="rect-0-0-0-0">
+                          {role.label} model
+                        </Box>
+                      }
                       items={optionItems(choices(role.key))}
                       value={row.model || 'auto'}
                       onPick={(model) => set(role.key, { model: model || 'auto' })}

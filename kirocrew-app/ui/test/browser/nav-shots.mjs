@@ -68,7 +68,9 @@ try {
         await page.evaluate(`document.querySelector('${scope(width)} [data-rail-sort="updated"]').click()`)
         await page.evaluate(`document.querySelector('${scope(width)} [data-rail-chip="runtime"]').click()`)
         await wait(page, 200)
-        await page.evaluate(`(() => { const chip = document.querySelector('${scope(width)} [data-rail-chip]'); let el = chip.parentElement; while (el && !(el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement; if (el) el.scrollTop = el.scrollHeight })()`)
+        await page.evaluate(
+          `(() => { const chip = document.querySelector('${scope(width)} [data-rail-chip]'); let el = chip.parentElement; while (el && !(el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement; if (el) el.scrollTop = el.scrollHeight })()`,
+        )
         await shot('specs-rail')
         await page.evaluate(`document.querySelector('${scope(width)} [data-rail-chip="runtime"]').click()`)
         await page.evaluate(`document.querySelector('${scope(width)} [data-rail-sort="name"]').click()`)
@@ -85,7 +87,9 @@ try {
         await page.evaluate(`document.querySelector('${scope(width)} [data-rail-source="github"]').click()`)
         await page.evaluate(`document.querySelector('${scope(width)} [data-rail-chip="settings"]').click()`)
         await wait(page, 300)
-        await page.evaluate(`(() => { const keep = document.querySelector('${scope(width)} #avoozl-activity-keep'); let el = keep.parentElement; while (el && !(el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement; if (el) el.scrollTop = el.scrollHeight })()`)
+        await page.evaluate(
+          `(() => { const keep = document.querySelector('${scope(width)} #avoozl-activity-keep'); let el = keep.parentElement; while (el && !(el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement; if (el) el.scrollTop = el.scrollHeight })()`,
+        )
         await shot('activity-rail')
         await page.evaluate(`document.querySelector('${scope(width)} [data-rail-source=""]').click()`)
         await page.evaluate(`document.querySelector('${scope(width)} [data-rail-chip="settings"]').click()`)

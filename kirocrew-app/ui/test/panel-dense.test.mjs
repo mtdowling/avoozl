@@ -121,7 +121,8 @@ test('buttons are compact icon and text buttons, on a phone and a desktop', { sk
   const phone = SIZES[1]
   await open(phone)
   // Kiro Crew's own compact size on a phone as on a desktop: no tap-target bump.
-  const measure = () => page.evaluate(`({
+  const measure = () =>
+    page.evaluate(`({
     icons: [...document.querySelectorAll('[data-pp-head] button')].map((el) => el.getBoundingClientRect().height),
     acts: [...document.querySelectorAll('[data-pp-act]')].filter((el) => el.getBoundingClientRect().height > 0).map((el) => el.getBoundingClientRect().height),
     heads: [...document.querySelectorAll('[data-pp-section-head]')].map((el) => el.getBoundingClientRect().height),
@@ -129,8 +130,14 @@ test('buttons are compact icon and text buttons, on a phone and a desktop', { sk
   })`)
   const sizes = await measure()
   assert.ok(sizes.icons.length === 4 && sizes.icons.every((h) => h <= 28), 'header icons ' + sizes.icons)
-  assert.ok(sizes.acts.every((h) => h <= 28), 'row buttons ' + sizes.acts)
-  assert.ok(sizes.heads.every((h) => h >= 36 && h <= 40), 'section headers ' + sizes.heads)
+  assert.ok(
+    sizes.acts.every((h) => h <= 28),
+    'row buttons ' + sizes.acts,
+  )
+  assert.ok(
+    sizes.heads.every((h) => h >= 36 && h <= 40),
+    'section headers ' + sizes.heads,
+  )
   assert.ok(sizes.header <= 40, 'the header is ' + sizes.header)
   await open(SIZES[0])
   const wide = await measure()

@@ -31,7 +31,11 @@ test('Settings opens in the nav; the page shows one section; Needs you does the 
   await page.open(harness.url({ app: '1', radar: '1' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-nav-group="settings"]'))`)
   // Home is Dashboards' first page, so Dashboards is the one open section.
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-nav-children]')].map((x) => x.dataset.navChildren)`), ['dashboard'], 'every section starts shut except the page you are on')
+  assert.deepEqual(
+    await page.evaluate(`[...document.querySelectorAll('[data-nav-children]')].map((x) => x.dataset.navChildren)`),
+    ['dashboard'],
+    'every section starts shut except the page you are on',
+  )
   await click('[data-nav-group="settings"]')
   await page.until(`Boolean(document.querySelector('[data-nav-children="settings"]'))`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1, 'the page shows one section')
@@ -60,7 +64,9 @@ test('a pick in the nav is a Back step', { skip }, async () => {
   await page.until(`Boolean(document.querySelector('[data-nav-item="settings/models"]'))`)
   await click('[data-nav-item="settings/models"]')
   await page.until(`document.querySelector('[data-settings-section]').dataset.settingsSection === 'models'`)
-  await page.evaluate(`document.querySelector('[data-nav-item="settings/models"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', altKey: true, bubbles: true }))`)
+  await page.evaluate(
+    `document.querySelector('[data-nav-item="settings/models"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', altKey: true, bubbles: true }))`,
+  )
   await page.until(`document.querySelector('[data-settings-section]')?.dataset.settingsSection === 'workspaces'`)
 })
 

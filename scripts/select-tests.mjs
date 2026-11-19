@@ -147,7 +147,7 @@ export function select(
       for (const t of pick(SCANNERS, all)) out.node.add(t);
       out.reasons.push(`${f}: live proof script, read only by the scanners`);
     } else if (
-      /^(package(-lock)?\.json|\.github\/|scripts\/|bin\/|\.nvmrc|\.node-version|\.prettier)/.test(
+      /^(package(-lock)?\.json|\.github\/|scripts\/|bin\/|\.nvmrc|\.node-version|biome\.json$)/.test(
         f,
       )
     )

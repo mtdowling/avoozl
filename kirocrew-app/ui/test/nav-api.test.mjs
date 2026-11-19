@@ -4,11 +4,17 @@ import { test } from 'node:test'
 import { DASHBOARD_PAGES, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, WAITING_SECTIONS, tabLabel } from '../src/nav-api.ts'
 
 test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Settings', () => {
-  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'])
+  assert.deepEqual(
+    TABS.map((t) => t.label),
+    ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'],
+  )
 })
 
 test('Retros lists two pages', () => {
-  assert.deepEqual(RETROS_PAGES.map((p) => p.label), ['Retros', 'Proposals'])
+  assert.deepEqual(
+    RETROS_PAGES.map((p) => p.label),
+    ['Retros', 'Proposals'],
+  )
   assert.equal(tabLabel('retros'), 'Retros')
 })
 
@@ -17,7 +23,10 @@ test('the nav has no Issues or Pull requests pill', () => {
 })
 
 test('Dashboards holds Home, Graph, Delivery and Landing queue', () => {
-  assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Delivery', 'Landing queue'])
+  assert.deepEqual(
+    DASHBOARD_PAGES.map((p) => p.label),
+    ['Home', 'Graph', 'Delivery', 'Landing queue'],
+  )
   assert.equal(dashboardPage('dashboard'), 'home')
   for (const page of ['graph', 'delivery', 'landing']) {
     assert.equal(navTab(page), 'dashboard')
@@ -33,7 +42,14 @@ test('Dashboards holds Home, Graph, Delivery and Landing queue', () => {
 })
 
 test('Needs you has three pages', () => {
-  assert.deepEqual(WAITING_SECTIONS.map((x) => [x.key, x.title]), [['decisions', 'Decisions'], ['triage', 'Triage'], ['radar', 'Issue Radar']])
+  assert.deepEqual(
+    WAITING_SECTIONS.map((x) => [x.key, x.title]),
+    [
+      ['decisions', 'Decisions'],
+      ['triage', 'Triage'],
+      ['radar', 'Issue Radar'],
+    ],
+  )
   for (const x of WAITING_SECTIONS) assert.ok(x.line.length > 0 && !x.line.includes('\n'))
 })
 

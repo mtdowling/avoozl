@@ -30,7 +30,10 @@ const valueOf = (card, label) => card.values.find((value) => value.label === lab
 
 test('single repository: three lanes with the saved label names', () => {
   const built = map(SINGLE)
-  assert.deepEqual(built.lanes.map((lane) => lane.key), ['maintenance', 'epic', 'review'])
+  assert.deepEqual(
+    built.lanes.map((lane) => lane.key),
+    ['maintenance', 'epic', 'review'],
+  )
   const epic = Object.fromEntries(cards(built, 'epic').map((card) => [card.key, card]))
   assert.equal(valueOf(epic['epic-plan-label'], 'Planning label').text, 'shape-it')
   assert.equal(valueOf(epic['epic-approve'], 'Approval label').text, 'ship-it')
@@ -49,7 +52,13 @@ test('an unset value shows the default and says so; a set one does not', () => {
   const built = map({ mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main' } } })
   const label = cards(built, 'epic').find((card) => card.key === 'epic-plan-label')
   assert.deepEqual([valueOf(label, 'Planning label').text, valueOf(label, 'Planning label').source], ['avoozl:plan', 'default'])
-  assert.equal(valueOf(cards(map(SINGLE), 'epic').find((card) => card.key === 'epic-plan-label'), 'Planning label').source, 'set')
+  assert.equal(
+    valueOf(
+      cards(map(SINGLE), 'epic').find((card) => card.key === 'epic-plan-label'),
+      'Planning label',
+    ).source,
+    'set',
+  )
 })
 
 test('the merge card follows delivery.ship', () => {
@@ -65,7 +74,10 @@ test('plans-repo mode: no Tasks at once value, maintenance is muted, the plans r
   assert.match(built.lanes[0].muted, /Issue Radar/)
   const release = cards(built, 'epic').find((card) => card.key === 'epic-start')
   // `concurrency` only set the retired local workers; the map no longer shows it.
-  assert.equal(release.values.some((value) => value.label === 'Tasks at once'), false)
+  assert.equal(
+    release.values.some((value) => value.label === 'Tasks at once'),
+    false,
+  )
   assert.equal(cards(built, 'epic').find((card) => card.key.startsWith('epic-build')).title, 'Worker chats build')
   assert.match(cards(built, 'maintenance').at(-1).text, /example\/plans/)
   // A crew still punts to Avoozl: Radar is an intake source (R91.6).
@@ -74,7 +86,10 @@ test('plans-repo mode: no Tasks at once value, maintenance is muted, the plans r
 
 test('Local only shows one local-worker lane, no labels, and says why', () => {
   const built = map({ mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk' } } })
-  assert.deepEqual(built.lanes.map((lane) => lane.key), ['local'])
+  assert.deepEqual(
+    built.lanes.map((lane) => lane.key),
+    ['local'],
+  )
   assert.deepEqual(built.labels, [])
   assert.match(built.note, /hidden in Local only/)
   assert.equal(valueOf(cards(built, 'local')[3], 'Landing branch').text, 'trunk')
@@ -117,7 +132,10 @@ test('tags come from the one table, and no card text writes a tag', () => {
 
 test('the Labels table lists each label, its writer and a setting to open', () => {
   const rows = Object.fromEntries(map(SINGLE).labels.map((row) => [row.key, row]))
-  assert.deepEqual(['plan', 'needsHuman', 'claim', 'ready', 'approval', 'conflict', 'review', 'drafted'].filter((key) => !rows[key]), [])
+  assert.deepEqual(
+    ['plan', 'needsHuman', 'claim', 'ready', 'approval', 'conflict', 'review', 'drafted'].filter((key) => !rows[key]),
+    [],
+  )
   assert.equal(rows.plan.name, 'shape-it')
   assert.equal(rows.plan.writer, 'you')
   assert.equal(rows.ready.writer, 'avoozl')
@@ -128,13 +146,20 @@ test('the Labels table lists each label, its writer and a setting to open', () =
 test('the source-conflict setting round-trips, and no crew conflict-fix card shows', () => {
   const policy = structuredClone(SINGLE)
   policy.repositories['example/code'].conflicts = { onSourceConflict: 'ask', maxAttempts: 2 }
-  assert.equal(cards(map(policy), 'epic').find((item) => item.key === 'epic-conflict-fix'), undefined)
+  assert.equal(
+    cards(map(policy), 'epic').find((item) => item.key === 'epic-conflict-fix'),
+    undefined,
+  )
   assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].conflicts, { onSourceConflict: 'ask', maxAttempts: 2 })
   assert.equal(toPolicy(toForm(SINGLE)).repositories['example/code'].conflicts, undefined)
 })
 
 test('the merge method shows on the auto-merge card and round-trips (RC28.7)', () => {
-  const merge = (built) => valueOf(cards(built, 'epic').find((item) => item.key === 'epic-merge'), 'Merge method')
+  const merge = (built) =>
+    valueOf(
+      cards(built, 'epic').find((item) => item.key === 'epic-merge'),
+      'Merge method',
+    )
   assert.equal(merge(map(SINGLE)).text, 'squash')
   assert.equal(merge(map(SINGLE)).source, 'default')
   const policy = structuredClone(SINGLE)
@@ -244,6 +269,5 @@ test('the escalation label Avoozl recommends is one name in the page and the doc
   assert.equal(name, 'crew: needs avoozl')
   // Issue Radar skips an issue only when its label starts with crew:.
   assert.match(name, /^crew: /)
-  for (const doc of ['../../../docs/policies.md', '../../../docs/dogfood-checklist.md', '../../../docs/overview.md'])
-    assert.ok(read(doc).includes(name), doc)
+  for (const doc of ['../../../docs/policies.md', '../../../docs/dogfood-checklist.md', '../../../docs/overview.md']) assert.ok(read(doc).includes(name), doc)
 })

@@ -4,14 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
 import { PAGE, moreLabel, visibleCount } from '../src/paging.ts'
 import { TOOLTIP_DELAY, TOOLTIP_MARGIN, placeTooltip, tooltipController } from '../src/tooltip.ts'
-import {
-  ACTION_TIPS,
-  conflictChoices,
-  conflictFilterActive,
-  matchesConflict,
-  readConflictFilter,
-  writeConflictFilter,
-} from '../src/conflicts-api.ts'
+import { ACTION_TIPS, conflictChoices, conflictFilterActive, matchesConflict, readConflictFilter, writeConflictFilter } from '../src/conflicts-api.ts'
 
 const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
@@ -63,8 +56,7 @@ test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   assert.match(panel, /useMedia\('\(max-width: 767px\)'\)/)
   // Conflicts lost its kind tabs; kind is a filter.
   assert.doesNotMatch(source('ConflictsView.tsx'), /SegmentedControl/)
-  for (const label of ['Search', 'Kind', 'Spec', 'Epic', 'Repository', 'Age', 'Changed by'])
-    assert.match(source('ConflictsView.tsx'), new RegExp(`label: '${label}'`), label)
+  for (const label of ['Search', 'Kind', 'Spec', 'Epic', 'Repository', 'Age', 'Changed by']) assert.match(source('ConflictsView.tsx'), new RegExp(`label: '${label}'`), label)
 })
 
 const item = (kind, taskId, extra = {}) => ({ kind, taskId, title: taskId, detail: 'd', authority: 'local', issue: null, ...extra })
@@ -95,7 +87,17 @@ test('Conflicts filter: kind with counts, plan, epic, repository, age and who ch
     choices.repositories.map((r) => r.value),
     ['org/x', '(none)'],
   )
-  const keep = (filter) => items.filter((i) => matchesConflict(i, filter, graph.tasks.find((t) => t.id === i.taskId), now)).map((i) => i.taskId)
+  const keep = (filter) =>
+    items
+      .filter((i) =>
+        matchesConflict(
+          i,
+          filter,
+          graph.tasks.find((t) => t.id === i.taskId),
+          now,
+        ),
+      )
+      .map((i) => i.taskId)
   assert.deepEqual(keep({}), ['a', 'g'])
   assert.deepEqual(keep({ kind: 'github-conflict' }), ['g'])
   assert.deepEqual(keep({ plan: 'spec:one' }), ['a'])
@@ -244,7 +246,6 @@ test('each view heading and its nav tab show the same icon, hidden from readers'
   assert.doesNotMatch(controls.slice(controls.indexOf('export function ViewHeading')), /warn|yellow/)
 })
 
-
 test('repository rows join checkouts with their GitHub settings, and GitHub-only entries follow', async () => {
   const { repositoryRows, githubHref } = await import('../src/repository-rows.ts')
   const rows = repositoryRows(
@@ -252,7 +253,10 @@ test('repository rows join checkouts with their GitHub settings, and GitHub-only
       { id: 'nupp', name: 'nupp', localCheckout: '/x/nupp', github: 'nupp-lang/nupp', baseBranch: 'main' },
       { id: 'local', name: 'local', localCheckout: '/x/local', github: null, baseBranch: 'trunk' },
     ],
-    [{ name: 'example/plans', baseBranch: 'main' }, { name: 'nupp-lang/nupp', baseBranch: 'core-dev' }],
+    [
+      { name: 'example/plans', baseBranch: 'main' },
+      { name: 'nupp-lang/nupp', baseBranch: 'core-dev' },
+    ],
   )
   assert.deepEqual(
     rows.map((r) => [r.key, r.policy, r.github, r.branch, r.folder]),
@@ -271,8 +275,7 @@ test('workspace states read as plain words; yellow only where the owner must act
   assert.equal(workspaceState('closed').label, 'On')
   assert.equal(workspaceState('stopped').label, 'Turned off')
   assert.equal(workspaceState('draining').label, 'Finishing work')
-  for (const [state, entry] of Object.entries(WORKSPACE_STATES))
-    assert.equal(entry.variant === 'warning', ['degraded', 'quarantined'].includes(state), state)
+  for (const [state, entry] of Object.entries(WORKSPACE_STATES)) assert.equal(entry.variant === 'warning', ['degraded', 'quarantined'].includes(state), state)
   assert.match(source('WorkspaceView.tsx'), /Add a workspace/)
   assert.match(source('WorkspaceView.tsx'), /A workspace is a folder with your specs\. Pick one that already has them, or start a new one\./)
   assert.doesNotMatch(source('WorkspaceView.tsx'), /Add or initialize/)

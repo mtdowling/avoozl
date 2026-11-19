@@ -62,7 +62,6 @@ export function chatClient(api: AppApi) {
   return {
     context: (workspaceId: string, seed: ChatSeed) => run<{ message: string }>('chat.context', { ...seed }, workspaceId),
     start: (workspaceId: string, taskId: string) => run<StartResult>('task.start', { taskId }, workspaceId),
-    activity: (workspaceId: string, limit = 50) =>
-      run<{ items: ActivityItem[] }>('activity.recent', { limit }, workspaceId).then((r) => r.items),
+    activity: (workspaceId: string, limit = 50) => run<{ items: ActivityItem[] }>('activity.recent', { limit }, workspaceId).then((r) => r.items),
   }
 }

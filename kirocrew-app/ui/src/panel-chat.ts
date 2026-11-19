@@ -4,11 +4,7 @@
 // /embed/chat/<slot>) and slot names (spec-builder-<name>[-<8 hex>],
 // crew-<id>); test/panel-chat.test.mjs fails when they change. Switch to the
 // SDK if it ever passes the chat key.
-export type PanelChat =
-  | { kind: 'spec-builder'; spec: string }
-  | { kind: 'crew'; crew: string }
-  | { kind: 'avoozl' }
-  | { kind: 'other' }
+export type PanelChat = { kind: 'spec-builder'; spec: string } | { kind: 'crew'; crew: string } | { kind: 'avoozl' } | { kind: 'other' }
 
 export function currentChat(loc: Pick<Location, 'pathname' | 'search'>): string {
   const sid = new URLSearchParams(loc.search).get('sid')
