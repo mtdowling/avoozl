@@ -117,7 +117,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "labelsNone",
     "assignee",
     "author",
-    "autoPublishChildren",
   ],
   pullRequestReviews: ["approvals"],
   commentSteering: ["mention"],
@@ -138,7 +137,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "pullRequestReviews",
     "concurrency",
     "release",
-    "dependencyText",
     "priority",
     "priorityLabels",
     "waitingLabels",
@@ -265,6 +263,12 @@ function ruleInput(value, label) {
           unassigned: false,
           source: null,
         };
+  // A GitHub issue is never a task (R102.20): only an intake source's
+  // items are delivered or planned by rule; a person starts an issue.
+  if (!fields.source && ["plan", "deliver", "execute"].includes(value.action))
+    fail(
+      `${label} would ${value.action} a GitHub issue. Use Deliver this or Plan this in Triage instead.`,
+    );
   // Avoozl writes nothing to a non-GitHub source yet (R50.20).
   if (fields.source && value.action === "respond")
     fail(
@@ -276,7 +280,6 @@ function ruleInput(value, label) {
     match: value.match !== undefined ? value.match.trim() : null,
     ...fields,
     author: name(value.author, `${label}.author`, { optional: true }),
-    autoPublishChildren: value.autoPublishChildren === true,
   };
   // A rule with no positive label would match every open issue.
   if (!rule.labelsAll.length && !rule.labelsAny.length)
@@ -414,11 +417,6 @@ function repositoryInput(value, id, mode) {
   if (mode && !baseBranch)
     fail(`${label}.baseBranch must name the repository's default branch.`);
   const release = releaseInput(value, label);
-  if (
-    value.dependencyText !== undefined &&
-    typeof value.dependencyText !== "boolean"
-  )
-    fail(`${label}.dependencyText must be true or false.`);
   const managedLabels = onlyKeys(
       value.managedLabels ?? {},
       MANAGED_LABEL_KEYS,
@@ -669,7 +667,6 @@ function repositoryInput(value, id, mode) {
     requiredChecks: names(value.requiredChecks, `${label}.requiredChecks`),
     pullRequestReviews,
     release,
-    dependencyText: value.dependencyText === true,
     // The code repository has bin/build-receipt (RC32.8).
     buildReceipts: value.buildReceipts === true,
     priority,
@@ -922,26 +919,15 @@ export function newTaskAuthority(requested) {
     : "local";
 }
 
-// A registered repository from before the policy: its single ready label
-// becomes one deliver rule with the same assignee and actor checks.
+// A registered repository the policy does not name: no rules, the same
+// actor checks.
 export function legacyRepositoryPolicy(config) {
   return {
     baseBranch: null,
     allowedActors: [...(config.allowedActors || [])],
     minimumPermission: config.minimumPermission || "write",
     managedLabels: config.managedLabel ? { managed: config.managedLabel } : {},
-    rules: [
-      {
-        id: "intake",
-        action: "deliver",
-        labelsAll: [config.label || "avoozl:ready"],
-        labelsAny: [],
-        labelsNone: [],
-        assignee: config.assignee || null,
-        author: null,
-        autoPublishChildren: false,
-      },
-    ],
+    rules: [],
   };
 }
 

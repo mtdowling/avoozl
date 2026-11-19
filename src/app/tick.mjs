@@ -68,9 +68,7 @@ import { respondStep } from "./github-respond.mjs";
 import { investigationStep } from "./investigate.mjs";
 import { revertCorrections } from "./corrections.mjs";
 import { evidenceCommentStep } from "./evidence.mjs";
-import { plannerStep } from "./github-planner.mjs";
 import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
-import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import {
   conflictFixDispatches,
@@ -131,10 +129,7 @@ import { gateLabelStep } from "./gate-label.mjs";
 import { blockerNotes } from "./gate-clear.mjs";
 import { routeResultNotes, routeStep } from "./routes.mjs";
 import { heldByTrackers, trackerStep } from "./trackers.mjs";
-import {
-  driverStep,
-  recheckDrivers,
-} from "./driver.mjs";
+import { driverStep, recheckDrivers } from "./driver.mjs";
 import {
   driverGuard,
   driverHeldTaskIds,
@@ -336,9 +331,7 @@ export function tickLogEntry(run) {
     run.outcome === "unreadable" ||
     run.policy === "invalid"
       ? "error"
-      : run.outcome === "locked" ||
-          run.outcome === "held" ||
-          run.held
+      : run.outcome === "locked" || run.outcome === "held" || run.held
         ? "warn"
         : "info";
   const text =
@@ -524,7 +517,7 @@ function servedOf(row) {
 // repository and broad issues advance through preview and publishing.
 // Readiness changes reach GitHub through the GitHub step's re-projection.
 // Like the GitHub step, a failure is reported, not thrown.
-async function intakeStep(store, github, workspaceRoot, breakdownHooks) {
+async function intakeStep(store, github, workspaceRoot) {
   try {
     const policy = readGitHubPolicy(workspaceRoot),
       notify = [];
@@ -540,8 +533,6 @@ async function intakeStep(store, github, workspaceRoot, breakdownHooks) {
         ),
       );
     }
-    if (breakdownHooks && store.list("github_issues").some((r) => r.breakdown))
-      await advanceGitHubBreakdowns(store, github, breakdownHooks());
     return { notify };
   } catch (error) {
     return {
@@ -686,7 +677,6 @@ async function runTick(
     sessions,
     cron = false,
     github: client,
-    breakdownHooks,
     plugins,
     folders = null,
   },
@@ -875,8 +865,7 @@ async function runTick(
         }
       if (script && github)
         planned.notify.push(
-          ...(await intakeStep(store, github, workspaceRoot, breakdownHooks))
-            .notify,
+          ...(await intakeStep(store, github, workspaceRoot)).notify,
         );
       // The public crew audit (R85.6, R85.7, §6.14): what a crew wrote on a
       // public repository since the last pass, checked with content rules.
@@ -1127,24 +1116,6 @@ async function runTick(
             text: error.message,
           });
         }
-      // Planner sessions for matched issues: one to classify and draft, one
-      // isolated critique per drafted revision.
-      let planners = [];
-      if (script && github)
-        try {
-          const step = plannerStep(store, workspaceRoot, {
-            open: !unobserved.length,
-            config: memory.value || {},
-          });
-          planners = step.dispatch;
-          planned.notify.push(...step.notify);
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not start planner sessions",
-            text: error.message,
-          });
-        }
       // No new work for a spec driven elsewhere or being handed off, and
       // none for an away task (R66.6, R66.10, R66.11).
       const held = driverHeldTaskIds(store),
@@ -1245,7 +1216,6 @@ async function runTick(
         ...verify.filter((d) => !readOnlyTask(d.task)),
         ...investigation.dispatch.filter((d) => !heldTask(d.task)),
         ...responders.filter((d) => !heldTask(d.task)),
-        ...planners.filter((d) => !heldTask(d.task)),
         ...retro.dispatch,
         ...reviews.filter((d) => !heldTask(d.task)),
       ];

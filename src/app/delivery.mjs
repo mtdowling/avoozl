@@ -963,8 +963,10 @@ export async function reportSession(
   const checks =
       binding.role === "verifier" && kind === "done"
         ? input.checks === undefined &&
-          !declaredChecks(task, store.get("projects", taskRepository(task) || ""))
-            .length
+          !declaredChecks(
+            task,
+            store.get("projects", taskRepository(task) || ""),
+          ).length
           ? undefined
           : checkResults(input.checks)
         : undefined,
@@ -1943,9 +1945,7 @@ export function readyCandidates(
   })
     .filter(
       (task) =>
-        taskRoute(task) === "local" &&
-        !line.has(task.id) &&
-        !skip.has(task.id),
+        taskRoute(task) === "local" && !line.has(task.id) && !skip.has(task.id),
     )
     .sort(
       dispatchOrder(
@@ -2018,10 +2018,7 @@ function composeLeafBrief(
       attempt,
       worktree: store.get("task_worktrees", task.id),
       previous: delivery?.attempts.at(-1),
-      notes: [
-        ...blockerNotes(data, task),
-        ...routeResultNotes(data, task),
-      ],
+      notes: [...blockerNotes(data, task), ...routeResultNotes(data, task)],
       findings: openFindings(delivery),
       linksAndNotes: briefNotes(store, task, blockerTasks(data, task)),
     };

@@ -194,34 +194,6 @@ conductor starts workers and reports what happened.
   the new task, and the old one keeps its history. Use it only when the user
   asks, and never for review rework.
 
-## Break down a broad GitHub issue
-
-The tick does this on its own when the repository has a local checkout: it
-starts one `avoozl-planner` session in breakdown mode for each matched issue
-that nobody has classified, and once the child graph waits for a critique, one
-isolated critique session for that revision. The issue is held from dispatch
-until it is classified. Run the steps below yourself only for a repository
-with no local checkout, or when the user asks.
-
-When a deliver rule matched an issue and the user wants it delivered:
-
-1. Read the issue snapshot and decide one thing: is it one bounded leaf in one
-   repository with observable acceptance? Record the answer with
-   `plans_classify_issue` `{repository, number, kind, reason}`. Bounded ends
-   here: the issue stays its own leaf.
-2. Broad: run a draft planner session on a new spec folder, then an isolated
-   critique session, as in Plan a goal. The spec's one top-level package item
-   is the issue itself; nest every child under it. Then call
-   `plans_draft_children` `{repository, number, spec}`.
-3. The next GitHub sync (or `plans_github {action: "advance"}`) posts one preview
-   comment on the issue. Nothing else is written. An allowed actor approves
-   by removing and adding the trigger label; then Avoozl creates the
-   sub-issues and blocked-by edges. A rule with `autoPublishChildren` skips
-   the wait when lint passes and the critique has no findings.
-
-With `dependencyText` on, `depends on #N` in the issue is shown in the same
-preview and becomes a blocked-by edge only after that approval.
-
 ## Planner
 
 Planner sessions cannot load this skill. The `avoozl-planner` agent's own

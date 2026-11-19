@@ -491,7 +491,6 @@ function RuleEditor(props: {
       </div>
       <MatchField id={`${id}-match`} value={rule.match} repository={props.repository} workspaceId={props.workspaceId} onChange={(value) => set({ match: value })} />
       <Row gap={3}>
-        <CheckRow label="Publish a clean breakdown's sub-issues without a re-label" raw="autoPublishChildren" checked={rule.autoPublishChildren} onChange={(autoPublishChildren) => set({ autoPublishChildren })} />
         <Box as="span" ml="auto">
           <DangerBtn
             icon={Trash2}

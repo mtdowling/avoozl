@@ -193,7 +193,6 @@ export function readPack(location, file = PACK_FILE) {
 // with `skip` cannot apply here and says why.
 function units(settings, current, repositories) {
   const list = [];
-  const github = record(current.github) ? current.github : {};
   for (const key of Object.keys(settings.repositories ?? {}))
     if (key === "concurrency") continue;
     else if (!repositories.length)

@@ -81,9 +81,10 @@ export function nextView(store, { policy, github = null }) {
     ),
     schedule = scheduleHolds(store, { github }),
     startable = new Map(
-      readyLeaves(store, delivery, { skip: schedule.skip }).map(
-        (leaf) => [leaf.task.id, leaf],
-      ),
+      readyLeaves(store, delivery, { skip: schedule.skip }).map((leaf) => [
+        leaf.task.id,
+        leaf,
+      ]),
     ),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     complete = (status) => statusComplete(data, status);
@@ -153,20 +154,14 @@ export function nextView(store, { policy, github = null }) {
     const reason = task.decision
       ? ["decision", String(task.decision)]
       : record?.state === "decision"
-          ? [
-              "failed",
-              record.cause || record.attempts.at(-1)?.cause || "stopped",
-            ]
-          : question
-            ? ["question", question]
-            : isRefused(task)
-              ? ["blocked", `Refused by a person: ${title(task)}`]
-              : NEEDS_YOU_STATUSES.has(task.status) || task.needsReview
-                ? [
-                    task.status === "blocked" ? "blocked" : "review",
-                    task.status,
-                  ]
-                : null;
+        ? ["failed", record.cause || record.attempts.at(-1)?.cause || "stopped"]
+        : question
+          ? ["question", question]
+          : isRefused(task)
+            ? ["blocked", `Refused by a person: ${title(task)}`]
+            : NEEDS_YOU_STATUSES.has(task.status) || task.needsReview
+              ? [task.status === "blocked" ? "blocked" : "review", task.status]
+              : null;
     if (reason) {
       result.needsYou.push({
         ...item,

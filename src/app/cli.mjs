@@ -1124,11 +1124,7 @@ try {
     if (!response.ok) process.exitCode = 1;
   } else if (command === "rebuild")
     console.log(
-      JSON.stringify(
-        await localOrRequest("workspace.rebuild", {}),
-        null,
-        2,
-      ),
+      JSON.stringify(await localOrRequest("workspace.rebuild", {}), null, 2),
     );
   else if (command === "seed")
     console.log(

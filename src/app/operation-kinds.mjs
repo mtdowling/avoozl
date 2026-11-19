@@ -166,8 +166,6 @@ const DRAFT = new Set([
   "search.prompt",
   "search.result",
   "checkpoint.publish",
-  "github.breakdown.classify",
-  "github.breakdown.draft",
 ]);
 
 const EXECUTE = new Set([
@@ -353,7 +351,6 @@ const PROTECT = new Set([
   "github.intake.capability.create",
   "github.intake.capability.revoke",
   "github.sync",
-  "github.breakdown.advance",
   "github.authorize",
   "github.crewlabel.backfill",
   "conflicts.settle",

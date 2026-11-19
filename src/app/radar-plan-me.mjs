@@ -18,8 +18,19 @@ import { actorAllowed } from "./github-policy.mjs";
 import { latestSkip } from "./radar-claims.mjs";
 import { fail } from "./store.mjs";
 import { hasAvoozlLabel } from "./github.mjs";
-import { issueSpecName } from "./github-planner.mjs";
 import { boundedFix } from "./github-intake.mjs";
+
+// A spec folder name for one issue: lowercase, hyphens, at most 80 characters.
+function issueSpecName(repository, number) {
+  const suffix = `-${number}`,
+    slug = String(repository)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  return (
+    `issue-${slug}`.slice(0, 80 - suffix.length).replace(/-+$/, "") + suffix
+  );
+}
 
 export const INTAKE_SCOPES = new Set([
   "new-feature",

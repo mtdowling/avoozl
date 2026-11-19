@@ -96,9 +96,7 @@ function readyRemoteLeaves(store, data, skip) {
     q: "ready:true",
   }).filter(
     (task) =>
-      remoteLeaf(task) &&
-      !pendingProjection(task) &&
-      !skip.has(task.id),
+      remoteLeaf(task) && !pendingProjection(task) && !skip.has(task.id),
   );
 }
 

@@ -7,8 +7,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { commandEvidence, git } from "./git.mjs";
 import { fail } from "./store.mjs";
-import { putSpan } from "./flow.mjs";
-import { taskRepository } from "../work-model.mjs";
 
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 
@@ -104,12 +102,3 @@ export async function localPass(root, commit, checks) {
   }
   return { ok: true, record };
 }
-
-const FAILED = new Set([
-  "failure",
-  "timed_out",
-  "cancelled",
-  "action_required",
-  "error",
-]);
-

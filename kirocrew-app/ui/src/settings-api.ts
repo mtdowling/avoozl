@@ -275,7 +275,6 @@ export interface RuleForm {
   // labelsAll/labelsAny/labelsNone/assignee are converted into it on load.
   match: string
   author: string
-  autoPublishChildren: boolean
 }
 
 export interface RepositoryForm {
@@ -324,7 +323,7 @@ export interface RepositoryForm {
   untriaged: UntriagedForm
   // The private mirror (RC24.1); blank source and mirror mean none.
   mirror: MirrorForm
-  // Settings this form does not show (checkout, folder, dependencyText),
+  // Settings this form does not show (checkout, folder),
   // written back unchanged.
   rest: Record<string, unknown>
 }
@@ -478,10 +477,9 @@ const SHOWN = new Set([
 export function emptyRule(): RuleForm {
   return {
     id: '',
-    action: 'deliver',
+    action: 'respond',
     match: '',
     author: '',
-    autoPublishChildren: false,
   }
 }
 
@@ -568,7 +566,6 @@ export function toForm(github: Policy): SettingsForm {
             action: str(rule.action),
             match: typeof rule.match === 'string' ? rule.match : legacyMatch(rule),
             author: str(rule.author),
-            autoPublishChildren: rule.autoPublishChildren === true,
           }
         }),
         untriaged: (() => {
@@ -682,7 +679,6 @@ export function toPolicy(form: SettingsForm): Policy {
                   action: rule.action,
                   match: blank(rule.match),
                   author: blank(rule.author),
-                  autoPublishChildren: rule.autoPublishChildren || undefined,
                 }),
               ),
               untriaged: untriagedPolicy(repository.untriaged),

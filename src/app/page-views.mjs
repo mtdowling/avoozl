@@ -1638,13 +1638,6 @@ const clipText = (text, max) =>
     ? `${text.slice(0, max)}\n\n[cut at ${max} characters]`
     : text;
 
-const shown = (value) =>
-  Array.isArray(value)
-    ? value.join(", ") || "none"
-    : value
-      ? String(value)
-      : "empty";
-
 export function sameItem(item, key) {
   return (
     item.kind === key.kind &&

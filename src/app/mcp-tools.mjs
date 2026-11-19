@@ -331,7 +331,7 @@ const tools = {
   },
   plans_github: {
     summary:
-      "GitHub reads, sync, breakdowns and the Untriaged list. Setup writes, settings and handing items to Issue Radar are a person's, in the app.",
+      "GitHub reads, sync and the Untriaged list. Setup writes, settings and handing items to Issue Radar are a person's, in the app.",
     actions: {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
@@ -426,15 +426,6 @@ const tools = {
       sync: ["github.sync", "sync issues now"],
       publish: ["planning.publish", "publish an approved plan"],
       reconcile: ["planning.reconcile", "reconcile planning pull requests"],
-      classify: ["github.breakdown.classify", "bounded or broad"],
-      draft_children: [
-        "github.breakdown.draft",
-        "name a broad issue's child spec",
-      ],
-      advance: [
-        "github.breakdown.advance",
-        "preview, detect approval, publish children",
-      ],
     },
   },
   plans_repos: {

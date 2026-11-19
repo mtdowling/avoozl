@@ -5,7 +5,6 @@
 // its older key `delivery.ship`). Read only.
 import { ruleBranch, seenCheckNames } from "./github-branch-rules.mjs";
 import { parseRepository } from "./github.mjs";
-import { fail } from "./store.mjs";
 import {
   MERGE_METHOD_DEFAULT,
   MERGE_METHOD_SETTING,
@@ -119,4 +118,3 @@ export async function mergePath(
     error,
   };
 }
-

@@ -39,13 +39,7 @@ function waitingSince(data, task) {
       (e) => e.to === task.id && ["requires", "sequence"].includes(e.kind),
     )
     .map((e) => supersedingTask(byId, e.from))
-    .map(
-      (t) =>
-        t?.manualDone?.at ||
-        t?.integration?.at ||
-        t?.updatedAt ||
-        null,
-    )
+    .map((t) => t?.manualDone?.at || t?.integration?.at || t?.updatedAt || null)
     .filter(Boolean)
     .sort();
   return times.at(-1) || task.createdAt || null;

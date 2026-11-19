@@ -756,4 +756,3 @@ export function recordTickActivity(store, config) {
   pruneActivity(store, { days: activityRetention(config) });
   return written;
 }
-

@@ -5,7 +5,6 @@
 // planned. Nothing here reads GitHub or the store: callers pass the issues.
 import { createHash } from "node:crypto";
 import { specFacts, specItems } from "./spec-plans.mjs";
-import { fail } from "./store.mjs";
 
 const sha = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -43,12 +42,6 @@ export function diffSpec(name, before, after) {
       rows.push({ taskId: task.id, title: task.title, change: "removed" });
   return rows;
 }
-
-const PAST = {
-  edited: "was edited",
-  added: "was added",
-  removed: "was removed",
-};
 
 // The last revision that was approved before the current one, or null.
 export function approvedBefore(plan) {

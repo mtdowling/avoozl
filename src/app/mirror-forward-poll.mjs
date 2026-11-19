@@ -5,7 +5,6 @@
 //
 // shortcut: reads one pull request at a time, three calls at most per open
 // record per tick. Upgrade to a conditional (ETag) read at many records.
-import { inBatchEpic } from "./forward-epics.mjs";
 import { noteInstances } from "./mirror-forward-run.mjs";
 
 const marker = (id) => `<!-- avoozl-review-copy ${id} -->`;

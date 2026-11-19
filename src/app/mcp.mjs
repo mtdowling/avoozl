@@ -40,14 +40,6 @@ export const OLD_TOOLS = {
     "plan.extraction.submit",
     "Narrow tool for the design extraction chat. Submit one extraction round. Stated and inferred facts require one exact unique quote; this cannot approve the plan.",
   ],
-  plans_classify_issue: [
-    "github.breakdown.classify",
-    "Narrow tool for the planner in breakdown mode. Record a planner's classification of one issue a deliver rule matched: {repository, number, kind: bounded|broad, reason}. Bounded keeps the issue as its own leaf. Broad holds it from dispatch until its child graph is drafted, critiqued, previewed on the issue and approved. Writes nothing to GitHub.",
-  ],
-  plans_draft_children: [
-    "github.breakdown.draft",
-    "Narrow tool for the planner in breakdown mode. Name the spec folder that holds a broad issue's child graph: {repository, number, spec}. Its one top-level package item stands for the issue; every other item nests under it. Returns the lint diagnostics and whether a current critique exists. Writes nothing to GitHub; the next sync posts the preview.",
-  ],
   plans_prepare_worktree: [
     "worktree.prepare",
     "Narrow tool for worker chats. Create or return a leaf's isolated worktree on branch avoozl/<task-id>: {taskId}. A retry returns the same worktree with its commits; nothing is removed or reset.",

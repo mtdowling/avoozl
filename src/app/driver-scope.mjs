@@ -49,8 +49,7 @@ export function driverHeldTaskIds(store, data = store.read()) {
   const all = rows(store),
     held = new Set();
   if (!all.size) {
-    for (const task of data.tasks)
-      if (task.driverAway) held.add(task.id);
+    for (const task of data.tasks) if (task.driverAway) held.add(task.id);
     return held;
   }
   for (const task of data.tasks) {

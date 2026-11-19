@@ -348,13 +348,6 @@ export function briefNotes(store, task, blockers = []) {
   return parts.join("\n");
 }
 
-// The issue's "Links" lines for shown entries, and the reverse
-// for rebuild (design §3.3). A note line an older version wrote is skipped. Each line carries the entry's ID in a comment
-// so a rebuild restores the same row and a second run writes nothing.
-// shortcut: a URL is written as stored; one with spaces or ")" would not
-// read back, but such URLs are rare in a link a person pastes.
-const ISSUE_AUTHOR = /^(a person(?: \(([^)]+)\))?|session:\S+)$/;
-
 // Plans whose issues must be written again because a shown entry changed;
 // the tick projects them and clears them (tick.mjs githubStep).
 const REPROJECT = "notes.reproject";

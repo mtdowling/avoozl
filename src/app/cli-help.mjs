@@ -280,10 +280,7 @@ export const HELP_GROUPS = Object.freeze([
         "github sync [--repository OWNER/REPO]",
         "Import assigned ready issues",
       ),
-      entry(
-        "rebuild",
-        "Rebuild tracker plugin tasks from their records",
-      ),
+      entry("rebuild", "Rebuild tracker plugin tasks from their records"),
     ],
   },
   {

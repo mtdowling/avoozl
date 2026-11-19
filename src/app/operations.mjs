@@ -375,17 +375,7 @@ const PLUGIN_OPERATIONS = new Set([
   "template.list",
   "template.preview",
 ]);
-import {
-  advanceGitHubBreakdowns,
-  breakdownHold,
-  classifyGitHubIssue,
-  draftGitHubChildren,
-} from "./github-breakdown.mjs";
-import {
-  clampLimits,
-  paceNeedsYou,
-  runView,
-} from "./github-pacer.mjs";
+import { clampLimits, paceNeedsYou, runView } from "./github-pacer.mjs";
 import { inspectFolder, scanSpecs } from "./onboarding.mjs";
 import {
   assertRepositoryRemovable,
@@ -2628,63 +2618,6 @@ export class Operations {
       DEFAULT_CACHE_SECONDS
     );
   }
-  // Broad issues (§6.2): the child graph is a spec folder; approval stores it
-  // as an approved plan, without its root epic, which is the source issue.
-  // `locked`: the caller already holds the workspace tick lock.
-  breakdownHooks({ locked = false } = {}) {
-    const store = this.store,
-      policy = this.githubPolicy(),
-      identity = planningIdentity(this.workspaceRoot);
-    return {
-      policy,
-      identity,
-      readSpec: (name) => this.readSpec(name),
-      lint: (spec) =>
-        this.withContentDiagnostics(
-          lintSpec({
-            spec,
-            plan: { id: spec.name },
-            data: {
-              ...this.read(),
-              projects: store.list("projects"),
-              pluginIds: () => this.gatePluginIds(),
-            },
-          }),
-          spec,
-        ),
-      approveChildren: ({ spec, children, row, actor }) => {
-        const config = store.get("github_repositories", row.repository);
-        let plan = createSpecPlan(
-          store,
-          {
-            id: spec.name,
-            prompt: `Children of ${row.repository}#${row.number}`,
-            context: {
-              projectId: config.projectId,
-              issue: { repository: row.repository, number: row.number },
-            },
-          },
-          spec,
-        );
-        if (plan.hash !== spec.hash)
-          plan = saveSpecPlan(
-            store,
-            { id: plan.id, expectedHash: plan.hash },
-            spec,
-          );
-        approvePlan(store, {
-          id: plan.id,
-          expectedHash: plan.hash,
-          expectedRevision: store.read().revision,
-          approvedBy: actor,
-          operator: this.operator,
-          proposals: children.map(({ topLevel: _top, ...child }) => child),
-          githubPolicy: policy,
-        });
-        return store.get("plans", plan.id);
-      },
-    };
-  }
   // The merge path of the named repository; none without a name.
   async mergePaths(only) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot),
@@ -3355,7 +3288,6 @@ export class Operations {
         cron: input.cron === true,
         folders: input.folders ?? null,
         github: this.github,
-        breakdownHooks: () => this.breakdownHooks({ locked: true }),
         plugins: this.plugins,
       });
       if (result.skipped) return result;
@@ -6498,32 +6430,9 @@ export class Operations {
         ...input,
         policy: this.githubPolicy(),
       });
-      // Previews, approvals and publishing for issues with a proposal.
-      if (store.list("github_issues").some((row) => row.breakdown))
-        result.breakdown = await advanceGitHubBreakdowns(
-          store,
-          this.github,
-          this.breakdownHooks(),
-        );
       // Kiro Crew sessions start from the tick; a sync starts nothing.
       return { ...result, starts: [] };
     }
-    if (name === "github.breakdown.classify")
-      return classifyGitHubIssue(
-        store,
-        this.githubPolicy(),
-        input,
-        context.caller,
-      );
-    if (name === "github.breakdown.draft")
-      return draftGitHubChildren(
-        store,
-        input,
-        this.breakdownHooks(),
-        context.caller,
-      );
-    if (name === "github.breakdown.advance")
-      return advanceGitHubBreakdowns(store, this.github, this.breakdownHooks());
     if (name === "github.authorize")
       return syncGitHubIssues(store, this.github, {
         policy: this.githubPolicy(),

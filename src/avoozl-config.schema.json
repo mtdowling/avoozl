@@ -2107,10 +2107,6 @@
           "type": "boolean",
           "default": false
         },
-        "dependencyText": {
-          "type": "boolean",
-          "default": false
-        },
         "priority": {
           "type": "array",
           "uniqueItems": true,
@@ -2336,10 +2332,6 @@
         "author": {
           "type": "string",
           "minLength": 1
-        },
-        "autoPublishChildren": {
-          "type": "boolean",
-          "default": false
         }
       },
       "anyOf": [
