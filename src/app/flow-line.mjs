@@ -26,6 +26,7 @@ import { INTERRUPTED, liveAttempt, rebaseForIntegration } from "./delivery.mjs";
 import { fence } from "./github-respond.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { checkOptions, prepareChecks } from "./check-isolation.mjs";
+import { requireDiskSpace } from "./disk-space.mjs";
 import {
   checkCommand,
   checkKey,
@@ -342,6 +343,13 @@ export async function watchLine(
     policy = flowPolicy(config || {});
   for (const project of store.list("projects")) {
     if (!project.root || !repositoryChecks(project).length) continue;
+    // Its checks run in scratch worktrees: a full volume skips this watch.
+    try {
+      requireDiskSpace(store, os.tmpdir(), `The line watch of ${project.id}`);
+    } catch (error) {
+      if (error.lowDisk) continue;
+      throw error;
+    }
     let head;
     try {
       head = await git(project.root, [

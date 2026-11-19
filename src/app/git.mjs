@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { fail } from "./store.mjs";
 import { checksSetting, repositoryChecks } from "./repository-checks.mjs";
+import { requireDiskSpace } from "./disk-space.mjs";
 import {
   checkOptions,
   isolationSetting,
@@ -314,6 +315,8 @@ export async function createWorktree(store, project, runId, task = {}) {
         worktree = task.worktree || path.join(project.worktreeRoot, runId);
       fs.mkdirSync(path.dirname(worktree), { recursive: true });
       if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
+      // Room first: a full volume holds the work instead of a half-made add.
+      requireDiskSpace(store, path.dirname(worktree), `The worktree ${runId}`);
       const helper = path.join(project.root, "scripts/worktree");
       if (task.existing)
         await git(project.root, ["worktree", "add", worktree, branch]);

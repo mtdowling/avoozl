@@ -665,6 +665,13 @@ sandboxed" for one that ran unconfined. Only a person sets `isolation`.
 Example only: Nupp's checks drive its Linux and Windows VMs, so it would
 use `{ "run": "sandbox", "network": "on" }`.
 
+Before Avoozl makes any worktree (a task's, a check run's, a landing
+candidate's, a review session's), the volume that will hold it needs 2 GiB
+free. With less, the work waits instead of failing halfway: a check run
+stays queued, the landing queue holds, a session start is tried again, and
+Needs you shows one row naming the folder and its free space. The row
+clears once there is room. The 2 GiB floor is fixed.
+
 ### Person-only is not a wall against code running as you
 
 Person-only operations (approve a plan, change plugins, read content-rule
