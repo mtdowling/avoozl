@@ -71,15 +71,15 @@ of the other specs.
 
 ## Phase 3: The Issues and Pull requests pages
 
-- [ ] ta-3.1 List and detail, read only, after ta-2.2 [TA8.1, TA8.2, TA8.3, TA8.7, TA8.8] (§D8)
+- [ ] ta-3.1 List and detail, read only, after ta-2.2 [TA8.1, TA8.2, TA8.3, TA8.7] (§D8)
   - Facts:
-    - summary: Phase 3 (The Issues and Pull requests pages). List and detail, read only. See TA8.1, TA8.2, TA8.3, TA8.7, TA8.8; §D8.
+    - summary: Phase 3 (The Issues and Pull requests pages). List and detail, read only. See TA8.1, TA8.2, TA8.3, TA8.7; §D8.
     - done:
-      - UI tests from fixture items show each part; the owner queue filter shows only held items; a search finds an item by a word in its body; no diff is shown; screenshots of both pages at 390 and 1280 px, light and dark, go to the owner.
+      - UI tests from fixture items show each part; the owner queue filter shows only held items; a search finds an item by a word in its body; screenshots of both pages at 390 and 1280 px, light and dark, go to the owner.
     - checks: npm test, npm run test:ui, git diff --check
     - after: ta-2.2
   - Two pages with one layout: the list with its sorts, filters and search, and the detail with summary, body, checks, reviewers, assignees, labels, branches, counts and timeline.
-  - Done when: UI tests from fixture items show each part; the owner queue filter shows only held items; a search finds an item by a word in its body; no diff is shown; screenshots of both pages at 390 and 1280 px, light and dark, go to the owner.
+  - Done when: UI tests from fixture items show each part; the owner queue filter shows only held items; a search finds an item by a word in its body; screenshots of both pages at 390 and 1280 px, light and dark, go to the owner.
 - [ ] ta-3.2 Actions, after ta-3.1, ta-1.1 [TA8.4, TA8.5, TA8.6] (§D8)
   - Facts:
     - summary: Phase 3 (The Issues and Pull requests pages). Actions. See TA8.4, TA8.5, TA8.6; §D8.
@@ -111,10 +111,10 @@ of the other specs.
   - Facts:
     - summary: Phase 4 (The agent). Reproduce, then fix. See TA3; §D4.
     - done:
-      - Tests with real git and a bare remote: a collaborator's reproduced bug lands with the reproduction passing; a stranger's stops at Fix ready; a reproduction that passes on the base is not a reproduction; a second missing-information case posts no second question; a fix touching a protected path waits for the owner.
+      - Tests with real git and a bare remote: a collaborator's reproduced bug lands with the reproduction passing; a stranger's stops at Fix ready; a reproduction that passes on the base is not a reproduction; a command named in a result is never run, and the sandboxed checks reach no network; a second missing-information case posts no second question; a fix touching a protected path waits for the owner.
     - after: ta-4.1, ta-1.1
-  - Avoozl runs the reproduction itself; a reproduced, bounded bug starts a fix with the reproduction as its first commit and check; a collaborator's lands by the landing setting, anyone else's waits as Fix ready; one request for information at most.
-  - Done when: Tests with real git and a bare remote: a collaborator's reproduced bug lands with the reproduction passing; a stranger's stops at Fix ready; a reproduction that passes on the base is not a reproduction; a second missing-information case posts no second question; a fix touching a protected path waits for the owner.
+  - Avoozl runs the repository's checks without and with the reproduction file, sandboxed; a reproduced, bounded bug starts a fix with the reproduction as its first commit and check; a collaborator's lands by the landing setting, anyone else's waits as Fix ready; one request for information at most.
+  - Done when: Tests with real git and a bare remote: a collaborator's reproduced bug lands with the reproduction passing; a stranger's stops at Fix ready; a reproduction that passes on the base is not a reproduction; a command named in a result is never run, and the sandboxed checks reach no network; a second missing-information case posts no second question; a fix touching a protected path waits for the owner.
 - [ ] ta-4.4 Reviews of other people's pull requests, after ta-4.1 [TA4] (§D6)
   - Facts:
     - summary: Phase 4 (The agent). Reviews of other people's pull requests. See TA4; §D6.
@@ -142,9 +142,9 @@ of the other specs.
   - Runs in progress, every run with its item, class, reason, writes and result, counts per day, caps left and calls used; Pause per repository and Stop all; Stop the line stops triage in its scope.
   - Done when: UI tests show each part; Pause stops new runs before the next tick and holds a running session's writes for the owner; Stop all does the same everywhere; a pulled stop line stops triage in its scope; screenshots go to the owner.
 
-- [ ] ta-p1 Proof: a day of triage on a scratch repository, after ta-1.1, ta-2.3, ta-3.2, ta-4.2, ta-4.3, ta-4.4, ta-4.5, ta-4.6 [TA1 to TA10] (§D2 to §D8)
+- [ ] ta-p1 Proof: triage on a scratch repository, after ta-1.1, ta-2.3, ta-3.2, ta-4.2, ta-4.3, ta-4.4, ta-4.5, ta-4.6 [TA1 to TA10] (§D2 to §D8)
   - Facts:
-    - summary: Phase 4 (The agent). Proof: a day of triage on a scratch repository. See TA1 to TA10; §D2 to §D8.
+    - summary: Phase 4 (The agent). Proof: triage on a scratch repository. See TA1 to TA10; §D2 to §D8.
     - done:
       - Expected: (1) the question is answered with a citation; the collaborator's bug is reproduced, fixed and landed; the stranger's bug waits as Fix ready; the feature goes to the owner; the hostile issue changes nothing outside its rules; the small pull request gets a full review and the large one a partial review that says so; (2) each page action makes its one write; (3) the page's call counts stay under one hundred for the hour and show every write.
       - Expected result observed; receipt under `docs/evidence/`, with no image committed.
@@ -155,7 +155,7 @@ of the other specs.
   - Action: (1) run the tick for an hour; (2) act on the owner queue from the pages; (3) read the Triage agent page.
   - Expected: (1) the question is answered with a citation; the collaborator's bug is reproduced, fixed and landed; the stranger's bug waits as Fix ready; the feature goes to the owner; the hostile issue changes nothing outside its rules; the small pull request gets a full review and the large one a partial review that says so; (2) each page action makes its one write; (3) the page's call counts stay under one hundred for the hour and show every write.
   - Failure means: the agent cannot be left alone on a public repository, or it costs GitHub calls the owner cannot afford.
-  - Next decision: whether to turn it on for Nupp (ta-p2).
+  - Next decision: whether to remove the old ways in (Phase 5).
   - Done when: Expected result observed; receipt under `docs/evidence/`, with no image committed.
 
 ## Phase 5: One way in
@@ -184,19 +184,3 @@ of the other specs.
     - after: ta-5.1, ta-5.2
   - `.kiro/specs/radar-coder/` deleted and code comments citing it renamed; Requirements 49, 52, 85, 91.6, 92, 103, 107 and 110 marked with what changed; README and policies describe the agent, the pages and fixes.
   - Done when: `node scripts/spec-lint.mjs` reports 0 errors; a search of `src/`, `kirocrew-app/`, `README.md` and `docs/*.md` finds no `radar-coder` citation, no Send to Issue Radar and no label-command section.
-
-- [ ] ta-p2 Proof: a week of triage on Nupp, after ta-p1, ta-5.3 [TA1 to TA12] (§D10)
-  - Facts:
-    - summary: Phase 5 (One way in). Proof: a week of triage on Nupp. See TA1 to TA12; §D10.
-    - done:
-      - Expected: every new item gets one run; nothing lands that the owner would revert; the owner queue holds only items that needed the owner; GitHub calls stay inside the rate limit every hour.
-      - Expected result observed; the owner records the week's numbers from the Triage agent page in a receipt under `docs/evidence/`.
-    - manual: true
-    - completion: person
-    - after: ta-p1, ta-5.3
-  - Setup: the Nupp workspace with the triage agent on for `nupp-lang/nupp`, the owner's choices for D10 recorded.
-  - Action: let it run for a week; work only from the Issues and Pull requests pages and the owner queue.
-  - Expected: every new item gets one run; nothing lands that the owner would revert; the owner queue holds only items that needed the owner; GitHub calls stay inside the rate limit every hour.
-  - Failure means: the agent adds work instead of removing it.
-  - Next decision: which of the D10 defaults to change.
-  - Done when: Expected result observed; the owner records the week's numbers from the Triage agent page in a receipt under `docs/evidence/`.
