@@ -171,7 +171,16 @@ test('charts and usage use theme colors and no yellow', async () => {
 test('Flow lists every line stop, pulled and automatic, newest first, with its time to fix (R64.11)', () => {
   const rows = stopRows([
     { id: 'a', manual: false, check: 'npm test', branch: 'main', projectId: 'r1', openedAt: '2026-11-19T04:17:00Z', closedAt: '2026-11-19T04:20:00Z', timeToFixMs: 180_000 },
-    { id: 'p', manual: true, by: { kind: 'agent', name: 'session:s1' }, reason: 'broken base', scope: 'repo', repositoryId: 'r2', openedAt: '2026-11-19T04:01:00Z', closedAt: null },
+    {
+      id: 'p',
+      manual: true,
+      by: { kind: 'agent', name: 'session:s1' },
+      reason: 'broken base',
+      scope: 'repo',
+      repositoryId: 'r2',
+      openedAt: '2026-11-19T04:01:00Z',
+      closedAt: null,
+    },
     {
       id: 'q',
       manual: true,
