@@ -34,3 +34,19 @@ test('a container needs an image, and paths must be absolute', () => {
   // The image is dropped when the run is not a container.
   assert.equal(isolationInput({ ...isolationForm(null), image: 'node:22' }).image, undefined)
 })
+
+test('the worker, runtime and stranger keys round-trip, and a box needs an image (vm-harness VM1, VM6.10)', () => {
+  const value = {
+    run: 'sandbox',
+    worker: 'container',
+    runtime: 'apple-container',
+    image: 'node:22',
+    network: 'off',
+    strangers: 'host',
+    strangerRoles: ['triage', 'checks'],
+  }
+  assert.deepEqual(isolationInput(isolationForm(value)), value)
+  // The defaults write nothing new.
+  assert.deepEqual(isolationInput(isolationForm({ run: 'sandbox', network: 'off' })), { run: 'sandbox', network: 'off' })
+  assert.equal(isolationProblem({ ...isolationForm(null), worker: 'container' }), 'Name the container image.')
+})

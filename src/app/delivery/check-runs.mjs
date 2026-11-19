@@ -9,6 +9,7 @@
 // before (verdictCause). A verifier chat opens only for a bar that needs
 // judgment: `verify: "agent"` on the task, or a repository with no checks.
 import fs from "node:fs";
+import { withStrangerChecks } from "../intake/stranger-input.mjs";
 import os from "node:os";
 import path from "node:path";
 import { commandEvidence, git, withWorkLock } from "../git/git.mjs";
@@ -206,6 +207,8 @@ async function drainRepository(store, repositoryId, options) {
 async function runOne(store, repository, record, options) {
   const task = store.read().tasks.find((t) => t.id === record.taskId),
     startedAt = new Date().toISOString();
+  // A stranger's task runs its checks under the stranger rule (VM6.4).
+  repository = withStrangerChecks(store, repository, task);
   // A run that will make a worktree waits, queued, while its volume is full.
   if (!(await warmWorktree(store, record.taskId, record.commit)))
     try {

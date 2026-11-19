@@ -15,7 +15,7 @@ const withPolicy = (kind) =>
 export const PERSON_ONLY = new Map(
   withPolicy("person").map(({ name, policy }) => [
     name,
-    { reason: policy.reason, when: policy.when },
+    { reason: policy.reason, when: policy.when, agents: policy.agents },
   ]),
 );
 export const NOT_ON_MCP = new Map(
@@ -44,9 +44,17 @@ export function agentSession(env = process.env) {
 // The refusal for a CLI call, or null. The command line is a person's tool,
 // so a person-only operation runs there, even inside an agent session, and is
 // recorded as run there (agentSessionNote). It is refused only in a
-// supervisor child (AVOOZL_CHILD, R95.5), where nobody is typing.
+// supervisor child (AVOOZL_CHILD, R95.5), where nobody is typing, and in an
+// agent session for an input its policy's `agents` names (VM6.12).
 export function cliRefusal(name, input, { env = process.env } = {}) {
   const reason = mcpRefusal(name, input);
+  if (reason && !env.AVOOZL_CHILD && agentSession(env)) {
+    if (!PERSON_ONLY.get(name)?.agents?.(input ?? {})) return null;
+    return (
+      reason.replace(/ Do it in the Avoozl app\.$/, "") +
+      " This command is running inside an agent session, which may not change it. Do it in the Avoozl app or your own terminal."
+    );
+  }
   if (!reason || !env.AVOOZL_CHILD) return null;
   return (
     reason.replace(/ Do it in the Avoozl app\.$/, "") +

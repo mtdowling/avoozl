@@ -35,7 +35,7 @@ import {
 } from './conflicts-api.ts'
 import { useRead } from './useRead.ts'
 import { Authority } from './Authority.tsx'
-import { errorMessage } from './workspace-api.ts'
+import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { DangerBtn, IconBtn, IconLabel, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './ui/controls.tsx'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
@@ -165,6 +165,44 @@ export function ConflictActions(props: {
             })
           }
         />
+      )}
+      {item.kind === 'needs-human' && item.reason === 'stranger' && item.repository && (item.choices?.length ?? 0) > 0 && (
+        <Row gap={2} data-stranger-run-on>
+          {item.choices!.map((harness) => (
+            <Btn
+              key={harness}
+              size="sm"
+              disabled={busy}
+              onClick={() =>
+                run(async () => {
+                  await api.post(COMMAND_PATH, { operation: 'stranger.runon', input: { repository: item.repository, harness }, workspaceId })
+                  props.onReload?.()
+                  return { ok: true, text: `The waiting starts run on ${harness}, with their commands in a box.` }
+                })
+              }
+            >
+              Run on {harness}
+            </Btn>
+          ))}
+        </Row>
+      )}
+      {item.kind === 'needs-human' && item.reason === 'box-preflight' && item.repository && (
+        <Row gap={2}>
+          <Btn
+            size="sm"
+            disabled={busy}
+            data-box-preflight-again
+            onClick={() =>
+              run(async () => {
+                await api.post(COMMAND_PATH, { operation: 'box.preflight.retry', input: { repository: item.repository }, workspaceId })
+                props.onReload?.()
+                return { ok: true, text: 'The preflight runs again with the next contained session.' }
+              })
+            }
+          >
+            Run preflight again
+          </Btn>
+        </Row>
       )}
       {item.kind === 'needs-human' && item.reason === 'forward' && item.forwardId && (
         <ForwardButton item={item} workspaceId={workspaceId} onDone={() => void run(async () => ({ ok: true, text: 'Forwarded.' }))} />

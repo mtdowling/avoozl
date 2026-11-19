@@ -1072,13 +1072,35 @@
         },
         "isolation": {
           "type": "object",
-          "description": "How the repository's checks run. A person sets it in Settings > Repository setup.",
+          "description": "How the repository's checks and its agents' commands run. A person sets it in Settings > Repository setup.",
           "additionalProperties": false,
           "properties": {
             "run": {
               "enum": ["sandbox", "container", "unconfined"],
               "default": "sandbox",
-              "description": "sandbox: the process sandbox, writing only the check's folder, its temp and cache folders and the writable paths. container: docker or podman with image. unconfined: no isolation, only with this machine's opt-in."
+              "description": "sandbox: the process sandbox, writing only the check's folder, its temp and cache folders and the writable paths. container: Apple container, podman or docker with image. unconfined: no isolation, only with this machine's opt-in."
+            },
+            "worker": {
+              "enum": ["sandbox", "container"],
+              "default": "sandbox",
+              "description": "sandbox: a process session runs in the process sandbox. container: a contained session; the agent CLI stays in the host sandbox with its own sign-in, and every command it runs goes to a box with no network and no home folder."
+            },
+            "runtime": {
+              "enum": ["apple-container", "podman", "docker"],
+              "description": "The container runtime. Absent, the first that works here: on macOS Apple container (the only one for a box), podman, docker; elsewhere podman, docker."
+            },
+            "strangers": {
+              "enum": ["container", "hold", "host"],
+              "default": "container",
+              "description": "How stranger input runs on a public repository. container: only in a box, else it waits in Needs you. hold: it waits in Needs you. host: in the host sandbox alone, and every record says so."
+            },
+            "strangerRoles": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "The roles, and checks, the strangers rule covers. Absent, every role and checks."
             },
             "image": {
               "type": "string",

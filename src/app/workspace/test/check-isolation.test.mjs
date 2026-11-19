@@ -11,7 +11,8 @@ import {
   CHECKS_UNCONFINED,
   checkOptions,
   containerBlindness,
-  containerRuntime,
+  pickRuntime,
+  runtimeProgram,
   isolatedCheck,
   isolationSetting,
   prepareChecks,
@@ -163,11 +164,11 @@ test("unconfined runs only with this machine's opt-in, and says so", async (t) =
   void t;
 });
 
-const runtime = containerRuntime();
+const runtime = pickRuntime().runtime ?? null;
 const image = (() => {
   if (!runtime) return null;
   const listed = spawnSync(
-    runtime,
+    runtimeProgram(runtime),
     ["image", "ls", "--format", "{{.Repository}}:{{.Tag}}"],
     {
       encoding: "utf8",
@@ -178,7 +179,7 @@ const image = (() => {
 
 test("a container check mounts its folder, has no network and no home", {
   skip: !runtime
-    ? "no container runtime (docker or podman) is installed"
+    ? "no container runtime (Apple container, podman or docker) works here"
     : !image
       ? "no local alpine image to run without the network"
       : false,

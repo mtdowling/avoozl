@@ -39,8 +39,8 @@ export const commands = [
     help: [
       help(
         "deliver",
-        'fix "TEXT" --repo ID',
-        "Start one change with no spec files; starting it approves it (a person only)",
+        'fix "TEXT" --repo ID [--pr N]',
+        "Start one change with no spec files, from pull request N's head with --pr; starting it approves it (a person only)",
       ),
       help(
         "deliver",
@@ -57,6 +57,7 @@ export const commands = [
           : await localOrRequest("fix.start", {
               text: need(positionals.join(" ").trim(), 'fix "TEXT" --repo ID'),
               repository: need(options.repo, 'fix "TEXT" --repo ID'),
+              ...(options.pr !== undefined ? { pr: Number(options.pr) } : {}),
             });
       console.log(
         result.spec

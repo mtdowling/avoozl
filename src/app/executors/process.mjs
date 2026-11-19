@@ -30,7 +30,7 @@ import {
   bindSession,
   recordSessionStatus,
 } from "../sessions/session-bindings.mjs";
-import { commitWorkerChanges, git } from "../git/git.mjs";
+import { commitWorkerChanges, git, taskGit } from "../git/git.mjs";
 import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
 import { healthContext, providerOf } from "../flow/provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
@@ -40,6 +40,11 @@ import { processRow } from "../agents/role-table.mjs";
 import { loadHarnessDefinition } from "./harness-definitions.mjs";
 import { sessionServedModel } from "./process-view.mjs";
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
+import { sessionIsolation } from "../intake/stranger-input.mjs";
+import {
+  clearStrangerWait,
+  recordStrangerWait,
+} from "../intake/stranger-holds.mjs";
 
 const PROCESS_EXECUTOR = "process";
 // The harness a `process` repository runs when it names none.
@@ -75,10 +80,13 @@ export function sessionNetwork(sandbox, offline) {
   return list.length ? list : undefined;
 }
 
+// `isolationFor(task, role)` is sessionIsolation's answer (vm-harness D7):
+// a contained one sends the box settings with the request.
 export function processExecutor({
   stateDirectory,
   repositoryFor = () => null,
   harnessFor = () => null,
+  isolationFor = () => null,
 }) {
   return createExecutor({
     start(role, task, worktree, brief, model, permissionClass) {
@@ -87,6 +95,11 @@ export function processExecutor({
       const sandbox = repository.sandbox ?? {};
       const offline = processRow(role)?.offline === true;
       const sessionId = `process-${randomUUID()}`;
+      const isolation = isolationFor(task, role);
+      // Stranger input gets no shared cache folder and no writable path
+      // (VM6.6): its box mounts empty folders of its own.
+      const stranger = Boolean(isolation?.stranger);
+      const tmp = path.join(os.tmpdir(), `avoozl-${sessionId}`);
       return withDatabase(stateDirectory, (db) =>
         requestChild(db, {
           executor: PROCESS_EXECUTOR,
@@ -104,12 +117,24 @@ export function processExecutor({
           values: {
             // The session's own temp folder, outside the shared one's other
             // checkouts and outside the state folder the child cannot reach.
-            tmp: path.join(os.tmpdir(), `avoozl-${sessionId}`),
-            repository_cache_dirs: sandbox.writeRoots ?? [],
+            tmp,
+            repository_cache_dirs: stranger ? [] : (sandbox.writeRoots ?? []),
           },
+          ...(isolation?.kind === "contained"
+            ? {
+                contained: {
+                  repository: repository.id ?? "repository",
+                  isolation: repository.isolation ?? {},
+                  caches: stranger ? [] : (sandbox.writeRoots ?? []),
+                  ...(stranger
+                    ? { stranger: { reason: isolation.stranger.reason } }
+                    : {}),
+                },
+              }
+            : {}),
           allowCommands: sandbox.allowCommands,
           // Home paths the repository lets its checks and sessions read.
-          readable: repository.isolation?.readable ?? [],
+          readable: stranger ? [] : (repository.isolation?.readable ?? []),
           network: sessionNetwork(sandbox, offline),
         }),
       );
@@ -121,6 +146,42 @@ export function processExecutor({
     stop: (sessionId) =>
       withDatabase(stateDirectory, (db) => stopChild(db, sessionId)),
   });
+}
+
+// The subject a session's stranger input is read from: its task, or the
+// triage run it serves (vm-harness D7).
+export function sessionSubject(store, id) {
+  return (
+    store.read().tasks.find((task) => task.id === id) ??
+    (() => {
+      try {
+        return store.get("triage_runs", id);
+      } catch {
+        return null;
+      }
+    })()
+  );
+}
+
+// Why a stranger-input start waits, or null; the wait gets one Needs you
+// item per repository (VM6.5, VM6.10).
+function strangerWait(store, request) {
+  const repository = sessionRepository(store, request);
+  if (!repository) return null;
+  const answer = sessionIsolation(
+    store,
+    repository,
+    sessionSubject(store, request.task),
+    request.role,
+  );
+  if (!answer.wait) return null;
+  recordStrangerWait(store, {
+    repository: repository.id,
+    kind: "box",
+    reason: answer.wait,
+    requestId: request.id,
+  });
+  return answer.wait;
 }
 
 // A decision on findings (Go ahead, Investigate again, Stop) resumes the
@@ -212,7 +273,7 @@ async function prepareDetached(checkout, worktree, commit, store = null) {
     requireDiskSpace(store, path.dirname(worktree), `The worktree ${worktree}`);
     await git(checkout, ["worktree", "add", "--detach", worktree, commit]);
   }
-  const head = await git(worktree, ["rev-parse", "HEAD"]);
+  const head = await taskGit(worktree, ["rev-parse", "HEAD"], { checkout });
   if (head !== commit)
     throw Error(
       `${worktree} is at ${head.slice(0, 12)}, not ${commit.slice(0, 12)}.`,
@@ -229,15 +290,19 @@ const verdictSession = (session, checkout) =>
   Boolean(session.commit && session.worktree && checkout) &&
   path.resolve(session.worktree) !== path.resolve(checkout);
 
-// The main checkout a linked worktree belongs to, or null.
+// The main checkout a read session's detached worktree belongs to, from
+// its `.git` file (`gitdir: {common}/worktrees/{name}`), or null. A read
+// session writes only its result folder, so the file is Avoozl's own; no git
+// runs in the folder to read it (D6).
 async function checkoutOf(worktree) {
   try {
-    const common = await git(worktree, [
-      "rev-parse",
-      "--path-format=absolute",
-      "--git-common-dir",
-    ]);
-    return path.dirname(common);
+    const line = /^gitdir: (.+)\n?$/.exec(
+      fs.readFileSync(path.join(worktree, ".git"), "utf8"),
+    );
+    const named = line && path.resolve(worktree, line[1]);
+    if (!named || path.basename(path.dirname(named)) !== "worktrees")
+      return null;
+    return path.dirname(path.dirname(path.dirname(named)));
   } catch {
     return null;
   }
@@ -272,22 +337,20 @@ export function planQuotaHold(health, { model, harness }) {
 // committed in, never a main checkout. The commit then goes through Verify
 // like any worker's (declared and protected paths, checks). Returns the
 // commit, or null when nothing changed.
-export async function commitChildWork(binding, worktree) {
-  const [dir, common] = (
-    await git(worktree, [
-      "rev-parse",
-      "--path-format=absolute",
-      "--git-dir",
-      "--git-common-dir",
-    ])
-  ).split("\n");
-  if (dir === common)
+export async function commitChildWork(binding, worktree, checkout) {
+  if (!checkout)
+    throw Error(
+      `Avoozl has no checkout for ${worktree}, so it does not commit there.`,
+    );
+  const real = (file) => fs.realpathSync.native(file);
+  if (real(worktree) === real(checkout))
     throw Error(
       `${worktree} is not a task worktree; Avoozl commits only there.`,
     );
   return commitWorkerChanges(
     worktree,
     `Avoozl task ${binding.taskId}, attempt ${binding.attempt ?? 1}`,
+    { checkout },
   );
 }
 
@@ -447,7 +510,9 @@ async function nothingCommitted(store, taskId, worktree) {
     sessionRepository(store, { task: taskId })?.baseBranch ??
     "main";
   try {
-    await git(worktree, ["merge-base", "--is-ancestor", "HEAD", base]);
+    await taskGit(worktree, ["merge-base", "--is-ancestor", "HEAD", base], {
+      checkout: sessionRepository(store, { task: taskId })?.root,
+    });
     return true;
   } catch {
     // Not an ancestor (exit 1), or a base git cannot read: not refused.
@@ -694,6 +759,8 @@ export async function drainProcessRequests(
   // still holds it.
   const startHold = (request) => {
     if (request.operation === "send") return null;
+    const waits = strangerWait(store, request);
+    if (waits) return waits;
     health ??= healthContext(store);
     const harness =
       request.harness ??
@@ -789,11 +856,18 @@ export async function drainProcessRequests(
                   : request.worktree;
       let sessionId;
       try {
+        const isolation = sessionIsolation(
+          store,
+          repository,
+          sessionSubject(store, request.task),
+          request.role,
+        );
         sessionId = await processExecutor({
           stateDirectory,
           repositoryFor: () => repository,
           // The harness the request names (R98.3, R98.4), else the repository's.
           harnessFor: () => request.harness ?? null,
+          isolationFor: () => isolation,
         }).start(
           request.role,
           request.task,
@@ -811,6 +885,7 @@ export async function drainProcessRequests(
         );
         throw error;
       }
+      clearStrangerWait(store, request.id);
       bindSession(
         store,
         {
@@ -887,6 +962,7 @@ export async function drainProcessRequests(
               stateDirectory,
               (db) => childRecord(db, binding.slot).worktree,
             ),
+            sessionRepository(store, { task: binding.taskId })?.root,
           ).catch((error) => {
             committed = false;
             errors.push({ id: binding.slot, error: error.message });

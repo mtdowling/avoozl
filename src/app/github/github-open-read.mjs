@@ -32,6 +32,7 @@ const SEARCH = `query($q: String!, $first: Int!, $after: String) {
       __typename
       ... on Issue {
         number title url createdAt
+        repository { isPrivate }
         author { login }
         labels(first: 30) { nodes { name } }
         assignees(first: 10) { nodes { login } }
@@ -39,6 +40,7 @@ const SEARCH = `query($q: String!, $first: Int!, $after: String) {
       }
       ... on PullRequest {
         number title url createdAt isDraft headRefOid headRefName baseRefName
+        repository { isPrivate }
         files(first: 20) { totalCount nodes { path } }
         author { login }
         labels(first: 30) { nodes { name } }
@@ -76,6 +78,11 @@ function item(node) {
     labels: (node.labels?.nodes || []).map((label) => label.name),
     assignees: (node.assignees?.nodes || []).map((entry) => entry.login),
     comments: node.comments?.totalCount ?? 0,
+    // The repository's visibility, one field on the same read (vm-harness
+    // D7): stranger input matters only on a public repository.
+    ...(typeof node.repository?.isPrivate === "boolean"
+      ? { private: node.repository.isPrivate }
+      : {}),
     ...(pull
       ? {
           draft: node.isDraft === true,

@@ -40,6 +40,12 @@ import { fail } from "../store/store.mjs";
 import { WORKSPACE_LOCK } from "../tick/tick.mjs";
 import path from "node:path";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+import {
+  boxedHarnesses,
+  retryPreflight,
+  runStrangerOn,
+} from "../intake/stranger-holds.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
 
 export const entries = [
   // Local checks first (R45): run the declared checks in a worktree and
@@ -175,6 +181,35 @@ export const entries = [
           .filter((d) => d.approved)
           .map((d) => d.name),
       });
+    },
+  },
+
+  // Stranger input waiting on a Kiro Crew chat runs on a harness with a box
+  // instead (vm-harness VM8.1).
+  {
+    name: "stranger.runon",
+    class: "execute",
+    policy: person("Only a person moves stranger input to a harness."),
+    handler({ input, context }) {
+      if (context.caller || context.mcp)
+        fail("Only a person moves stranger input, in the Avoozl app.", 403);
+      return runStrangerOn(this.store, input, {
+        boxed: boxedHarnesses(this.configDirectory),
+      });
+    },
+  },
+
+  // **Run preflight again** for a repository's contained sessions (D5).
+  {
+    name: "box.preflight.retry",
+    class: "execute",
+    policy: person("Only a person runs the box preflight again."),
+    handler({ input }) {
+      return retryPreflight(
+        this.store,
+        machineAvoozlPaths().stateDirectory,
+        input,
+      );
     },
   },
 

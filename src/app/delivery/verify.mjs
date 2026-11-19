@@ -5,11 +5,12 @@
 // worktree when that worktree is at the commit. check-runs.mjs runs these
 // off the tick; delivery judges the record they leave.
 import { PUBLISH_RULES, secretReason } from "../content/content-rules.mjs";
-import { commandEvidence, git } from "../git/git.mjs";
+import { commandEvidence, git, taskGit } from "../git/git.mjs";
 import {
   checkOptions,
   containerBlindness,
   prepareChecks,
+  recordIsolation,
 } from "../workspace/check-isolation.mjs";
 import { fail } from "../store/store.mjs";
 
@@ -108,7 +109,12 @@ export async function verifyPaths(store, { task, repository, commit, flow }) {
     ),
     verdict = pathVerdict(paths, {
       declared: declaredPaths(store, task),
-      protectedPaths: flow?.verify?.protectedPaths || [],
+      // A stranger's change to anything under .github/ waits for a person
+      // and is not pushed (VM6.7): it would run in CI with the secrets.
+      protectedPaths: [
+        ...(flow?.verify?.protectedPaths || []),
+        ...(task.strangerInput ? [".github/**"] : []),
+      ],
     }),
     allowed = protectedAllowance(store, task.id, commit);
   return {
@@ -268,9 +274,7 @@ export async function runEach(
     out.push({
       name,
       command,
-      ...(result.isolation !== undefined
-        ? { isolation: result.isolation }
-        : {}),
+      ...recordIsolation(result),
       exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
       ...(Number.isInteger(result.exitCode)
         ? {}
@@ -288,12 +292,12 @@ export async function warmWorktree(store, taskId, commit) {
   const worktree = store.get("task_worktrees", taskId);
   if (!worktree?.path) return null;
   try {
-    const head = await git(worktree.path, ["rev-parse", "HEAD"]),
-      dirty = await git(worktree.path, [
-        "status",
-        "--porcelain",
-        "--untracked-files=no",
-      ]);
+    const inTask = (args) =>
+        taskGit(worktree.path, args, {
+          checkout: store.get("repositories", worktree.repository)?.root,
+        }),
+      head = await inTask(["rev-parse", "HEAD"]),
+      dirty = await inTask(["status", "--porcelain", "--untracked-files=no"]);
     return head === commit && !dirty ? worktree.path : null;
   } catch {
     return null;

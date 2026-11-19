@@ -208,6 +208,18 @@ if (wait) {
 const gitIn = (cwd, ...args) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
+// The workspace store of a machine's test: its task on repository "app",
+// whose record is `repository`.
+function appStore({ root, defer }, repository) {
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  defer(() => store.close());
+  const data = snapshot();
+  data.tasks[0].repository = "app";
+  store.initialize(data);
+  store.put("repositories", { id: "app", ...repository });
+  return store;
+}
+
 function machine(t, extra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-process-"));
   const cleanups = [];
@@ -364,18 +376,16 @@ test("a session that never ran refuses messages", async (t) => {
 });
 
 test("the drain hands process requests to the supervisor and records status", async (t) => {
-  const { root, stateDirectory, worktree, supervisor, defer } = machine(t);
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  defer(() => store.close());
-  const data = snapshot();
-  data.tasks[0].repository = "app";
-  store.initialize(data);
-  store.put("repositories", {
-    id: "app",
-    root: worktree,
-    executor: "process",
-    harness: "fake-cli",
-  });
+  const { root, stateDirectory, worktree, checkout, supervisor, defer } =
+    machine(t);
+  const store = appStore(
+    { root, defer },
+    {
+      root: checkout,
+      executor: "process",
+      harness: "fake-cli",
+    },
+  );
   enqueueSessionRequests(store, {
     starts: [
       {
@@ -447,17 +457,14 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
     machine(t);
   const run = gitIn;
   const task = worktree;
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  defer(() => store.close());
-  const data = snapshot();
-  data.tasks[0].repository = "app";
-  store.initialize(data);
-  store.put("repositories", {
-    id: "app",
-    root: checkout,
-    executor: "process",
-    harness: "fake-cli",
-  });
+  const store = appStore(
+    { root, defer },
+    {
+      root: checkout,
+      executor: "process",
+      harness: "fake-cli",
+    },
+  );
   const start = (where, brief, attempt = 1) =>
     enqueueSessionRequests(store, {
       starts: [
@@ -552,18 +559,16 @@ test("a low plan quota holds new sessions and leaves running ones", async (t) =>
     /reads out/,
   );
 
-  const { root, stateDirectory, worktree, supervisor, defer } = machine(t);
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  defer(() => store.close());
-  const data = snapshot();
-  data.tasks[0].repository = "app";
-  store.initialize(data);
-  store.put("repositories", {
-    id: "app",
-    root: worktree,
-    executor: "process",
-    harness: "fake-cli",
-  });
+  const { root, stateDirectory, worktree, checkout, supervisor, defer } =
+    machine(t);
+  const store = appStore(
+    { root, defer },
+    {
+      root: checkout,
+      executor: "process",
+      harness: "fake-cli",
+    },
+  );
   const start = {
     executor: "process",
     role: "worker",
@@ -640,7 +645,7 @@ test("the result file: done, blocked, and each bad shape", (t) => {
       path.join(folder, "elsewhere.json"),
       path.join(folder, RESULT_FILE),
     );
-    assert.match(readChildResult(folder).problem, /not a regular file/);
+    assert.match(readChildResult(folder).problem, /is a symbolic link/);
   }
 });
 
@@ -786,12 +791,10 @@ test("a process worker's brief names its file tools and allowed commands", () =>
 // so the task takes the retry path with that feedback.
 test("a write worker's done with nothing committed is refused", async (t) => {
   const { root, checkout, worktree, defer } = machine(t);
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  defer(() => store.close());
-  const data = snapshot();
-  data.tasks[0].repository = "app";
-  store.initialize(data);
-  store.put("repositories", { id: "app", root: checkout, baseBranch: "main" });
+  const store = appStore(
+    { root, defer },
+    { root: checkout, baseBranch: "main" },
+  );
   const reports = [];
   const ops = { execute: async (name, input) => reports.push(input) };
   const binding = {
@@ -841,18 +844,15 @@ test("a write worker's done with nothing committed is refused", async (t) => {
 // R98.3, R98.4: a request that names a harness runs on it, not on its
 // repository's.
 test("a start's own harness wins over its repository's", async (t) => {
-  const { root, stateDirectory, worktree, defer } = machine(t);
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  defer(() => store.close());
-  const data = snapshot();
-  data.tasks[0].repository = "app";
-  store.initialize(data);
-  store.put("repositories", {
-    id: "app",
-    root: worktree,
-    executor: "process",
-    harness: "other-cli",
-  });
+  const { root, stateDirectory, worktree, checkout, defer } = machine(t);
+  const store = appStore(
+    { root, defer },
+    {
+      root: checkout,
+      executor: "process",
+      harness: "other-cli",
+    },
+  );
   enqueueSessionRequests(store, {
     starts: [
       {

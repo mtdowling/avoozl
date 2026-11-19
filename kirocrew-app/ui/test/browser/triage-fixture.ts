@@ -138,7 +138,7 @@ export function detailFor(input: { number?: number }): ItemDetail {
       runs: [run(number, 'done', base.class, 'Answered from docs/import.md.', [{ kind: pr ? 'review' : 'answer', state: 'sent' }])],
       result: 'done',
     },
-    actions: pr ? ['review', 'approve', 'requestChanges', 'comment', 'close', 'labels'] : ['fix', 'spec', 'again', 'assign', 'labels', 'snooze', 'close'],
+    actions: pr ? ['review', 'fix', 'approve', 'requestChanges', 'comment', 'close', 'labels'] : ['fix', 'spec', 'again', 'assign', 'labels', 'snooze', 'close'],
     history: [],
   }
 }

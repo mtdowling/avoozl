@@ -40,6 +40,11 @@ export function askLine(item: ConflictItem): string {
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
       if (item.reason === 'disk') return 'Free space on that volume. The work resumes by itself on the next tick.'
       if (item.reason === 'triage-blocked') return 'Turn triage off for this repository on the Triage agent page.'
+      if (item.reason === 'stranger')
+        return (item.choices?.length ?? 0) > 0
+          ? 'Run it on a harness whose commands go to a box, or leave it waiting.'
+          : 'Fix what the row names, such as the container runtime or the image. The work starts by itself on the next tick.'
+      if (item.reason === 'box-preflight') return 'Fix the step the row names, then run the preflight again.'
       return 'Read the reason and act where the row says.'
     default:
       return 'Read the reason and act where the row says.'

@@ -27,6 +27,9 @@ import {
 } from "../sessions/session-bindings.mjs";
 import { openSession, viewOpened } from "../sessions/session-open.mjs";
 import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
+import { strangerRule } from "../intake/stranger-input.mjs";
+import { recordStrangerWait } from "../intake/stranger-holds.mjs";
+import { sessionRepository, sessionSubject } from "../executors/process.mjs";
 import { queueSessionSend } from "../sessions/session-send.mjs";
 import { fail } from "../store/store.mjs";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
@@ -102,18 +105,23 @@ export const entries = [
     handler({ input, context }) {
       const store = this.store;
       markKirocrewSeen(store);
-      return takeKirocrewRequest(store, input, context, (request, queued) =>
-        sessionStartHold(store, request, queued, {
-          planReviewMode:
-            request.role === "plan-review"
-              ? validatePlanReview(
-                  this.workspaceRoot
-                    ? loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
-                        .config.planReview
-                    : undefined,
-                ).mode
-              : undefined,
-        }),
+      return takeKirocrewRequest(
+        store,
+        input,
+        context,
+        (request, queued) =>
+          kirocrewStrangerHold(store, request) ??
+          sessionStartHold(store, request, queued, {
+            planReviewMode:
+              request.role === "plan-review"
+                ? validatePlanReview(
+                    this.workspaceRoot
+                      ? loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
+                          .config.planReview
+                      : undefined,
+                  ).mode
+                : undefined,
+          }),
       );
     },
   },
@@ -317,3 +325,29 @@ export const entries = [
     },
   },
 ];
+
+// A Kiro Crew chat never takes stranger input (VM8.1): it runs as the
+// person, and its commands cannot go to a box. The start waits with one
+// Needs you item per repository offering **Run on {harness}**.
+function kirocrewStrangerHold(store, request) {
+  if (request.operation === "send") return null;
+  const repository = sessionRepository(store, request);
+  if (
+    !repository ||
+    !strangerRule(
+      store,
+      repository,
+      sessionSubject(store, request.task),
+      request.role,
+    )
+  )
+    return null;
+  const reason = `${request.role} has stranger input, and a Kiro Crew chat never takes it.`;
+  recordStrangerWait(store, {
+    repository: repository.id,
+    kind: "kirocrew",
+    reason,
+    requestId: request.id,
+  });
+  return reason;
+}

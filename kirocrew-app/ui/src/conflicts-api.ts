@@ -18,6 +18,9 @@ export function settleActionOf(item: ConflictItem): SettleAction | null {
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return null
   // The Crew Mode hold has its own button, Let the tick run it.
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
+  // Stranger input and a failed box preflight have their own buttons, Run on
+  // and Run preflight again; marking them reviewed would change nothing.
+  if (item.kind === 'needs-human' && (item.reason === 'stranger' || item.reason === 'box-preflight')) return null
   if (item.kind === 'needs-human') return item.reason === 'blocked' ? 'unblock' : 'reviewed'
   if (item.kind === 'decision') return 'settle'
   if (item.kind === 'untick') return 'reopen'
@@ -104,6 +107,8 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'spec-pull') return null
   // The Crew Mode hold carries its own button (ConflictsView.tsx).
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
+  // Stranger input and the box preflight carry their own buttons.
+  if (item.kind === 'needs-human' && (item.reason === 'stranger' || item.reason === 'box-preflight')) return null
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return 'Discuss it, mark it done, or move it back to planned from the task.'
   if (item.kind === 'review' && settleActionOf(item) === null) return 'GitHub owns these tasks. Review them where they live.'
   if (settleActionOf(item) === null) return `${item.authority} owns this task. Settle it where it lives.`
@@ -131,7 +136,7 @@ export function tabCounts(items: ConflictItem[]): Record<string, number> {
 export function whyLine(item: ConflictItem): string {
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return item.detail
-  if (item.kind === 'needs-human' && item.reason === 'disk') return item.detail
+  if (item.kind === 'needs-human' && (item.reason === 'disk' || item.reason === 'stranger' || item.reason === 'box-preflight')) return item.detail
   if (item.kind === 'needs-human' && item.reason === 'triage-blocked') return item.detail
   if (item.kind === 'needs-human')
     return item.reason === 'blocked' ? 'Marked blocked: nothing starts until you unblock it.' : 'New or edited: it waits for your review before it can start.'

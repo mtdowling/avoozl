@@ -147,7 +147,7 @@ function ActionBar(props: { detail: ItemDetail; busy: boolean; onAct: (action: s
           <Btn
             key={action}
             type="button"
-            primary={action === 'fix' || action === 'review'}
+            primary={(action === 'fix' && detail.kind === 'issue') || action === 'review'}
             disabled={props.busy}
             onClick={() => void press(action)}
             title={ACTIONS[action]?.tip}

@@ -19,6 +19,7 @@ import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { enforce, pushLines } from "../content/content-rules.mjs";
+import { taskGit } from "../git/task-git.mjs";
 import { fail } from "../store/store.mjs";
 import { briefCell } from "./worker-briefs.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
@@ -432,7 +433,10 @@ export async function reportDone(store, workspaceRoot, { taskId, state }) {
     });
     return { taskId, state: "failed" };
   }
-  const commit = await git(record.worktree, "rev-parse", "HEAD");
+  // The worker can write the folder's .git file; read it as D6 says.
+  const commit = await taskGit(record.worktree, ["rev-parse", "HEAD"], {
+    checkout: config.repos[record.envelope.repo]?.path,
+  });
   if (commit === record.envelope.baseCommit)
     fail("The worktree has no new commit. Commit the work, then report.", 409);
   update(store, taskId, { state: "reported", commit });
@@ -538,11 +542,10 @@ export async function runnerTick(
           },
           { mode: "refuse", taskId: id },
         );
-        await git(
+        await taskGit(
           record.worktree,
-          "push",
-          config.remote,
-          `HEAD:refs/heads/${record.branch}`,
+          ["push", config.remote, `HEAD:refs/heads/${record.branch}`],
+          { checkout: config.repos[record.envelope.repo]?.path },
         );
         update(store, id, { state: "pushed", checks, pushedAt: now() });
       } else if (

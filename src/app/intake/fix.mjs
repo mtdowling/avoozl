@@ -19,6 +19,8 @@ import { takeOverSpec } from "../specs/spec-takeover.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { lintSpec, readSpecFolder, taskToken } from "../specs/spec-plans.mjs";
 import { specsDirectory, specsPath } from "../specs/specs-path.mjs";
+import { git } from "../git/git.mjs";
+import { isCollaborator } from "./stranger-input.mjs";
 
 export const FIX_VERSION = 2;
 export const FIX_ACCEPTANCE = Object.freeze([
@@ -32,19 +34,22 @@ const lower = (value) => String(value ?? "").toLowerCase();
 
 // The record. `definition` digests every other field, so changed text is a
 // changed definition. `source` is {issue: {repository, number}} or
-// {text, by}; `title` and `body` are the issue's, or the text alone.
+// {text, by, pull?}, where `pull` is the pull request a fix starts from
+// (vm-harness VM6.9): {repository, number, head}. `title` and `body` are
+// the issue's, or the text alone.
 export function fixRecord({
   issue = null,
   text = null,
   by = "person",
   title = "",
   body = "",
+  pull = null,
 }) {
   const fields = {
     v: FIX_VERSION,
     source: issue
       ? { issue: { repository: issue.repository, number: issue.number } }
-      : { text, by },
+      : { text, by, ...(pull ? { pull } : {}) },
     snapshot: digest(issue ? `${title}\n\n${body || ""}` : text),
     acceptance: [...FIX_ACCEPTANCE],
   };
@@ -140,7 +145,17 @@ export async function startFix(store, input = {}, context = {}) {
       `Repository ${repository.id} has no local checkout, so Avoozl cannot code it.`,
       409,
     );
-  const fix = fixRecord({ text, by: input.by || "person" });
+  // A fix from a pull request starts at its head, fetched here on the host,
+  // and a stranger's pull request makes it stranger input (VM6.9).
+  const pulled =
+    input.pr !== undefined && input.pr !== null
+      ? await pullHead(repository, input.pr, context.github)
+      : null;
+  const fix = fixRecord({
+    text,
+    by: input.by || "person",
+    ...(pulled ? { pull: pulled.pull } : {}),
+  });
   let id = null;
   store.mutate("Start a fix", (data) => {
     ensureInbox(data);
@@ -159,6 +174,9 @@ export async function startFix(store, input = {}, context = {}) {
       repository: repository.id,
       track: "catalog",
       tags: ["fix"],
+      ...(pulled?.strangerInput
+        ? { strangerInput: pulled.strangerInput, ship: "manual" }
+        : {}),
       // Starting it is the approval: the definition is pinned here.
       approvedSource: { hash: fix.definition, text },
       fix,
@@ -174,6 +192,73 @@ export async function startFix(store, input = {}, context = {}) {
   });
   await openFixJournal(store, context, id);
   return { taskId: id, fix };
+}
+
+// A pull request's head, fetched into the checkout as
+// refs/avoozl/pull/<n> by Avoozl on the host (no worker fetches), and its
+// stranger input: the author or any commit author on the head without
+// write access, a bot, or a permission that could not be read.
+async function pullHead(repository, number, github) {
+  const n = Number(number);
+  if (!Number.isInteger(n) || n <= 0) fail("--pr names a pull request number.");
+  if (!repository.github)
+    fail(
+      `Repository ${repository.id} has no GitHub remote, so it has no pull requests.`,
+      409,
+    );
+  if (!github) fail("A fix from a pull request needs GitHub.", 409);
+  const pull = await github.pullRequest(repository.github, n);
+  const head = pull?.head?.sha;
+  if (!/^[0-9a-f]{40}$/.test(String(head ?? "")))
+    fail(`${repository.github}#${n} has no head commit Avoozl can read.`, 409);
+  const commits = (await github.pullRequestCommits(repository.github, n)) ?? [];
+  const logins = [
+    ["author", pull.user?.login ?? null],
+    ...commits.map((commit) => ["commit author", commit.author?.login ?? null]),
+  ];
+  let strangerInput = null;
+  const seen = new Map();
+  for (const [what, login] of logins) {
+    const key = login ?? "";
+    if (!seen.has(key))
+      seen.set(
+        key,
+        login
+          ? ((
+              await github
+                .permission(repository.github, login)
+                .catch(() => null)
+            )?.permission ?? null)
+          : null,
+      );
+    if (!isCollaborator(seen.get(key))) {
+      strangerInput = {
+        reason: `${what} ${login ?? "unknown"} is not a collaborator`,
+        source: `${repository.github}#${n}`,
+      };
+      break;
+    }
+  }
+  const ref = `refs/avoozl/pull/${n}`;
+  await git(repository.localCheckout, [
+    "fetch",
+    "--no-tags",
+    "origin",
+    `+refs/pull/${n}/head:${ref}`,
+  ]);
+  const fetched = await git(repository.localCheckout, [
+    "rev-parse",
+    `${ref}^{commit}`,
+  ]);
+  if (fetched !== head)
+    fail(
+      `${repository.github}#${n} moved while Avoozl fetched it; try again.`,
+      409,
+    );
+  return {
+    pull: { repository: repository.github, number: n, head },
+    ...(strangerInput ? { strangerInput } : {}),
+  };
 }
 
 function specFiles(task, name) {

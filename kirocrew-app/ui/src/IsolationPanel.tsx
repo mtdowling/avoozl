@@ -13,7 +13,18 @@ import { SelectField } from './ui/SelectField'
 import { Checkbox } from './ui/Checkbox'
 import { PlainTextarea } from './ui/Plain'
 import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
-import { RUN_CHOICES, isolationForm, isolationInput, isolationProblem, type Isolation, type IsolationForm } from './isolation-form.ts'
+import {
+  RUN_CHOICES,
+  RUNTIME_CHOICES,
+  STRANGER_CHOICES,
+  STRANGER_HOST_WARNING,
+  WORKER_CHOICES,
+  isolationForm,
+  isolationInput,
+  isolationProblem,
+  type Isolation,
+  type IsolationForm,
+} from './isolation-form.ts'
 
 function Lines(props: { id: string; value: string; onChange: (value: string) => void; mark: string }) {
   return (
@@ -65,7 +76,7 @@ export default function IsolationPanel(props: { workspaceId: string; repositoryI
   return (
     <FieldGroup
       title="Isolation"
-      blurb="How Avoozl runs this repository's checks. The network is off unless you turn it on."
+      blurb="How Avoozl runs this repository's checks and its agents' commands. The network is off unless you turn it on."
       actions={
         <Btn size="sm" disabled={!dirty || Boolean(problem) || saving} onClick={save} data-isolation-save>
           {saving ? 'Saving…' : 'Save isolation'}
@@ -88,7 +99,30 @@ export default function IsolationPanel(props: { workspaceId: string; repositoryI
             {hint}
           </Hint>
         )}
-        {form.run === 'container' && (
+        <Box as="label" flex flexCol gap="1" size="sm" htmlFor={`${id}-worker`}>
+          Run agent commands
+          <SelectField id={`${id}-worker`} value={form.worker} onChange={(event) => set({ worker: event.target.value as IsolationForm['worker'] })} data-isolation-worker>
+            {WORKER_CHOICES.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </SelectField>
+        </Box>
+        <Hint as="p" m0 size="xs" data-isolation-worker-hint>
+          {WORKER_CHOICES.find((choice) => choice.value === form.worker)?.hint}
+        </Hint>
+        <Box as="label" flex flexCol gap="1" size="sm" htmlFor={`${id}-runtime`}>
+          Container runtime
+          <SelectField id={`${id}-runtime`} value={form.runtime} onChange={(event) => set({ runtime: event.target.value as IsolationForm['runtime'] })} data-isolation-runtime>
+            {RUNTIME_CHOICES.map((choice) => (
+              <option key={choice.value || 'any'} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </SelectField>
+        </Box>
+        {(form.run === 'container' || form.worker === 'container') && (
           <Box as="label" flex flexCol gap="1" size="sm" htmlFor={`${id}-image`}>
             Image
             <Input id={`${id}-image`} value={form.image} placeholder="node:22" onChange={(event) => set({ image: event.target.value })} data-isolation-image />
@@ -109,6 +143,39 @@ export default function IsolationPanel(props: { workspaceId: string; repositoryI
         <Box as="label" flex flexCol gap="1" size="sm" htmlFor={`${id}-prepare`}>
           Prepare once per worktree, outside isolation
           <Input id={`${id}-prepare`} value={form.prepare} placeholder="npm ci" onChange={(event) => set({ prepare: event.target.value })} data-isolation-prepare />
+        </Box>
+        <Box as="label" flex flexCol gap="1" size="sm" htmlFor={`${id}-strangers`}>
+          Stranger input on a public repository
+          <SelectField
+            id={`${id}-strangers`}
+            value={form.strangers}
+            onChange={(event) => set({ strangers: event.target.value as IsolationForm['strangers'] })}
+            data-isolation-strangers
+          >
+            {STRANGER_CHOICES.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </SelectField>
+        </Box>
+        <Hint as="p" m0 size="xs">
+          {STRANGER_CHOICES.find((choice) => choice.value === form.strangers)?.hint}
+        </Hint>
+        {form.strangers === 'host' && (
+          <Box as="p" m0 size="xs" tone="danger" role="alert" data-isolation-stranger-warning>
+            {STRANGER_HOST_WARNING}
+          </Box>
+        )}
+        <Box as="label" flex flexCol gap="1" size="sm" htmlFor={`${id}-stranger-roles`}>
+          Roles the stranger rule covers (empty: all, and checks)
+          <Input
+            id={`${id}-stranger-roles`}
+            value={form.strangerRoles}
+            placeholder="triage, worker, checks"
+            onChange={(event) => set({ strangerRoles: event.target.value })}
+            data-isolation-stranger-roles
+          />
         </Box>
         {problem && (
           <Box as="p" m0 size="xs" tone="danger" role="alert" data-isolation-problem>

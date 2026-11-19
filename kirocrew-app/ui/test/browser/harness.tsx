@@ -752,7 +752,19 @@ if (query.get('page') === 'app') {
   if (roles)
     answer('repositories.list', () => ({
       items: [
-        { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main', landing: 'pr', harness: 'kiro' },
+        {
+          id: 'recipe-box',
+          name: 'recipe-box',
+          localCheckout: '/src/recipe-box',
+          github: 'acme/recipe-box',
+          baseBranch: 'main',
+          landing: 'pr',
+          harness: 'kiro',
+          // &strangerhost=1: contained agent commands, and stranger input let onto this machine (vm-harness).
+          ...(query.get('strangerhost') === '1'
+            ? { isolation: { run: 'sandbox', worker: 'container', runtime: 'apple-container', image: 'node:22', network: 'off', strangers: 'host' } }
+            : {}),
+        },
         { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main', landing: 'direct' },
         { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
       ],
@@ -1096,6 +1108,44 @@ if (query.get('page') === 'app' && query.get('crewmode') === '1') {
     ],
   }))
   answer('delivery.runner.release', () => ({ released: true }))
+}
+// &stranger=1: stranger input that waits, and a failed box preflight (vm-harness D5, D7).
+if (query.get('page') === 'app' && query.get('stranger') === '1') {
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: [
+      {
+        kind: 'needs-human',
+        reason: 'stranger',
+        id: 'stranger:recipe-box:kirocrew',
+        taskId: null,
+        repository: 'recipe-box',
+        title: 'recipe-box: stranger input waits; a Kiro Crew chat never takes it',
+        detail: '1 start with stranger input names a Kiro Crew chat, which runs as you with only a speed bump in the way. Run it on a harness whose commands go to a box.',
+        choices: ['claude-code'],
+      },
+      {
+        kind: 'needs-human',
+        reason: 'stranger',
+        id: 'stranger:recipe-api:box',
+        taskId: null,
+        repository: 'recipe-api',
+        title: 'recipe-api: stranger input waits',
+        detail: 'stranger input waits: no container runtime works on this machine for a box (tried apple-container). 2 starts wait; the next tick starts them once this clears.',
+      },
+      {
+        kind: 'needs-human',
+        reason: 'box-preflight',
+        id: 'box-preflight:recipe-box',
+        taskId: null,
+        repository: 'recipe-box',
+        title: 'recipe-box: the box preflight failed at "no route"',
+        detail: 'tcp-open dns-closed Contained work of recipe-box waits. Fix it, then run the preflight again.',
+      },
+    ],
+  }))
+  answer('stranger.runon', () => ({ repository: 'recipe-box', harness: 'claude-code', moved: 1 }))
+  answer('box.preflight.retry', () => ({ repository: 'recipe-box', forgotten: 1 }))
 }
 // &delivery=1: tasks in every Delivery lane across two epics and specs.
 if (query.get('page') === 'app' && query.get('delivery') === '1') {

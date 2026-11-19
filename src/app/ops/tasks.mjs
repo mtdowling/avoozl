@@ -81,6 +81,7 @@ import { planReviewNeedsYou } from "../reviews/plan-review-step.mjs";
 import { conversationSettings } from "../settings/repository-settings.mjs";
 import { specPullNeedsYou } from "../specs/spec-pull-requests.mjs";
 import { fail } from "../store/store.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { supersedeTask } from "../tasks/supersede.mjs";
 import {
   duplicateAudit,
@@ -105,6 +106,12 @@ import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { randomUUID } from "node:crypto";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+import {
+  boxedHarnesses,
+  preflightFailures,
+  preflightNeedsYou,
+  strangerNeedsYou,
+} from "../intake/stranger-holds.mjs";
 
 // Manual tasks and task links (§4.16, R61.12–R61.22).
 function taskManualCompleteHandler({ name, input, context }) {
@@ -155,6 +162,7 @@ function fixStartHandler({ name, input, context }) {
       ? startFix(store, input, {
           workspaceRoot: this.workspaceRoot,
           actor: this.operator,
+          github: this.github,
         })
       : fixToSpec(store, this.workspaceRoot, input),
   );
@@ -459,6 +467,15 @@ export const entries = [
       view.items.push(...diskNeedsYou(store));
       view.items.push(
         ...triageBlockedNeedsYou(policy, triageBlock(this.pluginOptions)),
+      );
+      // Stranger input that waits, and failed box preflights (vm-harness D5, D7).
+      view.items.push(
+        ...strangerNeedsYou(store, boxedHarnesses(this.configDirectory)),
+      );
+      view.items.push(
+        ...preflightNeedsYou(
+          preflightFailures(store, machineAvoozlPaths().stateDirectory),
+        ),
       );
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));

@@ -14,7 +14,7 @@ import { landDirect } from "../../landing/direct-landing.mjs";
 import { sandboxKind } from "../../executors/sandbox.mjs";
 import { pathVerdict } from "../../delivery/verify.mjs";
 import { ownerQueue, runRows } from "../triage.mjs";
-import { sandboxedCheck } from "../triage-reproduce.mjs";
+import { reproductionCheck } from "../triage-reproduce.mjs";
 import { CHECK, triageWorkspace } from "../../test/triage-fixture.mjs";
 
 const git = (cwd, ...args) =>
@@ -190,7 +190,8 @@ test("the sandboxed checks reach no network", {
     "the probe connects outside the sandbox",
   );
   assert.notEqual(
-    (await sandboxedCheck(dir, probe)).exitCode,
+    (await reproductionCheck(dir, probe, { repository: { id: "app" } }))
+      .exitCode,
     0,
     "and not inside it",
   );

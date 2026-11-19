@@ -24,6 +24,10 @@ const HARNESS_PLACEHOLDERS = Object.freeze([
   "tmp",
   "repository_cache_dirs",
   "repository_allow_commands",
+  // A contained session's box exec program and its Claude Code settings
+  // file (vm-harness D4); only the supervisor fills them.
+  "box_exec",
+  "box_settings",
 ]);
 const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
 export const HARNESS_UNCONFINED = "harness-unconfined.json";
@@ -55,6 +59,8 @@ const KEYS = new Set([
   // The role classes a live proof ran this definition in (NK6.2), for the
   // list in Settings › Models; nothing else reads it.
   "proved",
+  // How a contained session routes its commands to its box (vm-harness D4).
+  "box",
 ]);
 const ROLE_CLASSES = Object.freeze(["read", "write"]);
 // Variables a harness may keep to sign in to its own provider. Never a
@@ -88,6 +94,121 @@ const SKIP_VALUES = ["bypassPermissions", "danger-full-access"];
 // inside Avoozl's (Codex on macOS). confineChild then runs it only inside
 // Avoozl's sandbox, with write roots, and refuses it everywhere else.
 export const INNER_SANDBOX_OFF = "danger-full-access";
+
+// A contained session's box settings (VM7.1): {env, args, hosts, signIn,
+// hostPrograms}. They add a wall and never remove one: every value passes
+// the argv checks, a sign-in store never names a credential of another tool,
+// a host is a name on port 443, and a host program is never a shell or a
+// container runtime, which could start a box with home mounted (D9).
+const BOX_KEYS = new Set(["env", "args", "hosts", "signIn", "hostPrograms"]);
+const BOX_VALUES = new Set(["{box_exec}", "{box_settings}"]);
+const BOX_HOST =
+  /^(?=.{1,253}:)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]:443$/;
+// A sign-in path that names SSH, GitHub, git, AWS, Kiro Crew or Avoozl.
+const OTHER_CREDENTIAL =
+  /(^|\/)\.?(ssh|gh|git|gitconfig|git-credentials|netrc|aws|kiro|avoozl|keychains?)(\/|$)/i;
+const NOT_HOST_PROGRAMS = new Set([
+  ...SHELLS,
+  "security",
+  "container",
+  "podman",
+  "docker",
+  "sudo",
+  "osascript",
+]);
+
+function boxSettings(value, source) {
+  if (!record(value)) fail(`${source}: box must be an object.`);
+  for (const key of Object.keys(value))
+    if (!BOX_KEYS.has(key)) fail(`${source}: unknown key box.${key}.`);
+  const box = {};
+  if (value.env !== undefined) {
+    if (!record(value.env)) fail(`${source}: box.env must be an object.`);
+    for (const [name, item] of Object.entries(value.env)) {
+      if (
+        !KEEP_NAME.test(name) ||
+        NEVER_KEPT.test(name) ||
+        /^(PATH|HOME|DYLD_|LD_)/.test(name)
+      )
+        fail(
+          `${source}: box.env names ${JSON.stringify(name)}, which it cannot set.`,
+        );
+      argvValue(item, `box.env.${name}`, source);
+      if (/[{}]/.test(item) && !BOX_VALUES.has(item))
+        fail(
+          `${source}: box.env.${name} may hold only a literal value, {box_exec} or {box_settings}.`,
+        );
+    }
+    box.env = Object.freeze({ ...value.env });
+  }
+  if (value.args !== undefined)
+    box.args = argv(value.args, "box.args", source, { command: false });
+  if (value.hosts !== undefined) {
+    if (!Array.isArray(value.hosts) || !value.hosts.length)
+      fail(`${source}: box.hosts must list host:443 pairs.`);
+    for (const host of value.hosts)
+      if (typeof host !== "string" || !BOX_HOST.test(host))
+        fail(
+          `${source}: box.hosts holds ${JSON.stringify(host)}; name one host on port 443, with no wildcard or IP address.`,
+        );
+    box.hosts = Object.freeze([...new Set(value.hosts)]);
+  }
+  if (value.signIn !== undefined) {
+    const signIn = value.signIn;
+    if (
+      !record(signIn) ||
+      Object.keys(signIn).some((key) => !["darwin", "linux"].includes(key))
+    )
+      fail(
+        `${source}: box.signIn must be {"darwin"?: "keychain", "linux"?: ["~/..."]}.`,
+      );
+    if (signIn.darwin !== undefined && signIn.darwin !== "keychain")
+      fail(`${source}: box.signIn.darwin may only be "keychain".`);
+    if (signIn.linux !== undefined) {
+      if (
+        !Array.isArray(signIn.linux) ||
+        signIn.linux.length > 10 ||
+        signIn.linux.some(
+          (item) =>
+            typeof item !== "string" ||
+            !/^~\/[^/]/.test(item) ||
+            item.split("/").some((part) => part === ".." || part === "."),
+        )
+      )
+        fail(
+          `${source}: box.signIn.linux must be paths under home written as ~/....`,
+        );
+      for (const item of signIn.linux)
+        if (OTHER_CREDENTIAL.test(item.slice(1)))
+          fail(
+            `${source}: box.signIn names ${item}, which holds another tool's credentials.`,
+          );
+    }
+    box.signIn = Object.freeze({
+      ...(signIn.darwin ? { darwin: signIn.darwin } : {}),
+      ...(signIn.linux ? { linux: Object.freeze([...signIn.linux]) } : {}),
+    });
+  }
+  if (value.hostPrograms !== undefined) {
+    if (
+      !Array.isArray(value.hostPrograms) ||
+      value.hostPrograms.length > 10 ||
+      value.hostPrograms.some(
+        (item) => typeof item !== "string" || !path.posix.isAbsolute(item),
+      )
+    )
+      fail(`${source}: box.hostPrograms must be absolute program paths.`);
+    for (const item of value.hostPrograms) {
+      argvValue(item, "box.hostPrograms", source);
+      if (/[{}]/.test(item) || NOT_HOST_PROGRAMS.has(path.posix.basename(item)))
+        fail(
+          `${source}: box.hostPrograms holds ${item}, which could run commands outside the box.`,
+        );
+    }
+    box.hostPrograms = Object.freeze([...value.hostPrograms]);
+  }
+  return Object.freeze(box);
+}
 
 export const harnessDefinitionHash = (bytes) =>
   createHash("sha256").update(bytes).digest("hex");
@@ -295,6 +416,7 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
       fail(`${source}: servedModel must be {"from": "output", "field": ...}.`);
     definition.servedModel = { from: "output", field: served.field };
   }
+  if (value.box !== undefined) definition.box = boxSettings(value.box, source);
   if (value.cost !== undefined) {
     const cost = words(value.cost, "cost", source);
     const field = { output: "field", file: "path" }[cost.from];

@@ -17,6 +17,8 @@ import {
   isolationSetting,
   prepareChecks,
 } from "../workspace/check-isolation.mjs";
+import { taskGit } from "./task-git.mjs";
+export { taskGit } from "./task-git.mjs";
 const exec = promisify(execFile);
 function liveLocks(store, repositoryId) {
   const rows = store.db
@@ -82,32 +84,74 @@ const AVOOZL_FILES = ":(glob)**/.avoozl/**";
 const EXCLUDE_AVOOZL = ":(exclude,glob)**/.avoozl/**";
 const isAvoozlPath = (file) =>
   /(^|\/)\.avoozl(\/|$)/.test(file.replaceAll("\\", "/"));
-// Changes in the worktree, Avoozl's own files left out.
-export const worktreeChanges = (worktree) =>
-  git(worktree, ["status", "--porcelain", "--", ".", EXCLUDE_AVOOZL]);
+// Changes in the task folder, Avoozl's own files left out. Every git call
+// on a task folder goes through taskGit (task-git.mjs), with the
+// repository's `checkout`.
+export const worktreeChanges = (worktree, checkout) =>
+  taskGit(worktree, ["status", "--porcelain", "--", ".", EXCLUDE_AVOOZL], {
+    checkout,
+  });
 // Stage and commit a worker's changes without Avoozl's files; the commit, or
-// null when nothing changed.
-export async function commitWorkerChanges(worktree, message) {
-  await git(worktree, ["add", "-A", "--", ".", EXCLUDE_AVOOZL]);
+// null when nothing changed. A symbolic link that points outside the folder
+// is refused, since it would hand a host file to whoever reads the commit
+// (VM5.4).
+export async function commitWorkerChanges(worktree, message, { checkout }) {
+  const inTask = (args) => taskGit(worktree, args, { checkout });
+  await inTask(["add", "-A", "--", ".", EXCLUDE_AVOOZL]);
   // A file the worker staged itself (`git add -f`) is unstaged again.
-  await git(worktree, ["reset", "-q", "--", AVOOZL_FILES]);
-  if (!(await git(worktree, ["diff", "--cached", "--name-only"]))) return null;
-  await git(worktree, ["commit", "-q", "-m", message]);
-  return git(worktree, ["rev-parse", "HEAD"]);
+  await inTask(["reset", "-q", "--", AVOOZL_FILES]);
+  if (!(await inTask(["diff", "--cached", "--name-only"]))) return null;
+  await refuseOutsideLinks(worktree, inTask);
+  await inTask(["commit", "-q", "-m", message]);
+  return inTask(["rev-parse", "HEAD"]);
+}
+// Refuse a staged symbolic link whose target leaves the folder. Only links
+// the change adds or alters are read; ones already on the branch stay.
+async function refuseOutsideLinks(worktree, inTask) {
+  const folder = fs.realpathSync.native(worktree);
+  const changed = new Set(
+    (
+      await inTask([
+        "diff",
+        "--cached",
+        "--name-only",
+        "-z",
+        "--diff-filter=AMT",
+      ])
+    )
+      .split("\0")
+      .filter(Boolean),
+  );
+  for (const line of (await inTask(["ls-files", "-s", "-z"])).split("\0")) {
+    const match = /^120000 ([0-9a-f]+) \d\t(.+)$/.exec(line);
+    if (!match || !changed.has(match[2])) continue;
+    // The link as staged, read from its blob, not from the folder.
+    const text = await inTask(["cat-file", "blob", match[1]]),
+      at = path.resolve(path.dirname(path.join(folder, match[2])), text);
+    let target = at;
+    try {
+      target = fs.realpathSync.native(at);
+    } catch {}
+    if (target !== folder && !target.startsWith(folder + path.sep)) {
+      await inTask(["reset", "-q"]);
+      fail(
+        `The worker's change adds ${match[2]}, a link to ${target} outside the task folder; Avoozl does not commit it.`,
+        409,
+      );
+    }
+  }
 }
 // Refuse when any commit in from..to adds, changes or removes a path under
 // `.avoozl/`; the worker may have committed one itself.
-export async function refuseAvoozlPaths(worktree, from, to) {
+export async function refuseAvoozlPaths(worktree, from, to, { checkout }) {
   const files = [
     ...new Set(
       (
-        await git(worktree, [
-          "log",
-          "--format=",
-          "--name-only",
-          "--no-renames",
-          `${from}..${to}`,
-        ])
+        await taskGit(
+          worktree,
+          ["log", "--format=", "--name-only", "--no-renames", `${from}..${to}`],
+          { checkout },
+        )
       )
         .split("\n")
         .filter((file) => file && isAvoozlPath(file)),
@@ -213,8 +257,13 @@ async function configureWorktreeIdentity(root, worktree) {
   // repository's effective identity in this run only instead of copying it
   // into Avoozl state or changing the user's other checkouts.
   await git(root, ["config", "extensions.worktreeConfig", "true"]);
-  await git(worktree, ["config", "--worktree", "user.name", identity.name]);
-  await git(worktree, ["config", "--worktree", "user.email", identity.email]);
+  for (const [key, value] of [
+    ["user.name", identity.name],
+    ["user.email", identity.email],
+  ])
+    await taskGit(worktree, ["config", "--worktree", key, value], {
+      checkout: root,
+    });
 }
 // How a repository lands verified work (R87.1). Unset keeps the local
 // fast-forward. shortcut: R87.1's default `off` until setup writes another
@@ -356,7 +405,9 @@ export async function createWorktree(store, repository, runId, task = {}) {
       return {
         branch,
         worktree,
-        baseCommit: await git(worktree, ["rev-parse", "HEAD"]),
+        baseCommit: await taskGit(worktree, ["rev-parse", "HEAD"], {
+          checkout: repository.root,
+        }),
       };
     },
   );
@@ -455,7 +506,9 @@ export async function prepareTaskWorktree(
         worktree,
         created,
         ...(started ? { started } : {}),
-        head: await git(worktree, ["rev-parse", "HEAD"]),
+        head: await taskGit(worktree, ["rev-parse", "HEAD"], {
+          checkout: repository.root,
+        }),
       };
     },
   );
@@ -573,7 +626,13 @@ export async function commandEvidence(
       isolation: null,
     };
   const run = wrapped?.argv ?? argv,
-    shown = wrapped ? { isolation: wrapped.isolation } : {};
+    shown = wrapped
+      ? {
+          isolation: wrapped.isolation,
+          ...(wrapped.runtime ? { runtime: wrapped.runtime } : {}),
+          ...(wrapped.note ? { isolationNote: wrapped.note } : {}),
+        }
+      : {};
   onStart?.();
   try {
     const { stdout, stderr } = await exec(run[0], run.slice(1), {
@@ -621,10 +680,19 @@ export async function validateUnlocked(
 ) {
   const run = source;
   if (!run?.worktree) fail("Run has no worktree.");
-  const repository = store.get("repositories", run.repositoryId);
+  // A stranger's task runs its checks under the stranger rule (VM6.4).
+  // Read here, not imported at the top: stranger-input.mjs reads git.mjs.
+  const { withStrangerChecks } = await import("../intake/stranger-input.mjs");
+  const repository = withStrangerChecks(
+    store,
+    store.get("repositories", run.repositoryId),
+    store.read().tasks.find((task) => task.id === run.taskId),
+  );
   if (!repository) fail("Repository configuration is missing.");
-  const head = await git(run.worktree, ["rev-parse", "HEAD"]),
-    dirty = await worktreeChanges(run.worktree);
+  const inRun = (args) =>
+    taskGit(run.worktree, args, { checkout: repository.root });
+  const head = await inRun(["rev-parse", "HEAD"]),
+    dirty = await worktreeChanges(run.worktree, repository.root);
   if (dirty)
     fail(
       "Commit the worktree changes before recording acceptance checks.",
@@ -669,8 +737,8 @@ export async function validateUnlocked(
     if (record.exitCode !== 0) break;
   }
   const unchanged =
-    head === (await git(run.worktree, ["rev-parse", "HEAD"])) &&
-    !(await worktreeChanges(run.worktree));
+    head === (await inRun(["rev-parse", "HEAD"])) &&
+    !(await worktreeChanges(run.worktree, repository.root));
   const passed =
     unchanged &&
     results.length === checks.length &&
@@ -805,9 +873,11 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
         409,
       );
   }
-  if (await worktreeChanges(entry.worktree))
+  const inEntry = (args) =>
+    taskGit(entry.worktree, args, { checkout: repository.root });
+  if (await worktreeChanges(entry.worktree, repository.root))
     fail("Run worktree has uncommitted changes.", 409);
-  if ((await git(entry.worktree, ["rev-parse", "HEAD"])) !== expectedCommit)
+  if ((await inEntry(["rev-parse", "HEAD"])) !== expectedCommit)
     fail("Run branch changed after validation.", 409);
   store.event(id, "integration.started", { commit: entry.commit });
   // Other runs on this repository may be working while this merge proceeds. What
@@ -818,7 +888,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   const before = await git(repository.root, ["rev-parse", target]);
   // Work already merged forward onto the target (R77.5) keeps its merge;
   // anything else is rebased here as before.
-  const forward = await git(entry.worktree, [
+  const forward = await inEntry([
     "merge-base",
     "--is-ancestor",
     target,
@@ -827,15 +897,17 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
     () => true,
     () => false,
   );
-  if (!forward) await git(entry.worktree, ["rebase", target]);
-  await refuseAvoozlPaths(entry.worktree, target, "HEAD");
+  if (!forward) await inEntry(["rebase", target]);
+  await refuseAvoozlPaths(entry.worktree, target, "HEAD", {
+    checkout: repository.root,
+  });
   const revalidated = await validateUnlocked(store, id, {
     phase: "integration",
     source: { ...entry, state: "integrating" },
   });
   if (!revalidated.passed)
     fail("Rebased work did not pass acceptance checks.", 409);
-  const head = await git(entry.worktree, ["rev-parse", "HEAD"]);
+  const head = await inEntry(["rev-parse", "HEAD"]);
   if (holder) {
     // Checks ran meanwhile: look again, then fast-forward only from the
     // value read before the rebase.
@@ -883,7 +955,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
     path.basename(entry.worktree) === id
   ) {
     // Avoozl's own files (a child's result file) go with the worktree.
-    await git(entry.worktree, ["clean", "-fdq", "--", AVOOZL_FILES]);
+    await inEntry(["clean", "-fdq", "--", AVOOZL_FILES]);
     await git(repository.root, ["worktree", "remove", entry.worktree]);
   } else await removeLandedTaskWorktree(store, repository, entry, target, head);
   return entry;
@@ -903,7 +975,9 @@ export async function removeLandedTaskWorktree(
     .filter((r) => r.path === entry.worktree && r.repository === repository.id);
   if (!records.length) return;
   try {
-    await git(entry.worktree, ["clean", "-fdq", "--", AVOOZL_FILES]);
+    await taskGit(entry.worktree, ["clean", "-fdq", "--", AVOOZL_FILES], {
+      checkout: repository.root,
+    });
     await git(repository.root, ["worktree", "remove", entry.worktree]);
     store.transaction(() => {
       for (const r of records) store.remove("task_worktrees", r.id);

@@ -17,8 +17,11 @@ import {
   settleOwner,
 } from "../intake/triage.mjs";
 import { startGitHubItem } from "./github-intake.mjs";
-import { openFixJournal } from "../intake/fix.mjs";
+import { openFixJournal, startFix } from "../intake/fix.mjs";
 import { DEFAULT_SPECS_PATH, specsPathOf } from "../specs/specs-path.mjs";
+import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
+import { strangerFromItem } from "../intake/stranger-input.mjs";
+import { patchTask } from "../intake/intake.mjs";
 
 const lower = (value) => String(value ?? "").toLowerCase();
 const KINDS = new Set(["issue", "pr", "all"]);
@@ -147,6 +150,8 @@ export function itemActions(row, detail, triage, specs = DEFAULT_SPECS_PATH) {
     );
   return [
     "review",
+    // A fix that starts at the pull request's head (vm-harness VM6.9).
+    "fix",
     ...(triage.draft?.kind === "review" ? ["editReview"] : []),
     "approve",
     "requestChanges",
@@ -234,11 +239,54 @@ export async function itemsAct(store, github, input = {}, context = {}) {
   let out = {};
   switch (action) {
     case "fix": {
-      want(["issue"]);
+      if (!issue) {
+        const registered = workspaceRepositories(store).find(
+          (entry) => entry.github?.toLowerCase() === repository.toLowerCase(),
+        );
+        const started = await startFix(
+          store,
+          {
+            text: `Fix ${repository}#${number}: ${row.title ?? ""}`.trim(),
+            repository: registered?.id ?? repository,
+            pr: number,
+          },
+          {
+            workspaceRoot: context.workspaceRoot,
+            actor: context.actor,
+            github,
+          },
+        );
+        out = { taskId: started.taskId };
+        settle(store, row);
+        break;
+      }
       const started = await startGitHubItem(store, github, context.policy, {
         id: `${repository}#${number}`,
         action: "deliver",
       });
+      // A fix from a stranger's issue is stranger input (VM6.1): the triage
+      // run's own reading when there is one, else the author's permission.
+      const strangerInput =
+        row.triage?.strangerInput ??
+        (await strangerFromItem(
+          { author: row.author },
+          async (login) =>
+            (
+              await github.permission(repository, login).catch(() => null)
+            )?.permission ?? null,
+          `${repository}#${number}`,
+        ));
+      if (strangerInput)
+        patchTask(
+          store,
+          started.taskId,
+          `Stranger input on ${started.taskId}`,
+          (task) => {
+            task.strangerInput = strangerInput;
+            // It waits for a person's Integrate and is not pushed before (VM6.7).
+            task.ship = "manual";
+          },
+        );
       await openFixJournal(
         store,
         { workspaceRoot: context.workspaceRoot, actor: context.actor },

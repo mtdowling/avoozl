@@ -47,12 +47,14 @@ const KEPT_MARKERS = new Set([
   "AVOOZL_CHILD",
   "AVOOZL_CHILD_SESSION",
   "KIROCREW_SPAWNED",
+  // A contained session's broker socket path (vm-harness D3).
+  "AVOOZL_BOX_SOCKET",
 ]);
 
 // The real path of a file that may not exist yet: the nearest existing
 // parent resolved, the rest joined. macOS profiles match real paths only
 // (/tmp is /private/tmp).
-function realPath(file) {
+export function realPath(file) {
   const resolved = path.resolve(file);
   try {
     return fs.realpathSync.native(resolved);
@@ -125,7 +127,9 @@ export function sandboxSecretPaths({
 // The child's environment: credential variables removed, except the names
 // a harness needs to sign in to its own provider (`keep`). Git gets no
 // credential helper and never prompts.
-export function sandboxEnv(env = process.env, { keep = [] } = {}) {
+// A contained session's CLI also gets `git` pinned to its task folder with
+// no hooks and no fsmonitor (VM3.8): `git` = {gitDir, workTree, hooks}.
+export function sandboxEnv(env = process.env, { keep = [], git = null } = {}) {
   const out = {};
   for (const [name, value] of Object.entries(env)) {
     if (keep.includes(name) || KEPT_MARKERS.has(name)) {
@@ -139,9 +143,24 @@ export function sandboxEnv(env = process.env, { keep = [] } = {}) {
     out[name] = value;
   }
   // An empty helper value clears every configured helper.
-  out.GIT_CONFIG_COUNT = "1";
-  out.GIT_CONFIG_KEY_0 = "credential.helper";
-  out.GIT_CONFIG_VALUE_0 = "";
+  const config = [
+    ["credential.helper", ""],
+    ...(git
+      ? [
+          ["core.hooksPath", git.hooks],
+          ["core.fsmonitor", "false"],
+        ]
+      : []),
+  ];
+  out.GIT_CONFIG_COUNT = String(config.length);
+  config.forEach(([key, value], index) => {
+    out[`GIT_CONFIG_KEY_${index}`] = key;
+    out[`GIT_CONFIG_VALUE_${index}`] = value;
+  });
+  if (git) {
+    out.GIT_DIR = git.gitDir;
+    out.GIT_WORK_TREE = git.workTree;
+  }
   out.GIT_TERMINAL_PROMPT = "0";
   out.GCM_INTERACTIVE = "never";
   return out;
@@ -209,6 +228,11 @@ const rule = (file) =>
 
 // The macOS profile. Later rules win, so the secret denial follows the
 // write roots and only the named readable files come after it.
+// `contained` (a contained session, vm-harness D3) adds: the keychain
+// when its sign-in lives there, an exec allowlist that never holds
+// /usr/bin/security, no reach to the container runtime's services, and a
+// connect to its own broker socket only. Without it the profile is as it
+// was, byte for byte.
 export function sandboxProfile({
   writeRoots,
   secrets,
@@ -217,6 +241,7 @@ export function sandboxProfile({
   network,
   home = null,
   readRoots = [],
+  contained = null,
 }) {
   // `on` (a repository check's network setting) leaves the network open.
   const lines = [
@@ -260,10 +285,54 @@ export function sandboxProfile({
     lines.push(
       `(allow file-read* file-write* ${writable.map(rule).join(" ")})`,
     );
-  lines.push(
-    `(deny mach-lookup ${KEYCHAIN_SERVICES.map((name) => `(global-name "${name}")`).join(" ")})`,
-  );
+  if (!contained?.keychain)
+    lines.push(
+      `(deny mach-lookup ${KEYCHAIN_SERVICES.map((name) => `(global-name "${name}")`).join(" ")})`,
+    );
+  if (contained) {
+    lines.push(
+      "(deny process-exec*)",
+      `(allow process-exec* ${[
+        ...contained.programs.map((file) => `(literal ${quote(file)})`),
+        ...(contained.programFolders ?? []).map(
+          (folder) => `(subpath ${quote(folder)})`,
+        ),
+      ].join(" ")})`,
+      `(deny process-exec* (literal "${SECURITY_TOOL}"))`,
+      // A: Apple container's services are named com.apple.container.*.
+      '(deny mach-lookup (global-name-regex #"^com\\.apple\\.container\\."))',
+      `(allow network-outbound (remote unix-socket (path-literal ${quote(contained.brokerSocket)})))`,
+    );
+  }
   return lines.join("\n");
+}
+
+// The program a contained session never starts: it reads keychain items.
+export const SECURITY_TOOL = "/usr/bin/security";
+
+// Unix sockets a Linux child must not reach (D3): the person's runtime
+// folder (D-Bus, keyring, agents) and the container runtimes' sockets. A
+// read-only mount does not stop a connect, so each is covered.
+function hiddenSockets(env) {
+  const args = [];
+  const folders = [
+    env.XDG_RUNTIME_DIR,
+    typeof process.getuid === "function"
+      ? `/run/user/${process.getuid()}`
+      : null,
+    "/run/podman",
+    "/var/run/podman",
+  ];
+  for (const folder of [...new Set(folders.filter(Boolean))])
+    if (fs.existsSync(folder)) args.push("--tmpfs", folder);
+  for (const file of [
+    "/run/docker.sock",
+    "/var/run/docker.sock",
+    env.SSH_AUTH_SOCK,
+  ])
+    if (file && fs.existsSync(file) && !fs.statSync(file).isDirectory())
+      args.push("--ro-bind", "/dev/null", file);
+  return args;
 }
 
 function bwrapArgs({
@@ -274,8 +343,12 @@ function bwrapArgs({
   network,
   home = null,
   readRoots = [],
+  contained = null,
+  env = process.env,
 }) {
-  if (network.mode === "restricted")
+  // A contained session reaches its egress proxy through a forwarder inside
+  // the namespace (D3); every other restricted network is refused.
+  if (network.mode === "restricted" && !contained)
     fail(
       "On Linux the sandbox turns the network off; a list of loopback ports is not supported yet.",
     );
@@ -290,6 +363,7 @@ function bwrapArgs({
     "--proc",
     "/proc",
     ...(network.mode === "on" ? [] : ["--unshare-net"]),
+    ...hiddenSockets(env),
   ];
   if (!writeRoots)
     fail(
@@ -322,7 +396,9 @@ function bwrapArgs({
   }
   for (const file of readable) args.push("--ro-bind", file, file);
   for (const file of writable) args.push("--bind", file, file);
-  return [...args, ...remount, "--"];
+  // The session's own broker and proxy sockets, under the hidden state folder.
+  for (const file of contained?.sockets ?? []) args.push("--bind", file, file);
+  return [...args, ...remount, "--", ...(contained?.forward ?? [])];
 }
 
 function optedIn(configDirectory, definition) {
@@ -364,10 +440,21 @@ export function confineChild(
     kind = sandboxKind(),
     home = os.homedir(),
     readRoots = null,
+    // A contained session (vm-harness D3): {signIn, programs, brokerSocket,
+    // sockets, forward, git}. Only the supervisor sets it.
+    contained = null,
   },
 ) {
   if (!Array.isArray(argv) || !argv.length) fail("No command to confine.");
-  const childEnv = sandboxEnv(env, { keep: keepEnv });
+  if (contained && !kind)
+    fail(
+      "A contained session runs its CLI only inside Avoozl's sandbox, and this machine has none.",
+      409,
+    );
+  const childEnv = sandboxEnv(env, {
+    keep: keepEnv,
+    git: contained?.git ?? null,
+  });
   // R94.4d: a child with its own sandbox off runs only inside Avoozl's,
   // with write roots; never unconfined, whatever the opt-in says.
   const innerOff = argv.some(
@@ -392,7 +479,19 @@ export function confineChild(
     return { argv: [...argv], env: childEnv, sandbox: null };
   }
   const roots = writeRoots && writeRoots.map(realPath);
-  const denied = secrets.map(realPath);
+  // A contained session's sign-in store is its own (VM3.3): the keychain
+  // on macOS, its credential files on Linux; nothing else of home opens.
+  const keychain =
+    kind === "sandbox-exec" && contained?.signIn?.darwin === "keychain"
+      ? realPath(path.join(home, "Library", "Keychains"))
+      : null;
+  const signIn = [
+    ...(keychain ? [keychain] : []),
+    ...(kind === "bwrap" ? (contained?.signIn?.linux ?? []) : [])
+      .map((file) => realPath(file))
+      .filter((file) => fs.existsSync(file)),
+  ];
+  const denied = secrets.map(realPath).filter((file) => file !== keychain);
   for (const root of roots || [])
     for (const secret of denied)
       if (inside(root, secret))
@@ -403,8 +502,27 @@ export function confineChild(
     writeRoots: roots,
     secrets: denied,
     readable: readable.map(realPath),
-    writable: writable.map(realPath),
+    writable: [...writable.map(realPath), ...signIn],
     network,
+    ...(contained
+      ? {
+          contained: {
+            keychain: Boolean(keychain),
+            programs: [
+              ...new Set(
+                contained.programs.flatMap((file) => [
+                  path.resolve(file),
+                  realPath(file),
+                ]),
+              ),
+            ].filter((file) => file !== SECURITY_TOOL),
+            programFolders: (contained.programFolders ?? []).map(realPath),
+            brokerSocket: realPath(contained.brokerSocket),
+            sockets: contained.sockets ?? [],
+            forward: contained.forward ?? [],
+          },
+        }
+      : {}),
     ...(Array.isArray(readRoots)
       ? { home: realPath(home), readRoots: readRoots.map(realPath) }
       : {}),
@@ -415,5 +533,9 @@ export function confineChild(
       env: childEnv,
       sandbox: kind,
     };
-  return { argv: [...bwrapArgs(shape), ...argv], env: childEnv, sandbox: kind };
+  return {
+    argv: [...bwrapArgs({ ...shape, env }), ...argv],
+    env: childEnv,
+    sandbox: kind,
+  };
 }

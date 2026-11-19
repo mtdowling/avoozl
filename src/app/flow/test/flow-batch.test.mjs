@@ -375,7 +375,9 @@ test("a group on process runs as single tasks and lands one commit each, with th
       taskId: worker.task,
     });
     fs.writeFileSync(path.join(worktree, worker.task + ".txt"), "x\n");
-    const commit = await commitWorkerChanges(worktree, "Do " + worker.task);
+    const commit = await commitWorkerChanges(worktree, "Do " + worker.task, {
+      checkout: store.get("repositories", "app").root,
+    });
     await ops.execute(
       "session.report",
       { taskId: worker.task, kind: "done", commit },

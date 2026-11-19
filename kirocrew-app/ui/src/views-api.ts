@@ -356,7 +356,22 @@ export interface ConflictItem extends TaskOwner {
   // status running or review with no live session behind it. 'disk': a
   // volume too full for a worktree. 'crew-mode': a workspace a Crew Mode
   // conductor drove, held until a person lets the tick run it (WP1.3).
-  reason?: 'review' | 'blocked' | 'crew-mode' | 'hand-set-review' | 'approval' | 'forward' | 'forward-audit' | 'public-branch' | 'disk' | 'triage-blocked'
+  // 'stranger': stranger input that waits (vm-harness D7), with `choices`
+  // of boxed harnesses for Run on; 'box-preflight': a failed preflight.
+  reason?:
+    | 'review'
+    | 'blocked'
+    | 'crew-mode'
+    | 'hand-set-review'
+    | 'approval'
+    | 'forward'
+    | 'forward-audit'
+    | 'public-branch'
+    | 'disk'
+    | 'triage-blocked'
+    | 'stranger'
+    | 'box-preflight'
+  choices?: string[]
   // A forward item (RC24.9): the mirror change the Forward screen shows.
   forwardId?: string
   // A branch-landing item (RC16.6): the branch and the head a person may approve.

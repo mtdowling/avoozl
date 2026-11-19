@@ -14,51 +14,47 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { git } from "../git/git.mjs";
+import { commandEvidence, git, taskGit } from "../git/git.mjs";
+import {
+  checkOptions,
+  recordIsolation,
+} from "../workspace/check-isolation.mjs";
+import { strangerRule } from "./stranger-input.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
 import { pathVerdict } from "../delivery/verify.mjs";
-import { confineChild, sandboxSecretPaths } from "../executors/sandbox.mjs";
-import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { patchTask } from "./intake.mjs";
 import { startGitHubItem } from "../github/github-intake.mjs";
 import { openFixJournal } from "./fix.mjs";
 import { prepareWorktree } from "../delivery/delivery.mjs";
 import { AGENT_LINE } from "./triage.mjs";
 
-const run = promisify(execFile);
 const COLLABORATOR = new Set(["write", "maintain", "admin"]);
 const CHECK_TIMEOUT_MS = 10 * 60 * 1000;
 
-// One check argv in `dir`, sandboxed: write roots the folder and the temp
-// folder, the network off, every secret path denied. Returns {exitCode}.
-export async function sandboxedCheck(dir, argv, { workspaceRoot } = {}) {
-  const { configDirectory, stateDirectory } = machineAvoozlPaths(),
-    confined = confineChild(argv, {
-      definition: { name: "triage reproduction" },
-      configDirectory,
-      writeRoots: [dir, os.tmpdir()],
-      secrets: sandboxSecretPaths({
-        configDirectory,
-        stateDirectory,
-        workspaceRoots: workspaceRoot ? [workspaceRoot] : [],
-      }),
-    });
-  try {
-    await run(confined.argv[0], confined.argv.slice(1), {
-      cwd: dir,
-      env: confined.env,
-      timeout: CHECK_TIMEOUT_MS,
-      maxBuffer: 8 * 1024 * 1024,
-    });
-    return { exitCode: 0 };
-  } catch (error) {
-    return {
-      exitCode: Number.isInteger(error.code) ? error.code : 1,
-      tail: String((error.stdout || "") + (error.stderr || "")).slice(-2000),
-    };
-  }
+// One check argv in `dir` under the repository's isolation, as every
+// other check runs (checkOptions): a stranger's reproduction on a public
+// repository runs in a container with the network off (VM6.4, TA7.7).
+// Returns {exitCode, tail?}.
+export async function reproductionCheck(
+  dir,
+  argv,
+  { repository, stranger } = {},
+) {
+  const result = await commandEvidence(dir, argv, {
+    ...checkOptions(repository, dir, { stranger }),
+    timeoutMs: CHECK_TIMEOUT_MS,
+  });
+  return {
+    exitCode: Number.isInteger(result.exitCode) ? result.exitCode : 1,
+    ...(result.exitCode === 0
+      ? {}
+      : {
+          tail: String((result.stdout || "") + (result.stderr || "")).slice(
+            -2000,
+          ),
+        }),
+    ...recordIsolation(result),
+  };
 }
 
 async function passes(dir, checks, check, context) {
@@ -74,7 +70,7 @@ async function passes(dir, checks, check, context) {
 export async function reproduce(
   repository,
   file,
-  { check = sandboxedCheck, workspaceRoot } = {},
+  { check = reproductionCheck, workspaceRoot, stranger = null } = {},
 ) {
   if (!repository?.localCheckout)
     return {
@@ -103,7 +99,7 @@ export async function reproduce(
       dir,
       ref,
     ]);
-    const context = { workspaceRoot };
+    const context = { workspaceRoot, repository, stranger };
     if (!(await passes(dir, checks, check, context)))
       return {
         state: "base-fails",
@@ -169,24 +165,37 @@ export async function startReproducedFix(
       if (task.paths?.length)
         task.paths = [...new Set([...task.paths, file.path])];
       if (!collaborator) task.ship = "manual";
+      // The run's stranger input stays on the fix it made (VM6.1).
+      if (run.strangerInput) task.strangerInput = { ...run.strangerInput };
+      else if (!collaborator)
+        task.strangerInput = {
+          reason: "the issue's author is not a collaborator",
+          source: `${run.repository}#${run.number}`,
+        };
     },
   );
-  const { path: worktree } = await prepareWorktree(store, {
-    taskId: started.taskId,
-  });
+  const prepared = await prepareWorktree(store, {
+      taskId: started.taskId,
+    }),
+    worktree = prepared.path,
+    checkout = store.get("repositories", prepared.repository)?.root;
   const target = path.join(worktree, file.path);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, file.text);
-  await git(worktree, ["add", "--", file.path]);
-  await git(worktree, [
-    "-c",
-    "user.name=Avoozl",
-    "-c",
-    "user.email=avoozl@localhost",
-    "commit",
-    "-qm",
-    `Add a reproduction of ${run.repository}#${run.number}`,
-  ]);
+  await taskGit(worktree, ["add", "--", file.path], { checkout });
+  await taskGit(
+    worktree,
+    [
+      "-c",
+      "user.name=Avoozl",
+      "-c",
+      "user.email=avoozl@localhost",
+      "commit",
+      "-qm",
+      `Add a reproduction of ${run.repository}#${run.number}`,
+    ],
+    { checkout },
+  );
   return started.taskId;
 }
 
@@ -253,6 +262,7 @@ export async function reproduceStep(store, github, run, row, context) {
   const outcome = await reproduce(context.repository, result.reproduction, {
     ...(context.run?.check ? { check: context.run.check } : {}),
     workspaceRoot: context.workspaceRoot,
+    stranger: strangerRule(store, context.repository, run, "checks"),
   });
   save({ outcome: outcome.state, outcomeWhy: outcome.why });
   if (outcome.state === "reproduced") {

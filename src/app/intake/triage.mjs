@@ -17,6 +17,7 @@
 // - The agent never closes an item, never approves or requests changes, and
 //   adds only labels the repository already has (TA7.5, TA7.6).
 import { execFileSync } from "node:child_process";
+import { strangerFromItem } from "./stranger-input.mjs";
 import { fail } from "../store/store.mjs";
 import { allowWrite } from "../content/content-rules.mjs";
 import { openStops } from "../flow/flow.mjs";
@@ -674,7 +675,21 @@ export async function triageSnapshot(store, request, { github }) {
       ),
       ...repositoryFiles(registeredOf(store, run.repository)),
     };
-  store.put(RUNS, { ...store.get(RUNS, run.id), authorPermission: permission });
+  // Stranger input (vm-harness VM6.1): the author or any comment author
+  // without write access. The session that reads this snapshot runs by it.
+  const seen = new Map([
+      [`${lower(run.repository)}\0${lower(detail.author)}`, permission],
+    ]),
+    strangerInput = await strangerFromItem(
+      detail,
+      (login) => permissionOf(client, run.repository, login, seen),
+      `${run.repository}#${run.number}`,
+    );
+  store.put(RUNS, {
+    ...store.get(RUNS, run.id),
+    authorPermission: permission,
+    ...(strangerInput ? { strangerInput } : {}),
+  });
   if (run.kind === "pr") {
     const { files: changed } = await pullFiles(
       store,

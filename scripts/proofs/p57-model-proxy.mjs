@@ -1,47 +1,23 @@
-// P57 model proxy: an HTTPS CONNECT proxy on 127.0.0.1 that tunnels only to
-// AWS Bedrock runtime hosts on port 443 (bedrock-runtime for Claude Code,
-// bedrock-mantle for Codex's OpenAI models), so a sandboxed child whose
-// network is limited to one loopback port (sandbox.network ["localhost:PORT"])
-// can reach its model and nothing else. Every request is logged as allowed
-// or denied.
+// P57 model proxy: Avoozl's egress proxy (src/app/executors/egress-proxy.mjs)
+// on 127.0.0.1, run by hand for a sandboxed child whose network is limited
+// to one loopback port (sandbox.network ["localhost:PORT"]). It tunnels only
+// to the host:443 pairs named on the command line, as a harness's
+// `box.hosts` does, and logs each tunnel and refusal as one JSON line.
 //
-//   node model-proxy.mjs PORT LOGFILE
-import fs from "node:fs";
-import http from "node:http";
-import net from "node:net";
+//   node p57-model-proxy.mjs PORT LOGFILE HOST:443...
+import {
+  jsonLinesLog,
+  startEgressProxy,
+} from "../../src/app/executors/egress-proxy.mjs";
 
-const [port, logFile] = [Number(process.argv[2] || 18457), process.argv[3]];
-const ALLOW =
-  /^(bedrock-runtime(-fips)?\.[a-z0-9-]+\.amazonaws\.com|bedrock-mantle\.[a-z0-9-]+\.api\.aws):443$/;
-const log = (line) =>
-  logFile
-    ? fs.appendFileSync(logFile, `${new Date().toISOString()} ${line}\n`)
-    : console.log(line);
-
-const server = http.createServer((req, res) => {
-  log(`deny plain ${req.method} ${req.url}`);
-  res.writeHead(403).end("Only CONNECT to Bedrock runtime is allowed.\n");
+const [port, logFile, ...hosts] = process.argv.slice(2);
+if (!hosts.length) {
+  console.error("usage: p57-model-proxy.mjs PORT LOGFILE HOST:443...");
+  process.exit(2);
+}
+await startEgressProxy({
+  hosts,
+  listen: { port: Number(port) },
+  log: jsonLinesLog(logFile),
 });
-server.on("connect", (req, client, head) => {
-  const target = String(req.url);
-  if (!ALLOW.test(target)) {
-    log(`deny connect ${target}`);
-    client.end("HTTP/1.1 403 Forbidden\r\n\r\n");
-    return;
-  }
-  log(`allow connect ${target}`);
-  const [host] = target.split(":");
-  const upstream = net.connect(443, host, () => {
-    client.write("HTTP/1.1 200 Connection Established\r\n\r\n");
-    if (head?.length) upstream.write(head);
-    upstream.pipe(client);
-    client.pipe(upstream);
-  });
-  const close = () => {
-    upstream.destroy();
-    client.destroy();
-  };
-  upstream.on("error", close);
-  client.on("error", close);
-});
-server.listen(port, "127.0.0.1", () => log(`listening 127.0.0.1:${port}`));
+console.log(`listening 127.0.0.1:${port}`);

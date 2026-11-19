@@ -50,6 +50,7 @@ import {
   git,
   integrateRun,
   prepareTaskWorktree,
+  taskGit,
   worktreeChanges,
 } from "../git/git.mjs";
 import {
@@ -355,7 +356,7 @@ async function retireBatchWorktree(store, repository, taskId, branch) {
     current = store.get("task_worktrees", taskId);
   if (!delivery?.batchSplit || delivery.batchWorktreeRetired || !current?.path)
     return;
-  if (await worktreeChanges(current.path).catch(() => ""))
+  if (await worktreeChanges(current.path, repository.root).catch(() => ""))
     fail(
       `${taskId}'s batch worktree has uncommitted changes; commit or clear them before it retries alone.`,
       409,
@@ -413,7 +414,8 @@ export async function prepareWorktree(store, input = {}) {
   const prepared = await prepareTaskWorktree(store, repository, {
     branch,
     name: "avoozl-" + task.id,
-    start: base?.branch ?? null,
+    // A fix from a pull request starts at the head Avoozl fetched (VM6.9).
+    start: task.fix?.source?.pull?.head ?? base?.branch ?? null,
   });
   const record = {
     id: task.id,
@@ -901,7 +903,10 @@ export async function reportSession(
     const worktree = store.get("task_worktrees", task.id);
     if (
       worktree?.path &&
-      (await worktreeChanges(worktree.path).catch(() => ""))
+      (await worktreeChanges(
+        worktree.path,
+        store.get("repositories", worktree.repository)?.root,
+      ).catch(() => ""))
     )
       fail(
         "Findings come before any change: the task's worktree has changes. Undo them, report findings, and wait for Go ahead.",
@@ -1073,7 +1078,9 @@ async function doneCommit(store, task, binding, reported) {
   }
   let head;
   try {
-    head = await git(worktree.path, ["rev-parse", "HEAD"]);
+    head = await taskGit(worktree.path, ["rev-parse", "HEAD"], {
+      checkout: store.get("repositories", worktree.repository)?.root,
+    });
   } catch {
     fail(`Avoozl cannot read HEAD of the task worktree ${worktree.path}.`, 409);
   }
@@ -2970,12 +2977,14 @@ export async function rebaseForIntegration(repository, worktree, commit) {
     return null;
   } catch {}
   // Avoozl's own files (a child's .avoozl/ result folder) are not changes.
-  if (await worktreeChanges(worktree.path))
+  const inTask = (args) =>
+    taskGit(worktree.path, args, { checkout: repository.root });
+  if (await worktreeChanges(worktree.path, repository.root))
     fail(
       "The task's worktree has uncommitted changes; it was not rebased.",
       409,
     );
-  if ((await git(worktree.path, ["rev-parse", "HEAD"])) !== commit)
+  if ((await inTask(["rev-parse", "HEAD"])) !== commit)
     fail(
       "The task's worktree is not at the reviewed commit; it was not rebased.",
       409,
@@ -2983,7 +2992,7 @@ export async function rebaseForIntegration(repository, worktree, commit) {
   // Merged forward, never rebased (R77.5): the task's own commits stay as
   // they were reviewed, and a conflict leaves the worktree as it was.
   try {
-    await git(worktree.path, [
+    await inTask([
       "merge",
       "--no-ff",
       "--no-edit",
@@ -2998,15 +3007,11 @@ export async function rebaseForIntegration(repository, worktree, commit) {
     // The conflicted files, read before the merge is undone, so the
     // worker chat can be told what to resolve (R87.6).
     const files = (
-      await git(worktree.path, [
-        "diff",
-        "--name-only",
-        "--diff-filter=U",
-      ]).catch(() => "")
+      await inTask(["diff", "--name-only", "--diff-filter=U"]).catch(() => "")
     )
       .split("\n")
       .filter(Boolean);
-    await git(worktree.path, ["merge", "--abort"]).catch(() => {});
+    await inTask(["merge", "--abort"]).catch(() => {});
     const refused = Error(
       `Merging ${target} into the task branch failed: ${error.message.split("\n")[0]}`,
     );
@@ -3014,7 +3019,7 @@ export async function rebaseForIntegration(repository, worktree, commit) {
     if (files.length) refused.conflict = { base: target, files };
     throw refused;
   }
-  const head = await git(worktree.path, ["rev-parse", "HEAD"]);
+  const head = await inTask(["rev-parse", "HEAD"]);
   return head === commit ? null : { head, onto: target, how: "merge" };
 }
 

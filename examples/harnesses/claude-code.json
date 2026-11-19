@@ -37,5 +37,24 @@
   "keepEnv": ["ANTHROPIC_API_KEY"],
   "reads": ["~/.claude", "~/.claude.json"],
   "tmpEnv": ["CLAUDE_CODE_TMPDIR"],
-  "proved": ["read", "write"]
+  "proved": ["read", "write"],
+  "box": {
+    "env": { "CLAUDE_CODE_SHELL_PREFIX": "{box_exec}" },
+    "args": [
+      "--setting-sources",
+      "user",
+      "--settings",
+      "{box_settings}",
+      "--strict-mcp-config",
+      "--disallowedTools",
+      "WebFetch",
+      "--disallowedTools",
+      "WebSearch"
+    ],
+    "hosts": ["api.anthropic.com:443", "platform.claude.com:443"],
+    "signIn": {
+      "darwin": "keychain",
+      "linux": ["~/.claude/.credentials.json"]
+    }
+  }
 }

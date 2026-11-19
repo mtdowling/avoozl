@@ -76,6 +76,9 @@ export const APP_OPERATIONS = new Set([
   "review.chat",
   "fix.start",
   "fix.spec",
+  // Stranger input and the box preflight (vm-harness D5, D7).
+  "stranger.runon",
+  "box.preflight.retry",
   "items.list",
   "items.detail",
   "items.act",

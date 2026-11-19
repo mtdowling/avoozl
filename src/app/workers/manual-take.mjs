@@ -13,7 +13,7 @@ import {
   readyCandidates,
 } from "../delivery/delivery.mjs";
 import { linePausedTaskIds } from "../flow/flow.mjs";
-import { git, worktreeChanges } from "../git/git.mjs";
+import { taskGit, worktreeChanges } from "../git/git.mjs";
 import { sessionUrl } from "../tick/notifications.mjs";
 import {
   bindSession,
@@ -99,17 +99,20 @@ async function giveBack(store, task, input) {
       `${task.id} has not been taken by hand, so there is nothing to give back.`,
       409,
     );
-  const worktree = store.get("task_worktrees", task.id)?.path;
+  const record = store.get("task_worktrees", task.id),
+    worktree = record?.path,
+    checkout = store.get("repositories", record?.repository ?? "")?.root;
   let dirty = "";
-  if (worktree) dirty = await worktreeChanges(worktree).catch(() => "");
+  if (worktree)
+    dirty = await worktreeChanges(worktree, checkout).catch(() => "");
   if (dirty && input.discard !== true)
     fail(
       `${task.id}'s worktree has uncommitted changes. Commit or move them, or release with --discard to drop them.`,
       409,
     );
   if (dirty) {
-    await git(worktree, ["reset", "--hard", "HEAD"]);
-    await git(worktree, ["clean", "-fd"]);
+    await taskGit(worktree, ["reset", "--hard", "HEAD"], { checkout });
+    await taskGit(worktree, ["clean", "-fd"], { checkout });
   }
   store.transaction(() => store.remove("session_bindings", binding.slot));
   return { released: task.id, slot: binding.slot, discarded: Boolean(dirty) };

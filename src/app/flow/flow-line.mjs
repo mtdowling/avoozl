@@ -33,6 +33,7 @@ import {
   checkOptions,
   containerBlindness,
   prepareChecks,
+  recordIsolation,
 } from "../workspace/check-isolation.mjs";
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
 import {
@@ -66,9 +67,7 @@ export async function runCheckAt(repository, commit, argv) {
       result = await commandEvidence(dir, argv, checkOptions(repository, dir));
     return {
       exitCode: result.exitCode,
-      ...(result.isolation !== undefined
-        ? { isolation: result.isolation }
-        : {}),
+      ...recordIsolation(result),
       durationMs: Date.now() - started,
       tail: String((result.stdout || "") + (result.stderr || ""))
         .split("\n")

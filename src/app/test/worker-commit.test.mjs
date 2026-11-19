@@ -53,7 +53,9 @@ test("a worker commit leaves out .avoozl/ files the repository does not ignore",
   write(".avoozl/forced.json", "{}");
   // Staged by the worker itself, past any .gitignore.
   await git(run.worktree, ["add", "-f", ".avoozl/forced.json"]);
-  const commit = await commitWorkerChanges(run.worktree, "Work");
+  const commit = await commitWorkerChanges(run.worktree, "Work", {
+    checkout: repo,
+  });
   assert.ok(commit);
   assert.deepEqual(
     (await git(run.worktree, ["show", "--name-only", "--format=", commit]))
@@ -81,10 +83,13 @@ test("a worker commit leaves out .avoozl/ files the repository does not ignore",
 });
 
 test("nothing but .avoozl/ files makes no commit", async (t) => {
-  const { run, write } = await repository(t);
+  const { repo, run, write } = await repository(t);
   const head = await git(run.worktree, ["rev-parse", "HEAD"]);
   write(".avoozl/result.json", result);
-  assert.equal(await commitWorkerChanges(run.worktree, "Work"), null);
+  assert.equal(
+    await commitWorkerChanges(run.worktree, "Work", { checkout: repo }),
+    null,
+  );
   assert.equal(await git(run.worktree, ["rev-parse", "HEAD"]), head);
 });
 

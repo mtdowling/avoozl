@@ -662,7 +662,14 @@ export const entries = [
   {
     name: "repository.configure",
     class: "protect",
-    policy: person("Only a person adds or changes a repository."),
+    // The worker, runtime and stranger keys are refused from an agent
+    // session's CLI too (VM1.5, VM6.12).
+    policy: person("Only a person adds or changes a repository.", undefined, {
+      agents: (input) =>
+        ["worker", "runtime", "strangers", "strangerRoles"].some((key) =>
+          Object.hasOwn(input?.isolation ?? {}, key),
+        ),
+    }),
     async handler({ input }) {
       const store = this.store;
 
