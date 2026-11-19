@@ -15,8 +15,7 @@ const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
 function plainEnv() {
   const env = { ...process.env, XDG_CONFIG_HOME: config };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE|KIROCREW)(_|$)|^PORT$/.test(name))
-      delete env[name];
+    if (/^(AVOOZL|KIROCREW)(_|$)|^PORT$/.test(name)) delete env[name];
   return env;
 }
 

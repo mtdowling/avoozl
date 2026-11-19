@@ -840,7 +840,6 @@ if (query.get('page') === 'app') {
               'acme/recipe-box': {
                 baseBranch: 'main',
                 role: 'code',
-                coder: 'worker',
                 requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'],
                 merge: { method: 'squash' },
                 rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }],
@@ -3246,7 +3245,6 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
       repositories: {
         'example/code': {
           baseBranch: 'main',
-          coder: 'issue-radar',
           allowedActors: ['sam', 'lee'],
           release: { capacity: 3, mode: 'step' },
           managedLabels: { ready: 'go-crew' },
@@ -3261,10 +3259,10 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
     policy: {
       mode: 'plans-repo',
       planningRepository: 'example/plans',
-      repositories: { 'example/code': { baseBranch: 'main', coder: 'worker', concurrency: 4, minimumPermission: 'maintain' } },
+      repositories: { 'example/code': { baseBranch: 'main', minimumPermission: 'maintain' } },
     },
   },
-  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk', coder: 'issue-radar', radar: { planLabel: 'kept-but-unused' } } } } },
+  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk', radar: { planLabel: 'kept-but-unused' } } } } },
 }
 function WorkflowMapPage() {
   const config = WORKFLOW_POLICIES[query.get('config') ?? 'single']

@@ -546,7 +546,6 @@ function single(t, delivery = {}) {
         repositories: {
           "o/lib": {
             baseBranch: "main",
-            coder: "worker",
             allowedActors: ["alice"],
           },
         },

@@ -4,12 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateReportSetting } from "./build-report.mjs";
-import {
-  validateHarnesses,
-  validateModels,
-  validateRoles,
-  validatePlanReview,
-} from "./chat-models.mjs";
+import { validateRoles, validatePlanReview } from "./chat-models.mjs";
 import { validateLanes } from "./lanes.mjs";
 import {
   assertNoMachineKeys,
@@ -22,21 +17,29 @@ export const avoozlConfigSchemaPath = fileURLToPath(
   new URL("../avoozl-config.schema.json", import.meta.url),
 );
 
-const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
-const SAFE_SECRET_LIKE_PATH_KEYS = new Set(["ahp.tokens", "ahpTokens"]);
-const EXPLICIT_PATH_KEYS = new Set([
-  "agentManifest",
-  "ahp.manifest",
-  "ahp.projection",
-  "ahp.tokens",
-  "ahpManifest",
-  "ahpProjection",
-  "ahpTokens",
-  "db",
-  "dbPath",
-  "documents",
-  "plansRoot",
+// Every top-level key a file may set: the schema's property names. The
+// machine file is also the host config (host-config.mjs), so it may set the
+// host schema's keys too.
+const schemaKeys = (file) =>
+  Object.keys(JSON.parse(fs.readFileSync(file, "utf8")).properties);
+const TOP_LEVEL_KEYS = new Set(schemaKeys(avoozlConfigSchemaPath));
+const MACHINE_KEYS = new Set([
+  ...TOP_LEVEL_KEYS,
+  ...schemaKeys(
+    fileURLToPath(new URL("../host-config.schema.json", import.meta.url)),
+  ),
 ]);
+
+// Refuse a top-level key the schema does not list, naming the file and key.
+export function assertKnownKeys(value, source, { machine = false } = {}) {
+  const known = machine ? MACHINE_KEYS : TOP_LEVEL_KEYS;
+  for (const key of Object.keys(value))
+    if (!known.has(key))
+      throw Error(`Unknown setting "${key}" in ${source}. Remove it.`);
+}
+
+const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const EXPLICIT_PATH_KEYS = new Set(["dbPath", "documents"]);
 
 function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -72,9 +75,7 @@ export function assertSafeConfig(value, source = "configuration", trail = []) {
       secretLikeKey(key) &&
       // A plugin's config names the environment variable that holds its
       // credential (design §4.8); plugins.mjs checks the value is a name.
-      !/^plugins\.\d+\.config\.(?:.+\.)?[A-Za-z0-9]+Env$/.test(field) &&
-      !SAFE_SECRET_LIKE_PATH_KEYS.has(field) &&
-      !SAFE_SECRET_LIKE_PATH_KEYS.has(key)
+      !/^plugins\.\d+\.config\.(?:.+\.)?[A-Za-z0-9]+Env$/.test(field)
     )
       throw Error(
         `${source} contains secret-like key ${field}. Keep credentials outside Avoozl configuration.`,
@@ -152,34 +153,11 @@ function resolveLayerPaths(value, base, trail = []) {
   );
 }
 
-function normalizeAliases(value) {
-  const config = structuredClone(value);
-  if (config.dbPath == null && config.db != null) config.dbPath = config.db;
-  if (config.documents == null && config.plansRoot != null)
-    config.documents = config.plansRoot;
-  if (config.url == null && config.endpoint != null)
-    config.url = config.endpoint;
-  delete config.db;
-  delete config.plansRoot;
-  delete config.endpoint;
-
-  const ahp = isRecord(config.ahp) ? { ...config.ahp } : {};
-  for (const [legacy, current] of [
-    ["ahpPort", "port"],
-    ["ahpHost", "host"],
-    ["ahpProjection", "projection"],
-    ["ahpTokens", "tokens"],
-    ["ahpManifest", "manifest"],
-  ]) {
-    if (ahp[current] == null && config[legacy] != null)
-      ahp[current] = config[legacy];
-    delete config[legacy];
-  }
-  if (Object.keys(ahp).length) config.ahp = ahp;
-  return config;
-}
-
-function readLayer(filename, label, { portable = false } = {}) {
+function readLayer(
+  filename,
+  label,
+  { portable = false, machine = false } = {},
+) {
   if (!fs.existsSync(filename)) return null;
   let value;
   try {
@@ -196,13 +174,14 @@ function readLayer(filename, label, { portable = false } = {}) {
     throw Error(`${label} at ${filename} must contain a JSON object.`);
   if (value.version !== 1)
     throw Error(`Unsupported ${label} version at ${filename}.`);
+  assertKnownKeys(value, `${label} at ${filename}`, { machine });
   assertSafeConfig(value, `${label} at ${filename}`);
   if (portable)
     assertPortableRepositoryConfig(value, `${label} at ${filename}`);
   return {
     label,
     filename,
-    value: normalizeAliases(resolveLayerPaths(value, path.dirname(filename))),
+    value: resolveLayerPaths(value, path.dirname(filename)),
   };
 }
 
@@ -217,49 +196,17 @@ function deepMerge(left, right) {
   return result;
 }
 
-function first(env, names) {
-  for (const name of names) if (env[name]) return env[name];
-  return undefined;
-}
-
 function environmentLayer(env) {
   const value = {
-    dbPath: first(env, ["AVOOZL_DB", "AICOMMANDER_DB", "NUPP_WORKSPACE_DB"]),
-    documents: first(env, [
-      "AVOOZL_DOCUMENTS",
-      "AVOOZL_PLANS_ROOT",
-      "AICOMMANDER_DOCUMENTS",
-      "AICOMMANDER_PLANS_ROOT",
-      "NUPP_WORKSPACE_DOCS",
-    ]),
-    operator: first(env, ["AVOOZL_OPERATOR", "AICOMMANDER_OPERATOR"]),
-    port: first(env, ["AVOOZL_PORT", "AICOMMANDER_PORT"]),
-    host: first(env, ["AVOOZL_HOST", "AICOMMANDER_HOST"]),
-    canvasOrigins: first(env, [
-      "AVOOZL_CANVAS_ORIGINS",
-      "AICOMMANDER_CANVAS_ORIGINS",
-    ]),
-    agentManifest: first(env, [
-      "AVOOZL_AGENT_MANIFEST",
-      "AICOMMANDER_AGENT_MANIFEST",
-    ]),
-    url: first(env, ["AVOOZL_URL", "AICOMMANDER_URL", "NUPP_WORKSPACE_URL"]),
-    ahp: {
-      port: first(env, ["AVOOZL_AHP_PORT", "AICOMMANDER_AHP_PORT"]),
-      host: first(env, ["AVOOZL_AHP_HOST", "AICOMMANDER_AHP_HOST"]),
-      projection: first(env, [
-        "AVOOZL_AHP_PROJECTION",
-        "AICOMMANDER_AHP_PROJECTION",
-      ]),
-      tokens: first(env, ["AVOOZL_AHP_TOKENS", "AICOMMANDER_AHP_TOKENS"]),
-      manifest: first(env, ["AVOOZL_AHP_MANIFEST", "AICOMMANDER_AHP_MANIFEST"]),
-    },
+    dbPath: env.AVOOZL_DB,
+    documents: env.AVOOZL_DOCUMENTS,
+    operator: env.AVOOZL_OPERATOR,
+    port: env.AVOOZL_PORT,
+    host: env.AVOOZL_HOST,
+    url: env.AVOOZL_URL,
   };
   for (const [key, child] of Object.entries(value))
-    if (child === undefined) delete value[key];
-  for (const [key, child] of Object.entries(value.ahp || {}))
-    if (child === undefined) delete value.ahp[key];
-  if (!Object.keys(value.ahp || {}).length) delete value.ahp;
+    if (!child) delete value[key];
   return value;
 }
 
@@ -276,25 +223,13 @@ function commandLineLayer(options) {
     name: option(options, "name"),
     operator: option(options, "operator"),
     dbPath: option(options, "db", "dbPath"),
-    documents: option(options, "documents", "plans-root", "plansRoot"),
+    documents: option(options, "documents"),
     port: option(options, "port"),
     host: option(options, "host"),
-    canvasOrigins: option(options, "canvas-origin", "canvasOrigins"),
-    agentManifest: option(options, "agent-manifest", "agentManifest"),
-    url: option(options, "url", "endpoint"),
-    ahp: {
-      port: option(options, "ahp-port", "ahpPort"),
-      host: option(options, "ahp-host", "ahpHost"),
-      projection: option(options, "ahp-projection", "ahpProjection"),
-      tokens: option(options, "ahp-tokens", "ahpTokens"),
-      manifest: option(options, "ahp-manifest", "ahpManifest"),
-    },
+    url: option(options, "url"),
   };
   for (const [key, child] of Object.entries(value))
     if (child === undefined) delete value[key];
-  for (const [key, child] of Object.entries(value.ahp || {}))
-    if (child === undefined) delete value.ahp[key];
-  if (!Object.keys(value.ahp || {}).length) delete value.ahp;
   return value;
 }
 
@@ -357,12 +292,10 @@ export function loadLayeredConfig({
   workspaceRoot = path.resolve(workspaceRoot);
   const files = {
     global: globalAvoozlConfigPath({ env, home }),
-    legacy: path.join(workspaceRoot, "workspace.json"),
     repository: path.join(workspaceRoot, ".avoozl.json"),
   };
   const fileLayers = [
-    readLayer(files.global, "global Avoozl configuration"),
-    readLayer(files.legacy, "legacy workspace configuration"),
+    readLayer(files.global, "global Avoozl configuration", { machine: true }),
     readLayer(files.repository, "repository Avoozl configuration", {
       portable: true,
     }),
@@ -370,15 +303,11 @@ export function loadLayeredConfig({
   const volatileLayers = [
     {
       label: "environment configuration",
-      value: normalizeAliases(
-        resolveLayerPaths(environmentLayer(env), workspaceRoot),
-      ),
+      value: resolveLayerPaths(environmentLayer(env), workspaceRoot),
     },
     {
       label: "command-line configuration",
-      value: normalizeAliases(
-        resolveLayerPaths(commandLineLayer(options), workspaceRoot),
-      ),
+      value: resolveLayerPaths(commandLineLayer(options), workspaceRoot),
     },
   ];
   for (const layer of volatileLayers)
@@ -392,8 +321,6 @@ export function loadLayeredConfig({
   // Repository roles decide the GitHub mode, so readers of the raw keys see
   // the derived value (R105.8).
   if (config.github) config.github = deriveGitHubKeys(config.github);
-  validateModels(config.models);
-  validateHarnesses(config.harnesses);
   validateRoles(config);
   validateRunnerRole(config.runner);
   validatePlanReview(config.planReview);

@@ -248,7 +248,6 @@ test("radar.setup runs through operations and refuses an unregistered repository
           [REPO]: {
             baseBranch: "main",
             requiredChecks: ["build"],
-            coder: "issue-radar",
           },
         },
       },

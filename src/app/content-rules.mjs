@@ -26,6 +26,7 @@ import { globalAvoozlConfigPath } from "./layered-config.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { PRIVACY_SET, privacyHits, privacyRules } from "./privacy.mjs";
 import { fail } from "./store.mjs";
+import { postedText } from "./github-posted.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
@@ -2109,6 +2110,36 @@ const GITHUB_WRITES = {
   }),
 };
 
+// The writes whose text is a post: each gets broken mentions and the
+// posted marker (github-posted.mjs) before content rules read it.
+const POSTS = {
+  createIssueComment: (args) => [args[0], args[1], postedText(args[2])],
+  updateIssueComment: (args) => [args[0], args[1], postedText(args[2])],
+  createCommitComment: (args) => [args[0], args[1], postedText(args[2])],
+  updateCommitComment: (args) => [args[0], args[1], postedText(args[2])],
+  addDiscussionComment: (args) => [args[0], postedText(args[1])],
+  createPullRequest: (args) => [
+    args[0],
+    { ...args[1], body: postedText(args[1]?.body) },
+  ],
+  createPendingReview: (args) => [
+    args[0],
+    args[1],
+    {
+      ...args[2],
+      body: postedText(args[2]?.body),
+      ...(Array.isArray(args[2]?.comments)
+        ? {
+            comments: args[2].comments.map((comment) => ({
+              ...comment,
+              body: postedText(comment?.body),
+            })),
+          }
+        : {}),
+    },
+  ],
+};
+
 const repositoryOf = (value) =>
   typeof value === "string"
     ? value
@@ -2137,8 +2168,10 @@ export function guardGitHub(github, store) {
     get(target, name, receiver) {
       const value = Reflect.get(target, name, receiver);
       if (typeof value !== "function" || !GITHUB_WRITES[name]) return value;
-      return function guarded(...args) {
-        const shape = GITHUB_WRITES[name](args),
+      return function guarded(...given) {
+        const head = POSTS[name]?.(given) ?? [],
+          args = [...head, ...given.slice(head.length)],
+          shape = GITHUB_WRITES[name](args),
           text = [...shape.text, ...(shape.extra || [])]
             .filter((t) => typeof t === "string")
             .join("\n"),

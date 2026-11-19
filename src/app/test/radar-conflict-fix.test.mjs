@@ -159,7 +159,6 @@ const policy = (extra = {}) => ({
   mode: "single-repo",
   repositories: {
     [REPO]: {
-      coder: "issue-radar",
       baseBranch: "main",
       crewLabels: { claim: "crew: in progress", needsHuman: NEEDS },
       managedLabels: { ready: "go" },

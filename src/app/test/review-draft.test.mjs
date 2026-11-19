@@ -35,7 +35,7 @@ const policy = (extra = {}) =>
   normalizeGitHubPolicy({
     mode: "single-repo",
     repositories: {
-      [REPO]: { baseBranch: "main", coder: "issue-radar", ...extra },
+      [REPO]: { baseBranch: "main", ...extra },
     },
   });
 

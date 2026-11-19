@@ -60,7 +60,7 @@ export function installInlineFixture() {
   answer('flow.proposals', () => ({ proposals: [], dropped: [], prompts: [], notes: [], available: false }))
 
   // Repository setup
-  let github: Record<string, unknown> = { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main', coder: 'issue-radar' } } }
+  let github: Record<string, unknown> = { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main' } } }
   const githubSettings = () => ({
     filename: '.avoozl.json',
     exists: true,

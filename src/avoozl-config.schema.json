@@ -55,37 +55,9 @@
       "type": "string",
       "minLength": 1
     },
-    "canvasOrigins": {
-      "oneOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "format": "uri"
-          },
-          "uniqueItems": true
-        }
-      ],
-      "deprecated": true,
-      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
-    },
-    "agentManifest": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true,
-      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
-    },
     "url": {
       "type": "string",
       "format": "uri"
-    },
-    "ahp": {
-      "$ref": "#/$defs/ahp",
-      "deprecated": true,
-      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
     },
     "conversations": {
       "$ref": "#/$defs/conversations"
@@ -144,7 +116,7 @@
     },
     "roles": {
       "type": "object",
-      "description": "One row per role: its harness, its model where it has one and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
+      "description": "One row per role: its harness, its model where it has one and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older delivery agent and model keys still load into it.",
       "additionalProperties": false,
       "properties": {
         "worker": {
@@ -188,51 +160,6 @@
         },
         "prReview": {
           "$ref": "#/$defs/harnessRole"
-        }
-      }
-    },
-    "models": {
-      "type": "object",
-      "description": "Older key, read into roles.<role>.model. Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
-      "additionalProperties": false,
-      "properties": {
-        "planner": {
-          "$ref": "#/$defs/chatModel"
-        },
-        "planReviewer": {
-          "$ref": "#/$defs/chatModel"
-        },
-        "driver": {
-          "deprecated": true,
-          "description": "Ignored. The driver chat was removed. Files that still set it load as before."
-        },
-        "retro": {
-          "$ref": "#/$defs/chatModel"
-        },
-        "reviewDraft": {
-          "$ref": "#/$defs/chatModel"
-        }
-      }
-    },
-    "harnesses": {
-      "type": "object",
-      "description": "Older key, read into roles.<role>.harness. The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
-      "additionalProperties": false,
-      "properties": {
-        "worker": {
-          "$ref": "#/$defs/harnessName"
-        },
-        "planner": {
-          "$ref": "#/$defs/harnessName"
-        },
-        "planReviewer": {
-          "$ref": "#/$defs/harnessName"
-        },
-        "retro": {
-          "$ref": "#/$defs/harnessName"
-        },
-        "reviewDraft": {
-          "$ref": "#/$defs/harnessName"
         }
       }
     },
@@ -626,32 +553,6 @@
         }
       }
     },
-    "ahpPort": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 65535,
-      "deprecated": true
-    },
-    "ahpHost": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true
-    },
-    "ahpProjection": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true
-    },
-    "ahpTokens": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true
-    },
-    "ahpManifest": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true
-    },
     "packs": {
       "type": "object",
       "description": "Written by a pack import (design \u00a74.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
@@ -959,9 +860,6 @@
     "safePropertyName": {
       "anyOf": [
         {
-          "enum": ["ahpTokens"]
-        },
-        {
           "not": {
             "pattern": "(^|[-_])(api[-_]?key|access[-_]?key|private[-_]?key|client[-_]?secret|secret|password|passwd|token|credential)s?($|[-_])"
           }
@@ -1109,36 +1007,6 @@
         "maxLength": 160
       }
     },
-    "ahp": {
-      "type": "object",
-      "properties": {
-        "port": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 65535
-        },
-        "host": {
-          "type": "string",
-          "minLength": 1
-        },
-        "projection": {
-          "type": "string",
-          "minLength": 1
-        },
-        "tokens": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Path to the generated AHP token file; never an inline token."
-        },
-        "manifest": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": {
-        "$ref": "#/$defs/safeValue"
-      }
-    },
     "conversations": {
       "type": "object",
       "properties": {
@@ -1273,26 +1141,8 @@
     },
     "github": {
       "type": "object",
-      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design \u00a74.4), Remote setup remains an explicit action. issueIntake and queue are older keys: issueIntake is read as intake.sources GitHub sources and queue is ignored; Avoozl moves both on its next write (\u00a74.39).",
+      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design \u00a74.4), Remote setup remains an explicit action.",
       "properties": {
-        "issueIntake": {
-          "type": "object",
-          "propertyNames": {
-            "pattern": "^[^/]+/[^/]+$"
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/githubIssueIntake"
-          }
-        },
-        "queue": {
-          "type": "object",
-          "propertyNames": {
-            "pattern": "^[^/]+/[^/]+$"
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/githubQueueRepository"
-          }
-        },
         "mode": {
           "enum": ["local", "plans-repo", "single-repo"],
           "description": "Where issues live. local, or absent, means every task is local; GitHub settings stored beside local are kept but not used. Derived from repository roles when any repository has a role."
@@ -1476,10 +1326,6 @@
           "minLength": 1,
           "description": "Must equal the repository's default branch when a mode is set."
         },
-        "coder": {
-          "deprecated": true,
-          "description": "Ignored. Who codes was removed (R91.6). Files that still set it load as before."
-        },
         "radar": {
           "type": "object",
           "description": "Avoozl's workflow labels. Planning, needs-human, claim, ready, conflict, approval, review and drafted names must all differ.",
@@ -1660,10 +1506,6 @@
           "minimum": 0,
           "maximum": 3600,
           "description": "This repository's GitHub cache time in seconds, instead of github.cacheSeconds."
-        },
-        "concurrency": {
-          "deprecated": true,
-          "description": "Ignored. It set the retired local workers; release.capacity sets how many issues are ready at once. Files that still set it load as before."
         },
         "release": {
           "description": "Ready-label capacity: N at once per repository, and per crew label scope. N defaults to 1; 0 releases nothing. With lanes, the only concurrency setting.",
@@ -2051,96 +1893,6 @@
         }
       }
     },
-    "githubIssueIntake": {
-      "type": "object",
-      "required": ["projectId", "assignee"],
-      "properties": {
-        "projectId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "workspaceRepositoryId": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Stable ID used by the unified Repositories settings surface."
-        },
-        "assignee": {
-          "type": "string",
-          "minLength": 1
-        },
-        "label": {
-          "type": "string",
-          "minLength": 1,
-          "default": "avoozl:ready"
-        },
-        "managedLabel": {
-          "type": "string",
-          "minLength": 1,
-          "default": "avoozl:managed"
-        },
-        "enabled": {
-          "type": "boolean",
-          "default": true
-        },
-        "autoStart": {
-          "type": "boolean",
-          "default": false
-        },
-        "provider": {
-          "type": ["string", "null"]
-        },
-        "model": {
-          "type": ["string", "null"]
-        },
-        "allowedActors": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "minimumPermission": {
-          "enum": ["write", "maintain", "admin"],
-          "default": "write"
-        }
-      },
-      "additionalProperties": false
-    },
-    "githubQueueRepository": {
-      "type": "object",
-      "properties": {
-        "projectId": {
-          "type": ["string", "null"]
-        },
-        "workspaceRepositoryId": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Stable ID used by the unified Repositories settings surface."
-        },
-        "enabled": {
-          "type": "boolean",
-          "default": true
-        },
-        "includeIssues": {
-          "type": "boolean",
-          "default": true
-        },
-        "includePullRequests": {
-          "type": "boolean",
-          "default": true
-        },
-        "labelBehaviors": {
-          "$ref": "#/$defs/githubLabelBehaviors"
-        },
-        "visibility": {
-          "enum": ["private", "public"],
-          "default": "private",
-          "description": "Public Queue sources are metadata-only and never authorize or mutate GitHub."
-        }
-      },
-      "additionalProperties": false
-    },
     "githubLabelBehaviors": {
       "type": "object",
       "description": "Repository-specific GitHub labels mapped to normalized Avoozl Queue states. Omitted behaviors use the avoozl:* defaults.",
@@ -2315,14 +2067,6 @@
               }
             }
           }
-        },
-        "lessons": {
-          "deprecated": true,
-          "description": "Ignored. The lessons store was removed. Files that still set it load as before."
-        },
-        "batch": {
-          "deprecated": true,
-          "description": "Ignored. The planner decides batches. Files that still set it load as before."
         }
       }
     },

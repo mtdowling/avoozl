@@ -25,6 +25,7 @@ import { fence } from "./github-respond.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { statusComplete } from "../query.mjs";
 import { taskRepository } from "../work-model.mjs";
+import { isPosted } from "./github-posted.mjs";
 
 export const FEEDBACK = "pr_feedback";
 const RUNNERS = new Set(["tick", "conductor"]);
@@ -100,7 +101,8 @@ async function feedbackEvents(
     if (check.status === "COMPLETED" && FAILED.has(check.conclusion))
       events.push({ ...check, kind: "check", head: pull.head });
   const said = async (entry, event) => {
-    if (!entry.login) return;
+    // Avoozl's own post is never feedback that resumes work.
+    if (!entry.login || isPosted(entry.body)) return;
     if (await allowed(entry.login)) events.push(event);
     else strangers.push({ id: entry.id, login: entry.login, url: entry.url });
   };

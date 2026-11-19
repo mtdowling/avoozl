@@ -4,11 +4,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { handleMcp, OLD_TOOLS } from "../mcp.mjs";
+import { handleMcp, NARROW_TOOLS } from "../mcp.mjs";
 import { createAppMcp } from "../app-mcp.mjs";
 import { NOT_ON_MCP, PERSON_ONLY } from "../mcp-policy.mjs";
 import { GROUPED_TOOLS, groupedCall } from "../mcp-tools.mjs";
-import { MOVED_OPERATIONS } from "../moved-operations.mjs";
 import { classifyOperation } from "../operation-kinds.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -19,7 +18,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 function allOperations() {
   const read = (file) =>
     fs.readFileSync(new URL("../" + file, import.meta.url), "utf8");
-  const names = new Set(MOVED_OPERATIONS.keys());
+  const names = new Set();
   for (const [, name] of read("operations.mjs").matchAll(
     /name === "([a-zA-Z.]+)"/g,
   ))
@@ -44,7 +43,7 @@ for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
       `${tool}.${action}`,
     ]);
   }
-for (const [name, [operation]] of Object.entries(OLD_TOOLS))
+for (const [name, [operation]] of Object.entries(NARROW_TOOLS))
   routes.set(operation, [...(routes.get(operation) || []), name]);
 
 const call = (ops, name, args) =>
@@ -154,7 +153,7 @@ test("no MCP name reaches a person-only operation, and nearby inputs fail closed
     ops = new Operations(store),
     before = store.read().revision;
   // Every old name whose operation is person-only.
-  const old = Object.entries(OLD_TOOLS).filter(([, [operation]]) =>
+  const old = Object.entries(NARROW_TOOLS).filter(([, [operation]]) =>
     PERSON_ONLY.has(operation),
   );
   assert.ok(old.some(([name]) => name === "plans_approve_plan"));
@@ -215,7 +214,7 @@ test("no MCP name reaches a person-only operation, and nearby inputs fail closed
   assert.equal(store.read().revision, before, "nothing was written");
 });
 
-test("grouped calls run their operation, and plans_workspace keeps its old shape", async (t) => {
+test("grouped calls run their operation, and an action is required", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
   const task = await call(ops, "plans_task", {
@@ -227,14 +226,11 @@ test("grouped calls run their operation, and plans_workspace keeps its old shape
     task.structuredContent.id ?? task.structuredContent.task?.id,
     "sample-task",
   );
-  // The old plans_workspace call sent only {input}.
-  const old = await call(ops, "plans_workspace", { input: {} });
-  assert.equal(old.isError, undefined);
+  const missing = await call(ops, "plans_workspace", { input: {} });
+  assert.equal(missing.isError, true);
+  assert.match(missing.content[0].text, /Name an action for plans_workspace/);
   const current = await call(ops, "plans_workspace", { action: "get" });
-  assert.deepEqual(
-    Object.keys(old.structuredContent),
-    Object.keys(current.structuredContent),
-  );
+  assert.equal(current.isError, undefined);
   assert.equal(classifyOperation("workspace"), "observe");
 });
 
@@ -249,7 +245,7 @@ test("every MCP name answers an empty input with a clear message", async (t) => 
   for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
     for (const [action, [operation]] of Object.entries(actions))
       if (!skip.has(operation)) calls.push([tool, { action, input: {} }]);
-  for (const [name, [operation]] of Object.entries(OLD_TOOLS))
+  for (const [name, [operation]] of Object.entries(NARROW_TOOLS))
     if (!skip.has(operation)) calls.push([name, { input: {} }]);
   const unclear = [];
   for (const [name, args] of calls) {

@@ -1,6 +1,6 @@
 // A person-only operation runs from the CLI, inside an agent session too,
 // and says so in the record; only a supervisor child is refused (R83.1,
-// R95.5). The --as-person flag was removed and is ignored.
+// R95.5).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -72,10 +72,7 @@ test("the CLI runs plan.delete in an agent session and refuses it in a child", (
   assert.doesNotMatch(agent.stderr, /refuse|Only a person/i);
   const terminal = run([], {});
   assert.doesNotMatch(terminal.stderr, /agent session/);
-  // The removed flag is ignored, and the next argument is not swallowed.
-  const old = run(["--as-person"], {});
-  assert.doesNotMatch(old.stderr, /agent session|Unknown/);
-  const child = run(["--as-person"], { AVOOZL_CHILD: "1" });
+  const child = run([], { AVOOZL_CHILD: "1" });
   assert.notEqual(child.status, 0);
   assert.match(child.stderr, /supervisor started/);
 });

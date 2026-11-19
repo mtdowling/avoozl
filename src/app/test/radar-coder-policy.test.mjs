@@ -90,7 +90,7 @@ test("any two equal label names are refused, naming both", () => {
           LABELS[second]("same name"),
         );
         assert.throws(
-          () => repo(mode, { coder: "issue-radar", ...input }),
+          () => repo(mode, { ...input }),
           (error) =>
             error.message.includes(first) &&
             error.message.includes(second) &&
@@ -115,7 +115,6 @@ test("a default name clashes with a set one", () => {
 test("distinct names pass, including one that only shares a prefix", () => {
   assert.doesNotThrow(() =>
     repo("plans-repo", {
-      coder: "issue-radar",
       radar: { planLabel: "ready to plan" },
     }),
   );
@@ -123,17 +122,13 @@ test("distinct names pass, including one that only shares a prefix", () => {
 
 test("an existing worker repository with its own labels still validates", () => {
   const entry = repo("plans-repo", {
-    coder: "worker",
     managedLabels: { managed: "agent:managed", ready: "agent:ready" },
   });
   assert.equal(entry.managedLabels.ready, "agent:ready");
 });
 
 test("radar.showPlansRepo is unset by default, read when set, and refuses a non-boolean", () => {
-  assert.equal(
-    "showPlansRepo" in repo("plans-repo", { coder: "issue-radar" }).radar,
-    false,
-  );
+  assert.equal("showPlansRepo" in repo("plans-repo", {}).radar, false);
   for (const showPlansRepo of [true, false])
     assert.equal(
       repo("plans-repo", { radar: { showPlansRepo } }).radar.showPlansRepo,

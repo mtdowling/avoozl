@@ -22,8 +22,7 @@ function servedTools() {
     workspace = path.join(dir, "workspace"),
     env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_|^NUPP_WORKSPACE$/.test(name))
-      delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   initializeWorkspace(workspace);
   const output = execFileSync(
     "python3",

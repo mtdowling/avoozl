@@ -25,14 +25,17 @@ function reviewWorkspace(t, planReviewOptions = {}) {
   fs.mkdirSync(path.dirname(globalFile), { recursive: true });
   fs.writeFileSync(
     globalFile,
-    JSON.stringify({ version: 1, models: { planReviewer: "fake-reviewer" } }),
+    JSON.stringify({
+      version: 1,
+      roles: { planReviewer: { model: "fake-reviewer" } },
+    }),
   );
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
       github: { mode: "local" },
-      models: { planner: "fake-writer" },
+      roles: { planner: { model: "fake-writer" } },
     }),
   );
   store.mutate("Empty the synthetic execution queue", (data) => {

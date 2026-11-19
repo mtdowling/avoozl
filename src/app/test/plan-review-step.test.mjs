@@ -90,7 +90,10 @@ function setup(t, { writer = true, rounds = 1, mode = "auto" } = {}) {
   recordPlanReviewWriter(store, plan, writer ? as("writer") : {});
   const counts = { prepared: 0, removed: 0 },
     config = {
-      models: { planReviewer: "fake-reviewer", planner: "fake-writer" },
+      roles: {
+        planReviewer: { model: "fake-reviewer" },
+        planner: { model: "fake-writer" },
+      },
       planReview: { mode, rounds },
     };
   const options = {
@@ -177,7 +180,7 @@ test("a settled stored revision gets one read-only request and keeps its exact w
 
 test("a harness saved for the plan reviewer is the one its request names", async (t) => {
   const env = setup(t);
-  env.options.config.roles = { planReviewer: { harness: "codex" } };
+  env.options.config.roles.planReviewer.harness = "codex";
   await env.step();
   const [request] = (await env.step()).requests;
   assert.equal(request.role, "plan-review");
@@ -200,7 +203,7 @@ test("off changes no plan or review state; unknown writers and same-model pairs 
   );
   assert.equal(unknown.counts.prepared, 0);
   const same = setup(t);
-  same.options.config.models = { planReviewer: "fake-writer" };
+  same.options.config.roles.planReviewer.model = "fake-writer";
   await same.step();
   await same.step();
   assert.match(same.store.list("review_rounds")[0].note, /same as/);
@@ -976,7 +979,7 @@ test("servedModel reads a model name, or one model key, from the harness output"
 // records each answer from its report.
 async function childAnswer(t) {
   const env = setup(t);
-  env.options.config.roles = { planAnswer: { harness: "fake-cli" } };
+  env.options.config.roles.planAnswer = { harness: "fake-cli" };
   await env.step();
   const [review] = (await env.step()).requests;
   await env.bind(review, "reviewer", "fake-reviewer");

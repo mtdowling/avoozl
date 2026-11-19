@@ -117,9 +117,6 @@ try {
           "off",
           "release",
           "discard",
-          // Removed 2026-11-18; still parsed so an old command keeps its
-          // other arguments, and ignored.
-          "as-person",
           "writes",
           "retire",
           "delete-spec-folder",
@@ -158,17 +155,13 @@ try {
     command = "help";
   }
   const env = options.env || process.env;
-  const requestedWorkspace =
-    options.workspace ||
-    env.AVOOZL_WORKSPACE ||
-    env.AICOMMANDER_WORKSPACE ||
-    env.NUPP_WORKSPACE;
+  const requestedWorkspace = options.workspace || env.AVOOZL_WORKSPACE;
   // Where the workspace was named, for `status` to say so.
   const requestedFrom = options.workspace
     ? "--workspace"
-    : ["AVOOZL_WORKSPACE", "AICOMMANDER_WORKSPACE", "NUPP_WORKSPACE"].find(
-        (name) => env[name],
-      );
+    : env.AVOOZL_WORKSPACE
+      ? "AVOOZL_WORKSPACE"
+      : undefined;
   let registeredWorkspaceId = null,
     configOptions = options;
   if (
@@ -229,13 +222,7 @@ try {
   // A server is used only when one is named. Otherwise commands and the
   // stdio MCP server act in process on the workspace database, a registered
   // workspace ID naming its root.
-  const useServer = () =>
-    Boolean(
-      options.url ||
-        process.env.AVOOZL_URL ||
-        process.env.AICOMMANDER_URL ||
-        process.env.NUPP_WORKSPACE_URL,
-    );
+  const useServer = () => Boolean(options.url || process.env.AVOOZL_URL);
   const localOperations = (store) =>
     new Operations(store, {
       operator: config.operator,
@@ -294,7 +281,7 @@ try {
         initializeWorkspace(positionals[0], {
           name: options.name,
           port: options.port,
-          documents: options.documents || options["plans-root"],
+          documents: options.documents,
           db: options.db,
         }),
         null,
@@ -929,13 +916,9 @@ try {
     );
   else if (command === "runner") {
     // `status` and `report` run on a worker machine (and `status` on any one).
-    // The SSH commands were removed; their operations answer with the
-    // replacement.
     const action = positionals[0];
     let result;
-    if (["accept", "handoff", "pull"].includes(action))
-      result = await localOrRequest(`remote.${action}`, {});
-    else if (action === "status")
+    if (action === "status")
       // A runner reports its remote tasks; any other machine reports the
       // supervisor and its children (R98.5).
       result = HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))
@@ -1185,15 +1168,6 @@ try {
           `github ${action} PLAN_ID [--repository OWNER/REPO]`,
         ),
         repository: options.repository,
-      };
-    } else if (action === "start") {
-      operation = "github.start";
-      value = {
-        taskId: options.task || positionals[1],
-        provider: options.provider,
-        model: options.model,
-        projectId: options.project,
-        approvalMode: options.approvals,
       };
     } else if (action === "setup") {
       // Preview first; rerun with --confirm --preview-hash HASH to write.
@@ -2020,34 +1994,7 @@ try {
         2,
       ),
     );
-  else if (command === "register-session" || command === "session-hook") {
-    let hook = {};
-    if (command === "session-hook") {
-      let text = "";
-      for await (const chunk of process.stdin) {
-        text += chunk;
-        if (text.length > 1000000) throw Error("Hook input is too large.");
-      }
-      hook = JSON.parse(text || "{}");
-    }
-    const result = await localOrRequest("session.register", {
-      taskId:
-        options.task ||
-        process.env.AVOOZL_TASK ||
-        process.env.AICOMMANDER_TASK ||
-        process.env.NUPP_WORKSPACE_TASK,
-      leaseId:
-        options.lease ||
-        process.env.AVOOZL_LEASE ||
-        process.env.AICOMMANDER_LEASE ||
-        process.env.NUPP_WORKSPACE_LEASE,
-      provider: options.provider || "claude",
-      providerSessionId: options.session || hook.session_id,
-      agentId: options.agent || hook.agent_id,
-    });
-    if (command !== "session-hook")
-      console.log(JSON.stringify(result, null, 2));
-  } else if (command === "help") {
+  else if (command === "help") {
     // `avoozl help`, `avoozl help GROUP`, `avoozl help COMMAND` and
     // `avoozl help all`, all rendered from the one table in cli-help.mjs.
     // `avoozl OPERATION --help` has no page of its own and gets the overview.
@@ -2097,8 +2044,7 @@ try {
     helpCommands().includes(command)
   )
     console.error(helpPointer(command));
-  process.exitCode =
-    command === "session-hook" || (command === "next" && options.hook) ? 0 : 1;
+  process.exitCode = command === "next" && options.hook ? 0 : 1;
 }
 
 // One spec in `plan batches` and the approve preview.

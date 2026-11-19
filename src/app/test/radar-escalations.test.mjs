@@ -162,49 +162,28 @@ function workspace(t, github, policy = POLICY(), extra = {}) {
   };
 }
 
-// R110.8: a repository whose GitHub source is an old `github.issueIntake`
-// entry, one written as a source, and one moved by Avoozl's next write all
-// keep Radar intake, Radar asks in Triage and back-links.
-test("Radar intake, asks and back-links survive the move to one intake list", async (t) => {
-  const OLD = {
-      issueIntake: { [REPO]: { projectId: "code", assignee: "operator" } },
-      queue: { [REPO]: { projectId: "code", labelBehaviors: {} } },
-    },
-    SOURCE = {
-      intake: {
-        sources: {
-          "github-radar": {
-            via: "github",
-            repository: REPO,
-            project: "code",
-            assignee: "operator",
-          },
+// R110.8: a repository whose GitHub source is in `intake.sources` keeps
+// Radar intake, Radar asks in Triage and back-links.
+test("Radar intake, asks and back-links read the intake list", async (t) => {
+  const SOURCE = {
+    intake: {
+      sources: {
+        "github-radar": {
+          via: "github",
+          repository: REPO,
+          project: "code",
+          assignee: "operator",
         },
       },
-    };
-  for (const form of ["old", "source", "moved"]) {
+    },
+  };
+  for (const form of ["source"]) {
     const github = fakeGitHub([
         recorded(2, { createdAt: "2026-11-15T05:00:00Z" }),
         recorded(12),
         recorded(14),
       ]),
-      { store, ops, root, read } = workspace(
-        t,
-        github,
-        form === "source" ? POLICY() : { ...POLICY(), ...OLD },
-        form === "source" ? SOURCE : {},
-      );
-    if (form === "moved") {
-      new RepositorySettings(store, {
-        workspaceRoot: root,
-      }).updateConversationSettings({ autoArchiveCompleted: false });
-      const file = JSON.parse(
-        fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
-      );
-      assert.equal(file.github.issueIntake, undefined, form);
-      assert.equal(file.github.queue, undefined, form);
-      assert.equal(file.intake.sources[sourceId].repository, REPO, form);
-    }
+      { store, ops, root, read } = workspace(t, github, POLICY(), SOURCE);
     const listed = (await ops.execute("intake.sources", {})).sources.filter(
       (row) => row.entry?.via === "github",
     );
@@ -285,15 +264,14 @@ test("a trusted escalation lists first in Untriaged with Plan this and Deliver t
   assert.deepEqual(github.writes, [], "reading writes nothing");
 });
 
-// R91.6: Who codes is gone, so a file that still says `coder: issue-radar`
-// reads Untriaged like any other repository, and Radar's asks still arrive.
-test("a repository still set to coder issue-radar feeds Triage and Radar asks", async (t) => {
+// Untriaged reads every repository, and Radar's asks still arrive.
+test("every repository feeds Triage and Radar asks", async (t) => {
   const github = fakeGitHub([
       recorded(2, { createdAt: "2026-11-15T05:00:00Z" }),
       recorded(12),
       recorded(14),
     ]),
-    { read } = workspace(t, github, POLICY({ coder: "issue-radar" }));
+    { read } = workspace(t, github, POLICY({}));
   const { intake, needsYou } = await read();
   // The plain issue is listed too: there is no Radar-only read.
   assert.deepEqual(

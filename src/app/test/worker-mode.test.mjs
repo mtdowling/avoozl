@@ -142,14 +142,15 @@ test("a worker refuses an SSH envelope, then runs a pulled one to a checkpoint p
       checks: ["pass"],
       spec: "demo",
     };
-  // The SSH operation answers with its replacement and takes nothing.
-  const moved = await ws.ops.execute(
-    "remote.accept",
-    { envelope: JSON.stringify(envelope) },
-    local,
+  // The SSH operation is gone and takes nothing.
+  await assert.rejects(
+    ws.ops.execute(
+      "remote.accept",
+      { envelope: JSON.stringify(envelope) },
+      local,
+    ),
+    /Unknown operation|refused/,
   );
-  assert.equal(moved.moved, true);
-  assert.match(moved.message, /worker/);
   assert.equal(ws.store.getMeta("runner.tasks") ?? null, null);
   // An envelope is taken only from an acknowledged claim.
   assert.throws(

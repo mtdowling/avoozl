@@ -170,7 +170,6 @@ import {
   taskProgress,
   chronologicalTasks,
 } from "./progress-model.mjs";
-import { dispatchMcp } from "./mcp.mjs";
 test("epic filters retain scope, completion counts and stable task positions", () => {
   const d = minimal();
   d.tasks = [
@@ -239,76 +238,6 @@ test("chronology honors authored order and dates without moving edited tasks", (
     ["a", "b"],
   );
 });
-test("MCP visualization changes presentation only and rejects stale replacements", () => {
-  let d = minimal();
-  d.tasks = [
-    {
-      id: "compiler",
-      title: "Compiler",
-      epic: "W1",
-      status: "partial",
-      scope: "runtime",
-      track: "frontend",
-    },
-  ];
-  const original = structuredClone(d.tasks),
-    ctx = {
-      base: "http://127.0.0.1:9417",
-      read: () => d,
-      commit(next) {
-        next.revision = d.revision + 1;
-        d = next;
-      },
-    };
-  const call = (name, args) =>
-    dispatchMcp(
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "tools/call",
-        params: { name, arguments: args },
-      },
-      ctx,
-    ).body.result;
-  let result = call("plans_visualize", {
-    id: "compiler-view",
-    title: "Compiler work",
-    view: "epics",
-    filters: { scope: "runtime" },
-    taskIds: ["compiler"],
-  });
-  assert.equal(result.isError, false);
-  assert.match(result.structuredContent.url, /visualization=compiler-view/);
-  assert.deepEqual(d.tasks, original);
-  assert.equal(d.presentation.activeVisualization.id, "compiler-view");
-  assert.equal(
-    call("plans_visualize", {
-      id: "compiler-view",
-      title: "Overwrite",
-      view: "graph",
-    }).isError,
-    true,
-  );
-  assert.equal(
-    call("plans_visualize", {
-      title: "Bad",
-      view: "epics",
-      taskIds: ["missing"],
-    }).isError,
-    true,
-  );
-  assert.equal(call("plans_query", { scope: "all", limit: 0 }).isError, true);
-  assert.equal(
-    call("plans_visualize", {
-      id: "compiler-view",
-      title: "Updated",
-      view: "graph",
-      expectedRevision: d.revision,
-    }).isError,
-    false,
-  );
-  assert.deepEqual(d.tasks, original);
-});
 import {
   stripLayout,
   cameraRange,
@@ -352,83 +281,6 @@ test("map camera keeps the pointer anchored and can reveal details in a large in
   assert.equal(cameraRange(total, 1, 0.1).start, 0);
   assert.equal(cameraRange(total, 1, 0.9).end, total);
   assert.equal(cameraRange(0).center, 0.5);
-});
-test("MCP saves strip focus and narrated breakouts without changing tasks", () => {
-  let d = minimal();
-  d.tasks = [
-    {
-      id: "a",
-      title: "One",
-      epic: "W1",
-      scope: "runtime",
-      status: "planned",
-      track: "frontend",
-    },
-  ];
-  const original = structuredClone(d.tasks),
-    ctx = {
-      base: "http://127.0.0.1:9417",
-      read: () => d,
-      commit(n) {
-        n.revision = d.revision + 1;
-        d = n;
-      },
-    };
-  const call = (name, args) =>
-    dispatchMcp(
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "tools/call",
-        params: { name, arguments: args },
-      },
-      ctx,
-    ).body.result;
-  assert.equal(
-    call("plans_visualize", {
-      id: "strip-one",
-      title: "Everything",
-      view: "strip",
-      focus: "matches",
-      filters: { scope: "runtime" },
-      stripZoom: 20,
-      stripAt: 0.4,
-      activate: false,
-    }).isError,
-    false,
-  );
-  assert.equal(d.presentation.views[0].focus, "matches");
-  assert.equal(
-    call("plans_present", { title: "Bad", steps: [] }).isError,
-    true,
-  );
-  assert.equal(
-    call("plans_present", { title: "Bad", steps: [{ viewId: "missing" }] })
-      .isError,
-    true,
-  );
-  let r = call("plans_present", {
-    id: "first-tour",
-    title: "One breakout",
-    steps: [{ viewId: "strip-one", caption: "Start here.", durationMs: 1500 }],
-  });
-  assert.equal(r.isError, false);
-  assert.match(r.structuredContent.url, /tour=first-tour/);
-  assert.equal(d.presentation.activeTour.autoplay, false);
-  assert.equal(
-    call("plans_present", {
-      id: "first-tour",
-      title: "Stale",
-      steps: [{ viewId: "strip-one" }],
-    }).isError,
-    true,
-  );
-  assert.equal(
-    call("plans_activate_visualization", { id: "strip-one" }).isError,
-    false,
-  );
-  assert.equal(d.presentation.activeTour, undefined);
-  assert.deepEqual(d.tasks, original);
 });
 
 import { captureTask } from "./capture.mjs";
@@ -583,71 +435,6 @@ test("plan progress distinguishes owned tasks, supporting context, archives and 
     fs.rmSync(f.root, { recursive: true, force: true });
   }
 });
-test("MCP document queries share plan summaries and explicit plan ownership", () => {
-  const d = minimal();
-  d.documents = {
-    "todo/runtime.md": {
-      id: "todo/runtime.md",
-      title: "Runtime",
-      text: "Context",
-      hash: "hash",
-      plan: {
-        taskQuery: { scope: "runtime" },
-        category: "Core rewrite",
-        targetBranch: "runtime",
-      },
-    },
-    "abandoned/old.md": {
-      id: "abandoned/old.md",
-      title: "Old plan",
-      text: "Context",
-    },
-  };
-  d.tasks = [
-    {
-      id: "a",
-      title: "First",
-      scope: "runtime",
-      status: "implemented",
-      epic: "W1",
-      track: "frontend",
-    },
-    {
-      id: "b",
-      title: "Second",
-      scope: "runtime",
-      status: "planned",
-      epic: "W1",
-      track: "frontend",
-    },
-  ];
-  const ctx = { read: () => d };
-  const call = (name, args) =>
-    dispatchMcp(
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "tools/call",
-        params: { name, arguments: args },
-      },
-      ctx,
-    ).body.result;
-  const response = call("plans_documents", { branch: "runtime" });
-  assert.equal(response.isError, false);
-  assert.equal(response.structuredContent.total, 1);
-  assert.equal(response.structuredContent.plans[0].percent, 50);
-  assert.equal(response.structuredContent.plans[0].status, "started");
-  assert.equal(call("plans_documents", {}).structuredContent.total, 1);
-  assert.equal(
-    call("plans_documents", { includeAbandoned: true }).structuredContent.total,
-    2,
-  );
-  assert.equal(
-    call("plans_get_document", { id: "todo/runtime.md" }).structuredContent
-      .progress.percent,
-    50,
-  );
-});
 
 import { highlightNupp, codeBlock } from "./highlight.mjs";
 import { renderMarkdown, documentHeadings } from "./markdown.mjs";
@@ -801,51 +588,6 @@ test("Done first groups complete, partial and remaining tasks without changing f
     sorted.tasks.map((t) => t.task.id),
   );
   assert.equal(chronological.sections.length, 0);
-  const ctx = {
-    read: () => d,
-    base: "http://127.0.0.1:9417",
-    commit(n) {
-      Object.assign(d, n);
-    },
-  };
-  const result = dispatchMcp(
-    {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: {
-        name: "plans_visualize",
-        arguments: {
-          title: "Done first",
-          view: "strip",
-          stripOrder: "progress",
-          activate: false,
-        },
-      },
-    },
-    ctx,
-  ).body.result;
-  assert.equal(result.isError, false);
-  assert.equal(d.presentation.views[0].stripOrder, "progress");
-  const read = (uri) =>
-    dispatchMcp(
-      { jsonrpc: "2.0", id: 2, method: "resources/read", params: { uri } },
-      ctx,
-    ).body;
-  const listed = dispatchMcp(
-    { jsonrpc: "2.0", id: 3, method: "resources/list" },
-    ctx,
-  ).body.result.resources.map((r) => r.uri);
-  assert.deepEqual(
-    listed.filter((uri) => !uri.startsWith("ui://")),
-    ["avoozl://status", "avoozl://visualizations"],
-  );
-  // A client from before the rename still reads with its old scheme.
-  assert.equal(
-    read("old-scheme://visualizations").result.contents[0].text,
-    read("avoozl://visualizations").result.contents[0].text,
-  );
-  assert.equal(read("avoozl://missing").error.code, -32602);
 });
 
 import { applyActivity, activityState } from "./activity.mjs";
@@ -953,64 +695,4 @@ test("activity reports work independently of progress, expires, and prevents sta
   assert.equal(activityState(d.tasks[0], now + 300005), "finished");
   assert.equal(d.tasks[0].status, "partial");
   assert.equal(validate(d).length, 0);
-});
-test("MCP work sessions return lease ownership and live query fields", () => {
-  let d = minimal();
-  d.tasks = [
-    {
-      id: "work",
-      title: "Work",
-      scope: "catalog",
-      status: "planned",
-      epic: "W1",
-      track: "frontend",
-    },
-  ];
-  const ctx = {
-      read: () => d,
-      commit(n) {
-        n.revision = d.revision + 1;
-        d = n;
-      },
-    },
-    call = (name, args) =>
-      dispatchMcp(
-        {
-          jsonrpc: "2.0",
-          id: 1,
-          method: "tools/call",
-          params: { name, arguments: args },
-        },
-        ctx,
-      ).body.result;
-  const started = call("plans_activity", {
-    id: "work",
-    action: "start",
-    owner: "Agent",
-    sessionId: "thread-id",
-    branch: "branch",
-    summary: "Writing the implementation",
-  });
-  assert.equal(started.isError, false);
-  const query = call("plans_query", { q: "inflight:true" });
-  assert.equal(query.structuredContent.total, 1);
-  assert.equal(query.structuredContent.tasks[0].activity.owner, "Agent");
-  assert.equal(query.structuredContent.tasks[0].activityState, "active");
-  assert.equal(
-    call("plans_activity", {
-      id: "work",
-      action: "finish",
-      leaseId: "incorrect",
-    }).isError,
-    true,
-  );
-  assert.equal(
-    call("plans_activity", {
-      id: "work",
-      action: "finish",
-      leaseId: started.structuredContent.activity.leaseId,
-    }).isError,
-    false,
-  );
-  assert.equal(d.tasks[0].status, "planned");
 });

@@ -402,7 +402,7 @@ test("the app backend starts the supervisor once it listens", async (t) => {
   const { root, defer } = scratch(t);
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "xdg") };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   let calls = 0;
   const server = startAppBackend({
     config: workspaceConfig({ workspace: path.join(root, "ws"), env }),
