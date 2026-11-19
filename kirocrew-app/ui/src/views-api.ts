@@ -618,6 +618,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'needs-human': 'Needs you',
   review: 'Review',
   'stale-session': 'Session ended',
+  untick: 'Tick removed',
   'content-match': 'Content rule',
   'content-unavailable': 'Rule set unavailable',
   'provider-out': 'Provider out',

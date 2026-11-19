@@ -264,7 +264,7 @@ const tools = {
       view: ["conflicts.view", "open conflicts and decisions"],
       settle: [
         "conflicts.settle",
-        "reviewed, unblock, dismiss or settle items",
+        "reviewed, unblock, dismiss, settle, reopen or keep items",
       ],
     },
   },

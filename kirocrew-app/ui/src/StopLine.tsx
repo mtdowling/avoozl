@@ -25,6 +25,7 @@ import { Hint } from './ui/Hint'
 import { SelectField } from './ui/SelectField'
 import { Box, type LookProps } from './ui/Box'
 import { Glyph } from './ui/Glyph'
+import { PlainButton } from './ui/Plain'
 
 const FILL = { 'css-display': 'inline-flex', 'css-align-items': 'center', 'css-gap': 6 } as const satisfies LookProps
 // Stopped: a red frame on a red tint, the text in the theme's own color.
@@ -104,17 +105,19 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
     return (
       <>
         <Tooltip text={label}>
-          <button
+          <PlainButton
             type="button"
             {...(props.nav || props.square ? {} : { 'data-pp-icon': '', 'data-bare': '' })}
             data-stop-line
             data-stopped={stopped ? '' : undefined}
             aria-label={label}
             onClick={() => (stopped ? void resumeAll() : setOpen(true))}
-            style={{ ...(props.square ? SQUARE : props.nav ? NAV_ICON : {}), color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}
+            {...(props.square ? SQUARE : props.nav ? NAV_ICON : {})}
+            css-color={stopped ? 'ok' : 'danger'}
+            css-border-color="border"
           >
             <Icon size={props.bare ? 13 : 14} aria-hidden="true" />
-          </button>
+          </PlainButton>
         </Tooltip>
         {dialog}
       </>

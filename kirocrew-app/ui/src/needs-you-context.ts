@@ -20,6 +20,8 @@ export function askLine(item: ConflictItem): string {
       return item.integrate ? 'Press Integrate to land the verified commit.' : 'Merge the pull request on GitHub. Avoozl never merges it.'
     case 'branch-landing':
       return 'Approve this exact head, then merge the branch on GitHub yourself.'
+    case 'untick':
+      return 'Reopen the task, or keep it done.'
     case 'stale-session':
       return 'Read why the chat ended, then retry the delivery or dismiss this row.'
     case 'content-match':

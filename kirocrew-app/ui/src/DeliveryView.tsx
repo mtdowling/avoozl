@@ -46,7 +46,6 @@ import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
 import { linkHref } from './views-api.ts'
 import { Picker } from './Picker.tsx'
 import { StopLineButton } from './StopLine.tsx'
-import { NAV_ICON } from './LeftNav.tsx'
 import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailChips, RailDivider, RailRow, RailStyle } from './NavRail.tsx'
 import { Hint } from './ui/Hint'
@@ -573,16 +572,26 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
                 </Box>
               )}
               <Tooltip text="Refresh">
-                <button
+                <PlainButton
                   type="button"
                   data-delivery-refresh
                   aria-label="Refresh"
                   onClick={() => void reload()}
                   disabled={busy || acting}
-                  style={{ ...NAV_ICON, color: 'var(--muted)' }}
+                  css-display="inline-flex"
+                  css-align-items="center"
+                  css-justify-content="center"
+                  css-width="28"
+                  css-height="28"
+                  css-padding="0"
+                  css-border-radius="6"
+                  css-border="1px-solid-border"
+                  css-background="transparent"
+                  css-cursor="pointer"
+                  css-color="muted"
                 >
                   <RefreshCw size={14} aria-hidden="true" />
-                </button>
+                </PlainButton>
               </Tooltip>
               <StopLineButton nav workspaceId={workspaceId} />
             </>

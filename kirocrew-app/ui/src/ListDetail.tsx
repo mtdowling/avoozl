@@ -8,31 +8,30 @@ import { LAYER } from './layers.ts'
 import { usePhone } from './list-detail.ts'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export function ListDetailBack(props: { label: string; onBack: () => void }) {
   return (
-    <button
+    <PlainButton
       type="button"
       data-list-detail-back
       onClick={props.onBack}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        flexShrink: 0,
-        padding: '2px 8px',
-        marginLeft: -4,
-        background: 'none',
-        border: 0,
-        borderRadius: 6,
-        color: 'var(--muted)',
-        cursor: 'pointer',
-        fontSize: 14,
-      }}
+      css-display="inline-flex"
+      css-align-items="center"
+      css-gap="4"
+      css-flex-shrink="0"
+      css-padding="2px-8px"
+      css-margin-left={-4}
+      css-background="none"
+      css-border="0"
+      css-border-radius="6"
+      css-color="muted"
+      css-cursor="pointer"
+      css-font-size="14"
     >
       <ArrowLeft size={14} aria-hidden="true" />
       {props.label}
-    </button>
+    </PlainButton>
   )
 }
 

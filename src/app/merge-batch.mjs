@@ -129,7 +129,13 @@ export const dropMember = (root, entry) =>
 // Stacks each member, in order, on `baseHead` in a fresh detached landing
 // worktree. {candidate} or {conflict: files, key}. The worktree is removed
 // before returning; its commits stay in `root`.
-export async function stackMembers(root, entries, baseHead, unionPaths = []) {
+export async function stackMembers(
+  root,
+  entries,
+  baseHead,
+  unionPaths = [],
+  tickOf = null,
+) {
   const union = new Set(unionPaths),
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-landing-"));
   try {
@@ -138,27 +144,42 @@ export async function stackMembers(root, entries, baseHead, unionPaths = []) {
       const message = [`Land ${entry.key}`, "", ...trailers(entry)]
         .join("\n")
         .trim();
+      let conflicted = false;
       try {
         await git(dir, [
           "merge",
           "--no-ff",
+          "--no-commit",
           "--quiet",
-          "-m",
-          message,
           memberRef(entry.key),
         ]);
-        continue;
-      } catch {}
-      const files = (await git(dir, ["diff", "--name-only", "--diff-filter=U"]))
-        .split("\n")
-        .filter(Boolean);
-      if (!files.length || files.some((f) => !union.has(f))) {
-        await git(dir, ["merge", "--abort"]).catch(() => {});
-        if (!files.length)
-          fail(`Merging ${entry.key} failed without a conflict.`, 500);
-        return { conflict: files, key: entry.key };
+      } catch {
+        conflicted = true;
       }
-      for (const file of files) await unionMerge(dir, file);
+      if (conflicted) {
+        const files = (
+          await git(dir, ["diff", "--name-only", "--diff-filter=U"])
+        )
+          .split("\n")
+          .filter(Boolean);
+        if (!files.length || files.some((f) => !union.has(f))) {
+          await git(dir, ["merge", "--abort"]).catch(() => {});
+          if (!files.length)
+            fail(`Merging ${entry.key} failed without a conflict.`, 500);
+          return { conflict: files, key: entry.key };
+        }
+        for (const file of files) await unionMerge(dir, file);
+      }
+      // A merge with nothing to bring leaves no merge in progress.
+      const merging = await git(dir, [
+        "rev-parse",
+        "-q",
+        "--verify",
+        "MERGE_HEAD",
+      ]).catch(() => null);
+      if (!merging) continue;
+      // The landing commit ticks its own task (Requirement 113.8): one commit.
+      await tickOf?.(dir, entry);
       await git(dir, ["commit", "--quiet", "--cleanup=strip", "-m", message]);
     }
     return { candidate: await git(dir, ["rev-parse", "HEAD"]) };
@@ -202,6 +223,8 @@ export async function landWithIntents(intents, push) {
 //   checks      the repository's checks ([{name, argv, paths}]); the ones
 //               the candidate's diff from the base picks run at it
 //   unionPaths  append-only paths merged with union semantics
+//   tickOf(dir, entry)  ticks the entry's tasks in the candidate worktree
+//               before its merge commit, so the commit carries the tick
 //   intent(spec, entries) -> {journal, input, options}: the spec's driver
 //               journal and landIntent input (driver, owner, login,
 //               revision, op?). Candidate, base, tasks and refs are filled.
@@ -213,6 +236,7 @@ export function directSteps({
   repository,
   checks = [],
   unionPaths = [],
+  tickOf = null,
   intent,
   env,
   machine,
@@ -249,7 +273,7 @@ export function directSteps({
         env: environment,
       });
       for (const entry of entries) await holdMember(root, entry);
-      return stackMembers(root, entries, baseHead, unionPaths);
+      return stackMembers(root, entries, baseHead, unionPaths, tickOf);
     },
     // `only` names the checks to run again (a rerun or a bisect step); the
     // content scan is one of them. Every selected check runs, so the failing
