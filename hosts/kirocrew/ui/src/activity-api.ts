@@ -106,7 +106,7 @@ type Rule = { pattern: RegExp; ref: (groups: Record<string, string>, row: Activi
 const NAME = String.raw`[\w.-]+\/[\w.-]*[\w-]`
 const BRANCH = String.raw`\w(?:[\w./-]*[\w-])?`
 // Kinds whose summary says "on <branch>" (spec-ticks, plan approval).
-const BRANCH_KINDS = new Set(['task.ticked', 'plan.approved', 'worker.released'])
+const BRANCH_KINDS = /^(?:task\.ticked|plan\.approved|worker\.released)$/
 const at = (repository: string | null | undefined, ref: GithubRef): [string | null, GithubRef] => [repository ?? null, ref]
 const RULES: Rule[] = [
   // owner/repo#12: the intake row says "New pr ..." for a pull request.
@@ -121,7 +121,7 @@ const RULES: Rule[] = [
   { pattern: /(?<![\w/#])(?<x>#(?<n>\d+))\b/dg, ref: (g, row) => at(row.repository, { kind: 'issue', number: Number(g.n) }) },
   { pattern: /\b(?:commit|at) (?<x>[0-9a-f]{7,40})\b/dg, ref: (g, row) => at(row.repository, { kind: 'commit', sha: g.x }) },
   { pattern: new RegExp(`\\bbranch (?<x>${BRANCH})`, 'dg'), ref: (g, row) => at(row.repository, { kind: 'branch', ref: g.x }) },
-  { pattern: new RegExp(`\\bon (?<x>${BRANCH})`, 'dg'), ref: (g, row) => (BRANCH_KINDS.has(row.kind) ? at(row.repository, { kind: 'branch', ref: g.x }) : null) },
+  { pattern: new RegExp(`\\bon (?<x>${BRANCH})`, 'dg'), ref: (g, row) => (BRANCH_KINDS.test(row.kind) ? at(row.repository, { kind: 'branch', ref: g.x }) : null) },
   { pattern: new RegExp(`(?<![\\w./-])(?<x>${NAME})(?![\\w/#-])`, 'dg'), ref: (g, _row, known) => at(knownRepository(g.x, known), { kind: 'repo' }) },
   { pattern: /\bsigned in as (?<x>[A-Za-z0-9-]+)/dg, ref: (g) => (g.x === 'unknown' ? null : githubUserUrl(g.x)) },
 ]
