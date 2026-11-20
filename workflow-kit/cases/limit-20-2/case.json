@@ -1,0 +1,36 @@
+{
+  "title": "A draft pull request is never merged, marked ready or auto-merged",
+  "rules": ["20.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "merge-pull-request",
+      "draft": true
+    },
+    {
+      "kind": "mark-ready",
+      "draft": true
+    },
+    {
+      "kind": "arm-auto-merge",
+      "draft": true
+    },
+    {
+      "kind": "merge-pull-request",
+      "draft": false
+    }
+  ],
+  "expect": {
+    "limits": ["20.2", "20.2", "20.2", null]
+  }
+}

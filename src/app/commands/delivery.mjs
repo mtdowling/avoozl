@@ -7,6 +7,7 @@ import { help } from "../cli/command-help.mjs";
 import { confirmHighRisk } from "../cli/confirm-high-risk.mjs";
 import { confirmStep } from "../github/github-jobs.mjs";
 import { watchTick } from "../tick/tick-watchdog.mjs";
+import { laneTable } from "../sessions/lane-sessions.mjs";
 
 async function runTaskDone({ options, positionals, localOrRequest, need }) {
   // A manual task (R61.13): a person marks it done or reopens it.
@@ -168,6 +169,45 @@ export const commands = [
             "runner.next",
             options.claim ? { claim: true } : {},
           ),
+          null,
+          2,
+        ),
+      );
+    },
+  },
+  {
+    command: "lanes",
+    help: [
+      help(
+        "deliver",
+        "lanes [--json]",
+        "This machine's lane sessions: each lane's role, harness, state, task and how to open its session",
+      ),
+    ],
+    async run({ options, localOrRequest }) {
+      const { lanes } = await localOrRequest("lanes.view", {});
+      if (options.json) {
+        console.log(JSON.stringify(lanes, null, 2));
+        return;
+      }
+      process.stdout.write(laneTable(lanes));
+    },
+  },
+  {
+    command: "lane resume",
+    help: [
+      help(
+        "deliver",
+        "lane resume LANE",
+        "Open a new session for a lane a person closed, on the next tick (a person only)",
+      ),
+    ],
+    async run({ positionals, localOrRequest, need }) {
+      console.log(
+        JSON.stringify(
+          await localOrRequest("lane.resume", {
+            lane: need(positionals[0], "lane resume LANE"),
+          }),
           null,
           2,
         ),

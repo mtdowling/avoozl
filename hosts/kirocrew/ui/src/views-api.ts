@@ -326,7 +326,7 @@ export interface ReviewTask extends TaskOwner {
 // steps the shared confirm shows before the operation runs.
 export interface NeedsYouAction {
   label: string
-  operation: 'plugin.credentials.pick' | 'claim.delete'
+  operation: 'plugin.credentials.pick' | 'claim.delete' | 'lane.resume'
   input: Record<string, unknown>
   confirm?: HighRiskStep[]
 }

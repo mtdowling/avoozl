@@ -1,0 +1,44 @@
+{
+  "title": "The old holder's push is rejected once the new holder pushed a takeover commit",
+  "rules": ["12.3", "12.7", "12.8", "12.9"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": [],
+    "graph": {
+      "c1": [],
+      "c2": ["c1"],
+      "t": ["c2"],
+      "c3": ["c2"],
+      "c4": ["t"]
+    },
+    "heads": {
+      "avoozl/parser/p-2": "t"
+    }
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "push": {
+    "branch": "avoozl/parser/p-2",
+    "by": [
+      {
+        "runner": "old-holder",
+        "head": "c3"
+      },
+      {
+        "runner": "new-holder",
+        "head": "c4"
+      }
+    ]
+  },
+  "expect": {
+    "push": {
+      "old-holder": "rejected",
+      "new-holder": "accepted"
+    }
+  }
+}

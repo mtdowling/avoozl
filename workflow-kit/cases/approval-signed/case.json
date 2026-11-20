@@ -1,0 +1,29 @@
+{
+  "title": "An approver's verified signature approves, whoever authored the commit",
+  "rules": ["7.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "approvers": ["acme-owner"],
+  "history": [
+    {
+      "commit": "1",
+      "author": "acme-mallory",
+      "signer": "acme-owner"
+    }
+  ],
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "approved": {
+      "parser": true
+    },
+    "ready": ["parser/p-1"]
+  }
+}

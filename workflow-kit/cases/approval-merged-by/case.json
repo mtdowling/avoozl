@@ -1,0 +1,29 @@
+{
+  "title": "A pull request an approver merged approves, whoever authored its commit",
+  "rules": ["7.1", "7.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "approvers": ["acme-owner"],
+  "history": [
+    {
+      "commit": "1",
+      "author": "acme-mallory",
+      "mergedBy": "acme-owner"
+    }
+  ],
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "approved": {
+      "parser": true
+    },
+    "ready": ["parser/p-1"]
+  }
+}

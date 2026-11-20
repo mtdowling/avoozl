@@ -209,3 +209,101 @@ test("the installed adapter reads its shipped contract without a source checkout
   );
   assert.deepEqual(actual, EXECUTOR_CONTRACT);
 });
+
+test("a lane chat opens once by its header, is cleared before each later task, and waits while busy", () => {
+  // Nearby inputs: a lane with no chat yet, a known lane chat that clears,
+  // one with a turn running (409), one Kiro Crew no longer has (404), and a
+  // reviewer lane, which gets trust like a worker lane.
+  const result = run(`
+resets = []
+answers = []
+def _post(path, body):
+    resets.append([path, body])
+    return answers.pop(0) if answers else {"slot": "x", "reset": True}
+ctx._post = _post
+lane = {"id": "worker-1", "header": "Avoozl · ws · worker 1"}
+d = {"task": "one", "role": "worker", "title": "avoozl:one", "folder": "Avoozl/app", "project": False, "brief": "A", "lane": lane}
+first = e.start(*e.arguments(d))
+second = e.start(*e.arguments({**d, "task": "two", "brief": "B", "lane": {**lane, "slot": "session-one"}}))
+answers.append({"error": "HTTP 409", "status_code": 409, "code": "turn_in_flight"})
+try:
+    e.start(*e.arguments({**d, "task": "three", "lane": {**lane, "slot": "session-one"}}))
+    busy = False
+except m.StartRefused as refusal:
+    busy = refusal.before_open
+answers.append({"error": "HTTP 404", "status_code": 404})
+gone = e.start(*e.arguments({**d, "task": "four", "lane": {**lane, "slot": "old"}}))
+review = e.start(*e.arguments({**d, "task": "five", "role": "review:review", "lane": {"id": "reviewer-1", "header": "Avoozl · ws · reviewer", "slot": "session-r"}}))
+print(json.dumps({"calls": calls, "resets": resets, "busy": busy, "slots": [first, second, gone, review]}))`);
+  // The first task opens the chat by its header in the lane folder.
+  assert.deepEqual(result.calls[0], [
+    "open",
+    "Avoozl · ws · worker 1",
+    { folder_id: "child", agent: "" },
+  ]);
+  const binds = result.calls.filter((row) => row[0] === "bind");
+  assert.deepEqual(
+    binds.map((row) => [row[1].taskId, row[1].slot, row[1].lane]),
+    [
+      ["one", "session-one", "worker-1"],
+      ["two", "session-one", "worker-1"],
+      ["four", "session-one", "worker-1"],
+      ["five", "session-r", "reviewer-1"],
+    ],
+  );
+  assert.equal(binds[0][1].title, "Avoozl · ws · worker 1");
+  // Every later task clears the known chat with replay off; the first
+  // reset follows the open of a header Kiro Crew may already hold.
+  assert.deepEqual(
+    result.resets.map(([route, body]) => [route, body]),
+    [
+      ["/api/chat/slots/session-one/reset-conversation", { replay: false }],
+      ["/api/chat/slots/session-one/reset-conversation", { replay: false }],
+      ["/api/chat/slots/session-one/reset-conversation", { replay: false }],
+      ["/api/chat/slots/old/reset-conversation", { replay: false }],
+      ["/api/chat/slots/session-one/reset-conversation", { replay: false }],
+      ["/api/chat/slots/session-r/reset-conversation", { replay: false }],
+    ],
+  );
+  assert.equal(result.busy, true, "a busy lane chat releases the request");
+  assert.equal(
+    result.calls.filter((row) => row[0] === "open").length,
+    2,
+    "only a lane with no known chat, or a gone one, opens",
+  );
+  assert.deepEqual(
+    result.calls
+      .filter((row) => row[0] === "mode")
+      .map((row) => [row[1], row[2]]),
+    [
+      ["session-one", "trust"],
+      ["session-one", "trust"],
+      ["session-one", "trust"],
+      ["session-r", "trust"],
+    ],
+  );
+});
+
+test("the cron keeps trust on a reviewer lane chat as on a worker chat", () => {
+  const result = run(`
+e.keep_trust([{"slot": "w", "role": "worker"}, {"slot": "r", "role": "review:review", "lane": "reviewer-1"}, {"slot": "v", "role": "verifier"}])
+print(json.dumps(calls))`);
+  assert.deepEqual(result, [
+    ["mode", "w", "trust"],
+    ["mode", "r", "trust"],
+  ]);
+});
+
+test("a review round on the same task continues in its lane chat with no clear", () => {
+  const result = run(`
+resets = []
+ctx._post = lambda path, body: resets.append(path) or {"reset": True}
+d = {"task": "one", "role": "worker", "title": "avoozl:one", "folder": "Avoozl/app", "project": False, "brief": "Round 2", "attempt": 2, "lane": {"id": "worker-1", "header": "h", "slot": "lane-chat", "resume": True}}
+slot = e.start(*e.arguments(d))
+print(json.dumps({"slot": slot, "resets": resets, "kinds": [row[0] for row in calls]}))`);
+  assert.deepEqual(result, {
+    slot: "lane-chat",
+    resets: [],
+    kinds: ["bind", "mode", "send"],
+  });
+});

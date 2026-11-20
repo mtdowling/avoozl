@@ -1,0 +1,35 @@
+{
+  "title": "Only a runner's own claim branch after landing is deleted",
+  "rules": ["20.5"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "delete-branch",
+      "createdByRunner": false,
+      "afterLanding": true
+    },
+    {
+      "kind": "delete-branch",
+      "createdByRunner": true,
+      "afterLanding": false
+    },
+    {
+      "kind": "delete-branch",
+      "createdByRunner": true,
+      "afterLanding": true
+    }
+  ],
+  "expect": {
+    "limits": ["20.5", "20.5", null]
+  }
+}

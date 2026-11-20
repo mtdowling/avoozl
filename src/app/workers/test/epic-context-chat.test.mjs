@@ -48,7 +48,10 @@ async function world(t) {
     pluginOptions: ctx.options,
     approvalCheckout: async () => r.root,
     approverOf: async () =>
-      approverCheck({ repository: { allowedActors: [OWNER] } }),
+      approverCheck({
+        repository: { allowedActors: [OWNER] },
+        trust: "branch-protection",
+      }),
   };
   return { r, store, ctx, ops };
 }

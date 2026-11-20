@@ -351,7 +351,14 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       role: "worker",
       attempt: 1,
       title: "avoozl:urgent Task urgent",
-      folder: "Avoozl/app",
+      // Its worker lane, whose chat sits in the workspace's lane folder
+      // (simplify §D22.1).
+      lane: {
+        id: "worker-1",
+        header: `Avoozl · ${path.basename(root)} · worker 1`,
+        workspace: path.basename(root),
+      },
+      folder: `Avoozl/${path.basename(root)}`,
       project: false,
       agent: "kirocrew-worker",
       checkout: store.get("repositories", "app").root,
@@ -459,7 +466,7 @@ test("a local worker opens with project false, whatever its chat folder", async 
   // Nearby inputs: folders not read (old cron), the folder not made yet, the
   // folder without and with a project directory (R88.2: the brief names the
   // worktree, so no folder project is needed and no notice is raised).
-  const { store, ops } = setup(t, {
+  const { root, store, ops } = setup(t, {
     tasks: [leaf("a")],
     lanes: { local: 1 },
     delivery: {},
@@ -480,7 +487,11 @@ test("a local worker opens with project false, whatever its chat folder", async 
     assert.equal(result.dispatch[0]?.task, "a", label);
     assert.deepEqual(
       kirocrewConfiguration(store, result.dispatch[0]),
-      { folder: "Avoozl/app", project: false, agent: "kirocrew-worker" },
+      {
+        folder: `Avoozl/${path.basename(root)}`,
+        project: false,
+        agent: "kirocrew-worker",
+      },
       label,
     );
     assert.ok(

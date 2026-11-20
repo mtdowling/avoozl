@@ -73,17 +73,62 @@ no `loop`, the tick still reads and caches, and `avoozl next`, `avoozl land`,
 
 ### Lanes
 
-A machine's `lanes.local` sets how many worker sessions run at once. The
-default is 3. It lives in `~/.config/avoozl/config.json`:
+A lane is one long-lived agent session that takes task after task. A
+machine runs `lanes.local` worker lanes (default 3) and `lanes.reviewers`
+reviewer lanes (default 1), set in `~/.config/avoozl/config.json`:
 
 ```json
 {
   "version": 1,
   "lanes": {
-    "local": 1
+    "local": 2,
+    "reviewers": 1
   }
 }
 ```
+
+A task starts only on a free lane of its role. Each lane session carries a
+fixed header, such as `Avoozl · my-workspace · worker 2` or
+`Avoozl · my-workspace · reviewer`. In Kiro Crew every lane chat of a
+workspace sits in the sidebar folder **Avoozl › my-workspace**. Avoozl
+clears a lane chat's conversation before its next task and sets its trust
+mode on every tick, so a lane never waits on a tool approval.
+
+A process harness such as Claude Code or Codex keeps each lane's sessions in
+`~/.avoozl/lanes/my-workspace/worker-2/` when its harness definition names
+its home variable. That folder, not your own `~/.claude` or `~/.codex`, holds
+the lane's transcripts:
+
+```json
+{
+  "home": "CLAUDE_CONFIG_DIR",
+  "label": [
+    "--name",
+    "{lane_header}"
+  ],
+  "sessions": "projects"
+}
+```
+
+`label` names each session with the lane's header; a harness without one
+gets the header as its prompt's first line. A review round resumes its
+task's session in the same lane. When the lane's next task starts, Avoozl
+deletes the lane's session files older than the previous task, so the
+previous task stays readable until then. A harness signed in through its
+default home, such as a Claude.ai login, does not see that login in a lane
+home; leave `home` out of its definition.
+
+`avoozl lanes` lists each lane with its role, state, task, and how to open
+its session:
+
+```sh
+avoozl lanes
+```
+
+When you close a lane's chat, the lane pauses and **Needs you** shows a row
+for it. Press **Resume**, or run `avoozl lane resume worker-2`, and the next
+tick opens a new chat for that lane. The task that was running moves to
+another free lane once.
 
 ### Kiro Crew setup
 

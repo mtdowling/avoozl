@@ -1,0 +1,28 @@
+{
+  "title": "A label a non-writer added is not acted on",
+  "rules": ["20.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "act-on-label",
+      "addedByWriter": false
+    },
+    {
+      "kind": "act-on-label",
+      "addedByWriter": true
+    }
+  ],
+  "expect": {
+    "limits": ["20.3", null]
+  }
+}

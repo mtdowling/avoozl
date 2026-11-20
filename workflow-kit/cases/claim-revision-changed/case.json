@@ -1,0 +1,25 @@
+{
+  "title": "A claim does not tick when the approved task text changed after its lease",
+  "rules": ["7.3", "12.10"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "revision": {
+    "task": "parser/p-2",
+    "lease": {
+      "title": "Report unknown tokens",
+      "acceptance": ["An unknown token is reported with its line"]
+    }
+  },
+  "expect": {
+    "revision": "redo-or-stop"
+  }
+}

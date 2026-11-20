@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import {
   childRecord,
+  harnessSession,
   openSupervisorDatabase,
   supervisorPaths,
 } from "./supervisor.mjs";
@@ -131,7 +132,7 @@ const placeholderValues = (row) => ({
   ...JSON.parse(row.placeholder_values || "{}"),
   worktree: row.worktree,
   session: row.session_id,
-  session_uuid: row.session_id.slice("process-".length),
+  session_uuid: harnessSession(row),
 });
 
 // One argument quoted for the person's shell: POSIX single quotes, or
@@ -150,10 +151,17 @@ export function attachCommand(row, definition, platform = process.platform) {
     list.map((item) => shellQuote(item, platform)).join(" ");
   if (definition?.attach) {
     try {
-      const argv = fillHarnessArgv(definition.attach, placeholderValues(row));
+      const argv = fillHarnessArgv(definition.attach, placeholderValues(row)),
+        // A lane session lives in the lane's home (simplify §D22.2).
+        home = definition.home && JSON.parse(row.settings || "{}").lane?.home,
+        env = home
+          ? platform === "win32"
+            ? `$env:${definition.home} = ${quote([home])}; `
+            : `${definition.home}=${quote([home])} `
+          : "";
       return platform === "win32"
-        ? `Set-Location ${quote([row.worktree])}; ${quote(argv)}`
-        : `cd ${quote([row.worktree])} && ${quote(argv)}`;
+        ? `Set-Location ${quote([row.worktree])}; ${env}${quote(argv)}`
+        : `cd ${quote([row.worktree])} && ${env}${quote(argv)}`;
     } catch {
       // A placeholder with no value: follow the log instead.
     }

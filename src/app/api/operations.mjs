@@ -115,6 +115,7 @@ import {
   approvalBase,
   approvalCommits,
   approverCheck,
+  evidenceCache,
   commitApproval,
   gitAuthor,
   gitTop,
@@ -794,6 +795,8 @@ export class Operations {
       repository: entry,
       github: this.github,
       repositoryName: name,
+      trust: entry.approvalTrust ?? "github",
+      cache: evidenceCache(this.workspaceRoot),
     });
   }
   // The approval commit for these spec plans, one per checkout, made by the
@@ -851,6 +854,12 @@ export class Operations {
             { branch: specsBranchSetting(this.workspaceRoot) },
           )
         : null;
+      if (made && login)
+        evidenceCache(this.workspaceRoot).set(made.commit, {
+          mergedBy: null,
+          signer: null,
+          pushedBy: login,
+        });
       for (const plan of group) {
         const earlier = open.includes(plan)
             ? null
@@ -921,7 +930,7 @@ export class Operations {
             ...input,
             approvedBy: match.email,
             approvalCommit: match.commit,
-            evidence: `Approval commit ${match.commit} by ${match.email}.`,
+            evidence: `Approval commit ${match.commit} by ${match.email}${match.evidence ? `, ${match.evidence}` : ""}.`,
             operator: this.operator,
             githubPolicy: this.githubPolicy(),
             ...(specQuality

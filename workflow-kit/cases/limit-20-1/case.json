@@ -1,0 +1,28 @@
+{
+  "title": "A push to the base needs passing checks on that exact head",
+  "rules": ["20.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "push-base",
+      "checks": "fail"
+    },
+    {
+      "kind": "push-base",
+      "checks": "pass"
+    }
+  ],
+  "expect": {
+    "limits": ["20.1", null]
+  }
+}

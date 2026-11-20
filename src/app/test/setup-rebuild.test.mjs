@@ -138,7 +138,11 @@ test("repository configure then rebuild finds the specs, ticks, claims and spec 
       github: {
         mode: "single-repo",
         repositories: {
-          "acme/app": { baseBranch: "main", allowedActors: [OWNER] },
+          "acme/app": {
+            baseBranch: "main",
+            allowedActors: [OWNER],
+            approvalTrust: "branch-protection",
+          },
         },
       },
     }),

@@ -49,7 +49,10 @@ async function world(
     workspaceRoot: r.root,
     checkout: async () => r.root,
     approverOf: async () =>
-      approverCheck({ repository: { allowedActors: [OWNER] } }),
+      approverCheck({
+        repository: { allowedActors: [OWNER] },
+        trust: "branch-protection",
+      }),
   };
   return {
     r,

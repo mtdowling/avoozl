@@ -7,6 +7,7 @@ The installed app and a source checkout read the same contract data.
 import json
 import re
 from pathlib import Path
+from urllib.parse import quote
 
 _APP = Path(__file__).resolve().parents[1]
 _CONTRACT_PATH = next(
@@ -151,9 +152,64 @@ MODES = ("trust", "trust_reads")
 def _mode(request):
     if request.get("mode") in MODES:
         return request["mode"]
+    if request.get("lane"):
+        # A lane chat, worker or reviewer (simplify D22.1): the reviewer runs
+        # git and the checks, and trust_reads allows no shell.
+        return WORKER_MODE
     if (request.get("role") or "worker") == "worker" and not request.get("remote"):
         return WORKER_MODE
     return None
+
+
+def reset_conversation(ctx, slot):
+    """Clear a lane chat's conversation for its next task (simplify D22.1).
+
+    Kiro Crew lets a cron reset a chat it opened, with
+    POST /api/chat/slots/<slot>/reset-conversation; replay false keeps the
+    old transcript out of the new context. Returns "reset", "busy" (a turn
+    is running), or "gone" (no such chat, or not this cron's).
+    shortcut: ScriptContext has no method for this route, so this calls its
+    _post, which the context documents for routes it does not wrap; use a
+    public method once Kiro Crew adds one.
+    """
+    own = getattr(ctx, "reset_session", None)
+    path = "/api/chat/slots/%s/reset-conversation" % quote(slot, safe="")
+    result = own(slot) if callable(own) else ctx._post(path, {"replay": False})
+    if isinstance(result, dict) and result.get("reset") is True:
+        return "reset"
+    if isinstance(result, dict) and result.get("status_code") == 409:
+        return "busy"
+    return "gone"
+
+
+def keep_title(ctx, slot, header):
+    """Set a lane chat's title back to its header when it reads another
+    (simplify D22.1). Best effort: a gateway that refuses either call keeps
+    the title it has, and the next run tries again.
+    shortcut: ScriptContext wraps neither the slot read nor the rename, so
+    this builds both on its own credential, as _post does.
+    """
+    import urllib.request
+
+    try:
+        base = "http://127.0.0.1:%s/api/chat/slots/%s" % (ctx._port, quote(slot, safe=""))
+        current = ctx._exchange(
+            urllib.request.Request(base + "?limit=1", headers=ctx._headers(), method="GET")
+        )
+        if not isinstance(current, dict) or "error" in current:
+            return
+        if current.get("title") == header:
+            return
+        ctx._exchange(
+            urllib.request.Request(
+                base + "/title",
+                data=json.dumps({"title": header}).encode(),
+                headers={**ctx._headers(), "Content-Type": "application/json"},
+                method="PATCH",
+            )
+        )
+    except Exception:  # an older gateway, or a chat that just went away
+        pass
 
 
 def _text(value, name, nullable=False, empty=False):
@@ -179,16 +235,20 @@ class KiroCrewExecutor:
             pass
 
     def keep_trust(self, observed):
-        """Set each observed worker chat's trust mode again, once per chat."""
+        """Set each observed worker chat's trust mode again, once per chat,
+        and a lane chat's fixed header when its title changed."""
         for row in observed or []:
             if not isinstance(row, dict):
                 continue
+            slot = row.get("slot")
+            if isinstance(slot, str) and slot and row.get("header"):
+                keep_title(self._ctx, slot, row["header"])
             slot = row.get("slot")
             if (
                 isinstance(slot, str)
                 and slot
                 and slot not in self._trusted
-                and (row.get("role") or "worker") == "worker"
+                and ((row.get("role") or "worker") == "worker" or row.get("lane"))
             ):
                 self._set_mode(slot, WORKER_MODE)
 
@@ -249,10 +309,34 @@ class KiroCrewExecutor:
             "role": role,
             "title": "avoozl:" + task,
         }
+        lane = d.get("lane") if isinstance(d.get("lane"), dict) else None
+        if lane and lane.get("slot") and lane.get("resume"):
+            # A review round on the same task continues in the same chat.
+            return self._brief(lane["slot"], d, task, role, brief, permissionClass)
+        if lane and lane.get("slot"):
+            # The lane's chat takes its next task with a clear context.
+            cleared = reset_conversation(self._ctx, lane["slot"])
+            if cleared == "busy":
+                raise StartRefused("The lane chat has a turn running.", before_open=True)
+            if cleared == "reset":
+                return self._brief(lane["slot"], d, task, role, brief, permissionClass)
         folder, project_dir = find_or_create(self._ctx, d.get("folder", ""))
         if not project_dir and d.get("project", True):
             raise StartRefused("The chat folder has no project directory.", before_open=True)
         extra = {"model": model} if model else {}
+        if lane:
+            # A lane chat opens once, named by its fixed header, which Kiro
+            # Crew pins so its own titles never replace it.
+            slot = self._ctx.open_session(
+                lane["header"], folder_id=folder, agent=d.get("agent", ""), **extra
+            )
+            _text(slot, "sessionId")
+            # A header Kiro Crew already holds hands back that chat, which may
+            # keep an old context; opening by name again is harmless, so a
+            # busy chat releases the request for the next tick.
+            if reset_conversation(self._ctx, slot) == "busy":
+                raise StartRefused("The lane chat has a turn running.", before_open=True)
+            return self._brief(slot, d, task, role, brief, permissionClass)
         if d.get("crew"):
             try:
                 slot = self._ctx.open_session(
@@ -265,12 +349,19 @@ class KiroCrewExecutor:
                 d["title"], folder_id=folder, agent=d.get("agent", ""), **extra
             )
         _text(slot, "sessionId")
+        return self._brief(slot, d, task, role, brief, permissionClass)
+
+    def _brief(self, slot, d, task, role, brief, permissionClass):
+        """Bind the opened chat, set its mode, and send its first brief."""
+        lane = d.get("lane") if isinstance(d.get("lane"), dict) else None
         binding = {
             "taskId": task,
             "slot": slot,
-            "title": d["title"],
+            "title": lane["header"] if lane else d["title"],
             "source": "tick",
         }
+        if lane:
+            binding["lane"] = lane["id"]
         for key in (
             "role", "attempt", "model", "commit", "batch", "crew",
             "sessionReason", "investigate",

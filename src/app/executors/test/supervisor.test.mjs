@@ -12,6 +12,7 @@ import {
 } from "../harness-definitions.mjs";
 import {
   childRecord,
+  harnessSession,
   childStatus,
   launchSupervisor,
   openSupervisorDatabase,
@@ -44,7 +45,7 @@ if (brief.waitFor) {
 } else finish();
 `;
 
-function scratch(t, { approve = true, keepEnv = undefined } = {}) {
+function scratch(t, { approve = true, keepEnv = undefined, extra = {} } = {}) {
   const { root, defer } = scratchRoot(t, "avoozl-supervisor-");
   const stateDirectory = path.join(root, "state");
   const configDirectory = path.join(root, "config");
@@ -59,6 +60,7 @@ function scratch(t, { approve = true, keepEnv = undefined } = {}) {
     permission: { write: "workspace-write", read: "read-only" },
     writeRoots: ["{worktree}", "{tmp}"],
     ...(keepEnv ? { keepEnv } : {}),
+    ...extra,
   });
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),
@@ -431,4 +433,137 @@ test("the app backend starts the supervisor once it listens", async (t) => {
   await new Promise((resolve) => server.once("listening", resolve));
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls, 1);
+});
+
+// A fake agent that records its argv, its home variable and its prompt.
+const LANE_AGENT = `
+import fs from "node:fs";
+fs.writeFileSync("seen.json", JSON.stringify({
+  argv: process.argv.slice(2),
+  home: process.env.FAKE_HOME ?? null,
+  prompt: fs.readFileSync(process.argv[2], "utf8"),
+}));
+`;
+
+// Run one requested lane child to its exit and read what it recorded.
+async function runSeen({
+  stateDirectory,
+  configDirectory,
+  worktree,
+  defer,
+  db,
+  id,
+}) {
+  const supervisor = startSupervisor({
+    stateDirectory,
+    configDirectory,
+    intervalMs: 60_000,
+  });
+  defer(() => supervisor.close());
+  await until(() => {
+    supervisor.pass();
+    return childStatus(db, id) !== "working";
+  });
+  return JSON.parse(fs.readFileSync(path.join(worktree, "seen.json"), "utf8"));
+}
+
+test("a lane child runs in its lane's home, named by its header, and a new task prunes older sessions (simplify §D22.2)", async (t) => {
+  // Nearby inputs: a session file older than the lane's last task (deleted),
+  // a newer one (kept), a file outside the session folder (kept), and a
+  // definition with no label (the header leads the prompt instead).
+  const { root, stateDirectory, configDirectory, worktree, defer } = scratch(
+    t,
+    {
+      extra: {
+        home: "FAKE_HOME",
+        label: ["--name", "{lane_header}"],
+        sessions: "projects",
+      },
+    },
+  );
+  fs.writeFileSync(path.join(worktree, "agent.mjs"), LANE_AGENT);
+  const home = path.join(root, "lanes", "ws", "worker-1"),
+    sessions = path.join(home, "projects", "slug");
+  fs.mkdirSync(sessions, { recursive: true });
+  const old = path.join(sessions, "old.jsonl"),
+    kept = path.join(sessions, "kept.jsonl"),
+    config = path.join(home, "settings.json");
+  for (const file of [old, kept, config]) fs.writeFileSync(file, "{}");
+  const long = new Date(Date.now() - 3_600_000);
+  fs.utimesSync(old, long, long);
+  fs.utimesSync(config, long, long);
+  const db = openSupervisorDatabase(stateDirectory);
+  defer(() => db.close());
+  const header = "Avoozl · ws · worker 1";
+  const id = requestChild(
+    db,
+    request(
+      worktree,
+      {},
+      {
+        lane: {
+          home,
+          header,
+          keepSince: new Date(Date.now() - 60_000).toISOString(),
+        },
+      },
+    ),
+  );
+  const seen = await runSeen({
+    stateDirectory,
+    configDirectory,
+    worktree,
+    defer,
+    db,
+    id,
+  });
+  assert.equal(seen.home, home, childLog(db, id));
+  assert.deepEqual(seen.argv.slice(1), ["--name", header]);
+  assert.equal(seen.prompt, JSON.stringify({}), "a label names the session");
+  assert.equal(fs.existsSync(old), false, "an older session file is deleted");
+  assert.equal(fs.existsSync(kept), true, "the last task's session stays");
+  assert.equal(fs.existsSync(config), true, "nothing outside sessions/");
+  assert.throws(
+    () =>
+      requestChild(
+        db,
+        request(worktree, {}, { lane: { home: "relative", header } }),
+      ),
+    /lane must be/,
+  );
+});
+
+test("a lane review round resumes its task's harness session", async (t) => {
+  const { stateDirectory, configDirectory, worktree, defer } = scratch(t, {
+    extra: { home: "FAKE_HOME" },
+  });
+  fs.writeFileSync(path.join(worktree, "agent.mjs"), LANE_AGENT);
+  const db = openSupervisorDatabase(stateDirectory);
+  defer(() => db.close());
+  const resume = "0b9a1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d",
+    home = path.join(path.dirname(worktree), "lane-home");
+  const id = requestChild(
+    db,
+    request(
+      worktree,
+      { round: 2 },
+      { lane: { home, header: "Avoozl · ws · worker 1", resume } },
+    ),
+  );
+  const seen = await runSeen({
+    stateDirectory,
+    configDirectory,
+    worktree,
+    defer,
+    db,
+    id,
+  });
+  // The resume argv reads the brief as its message, led by the header.
+  assert.equal(
+    seen.prompt,
+    `Avoozl · ws · worker 1\n\n${JSON.stringify({ round: 2 })}`,
+    childLog(db, id),
+  );
+  assert.equal(seen.home, home);
+  assert.equal(harnessSession(childRecord(db, id)), resume);
 });
