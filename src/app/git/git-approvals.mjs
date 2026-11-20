@@ -146,7 +146,7 @@ export function approverCheck({
     for (const [by, login] of [
       ["merged_by", found.mergedBy],
       ["signature", found.signer],
-      ["push", found.pushedBy],
+      ["pushed", found.pushedBy],
     ])
       if (login && (await loginAllowed(login))) return by;
     return null;
