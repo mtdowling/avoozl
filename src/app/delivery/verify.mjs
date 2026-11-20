@@ -5,7 +5,7 @@
 // worktree when that worktree is at the commit. check-runs.mjs runs these
 // off the tick; delivery judges the record they leave.
 import { PUBLISH_RULES, secretReason } from "../content/content-rules.mjs";
-import { commandEvidence, git, taskGit } from "../git/git.mjs";
+import { baseRef, commandEvidence, git, taskGit } from "../git/git.mjs";
 import { checkOptions, prepareChecks } from "../workspace/check-isolation.mjs";
 import { fail } from "../store/store.mjs";
 
@@ -53,10 +53,14 @@ export function matchesPath(pattern, file) {
 
 const anyMatch = (patterns, file) => patterns.some((p) => matchesPath(p, file));
 
-// Every path the commit adds, changes or removes since it left `baseBranch`,
-// renames as both sides.
+// Every path the commit adds, changes or removes since it left `baseBranch`
+// (its local branch, else the remote's tracking copy), renames as both sides.
 export async function changedPaths(root, baseBranch, head) {
-  const base = await git(root, ["merge-base", baseBranch, head]),
+  const base = await git(root, [
+      "merge-base",
+      await baseRef(root, baseBranch),
+      head,
+    ]),
     out = await git(root, [
       "diff",
       "--name-only",

@@ -4,14 +4,14 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { trackedImages } from "../../../scripts/check/check-no-images.mjs";
-import { assertShotOutsideGit } from "../../../kirocrew-app/ui/test/browser/chrome.mjs";
+import { assertShotOutsideGit } from "../../../hosts/kirocrew/ui/test/browser/chrome.mjs";
 
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 
 test("only the listed app assets may be tracked images", () => {
   assert.deepEqual(
     trackedImages([
-      "kirocrew-app/assets/icon.png",
+      "hosts/kirocrew/assets/icon.png",
       "docs/evidence/x/after/a.PNG",
       "b.jpeg",
       "c.webp",

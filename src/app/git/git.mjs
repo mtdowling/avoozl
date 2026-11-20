@@ -78,6 +78,44 @@ export async function git(cwd, args, { env } = {}) {
   ).stdout.trim();
 }
 
+// The refs a branch name can mean in a checkout, in the order they win: the
+// local branch, then the remote's tracking copy. A checkout that only fetched
+// the branch (no local branch) still has a base. Every place that resolves a
+// repository's base branch goes through these, so all of them agree.
+export const branchRefs = (branch, remote = "origin") => [
+  `refs/heads/${branch}`,
+  `refs/remotes/${remote}/${branch}`,
+];
+// {ref, commit} for the first of branchRefs that holds a commit, or null.
+// Read only: no branch is created or moved.
+export async function branchTip(root, branch, remote = "origin") {
+  if (typeof branch !== "string" || !branch || branch.startsWith("-"))
+    return null;
+  for (const ref of branchRefs(branch, remote))
+    try {
+      return {
+        ref,
+        commit: await git(root, [
+          "rev-parse",
+          "--verify",
+          "--quiet",
+          `${ref}^{commit}`,
+        ]),
+      };
+    } catch {}
+  return null;
+}
+// The ref a repository's base branch resolves to; refuses naming both refs
+// it tried.
+export async function baseRef(root, branch, remote = "origin") {
+  const tip = await branchTip(root, branch, remote);
+  if (tip) return tip.ref;
+  const [local, tracking] = branchRefs(branch, remote);
+  fail(
+    `Branch ${branch} has no commit in ${root}: neither ${local} nor ${tracking} exists. Pass --branch BRANCH.`,
+  );
+}
+
 // The git host Avoozl's GitHub is on: AVOOZL_GIT_URL, or github.com for the
 // public API. Another API host with no git host named has none.
 export function githubGitUrl(env = process.env) {
@@ -433,13 +471,7 @@ export async function repositoryConfig({
   // A leading dash would reach git as an option.
   if (typeof baseBranch !== "string" || baseBranch.startsWith("-"))
     fail("Name a valid base branch.");
-  try {
-    await git(root, ["rev-parse", "--verify", baseBranch + "^{commit}"]);
-  } catch {
-    fail(
-      `Branch ${baseBranch} has no commit in ${root}. Pass --branch BRANCH.`,
-    );
-  }
+  await baseRef(root, baseBranch);
   // The repository's named checks; the older list of argv arrays loads too.
   checks = checksSetting(checks, "checks");
   // The isolation its checks run under; a person sets it here.
@@ -510,7 +542,11 @@ export async function createWorktree(store, repository, runId, task = {}) {
       if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
       // Room first: a full volume holds the work instead of a half-made add.
       requireDiskSpace(store, path.dirname(worktree), `The worktree ${runId}`);
-      const helper = path.join(repository.root, "scripts/worktree");
+      const helper = path.join(repository.root, "scripts/worktree"),
+        // A base only fetched from the remote starts the branch as well.
+        start = task.existing
+          ? null
+          : await baseRef(repository.root, task.start || repository.baseBranch);
       if (task.existing)
         await git(repository.root, ["worktree", "add", worktree, branch]);
       else if (fs.existsSync(helper)) {
@@ -527,23 +563,20 @@ export async function createWorktree(store, repository, runId, task = {}) {
                 : "."),
             409,
           );
-        await exec(
-          helper,
-          [branch, worktree, task.start || repository.baseBranch],
-          {
-            cwd: repository.root,
-            env: repositoryEnvironment(),
-            maxBuffer: 8 * 1024 * 1024,
-          },
-        );
+        await exec(helper, [branch, worktree, start], {
+          cwd: repository.root,
+          env: repositoryEnvironment(),
+          maxBuffer: 8 * 1024 * 1024,
+        });
       } else
         await git(repository.root, [
           "worktree",
           "add",
+          "--no-track",
           "-b",
           branch,
           worktree,
-          task.start || repository.baseBranch,
+          start,
         ]);
       await configureWorktreeIdentity(repository.root, worktree);
       return {
@@ -983,7 +1016,12 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
     try {
       await git(repository.root, ["rev-parse", "--verify", "--quiet", ref]);
     } catch {
-      await git(repository.root, ["branch", target, repository.baseBranch]);
+      await git(repository.root, [
+        "branch",
+        "--no-track",
+        target,
+        await baseRef(repository.root, repository.baseBranch),
+      ]);
     }
   } else {
     if (

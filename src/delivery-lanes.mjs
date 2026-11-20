@@ -6,7 +6,7 @@
 const ENDED = new Set(["closed", "lost"]);
 
 // A task's state on the Graph, with the word the page shows for it. The page
-// (kirocrew-app/ui/src/graph-layout.ts) and the `query` and `task.get`
+// (hosts/kirocrew/ui/src/graph-layout.ts) and the `query` and `task.get`
 // operations read this one list, so the CLI says what the page says.
 export const NODE_STATES = Object.freeze([
   ["ready", "Ready"],

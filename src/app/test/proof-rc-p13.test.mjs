@@ -24,7 +24,7 @@ test("Quick goal is gone: no operation, page or module", async () => {
   for (const file of [
     "src/app/quick-goal.mjs",
     "src/app/quick-goal-ops.mjs",
-    "kirocrew-app/ui/src/QuickGoalModal.tsx",
+    "hosts/kirocrew/ui/src/QuickGoalModal.tsx",
   ])
     assert.equal(
       fs.existsSync(new URL(`../../../${file}`, import.meta.url)),

@@ -11,7 +11,7 @@
 //   keeps its first-parent history, so verified but unlanded integrations
 //   stay; task checkpoint refs are never touched. Nothing is pushed or
 //   forced here.
-import { git } from "../git/git.mjs";
+import { branchRefs, branchTip, git } from "../git/git.mjs";
 import { branchNameProblem } from "../epics/integration-branch.mjs";
 import { workingBranch } from "../workers/working-heads.mjs";
 import { fail } from "../store/store.mjs";
@@ -46,10 +46,17 @@ export async function specBase(root, { spec, base, legacy = [] }) {
     { branch: base, kind: "base" },
   ];
   for (const candidate of candidates) {
-    const commit = await tip(root, candidate.branch);
+    // The base may exist only as the remote's tracking copy (git.mjs).
+    const commit =
+      candidate.kind === "base"
+        ? (await branchTip(root, candidate.branch))?.commit
+        : await tip(root, candidate.branch);
     if (commit) return { ...candidate, commit };
   }
-  fail(`The base branch ${base} does not exist in ${root}.`, 409);
+  fail(
+    `The base branch ${base} does not exist in ${root}: neither ${branchRefs(base).join(" nor ")} exists.`,
+    409,
+  );
 }
 
 // Merges the landed target base into the spec's working branch with a merge

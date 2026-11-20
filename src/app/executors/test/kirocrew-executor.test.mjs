@@ -8,7 +8,7 @@ import { EXECUTOR_CONTRACT } from "../executors.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const adapter = fileURLToPath(
-  new URL("../../../../kirocrew-app/executors/kirocrew.py", import.meta.url),
+  new URL("../../../../hosts/kirocrew/executors/kirocrew.py", import.meta.url),
 );
 const run = (body) =>
   JSON.parse(
@@ -173,7 +173,7 @@ print(json.dumps(out))`);
 
 test("the cron contains orchestration but no native session or project calls", () => {
   const source = fs.readFileSync(
-    new URL("../../../../kirocrew-app/crons/tick.py", import.meta.url),
+    new URL("../../../../hosts/kirocrew/crons/tick.py", import.meta.url),
     "utf8",
   );
   assert.doesNotMatch(

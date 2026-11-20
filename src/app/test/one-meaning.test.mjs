@@ -57,7 +57,7 @@ function retired(texts) {
 }
 
 const surfaces = () => [
-  ...pageSources(path.join(ROOT, "kirocrew-app", "ui", "src")),
+  ...pageSources(path.join(ROOT, "hosts", "kirocrew", "ui", "src")),
   ["avoozl help all", helpText("all")],
   ...docs(),
 ];

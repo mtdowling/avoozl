@@ -38,6 +38,7 @@ import {
   parseGapReport,
 } from "../specs/gap-report.mjs";
 import {
+  branchTip,
   currentBranchSync,
   originRepositorySync,
   withWorkLock,
@@ -1138,7 +1139,10 @@ export class Operations {
       .filter((p) => p.root && (!only_root || sameFolder(p.root, only_root))))
       for (const landing of await landingsFromGit(
         project.root,
-        project.baseBranch || "HEAD",
+        project.baseBranch
+          ? ((await branchTip(project.root, project.baseBranch))?.ref ??
+              project.baseBranch)
+          : "HEAD",
       ).catch(() => []))
         for (const { spans = [], ...task } of landing.tasks) {
           landed.push({ ...task, commit: landing.commit });

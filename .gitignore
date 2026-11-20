@@ -16,7 +16,7 @@ workspace.local.json
 *.jpeg
 *.gif
 *.webp
-!/kirocrew-app/assets/icon.png
+!/hosts/kirocrew/assets/icon.png
 
 # Packaged extension artifacts are built on demand.
 build/

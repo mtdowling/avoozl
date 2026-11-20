@@ -10,12 +10,12 @@
     "includes": [
       "**",
       "!!**/node_modules",
-      "!!kirocrew-app/ui/dist",
-      "!!kirocrew-app/bin/lib",
+      "!!hosts/kirocrew/ui/dist",
+      "!!hosts/kirocrew/bin/lib",
       "!!docs/research",
       "!!docs/evidence",
       "!scripts/test/test-map.json",
-      "!kirocrew-app/agents/*.json"
+      "!hosts/kirocrew/agents/*.json"
     ]
   },
   "formatter": {
@@ -71,7 +71,7 @@
   },
   "overrides": [
     {
-      "includes": ["kirocrew-app/ui/**"],
+      "includes": ["hosts/kirocrew/ui/**"],
       "formatter": {
         "lineWidth": 180
       },

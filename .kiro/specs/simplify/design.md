@@ -306,8 +306,8 @@ Every other role becomes a skill or is cut:
 
 Skills are generated the way the triage removal branch generates
 `avoozl-answer`, `avoozl-review` and `avoozl-triage`: source in
-`prompts/skills/<name>.md`, output in `kirocrew-app/skills/<name>/SKILL.md`,
-and `npm run check:agents` fails on drift. The shipped skill set is
+`prompts/skills/<name>.md`, output in `hosts/kirocrew/skills/<name>/SKILL.md`,
+and `npm run check:hosts` fails on drift. The shipped skill set is
 `avoozl-spec`, `avoozl-work`, `avoozl-review`, `avoozl-spec-review`,
 `avoozl-retro`, `avoozl-investigate`, `avoozl-plugin`, `avoozl-rules`, and
 the `avoozl-answer` and `avoozl-triage` skills the triage removal ships.
@@ -325,7 +325,7 @@ changes no file.
 `avoozl-work` is `prompts/worker.md` plus the claim, report and land calls.
 `avoozl-costs` is cut with provider health.
 
-The generated agents in `kirocrew-app/agents/` shrink to `avoozl-reviewer`;
+The generated agents in `hosts/kirocrew/agents/` shrink to `avoozl-reviewer`;
 a worker chat uses Kiro Crew's default agent with the worker brief.
 
 ## D11. Plugins
@@ -411,7 +411,7 @@ feature took with it. `src/app/skills/avoozl/SKILL.md` becomes generated.
 
 ## D15. Module audit: the page
 
-Every file in `kirocrew-app/ui/src/` (`.tsx` and `.ts`), grouped by view:
+Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
 
 | Group | Lines | Verdict | Files |
 | --- | ---: | --- | --- |

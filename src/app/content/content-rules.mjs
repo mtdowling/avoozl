@@ -27,6 +27,7 @@ import { queueNotifications } from "../tick/notifications.mjs";
 import { PRIVACY_SET, privacyHits, privacyRules } from "./privacy.mjs";
 import { fail } from "../store/store.mjs";
 import { personPosting, postedText } from "../github/github-posted.mjs";
+import { branchRefs } from "../git/git.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
@@ -1798,18 +1799,16 @@ export function revision(value) {
 // with the repository's integration branch when it exists, else its base.
 export function diffBase(repository, head) {
   revision(head);
-  for (const branch of [
-    repository.integrationBranch,
-    repository.baseBranch || "main",
+  // The base may exist only as the remote's tracking copy (git.mjs).
+  for (const ref of [
+    ...(repository.integrationBranch
+      ? [`refs/heads/${repository.integrationBranch}`]
+      : []),
+    ...branchRefs(repository.baseBranch || "main"),
   ])
-    if (branch)
-      try {
-        return gitSync(repository.root, [
-          "merge-base",
-          head,
-          `refs/heads/${branch}`,
-        ]).trim();
-      } catch {}
+    try {
+      return gitSync(repository.root, ["merge-base", head, ref]).trim();
+    } catch {}
   return null;
 }
 

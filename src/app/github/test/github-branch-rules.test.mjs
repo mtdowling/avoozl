@@ -7,7 +7,7 @@ import {
 } from "../github-branch-rules.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { fixture } from "../../test/fixtures.mjs";
-import { reviewRuleText } from "../../../../kirocrew-app/ui/src/settings-api.ts";
+import { reviewRuleText } from "../../../../hosts/kirocrew/ui/src/settings-api.ts";
 
 const REPO = "example/code";
 
