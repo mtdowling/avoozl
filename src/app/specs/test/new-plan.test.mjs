@@ -286,7 +286,7 @@ test("the tick opens New plan's planner chat and credits its draft to that chat"
 const steeringPath = (root) =>
   path.join(root, ".kiro", "steering", "avoozl-specs.md");
 const builderRequest = (overrides = {}) =>
-  request({ handoff: "spec-builder", epic: "rewrite", ...overrides });
+  request({ handoff: "spec-builder", ...overrides });
 
 test("plan.new preview says whether the steering file is there and records nothing", async (t) => {
   const { root, store, ops } = workspace(t, { epic: true });
@@ -299,14 +299,6 @@ test("plan.new preview says whether the steering file is there and records nothi
   assert.match(preview.steering.text, /Never write `avoozl\/manifest.json`/);
   assert.deepEqual(pendingNewPlans(store), []);
   assert.equal(fs.existsSync(steeringPath(root)), false);
-  // The same field checks run.
-  await assert.rejects(
-    ops.execute(
-      "plan.new",
-      builderRequest({ preview: true, epic: "Bad Epic" }),
-    ),
-    /epic by its spec folder/,
-  );
 });
 
 test("plan.new for Spec Builder writes the steering file when asked and returns the create body", async (t) => {
@@ -326,7 +318,7 @@ test("plan.new for Spec Builder writes the steering file when asked and returns 
   assert.equal(body.spec_type, "feature");
   for (const needle of [
     "Follow the spec rules in .kiro/steering/avoozl-specs.md.",
-    "---\ncategory: Runtime\nepic: rewrite\n---",
+    "---\ncategory: Runtime\n---",
     "Phases, as ## headings in tasks.md:\n- Phase 1\n- Phase 2",
     "Repositories in scope",
     "app (",
@@ -369,13 +361,11 @@ const builderTasks = [
   "## Phase 1",
   "",
   "- [ ] 1. Load and validate configuration",
-  "  - $after: 1.1, 1.2",
   "  - [ ] 1.1 Read the config file",
-  "    - $done: A missing file yields defaults.",
+  "    - A missing file yields defaults.",
   "    - _Requirements: 1.1_",
   "  - [ ] 1.2 Validate loaded config",
-  "    - $after: 1.1",
-  "    - $done: An unknown key is reported with its path.",
+  "    - An unknown key is reported with its path.",
   "",
 ].join("\n");
 const builderFiles = (tasks = builderTasks) => ({

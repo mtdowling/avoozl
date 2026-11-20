@@ -74,10 +74,14 @@ const spec = {
   "tasks.md": [
     "# Tasks",
     "",
-    "- [ ] 1 Write w1",
-    "- [ ] 2 Write d1 on w1",
-    "- [ ] 3 Write w2",
-    "- [ ] 4 Write d2 on w2",
+    // Two chains side by side (simplify §D19).
+    "- [ ] 5 Both chains (**PARALLEL**)",
+    "  - [ ] 6 First chain",
+    "    - [ ] 1 Write w1",
+    "    - [ ] 2 Write d1 on w1",
+    "  - [ ] 7 Second chain",
+    "    - [ ] 3 Write w2",
+    "    - [ ] 4 Write d2 on w2",
     "",
   ].join("\n"),
   "avoozl/manifest.json": JSON.stringify(

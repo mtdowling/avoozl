@@ -704,22 +704,17 @@ settings, refs, lint and commands below.
 
 Avoozl does not follow every rule yet. Each item below is not built:
 
-- Tasks (2.3), order (3) and front matter (5): Avoozl still reads a `$` fact
-  bullet a spec has, and a spec that has `$after` facts is ordered by them.
 - Linked specs (6): a parent ticks a spec group's box in the landing commit
   only when both `tasks.md` files are on one specs branch; otherwise the box
   waits for a later tick.
 - Integration branches (11): a claim starts on the branch named for its spec
-  and catches it up, but the done branch they set (11.6, 15.1) is not built,
-  and a spec that names an `integrationBranch` key is still read by it.
+  and catches it up, but the done branch they set (11.6, 15.1) is not built.
 - Claims, leases and resuming (12): `avoozl next --claim` and `plans_next`
   with `claim` claim through the refs API and take lease generation 1, but
   Avoozl does not renew a lease or read the leases before a push, and the tick
   still starts a task on its own branch `avoozl/<task>` with no claim branch.
 - Landing (13, 14): Avoozl does not guard a pull request merge by head SHA
   and does not tick landed work whose tick is missing (13.6).
-- Next task (10): Avoozl ranks by the number of tasks unblocked and then file
-  order.
 - Label filters (16.1), label names set in settings (16.2), labeled issues
   (17) and the stop label (18).
 

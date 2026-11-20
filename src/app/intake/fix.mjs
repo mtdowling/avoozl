@@ -196,7 +196,7 @@ function specFiles(task, name) {
       "## Phase 1",
       "",
       `- [ ] ${taskToken(`${name}.1`)} ${task.title}`,
-      `  - $done: ${FIX_ACCEPTANCE[0]} ${FIX_ACCEPTANCE[1]}`,
+      `  - ${FIX_ACCEPTANCE[0]} ${FIX_ACCEPTANCE[1]}`,
       `  - Build what the requirements' text asks; it began as fix ${task.id} and grew past one change.`,
       "",
     ].join("\n"),

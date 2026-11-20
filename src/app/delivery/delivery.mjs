@@ -65,7 +65,7 @@ import {
   quietStep,
 } from "../sessions/session-bindings.mjs";
 import { queryTasks, statusComplete } from "../../query.mjs";
-import { unblockCounts } from "../specs/release-ranking.mjs";
+import { rankKeys } from "../specs/ranking.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { recordCorrection } from "../flow/corrections.mjs";
 import {
@@ -1388,15 +1388,22 @@ export function dispatchOrder(data, first = [], order = graphOrder(data)) {
     pin = (task) => (head.has(task.id) ? head.get(task.id) : first.length),
     rank = (task) => task.rank ?? task.labelRank ?? 1000,
     byId = new Map(data.tasks.map((task) => [task.id, task])),
-    counts = unblockCounts(
+    // The three ranking keys (simplify §D3.1): downstream count, chain
+    // length, then file order.
+    keys = rankKeys(
       data.edges.filter((e) => ["requires", "sequence"].includes(e.kind)),
       (id) => byId.has(id) && !statusComplete(data, byId.get(id).status),
     ),
-    unblocks = (task) => counts.get(task.id) ?? 0;
+    seen = new Map(),
+    keyOf = (task) => {
+      if (!seen.has(task.id)) seen.set(task.id, keys(task.id));
+      return seen.get(task.id);
+    };
   return (a, b) =>
     pin(a) - pin(b) ||
     rank(a) - rank(b) ||
-    unblocks(b) - unblocks(a) ||
+    keyOf(b).unblocks - keyOf(a).unblocks ||
+    keyOf(b).chain - keyOf(a).chain ||
     order(a, b);
 }
 

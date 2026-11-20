@@ -45,7 +45,12 @@ export async function serveControl({ stateDirectory, env = process.env }) {
   });
   // The holder adds the address to its record, after it holds the lock.
   const { record } = machineLockPaths(stateDirectory);
-  writeRecord(record, { ...readRecord(record), control: control.address });
+  try {
+    writeRecord(record, { ...readRecord(record), control: control.address });
+  } catch (error) {
+    control.close();
+    throw error;
+  }
   return {
     address: control.address,
     close() {

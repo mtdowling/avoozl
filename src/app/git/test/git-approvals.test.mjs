@@ -52,7 +52,7 @@ test("approvals read and write every spec file under specs.path", async () => {
     JSON.stringify({ version: 1, specs: { path: "docs/specs" } }),
   );
   fs.mkdirSync(path.join(r.root, folder), { recursive: true });
-  const tasks = "- [ ] `a-1` Do it\n  - $done: Done\n";
+  const tasks = "- [ ] `a-1` Do it\n  - Done\n";
   fs.writeFileSync(path.join(r.root, folder, "tasks.md"), tasks);
   fs.writeFileSync(path.join(r.root, folder, "old.md"), "Old\n");
   r.run(["add", "-A"]);
@@ -186,10 +186,7 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   assert.match(approved.evidence, new RegExp(head));
   // A second approved spec, with a fact of its own.
   const files = specFiles();
-  files["tasks.md"] = files["tasks.md"].replace(
-    "    - Parse",
-    "    - $type: intake\n    - Parse",
-  );
+  files["tasks.md"] = files["tasks.md"].replace("    - Parse");
   writeSpec(r.root, "intake", files);
   await first.ops.execute("plan.create", { spec: "intake" });
   await approve(first.ops, "intake");
@@ -481,55 +478,4 @@ const leafSpec = (title, { after = null, done = false } = {}) => ({
       },
     },
   }),
-});
-
-test("one epic pull request approves every spec it touches, in $after order", async (t) => {
-  const r = workspace(),
-    { store, ops } = open(r.root, "workspace.sqlite");
-  t.after(() => store.close());
-  const specs = {
-    alpha: leafSpec("alpha"),
-    // A ticked task needs alpha's: beta is approved only after alpha.
-    beta: leafSpec("beta", { after: "alpha.1.1", done: true }),
-    gamma: leafSpec("gamma", { after: "beta.1.1" }),
-    launch: {
-      "requirements.md": "# Epic launch\n\nShip it.\n",
-      "design.md": "# Design\n",
-      "tasks.md": "# Plans\n\n- [ ] 1 Row 1\n- [ ] 2 Row 2\n- [ ] 3 Row 3\n",
-      "avoozl/manifest.json": JSON.stringify({
-        kind: "epic",
-        tasks: {
-          1: { plan: "gamma" },
-          2: { plan: "beta" },
-          3: { plan: "alpha" },
-        },
-      }),
-    },
-  };
-  for (const [name, files] of Object.entries(specs)) {
-    writeSpec(r.root, name, files);
-    await ops.execute("plan.create", { spec: name });
-  }
-  // The owner's epic pull request, squash-merged by GitHub: one commit.
-  r.run(["add", "--", ".kiro/specs"]);
-  r.run(["commit", "-q", "-m", "Epic launch"], {
-    GIT_AUTHOR_NAME: "Owner",
-    GIT_AUTHOR_EMAIL: OWNER,
-    GIT_COMMITTER_NAME: "GitHub",
-    GIT_COMMITTER_EMAIL: "noreply@github.com",
-  });
-  const commit = r.run(["rev-parse", "HEAD"]);
-  await ops.execute("workspace.tick", {});
-  for (const name of Object.keys(specs)) {
-    assert.equal(store.get("plans", name).state, "approved", name);
-    const receipt = store.list("approvals").find((a) => a.planId === name);
-    assert.equal(receipt.approvedBy, OWNER, name);
-    assert.equal(receipt.approval.commit, commit, name);
-  }
-  assert.equal(tickApprovals(store).length, 4);
-  // beta's ticked task came out done once alpha was approved.
-  assert.deepEqual(
-    taskStates(store, "beta").find(([id]) => id === ".1.1"),
-    [".1.1", "accepted"],
-  );
 });

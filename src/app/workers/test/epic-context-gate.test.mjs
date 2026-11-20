@@ -204,7 +204,7 @@ test("a $context or $epicContext fact is refused by lint", () => {
       files: {
         "requirements.md": "# Config\n\nRead config.json.\n",
         "design.md": "# Design\n\nA loader.\n",
-        "tasks.md": `- [ ] 1.1 Read\n  - $done: It reads\n  - $${key}: yes\n`,
+        "tasks.md": `- [ ] 1.1 Read\n  - It reads\n  - $${key}: yes\n`,
       },
     });
     assert.deepEqual(

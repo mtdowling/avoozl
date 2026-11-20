@@ -44,7 +44,7 @@ test("spec lint refuses a Status line and says approval lives in Avoozl", () => 
   const run = lintFolder("stale", {
     "requirements.md": "# Stale\n\nStatus: Draft\n",
     "design.md": "# Stale\n",
-    "tasks.md": "- [ ] 1 One\n  - $done: it works\n",
+    "tasks.md": "- [ ] 1 One\n  - it works\n",
   });
   assert.equal(run.status, 1, run.stdout + run.stderr);
   assert.match(run.stdout, /stale: 1 errors/);
@@ -68,9 +68,9 @@ test("spec lint refuses tasks and requirements marked superseded or retired", ()
     ].join("\n"),
     "tasks.md": [
       "- [x] 1 Retired 2026-11-18",
-      "  - $done: nothing",
+      "  - nothing",
       "- [ ] 2 Two",
-      "  - $done: it works",
+      "  - it works",
       "  - Superseded: proves a removed feature; not run.",
       "",
     ].join("\n"),

@@ -1,17 +1,48 @@
 import fs from "node:fs";
 import path from "node:path";
-import {
-  factsLines,
-  summaryLines,
-  withDefaults,
-} from "../specs/spec-facts.mjs";
 import { specItems, taskToken } from "../specs/spec-plans.mjs";
 
-// Fixture shorthand: tests may describe a spec's facts as one object under
-// this key, in the shape `specFacts` returns. `withFacts` writes them into
-// tasks.md as `$key:` bullets, the only layout Avoozl reads, and drops the
-// key. A tasks.md that already has `$` bullets keeps its own.
+// Fixture shorthand: tests may describe a spec's tasks as one object under
+// this key, in the shape `specFacts` once returned. `withFacts` writes them
+// into tasks.md in the list form Avoozl reads (simplify §D20): a leaf's
+// `acceptance` as plain bullets, `manual` as the `(**MANUAL**)` tag, and the
+// leaves' one `repository` as front matter `repo`. Order comes from the list,
+// so `requires` is not written. A tasks.md written with `$` bullets is turned
+// into the same form.
 const MANIFEST = "avoozl/manifest.json";
+
+// tasks.md text with `$done`, `$manual` and `$repo` bullets in list form,
+// and every other `$` bullet dropped.
+export function listForm(text) {
+  const rows = text.split("\n"),
+    out = [],
+    repos = new Set();
+  for (const row of rows) {
+    const fact = /^(\s*)[-*+] \$([A-Za-z]+):\s*(.*)$/.exec(row);
+    if (!fact) {
+      out.push(row);
+      continue;
+    }
+    const [, indent, key, value] = fact;
+    if (key === "done") out.push(`${indent}- ${value}`);
+    else if (key === "repo") repos.add(value.trim());
+    else if (key === "manual" && value.trim() === "true")
+      for (let at = out.length - 1; at >= 0; at--)
+        if (/^\s*[-*+] \[[ xX~-]\] /.test(out[at])) {
+          out[at] = `${out[at]} (**MANUAL**)`;
+          break;
+        }
+  }
+  return withRepo(out.join("\n"), repos);
+}
+
+function withRepo(text, repos) {
+  if (repos.size !== 1 || /^---\n[\s\S]*?\nrepo:/m.test(text)) return text;
+  const [repo] = repos;
+  return text.startsWith("---\n")
+    ? text.replace("---\n", `---\nrepo: ${repo}\n`)
+    : `---\nrepo: ${repo}\n---\n${text}`;
+}
 
 export function withFacts(files) {
   const tasks = files["tasks.md"];
@@ -22,26 +53,14 @@ export function withFacts(files) {
     /^\s*[-*+] \$[A-Za-z][A-Za-z0-9]*:/m.test(tasks)
   ) {
     const { [MANIFEST]: _gone, ...rest } = files;
+    if (typeof rest["tasks.md"] === "string")
+      rest["tasks.md"] = listForm(rest["tasks.md"]);
     return rest;
   }
   const facts = JSON.parse(files[MANIFEST]),
-    epic = facts.kind === "epic",
-    entries = {},
-    front = epic ? ["kind: epic"] : [];
-  for (const [id, entry] of Object.entries(facts.tasks ?? {})) {
-    // Every task runs its repository's checks, a task completes when it
-    // lands, and nesting gives its kind.
-    const {
-      checks: _checks,
-      completion: _completion,
-      ...own
-    } = withDefaults({}, entry);
-    if (!epic) delete own.kind;
-    entries[id] = own;
-  }
-  for (const field of ["integrationBranch", "integrationSync"])
-    if (facts[field] !== undefined) front.push(`${field}: ${facts[field]}`);
-  const items = new Map(
+    entries = facts.tasks ?? {},
+    repos = new Set(),
+    items = new Map(
       specItems("x", tasks)
         .filter((item) => item.key)
         .map((item) => [item.line, item]),
@@ -52,23 +71,29 @@ export function withFacts(files) {
         .map((item) => item.parent?.key)
         .filter(Boolean),
     );
-  tasks.split("\n").forEach((row, index) => {
-    out.push(row);
+  const rows = tasks.split("\n");
+  rows.forEach((row, index) => {
     const item = items.get(index + 1),
-      entry = item && entries[item.key];
-    if (!entry) return;
-    const { summary, ...own } = entry,
-      indent = /^\s*/.exec(row)[0].length + 2;
-    out.push(
-      ...factsLines(own, { indent }),
-      // A group holds no bullets of its own (simplify §D20).
-      ...(groups.has(item.key) ? [] : summaryLines(summary, { indent })),
-    );
+      // An item that already has its bullets keeps them.
+      next = rows[index + 1] ?? "",
+      own =
+        next.length - next.trimStart().length >
+          row.length - row.trimStart().length &&
+        /^\s*[-*+] (?!\[[ xX~-]\] )/.test(next),
+      entry = item && !own && entries[item.key];
+    if (!entry) {
+      out.push(row);
+      return;
+    }
+    const indent = " ".repeat(/^\s*/.exec(row)[0].length + 2);
+    out.push(entry.manual ? `${row} (**MANUAL**)` : row);
+    if (groups.has(item.key)) return;
+    if (entry.repository) repos.add(entry.repository);
+    for (const result of entry.acceptance ?? [])
+      out.push(`${indent}- ${result}`);
   });
   const { [MANIFEST]: _gone, ...rest } = files;
-  rest["tasks.md"] =
-    (front.length ? ["---", ...front, "---", ""].join("\n") : "") +
-    out.join("\n");
+  rest["tasks.md"] = withRepo(out.join("\n"), repos);
   return rest;
 }
 

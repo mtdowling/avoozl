@@ -51,7 +51,7 @@ merge, shown in chat and never committed.
   - `waitsOf` in `src/app/specs/order.mjs` derives the waits, and the ready rule, ranking and lint read only it
   - Tests: the owner's example in §D19 gives `ec-2.1`, then `ec-2.2`, then `ec-2.4` to `ec-2.7` with no wait among them, then `ec-2.8`; an untagged child group of a parallel group runs its children in order; the first item of a phase waits for the phase above; a group is never ready or claimed
   - Tests: lint reports `group.box`, `parallel.size`, `parallel.leaf` and `parallel.tag` as §D19.3 says; the tag before refs parses; a spec that still has `$after` facts is read by them until `sim-2.2`
-- [ ] `sim-1.2` Rank ready tasks by three keys [SM3, SM17.4] (§D3.1)
+- [x] `sim-1.2` Rank ready tasks by three keys [SM3, SM17.4] (§D3.1)
   - `rankReady` in `src/app/specs/ranking.mjs` orders by downstream count, then longest chain, then file order, over the waits `waitsOf` derives, and a test covers each key breaking a tie left by the one before, including a task that opens a parallel group
   - `unblockCounts` lives only in `ranking.mjs`, and `spec-scheduler.mjs`, `runner.next` and the page read it; `pathsOverlap` and the paths hold are gone
   - `avoozl next` prints each ready task with its three key values
@@ -65,7 +65,7 @@ merge, shown in chat and never committed.
   - Tests: a branch named for a spec's folder on origin is the base of that spec and of every spec it links, the outermost one winning; with no such branch the base is the default branch; Avoozl creates and merges no integration branch
   - Tests: before each claim on such a branch, a default branch that moved since its last merge is merged in with a merge commit and pushed, and an unmoved one changes nothing; two tasks of a parallel group claimed in one pass start on one merged head; a conflict gives one Needs you item naming the branch and files, and no task on that branch is claimed until the merge is in
   - Tests: with origin readable, lint warns `integration.foreign` for a same-name branch holding a commit that is neither a merge of the default branch nor a landing of the spec's or a linked spec's tasks, and passes a branch with no commit beyond the default branch; without origin it skips the check
-- [ ] `sim-2.2` Rewrite every spec into the list form with no facts [SM16.5, SM16.10, SM16.11, SM17] (§D19.3, §D19.4, §D20, §D21)
+- [x] `sim-2.2` Rewrite every spec into the list form with no facts [SM16.5, SM16.10, SM16.11, SM17] (§D19.3, §D19.4, §D20, §D21)
   - Every `tasks.md` under `.kiro/specs/`, epics included, orders its tasks by the list and groups tagged `(**PARALLEL**)` and has no `$after`; for each spec the derived waits include every old `$after` edge inside it, and the commit message lists each added wait
   - Each cross-spec `$after` is the order of spec groups in a parent that links both specs, or a `(**MANUAL**)` gate at the top of the waiting spec
   - No `integrationBranch` or `integrationSync` key is left; a spec that named an integration branch other than its folder name is listed in the commit message for a person to rename the branch or the folder
@@ -78,7 +78,7 @@ merge, shown in chat and never committed.
   - `graphOf` in `src/app/specs/graph.mjs` feeds `graph.view`, `avoozl graph` and `plans_graph`, reads waits from `waitsOf`, and no other module reads tasks and edges for a graph
   - Tests: `avoozl graph` prints by phase in list order with state and indentation, a parallel group's title ending `(PARALLEL)` and a person's task ending `(MANUAL)`, in at most 80 columns and no escape codes; `--format mermaid` prints a `flowchart` with one subgraph per phase and per group and one edge per derived wait; IDs with `.` or `-` map to node IDs as §D8 says, and two colliding IDs get distinct node IDs; an epic or no name prints every member
   - `plans_graph` returns the same text and Mermaid as the CLI for the same scope
-- [ ] `sim-2.4` The graph block, its lint and `--write` [SM9] (§D9)
+- [x] `sim-2.4` The graph block, its lint and `--write` [SM9] (§D9)
   - Tests: lint reports `graph.stale` when the block differs from the builder's output and `graph.markers` for an unclosed or second block; a `tasks.md` with no block lints clean; a tick does not change the block; the task parser skips the block's lines
   - `avoozl graph SPEC --write` replaces the block, or adds it at the end of `tasks.md`, and lint then passes
   - `avoozl spec lint [SPEC]` and `plans_lint` run `lintSpec`, and every graph block in `.kiro/specs/` lints clean
@@ -136,20 +136,20 @@ merge, shown in chat and never committed.
 ```mermaid
 flowchart TD
   subgraph s1["Phase 0: Gate"]
-    sim_0["sim-0 Gate: the approval cut-down, mirror removal and triage removal are on main"]
+    sim_0["sim-0 Gate: the approval cut-down, mirror removal and triage removal are on main (MANUAL)"]
   end
   subgraph s2["Phase 1: Runner core"]
     sim_1_1["sim-1.1 Claim by claim branch"]
-    sim_1_2["sim-1.2 Rank ready tasks by three keys"]
     sim_1_3["sim-1.3 Stale claims in Needs you"]
     sim_1_4["sim-1.4 Draft pull requests and claim branch delete"]
     sim_1_5["sim-1.5 avoozl land and plans_land"]
     sim_1_6["sim-1.6 Label filters"]
     sim_1_7["sim-1.7 Labeled issues as one-task specs"]
-    sim_1_8["sim-1.8 The server loop setting"]
   end
   subgraph s3["Phase 2: Order and the graph"]
     sim_2_1["sim-2.1 Order from the list and parallel groups"]
+    sim_1_2["sim-1.2 Rank ready tasks by three keys"]
+    sim_1_8["sim-1.8 The server loop setting"]
     sim_2_5["sim-2.5 Linked specs as spec groups"]
     sim_2_6["sim-2.6 Integration branches by name"]
     sim_2_2["sim-2.2 Rewrite every spec into the list form with no facts"]
@@ -179,44 +179,31 @@ flowchart TD
     sim_6_2["sim-6.2 Live proof: two machines, one spec"]
   end
   sim_0 --> sim_1_1
-  sim_2_1 --> sim_1_2
   sim_1_1 --> sim_1_3
-  sim_1_1 --> sim_1_4
-  sim_1_1 --> sim_1_5
+  sim_1_3 --> sim_1_4
   sim_1_4 --> sim_1_5
-  sim_1_1 --> sim_1_6
+  sim_1_5 --> sim_1_6
   sim_1_6 --> sim_1_7
+  sim_1_7 --> sim_2_1
+  sim_2_1 --> sim_1_2
   sim_1_2 --> sim_1_8
-  sim_1_5 --> sim_1_8
-  sim_1_7 --> sim_1_8
-  sim_0 --> sim_2_1
-  sim_2_1 --> sim_2_5
+  sim_1_8 --> sim_2_5
   sim_2_5 --> sim_2_6
   sim_2_6 --> sim_2_2
   sim_2_2 --> sim_2_3
   sim_2_3 --> sim_2_4
-  sim_1_5 --> sim_3_1
   sim_2_4 --> sim_3_1
   sim_3_1 --> sim_3_2
   sim_3_2 --> sim_4_1
-  sim_3_2 --> sim_4_2
-  sim_1_1 --> sim_4_3
-  sim_3_2 --> sim_4_4
-  sim_0 --> sim_4_5
-  sim_0 --> sim_4_6
-  sim_0 --> sim_4_7
-  sim_1_7 --> sim_4_9
-  sim_4_1 --> sim_5_1
-  sim_4_3 --> sim_5_1
-  sim_4_4 --> sim_5_1
-  sim_4_5 --> sim_5_1
-  sim_4_6 --> sim_5_1
+  sim_4_1 --> sim_4_2
+  sim_4_2 --> sim_4_3
+  sim_4_3 --> sim_4_4
+  sim_4_4 --> sim_4_5
+  sim_4_5 --> sim_4_6
+  sim_4_6 --> sim_4_7
+  sim_4_7 --> sim_4_9
   sim_4_9 --> sim_5_1
-  sim_3_1 --> sim_5_2
   sim_5_1 --> sim_5_2
-  sim_1_8 --> sim_6_1
-  sim_4_2 --> sim_6_1
-  sim_4_7 --> sim_6_1
   sim_5_2 --> sim_6_1
   sim_6_1 --> sim_6_2
 ```

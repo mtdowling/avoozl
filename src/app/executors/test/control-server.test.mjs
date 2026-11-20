@@ -22,18 +22,31 @@ import { initializeWorkspace } from "../../workspace/workspace.mjs";
 const real = (file) => fs.realpathSync.native(file);
 const posix = process.platform !== "win32";
 
+// Each test's own cleanups run first, newest first, then its folder goes:
+// Windows cannot remove an open database or a listening server's files.
+const cleanups = new WeakMap();
+const defer = (t, fn) => cleanups.get(t).push(fn);
+
 function scratch(t, name = "avoozl-control-") {
   const root = real(fs.mkdtempSync(path.join(os.tmpdir(), name)));
-  t.after(() =>
-    fs.rmSync(root, { recursive: true, force: true, maxRetries: 10 }),
-  );
+  const list = [];
+  cleanups.set(t, list);
+  t.after(async () => {
+    for (const fn of list.reverse()) await fn();
+    fs.rmSync(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 20,
+      retryDelay: 100,
+    });
+  });
   return root;
 }
 
 async function started(t, root, handle = async () => null) {
   const stateDirectory = path.join(root, "state");
   const control = await startControl({ stateDirectory, handle });
-  t.after(() => control.close());
+  defer(t, () => control.close());
   const token = fs
     .readFileSync(controlPaths(stateDirectory).token, "utf8")
     .trim();
@@ -131,7 +144,7 @@ test("a wrong or missing token, a missing hello and an HTTP line close the conne
   assert.equal(ran, 0);
   // The right token is answered.
   const client = await connectControl(control.address, { token });
-  t.after(() => client.close());
+  defer(t, () => client.close());
   const reply = await client.call(ping);
   assert.deepEqual(reply.result, {});
   assert.equal(ran, 1);
@@ -157,14 +170,14 @@ test("a person-only operation is refused through it, and a call is answered", as
   initializeWorkspace(workspace, { name: "ws" });
   const stateDirectory = path.join(root, "state");
   const lock = takeLock(machineLockPaths(stateDirectory), { pid: process.pid });
-  t.after(() => lock.close());
+  defer(t, () => lock.close());
   const env = {
     ...process.env,
     XDG_CONFIG_HOME: path.join(root, "config"),
   };
   for (const key of Object.keys(env)) if (/^AVOOZL_/.test(key)) delete env[key];
   const served = await serveControl({ stateDirectory, env });
-  t.after(() => served.close());
+  defer(t, () => served.close());
   assert.deepEqual(
     readRecord(machineLockPaths(stateDirectory).record).control,
     served.address,
@@ -176,7 +189,7 @@ test("a person-only operation is refused through it, and a call is answered", as
     token,
     claim: { workspace },
   });
-  t.after(() => client.close());
+  defer(t, () => client.close());
   const list = await client.call(ping);
   assert.ok(list.result.tools.some((tool) => tool.name === "plans_task"));
   const approve = await client.call({
@@ -208,9 +221,9 @@ test("the token is in no record or status", async (t) => {
   const root = scratch(t);
   const stateDirectory = path.join(root, "state");
   const lock = takeLock(machineLockPaths(stateDirectory), { pid: process.pid });
-  t.after(() => lock.close());
+  defer(t, () => lock.close());
   const served = await serveControl({ stateDirectory, env: process.env });
-  t.after(() => served.close());
+  defer(t, () => served.close());
   const token = fs
     .readFileSync(controlPaths(stateDirectory).token, "utf8")
     .trim();

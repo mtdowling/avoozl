@@ -9,6 +9,10 @@ import { linkedReader, waitsOf } from "../order.mjs";
 import { lintSpec, parseSpec } from "../spec-plans.mjs";
 import { tickEntry } from "../spec-ticks.mjs";
 import { specCheckout } from "../../test/spec-checkout.mjs";
+import { Operations } from "../../api/operations.mjs";
+import { createSpecPlan, readSpecFolder } from "../spec-plans.mjs";
+import { fixture } from "../../test/fixtures.mjs";
+import { writeSpec } from "../../test/spec-fixture.mjs";
 
 const PARENT = [
   "- [ ] `ctx-spec` Write the spec for [epic context]",
@@ -126,4 +130,46 @@ test("the landing that ticks a linked spec's last task ticks the parent's box in
   assert.match(staged, /\+- \[x\] `ec-2` Brief/);
   assert.match(staged, /\+- \[x\] `ctx-build` Implement \[epic context\]/);
   assert.doesNotMatch(staged, /\+- \[x\] `ctx-spec`/);
+});
+
+test("a linked spec's first task waits on the parent's task above it until both specs are approved and it lands", async (t) => {
+  const { root, store } = fixture(t);
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({ version: 1, github: { mode: "local" } }),
+  );
+  const ops = new Operations(store, { workspaceRoot: root }),
+    spec = (name, tasks) => {
+      writeSpec(root, name, { "tasks.md": `---\nrepo: app\n---\n${tasks}` });
+      return createSpecPlan(
+        store,
+        { id: name, context: { repositoryId: "app" } },
+        readSpecFolder(root, name),
+      );
+    },
+    approve = (id) =>
+      ops.execute("plan.approve", {
+        id,
+        expectedHash: store.get("plans", id).hash,
+        expectedRevision: store.read().revision,
+      }),
+    task = (id) => store.read().tasks.find((row) => row.id === id);
+  spec("source", "- [ ] `src-1` Build the source\n  - It builds\n");
+  spec("consumer", "- [ ] `use-1` Use the source\n  - It is used\n");
+  spec(
+    "pair",
+    "- [ ] `pair-1` Build [source](../source/tasks.md)\n- [ ] `pair-2` Build [consumer](../consumer/tasks.md)\n",
+  );
+  await approve("consumer");
+  assert.deepEqual(
+    task("use-1").pendingSpecDependencies.map((ref) => ref.taskId),
+    ["src-1"],
+  );
+  await approve("source");
+  assert.equal(task("use-1").pendingSpecDependencies, undefined);
+  assert.ok(
+    store
+      .read()
+      .edges.some((edge) => edge.from === "src-1" && edge.to === "use-1"),
+  );
 });

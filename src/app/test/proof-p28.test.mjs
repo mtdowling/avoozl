@@ -77,7 +77,7 @@ const spec = (note = "Plain words only.") => ({
       tasks: {
         1: leaf("a changes src/a.txt."),
         2: leaf("b keeps fileshare/teams paths out of src/b.txt.", {
-          acceptance: ["src/b.txt names no share."],
+          acceptance: ["b keeps fileshare/teams paths out of src/b.txt."],
           requires: ["1"],
         }),
       },
@@ -282,7 +282,8 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
       (d) =>
         d.code === "content.match" &&
         d.file === "tasks.md" &&
-        d.lineStart === 3,
+        // Below the front matter that names the repository.
+        d.lineStart === 6,
     ),
   );
   await assert.rejects(approve(ops), /content\.match/);
@@ -295,7 +296,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
       blocked.target,
       blocked.line,
     ],
-    ["fake-terms", ["codename"], "plan", "p28/tasks.md", 3],
+    ["fake-terms", ["codename"], "plan", "p28/tasks.md", 6],
   );
   const shown = await ops.execute("content.show", { id: blocked.id });
   assert.equal(shown.text, "Codename zorblat stays internal.");
