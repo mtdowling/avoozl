@@ -21,6 +21,10 @@ import {
   workerDone,
 } from "../../test/delivery-fixture.mjs";
 import { runOwnMachine } from "../../test/shim-run.mjs";
+import { loopOn } from "../../test/fixtures.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 const repo = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(repo, "hosts", "kirocrew");

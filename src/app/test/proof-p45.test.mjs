@@ -19,8 +19,10 @@ import {
 import { conflictsView } from "../api/page-views.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { loopOn } from "./fixtures.mjs";
 
-process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 const git = (cwd, ...args) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();

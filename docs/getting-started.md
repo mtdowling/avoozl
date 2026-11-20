@@ -125,6 +125,9 @@ for the task format and order, and
 
 Register the checkout the work changes, with its base branch and its named
 checks, then set the repository's `landing` to `off`, `direct` or `pr`.
-Avoozl pushes and merges only after its checks pass. See
-[Landing](github-workflow.md#13-landing) for the rules, [Delivery](delivery.md)
-for the commands, and [Avoozl](overview.md) for what each page shows.
+Turn on this machine's loop with `"loop": {"run": ["specs"]}` in
+`~/.config/avoozl/config.json`; without it the tick starts nothing, and
+`avoozl next --claim` and `avoozl land TASK` run one task at a time. Avoozl
+pushes and merges only after its checks pass. See
+[Landing](github-workflow.md#13-landing) for the rules, [Delivery](delivery.md#the-server-loop)
+for the loop and the commands, and [Avoozl](overview.md) for what each page shows.

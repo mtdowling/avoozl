@@ -108,6 +108,9 @@ import { scheduleHolds } from "../specs/spec-scheduler.mjs";
 import { landPullRequests } from "../landing/pr-landing.mjs";
 import { landDirect } from "../landing/direct-landing.mjs";
 import { retryLanded } from "../landing/landed-work.mjs";
+import { loopAllows, loopDue, machineLoop } from "./loop.mjs";
+import { storedLinks } from "../specs/order.mjs";
+import { specChain } from "../specs/integration-base.mjs";
 import {
   applyLandingModes,
   applyRunnerSettings,
@@ -596,6 +599,22 @@ async function runTick(
       );
       // Observe first: statuses the script read land before any planning.
       if (roster) recordRoster(store, roster);
+      // This machine's server loop (simplify §D6): with none, or between
+      // passes, the tick starts and lands nothing. `outOfLoop` holds the
+      // tasks of every kind the loop does not run.
+      const loop = machineLoop(),
+        looping = Boolean(loop) && loopDue(store, loop),
+        links = storedLinks(store),
+        outOfLoop = new Set(
+          store
+            .read()
+            .tasks.filter(
+              (task) =>
+                !looping ||
+                !loopAllows(loop, task, (spec) => specChain(spec, links)),
+            )
+            .map((task) => task.id),
+        );
       // An invalid file keeps the last valid policy's delivery settings.
       const bindings = listSessionBindings(store),
         delivery = ["loaded", "invalid"].includes(policy.status)
@@ -637,43 +656,49 @@ async function runTick(
             ),
             readOnly = readOnlyPlanIds(store);
           const integrated = await integrateVerified(store, {
-            skip: new Set(
-              store
+            skip: new Set([
+              ...outOfLoop,
+              ...store
                 .read()
                 .tasks.filter(
                   (t) =>
                     t.planId && (readOnly.has(t.planId) || lost.has(t.planId)),
                 )
                 .map((t) => t.id),
-            ),
+            ]),
           });
           planned.notify.push(...integrated.notify);
           // A conflict at integration goes back to the worker chat.
           planned.messages.push(...(integrated.messages ?? []));
-          // `pr` repositories land through pull requests (task 42.6).
-          const landed = await under(
-            "tick",
-            "land",
-            landPullRequests,
-          )(store, {
-            github,
-            workspaceRoot,
-            rounds: attemptsFor(memory.value),
-            config: memory.value,
-          });
+          // `pr` repositories land through pull requests (task 42.6), only
+          // while the loop runs.
+          const landed = !looping
+            ? { notify: [], messages: [] }
+            : await under(
+                "tick",
+                "land",
+                landPullRequests,
+              )(store, {
+                github,
+                workspaceRoot,
+                rounds: attemptsFor(memory.value),
+                config: memory.value,
+              });
           planned.notify.push(...landed.notify);
           planned.messages.push(...landed.messages);
           // `direct` repositories push to their remote from the tick (41.9).
-          const pushed = await under(
-            "tick",
-            "land",
-            landDirect,
-          )(store, {
-            github,
-            workspaceRoot,
-            rounds: attemptsFor(memory.value),
-            config: memory.value,
-          });
+          const pushed = !looping
+            ? { notify: [], messages: [] }
+            : await under(
+                "tick",
+                "land",
+                landDirect,
+              )(store, {
+                github,
+                workspaceRoot,
+                rounds: attemptsFor(memory.value),
+                config: memory.value,
+              });
           planned.notify.push(...pushed.notify);
           planned.messages.push(...pushed.messages);
           // Landed work whose tick or claim branch delete did not go
@@ -862,7 +887,7 @@ async function runTick(
         ready = !schedule
           ? []
           : planReadyDispatches(store, delivery, {
-              skip: new Set([...readySkip, ...schedule.skip]),
+              skip: new Set([...readySkip, ...schedule.skip, ...outOfLoop]),
               // Settings › Models' worker harness (R98.3, R98.6).
               config: memory.value || {},
               github: readGitHubPolicyOrNull(workspaceRoot),

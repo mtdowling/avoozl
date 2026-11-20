@@ -20,6 +20,10 @@ import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { gitCheckout } from "./delivery-fixture.mjs";
+import { loopOn } from "./fixtures.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();

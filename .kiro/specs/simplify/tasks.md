@@ -55,7 +55,7 @@ merge, shown in chat and never committed.
   - `rankReady` in `src/app/specs/ranking.mjs` orders by downstream count, then longest chain, then file order, over the waits `waitsOf` derives, and a test covers each key breaking a tie left by the one before, including a task that opens a parallel group
   - `unblockCounts` lives only in `ranking.mjs`, and `spec-scheduler.mjs`, `runner.next` and the page read it; `pathsOverlap` and the paths hold are gone
   - `avoozl next` prints each ready task with its three key values
-- [ ] `sim-1.8` The server loop setting [SM6] (§D6)
+- [x] `sim-1.8` The server loop setting [SM6] (§D6)
   - Tests: with no `loop` in machine config the tick reads and starts nothing; `loop` in `.avoozl.json` is refused naming the file; `loop.run` with `specs`, `epics` and `issues` each claims, starts and lands only that kind of work, through the same operations the CLI calls
   - With the loop off, `avoozl next`, `avoozl graph` and every read still answer
 - [x] `sim-2.5` Linked specs as spec groups [SM16.7, SM18] (§D19.2, §D19.3)
