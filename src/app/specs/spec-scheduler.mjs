@@ -2,11 +2,8 @@
 // design §4.32, task 41.1). The tick asks it which ready leaves may start.
 //
 // - Ranking. Within one priority rank, a leaf that unblocks more open tasks
-//   goes first (RC31's count). Pins and ranks a person set stay first.
-// - Repository-wide path holds. A leaf whose declared paths overlap a task
-//   in flight in the same repository waits, whichever spec either belongs
-//   to. Among ready leaves that overlap each other, the first by rank goes
-//   and the rest wait. A leaf with no declared paths holds nothing.
+//   goes first (ranking.mjs). Pins and ranks a person set stay first. Two
+//   tasks that change one file meet at landing's merge, not here.
 // - Release (R102.3). A prerequisite that is only verified on its spec's
 //   working branch (integrated into a branch other than the repository's
 //   base) releases only a successor in the same spec and repository, whose
@@ -14,14 +11,10 @@
 //   the prerequisite lands or a person records its outcome.
 import { statusComplete } from "../../query.mjs";
 import { isManual, taskCompletion, taskRepository } from "../../work-model.mjs";
-import {
-  busyTaskIds,
-  readyCandidates,
-  startNowIds,
-} from "../delivery/delivery.mjs";
+import { readyCandidates, startNowIds } from "../delivery/delivery.mjs";
 import { lineFirstIds } from "../flow/flow.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
-import { pathsOverlap, unblockCounts } from "./release-ranking.mjs";
+import { unblockCounts } from "./ranking.mjs";
 import { digest } from "../../model.mjs";
 import { planningIdentity } from "../github/github-marker.mjs";
 
@@ -43,13 +36,11 @@ export function branchOnly(task, baseBranch) {
 const rankOf = (task) => task.rank ?? task.labelRank ?? 1000;
 const plural = (n) => `${n} task${n === 1 ? "" : "s"}`;
 
-// `candidates`: ready tasks in dispatch order. `flight`: tasks in flight.
-// `pinned`: ids a person put first. `baseOf(repository)`: its base branch.
+// `candidates`: ready tasks in dispatch order. `pinned`: ids a person put first. `baseOf(repository)`: its base branch.
 // Returns {order, held: Map(id -> reason), notes: Map(id -> reason)}.
 export function scheduleReady({
   data,
   candidates,
-  flight = [],
   pinned = new Set(),
   baseOf = () => "main",
 }) {
@@ -106,26 +97,6 @@ export function scheduleReady({
         `Waits for ${waits.map((t) => t.id).join(", ")} to land: verified on a working branch this task does not build on.`,
       );
   }
-  // Path holds, repository-wide: tasks in flight, then earlier choices.
-  const going = flight.filter((task) => task.paths?.length);
-  for (const task of order) {
-    if (held.has(task.id) || !task.paths?.length) continue;
-    const repository = taskRepository(task),
-      hits = going.filter(
-        (other) =>
-          other.id !== task.id &&
-          taskRepository(other) === repository &&
-          pathsOverlap(task.paths, other.paths),
-      );
-    if (hits.length) {
-      held.set(
-        task.id,
-        `Held: paths overlap ${hits.map((t) => t.id).join(", ")} in ${repository}.`,
-      );
-      continue;
-    }
-    going.push(task);
-  }
   return {
     order: order.filter((task) => !held.has(task.id)).map((task) => task.id),
     held,
@@ -134,19 +105,11 @@ export function scheduleReady({
 }
 
 // The scheduler over this workspace's ready leaves: what readyLeaves takes
-// as `skip`, plus the reasons. In flight: claimed tasks not yet integrated
-// or complete. Reads only.
+// as `skip`, plus the reasons. Reads only.
 export function scheduleHolds(store, { github = null, skip = new Set() } = {}) {
   const data = store.read(),
     repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),
-    claimed = busyTaskIds(store, bindings),
-    flight = data.tasks.filter(
-      (task) =>
-        claimed.has(task.id) &&
-        !task.integration?.commit &&
-        !statusComplete(data, task.status),
-    ),
     result = scheduleReady({
       data,
       candidates: readyCandidates(store, {
@@ -156,7 +119,6 @@ export function scheduleHolds(store, { github = null, skip = new Set() } = {}) {
         repositories,
         bindings,
       }),
-      flight,
       pinned: new Set([...lineFirstIds(store), ...startNowIds(store)]),
       baseOf: (id) => repositories.get(id)?.baseBranch || "main",
     });

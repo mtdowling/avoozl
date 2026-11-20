@@ -18,6 +18,7 @@ import {
   taskSpec,
 } from "./claims.mjs";
 import { manualTake } from "./manual-take.mjs";
+import { rankKeys } from "../specs/ranking.mjs";
 import { catchUp, integrationBase } from "../specs/integration-base.mjs";
 import { remoteGit } from "../git/git.mjs";
 
@@ -92,7 +93,12 @@ export function nextView(store, { policy, github = null }) {
       ]),
     ),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
-    complete = (status) => statusComplete(data, status);
+    complete = (status) => statusComplete(data, status),
+    // The three ranking keys each ready task is shown with (§D3.1).
+    keysOf = rankKeys(
+      data.edges.filter((edge) => BLOCKING.has(edge.kind)),
+      (id) => byId.has(id) && !complete(byId.get(id).status),
+    );
   const result = {
     policy: policy?.status || "absent",
     ready: [],
@@ -193,6 +199,7 @@ export function nextView(store, { policy, github = null }) {
     if (leaf) {
       result.ready.push({
         ...item,
+        rank: { ...keysOf(task.id), line: task.source?.lineStart ?? null },
         attempt: leaf.attempt,
         repository: leaf.repository.id,
         checkout: leaf.repository.root,
