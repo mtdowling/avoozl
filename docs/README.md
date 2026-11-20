@@ -28,8 +28,9 @@ itself, and lands it. These pages say how to set it up and how each part works.
 ## GitHub
 
 - [GitHub](github.md): repository roles and GitHub modes.
-- [GitHub workflow](github-workflow.md): the protocol of specs, approvals,
-  assignees and ticks on GitHub, for any tool that runs specs.
+- [GitHub workflow](github-workflow.md): the landing protocol of specs,
+  approvals, assignees, claims and ticks on GitHub, for any tool that runs
+  specs.
 - [Triage agent](triage.md): answering, reviewing and handing off new issues
   and pull requests.
 - [Intake sources](intake.md): bringing in work from trackers and scripts.
