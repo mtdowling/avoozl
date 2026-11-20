@@ -549,9 +549,11 @@ settings, refs, lint and commands below.
 
 Avoozl does not follow every rule yet:
 
-- Order (3), manual tags (4), plain done bullets (2.3, 2.4), front matter (5),
-  linked specs (6) and integration branches (11): Avoozl still reads `$` fact
-  bullets and an `integrationBranch` key, and orders tasks by `$after`.
+- Order (3): Avoozl orders a spec's tasks by the list, but a spec that still
+  has `$after` facts is ordered by them.
+- Manual tags (4), plain done bullets (2.3, 2.4), front matter (5), linked
+  specs (6) and integration branches (11): Avoozl still reads `$` fact
+  bullets and an `integrationBranch` key.
 - Claims (12): `avoozl next --claim` and `plans_next` with `claim` claim
   through the refs API, but the tick still starts a task on its own branch
   `avoozl/<task>` with no claim branch.

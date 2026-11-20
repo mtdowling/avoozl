@@ -20,8 +20,5 @@
       "base": "main",
       "mergeBase": false
     }
-  },
-  "expectFail": {
-    "ready": "sim-2.5"
   }
 }

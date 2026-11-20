@@ -31,6 +31,7 @@ import {
 import { frontMatter, withoutFrontMatter } from "../../front-matter.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { integrationOf } from "../epics/integration-branch.mjs";
+import { orderProblems, waitsOf } from "./order.mjs";
 import {
   LETTERED,
   NAMED,
@@ -764,6 +765,23 @@ export function parseSpec({
       );
     }
   }
+  // Order from the list (simplify §D19): a spec with no `$after` fact takes
+  // its waits from waitsOf. shortcut: a spec that still has `$after` facts
+  // is read by them, until every spec is rewritten (sim-2.2).
+  if (!proposals.some((proposal) => proposal.requires?.length)) {
+    const waits = new Map();
+    for (const { from, to } of waitsOf(name, files["tasks.md"] || ""))
+      waits.set(to, [...(waits.get(to) ?? []), from]);
+    for (const proposal of proposals)
+      if (waits.has(proposal.id)) proposal.requires = waits.get(proposal.id);
+  }
+  diagnostics.push(
+    ...orderProblems(items).map((found) =>
+      diagnostic(found.code, "tasks.md", found.line, found.message, {
+        taskId: found.taskId,
+      }),
+    ),
+  );
   return { type, kind: "plan", items, diagnostics, proposals };
 }
 

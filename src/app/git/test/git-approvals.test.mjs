@@ -462,7 +462,7 @@ test("with specs.branch, approvals and ticks are read and written on that branch
 const leafSpec = (title, { after = null, done = false } = {}) => ({
   "requirements.md": `---\nepic: launch\n---\n# ${title}\n\nThe goal.\n`,
   "design.md": "# Design\n\nOne step.\n",
-  "tasks.md": `# Tasks\n\n- [ ] 1 ${title}\n  - [${done ? "x" : " "}] 1.1 Do ${title}\n`,
+  "tasks.md": `# Tasks\n\n- [${done ? "x" : " "}] 1 ${title}\n  - [${done ? "x" : " "}] 1.1 Do ${title}\n`,
   "avoozl/manifest.json": JSON.stringify({
     tasks: {
       1: {

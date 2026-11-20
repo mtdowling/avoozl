@@ -16,6 +16,6 @@
     "ready": []
   },
   "expectFail": {
-    "ready": "sim-2.1"
+    "ready": "sim-2.2"
   }
 }
