@@ -38,8 +38,6 @@ import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
 import { AutoMergeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
-import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
-import { toForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/ManualTask.tsx'
 import { reviewFixture } from './review-fixture.ts'
@@ -2534,46 +2532,6 @@ function LandingParts(props: { repository: RepositoryForm; set: (change: Partial
     </>
   )
 }
-// ?page=workflow-map&config=single|plans|local: the Workflow map drawn from a
-// real policy through toForm, with the Crews and rules fields beside it so a
-// jump has somewhere to land.
-const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, unknown> }> = {
-  single: {
-    mode: 'single-repo',
-    policy: {
-      mode: 'single-repo',
-      repositories: {
-        'example/code': {
-          baseBranch: 'main',
-          allowedActors: ['sam', 'lee'],
-        },
-      },
-    },
-  },
-  plans: {
-    mode: 'plans-repo',
-    policy: {
-      mode: 'plans-repo',
-      planningRepository: 'example/plans',
-      repositories: { 'example/code': { baseBranch: 'main', minimumPermission: 'maintain' } },
-    },
-  },
-  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk' } } } },
-}
-function WorkflowMapPage() {
-  const config = WORKFLOW_POLICIES[query.get('config') ?? 'single']
-  const form = toForm(config.policy as never)
-  // ?autoMerge=off: the repository's landing.autoMerge is false.
-  const [repository, setRepository] = useState<RepositoryForm>({ ...form.repositories[0], ...(query.get('autoMerge') === 'off' ? { autoMerge: 'off' } : {}) })
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <WorkflowMap workspaceId="w" mode={config.mode} repository={repository} planningRepository={form.planningRepository} onJump={(jump) => focusField('t', jump)} />
-        <LandingParts repository={repository} set={(change) => setRepository((before) => ({ ...before, ...change }))} />
-      </HarnessBoundary>
-    </div>
-  )
-}
 function PanelPage() {
   return (
     <div style={{ width: window.innerWidth <= 640 ? '100%' : 360, padding: 0, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
@@ -2594,8 +2552,6 @@ createRoot(document.getElementById('root')!).render(
     <TipPage />
   ) : page === 'panel' ? (
     <PanelPage />
-  ) : page === 'workflow-map' ? (
-    <WorkflowMapPage />
   ) : page === 'crews-rules' ? (
     <CrewsRulesPage />
   ) : intake ? (

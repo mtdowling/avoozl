@@ -57,6 +57,7 @@ function writePlugin(version) {
     version,
     contract: 1,
     provides: ["context"],
+    context: { repos: ["acme/*"] },
   });
   fs.mkdirSync(path.join(p1, "skills", "review"), { recursive: true });
   fs.writeFileSync(

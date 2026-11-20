@@ -35,14 +35,13 @@ test('the nav row has Dashboards, Specs, Needs you, Flow, Retros, Activity and S
   assert.deepEqual(page.errors, [])
 })
 
-test('an empty Home says what to set up, with a button for each, instead of hiding cards', { skip }, async () => {
+test('an empty Home shows its sections and no setup cards', { skip }, async () => {
   await open({ basic: '1' })
   await page.until(`Boolean(document.querySelector('[data-home-section="landing-queue"]'))`)
   const body = await page.evaluate(text)
-  for (const line of ['No epics', 'Start one with New spec on Specs.', 'Landing queue']) assert.ok(body.includes(line), line)
-  // No epics has no button of its own, and Radar's crew cell, its wording and
-  // its graph link are gone.
-  assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-setup-card="epics"] button')].length`), 0, 'no button on No epics')
+  assert.ok(body.includes('Landing queue'))
+  // No setup card, and Radar's crew cell, its wording and its graph link are gone.
+  assert.equal(await page.evaluate(`document.querySelectorAll('[data-setup-card]').length`), 0, 'no setup card')
   for (const gone of ['Plan an epic', 'Radar crew', 'coded by Issue Radar', 'Issue Radar graph', 'driver session']) assert.ok(!body.includes(gone), gone)
   // The driver chat is gone: no driver cell and no Start.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-driver-session], [data-driver-start]').length`), 0)

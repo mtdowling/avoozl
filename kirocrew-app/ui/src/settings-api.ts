@@ -314,7 +314,8 @@ function compact(value: Record<string, unknown>): Record<string, unknown> {
 export function toPolicy(form: SettingsForm): Policy {
   return {
     mode: blank(form.mode) ?? null,
-    planningRepository: modeKey(form.mode) === 'plans-repo' ? (blank(form.planningRepository) ?? null) : null,
+    // Kept in every mode, so switching to Local only and back restores it.
+    planningRepository: blank(form.planningRepository) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
     cacheSeconds: count(form.cacheSeconds) ?? null,
     writesPerMinute: count(form.writesPerMinute) ?? null,

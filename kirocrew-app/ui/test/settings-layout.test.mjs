@@ -97,9 +97,9 @@ test('each mode shows only the settings it reads, and Local only keeps the rest'
   assert.ok(plans.has('planningRepository') && !plans.has('issueRadarCrews'))
   assert.equal(LOCAL_HIDDEN_LINE, 'Labels, checks and reviews only apply to GitHub modes.')
   const form = toForm({ mode: 'local', planningRepository: 'o/plans', project: { owner: 'o', number: 2 }, repositories: { 'o/app': {} } })
-  // The mode and planning repository are shown but never written back.
+  // Local only keeps the planning repository, unused.
   assert.equal(form.planningRepository, 'o/plans')
-  assert.equal('planningRepository' in toPolicy(form), false)
+  assert.equal(toPolicy(form).planningRepository, 'o/plans')
   assert.deepEqual(unusedInLocal(form), ['planning repository', '1 repository GitHub setting'])
   // Local only needs no base branch.
   assert.equal(missingRequired(form), null)
@@ -116,8 +116,6 @@ test('Repositories: one compact list with View, Edit and a trash Remove behind A
   assert.match(repos, /Are you sure\?[\s\S]*are not touched/)
   assert.match(repos, /data-repositories-empty/)
   assert.match(repos, /export function AddRepositoryModal/)
-  assert.match(repos, /No, let me choose/)
-  assert.match(repos, /Yes, add it/)
   const tab = settings.slice(settings.indexOf('function RepositoriesTab('), settings.indexOf('function GeneralTab('))
   assert.match(tab, /\{adding && \(?\s*<AddRepositoryModal/)
   assert.doesNotMatch(tab, /<AddRepository\b/)
@@ -178,7 +176,6 @@ test('GitHub: every group is its own tab and bordered section, and no Issue Rada
   for (const [tab, title] of [
     ['issues', 'Epic issues'],
     ['sync', 'Sync pace'],
-    ['setup', 'Set up GitHub'],
   ])
     assert.match(shown, new RegExp(`\\{tab === '${tab}' && \\(\\s*<Card>\\s*<Section title="${title}"`), title)
   assert.doesNotMatch(shown, /ProjectFields|tab === 'project'/)
