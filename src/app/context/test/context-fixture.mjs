@@ -28,11 +28,16 @@ export function contextMachine({
   approve = false,
   answer = true,
   map = true,
+  // Where plugins.json lives, when the test's machine has its own folder.
+  settingsFolder = null,
 } = {}) {
   const root = temporaryDirectory("avoozl-ctx-"),
     workspaceRoot = path.join(root, "workspace"),
     folder = path.join(root, "team-context"),
-    settingsFile = path.join(root, "machine", "plugins.json"),
+    settingsFile = path.join(
+      settingsFolder ?? path.join(root, "machine"),
+      "plugins.json",
+    ),
     notes = path.join(root, "notes");
   fs.mkdirSync(workspaceRoot, { recursive: true });
   fs.mkdirSync(path.join(notes, "widgets"), { recursive: true });

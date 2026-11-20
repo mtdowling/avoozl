@@ -108,10 +108,10 @@ import {
   repositoryPacks,
   updateGitPlugin,
 } from "../plugins/plugins.mjs";
-import { mergePath } from "../landing/merge-path.mjs";
 import { pluginChecksView } from "../plugins/plugin-checks.mjs";
 import { contextView } from "../context/plugin-context.mjs";
-import { localRequired, taskPluginChecks } from "../plugins/check-stages.mjs";
+import { contextChip, taskContext } from "../context/context-record.mjs";
+import { taskPluginChecks } from "../plugins/check-stages.mjs";
 import { RepositorySettings } from "../settings/repository-settings.mjs";
 import { bindRetroMemory } from "../flow/retro-memory.mjs";
 import {
@@ -1519,6 +1519,11 @@ export class Operations {
       evidenceRecords,
       // Its plugin checks and decide answers (plugin-checks PK8.2).
       pluginChecks: taskPluginChecks(this.store, id),
+      // The three tests and what epic context gave its last session: names
+      // only, never a path's contents (epic-context EC9.5).
+      epicContext: taskContext(this.store, id)
+        ? { ...taskContext(this.store, id), chip: contextChip(this.store, id) }
+        : null,
       executionLocation: {
         branch: task.activity?.branch || task.integration?.branch || null,
         worktree: task.activity?.worktree || null,
@@ -1633,28 +1638,6 @@ export class Operations {
       };
     const policy = this.cachePolicy.policy;
     return policy?.cacheSeconds ?? DEFAULT_CACHE_SECONDS;
-  }
-  // The merge path of the named repository; none without a name.
-  async mergePaths(only) {
-    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-    if (!only || !policy?.mode || !this.github?.available?.()) return [];
-    return Promise.all(
-      Object.entries(policy.repositories || {})
-        .filter(([id]) => id === only)
-        .map(([id, entry]) => {
-          // A required name an approved plugin check provides needs no
-          // branch rule (plugin-checks PK6.5).
-          const repository = this.store
-            .list("repositories")
-            .find((r) => r.github === id);
-          return mergePath(this.github, id, entry, {
-            local: repository
-              ? localRequired(this.store, repository, entry.requiredChecks)
-                  .names
-              : [],
-          });
-        }),
-    );
   }
   async reconcilePlanningPullRequests() {
     const receipts = this.store

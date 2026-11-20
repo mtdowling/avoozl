@@ -51,7 +51,7 @@ try {
     for (const width of [1280, 390])
       for (const [name, nav, extra] of shots) {
         const size = { width, height: 900, dark: theme === 'dark' }
-        await page.open(harness.url({ page: 'app', basic: '1', theme, roles: 'plans' }), size)
+        await page.open(harness.url({ page: 'app', basic: '1', theme, roles: 'plans', ...(name === 'delivery' ? { inline: '1' } : {}) }), size)
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
         for (const step of [menu(width), head(width), item(width, nav), ...extra]) {
           await settle()

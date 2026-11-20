@@ -12,16 +12,11 @@ import { workspaceConfig } from "../settings/config.mjs";
 import { deliveryPolicy, planReadyDispatches } from "../delivery/delivery.mjs";
 import { drainCheckRuns } from "../delivery/check-runs.mjs";
 import { drainProcessRequests } from "../executors/process.mjs";
-import {
-  approveHarnessDefinition,
-  harnessDefinitionHash,
-} from "../executors/harness-definitions.mjs";
 import { Operations } from "../api/operations.mjs";
 import { issueReportToken } from "../workers/report-match.mjs";
-import { sandboxKind } from "../executors/sandbox.mjs";
 import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
 import { Store } from "../store/store.mjs";
-import { startSupervisor } from "../executors/supervisor.mjs";
+import { startFakeSupervisor } from "../executors/test/process-machine.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -138,21 +133,10 @@ async function workspace(t, { process: onProcess = false } = {}) {
     // How a read-only child writes its result (NK6.1); the fake ignores it.
     resultAllow: ["--result-file"],
   });
-  fs.writeFileSync(
-    path.join(configDirectory, "harnesses", "fake-cli.json"),
-    bytes,
-  );
-  const hash = harnessDefinitionHash(Buffer.from(bytes));
-  approveHarnessDefinition({ configDirectory, name: "fake-cli", hash });
-  if (!sandboxKind())
-    fs.writeFileSync(
-      path.join(configDirectory, "harness-unconfined.json"),
-      JSON.stringify({ "fake-cli": hash }),
-    );
-  const supervisor = startSupervisor({
+  const supervisor = startFakeSupervisor({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
+    bytes,
   });
   t.after(() => supervisor.close());
   Object.assign(w, {

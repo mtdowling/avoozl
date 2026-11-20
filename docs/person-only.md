@@ -29,6 +29,14 @@ commands, refuses to answer inside an agent session or a supervisor child, and
 bumps, not walls: code running as you can unset the markers. The sandbox is
 what keeps an agent from `plugins.json`, plugin folders and `gh`'s config.
 
+## Epic context
+
+Setting this machine's `epicContext` block (`avoozl context set`), answering a
+context plugin's questions (`avoozl plugins answer`), mapping its servers
+(`avoozl plugins map`) and approving it are a person's acts. They are refused
+over MCP, for a bound session and in a supervisor child. See
+[Epic context](epic-context.md).
+
 ## Approval delegation
 
 Approval delegation lets an agent approve in its own name. A person runs

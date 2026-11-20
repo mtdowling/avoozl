@@ -65,11 +65,12 @@ for (const width of [1280, 390]) {
   })
 }
 
-// Who merges moved to the repository's Landing tab (§4.25), and its note
-// for a value Avoozl does not accept moved with it.
-test('an unknown landing.autoMerge says so instead of showing no choice', () => {
+// Who merges is landing.pr: one choice on the repository's Landing tab, which
+// may use the workspace's, and a note for a value Avoozl does not accept.
+test('an unknown landing.pr says so, and autoMerge is gone', () => {
   const page = readFileSync(new URL('../src/LandingFields.tsx', import.meta.url), 'utf8')
-  assert.match(page, /data-ship-unknown/)
-  assert.match(page, /landing\.autoMerge "\{unknown\}"/)
-  assert.doesNotMatch(readFileSync(new URL('../src/DeliverySettings.tsx', import.meta.url), 'utf8'), /data-radio-fold="avoozl-delivery-ship"|avoozl-delivery-ship/)
+  assert.match(page, /landing\.pr "\{repository\.prMode\}", which Avoozl does not accept/)
+  assert.match(page, /uses the workspace's landing\.pr/)
+  for (const name of ['LandingFields.tsx', 'SettingsView.tsx', 'settings-api.ts', 'DeliverySettings.tsx'])
+    assert.doesNotMatch(readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8'), /autoMerge|AutoMergeFields/, name)
 })

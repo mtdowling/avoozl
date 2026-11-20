@@ -3,7 +3,6 @@
 // their behavior.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deliveryPolicy, shipMode } from "../delivery/delivery.mjs";
 import { normalizeGitHubPolicy } from "../github/github-policy.mjs";
 import {
   applyLandingModes,
@@ -20,7 +19,7 @@ function repositoryStore(...repositories) {
   };
 }
 
-test("Avoozl's own repository keeps pr, draft pull requests, auto-merge, squash and 2 rounds", () => {
+test("Avoozl's own repository keeps pr, draft pull requests, squash and 2 rounds", () => {
   // Its .avoozl.json sets none of these keys; the repository row holds `pr`.
   const config = {
       version: 1,
@@ -35,14 +34,11 @@ test("Avoozl's own repository keeps pr, draft pull requests, auto-merge, squash 
   assert.deepEqual(landingSettings(config, "mtdowling/avoozl", repository), {
     mode: "pr",
     pr: "draft",
-    autoMerge: true,
     method: "squash",
     mergeBatch: "auto",
     commitPrefix: "",
     maxAttempts: 2,
   });
-  const task = { id: "t", repository: "avoozl" };
-  assert.equal(shipMode(deliveryPolicy(config), task, store), "auto-merge");
   assert.deepEqual(applyLandingModes(store, config), []);
   assert.equal(store.get("repositories", "avoozl").landing, "pr");
 });
@@ -56,8 +52,12 @@ test("the block is validated, and 0 tries asks at once", () => {
     /landing\.mode must be direct, pr or off/,
   );
   assert.throws(
-    () => normalizeGitHubPolicy(entry({ landing: { autoMerge: "yes" } })),
-    /landing\.autoMerge must be true or false/,
+    () => normalizeGitHubPolicy(entry({ landing: { pr: "yes" } })),
+    /landing\.pr must be draft, ready or auto/,
+  );
+  assert.throws(
+    () => normalizeGitHubPolicy(entry({ landing: { autoMerge: true } })),
+    /Unknown setting/,
   );
   assert.throws(
     () => normalizeGitHubPolicy(entry({ landing: { method: "rebase" } })),
@@ -74,7 +74,7 @@ test("the block is validated, and 0 tries asks at once", () => {
   );
   // A normalized policy normalizes to itself.
   const once = normalizeGitHubPolicy(
-    entry({ landing: { method: "merge", autoMerge: false } }),
+    entry({ landing: { method: "merge", pr: "auto" } }),
   );
   assert.deepEqual(normalizeGitHubPolicy(once).repositories, once.repositories);
 });

@@ -32,7 +32,11 @@ import { jsonLines } from "./child-io.mjs";
 import { mappingHash, validateChecksPart } from "./plugin-checks.mjs";
 import { fail } from "../store/store.mjs";
 import { readTemplates } from "../specs/templates.mjs";
-import { contextHash, readContextPart } from "../context/plugin-context.mjs";
+import {
+  contextHash,
+  contextView,
+  readContextPart,
+} from "../context/plugin-context.mjs";
 
 const PLUGIN_MANIFEST = "avoozl-plugin.json";
 const RESERVED_IDS = new Set(["local", "github"]);
@@ -730,9 +734,17 @@ export async function previewPlugin(options, input = {}) {
     };
   }
   let pack = null,
-    templates = null;
+    templates = null,
+    context = null;
   try {
     validateManifest(manifest, { id: manifest?.id }, location);
+    // What an approval of a context part would bind (epic-context EC4.1).
+    const part = readContextPart(manifest, location);
+    if (part)
+      context = contextView(
+        { id: manifest.id, source: scope, state: "unapproved", context: part },
+        readPluginSettings(options.settingsFile),
+      );
     if (pluginParts(manifest).provides.includes("pack"))
       pack = readPack(location, manifest.pack ?? PACK_FILE);
     if (pluginParts(manifest).provides.includes("template"))
@@ -760,6 +772,7 @@ export async function previewPlugin(options, input = {}) {
       : {}),
     ...(pack ? { pack } : {}),
     ...(templates ? { templates } : {}),
+    ...(context ? { context } : {}),
     supported: SUPPORTED_CONTRACTS.includes(manifest.contract),
   };
 }

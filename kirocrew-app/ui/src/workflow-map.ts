@@ -20,14 +20,14 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {}
 
 // Where a value is set. `tab` is a repository dialog sub-tab
 // (repo-edit-tabs.ts); `field` names the input the page focuses.
-export type JumpField = 'mergeMethod' | 'autoMerge' | 'actors' | 'permission'
+export type JumpField = 'mergeMethod' | 'prMode' | 'actors' | 'permission'
 export interface Jump {
   tab: 'general' | 'landing' | 'github'
   field: JumpField
 }
 const TAB: Record<JumpField, Jump['tab']> = {
   mergeMethod: 'landing',
-  autoMerge: 'landing',
+  prMode: 'landing',
   actors: 'github',
   permission: 'github',
 }
@@ -93,13 +93,13 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     source: repository.mergeMethod.trim() ? 'set' : 'default',
     jump: jump('mergeMethod'),
   }
-  // Who merges: the landing block's autoMerge, else auto-merge.
-  const shipMode = repository.autoMerge === 'off' ? 'manual' : 'auto-merge'
+  // Who merges: the landing block's landing.pr, else the workspace's.
+  const pr = repository.prMode.trim()
   const ship: Value = {
-    label: 'Merge',
-    text: shipMode === 'manual' ? 'you merge' : 'auto-merge',
-    source: repository.autoMerge ? 'set' : 'default',
-    jump: jump('autoMerge'),
+    label: 'Pull requests',
+    text: pr || "the workspace's",
+    source: pr ? 'set' : 'default',
+    jump: jump('prMode'),
   }
   const landing: Value = { label: 'Landing branch', text: repository.baseBranch.trim() || 'main', source: repository.baseBranch.trim() ? 'set' : 'default' }
 
@@ -125,10 +125,10 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 
   const mergeCard: Card = {
     key: 'spec-merge',
-    who: shipMode === 'manual' ? 'you' : 'avoozl',
-    title: shipMode === 'manual' ? 'You merge' : 'Auto-merge',
-    text: shipMode === 'manual' ? 'Avoozl shows a Ready to merge row once the checks pass.' : 'Avoozl arms auto-merge; GitHub merges when its rules pass.',
-    values: shipMode === 'manual' ? [ship] : [ship, mergeMethod],
+    who: pr === 'auto' ? 'avoozl' : 'you',
+    title: pr === 'auto' ? 'Avoozl merges' : 'You merge',
+    text: pr === 'auto' ? 'Avoozl merges once the checks pass on the exact head.' : 'Needs you shows a row with Merge once the checks pass.',
+    values: [ship, mergeMethod],
     ...tag('spec-merge'),
   }
 
@@ -151,7 +151,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 export const fieldSelector = (id: string, field: JumpField): string =>
   ({
     mergeMethod: `#${id}-merge-method input:checked, #${id}-merge-method`,
-    autoMerge: `#${id}-auto-merge input:checked, #${id}-auto-merge`,
+    prMode: `#${id}-pr-mode input:checked, #${id}-pr-mode`,
     actors: `#${id}-actors`,
     permission: `#${id}-permission`,
   })[field]

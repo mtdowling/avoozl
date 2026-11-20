@@ -16,8 +16,6 @@ export function askLine(item: ConflictItem): string {
       return 'Choose whether a second model reads this draft before you approve it.'
     case 'investigation':
       return 'Read the worker’s findings and the falsifier’s reply, then choose: go ahead, investigate again, or stop.'
-    case 'ready-to-merge':
-      return item.integrate ? 'Press Integrate to land the verified commit.' : 'Merge the pull request on GitHub. Avoozl never merges it.'
     case 'branch-landing':
       return 'Approve this exact head, then merge the branch on GitHub yourself.'
     case 'untick':
@@ -52,7 +50,7 @@ export function unblockLine(item: ConflictItem): string | null {
   const more = dependents && dependents.total > names.length ? ` and ${dependents.total - names.length} more` : ''
   if (item.kind === 'review') return 'Each reviewed task may start when its other needs are met.'
   if (item.kind === 'plan-review') return 'Approval of this draft waits on the review or your skip.'
-  if (item.kind === 'ready-to-merge' || item.kind === 'branch-landing') return names.length ? `Landing it starts: ${names.join(', ')}${more}.` : 'Landing it finishes this work.'
+  if (item.kind === 'branch-landing') return names.length ? `Landing it starts: ${names.join(', ')}${more}.` : 'Landing it finishes this work.'
   if (!item.taskId) return null
   if (names.length) return `${item.taskId} moves on, and then ${names.join(', ')}${more} can start.`
   return `${item.taskId} moves on. Nothing else waits on it.`

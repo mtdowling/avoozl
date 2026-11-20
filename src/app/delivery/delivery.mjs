@@ -233,31 +233,7 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
     concurrency: machineLanes ?? validateLanes(value.lanes).local,
     reviewers,
     repositories: normalized,
-    // Who merges, from each GitHub repository's landing block (§4.25).
-    autoMerge: Object.fromEntries(
-      Object.entries(value.github?.repositories ?? {})
-        .filter(([, entry]) => typeof entry?.landing?.autoMerge === "boolean")
-        .map(([name, entry]) => [name, entry.landing.autoMerge]),
-    ),
   };
-}
-
-// Ship mode (R80): who merges a finished pull request. `auto-merge` (the
-// default) has the writer turn on GitHub auto-merge; `manual` leaves it off
-// and waits for a person. The setting is `landing.autoMerge` in the GitHub
-// repository's landing block.
-
-// The ship mode for one task (R80.1): the task's manifest pin, then its
-// spec's, then its GitHub repository's `landing.autoMerge`. `store` finds
-// the task's GitHub repository from its repository row.
-export function shipMode(policy, task, store = null) {
-  const github = store?.get("repositories", taskRepository(task) || "")?.github,
-    on = github ? policy?.autoMerge?.[github] : undefined;
-  return (
-    task?.ship ??
-    (typeof on === "boolean" ? (on ? "auto-merge" : "manual") : undefined) ??
-    "auto-merge"
-  );
 }
 
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
@@ -1885,11 +1861,7 @@ function composeLeafBrief(
   store,
   data,
   leaf,
-  {
-    investigate = false,
-    ship = null,
-    executor = repositoryExecutor(leaf.repository),
-  } = {},
+  { investigate = false, executor = repositoryExecutor(leaf.repository) } = {},
 ) {
   const { task, repository, attempt, delivery } = leaf,
     options = {
@@ -1964,11 +1936,9 @@ export function planReadyDispatches(store, policy, options = {}) {
           ? NO_RESUME
           : null,
       investigate =
-        wants && !skipped && !briefCell(run.executor, "investigate").declined,
-      ship = shipMode(policy, leaf.task, store);
+        wants && !skipped && !briefCell(run.executor, "investigate").declined;
     const brief = leafBrief(store, data, leaf, {
       investigate,
-      ship,
       executor: run.executor,
     });
     if (
@@ -2879,42 +2849,12 @@ export async function rebaseForIntegration(repository, worktree, commit) {
 // stays on its branch.
 export async function integrateVerified(
   store,
-  { now = Date.now(), skip = new Set(), policy = null } = {},
+  { now = Date.now(), skip = new Set() } = {},
 ) {
   const notify = [],
     messages = [];
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "verified" || skip.has(delivery.taskId)) continue;
-    // Ship mode manual (§4.25, R80.4): a local task waits for a person's
-    // Integrate on its Ready to merge item, for this exact commit. A `pr`
-    // repository skips it: a person merges each pull request (R119.3).
-    {
-      const task = store.read().tasks.find((t) => t.id === delivery.taskId);
-      if (
-        task &&
-        !isPullRequestLanding(
-          store.get("repositories", taskRepository(task) || ""),
-        ) &&
-        shipMode(policy, task, store) === "manual" &&
-        delivery.integrateApproved?.commit !== delivery.commit
-      ) {
-        if (delivery.awaitingIntegrate !== delivery.commit) {
-          store.transaction(() =>
-            store.put("task_deliveries", {
-              ...delivery,
-              awaitingIntegrate: delivery.commit,
-            }),
-          );
-          notify.push({
-            channel: "decision",
-            task: delivery.taskId,
-            title: `${delivery.taskId}: ready to merge`,
-            text: `Its checks and reviews passed on ${delivery.commit.slice(0, 12)}. Press Integrate on its Ready to merge item to land it.`,
-          });
-        }
-        continue;
-      }
-    }
     const at = new Date(now).toISOString(),
       worktree = store.get("task_worktrees", delivery.taskId),
       task = store.read().tasks.find((t) => t.id === delivery.taskId),
@@ -3073,32 +3013,6 @@ export async function integrateVerified(
     store.transaction(() => store.put("task_deliveries", next));
   }
   return { notify, messages };
-}
-
-// Integrate (§4.25, R80.4): a person lands a verified local task under
-// manual ship. Only the commit that is waiting may be approved.
-export function approveIntegration(store, input = {}, { by = "person" } = {}) {
-  const task = findTask(store, input.taskId);
-  return store.transaction(() => {
-    const delivery = store.get("task_deliveries", task.id);
-    if (delivery?.state !== "verified" || !delivery.awaitingIntegrate)
-      fail(`${task.id} is not waiting for Integrate.`, 409);
-    if (input.commit !== undefined && input.commit !== delivery.commit)
-      fail(
-        `${task.id} now waits on ${delivery.commit.slice(0, 12)}; look again.`,
-        409,
-      );
-    const next = {
-      ...delivery,
-      integrateApproved: {
-        commit: delivery.commit,
-        by,
-        at: new Date().toISOString(),
-      },
-    };
-    store.put("task_deliveries", next);
-    return { delivery: next };
-  });
 }
 
 // Mark each epic and package whose children have all reached their own
