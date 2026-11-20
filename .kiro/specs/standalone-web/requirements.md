@@ -430,7 +430,7 @@ fork and a new Kiro Crew release is one change.
    Crew's `LICENSE` and `NOTICE`, the notices of the third-party packages
    bundled with it, and the licenses of its fonts.
    `THIRD_PARTY_NOTICES.md` SHALL list them and
-   `scripts/release-scan.mjs` SHALL fail when one is missing.
+   `scripts/check/release-scan.mjs` SHALL fail when one is missing.
 7. Moving the pin SHALL be one change: the pin file and the package
    versions. It SHALL pass the contract test, the class check and the
    variable test, and its screenshots SHALL go to the owner as SW12.10

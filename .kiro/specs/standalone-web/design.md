@@ -32,9 +32,9 @@ same request to the same dispatch the app backend uses (D4).
 | `kirocrew-app/ui/src/standalone/host.ts`  | New            | The host shim: navigate, notify, CSRF header, theme     |
 | `kirocrew-app/ui/src/standalone/app.css`  | New            | Imports Kiro Crew's stylesheet; adds the page to its scan |
 | `kirocrew-app/ui/kirocrew-pin.json`       | New            | The pin: tag, commit, digest (D11)                      |
-| `scripts/fetch-kirocrew-ui.mjs`           | New            | Fetches the pinned source to a cache and checks it      |
+| `scripts/bundle/fetch-kirocrew-ui.mjs`           | New            | Fetches the pinned source to a cache and checks it      |
 | `kirocrew-app/ui/vite.config.ts`          | Changed        | `--mode standalone` with aliases and no externals       |
-| `scripts/build-kirocrew-app.mjs`          | Changed        | Runs the third build                                   |
+| `scripts/bundle/build-kirocrew-app.mjs`          | Changed        | Runs the third build                                   |
 | `src/app/api/command-dispatch.mjs`            | New            | The body of today's `/api/command` handler              |
 | `src/app/executors/kirocrew/app-backend.mjs`                 | Changed        | Calls `command-dispatch.mjs`; behavior unchanged        |
 | `src/app/serve/serve-server.mjs`                | New            | `avoozl serve`: listener, sign-in, static files         |
@@ -316,7 +316,7 @@ when a release moves one, the pin does not move until the build
 configuration follows.
 
 **What is fetched.** `kirocrew-pin.json` names the tag, the commit and a
-digest. `scripts/fetch-kirocrew-ui.mjs` downloads that commit's archive
+digest. `scripts/bundle/fetch-kirocrew-ui.mjs` downloads that commit's archive
 from the public repository into the machine's cache folder, keeps
 `website/src`, the fonts under `website/public/fonts` with their license
 files, the lockfile and Kiro Crew's `LICENSE` and `NOTICE`, and checks the
