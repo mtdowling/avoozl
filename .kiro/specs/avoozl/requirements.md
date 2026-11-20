@@ -637,7 +637,7 @@ the tick, so that private integrations stay out of the public repository.
     SHALL fetch only that commit, shallow, with the person's own git and
     credentials, with git hooks off, without submodules, and without running
     any package install or install script. The tick SHALL never fetch,
-    clone, or resolve a ref.
+    clone, or resolve a ref. Only Add and Update SHALL fetch plugin files.
 14. The approval of a git plugin SHALL bind to its commit as well as its
     version and content hash. WHEN Update resolves `ref` to a different
     commit THEN the plugin SHALL need a new approval before it loads.
@@ -650,6 +650,17 @@ the tick, so that private integrations stay out of the public repository.
     `avoozl-plugin` skill to plan a plugin and write its files, and Plugin
     guide, which shows the plugin guide in the full-file reader. The chat
     SHALL NOT approve a plugin or import a pack.
+17. At most once a day per plugin, and when a person chooses Check now,
+    Avoozl SHALL check whether something newer than this machine's copy
+    exists, outside any tick: for a git plugin with `git ls-remote` (a
+    branch's newest commit, a higher release tag, or a moved tag), for a
+    package with the registry's dist-tags, and for a folder by its content
+    hash against the approval. The check SHALL NOT fetch, unpack, install,
+    or approve anything, and SHALL NOT send a credential in a URL. WHEN
+    something is newer THEN Settings SHALL show it on the plugin and Needs
+    you SHALL hold one row for that plugin; a check that fails SHALL show
+    on the plugin only. A machine setting, on by default and changed only
+    by a person, SHALL turn the check off.
 
 ### Requirement 36: Review gates on a local delivery
 

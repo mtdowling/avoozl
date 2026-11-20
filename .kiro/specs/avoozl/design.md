@@ -695,6 +695,24 @@ resolves outside the checkout through a link, and a commit with no
 `avoozl-plugin.json` at `subdir`. Git's error text is shown with any URL
 credentials masked.
 
+**Update checks** (`plugin-updates.mjs`, R34.17). A timer in the process
+that runs the tick, never the tick itself, passes once an hour and checks
+each plugin whose last result is a day old or was made against an older pin,
+install or approval. A git plugin gets one `git ls-remote` with a 15-second
+limit: a branch reports its newest commit; a version tag reports the highest
+release tag with the same `v` prefix, or that the tag moved; a full commit is
+never newer. A package gets one GET of the registry's
+`/-/package/<name>/dist-tags`, no sign-in, against the installed
+`package.json` version. A folder compares its content hash with the approved
+one. Each result `{state, kind, current, latest, basis, checkedAt}` is kept
+in store meta `pluginUpdates`, a cache the next check makes again. `newer`
+shows as the plugin's badge and one Needs you row, `plugin-update:<id>`;
+`failed` shows on the plugin only. Check now (`plugin.updates.check`) checks
+at once. `"updateChecks": false` in `plugins.json`, written by
+`plugin.updates.configure`, turns the timer and the rows off. Both are a
+person's operations. A `ls-remote` to the GitHub git host counts under git
+in the GitHub call counts.
+
 **Manifest.** Each plugin ships `avoozl-plugin.json`:
 
 ```json

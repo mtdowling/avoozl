@@ -2,7 +2,20 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-import { addInput, applyPreview, canApprove, emptyPluginForm, pluginsClient, previewInput, previewProblem, publicWarning, sharedBlocked, stateLabel } from '../src/plugins-api.ts'
+import {
+  addInput,
+  applyPreview,
+  canApprove,
+  emptyPluginForm,
+  pluginsClient,
+  previewInput,
+  previewProblem,
+  publicWarning,
+  sharedBlocked,
+  stateLabel,
+  updateBadge,
+  updateLine,
+} from '../src/plugins-api.ts'
 
 test('Add plugin builds one entry and catches what a person must fix', () => {
   const form = { ...emptyPluginForm(), id: 'example-tracker', path: '../tracker', config: '{"tokenEnv":"EXAMPLE_TOKEN"}' }
@@ -118,4 +131,31 @@ test('a card says a code plugin runs on node and lists each kind with its featur
   assert.equal(capabilityLine({ rules: [] }), 'rules')
   assert.equal(capabilityLine({ rules: ['x'], credentials: [] }), 'rules, x; credentials')
   assert.equal(capabilityLine({}), undefined)
+})
+
+test('an update check shows a badge only when something is newer, and a quiet line otherwise', () => {
+  const at = '2026-11-20T12:00:00.000Z',
+    now = Date.parse(at) + 3600_000
+  assert.equal(updateBadge({ state: 'newer', kind: 'tag', current: 'v1.0.0', latest: 'v1.2.0', checkedAt: at }), 'Update available: v1.2.0 (was v1.0.0)')
+  assert.equal(updateBadge({ state: 'newer', kind: 'commit', latest: 'abc1234def', checkedAt: at }), 'Update available: new commit abc1234')
+  assert.equal(updateBadge({ state: 'current', checkedAt: at }), null)
+  assert.equal(updateBadge({ state: 'failed', reason: 'git ls-remote failed', checkedAt: at }), null)
+  assert.equal(updateBadge(null), null)
+  assert.match(updateLine({ state: 'failed', reason: 'git ls-remote failed', checkedAt: at }, now), /^Couldn't check for updates .*git ls-remote failed$/)
+  assert.match(updateLine({ state: 'newer', kind: 'commit', latest: 'abc', checkedAt: at }, now), /Nothing new runs until you approve/)
+  assert.match(updateLine({ state: 'current', checkedAt: at }, now), /^Up to date/)
+})
+
+test('Check now and the switch send their operations', async () => {
+  const posts = []
+  const client = pluginsClient({ post: async (path, body) => (posts.push({ path, body }), { result: {} }) })
+  await client.checkUpdates('w', 'fake-rules')
+  await client.configureUpdates('w', false)
+  assert.deepEqual(
+    posts.map((p) => [p.body.operation, p.body.input]),
+    [
+      ['plugin.updates.check', { id: 'fake-rules' }],
+      ['plugin.updates.configure', { enabled: false }],
+    ],
+  )
 })

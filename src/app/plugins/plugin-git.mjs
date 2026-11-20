@@ -95,7 +95,7 @@ function hooksOff(root) {
 
 // Run the person's git with hooks, submodules, fsmonitor and LFS downloads
 // off. Errors come back with credentials masked.
-function git(args, { cwd, hooks } = {}) {
+function git(args, { cwd, hooks, timeout = GIT_TIMEOUT_MS } = {}) {
   const config = [
     `core.hooksPath=${hooks}`,
     "core.fsmonitor=false",
@@ -110,7 +110,7 @@ function git(args, { cwd, hooks } = {}) {
       [...config, ...args],
       {
         cwd,
-        timeout: GIT_TIMEOUT_MS,
+        timeout,
         maxBuffer: 16 * 1024 * 1024,
         env: {
           ...process.env,
@@ -131,17 +131,26 @@ function git(args, { cwd, hooks } = {}) {
   );
 }
 
-// `ref` to one full commit. A full commit is taken as given; a name must
-// match exactly one branch or tag (an annotated tag counts by its commit).
-export async function resolveGitRef(remote, ref, { scratch }) {
-  if (COMMIT.test(ref)) return ref;
-  const hooks = hooksOff(scratch);
-  const listing = await git(["ls-remote", "--", remote], { hooks });
+// Every ref the remote advertises, name to commit, from one `git ls-remote`.
+// It reads names only and fetches no content.
+export async function remoteRefs(remote, { scratch, timeout } = {}) {
+  const listing = await git(["ls-remote", "--", remote], {
+    hooks: hooksOff(scratch),
+    timeout,
+  });
   const refs = new Map();
   for (const line of listing.split("\n")) {
     const [sha, name] = line.split("\t");
     if (sha && name) refs.set(name, sha);
   }
+  return refs;
+}
+
+// `ref` to one full commit. A full commit is taken as given; a name must
+// match exactly one branch or tag (an annotated tag counts by its commit).
+export async function resolveGitRef(remote, ref, { scratch }) {
+  if (COMMIT.test(ref)) return ref;
+  const refs = await remoteRefs(remote, { scratch });
   const names = ref.startsWith("refs/")
     ? [ref]
     : ref === "HEAD"

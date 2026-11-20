@@ -18,6 +18,12 @@ import {
   writePluginSettings,
 } from "../plugins.mjs";
 import { maskCredentials } from "../plugin-git.mjs";
+import {
+  checkPluginUpdates,
+  setUpdateChecks,
+  startPluginUpdateChecks,
+  updateNeedsYou,
+} from "../plugin-updates.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
@@ -357,4 +363,131 @@ test("plugin.add and plugin.update reach git entries through Operations", async 
     ref: "main",
     subdir: "plugin",
   });
+});
+
+// Update checks (R34.17): ls-remote only, never a fetch.
+const folders = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []);
+const checkStore = (t, root) => {
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  t.after(() => store.close());
+  return store;
+};
+
+test("an update check sees a moved branch, fetches nothing, and raises one row", async (t) => {
+  const { root, git, options, entry, gitRoot } = setup(t);
+  const store = checkStore(t, root);
+  await addGitPlugin(options, { entry: entry() });
+  approve(options);
+  const pinned = git("rev-parse", "HEAD");
+  const before = folders(gitRoot);
+  git("commit", "-q", "--allow-empty", "-m", "Next");
+  const head = git("rev-parse", "HEAD");
+  const counted = [];
+  const done = await checkPluginUpdates(store, options, {
+    countGit: (remote) => counted.push(remote),
+  });
+  assert.equal(done["fake-probe"].state, "newer");
+  assert.equal(done["fake-probe"].latest, head);
+  assert.equal(done["fake-probe"].current, pinned);
+  assert.equal(counted.length, 1);
+  // Nothing was fetched or unpacked, and the pin and approval stay.
+  assert.deepEqual(folders(gitRoot), before);
+  const plugin = inspectPlugins(options)[0];
+  assert.equal(plugin.commit, pinned);
+  assert.equal(plugin.state, "approved");
+  // Checked again within a day: no second call, still one row.
+  await checkPluginUpdates(store, options, {
+    countGit: (remote) => counted.push(remote),
+  });
+  assert.equal(counted.length, 1);
+  const rows = updateNeedsYou(store, options);
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].title, new RegExp(`new commit ${head.slice(0, 7)}`));
+  // Update makes the result stale: the row goes once the pin moves.
+  await updateGitPlugin(options, { id: "fake-probe" });
+  assert.deepEqual(updateNeedsYou(store, options), []);
+});
+
+test("an update check finds a newer version tag, or nothing newer", async (t) => {
+  const { root, git, options, entry } = setup(t);
+  const store = checkStore(t, root);
+  git("tag", "v1.0.0");
+  await addGitPlugin(options, { entry: entry({ ref: "v1.0.0" }) });
+  let done = await checkPluginUpdates(store, options);
+  assert.equal(done["fake-probe"].state, "current");
+  assert.deepEqual(updateNeedsYou(store, options), []);
+  git("commit", "-q", "--allow-empty", "-m", "Next");
+  for (const tag of ["v1.1.0", "v1.2.0", "v2.0.0-beta.1", "1.9.0"])
+    git("tag", tag);
+  done = await checkPluginUpdates(store, options, { force: true });
+  assert.equal(done["fake-probe"].kind, "tag");
+  assert.equal(done["fake-probe"].latest, "v1.2.0");
+  assert.match(
+    updateNeedsYou(store, options)[0].title,
+    /v1\.2\.0 \(was v1\.0\.0\)/,
+  );
+});
+
+test("an update check that cannot reach the remote says so quietly", async (t) => {
+  const { root, repo, options, entry } = setup(t);
+  const store = checkStore(t, root);
+  await addGitPlugin(options, { entry: entry() });
+  fs.renameSync(repo, `${repo}-gone`);
+  const done = await checkPluginUpdates(store, options);
+  assert.equal(done["fake-probe"].state, "failed");
+  assert.match(done["fake-probe"].reason, /git ls-remote failed/);
+  assert.deepEqual(updateNeedsYou(store, options), []);
+});
+
+test("with update checks off nothing is checked and no row shows", async (t) => {
+  const { root, git, options, entry } = setup(t);
+  const store = checkStore(t, root);
+  await addGitPlugin(options, { entry: entry() });
+  await checkPluginUpdates(store, options);
+  git("commit", "-q", "--allow-empty", "-m", "Next");
+  await checkPluginUpdates(store, options, { force: true });
+  assert.equal(updateNeedsYou(store, options).length, 1);
+  setUpdateChecks(options.settingsFile, false);
+  assert.equal(readPluginSettings(options.settingsFile).updateChecks, false);
+  assert.deepEqual(updateNeedsYou(store, options), []);
+  const seen = [];
+  const handle = startPluginUpdateChecks(store, options, {
+    countGit: (remote) => seen.push(remote),
+  });
+  t.after(() => handle.stop());
+  git("commit", "-q", "--allow-empty", "-m", "Again");
+  await handle.pass();
+  assert.deepEqual(seen, []);
+  setUpdateChecks(options.settingsFile, true);
+  assert.equal(
+    readPluginSettings(options.settingsFile).updateChecks,
+    undefined,
+  );
+});
+
+test("Check now and the switch are a person's, through Operations", async (t) => {
+  const { root, git, options, entry } = setup(t);
+  const store = checkStore(t, root);
+  const ops = new Operations(store, {
+    workspaceRoot: options.workspaceRoot,
+    pluginSettingsFile: options.settingsFile,
+  });
+  await ops.execute("plugin.add", { entry: entry() });
+  git("commit", "-q", "--allow-empty", "-m", "Next");
+  await ops.execute("plugin.updates.check", { id: "fake-probe" });
+  const listed = await ops.execute("plugins.list", {});
+  assert.equal(listed.updateChecks.enabled, true);
+  assert.equal(listed.plugins[0].update.state, "newer");
+  assert.equal(updateNeedsYou(store, options).length, 1);
+  await assert.rejects(
+    ops.execute("plugin.updates.configure", { enabled: false }, undefined, {
+      caller: { sessionKey: "dashboard:agent" },
+    }),
+    /Only a person/,
+  );
+  await ops.execute("plugin.updates.configure", { enabled: false });
+  assert.equal(
+    (await ops.execute("plugins.list", {})).updateChecks.enabled,
+    false,
+  );
 });

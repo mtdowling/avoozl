@@ -27,6 +27,9 @@ const writes = [
   // Which credentials plugin serves a host where two claim one owner
   // (plugin-credentials PC2.6, PC8.2).
   "plugin.credentials.pick",
+  // Check now, and the daily update check's switch (R34.17).
+  "plugin.updates.check",
+  "plugin.updates.configure",
 ];
 
 // A checks plugin's server mapping (plugin-checks PK10.3): a person's act
