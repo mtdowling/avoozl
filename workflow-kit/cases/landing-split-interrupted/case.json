@@ -8,7 +8,15 @@
   },
   "origin": {
     "branches": ["main", "plans", "avoozl/parser/p-2"],
-    "behind": []
+    "behind": [],
+    "graph": {
+      "c1": [],
+      "c2": ["c1"],
+      "c3": ["c2"]
+    },
+    "heads": {
+      "main": "c3"
+    }
   },
   "issues": {
     "parser": ["acme-alice"]
@@ -18,7 +26,10 @@
     "checks": "pass",
     "baseMoved": false,
     "mode": "direct",
-    "state": "landed-unticked"
+    "claim": {
+      "start": "c1",
+      "head": "c2"
+    }
   },
   "expect": {
     "landing": {

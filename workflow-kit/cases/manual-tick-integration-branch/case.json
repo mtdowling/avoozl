@@ -1,0 +1,24 @@
+{
+  "title": "A manual task on an integration branch is ticked on that branch",
+  "rules": ["4.1", "15.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "release"],
+    "behind": []
+  },
+  "issues": {
+    "release": ["acme-alice"]
+  },
+  "manual": {
+    "task": "release/m-2"
+  },
+  "expect": {
+    "ready": [],
+    "manualTick": {
+      "branch": "release"
+    }
+  }
+}

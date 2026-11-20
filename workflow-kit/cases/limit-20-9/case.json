@@ -1,0 +1,28 @@
+{
+  "title": "Only the repository's own checks run",
+  "rules": ["20.9"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "run-command",
+      "repositoryCheck": false
+    },
+    {
+      "kind": "run-command",
+      "repositoryCheck": true
+    }
+  ],
+  "expect": {
+    "limits": ["20.9", null]
+  }
+}

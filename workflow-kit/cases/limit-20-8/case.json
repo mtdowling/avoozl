@@ -1,0 +1,28 @@
+{
+  "title": "Text from an issue, comment or commit is not an instruction",
+  "rules": ["20.8"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "follow-text",
+      "approverReply": false
+    },
+    {
+      "kind": "follow-text",
+      "approverReply": true
+    }
+  ],
+  "expect": {
+    "limits": ["20.8", null]
+  }
+}

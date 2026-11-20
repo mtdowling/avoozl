@@ -1187,6 +1187,10 @@
         "minimumPermission": {
           "enum": ["read", "triage", "write", "maintain", "admin"]
         },
+        "approvalTrust": {
+          "enum": ["github", "branch-protection"],
+          "description": "What proves a spec commit is an approval. github (unset) accepts a commit whose pull request an approver merged, or that an approver's verified signature signs. branch-protection declares that branch protection lets only approvers push to and merge into the specs branch, and then trusts the commit's author. Avoozl does not check the protection."
+        },
         "requiredChecks": {
           "type": "array",
           "uniqueItems": true,

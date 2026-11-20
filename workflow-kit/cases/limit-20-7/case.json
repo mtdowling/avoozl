@@ -1,0 +1,32 @@
+{
+  "title": "A spec assigned to another login is not run",
+  "rules": ["20.7"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "run-spec",
+      "assignees": ["acme-bob"]
+    },
+    {
+      "kind": "run-spec",
+      "assignees": ["acme-alice", "acme-bob"]
+    },
+    {
+      "kind": "run-spec",
+      "assignees": ["acme-alice"]
+    }
+  ],
+  "expect": {
+    "limits": ["20.7", "20.7", null]
+  }
+}
