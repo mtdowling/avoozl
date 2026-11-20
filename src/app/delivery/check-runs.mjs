@@ -11,7 +11,13 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { commandEvidence, git, withWorkLock, remoteGit } from "../git/git.mjs";
+import {
+  baseRef,
+  commandEvidence,
+  git,
+  withWorkLock,
+  remoteGit,
+} from "../git/git.mjs";
 import {
   checkApplies,
   repositoryChecks,
@@ -247,7 +253,7 @@ async function stageRange(repository, record) {
         : await git(root, [
             "merge-base",
             record.commit,
-            repository.baseBranch || "main",
+            await baseRef(root, repository.baseBranch || "main"),
           ]),
     files = (
       await git(root, [

@@ -12,7 +12,7 @@ import {
   enforce,
 } from "../content/content-rules.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
-import { commandEvidence, git } from "../git/git.mjs";
+import { branchTip, commandEvidence, git } from "../git/git.mjs";
 import {
   dependentsOf,
   flowPolicy,
@@ -42,6 +42,13 @@ const TAIL_LINES = 20;
 
 const landingOf = (repository) =>
   repository.integrationBranch || repository.baseBranch || "main";
+// The ref git reads for landingOf: a base only fetched from the remote is
+// its tracking ref (git.mjs).
+const landingRef = async (repository) =>
+  repository.integrationBranch
+    ? landingOf(repository)
+    : ((await branchTip(repository.root, landingOf(repository)))?.ref ??
+      landingOf(repository));
 
 // Run one declared check at one commit in a scratch worktree, never in the
 // landing checkout (R44.4): {exitCode, durationMs, tail}.
@@ -372,7 +379,7 @@ export async function watchLine(
         "rev-parse",
         "--verify",
         "--quiet",
-        landingOf(repository),
+        await landingRef(repository),
       ]);
     } catch {
       continue;
@@ -544,7 +551,7 @@ export async function judgeBaseFailures(
         base = await git(repository.root, [
           "merge-base",
           last.commit,
-          landingOf(repository),
+          await landingRef(repository),
         ]);
       } catch {}
     const result = base ? await run(repository, base, argv) : null,
