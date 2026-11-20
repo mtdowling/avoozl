@@ -762,7 +762,7 @@ export function parseSpec({
       let own = bullets.get(item.line) ?? [];
       const rest = structuredClone(entry);
       // A leaf's plain bullets are its results, one each (§D20).
-      if (rest.kind === "leaf" && rest.acceptance === undefined) {
+      if (rest.kind === "leaf") {
         if (!own.length) {
           diagnostics.push(
             diagnostic(
