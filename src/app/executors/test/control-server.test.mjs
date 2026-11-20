@@ -79,7 +79,9 @@ test("the listener is a 0600 socket in a 0700 folder, or 127.0.0.1 on Windows", 
       control.address.socket,
       near.length <= 100
         ? near
-        : path.join(shortSocketFolder(), "control.sock"),
+        : control.address.socket.startsWith(shortSocketFolder() + path.sep)
+          ? control.address.socket
+          : near,
     );
     assert.equal(fs.statSync(control.address.socket).mode & 0o777, 0o600);
     assert.equal(
@@ -196,6 +198,10 @@ test("a long state path puts the socket in the short private folder", {
   assert.equal(path.dirname(control.address.socket), shortSocketFolder());
   assert.equal(fs.statSync(shortSocketFolder()).mode & 0o777, 0o700);
   assert.equal(fs.statSync(control.address.socket).mode & 0o777, 0o600);
+  // A second machine on another long path gets a socket of its own.
+  const other = await started(t, path.join(deep, "..", "other"));
+  assert.notEqual(other.control.address.socket, control.address.socket);
+  assert.ok(fs.existsSync(control.address.socket));
 });
 
 test("the token is in no record or status", async (t) => {

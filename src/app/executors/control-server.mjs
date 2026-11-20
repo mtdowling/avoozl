@@ -48,9 +48,14 @@ export function shortSocketFolder() {
 
 function socketPath(stateDirectory) {
   const { socket } = controlPaths(stateDirectory);
-  return socket.length <= MAX_SOCKET_PATH
-    ? socket
-    : path.join(shortSocketFolder(), "control.sock");
+  if (socket.length <= MAX_SOCKET_PATH) return socket;
+  // One file per state folder, so two machine servers never share one.
+  const name = crypto
+    .createHash("sha256")
+    .update(path.resolve(stateDirectory))
+    .digest("hex")
+    .slice(0, 16);
+  return path.join(shortSocketFolder(), `${name}.sock`);
 }
 
 function privateFolder(folder) {
