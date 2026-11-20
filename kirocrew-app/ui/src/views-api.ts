@@ -320,11 +320,11 @@ export interface ReviewTask extends TaskOwner {
 }
 
 // A Needs you row's own action (plugin-credentials §D7, §D10): Use this
-// one or Create labels. `confirm` lists the high-risk
+// one. `confirm` lists the high-risk
 // steps the shared confirm shows before the operation runs.
 export interface NeedsYouAction {
   label: string
-  operation: 'plugin.credentials.pick' | 'github.labels.create'
+  operation: 'plugin.credentials.pick'
   input: Record<string, unknown>
   confirm?: HighRiskStep[]
 }

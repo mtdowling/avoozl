@@ -14,8 +14,6 @@ const CLIENT_API_VERSION = "1.0.0";
 export const CLIENT_OPERATIONS = Object.freeze([
   "client.describe",
   "workspace",
-  "workspace.examples",
-  "workspace.seed",
   "configuration.get",
   "configuration.update",
   "local.ignore.status",
@@ -88,8 +86,6 @@ const CLIENT_CONTRACT = Object.freeze({
   idempotency: Object.freeze({
     "intent.submit":
       "Reuse submissionId to retry. A different prompt under the same submissionId is rejected with 409.",
-    "workspace.seed":
-      "Seeding is transactional and installed once; a retry returns the first receipt.",
     "plan.approve":
       "Approving the same reviewed hash again returns the original approval receipt.",
   }),
@@ -316,12 +312,6 @@ export class WorkspaceClient {
   }
   integrate({ id, expectedCommit }) {
     return this.call("integration.merge", { id, expectedCommit });
-  }
-  examples() {
-    return this.call("workspace.examples");
-  }
-  seed(input) {
-    return this.call("workspace.seed", input);
   }
   handoff(id) {
     return this.call("handoff", { id });

@@ -436,20 +436,6 @@ test("Flow names the costliest phase, summed over targets, and keeps failed time
   assert.equal(view.failedMs, 500_000);
 });
 
-test("an instance with no known name gets a plain name, never its ID", () => {
-  const view = buildView(
-    [
-      { pullNumber: 1, instance: INSTANCE("a"), builds: [obs("test", 1000)] },
-      { pullNumber: 2, instance: INSTANCE("b"), builds: [obs("test", 1000)] },
-    ],
-    { instanceName: (id) => (id === INSTANCE("a") ? "Draco" : null) },
-  );
-  const names = view.byInstance.map((row) => row.name);
-  assert.equal(names[0], "Draco");
-  assert.equal(names[1], INSTANCE("b"));
-  assert.doesNotMatch(names.join(" "), /inst-/);
-});
-
 test("failed attempts stay out of the medians", () => {
   const view = buildView([
     {

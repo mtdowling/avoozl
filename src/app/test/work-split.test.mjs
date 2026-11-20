@@ -15,14 +15,13 @@ test("the statement takes specs of any size, a light one as one pull request", (
   assert.doesNotMatch(SCOPE_STATEMENT + SCOPE_RULE, /not an Avoozl job/);
 });
 
-test("one pitch: the package, the app, AGENTS.md, the demo and help say the tagline", () => {
+test("one pitch: the package, the app, AGENTS.md and help say the tagline", () => {
   assert.equal(JSON.parse(read("../../../package.json")).description, TAGLINE);
   assert.equal(
     JSON.parse(read("../../../kirocrew-app/app.json")).description,
     TAGLINE,
   );
   assert.ok(flat("../../../AGENTS.md").includes(TAGLINE));
-  assert.match(read("../../../kirocrew-app/ui/src/Demo.tsx"), /TAGLINE \+/);
   assert.match(
     read("../cli/cli-help.mjs"),
     /from "\.\.\/\.\.\/work-split\.mjs"/,

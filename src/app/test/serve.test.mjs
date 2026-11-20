@@ -68,7 +68,6 @@ async function serve(t, options = {}) {
     stateDirectory,
     configDirectory,
     home: path.join(root, "home"),
-    demoRoot: path.join(root, "demo"),
     registryOptions: {
       configPath: path.join(root, "machine", "config.json"),
       catalogPath: path.join(root, "machine", "catalog.sqlite"),
@@ -324,7 +323,7 @@ test("each refusal of SW4.7 is a 403 before any other work, and a good request i
     s.call("/apps/avoozl/api/command", {
       method: "POST",
       headers,
-      body: JSON.stringify({ operation: "demo.status" }),
+      body: JSON.stringify({ operation: "workspaces.list" }),
     });
   assert.equal((await send(base)).status, 200, "a good request");
   const without = (name) => {
@@ -404,8 +403,8 @@ test("no response has an Access-Control-Allow header and every one has the SW4.8
     }),
     await s.call("/nope", { headers: { Cookie: session.cookie } }),
     await s.call("/apps/avoozl/api/command", { method: "OPTIONS" }),
-    await s.post(session, { operation: "demo.status" }),
-    await s.post({ ...session, csrf: "x" }, { operation: "demo.status" }),
+    await s.post(session, { operation: "workspaces.list" }),
+    await s.post({ ...session, csrf: "x" }, { operation: "workspaces.list" }),
   ];
   for (const res of responses) {
     assert.ok(
@@ -453,13 +452,13 @@ test("the app backend's principal headers and a bearer header, with no cookie, g
         "Content-Type": "application/json",
         ...headers,
       },
-      body: JSON.stringify({ operation: "demo.status" }),
+      body: JSON.stringify({ operation: "workspaces.list" }),
     });
     assert.equal(res.status, 401, JSON.stringify(Object.keys(headers)));
   }
-  const ok = await s.post(session, { operation: "demo.status" });
+  const ok = await s.post(session, { operation: "workspaces.list" });
   assert.equal(ok.status, 200);
-  assert.deepEqual(JSON.parse(ok.text).result.active, false);
+  assert.ok(Array.isArray(JSON.parse(ok.text).result.items));
 });
 
 test("an oversize body is 413 and bad JSON is 400 (SW4.11)", async (t) => {
@@ -556,7 +555,7 @@ test("the server's end is a sign-out: sessions are not on disk", async (t) => {
 test("no token, cookie or CSRF value is in the log, serve.json or the database (SW4.10)", async (t) => {
   const s = await serve(t);
   const a = await s.signIn();
-  await s.post(a, { operation: "demo.status" });
+  await s.post(a, { operation: "workspaces.list" });
   await s.call(`/apps/avoozl?token=${s.token}`, {
     headers: { Cookie: a.cookie },
   });
@@ -592,13 +591,6 @@ test("serve.json and the state folder are private (SW3.5)", {
     0o600,
   );
   assert.equal(fs.statSync(s.stateDirectory).mode & 0o777, 0o700);
-});
-
-test("demo mode works on the page (SW5.3)", async (t) => {
-  const s = await serve(t);
-  const a = await s.signIn();
-  const status = await s.post(a, { operation: "demo.status" });
-  assert.equal(JSON.parse(status.text).result.workspaceId.length > 0, true);
 });
 
 test("the machine state and configuration folders are outside a child's roots (SW5.5)", () => {
@@ -640,7 +632,7 @@ test("a request with no session cookie is refused whatever else it carries (SW4.
         "Content-Type": "application/json",
         ...headers,
       },
-      body: JSON.stringify({ operation: "demo.status" }),
+      body: JSON.stringify({ operation: "workspaces.list" }),
     });
     assert.equal(res.status, 401, JSON.stringify(Object.keys(headers)));
   }

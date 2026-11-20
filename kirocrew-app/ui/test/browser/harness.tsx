@@ -511,14 +511,14 @@ if (query.get('page') === 'app') {
   if (!replyFor('landing.view')) answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
   // &home=empty: Home's CI read answers with no runs (only Home reads it).
   if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [], flaky: [], ciOnly: [], ci: { repositories: [] } }))
-  // &roles=plans|single|local: Repository setup with a role on each row
-  // (R105), the planning repository without a checkout in &roles=plans.
+  // &roles=plans|single|local: Repository setup in each github.mode, the
+  // planning repository without a checkout in &roles=plans.
   const roles = query.get('roles')
   const rolesGithub =
     roles === 'single'
-      ? { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
+      ? { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main' }, 'acme/recipe-api': { baseBranch: 'main' } } }
       : roles === 'local'
-        ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
+        ? { repositories: { 'acme/recipe-box': { baseBranch: 'main' }, 'acme/recipe-api': { baseBranch: 'main' } } }
         : {
             mode: 'plans-repo',
             planningRepository: 'acme/plans',
@@ -526,11 +526,10 @@ if (query.get('page') === 'app') {
             repositories: {
               'acme/recipe-box': {
                 baseBranch: 'main',
-                role: 'code',
                 requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'],
                 landing: { method: 'squash' },
               },
-              'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' },
+              'acme/recipe-api': { baseBranch: 'main', minimumPermission: 'write' },
             },
           }
   if (roles)
@@ -541,7 +540,7 @@ if (query.get('page') === 'app') {
         { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
       ],
     }))
-  // Add repository and Set up GitHub and import specs read a folder the same way.
+  // Add repository reads a folder.
   if (roles) {
     // Save writes are recorded in __harness.calls.
     if (!replyFor('github.settings.update'))
@@ -549,8 +548,6 @@ if (query.get('page') === 'app') {
         state.calls.push(body)
         return replyFor('github.settings.get')!({})
       })
-    // A folder named like a plans repository looks like one; the rest look
-    // like code in this plans-repo workspace.
     answer('repositories.detect', (body) => {
       const folder = (body.input as { folder: string }).folder
       const plans = /plans/.test(folder)
@@ -560,17 +557,6 @@ if (query.get('page') === 'app') {
         baseBranch: 'main',
         remote: 'origin',
         github: plans ? 'acme/team-plans' : 'acme/new-service',
-        kind: plans
-          ? { role: 'planning', source: '', reasons: ['It has spec folders in .kiro/specs and no code.'], upstream: null, code: null, specs: 2, visibility: 'private' }
-          : {
-              role: 'code',
-              source: '',
-              reasons: ["acme/plans is this workspace's planning repository, so its specs live there.", 'It has code (package.json).'],
-              upstream: null,
-              code: 'package.json',
-              specs: 0,
-              visibility: 'public',
-            },
       }
     })
     answer('repositories.configure', (body) => ({
@@ -579,19 +565,6 @@ if (query.get('page') === 'app') {
       localCheckout: (body.input as { localCheckout: string }).localCheckout,
       github: 'acme/new-service',
       baseBranch: 'main',
-    }))
-    answer('onboarding.inspect', (body) => ({
-      root: (body.input as { folder: string }).folder,
-      baseBranch: 'main',
-      currentBranch: 'main',
-      remote: 'git@github.com:acme/new-service.git',
-      github: 'acme/new-service',
-      id: 'new-service',
-      settingsFile: false,
-      specs: ['search-v2'],
-      registered: { id: 'new-service', localCheckout: (body.input as { folder: string }).folder, github: 'acme/new-service', baseBranch: 'main', planning: false },
-      visibility: 'private',
-      githubError: null,
     }))
   }
   answer('github.settings.get', () => ({

@@ -177,7 +177,6 @@ const releasedBy = (instance, taskId) =>
     kind: "leaf",
     source: { commit: null, manifest: DIGEST },
     applied: { title: DIGEST, body: DIGEST, labels: [], blockers: [] },
-    instance,
   });
 
 // What the fake GitHub holds: an epic issue with one sub-issue per leaf, a

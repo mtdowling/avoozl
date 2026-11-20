@@ -39,7 +39,6 @@ import { withWorkLock } from "../git/git.mjs";
 import { paceNeedsYou } from "../github/github-pacer.mjs";
 import { rateNeedsYou } from "../github/github-rate.mjs";
 import { credentialsNeedsYou } from "../github/github-credentials.mjs";
-import { missingLabelsNeedsYou } from "../github/github-setup.mjs";
 import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { highlightLanguages } from "../settings/highlight-languages.mjs";
 import { landingNeedsYou } from "../epics/integration-head.mjs";
@@ -360,7 +359,6 @@ export const entries = [
       view.items.push(...diskNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...credentialsNeedsYou(store));
-      view.items.push(...missingLabelsNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
       // A role waiting on Kiro Crew on a machine with none, with this
       // machine's approved harnesses for Run on (NK8.2).

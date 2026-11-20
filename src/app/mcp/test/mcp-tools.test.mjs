@@ -6,7 +6,7 @@ import test from "node:test";
 import { handleMcp, NARROW_TOOLS } from "../mcp.mjs";
 import { createAppMcp } from "../../executors/kirocrew/app-mcp.mjs";
 import { NOT_ON_MCP, PERSON_ONLY } from "../mcp-policy.mjs";
-import { GROUPED_TOOLS, groupedCall } from "../mcp-tools.mjs";
+import { GROUPED_TOOLS } from "../mcp-tools.mjs";
 import { OPERATIONS, classifyOperation } from "../../api/operation-table.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { fixture } from "../../test/fixtures.mjs";
@@ -185,17 +185,6 @@ test("no MCP name reaches a person-only operation, and nearby inputs fail closed
     input: {},
   });
   assert.equal(missing.isError, true);
-  // A setup preview never applies, even when the call says confirm.
-  assert.deepEqual(
-    groupedCall("plans_github", {
-      action: "setup_preview",
-      input: { confirm: true, previewHash: "x", mode: "single-repo" },
-    }),
-    {
-      operation: "github.setup",
-      input: { previewHash: "x", mode: "single-repo" },
-    },
-  );
   assert.equal(store.read().revision, before, "nothing was written");
 });
 

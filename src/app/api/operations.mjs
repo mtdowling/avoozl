@@ -76,7 +76,6 @@ import {
 import { OPERATIONS } from "./operation-table.mjs";
 import { flushOutbox } from "../store/outbox.mjs";
 import { processGrants, withJob } from "../github/github-jobs.mjs";
-import { recordMissingLabels } from "../github/github-setup.mjs";
 import {
   credentialsNeedsYou,
   machineCredentials,
@@ -250,8 +249,6 @@ export class Operations {
       recordCredentialEvents(store, client.credentials);
       client.onNoPerson = (provider, owner) =>
         recordNoPerson(store, { provider, owner });
-      client.onMissingLabels = (repository, names) =>
-        recordMissingLabels(store, repository, names);
     }
     this.githubClient = client;
     this.github = guardGitHub(client, store);

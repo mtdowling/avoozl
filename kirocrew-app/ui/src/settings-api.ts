@@ -167,26 +167,11 @@ export function settingsClient(api: AppApi) {
     get: (workspaceId: string) => run<GitHubSettings>('github.settings.get', {}, workspaceId),
     validate: (workspaceId: string, github: Policy) => run<Validation>('github.settings.validate', { github }, workspaceId),
     save: (workspaceId: string, github: Policy, expectedHash: string | null) => run<GitHubSettings>('github.settings.update', { github, expectedHash }, workspaceId),
-    setup: (workspaceId: string, input: SetupInput) => run<SetupResult>('github.setup', { ...input }, workspaceId),
     // A person's Allow for the high-risk steps the confirm showed
     // (plugin-credentials §D7); the apply sends the grant ids back.
     allow: (workspaceId: string, steps: HighRiskStep[]) => run<{ grants: string[] }>('github.job.confirm', { steps }, workspaceId),
     // Stops a running apply before its next write.
-    cancelSetup: (workspaceId: string, previewHash: string) => run<{ cancelled: boolean }>('github.setup.cancel', { previewHash }, workspaceId),
   }
-}
-
-// Set up GitHub wizard (design §8.2). The backend reads GitHub, previews
-// every write, and writes only on confirm with the preview's hash.
-export interface SetupInput {
-  mode: string
-  planningRepository?: string
-  repositories?: string[]
-  epic?: boolean
-  confirm?: boolean
-  previewHash?: string
-  // Grant ids from github.job.confirm for the high-risk writes.
-  allow?: string[]
 }
 
 // A high-risk GitHub step: its job, where, and the exact permissions it
@@ -200,74 +185,11 @@ export interface HighRiskStep {
   permissionsHash: string
 }
 
-export interface SetupWrite extends Partial<HighRiskStep> {
-  step: string
-  action: string
-  object: string
-  owner: string
-  name: string
-  visibility: string | null
-  detail: string
-}
-
 // The confirm's line for one high-risk step.
 export const permissionsLine = (step: Partial<HighRiskStep>) => (step.job ? `${step.job} asks GitHub for ${step.permissionsText} on ${step.target}` : '')
 
 // The steps a confirm allows: the high-risk ones.
 export const highRisk = (steps: Partial<HighRiskStep>[]) => steps.filter((step): step is HighRiskStep => step.risk === 'high')
-
-export interface SetupStep {
-  id: string
-  title: string
-  status: string
-  notes: string[]
-  reason: string | null
-  fix: string | null
-}
-
-export interface SetupResult {
-  writes: SetupWrite[]
-  previewHash: string
-  nothingToChange: boolean
-  applied: boolean
-  results?: (SetupWrite & { status: string; reason?: string; manual?: string[] })[]
-  steps: SetupStep[]
-  checklist: { id: string; text: string; link: string | null }[]
-  settings: {
-    github: Policy
-    expectedHash: string | null
-    changed: boolean
-    diff: string
-    error: string | null
-  }
-}
-
-export interface SetupForm {
-  mode: string
-  planningRepository: string
-  repositories: string
-  epic: boolean
-}
-
-// Wizard defaults from the saved settings.
-export function setupForm(github: Policy): SetupForm {
-  return {
-    mode: str(github.mode) || 'plans-repo',
-    planningRepository: str(github.planningRepository),
-    repositories: Object.keys(record(github.repositories)).join(', '),
-    epic: true,
-  }
-}
-
-// The operation input.
-export function setupInput(form: SetupForm): SetupInput {
-  return compact({
-    mode: form.mode,
-    planningRepository: form.mode === 'plans-repo' ? blank(form.planningRepository) : undefined,
-    repositories: splitList(form.repositories),
-    epic: form.epic,
-  }) as unknown as SetupInput
-}
 
 export interface RepositoryForm {
   name: string
@@ -449,8 +371,7 @@ export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
 // The first required setting the form leaves blank, as a sentence, or null.
 // Save is blocked while one is missing, so the message names what to fill.
 export function missingRequired(form: SettingsForm): string | null {
-  if (form.mode === 'plans-repo' && !form.planningRepository.trim())
-    return 'A code repository needs a planning repository: give one repository the planning role in Repository setup.'
+  if (form.mode === 'plans-repo' && !form.planningRepository.trim()) return 'A code repository needs a planning repository: set github.planningRepository in .avoozl.json.'
   // Local only reads no repository GitHub setting.
   if (!isGitHubMode(form.mode)) return null
   for (const [index, repository] of form.repositories.entries()) {

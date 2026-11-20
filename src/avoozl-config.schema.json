@@ -146,9 +146,6 @@
         "responder": {
           "$ref": "#/$defs/harnessRole"
         },
-        "taskSummary": {
-          "$ref": "#/$defs/harnessRole"
-        },
         "assist": {
           "$ref": "#/$defs/harnessRole"
         },

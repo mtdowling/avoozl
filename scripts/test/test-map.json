@@ -46,7 +46,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/github/test/source-backlinks.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -153,12 +152,8 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -224,8 +219,7 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
-   "src/app/workers/test/report-match.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/report-match.test.mjs"
   ],
   "src/app/agents/role-table.mjs": [
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -287,7 +281,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
@@ -424,14 +417,9 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -444,8 +432,7 @@
    "src/app/test/proof-p42.test.mjs"
   ],
   "src/app/api/client.mjs": [
-   "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/mcp/test/mcp-tools.test.mjs"
   ],
   "src/app/api/command-dispatch.mjs": [
    "src/app/api/test/command-dispatch.test.mjs",
@@ -466,9 +453,7 @@
    "src/app/test/page-round3.test.mjs",
    "src/app/test/serve-supervisor.test.mjs",
    "src/app/test/serve.test.mjs",
-   "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs"
+   "src/app/test/stock-kirocrew.test.mjs"
   ],
   "src/app/api/direct-links.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -512,7 +497,6 @@
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/worker-mode.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs"
   ],
@@ -532,8 +516,7 @@
    "src/app/test/one-dispatcher.test.mjs",
    "src/app/test/review-flags.test.mjs",
    "src/app/test/review-state.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/api/operation-policy.mjs": [
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -582,7 +565,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -696,14 +678,9 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -732,7 +709,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/plugins/test/check-decide.test.mjs",
@@ -789,9 +765,6 @@
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/api/operation-table.mjs": [
@@ -824,9 +797,7 @@
    "src/app/test/proof-p28.test.mjs",
    "src/app/test/proposals.test.mjs",
    "src/app/test/review-finding-actions.test.mjs",
-   "src/app/test/single-write-path-servers.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs"
+   "src/app/test/single-write-path-servers.test.mjs"
   ],
   "src/app/api/operations.mjs": [
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -869,7 +840,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
    "src/app/intake/test/intake.test.mjs",
@@ -974,12 +944,8 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -1034,12 +1000,10 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/tick-activity.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/api/panel-view.mjs": [
-   "src/app/api/test/panel-view.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/api/test/panel-view.test.mjs"
   ],
   "src/app/api/views.mjs": [
    "src/app/mcp/test/mcp-tools.test.mjs",
@@ -1047,7 +1011,6 @@
    "src/app/test/conversations.test.mjs",
    "src/app/test/home-no-wait.test.mjs",
    "src/app/test/hub.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/cli/cli-commands.mjs": [
@@ -1082,7 +1045,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -1121,7 +1083,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -1154,7 +1115,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -1193,14 +1153,12 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
   ],
   "src/app/cli/confirm-high-risk.mjs": [
-   "src/app/github/test/github-jobs.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs"
+   "src/app/github/test/github-jobs.test.mjs"
   ],
   "src/app/cli/link-global.mjs": [
    "src/app/cli/test/link-global.test.mjs"
@@ -1277,7 +1235,6 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -1370,7 +1327,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github-usage.test.mjs",
    "src/app/github/test/github.test.mjs",
@@ -1530,16 +1486,9 @@
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/in-flight-instances.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
-   "src/app/workspace/test/setup-access.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -1665,7 +1614,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
    "src/app/intake/test/intake.test.mjs",
@@ -1755,10 +1703,7 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/worker-briefs.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
@@ -1816,8 +1761,7 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
-   "src/app/workers/test/worker-briefs.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/worker-briefs.test.mjs"
   ],
   "src/app/delivery/verify.mjs": [
    "src/app/cli/test/cli-smoke.test.mjs",
@@ -1848,13 +1792,11 @@
    "src/app/epics/test/epics.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/test/proof-p36.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/epics/epics-view.mjs": [
    "src/app/epics/test/epics-view.test.mjs",
-   "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/mcp/test/mcp-tools.test.mjs"
   ],
   "src/app/epics/epics.mjs": [
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -1955,8 +1897,6 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/report.test.mjs"
@@ -2029,8 +1969,6 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/epics/integration-head.mjs": [
@@ -2054,8 +1992,7 @@
    "src/app/test/one-dispatcher.test.mjs",
    "src/app/test/review-flags.test.mjs",
    "src/app/test/review-state.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/epics/integration-sync.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -2078,8 +2015,7 @@
    "src/app/test/one-dispatcher.test.mjs",
    "src/app/test/review-flags.test.mjs",
    "src/app/test/review-state.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/executors/executors.mjs": [
    "src/app/executors/test/executors.test.mjs",
@@ -2137,8 +2073,7 @@
    "src/app/test/review-state.test.mjs",
    "src/app/test/role-harness.test.mjs",
    "src/app/test/worker-findings.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/executors/kirocrew.mjs": [
    "src/app/agents/test/role-table.test.mjs",
@@ -2171,7 +2106,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/github/test/source-backlinks.test.mjs",
    "src/app/intake/test/intake.test.mjs",
@@ -2225,10 +2159,7 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
-   "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs"
+   "src/app/workers/test/spec-assignee.test.mjs"
   ],
   "src/app/executors/kirocrew/app-backend.mjs": [
    "src/app/api/test/command-dispatch.test.mjs",
@@ -2239,8 +2170,7 @@
    "src/app/serve/test/ui-bundle.test.mjs",
    "src/app/test/home-no-wait.test.mjs",
    "src/app/test/page-operations.test.mjs",
-   "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/stock-kirocrew.test.mjs"
   ],
   "src/app/executors/kirocrew/app-mcp.mjs": [
    "src/app/mcp/test/mcp-tools.test.mjs",
@@ -2259,8 +2189,7 @@
    "src/app/test/home-no-wait.test.mjs",
    "src/app/test/next-and-notices.test.mjs",
    "src/app/test/page-operations.test.mjs",
-   "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/stock-kirocrew.test.mjs"
   ],
   "src/app/executors/kirocrew/session-observer.mjs": [
    "src/app/test/stock-kirocrew.test.mjs"
@@ -2293,8 +2222,7 @@
    "src/app/test/proof-p36.test.mjs",
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/executors/process.mjs": [
    "src/app/agents/test/role-table.test.mjs",
@@ -2436,8 +2364,7 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/flow/build-receipt.mjs": [
    "src/app/flow/test/build-breakdown.test.mjs",
@@ -2488,7 +2415,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/landing/test/direct-landing.test.mjs",
    "src/app/landing/test/landing-queue-view.test.mjs",
@@ -2567,12 +2493,7 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -2622,8 +2543,7 @@
    "src/app/flow/test/flow-timing.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/test/home-no-wait.test.mjs",
-   "src/app/test/proof-p36.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/proof-p36.test.mjs"
   ],
   "src/app/flow/flow-ci.mjs": [
    "src/app/api/test/served-model-gate.test.mjs",
@@ -2682,8 +2602,7 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/flow/flow-line.mjs": [
    "src/app/api/test/panel-view.test.mjs",
@@ -2721,8 +2640,7 @@
    "src/app/test/review-gates.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/worker-findings.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/flow/flow-retro.mjs": [
    "src/app/api/test/served-model-gate.test.mjs",
@@ -2767,8 +2685,7 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/flow/flow-usage.mjs": [
    "src/app/cli/test/cli-smoke.test.mjs",
@@ -2786,8 +2703,7 @@
    "src/app/specs/test/spec-ticks-landing.test.mjs",
    "src/app/test/home-no-wait.test.mjs",
    "src/app/test/proof-p36.test.mjs",
-   "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/stock-kirocrew.test.mjs"
   ],
   "src/app/flow/flow.mjs": [
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -2849,7 +2765,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
@@ -2986,14 +2901,9 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -3057,8 +2967,7 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/flow/provider-health.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -3085,7 +2994,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/mcp/test/mcp-views.test.mjs",
@@ -3135,9 +3043,6 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/tick/test/tick-activity.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs"
   ],
   "src/app/flow/retro-chat.mjs": [
@@ -3150,14 +3055,12 @@
    "src/app/flow/test/retro-chat.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/test/home-no-wait.test.mjs",
-   "src/app/test/proof-p36.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/proof-p36.test.mjs"
   ],
   "src/app/flow/retro-files.mjs": [
    "src/app/executors/test/process-reply-summary.test.mjs",
    "src/app/git/test/git-approvals.test.mjs",
-   "src/app/test/proof-p28.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs"
+   "src/app/test/proof-p28.test.mjs"
   ],
   "src/app/flow/retro-memory.mjs": [
    "src/app/api/test/command-dispatch.test.mjs",
@@ -3233,7 +3136,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/flow/retro-operations.mjs": [
@@ -3283,7 +3185,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -3397,14 +3298,9 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -3465,9 +3361,7 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs"
+   "src/app/workers/test/spec-assignee.test.mjs"
   ],
   "src/app/git/git.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -3572,11 +3466,8 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs"
   ],
@@ -3669,7 +3560,6 @@
    "src/app/github/test/github-jobs.test.mjs",
    "src/app/github/test/github-logins.test.mjs",
    "src/app/github/test/github-rate.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/intake/test/fix.test.mjs",
    "src/app/intake/test/intake.test.mjs",
    "src/app/landing/test/landing-view.test.mjs",
@@ -3766,11 +3656,8 @@
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
@@ -3866,7 +3753,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github-usage.test.mjs",
    "src/app/github/test/github.test.mjs",
@@ -4027,16 +3913,9 @@
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/in-flight-instances.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
-   "src/app/workspace/test/setup-access.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -4082,8 +3961,6 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/in-flight-instances.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -4161,7 +4038,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-usage.test.mjs",
    "src/app/intake/test/fix.test.mjs",
    "src/app/intake/test/intake.test.mjs",
@@ -4259,12 +4135,8 @@
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
@@ -4333,7 +4205,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
@@ -4476,14 +4347,9 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -4530,7 +4396,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/intake.test.mjs",
    "src/app/landing/test/landing-queue-view.test.mjs",
@@ -4624,11 +4489,7 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
@@ -4686,7 +4547,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-usage.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/github/test/pull-request-snapshot.test.mjs",
@@ -4794,12 +4654,8 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -4892,36 +4748,14 @@
   "src/app/github/github-reviews.mjs": [
    "src/app/landing/test/landing-pulls.test.mjs"
   ],
-  "src/app/github/github-setup.mjs": [
-   "src/app/api/test/page-actions.test.mjs",
-   "src/app/api/test/page-views.test.mjs",
-   "src/app/api/test/panel-view.test.mjs",
-   "src/app/cli/test/cli-smoke.test.mjs",
-   "src/app/executors/test/kirocrew-runtime.test.mjs",
-   "src/app/github/test/github-rate.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
-   "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/mcp/test/mcp-views.test.mjs",
-   "src/app/specs/test/spec-ticks.test.mjs",
-   "src/app/test/direct-links.test.mjs",
-   "src/app/test/home-no-wait.test.mjs",
-   "src/app/test/one-dispatcher.test.mjs",
-   "src/app/test/review-flags.test.mjs",
-   "src/app/test/review-state.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
-  ],
   "src/app/github/github-sources.mjs": [
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/intake/test/intake.test.mjs",
    "src/app/settings/test/config-schema.test.mjs",
    "src/app/settings/test/repository-settings.test.mjs",
    "src/app/test/plan-review-settings.test.mjs",
    "src/app/test/security-audit.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs"
   ],
   "src/app/github/github-sync.mjs": [
@@ -4934,8 +4768,6 @@
    "src/app/test/conversations.test.mjs",
    "src/app/test/proof-p36.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs"
   ],
   "src/app/github/github.mjs": [
@@ -4987,7 +4819,6 @@
    "src/app/github/test/github-permission.test.mjs",
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-read-budget.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-usage.test.mjs",
    "src/app/github/test/setup-landing.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -5090,14 +4921,8 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
-   "src/app/workspace/test/setup-access.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -5111,8 +4936,7 @@
   "src/app/github/setup-landing.mjs": [
    "src/app/github/test/setup-landing.test.mjs",
    "src/app/landing/test/landing-pulls.test.mjs",
-   "src/app/landing/test/pr-landing.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs"
+   "src/app/landing/test/pr-landing.test.mjs"
   ],
   "src/app/github/source-backlinks.mjs": [
    "src/app/epics/test/epic-rows.test.mjs",
@@ -5155,8 +4979,7 @@
    "src/app/test/review-flags.test.mjs",
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/intake/intake.mjs": [
    "src/app/api/test/page-views.test.mjs",
@@ -5178,7 +5001,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/github/test/source-backlinks.test.mjs",
@@ -5217,10 +5039,7 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/landing/direct-landing.mjs": [
    "src/app/api/test/served-model-gate.test.mjs",
@@ -5303,7 +5122,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
    "src/app/landing/test/direct-landing.test.mjs",
@@ -5389,12 +5207,7 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
@@ -5426,8 +5239,7 @@
    "src/app/test/one-dispatcher.test.mjs",
    "src/app/test/review-flags.test.mjs",
    "src/app/test/review-state.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/landing/landing-queue.mjs": [
    "src/app/intake/test/fix.test.mjs",
@@ -5450,14 +5262,12 @@
    "src/app/landing/test/merge-batch.test.mjs",
    "src/app/landing/test/pr-landing.test.mjs",
    "src/app/specs/test/spec-ticks-landing.test.mjs",
-   "src/app/test/commit-prefix.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs"
+   "src/app/test/commit-prefix.test.mjs"
   ],
   "src/app/landing/landing-view.mjs": [
    "src/app/landing/test/landing-view.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/test/home-no-wait.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/home-no-wait.test.mjs"
   ],
   "src/app/landing/merge-batch-size.mjs": [
    "src/app/intake/test/fix.test.mjs",
@@ -5552,7 +5362,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -5664,14 +5473,9 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -5681,7 +5485,6 @@
   "src/app/mcp/mcp-tools.mjs": [
    "src/app/delivery/test/delivery.test.mjs",
    "src/app/executors/test/kirocrew-runtime.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/mcp/test/mcp-views.test.mjs",
    "src/app/reviews/test/plan-review-tools.test.mjs",
@@ -5743,7 +5546,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -5857,14 +5659,9 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -5910,7 +5707,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -5919,8 +5715,7 @@
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/test/content-terms.test.mjs",
-   "src/app/test/proof-p28.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/proof-p28.test.mjs"
   ],
   "src/app/ops/delivery.mjs": [
    "src/app/api/test/page-views.test.mjs",
@@ -5950,8 +5745,7 @@
    "src/app/test/worker-mode.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/ops/flow.mjs": [
    "src/app/api/test/harness-approve.test.mjs",
@@ -5970,8 +5764,7 @@
    "src/app/test/proof-p36.test.mjs",
    "src/app/test/proof-p42.test.mjs",
    "src/app/test/role-harness.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/ops/github.mjs": [
    "src/app/cli/test/cli-smoke.test.mjs",
@@ -5979,22 +5772,17 @@
    "src/app/github/test/github-branch-rules.test.mjs",
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/settings/test/repository-settings.test.mjs",
    "src/app/specs/test/spec-publication.test.mjs",
    "src/app/test/home-no-wait.test.mjs",
    "src/app/test/proof-p36.test.mjs",
-   "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs"
+   "src/app/workers/test/spec-assignee.test.mjs"
   ],
   "src/app/ops/intake.mjs": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/specs/test/spec-publication.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/specs/test/spec-publication.test.mjs"
   ],
   "src/app/ops/plans.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -6047,8 +5835,6 @@
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
@@ -6099,7 +5885,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -6213,14 +5998,9 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -6273,7 +6053,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs"
   ],
   "src/app/ops/specs.mjs": [
@@ -6281,7 +6060,6 @@
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/specs/test/spec-publication.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs"
   ],
   "src/app/ops/tasks.mjs": [
@@ -6334,7 +6112,6 @@
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
@@ -6392,9 +6169,6 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
@@ -6487,7 +6261,6 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/plugins/child-io.mjs": [
@@ -6569,7 +6342,6 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs"
   ],
@@ -6600,8 +6372,7 @@
    "src/app/plugins/test/plugin-git.test.mjs",
    "src/app/plugins/test/plugins.test.mjs",
    "src/app/test/content-terms.test.mjs",
-   "src/app/test/proof-p28.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/proof-p28.test.mjs"
   ],
   "src/app/plugins/plugins.mjs": [
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -6647,7 +6418,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -6754,12 +6524,8 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -6802,8 +6568,6 @@
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
@@ -6840,8 +6604,6 @@
    "src/app/test/proposals.test.mjs",
    "src/app/test/review-finding-actions.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/reviews/plan-review-step.mjs": [
@@ -6889,8 +6651,7 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/reviews/plan-review-summary.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -6930,19 +6691,15 @@
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs"
   ],
   "src/app/reviews/plan-review-tools.mjs": [
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/reviews/test/plan-review-tools.test.mjs",
-   "src/app/test/review-finding-actions.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/review-finding-actions.test.mjs"
   ],
   "src/app/reviews/plan-review-view.mjs": [
-   "src/app/reviews/test/plan-review-view.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/reviews/test/plan-review-view.test.mjs"
   ],
   "src/app/reviews/plan-review-worktrees.mjs": [
    "src/app/reviews/test/plan-review-step.test.mjs",
@@ -7012,8 +6769,6 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/reviews/pr-review.mjs": [
@@ -7104,7 +6859,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -7211,12 +6965,10 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/sessions/session-open.mjs": [
-   "src/app/sessions/test/session-open.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/sessions/test/session-open.test.mjs"
   ],
   "src/app/sessions/session-request-eligibility.mjs": [
    "src/app/executors/test/process-executor.test.mjs",
@@ -7328,7 +7080,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/landing/test/direct-landing.test.mjs",
    "src/app/landing/test/landing-queue-view.test.mjs",
@@ -7416,12 +7167,7 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
@@ -7442,7 +7188,6 @@
    "src/app/test/serve-supervisor.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs"
   ],
@@ -7498,17 +7243,13 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
   ],
   "src/app/settings/highlight-languages.mjs": [
-   "src/app/test/page-round3.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/page-round3.test.mjs"
   ],
   "src/app/settings/host-config.mjs": [
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -7552,7 +7293,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/intake/test/fix.test.mjs",
    "src/app/intake/test/intake.test.mjs",
@@ -7657,13 +7397,9 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -7749,7 +7485,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github-usage.test.mjs",
    "src/app/github/test/github.test.mjs",
@@ -7909,16 +7644,9 @@
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/in-flight-instances.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
-   "src/app/workspace/test/setup-access.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -7934,7 +7662,6 @@
    "src/app/flow/test/flow-retro.test.mjs",
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/settings/test/chat-models.test.mjs",
    "src/app/settings/test/config-schema.test.mjs",
@@ -7953,9 +7680,6 @@
    "src/app/test/security-audit.test.mjs",
    "src/app/test/task-archive.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs"
   ],
   "src/app/settings/serve-config.mjs": [
@@ -7977,7 +7701,6 @@
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs"
   ],
@@ -8016,14 +7739,11 @@
    "src/app/test/proposals.test.mjs",
    "src/app/test/session-spec-holds.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/specs/design-extraction.mjs": [
    "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/specs/test/design-extraction.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/specs/test/design-extraction.test.mjs"
   ],
   "src/app/specs/gap-report.mjs": [
    "src/app/specs/test/epic-proposal.test.mjs",
@@ -8060,7 +7780,6 @@
    "src/app/test/review-state.test.mjs",
    "src/app/test/session-spec-holds.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/specs/new-plan.mjs": [
@@ -8159,8 +7878,6 @@
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
@@ -8265,8 +7982,6 @@
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
@@ -8325,7 +8040,6 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/specs/source-sync.mjs": [
@@ -8444,7 +8158,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github-usage.test.mjs",
    "src/app/github/test/github.test.mjs",
@@ -8581,7 +8294,6 @@
    "src/app/test/single-write-path-servers.test.mjs",
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-conversion.test.mjs",
-   "src/app/test/spec-facts-docs.test.mjs",
    "src/app/test/spec-lint-script.test.mjs",
    "src/app/test/spec-manifests-on-tree.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
@@ -8605,16 +8317,9 @@
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/in-flight-instances.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
-   "src/app/workspace/test/setup-access.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -8713,8 +8418,6 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/specs/spec-publication.mjs": [
@@ -8770,8 +8473,6 @@
    "src/app/test/spec-manifests-on-tree.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/specs/spec-scheduler.mjs": [
@@ -8816,8 +8517,7 @@
    "src/app/test/commit-prefix.test.mjs",
    "src/app/test/proof-p27.test.mjs",
    "src/app/test/proof-p28.test.mjs",
-   "src/app/test/session-spec-holds.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs"
+   "src/app/test/session-spec-holds.test.mjs"
   ],
   "src/app/specs/specs-branch.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -8848,8 +8548,6 @@
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
    "src/app/test/session-spec-holds.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/specs/specs-path.mjs": [
@@ -8942,8 +8640,6 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -8992,7 +8688,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/landing/test/landing-queue-view.test.mjs",
    "src/app/landing/test/landing-view.test.mjs",
@@ -9086,10 +8781,6 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
@@ -9108,7 +8799,6 @@
    "src/app/test/host-cli.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs"
   ],
@@ -9118,8 +8808,7 @@
    "src/app/test/next-and-notices.test.mjs",
    "src/app/test/proof-p42.test.mjs",
    "src/app/test/single-write-path-servers.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/store/outbox.mjs": [
    "src/app/api/test/command-dispatch.test.mjs",
@@ -9146,7 +8835,6 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/store/store.mjs": [
@@ -9233,7 +8921,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github-usage.test.mjs",
    "src/app/github/test/github.test.mjs",
@@ -9396,16 +9083,9 @@
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/in-flight-instances.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
-   "src/app/workspace/test/setup-access.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -9450,8 +9130,7 @@
    "src/app/test/review-flags.test.mjs",
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
   "src/app/tick/crews.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -9474,7 +9153,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/plugins/test/check-decide.test.mjs",
@@ -9515,10 +9193,7 @@
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/tick/headless-tick-main.mjs": [],
   "src/app/tick/headless-tick.mjs": [
@@ -9569,7 +9244,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/landing/test/direct-landing.test.mjs",
    "src/app/landing/test/landing-queue-view.test.mjs",
@@ -9654,12 +9328,7 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
@@ -9725,7 +9394,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
@@ -9862,14 +9530,9 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -9917,7 +9580,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/landing/test/direct-landing.test.mjs",
    "src/app/landing/test/landing-queue-view.test.mjs",
@@ -9998,12 +9660,7 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -10091,8 +9748,6 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs"
   ],
   "src/app/tick/tick-activity.mjs": [
@@ -10148,8 +9803,7 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/tick/test/tick-activity.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/manual-take.test.mjs"
   ],
   "src/app/tick/tick-watchdog.mjs": [
    "src/app/cli/test/cli-smoke.test.mjs",
@@ -10177,7 +9831,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/mcp/test/mcp-views.test.mjs",
@@ -10228,9 +9881,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/workers/driver-scope.mjs": [
@@ -10355,7 +10005,6 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/workers/manual-take.mjs": [
@@ -10466,8 +10115,7 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
-   "src/app/workers/test/worker-briefs.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/workers/test/worker-briefs.test.mjs"
   ],
   "src/app/workers/report-match.mjs": [
    "src/app/api/test/served-model-gate.test.mjs",
@@ -10570,7 +10218,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/github-sources.test.mjs",
    "src/app/github/test/github.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
@@ -10707,14 +10354,9 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/worker-briefs.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
@@ -10734,9 +10376,7 @@
    "src/app/test/proof-p27.test.mjs",
    "src/app/test/proof-p28.test.mjs",
    "src/app/test/worker-mode.test.mjs",
-   "src/app/workers/test/working-heads.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
-   "src/app/workspace/test/setup-access.test.mjs"
+   "src/app/workers/test/working-heads.test.mjs"
   ],
   "src/app/workspace/check-isolation.mjs": [
    "src/app/api/test/served-model-gate.test.mjs",
@@ -10767,25 +10407,8 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs"
-  ],
-  "src/app/workspace/demo.mjs": [
-   "src/app/api/test/command-dispatch.test.mjs",
-   "src/app/api/test/panel-view.test.mjs",
-   "src/app/epics/test/epics-view.test.mjs",
-   "src/app/executors/test/kirocrew-plans-view.test.mjs",
-   "src/app/executors/test/kirocrew-runtime.test.mjs",
-   "src/app/executors/test/kirocrew-workspace-view.test.mjs",
-   "src/app/executors/test/supervisor.test.mjs",
-   "src/app/serve/test/ui-bundle.test.mjs",
-   "src/app/test/home-no-wait.test.mjs",
-   "src/app/test/page-operations.test.mjs",
-   "src/app/test/serve-supervisor.test.mjs",
-   "src/app/test/serve.test.mjs",
-   "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
   ],
   "src/app/workspace/disk-space.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -10835,35 +10458,17 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/report-match.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs"
-  ],
-  "src/app/workspace/examples.mjs": [
-   "src/app/cli/test/cli-smoke.test.mjs",
-   "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/workspace.test.mjs"
   ],
   "src/app/workspace/folder-browse.mjs": [
    "src/app/executors/test/kirocrew-workspace-view.test.mjs",
    "src/app/test/repositories-detect.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs"
-  ],
-  "src/app/workspace/instance.mjs": [
-   "src/app/api/test/command-dispatch.test.mjs",
-   "src/app/api/test/panel-view.test.mjs",
-   "src/app/flow/test/build-receipt-read.test.mjs",
-   "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/test/home-no-wait.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/instance.test.mjs"
   ],
   "src/app/workspace/local-ignore.mjs": [
    "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/local-ignore.test.mjs"
   ],
   "src/app/workspace/machine-status.mjs": [
@@ -10874,10 +10479,6 @@
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs"
-  ],
-  "src/app/workspace/onboarding.mjs": [
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs"
   ],
   "src/app/workspace/repository-checks.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -10967,136 +10568,11 @@
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/worker-briefs.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
-  ],
-  "src/app/workspace/repository-kind.mjs": [
-   "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/test/repositories-detect.test.mjs"
-  ],
-  "src/app/workspace/repository-roles.mjs": [
-   "src/app/api/test/page-actions.test.mjs",
-   "src/app/api/test/page-views.test.mjs",
-   "src/app/api/test/panel-view.test.mjs",
-   "src/app/api/test/served-model-gate.test.mjs",
-   "src/app/cli/test/cli-plan-delete.test.mjs",
-   "src/app/cli/test/cli-smoke.test.mjs",
-   "src/app/delivery/test/check-runs.test.mjs",
-   "src/app/delivery/test/delivery.test.mjs",
-   "src/app/delivery/test/verify-integrate.test.mjs",
-   "src/app/delivery/test/verify.test.mjs",
-   "src/app/epics/test/epic-rows.test.mjs",
-   "src/app/epics/test/epics-view.test.mjs",
-   "src/app/epics/test/epics.test.mjs",
-   "src/app/epics/test/integration-branch.test.mjs",
-   "src/app/executors/test/kirocrew-plans-view.test.mjs",
-   "src/app/executors/test/kirocrew-runtime.test.mjs",
-   "src/app/executors/test/process-reply-summary.test.mjs",
-   "src/app/executors/test/supervisor-unit.test.mjs",
-   "src/app/flow/test/flow-andon.test.mjs",
-   "src/app/flow/test/flow-ci-view.test.mjs",
-   "src/app/flow/test/flow-full-stop.test.mjs",
-   "src/app/flow/test/flow-line.test.mjs",
-   "src/app/flow/test/flow-timing.test.mjs",
-   "src/app/git/test/git-approvals.test.mjs",
-   "src/app/github/test/github-intake.test.mjs",
-   "src/app/github/test/github-policy.test.mjs",
-   "src/app/github/test/github-rate.test.mjs",
-   "src/app/github/test/github-respond.test.mjs",
-   "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
-   "src/app/github/test/proof-discussions.test.mjs",
-   "src/app/github/test/source-backlinks.test.mjs",
-   "src/app/intake/test/intake.test.mjs",
-   "src/app/landing/test/merge-batch-retired.test.mjs",
-   "src/app/landing/test/merge-batch-size.test.mjs",
-   "src/app/landing/test/pr-landing.test.mjs",
-   "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/mcp/test/mcp-views.test.mjs",
-   "src/app/plugins/test/check-decide.test.mjs",
-   "src/app/plugins/test/mcp-steps.test.mjs",
-   "src/app/plugins/test/plugin-checks.test.mjs",
-   "src/app/reviews/test/plan-review-step.test.mjs",
-   "src/app/reviews/test/plan-review-summary.test.mjs",
-   "src/app/reviews/test/pr-review.test.mjs",
-   "src/app/specs/test/cross-spec-dependencies.test.mjs",
-   "src/app/specs/test/design-extraction.test.mjs",
-   "src/app/specs/test/epic-proposal.test.mjs",
-   "src/app/specs/test/flexible-specs.test.mjs",
-   "src/app/specs/test/graph-drafts.test.mjs",
-   "src/app/specs/test/new-plan.test.mjs",
-   "src/app/specs/test/plan-archive.test.mjs",
-   "src/app/specs/test/spec-plans.test.mjs",
-   "src/app/specs/test/spec-publication.test.mjs",
-   "src/app/specs/test/spec-refs.test.mjs",
-   "src/app/specs/test/spec-scheduler.test.mjs",
-   "src/app/specs/test/spec-ticks-landing.test.mjs",
-   "src/app/specs/test/spec-ticks.test.mjs",
-   "src/app/tasks/test/manual-tasks.test.mjs",
-   "src/app/tasks/test/scm-links.test.mjs",
-   "src/app/test/approval-receipts.test.mjs",
-   "src/app/test/commit-prefix.test.mjs",
-   "src/app/test/content-terms.test.mjs",
-   "src/app/test/executor-requests.test.mjs",
-   "src/app/test/home-no-wait.test.mjs",
-   "src/app/test/landing-block.test.mjs",
-   "src/app/test/large-workspace.test.mjs",
-   "src/app/test/manual-path.test.mjs",
-   "src/app/test/merge-method.test.mjs",
-   "src/app/test/next-and-notices.test.mjs",
-   "src/app/test/one-dispatcher.test.mjs",
-   "src/app/test/page-round3.test.mjs",
-   "src/app/test/plan-category.test.mjs",
-   "src/app/test/plan-delete.test.mjs",
-   "src/app/test/plan-review-tick.test.mjs",
-   "src/app/test/policy-docs.test.mjs",
-   "src/app/test/proof-p27.test.mjs",
-   "src/app/test/proof-p28.test.mjs",
-   "src/app/test/proof-p36.test.mjs",
-   "src/app/test/proof-p42.test.mjs",
-   "src/app/test/proof-p45.test.mjs",
-   "src/app/test/proof-rc-p17.test.mjs",
-   "src/app/test/proposals.test.mjs",
-   "src/app/test/report-cli.test.mjs",
-   "src/app/test/retired-execution-paths.test.mjs",
-   "src/app/test/review-flags.test.mjs",
-   "src/app/test/review-gates.test.mjs",
-   "src/app/test/review-state.test.mjs",
-   "src/app/test/session-spec-holds.test.mjs",
-   "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/work-model.test.mjs",
-   "src/app/test/worker-findings.test.mjs",
-   "src/app/test/workflow.test.mjs",
-   "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/workspace-repository.test.mjs",
-   "src/app/workspace/test/workspace.test.mjs"
-  ],
-  "src/app/workspace/repository-setup.mjs": [
-   "src/app/cli/test/cli-smoke.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs"
-  ],
-  "src/app/workspace/sample-specs.mjs": [
-   "src/app/api/test/panel-view.test.mjs",
-   "src/app/cli/test/cli-smoke.test.mjs",
-   "src/app/epics/test/epics-view.test.mjs",
-   "src/app/mcp/test/mcp-tools.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/workspace.test.mjs"
-  ],
-  "src/app/workspace/setup-access.mjs": [
-   "src/app/workspace/test/repository-setup.test.mjs",
-   "src/app/workspace/test/setup-access.test.mjs"
   ],
   "src/app/workspace/workspace-repositories.mjs": [
    "src/app/api/test/page-actions.test.mjs",
@@ -11165,8 +10641,6 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
@@ -11175,7 +10649,6 @@
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/settings/test/repository-settings.test.mjs",
    "src/app/test/conversations.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs"
   ],
   "src/app/workspace/workspace-status.mjs": [
@@ -11219,7 +10692,6 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/tick/test/notification-sinks.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace-status.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
@@ -11283,7 +10755,6 @@
    "src/app/test/workflow.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/report.test.mjs",
    "src/workbench.test.mjs"
@@ -11350,8 +10821,6 @@
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
@@ -11373,8 +10842,7 @@
    "src/app/test/proof-p28.test.mjs",
    "src/app/test/proposals.test.mjs",
    "src/app/test/review-finding-actions.test.mjs",
-   "src/app/test/single-write-path-servers.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/test/single-write-path-servers.test.mjs"
   ],
   "src/model.mjs": [
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -11435,7 +10903,6 @@
    "src/app/github/test/github-read-budget.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/github/test/source-backlinks.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -11560,13 +11027,8 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
-   "src/app/workspace/test/repository-setup.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -11654,8 +11116,6 @@
    "src/app/tick/test/tick-activity.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/report.test.mjs",
    "src/workbench.test.mjs"
@@ -11761,8 +11221,6 @@
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/spec-assignee.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs",
    "src/report.test.mjs",
@@ -11815,7 +11273,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/github/test/source-backlinks.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -11928,12 +11385,8 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -11989,7 +11442,6 @@
    "src/app/github/test/github-rate.test.mjs",
    "src/app/github/test/github-respond.test.mjs",
    "src/app/github/test/github-settings.test.mjs",
-   "src/app/github/test/github-setup.test.mjs",
    "src/app/github/test/proof-discussions.test.mjs",
    "src/app/github/test/source-backlinks.test.mjs",
    "src/app/intake/test/fix.test.mjs",
@@ -12100,12 +11552,8 @@
    "src/app/workers/test/spec-assignee.test.mjs",
    "src/app/workers/test/working-heads.test.mjs",
    "src/app/workspace/test/check-isolation.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs",
-   "src/app/workspace/test/instance.test.mjs",
-   "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-checks.test.mjs",
-   "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace-fixtures.test.mjs",
    "src/app/workspace/test/workspace-repositories.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs",
@@ -12120,7 +11568,6 @@
    "src/app/specs/test/cross-spec-dependencies.test.mjs",
    "src/app/specs/test/graph-drafts.test.mjs",
    "src/app/test/workflow.test.mjs",
-   "src/app/workspace/test/demo.test.mjs",
    "src/workbench.test.mjs"
   ]
  },
@@ -12136,7 +11583,6 @@
   "kirocrew-app/ui/test/github-rate.test.mjs",
   "kirocrew-app/ui/test/graph-layout.test.mjs",
   "kirocrew-app/ui/test/home-api.test.mjs",
-  "kirocrew-app/ui/test/home-setup.test.mjs",
   "kirocrew-app/ui/test/landing-queue-api.test.mjs",
   "kirocrew-app/ui/test/list-detail.test.mjs",
   "kirocrew-app/ui/test/markdown.test.mjs",

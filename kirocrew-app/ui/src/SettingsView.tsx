@@ -416,7 +416,7 @@ export function RepositoryEditor(props: {
             <Box as="span" css-color="text" weight="medium">
               {MODE_TITLES[modeKey(props.mode)]}
             </Box>
-            . It follows from each repository&apos;s role in Repository setup.
+            . It comes from github.mode in .avoozl.json.
           </Hint>
           <Box {...grid()}>
             <Text
@@ -745,7 +745,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
       <FieldGroup title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
         {props.kept && (
           <Hint as="p" size="xs">
-            Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.
+            Its GitHub settings are kept, not used. They apply again when github.mode is a GitHub mode.
           </Hint>
         )}
       </FieldGroup>
@@ -797,7 +797,7 @@ function WorkspaceGitHub(props: { form: SettingsForm; saved: SettingsForm; choic
     return (
       <>
         <Card>
-          <Section title="GitHub settings" blurb="They apply once a repository has a GitHub role in Repository setup.">
+          <Section title="GitHub settings" blurb="They apply when github.mode in .avoozl.json is a GitHub mode.">
             <Box flex flexCol gap="1.5" size="sm" data-local-note>
               <p>{LOCAL_HIDDEN_LINE}</p>
               <Hint as="p" size="xs">
@@ -805,7 +805,7 @@ function WorkspaceGitHub(props: { form: SettingsForm; saved: SettingsForm; choic
               </Hint>
               {kept.length > 0 && (
                 <Hint as="p" size="xs" data-kept>
-                  Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.
+                  Kept, not used: {kept.join(', ')}. Set github.mode to a GitHub mode to use them again.
                 </Hint>
               )}
             </Box>

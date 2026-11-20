@@ -71,7 +71,7 @@ test("the overview fits one screen and names every group and command", () => {
   for (const command of helpCommands())
     assert.ok(words.has(command), `the overview does not name ${command}`);
   // The commands a new user needs first, each with the one program name.
-  for (const first of ["init PATH", "seed", "status", "query", "show", "mcp"])
+  for (const first of ["init PATH", "status", "query", "show", "mcp"])
     assert.match(overview, new RegExp(`^  avoozl ${first}\\b`, "m"));
   assert.match(overview, /avoozl help GROUP/);
   assert.match(overview, /avoozl help COMMAND/);

@@ -32,7 +32,6 @@ const tools = {
         "conversations.settings.get",
         "conversation settings",
       ],
-      examples: ["workspace.examples", "optional example packs"],
       trash: ["trash", "deleted plans and runs"],
       local_ignore: [
         "local.ignore.status",
@@ -41,13 +40,9 @@ const tools = {
     },
   },
   plans_maintain: {
-    summary: "Workspace upkeep: the tick, examples.",
+    summary: "Workspace upkeep: the tick, local ignore lines.",
     actions: {
       tick: ["workspace.tick", "run one bounded tick"],
-      seed_example: [
-        "workspace.seed",
-        "load one example pack, once, only when asked",
-      ],
       fix_local_ignore: [
         "local.ignore.fix",
         "add the missing local ignore lines",
@@ -292,11 +287,6 @@ const tools = {
       detect_repository: [
         "github.repository.detect",
         "find a registered repository's GitHub remote",
-      ],
-      setup_preview: [
-        "github.setup",
-        "every write setup would make, without making any",
-        ({ confirm, ...input }) => input,
       ],
       publish: ["planning.publish", "publish an approved plan"],
       reconcile: ["planning.reconcile", "reconcile planning pull requests"],

@@ -84,11 +84,12 @@ one issue. Its assignee drives the spec.
 
 ## Setting up GitHub
 
-Give each repository a role, then use **Set up GitHub** under **Settings ›
-GitHub**. For a new folder, use **Add repository** and then **Set up GitHub and
-import specs**. Both read GitHub first and preview every write, such as the
-epic issue type, and nothing is written until you confirm. Public and private
-repositories both work.
+Add a checkout with `avoozl repository configure ID --root PATH`, set
+`github.mode` and the repository's owner/name in `.avoozl.json`, then run
+`avoozl rebuild`. Rebuild reads git and GitHub and writes nothing to GitHub.
+Branch rules and labels are the repository owner's to set on GitHub; Avoozl
+reads branch rules and follows them. Public and private repositories both
+work.
 
 ## Fixes
 

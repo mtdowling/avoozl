@@ -263,11 +263,6 @@ export const commands = [
         "",
       ),
       help(
-        "setup",
-        "github setup --mode plans-repo|single-repo [--planning-repository OWNER/REPO]\n[--repositories A,B] [--no-epic]",
-        "Preview the GitHub setup; add --confirm --preview-hash HASH to apply",
-      ),
-      help(
         "inspect",
         "github status",
         "Show repository and machine registration",
@@ -290,41 +285,7 @@ export const commands = [
           autoStart: options["auto-start"],
           active: !options.inactive,
         };
-      } else if (action === "setup") {
-        // Preview first; rerun with --confirm --preview-hash HASH to write.
-        const list = (value) =>
-          value
-            ?.split(",")
-            .map((entry) => entry.trim())
-            .filter(Boolean);
-        const provided = input();
-        operation = "github.setup";
-        value = {
-          ...provided,
-          mode: options.mode ?? provided.mode,
-          planningRepository:
-            options["planning-repository"] ?? provided.planningRepository,
-          repositories: list(options.repositories) ?? provided.repositories,
-          epic: options["no-epic"] ? false : provided.epic,
-          confirm: options.confirm ?? provided.confirm,
-          previewHash: options["preview-hash"] ?? provided.previewHash,
-        };
-      } else throw Error("Choose github status, configure or setup.");
-      // An apply shows each high-risk write with its permissions and asks
-      // first (plugin-credentials PC13.6).
-      if (operation === "github.setup" && value.confirm) {
-        refuseAgentYes(options.yes === true);
-        const preview = await localOrRequest(operation, {
-          ...value,
-          confirm: false,
-        });
-        const grants = await confirmHighRisk(preview.writes, {
-          yes: options.yes === true,
-          localOrRequest,
-        });
-        if (grants === null) return console.log(CANCELLED);
-        value.allow = grants;
-      }
+      } else throw Error("Choose github status or configure.");
       console.log(
         JSON.stringify(await localOrRequest(operation, value), null, 2),
       );

@@ -88,7 +88,6 @@ export const APP_OPERATIONS = new Set([
   // high-risk steps, and the Needs you actions that run under one.
   "plugin.credentials.pick",
   "github.job.confirm",
-  "github.labels.create",
   "plugin.update",
   // Checks from a plugin (plugin-checks D10).
   "plugin.map",
@@ -139,8 +138,6 @@ export const APP_OPERATIONS = new Set([
   "github.settings.get",
   "github.settings.validate",
   "github.settings.update",
-  "github.setup",
-  "github.setup.cancel",
   "plan.delete",
   "plan.delete.preview",
   "plan.archive",
@@ -417,8 +414,6 @@ export async function dispatchCommand({ principal, request, context }) {
       status,
       body: {
         error: status === 500 ? "Avoozl backend error." : error.message,
-        // A Demo mode preview: what the change would have done.
-        ...(error.demo ? { demo: true } : {}),
         // A person's save a content rule blocked names its decisions, so the
         // page can offer Allow once inline (R61.18). IDs only.
         ...(status === 422 && Array.isArray(error.decisions)
