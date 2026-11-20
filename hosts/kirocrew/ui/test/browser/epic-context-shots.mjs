@@ -3,8 +3,8 @@
 // 390, light and dark, from fixture records only: Settings › Epic context,
 // Settings › Plugins with a context part, and the Graph with a task's chip.
 //   <label>-<view>-<width>-<theme>.png
-// `before` shoots the same pages with no epic context in the data; Settings ›
-// Epic context has no before.
+// `context-empty` is Settings › Epic context on a machine with no context of
+// its own.
 //
 //   node test/browser/epic-context-shots.mjs <out dir> [label]
 //
@@ -20,13 +20,13 @@ if (!out) {
   process.exit(2)
 }
 fs.mkdirSync(out, { recursive: true })
-const before = label === 'before'
-// [view, nav head or null, nav item, what shows once the page is up]
+// [view, nav head or null, nav item, what shows once the page is up, extra query]
 const VIEWS = [
-  ['context', 'Settings', 'Epic context', '[data-epic-context-settings]'],
-  ['plugins', 'Settings', 'Plugins', '[data-plugin-context]'],
-  ['graph', 'Dashboards', 'Graph', '[data-epic-context]'],
-].filter(([view]) => !(before && view === 'context'))
+  ['context', 'Settings', 'Epic context', '[data-epic-context-settings]', {}],
+  ['context-empty', 'Settings', 'Epic context', '[data-epic-context-settings]', { epicmachine: 'none' }],
+  ['plugins', 'Settings', 'Plugins', '[data-plugin-context]', {}],
+  ['graph', 'Dashboards', 'Graph', '[data-epic-context]', {}],
+]
 const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(findChrome())
 try {
@@ -39,25 +39,27 @@ try {
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(text)})); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
   const item = (width, text) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
-  for (const [view, group, name, shows] of VIEWS)
+  for (const [view, group, name, shows, extra] of VIEWS)
     for (const theme of ['light', 'dark'])
       for (const [size, width] of [
         ['desktop', 1280],
         ['phone', 390],
       ]) {
         const open = async (height) => {
-          await page.open(harness.url({ page: 'app', theme, roles: 'single', ghfull: '1', epiccontext: before ? '0' : '1' }), { width, height, dark: theme === 'dark' })
+          await page.open(harness.url({ page: 'app', theme, roles: 'single', ghfull: '1', epiccontext: '1', ...extra }), { width, height, dark: theme === 'dark' })
           await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
           for (const step of [menu(width), head(width, group), item(width, name)]) {
             await settle()
             await page.evaluate(step)
           }
           await settle()
-          await page.until(`Boolean(document.querySelector(${JSON.stringify(before ? '[data-shell-main]' : shows)}))`)
+          await page.until(`Boolean(document.querySelector(${JSON.stringify(shows)}))`)
         }
         await open(900)
-        const height = await page.evaluate('Math.ceil(Math.max(document.documentElement.scrollHeight, document.querySelector("[data-shell-main]")?.scrollHeight ?? 0))')
-        await open(Math.min(Math.max(height, 700), 2400))
+        const height = await page.evaluate(
+          "(() => { const s = [...document.querySelectorAll('*')].reduce((a, e) => (e.scrollHeight - e.clientHeight > a.scrollHeight - a.clientHeight ? e : a), document.documentElement); return document.documentElement.clientHeight + s.scrollHeight - s.clientHeight })()",
+        )
+        await open(Math.min(Math.max(height, 700), 3600))
         const file = path.join(out, `${label}-${view}-${size}-${theme}.png`)
         await page.screenshot(file)
         console.log(file)

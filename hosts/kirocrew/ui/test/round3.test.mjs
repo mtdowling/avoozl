@@ -48,6 +48,10 @@ test('every destructive button asks first through a red confirm', () => {
     'QuickGoalModal.tsx: Discard',
     'WorkspaceView.tsx: Remove from list',
     'SaveFooter.tsx: Discard',
+    // Epic context's Remove buttons drop a chip, an argument or a tool from
+    // the form before Save; nothing is written.
+    'EpicContextSettings.tsx: ',
+    'EpicContextSettings.tsx: : null}',
     // Triage's Dismiss asks first through useConfirm, whose button is red.
     'UntriagedView.tsx: )}',
   ])

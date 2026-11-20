@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -17,7 +18,7 @@ const cli = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url));
 
 const block = {
   repos: ["acme/*"],
-  reads: ["~/notes"],
+  reads: [os.tmpdir()],
   mcp: {
     research: {
       about: "Answers",
@@ -62,6 +63,19 @@ test("avoozl context set and show work from a terminal and keep the other keys",
   assert.throws(
     () => run(["context", "set", "--json", JSON.stringify({ repos: [] })]),
     /epicContext\.repos/,
+  );
+  assert.throws(
+    () =>
+      run([
+        "context",
+        "set",
+        "--json",
+        JSON.stringify({
+          ...block,
+          reads: [path.join(os.tmpdir(), "none-x9")],
+        }),
+      ]),
+    /epicContext\.reads\.0 .* is not a folder on this machine/,
   );
   run(["context", "set", "--remove"]);
   assert.equal(

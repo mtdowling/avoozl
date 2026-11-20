@@ -3,6 +3,7 @@
 // config.json by a person. A repository file, a layered workspace config
 // and an agent can never set it (layered-config.mjs, landing-config.mjs).
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fail } from "../store/store.mjs";
 import {
@@ -49,6 +50,24 @@ export function validateEpicContext(value, source = "epicContext") {
     }
   }
   return checked;
+}
+
+// A save from Settings or `avoozl context set` names only folders that are
+// there now; a folder that goes missing later is left out at session start.
+export function checkReadsExist(value, home = os.homedir()) {
+  (value?.reads ?? []).forEach((read, i) => {
+    const folder = read.startsWith("~/")
+      ? path.join(home, read.slice(2))
+      : read;
+    let found = false;
+    try {
+      found = fs.statSync(folder).isDirectory();
+    } catch {
+      // Not there.
+    }
+    if (!found)
+      fail(`epicContext.reads.${i} ${read} is not a folder on this machine.`);
+  });
 }
 
 export const machineConfigFile = (configDirectory) =>
