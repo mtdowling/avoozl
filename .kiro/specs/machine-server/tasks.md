@@ -43,8 +43,8 @@ they never collide with the IDs of the other specs.
 - [ ] ms-p2 Proof: every role on Claude Code with no front end, after ms-1.6 (**MANUAL**) [MS5, MS6] (§D6)
   - Expected: (1) every row reaches its result kind and every session has executor `process`; (2) no watch session request exists and the line stops on the red head; (3) the sink file holds one line per decision; (4) the receipt lists each row with its harness version.
   - Expected result observed; receipt under `docs/evidence/`.
-  - Setup: an isolated Avoozl home and workspace, a scratch repository with a bare remote, an approved Claude Code definition, model access from `machine.env` or a model proxy, every role's harness set to `claude-code`, investigate first on, and a `command` sink to a file. Only a timer runs `avoozl tick`; no Kiro Crew, Claude Code or other front end runs during the run. The owner runs it from his own terminal, because Kiro Crew's sandbox refuses a nested `sandbox-exec`.
-  - Action: (1) `node scripts/proofs/run-ms-owner-proofs.mjs --only ms-p2 --github-claude OWNER/SCRATCH`; (2) push a failing commit to the scratch main; (3) read the sink file; (4) correct and commit the receipt it drafts.
+  - Setup: an isolated Avoozl home and workspace, a scratch repository with a bare remote, an approved Claude Code definition, model access from `machine.env` or a model proxy, every role's harness set to `claude-code`, investigate first on, and a `command` sink to a file. Only a timer runs `avoozl tick`, and no front end drives the run: no interactive Claude Code or Codex session is open, and the run's isolated home has no Kiro Crew in it. A Kiro Crew running for other work may stay open. The owner runs it from his own terminal, because Kiro Crew's sandbox refuses a nested `sandbox-exec`.
+  - Action: (1) `node scripts/proofs/run-ms-owner-proofs.mjs --only ms-p2`, which makes a private scratch repository; (2) push a failing commit to the scratch main; (3) read the sink file; (4) correct and commit the receipt it drafts.
   - Expected: (1) every row reaches its result kind and every session has executor `process`; (2) no watch session request exists and the line stops on the red head; (3) the sink file holds one line per decision; (4) the receipt lists each row with its harness version.
   - Failure means: some role still needs a front end open.
   - Next decision: whether `claude-code` becomes the default harness for new workspaces.
@@ -62,7 +62,7 @@ they never collide with the IDs of the other specs.
   - Expected: (1) every row reaches its result kind or the receipt names why it cannot; (2) every probe is refused on both systems, each with its error text; (3) `codex.json`'s `proved` matches the receipt; (4) nk-p2 in `.kiro/specs/without-kirocrew/tasks.md` is ticked with the ms-p2 and ms-p3 receipts (D12, rule 3).
   - Expected result observed; receipt under `docs/evidence/`.
   - Setup: as ms-p2 with every role on `codex`, its own `CODEX_HOME`, and the model reached through the repository's model proxy. On macOS and on Linux. The owner runs it from his own terminal.
-  - Action: (1) `node scripts/proofs/run-ms-owner-proofs.mjs --only ms-p3 --github-codex OWNER/SCRATCH`; (2) read Codex's transcript and the probe log; (3) update `proved` in `codex.json` and tick nk-p2 in the receipt's commit.
+  - Action: (1) `node scripts/proofs/run-ms-owner-proofs.mjs --only ms-p3`; (2) read Codex's transcript and the probe log; (3) update `proved` in `codex.json` and tick nk-p2 in the receipt's commit.
   - Expected: (1) every row reaches its result kind or the receipt names why it cannot; (2) every probe is refused on both systems, each with its error text; (3) `codex.json`'s `proved` matches the receipt; (4) nk-p2 in `.kiro/specs/without-kirocrew/tasks.md` is ticked with the ms-p2 and ms-p3 receipts (D12, rule 3).
   - Failure means: Codex cannot run unattended here; it stays off the failing roles.
   - Next decision: none.

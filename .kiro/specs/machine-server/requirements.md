@@ -220,8 +220,9 @@ with no front end open, so that Kiro Crew is optional.
    `src/app/agents/role-table.mjs`: worker, verifier, reviewer, planner,
    retro, falsifier, responder, task summary, plan reviewer, plan answer,
    pull request review, assist) SHALL run on the `claude-code` definition as
-   a child of a tick a timer ran, with no Kiro Crew, Claude Code or other
-   front end running, and SHALL reach its result kind.
+   a child of a tick a timer ran, with no front end driving it (no
+   interactive Claude Code or Codex session, and no Kiro Crew in the run's
+   home), and SHALL reach its result kind.
 2. The line watch has no agent session (avoozl task 49.1). The proof SHALL
    show that no watch session is requested and that the line watch still
    acts on a red head.
