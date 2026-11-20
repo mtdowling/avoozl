@@ -17,7 +17,7 @@ import {
   landingMetrics,
   parseLanding,
 } from "../../landing/landing-trailers.mjs";
-import { listSpans, putSpan } from "../../flow/flow.mjs";
+import { listSpans, recordSpan } from "../../flow/flow.mjs";
 import { listActivity } from "../../store/activity-log.mjs";
 import { RETRO_DIR } from "../../flow/retro-files.mjs";
 import { Operations } from "../../api/operations.mjs";
@@ -201,7 +201,7 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
     ["coding", "2026-11-19T01:00:00.000Z", "2026-11-19T01:20:00.000Z"],
     ["review", "2026-11-19T01:20:00.000Z", "2026-11-19T01:25:00.000Z"],
   ])
-    putSpan(first.store, {
+    recordSpan(first.store, {
       id: `events:feature.1.1:1:${stage}:${from}`,
       taskId: "feature.1.1",
       attempt: 1,

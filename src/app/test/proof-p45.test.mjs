@@ -301,7 +301,7 @@ test("P45 (1)–(3): findings first, a falsifier, the gate, Needs you, and small
 
   // Investigation and the falsifier are their own Flow spans.
   const spans = w.store.db
-    .prepare("SELECT stage, role FROM flow_spans WHERE task_id='a3'")
+    .prepare("SELECT stage, role FROM telemetry_spans WHERE task_id='a3'")
     .all()
     .map((r) => `${r.role}:${r.stage}`);
   assert.ok(spans.includes("worker:investigate"), spans.join());

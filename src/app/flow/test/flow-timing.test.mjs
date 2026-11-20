@@ -14,7 +14,7 @@ import {
 } from "../flow.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
-import { snapshot } from "../../test/fixtures.mjs";
+import { seedSpan, snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const git = (cwd, ...args) =>
@@ -251,7 +251,7 @@ test("a worker attempt's spans come from events and markers and survive a restar
   );
   // Prompts and output never reach the table.
   const text = JSON.stringify(
-    reopened.db.prepare("SELECT * FROM flow_spans").all(),
+    reopened.db.prepare("SELECT * FROM telemetry_spans").all(),
   );
   assert.doesNotMatch(text, /Which file|running checks|answered/);
   void store;
@@ -333,7 +333,7 @@ test("tool rows replace the coarse coding stretch and close at done", async (t) 
     ],
   );
   assert.doesNotMatch(
-    JSON.stringify(store.db.prepare("SELECT * FROM flow_spans").all()),
+    JSON.stringify(store.db.prepare("SELECT * FROM telemetry_spans").all()),
     /OUTPUT/,
   );
   const view = await ops.execute("task.detail", { id: "a" });
@@ -344,9 +344,7 @@ test("tool rows replace the coarse coding stretch and close at done", async (t) 
 test("flow.view computes lead time, flow efficiency and first-pass rate on read", async (t) => {
   const { store, ops } = setup(t, { tasks: [leaf("a"), leaf("b")] });
   const put = (id, task, stage, from, to, attempt = 1, role = "worker") =>
-    store.db
-      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
-      .run(id, task, attempt, role, stage, from, to, "events", null);
+    seedSpan(store, id, task, attempt, role, stage, from, to, "events", null);
   // a: 10 min queued, 30 coding, 20 review, 10 merge = 70 min lead, 40 active.
   put(
     "1",

@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
-import { putSpan } from "../flow.mjs";
+import { recordSpan } from "../flow.mjs";
 import { landingFacts, proposalProblem, retroBrief } from "../flow-retro.mjs";
 import { Store } from "../../store/store.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
@@ -38,7 +38,7 @@ function seed(t, { lead, land }) {
   store.put("repositories", { id: "app", landing: "pr" });
   ids.forEach((id, n) => {
     const from = n * 200;
-    putSpan(store, {
+    recordSpan(store, {
       id: `coding-${id}`,
       taskId: id,
       stage: "coding",
@@ -46,7 +46,7 @@ function seed(t, { lead, land }) {
       endedAt: at(from + lead - land),
       source: "events",
     });
-    putSpan(store, {
+    recordSpan(store, {
       id: `merge-${id}`,
       taskId: id,
       stage: "merge",

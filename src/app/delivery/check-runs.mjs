@@ -27,7 +27,7 @@ import { pluginChecksOf, pluginOptionsOf } from "../plugins/plugin-checks.mjs";
 import { runPluginCheck } from "../plugins/plugin-check-run.mjs";
 import { decideAnswer, decideNow } from "../plugins/check-decide.mjs";
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
-import { openStops, putSpan, readFlowPolicy } from "../flow/flow.mjs";
+import { openStops, recordSpan, readFlowPolicy } from "../flow/flow.mjs";
 import { contentBinding } from "../content/content-rules.mjs";
 import {
   checkTimeout,
@@ -470,7 +470,7 @@ async function runOne(store, repository, record, options) {
   );
   if (!task) return;
   // Flow timing: Avoozl's own check time is the `checks` stage (§4.11).
-  putSpan(store, {
+  recordSpan(store, {
     id: `events:${record.taskId}:${record.attempt}:checks:${startedAt}`,
     taskId: record.taskId,
     attempt: record.attempt,

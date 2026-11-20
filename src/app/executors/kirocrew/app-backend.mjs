@@ -22,6 +22,7 @@ import {
   gatewaySessionStopper,
   gatewaySlotReader,
   gatewaySlotRows,
+  gatewayUsageTurns,
   observeSessions,
   observeRetroReplies,
   observeToolRows,
@@ -29,6 +30,8 @@ import {
 import { declaredChecks } from "../../delivery/delivery.mjs";
 import { checkCommand } from "../../workspace/repository-checks.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
+import { observeUsage } from "../../telemetry/usage.mjs";
+import { traceFields } from "../../flow/flow.mjs";
 import { taskRepository } from "../../../work-model.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "../../tick/tick.mjs";
 import { withWorkLock } from "../../git/git.mjs";
@@ -176,6 +179,8 @@ export function startAppBackend({
   slotReader = gatewaySlotReader(process.env),
   // Reads worker sessions' tool rows for timing (session-observer.mjs).
   rowReader = gatewaySlotRows(process.env),
+  // Reads per-turn tokens and credits as telemetry points (usage.mjs).
+  usageReader = gatewayUsageTurns(process.env),
   // Stops a session for Stop all agents (session-observer.mjs).
   sessionStopper = gatewaySessionStopper(process.env),
   // Starts the machine server when none runs (MS3.5). Only under Kiro
@@ -294,6 +299,13 @@ export function startAppBackend({
           }
           if (rowReader) {
             const { errors } = await observeRetroReplies(store, rowReader);
+            if (errors.length) console.error(errors[0].error);
+          }
+          // Token and credit counts as telemetry points (otel-export §D4).
+          if (usageReader) {
+            const { errors } = await observeUsage(store, usageReader, (id) =>
+              traceFields(store, id),
+            );
             if (errors.length) console.error(errors[0].error);
           }
         } catch (error) {

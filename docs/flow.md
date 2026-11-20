@@ -25,7 +25,8 @@ time went.
 ## Timing
 
 Timing is always on. It records each task's time per stage. It keeps no
-prompts or text.
+prompts or text. [Telemetry](telemetry.md) says what is kept, for how long,
+and how to send it to an OpenTelemetry backend.
 
 ## Stop the line
 

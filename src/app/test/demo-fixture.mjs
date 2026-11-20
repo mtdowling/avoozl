@@ -7,6 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Store } from "../store/store.mjs";
+import { span } from "../telemetry/record.mjs";
 import { renderMarker } from "../github/github-marker.mjs";
 import { Operations } from "../api/operations.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
@@ -726,33 +727,29 @@ function seedState(store, now) {
         history: [],
       });
     // Flow history: queued, work and verify spans for four leaves.
-    const spans = store.db.prepare(
-      "INSERT INTO flow_spans(id,task_id,attempt,role,stage,started_at,ended_at,source,detail) VALUES (?,?,?,?,?,?,?,?,?)",
-    );
     ["recipe-import.1.1", "recipe-import.1.2", review, running].forEach(
       (taskId, i) => {
         const start = now - (30 - i * 6) * 3600_000;
         for (const [stage, offset, length] of [
           ["queued", 0, 0.3],
-          ["work", 0.3, 1.5 + i * 0.4],
-          ["verify", 1.8 + i * 0.4, 0.4],
+          ["coding", 0.3, 1.5 + i * 0.4],
+          ["tests", 1.8 + i * 0.4, 0.4],
         ]) {
-          if (taskId === running && stage === "verify") continue;
+          if (taskId === running && stage === "tests") continue;
           const ended =
-            taskId === running && stage === "work"
+            taskId === running && stage === "coding"
               ? null
               : new Date(start + (offset + length) * 3600_000).toISOString();
-          spans.run(
-            `demo:${taskId}:${stage}`,
+          span(store, {
+            key: `demo:${taskId}:${stage}`,
             taskId,
-            1,
-            "worker",
+            attempt: 1,
+            role: "worker",
             stage,
-            new Date(start + offset * 3600_000).toISOString(),
-            ended,
-            "demo",
-            null,
-          );
+            startedAt: new Date(start + offset * 3600_000).toISOString(),
+            endedAt: ended,
+            source: "demo",
+          });
         }
       },
     );
