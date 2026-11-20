@@ -135,7 +135,8 @@ environment. Two things then fail quietly: the harness program is not on
 **Roles.** `scripts/proofs/proof-ms-roles-live.mjs --harness NAME` drives the
 rows of `scripts/proofs/ms-roles-rows.mjs` on a scratch repository and prints
 one line per row; a test fails when a `ROLE_TABLE` row with `process: true`
-has no row there. The script runs `avoozl tick` every 10 seconds, each as its
+has no row there, or a row drives a role `ROLE_TABLE` does not have. The
+machine's `loop` is on, so the tick starts and lands the work. The script runs `avoozl tick` every 10 seconds, each as its
 own process, as a timer would, with no front end open.
 `scripts/proofs/run-ms-owner-proofs.mjs` runs it for ms-p2 and ms-p3 from the
 owner's terminal and drafts the receipts.
@@ -144,14 +145,10 @@ owner's terminal and drafts the receipts.
 | --- | --- | --- |
 | worker | one-file task | commit by Avoozl, landed |
 | verifier | a task in a repository with no checks | verdict (not driven: the scratch repository has checks, which Avoozl runs itself) |
-| reviewer | a review role a spec adds | verdict (not driven: the scratch spec adds none) |
-| falsifier | investigate first on | verdict on findings |
-| planner, plan answer | New plan request; one plan review finding | spec folder; answers |
-| plan reviewer | plan review on that spec, second model | findings |
-| retro | after the task lands (`flow.retro.everyTasks` 1) | reply |
-| responder | a reply request on an issue | posted reply |
-| task summary | a person asks for the landed task's summary | stored summary |
-| pull request review | a labeled pull request | stored review |
+| reviewer | the review role every repository gets | verdict |
+| planner | New plan request | spec folder that lints clean |
+| retro | a retrospective | reply (not driven: retros run as the `avoozl-retro` skill, so nothing starts a retro child) |
+| responder | a new discussion in the category the policy names | posted reply |
 | assist | Ask for help on the page | answer, no file |
 | check decide | a plugin check that needs a decision | answer (not driven: no plugin check is installed) |
 | (line watch) | a red head on main | the line stops; no session request |

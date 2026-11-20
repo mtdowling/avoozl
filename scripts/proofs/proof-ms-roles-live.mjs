@@ -6,18 +6,18 @@
 // `command` sink is the only notification channel. One line per row of
 // ms-roles-rows.mjs says whether it reached its result.
 //
-//   1 start a spec from a goal; 2 the plan review runs on a second model and
-//   one finding is answered; 3 approve from the command line; 4 the tasks
-//   land with investigate first on; 5 label a pull request for a review draft
-//   and ask for a reply on an issue; 6 ask the assistant a question; 7 push a
-//   failing commit to main and see the line stop; 8 read the sink's file and
-//   `avoozl status`.
+//   1 start a spec from a goal; 2 approve it from the command line; 3 the
+//   tasks land; 4 start a discussion and see it answered; 5 ask the
+//   assistant a question; 6 push a failing commit to main and see the line
+//   stop; 7 read the sink's file and `avoozl status`.
 //
 // Everything Avoozl keeps lives under --root, with its own Avoozl config and
 // state home (XDG_CONFIG_HOME, XDG_STATE_HOME). The only thing outside it is
 // --github: a scratch GitHub repository the owner made for this, empty, which
-// the run pushes to and opens one pull request and one issue in. Run it from
-// a terminal outside Kiro Crew, on a machine user with no Kiro Crew:
+// the run pushes to and starts one discussion in. Run it from
+// a terminal outside Kiro Crew; a Kiro Crew kept for other work may stay
+// open, since the run's own home has none. --root must not exist yet or be
+// empty: nothing writes there before setup checks it.
 //
 //   node scripts/proofs/proof-ms-roles-live.mjs --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes]
 //   node scripts/proofs/proof-ms-roles-live.mjs --root DIR --harness fake-cli --offline
@@ -77,23 +77,13 @@ const ROOT = path.resolve(values.root);
 const HARNESS = values.harness;
 const TAG = "msr";
 const SPEC = `${TAG}-notes`;
-const LABELS = {
-  review: "msr:review",
-  drafted: "msr:drafted",
-  ask: "msr-ask",
-  answering: "msr:answering",
-};
-// Two different models: the plan review counts only on a second one.
-const MODELS = {
-  claude: [
-    process.env.MSR_MODEL || "global.anthropic.claude-sonnet-5",
-    process.env.MSR_REVIEW_MODEL || "global.anthropic.claude-opus-5",
-  ],
-  codex: [
-    process.env.MSR_MODEL || "openai.gpt-5.6-luna",
-    process.env.MSR_REVIEW_MODEL || "openai.gpt-5.6",
-  ],
-  fake: ["fake-writer", "fake-reviewer"],
+// The discussion category the responder answers in: one GitHub makes when
+// discussions are turned on.
+const CATEGORY = "Q&A";
+const MODEL = {
+  claude: process.env.MSR_MODEL || "global.anthropic.claude-sonnet-5",
+  codex: process.env.MSR_MODEL || "openai.gpt-5.6-luna",
+  fake: "fake-writer",
 }[AGENT];
 
 // The isolated Avoozl home, set before any Avoozl module loads; no Kiro Crew.
@@ -178,17 +168,13 @@ if (process.argv.includes("--model")) console.log(JSON.stringify({ modelUsage: {
 const write = (value) => { fs.mkdirSync(".avoozl", { recursive: true }); fs.writeFileSync(".avoozl/result.json", JSON.stringify(value)); };
 const out = (name, body) => { fs.mkdirSync(".avoozl/output", { recursive: true }); fs.writeFileSync(".avoozl/output/" + name, body); write({ state: "done", output: name }); };
 if (text.includes("probes/run.cjs")) { const m = /(\\S+) probes\\/run\\.cjs (\\S+)/.exec(text); console.log(execFileSync(m[1], ["probes/run.cjs", m[2]], { encoding: "utf8" })); }
-else if (/You are an Avoozl Falsifier/.test(text)) write({ state: "done", report: { verdict: "stands", evidence: "check.mjs reads notes/.", confidence: "medium" } });
-else if (/^You are the Avoozl Verifier/.test(text)) write({ state: "done", report: { checks: [{ command: "node check.mjs", exitCode: 0 }] } });
-else if (/review\\.json/.test(text) && /plans_submit_review/.test(text)) {
-  out("review.json", JSON.stringify({ findings: [], summary: "The plan adds one note." }));
-} else if (/Answer this round's findings/.test(text)) write({ state: "done", report: { answers: [] } });
+else if (/You are the Avoozl Verifier/.test(text)) write({ state: "done", report: { checks: [{ command: "node check.mjs", exitCode: 0 }] } });
+else if (/You are an Avoozl Reviewer/.test(text)) write({ state: "done", report: { verdict: "approved", findings: [], closures: [] } });
 else if (/skip plans_create_plan/.test(text)) {
   fs.writeFileSync("requirements.md", "# Notes\\n\\nThe repository holds a note.\\n");
   fs.writeFileSync("design.md", "# Design\\n\\nOne file under notes/.\\n");
-  fs.writeFileSync("tasks.md", "# Tasks\\n\\n- [ ] 1.1 Write notes/beta.txt\\n  - $repo: app\\n  - $done: notes/beta.txt holds beta and a newline, and node check.mjs prints ok.\\n");
-} else if (/"state": "findings"/.test(text)) write({ state: "findings", report: { read: "notes/", cause: "no note yet", plan: "add it", check: "node check.mjs", confidence: "high" } });
-else if (/^Go ahead/.test(text) || /Avoozl task/.test(text)) { fs.mkdirSync("notes", { recursive: true }); fs.writeFileSync("notes/beta.txt", "beta\\n"); write({ state: "done", text: "Wrote it." }); }
+  fs.writeFileSync("tasks.md", "---\\nrepo: app\\n---\\n# Tasks\\n\\n- [ ] 1 Write notes/beta.txt\\n  - notes/beta.txt holds beta and a newline, and node check.mjs prints ok.\\n");
+} else if (/^Go ahead/.test(text) || /Avoozl task/.test(text)) { fs.mkdirSync("notes", { recursive: true }); fs.writeFileSync("notes/beta.txt", "beta\\n"); write({ state: "done", text: "Wrote it." }); }
 `;
 
 function definitionBytes() {
@@ -285,22 +271,15 @@ async function setup() {
   const login = GITHUB ? JSON.parse(gh("api", "user")).login : null;
   const configFile = path.join(P.ws, ".avoozl.json");
   const config = JSON.parse(fs.readFileSync(configFile, "utf8"));
-  const { ROLES } = await import("../../src/app/settings/chat-models.mjs");
-  config.delivery = {
-    ...(config.delivery || {}),
-    retries: 1,
-    investigate: { mode: "all", minConfidence: "high" },
-  };
+  const { ROLE_SETTINGS } = await import("../../src/app/agents/role-table.mjs");
+  config.delivery = { ...(config.delivery || {}), retries: 1 };
   config.lanes = { local: 2 };
-  config.planReview = { mode: "auto", rounds: 1 };
-  // A retro after every landed task.
-  config.flow = { ...(config.flow || {}), retro: { everyTasks: 1 } };
+  // Every role the role table runs as a child, on this harness.
   config.roles = Object.fromEntries(
-    ROLES.map((role) => [role, { harness: HARNESS }]),
+    ROLE_SETTINGS.map((role) => [role, { harness: HARNESS }]),
   );
-  config.roles.worker.model = MODELS[0];
-  config.roles.planner.model = MODELS[0];
-  config.roles.planReviewer.model = MODELS[1];
+  config.roles.worker.model = MODEL;
+  config.roles.planner.model = MODEL;
   if (GITHUB)
     config.github = {
       mode: "single-repo",
@@ -308,9 +287,7 @@ async function setup() {
         [GITHUB]: {
           baseBranch: "main",
           allowedActors: [login],
-          managedLabels: { responding: LABELS.answering },
-          rules: [{ id: "ask", action: "respond", labelsAll: [LABELS.ask] }],
-          radar: { reviewLabel: LABELS.review, draftedLabel: LABELS.drafted },
+          discussions: { categories: [CATEGORY] },
         },
       },
     };
@@ -337,6 +314,8 @@ async function setup() {
       },
     ],
   };
+  // This machine's loop: the tick starts and lands work only with it.
+  machine.loop = { run: ["specs"], every: "10s" };
   fs.writeFileSync(machineFile, JSON.stringify(machine, null, 2) + "\n");
   event("setup.harness", { name: HARNESS, hash });
 
@@ -416,30 +395,13 @@ function agentEnv() {
 async function state() {
   return withStore(async (store) => {
     const plan = store.get("plans", SPEC);
-    const rounds = store.list("review_rounds").filter((r) => r.planId === SPEC);
-    const threads = store
-      .list("review_threads")
-      .filter((t) => t.planId === SPEC);
     const tasks = store.read().tasks.filter((t) => t.planId === SPEC);
     return {
       plan: plan ? { state: plan.state, hash: plan.hash } : null,
-      rounds: rounds.map((r) => ({
-        state: r.state,
-        reviewerModel: r.reviewerModel ?? null,
-        writerModel: r.writerModel ?? null,
-        note: r.note ?? r.reason ?? null,
-      })),
-      findings: threads.length,
-      answered: threads.filter((t) => t.answer).length,
       tasks: tasks.map((t) => ({
         id: t.id,
         delivery: store.get("task_deliveries", t.id)?.state ?? null,
-        investigation: store.get("task_investigations", t.id)?.state ?? null,
       })),
-      drafts: store
-        .list("receipts")
-        .filter((r) => r.kind === "review-draft")
-        .map((r) => ({ state: r.state, reviewId: r.reviewId ?? null })),
       responses: store
         .list("github_responses")
         .map((r) => ({ state: r.state, commentUrl: r.commentUrl ?? null })),
@@ -470,18 +432,6 @@ async function until(what, check, minutes) {
       event(`${what}.timeout`, { state: now });
       return now;
     }
-    // A person's Go ahead on a task waiting for one (step 4).
-    for (const task of now.tasks)
-      if (task.investigation === "needs-you")
-        await withStore(async (store) => {
-          await (await operations(store)).execute(
-            "investigation.decide",
-            { taskId: task.id, action: "go" },
-            undefined,
-            { local: true },
-          );
-          event("step4.go-ahead", { task: task.id });
-        });
     await sleep(5000);
   }
 }
@@ -621,7 +571,7 @@ function harnessVersion() {
 
 // One result per row: ok when every role it drives ran on `process`, FAIL when
 // one did not, skipped when the row cannot run offline or is not driven.
-async function rowResults(roles, now, { lineStopped }) {
+async function rowResults(roles, { lineStopped }) {
   const { rowFor } = await import("../../src/app/agents/role-table.mjs");
   const ran = new Set(
     Object.entries(roles)
@@ -629,20 +579,15 @@ async function rowResults(roles, now, { lineStopped }) {
       .map(([role]) => rowFor(role)?.setting)
       .filter(Boolean),
   );
-  const needsGithub = new Set(["responder", "pull-request-review"]);
   return ROWS.map((row) => {
     const base = { id: row.id, scenario: row.scenario, result: row.result };
     if (row.driven === false)
       return { ...base, state: "skipped", note: row.why };
     if (row.id === "line-watch")
-      return { ...base, state: lineStopped ? "ok" : "FAIL", note: "step 7" };
-    const missing = row.drives.filter(
-      // A spec review with no findings has nothing to answer.
-      (role) =>
-        !ran.has(role) && !(role === "planAnswer" && now.findings === 0),
-    );
+      return { ...base, state: lineStopped ? "ok" : "FAIL", note: "step 6" };
+    const missing = row.drives.filter((role) => !ran.has(role));
     if (!missing.length) return { ...base, state: "ok" };
-    if (OFFLINE && needsGithub.has(row.id))
+    if (OFFLINE && row.id === "responder")
       return { ...base, state: "skipped", note: "needs GitHub" };
     return {
       ...base,
@@ -658,13 +603,6 @@ async function prove() {
     throw Error(
       "No sandbox here (inside another sandbox?). Run ms-roles from a terminal outside Kiro Crew.",
     );
-  if (
-    AGENT !== "fake" &&
-    fs.existsSync(path.join(os.homedir(), ".kiro", "crew"))
-  )
-    event("warning", {
-      text: "~/.kiro/crew exists: run ms-roles as a machine user with no Kiro Crew for the proof to count.",
-    });
   await setup();
   let proxy = null;
   if (AGENT !== "fake") {
@@ -687,25 +625,12 @@ async function prove() {
   const minutes = AGENT === "fake" ? 8 : 60;
   const expected = {};
   try {
-    // (2) The plan is drafted, reviewed on the second model, and answered.
-    let now = await until(
-      "step2.review",
-      (s) =>
-        s.plan &&
-        s.rounds.some((r) => r.state === "done" || r.state === "skipped") &&
-        (s.findings === 0 || s.answered > 0),
-      minutes,
+    // (1) The planner writes the spec folder.
+    let now = await until("step1.spec", (s) => Boolean(s.plan?.hash), minutes);
+    expected["1 the planner wrote a spec that lints clean"] = Boolean(
+      now.plan?.hash,
     );
-    expected[
-      "2 the plan review ran on a second model and a finding was answered"
-    ] =
-      now.rounds.some(
-        (r) =>
-          r.state === "done" &&
-          r.reviewerModel &&
-          r.reviewerModel !== r.writerModel,
-      ) && (now.findings === 0 ? AGENT === "fake" : now.answered > 0);
-    // (3) Approve from the command line, the way a person does.
+    // (2) Approve from the command line, the way a person does.
     if (now.plan) {
       cli(
         "plan",
@@ -717,104 +642,59 @@ async function prove() {
         "--expect",
         now.plan.hash.slice(0, 16),
       );
-      // With GitHub, the spec's issues are made here, a person's act.
+      // With GitHub, the spec's issue is made here, a person's act.
       if (GITHUB) cli("spec", "publish", SPEC, "--workspace", P.ws);
-      event("step3.approved");
+      event("step2.approved");
     }
-    // (4) The tasks land, with investigate first on.
+    // (3) The tasks land.
     now = await until(
-      "step4.land",
+      "step3.land",
       (s) =>
         s.tasks.length > 0 && s.tasks.every((t) => t.delivery === "integrated"),
       minutes,
     );
-    expected["4 every task landed after investigate first"] =
+    expected["3 every task landed"] =
       now.tasks.length > 0 &&
       now.tasks.every((t) => t.delivery === "integrated");
-    // A person asks for the landed task's summary; the retro is due too.
-    for (const task of now.tasks)
-      await withStore(async (store) => {
-        await (await operations(store)).execute(
-          "task.summary.request",
-          { id: task.id },
-          undefined,
-          { local: true },
-        );
-      });
-    await untilTrue(
-      "step4.summary-retro",
-      async () =>
-        (await childExited("task-summary")) && (await childExited("retro")),
-      minutes,
-    );
-    // (5) A review draft on a labeled pull request, and a reply to an issue.
+    // (4) A discussion in the category the policy names gets one reply.
     if (GITHUB) {
-      git(P.checkout, "fetch", "-q", "origin");
-      git(P.checkout, "checkout", "-q", "-B", "msr-change", "origin/main");
-      fs.mkdirSync(path.join(P.checkout, "notes"), { recursive: true });
-      fs.writeFileSync(path.join(P.checkout, "notes", "gamma.txt"), "gamma\n");
-      git(P.checkout, "add", ".");
-      git(P.checkout, "commit", "-q", "-m", "Add notes/gamma.txt");
-      git(P.checkout, "push", "-q", "-u", "origin", "msr-change");
-      git(P.checkout, "checkout", "-q", "main");
-      for (const label of Object.values(LABELS))
-        spawnSync("gh", [
-          "label",
-          "create",
-          label,
-          "--repo",
-          GITHUB,
-          "--force",
-        ]);
-      const url = gh(
-        "pr",
-        "create",
-        "--repo",
-        GITHUB,
-        "--head",
-        "msr-change",
-        "--base",
-        "main",
-        "--title",
-        "Add notes/gamma.txt",
-        "--body",
-        "One more note.",
+      const [owner, name] = GITHUB.split("/");
+      gh("repo", "edit", GITHUB, "--enable-discussions");
+      const repo = JSON.parse(
+        gh(
+          "api",
+          "graphql",
+          "-f",
+          `query=query { repository(owner: "${owner}", name: "${name}") { id discussionCategories(first: 20) { nodes { id name } } } }`,
+        ),
+      ).data.repository;
+      const category = repo.discussionCategories.nodes.find(
+        (node) => node.name === CATEGORY,
       );
-      gh("pr", "edit", url, "--add-label", LABELS.review);
-      const issue = gh(
-        "issue",
-        "create",
-        "--repo",
-        GITHUB,
-        "--title",
-        "How do I run the check?",
-        "--body",
-        "Which command checks the notes?",
-        "--label",
-        LABELS.ask,
-      );
-      event("step5.asked", { pr: url, issue });
+      if (!category) throw Error(`${GITHUB} has no ${CATEGORY} category.`);
+      const discussion = JSON.parse(
+        gh(
+          "api",
+          "graphql",
+          "-f",
+          'query=mutation($repo: ID!, $category: ID!) { createDiscussion(input: {repositoryId: $repo, categoryId: $category, title: "How do I run the check?", body: "Which command checks the notes?"}) { discussion { url } } }',
+          "-f",
+          `repo=${repo.id}`,
+          "-f",
+          `category=${category.id}`,
+        ),
+      ).data.createDiscussion.discussion.url;
+      event("step4.asked", { discussion });
       now = await until(
-        "step5.github",
-        (s) =>
-          s.drafts.some((d) => d.state === "waiting") &&
-          s.responses.some((r) => r.state === "replied"),
+        "step4.reply",
+        (s) => s.responses.some((r) => r.state === "replied"),
         minutes,
       );
-      const pending = JSON.parse(
-        gh("api", `repos/${GITHUB}/pulls/${url.split("/").pop()}/reviews`),
+      expected["4 the discussion got its reply"] = now.responses.some(
+        (r) => r.state === "replied",
       );
-      expected[
-        "5 the review draft is pending on GitHub, not submitted, and the issue got its reply"
-      ] =
-        now.drafts.some((d) => d.state === "waiting") &&
-        pending.some((r) => r.state === "PENDING") &&
-        !pending.some((r) =>
-          ["APPROVED", "CHANGES_REQUESTED", "COMMENTED"].includes(r.state),
-        ) &&
-        now.responses.some((r) => r.state === "replied");
     }
-    // (6) The assistant answers a question from the page's Open chat.
+    // (5) The assistant answers a question from the page's Open chat.
     await withStore(async (store) => {
       await (await operations(store)).execute(
         "session.open",
@@ -823,13 +703,13 @@ async function prove() {
         { local: true },
       );
     });
-    event("step6.asked");
-    await untilTrue("step6.assist", () => childExited("assist"), minutes);
+    event("step5.asked");
+    await untilTrue("step5.assist", () => childExited("assist"), minutes);
     // The containment probes (ms-2.2, MS8.2) in a live child: the harness
     // itself runs them by the one command its brief names.
     if (values.probes)
       expected["probes every probe was refused"] = await liveProbes(minutes);
-    // (7) A red head on main: the line stops, and no session is requested.
+    // (6) A red head on main: the line stops, and no session is requested.
     // On the landed main, pushed as a person would.
     git(P.checkout, "checkout", "-q", "main");
     git(P.checkout, "pull", "-q", "--ff-only", "origin", "main");
@@ -838,27 +718,27 @@ async function prove() {
     git(P.checkout, "add", ".");
     git(P.checkout, "commit", "-q", "-m", "Break the notes check");
     git(P.checkout, "push", "-q", "origin", "HEAD");
-    event("step7.red-head");
+    event("step6.red-head");
     const { openStops } = await import("../../src/app/flow/flow.mjs");
     await untilTrue(
-      "step7.line",
+      "step6.line",
       () => withStore(async (store) => openStops(store).length > 0),
       minutes,
     );
     now = await state();
     const stopped = await withStore(async (store) => openStops(store).length);
     expected[
-      "7 the line stopped on the red head and no watch session was requested"
+      "6 the line stopped on the red head and no watch session was requested"
     ] =
       stopped > 0 &&
       !now.requests.some((r) => /watch|line/i.test(r.role ?? ""));
     expected[
-      "1-5 every session ran on process, and no kirocrew request was written"
+      "1-6 every session ran on process, and no kirocrew request was written"
     ] =
       now.bindings.length > 0 &&
       now.bindings.every((b) => b.executor === "process") &&
       now.requests.every((r) => r.executor !== "kirocrew");
-    // (6) The sink's file and avoozl status.
+    // (7) The sink's file and avoozl status.
     await sleep(15_000);
     const lines = fs.existsSync(P.sink)
       ? fs
@@ -873,7 +753,7 @@ async function prove() {
       (store) => store.list("app_notifications").length,
     );
     expected[
-      "6 the sink got one line per decision and failure, each with only channel, title, ID, time and link, and status shows nothing waiting on Kiro Crew"
+      "7 the sink got one line per decision and failure, each with only channel, title, ID, time and link, and status shows nothing waiting on Kiro Crew"
     ] =
       lines.length === queued &&
       (AGENT === "fake" || lines.length > 0) &&
@@ -884,10 +764,10 @@ async function prove() {
       status.kirocrew.waiting.length === 0 &&
       status.notifications.waiting === 0;
     const roles = await rolesOnHarness();
-    const rows = await rowResults(roles, now, {
+    const rows = await rowResults(roles, {
       lineStopped:
         expected[
-          "7 the line stopped on the red head and no watch session was requested"
+          "6 the line stopped on the red head and no watch session was requested"
         ],
     });
     for (const row of rows)

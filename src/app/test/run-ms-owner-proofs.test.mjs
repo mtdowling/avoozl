@@ -1,12 +1,17 @@
 // The owner's proof runner: its options, the scratch repository guard and
 // the front-end check.
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  deleteScratchRepos,
+  freshRunRoot,
   frontEnds,
   PROOF_IDS,
   parseOptions,
+  processLines,
   scratchRepoName,
   scratchRepoProblem,
 } from "../../../scripts/proofs/run-ms-owner-proofs.mjs";
@@ -105,10 +110,68 @@ test("only an interactive Claude Code or Codex session outside the run is a fron
     "  800     1 ttys005  vim codex.json",
   ];
   const found = frontEnds(ps, 700);
-  assert.deepEqual(found.sessions, [
-    "claude",
-    "/opt/homebrew/bin/codex --model gpt-5",
+  assert.deepEqual(found, ["claude", "/opt/homebrew/bin/codex --model gpt-5"]);
+  assert.deepEqual(frontEnds(ps.slice(0, 1), 700), []);
+});
+
+test("a process list over 1 MB is read whole", () => {
+  // A busy Mac's ps output ran past spawnSync's 1 MB default (ENOBUFS).
+  const filler = "x".repeat(200);
+  const script = `for (let i = 0; i < 12000; i++) console.log(\`\${1000 + i}     1 ??       /bin/${filler}\`); console.log("99999     1 ttys009  claude");`;
+  const lines = processLines(process.execPath, ["-e", script]);
+  assert.ok(lines.join("\n").length > 2 * 1024 * 1024);
+  assert.deepEqual(frontEnds(lines, 1), ["claude"]);
+});
+
+test("each roles run gets a root that does not exist yet", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ms-runner-"));
+  try {
+    const first = freshRunRoot(dir);
+    assert.equal(first, path.join(dir, "run"));
+    assert.equal(fs.existsSync(first), false);
+    fs.mkdirSync(first);
+    fs.writeFileSync(path.join(first, "events.jsonl"), "{}\n");
+    const second = freshRunRoot(dir);
+    assert.equal(second, path.join(dir, "run-2"));
+    assert.equal(fs.existsSync(second), false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the end deletes only the scratch repositories the run recorded", () => {
+  const calls = [];
+  const lines = deleteScratchRepos(
+    ["o/avoozl-scratch-ms-p2-1", "o/avoozl-scratch-ms-p2-1"],
+    (args) => {
+      calls.push(args);
+      return { status: 0 };
+    },
+  );
+  assert.deepEqual(calls, [
+    ["repo", "delete", "o/avoozl-scratch-ms-p2-1", "--yes"],
   ]);
-  assert.equal(found.kirocrew.length, 1);
-  assert.deepEqual(frontEnds(ps.slice(0, 1), 700).sessions, []);
+  assert.deepEqual(lines, [
+    "Deleted the scratch repository o/avoozl-scratch-ms-p2-1.",
+  ]);
+  assert.deepEqual(
+    deleteScratchRepos([], () => assert.fail("no call")),
+    [],
+  );
+});
+
+test("a delete refused for scope prints the refresh line and the delete commands", () => {
+  const lines = deleteScratchRepos(["o/avoozl-scratch-ms-p3-1"], () => ({
+    status: 1,
+    stderr: "HTTP 403: Must have admin rights (delete_repo scope)",
+  }));
+  assert.match(
+    lines[0],
+    /Could not delete o\/avoozl-scratch-ms-p3-1: HTTP 403/,
+  );
+  assert.deepEqual(lines.slice(1), [
+    "Give gh the delete_repo scope, then delete them:",
+    "  gh auth refresh -h github.com -s delete_repo",
+    "  gh repo delete o/avoozl-scratch-ms-p3-1 --yes",
+  ]);
 });
