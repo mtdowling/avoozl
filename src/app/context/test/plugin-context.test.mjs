@@ -154,7 +154,10 @@ test("contextSources returns only approved machine plugins", () => {
   const machine = contextMachine({ approve: true });
   const [source] = contextSources(machine.options);
   assert.equal(source.id, "team-context");
-  assert.equal(source.reads[0].path, path.join(machine.notes, "widgets"));
+  assert.equal(
+    path.normalize(source.reads[0].path),
+    path.join(machine.notes, "widgets"),
+  );
   assert.deepEqual(source.servers.research.env, ["RESEARCH_TOKEN"]);
   assert.equal(source.servers.research.replaced, false);
 });
@@ -290,7 +293,10 @@ test("the approval view lists repos, skills with hashes, reads written and fille
   assert.equal(view.skills.length, 2);
   assert.match(view.skills[0].hash, /^[0-9a-f]{64}$/);
   assert.equal(view.reads[0].written, "{ask:notesRoot}/widgets");
-  assert.equal(view.reads[0].filled, path.join(machine.notes, "widgets"));
+  assert.equal(
+    path.normalize(view.reads[0].filled),
+    path.join(machine.notes, "widgets"),
+  );
   assert.deepEqual(view.servers[0].command, ["node", "mcp/research.mjs"]);
   assert.deepEqual(view.servers[0].env, ["RESEARCH_TOKEN"]);
   assert.deepEqual(view.contentSets, ["acme-terms"]);
