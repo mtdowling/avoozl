@@ -46,7 +46,12 @@ export function withFacts(files) {
         .filter((item) => item.key)
         .map((item) => [item.line, item]),
     ),
-    out = [];
+    out = [],
+    groups = new Set(
+      specItems("x", tasks)
+        .map((item) => item.parent?.key)
+        .filter(Boolean),
+    );
   tasks.split("\n").forEach((row, index) => {
     out.push(row);
     const item = items.get(index + 1),
@@ -56,7 +61,8 @@ export function withFacts(files) {
       indent = /^\s*/.exec(row)[0].length + 2;
     out.push(
       ...factsLines(own, { indent }),
-      ...summaryLines(summary, { indent }),
+      // A group holds no bullets of its own (simplify §D20).
+      ...(groups.has(item.key) ? [] : summaryLines(summary, { indent })),
     );
   });
   const { [MANIFEST]: _gone, ...rest } = files;

@@ -221,7 +221,7 @@ test("each wrong shape is refused at its line in tasks.md", () => {
         "  - $repo: app",
       ),
       [
-        "facts.missing tasks.md:1",
+        "done.missing tasks.md:1",
         "facts.value tasks.md:2",
         "facts.value tasks.md:3",
       ],
@@ -250,8 +250,8 @@ test("each wrong shape is refused at its line in tasks.md", () => {
     ],
     [
       lines("- [ ] 1.1 Read"),
-      ["facts.missing tasks.md:1"],
-      /has no results. Add a "\$done:" bullet under it/,
+      ["done.missing tasks.md:1"],
+      /has no done bullet. Add a plain bullet under it/,
     ],
   ];
   for (const [text, expected, message] of cases) {
@@ -271,7 +271,6 @@ const described = lines(
   "---",
   "- [ ] 1 Load configuration",
   "  - $after: 1.1",
-  "  - The loader and its tests.",
   "  - [ ] 1.1 Read the config file",
   "    - $done: A missing file yields defaults.",
   "    - Per file: read config.json from the working directory,",
@@ -294,7 +293,8 @@ test("a task's summary is its bullets as written, without facts, Done when or su
       "- A missing file is not an error.",
     ].join("\n"),
   );
-  assert.equal(summary("1"), "- The loader and its tests.");
+  // A group holds no bullets of its own, so it has no summary.
+  assert.equal(summary("1"), undefined);
   // The summary is not a fact: the manifest the revision hash reads has none.
   const facts = readFacts(described, specItems("config", described));
   assert.equal(facts.manifest.tasks["1.1"].summary, undefined);
@@ -310,7 +310,7 @@ test("a checks fact or front-matter default is refused: tasks run the repository
     front = parse(
       described.replace("repo: app", "repo: app\nchecks: npm test"),
     );
-  assert.deepEqual(codes(fact), ["facts.removed-key tasks.md:8"]);
+  assert.deepEqual(codes(fact), ["facts.removed-key tasks.md:7"]);
   assert.deepEqual(codes(front), ["facts.removed-key tasks.md:3"]);
   for (const parsed of [fact, front])
     assert.match(
@@ -323,7 +323,7 @@ test("a summary fact is refused, naming the line to delete", () => {
   const parsed = parse(
     described.replace("    - $done:", "    - $summary: Read it.\n    - $done:"),
   );
-  assert.deepEqual(codes(parsed), ["facts.removed-key tasks.md:8"]);
+  assert.deepEqual(codes(parsed), ["facts.removed-key tasks.md:7"]);
   assert.match(parsed.diagnostics[0].message, /Delete this line/);
 });
 
@@ -338,7 +338,7 @@ test("a long title stays whole and is refused over the limit", () => {
   const over = parse(
     described.replace("1.1 Read the config file", `1.1 ${long.repeat(2)}`),
   );
-  assert.deepEqual(codes(over), ["task.title-length tasks.md:7"]);
+  assert.deepEqual(codes(over), ["task.title-length tasks.md:6"]);
 });
 
 test("an epic folder reads its rows from facts", () => {

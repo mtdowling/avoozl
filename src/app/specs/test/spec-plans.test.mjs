@@ -196,7 +196,7 @@ test("a missing file names its folder", () => {
   });
   assert.equal(
     result.diagnostics.find((d) => d.file === "tasks.md").message,
-    "Add .kiro/specs/config/tasks.md.",
+    "Add .kiro/specs/config/tasks.md, or a ## Tasks section to the spec's one file.",
   );
 });
 
@@ -228,7 +228,7 @@ test("a task with no Facts bullet is refused at its line", () => {
     text = specFiles()["tasks.md"] + "- [ ] 2.1 Document it\n";
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   assert.deepEqual(codes(lint(root)), [
-    `facts.missing tasks.md:${lineOf(text, "2.1 Document")}`,
+    `done.missing tasks.md:${lineOf(text, "2.1 Document")}`,
   ]);
 });
 
