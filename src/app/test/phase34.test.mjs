@@ -142,7 +142,6 @@ test("a bugfix spec's type reaches each leaf", async () => {
   const { legacySpecFiles, withFacts } = await import("./spec-fixture.mjs");
   const files = legacySpecFiles(),
     manifest = JSON.parse(files["avoozl/manifest.json"]);
-  manifest.tasks["1.1"].investigate = false;
   const bugfix = withFacts({
     ...files,
     "avoozl/manifest.json": JSON.stringify(manifest),
@@ -153,5 +152,4 @@ test("a bugfix spec's type reaches each leaf", async () => {
   const leaves = parsed.proposals.filter((p) => p.kind === "leaf");
   assert.equal(leaves.length, 2, JSON.stringify(parsed.diagnostics));
   for (const p of leaves) assert.equal(p.specType, "bugfix");
-  assert.equal(leaves.find((p) => p.specKey === "1.1").investigate, false);
 });

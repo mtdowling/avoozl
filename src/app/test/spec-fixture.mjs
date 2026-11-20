@@ -50,9 +50,7 @@ export function withFacts(files) {
     files[MANIFEST] === undefined ||
     files[MANIFEST] === null ||
     typeof tasks !== "string" ||
-    /^\s*[-*+] \$[A-Za-z][A-Za-z0-9]*:/m.test(tasks) ||
-    // A tasks.md that already has its bullets keeps them.
-    /^\s+[-*+] (?!\[[ xX~-]\] )/m.test(tasks)
+    /^\s*[-*+] \$[A-Za-z][A-Za-z0-9]*:/m.test(tasks)
   ) {
     const { [MANIFEST]: _gone, ...rest } = files;
     if (typeof rest["tasks.md"] === "string")
@@ -73,9 +71,16 @@ export function withFacts(files) {
         .map((item) => item.parent?.key)
         .filter(Boolean),
     );
-  tasks.split("\n").forEach((row, index) => {
+  const rows = tasks.split("\n");
+  rows.forEach((row, index) => {
     const item = items.get(index + 1),
-      entry = item && entries[item.key];
+      // An item that already has its bullets keeps them.
+      next = rows[index + 1] ?? "",
+      own =
+        next.length - next.trimStart().length >
+          row.length - row.trimStart().length &&
+        /^\s*[-*+] (?!\[[ xX~-]\] )/.test(next),
+      entry = item && !own && entries[item.key];
     if (!entry) {
       out.push(row);
       return;

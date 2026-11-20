@@ -41,7 +41,7 @@ test("diffSpec names edited, added and removed tasks", () => {
   const after = edit(BATCH_SPEC, "1.4", { acceptance: ["Changed."] }),
     rows = diffSpec("config", BATCH_SPEC, {
       ...after,
-      "tasks.md": after["tasks.md"] + "  - [ ] 1.5 Fifth\n",
+      "tasks.md": after["tasks.md"] + "  - [ ] 1.5 Fifth\n    - Fifth works.\n",
     });
   assert.deepEqual(
     rows.map((row) => [row.taskId, row.change]),
