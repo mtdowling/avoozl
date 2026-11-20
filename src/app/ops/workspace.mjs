@@ -28,6 +28,7 @@ import { queueNotifications } from "../tick/notifications.mjs";
 import { archiveEnded } from "../specs/plan-retire.mjs";
 import { planReviewStep } from "../reviews/plan-review-step.mjs";
 import { runnerTick } from "../workers/remote-runner.mjs";
+import { chatBrief } from "../workers/epic-context.mjs";
 import { cliCommand } from "../workers/report-command.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
@@ -105,6 +106,7 @@ export const entries = [
         folders: input.folders ?? null,
         github: this.github,
         plugins: this.plugins,
+        contextBrief: (entry) => chatBrief(store, this, entry),
       });
       if (result.skipped) return result;
       if (Array.isArray(input.sessions) || input.cron === true) {

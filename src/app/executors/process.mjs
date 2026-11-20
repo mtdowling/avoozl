@@ -18,10 +18,16 @@ import {
   openSupervisorDatabase,
   requestChild,
   sendChild,
+  setChildContext,
   stopChild,
+  supervisorPaths,
 } from "./supervisor.mjs";
+import { authorCounts, processContext } from "../workers/epic-context.mjs";
+import { recordActivity } from "../store/activity-log.mjs";
+import { catalogWorkspaceRoots } from "./sandbox.mjs";
 import {
   completeSessionRequest,
+  enqueueSessionRequests,
   pendingSessionRequests,
   releaseSessionRequest,
   takeSessionRequest,
@@ -74,10 +80,14 @@ export function sessionNetwork(sandbox, offline) {
   return list.length ? list : undefined;
 }
 
+// `contextFor()` gives the epic context this session passed the gate for:
+// {request, brief} (workers/epic-context.mjs processContext), or null. A
+// session without it is requested exactly as before (EC10.3).
 export function processExecutor({
   stateDirectory,
   repositoryFor = () => null,
   harnessFor = () => null,
+  contextFor = () => null,
 }) {
   return createExecutor({
     start(role, task, worktree, brief, model, permissionClass) {
@@ -86,6 +96,7 @@ export function processExecutor({
       const sandbox = repository.sandbox ?? {};
       const offline = processRow(role)?.offline === true;
       const sessionId = `process-${randomUUID()}`;
+      const context = contextFor();
       return withDatabase(stateDirectory, (db) =>
         requestChild(db, {
           executor: PROCESS_EXECUTOR,
@@ -97,9 +108,11 @@ export function processExecutor({
             harnessFor(task, role) ?? repository.harness ?? DEFAULT_HARNESS,
           permissionClass,
           model,
-          brief: processBrief(role, brief, {
-            allowCommands: sandbox.allowCommands,
-          }),
+          brief: processBrief(
+            role,
+            context?.brief ? `${brief}\n\n${context.brief}` : brief,
+            { allowCommands: sandbox.allowCommands },
+          ),
           values: {
             // The session's own temp folder, outside the shared one's other
             // checkouts and outside the state folder the child cannot reach.
@@ -110,6 +123,7 @@ export function processExecutor({
           // Home paths the repository lets its checks and sessions read.
           readable: repository.isolation?.readable ?? [],
           network: sessionNetwork(sandbox, offline),
+          ...(context?.request ? { context: context.request } : {}),
         }),
       );
     },
@@ -670,6 +684,90 @@ function servedModelOf(stateDirectory, slot, configDirectory) {
   }
 }
 
+// The epic context a worker session passed the gate for, or null (epic-context
+// EC1 to EC7). A failure reading it gives no context: the session then runs
+// exactly as it would with none.
+async function workerContext(
+  store,
+  { ops, stateDirectory },
+  {
+    taskId,
+    role,
+    harness,
+    resumed = false,
+    slot = null,
+    withheld = false,
+    attempt = 1,
+  },
+) {
+  if (!ops || role !== "worker") return null;
+  const repository = sessionRepository(store, { task: taskId });
+  let definition;
+  try {
+    definition = loadHarnessDefinition({
+      configDirectory: ops.configDirectory,
+      name: harness ?? repository?.harness ?? DEFAULT_HARNESS,
+    });
+  } catch {
+    definition = null;
+  }
+  return processContext(
+    store,
+    { taskId, role, repository, resumed, slot, withheld, attempt },
+    {
+      ops,
+      definition,
+      places: {
+        home: os.homedir(),
+        env: process.env,
+        configDirectory: ops.configDirectory,
+        stateDirectory,
+        workspaceRoots: catalogWorkspaceRoots(
+          path.join(path.resolve(stateDirectory), "catalog.sqlite"),
+        ),
+      },
+    },
+  );
+}
+
+// The tool calls a finished session's MCP servers answered, as Activity
+// rows: alias, tool, time, size and error, never an argument or a reply
+// (EC7.5).
+function importContextCalls(store, stateDirectory, binding) {
+  const file = path.join(
+    supervisorPaths(stateDirectory).children,
+    binding.slot,
+    "context-calls.jsonl",
+  );
+  let lines;
+  try {
+    lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
+  } catch {
+    return;
+  }
+  const seen =
+    store.get("session_bindings", binding.slot)?.contextCallsRead ?? 0;
+  if (lines.length === seen) return;
+  for (const [index, line] of lines.entries()) {
+    if (index < seen) continue;
+    try {
+      const call = JSON.parse(line);
+      recordActivity(store, {
+        source: "avoozl",
+        kind: "epic-context.call",
+        targetId: binding.taskId,
+        at: call.at,
+        key: `context-call:${binding.slot}:${index}`,
+        summary: `MCP ${call.alias} ${call.tool}: ${call.bytes} bytes, ${call.ms} ms${call.error ? `, error ${call.error}` : ""}.`,
+      });
+    } catch {}
+  }
+  store.put("session_bindings", {
+    ...store.get("session_bindings", binding.slot),
+    contextCallsRead: lines.length,
+  });
+}
+
 // Consume this workspace's `process` requests (R93.3: the tick only writes
 // them): start each claimed one, bind its session, and queue each message.
 // Then record the status of each live `process` session. A write worker
@@ -704,7 +802,89 @@ export async function drainProcessRequests(
     if (!taken) continue;
     const { request, claimToken } = taken;
     try {
+      // A follow-up that replaces a stopped session waits until that
+      // session has ended, so two never write one folder (EC1.7).
+      if (
+        request.operation === "start" &&
+        request.after &&
+        !FINISHED.has(store.get("session_bindings", request.after)?.status)
+      ) {
+        releaseSessionRequest(
+          store,
+          { id: request.id, claimToken, reason: "before-open" },
+          owner,
+        );
+        continue;
+      }
       if (request.operation === "send") {
+        // A resume runs the three tests again and carries only what they
+        // give this time (EC1.6).
+        const slot = request.slot ?? request.sessionId,
+          held = store.get("session_bindings", slot);
+        // Text from a login that does not count never reaches a session
+        // that holds epic context: the session stops where it is and a new
+        // one with none carries the text on (EC1.7).
+        if (
+          held?.epicContext &&
+          ops &&
+          typeof request.from?.login === "string" &&
+          !(await authorCounts(
+            ops,
+            sessionRepository(store, { task: held.taskId }),
+            request.from.login,
+          ))
+        ) {
+          await executor.stop(slot);
+          enqueueSessionRequests(store, {
+            starts: [
+              {
+                executor: PROCESS_EXECUTOR,
+                role: held.role,
+                task: held.taskId,
+                attempt: (held.attempt ?? 1) + 1,
+                brief: request.text,
+                worktree: held.worktree ?? null,
+                permissionClass: held.permissionClass ?? "write",
+                epicContext: false,
+                after: slot,
+              },
+            ],
+          });
+          recordActivity(store, {
+            source: "tick",
+            kind: "epic-context.comment",
+            summary: `Text from ${request.from.login}, who does not count, was not sent to ${held.taskId}'s session; it stopped and a new one without epic context follows`,
+            targetId: held.taskId,
+          });
+          completeSessionRequest(
+            store,
+            { id: request.id, claimToken, outcome: "refused" },
+            owner,
+          );
+          continue;
+        }
+        if (held?.role === "worker") {
+          const again = await workerContext(
+            store,
+            { ops, stateDirectory },
+            {
+              taskId: held.taskId,
+              role: held.role,
+              resumed: true,
+              slot,
+              withheld: request.epicContext === false,
+            },
+          );
+          if (again || held.epicContext) {
+            withDatabase(stateDirectory, (db) =>
+              setChildContext(db, slot, again?.request ?? null),
+            );
+            store.put("session_bindings", {
+              ...store.get("session_bindings", slot),
+              epicContext: again?.binding ?? null,
+            });
+          }
+        }
         const outcome = await executor.send(
           request.slot ?? request.sessionId,
           request.text,
@@ -781,13 +961,29 @@ export async function drainProcessRequests(
                   ? (fs.mkdirSync(request.worktree, { recursive: true }),
                     request.worktree)
                   : request.worktree;
-      let sessionId;
+      let sessionId,
+        context = null;
       try {
+        context = await workerContext(
+          store,
+          { ops, stateDirectory },
+          {
+            taskId: request.task,
+            role: request.role,
+            harness: request.harness ?? null,
+            withheld: request.epicContext === false,
+            attempt: request.attempt ?? 1,
+          },
+        ).catch((error) => {
+          errors.push({ id: request.id, error: error.message });
+          return null;
+        });
         sessionId = await processExecutor({
           stateDirectory,
           repositoryFor: () => repository,
           // The harness the request names (R98.3, R98.4), else the repository's.
           harnessFor: () => request.harness ?? null,
+          contextFor: () => context,
         }).start(
           request.role,
           request.task,
@@ -827,6 +1023,12 @@ export async function drainProcessRequests(
         },
         { consumer: CONSUMER },
       );
+      // What epic context this session got, for its chip and Settings (EC9).
+      if (context?.binding)
+        store.put("session_bindings", {
+          ...store.get("session_bindings", sessionId),
+          epicContext: context.binding,
+        });
       // The head a snapshot was read at, kept on the session (NK4.1).
       if (snapshot?.head)
         store.put("session_bindings", {
@@ -968,6 +1170,8 @@ export async function drainProcessRequests(
         const waiting =
           status.startsWith("exited ") &&
           (now?.report?.kind === "findings" || now?.awaitingResume === true);
+        if (status.startsWith("exited "))
+          importContextCalls(store, stateDirectory, binding);
         recordSessionStatus(store, {
           slot: binding.slot,
           status: waiting ? "idle" : bindingStatus(status),

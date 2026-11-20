@@ -25,7 +25,11 @@ import { pluginSession } from "./plugin-session.mjs";
 import { jsonLines } from "./child-io.mjs";
 import { mappingHash, validateChecksPart } from "./plugin-checks.mjs";
 import { fail } from "../store/store.mjs";
-import { contextHash, readContextPart } from "../context/plugin-context.mjs";
+import {
+  contextHash,
+  contextView,
+  readContextPart,
+} from "../context/plugin-context.mjs";
 
 const PLUGIN_MANIFEST = "avoozl-plugin.json";
 const RESERVED_IDS = new Set(["local", "github"]);
@@ -681,8 +685,16 @@ export async function previewPlugin(options, input = {}) {
           : `${PLUGIN_MANIFEST} is unreadable: ${error.message}`,
     };
   }
+  let context = null;
   try {
     validateManifest(manifest, { id: manifest?.id }, location);
+    // What an approval of a context part would bind (epic-context EC4.1).
+    const part = readContextPart(manifest, location);
+    if (part)
+      context = contextView(
+        { id: manifest.id, source: scope, state: "unapproved", context: part },
+        readPluginSettings(options.settingsFile),
+      );
   } catch (error) {
     return { location, error: error.message };
   }
@@ -701,6 +713,7 @@ export async function previewPlugin(options, input = {}) {
           },
         }
       : {}),
+    ...(context ? { context } : {}),
     supported: SUPPORTED_CONTRACTS.includes(manifest.contract),
   };
 }

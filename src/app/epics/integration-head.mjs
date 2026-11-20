@@ -72,7 +72,7 @@ function holdLine(store, target, plan, reason, now) {
     {
       channel: "failure",
       title: `Line stopped for ${target.branch}: ${reason}`,
-      text: `No release and no auto-merge for ${plan.spec || plan.id} until this clears. Running chats keep going.`,
+      text: `No release and no merge for ${plan.spec || plan.id} until this clears. Running chats keep going.`,
       resume:
         "It clears by itself when the branch is healthy, or press Resume.",
     },

@@ -16,7 +16,10 @@ import {
   machineAvoozlPaths,
   WorkspaceRegistry,
 } from "../settings/host-config.mjs";
-import { initializeWorkspace } from "../workspace/workspace.mjs";
+import {
+  initializeFirst,
+  initializeWorkspace,
+} from "../workspace/workspace.mjs";
 import { expandHome, listFolders } from "../workspace/folder-browse.mjs";
 
 export const NEEDS_KIROCREW = "Needs Kiro Crew";
@@ -89,6 +92,11 @@ export const APP_OPERATIONS = new Set([
   "plugin.credentials.pick",
   "github.job.confirm",
   "plugin.update",
+  // Epic context (epic-context EC4, EC9): Settings reads it, and a person
+  // sets the machine block and answers a plugin's questions.
+  "context.get",
+  "context.machine.set",
+  "plugin.answer",
   // Checks from a plugin (plugin-checks D10).
   "plugin.map",
   "plugin.checks.stages",
@@ -124,7 +132,6 @@ export const APP_OPERATIONS = new Set([
   "provider.health.clear",
   "providers.settings.update",
   "investigation.decide",
-  "delivery.integrate",
   "delivery.settings.get",
   "delivery.settings.update",
   "delivery.runner.release",
@@ -305,10 +312,14 @@ export function commandContext({
   const operations = (target) => {
     let entry = opened.get(target.dbPath);
     if (!entry) {
+      // A missing database is refused before opening, so a read never
+      // creates the file `avoozl init` then refuses.
+      if (!fs.existsSync(target.dbPath))
+        throw badRequest(initializeFirst(target.workspaceRoot), 503);
       const store = new Store(target.dbPath);
       if (!store.initialized()) {
         store.close();
-        throw badRequest("Initialize this Avoozl workspace first.", 503);
+        throw badRequest(initializeFirst(target.workspaceRoot), 503);
       }
       entry = {
         store,

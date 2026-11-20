@@ -1195,7 +1195,7 @@
         "landing": {
           "type": "object",
           "additionalProperties": false,
-          "description": "Who merges and how, for this repository (design 4.25). Edited on Settings > Repository setup > Edit > Landing.",
+          "description": "How this repository lands work (design 4.25). Edited on Settings > Repository setup > Edit > Landing.",
           "properties": {
             "mode": {
               "enum": ["direct", "pr", "off"],
@@ -1204,11 +1204,6 @@
             "pr": {
               "enum": ["draft", "ready", "auto"],
               "description": "pr landing: draft (open as a draft; a person marks it ready and merges), ready (open ready for review; a person merges) or auto (open ready; Avoozl merges once checks pass on the exact head). Unset reads the workspace's landing.pr, else draft."
-            },
-            "autoMerge": {
-              "type": "boolean",
-              "default": true,
-              "description": "true: the writer turns on GitHub auto-merge. false: a person merges."
             },
             "method": {
               "enum": ["squash", "merge"],

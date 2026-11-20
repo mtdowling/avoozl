@@ -13,17 +13,23 @@ import { approvalCommits, approvalBase } from "../git/git-approvals.mjs";
 import { specItems } from "../specs/spec-plans.mjs";
 import { specsBranchSetting } from "../specs/specs-branch.mjs";
 import { recordActivity } from "../store/activity-log.mjs";
+import { enforce } from "../content/content-rules.mjs";
+import { queueNotifications } from "../tick/notifications.mjs";
 import { driverStatus } from "./driver.mjs";
 import { repositoryMatches } from "../context/context-shape.mjs";
 import { readEpicContext } from "../context/epic-context-config.mjs";
 import { contextSources, missingFor } from "../context/plugin-context.mjs";
 import { inspectPlugins, readPluginSettings } from "../plugins/plugins.mjs";
 import { pluginOptionsOf } from "../plugins/plugin-checks.mjs";
+import { EPIC_CONTEXT_META as META } from "../context/context-record.mjs";
 import { realPath, sandboxSecretPaths } from "../executors/sandbox.mjs";
+import {
+  actorAllowed,
+  readGitHubPolicyOrNull,
+} from "../github/github-policy.mjs";
 
 export const TESTS = Object.freeze(["approved", "approver", "you-drive"]);
 const RECENT = 10;
-const META = "epicContext";
 
 // ---- The three tests (EC1, D2) ------------------------------------------
 
@@ -299,6 +305,7 @@ export function sessionContext(sources, repository, places = {}) {
         command: resolveCommand(server.command, source.folder),
         env: server.env,
         source: source.name,
+        plugin: source.kind === "plugin" ? source.id : null,
       };
     }
     for (const set of source.contentSets)
@@ -311,35 +318,51 @@ export function sessionContext(sources, repository, places = {}) {
 // against the approval. A skill with a changed file is left out. Returns
 // {skills: [{name, description, path}], left}.
 export function copySkills(skills, folder) {
-  const given = [],
-    left = [];
-  for (const skill of skills) {
+  return approvedSkills(skills, (skill, files) => {
     const target = path.join(folder, skill.name);
     try {
-      const files = skill.files.map((file) => {
-        const source = path.join(skill.folder, file.rel);
-        const bytes = fs.readFileSync(source);
-        if (createHash("sha256").update(bytes).digest("hex") !== file.hash)
-          throw Error(`${file.rel} changed after it was approved`);
-        return { rel: file.rel, bytes };
-      });
       for (const { rel, bytes } of files) {
         const file = path.join(target, ...rel.split("/"));
         fs.mkdirSync(path.dirname(file), { recursive: true });
         fs.writeFileSync(file, bytes, { mode: 0o444 });
       }
+    } catch (error) {
+      fs.rmSync(target, { recursive: true, force: true });
+      throw error;
+    }
+    return path.join(target, "SKILL.md");
+  });
+}
+
+// Each skill whose files all still match the approval, as {name,
+// description, path}; `place(skill, files)` makes the skill's folder and
+// returns its SKILL.md path. A skill with a changed file is left out.
+function approvedSkills(skills, place) {
+  const given = [],
+    left = [];
+  for (const skill of skills)
+    try {
+      const files = skill.files.map((file) => {
+        const bytes = fs.readFileSync(path.join(skill.folder, file.rel));
+        if (createHash("sha256").update(bytes).digest("hex") !== file.hash)
+          throw Error(`${file.rel} changed after it was approved`);
+        return { rel: file.rel, bytes };
+      });
       given.push({
         name: skill.name,
         description: skill.description,
-        path: path.join(target, "SKILL.md"),
+        path: place(skill, files),
       });
     } catch (error) {
-      fs.rmSync(target, { recursive: true, force: true });
       left.push({ item: `skill ${skill.name}`, why: error.message });
     }
-  }
   return { skills: given, left };
 }
+
+// A chat names the approved plugin files where they are: it runs as the
+// person and reads what it likes (EC8).
+export const checkedSkills = (skills) =>
+  approvedSkills(skills, (skill) => path.join(skill.folder, "SKILL.md"));
 
 // The brief section (EC6.3): skills and reads, and the MCP aliases a
 // harness that loads them offers. Empty when nothing is given.
@@ -400,7 +423,17 @@ const namesOf = (given) =>
 // Settings (EC9). No path's contents, MCP argument or environment value.
 export function recordContext(
   store,
-  { taskId, slot = null, resumed = false, gate, given = null, hasSources },
+  {
+    taskId,
+    slot = null,
+    resumed = false,
+    gate,
+    given = null,
+    hasSources,
+    note = null,
+    briefOnly = false,
+    attempt = 1,
+  },
 ) {
   const repository = repositoryOf(store, taskId);
   const record = {
@@ -408,6 +441,7 @@ export function recordContext(
     taskId,
     slot,
     resumed,
+    briefOnly,
     given: Boolean(gate.given && given),
     tests: gate.tests,
     sources: gate.given && given ? given.sources : [],
@@ -430,23 +464,15 @@ export function recordContext(
     recordActivity(store, {
       source: "tick",
       kind: "epic-context.session",
-      summary: `${resumed ? "Resumed" : "Started"} ${taskId}: ${outcome(gate.tests)}${record.given ? `. Given: ${record.items || "nothing"}` : ""}${record.left.length ? `. Left out: ${record.left.map((l) => `${l.item} (${l.why})`).join(", ")}` : ""}`,
+      summary: `${resumed ? "Resumed" : "Started"} ${taskId}: ${outcome(gate.tests) || "no tests run"}${record.given ? `. Given: ${record.items || "nothing"}` : ""}${record.left.length ? `. Left out: ${record.left.map((l) => `${l.item} (${l.why})`).join(", ")}` : ""}${note ? `. ${note}` : ""}`,
       targetId: taskId,
+      // A start is recorded once per attempt, however often the tick plans it.
+      ...(resumed
+        ? {}
+        : { key: `epic-context:${taskId}:${attempt}:${briefOnly}` }),
     });
   return record;
 }
-
-export const taskContext = (store, taskId) =>
-  store.getMeta(META)?.tasks?.[taskId] ?? null;
-
-export const recentContextSessions = (store) =>
-  store.getMeta(META)?.recent ?? [];
-
-// The content rule sets a task's giving source names, for `enforce`.
-export const taskContentSets = (store, taskId) =>
-  taskContext(store, taskId)?.given
-    ? taskContext(store, taskId).contentSets
-    : [];
 
 export const repositoryOf = (store, taskId) => {
   const task = store.read().tasks.find((entry) => entry.id === taskId);
@@ -494,4 +520,182 @@ export function contextNeedsYou(store) {
         detail: "Neither gives it until one source drops it.",
       });
   return items;
+}
+
+// ---- A process session (EC6, EC7, D6) ------------------------------------
+
+// What the process executor adds to one worker session, or null: the three
+// tests ran and passed, a source named the repository, and the content
+// rules let the brief section through. `places` are the folders sessionContext
+// protects; `harness` is the harness's definition, which says whether it
+// loads an MCP config. Records the tests either way when a source names the
+// repository (EC9.2). Only the `worker` role gets context (EC5.5).
+//   {readable, cleanup, mcp, brief, binding}
+export async function processContext(
+  store,
+  {
+    taskId,
+    role,
+    repository,
+    resumed = false,
+    slot = null,
+    withheld = false,
+    attempt = 1,
+  },
+  { ops, places, definition, folder = os.tmpdir(), chat = false },
+) {
+  if (role !== "worker" || !ops?.configDirectory) return null;
+  const sources = loadSources({
+      configDirectory: ops.configDirectory,
+      pluginOptions: ops.pluginOptions,
+    }),
+    named = sources.some((source) =>
+      repositoryMatches(source.repos, {
+        github: repository?.github ?? null,
+        id: repository?.id ?? null,
+      }),
+    );
+  if (!named) return null;
+  // A follow-up that must not hold context (EC1.7) runs no gate.
+  const gate = withheld
+    ? { given: false, tests: [] }
+    : await epicContextGate(store, { taskId }, gateDeps(ops));
+  let given = null,
+    request = null,
+    brief = "",
+    note = withheld
+      ? "context withheld: text from a login that does not count reached the session"
+      : null;
+  if (gate.given) {
+    given = sessionContext(sources, repository, places);
+    // A chat has no per-session MCP setting; a harness without context.mcp
+    // loads no config file (EC7.1, EC8.1).
+    if (
+      (chat || !definition?.context?.mcp) &&
+      Object.keys(given.servers).length
+    ) {
+      for (const alias of Object.keys(given.servers))
+        given.left.push({
+          item: `mcp ${alias}`,
+          why: chat
+            ? "a chat takes no MCP servers"
+            : "the harness has no context.mcp",
+        });
+      given.servers = {};
+    }
+    const skillsFolder =
+      !chat && given.skills.length
+        ? fs.mkdtempSync(path.join(folder, "avoozl-context-"))
+        : null;
+    if (given.skills.length) {
+      const placed = skillsFolder
+        ? copySkills(given.skills, skillsFolder)
+        : checkedSkills(given.skills);
+      given.left.push(...placed.left);
+      given.skills = placed.skills;
+    }
+    brief = contextBrief(given);
+    // The brief section passes the repository's rules and the giving
+    // sources' sets before the session sees it (EC9.3).
+    const screened = brief
+      ? enforce(
+          store,
+          {
+            boundary: "brief",
+            repository: repository?.github || repository?.id || null,
+            target: `brief:${taskId}:context`,
+            text: brief,
+            contextSets: given.contentSets,
+          },
+          { mode: "decide", taskId },
+        )
+      : { ok: true, notify: [] };
+    queueNotifications(store, screened.notify);
+    if (!screened.ok) {
+      note = "content rules blocked the context brief";
+      if (skillsFolder)
+        fs.rmSync(skillsFolder, { recursive: true, force: true });
+      given = { ...given, skills: [], reads: [], servers: {}, left: [] };
+      brief = "";
+      gate.given = false;
+    } else if (brief && !chat)
+      request = {
+        readable: [
+          ...given.reads.map((read) => read.path),
+          ...(skillsFolder ? [realPath(skillsFolder)] : []),
+        ],
+        cleanup: skillsFolder ? [skillsFolder] : [],
+        mcp: Object.fromEntries(
+          Object.entries(given.servers).map(([alias, server]) => [
+            alias,
+            { command: server.command, env: server.env, plugin: server.plugin },
+          ]),
+        ),
+      };
+  }
+  const record = recordContext(store, {
+    taskId,
+    slot,
+    resumed,
+    gate,
+    given,
+    hasSources: true,
+    note,
+    briefOnly: chat,
+    attempt,
+  });
+  if (chat) return { request: null, brief, record };
+  if (!request) return { request: null, brief: "", record };
+  return {
+    request,
+    brief,
+    record,
+    binding: {
+      sources: record.sources,
+      items: record.items,
+      tests: record.tests,
+    },
+  };
+}
+
+// The "Epic context" section of a Kiro Crew chat worker's brief, or "" (EC8,
+// D7): the skills and reads, no MCP server, and nothing the chat is held to.
+// Run by the tick before the start request is stored.
+export async function chatBrief(store, ops, { task: taskId, role, attempt }) {
+  if (!ops) return "";
+  const given = await processContext(
+    store,
+    { taskId, role, repository: repositoryOf(store, taskId), attempt },
+    {
+      ops,
+      chat: true,
+      places: {
+        home: os.homedir(),
+        env: process.env,
+        configDirectory: ops.configDirectory,
+        stateDirectory: ops.stateDirectory ?? null,
+        workspaceRoots: [],
+      },
+    },
+  );
+  return given?.brief ?? "";
+}
+
+// Whether `login` counts under the repository's `allowedActors` and
+// `minimumPermission` (EC1.7), as the review gate reads them: a repository the
+// policy does not name needs write permission.
+export async function authorCounts(ops, repository, login) {
+  const name = repository?.github ?? null,
+    policy = readGitHubPolicyOrNull(ops.workspaceRoot),
+    entry = Object.entries(policy?.repositories ?? {}).find(
+      ([id]) => name && id.toLowerCase() === name.toLowerCase(),
+    )?.[1] ?? { allowedActors: [], minimumPermission: "write" };
+  let held = null;
+  if (entry.minimumPermission && name)
+    try {
+      held = (await ops.github?.permission(name, login))?.permission ?? null;
+    } catch {
+      held = null;
+    }
+  return actorAllowed(entry, login, held).allowed;
 }

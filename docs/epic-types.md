@@ -28,7 +28,7 @@ protect it. Every task pull request targets the branch. See
 Avoozl keeps it level with the default branch. The tick reads the branch head's checks and records acceptance for that
 head. A task merge moves the head, so acceptance stays open until the new head
 is green. While the head is red, or a sync has a conflict, release and
-auto-merge stop for the epic. When the head is green and level with the default
+merging stop for the epic. When the head is green and level with the default
 branch, one Needs you row asks a person to approve landing that head. Avoozl
 records who and which head, and never merges the branch itself.
 

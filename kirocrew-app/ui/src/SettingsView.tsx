@@ -48,7 +48,7 @@ import {
   SETTINGS_HOME,
   settingsTitle,
 } from './settings-api.ts'
-import { AutoMergeFields, PrModeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
+import { PrModeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
 import WorkspaceView from './WorkspaceView.tsx'
 import { AddRepositoryModal, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
 import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
@@ -58,6 +58,7 @@ import IsolationPanel from './IsolationPanel.tsx'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
+import { EpicContextSettings } from './EpicContextSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import ModelsSettings from './ModelsSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
@@ -95,6 +96,7 @@ export const SETTINGS_TABS = [
   { key: 'repositories', label: 'Repository setup' },
   { key: 'github', label: 'GitHub' },
   { key: 'plugins', label: 'Plugins' },
+  { key: 'context', label: 'Epic context' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
   // Avoozl's own chats only.
@@ -110,10 +112,11 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   github: 'The GitHub settings of the selected workspace, for every repository in it. Each tab is one group; one Save writes them all to .avoozl.json.',
   repositories: "Each repository's role says where its tasks live. Its Workflow map, checks and code review rule are tabs under its name. Save only writes .avoozl.json.",
   plugins: 'A plugin can bring a team’s settings pack, content rules, an intake source or workflow templates. Each one runs or imports only after you approve it on this machine.',
+  context: 'Extra skills, read folders and MCP servers a worker gets on your own approved spec tasks, only in the repositories you name. They stay on this machine.',
   content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   models: "Each role's harness, agent and model, in one place.",
-  delivery: 'Investigate-first and pull request feedback for Avoozl worker chats. Agents and models are in Models.',
+  delivery: 'Who merges pull requests, and investigate first, for Avoozl worker chats. Agents and models are in Models.',
 }
 
 // Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).
@@ -460,12 +463,9 @@ export function RepositoryEditor(props: {
                 onChange={(value) => set({ landingMode: value })}
               />
             </Box>
-            <AutoMergeFields id={id} repository={repository} set={set} />
-          </FieldGroup>
-          <FieldGroup title="Pull requests" blurb="For pr landing: how Avoozl opens its pull requests and who merges them.">
             <PrModeFields id={id} repository={repository} set={set} />
           </FieldGroup>
-          <FieldGroup title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
+          <FieldGroup title="Merge method" blurb="How a pull request merges.">
             <MergeMethodFields id={id} repository={repository} set={set} />
           </FieldGroup>
           <FieldGroup title={LANDING_PART_TEXT.conflicts.title} blurb={LANDING_PART_TEXT.conflicts.blurb}>
@@ -1040,6 +1040,7 @@ function SettingsBody(
       />
     )
   if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} onOpenRepositories={() => props.onTab('repositories')} />
+  if (tab === 'context') return <EpicContextSettings workspaceId={workspaceId} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
   if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />

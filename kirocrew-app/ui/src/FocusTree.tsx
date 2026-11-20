@@ -16,6 +16,7 @@ import { Modal } from './ui/Modal.tsx'
 import { SmallBtn, ViewHeading } from './ui/controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
+import Badge from './ui/Badge.tsx'
 import { ArrowLeft, ArrowRight, ExternalLink, ListFilter } from './icons.ts'
 import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailRow, RailStyle } from './NavRail.tsx'
@@ -526,6 +527,11 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
         <Box as="span" css-color="text" minW0 flex1 truncate size="12">
           {task.title}
         </Box>
+        {task.epicContext && (
+          <Box as="span" flexNone data-epic-context>
+            <Badge>{task.epicContext.label}</Badge>
+          </Box>
+        )}
         <Chip task={task} />
       </PlainButton>
       {open && (

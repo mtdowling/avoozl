@@ -48,11 +48,10 @@ These keys appear in the manifest:
   interface this plugin was built for. It is not the plugin's own version.
   Settings shows it as **Contract version**. This Avoozl supports contract
   version `1`.
-- `provides` lists the parts: `rules`, `credentials`, `checks` and
-  `context`.
 - `checks` maps a check name to its definition, and `servers` names the MCP
   servers its MCP steps use. See [Checks part](#checks-part).
-- `capabilities` lists optional features per kind. Rules list none.
+- `context` holds the skills, reads and MCP servers of a context part. See
+  [Context part](#context-part).
 - `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides
   only `checks` or `context` starts no plugin process, so it has no
   `entry`; Avoozl refuses one that names an entry, and never starts a
@@ -617,6 +616,86 @@ broken until approved again. Approving, mapping a server and **Run it** or
 under a process harness; as a Kiro Crew chat its tool list is its only limit,
 which is a speed bump, not a sandbox.
 
+
+## Context part
+
+A `context` part gives a worker skills, read folders and MCP servers on your
+own approved spec tasks in the repositories it names. It is data, so a plugin
+that provides only `context` has no `entry`. Declare it on **This computer
+only**: a `.avoozl.json` entry for it is ignored and Settings says so. How a
+session uses it is in [Epic context](epic-context.md). A complete example is
+`examples/plugins/team-context/`.
+
+```json
+{
+  "id": "team-context",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": [
+    "context"
+  ],
+  "context": {
+    "repos": [
+      "acme/*"
+    ],
+    "skills": "skills",
+    "reads": [
+      {
+        "id": "team-notes",
+        "about": "The team's design notes",
+        "path": "{ask:notesRoot}/widgets"
+      }
+    ],
+    "ask": {
+      "notesRoot": "The folder of your clone of acme/team-notes"
+    },
+    "mcp": "mcp/servers.json",
+    "contentSets": [
+      "acme-terms"
+    ]
+  }
+}
+```
+
+- `repos` is 1 to 50 of `owner/name`, `owner/*` or a registered repository ID.
+- `skills` is a folder inside the plugin with up to 20 folders. Each holds one
+  `SKILL.md` of at most 64 KB whose front matter has `name` (the folder name)
+  and `description`.
+- `reads` is up to 20 folders, each with an `id`, an `about` and an absolute
+  or `~/` `path`. A path may hold `{ask:NAME}`.
+- `ask` maps each `NAME` to a question. Every `{ask:NAME}` names a key, and
+  every key is used.
+- `mcp` is a `.json` file inside the plugin. It maps each alias to `{about,
+  command}`. `command` is an argument list whose first item is a program name
+  or a path inside the plugin. The file holds no `env` and no credential.
+
+```json
+{
+  "research": {
+    "about": "Answers questions from the team's design archive",
+    "command": [
+      "node",
+      "mcp/research.mjs"
+    ]
+  }
+}
+```
+
+Each person answers each ask once and maps each alias on their machine:
+
+```text
+avoozl plugins answer team-context notesRoot ~/src/acme/team-notes
+avoozl plugins map team-context research --env RESEARCH_TOKEN
+```
+
+A mapping holds the environment variable names the server may read, and
+optionally a `command` that replaces the plugin's. Until every ask is answered
+and every alias is mapped, the part gives nothing and one Needs you row names
+the questions. The approval binds the plugin's content hash, the answers and
+the mappings; changing any of them turns the plugin `changed` until you
+approve it again. Settings › Plugins and the Add plugin preview list the
+repositories, each skill's hash, each read as written and as filled in, each
+server's command and environment names, and each content set.
 
 ## Testing your plugin
 

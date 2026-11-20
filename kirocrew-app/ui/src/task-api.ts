@@ -47,6 +47,8 @@ export interface TaskDetail {
     noSession?: string | null
     nextAction?: string | null
     planArchived?: string | null
+    // The three tests and what epic context gave its last session.
+    epicContext?: { chip: { label: string; sources: string[]; items: string } | null; tests: { name: string; passed: boolean; why?: string }[] } | null
     owner: string | null
     issue: { number: number | null; url: string | null; repository: string | null } | null
     wave: number

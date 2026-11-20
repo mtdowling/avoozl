@@ -8,7 +8,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { judge, readCases } from "../../../workflow-kit/load.mjs";
-import { lintSpec, parseSpec } from "../specs/spec-plans.mjs";
+import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.mjs";
 import { unblockCounts } from "../specs/release-ranking.mjs";
 import { claimFirst } from "../workers/claims.mjs";
 
@@ -60,6 +60,33 @@ function violations(specs) {
   return out;
 }
 
+// Rule 7.3: a spec is approved when its current text equals the text the
+// latest approval left. An approval is a commit by an approver that adds a spec
+// or changes its text; `specHash` hashes the text without checkbox marks, so a
+// tick changes nothing. A case with no history has every spec approved.
+function approved(testCase, specs) {
+  if (!testCase.history)
+    return Object.fromEntries(Object.keys(specs).map((name) => [name, true]));
+  const hashOf = (_name, files) => specHash(files),
+    state = {},
+    approvedHash = {},
+    last = {};
+  for (const commit of testCase.history)
+    for (const [name, files] of Object.entries(specsOf(commit.files))) {
+      state[name] = { ...state[name], ...files };
+      const hash = hashOf(name, state[name]);
+      if (hash !== last[name] && testCase.approvers.includes(commit.author))
+        approvedHash[name] = hash;
+      last[name] = hash;
+    }
+  return Object.fromEntries(
+    Object.entries(specs).map(([name, files]) => [
+      name,
+      hashOf(name, files) === approvedHash[name],
+    ]),
+  );
+}
+
 // Ready tasks as `spec/task`, best first. Avoozl's parser reads each spec and
 // its ranking function counts the tasks each one unblocks. Claims, assignees
 // and ticks are applied here, as the repository's state names them.
@@ -79,6 +106,7 @@ function ready(testCase, specs) {
     }
   }
   const counts = unblockCounts(edges, (id) => !ticked.has(id)),
+    isApproved = approved(testCase, specs),
     assigned = (name) => {
       const who = testCase.issues?.[name];
       return who?.length === 1 && who[0] === login;
@@ -91,6 +119,7 @@ function ready(testCase, specs) {
         !task.manual &&
         (task.requires ?? []).every((id) => ticked.has(id)) &&
         !branches.has(`avoozl/${task.spec}/${task.id}`) &&
+        isApproved[task.spec] &&
         assigned(task.spec),
     )
     .sort(
@@ -124,12 +153,14 @@ async function claim(testCase, order) {
     : null;
 }
 
-// Landing runs through operations the simplify spec adds, so the adapter
-// leaves that probe out until its simplify task lands.
+// Leases, landing and spec issue markers run through operations the
+// simplify spec adds, so the adapter leaves those probes out until each
+// simplify task lands.
 async function avoozl(testCase) {
   const specs = specsOf(testCase.files),
     got = {};
   if (testCase.expect.violations) got.violations = violations(specs);
+  if (testCase.expect.approved) got.approved = approved(testCase, specs);
   if (testCase.expect.ready || testCase.expect.claim)
     got.ready = ready(testCase, specs);
   if (testCase.expect.claim) got.claim = await claim(testCase, got.ready);
@@ -177,6 +208,14 @@ for (const testCase of readCases()) {
       );
   });
 }
+
+test("workflow kit: a history ends in the case's repo files", () => {
+  for (const testCase of readCases().filter((item) => item.history)) {
+    const final = {};
+    for (const commit of testCase.history) Object.assign(final, commit.files);
+    assert.deepEqual(final, testCase.files, testCase.name);
+  }
+});
 
 test("workflow kit: every case has a title, rules and probes", () => {
   const cases = readCases();

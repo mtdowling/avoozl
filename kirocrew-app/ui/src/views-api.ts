@@ -64,6 +64,8 @@ export interface GraphTask extends TaskOwner {
   nextAction?: string | null
   // The archived plan this task belongs to (plan.archive), or null.
   planArchived?: string | null
+  // Epic context its last session got: the chip's words, sources and items.
+  epicContext?: { label: string; sources: string[]; items: string } | null
   issue: { number: number | null; url: string | null; repository: string | null } | null
   // A step only a person does (R61.11); `needsYou.manual` once it waits for
   // one. Older backends omit them.
@@ -386,11 +388,9 @@ export interface ConflictItem extends TaskOwner {
   round?: number
   findings?: Findings
   reply?: FalsifierReply | null
-  // A ready-to-merge item (§4.25): the pull request a person merges, or a
-  // local task's commit waiting for Integrate.
+  // A draft-pr or pr-merge item (R119): its pull request and head.
   pullRequest?: number
   commit?: string
-  integrate?: boolean
 }
 
 export interface Findings {
@@ -477,7 +477,6 @@ export function viewsClient(api: AppApi) {
       run<unknown>('task.update', { id, ...change }, workspaceId, expectedRevision),
     // Go ahead, Investigate again or Stop on a task's findings (§4.21).
     decideInvestigation: (workspaceId: string, taskId: string, action: 'go' | 'again' | 'stop') => run<unknown>('investigation.decide', { taskId, action }, workspaceId),
-    // Land a verified local task under manual ship (§4.25).
     // Let the tick run a workspace a Crew Mode conductor drove (WP1.3).
     letTickRun: (workspaceId: string, expectedHash?: string) => run<unknown>('delivery.runner.release', expectedHash ? { expectedHash } : {}, workspaceId),
     // A Needs you action; its high-risk steps are allowed first, by the
@@ -487,7 +486,6 @@ export function viewsClient(api: AppApi) {
         allow = steps.length ? (await run<{ grants: string[] }>('github.job.confirm', { steps }, workspaceId)).grants : []
       return run<unknown>(action.operation, { ...action.input, ...(steps.length ? { allow } : {}) }, workspaceId)
     },
-    integrate: (workspaceId: string, taskId: string, commit?: string) => run<unknown>('delivery.integrate', { taskId, ...(commit ? { commit } : {}) }, workspaceId),
     // Approve on a draft pull request Avoozl opened: mark it ready for review (R119.3).
     releaseDraft: (workspaceId: string, at: { repositoryId: string; base: string; key: string }) => run<{ pr: number; released: boolean }>('landing.ready', at, workspaceId),
     // Merge a released pull request at the exact head whose checks passed (R119.3).
@@ -602,7 +600,6 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'provider-out': 'Provider out',
   'tick-failed': 'Tick failed',
   investigation: 'Findings',
-  'ready-to-merge': 'Ready to merge',
   'branch-landing': 'Ready to land',
 }
 

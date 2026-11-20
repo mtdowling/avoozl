@@ -54,6 +54,25 @@ function text(value, label, max) {
   return value.trim();
 }
 
+// The epic context a chat worker's brief carried, from the task's record
+// when the tests passed (epic-context EC8.1).
+function briefContext(store, taskId, role, executor) {
+  const last = store.getMeta("epicContext")?.tasks?.[taskId];
+  return role === "worker" &&
+    executor !== "process" &&
+    last?.briefOnly &&
+    last.given
+    ? {
+        epicContext: {
+          mode: "brief only",
+          sources: last.sources,
+          items: last.items,
+          tests: last.tests,
+        },
+      }
+    : {};
+}
+
 // A `new-plan:<name>` key whose New plan request is still pending; the
 // request list is new-plan.mjs's `newPlans` meta entry.
 function newPlanRequested(store, id) {
@@ -209,6 +228,9 @@ export function bindSession(
         : {}),
       ...(input.worktree ? { worktree: input.worktree } : {}),
       ...(input.context ? { context: structuredClone(input.context) } : {}),
+      // A chat worker's brief named epic context: its skills and reads, and
+      // no MCP server (epic-context EC8).
+      ...briefContext(store, taskId, role, input.executor),
       boundAt: new Date().toISOString(),
     };
     if (input.requestId)

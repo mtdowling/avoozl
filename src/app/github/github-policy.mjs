@@ -52,7 +52,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "landing",
   ],
   conflicts: ["maxAttempts"],
-  landing: ["mode", "pr", "autoMerge", "method", "mergeBatch", "commitPrefix"],
+  landing: ["mode", "pr", "method", "mergeBatch", "commitPrefix"],
 });
 // Who counts when a repository names nobody.
 export const DEFAULT_PERMISSION = "write";
@@ -191,7 +191,7 @@ export const MERGE_METHOD_SETTING = Object.freeze({
   squash: { key: "allow_squash_merge", name: "Allow squash merging" },
   merge: { key: "allow_merge_commit", name: "Allow merge commits" },
 });
-// `landing` {mode, autoMerge, method, mergeBatch, commitPrefix}, unset values null and
+// `landing` {mode, pr, method, mergeBatch, commitPrefix}, unset values null and
 // the method defaulted. Null reads as unset, so a normalized policy
 // normalizes to itself.
 function landingInput(value, label) {
@@ -200,8 +200,6 @@ function landingInput(value, label) {
     fail(`${label}.mode must be direct, pr or off.`);
   if (block.pr != null && !PR_MODES.includes(block.pr))
     fail(`${label}.pr must be draft, ready or auto.`);
-  if (block.autoMerge != null && typeof block.autoMerge !== "boolean")
-    fail(`${label}.autoMerge must be true or false.`);
   if (
     block.mergeBatch != null &&
     block.mergeBatch !== "auto" &&
@@ -224,7 +222,6 @@ function landingInput(value, label) {
   return {
     mode: block.mode ?? null,
     pr: block.pr ?? null,
-    autoMerge: block.autoMerge ?? null,
     method: block.method ?? MERGE_METHOD_DEFAULT,
     mergeBatch: block.mergeBatch ?? null,
     commitPrefix: block.commitPrefix ?? null,

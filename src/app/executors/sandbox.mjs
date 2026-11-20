@@ -217,6 +217,7 @@ export function sandboxProfile({
   network,
   home = null,
   readRoots = [],
+  sockets = [],
 }) {
   // `on` (a repository check's network setting) leaves the network open.
   const lines = [
@@ -226,6 +227,11 @@ export function sandboxProfile({
   ];
   for (const port of network.ports)
     lines.push(`(allow network-outbound (remote ip "localhost:${port}"))`);
+  // The epic context relay's socket, and no other (epic-context EC7.3).
+  for (const file of sockets)
+    lines.push(
+      `(allow network-outbound (remote unix-socket (path-literal ${quote(file)})))`,
+    );
   if (writeRoots) {
     lines.push("(deny file-write*)");
     lines.push(
@@ -405,6 +411,7 @@ export function confineChild(
     kind = sandboxKind(),
     home = os.homedir(),
     readRoots = null,
+    sockets = [],
   },
 ) {
   if (!Array.isArray(argv) || !argv.length) fail("No command to confine.");
@@ -446,6 +453,7 @@ export function confineChild(
     readable: readable.map(realPath),
     writable: writable.map(realPath),
     network,
+    sockets: sockets.map(realPath),
     ...(Array.isArray(readRoots)
       ? { home: realPath(home), readRoots: readRoots.map(realPath) }
       : {}),

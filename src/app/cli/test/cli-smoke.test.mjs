@@ -193,5 +193,5 @@ test("AVOOZL_WORKSPACE and registered IDs reach the database", async () => {
     env,
   );
   assert.equal(missing.code, 1);
-  assert.match(missing.stderr, /avoozl init PATH/);
+  assert.match(missing.stderr, /avoozl init \S*none'?, then avoozl rebuild/);
 });

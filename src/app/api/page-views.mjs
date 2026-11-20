@@ -45,6 +45,7 @@ import {
 } from "../workspace/repository-checks.mjs";
 import { pluginChecksOf } from "../plugins/plugin-checks.mjs";
 import { taskPluginChecks } from "../plugins/check-stages.mjs";
+import { contextChip } from "../context/context-record.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
@@ -419,6 +420,8 @@ export function graphView(store, data, input = {}, folders = []) {
       nextAction: task.nextAction ?? null,
       // The archived plan this task belongs to; the page hides it by default.
       planArchived: archivedOf(task),
+      // The chip: epic context the task's last session got (EC9.1).
+      epicContext: contextChip(store, task.id),
       ...ownership(task),
     })),
     edges: data.edges
@@ -1010,30 +1013,6 @@ export function conflictsView(store, data) {
   items.push(...providerOutItems(store));
   // The tick failed three times in a row.
   items.push(...tickFailedItems(store));
-  // Ready to merge under manual ship (§4.25, R80.3, R80.4): a local task
-  // waiting for Integrate.
-  for (const delivery of optionalList(store, "task_deliveries")) {
-    const task = byId.get(delivery.taskId);
-    if (
-      !task ||
-      delivery.state !== "verified" ||
-      !delivery.awaitingIntegrate ||
-      delivery.awaitingIntegrate !== delivery.commit ||
-      delivery.integrateApproved?.commit === delivery.commit
-    )
-      continue;
-    items.push({
-      kind: "ready-to-merge",
-      id: "ready-to-merge:" + task.id,
-      taskId: task.id,
-      ...ownership(task),
-      title: `${task.id} is ready to merge`,
-      detail: `Its checks and reviews passed on ${delivery.commit.slice(0, 12)}. Press Integrate to land it.`,
-      commit: delivery.commit,
-      integrate: true,
-      openedAt: delivery.updatedAt ?? null,
-    });
-  }
   // Findings the gate did not pass (§4.21, R75.4).
   for (const item of investigationItems(store, data)) {
     const task = byId.get(item.taskId);

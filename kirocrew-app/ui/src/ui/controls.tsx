@@ -144,12 +144,14 @@ export function InfoTip(props: { text: string; label?: string }) {
   )
 }
 
-// What a confirm step says: the thing, what happens, and the red button's
-// label (a verb, e.g. "Remove").
+// What a confirm step says: the thing, what happens, and the button's
+// label (a verb, e.g. "Remove"). The button is red unless `primary`: a
+// step that destroys nothing.
 export interface ConfirmCopy {
   title: string
   body: string
   action: string
+  primary?: boolean
 }
 
 type Ask = (copy: ConfirmCopy) => Promise<boolean>
@@ -184,7 +186,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           onDismiss={() => answer(false)}
           footer={
             <>
-              <Button type="button" variant="danger" onClick={() => answer(true)}>
+              <Button type="button" variant={pending.primary ? 'primary' : 'danger'} onClick={() => answer(true)}>
                 {pending.action}
               </Button>
             </>
@@ -217,7 +219,7 @@ export function DangerBtn(props: {
       {(describedBy) => (
         <Button
           type="button"
-          variant="danger"
+          variant={props.confirm.primary ? 'primary' : 'danger'}
           aria-label={props.label}
           aria-describedby={props.tooltip ? describedBy : undefined}
           disabled={props.disabled}

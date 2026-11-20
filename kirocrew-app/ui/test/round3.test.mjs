@@ -62,11 +62,12 @@ test('every destructive button asks first through a red confirm', () => {
   assert.match(source('ConflictsView.tsx'), /confirm=\{confirmSettle\('dismiss', 1, item\.title\)\}/)
   // Bulk resolve asks before it settles anything.
   assert.match(source('ConflictsView.tsx'), /if \(!\(await ask\(confirmSettle\(action, settleCount\(picked\)\)\)\)\) return/)
-  // DangerBtn runs onConfirm only on yes; the dialog's confirm is red and
-  // focus starts on the footer's Cancel.
+  // DangerBtn runs onConfirm only on yes; the dialog's confirm is red unless
+  // the copy says `primary` (a step that destroys nothing), and focus starts
+  // on the footer's Cancel.
   const controls = source('ui/controls.tsx')
   assert.match(controls, /ask\(props\.confirm\)\.then\(\(yes\) => yes && props\.onConfirm\(\)\)/)
-  assert.match(controls, /<Button type="button" variant="danger" onClick=\{\(\) => answer\(true\)\}>/)
+  assert.match(controls, /<Button type="button" variant=\{pending\.primary \? 'primary' : 'danger'\} onClick=\{\(\) => answer\(true\)\}>/)
   assert.match(source('ui/Button.tsx'), /background:var\(--danger\)/)
   assert.match(controls, /<Modal\s+id="avoozl-confirm"[\s\S]*?focusClose/)
   assert.match(source('App.tsx'), /<ConfirmProvider>/)

@@ -75,14 +75,14 @@ adds no GitHub call.
 
 ### Comments after the start (EC1.7)
 
-Today a follow-up on a task (a review comment, a pull request comment) is
-sent to the task's open session. The send path reads each author's
-standing under the repository's `allowedActors` and `minimumPermission`,
+A message queued for a task's open session may name its author in `from:
+{login}`. The send path reads that author's standing under the repository's `allowedActors` and `minimumPermission`,
 as the review gate does. WHEN an author does not count and the session
 holds epic context THEN the send is refused, the session is stopped at its
 next safe point (the process ends; its work is committed as for any stop),
-and the follow-up starts as a new session whose request says `context:
-false`, so it gets no epic context whatever the three tests say.
+and the follow-up starts as a new session, after the stopped one has ended,
+whose request says `epicContext: false`, so it gets no epic context whatever
+the three tests say.
 
 ## D3. The machine block (EC2)
 
@@ -268,9 +268,11 @@ The supervisor removes it when the child exits.
     "research": {
       "command": "/path/to/node",
       "args": [
-        "/path/to/avoozl/bin/context-relay.mjs",
-        "--session",
-        "process-…",
+        "/path/to/avoozl/src/app/executors/context-relay.mjs",
+        "--socket",
+        "/tmp/avz-…/mcp.sock",
+        "--token",
+        "…",
         "--alias",
         "research"
       ]
@@ -292,8 +294,8 @@ The supervisor removes it when the child exits.
 ```
 
 The relay is a small Node program. It connects to
-`{socket-root}/ctx/{session}/mcp.sock` (the short socket folder of
-machine-server ms-3.1, `0700`), sends the alias, then pipes its standard
+`mcp.sock` in a `0700` folder of its own under the temp folder, one per
+session, sends the session's token and the alias, then pipes its standard
 streams both ways. The supervisor's broker, outside every sandbox, checks
 that the alias is one this session was given, starts the real server on
 the first connection with the check environment basics plus the mapped

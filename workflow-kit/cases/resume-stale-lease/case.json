@@ -1,0 +1,41 @@
+{
+  "title": "A stale lease is replaced by the next generation",
+  "rules": ["12.6", "12.7"],
+  "runner": {
+    "login": "acme-bob",
+    "defaultBranch": "main",
+    "staleHours": 24
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2", "avoozl-lease/parser/p-2/1"],
+    "behind": [],
+    "claimAgeHours": {
+      "parser/p-2": 30
+    },
+    "leases": {
+      "parser/p-2": [
+        {
+          "generation": 1,
+          "ageHours": 30
+        }
+      ]
+    }
+  },
+  "issues": {
+    "parser": ["acme-bob"]
+  },
+  "resume": {
+    "task": "parser/p-2",
+    "runners": ["r1", "r2"]
+  },
+  "expect": {
+    "resume": {
+      "holder": "r1",
+      "lease": "avoozl-lease/parser/p-2/2",
+      "stopped": ["r2"]
+    }
+  },
+  "expectFail": {
+    "resume": "sim-1.1"
+  }
+}

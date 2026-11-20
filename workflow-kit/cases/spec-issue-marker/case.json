@@ -1,0 +1,64 @@
+{
+  "title": "A spec issue is found by its marker in an open writer's issue",
+  "rules": ["8.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "writers": ["acme-alice"],
+  "issues": {},
+  "issueList": [
+    {
+      "number": 1,
+      "state": "open",
+      "author": "acme-alice",
+      "body": "The spec's issue.\n\n<!-- avoozl-spec:parser -->\n"
+    },
+    {
+      "number": 2,
+      "state": "open",
+      "author": "acme-alice",
+      "body": "<!-- AVOOZL-SPEC:lexer -->\n"
+    },
+    {
+      "number": 3,
+      "state": "open",
+      "author": "acme-alice",
+      "body": "The spec's issue.\n\n<!-- avoozl-spec:lexer -->\n"
+    },
+    {
+      "number": 4,
+      "state": "open",
+      "author": "acme-alice",
+      "body": "The spec's issue.\n\n<!-- avoozl-spec:lexer -->\n"
+    },
+    {
+      "number": 5,
+      "state": "open",
+      "author": "stranger",
+      "body": "The spec's issue.\n\n<!-- avoozl-spec:widget -->\n"
+    },
+    {
+      "number": 6,
+      "state": "closed",
+      "author": "acme-alice",
+      "body": "The spec's issue.\n\n<!-- avoozl-spec:widget -->\n"
+    }
+  ],
+  "expect": {
+    "specIssues": {
+      "lexer": 3,
+      "parser": 1,
+      "widget": null
+    },
+    "duplicates": [4]
+  },
+  "expectFail": {
+    "specIssues": "sim-6.1",
+    "duplicates": "sim-6.1"
+  }
+}
