@@ -66,7 +66,7 @@ function Summary({ row, known }: { row: ActivityRow; known: string[] }) {
     <Box as="span" css-overflow-wrap="anywhere">
       {activityParts(row, known).map((part, index) =>
         part.href ? (
-          <GithubLink key={index} href={part.href} data-activity-item>
+          <GithubLink key={index} url={part.href} data-activity-item>
             {part.text}
           </GithubLink>
         ) : (
@@ -78,9 +78,9 @@ function Summary({ row, known }: { row: ActivityRow; known: string[] }) {
 }
 
 // A link to GitHub, in a new tab.
-function GithubLink({ href, children, ...rest }: { href: string; children: ReactNode } & Record<`data-${string}`, unknown>) {
+function GithubLink({ url, children, ...rest }: { url: string; children: ReactNode } & Record<`data-${string}`, unknown>) {
   return (
-    <TextLink href={linkHref(href)} target="_blank" rel="noopener noreferrer" {...rest}>
+    <TextLink href={linkHref(url)} target="_blank" rel="noopener noreferrer" {...rest}>
       {children}
     </TextLink>
   )
@@ -90,7 +90,7 @@ function GithubLink({ href, children, ...rest }: { href: string; children: React
 function Who({ row, known }: { row: ActivityRow; known: string[] }) {
   const href = actorHref(row, known)
   return href ? (
-    <GithubLink href={href} data-activity-actor>
+    <GithubLink url={href} data-activity-actor>
       {row.actor}
     </GithubLink>
   ) : (
@@ -111,7 +111,7 @@ function Target({ row, known }: { row: ActivityRow; known: string[] }) {
       </PlainButton>
     )
   return (
-    <GithubLink href={target.href} data-activity-link>
+    <GithubLink url={target.href} data-activity-link>
       {row.targetId ?? 'Open on GitHub'}
     </GithubLink>
   )

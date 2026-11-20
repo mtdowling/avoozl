@@ -1754,8 +1754,8 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
   sources.push('tick')
   kinds.push('tick.failed', 'tick.recovered', 'tick.stalled')
   // Rows of each GitHub kind, in a workspace whose repository is on GitHub.
-  const repositories = query.get('ghall') === '1' ? ['nupp-lang/foo'] : []
-  if (repositories.length) {
+  const repositories = query.get('ghall') === '1' ? ['nupp-lang/foo'] : query.get('ghitems') === '1' ? ['nupp-lang/foo', 'nupp-lang/bar'] : []
+  if (query.get('ghall') === '1') {
     const row = (seq: number, source: string, actor: string | null, kind: string, summary: string, extra = {}) => ({
       ...tickRow(seq, 3 + (40 - seq) * -0.1, kind, summary),
       source,

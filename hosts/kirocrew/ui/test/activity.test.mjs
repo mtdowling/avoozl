@@ -277,7 +277,7 @@ test('with no GitHub repository, or redacted, a row stays text', () => {
 
 test('the page opens each GitHub link in a new tab, from the shared helper', () => {
   const view = source('ActivityView.tsx')
-  assert.match(view, /<TextLink href=\{linkHref\(href\)\} target="_blank" rel="noopener noreferrer"/)
+  assert.match(view, /<TextLink href=\{linkHref\(url\)\} target="_blank" rel="noopener noreferrer"/)
   assert.doesNotMatch(view + source('activity-api.ts'), /https:\/\/github\.com/)
 })
 
