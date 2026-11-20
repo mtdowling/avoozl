@@ -28,7 +28,7 @@ import {
   updateProviders,
 } from "../flow/provider-health.mjs";
 import { reportDone, runnerStatus } from "../workers/remote-runner.mjs";
-import { nextView } from "../workers/runner.mjs";
+import { claimNext, nextView } from "../workers/runner.mjs";
 import { fail } from "../store/store.mjs";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
@@ -77,17 +77,25 @@ export const entries = [
     },
   },
 
+  // With `claim`, it creates the best ready task's claim branch on origin
+  // (simplify §D3), so it may write.
   {
     name: "runner.next",
-    class: "observe",
-    github: "check-in",
+    class: "execute",
+    github: "worker-grants",
     policy: routed,
-    handler({}) {
-      const store = this.store;
-      return nextView(store, {
+    handler({ input }) {
+      const options = {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
-      });
+      };
+      if (input?.claim === true)
+        return claimNext(this.store, {
+          ...options,
+          client: this.github,
+          workspaceRoot: this.workspaceRoot,
+        });
+      return nextView(this.store, options);
     },
   },
   // Taking a task by hand is the person's at this machine's command line

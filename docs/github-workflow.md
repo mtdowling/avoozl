@@ -552,8 +552,9 @@ Avoozl does not follow every rule yet:
 - Order (3), manual tags (4), plain done bullets (2.3, 2.4), front matter (5),
   linked specs (6) and integration branches (11): Avoozl still reads `$` fact
   bullets and an `integrationBranch` key, and orders tasks by `$after`.
-- Claims (12): Avoozl names a task branch `avoozl/<task>` and does not claim by
-  creating it through the refs API.
+- Claims (12): `avoozl next --claim` and `plans_next` with `claim` claim
+  through the refs API, but the tick still starts a task on its own branch
+  `avoozl/<task>` with no claim branch.
 - Next task (10): Avoozl ranks by the number of tasks unblocked and then file
   order.
 - Label filters (16.1), label names set in settings (16.2), labeled issues

@@ -21,7 +21,6 @@
     }
   },
   "expectFail": {
-    "ready": "sim-2.1",
-    "claim": "sim-1.1"
+    "ready": "sim-2.1"
   }
 }

@@ -14,6 +14,7 @@ import { hasPendingSpecDependencies } from "../../spec-dependencies.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { issueReportToken } from "../workers/report-match.mjs";
+import { claimBranch, claimedTaskIds } from "../workers/claims.mjs";
 import { fail } from "../store/store.mjs";
 import { fileURLToPath } from "node:url";
 import {
@@ -344,7 +345,8 @@ export async function prepareWorktree(store, input = {}) {
   )
     fail(`Task ID ${task.id} cannot name a branch.`, 409);
   const repository = taskRepositoryRecord(store, task),
-    branch = "avoozl/" + task.id;
+    // A claimed task works on its claim branch (§D3); others on their own.
+    branch = input.claim === true ? claimBranch(task) : "avoozl/" + task.id;
   // Prepare and the spec's qualified reference resolve the same base
   // (spec-base.mjs): the spec's working branch, else a legacy integration
   // branch, else the repository's base branch.
@@ -1691,6 +1693,8 @@ export function busyTaskIds(store, bindings = listSessionBindings(store)) {
   }
   for (const delivery of deliveries.values())
     if (delivery.state !== "failed") claimed.add(delivery.taskId);
+  // A claim branch on origin holds its task, whoever made it (§D3).
+  for (const id of claimedTaskIds(store)) claimed.add(id);
   return claimed;
 }
 

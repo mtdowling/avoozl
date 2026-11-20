@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { judge, readCases } from "../../../workflow-kit/load.mjs";
 import { lintSpec, parseSpec } from "../specs/spec-plans.mjs";
 import { unblockCounts } from "../specs/release-ranking.mjs";
+import { claimFirst } from "../workers/claims.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file) => fs.readFileSync(root + file, "utf8");
@@ -100,14 +101,38 @@ function ready(testCase, specs) {
     .map(({ task }) => `${task.spec}/${task.id}`);
 }
 
-// Claims and landing run through operations the simplify spec adds, so the
-// adapter leaves those probes out until each simplify task lands.
-function avoozl(testCase) {
+// The claim: Avoozl's claim call over the ready list, against an origin
+// whose refs create call refuses a branch it already has.
+async function claim(testCase, order) {
+  const branches = new Set(testCase.origin.branches),
+    github = {
+      branch: async () => ({ commit: { sha: "base" } }),
+      createBranch: async (_repository, name) => {
+        if (branches.has(name))
+          throw Object.assign(Error("exists"), { status: 422 });
+      },
+    },
+    candidates = order.map((name) => {
+      const [spec, id] = name.split("/");
+      return { task: { id, planId: spec }, repository: { github: "o/r" } };
+    }),
+    claimed = await claimFirst(github, candidates, {
+      baseOf: () => testCase.runner.defaultBranch,
+    });
+  return claimed
+    ? { branch: claimed.branch, base: claimed.base, mergeBase: false }
+    : null;
+}
+
+// Landing runs through operations the simplify spec adds, so the adapter
+// leaves that probe out until its simplify task lands.
+async function avoozl(testCase) {
   const specs = specsOf(testCase.files),
     got = {};
   if (testCase.expect.violations) got.violations = violations(specs);
   if (testCase.expect.ready || testCase.expect.claim)
     got.ready = ready(testCase, specs);
+  if (testCase.expect.claim) got.claim = await claim(testCase, got.ready);
   return got;
 }
 
@@ -128,7 +153,7 @@ if (/^# Workflow v1$/m.test(doc))
     rules.add(match[1]);
 
 for (const testCase of readCases()) {
-  test(`workflow kit: ${testCase.name}`, () => {
+  test(`workflow kit: ${testCase.name}`, async () => {
     for (const [probe, task] of Object.entries(testCase.expectFail ?? {})) {
       assert.ok(probe in testCase.expect, `${probe} is not an expected probe`);
       assert.ok(
@@ -140,7 +165,7 @@ for (const testCase of readCases()) {
     if (rules.size)
       for (const rule of testCase.rules)
         assert.ok(rules.has(rule), `rule ${rule} is not in the workflow doc`);
-    const verdicts = judge(testCase, avoozl(testCase));
+    const verdicts = judge(testCase, await avoozl(testCase));
     for (const [probe, verdict] of Object.entries(verdicts))
       assert.ok(
         verdict === "pass" || verdict === "expected-fail",

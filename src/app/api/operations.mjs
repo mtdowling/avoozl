@@ -27,6 +27,7 @@ import {
   proposalsFromFacts,
 } from "../specs/design-extraction.mjs";
 import { bindDriver } from "../workers/driver.mjs";
+import { refreshClaims } from "../workers/claims.mjs";
 import { taskEpic } from "../epics/epics.mjs";
 import { putSpan } from "../flow/flow.mjs";
 import {
@@ -930,7 +931,10 @@ export class Operations {
         "Rebuild starts from an empty database. Move workspace.sqlite aside, then run it again.",
         409,
       );
-    return this.readFromGit();
+    const result = await this.readFromGit();
+    // Claims come back from the claim branches on origin (simplify §D3).
+    const claimErrors = await refreshClaims(this.store, this.github);
+    return claimErrors.length ? { ...result, claimErrors } : result;
   }
   // Approve each plan as its approval commit names it: `found` is plan ID
   // -> an approvalCommits entry whose hash is the plan's. Owners first: a

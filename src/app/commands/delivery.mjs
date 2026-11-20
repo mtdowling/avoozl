@@ -122,12 +122,21 @@ export const commands = [
     help: [
       help(
         "deliver",
-        "next",
-        "The ready, running, waiting, Needs you and done lists",
+        "next [--claim]",
+        "The ready, running, waiting, Needs you and done lists; --claim takes the first ready task by its claim branch",
       ),
     ],
-    async run({ localOrRequest }) {
-      console.log(JSON.stringify(await localOrRequest("runner.next"), null, 2));
+    async run({ options, localOrRequest }) {
+      console.log(
+        JSON.stringify(
+          await localOrRequest(
+            "runner.next",
+            options.claim ? { claim: true } : {},
+          ),
+          null,
+          2,
+        ),
+      );
     },
   },
   {

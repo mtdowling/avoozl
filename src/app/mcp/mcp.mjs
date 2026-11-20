@@ -68,7 +68,7 @@ export const NARROW_TOOLS = {
   ],
   plans_next: [
     "runner.next",
-    "Narrow tool for the avoozl skill. Every local leaf in one list: ready, running, waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries), and done. The tick starts ready work. Reads only.",
+    "Narrow tool for the avoozl skill. Every local leaf in one list: ready, running, waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries), and done. With {claim: true} it claims the best ready task by creating its claim branch avoozl/<spec>/<task> on origin, makes its worktree on that branch and returns the task, the worktree and the brief; a task another runner claimed first is skipped.",
   ],
   plans_run_checks: [
     "flow.checks.run",
