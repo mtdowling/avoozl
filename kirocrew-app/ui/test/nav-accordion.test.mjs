@@ -81,10 +81,10 @@ test('a phone: the menu holds the same accordion, and picking a page closes the 
   await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
   assert.deepEqual(await openPills('[data-top-rail-list]'), ['waiting'], 'only Needs you is open')
   assert.equal(await has('[data-top-rail-footer] [data-brand-card]'), true, 'the brand card is at the bottom of the menu')
-  await click('[data-nav-item="waiting/agent"]')
+  await click('[data-nav-item="waiting/decisions"]')
   await settle()
   assert.equal(await has('[data-top-rail-list]'), false, 'the menu closes')
-  assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · From the agent/)
+  assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Decisions/)
 })
 
 // The owner's ask (2026-11-17): moving from page to page leaves only that

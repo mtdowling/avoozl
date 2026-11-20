@@ -50,16 +50,16 @@ for (const dark of [false, true]) {
     const pane = await box('[data-avoozl-pane]')
     assert.ok(list.height > 300, `the list takes the page (${list.height})`)
     assert.ok(pane.hidden || pane.height === 0, 'the page content is out of the way')
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-head]').length`), 8, 'eight sections')
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-head]').length`), 7, 'seven sections')
 
     // A section opens in the menu; picking one of its pages closes the menu.
     await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes('Needs you')).click()`)
     await settle()
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-section][data-open]').length`), 1, 'only Needs you is open')
-    await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-item="waiting/agent"]').click()`)
+    await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-item="waiting/decisions"]').click()`)
     await settle()
     assert.equal(await box('[data-top-rail-list]'), null, 'picking collapses the rail')
-    assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · From the agent/)
+    assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Decisions/)
     assert.ok((await box('[data-avoozl-pane]')).height > 100, 'the page shows again')
   })
 
@@ -67,7 +67,7 @@ for (const dark of [false, true]) {
     await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
     await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head]'))`)
     await settle()
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 8)
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 7)
     assert.equal(await box('[data-top-rail-bar]'), null, 'no top bar')
     assert.equal(await sideways(), false)
   })

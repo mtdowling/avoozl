@@ -79,7 +79,7 @@ for (const dark of [false, true]) {
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no sideways scroll')
   })
 
-  test(`Needs you on a phone: the decision list, one item with Back, then the other tab (${theme})`, { skip }, async () => {
+  test(`Needs you on a phone: the decision list, and one item with Back (${theme})`, { skip }, async () => {
     await start(390, dark)
     await goto('Needs you', 390)
     await pickPage('[data-nav-item="waiting/decisions"]', 390)
@@ -93,8 +93,6 @@ for (const dark of [false, true]) {
     assert.equal(await has('[data-detail-bar]'), true)
     await back()
     assert.equal(await has('[data-conflict-list]'), true, 'Back returns to the list')
-    await pickPage('[data-nav-item="waiting/agent"]', 390)
-    assert.equal(await has('[data-waiting-section="agent"][data-open="true"]'), true)
   })
 
   test(`Specs on a phone: the list, then one spec whose Back shares a row with the compact title (${theme})`, { skip }, async () => {
