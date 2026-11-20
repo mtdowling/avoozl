@@ -15,9 +15,6 @@ the [workflow kit](workflow-kit/README.md) holds sample repositories that check
 a runner against them. Any tool can follow it. Avoozl is one way to run it,
 through its CLI, MCP server, web app, Kiro Crew plugin and skills.
 
-Avoozl does not follow every rule yet. See
-[Avoozl status](docs/github-workflow.md#avoozl-status) for the gaps.
-
 - **Parallel work.** Tasks run in [list order](docs/github-workflow.md#3-order),
   and the children of a parallel group start side by side.
   [Claim branches](docs/github-workflow.md#12-claims) keep two runners off one
@@ -135,7 +132,7 @@ repository with `avoozl repository configure ID --root PATH`, then run
 
 Choose **New spec** on the Specs page, review the lint results and the task
 graph, then choose **Approve revision**. See
-[Approving in Avoozl](docs/github-workflow.md#approving-in-avoozl).
+[Write and approve a spec](docs/getting-started.md#write-and-approve-a-spec).
 
 Register the checkout the work changes, with its base branch, a folder for
 worktrees, and the checks every task must pass:
@@ -213,7 +210,7 @@ The [docs](docs/README.md) cover the rest:
 - [Workspaces](docs/workspaces.md) for settings files, the standalone server,
   backup, and rebuilding
 - [Workflow v1](docs/github-workflow.md) for the task list format, order,
-  approvals, claims and landing, and what Avoozl adds
+  approvals, claims and landing
 - [Delivery](docs/delivery.md) for workers, checks, landing, and merge batches
 - [Drivers](docs/drivers.md) for which machine drives a spec, and handing off
 - [GitHub](docs/github.md) for repository roles and GitHub modes
