@@ -194,7 +194,7 @@ export const commands = [
       machineStateDirectory,
       need,
     }) {
-      // `status` and `report` run on a worker machine (and `status` on any one).
+      // `status` and `report` run on any machine.
       const action = positionals[0];
       let result;
       if (action === "status")
