@@ -235,8 +235,11 @@ you (`chmod 600`). A child gets only the names its harness definition lists
 in `keepEnv`. A sign-in that Claude Code keeps only in the macOS keychain is
 out of a sandboxed child's reach: use an API key, a cloud provider's
 short-lived credentials, or the repository's model proxy instead.
-**Settings › Models** and `avoozl status` show a harness that cannot start
-here, and why.
+A harness program is looked up on `machine.env`'s `PATH`, then the
+server's, then your login shell's, so one installed for you is found. If it
+is still not found, set `PATH` in `machine.env` or give an absolute path in
+the harness definition. **Settings › Models** and `avoozl status` show a
+harness that cannot start here, and why.
 
 
 ## Approve a harness

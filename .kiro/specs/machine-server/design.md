@@ -131,6 +131,12 @@ environment. Two things then fail quietly: the harness program is not on
   read roots because the whole Avoozl config folder is (R95.6).
 - Readiness: one function per definition answers "can this start here?"
   and both `avoozl status` and Settings › Models show it per role (MS5.3).
+  The program is looked up as an absolute path, then on `machine.env`'s
+  `PATH`, the server's `PATH`, and the person's login-shell `PATH`
+  (`$SHELL -l -c /usr/bin/env`, a fixed argv, 3 second timeout, cached per
+  process, skipped on Windows). The supervisor spawns the file that lookup
+  returns and gives the child the `PATH` it was found on, so the check and
+  the spawn agree (V: `findProgram`, `src/app/executors/harness-ready.mjs`).
 
 **Roles.** `scripts/proofs/proof-ms-roles-live.mjs --harness NAME` drives the
 rows of `scripts/proofs/ms-roles-rows.mjs` on a scratch repository and prints
