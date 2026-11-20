@@ -20,6 +20,7 @@ import { callerSlot } from "../delivery/delivery.mjs";
 import { actorAllowed, readGitHubPolicy } from "./github-policy.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { fail } from "../store/store.mjs";
+import { baseRef, git } from "../git/git.mjs";
 import {
   enforce as enforceContent,
   screenReply,
@@ -355,15 +356,11 @@ export async function respondStep(
 // The detached copy a `process` responder reads: the checkout's base branch
 // head, at a folder of its own beside the checkout's other task worktrees.
 async function baseCopy(checkout, response) {
-  const commit = (
-    await exec(
-      "git",
-      ["rev-parse", `${checkout.baseBranch || "main"}^{commit}`],
-      {
-        cwd: checkout.localCheckout,
-      },
-    )
-  ).stdout.trim();
+  const root = checkout.localCheckout,
+    commit = await git(root, [
+      "rev-parse",
+      await baseRef(root, checkout.baseBranch || "main"),
+    ]);
   return {
     repository: checkout.id,
     commit,

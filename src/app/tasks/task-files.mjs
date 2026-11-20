@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { fail } from "../store/store.mjs";
-import { repositoryEnvironment } from "../git/git.mjs";
+import { branchRefs, repositoryEnvironment } from "../git/git.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { taskRepository } from "../../work-model.mjs";
 
@@ -83,6 +83,16 @@ async function commit(cwd, ref) {
     return null;
   }
 }
+// The commit a branch name holds: its local branch, else the remote's
+// tracking copy (branchRefs, git.mjs), or null.
+async function branchCommit(cwd, branch) {
+  if (typeof branch !== "string" || !branch) return null;
+  for (const ref of branchRefs(branch)) {
+    const found = await commit(cwd, ref);
+    if (found) return found;
+  }
+  return null;
+}
 
 // A path as Git lists it: relative, forward slashes, no `.` or `..` part, no
 // drive letter, NUL, or backslash. Refused before Git is called.
@@ -139,18 +149,14 @@ async function locate(store, data, taskId) {
   if (!cwd) return { ...where, mode: "none" };
   const head = worktree
     ? await commit(cwd, "HEAD")
-    : (await commit(cwd, "refs/heads/" + branch)) ||
-      (await commit(cwd, "refs/remotes/origin/" + branch));
+    : await branchCommit(cwd, branch);
   if (!head) return { ...where, mode: "none" };
-  // The base is where the branch left the line it lands on.
-  let landing = null;
-  for (const ref of [
-    repository?.integrationBranch,
-    repository?.baseBranch || "main",
-  ]) {
-    landing = ref ? await commit(cwd, ref) : null;
-    if (landing) break;
-  }
+  // The base is where the branch left the line it lands on. The base
+  // branch may exist only as the remote's tracking copy (git.mjs).
+  let landing = repository?.integrationBranch
+    ? await commit(cwd, repository.integrationBranch)
+    : null;
+  landing ??= await branchCommit(cwd, repository?.baseBranch || "main");
   let base = null;
   if (landing)
     try {

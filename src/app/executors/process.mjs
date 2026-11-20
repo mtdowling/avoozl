@@ -30,7 +30,7 @@ import {
   bindSession,
   recordSessionStatus,
 } from "../sessions/session-bindings.mjs";
-import { commitWorkerChanges, git, taskGit } from "../git/git.mjs";
+import { branchTip, commitWorkerChanges, git, taskGit } from "../git/git.mjs";
 import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
 import { healthContext, providerOf } from "../flow/provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
@@ -444,13 +444,16 @@ export const NOTHING_COMMITTED =
 // True when the worktree's HEAD holds nothing new: it is the commit the
 // task's branch started from, or already in the repository's base branch.
 async function nothingCommitted(store, taskId, worktree) {
-  const base =
-    store.get("task_worktrees", taskId)?.base?.commit ??
-    sessionRepository(store, { task: taskId })?.baseBranch ??
-    "main";
+  const repository = sessionRepository(store, { task: taskId }),
+    base =
+      store.get("task_worktrees", taskId)?.base?.commit ??
+      (repository?.root &&
+        (await branchTip(repository.root, repository.baseBranch ?? "main"))
+          ?.commit) ??
+      "main";
   try {
     await taskGit(worktree, ["merge-base", "--is-ancestor", "HEAD", base], {
-      checkout: sessionRepository(store, { task: taskId })?.root,
+      checkout: repository?.root,
     });
     return true;
   } catch {

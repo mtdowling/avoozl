@@ -41,6 +41,7 @@ import {
   selectedChecks,
 } from "../workspace/repository-checks.mjs";
 import {
+  baseRef,
   git,
   integrateRun,
   prepareTaskWorktree,
@@ -682,7 +683,8 @@ export const openFindings = (delivery, role = null) =>
   deliveryFindings(delivery, role).filter((f) => f.state === "open");
 
 // The branch a delivery lands on: the integration branch once it exists,
-// else the base branch.
+// else the base branch. A base only fetched from the remote is its
+// tracking ref (git.mjs).
 async function landingBranch(repository) {
   if (repository.integrationBranch)
     try {
@@ -694,7 +696,9 @@ async function landingBranch(repository) {
       ]);
       return repository.integrationBranch;
     } catch {}
-  return repository.baseBranch || "main";
+  const base = repository.baseBranch || "main",
+    ref = await baseRef(repository.root, base);
+  return ref === `refs/heads/${base}` ? base : ref;
 }
 
 async function patchId(root, diff) {
