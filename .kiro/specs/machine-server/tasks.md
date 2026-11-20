@@ -139,9 +139,9 @@ they never collide with the IDs of the other specs.
 
 - [x] ms-5.1 `tick.py` keeps only chat intents, after ms-3.2, ms-4.1 [MS12.2, MS12.5] (§D5)
   - `hosts/kirocrew/crons/tick.py` opens, sends and re-trusts and nothing else; the Python test with a fake context covers each and a refused send; the Node test that the cron's call never reaches the planner passes; `app.json`'s permissions are unchanged.
-- [ ] ms-p7 Proof: the cron on a throwaway Kiro Crew, after ms-5.1 [MS12] (§D5)
+- [x] ms-p7 Proof: the cron on a throwaway Kiro Crew, after ms-5.1 [MS12] (§D5)
   - Expected: (1) the chat opens, gets the message and keeps trust mode; (2) the cron history shows only open, send and trust calls; (3) the task lands.
-  - Expected result observed; receipt under `docs/evidence/`.
+  - Expected result observed; receipt in `docs/evidence/ms-p7-cron.md`.
   - Setup: the throwaway test Kiro Crew with its own home, an isolated workspace with one `kirocrew` task, the machine server running. The chat drives the test crew's clicks itself.
   - Action: (1) approve the task; (2) send a message to its chat from the page; (3) restart the test crew's gateway; (4) read the cron's run history.
   - Expected: (1) the chat opens, gets the message and keeps trust mode; (2) the cron history shows only open, send and trust calls; (3) the task lands.
