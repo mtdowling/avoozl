@@ -73,6 +73,7 @@ import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
 import { NoticesSettings } from './NoticesSettings.tsx'
+import { TelemetrySettings } from './TelemetrySettings.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
@@ -1130,6 +1131,7 @@ function SettingsBody(
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
         <ThisComputer workspaceId={workspaceId} />
         <NoticesSettings workspaceId={workspaceId} />
+        <TelemetrySettings workspaceId={workspaceId} />
       </Box>
     )
   if (!workspaceId)

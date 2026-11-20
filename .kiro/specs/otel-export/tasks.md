@@ -93,13 +93,13 @@ another spec cannot be a `$after` here, so `ot-2.1` says it in a bullet.
 
 ## Phase 4: Surfaces
 
-- [ ] `ot-4` Surfaces (**PARALLEL**)
+- [x] `ot-4` Surfaces (**PARALLEL**)
   - [x] `ot-4.1` Operations and CLI [OT5.3, OT5.5, OT11.5, OT11.6] (§D6, §D11)
     - $after: ot-3.4
     - Two entries in `src/app/ops/telemetry.mjs`: `telemetry.status` (`observe`, not on MCP) and `telemetry.configure` (person-only); and the CLI entries `avoozl telemetry status`, `enable` and `disable` in `src/app/commands/`
     - Tests: `telemetry.configure` called over MCP or with an app token is refused as person-only; an MCP tool list holds no telemetry tool; `enable` writes only `telemetry.enabled` to machine config and keeps its other keys; `status` prints the status, the counts and the local row counts and never a header value or a URL's path
     - No prompt, brief or skill under `prompts/` or `.kiro/` names the setting, checked by a test that reads them
-  - [ ] `ot-4.2` The Telemetry box in Settings [OT11.1, OT11.2, OT11.3, OT11.4] (§D11)
+  - [x] `ot-4.2` The Telemetry box in Settings [OT11.1, OT11.2, OT11.3, OT11.4] (§D11)
     - $after: ot-3.4
     - A titled box **Telemetry** in **Settings** with the switch **Send task timing over OpenTelemetry**, the endpoint, protocol, header names, status text, the four counts, the last success time, the local span and point counts, and the one sentence about the environment
     - UI tests: each status of §D6 and each failure kind shows its words; the switch calls `telemetry.configure`; no header value, URL path or response text is in the rendered box
