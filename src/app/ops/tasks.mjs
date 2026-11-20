@@ -21,6 +21,7 @@ import { isPlanInventory, taskSignals } from "../../workbench-model.mjs";
 import {
   DEFAULT_RETENTION_DAYS,
   listActivity,
+  withGithubRepositories,
 } from "../store/activity-log.mjs";
 import {
   matchingAgentInstructions,
@@ -194,11 +195,16 @@ export const entries = [
     handler({ input }) {
       const store = this.store;
 
-      const page = listActivity(store, input);
-      let tasks = new Set();
+      let all = [];
       try {
-        tasks = new Set(this.read().tasks.map((task) => task.id));
+        all = this.read().tasks;
       } catch {}
+      const page = withGithubRepositories(
+          store,
+          listActivity(store, input),
+          all,
+        ),
+        tasks = new Set(all.map((task) => task.id));
       return {
         ...page,
         items: page.items.map((row) =>

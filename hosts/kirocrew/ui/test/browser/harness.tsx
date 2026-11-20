@@ -1745,7 +1745,7 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
     link: null,
     redacted: false,
   })
-  const all = [
+  const all: Array<Record<string, any>> = [
     tickRow(27, 2, 'tick.recovered', 'Tick works again after 5 failures'),
     tickRow(26, 1.5, 'tick.failed', 'Tick failed 5 times in a row: database is locked'),
     tickRow(25, 0.5, 'tick.stalled', 'Tick had not run for 42 min; it is running again'),
@@ -1753,6 +1753,32 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
   ]
   sources.push('tick')
   kinds.push('tick.failed', 'tick.recovered', 'tick.stalled')
+  // Rows of each GitHub kind, in a workspace whose repository is on GitHub.
+  const repositories = query.get('ghall') === '1' ? ['nupp-lang/foo'] : []
+  if (repositories.length) {
+    const row = (seq: number, source: string, actor: string | null, kind: string, summary: string, extra = {}) => ({
+      ...tickRow(seq, 3 + (40 - seq) * -0.1, kind, summary),
+      source,
+      actor,
+      repository: 'nupp-lang/foo',
+      ...extra,
+    })
+    all.unshift(
+      row(40, 'tick', 'avoozl', 'task.landed', 'a1 landed at 0123456789ab after 2 tries', { targetId: 'a1', task: true }),
+      row(39, 'tick', null, 'task.ticked', 'a2 is done: ticked in tasks.md on avoozl/recipes/a2 at 89abcde', { targetId: 'a2', task: true }),
+      row(38, 'tick', 'mira@example.com', 'plan.approved', 'recipes approved by mira@example.com in commit 0123456789ab on rewrite-v3'),
+      row(37, 'github', 'octo-reviewer', 'github.check', 'Check test failed on pull request #12'),
+      row(36, 'github', 'octo-reviewer', 'github.close', "octo-reviewer closed a3's issue without merged code (completed); dependents released", {
+        targetId: 'a3',
+        task: true,
+        link: 'https://github.com/nupp-lang/foo/issues/31',
+      }),
+      row(35, 'github', null, 'github.pr-merged', 'Closing pull request merged for a4', { targetId: 'a4', link: 'https://github.com/nupp-lang/foo/pull/22' }),
+      row(34, 'github', null, 'intake.item', 'New pr nupp-lang/foo#12 from github'),
+      row(33, 'github', 'gh', 'github.token', 'New GitHub token from gh on github.com for land on nupp-lang/foo: signed in as mira, full access, no expiry.'),
+      row(32, 'github', 'octo-reviewer', 'github.handback', 'Crew Nova handed back issue #6: it needs a person'),
+    )
+  }
   const count = (key: 'source' | 'kind' | 'actor') => {
     const out: Record<string, number> = {}
     for (const row of all) out[row[key]] = (out[row[key]] ?? 0) + 1
@@ -1769,6 +1795,7 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
       actors: [...actors].sort(),
       counts: { source: count('source'), kind: count('kind'), actor: count('actor') },
       retentionDays: 30,
+      repositories,
     }
   })
   let keepDays = 30

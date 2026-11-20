@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ACTIVITY_FILTER_STORE, SOURCE_LABELS, filterActive, filterChoices, githubItem, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
+import { ACTIVITY_FILTER_STORE, SOURCE_LABELS, filterActive, filterChoices, activityParts, actorHref, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
 import { PAGE } from '../src/paging.ts'
 
 const src = new URL('../src/', import.meta.url)
@@ -21,12 +21,17 @@ const row = (extra = {}) => ({
   ...extra,
 })
 
-test('a task row opens the drawer, a GitHub row opens its https link, anything else goes nowhere', () => {
-  assert.deepEqual(rowTarget(row({ targetId: 'a1', task: true })), { kind: 'task', id: 'a1' })
-  assert.deepEqual(rowTarget(row({ link: 'https://github.com/o/app/issues/4' })), { kind: 'link', href: 'https://github.com/o/app/issues/4' })
-  assert.equal(rowTarget(row({ link: 'javascript:alert(1)' })), null)
-  assert.equal(rowTarget(row({ link: 'http://github.com/o/app' })), null)
-  assert.equal(rowTarget(row({ targetId: 'gone' })), null)
+test('a task row opens the drawer, a GitHub row opens its item, anything else goes nowhere', () => {
+  const known = ['o/app']
+  assert.deepEqual(rowTarget(row({ targetId: 'a1', task: true }), known), { kind: 'task', id: 'a1' })
+  assert.deepEqual(rowTarget(row({ link: 'https://github.com/o/app/issues/4' }), known), { kind: 'link', href: 'https://github.com/o/app/issues/4' })
+  // A GitHub link to a repository the workspace lacks (or in local mode) is text.
+  assert.equal(rowTarget(row({ link: 'https://github.com/o/app/issues/4' }), []), null)
+  assert.equal(rowTarget(row({ link: 'https://github.com/evil/x/pull/1' }), known), null)
+  assert.deepEqual(rowTarget(row({ link: 'https://tracker.example/T-1' }), known), { kind: 'link', href: 'https://tracker.example/T-1' })
+  assert.equal(rowTarget(row({ link: 'javascript:alert(1)' }), known), null)
+  assert.equal(rowTarget(row({ link: 'http://github.com/o/app' }), known), null)
+  assert.equal(rowTarget(row({ targetId: 'gone' }), known), null)
 })
 
 test('filter choices come from the log with their counts, and keep the one in use', () => {
@@ -173,16 +178,107 @@ test('Keep activity has no Save button and saves on blur and Enter', () => {
   assert.match(keep, /'Saved'/)
 })
 
-test('a GitHub intake row links owner/repo#N to the item, from stored data', () => {
-  const github = (extra = {}) => row({ source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github', ...extra })
-  assert.deepEqual(githubItem(github()), { before: 'New pr ', text: 'nupp-lang/foo#12', after: ' from github', href: 'https://github.com/nupp-lang/foo/pull/12' })
-  assert.equal(githubItem(github({ summary: 'New issue nupp-lang/foo#3 from github' })).href, 'https://github.com/nupp-lang/foo/issues/3')
-  // The stored link wins; an unsafe one is ignored.
-  assert.equal(githubItem(github({ link: 'https://ghe.example/nupp-lang/foo/pull/12' })).href, 'https://ghe.example/nupp-lang/foo/pull/12')
-  assert.equal(githubItem(github({ link: 'javascript:alert(1)' })).href, 'https://github.com/nupp-lang/foo/pull/12')
-  assert.equal(githubItem(github({ source: 'plugin' })), null)
-  assert.equal(githubItem(github({ redacted: true })), null)
-  assert.match(source('ActivityView.tsx'), /<TextLink href=\{linkHref\(item\.href\)\} target="_blank" rel="noopener noreferrer"/)
+// The links in a row's summary, as [text, href] pairs.
+const known = ['o/app', 'nupp-lang/foo']
+const links = (extra, repositories = known) =>
+  activityParts(row({ repository: 'o/app', ...extra }), repositories)
+    .filter((part) => part.href)
+    .map((part) => [part.text, part.href])
+
+test('an intake row links owner/repo#N only for a repository the workspace has', () => {
+  assert.deepEqual(links({ source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github' }), [
+    ['nupp-lang/foo#12', 'https://github.com/nupp-lang/foo/pull/12'],
+  ])
+  assert.deepEqual(links({ source: 'github', kind: 'intake.item', summary: 'New issue nupp-lang/foo#3 from github' }), [
+    ['nupp-lang/foo#3', 'https://github.com/nupp-lang/foo/issues/3'],
+  ])
+  // Text naming a repository the workspace does not have stays text, and a
+  // stored URL is never used.
+  assert.deepEqual(links({ source: 'github', kind: 'intake.item', summary: 'New pr evil/repo#1 from github', link: 'https://github.com/evil/repo/pull/1' }), [])
+})
+
+test('task rows link their commit and branch in the task repository', () => {
+  assert.deepEqual(links({ kind: 'task.landed', summary: 'a1 landed at 0123456789ab after 2 tries' }), [['0123456789ab', 'https://github.com/o/app/commit/0123456789ab']])
+  assert.deepEqual(links({ kind: 'task.ticked', summary: 'a1 is done: ticked in tasks.md on avoozl/spec/a1 at 0123abc' }), [
+    ['avoozl/spec/a1', 'https://github.com/o/app/tree/avoozl/spec/a1'],
+    ['0123abc', 'https://github.com/o/app/commit/0123abc'],
+  ])
+  assert.deepEqual(links({ kind: 'plan.approved', summary: 'rewrite approved by me@x.dev in commit 0123456789ab on rewrite-v3' }), [
+    ['0123456789ab', 'https://github.com/o/app/commit/0123456789ab'],
+    ['rewrite-v3', 'https://github.com/o/app/tree/rewrite-v3'],
+  ])
+  assert.deepEqual(links({ kind: 'worker.released', summary: 'Released the worker session for a1: its tick on main won' }), [['main', 'https://github.com/o/app/tree/main']])
+  // "on" names a branch only in the kinds that write one.
+  assert.deepEqual(links({ kind: 'github.board-resumed', summary: 'a1 moved out of Deferred on the board' }), [])
+})
+
+test('pull request, issue and check rows link to GitHub', () => {
+  assert.deepEqual(links({ source: 'github', kind: 'github.check', summary: 'Check test failed on pull request #12' }), [
+    ['test', 'https://github.com/o/app/pull/12/checks'],
+    ['pull request #12', 'https://github.com/o/app/pull/12'],
+  ])
+  assert.deepEqual(links({ source: 'github', kind: 'github.close', summary: 'Issue #2 closed by pull request #10' }), [
+    ['Issue #2', 'https://github.com/o/app/issues/2'],
+    ['pull request #10', 'https://github.com/o/app/pull/10'],
+  ])
+  assert.deepEqual(links({ source: 'github', kind: 'github.handback', summary: 'Crew Nova handed back issue #6: it needs a person' }), [
+    ['issue #6', 'https://github.com/o/app/issues/6'],
+  ])
+  assert.deepEqual(links({ kind: 'note', summary: 'Spec issue #7 published' }), [['issue #7', 'https://github.com/o/app/issues/7']])
+  assert.deepEqual(links({ kind: 'note', summary: 'Labeled #8' }), [['#8', 'https://github.com/o/app/issues/8']])
+})
+
+test('a GitHub login links to its profile, in the summary and the Who cell', () => {
+  const close = {
+    source: 'github',
+    kind: 'github.close',
+    actor: 'octo',
+    targetId: 'a1',
+    task: true,
+    link: 'https://github.com/o/app/issues/4',
+    summary: "octo closed a1's issue without merged code (completed); dependents released",
+  }
+  // The task's Target opens the drawer, so its issue follows the summary.
+  assert.deepEqual(links(close), [
+    ['octo', 'https://github.com/octo'],
+    ['#4', 'https://github.com/o/app/issues/4'],
+  ])
+  assert.equal(actorHref(row(close), known), 'https://github.com/octo')
+  assert.equal(actorHref(row({ ...close, source: 'local' }), known), null)
+  assert.equal(actorHref(row(close), []), null)
+  const token = {
+    source: 'github',
+    kind: 'github.token',
+    actor: 'gh',
+    summary: 'New GitHub token from gh on github.com for land on o/app: signed in as octo, full access, no expiry.',
+  }
+  assert.deepEqual(links(token), [
+    ['o/app', 'https://github.com/o/app'],
+    ['octo', 'https://github.com/octo'],
+  ])
+  // A token row may name its provider as the actor, so Who stays text.
+  assert.equal(actorHref(row(token), known), null)
+})
+
+test('with no GitHub repository, or redacted, a row stays text', () => {
+  const summary = 'a1 landed at 0123456789ab after 2 tries'
+  assert.deepEqual(activityParts(row({ kind: 'task.landed', summary, repository: null }), []), [{ text: summary }])
+  assert.deepEqual(links({ kind: 'task.landed', summary, repository: null }), [])
+  assert.deepEqual(links({ kind: 'task.landed', summary, repository: 'other/repo' }), [])
+  assert.deepEqual(links({ kind: 'note', summary: 'Merged pull request #3', redacted: true }), [])
+  // The text around the links is kept as it is.
+  assert.equal(
+    activityParts(row({ kind: 'task.landed', summary, repository: 'o/app' }), known)
+      .map((part) => part.text)
+      .join(''),
+    summary,
+  )
+})
+
+test('the page opens each GitHub link in a new tab, from the shared helper', () => {
+  const view = source('ActivityView.tsx')
+  assert.match(view, /<TextLink href=\{linkHref\(href\)\} target="_blank" rel="noopener noreferrer"/)
+  assert.doesNotMatch(view + source('activity-api.ts'), /https:\/\/github\.com/)
 })
 
 test('the tick is a source with its own label and filter row', () => {

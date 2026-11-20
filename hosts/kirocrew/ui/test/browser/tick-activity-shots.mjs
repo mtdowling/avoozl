@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Full-app shots for the tick in Activity: the Tick source row picked in the
+// Full-app shots for the tick in Activity: Activity with a row of each GitHub
+// kind (activity-links), the Tick source row picked in the
 // Activity filters, the Needs you row for a tick that keeps failing, and the
 // workspace edit dialog without a Tick health block, at 1280x800 and 390x844,
 // light and dark: <out>/<view>-<width>-<theme>.png.
@@ -45,6 +46,14 @@ try {
         await page.screenshot(file)
         console.log(file)
       }
+      // Activity with a row of each GitHub kind, every GitHub thing a link.
+      await page.open(harness.url({ page: 'app', basic: '1', activity: '1', ghall: '1', theme }), { width, height, dark: theme === 'dark' })
+      await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
+      await wait(page, 1200)
+      await open('Activity')
+      if (phone) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      await page.until(`Boolean(document.querySelector('[data-activity-row]'))`)
+      await shot('activity-links')
       await page.open(harness.url({ page: 'app', basic: '1', activity: '1', tickfail: '1', theme }), { width, height, dark: theme === 'dark' })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       await wait(page, 1200)
