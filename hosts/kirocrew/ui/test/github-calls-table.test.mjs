@@ -65,3 +65,33 @@ test('Enter and Space on a focused header sort it', { skip }, async () => {
   assert.equal(m.sort.cached, 'ascending')
   assert.equal(m.order.at(-1), 'view')
 })
+
+// Every row of both tables (by source, by login) shares one column grid:
+// each column's cells have the same left edge and width in every row,
+// header included, and a long login cuts off with its full name as a title.
+const GRID = `(() => {
+  const rows = [...document.querySelectorAll('table[data-github-usage] tr')]
+  return {
+    edges: rows.map((tr) => [...tr.children].map((c) => { const r = c.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.width)] })),
+    heights: [...document.querySelectorAll('tr[data-usage-source]')].map((tr) => Math.round(tr.getBoundingClientRect().height)),
+    scroll: (() => { const box = document.querySelector('table[data-github-usage]').parentElement; return [box.scrollWidth, box.clientWidth] })(),
+    long: [...document.querySelectorAll('tr[data-usage-source] td:first-child')].map((td) => [td.title, td.scrollWidth > td.clientWidth]),
+    numbers: [...document.querySelectorAll('tr[data-usage-source] td:not(:first-child)')].map((td) => getComputedStyle(td).fontVariantNumeric),
+  }
+})()`
+
+for (const width of [1280, 320])
+  test(`at ${width} px every column has one left edge and width across rows and tables`, { skip }, async () => {
+    await page.open(harness.url({ page: 'github-usage' }), { width, height: 800 })
+    await page.until(`document.querySelectorAll('table[data-github-usage]').length === 2`)
+    const m = await page.evaluate(GRID)
+    assert.ok(m.edges.length >= 9, 'both tables render their rows')
+    for (const row of m.edges) assert.deepEqual(row, m.edges[0])
+    // No cell wraps, so every body row is one line high.
+    assert.ok(Math.max(...m.heights) - Math.min(...m.heights) <= 1, String(m.heights))
+    assert.ok(m.numbers.every((v) => v.includes('tabular-nums')))
+    const long = m.long.find(([title]) => title.startsWith('avoozl-machine-server'))
+    assert.ok(long, 'the long login has its full name as a title')
+    // At phone width the table scrolls sideways inside its box instead of squeezing.
+    if (width === 320) assert.ok(m.scroll[0] > m.scroll[1])
+  })

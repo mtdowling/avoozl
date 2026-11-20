@@ -34,6 +34,7 @@ import {
 import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
 import { tryLock } from "./pass-lock.mjs";
 import { readMachineEnv, withKeptValues } from "./machine-env.mjs";
+import { findProgram } from "./harness-ready.mjs";
 import { ensurePassTable, recordPasses } from "./tick-passes.mjs";
 
 const CHILD_WRAPPER = fileURLToPath(
@@ -884,6 +885,12 @@ export function openSupervisor({
           : []),
         ...(contextMcp ? fillHarnessArgv(definition.context.mcp, filled) : []),
       ];
+      // The program as the readiness check finds it (MS5.3), so the two
+      // agree; the child runs with the PATH it was found on.
+      const machineEnv = readMachineEnv(configDirectory);
+      const found = findProgram(argv[0], { env, machineEnv });
+      if (found.problem) fail(found.problem, 409);
+      argv[0] = found.file;
       const promptFile = message ? messageFile : briefFile;
       const stdin =
         definition.promptFrom === "stdin" ? ["--stdin", promptFile] : [];
@@ -957,11 +964,8 @@ export function openSupervisor({
           withoutPushCredentials({
             // Model access the server's own environment lacks comes from
             // machine.env, for the definition's keepEnv names only (MS5.2).
-            ...withKeptValues(
-              env,
-              definition.keepEnv ?? [],
-              readMachineEnv(configDirectory),
-            ),
+            ...withKeptValues(env, definition.keepEnv ?? [], machineEnv),
+            ...(found.path ? { PATH: found.path } : {}),
             ...(values.tmp
               ? Object.fromEntries(
                   ["TMPDIR", ...(definition.tmpEnv ?? [])].map((name) => [

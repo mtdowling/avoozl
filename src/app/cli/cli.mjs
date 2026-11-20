@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { findCommand } from "./cli-commands.mjs";
 import { PROGRAM, helpCommands, helpPointer, helpText } from "./cli-help.mjs";
-import { workspaceConfig } from "../settings/config.mjs";
+import { readWorkspaceConfig, workspaceConfig } from "../settings/config.mjs";
 import {
   loadHostConfig,
   machineAvoozlPaths,
@@ -118,9 +118,18 @@ try {
       configOptions = { ...options, workspace: registered.root };
     }
   }
-  const config = workspaceConfig(configOptions),
+  // Help, the app backend and the MCP server start on a workspace whose
+  // configuration does not load, and refuse its work with that message
+  // (readWorkspaceConfig); every other command refuses it at once.
+  const entry = command === "help" ? null : findCommand(command, positionals);
+  const config = (
+      !entry || entry.startsWithBadConfig
+        ? readWorkspaceConfig
+        : workspaceConfig
+    )(configOptions),
     { dbPath, endpoint } = config;
   const requireDatabase = () => {
+    if (config.configError) throw Error(config.configError);
     if (!fs.existsSync(dbPath))
       throw Error(initializeFirst(config.workspaceRoot));
   };
@@ -195,7 +204,6 @@ try {
       );
     console.log(text);
   } else {
-    const entry = findCommand(command, positionals);
     await entry.run({
       options,
       positionals,

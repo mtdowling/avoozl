@@ -200,9 +200,14 @@ that unattended work does not fail on a missing login.
    anyone but the owner can read it. It SHALL be outside every child's read
    roots. Its values SHALL never be logged or shown.
 3. For each role, `avoozl status` and Settings › Models SHALL show a harness
-   that cannot start on this machine, and why: its program is not on the
-   tick's `PATH`, or none of its `keepEnv` names is set and no model proxy
-   is named. A request for it SHALL open one Needs you item, not repeat a
+   that cannot start on this machine, and why: its program is not found,
+   or none of its `keepEnv` names is set and no model proxy is named. The
+   program SHALL be looked up, in order, as an absolute path in the
+   definition, on `machine.env`'s `PATH`, on the tick's `PATH`, then on the
+   person's login-shell `PATH` (read once per process; not on Windows). The
+   supervisor SHALL spawn the path that lookup finds, with the `PATH` it was
+   found on. A program found nowhere SHALL be named with each place looked
+   and the fix: set `PATH` in `machine.env`, or give an absolute path. A request for it SHALL open one Needs you item, not repeat a
    failed start.
 4. A login kept only in the macOS keychain is out of a child's reach, since
    the sandbox denies the keychain (V: `src/app/executors/sandbox.mjs`). The

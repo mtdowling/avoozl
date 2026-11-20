@@ -1,42 +1,67 @@
 # Telemetry
 
-Avoozl records each task's timing as OpenTelemetry spans and metric points in
-its own database. It can also send them to any backend that takes OTLP over
-HTTP JSON, when this machine's owner turns that on.
+Avoozl always records each task's timing as OpenTelemetry spans and metric
+points in its own database on this machine. It can also export them to any
+backend that takes OTLP over HTTP JSON, when this machine's owner turns that
+on.
+
+## Setting up export
+
+**Settings › Workspaces › Telemetry** shows the local store first, then the
+status, such as **Recording locally · export off**. Its **Set up export**
+button opens three steps:
+
+1. **What is recorded**: what Avoozl keeps on this computer.
+2. **Export**: an on/off switch, the endpoint, the protocol and the header
+   names.
+3. **Review and save**: **Save** writes the machine config.
+
+The form saves this to the machine config, `config.json` in Avoozl's config
+folder, `~/.config/avoozl/` on Linux and macOS:
 
 ```json
 {
   "telemetry": {
-    "enabled": true
+    "enabled": true,
+    "endpoint": "https://otlp.example:4318",
+    "protocol": "http/json",
+    "headers": [
+      "authorization"
+    ]
   }
 }
 ```
 
-That key goes in the machine config: `config.json` in Avoozl's config folder,
-`~/.config/avoozl/` on Linux and macOS. The
-endpoint and any headers come from the standard environment of the process
-that runs the tick:
+`headers` holds names only. Each value comes from `OTEL_EXPORTER_OTLP_HEADERS`
+in the environment of the process that runs the tick, and is never saved:
+
+```sh
+export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer ${OTLP_TOKEN}"
+```
+
+A saved name with no value there holds the export, and Settings shows
+**Recording locally · export waiting for header values**. A process a desktop
+app starts may not inherit a shell's variables, so set them where that
+process reads its environment.
+
+The standard variables still work, and beat what is saved:
 
 ```sh
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.example:4318
-export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer ${OTLP_TOKEN}"
 avoozl telemetry enable
 avoozl telemetry status
 ```
 
-A process a desktop app starts may not inherit a shell's variables. Set them
-where that process reads its environment.
-
-## Turning it on and off
-
 `avoozl telemetry enable` and `avoozl telemetry disable` write
-`telemetry.enabled` and keep the rest of the file. **Settings › Workspaces ›
-Telemetry** has the same switch, **Send task timing over OpenTelemetry**.
-Both are a person's: an MCP call or an app token is refused.
+`telemetry.enabled` and keep the rest of the object. Saving and both commands
+are a person's: an MCP call, an agent, the tick or an app token cannot change
+the setting.
 
 A `telemetry` key in a `.avoozl.json` is refused with the file and the
 machine config path. A plugin manifest that names `telemetry` fails plugin
-lint. The `telemetry` object takes only `enabled`, `true` or `false`.
+lint. The `telemetry` object takes only `enabled` (`true` or `false`),
+`endpoint` (no user, password or query), `protocol` (`http/json`) and
+`headers` (up to 20 names).
 
 Export starts when the setting is on. Records from before that are not sent.
 
@@ -64,7 +89,7 @@ and task points again.
 
 ## Export
 
-With the setting on and an endpoint set, the process that runs the tick
+With export on and an endpoint saved or set, the process that runs the tick
 sends:
 
 - **One trace per finished task**: a root span `avoozl.task` from the
@@ -111,7 +136,7 @@ is no use without them.
 | Endpoint | `https`, or `http` to `localhost`, `127.0.0.1` or `[::1]` |
 | Certificates | The system trust store, with no setting that skips it |
 | Redirects | Not followed; a redirect counts as a failure |
-| Headers | `Content-Type`, `User-Agent: avoozl/VERSION` and the names in `OTEL_EXPORTER_OTLP_HEADERS` |
+| Headers | `Content-Type`, `User-Agent: avoozl/VERSION` and the headers in `OTEL_EXPORTER_OTLP_HEADERS` |
 | Timeout | `OTEL_EXPORTER_OTLP_TIMEOUT` milliseconds, default 10 seconds, at most 30 |
 
 Avoozl reads `OTEL_EXPORTER_OTLP_ENDPOINT`,
@@ -119,7 +144,8 @@ Avoozl reads `OTEL_EXPORTER_OTLP_ENDPOINT`,
 `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_EXPORTER_OTLP_PROTOCOL`,
 `OTEL_EXPORTER_OTLP_TIMEOUT`, `OTEL_SERVICE_NAME` and
 `OTEL_RESOURCE_ATTRIBUTES`. Only the shared endpoint gets `/v1/traces` and
-`/v1/metrics` added. An agent process Avoozl starts gets none of these
+`/v1/metrics` added. A variable that is set beats the saved endpoint or
+protocol. An agent process Avoozl starts gets none of these
 variables.
 
 ## Status
@@ -131,10 +157,19 @@ variables.
   "status": "backing-off",
   "failure": "http 503",
   "endpoint": "https://otlp.example:4318",
+  "endpointFrom": "machine",
   "protocol": "http/json",
   "headerNames": [
     "authorization"
   ],
+  "missingHeaders": [],
+  "saved": {
+    "endpoint": "https://otlp.example:4318",
+    "protocol": "http/json",
+    "headers": [
+      "authorization"
+    ]
+  },
   "sent": 41,
   "queued": 3,
   "dropped": 0,
@@ -142,21 +177,27 @@ variables.
   "lastSuccessAt": "2026-11-20T03:12:09.000Z",
   "local": {
     "spans": 5120,
-    "points": 48210
+    "points": 48210,
+    "days": 90,
+    "spanCap": 200000,
+    "pointCap": 1000000
   }
 }
 ```
 
+Settings shows each status after **Recording locally ·**:
+
 | `status` | Settings shows |
 | --- | --- |
-| `off` | Off |
-| `no-endpoint` | Waiting for an endpoint |
-| `protocol` | Protocol not supported |
-| `endpoint-not-allowed` | Endpoint not allowed |
-| `bad-headers` | Headers are not written as name=value |
-| `ready` | Ready, in a process that does not send |
-| `sending` | Sending |
-| `backing-off` | Backing off, with the failure: `timeout`, `refused`, `tls`, `dns` or `http STATUS` |
+| `off` | export off |
+| `no-endpoint` | export waiting for an endpoint |
+| `protocol` | export protocol not supported |
+| `endpoint-not-allowed` | export endpoint not allowed |
+| `bad-headers` | export headers are not written as name=value |
+| `missing-headers` | export waiting for header values |
+| `ready` | export ready, in a process that does not send |
+| `sending` | exporting |
+| `backing-off` | export backing off, with the failure: `timeout`, `refused`, `tls`, `dns` or `http STATUS` |
 
 The endpoint shows scheme, host and port only. Header values never show. The
 counts start at zero when the process starts, and live only in the process

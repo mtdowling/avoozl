@@ -38,6 +38,7 @@ import type { Graph, RemoteWorker } from './views-api.ts'
 import { useSharedFilter } from './FilterBar.tsx'
 import { NO_GROUP, NO_REPOSITORY, filterActive, filterChoices, planKey, type TaskFilter } from './filters.ts'
 import { STATES } from './graph-layout.ts'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, usePages } from './ui/controls.tsx'
 import { DetailsIcon, FileText, Folder, Layers, ListFilter, Pause, Play, RefreshCw, RotateCcw, X } from './icons.ts'
 import { chatClient } from './chat-api.ts'
@@ -321,7 +322,7 @@ export function DeliveryBoard(props: {
                 size="sm"
                 weight="semibold"
                 data-lane-head
-                aria-expanded={!shut}
+                aria-expanded={single || narrow ? !shut : undefined}
                 onClick={() => {
                   const next = new Set(folded)
                   if (next.has(lane.id)) next.delete(lane.id)
@@ -329,8 +330,9 @@ export function DeliveryBoard(props: {
                   setFolded(next)
                 }}
                 disabled={!(single || narrow)}
+                {...(single || narrow ? DISCLOSURE : {})}
               >
-                {(single || narrow) && <span aria-hidden="true">{shut ? '▸' : '▾'}</span>}
+                {(single || narrow) && <DisclosureMark size={13} />}
                 <span aria-hidden="true" data-lane-dot />
                 {lane.label}
                 <Badge small variant={lane.id === 'needs-you' && cards.length ? 'warning' : undefined}>

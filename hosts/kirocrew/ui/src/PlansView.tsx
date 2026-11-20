@@ -13,6 +13,7 @@ import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
 import NewFixDrawer from './NewFixDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
 import {
   Archive,
@@ -596,7 +597,8 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
   const fold = (children: ReactNode) =>
     props.fold ? (
       <details data-phase-tasks-fold>
-        <Hint as="summary" cursorPointer size="sm">
+        <Hint as="summary" flex items="center" gap="1.5" size="sm" {...DISCLOSURE}>
+          <DisclosureMark size={13} />
           Show the task list ({leaves.length})
         </Hint>
         <Box mt="2">{children}</Box>
@@ -1922,7 +1924,9 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
                 aria-expanded={showDiff}
                 onClick={() => setShowDiff(!showDiff)}
                 data-revision-diff-toggle
+                {...DISCLOSURE}
               >
+                <DisclosureMark size={12} />
                 <code>{shortHash(plan.hash)}</code>
               </PlainButton>
             </Tooltip>

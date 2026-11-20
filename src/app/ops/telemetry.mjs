@@ -30,17 +30,27 @@ export const entries = [
     name: "telemetry.configure",
     class: "protect",
     github: "check-in",
-    policy: person("Only a person turns telemetry export on or off."),
+    policy: person("Only a person changes telemetry export."),
+    // Writes the keys the input names and keeps the rest: `enabled`,
+    // `endpoint` (null or "" removes it), `protocol` and `headers` (names
+    // only). Header values are never taken.
     async handler({ input }) {
-      const telemetry = { enabled: input.enabled };
-      validateTelemetry(telemetry);
-      if (typeof input.enabled !== "boolean")
-        fail("enabled must be true or false.", 400);
+      const given = Object.keys(input ?? {}).filter(
+        (key) => input[key] !== undefined,
+      );
+      if (!given.length) fail("Name a telemetry setting to change.", 400);
+      const patch = Object.fromEntries(given.map((key) => [key, input[key]]));
+      if (patch.endpoint === "" || patch.endpoint === null)
+        patch.endpoint = undefined;
+      validateTelemetry(patch);
       const file = this.configDirectory
         ? path.join(this.configDirectory, "config.json")
         : globalAvoozlConfigPath();
       writeMachineFile(file, (value) => {
-        value.telemetry = { ...value.telemetry, enabled: input.enabled };
+        const telemetry = { ...value.telemetry, ...patch };
+        for (const key of Object.keys(telemetry))
+          if (telemetry[key] === undefined) delete telemetry[key];
+        value.telemetry = telemetry;
       });
       await telemetryHandle(this.store)?.step();
       return telemetryStatus(this.store, {

@@ -295,6 +295,41 @@ fs.writeFileSync("seen.json", JSON.stringify([process.env.MODEL_KEY, process.env
   );
 });
 
+test("the child is the program the readiness check finds, on machine.env's PATH (MS5.3)", {
+  skip: process.platform === "win32",
+}, async (t) => {
+  const { root, stateDirectory, configDirectory, worktree, defer } = scratch(
+    t,
+    { extra: { start: ["only-in-machine-env"] } },
+  );
+  const bin = path.join(root, "bin");
+  fs.mkdirSync(bin);
+  fs.writeFileSync(
+    path.join(bin, "only-in-machine-env"),
+    '#!/bin/sh\nprintf "%s\\n%s" "$0" "$PATH" > ran.txt\n',
+    { mode: 0o755 },
+  );
+  fs.writeFileSync(
+    path.join(configDirectory, "machine.env"),
+    `PATH=${bin}:/usr/bin:/bin\n`,
+    { mode: 0o600 },
+  );
+  const db = openSupervisorDatabase(stateDirectory);
+  defer(() => db.close());
+  const id = requestChild(db, request(worktree));
+  const supervisor = openAndPass({ stateDirectory, configDirectory });
+  defer(() => supervisor.close());
+  await until(() => {
+    supervisor.pass();
+    return childStatus(db, id) !== "working";
+  });
+  assert.deepEqual(
+    fs.readFileSync(path.join(worktree, "ran.txt"), "utf8").split("\n"),
+    [path.join(bin, "only-in-machine-env"), `${bin}:/usr/bin:/bin`],
+    childLog(db, id),
+  );
+});
+
 test("an unapproved definition never runs and takes the retry path", (t) => {
   const { stateDirectory, configDirectory, worktree, defer } = scratch(t, {
     approve: false,

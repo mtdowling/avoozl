@@ -25,6 +25,7 @@ function refuseChild(name) {
 export const commands = [
   {
     command: "mcp",
+    startsWithBadConfig: true,
     help: [
       help(
         "machine",
@@ -66,6 +67,7 @@ export const commands = [
   },
   {
     command: "app-backend",
+    startsWithBadConfig: true,
     help: [
       help(
         "machine",

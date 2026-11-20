@@ -15,7 +15,8 @@
 // nothing scrolls sideways and nothing is sticky. Colors are theme
 // variables only. Kept free of data reads: callers pass what to show.
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, type LucideIcon } from './icons.ts'
+import { DISCLOSURE, DisclosureMark, DisclosureStyle } from './ui/Disclosure.tsx'
+import { ChevronsDownUp, ChevronsUpDown, type LucideIcon } from './icons.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref } from './views-api.ts'
 import { Box } from './ui/Box'
@@ -25,7 +26,12 @@ import { PlainLink } from './ui/Plain'
 export type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'muted'
 
 export function PanelStyles() {
-  return <PanelCss />
+  return (
+    <>
+      <PanelCss />
+      <DisclosureStyle />
+    </>
+  )
 }
 
 // Which sections are open, kept in the browser so the panel looks the same
@@ -171,11 +177,10 @@ export function PanelSection(props: { id: string; title: string; count?: number;
   const fallback = Boolean(props.open)
   useLayoutEffect(() => folds?.register(props.id, fallback), [folds?.register, props.id, fallback])
   const open = folds ? folds.isOpen(props.id, fallback) : fallback
-  const Chevron = open ? ChevronDown : ChevronRight
   return (
     <div data-pp-section data-panel-fold={props.id} data-open={open ? '' : undefined}>
-      <button type="button" data-pp-section-head aria-expanded={open} onClick={() => folds?.toggle(props.id, fallback)}>
-        <Chevron size={13} data-pp-chevron aria-hidden="true" />
+      <button type="button" data-pp-section-head aria-expanded={open} onClick={() => folds?.toggle(props.id, fallback)} {...DISCLOSURE}>
+        <DisclosureMark size={13} />
         <span data-pp-section-title>{props.title}</span>
         {props.count !== undefined && props.count > 0 && <PanelChip tone={props.tone ?? 'info'}>{props.count}</PanelChip>}
         {props.summary && <span data-pp-summary>{props.summary}</span>}

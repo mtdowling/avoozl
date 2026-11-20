@@ -1096,21 +1096,28 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
   )
 }
 
-const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
+// Number columns get a fixed width that fits the heading and its sort arrow.
+const USAGE_COLUMNS: { key: UsageKey; label: string; width?: number }[] = [
   { key: 'source', label: 'Source' },
-  { key: 'calls', label: 'Calls' },
-  { key: 'notModified', label: '304 (free)' },
-  { key: 'cached', label: 'Cached (free)' },
+  { key: 'calls', label: 'Calls', width: 96 },
+  { key: 'notModified', label: '304 (free)', width: 116 },
+  { key: 'cached', label: 'Cached (free)', width: 136 },
 ]
 
 // A real table: each heading is a button that sorts by it, and the th says
-// which way (aria-sort). Numbers sit right-aligned.
+// which way (aria-sort). Both tables (by source, by login) use one fixed
+// column grid, so their columns line up: the name takes what is left and
+// cuts off with its full text in a tooltip; numbers sit right-aligned in
+// fixed-width columns. A narrow screen scrolls the table sideways.
+const NAME_MIN = 120
+const TABLE_MIN = USAGE_COLUMNS.reduce((sum, col) => sum + (col.width ?? NAME_MIN), 0)
+const CELL = { 'css-padding': '4px-8px', 'css-white-space': 'nowrap', 'css-overflow': 'hidden', 'css-text-overflow': 'ellipsis' } as const
 export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof usageRows>; first?: string }) {
   const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
   const sorted = sortUsage(rows, sort)
   return (
     <Box css-overflow-x="auto">
-      <Box data-github-usage as="table" css-width="100%" css-border-collapse="collapse" css-font-size="14">
+      <Box data-github-usage as="table" css-width="100%" css-min-width={TABLE_MIN} css-table-layout="fixed" css-border-collapse="collapse" css-font-size="14">
         <thead>
           <tr>
             {USAGE_COLUMNS.map((col) => {
@@ -1122,8 +1129,9 @@ export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof
                   scope="col"
                   aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                   as="th"
+                  {...CELL}
+                  css-width={col.width}
                   css-text-align={right ? 'right' : 'left'}
-                  css-padding="4px-8px"
                   css-font-weight="500"
                   css-border-bottom="1px-solid-border"
                 >
@@ -1142,7 +1150,7 @@ export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof
                     onClick={() => setSort(nextUsageSort(sort, col.key))}
                   >
                     {col.key === 'source' ? first : col.label}
-                    <Hint aria-hidden="true" as="span" size="xs">
+                    <Hint aria-hidden="true" as="span" size="xs" css-display="inline-block" css-width="10">
                       {on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
                     </Hint>
                   </PlainButton>
@@ -1154,18 +1162,18 @@ export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof
         <tbody>
           {sorted.map((row) => (
             <tr key={row.source} data-usage-source={row.source}>
-              <Box as="td" css-padding="4px-8px">
-                {row.source}
-              </Box>
-              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
-                {row.calls}
-              </Box>
-              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
-                {row.notModified}
-              </Box>
-              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
-                {row.cached}
-              </Box>
+              {USAGE_COLUMNS.map((col) =>
+                col.key === 'source' ? (
+                  <Box key={col.key} as="td" {...CELL} title={row.source}>
+                    {row.source}
+                  </Box>
+                ) : (
+                  // The right padding matches the heading's arrow slot, so a number ends under its label.
+                  <Box key={col.key} as="td" {...CELL} css-padding-right={22} css-text-align="right" css-font-variant-numeric="tabular-nums">
+                    {row[col.key].toLocaleString('en-US')}
+                  </Box>
+                ),
+              )}
             </tr>
           ))}
         </tbody>

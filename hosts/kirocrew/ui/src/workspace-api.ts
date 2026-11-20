@@ -14,6 +14,8 @@ export interface CatalogWorkspace {
   enabled: boolean
   state: string
   served: boolean
+  // Why its .avoozl.json does not load; its operations refuse with it.
+  configError?: string
 }
 
 // A person's edit of one workspace (workspaces.update). Fields left out stay.

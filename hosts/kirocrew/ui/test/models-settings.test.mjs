@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ROLES, harnessOptions, harnessTakesModel, provedLine, roleIsSet, roleProblem, toRoles } from '../src/models-api.ts'
+import { PROVED_TIP, ROLES, approvalLabel, approvalTip, harnessOptions, harnessTakesModel, provedLine, roleIsSet, roleProblem, toRoles } from '../src/models-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
@@ -114,8 +114,19 @@ test('a role is default until a harness, agent or model is set, and an unusable 
 test('an unapproved harness has an Approve button that calls harness.approve', () => {
   const models = source('ModelsSettings.tsx')
   assert.match(models, /!d\.approved && \(\s*<SmallBtn onClick=\{\(\) => approve\(d\.name\)\}/)
-  assert.match(models, /changed since approval/)
+  assert.match(models, /\{approvalLabel\(d\)\}<\/Badge>/)
+  assert.equal(approvalLabel({ name: 'x', approved: false, changed: true }), 'changed since approval')
   assert.match(source('models-api.ts'), /'harness\.approve', \{ name \}/)
+})
+
+test('the approval badge and the proved line each have an info tip that says what they mean', () => {
+  const models = source('ModelsSettings.tsx')
+  assert.match(models, /<InfoTip text=\{approvalTip\(d\)\} label=\{`What \$\{approvalLabel\(d\)\} means`\} \/>/)
+  assert.match(models, /<InfoTip text=\{PROVED_TIP\} label="What read and write proved mean" \/>/)
+  assert.match(approvalTip({ name: 'x', approved: true }), /^You approved this exact file\. If it changes outside Avoozl, it won’t start until you approve it again\.$/)
+  assert.match(approvalTip({ name: 'x', approved: false, changed: true }), /changed after you approved it/)
+  assert.match(approvalTip({ name: 'x', approved: false }), /not approved this file yet/)
+  assert.match(PROVED_TIP, /reviewer[\s\S]*worker[\s\S]*comes from the file, not a test run on this computer/)
 })
 
 test('a harness that cannot start on this machine says why, in the list and on the role row (MS5.3)', () => {

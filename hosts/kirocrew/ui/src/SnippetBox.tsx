@@ -3,11 +3,10 @@
 // action floated to the right of the header. The one shape for any snippet
 // a page folds, so none has its own arrow or header.
 import { useId, useState, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight } from './icons.ts'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
 import { TONE } from './ui/tones.ts'
-import { Glyph } from './ui/Glyph'
 
 export function SnippetBox(props: {
   title: ReactNode
@@ -21,7 +20,6 @@ export function SnippetBox(props: {
 }) {
   const [open, setOpen] = useState(props.open ?? false)
   const body = useId()
-  const Chevron = open ? ChevronDown : ChevronRight
   const toggle = () => {
     setOpen(!open)
     props.onToggle?.(!open)
@@ -35,12 +33,12 @@ export function SnippetBox(props: {
           aria-controls={body}
           onClick={toggle}
           data-snippet-toggle
+          {...DISCLOSURE}
           css-background="none"
           css-border="0"
           css-padding="0"
           css-color="inherit"
           css-font="inherit"
-          css-cursor="pointer"
           css-overflow-wrap="anywhere"
           flex
           minW0
@@ -49,7 +47,7 @@ export function SnippetBox(props: {
           gap="1.5"
           align="left"
         >
-          <Glyph icon={Chevron} size={13} aria-hidden="true" shrink0 />
+          <DisclosureMark size={13} />
           <Box as="span" minW0>
             {props.title}
           </Box>

@@ -15,6 +15,16 @@ test("every ROLE_TABLE row with process: true is a row of the role proof", () =>
       );
 });
 
+test("every role a row drives is a role in ROLE_TABLE", () => {
+  const settings = new Set(Object.values(ROLE_TABLE).map((row) => row.setting));
+  for (const row of ROWS)
+    for (const role of row.drives)
+      assert.ok(
+        settings.has(role),
+        `${row.id} drives ${role}, which is not a role`,
+      );
+});
+
 test("a row the proof does not drive says why", () => {
   for (const row of ROWS)
     if (row.driven === false)

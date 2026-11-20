@@ -43,6 +43,7 @@ import { changePage } from './nav-history.ts'
 import { errorMessage, pickDefault, readPageState, workspaceClient, writePageState, type WorkspaceList } from './workspace-api'
 import { Box } from './ui/Box'
 import { Glyph } from './ui/Glyph'
+import { DisclosureStyle } from './ui/Disclosure.tsx'
 
 function storage(): Storage | null {
   try {
@@ -75,6 +76,7 @@ export default function AvoozlApp() {
   return (
     <NavHistoryProvider>
       <NavSlotProvider>
+        <DisclosureStyle />
         <AvoozlPage />
       </NavSlotProvider>
     </NavHistoryProvider>
@@ -151,6 +153,7 @@ function AvoozlPage() {
   // A saved workspace counts only once the catalog confirms it still exists.
   const active = list ? workspaceId : null
   const needsWorkspace = tab !== 'settings' && !active
+  const configError = list?.items.find((w) => w.id === active)?.configError
 
   // A Needs you item's spec link: put the spec in the address, then open Specs,
   // which reads it as it opens (PlansView readAddress).
@@ -341,10 +344,13 @@ function AvoozlPage() {
                       <LineBanner stops={stops} workspaceId={active} />
                     </Box>
                   )}
-                  {error && (
-                    <Box role="alert" as="p" pb="2" size="sm" tone="danger" px={phone ? '4' : '2'}>
-                      {error}
-                    </Box>
+                  {[error, configError].map(
+                    (message) =>
+                      message && (
+                        <Box key={message} role="alert" as="p" pb="2" size="sm" tone="danger" px={phone ? '4' : '2'} data-shell-error>
+                          {message}
+                        </Box>
+                      ),
                   )}
                   <Box
                     ref={(element) => {

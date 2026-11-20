@@ -390,33 +390,53 @@ function Scenario({ name }: { name: string }) {
 // ?page=app: the whole Avoozl page on one workspace with intake on, for
 // tests that move between tabs.
 // &long=1 names the workspace long enough to need cutting short, and adds a
-// second one to switch to.
+// second one to switch to. &configError=1 gives it a .avoozl.json that does
+// not load.
 answer('workspaces.list', () => ({
   defaultWorkspace: 'w',
   items: [
-    { id: 'w', name: query.get('long') === '1' ? 'Recipe box planning and the meal planner rewrite' : 'Harness', root: '/w', enabled: true, state: 'ready', served: true },
+    {
+      id: 'w',
+      name: query.get('long') === '1' ? 'Recipe box planning and the meal planner rewrite' : 'Harness',
+      root: '/w',
+      enabled: true,
+      state: 'ready',
+      served: true,
+      ...(query.get('configError')
+        ? { configError: 'Unknown setting "github.repositories.example/app.role" in repository Avoozl configuration at /w/.avoozl.json. Remove it.' }
+        : {}),
+    },
     ...(query.get('long') === '1' ? [{ id: 'w2', name: 'Avoozl', root: '/w2', enabled: true, state: 'ready', served: false }] : []),
   ],
 }))
 // Settings > Workspaces > Telemetry. &telemetry=STATUS picks what the status
-// operation says (off by default); the switch flips it on and off.
+// operation says (off by default); a save sets it from what was saved.
 let telemetryStatus = query.get('telemetry') ?? 'off'
+const exporting = () => !['off', 'no-endpoint'].includes(telemetryStatus)
+let telemetrySaved: { endpoint: string | null; protocol: string; headers: string[] } = exporting()
+  ? { endpoint: 'https://otlp.example:4318', protocol: 'http/json', headers: ['authorization'] }
+  : { endpoint: null, protocol: 'http/json', headers: [] }
 const telemetryView = () => ({
   status: telemetryStatus,
   failure: telemetryStatus === 'backing-off' ? 'http 503' : null,
-  endpoint: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? null : 'https://otlp.example:4318',
+  endpoint: exporting() ? 'https://otlp.example:4318' : null,
+  endpointFrom: exporting() ? 'machine' : null,
   protocol: telemetryStatus === 'protocol' ? 'grpc' : 'http/json',
-  headerNames: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? [] : ['authorization'],
+  headerNames: exporting() ? ['authorization'] : [],
+  missingHeaders: [],
+  saved: telemetrySaved,
   sent: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? 41 : 0,
   queued: telemetryStatus === 'backing-off' ? 3 : 0,
   dropped: 0,
   rejected: 0,
   lastSuccessAt: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? '2026-11-20T03:12:09.000Z' : null,
-  local: { spans: 5120, points: 48210 },
+  local: { spans: 5120, points: 48210, days: 90, spanCap: 200000, pointCap: 1000000 },
 })
 answer('telemetry.status', telemetryView)
 answer('telemetry.configure', (body) => {
-  telemetryStatus = (body.input as { enabled?: boolean }).enabled ? 'no-endpoint' : 'off'
+  const input = body.input as { enabled?: boolean; endpoint?: string; headers?: string[] }
+  telemetrySaved = { ...telemetrySaved, endpoint: input.endpoint || null, headers: input.headers ?? telemetrySaved.headers }
+  telemetryStatus = input.enabled ? (input.endpoint ? 'sending' : 'no-endpoint') : 'off'
   return telemetryView()
 })
 
@@ -1668,6 +1688,11 @@ const PAGES: Record<string, () => ReactNode> = {
           view: { calls: 17, notModified: 21, cached: 132 },
           review: { calls: 5, notModified: 0, cached: 3 },
           setup: { calls: 2, notModified: 0, cached: 0 },
+        },
+        // A long login and a large count, so the tests see both tables keep one column grid.
+        byLogin: {
+          mtdowling: { calls: 12480, notModified: 3021, cached: 118204 },
+          'avoozl-machine-server-dev-desktop-review-bot': { calls: 7, notModified: 0, cached: 0 },
         },
       }}
     />
