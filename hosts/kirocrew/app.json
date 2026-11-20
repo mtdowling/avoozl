@@ -14,7 +14,12 @@
     "skills/avoozl-answer",
     "skills/avoozl-drive",
     "skills/avoozl-review",
-    "skills/avoozl-triage"
+    "skills/avoozl-triage",
+    "skills/avoozl-spec",
+    "skills/avoozl-work",
+    "skills/avoozl-spec-review",
+    "skills/avoozl-retro",
+    "skills/avoozl-investigate"
   ],
   "agents": [
     "agents/avoozl-planner.json",

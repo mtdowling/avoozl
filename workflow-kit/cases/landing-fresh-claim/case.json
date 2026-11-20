@@ -1,0 +1,37 @@
+{
+  "title": "A fresh claim after a restart holds no landed work",
+  "rules": ["12.1", "13.6"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": [],
+    "graph": {
+      "c1": []
+    },
+    "heads": {
+      "main": "c1"
+    }
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "fail",
+    "baseMoved": false,
+    "mode": "direct",
+    "claim": {
+      "start": "c1",
+      "head": "c1"
+    }
+  },
+  "expect": {
+    "landed": false,
+    "landing": {
+      "action": "none"
+    }
+  }
+}

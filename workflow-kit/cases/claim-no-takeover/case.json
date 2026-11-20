@@ -1,0 +1,37 @@
+{
+  "title": "Without a takeover commit the old holder's push to its own claim branch is accepted",
+  "rules": ["12.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": [],
+    "graph": {
+      "c1": [],
+      "c2": ["c1"],
+      "c3": ["c2"]
+    },
+    "heads": {
+      "avoozl/parser/p-2": "c2"
+    }
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "push": {
+    "branch": "avoozl/parser/p-2",
+    "by": [
+      {
+        "runner": "holder",
+        "head": "c3"
+      }
+    ]
+  },
+  "expect": {
+    "push": {
+      "holder": "accepted"
+    }
+  }
+}

@@ -115,7 +115,10 @@ export async function finish(w, ctx) {
     pluginOptions: ctx.options,
     approvalCheckout: async () => w.m.checkout,
     approverOf: async () =>
-      approverCheck({ repository: { allowedActors: [APPROVER] } }),
+      approverCheck({
+        repository: { allowedActors: [APPROVER] },
+        trust: "branch-protection",
+      }),
     execute: async () => ({}),
   };
 }

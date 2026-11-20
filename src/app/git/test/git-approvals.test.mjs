@@ -10,6 +10,7 @@ import test from "node:test";
 import {
   approvalCommits,
   approverCheck,
+  evidenceCache,
   commitApproval,
 } from "../git-approvals.mjs";
 import {
@@ -82,7 +83,10 @@ test("the author decides an approval; the committer neither grants nor blocks it
       committer: "noreply@github.com",
     }),
     other = commitSpec(r, "other", { author: OTHER, committer: OWNER }),
-    allowed = approverCheck({ repository: { allowedActors: [OWNER] } });
+    allowed = approverCheck({
+      repository: { allowedActors: [OWNER] },
+      trust: "branch-protection",
+    });
   const found = await approvalCommits(r.root, { allowed });
   assert.deepEqual(
     found.map((entry) => [entry.spec, entry.commit, entry.email]).sort(),
@@ -95,7 +99,10 @@ test("the author decides an approval; the committer neither grants nor blocks it
   // The hash is computed from the commit's own tree.
   assert.ok(found.every((entry) => /^[0-9a-f]{64}$/.test(entry.hash)));
   // A GitHub noreply address counts for its login.
-  const byLogin = approverCheck({ repository: { allowedActors: ["octo"] } });
+  const byLogin = approverCheck({
+    repository: { allowedActors: ["octo"] },
+    trust: "branch-protection",
+  });
   assert.equal(await byLogin("1+octo@users.noreply.github.com"), true);
   assert.equal(await byLogin("someone@example.com"), false);
 });
@@ -478,4 +485,85 @@ const leafSpec = (title, { after = null, done = false } = {}) => ({
       },
     },
   }),
+});
+
+// A fake GitHub that answers for one commit `c1`: who merged its pull request
+// and who signed it. `calls` counts the reads.
+function fakeGithub({ mergedBy = null, signer = null, author = "mallory" }) {
+  const calls = { commit: 0 };
+  return {
+    calls,
+    available: () => true,
+    permission: async () => ({ permission: "read" }),
+    commitPullRequests: async () =>
+      mergedBy ? [{ number: 7, merged_at: "2026-01-01" }] : [],
+    pullRequest: async () => ({
+      merged: true,
+      merge_commit_sha: "c1",
+      merged_by: { login: mergedBy },
+    }),
+    commit: async () => {
+      calls.commit += 1;
+      return {
+        author: { login: author },
+        committer: { login: signer ?? "web-flow" },
+        commit: { verification: { verified: Boolean(signer) } },
+      };
+    },
+  };
+}
+
+test("a spoofed author email approves nothing unless GitHub or branch protection vouches", async () => {
+  const spoofed = "acme-owner@users.noreply.github.com",
+    repository = { allowedActors: ["acme-owner"] },
+    check = (github, trust) =>
+      approverCheck({
+        repository,
+        github,
+        repositoryName: "acme/widget",
+        trust,
+      });
+  // Default: the email is nothing, the merger or signer is evidence.
+  const none = check(fakeGithub({}), undefined);
+  assert.equal(await none(spoofed, "c1"), false);
+  const merged = check(fakeGithub({ mergedBy: "acme-owner" }), undefined);
+  assert.equal(await merged("mallory@example.com", "c1"), true);
+  assert.equal(merged.used.get("c1"), "merged_by");
+  assert.equal(
+    await check(fakeGithub({ mergedBy: "mallory" }), undefined)(spoofed, "c1"),
+    false,
+  );
+  const signed = check(fakeGithub({ signer: "acme-owner" }), undefined);
+  assert.equal(await signed("mallory@example.com", "c1"), true);
+  assert.equal(signed.used.get("c1"), "signature");
+  // GitHub's own signature on a web merge names no approver.
+  assert.equal(
+    await check(fakeGithub({}), undefined)("acme-owner@example.com", "c1"),
+    false,
+  );
+  // Declared branch protection trusts the author.
+  const trusted = check(fakeGithub({}), "branch-protection");
+  assert.equal(await trusted(spoofed, "c1"), true);
+  assert.equal(trusted.used.get("c1"), "branch-protection");
+});
+
+test("what GitHub returned for a commit is read back from the evidence file", async () => {
+  const root = temporaryDirectory("avoozl-evidence-"),
+    first = fakeGithub({ mergedBy: "acme-owner" }),
+    make = (github) =>
+      approverCheck({
+        repository: { allowedActors: ["acme-owner"] },
+        github,
+        repositoryName: "acme/widget",
+        cache: evidenceCache(root),
+      });
+  assert.equal(await make(first)("x@example.com", "c1"), true);
+  const offline = fakeGithub({});
+  offline.commitPullRequests =
+    offline.pullRequest =
+    offline.commit =
+      async () => {
+        throw Error("offline");
+      };
+  assert.equal(await make(offline)("x@example.com", "c1"), true);
 });

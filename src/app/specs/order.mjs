@@ -5,7 +5,7 @@
 // read the waits from here.
 import path from "node:path";
 import { headingPhases, specItems } from "./spec-plans.mjs";
-import { LINK_DEFINITION, SPEC_TEXT } from "./spec-tasks.mjs";
+import { LINK_DEFINITION, SPEC_TEXT, specTasks } from "./spec-tasks.mjs";
 
 export const PARALLEL_TAG = "(**PARALLEL**)";
 const TAGGED = /\(\*\*PARALLEL\*\*\)$/;
@@ -330,4 +330,16 @@ export function linkProblems(items, linked) {
       );
   }
   return problems;
+}
+
+// The stored specs as one linked reader, with `current` ({name, files})
+// read as given, so a spec group reaches into the spec it links (§D19.2).
+export function storedLinks(store, current = null) {
+  const texts = new Map();
+  for (const plan of store.list("plans"))
+    if (plan.spec && !plan.deletedAt && specTasks(plan.files ?? {})?.text)
+      texts.set(plan.spec, specTasks(plan.files).text);
+  if (current?.name)
+    texts.set(current.name, specTasks(current.files ?? {})?.text ?? "");
+  return linkedReader([...texts].map(([name, text]) => ({ name, text })));
 }

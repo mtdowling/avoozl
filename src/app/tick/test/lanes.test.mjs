@@ -9,9 +9,14 @@ import { temporaryDirectory } from "../../test/temporary.mjs";
 
 test("lanes.local defaults to 3", () => {
   assert.equal(DEFAULT_LANES.local, 3);
-  assert.deepEqual(validateLanes(undefined), { local: 3 });
-  assert.deepEqual(validateLanes({}), { local: 3 });
-  assert.deepEqual(validateLanes({ local: 5 }), { local: 5 });
+  assert.deepEqual(validateLanes(undefined), { local: 3, reviewers: 1 });
+  assert.deepEqual(validateLanes({}), { local: 3, reviewers: 1 });
+  assert.deepEqual(validateLanes({ local: 5 }), { local: 5, reviewers: 1 });
+  assert.deepEqual(validateLanes({ reviewers: 2 }), { local: 3, reviewers: 2 });
+  assert.throws(
+    () => validateLanes({ reviewers: 9 }),
+    /reviewers must be a whole number 0–8/,
+  );
 });
 
 test("lanes rejects a bad shape or value", () => {

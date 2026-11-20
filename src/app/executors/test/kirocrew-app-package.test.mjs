@@ -660,7 +660,7 @@ test("tick cron binds each session before its brief, then messages; it sends no 
     ["send_to_session", "slot-new", "Do the work."],
     ["send_to_session", "slot-2", "Resume."],
   ]);
-  // Notices go out from the machine server and the app backend; the cron
+  // Notices go out from the tick pass and the app backend; the cron
   // only opens, sends and re-trusts (MS12.2).
   assert.equal(
     result.calls.some((call) => call[0] === "notify"),

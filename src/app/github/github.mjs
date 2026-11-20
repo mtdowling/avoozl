@@ -1257,6 +1257,17 @@ export class GitHubClient {
     );
   }
 
+  // The pull requests that contain one commit (workflow rule 7.1 reads who
+  // merged the one whose merge commit it is).
+  commitPullRequests(value, sha) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "GET",
+      `/repos/${owner}/${repo}/commits/${encodeURIComponent(sha)}/pulls`,
+    );
+  }
+
   // Links a branch in `repositoryId` (may differ from the issue's repository)
   // to the issue, created at `oid` (F51, L13). Needs push access there;
   // `repository` names it for the token.

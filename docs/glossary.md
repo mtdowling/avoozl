@@ -31,6 +31,10 @@ meaning. Words that look alike are set apart below.
   repository > GitHub).
 - **base branch**: the branch work lands on. Set once, on the repository (Edit
   repository > Landing).
+- **lane**: one long-lived worker or reviewer session on a machine, reused
+  task after task (`lanes.local`, `lanes.reviewers`). A lane is not a
+  worktree: each task still works in its own worktree
+  ([Lanes](delivery.md#lanes)).
 - **required checks**: GitHub check names a pull request must pass
   (`requiredChecks`). A repository's own check commands (`projects.<id>.checks`)
   are a different thing.

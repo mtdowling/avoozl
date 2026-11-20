@@ -13,6 +13,10 @@ import { issueReportToken } from "../workers/report-match.mjs";
 import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { loopOn } from "./fixtures.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
 const git = (cwd, ...args) =>

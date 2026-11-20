@@ -1,7 +1,7 @@
-// What the Kiro Crew cron's `plans_maintain tick` call does (MS12.1, design
-// D5): record the sessions it observed, then return the `kirocrew` starts and
-// messages the machine server's tick released, and the chats to re-trust. It
-// never reaches the planner: the machine server's loop owns that.
+// What the Kiro Crew cron's `plans_maintain tick` call returns after the tick
+// pass it runs (MS12.1, design D5): record the sessions it observed, then
+// return the `kirocrew` starts and messages the pass released, and the chats
+// to re-trust. This step itself never reaches the planner.
 //
 // F129 (branch `spec/node-tick`): a Node process cannot open or control a chat,
 // because Kiro Crew refuses a session another cron job opened (not_creator),
@@ -22,7 +22,14 @@ export function cronIntents(store, input = {}) {
   return {
     observe: listSessionBindings(store)
       .filter((b) => !FINAL_STATUSES.has(b.status))
-      .map(({ slot, taskId, role }) => ({ slot, taskId, role })),
+      .map(({ id, slot, taskId, role, lane, title }) => ({
+        slot,
+        taskId,
+        role,
+        // A lane chat's current binding names its lane and fixed header, so
+        // the cron keeps its trust and title (simplify §D22.1).
+        ...(lane && id === slot ? { lane, header: title } : {}),
+      })),
     dispatch: pending.filter(
       (request) =>
         request.operation === "start" && released.starts.has(request.id),

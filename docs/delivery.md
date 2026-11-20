@@ -46,19 +46,65 @@ assignee, or this workspace when the spec has no issue. See
 A workspace whose `.avoozl.json` still says `"runner": "crew-mode"` starts
 nothing until a person chooses **Let the tick run it** in **Needs you**.
 
+### The server loop
+
+The tick starts and lands work only on a machine whose own config turns the
+loop on. Put `loop` in `~/.config/avoozl/config.json`; `.avoozl.json` may not
+set it:
+
+```json
+{
+  "version": 1,
+  "loop": {
+    "run": [
+      "specs",
+      "issues"
+    ],
+    "every": "1m"
+  }
+}
+```
+
+`run` lists the kinds of work the loop takes: `specs` (every spec's tasks),
+`epics` (only the specs `loop.epics` names and the specs they link) and
+`issues` (labeled issues). `every` is the least time between two passes. With
+no `loop`, the tick still reads and caches, and `avoozl next`, `avoozl land`,
+`avoozl graph` and every page read answer, but it starts and lands nothing.
+
 ### Lanes
 
-A machine's `lanes.local` sets how many worker sessions run at once. The
-default is 3. It lives in `~/.config/avoozl/config.json`:
+A lane is one long-lived agent session that takes task after task. A
+machine runs `lanes.local` worker lanes (default 3) and `lanes.reviewers`
+reviewer lanes (default 1), set in `~/.config/avoozl/config.json`:
 
 ```json
 {
   "version": 1,
   "lanes": {
-    "local": 1
+    "local": 2,
+    "reviewers": 1
   }
 }
 ```
+
+A task starts only on a free lane of its role. Each lane session carries a
+fixed header, such as `Avoozl · my-workspace · worker 2` or
+`Avoozl · my-workspace · reviewer`. In Kiro Crew every lane chat of a
+workspace sits in the sidebar folder **Avoozl › my-workspace**. Avoozl
+clears a lane chat's conversation before its next task and sets its trust
+mode on every tick, so a lane never waits on a tool approval.
+
+`avoozl lanes` lists each lane with its role, state, task, and how to open
+its session:
+
+```sh
+avoozl lanes
+```
+
+When you close a lane's chat, the lane pauses and **Needs you** shows a row
+for it. Press **Resume**, or run `avoozl lane resume worker-2`, and the next
+tick opens a new chat for that lane. The task that was running moves to
+another free lane once.
 
 ### Kiro Crew setup
 
@@ -80,8 +126,8 @@ other chats need two steps in Kiro Crew, each done once:
 
 ## Workers and verification
 
-Each minute the tick starts a worker session for each ready task, in its own
-worktree. The worker runs as a Kiro Crew chat or as a process harness such as
+With the loop on, each minute the tick starts a worker session for each ready
+task, in its own worktree. The worker runs as a Kiro Crew chat or as a process harness such as
 Claude Code or Codex. See [Agents and the CLI](agents.md#roles-and-models) for
 choosing one. Sessions run on this machine.
 

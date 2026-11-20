@@ -75,6 +75,8 @@ that follows rule `3.1` is one the kit's `3.1` cases accept. See
 | Done branch | The branch whose task file says whether a task is done: its base when the base is an integration branch that holds the spec's task file (11.1), else the specs branch. |
 | Spec text | A spec's files (1.2) with every task checkbox set to open, so a tick changes no spec text. |
 | Claim branch | `avoozl/<spec>/<task>`, the branch a task is worked and checked on. |
+| Start commit | The base's head a claim branch was created at. The lease commit records it (12.1). |
+| Task text | A task's title and acceptance bullets, as the done branch holds them (7.3). |
 | Lease | A ref named `avoozl-lease/<spec>/<task>/<generation>`, created at most once, that says which runner may push to a claim branch (12.5). |
 
 ## 1. Spec folders
@@ -227,9 +229,9 @@ A task only a person does ends its title with `(**MANUAL**)`:
 
 - **4.1** A leaf whose title ends with `(**MANUAL**)` is a manual task. A
   runner MUST NOT offer it as ready and MUST NOT give it to an agent. A person
-  does it and ticks it on the specs branch, by a commit or by editing the task
-  file on GitHub. The tasks after it wait for the tick, so a manual task
-  is also a gate.
+  does it and ticks it on the task's done branch (15.1), by a commit or by
+  editing the task file on GitHub. The tasks after it wait for the tick, so a
+  manual task is also a gate.
 - **4.2** The tag MUST be exactly `(**MANUAL**)`, in capitals, at the end of a
   leaf's title. A runner MUST refuse a title that holds the word `manual`, in
   any casing, in parentheses or bold in any other form, and a group that
@@ -279,10 +281,11 @@ inline or reference-style:
 
 ## 7. Approval
 
-An approval is a commit on the specs branch, authored by an approver, that adds
-a spec or changes its spec text. It approves the spec text exactly as the commit
-leaves it. One commit that changes several specs approves each of them. A
-commit's changes are its diff against its first parent.
+An approval is a commit on the specs branch that adds a spec or changes its
+spec text and carries evidence that an approver stands behind it (7.2). It
+approves the spec text exactly as the commit leaves it. One commit that
+changes several specs approves each of them. A commit's changes are its diff
+against its first parent.
 
 ```markdown [acme/widget: .kiro/specs/parser/tasks.md after a tick]
 - [x] `p-1` Read the token table
@@ -296,7 +299,19 @@ whoever authors it, and it approves nothing, even when an approver authors it.
   commit to the specs branch. Anyone MAY open the pull request. The commit
   message carries nothing, and the committer does not matter, so a squash
   merge made by GitHub counts.
-- **7.2** A commit whose author is not an approver approves nothing.
+- **7.2** A commit approves only with evidence that an approver stands behind
+  it. The evidence MUST be one of these three:
+  - the commit is the merge commit of a pull request whose GitHub `merged_by`
+    is an approver;
+  - the commit has a GitHub-verified signature, and the account that signed it
+    is an approver (a signature by GitHub itself, as on a web merge, names no
+    approver);
+  - the repository declares that branch protection lets only approvers push to
+    and merge into the specs branch, and the commit's author is an approver.
+
+  Under the first two, the author's name and email prove nothing, because
+  anyone can write them. A commit with none of the three approves nothing. A
+  runner MUST say which of the three it uses.
 - **7.3** A spec is approved when its current spec text equals the text the
   latest approval left. The current text is read on the task's done branch.
   A runner MUST NOT run a task of a spec that is not approved. A change that
@@ -345,6 +360,7 @@ whoever authors it, and it approves nothing, even when an approver authors it.
   - every task it waits for is done (15.1);
   - it is not a manual task;
   - no claim branch for it exists;
+  - no merged pull request has the claim branch's name as its head ref (13.6);
   - its spec passes the assignment rule (8.3) and this runner's label filters
     (16.1).
 - **9.2** A runner MUST create a claim only for a ready task. Once it holds
@@ -415,6 +431,21 @@ POST /repos/acme/widget/git/refs
 }
 ```
 
+The lease commit's message records the claim's start commit and the task's
+approved text, its title and acceptance bullets:
+
+```text
+Lease parser/p-2 generation 1
+
+Start: 0a1b2c3d4e5f60718293a4b5c6d7e8f901234567
+Task: Report unknown tokens
+Done: An unknown token is reported with its line and column
+```
+
+A lease taken on an existing claim (12.7) copies `Start` from the lease before
+it, or uses the claim branch's head when no lease exists, because no agent runs
+before the first lease. It records the task text approved when it takes the lease.
+
 When two runners on one login resume one claim, the first lease create wins
 the same way. Here Runner A wins the claim, then hands the spec to Runner B's
 login, which resumes it:
@@ -439,8 +470,9 @@ A runner that also shows work in progress with a label on the spec issue takes
 that label's name from its settings (16.2).
 
 - **12.1** A runner MUST claim a ready task by creating `avoozl/<spec>/<task>`
-  at the base's head and then taking a lease (12.5), and MUST do both before
-  an agent starts.
+  at the base's head and then taking a lease (12.5) whose commit records that
+  head as the start commit and the task's approved text, and MUST do both
+  before an agent starts.
 - **12.2** A runner whose create fails MUST NOT work on that task and SHOULD
   take the next one.
 - **12.3** A runner MUST push to a claim branch only while it holds the
@@ -465,6 +497,32 @@ that label's name from its settings (16.2).
   its own login, after a handoff (8.4) or a restart, when the claim has no
   lease or its newest lease is stale (12.6). It resumes by taking a lease
   (12.5), so one runner resumes it, even when several share the login.
+- **12.8** A runner that takes a lease on an existing claim (12.7) MUST push a
+  takeover commit to the claim branch before it works or lands: a child of the
+  branch's head that changes no file. GitHub moves a branch only forward, so a
+  push from the old holder, built on the head before the takeover, is
+  rejected. A runner whose takeover push is rejected reads the head again and
+  pushes the takeover on top of it.
+- **12.9** A holder MUST push its work to the claim branch, run the checks on
+  that pushed head, and land only that exact head. It MUST read the claim's
+  leases again right before the push to the base, and stop when it finds a
+  newer lease it did not create.
+- **12.10** Before it ticks, a runner MUST compare the task text its lease
+  recorded with the task's current approved text, read on the done branch
+  (7.3).
+  When they differ, it MUST NOT tick or land. It redoes the work against the
+  new text, with a new lease that records it, or stops and shows the change to
+  the spec's assignee.
+
+No GitHub call makes a push to the base depend on a lease, so one race stays.
+An old holder that reads its leases, then loses the lease to a takeover, can
+still push to the base before its next read. It can land only the claim head
+it already pushed and checked (12.9), because every later push to the claim
+branch is rejected (12.8). A takeover needs a stale lease (12.6) or a handoff
+the old holder took part in (8.4), so the old holder was silent for the stale
+hours, and the window is the time between its last lease read and its push.
+The new holder merges the base in first (13.1) and finds that work already
+there.
 
 ## 13. Landing
 
@@ -489,11 +547,16 @@ Landing turns a claim branch into a tick on the task's done branch.
   force push.
 - **13.5** A runner MUST NOT add a trailer, a `Co-authored-by` line or any other
   attribution to a commit message.
-- **13.6** A claim branch whose head is in the base, or whose pull request
-  merged, holds landed work. The runner that holds its lease MUST then
-  tick the task on its done branch, if the tick is missing, in its own
-  commit, and delete the claim branch and its leases after. A task whose work
-  landed and whose tick did not stays claimed, so no runner takes it again.
+- **13.6** A claim holds landed work when its head differs from the start
+  commit its lease records and is in the base, or when a merged pull request
+  has the claim branch's name as its head ref and a head commit that differs
+  from the start commit. A claim whose head is its start commit holds none. A
+  runner on the spec assignee's login, not only the lease holder, MAY then tick
+  the task on its done branch, if the tick is missing, in its own commit. It
+  MUST delete the claim branch and its leases after, when they exist. A task
+  whose work landed and whose tick did not is not ready (9.1), so no runner
+  takes it again. GitHub may delete the claim branch when its pull request
+  merges, so a runner finds that pull request by its head ref.
 
 ## 14. Landing modes
 
@@ -659,7 +722,7 @@ The required profile is every rule in these sections:
 | Approval | 7 |
 | Assignment and finding the spec issue | 8.2, 8.3 |
 | Ready rule | 9 |
-| Claims and leases | 12.1 to 12.6 |
+| Claims and leases | 12.1 to 12.6, 12.9, 12.10 |
 | Landing and landed work | 13, and the rules of one landing mode in 14 |
 | Done tasks | 15 |
 | Runner limits | 20 |
@@ -673,7 +736,7 @@ result in its last column:
 | Spec issue publishing | 8.1 | A person creates the spec issues |
 | Next task ranking | 10 | The runner takes any ready task |
 | Integration branches | 11 | The runner refuses a spec that has a branch named for it |
-| Resuming a claim | 8.4, 12.7 | The runner never takes a lease on an existing claim branch |
+| Resuming a claim | 8.4, 12.7, 12.8 | The runner never takes a lease on an existing claim branch |
 | Direct landing | 14.1 | The runner does not run in `direct` mode |
 | Pull request landing | 14.2 to 14.4, 14.6, 14.7 | The runner does not run in `pr` mode |
 | Off landing | 14.5 | The runner does not run in `off` mode |
@@ -687,13 +750,40 @@ A runner supports at least one landing mode.
 
 ## Workflow kit
 
-The [workflow kit](../workflow-kit/README.md) holds one case for each of these
+The [workflow kit](../workflow-kit/README.md) holds a case for each rule it
 checks. A case is a sample repository, the state of origin and its issues, the
 history of the specs branch when approval matters, and the answers a runner
 gives: the rule numbers a spec breaks, whether a spec is approved, the ready
-tasks in order, the claim, the lease, the landing result and the spec issues it
-finds. A runner passes workflow v1 when it gives every answer in every case
-that checks the required profile or a part it supports.
+tasks in order, the claim, the lease, whether a claim holds landed work,
+whether a push to a claim branch is accepted, whether a claim may land its task
+text, the landing result, the branch a manual task is ticked on, the rule an
+action breaks, and the spec issues it finds. A runner passes workflow v1 when
+it gives every answer in every case that checks the required profile or a part
+it supports.
+
+### Kit coverage
+
+The kit checks every rule not listed below. A case holds the state a runner
+read and the answer it gave, so it cannot show what a runner writes or when.
+
+| Rules | Why the kit does not check them |
+| --- | --- |
+| 12.4, 13.4, 13.5 | A runner's waiting time and the commits it writes are not in a case |
+| 1.1, 2.1, 5.2, 5.3, 6.3, 7.5, 8.1, 9.2, 11.2, 11.4, 11.5, 12.2, 14.6, 14.7, 16.1, 16.2, 17.1, 17.2, 17.3, 18.1, 19.1, 19.2, 19.3 | No case yet |
+
+The kit checks these rules in part:
+
+| Rule | What the kit checks | What it leaves out |
+| --- | --- | --- |
+| 7.2 | Whether each kind of evidence approves | That the runner says which kind it used |
+| 12.1 | The start commit decides landed work | The lease commit's message |
+| 12.9 | The old holder's push is rejected | That the runner lands only the head it pushed, and the remaining window |
+| 12.10 | That a changed text is not landed | That the runner redoes the work or stops |
+| 13.6 | Whether a claim holds landed work, and where the tick goes | Which runner writes the tick |
+
+Section 20 has one case for each rule. A case lists actions and the rule each
+one breaks, so it checks the decision for the actions it names, not what a
+runner does in the field.
 
 ## Avoozl
 
@@ -711,8 +801,15 @@ Avoozl does not follow every rule yet. Each item below is not built:
   and catches it up, but the done branch they set (11.6, 15.1) is not built.
 - Claims, leases and resuming (12): `avoozl next --claim` and `plans_next`
   with `claim` claim through the refs API and take lease generation 1, but
-  Avoozl does not renew a lease or read the leases before a push, and the tick
-  still starts a task on its own branch `avoozl/<task>` with no claim branch.
+  Avoozl does not renew a lease, read the leases before a push, record the
+  start commit or task text in a lease commit (12.1), push a takeover commit
+  (12.8), compare the task text before landing (12.10) or find a merged claim
+  pull request by its head ref (9.1, 13.6), and the tick still starts a task
+  on its own branch `avoozl/<task>` with no claim branch. The kit cases for
+  those rules run against `src/app/workers/claim-rules.mjs`, which the claim
+  and landing code do not call yet.
+- Approval evidence (7.2): Avoozl also accepts the approval commit it pushed
+  itself as the signed-in approver, from its local record.
 - The stop label's name in settings (16.2) and the stop label (18).
 
 The kit marks each probe Avoozl fails with the task that fixes it. Approval
@@ -868,6 +965,37 @@ The approvers are `github.repositories.<repo>.allowedActors`, or the people
 with write access when it names nobody. In Local only mode the approver is
 the checkout's `user.email`. After approval, **Make the GitHub issues** makes
 the spec issue.
+
+#### Approval evidence
+
+A spec commit approves when GitHub shows an approver behind it (7.2). Avoozl
+reads the `merged_by` of the pull request whose merge commit it is, then the
+commit's verified signature, and the first that names an approver is the
+evidence. The approval's receipt says which one. What GitHub returned is kept
+in `.avoozl/approval-evidence.json` in the workspace, so `avoozl rebuild` reads
+it instead of asking GitHub again.
+
+A repository whose specs branch only approvers can push to and merge into
+declares it, and then the commit's author decides:
+
+```json
+{
+  "github": {
+    "repositories": {
+      "acme/widget": {
+        "allowedActors": [
+          "acme-owner"
+        ],
+        "approvalTrust": "branch-protection"
+      }
+    }
+  }
+}
+```
+
+`approvalTrust` is `github` when unset. Avoozl does not check the protection.
+A repository that sets `branch-protection` without it lets any author email
+approve.
 
 ### Ticks in Avoozl
 

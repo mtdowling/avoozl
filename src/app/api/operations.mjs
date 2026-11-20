@@ -29,7 +29,7 @@ import {
 import { bindDriver } from "../workers/driver.mjs";
 import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
 import { readSpecIssues } from "../specs/spec-publication.mjs";
-import { linkedReader } from "../specs/order.mjs";
+import { linkedReader, storedLinks } from "../specs/order.mjs";
 import { taskEpic } from "../epics/epics.mjs";
 import { recordSpan } from "../flow/flow.mjs";
 import {
@@ -116,6 +116,7 @@ import {
   approvalBase,
   approvalCommits,
   approverCheck,
+  evidenceCache,
   commitApproval,
   gitAuthor,
   gitTop,
@@ -818,6 +819,8 @@ export class Operations {
       repository: entry,
       github: this.github,
       repositoryName: name,
+      trust: entry.approvalTrust ?? "github",
+      cache: evidenceCache(this.workspaceRoot),
     });
   }
   // The approval commit for these spec plans, one per checkout, made by the
@@ -875,6 +878,12 @@ export class Operations {
             { branch: specsBranchSetting(this.workspaceRoot) },
           )
         : null;
+      if (made && login)
+        evidenceCache(this.workspaceRoot).set(made.commit, {
+          mergedBy: null,
+          signer: null,
+          pushedBy: login,
+        });
       for (const plan of group) {
         const earlier = open.includes(plan)
             ? null
@@ -965,7 +974,7 @@ export class Operations {
             ...input,
             approvedBy: match.email,
             approvalCommit: match.commit,
-            evidence: `Approval commit ${match.commit} by ${match.email}.`,
+            evidence: `Approval commit ${match.commit} by ${match.email}${match.evidence ? `, ${match.evidence}` : ""}.`,
             operator: this.operator,
             githubPolicy: this.githubPolicy(),
             ...(specQuality
@@ -1293,13 +1302,7 @@ export class Operations {
   // The stored specs, with `current` read as given, so a spec group reaches
   // into the spec it links (§D19.2).
   linkedSpecs(current = null) {
-    const texts = new Map();
-    for (const plan of this.store.list("plans"))
-      if (plan.spec && !plan.deletedAt && specTasks(plan.files ?? {})?.text)
-        texts.set(plan.spec, specTasks(plan.files).text);
-    if (current?.name)
-      texts.set(current.name, specTasks(current.files ?? {})?.text ?? "");
-    return linkedReader([...texts].map(([name, text]) => ({ name, text })));
+    return storedLinks(this.store, current);
   }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {
     const files = plan.files || {},

@@ -42,6 +42,10 @@ import {
   taskStage,
 } from "../../test/plugin-checks-fixture.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { loopOn } from "../../test/fixtures.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 const tick = (ops, slots = []) =>
   ops.execute("workspace.tick", {

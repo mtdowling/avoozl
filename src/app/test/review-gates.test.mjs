@@ -20,6 +20,10 @@ import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { gitCheckout } from "./delivery-fixture.mjs";
+import { loopOn } from "./fixtures.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -79,7 +83,7 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
     path.join(root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
-      lanes: { local: 1 },
+      lanes: { local: 1, reviewers: 2 },
       roles: { worker: { model: "fake-a" } },
       delivery: {
         retries: 2,

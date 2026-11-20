@@ -6,7 +6,10 @@ import { repositoryExecutor } from "../executors/process.mjs";
 import { resolveRoles } from "../settings/chat-models.mjs";
 import { allowedShell, roleRun } from "../agents/role-table.mjs";
 import { PERSON_MESSAGE_HEAD } from "../sessions/session-send.mjs";
-import { kirocrewDetachedSession } from "../executors/kirocrew.mjs";
+import {
+  kirocrewDetachedSession,
+  kirocrewLaneSession,
+} from "../executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../../spec-dependencies.mjs";
 // Local delivery (design §4.5, §5): each leaf's worktree, its worker's reports,
 // and what the tick does with them. The tick plans; the script cron opens and
@@ -89,6 +92,19 @@ import {
   taskRoute,
 } from "../../work-model.mjs";
 import { validateLanes } from "../tick/lanes.mjs";
+import { laneRequest, laneView, pickLane } from "../sessions/lane-sessions.mjs";
+
+// The lanes a planning pass hands out (simplify §D22), or null when the
+// caller names no workspace, as a test of the planner alone does.
+const planLanes = (store, policy, options) =>
+  options.workspace
+    ? { lanes: laneView(store, policy, options.workspace), taken: new Set() }
+    : null;
+// A start's lane fields: its lane, and the lane's Kiro Crew folder.
+const laneFields = (lane) =>
+  lane
+    ? { lane: laneRequest(lane), ...kirocrewLaneSession(lane.workspace) }
+    : {};
 
 // `findings` is a worker's first turn when it investigates first (R75.1).
 const REPORT_KINDS = ["progress", "done", "blocked", "question", "findings"];
@@ -159,7 +175,7 @@ export const REVIEWER_KEYS = Object.freeze([
 // `concurrency` is this machine's lanes (R6.3): `machineLanes` (the machine
 // file's lanes.local, read by the caller), else .avoozl.json's lanes.local,
 // else 3.
-export function deliveryPolicy(value, { machineLanes } = {}) {
+export function deliveryPolicy(value, { machineLanes, machineReviewers } = {}) {
   const delivery = value?.delivery;
   if (delivery === undefined) return null;
   if (!delivery || typeof delivery !== "object" || Array.isArray(delivery))
@@ -246,6 +262,7 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
         }
       : {}),
     concurrency: machineLanes ?? validateLanes(value.lanes).local,
+    reviewerLanes: machineReviewers ?? validateLanes(value.lanes).reviewers,
     reviewers,
     repositories: normalized,
   };
@@ -1912,8 +1929,18 @@ const harnessOf = (run, leaf) => run.harness ?? leaf.repository.harness ?? null;
 export function planReadyDispatches(store, policy, options = {}) {
   const resumable = options.resumable ?? (() => true);
   const data = store.read(),
-    leaves = readyLeaves(store, policy, options);
+    leaves = readyLeaves(store, policy, options),
+    lanes = planLanes(store, policy, options);
   return leaves.flatMap((leaf) => {
+    // A worker starts only on a free worker lane (SM20.1).
+    const lane =
+      lanes &&
+      pickLane(
+        lanes.lanes,
+        { task: leaf.task.id, role: "worker" },
+        lanes.taken,
+      );
+    if (lanes && !lane) return [];
     const run = workerExecutor(leaf.task, leaf.repository, options.config);
     // Investigate first (R75.5): never where the pair table declines it.
     const wants = investigates(policy, leaf.task),
@@ -1957,6 +1984,7 @@ export function planReadyDispatches(store, policy, options = {}) {
         // brief names the worktree, so the sidebar folder needs no project
         // directory.
         ...kirocrewDetachedSession(leaf.repository.id),
+        ...laneFields(lane),
         agent,
         ...(model ? { model } : {}),
         checkout: leaf.repository.root,
@@ -2110,12 +2138,29 @@ const roleFailures = (delivery, roleId, commit) =>
       entryRole(v) === roleId && v.commit === commit && v.outcome === "failed",
   ).length;
 
+// The binding of one recorded attempt. A lane's session moves on to other
+// tasks (simplify §D22.1), so the slot's current binding may be another's.
+function attemptBinding(store, taskId, attempt) {
+  const current = store.get("session_bindings", attempt.slot);
+  if (current?.taskId === taskId && current.attempt === attempt.attempt)
+    return current;
+  return (
+    listSessionBindings(store).find(
+      (b) =>
+        b.slot === attempt.slot &&
+        b.taskId === taskId &&
+        b.role === "worker" &&
+        b.attempt === attempt.attempt,
+    ) ?? null
+  );
+}
+
 // The model the writer of the delivery's newest done attempt was opened on.
 function writerModel(store, delivery) {
   const done = delivery.attempts.findLast((a) => a.outcome === "done");
   // An attempt recorded without its slot has no binding to read.
   return done?.slot
-    ? store.get("session_bindings", done.slot)?.model || null
+    ? attemptBinding(store, delivery.taskId, done)?.model || null
     : null;
 }
 
@@ -2165,7 +2210,7 @@ const BUSY = new Set(["working", "queued"]);
 function servedRefusal(store, delivery, role, reviewer) {
   if (role.distinctFrom === "session") return null;
   const done = delivery.attempts.findLast((a) => a.outcome === "done"),
-    writer = done ? store.get("session_bindings", done.slot) : null;
+    writer = done ? attemptBinding(store, delivery.taskId, done) : null;
   if ([reviewer, writer].some((b) => b?.served && BUSY.has(b.status)))
     return "wait";
   const r = servedModel(reviewer),
@@ -2715,6 +2760,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
   const data = store.read(),
     bindings = listSessionBindings(store),
     retries = policy?.retries ?? DELIVERY_DEFAULTS.retries,
+    lanes = planLanes(store, policy, options),
     dispatch = [];
   for (const { delivery, task, repository } of judgeable(store, data)) {
     const writer = writerModel(store, delivery),
@@ -2779,6 +2825,16 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         })
       )
         continue;
+      // A review starts only on a free reviewer lane (SM20.1).
+      const lane =
+        lanes && role.id !== "checks"
+          ? pickLane(
+              lanes.lanes,
+              { task: task.id, role: role.role },
+              lanes.taken,
+            )
+          : null;
+      if (lanes && role.id !== "checks" && !lane) continue;
       const label = role.id === "checks" ? "verify" : "review-" + role.id,
         run = roleRun(role.id === "checks" ? "verifier" : "reviewer", {
           config: options.config,
@@ -2803,6 +2859,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           ...(processRun
             ? { worktree: detachedWorktree(repository, task, label, attempt) }
             : kirocrewDetachedSession(repository.id)),
+          ...laneFields(lane),
           ...(processRun ? {} : { agent: role.agent }),
           ...(role.model ? { model: role.model } : {}),
           commit: delivery.commit,

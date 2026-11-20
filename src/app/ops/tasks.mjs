@@ -56,6 +56,7 @@ import { syncNeedsYou } from "../epics/integration-sync.mjs";
 import { graphMermaid, graphText, storeGraph } from "../specs/graph.mjs";
 import { integrationNeedsYou } from "../specs/integration-base.mjs";
 import { claimsNeedsYou, closedPullNeedsYou } from "../workers/claims.mjs";
+import { lanesNeedsYou } from "../sessions/lane-sessions.mjs";
 import { decideInvestigation } from "../delivery/investigate.mjs";
 import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
 import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
@@ -385,6 +386,7 @@ export const entries = [
       view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store), ...integrationNeedsYou(store));
       view.items.push(...claimsNeedsYou(store), ...closedPullNeedsYou(store));
+      view.items.push(...lanesNeedsYou(store));
       view.items.push(...diskNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...credentialsNeedsYou(store));

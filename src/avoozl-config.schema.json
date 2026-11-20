@@ -137,7 +137,7 @@
     },
     "lanes": {
       "type": "object",
-      "description": "Worker chats this machine runs at once. Set it in the machine file (~/.config/avoozl/config.json); a value in .avoozl.json is read only when the machine file sets none. A ready task beyond the free lanes waits. More lanes come from remote hosts.",
+      "description": "The long-lived worker and reviewer sessions this machine runs at once, one per lane. Set it in the machine file (~/.config/avoozl/config.json); a value in .avoozl.json is read only when the machine file sets none. A ready task beyond the free lanes waits. More lanes come from remote hosts.",
       "additionalProperties": false,
       "properties": {
         "local": {
@@ -145,6 +145,12 @@
           "minimum": 0,
           "maximum": 32,
           "default": 3
+        },
+        "reviewers": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8,
+          "default": 1
         }
       }
     },
@@ -503,6 +509,36 @@
         "enabled": {
           "type": "boolean",
           "default": false
+        }
+      }
+    },
+    "loop": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Run this machine's server loop: each pass claims, starts and lands the kinds of work `run` names. Global configuration only; the repository file may not set it. With no loop the tick reads and caches but starts nothing.",
+      "required": ["run"],
+      "properties": {
+        "run": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["specs", "epics", "issues"]
+          },
+          "description": "specs: every spec's tasks. epics: only the specs `epics` names and the specs they link. issues: labeled issues."
+        },
+        "epics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "The spec names `epics` runs."
+        },
+        "every": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,4}(s|m|h)$",
+          "description": "The least time between two passes, like 30s, 1m or 2h."
         }
       }
     },
@@ -1179,6 +1215,10 @@
         },
         "minimumPermission": {
           "enum": ["read", "triage", "write", "maintain", "admin"]
+        },
+        "approvalTrust": {
+          "enum": ["github", "branch-protection"],
+          "description": "What proves a spec commit is an approval. github (unset) accepts a commit whose pull request an approver merged, or that an approver's verified signature signs. branch-protection declares that branch protection lets only approvers push to and merge into the specs branch, and then trusts the commit's author. Avoozl does not check the protection."
         },
         "requiredChecks": {
           "type": "array",

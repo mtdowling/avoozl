@@ -12,7 +12,18 @@ import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.mjs";
 import { unblockCounts } from "../specs/ranking.mjs";
 import { claimFirst, resumeClaim } from "../workers/claims.mjs";
 import { linkedReader } from "../specs/order.mjs";
-import { catchUp, integrationBase } from "../specs/integration-base.mjs";
+import {
+  catchUp,
+  doneBranch,
+  integrationBase,
+} from "../specs/integration-base.mjs";
+import { approverCheck } from "../git/git-approvals.mjs";
+import {
+  landedWork,
+  pushAccepted,
+  runnerLimit,
+  taskRevision,
+} from "../workers/claim-rules.mjs";
 import { landingAction } from "../landing/landing-action.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -77,28 +88,63 @@ function violations(specs) {
 }
 
 // Rule 7.3: a spec is approved when its current text equals the text the
-// latest approval left. An approval is a commit by an approver that adds a spec
-// or changes its text; `specHash` hashes the text without checkbox marks, so a
-// tick changes nothing. A case with no history has every spec approved.
-function approved(testCase, specs) {
+// latest approval left. An approval is a commit that adds a spec or changes
+// its text with the evidence of rule 7.2, which Avoozl's approverCheck
+// decides from what a fake GitHub returns for each commit: `mergedBy` is the
+// login that merged its pull request, `signer` the login of its verified
+// signature, and `author` the login the commit's author email names.
+// `specHash` hashes the text without checkbox marks, so a tick changes
+// nothing. A case with no history has every spec approved.
+async function approved(testCase, specs) {
   if (!testCase.history)
     return Object.fromEntries(Object.keys(specs).map((name) => [name, true]));
-  const hashOf = (_name, files) => specHash(files),
+  const commits = new Map(
+      testCase.history.map((entry) => [entry.commit, entry]),
+    ),
+    allowed = approverCheck({
+      repository: { allowedActors: testCase.approvers },
+      repositoryName: "acme/widget",
+      trust: testCase.approvalTrust ?? "github",
+      github: {
+        available: () => true,
+        permission: async () => ({ permission: "none" }),
+        commitPullRequests: async (_repository, sha) =>
+          commits.get(sha)?.mergedBy ? [{ number: sha, merged_at: "now" }] : [],
+        pullRequest: async (_repository, sha) => ({
+          merged: true,
+          merge_commit_sha: sha,
+          merged_by: { login: commits.get(sha).mergedBy },
+        }),
+        commit: async (_repository, sha) => ({
+          author: { login: commits.get(sha).author },
+          committer: { login: commits.get(sha).signer ?? "web-flow" },
+          commit: {
+            verification: { verified: Boolean(commits.get(sha).signer) },
+          },
+        }),
+      },
+    }),
     state = {},
     approvedHash = {},
     last = {};
   for (const commit of testCase.history)
     for (const [name, files] of Object.entries(specsOf(commit.files))) {
       state[name] = { ...state[name], ...files };
-      const hash = hashOf(name, state[name]);
-      if (hash !== last[name] && testCase.approvers.includes(commit.author))
+      const hash = specHash(state[name]);
+      if (
+        hash !== last[name] &&
+        (await allowed(
+          `${commit.author}@users.noreply.github.com`,
+          commit.commit,
+        ))
+      )
         approvedHash[name] = hash;
       last[name] = hash;
     }
   return Object.fromEntries(
     Object.entries(specs).map(([name, files]) => [
       name,
-      hashOf(name, files) === approvedHash[name],
+      specHash(files) === approvedHash[name],
     ]),
   );
 }
@@ -106,7 +152,7 @@ function approved(testCase, specs) {
 // Ready tasks as `spec/task`, best first. Avoozl's parser reads each spec and
 // its ranking function counts the tasks each one unblocks. Claims, assignees
 // and ticks are applied here, as the repository's state names them.
-function ready(testCase, specs) {
+async function ready(testCase, specs) {
   const login = testCase.runner.login,
     branches = new Set(testCase.origin.branches),
     leaves = [],
@@ -128,7 +174,8 @@ function ready(testCase, specs) {
     }
   }
   const counts = unblockCounts(edges, (id) => !ticked.has(id)),
-    isApproved = approved(testCase, specs),
+    isApproved = await approved(testCase, specs),
+    merged = new Set(testCase.origin.mergedPullHeads ?? []),
     // Rule 8.3: the spec's issue and every parent spec's that links it.
     assigned = (name) => {
       const who = testCase.issues?.[name];
@@ -146,6 +193,7 @@ function ready(testCase, specs) {
         !task.manual &&
         (task.requires ?? []).every((id) => ticked.has(id)) &&
         !branches.has(`avoozl/${task.spec}/${task.id}`) &&
+        !merged.has(`avoozl/${task.spec}/${task.id}`) &&
         isApproved[task.spec] &&
         assigned(task.spec),
     )
@@ -254,10 +302,67 @@ async function landing(testCase, specs) {
     pr: land.pr,
     checks: land.checks === "pass",
     baseMoved: land.baseMoved,
-    landed: land.state === "landed-unticked",
+    landed: landed(testCase, base),
     base,
-    done: runner.specsBranch ?? null,
+    done: doneBranch(base, {
+      fallback: runner.defaultBranch,
+      specs: runner.specsBranch,
+    }),
   });
+}
+
+// Rule 13.6: whether the case's claim holds landed work, from its commit
+// graph and the base's head.
+const landed = (testCase, base) =>
+  Boolean(testCase.land.claim) &&
+  landedWork({
+    graph: testCase.origin.graph,
+    start: testCase.land.claim.start,
+    head: testCase.land.claim.head,
+    baseHead: testCase.origin.heads[base],
+    pull: testCase.land.claim.pull,
+  });
+
+// Rule 12.8: each runner's push to the claim branch is accepted only when it
+// moves the branch forward.
+function push(testCase) {
+  const { branch, by } = testCase.push,
+    head = testCase.origin.heads[branch];
+  return Object.fromEntries(
+    by.map((item) => [
+      item.runner,
+      pushAccepted(testCase.origin.graph, head, item.head)
+        ? "accepted"
+        : "rejected",
+    ]),
+  );
+}
+
+// Rule 12.10: the lease's recorded text against the task's text in the spec.
+function revision(testCase, specs) {
+  const [spec, id] = testCase.revision.task.split("/"),
+    task = parseSpec({
+      name: spec,
+      exists: true,
+      files: specs[spec],
+      linked: linkedOf(specs),
+    }).proposals.find((item) => item.id === id);
+  return taskRevision(testCase.revision.lease, task);
+}
+
+// Rule 4.1: the branch a person ticks a manual task on.
+async function manualTick(testCase, specs) {
+  const base = await integrationBase(testCase.manual.task.split("/")[0], {
+    linked: linkedOf(specs),
+    exists: (name) => testCase.origin.branches.includes(name),
+    fallback: testCase.runner.defaultBranch,
+  });
+  return {
+    branch: doneBranch(base, {
+      fallback: testCase.runner.defaultBranch,
+      specs: testCase.runner.specsBranch,
+    }),
+  };
 }
 
 // Spec issue markers run through operations the simplify spec adds, so the
@@ -266,13 +371,30 @@ async function avoozl(testCase) {
   const specs = specsOf(testCase.files),
     got = {};
   if (testCase.expect.violations) got.violations = violations(specs);
-  if (testCase.expect.approved) got.approved = approved(testCase, specs);
+  if (testCase.expect.approved) got.approved = await approved(testCase, specs);
   if (testCase.expect.ready || testCase.expect.claim)
-    got.ready = ready(testCase, specs);
+    got.ready = await ready(testCase, specs);
   if (testCase.expect.claim)
     got.claim = await claim(testCase, specs, got.ready);
   if (testCase.expect.resume) got.resume = await resume(testCase);
   if (testCase.expect.landing) got.landing = await landing(testCase, specs);
+  if ("landed" in testCase.expect)
+    got.landed = landed(
+      testCase,
+      await integrationBase(testCase.land.task.split("/")[0], {
+        linked: linkedOf(specs),
+        exists: (name) => testCase.origin.branches.includes(name),
+        fallback: testCase.runner.defaultBranch,
+      }),
+    );
+  if (testCase.expect.push) got.push = push(testCase);
+  if (testCase.expect.revision) got.revision = revision(testCase, specs);
+  if (testCase.expect.manualTick)
+    got.manualTick = await manualTick(testCase, specs);
+  if (testCase.expect.limits)
+    got.limits = testCase.actions.map((action) =>
+      runnerLimit(action, testCase.runner),
+    );
   return got;
 }
 
@@ -317,6 +439,27 @@ for (const testCase of readCases()) {
       );
   });
 }
+
+test("workflow kit: the doc lists exactly the rules no case checks", () => {
+  const section = doc.slice(
+      doc.indexOf("### Kit coverage"),
+      doc.indexOf("\n## Avoozl\n"),
+    ),
+    listed = new Set(
+      section
+        .split("\n")
+        .map((row) => row.split("|").map((cell) => cell.trim()))
+        .filter(
+          (cells) => cells.length === 4 && /^[\d.]+(, [\d.]+)*$/.test(cells[1]),
+        )
+        .flatMap((cells) => cells[1].split(", ")),
+    ),
+    checked = new Set(readCases().flatMap((testCase) => testCase.rules));
+  assert.deepEqual(
+    [...rules].filter((rule) => !checked.has(rule)).sort(),
+    [...listed].sort(),
+  );
+});
 
 test("workflow kit: a history ends in the case's repo files", () => {
   for (const testCase of readCases().filter((item) => item.history)) {

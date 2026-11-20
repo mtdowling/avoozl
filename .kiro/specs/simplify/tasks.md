@@ -55,7 +55,7 @@ merge, shown in chat and never committed.
   - `rankReady` in `src/app/specs/ranking.mjs` orders by downstream count, then longest chain, then file order, over the waits `waitsOf` derives, and a test covers each key breaking a tie left by the one before, including a task that opens a parallel group
   - `unblockCounts` lives only in `ranking.mjs`, and `spec-scheduler.mjs`, `runner.next` and the page read it; `pathsOverlap` and the paths hold are gone
   - `avoozl next` prints each ready task with its three key values
-- [ ] `sim-1.8` The server loop setting [SM6] (§D6)
+- [x] `sim-1.8` The server loop setting [SM6] (§D6)
   - Tests: with no `loop` in machine config the tick reads and starts nothing; `loop` in `.avoozl.json` is refused naming the file; `loop.run` with `specs`, `epics` and `issues` each claims, starts and lands only that kind of work, through the same operations the CLI calls
   - With the loop off, `avoozl next`, `avoozl graph` and every read still answer
 - [x] `sim-2.5` Linked specs as spec groups [SM16.7, SM18] (§D19.2, §D19.3)
@@ -85,7 +85,7 @@ merge, shown in chat and never committed.
 
 ## Phase 3: Roles and skills
 
-- [ ] `sim-3.1` Skills generated from `prompts/skills/` [SM10.2, SM10.3, SM10.4] (§D10)
+- [x] `sim-3.1` Skills generated from `prompts/skills/` [SM10.2, SM10.3, SM10.4] (§D10)
   - `avoozl-spec`, `avoozl-work`, `avoozl-spec-review`, `avoozl-retro` and `avoozl-investigate` are generated from `prompts/skills/<name>.md` beside the ones the triage removal ships, and `npm run check:hosts` fails when one differs from its source
   - `avoozl-spec` writes the spec in the §D20 format (no `$` facts, plain done bullets on every leaf, `(**PARALLEL**)` and `(**MANUAL**)` tags, one repository in front matter `repo`, spec links), and `avoozl-spec-review` checks a spec for that format, flags a same-name branch on origin that holds other work (§D21.1), and posts findings without editing; `avoozl-spec` runs `avoozl graph SPEC --write` and `avoozl spec lint SPEC`, and stops at a `spec/<name>` branch; `avoozl-work` claims with `avoozl next --claim`, reports with `avoozl runner report` and lands with `avoozl land`
   - Each skill reaches Avoozl only through the CLI or MCP tools, and a test checks every command or tool a skill names exists
@@ -134,7 +134,7 @@ merge, shown in chat and never committed.
 
 ## Phase 7: Lane sessions
 
-- [ ] `sim-7.1` Kiro Crew lane chats [SM20.1, SM20.2, SM20.3, SM20.4, SM20.5, SM20.8] (§D22, §D22.1, §D22.4)
+- [x] `sim-7.1` Kiro Crew lane chats [SM20.1, SM20.2, SM20.3, SM20.4, SM20.5, SM20.8] (§D22, §D22.1, §D22.4)
   - Tests: `lanes.local` worker lanes and `lanes.reviewers` reviewer lanes (default 1) bound the tick's worker and review starts; each start names its lane and header, and a lane takes a new task only when its last one is recorded
   - Tests: the cron opens a lane chat once with its header in `Avoozl/<workspace>`, clears it with `reset-conversation` and `replay: false` before each later task, releases the request when the clear is refused, and sets `trust` on worker and reviewer lane chats on every tick
   - Tests: a lane's new binding moves the earlier one to `<slot>#<boundAt>` with every field kept; a closed lane chat pauses the lane, gives one Needs you row with Resume, and opens again only after `lane.resume`

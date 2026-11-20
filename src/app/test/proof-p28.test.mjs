@@ -25,8 +25,11 @@ import {
 import { commitIn, fakeCrew, git } from "./fake-crew.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { loopOn } from "./fixtures.mjs";
 
-process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
+// The tick starts and lands work only with the server loop on.
+loopOn();
+
 // This machine's own Git settings (a global ignore file) stay out.
 process.env.GIT_CONFIG_GLOBAL = path.join(
   process.env.XDG_CONFIG_HOME,
@@ -132,6 +135,7 @@ async function workspace(t) {
     path.join(config, "config.json"),
     JSON.stringify({
       version: 1,
+      loop: { run: ["specs"] },
       contentRules: { terms: { "fake-paths": pathsFile } },
     }),
   );

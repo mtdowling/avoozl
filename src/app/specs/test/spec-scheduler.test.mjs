@@ -11,6 +11,10 @@ import { Store } from "../../store/store.mjs";
 import { branchOnly, scheduleReady } from "../spec-scheduler.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { loopOn } from "../../test/fixtures.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 const leaf = (id, extra = {}) => ({
   id,

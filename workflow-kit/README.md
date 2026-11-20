@@ -60,12 +60,20 @@ workflow-kit/cases/serial-list-next/
 | `origin.behind` | Integration branches that do not yet hold the default branch's head |
 | `origin.leases` | Each task's leases as `{generation, ageHours}`, by `spec/task` |
 | `origin.claimAgeHours` | Hours since each claim branch's newest commit, by `spec/task` |
+| `origin.graph` | The commits a case names, as `{commit: [parents]}` |
+| `origin.heads` | The head commit of each branch the case reads, by branch name |
+| `origin.mergedPullHeads` | Head ref names of merged pull requests, claim branches GitHub deleted included |
 | `issues` | Each spec's issue assignees, by spec name. A spec missing here has no issue |
 | `issueList` | Present on marker cases: each issue's `number`, `state`, `author` and `body` |
 | `writers` | The logins with write access, when a case needs to tell them from strangers |
 | `approvers` | The logins that may approve a spec, with `history` |
-| `history` | The specs branch's commits, oldest first, each `{commit, author}`. The files a commit changes are under `commits/<commit>/` |
-| `land` | Present on landing cases: the task, the landing `mode`, `pr`, whether `checks` pass, whether the base moved, and `state` `landed-unticked` when the work is on the base and its tick is missing |
+| `approvalTrust` | `github` (unset) or `branch-protection`, the repository's setting for rule 7.2 |
+| `history` | The specs branch's commits, oldest first, each `{commit, author}` and, when GitHub says so, `mergedBy` (who merged its pull request) and `signer` (who signed it with a verified signature). `author` is the login the commit's author email names, which proves nothing under `github`. The files a commit changes are under `commits/<commit>/` |
+| `land` | Present on landing cases: the task, the landing `mode`, `pr`, whether `checks` pass, whether the base moved, and the `claim` as `{start, head, pull}`, where `pull` is `{merged, head}` for a merged pull request of the claim branch |
+| `push` | Present on takeover cases: the claim `branch` and each runner's push, `{runner, head}` |
+| `revision` | Present on revision cases: the `task` and the `lease` text it recorded, `{title, acceptance}` |
+| `manual` | Present on manual task cases: the `task` |
+| `actions` | Present on section 20 cases: the actions a runner is asked to take |
 | `resume` | Present on resume cases: the task, and the runners that act as one login and try to take its claim, in the order their creates reach GitHub |
 | `expect` | The probes the runner answers |
 | `expectFail` | A probe the runner is known to fail, with the task that fixes it |
@@ -87,6 +95,11 @@ them. A spec is approved as rule 7.3 says, with the authors in `approvers`.
 | `ready` | The ready tasks as `spec/task`, the one to take first at the front |
 | `claim` | The claim branch for the first ready task, the branch it starts from, and whether the default branch is merged in first |
 | `resume` | For the `resume` task, the `holder` runner that gets the lease or `null`, the `lease` ref it creates or `null`, and the runners that `stopped` |
+| `landed` | Whether the `land` claim holds landed work, from its graph |
+| `push` | For each runner of `push`, `accepted` or `rejected` |
+| `revision` | `land` when the lease's text is the task's current approved text, else `redo-or-stop` |
+| `manualTick` | The `branch` a person ticks the `manual` task on |
+| `limits` | For each of `actions`, the section 20 rule it breaks, or `null` |
 | `landing` | The `action`, `base`, `tick`, `mergeBase` and `deleteClaimBranch` for the `land` task, and `mergeGuard` `head-sha` when the runner merges a pull request, or only `{"action": "none"}` when checks fail |
 | `specIssues` | For each spec name, the number of the issue that is its spec issue, or `null` |
 | `duplicates` | The numbers of the issues the runner closes as duplicates, in order |
