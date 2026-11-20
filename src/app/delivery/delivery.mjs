@@ -101,9 +101,9 @@ const planLanes = (store, policy, options) =>
     ? { lanes: laneView(store, policy, options.workspace), taken: new Set() }
     : null;
 // A start's lane fields: its lane, and the lane's Kiro Crew folder.
-const laneFields = (lane) =>
+const laneFields = (lane, work) =>
   lane
-    ? { lane: laneRequest(lane), ...kirocrewLaneSession(lane.workspace) }
+    ? { lane: laneRequest(lane, work), ...kirocrewLaneSession(lane.workspace) }
     : {};
 
 // `findings` is a worker's first turn when it investigates first (R75.1).
@@ -1984,7 +1984,7 @@ export function planReadyDispatches(store, policy, options = {}) {
         // brief names the worktree, so the sidebar folder needs no project
         // directory.
         ...kirocrewDetachedSession(leaf.repository.id),
-        ...laneFields(lane),
+        ...laneFields(lane, { task: leaf.task.id, role: "worker" }),
         agent,
         ...(model ? { model } : {}),
         checkout: leaf.repository.root,
@@ -2859,7 +2859,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           ...(processRun
             ? { worktree: detachedWorktree(repository, task, label, attempt) }
             : kirocrewDetachedSession(repository.id)),
-          ...laneFields(lane),
+          ...laneFields(lane, { task: task.id, role: role.role }),
           ...(processRun ? {} : { agent: role.agent }),
           ...(role.model ? { model: role.model } : {}),
           commit: delivery.commit,

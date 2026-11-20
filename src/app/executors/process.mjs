@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createExecutor } from "./executors.mjs";
+import { fail } from "../store/store.mjs";
 import { rolePrompt } from "../agents/prompts.mjs";
 import { execFile } from "node:child_process";
 import { cliReportCaller } from "../workers/report-match.mjs";
@@ -87,6 +88,7 @@ export function processExecutor({
   repositoryFor = () => null,
   harnessFor = () => null,
   contextFor = () => null,
+  laneFor = () => null,
 }) {
   return createExecutor({
     start(role, task, worktree, brief, model, permissionClass) {
@@ -95,7 +97,8 @@ export function processExecutor({
       const sandbox = repository.sandbox ?? {};
       const offline = processRow(role)?.offline === true;
       const sessionId = `process-${randomUUID()}`;
-      const context = contextFor();
+      const context = contextFor(),
+        lane = laneFor();
       return withDatabase(stateDirectory, (db) =>
         requestChild(db, {
           executor: PROCESS_EXECUTOR,
@@ -123,6 +126,7 @@ export function processExecutor({
           readable: repository.isolation?.readable ?? [],
           network: sessionNetwork(sandbox, offline),
           ...(context?.request ? { context: context.request } : {}),
+          ...(lane ? { lane: processLane(lane) } : {}),
         }),
       );
     },
@@ -134,6 +138,23 @@ export function processExecutor({
       withDatabase(stateDirectory, (db) => stopChild(db, sessionId)),
   });
 }
+
+// A lane's folder (simplify §D22.2): ~/.avoozl/lanes/<workspace>/<lane>/,
+// the home its harness keeps sessions in.
+export function laneHome(workspace, lane, home = os.homedir()) {
+  const safe = String(workspace ?? "").replace(/[^A-Za-z0-9._-]/g, "-");
+  if (!safe || /^\.+$/.test(safe) || !/^(?:worker|reviewer)-[0-9]+$/.test(lane))
+    fail("A lane needs a workspace name and a lane id.", 500);
+  return path.join(home, ".avoozl", "lanes", safe, lane);
+}
+
+// The lane settings a process child gets from its request's lane.
+const processLane = (lane) => ({
+  home: laneHome(lane.workspace, lane.id),
+  header: lane.header,
+  ...(lane.resume && lane.session ? { resume: lane.session } : {}),
+  ...(lane.keepSince ? { keepSince: lane.keepSince } : {}),
+});
 
 // A decision on findings (Go ahead, Investigate again, Stop) resumes the
 // child: its findings report is history (the investigation row keeps it) and its run is open again.
@@ -970,6 +991,7 @@ export async function drainProcessRequests(
           // The harness the request names (R98.3, R98.4), else the repository's.
           harnessFor: () => request.harness ?? null,
           contextFor: () => context,
+          laneFor: () => request.lane ?? null,
         }).start(
           request.role,
           request.task,
@@ -1002,6 +1024,15 @@ export async function drainProcessRequests(
           ...(request.investigate ? { investigate: true } : {}),
           ...(request.worktree ? { worktree: request.worktree } : {}),
           ...(request.context ? { context: request.context } : {}),
+          // Its lane, and the harness session a review round resumes there.
+          ...(request.lane
+            ? {
+                lane: request.lane.id,
+                harnessSession:
+                  (request.lane.resume && request.lane.session) ||
+                  sessionId.slice("process-".length),
+              }
+            : {}),
           permissionClass: request.permissionClass,
           executor: PROCESS_EXECUTOR,
           requestId: request.id,

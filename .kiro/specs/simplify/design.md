@@ -831,7 +831,7 @@ while `reviewers` is 1. `<workspace>` is the workspace folder's name.
 | --- | --- | --- | --- | --- | --- |
 | Kiro Crew | sidebar folder `Avoozl › <workspace>` | the chat title, pinned at open and set again on a tick that reads another | `POST /api/chat/slots/<slot>/reset-conversation` with `{"replay": false}`, then the brief | a new brief in the same chat | the chat |
 | Claude Code | `~/.avoozl/lanes/<workspace>/<lane>/` | `--name` | `--session-id <uuid>` | `--resume <uuid>` | `claude --resume <uuid>` with the lane's `CLAUDE_CONFIG_DIR` |
-| Codex | `~/.avoozl/lanes/<workspace>/<lane>/` | the first line of the prompt (`codex exec` names no session) | a new session; Avoozl reads its id from the first `--json` event | `resume <id>` | `codex resume <id>` with the lane's `CODEX_HOME` |
+| Codex | `~/.avoozl/lanes/<workspace>/<lane>/` | the first line of the prompt (`codex exec` names no session) | a new session | `resume --last`, the lane home's newest session | `codex resume --last` with the lane's `CODEX_HOME` |
 
 A lane is free when no session bound to it is live and its last task's
 outcome is recorded. A worker that went quiet keeps its lane: it is nudged,
@@ -861,21 +861,41 @@ report from the chat matches its current task.
 
 ### D22.2 Process lanes
 
-A harness definition names the variable that holds the harness's home:
-`"home": "CLAUDE_CONFIG_DIR"` or `"home": "CODEX_HOME"`. Avoozl sets it to
-the lane folder and adds the folder to the child's write roots, so the
-lane's sessions, transcripts and config stay in the lane folder and never in
-the person's `~/.claude` or `~/.codex`. A sign-in the harness keeps in its
-home (a Claude.ai login, a ChatGPT login for Codex) is not visible there; a
-definition for one sets no `home`, and Avoozl then deletes only the session
-files named by ids it started. Sign-in by environment (an API key in
-`keepEnv`, or a managed provider) works with a lane home.
+A harness definition names three things for lanes:
 
-Each task's first run starts a new session with an id Avoozl chose
-(`--session-id`), or the id the harness reports. A rework run after
-`changes-requested` resumes the same session with the findings. When a
-lane's next task starts, Avoozl deletes the lane's sessions other than the
-newest finished one, by the ids it recorded.
+```json
+{
+  "home": "CLAUDE_CONFIG_DIR",
+  "label": [
+    "--name",
+    "{lane_header}"
+  ],
+  "sessions": "projects"
+}
+```
+
+`home` is the variable that holds the harness's home. Avoozl sets it to the
+lane folder and adds the folder to the child's read and write roots, so the
+lane's sessions, transcripts and config stay in the lane folder and never in
+the person's `~/.claude` or `~/.codex`. `label` is the argv that names a
+session; a definition without one gets the header as the prompt's first
+line. `sessions` is the folder under the home that holds session files.
+Validation refuses a `home` that is not a `*_HOME` or `*_DIR` name, or that
+names a GitHub, git, SSH, Kiro Crew or Avoozl variable.
+
+A sign-in the harness keeps in its default home (a Claude.ai login, a
+ChatGPT login for Codex) is not visible in a lane home, so a definition for
+such a machine sets no `home`, and its sessions stay where the harness keeps
+them. Sign-in by environment (an API key in `keepEnv`, or a managed
+provider) works with a lane home.
+
+A lane's start request names its lane, header and workspace. Each new task
+starts a new session (`--session-id` with an id Avoozl chose). A rework run
+after `changes-requested` lands on the lane its task last ran on and resumes
+that task's harness session, which the binding records as
+`harnessSession`. When a lane's next task starts, the supervisor deletes the
+files under `<home>/<sessions>/` last written before the lane's previous
+task began, so the previous task's sessions stay readable until then.
 
 ### D22.3 Reading a lane
 

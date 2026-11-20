@@ -341,3 +341,28 @@ test("reads names the harness's own config under home, and nothing else", () => 
       expected,
     );
 });
+
+test("a definition names its lane home variable, session label and session folder (simplify §D22.2)", () => {
+  const parsed = parseHarnessDefinition({
+    ...example(),
+    home: "CLAUDE_CONFIG_DIR",
+    label: ["--name", "{lane_header}"],
+    sessions: "projects",
+  });
+  assert.deepEqual(
+    [parsed.home, [...parsed.label], parsed.sessions],
+    ["CLAUDE_CONFIG_DIR", ["--name", "{lane_header}"], "projects"],
+  );
+  for (const [value, message] of [
+    [{ home: "HOME" }, /home must name/],
+    [{ home: "PATH" }, /home must name/],
+    [{ home: "GH_CONFIG_DIR" }, /home must name/],
+    [{ label: ["--name", "fixed"] }, /label must name \{lane_header\}/],
+    [{ sessions: "projects" }, /sessions needs home/],
+    [{ home: "CODEX_HOME", sessions: "../x" }, /sessions must be one folder/],
+  ])
+    assert.throws(
+      () => parseHarnessDefinition({ ...example(), ...value }),
+      message,
+    );
+});

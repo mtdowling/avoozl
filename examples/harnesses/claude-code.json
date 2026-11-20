@@ -21,6 +21,9 @@
     "{permission}"
   ],
   "attach": ["claude", "--resume", "{session_uuid}"],
+  "home": "CLAUDE_CONFIG_DIR",
+  "label": ["--name", "{lane_header}"],
+  "sessions": "projects",
   "promptFrom": "stdin",
   "model": ["--model", "{model}"],
   "permission": { "write": "acceptEdits", "read": "dontAsk" },

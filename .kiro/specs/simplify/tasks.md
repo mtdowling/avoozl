@@ -138,7 +138,7 @@ merge, shown in chat and never committed.
   - Tests: `lanes.local` worker lanes and `lanes.reviewers` reviewer lanes (default 1) bound the tick's worker and review starts; each start names its lane and header, and a lane takes a new task only when its last one is recorded
   - Tests: the cron opens a lane chat once with its header in `Avoozl/<workspace>`, clears it with `reset-conversation` and `replay: false` before each later task, releases the request when the clear is refused, and sets `trust` on worker and reviewer lane chats on every tick
   - Tests: a lane's new binding moves the earlier one to `<slot>#<boundAt>` with every field kept; a closed lane chat pauses the lane, gives one Needs you row with Resume, and opens again only after `lane.resume`
-- [ ] `sim-7.2` Process lane sessions [SM20.2, SM20.3, SM20.4, SM20.6] (§D22.2)
+- [x] `sim-7.2` Process lane sessions [SM20.2, SM20.3, SM20.4, SM20.6] (§D22.2)
   - Tests: a definition's `home` variable is set to `~/.avoozl/lanes/<workspace>/<lane>/` and that folder is a write root; Claude Code starts with `--session-id` and `--name`, Codex gets the header as its prompt's first line; a rework run resumes the task's session; the lane's older sessions are deleted when its next task starts, and no other file is
 - [ ] `sim-7.3` `avoozl lanes` and Open [SM20.7] (§D22.3)
   - `avoozl lanes` prints each lane's role, harness, state, task and open command or link; the In flight view shows the same rows with Open

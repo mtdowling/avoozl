@@ -310,6 +310,9 @@ class KiroCrewExecutor:
             "title": "avoozl:" + task,
         }
         lane = d.get("lane") if isinstance(d.get("lane"), dict) else None
+        if lane and lane.get("slot") and lane.get("resume"):
+            # A review round on the same task continues in the same chat.
+            return self._brief(lane["slot"], d, task, role, brief, permissionClass)
         if lane and lane.get("slot"):
             # The lane's chat takes its next task with a clear context.
             cleared = reset_conversation(self._ctx, lane["slot"])

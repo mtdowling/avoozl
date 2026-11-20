@@ -486,10 +486,10 @@ waits on a trust approval and no chat list fills with one chat per task.
    agent's tools.
 6. A person SHALL be able to open and read each lane session: the Kiro Crew
    chat itself, or the harness's own resume command (`claude --resume <id>`,
-   `codex resume <id>`) run with the lane's home. A process lane SHALL keep
-   its open task's session, and the last finished task's session until the
+   `codex resume --last`) run with the lane's home. A process lane SHALL keep
+   its open task's sessions, and the last finished task's sessions until the
    lane's next task starts; then Avoozl SHALL delete that lane's older
-   sessions and SHALL NOT touch a session it did not start.
+   session files, and SHALL delete nothing outside the lane's home.
 7. `avoozl lanes` SHALL list each lane with its role, harness, state, task,
    and the command or link that opens its session, and the page's In flight
    view SHALL show the same with an Open action per lane.

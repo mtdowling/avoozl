@@ -293,3 +293,17 @@ print(json.dumps(calls))`);
     ["mode", "r", "trust"],
   ]);
 });
+
+test("a review round on the same task continues in its lane chat with no clear", () => {
+  const result = run(`
+resets = []
+ctx._post = lambda path, body: resets.append(path) or {"reset": True}
+d = {"task": "one", "role": "worker", "title": "avoozl:one", "folder": "Avoozl/app", "project": False, "brief": "Round 2", "attempt": 2, "lane": {"id": "worker-1", "header": "h", "slot": "lane-chat", "resume": True}}
+slot = e.start(*e.arguments(d))
+print(json.dumps({"slot": slot, "resets": resets, "kinds": [row[0] for row in calls]}))`);
+  assert.deepEqual(result, {
+    slot: "lane-chat",
+    resets: [],
+    kinds: ["bind", "mode", "send"],
+  });
+});

@@ -356,6 +356,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       lane: {
         id: "worker-1",
         header: `Avoozl · ${path.basename(root)} · worker 1`,
+        workspace: path.basename(root),
       },
       folder: `Avoozl/${path.basename(root)}`,
       project: false,

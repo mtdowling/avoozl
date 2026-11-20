@@ -70,6 +70,7 @@ const OWN_VALUES = [
   "permission",
   "repository_allow_commands",
   "context_mcp",
+  "lane_header",
 ];
 const CONTEXT_RELAY = fileURLToPath(
   new URL("./context-relay.mjs", import.meta.url),
@@ -188,6 +189,7 @@ export function requestChild(db, request) {
     network: request.network ?? "off",
     readable: absolutePaths(request.readable, "readable"),
     context: contextSettings(request.context),
+    ...(request.lane ? { lane: laneSettings(request.lane) } : {}),
   };
   sandboxNetwork(settings.network === "off" ? undefined : settings.network);
   const now = stamp();
@@ -217,6 +219,67 @@ export function requestChild(db, request) {
     throw error;
   }
   return sessionId;
+}
+
+// The harness's own session UUID for a child: the session a review round
+// resumes, else the child's own (simplify §D22.2).
+export function harnessSession(row) {
+  const lane = JSON.parse(row.settings || "{}").lane;
+  return lane?.resume ?? row.session_id.slice("process-".length);
+}
+
+// A lane session's settings (simplify §D22.2): {home, header, resume?}. The
+// home is the lane's own folder; `resume` names the harness session a
+// review round continues.
+export function laneSettings(value) {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    typeof value.home !== "string" ||
+    !path.isAbsolute(value.home) ||
+    typeof value.header !== "string" ||
+    !value.header.trim() ||
+    value.header.length > 200 ||
+    /[\u0000-\u001f]/.test(value.header) ||
+    (value.resume !== undefined &&
+      !/^[0-9a-f-]{36}$/.test(String(value.resume))) ||
+    (value.keepSince !== undefined && Number.isNaN(Date.parse(value.keepSince)))
+  )
+    fail("A request's lane must be {home, header, resume?, keepSince?}.");
+  return {
+    home: path.resolve(value.home),
+    header: value.header,
+    ...(value.resume ? { resume: value.resume } : {}),
+    ...(value.keepSince ? { keepSince: value.keepSince } : {}),
+  };
+}
+
+// When a lane's next task starts, delete the lane's session files older
+// than its last task's start (simplify §D22.2). Only files under the lane's
+// own home and the harness's session folder there, never another home.
+export function pruneLaneSessions(home, sessions, keepSince) {
+  const root = path.join(home, sessions),
+    before = Date.parse(keepSince),
+    removed = [];
+  const walk = (folder, depth) => {
+    if (depth > 8) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(folder, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const file = path.join(folder, entry.name);
+      if (entry.isDirectory()) walk(file, depth + 1);
+      else if (entry.isFile() && fs.statSync(file).mtimeMs < before) {
+        fs.rmSync(file, { force: true });
+        removed.push(file);
+      }
+    }
+  };
+  if (Number.isFinite(before)) walk(root, 0);
+  return removed;
 }
 
 // The epic context of a request (epic-context D6): {readable: [absolute],
@@ -903,15 +966,24 @@ export function startSupervisor({
         recursive: true,
         force: true,
       });
+      const settings = JSON.parse(row.settings || "{}"),
+        lane = settings.lane ?? null;
       const briefFile = path.join(folder, "brief.md");
-      fs.writeFileSync(briefFile, row.brief, { mode: 0o600 });
+      // A harness that names no session gets the lane's header as the
+      // prompt's first line (simplify §D22).
+      fs.writeFileSync(
+        briefFile,
+        lane && !definition.label
+          ? `${lane.header}\n\n${row.brief}`
+          : row.brief,
+        { mode: 0o600 },
+      );
       let messageFile = null;
       if (message) {
         messageFile = path.join(folder, `message-${message.id}.md`);
         fs.writeFileSync(messageFile, message.text, { mode: 0o600 });
       }
       const values = JSON.parse(row.placeholder_values);
-      const settings = JSON.parse(row.settings || "{}");
       // Epic context (epic-context D6): read-only folders, and MCP servers
       // through the relay when the harness loads a config file for them.
       const context = settings.context ?? null;
@@ -931,18 +1003,28 @@ export function startSupervisor({
         brief_file: briefFile,
         model: row.model,
         session: row.session_id,
-        session_uuid: row.session_id.slice("process-".length),
+        session_uuid: harnessSession(row),
         permission: definition.permission[row.permission_class],
-        ...(messageFile ? { message_file: messageFile } : {}),
+        ...(lane ? { lane_header: lane.header } : {}),
+        // A review round's resume reads the new brief as its message.
+        ...(messageFile
+          ? { message_file: messageFile }
+          : lane?.resume
+            ? { message_file: briefFile }
+            : {}),
         ...(contextMcp ? { context_mcp: contextMcp.file } : {}),
       };
       // start or resume, then the model when one is named, then the
       // repository's allow-list, checked again here (R94.4c).
+      // A review round continues its task's session in the lane.
       const argv = [
         ...fillHarnessArgv(
-          message ? definition.resume : definition.start,
+          message || lane?.resume ? definition.resume : definition.start,
           filled,
         ),
+        ...(lane && definition.label
+          ? fillHarnessArgv(definition.label, filled)
+          : []),
         ...(row.model && definition.model
           ? fillHarnessArgv(definition.model, filled)
           : []),
@@ -972,10 +1054,19 @@ export function startSupervisor({
       });
       if (values.tmp)
         fs.mkdirSync(values.tmp, { recursive: true, mode: 0o700 });
+      if (lane && definition.home) {
+        fs.mkdirSync(lane.home, { recursive: true, mode: 0o700 });
+        if (definition.sessions && lane.keepSince && !lane.resume)
+          pruneLaneSessions(lane.home, definition.sessions, lane.keepSince);
+      }
       const confined = confineChild(argv, {
         definition,
         configDirectory,
-        writeRoots: access.writeRoots,
+        // A lane's home holds its harness's sessions (simplify §D22.2).
+        writeRoots: [
+          ...access.writeRoots,
+          ...(lane && definition.home ? [lane.home] : []),
+        ],
         secrets: sandboxSecretPaths({
           home: env.HOME || os.homedir(),
           env,
@@ -992,6 +1083,7 @@ export function startSupervisor({
         home: env.HOME || os.homedir(),
         readRoots: [
           row.worktree,
+          ...(lane && definition.home ? [lane.home] : []),
           ...(values.tmp ? [values.tmp] : []),
           ...(values.repository_cache_dirs ?? []),
           ...(gitCommonDir(row.worktree) ? [gitCommonDir(row.worktree)] : []),
@@ -1032,6 +1124,9 @@ export function startSupervisor({
                     values.tmp,
                   ]),
                 )
+              : {}),
+            ...(lane && definition.home
+              ? { [definition.home]: lane.home }
               : {}),
             AVOOZL_CHILD: "1",
             AVOOZL_CHILD_SESSION: row.session_id,

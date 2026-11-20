@@ -144,6 +144,11 @@ export function bindSession(
   if (input.lane !== undefined && !LANE.test(input.lane))
     fail("Choose a lane, such as worker-1 or reviewer-1.");
   if (
+    input.harnessSession !== undefined &&
+    !/^[0-9a-f-]{36}$/.test(input.harnessSession)
+  )
+    fail("Name the harness session as a UUID.");
+  if (
     input.attempt !== undefined &&
     (!Number.isInteger(input.attempt) || input.attempt < 1)
   )
@@ -237,6 +242,7 @@ export function bindSession(
       ...(input.sessionReason ? { sessionReason: input.sessionReason } : {}),
       ...(input.commit ? { commit: input.commit } : {}),
       ...(input.lane ? { lane: input.lane } : {}),
+      ...(input.harnessSession ? { harnessSession: input.harnessSession } : {}),
       // A worker opened to investigate first codes only after Go ahead
       // (§4.21).
       ...(input.investigate === true && role === "worker"
