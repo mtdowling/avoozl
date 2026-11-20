@@ -441,10 +441,7 @@ for (const testCase of readCases()) {
 }
 
 test("workflow kit: the doc lists exactly the rules no case checks", () => {
-  const section = doc.slice(
-      doc.indexOf("### Kit coverage"),
-      doc.indexOf("\n## Avoozl\n"),
-    ),
+  const section = doc.split("\n### Kit coverage\n")[1].split(/\n#{1,3} /, 1)[0],
     listed = new Set(
       section
         .split("\n")

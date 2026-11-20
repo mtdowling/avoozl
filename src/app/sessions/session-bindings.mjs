@@ -144,6 +144,11 @@ export function bindSession(
   if (input.lane !== undefined && !LANE.test(input.lane))
     fail("Choose a lane, such as worker-1 or reviewer-1.");
   if (
+    input.harnessSession !== undefined &&
+    !/^[0-9a-f-]{36}$/.test(input.harnessSession)
+  )
+    fail("Name the harness session as a UUID.");
+  if (
     input.attempt !== undefined &&
     (!Number.isInteger(input.attempt) || input.attempt < 1)
   )
@@ -153,8 +158,6 @@ export function bindSession(
       // A responder binds to the issue snapshot it answers (github-respond.mjs).
       taskId =
         (role === "responder" && store.get("github_responses", named)) ||
-        // A retrospective binds to its retro record (§4.11).
-        (role === "retro" && store.get("flow_retros", named)) ||
         // A code review chat binds to its request (pr-review.mjs).
         (role === "pr-review" &&
           store.get("receipts", named)?.kind === "pr-review") ||
@@ -237,6 +240,7 @@ export function bindSession(
       ...(input.sessionReason ? { sessionReason: input.sessionReason } : {}),
       ...(input.commit ? { commit: input.commit } : {}),
       ...(input.lane ? { lane: input.lane } : {}),
+      ...(input.harnessSession ? { harnessSession: input.harnessSession } : {}),
       // A worker opened to investigate first codes only after Go ahead
       // (§4.21).
       ...(input.investigate === true && role === "worker"
@@ -259,24 +263,6 @@ export function bindSession(
         consumer,
       });
     store.put("session_bindings", binding);
-    // A retro keeps its chat on its own record, so the Retros page can link
-    // it, and a failure can say what became of it.
-    if (role === "retro") {
-      const retro = store.get("flow_retros", taskId),
-        harness = input.requestId
-          ? store.get("session_requests", input.requestId)?.request?.harness
-          : undefined;
-      if (retro)
-        store.put("flow_retros", {
-          ...retro,
-          session: {
-            slot,
-            executor: binding.executor ?? "kirocrew",
-            ...(harness ? { harness } : {}),
-            boundAt: binding.boundAt,
-          },
-        });
-    }
     store.ensureReportSecret();
     return { binding, changed: true };
   });

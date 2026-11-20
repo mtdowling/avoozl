@@ -43,7 +43,6 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
   [Approval](github-workflow.md#7-approval) and
   [Done tasks](github-workflow.md#15-done-tasks).
 - **Landings** are the trailers on the landing commits.
-- **Retros** live in `.kiro/retros/`.
 - **Execution state** is the workspace database, rebuilt from the items above.
 
 A task never gets a GitHub issue. A spec can have one issue, whose assignee
@@ -63,7 +62,7 @@ Work starts in one of three ways.
   checks and reviews, and merges it.
 - **Epic.** Spec Builder writes requirements, design and tasks. Approve records
   the revision. The tick releases ready tasks by capacity, phase and Stop the
-  line, and Avoozl runs, checks and lands each one. A retro follows.
+  line, and Avoozl runs, checks and lands each one.
 
 ## Labels
 
@@ -76,13 +75,12 @@ No label is an order. The labels Avoozl reads are per-repository settings:
 
 ## Screens
 
-The nav has seven entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
+The nav has six entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
 
 - **Dashboards:** Home, Graph, Delivery, Landing queue.
 - **Specs:** one list with status chips, and spec details with tabs.
 - **Needs you:** Decisions.
 - **Flow:** one page.
-- **Retros:** one page.
 - **Activity:** one page.
 - **Settings:** Workspaces, Repository setup, GitHub, Plugins, Content rules,
   Flow, Models, Delivery.
@@ -109,5 +107,5 @@ a `process` child, and says so when it runs inside an agent session.
 
 Each agent role's standing instructions are Markdown files in
 [`prompts/`](../prompts/README.md). See the
-README there for which role reads which file, how the Kiro Crew agents are
-generated from them, and how a retro proposes a change.
+README there for which role reads which file and how the Kiro Crew agents are
+generated from them.

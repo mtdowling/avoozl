@@ -204,20 +204,6 @@ test("Flow and the retro see each pull", async (t) => {
   assert.equal(listed.manual, true);
   assert.equal(listed.reason, "check it");
   assert.ok(view.series.day.some((b) => b.stops >= 1));
-  const { retroBrief } = await import("../flow-retro.mjs");
-  const brief = retroBrief(store, store.read(), { id: "r1", triggers: [] }),
-    { lineStops } = JSON.parse(brief.split("```json\n")[1].split("\n```")[0]);
-  assert.deepEqual(
-    lineStops.find((s) => s.manual),
-    {
-      check: null,
-      culprit: null,
-      manual: true,
-      scope: "all",
-      reason: "check it",
-      timeToFixMs: listed.timeToFixMs,
-    },
-  );
 });
 
 test("the CLI pulls and resumes as the person at the command line", async () => {

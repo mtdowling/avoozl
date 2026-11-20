@@ -3,15 +3,11 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { DASHBOARD_PAGES, TABS, dashboardPage, dashboardTab, navTab, WAITING_SECTIONS, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Settings', () => {
+test('the nav row is Dashboards, Specs, Needs you, Flow, Activity, Settings', () => {
   assert.deepEqual(
     TABS.map((t) => t.label),
-    ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'],
+    ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Activity', 'Settings'],
   )
-})
-
-test('Retros is one page', () => {
-  assert.equal(tabLabel('retros'), 'Retros')
 })
 
 test('the nav has no Issues or Pull requests pill', () => {

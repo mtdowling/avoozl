@@ -162,11 +162,10 @@ export function CheckRow(props: { id?: string; label: ReactNode; checked: boolea
 }
 
 // Fields on a grid: as many columns as fit, each at least `min`.
-export function FieldGrid({ children, min = '13rem', align, group }: { children: ReactNode; min?: string; align?: boolean; group?: string }) {
+export function FieldGrid({ children, min = '13rem', align }: { children: ReactNode; min?: string; align?: boolean }) {
   return (
     <Box
       data-field-grid
-      data-flow-group={group}
       css-display="grid"
       css-column-gap="16"
       css-row-gap={align ? '4' : '12'}

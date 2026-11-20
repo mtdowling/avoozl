@@ -109,10 +109,6 @@ export const entries = [
         contextBrief: (entry) => chatBrief(store, this, entry),
       });
       if (result.skipped) return result;
-      if (Array.isArray(input.sessions) || input.cron === true) {
-        // Finished retros become committed files (§4.42).
-        await this.writeRetroFiles().catch(() => {});
-      }
       // A deleted plan's tasks whose chats have ended are archived now.
       archiveEnded(store);
       try {

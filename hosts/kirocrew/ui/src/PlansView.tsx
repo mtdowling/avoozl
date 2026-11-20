@@ -82,7 +82,7 @@ import {
 } from './review-view.ts'
 import { SeverityBadges } from './ui/SeverityBadges.tsx'
 import { urlBase } from './focus-tree.ts'
-import { DiffBlock } from './FlowMemory.tsx'
+import { DiffBlock } from './DiffBlock.tsx'
 import {
   UNCATEGORIZED,
   approveBlocker,

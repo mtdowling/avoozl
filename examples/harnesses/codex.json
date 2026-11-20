@@ -29,6 +29,9 @@
     "--last",
     "-"
   ],
+  "attach": ["codex", "resume", "--last"],
+  "home": "CODEX_HOME",
+  "sessions": "sessions",
   "promptFrom": "stdin",
   "model": ["--model", "{model}"],
   "permission": { "write": "danger-full-access", "read": "danger-full-access" },

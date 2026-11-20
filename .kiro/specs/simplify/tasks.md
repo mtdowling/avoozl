@@ -101,7 +101,7 @@ merge, shown in chat and never committed.
   - `delivery/investigate.mjs`, the falsifier stage and every `$investigate` read are gone; the `avoozl-investigate` skill tells a worker to write the findings file its task's `$done` names, and a reviewer how to try to prove it wrong (SM17.5)
 - [ ] `sim-4.3` Cut driver bookkeeping [SM2.5, SM14.1] (§D3)
   - `workers/driver.mjs`, `driver-scope.mjs`, `working-heads.mjs` and `remote-runner.mjs` are gone, with the `drivers` table and the `driver` and `worker` CLI commands; the assignee rule and claim branches decide who runs a task
-- [ ] `sim-4.4` Cut flow extras [SM14.1, SM14.4, SM17.3] (§D14, §D20)
+- [x] `sim-4.4` Cut flow extras [SM14.1, SM14.4, SM17.3] (§D14, §D20)
   - Build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chats, retro memory and retro operations are gone from `src/app/flow/`, with `bin/build-receipt` and the `avoozl-costs` skill; `flow-retro.mjs` and `retro-files.mjs` are gone once `avoozl-retro` ships
   - Flow keeps no fix-work share: `isFixWork`, the task `fix` flag, `metrics.fixWork`, `fixShare` and the retro brief's `fixWork` are gone (SM17.3)
   - Stop the line and the worker's own check run still pass their tests
@@ -119,7 +119,7 @@ merge, shown in chat and never committed.
 ## Phase 5: The page
 
 - [ ] `sim-5.1` Five views [SM13.1, SM13.2, SM13.4] (§D13, §D15)
-  - The nav lists Plans, Graph, In flight, Needs you and Settings; In flight shows each claim branch with holder, session, head, checks and pull request; Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
+  - The nav lists Plans, Graph, In flight, Needs you and Settings; In flight shows each claim branch with holder, session, head, checks and pull request, and each lane from `lanes.view` with its role, state, task and an Open action that opens the chat or copies the command (§D22.3); Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
   - Every group §D15 marks cut is gone with its API file and tests, and `npm run test:ui` passes
   - The owner has seen phone and desktop, light and dark screenshots of each view
 - [ ] `sim-5.2` Run in a chat [SM13.3] (§D13)
@@ -138,11 +138,10 @@ merge, shown in chat and never committed.
   - Tests: `lanes.local` worker lanes and `lanes.reviewers` reviewer lanes (default 1) bound the tick's worker and review starts; each start names its lane and header, and a lane takes a new task only when its last one is recorded
   - Tests: the cron opens a lane chat once with its header in `Avoozl/<workspace>`, clears it with `reset-conversation` and `replay: false` before each later task, releases the request when the clear is refused, and sets `trust` on worker and reviewer lane chats on every tick
   - Tests: a lane's new binding moves the earlier one to `<slot>#<boundAt>` with every field kept; a closed lane chat pauses the lane, gives one Needs you row with Resume, and opens again only after `lane.resume`
-- [ ] `sim-7.2` Process lane sessions [SM20.2, SM20.3, SM20.4, SM20.6] (§D22.2)
+- [x] `sim-7.2` Process lane sessions [SM20.2, SM20.3, SM20.4, SM20.6] (§D22.2)
   - Tests: a definition's `home` variable is set to `~/.avoozl/lanes/<workspace>/<lane>/` and that folder is a write root; Claude Code starts with `--session-id` and `--name`, Codex gets the header as its prompt's first line; a rework run resumes the task's session; the lane's older sessions are deleted when its next task starts, and no other file is
-- [ ] `sim-7.3` `avoozl lanes` and Open [SM20.7] (§D22.3)
-  - `avoozl lanes` prints each lane's role, harness, state, task and open command or link; the In flight view shows the same rows with Open
-  - The owner has seen phone and desktop, light and dark screenshots of the In flight lanes
+- [x] `sim-7.3` `avoozl lanes` [SM20.7] (§D22.3)
+  - `avoozl lanes` and the `lanes.view` operation list each lane's role, harness, state, task and open command or link, and `avoozl lane resume LANE` runs `lane.resume`
 
 <!-- avoozl:graph start -->
 ```mermaid
@@ -193,7 +192,7 @@ flowchart TD
   subgraph s8["Phase 7: Lane sessions"]
     sim_7_1["sim-7.1 Kiro Crew lane chats"]
     sim_7_2["sim-7.2 Process lane sessions"]
-    sim_7_3["sim-7.3 avoozl lanes and Open"]
+    sim_7_3["sim-7.3 avoozl lanes"]
   end
   sim_0 --> sim_1_1
   sim_1_1 --> sim_1_3

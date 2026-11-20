@@ -297,7 +297,6 @@ const SETTINGS = {
   "delivery.settings.update": "Delivery",
   "models.settings.update": "model",
   "driver.settings.update": "driver",
-  "flow.instructions.update": "retro instructions",
   "conversations.settings.update": "conversation",
   "content.sets.update": "content rule set",
   "content.terms.update": "content rule terms",

@@ -8,21 +8,12 @@ import {
   resumeStop,
   runAnyway,
 } from "../flow/flow-line.mjs";
-import {
-  applyToConfig,
-  decideProposal,
-  retroInstructions,
-  retroPrompt,
-  runRetroAgain,
-  setRetroInstructions,
-} from "../flow/flow-retro.mjs";
-import { flowView, readFlowConfig } from "../flow/flow.mjs";
+import { flowView } from "../flow/flow.mjs";
 import {
   approveHarnessByName,
   listHarnessDefinitions,
 } from "../executors/harness-definitions.mjs";
 import { runOn } from "../tick/needs-kirocrew.mjs";
-import { createPlan } from "../specs/plans.mjs";
 import { fail } from "../store/store.mjs";
 import path from "node:path";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
@@ -67,7 +58,6 @@ export const entries = [
       return { ...view, line: lineBanner(store, data) };
     },
   },
-  // Settings > Flow (§8.4) and the retros (§4.11).
   // Settings › Models: Avoozl's own chats' models, in .avoozl.json.
   {
     name: "models.settings.get",
@@ -152,15 +142,8 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ context }) {
-      const store = this.store;
-      return {
-        ...this.settingsFile().readFlowSettings(),
-        // The built-in retro prompt, shown read-only above the owner's own.
-        retroPrompt: retroPrompt(),
-        instructions:
-          context.caller || context.mcp ? null : retroInstructions(store),
-      };
+    handler() {
+      return this.settingsFile().readFlowSettings();
     },
   },
 
@@ -176,96 +159,6 @@ export const entries = [
     },
   },
 
-  {
-    name: "flow.instructions.update",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person changes flow settings."),
-    handler({ input }) {
-      const store = this.store;
-      return setRetroInstructions(store, input.instructions);
-    },
-  },
-
-  {
-    name: "flow.retro.start",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person starts a retro."),
-    handler({}) {
-      const store = this.store;
-
-      const s = store.getMeta("flow.retro.state") || {
-        seen: [],
-        pending: [],
-        reverts: [],
-      };
-      if (!s.pending.some((t) => t.kind === "manual"))
-        store.setMeta("flow.retro.state", {
-          ...s,
-          pending: [
-            ...s.pending,
-            {
-              kind: "manual",
-              key: "manual:" + Date.now(),
-              detail: "started by hand",
-              at: new Date().toISOString(),
-            },
-          ],
-        });
-      return { queued: true };
-    },
-  },
-
-  {
-    name: "flow.retro.again",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person runs a retro again."),
-    handler({ input }) {
-      const store = this.store;
-      return runRetroAgain(store, input.id);
-    },
-  },
-
-  {
-    name: "flow.retro.decide",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person decides retro proposals."),
-    handler({ input, context }) {
-      const store = this.store;
-
-      const settings = this.settingsFile(),
-        config = readFlowConfig(this.workspaceRoot);
-      return decideProposal(store, input, {
-        config,
-        by: context.local ? "cli" : this.operator || "dashboard",
-        apply: async (proposal, expectedHash) => {
-          if (proposal.key.startsWith("delivery."))
-            return settings.updateDeliveryKey({
-              key: proposal.key,
-              from: proposal.from,
-              to: proposal.to,
-              expectedHash,
-            });
-          const file = settings.readFlowSettings(),
-            flow = applyToConfig(file, proposal);
-          return settings.updateFlowSettings({
-            flow,
-            repository:
-              proposal.file === "repository" ? proposal.repository : null,
-            expectedHash,
-          });
-        },
-        draft: async (proposal) =>
-          createPlan(store, {
-            prompt: `Retro ${input.retroId} proposal for spec ${proposal.spec}: ${proposal.change}\n\nWhy: ${proposal.evidence}`,
-            context: { retro: input.retroId, spec: proposal.spec },
-          }).id,
-      });
-    },
-  },
   // Run anyway (R44.10): a person only, confirmed and recorded.
   {
     name: "flow.runAnyway",

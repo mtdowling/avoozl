@@ -18,7 +18,6 @@ import { stampPrompts } from "../api/operation-support.mjs";
 import { bindPlanAnswerSession } from "../reviews/plan-review-answers.mjs";
 import { bindSpecReviewRound } from "../reviews/plan-reviews.mjs";
 import { requestReviewChat, showReviewChat } from "../reviews/pr-review.mjs";
-import { isSkillPath, skillHashes } from "../flow/retro-memory.mjs";
 import {
   bindSession,
   recordSessionStatus,
@@ -249,38 +248,13 @@ export const entries = [
     async handler({ input, context }) {
       const store = this.store;
 
-      // The skill files a session says it loaded (R68.12): absolute paths,
-      // hashed here; skills read through tool calls win.
-      const { skills, ...report } = input || {};
-      if (
-        skills !== undefined &&
-        (!Array.isArray(skills) ||
-          skills.length > 20 ||
-          !skills.every(
-            (f) =>
-              typeof f === "string" &&
-              f.length <= 1000 &&
-              path.isAbsolute(f) &&
-              isSkillPath(f),
-          ))
-      )
-        fail(
-          "skills lists up to 20 absolute paths of SKILL.md files you loaded.",
-        );
+      // `skills` was the files a session loaded, for retro proposals.
+      const { skills: _skills, ...report } = input || {};
       const result = await reportSession(store, report, context.caller, {
         local: context.local === true,
         flow: readFlowPolicy(this.workspaceRoot),
         policy: readDeliveryPolicy(this.workspaceRoot).delivery,
       });
-      if (skills?.length && result.binding) {
-        const hashes = skillHashes(store, skills, result.binding.taskId),
-          current = store.get("session_bindings", result.binding.slot);
-        if (current && Object.keys(hashes).length)
-          store.put("session_bindings", {
-            ...current,
-            skills: { ...hashes, ...(current.skills || {}) },
-          });
-      }
       return result;
     },
   },

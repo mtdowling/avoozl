@@ -1,9 +1,6 @@
-// Settings › Flow in the app shell (harness ?page=app&flow=1): every label
-// keeps a gap before its "(optional)" marker, fields side by side line up,
-// there is no Batching box (R108.8) and no native dropdown, and Save sits last
-// in a footer that stays in view. The harness's own small stylesheet is used
-// on purpose: the gaps must not depend on the host's utility classes.
-// Skipped when no Chrome is found.
+// Settings › Flow in the app shell (harness ?page=app&flow=1): there is no
+// Batching box (R108.8) and no native dropdown, and Save sits last in a
+// footer that stays in view. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
@@ -44,33 +41,16 @@ async function openFlowSettings(width) {
   await page.until(`Boolean(document.querySelector('[data-flow-settings]'))`)
   // The footer appears once a field changes.
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-save-footer]'))`), false, 'no footer before a change')
-  await page.evaluate(
-    `(() => { const input = document.getElementById('avoozl-flow-every'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2'); input.dispatchEvent(new Event('input', { bubbles: true })); return true })()`,
-  )
+  await page.evaluate(`[...document.querySelectorAll('[data-check-row]')].find((x) => x.textContent.includes('Require a local pass')).querySelector('[role="switch"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
 }
 
 const READ = `(() => {
   const root = document.querySelector('[data-flow-settings]')
   const r = (el) => el.getBoundingClientRect()
-  // Each label text and the "(optional)" marker after it, on one row.
-  const gaps = [...root.querySelectorAll('[data-marker]')].map((marker) => {
-    const text = marker.previousElementSibling
-    const a = r(text), b = r(marker)
-    return { label: text.textContent.trim(), gap: Math.abs(a.top - b.top) < 4 ? b.left - a.right : null }
-  })
-  // Fields of one grid that share a row: their inputs start at one height.
-  const rows = [...root.querySelectorAll('[data-flow-group]')].map((grid) => {
-    const fields = [...grid.querySelectorAll(':scope > [data-flow-field]')].map((f) => ({ top: Math.round(r(f).top), label: Math.round(r(f.children[0]).top), input: Math.round(r(f.children[1]).top), key: Math.round(r(f.children[3]).top) }))
-    const byRow = {}
-    for (const f of fields) (byRow[f.top] ||= []).push(f)
-    return { group: grid.dataset.flowGroup, rows: Object.values(byRow).map((list) => ({ labels: [...new Set(list.map((f) => f.label))].length, inputs: [...new Set(list.map((f) => f.input))].length, keys: [...new Set(list.map((f) => f.key))].length })) }
-  })
   const footer = document.querySelector('[data-save-footer]')
   const buttons = [...footer.querySelectorAll('button')]
   return {
-    gaps,
-    rows,
     selects: root.querySelectorAll('select').length,
     batching: /Batching|Most tasks per run|Group by/.test(root.textContent),
     footerInView: r(footer).bottom <= innerHeight + 1 && r(footer).top >= 0,
@@ -81,17 +61,9 @@ const READ = `(() => {
 })()`
 
 for (const width of [390, 1280])
-  test(`Settings › Flow keeps gaps, aligned fields and a Save footer at ${width} px`, { skip }, async () => {
+  test(`Settings › Flow keeps a Save footer at ${width} px`, { skip }, async () => {
     await openFlowSettings(width)
     const before = await page.evaluate(READ)
-    assert.ok(before.gaps.length >= 2, `found ${before.gaps.length} labels`)
-    for (const { label, gap } of before.gaps) if (gap !== null) assert.ok(gap >= 4, `"${label}" runs into (optional): ${gap}px`)
-    for (const { group, rows } of before.rows)
-      for (const row of rows) {
-        assert.equal(row.labels, 1, `${group}: labels in one row start at different heights`)
-        assert.equal(row.inputs, 1, `${group}: inputs in one row start at different heights`)
-        assert.equal(row.keys, 1, `${group}: .avoozl.json keys in one row sit at different heights`)
-      }
     assert.equal(before.selects, 0, 'no native dropdown')
     assert.equal(before.batching, false, 'no Batching box')
     assert.deepEqual(before.buttons, ['Discard', 'Save'])

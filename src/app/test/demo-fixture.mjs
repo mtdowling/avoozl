@@ -428,7 +428,6 @@ const SAYS = [
   ["intake.", "take this item into the graph"],
   ["flow.stop", "stop the line: no new work starts until you resume"],
   ["flow.resume", "resume the line so new work can start"],
-  ["flow.retro", "open a retro chat to learn from this run"],
   ["flow.", "change Flow settings"],
   ["route.", "change where this task runs"],
   ["provider", "switch a running chat to another model"],

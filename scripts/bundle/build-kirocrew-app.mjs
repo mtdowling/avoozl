@@ -97,7 +97,7 @@ for (const data of [
   fs.cpSync(path.join(root, data), path.join(lib, data), { recursive: true });
 fs.writeFileSync(
   path.join(lib, "package.json"),
-  // flow-retro.mjs reads the version from ../../package.json beside itself.
+  // The bundle's version, read from package.json beside it.
   JSON.stringify(
     {
       type: "module",

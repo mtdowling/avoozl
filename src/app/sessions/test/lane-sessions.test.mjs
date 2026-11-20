@@ -49,7 +49,7 @@ test("one worker lane runs one task at a time, and its chat takes the next task"
   const first = workers(await tick(ops));
   assert.deepEqual(
     first.map((d) => [d.task, d.lane]),
-    [["a", { id: "worker-1", header }]],
+    [["a", { id: "worker-1", header, workspace }]],
     "one lane, one start, with no chat yet",
   );
   await ops.execute("session.bind", {
@@ -82,11 +82,23 @@ test("one worker lane runs one task at a time, and its chat takes the next task"
     as("lane-w1"),
   );
   const next = workers(await tick(ops, { "lane-w1": "idle" }));
+  const before = store.get("session_bindings", "lane-w1");
   assert.deepEqual(
     next.map((d) => [d.task, d.lane]),
-    [["b", { id: "worker-1", header, slot: "lane-w1" }]],
+    [
+      [
+        "b",
+        {
+          id: "worker-1",
+          header,
+          workspace,
+          slot: "lane-w1",
+          // A process lane keeps task a's sessions until b starts.
+          keepSince: before.boundAt,
+        },
+      ],
+    ],
   );
-  const before = store.get("session_bindings", "lane-w1");
   await ops.execute("session.bind", {
     taskId: "b",
     slot: "lane-w1",
@@ -234,4 +246,55 @@ test("a start request not bound yet holds its lane", async (t) => {
     [],
     "task a finds no free lane while b's request holds worker-1",
   );
+});
+
+test("a process lane's home is ~/.avoozl/lanes/<workspace>/<lane>", async () => {
+  const { laneHome } = await import("../../executors/process.mjs");
+  assert.equal(
+    laneHome("my ws", "worker-2", "/home/me"),
+    path.join("/home/me", ".avoozl", "lanes", "my-ws", "worker-2"),
+  );
+  assert.throws(() => laneHome("..", "worker-1", "/home/me"), /lane needs/);
+  assert.throws(() => laneHome("ws", "../x", "/home/me"), /lane needs/);
+});
+
+test("a review round's lane is the one its task's last session ran on, and it resumes there", async () => {
+  const { laneRequest, pickLane } = await import("../lane-sessions.mjs");
+  const binding = {
+      taskId: "a",
+      role: "worker",
+      lane: "worker-2",
+      boundAt: "2026-11-20T00:00:00.000Z",
+      harnessSession: "0b9a1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d",
+    },
+    lanes = [
+      { id: "worker-1", role: "worker", state: "free", workspace: "ws" },
+      {
+        id: "worker-2",
+        role: "worker",
+        state: "free",
+        workspace: "ws",
+        header: "h",
+        slot: "process-x",
+        binding,
+        taskBindings: [binding],
+      },
+    ];
+  const lane = pickLane(lanes, { task: "a", role: "worker" }, new Set());
+  assert.equal(lane.id, "worker-2");
+  assert.deepEqual(laneRequest(lane, { task: "a", role: "worker" }), {
+    id: "worker-2",
+    header: "h",
+    workspace: "ws",
+    slot: "process-x",
+    resume: true,
+    session: binding.harnessSession,
+  });
+  assert.deepEqual(laneRequest(lane, { task: "b", role: "worker" }), {
+    id: "worker-2",
+    header: "h",
+    workspace: "ws",
+    slot: "process-x",
+    keepSince: binding.boundAt,
+  });
 });

@@ -94,6 +94,30 @@ workspace sits in the sidebar folder **Avoozl › my-workspace**. Avoozl
 clears a lane chat's conversation before its next task and sets its trust
 mode on every tick, so a lane never waits on a tool approval.
 
+A process harness such as Claude Code or Codex keeps each lane's sessions in
+`~/.avoozl/lanes/my-workspace/worker-2/` when its harness definition names
+its home variable. That folder, not your own `~/.claude` or `~/.codex`, holds
+the lane's transcripts:
+
+```json
+{
+  "home": "CLAUDE_CONFIG_DIR",
+  "label": [
+    "--name",
+    "{lane_header}"
+  ],
+  "sessions": "projects"
+}
+```
+
+`label` names each session with the lane's header; a harness without one
+gets the header as its prompt's first line. A review round resumes its
+task's session in the same lane. When the lane's next task starts, Avoozl
+deletes the lane's session files older than the previous task, so the
+previous task stays readable until then. A harness signed in through its
+default home, such as a Claude.ai login, does not see that login in a lane
+home; leave `home` out of its definition.
+
 `avoozl lanes` lists each lane with its role, state, task, and how to open
 its session:
 
@@ -121,7 +145,7 @@ other chats need two steps in Kiro Crew, each done once:
    runs outside the chat sandbox, with your access.
 2. Set the chat folder. After the first tick, open the chat folder
    **Avoozl** › _repository ID_ in the sidebar and set its project directory
-   to the checkout. The planner, responder, and retro chats open there, and the
+   to the checkout. The planner and responder chats open there, and the
    tick opens none of them until it is set.
 
 ## Workers and verification

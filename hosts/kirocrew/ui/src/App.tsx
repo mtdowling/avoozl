@@ -21,7 +21,6 @@ import { parseGraphLink } from './focus-tree.ts'
 import { parseReviewLink, parseSpecTab } from './review-view.ts'
 import WaitingView from './WaitingView.tsx'
 import FlowView, { LineBanner } from './FlowView.tsx'
-import { RetrosView } from './RetrosView.tsx'
 import { DASHBOARD_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, tabLabel, type Tab, type WaitingSection } from './nav-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
@@ -392,8 +391,6 @@ function AvoozlPage() {
                       />
                     ) : tab === 'flow' ? (
                       <FlowView workspaceId={active} />
-                    ) : tab === 'retros' ? (
-                      <RetrosView workspaceId={active} />
                     ) : tab === 'waiting' ? (
                       <WaitingView
                         workspaceId={active}

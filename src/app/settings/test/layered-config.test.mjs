@@ -257,7 +257,7 @@ test("a file that sets a removed or unknown nested key fails to load, naming its
       "delivery.investigate.agent",
       { delivery: { investigate: { agent: "a" } } },
     ],
-    ["flow.retro.model", { flow: { retro: { model: "m" } } }],
+    ["flow.retro", { flow: { retro: { everyTasks: 5 } } }],
     ["landing.conflictRounds", { landing: { conflictRounds: 1 } }],
     ["landing.trains", { landing: { trains: {} } }],
     ["github.repositories.o/app.merge", repo({ merge: { method: "merge" } })],

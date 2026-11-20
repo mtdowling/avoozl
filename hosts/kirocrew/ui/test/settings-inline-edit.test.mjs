@@ -79,17 +79,16 @@ for (const width of [1280, 390]) {
 
   test(`Flow edits in place at ${width} px and Save persists`, { skip }, async () => {
     await openPage('Flow', width)
-    await page.until(`Boolean(document.getElementById('avoozl-flow-every'))`)
+    const local = `[...document.querySelectorAll('[data-check-row]')].find((x) => x.textContent.includes('Require a local pass'))`
+    await page.until(`Boolean(${local})`)
     assert.equal(await footer(), false)
-    await set('#avoozl-flow-every', 'x')
-    await page.until(`Boolean(document.querySelector('[data-save-problem]'))`)
-    await set('#avoozl-flow-every', '12')
+    await page.evaluate(`${local}.querySelector('[role="switch"]').click()`)
     await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
     await press('Save')
     await page.until(`window.__writes.length === 1`)
     const [call] = await writes()
     assert.equal(call.operation, 'flow.settings.update')
-    assert.equal(call.input.flow.retro.everyTasks, 12)
+    assert.equal(call.input.flow.localChecksFirst, false)
     assert.equal(call.input.expectedHash, 'h1')
     assert.deepEqual(page.errors, [])
   })

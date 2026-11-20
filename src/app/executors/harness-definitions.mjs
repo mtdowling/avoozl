@@ -28,6 +28,8 @@ const HARNESS_PLACEHOLDERS = Object.freeze([
   "repository_allow_commands",
   // The MCP config file of a session's epic context (epic-context EC7.1).
   "context_mcp",
+  // A lane session's fixed header (simplify §D22).
+  "lane_header",
 ]);
 const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
 export const HARNESS_UNCONFINED = "harness-unconfined.json";
@@ -62,7 +64,15 @@ const KEYS = new Set([
   // The role classes a live proof ran this definition in (NK6.2), for the
   // list in Settings › Models; nothing else reads it.
   "proved",
+  // Lane sessions (simplify §D22.2): the variable naming the harness's home,
+  // which a lane sets to its own folder; the argv that names a session; and
+  // the folder under that home that holds the session files.
+  "home",
+  "label",
+  "sessions",
 ]);
+// A harness home variable: its own *_HOME or *_DIR, never HOME itself.
+const HOME_NAME = /^[A-Z][A-Z0-9_]{0,58}_(?:HOME|DIR)$/;
 const ROLE_CLASSES = Object.freeze(["read", "write"]);
 // Variables a harness may keep to sign in to its own provider. Never a
 // GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
@@ -301,6 +311,34 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
         `${source}: reads must be paths under home written as ~/..., such as ~/.claude.`,
       );
     definition.reads = Object.freeze([...value.reads]);
+  }
+  if (value.home !== undefined) {
+    if (
+      typeof value.home !== "string" ||
+      !HOME_NAME.test(value.home) ||
+      NEVER_KEPT.test(value.home)
+    )
+      fail(
+        `${source}: home must name the harness's own home variable, such as CLAUDE_CONFIG_DIR or CODEX_HOME.`,
+      );
+    definition.home = value.home;
+  }
+  if (value.label !== undefined) {
+    definition.label = argv(value.label, "label", source, { command: false });
+    if (!definition.label.some((item) => item.includes("{lane_header}")))
+      fail(`${source}: label must name {lane_header}.`);
+  }
+  if (value.sessions !== undefined) {
+    if (
+      typeof value.sessions !== "string" ||
+      !/^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$/.test(value.sessions)
+    )
+      fail(
+        `${source}: sessions must be one folder name under the home, such as projects.`,
+      );
+    if (!definition.home)
+      fail(`${source}: sessions needs home, the folder it sits in.`);
+    definition.sessions = value.sessions;
   }
   // What a person runs in the worktree to join the session (R98.1); In
   // flight shows it to copy. Avoozl never runs it.

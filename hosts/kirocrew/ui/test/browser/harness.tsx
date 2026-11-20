@@ -460,7 +460,7 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
   // Home reads these too; an unanswered call never settles.
-  answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [] }))
+  answer('flow.view', () => ({ line: [], stages: [], tasks: [] }))
   answer('radar.releasequeue', () => ({ repositories: [] }))
   answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
 }
@@ -508,7 +508,7 @@ if (query.get('page') === 'app') {
   if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
   if (!replyFor('landing.view')) answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
   // &home=empty: Home's CI read answers with no runs (only Home reads it).
-  if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [], flaky: [], ciOnly: [] }))
+  if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], flaky: [], ciOnly: [] }))
   // &roles=plans|single|local: Repository setup in each github.mode, the
   // planning repository without a checkout in &roles=plans.
   const roles = query.get('roles')
@@ -807,7 +807,6 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
     line: [],
     flaky: [{ id: 'f1', check: 'test (windows)', commit: 'c1', at: ago(300) }],
     ciOnly: [],
-    retros: [],
     stages: [],
     repositories: ['acme/recipe-box', 'acme/docs'],
     epics: [],
@@ -957,7 +956,7 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     openedAt: at,
   })
   let stops = query.get('stopped') ? [open('bad base')] : []
-  answer('flow.view', () => ({ line: stops, stages: [], tasks: [], retros: [] }))
+  answer('flow.view', () => ({ line: stops, stages: [], tasks: [] }))
   answer('flow.stop', (body) => {
     const input = body.input as { reason: string }
     lineWin.__lineCalls.push({ stop: input })
@@ -1351,7 +1350,6 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     line: [],
     flaky: [],
     ciOnly: [],
-    retros: [],
     stages: [],
     repositories: ['acme/recipe-box'],
     epics: [],
@@ -1365,15 +1363,12 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     hash: 'h',
     flow: {},
     repositories: {},
-    instructions: '',
-    retroPrompt: null,
   }))
 }
-// ?page=app&retros=1: Flow with three tasks in two repositories and two
-// specs, whose read follows the repository, spec and stage it is asked for,
-// and Retros with two retros and the proposals they made (the Retros pill
-// and Flow nav filters shots and test).
-if (query.get('page') === 'app' && query.get('retros') === '1') {
+// ?page=app&flowtasks=1: Flow with three tasks in two repositories and two
+// specs, whose read follows the repository, spec and stage it is asked for
+// (the Flow nav filters test).
+if (query.get('page') === 'app' && query.get('flowtasks') === '1') {
   const min = 60000
   const mk = (taskId: string, title: string, repository: string, plan: string, at: string, stages: Record<string, number>) => {
     const leadMs = Object.values(stages).reduce((a, b) => a + b, 0)
@@ -1399,95 +1394,6 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
     mk('search.4', 'Ranking', 'acme/recipe-box', 'search', '16', { queued: 2 * min, coding: 12 * min, 'ci-wait': 40 * min }),
     mk('pantry.1', 'Shelf list', 'acme/pantry', 'pantry', '14', { queued: 6 * min, coding: 20 * min, review: 15 * min }),
   ]
-  const retros = [
-    {
-      id: 'retro-2',
-      n: 2,
-      state: 'done',
-      triggers: [{ kind: 'count', detail: '10 tasks finished' }],
-      startedAt: '2026-11-16T12:00:00Z',
-      finishedAt: '2026-11-16T12:09:00Z',
-      model: 'claude-sonnet',
-      bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' },
-      dropped: [],
-      proposals: [
-        {
-          id: 'p1',
-          type: 'settings',
-          file: 'workspace',
-          key: 'flow.retro.slowFactor',
-          from: 3,
-          to: 5,
-          metric: 'lead time',
-          direction: 'down',
-          evidence: 'Retros fired on 6 normal tasks.',
-          status: 'open',
-        },
-        {
-          id: 'p2',
-          type: 'plan',
-          spec: 'search',
-          change: 'Split search.4 so ranking and its index land apart',
-          metric: 'lead time',
-          direction: 'down',
-          evidence: 'search.4 waited 40 minutes on CI.',
-          status: 'open',
-        },
-      ],
-    },
-    {
-      id: 'retro-4',
-      n: 4,
-      state: 'failed',
-      failure: 'no-reply',
-      waitedMs: 11 * min,
-      error: 'the chat started but never replied (waited 11 minutes)',
-      triggers: [{ kind: 'count', detail: '10 tasks finished' }],
-      startedAt: '2026-11-17T09:00:00Z',
-      finishedAt: '2026-11-17T09:11:00Z',
-      bottleneck: null,
-      dropped: [],
-      proposals: [],
-    },
-    {
-      id: 'retro-3',
-      n: 3,
-      state: 'failed',
-      failure: 'lost',
-      waitedMs: 11 * min,
-      error: 'the chat was lost: Kiro Crew no longer lists it (waited 11 minutes)',
-      triggers: [{ kind: 'manual', detail: 'started by hand' }],
-      startedAt: '2026-11-16T20:00:00Z',
-      finishedAt: '2026-11-16T20:11:00Z',
-      bottleneck: null,
-      dropped: [],
-      proposals: [],
-    },
-    {
-      id: 'retro-1',
-      n: 1,
-      state: 'done',
-      triggers: [{ kind: 'count', detail: '10 tasks finished' }],
-      startedAt: '2026-11-12T12:00:00Z',
-      finishedAt: '2026-11-12T12:08:00Z',
-      bottleneck: null,
-      dropped: [],
-      proposals: [
-        {
-          id: 'p1',
-          type: 'settings',
-          file: 'workspace',
-          key: 'flow.retro.everyTasks',
-          from: 10,
-          to: 5,
-          metric: 'lead time',
-          direction: 'down',
-          evidence: 'Slow tasks went unreviewed for 10 tasks.',
-          status: 'approved',
-        },
-      ],
-    },
-  ].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
   answer('flow.view', (body) => {
     const input = ((body as { input?: Record<string, string> }).input ?? {}) as Record<string, string>
     const tasks = all.filter(
@@ -1514,7 +1420,6 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       line: [],
       flaky: [],
       ciOnly: [],
-      retros,
       stages: ['queued', 'coding', 'tests', 'ci-wait', 'review'],
       repositories: ['acme/pantry', 'acme/recipe-box'],
       epics: [],
@@ -1526,9 +1431,7 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       series: { day: tasks.map(point), week: tasks.map(point) },
     }
   })
-  answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null }))
-  answer('flow.retro.decide', () => ({ ok: true }))
-  answer('flow.retro.again', () => ({ queued: true }))
+  answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {} }))
 }
 // ?page=demo: the whole page on the made-up sample workspace. Its calls
 // answer from window.__DEMO (demo-replies.mjs, built from the sample in
@@ -2405,7 +2308,7 @@ if (page === 'panel') {
   })
   // The line, read by the pause button: ?stopped=1 opens a stop; Resume closes it.
   let panelStops = query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : []
-  answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [], retros: [] }))
+  answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [] }))
   answer(
     'flow.resume',
     (body) => (panelWin.__panelCalls.push({ resume: (body.input as { stopId?: string }).stopId }), (panelStops = []), { stop: { id: 'l1', closedAt: new Date().toISOString() } }),

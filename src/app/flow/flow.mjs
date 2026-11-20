@@ -42,7 +42,6 @@ export const PHASES = Object.freeze(["coding", "tests", "commands", "ci-wait"]);
 export const FLOW_DEFAULTS = Object.freeze({
   stopTheLine: Object.freeze({ scope: "dependents" }),
   localChecksFirst: true,
-  retro: Object.freeze({ everyTasks: 10, slowFactor: 3 }),
   // Verify (§4.26, R86.6, R86.7): protected paths beyond the built-in ones,
   // and each check's timeout.
   verify: Object.freeze({
@@ -55,17 +54,11 @@ export const SCOPES = Object.freeze(["dependents", "repo", "all"]);
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-// The settings Settings > Flow edits, each with how it is checked. The retro
-// instructions are machine-local and never part of this list.
+// The settings Settings > Flow edits, each with how it is checked.
 export const FLOW_KEYS = Object.freeze({
   "stopTheLine.scope": (v) =>
     SCOPES.includes(v) || `one of ${SCOPES.join(", ")}`,
   localChecksFirst: (v) => typeof v === "boolean" || "true or false",
-  "retro.everyTasks": (v) =>
-    (Number.isInteger(v) && v >= 1 && v <= 1000) || "a whole number 1–1000",
-  "retro.slowFactor": (v) =>
-    (typeof v === "number" && Number.isFinite(v) && v >= 1.1 && v <= 20) ||
-    "a number 1.1–20",
   "verify.checkTimeoutSeconds": (v) =>
     (Number.isInteger(v) && v >= 1 && v <= 86400) || "a whole number 1–86400",
 });
@@ -104,16 +97,12 @@ export const FLOW_PATHS = Object.freeze([
 export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
-  const groups = { stopTheLine: 1, retro: 1, verify: 1 };
+  const groups = { stopTheLine: 1, verify: 1 };
   for (const key of Object.keys(value)) {
     if (key === "localChecksFirst") continue;
     if (!(key in groups)) throw Error(`${where}.${key} is not a flow setting.`);
     if (!record(value[key])) throw Error(`${where}.${key} must be an object.`);
     for (const inner of Object.keys(value[key])) {
-      if (key === "retro" && inner === "instructions")
-        throw Error(
-          `${where}.retro.instructions is saved on this machine only; remove it from .avoozl.json and set it in Settings > Flow.`,
-        );
       if (key === "verify" && VERIFY_LISTS.has(inner)) {
         const problem = verifyProblem(inner, value.verify[inner]);
         if (problem)
@@ -985,9 +974,6 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
       day: flowSeries(timings, stops, "day"),
       week: flowSeries(timings, stops, "week"),
     },
-    retros: listOr(store, "flow_retros").sort((a, b) =>
-      a.startedAt < b.startedAt ? 1 : -1,
-    ),
     stages: [...STAGES],
     repositories: [
       ...new Set(data.tasks.map(taskRepository).filter(Boolean)),

@@ -1,5 +1,4 @@
-// The Flow tab (design §8.4, R48): where delivery time goes. Retros are
-// the Retros pill's page (owner note 2026-11-17). Read-only
+// The Flow tab (design §8.4, R48): where delivery time goes. Read-only
 // except Run anyway and Resume on a stopped line. Pull requests and CI runs
 // stay in Issue Radar and GitHub; this tab shows graph and delivery timing only.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
@@ -407,7 +406,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
         Flow
       </ViewHeading>
       <Hint as="p" size="sm">
-        Where delivery time goes. Retros and their proposals are under Retros.
+        Where delivery time goes. The avoozl-retro skill reads the same numbers.
       </Hint>
       {/* The sort and filters sit in the left nav under the open Flow section (nav-slot.tsx). */}
       {choices && <FlowRail filter={filter} onFilter={setFilter} order={order} onOrder={setOrder} choices={choices} />}

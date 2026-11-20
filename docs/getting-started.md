@@ -287,9 +287,9 @@ and `tasks.md`:
 ```
 
 Choose **New spec** on the Specs page. Review the lint results and the graph,
-then choose **Approve revision**. See [workflow v1](github-workflow.md#2-tasks)
-for the task format and order, and
-[Approving in Avoozl](github-workflow.md#approving-in-avoozl) for approvals.
+then choose **Approve revision**. For the task format and the commit that
+approves a spec, see [Tasks](github-workflow.md#2-tasks) and
+[Approval](github-workflow.md#7-approval).
 
 ## Deliver
 

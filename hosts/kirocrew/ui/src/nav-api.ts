@@ -1,13 +1,12 @@
 // The page's top-level views. Kept free of JSX so node can test it directly.
 
-// The nav row: Dashboards, Specs, Needs you, Flow, Retros,
+// The nav row: Dashboards, Specs, Needs you, Flow,
 // Activity, Settings. Dashboards' key is 'dashboard' (its Home).
 export const TABS = [
   { key: 'dashboard', label: 'Dashboards' },
   { key: 'plans', label: 'Specs' },
   { key: 'waiting', label: 'Needs you' },
   { key: 'flow', label: 'Flow' },
-  { key: 'retros', label: 'Retros' },
   { key: 'activity', label: 'Activity' },
   { key: 'settings', label: 'Settings' },
 ] as const

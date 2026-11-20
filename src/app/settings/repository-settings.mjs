@@ -1099,25 +1099,6 @@ export class RepositorySettings {
     return this.readFile();
   }
 
-  // An approved retro proposal for a delivery setting (§4.11): one key,
-  // refused when its value is no longer the proposal's `from`.
-  updateDeliveryKey({ key, from, to, expectedHash } = {}) {
-    const before = this.readFile();
-    if (expectedHash !== before.hash)
-      fail("Avoozl configuration changed; reload before saving.", 409);
-    const value = this.updateValue(before),
-      name = key.replace(/^delivery\./, ""),
-      delivery = record(value.delivery) ? value.delivery : {};
-    if (JSON.stringify(delivery[name]) !== JSON.stringify(from))
-      fail(
-        `${key} is now ${JSON.stringify(delivery[name])}, not ${JSON.stringify(from)}; this proposal is stale.`,
-        409,
-      );
-    value.delivery = { ...delivery, [name]: to };
-    this.write(value, { expectedHash: before.hash });
-    return this.readFile();
-  }
-
   // Settings > Content rules: replace `contentRules.sets`. `options` are the
   // plugin ids a set may name, so a save never leaves a policy the guard
   // reads as invalid (which would block every write).

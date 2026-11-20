@@ -356,6 +356,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       lane: {
         id: "worker-1",
         header: `Avoozl · ${path.basename(root)} · worker 1`,
+        workspace: path.basename(root),
       },
       folder: `Avoozl/${path.basename(root)}`,
       project: false,
@@ -554,11 +555,8 @@ test("a failed attempt retries on the same worktree, up to the bound, then opens
     { target: "slot-3", status: "lost" },
   ];
   const past = await ops.execute("workspace.tick", { sessions });
-  // A third attempt starts a retrospective (R47.1), not another worker.
-  assert.deepEqual(
-    past.dispatch.map((d) => d.role),
-    ["retro"],
-  );
+  // A third attempt opens a decision, not another worker.
+  assert.deepEqual(past.dispatch, []);
   assert.equal(store.get("task_deliveries", "a").state, "decision");
   assert.equal(past.notify.length, 1);
   assert.equal(past.notify[0].channel, "failure");

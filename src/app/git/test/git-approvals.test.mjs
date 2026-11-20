@@ -20,7 +20,6 @@ import {
 } from "../../landing/landing-trailers.mjs";
 import { listSpans, recordSpan } from "../../flow/flow.mjs";
 import { listActivity } from "../../store/activity-log.mjs";
-import { RETRO_DIR } from "../../flow/retro-files.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
@@ -166,9 +165,8 @@ const state = (store) => ({
     .tasks.filter((task) => task.planId)
     .map((task) => [task.id, task.status, task.type ?? null])
     .sort(),
-  // Flow's stage timings and the retros.
+  // Flow's stage timings.
   spans: listSpans(store),
-  retros: store.list("flow_retros").sort((a, b) => a.id.localeCompare(b.id)),
 });
 
 test("Approve commits the spec on main as the person; a rebuilt database has the same state", async (t) => {
@@ -229,19 +227,6 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   r.run(["add", ".kiro"]);
   r.run(["commit", "-q", "-m", message]);
   await first.ops.applyBaseTicks();
-  // A finished retro becomes a committed file, authored as git's own user.
-  first.store.put("flow_retros", {
-    id: "retro-1",
-    state: "done",
-    finishedAt: "2026-11-19T02:00:00.000Z",
-    bottleneck: { stage: "review", repository: null, evidence: "Waits." },
-    proposals: [{ id: "p1", status: "open", type: "config", key: "x" }],
-    dropped: [],
-  });
-  const wrote = await first.ops.writeRetroFiles();
-  assert.deepEqual(wrote.written, ["retro-1"]);
-  assert.equal(r.run(["log", "-1", "--format=%ae", "--", RETRO_DIR]), OWNER);
-  assert.equal(await first.ops.writeRetroFiles(), null, "written once");
   // A non-approver's spec on main is no approval, and Approve refuses it.
   commitSpec(r, "other", { author: OTHER, committer: OWNER });
   await first.ops.execute("plan.create", { spec: "other" });
@@ -273,7 +258,6 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
     rebuilt.landed.map((entry) => entry.task),
     ["feature.1.1"],
   );
-  assert.deepEqual(rebuilt.retros, ["retro-1"]);
   assert.deepEqual(state(second.store), before);
   // A second rebuild over a full database is refused.
   await assert.rejects(

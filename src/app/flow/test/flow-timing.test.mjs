@@ -77,52 +77,46 @@ const report = (ops, slot, input) =>
 
 test("flow settings: defaults, per-repository overrides, and refused keys", () => {
   const policy = flowPolicy({
-    flow: { retro: { everyTasks: 5 } },
+    flow: { verify: { checkTimeoutSeconds: 60 } },
     repositories: {
       app: { root: ".", flow: { stopTheLine: { scope: "repo" } } },
     },
   });
-  assert.equal(policy.workspace.retro.everyTasks, 5);
-  assert.equal(
-    policy.workspace.retro.slowFactor,
-    3,
+  assert.equal(policy.workspace.verify.checkTimeoutSeconds, 60);
+  assert.deepEqual(
+    policy.workspace.verify.protectedPaths,
+    [],
     "a missing key is its default",
   );
-  // Batching has no setting (R108.8).
+  // Batching has no setting (R108.8), and retros run as a skill.
   assert.throws(
     () => flowPolicy({ flow: { batch: { by: "epic", max: 0 } } }),
     /flow\.batch is not a flow setting/,
   );
+  assert.throws(
+    () => flowPolicy({ flow: { retro: { everyTasks: 5 } } }),
+    /flow\.retro is not a flow setting/,
+  );
   assert.equal(policy.workspace.stopTheLine.scope, "dependents");
   assert.equal(policy.for("app").stopTheLine.scope, "repo");
   assert.equal(
-    policy.for("app").retro.everyTasks,
-    5,
+    policy.for("app").verify.checkTimeoutSeconds,
+    60,
     "the workspace value carries over",
   );
-  assert.equal(policy.for("other").retro.everyTasks, 5);
-  // Nearby inputs: an unknown key, a bad value, timing (there is no setting),
-  // and the machine-local instructions in a tracked file.
+  assert.equal(policy.for("other").verify.checkTimeoutSeconds, 60);
+  // Nearby inputs: an unknown key, a bad value, timing (there is no setting).
   assert.throws(
     () => flowPolicy({ flow: { timing: false } }),
     /flow\.timing is not a flow setting/,
   );
   assert.throws(
-    () => flowPolicy({ flow: { retro: { everyTasks: 0 } } }),
-    /flow\.retro\.everyTasks must be a whole number 1–1000/,
+    () => flowPolicy({ flow: { verify: { checkTimeoutSeconds: 0 } } }),
+    /flow\.verify\.checkTimeoutSeconds must be a whole number 1–86400/,
   );
   assert.throws(
     () => flowPolicy({ flow: { stopTheLine: { scope: "off" } } }),
     /dependents, repo, all/,
-  );
-  assert.throws(
-    () =>
-      flowPolicy({
-        repositories: {
-          app: { root: ".", flow: { retro: { instructions: "x" } } },
-        },
-      }),
-    /repositories\.app\.flow\.retro\.instructions is saved on this machine only/,
   );
 });
 

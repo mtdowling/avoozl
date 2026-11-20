@@ -29,7 +29,6 @@ test('headings with buttons pass them as the heading actions', () => {
   const flow = source('FlowView.tsx'),
     charts = source('FlowCharts.tsx')
   assert.match(charts, /<SectionHeading title="Over time" actions=\{<UnitPicker/)
-  assert.match(source('RetrosView.tsx'), /<SectionHeading\s+title="All retros"\s+actions=\{/)
   for (const [file, view] of [
     ['ConflictsView.tsx', 'conflicts'],
     ['PlansView.tsx', 'plans'],
@@ -89,11 +88,6 @@ test('Settings > Flow puts each sub-section in its own titled box', () => {
   const flow = source('FlowSettings.tsx')
   assert.match(flow, /function FlowBox\(\{ children \}[\s\S]*?<Card flex flexCol gap="4" data-flow-box>/)
   const titles = [...flow.matchAll(/<FlowBox>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
-  assert.deepEqual(titles, ['Timing', 'Pause on a broken check', 'Local checks first', 'Retro'])
+  assert.deepEqual(titles, ['Timing', 'Pause on a broken check', 'Local checks first'])
   assert.equal(flow.match(/<FlowBox>/g).length, titles.length)
-  // Retro: when it runs, then the built-in prompt and your instructions.
-  // Its model is under Settings › Models.
-  const retro = flow.slice(flow.indexOf('title="Retro"'))
-  assert.ok(retro.indexOf('title="When it runs"') < retro.indexOf('<PromptInstructions'))
-  assert.equal(retro.includes('avoozl-flow-model'), false)
 })

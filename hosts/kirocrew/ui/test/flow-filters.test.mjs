@@ -1,5 +1,4 @@
-// The Retros pill (one page, each retro with its proposals) and Flow's nav
-// filters, in the real app shell in a real Chrome; the sort and chip
+// Flow's nav filters and Activity's GitHub links, in the real app shell in a real Chrome; the sort and chip
 // logic is checked without one. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -72,15 +71,8 @@ test('Flow keeps its charts and draws its filters as nav rows and chips, with no
   assert.match(source('App.tsx'), /t\.key === 'flow'/)
 })
 
-test('the Retros pill sits after Flow and is one page', () => {
-  const app = source('App.tsx')
-  assert.doesNotMatch(app, /RETROS_PAGES|retrosPage/)
-  assert.match(app, /<RetrosView workspaceId=\{active\} \/>/)
-  assert.doesNotMatch(source('FlowView.tsx'), /Retros\b.*SectionHeading|tab: FlowTab/)
-})
-
 const chrome = findChrome(),
-  skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Retros pill test'
+  skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Flow filters test'
 let harness, browser, page
 before(async () => {
   if (skip) return
@@ -97,31 +89,9 @@ const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringi
 const count = (selector) => page.evaluate(`document.querySelectorAll(${JSON.stringify(selector)}).length`)
 const text = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)})?.textContent ?? null`)
 const open = async () => {
-  await page.open(harness.url({ page: 'app', retros: '1' }), { width: 1280, height: 900, dark: false })
+  await page.open(harness.url({ page: 'app', flowtasks: '1' }), { width: 1280, height: 900, dark: false })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
 }
-
-test('Retros is a nav pill after Flow, one page with each retro and its proposals', { skip }, async () => {
-  await open()
-  const order = await page.evaluate(`[...document.querySelectorAll('[data-left-nav] [data-nav-section]')].map((s) => s.dataset.navSection)`)
-  assert.equal(order.indexOf('retros'), order.indexOf('flow') + 1, order.join())
-  await click('[data-left-nav] [data-nav-item="retros"]')
-  // Retros: newest first, each with its scope, time and model and its proposals.
-  await page.until(`document.querySelectorAll('[data-retro]').length === 4`)
-  assert.equal(await count('[data-nav-children="retros"] [data-nav-item]'), 0)
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-retro]')].map((r) => r.dataset.retro)`), ['retro-4', 'retro-3', 'retro-2', 'retro-1'])
-  const facts = await text('[data-retro="retro-2"] [data-retro-facts]')
-  assert.match(facts, /Scope\s*acme\/recipe-box/)
-  assert.match(facts, /Model\s*claude-sonnet/)
-  assert.match(await text('[data-retro="retro-1"] [data-retro-facts]'), /Model\s*not recorded/)
-  assert.equal(await count('[data-retro="retro-2"] [data-proposal]'), 2)
-  assert.match(await text('[data-retro="retro-2"] [data-proposal="p2"]'), /Split search\.4[\s\S]*Reject[\s\S]*Approve/)
-  assert.match(await text('[data-retro="retro-1"] [data-proposal="p1"]'), /Approved/)
-  // Flow no longer has them.
-  await click('[data-left-nav] [data-nav-group="flow"]')
-  await page.until(`Boolean(document.querySelector('[data-flow-cards]'))`)
-  assert.equal(await count('[data-retro], [data-proposal]'), 0)
-})
 
 test('Flow nav filters change the charts, and By week still works', { skip }, async () => {
   await open()
@@ -161,15 +131,6 @@ test('Flow nav filters change the charts, and By week still works', { skip }, as
   assert.deepEqual(await bars(), ['search.4', 'search.3'])
   await click(`[role="radio"]:not([aria-checked="true"])`)
   assert.equal(await page.evaluate(`document.querySelector('[role="radiogroup"] [aria-checked="true"]').textContent`), 'By week')
-})
-
-test('Retros show why a retro failed and offer Run again', { skip }, async () => {
-  await open()
-  await click('[data-left-nav] [data-nav-item="retros"]')
-  await page.until(`document.querySelectorAll('[data-retro]').length === 4`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-retro="retro-3"] [data-retro-failed]').dataset.retroFailed`), 'lost')
-  assert.match(await text('[data-retro="retro-3"] [data-retro-failed]'), /the chat was lost: Kiro Crew no longer lists it \(waited 11 minutes\)[\s\S]*Run again/)
-  assert.equal(await count('[data-retro="retro-2"] [data-retro-failed]'), 0)
 })
 
 test('Activity links owner/repo#N of a GitHub item to GitHub in a new tab', { skip }, async () => {

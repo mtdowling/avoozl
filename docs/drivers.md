@@ -41,7 +41,7 @@ reassign the spec issue on GitHub. The new assignee's Avoozl drives the spec
 from its next tick, and yours reads only. Unassigning yourself releases the
 spec: nobody drives it until someone is assigned.
 
-Plugin approvals, terms files, retro instructions, crews, and SSH host keys
+Plugin approvals, terms files, crews, and SSH host keys
 stay on each machine, so the new driver sets up its own.
 
 ## When the spec lands

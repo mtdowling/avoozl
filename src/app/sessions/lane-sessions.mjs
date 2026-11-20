@@ -105,6 +105,12 @@ export function laneView(store, policy, workspace) {
     return {
       ...lane,
       state,
+      // Every session this lane ran for its last task, oldest first.
+      taskBindings: binding
+        ? bindings.filter(
+            (b) => b.lane === lane.id && b.taskId === binding.taskId,
+          )
+        : [],
       task: request?.task ?? (state === "busy" ? binding?.taskId : null),
       // The open session a new task reuses; a closed one is never reused.
       slot: binding && !CLOSED.has(binding.status) ? binding.slot : null,
@@ -117,8 +123,9 @@ export function laneView(store, policy, workspace) {
 }
 
 // The lane a start for (task, role) takes: the one its own pending request
-// already holds, else the first free lane of its role, or null when every
-// lane is taken. `taken` holds lane ids this planning pass gave out.
+// already holds, else the free lane its last session ran on (a review round
+// continues there), else the first free lane of its role, or null when
+// every lane is taken. `taken` holds lane ids this planning pass gave out.
 export function pickLane(lanes, { task, role }, taken) {
   const own = lanes.find(
     (lane) =>
@@ -126,8 +133,15 @@ export function pickLane(lanes, { task, role }, taken) {
       lane.request?.role === role &&
       !taken.has(lane.id),
   );
+  const again = lanes.find(
+    (lane) =>
+      lane.state === "free" &&
+      sameWork(lane.binding, { task, role }) &&
+      !taken.has(lane.id),
+  );
   const lane =
     own ??
+    again ??
     lanes.find(
       (lane) =>
         lane.role === laneRole(role) &&
@@ -139,12 +153,40 @@ export function pickLane(lanes, { task, role }, taken) {
   return lane;
 }
 
-// The lane fields a start request carries to its executor.
-export const laneRequest = (lane) => ({
-  id: lane.id,
-  header: lane.header,
-  ...(lane.slot ? { slot: lane.slot } : {}),
-});
+const sameWork = (binding, { task, role }) =>
+  binding?.taskId === task && laneRole(binding.role) === laneRole(role);
+
+// The lane fields a start for (task, role) carries to its executor:
+// `resume` when the lane's last session worked this same task, so a review
+// round continues it; else `keepSince`, the start of the lane's last task,
+// whose sessions a process lane keeps until this one starts (§D22.2).
+export function laneRequest(lane, { task, role } = {}) {
+  const resume = sameWork(lane.binding, { task, role }),
+    since = lane.binding ? firstBound(lane) : null;
+  return {
+    id: lane.id,
+    header: lane.header,
+    workspace: lane.workspace,
+    ...(lane.slot ? { slot: lane.slot } : {}),
+    ...(resume && lane.slot
+      ? {
+          resume: true,
+          ...(lane.binding.harnessSession
+            ? { session: lane.binding.harnessSession }
+            : {}),
+        }
+      : since
+        ? { keepSince: since }
+        : {}),
+  };
+}
+
+// When the lane's last task first bound a session there.
+const firstBound = (lane) =>
+  listBindingsOf(lane)
+    .map((b) => b.boundAt)
+    .sort()[0] ?? null;
+const listBindingsOf = (lane) => lane.taskBindings ?? [lane.binding];
 
 // Pause each lane whose session a person closed (SM20.8), once. A close
 // read before the lane's last Resume does not pause it again. Returns the
