@@ -57,6 +57,7 @@ import {
 import { isDirectLanding, queueDirect } from "../landing/direct-landing.mjs";
 import { integrationBranchOf } from "../epics/integration-branch.mjs";
 import { specBase } from "../specs/spec-base.mjs";
+import { labelHolds } from "../specs/label-filters.mjs";
 import { revisionFiles } from "../specs/spec-plans.mjs";
 import { specFolderPath } from "../specs/specs-path.mjs";
 import {
@@ -1724,7 +1725,9 @@ export function readyCandidates(
     paused = true,
   } = {},
 ) {
-  const line = paused ? linePausedTaskIds(store, data) : new Set();
+  const line = paused ? linePausedTaskIds(store, data) : new Set(),
+    // Specs whose spec issue the label filters hold (simplify §D5).
+    labels = labelHolds(store);
   return queryTasks(data, {
     scope: "all",
     repositories: [...repositories.keys()],
@@ -1733,7 +1736,10 @@ export function readyCandidates(
   })
     .filter(
       (task) =>
-        taskRoute(task) === "local" && !line.has(task.id) && !skip.has(task.id),
+        taskRoute(task) === "local" &&
+        !line.has(task.id) &&
+        !skip.has(task.id) &&
+        !labels.has(task.planId),
     )
     .sort(
       dispatchOrder(

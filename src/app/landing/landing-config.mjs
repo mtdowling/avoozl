@@ -63,6 +63,27 @@ export function applyLandingModes(store, config) {
 const isRecord = (v) =>
   Boolean(v) && typeof v === "object" && !Array.isArray(v);
 
+// The settings loader and the tick copy each repository's `claims` and
+// `labels` (simplify §D3, §D5) from `.avoozl.json` onto its repository row,
+// where the claim and label code reads them; a key the file drops goes.
+// Returns the repositories it changed.
+const RUNNER_KEYS = ["claims", "labels"];
+export function applyRunnerSettings(store, config) {
+  const changed = [];
+  for (const repository of store.list("repositories")) {
+    const entry = config?.repositories?.[repository.id];
+    if (!isRecord(entry)) continue;
+    const next = { ...repository };
+    for (const key of RUNNER_KEYS)
+      if (isRecord(entry[key])) next[key] = structuredClone(entry[key]);
+      else delete next[key];
+    if (JSON.stringify(next) === JSON.stringify(repository)) continue;
+    store.put("repositories", next);
+    changed.push(next);
+  }
+  return changed;
+}
+
 // Checks `landing.unionPaths` and that `machine` is an object. The loader
 // refuses an unknown key under either (layered-config.mjs).
 export function validateLandingConfig(config, files = {}) {

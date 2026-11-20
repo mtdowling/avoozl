@@ -944,6 +944,35 @@
             }
           }
         },
+        "labels": {
+          "description": "Label filters on spec issues: a spec runs on this runner only when its spec issue carries every require label, each added by a writer, and no exclude label.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "require": {
+              "type": "array",
+              "maxItems": 20,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "description": "Labels a spec issue must carry, each added by someone with write access."
+            },
+            "exclude": {
+              "type": "array",
+              "maxItems": 20,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "description": "Labels that keep a spec from starting here. A task already claimed keeps running."
+            }
+          }
+        },
         "planning": {
           "type": "boolean",
           "default": false,

@@ -917,6 +917,13 @@ export class GitHubClient {
     return this.request("GET", `/repos/${owner}/${repo}/issues/${number}`);
   }
 
+  // An issue's events (labeled, closed, ...), oldest first.
+  issueEvents(value, number) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.paginate(`/repos/${owner}/${repo}/issues/${number}/events`);
+  }
+
   listIssueBlockers(value, number) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;

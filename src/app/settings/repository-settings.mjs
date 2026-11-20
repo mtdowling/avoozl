@@ -8,7 +8,11 @@ import { sandboxWriteRoots } from "../executors/harness-definitions.mjs";
 import { sandboxAllowCommands } from "../executors/harness-allow.mjs";
 import { sandboxNetwork } from "../executors/sandbox.mjs";
 import { validateLanes } from "../tick/lanes.mjs";
-import { applyLandingModes, PR_MODES } from "../landing/landing-config.mjs";
+import {
+  applyLandingModes,
+  applyRunnerSettings,
+  PR_MODES,
+} from "../landing/landing-config.mjs";
 import { flowPolicy } from "../flow/flow.mjs";
 import { deliveryPolicy } from "../delivery/delivery.mjs";
 import { createHash, randomUUID } from "node:crypto";
@@ -123,6 +127,35 @@ function claimsOf(value, id) {
   return hours === undefined ? {} : { staleHours: hours };
 }
 
+// `labels.require` and `labels.exclude` (simplify §D5): label names on a
+// spec issue, read by label-filters.mjs.
+export const LABELS_KEYS = Object.freeze(["require", "exclude"]);
+function labelsOf(value, id) {
+  if (
+    !record(value) ||
+    Object.keys(value).some((key) => !LABELS_KEYS.includes(key))
+  )
+    fail(`Repository ${id} labels may set only require and exclude.`);
+  const out = {};
+  for (const key of LABELS_KEYS) {
+    const names = value[key];
+    if (names === undefined) continue;
+    if (
+      !Array.isArray(names) ||
+      names.length > 20 ||
+      new Set(names).size !== names.length ||
+      names.some(
+        (name) => typeof name !== "string" || !name || name.length > 50,
+      )
+    )
+      fail(
+        `Repository ${id} labels.${key} must be up to 20 different label names of 1–50 characters.`,
+      );
+    out[key] = [...names];
+  }
+  return out;
+}
+
 function landingOf(value, id) {
   if (!["direct", "pr", "off"].includes(value))
     fail(`Repository ${id} landing must be direct, pr or off.`);
@@ -143,6 +176,7 @@ export const REPOSITORY_KEYS = Object.freeze([
   "worktreeHelper",
   "landing",
   "claims",
+  "labels",
   "planning",
   "editable",
   "executor",
@@ -220,6 +254,9 @@ function repositoryInput(value, id, base) {
     ...(value.claims === undefined
       ? {}
       : { claims: claimsOf(value.claims, id) }),
+    ...(value.labels === undefined
+      ? {}
+      : { labels: labelsOf(value.labels, id) }),
     planning: Boolean(value.planning),
     editable: value.editable !== false,
     ...executorInput(value, id),
@@ -374,6 +411,9 @@ function appliedActions(store) {
           ...(repository.landing ? { landing: repository.landing } : {}),
           ...(repository.claims
             ? { claims: structuredClone(repository.claims) }
+            : {}),
+          ...(repository.labels
+            ? { labels: structuredClone(repository.labels) }
             : {}),
           planning: Boolean(repository.planning),
           editable: repository.editable !== false,
@@ -712,6 +752,8 @@ export class RepositorySettings {
         restartDesired = withoutKeys(privileged, [...APPLY_KEYS, "intake"]);
       // Each repository's `landing.mode` onto its checkouts (§4.25).
       applyLandingModes(this.store, file.value);
+      // Each repository's claims and label filters onto its row (§D3, §D5).
+      applyRunnerSettings(this.store, file.value);
       if (this.restartBaseline === null)
         this.restartBaseline = structuredClone(restartDesired);
       this.applyRequired = changedTopLevelKeys(applied, desired);

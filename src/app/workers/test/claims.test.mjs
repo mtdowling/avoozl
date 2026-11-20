@@ -12,6 +12,7 @@ import { snapshot } from "../../test/fixtures.mjs";
 import { specCheckout } from "../../test/spec-checkout.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { integrationNeedsYou } from "../../specs/integration-base.mjs";
+import { RepositorySettings } from "../../settings/repository-settings.mjs";
 
 const leaf = (id) => ({
   id,
@@ -280,4 +281,103 @@ test("a conflict holds every claim on the branch and gives one Needs you item", 
   s.github.conflict = false;
   assert.equal((await claim(s.ops)).claimed.base, "parser");
   assert.deepEqual(integrationNeedsYou(s.store), []);
+});
+
+// Label filters (simplify sim-1.6, §D5): the spec issue of spec `parser` is
+// #7 in acme/app; `labels` are on it, each added by `by` (login -> role).
+function labeled(s, labels, roles = { mona: "write" }, by = "mona") {
+  s.store.put("receipts", {
+    id: "github-parent:plan:parser",
+    kind: "github-parent",
+    level: "plan",
+    repository: "acme/app",
+    number: 7,
+  });
+  s.store.put("plans", { id: "parser", spec: "parser", state: "approved" });
+  Object.assign(s.github, {
+    issue: async () => ({
+      number: 7,
+      labels: labels.map((name) => ({ name })),
+    }),
+    issueEvents: async () =>
+      labels.map((name) => ({
+        event: "labeled",
+        label: { name },
+        actor: { login: by },
+      })),
+    permission: async (_repository, login) => ({
+      permission: roles[login] ?? "none",
+    }),
+  });
+}
+const filtered = (s, labels) =>
+  s.store.put("repositories", {
+    ...s.store.get("repositories", "app"),
+    labels,
+  });
+const readyIds = async (s) =>
+  (await s.ops.execute("runner.next", {})).ready.map((item) => item.id);
+
+test("labels.require and labels.exclude load from repository settings onto the repository", async (t) => {
+  const s = setup(t, { tasks: [leaf("a")] }),
+    file = path.join(s.root, ".avoozl.json"),
+    write = (labels) =>
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          version: 1,
+          repositories: { app: { root: ".", labels } },
+        }),
+      ),
+    settings = new RepositorySettings(s.store, { workspaceRoot: s.root });
+  write({ require: ["agent-ok"], exclude: ["needs-design"] });
+  assert.equal(settings.reload().repository.error, null);
+  assert.deepEqual(s.store.get("repositories", "app").labels, {
+    require: ["agent-ok"],
+    exclude: ["needs-design"],
+  });
+  write({ require: "agent-ok" });
+  assert.match(settings.reload().repository.error.message, /labels\.require/);
+});
+
+test("a spec runs only when its spec issue carries every require label, each a writer's, and no exclude label", async (t) => {
+  const s = setup(t, { tasks: [leaf("a")] });
+  filtered(s, { require: ["agent-ok"], exclude: ["needs-design"] });
+  // No spec issue yet: held.
+  assert.deepEqual(await readyIds(s), []);
+  const store = s.store,
+    { readLabelFilters } = await import("../../specs/label-filters.mjs");
+  labeled(s, ["agent-ok"]);
+  await readLabelFilters(store, s.github);
+  assert.deepEqual(await readyIds(s), ["a"]);
+  // An exclude label holds it; so does a require label a non-writer added.
+  labeled(s, ["agent-ok", "needs-design"]);
+  await readLabelFilters(store, s.github);
+  assert.deepEqual(await readyIds(s), []);
+  const waiting = (await s.ops.execute("runner.next", {})).waiting[0];
+  assert.equal(waiting.reason, "label filter: it carries needs-design");
+  labeled(s, ["agent-ok"], { stranger: "read" }, "stranger");
+  await readLabelFilters(store, s.github);
+  assert.equal(
+    (await s.ops.execute("runner.next", {})).waiting[0].reason,
+    "label filter: agent-ok was not added by a writer",
+  );
+});
+
+test("an exclude label added after the claim does not unclaim the task", async (t) => {
+  const s = setup(t, { tasks: [leaf("a"), leaf("b")] });
+  filtered(s, { require: [], exclude: ["needs-design"] });
+  labeled(s, []);
+  assert.equal((await claim(s.ops)).claimed.id, "a");
+  labeled(s, ["needs-design"]);
+  const { readLabelFilters } = await import("../../specs/label-filters.mjs");
+  await readLabelFilters(s.store, s.github);
+  const next = await s.ops.execute("runner.next", {});
+  assert.deepEqual(
+    next.running.map((item) => item.id),
+    ["a"],
+    "the claimed task keeps running",
+  );
+  assert.deepEqual(next.ready, [], "b is held by the label");
+  assert.ok(s.github.refs.has("avoozl/parser/a"), "its claim branch stays");
 });

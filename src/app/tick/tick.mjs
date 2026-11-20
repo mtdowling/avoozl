@@ -71,6 +71,7 @@ import { planningIdentity } from "../github/github-marker.mjs";
 import { respondStep } from "../github/github-respond.mjs";
 import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { claimsDue, refreshClaims } from "../workers/claims.mjs";
+import { readLabelFilters } from "../specs/label-filters.mjs";
 import { reviewDispatches } from "../reviews/pr-review.mjs";
 import { investigationStep } from "../delivery/investigate.mjs";
 import {
@@ -108,6 +109,7 @@ import { landDirect } from "../landing/direct-landing.mjs";
 import { retryLanded } from "../landing/landed-work.mjs";
 import {
   applyLandingModes,
+  applyRunnerSettings,
   landingSettings,
 } from "../landing/landing-config.mjs";
 
@@ -600,7 +602,10 @@ async function runTick(
           : null;
       // Each repository's `landing.mode` onto its checkouts' repository rows,
       // which the landing code reads (§4.25).
-      if (memory.value) applyLandingModes(store, memory.value);
+      if (memory.value) {
+        applyLandingModes(store, memory.value);
+        applyRunnerSettings(store, memory.value);
+      }
       const planned = { messages: [], notify: [] };
       if (delivery) {
         // Verdicts first, so a rejection is retried or decided below.
@@ -774,6 +779,18 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: `Avoozl could not read the claim branches of ${failed.repository}`,
+            text: failed.error,
+          });
+      // The label filters on spec issues, once per pass (simplify §D5).
+      if (script && github)
+        for (const failed of await under(
+          "tick",
+          "check-in",
+          readLabelFilters,
+        )(store, github))
+          planned.notify.push({
+            channel: "failure",
+            title: `Avoozl could not read the spec issue labels in ${failed.repository}`,
             text: failed.error,
           });
       // Closed intake items no task holds go after 30 days.

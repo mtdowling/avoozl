@@ -48,6 +48,7 @@ import {
   REPOSITORY_KEYS,
   SANDBOX_KEYS,
   CLAIMS_KEYS,
+  LABELS_KEYS,
 } from "../repository-settings.mjs";
 import { CHECK_KEYS } from "../../workspace/repository-checks.mjs";
 import { ISOLATION_KEYS } from "../../workspace/check-isolation.mjs";
@@ -112,6 +113,7 @@ const PAIRS = [
   ["#/$defs/repository", REPOSITORY_KEYS],
   ["#/$defs/repository/properties/sandbox", SANDBOX_KEYS],
   ["#/$defs/repository/properties/claims", CLAIMS_KEYS],
+  ["#/$defs/repository/properties/labels", LABELS_KEYS],
   ["#/$defs/repository/properties/isolation", ISOLATION_KEYS],
   [
     "#/$defs/repository/properties/checks/oneOf/0/additionalProperties/oneOf/1",

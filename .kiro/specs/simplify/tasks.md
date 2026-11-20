@@ -40,7 +40,7 @@ merge, shown in chat and never committed.
   - After landing in any mode, Avoozl deletes the claim branch it created, and a test checks the tick is in the work commit or in a commit on the claim branch before the checks
 - [x] `sim-1.5` `avoozl land` and `plans_land` [SM7.1, SM7.3] (§D7)
   - `avoozl land TASK` and `plans_land` run one operation that lands a reported task by its repository's mode, and refuse a task the caller did not claim
-- [ ] `sim-1.6` Label filters [SM5.1, SM5.3] (§D5)
+- [x] `sim-1.6` Label filters [SM5.1, SM5.3] (§D5)
   - Tests: `labels.require` and `labels.exclude` load from repository settings; a spec runs only when its spec issue carries every require label and no exclude label; a require label added by a non-writer does not count; an exclude label added later does not unclaim a claimed task
 - [ ] `sim-1.7` Labeled issues as one-task specs [SM5.2, SM5.4] (§D5)
   - Tests: an open issue with a writer's require label and no spec becomes task `issue-<n>` with the issue's title, and its body as its one done bullet, claims `avoozl/issue-<n>/issue-<n>` and lands like any task; `pr` mode writes `Closes #<n>`; `direct` mode closes the issue with a comment naming the landed commit

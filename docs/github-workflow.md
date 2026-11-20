@@ -713,8 +713,8 @@ Avoozl does not follow every rule yet. Each item below is not built:
   with `claim` claim through the refs API and take lease generation 1, but
   Avoozl does not renew a lease or read the leases before a push, and the tick
   still starts a task on its own branch `avoozl/<task>` with no claim branch.
-- Label filters (16.1), label names set in settings (16.2), labeled issues
-  (17) and the stop label (18).
+- The stop label's name in settings (16.2), labeled issues (17) and the stop
+  label (18).
 
 The kit marks each probe Avoozl fails with the task that fixes it. Approval
 (7) reads the revision hash, which sets every checkbox to open, so a tick never
@@ -773,6 +773,33 @@ repository setting, 24 by default:
 The tick reads the claim branches every 15 minutes and deletes none. **Delete
 branch** on the row, or `avoozl claim delete REPOSITORY BRANCH`, deletes the
 branch on origin after the high-risk confirm, and the task is ready again.
+
+### Label filters
+
+A repository's `labels.require` and `labels.exclude` narrow which specs this
+workspace runs (16.1):
+
+```json
+{
+  "repositories": {
+    "app": {
+      "labels": {
+        "require": [
+          "agent-ok"
+        ],
+        "exclude": [
+          "needs-design"
+        ]
+      }
+    }
+  }
+}
+```
+
+Each pass reads the spec issue's labels and, for each `require` label, who
+added it last. A label counts only when that person has write, maintain or
+admin access. A spec held by its labels shows in `avoozl next` as waiting,
+with the reason. A task already claimed keeps running.
 
 ### Refs
 

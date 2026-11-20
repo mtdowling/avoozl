@@ -34,6 +34,7 @@ import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { scheduleHolds } from "../specs/spec-scheduler.mjs";
 import { isArchivedTask } from "../../browse-model.mjs";
 import { statusComplete } from "../../query.mjs";
+import { labelHolds, readLabelFilters } from "../specs/label-filters.mjs";
 import {
   completionReached,
   isManual,
@@ -82,6 +83,7 @@ export function nextView(store, { policy, github = null }) {
     newest = newestWorkers(bindings),
     claimed = busyTaskIds(store, bindings),
     branches = claimedTaskIds(store),
+    labels = labelHolds(store),
     deliveries = new Map(
       store.list("task_deliveries").map((d) => [d.taskId, d]),
     ),
@@ -217,11 +219,13 @@ export function nextView(store, { policy, github = null }) {
               ? task.status
               : schedule.held.has(task.id)
                 ? schedule.held.get(task.id)
-                : task.planArchived
-                  ? "plan archived"
-                  : !taskRepository(task)
-                    ? "no repository"
-                    : "capacity",
+                : labels.has(task.planId)
+                  ? labels.get(task.planId)
+                  : task.planArchived
+                    ? "plan archived"
+                    : !taskRepository(task)
+                      ? "no repository"
+                      : "capacity",
           }),
     });
   }
@@ -237,7 +241,10 @@ export async function claimNext(
   store,
   { policy, github = null, client, workspaceRoot, linked = null },
 ) {
-  const errors = await refreshClaims(store, client),
+  const errors = [
+      ...(await refreshClaims(store, client)),
+      ...(await readLabelFilters(store, client)),
+    ],
     view = nextView(store, { policy, github }),
     ready = new Set(view.ready.map((item) => item.id)),
     repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
