@@ -10,6 +10,7 @@ import {
   taskRepository,
   taskRoute,
 } from "../../work-model.mjs";
+import { specTasks } from "./spec-tasks.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const KINDS = ["requires", "sequence", "supports"];
@@ -37,7 +38,7 @@ export function draftGraph(data, folders = [], plans = []) {
     }
     if (parsed.kind !== "plan" || !parsed.proposals.length) continue;
     const marks = new Map(
-        specItems(name, spec.files?.["tasks.md"] ?? "").map((item) => [
+        specItems(name, specTasks(spec.files)?.text ?? "").map((item) => [
           item.line,
           item.mark,
         ]),

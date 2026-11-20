@@ -1,14 +1,16 @@
 // Kiro spec folders as Avoozl plans (Requirement 30, design §6.8).
 //
 //   <planning root>/<specs.path>/<name>/   (specs-path.mjs, .kiro/specs)
-//     tasks.md               the one required file; each task's facts are
+//     tasks.md               the task list; each task's facts are
 //                            `$key:` bullets (spec-facts.mjs, Requirement 111)
 //     requirements.md or bugfix.md, design.md
 //                            optional Kiro prose that refs point into
-//     <other>.md             optional spec text
+//     <other>.md             optional spec text; with no tasks.md, the one
+//                            file whose `## Tasks` section is the task list
+//                            (spec-tasks.mjs)
 //     avoozl/critique.md     planner critique, outside the revision hash
 //
-// The reader turns tasks.md and its fact bullets into the proposals lintPlan and
+// The reader turns the task list and its fact bullets into the proposals lintPlan and
 // approvePlan already check. Validation is deterministic: the same files give
 // the same diagnostics, each with its file and line.
 import fs from "node:fs";
@@ -30,6 +32,15 @@ import {
 } from "./spec-facts.mjs";
 import { frontMatter, withoutFrontMatter } from "../../front-matter.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
+import {
+  SPEC_TEXT,
+  TASKS_FILE,
+  addTaskLines,
+  specTasks,
+  taskFile,
+  taskFiles,
+  tasksSection,
+} from "./spec-tasks.mjs";
 import { integrationOf } from "../epics/integration-branch.mjs";
 import {
   linkDefinitions,
@@ -74,7 +85,6 @@ export const KIRO_FILES = [
   "design.md",
   "tasks.md",
 ];
-const SPEC_TEXT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\.md$/;
 // At most this many spec files in one folder.
 export const MAX_SPEC_FILES = 50;
 
@@ -146,27 +156,47 @@ export function withoutStatus(text) {
 // `factsText` writes them. Layout is outside it, content is inside it
 // (Requirement 111.6).
 export function specHash(files) {
+  const tasks = specTasks(files);
   return digest(
     [
       ...revisionFiles(files).map((file) => {
         const raw = files[file],
           text = withoutStatus(
-            file === "tasks.md"
+            file === TASKS_FILE
               ? withoutMarks(withoutFacts(raw, specItems("x", raw)))
-              : raw,
+              : file === tasks?.file
+                ? sectionHashText(raw, tasks.text)
+                : raw,
           );
         return `${file}\0${text}\0`;
       }),
-      ...(files["tasks.md"] === undefined
+      ...(tasks === null
         ? []
         : [
             `${MANIFEST}\0${factsText(
-              readFacts(files["tasks.md"], specItems("x", files["tasks.md"]))
-                .manifest,
+              readFacts(tasks.text, specItems("x", tasks.text)).manifest,
             )}\0`,
           ]),
     ].join(""),
   );
+}
+
+// A single-file spec's text as the hash reads it: the whole file, with the
+// task list's checkbox marks open and its facts and front-matter left out.
+// `text` is its task text (spec-tasks.mjs), line for line.
+function sectionHashText(raw, text) {
+  const open = withoutMarks(text).split("\n"),
+    shown = text.split("\n"),
+    { skip } = readFacts(text, specItems("x", text));
+  return raw
+    .split("\n")
+    .map((row, index) =>
+      open[index] === shown[index]
+        ? row
+        : row.replace(/^(\s*[-*+] \[)[xX~-]\]/, "$1 ]"),
+    )
+    .filter((_, index) => !skip.has(index + 1))
+    .join("\n");
 }
 
 // Where a mode keeps its spec folders (Requirement 30.3): the planning
@@ -262,7 +292,7 @@ export function readSpecFolder(root, name) {
     files,
     // Not read and not hashed: lint says to delete it.
     ...(read(MANIFEST) !== undefined ? { leftover: true } : {}),
-    ...(hasFactsBlocks(files["tasks.md"]) ? { factsBlocks: true } : {}),
+    ...(hasFactsBlocks(specTasks(files)?.text) ? { factsBlocks: true } : {}),
     hash: specHash(files),
     critique: read(CRITIQUE) ?? null,
   };
@@ -488,10 +518,28 @@ export function parseSpec({
         }),
       );
   }
-  // tasks.md is the one required file; the prose files are optional.
-  if (files["tasks.md"] === undefined)
+  // The task list is in tasks.md or one file's `## Tasks` section
+  // (spec-tasks.mjs); the prose files are optional.
+  const holders = taskFiles(files),
+    tasksFile = taskFile(files),
+    tasksText = specTasks(files)?.text ?? "";
+  if (!holders.length)
     diagnostics.push(
-      diagnostic("spec.missing-file", "tasks.md", 1, `Add ${folder}tasks.md.`),
+      diagnostic(
+        "spec.missing-file",
+        TASKS_FILE,
+        1,
+        `Add ${folder}tasks.md, or a ## Tasks section to the spec's one file.`,
+      ),
+    );
+  if (holders.length > 1)
+    diagnostics.push(
+      diagnostic(
+        "spec.tasks-twice",
+        holders[1],
+        tasksSection(files[holders[1]]).start,
+        `${holders.join(" and ")} both hold a task list. Keep the tasks in one file: tasks.md, or one file's ## Tasks section.`,
+      ),
     );
   // The manifest is gone (Requirement 111.1): a leftover file is an error
   // and nothing reads it.
@@ -509,13 +557,13 @@ export function parseSpec({
     diagnostics.push(
       diagnostic(
         "facts.block",
-        "tasks.md",
+        tasksFile,
         1,
         "Write each task fact as a `$key: value` bullet directly under its task, in place of its Facts: bullet.",
       ),
     );
 
-  const items = specItems(name, files["tasks.md"] || ""),
+  const items = specItems(name, tasksText),
     byKey = new Map();
   for (const item of items) {
     if (!item.key) {
@@ -525,7 +573,7 @@ export function parseSpec({
       diagnostics.push(
         diagnostic(
           ticked ? "task.ticked-unknown-id" : "task.missing-id",
-          "tasks.md",
+          tasksFile,
           item.line,
           ticked
             ? `This item is ticked [x] but has no task ID, so it completes no task. Start it with a task ID, such as "- [x] 1.2 ${item.title.slice(0, 60)}".`
@@ -539,9 +587,9 @@ export function parseSpec({
       diagnostics.push(
         diagnostic(
           "task.duplicate-id",
-          "tasks.md",
+          tasksFile,
           item.line,
-          `Task ID "${item.key}" is already used at tasks.md line ${first.line}.`,
+          `Task ID "${item.key}" is already used at ${tasksFile} line ${first.line}.`,
           { taskId: item.id },
         ),
       );
@@ -550,7 +598,7 @@ export function parseSpec({
     item.resolvedRefs = resolved.refs;
     for (const found of resolved.problems)
       diagnostics.push(
-        diagnostic(found.code, "tasks.md", item.line, found.message, {
+        diagnostic(found.code, tasksFile, item.line, found.message, {
           taskId: item.id,
           ref: found.ref,
         }),
@@ -559,7 +607,7 @@ export function parseSpec({
       diagnostics.push(
         diagnostic(
           "task.schema",
-          "tasks.md",
+          tasksFile,
           item.line,
           `Give task "${item.key}" a title.`,
           {
@@ -570,16 +618,16 @@ export function parseSpec({
   }
 
   // A title's link to another spec makes its task a spec group (§D19.2).
-  const definitions = linkDefinitions(files["tasks.md"] || ""),
-    taskLines = (files["tasks.md"] || "").split("\n");
+  const definitions = linkDefinitions(tasksText),
+    taskLines = tasksText.split("\n");
   for (const item of items)
     if (item.key) item.spec = specGroupOf(name, item, definitions, taskLines);
-  const facts = readFacts(files["tasks.md"] || "", items),
-    bullets = itemBullets(files["tasks.md"] || "", items),
+  const facts = readFacts(tasksText, items),
+    bullets = itemBullets(tasksText, items),
     manifest = facts.manifest,
     entries = manifest.tasks,
     problem = (code, line, message, extra) =>
-      diagnostics.push(diagnostic(code, "tasks.md", line, message, extra));
+      diagnostics.push(diagnostic(code, tasksFile, line, message, extra));
   for (const found of facts.problems)
     problem(found.code, found.line, found.message);
   // An integration branch (RC16.1); a spec without it is as before.
@@ -617,7 +665,7 @@ export function parseSpec({
         diagnostics.push(
           diagnostic(
             "facts.missing",
-            "tasks.md",
+            tasksFile,
             item.line,
             `Item "${item.key}" has no facts. Name its member plan in "$plan:".`,
             { taskId: item.id },
@@ -633,7 +681,7 @@ export function parseSpec({
         diagnostics.push(
           diagnostic(
             "spec.epic-task-fields",
-            "tasks.md",
+            tasksFile,
             line,
             `Epic entry "${item.key}" holds ${extra.map((key) => `"${factName(key)}"`).join(", ")}. An epic entry holds only "plan" and "step".`,
             { entry: item.key },
@@ -643,7 +691,7 @@ export function parseSpec({
         diagnostics.push(
           diagnostic(
             "facts.schema",
-            "tasks.md",
+            tasksFile,
             line,
             `Epic entry "${item.key}" needs "plan": the member plan's spec folder name.`,
             { entry: item.key },
@@ -656,7 +704,7 @@ export function parseSpec({
         diagnostics.push(
           diagnostic(
             "facts.schema",
-            "tasks.md",
+            tasksFile,
             line,
             `Epic entry "${item.key}": step must be ${EPIC_STEPS.join(", ")}.`,
             { entry: item.key },
@@ -670,7 +718,7 @@ export function parseSpec({
         diagnostics.push(
           diagnostic(
             "spec.epic-member-twice",
-            "tasks.md",
+            tasksFile,
             line,
             `Epic entry "${item.key}" names plan ${entry.plan} for step ${step}, which entry "${named.get(pair)}" already names. Keep one.`,
             { entry: item.key },
@@ -692,7 +740,7 @@ export function parseSpec({
     }
     return { type, kind: "epic", items, diagnostics, proposals, members };
   }
-  const headings = headingPhases(files["tasks.md"] || "");
+  const headings = headingPhases(tasksText);
   // A bugfix spec's unchanged behavior is acceptance on every fix leaf
   // (design §6.8), so a regression fails the leaf, not only Kiro's tests.
   const unchanged =
@@ -718,7 +766,7 @@ export function parseSpec({
           diagnostics.push(
             diagnostic(
               "facts.missing",
-              "tasks.md",
+              tasksFile,
               item.line,
               `Task "${item.key}" has no results. Add a "$done:" bullet under it for each result.`,
               { taskId: item.id },
@@ -744,7 +792,7 @@ export function parseSpec({
         diagnostics.push(
           diagnostic(
             "task.title-length",
-            "tasks.md",
+            tasksFile,
             item.line,
             `Task "${item.key}" has a title of ${item.title.length} characters; the limit is ${TITLE_LIMIT}. Shorten it and move the rest into a bullet under the item.`,
             { taskId: item.id },
@@ -771,7 +819,7 @@ export function parseSpec({
       diagnostics.push(
         diagnostic(
           "facts.schema",
-          "tasks.md",
+          tasksFile,
           line,
           `Task "${item.key}": ${error.message}`,
           { taskId: item.id },
@@ -784,14 +832,14 @@ export function parseSpec({
   // is read by them, until every spec is rewritten (sim-2.2).
   if (!proposals.some((proposal) => proposal.requires?.length)) {
     const waits = new Map();
-    for (const { from, to } of waitsOf(name, files["tasks.md"] || "", linked))
+    for (const { from, to } of waitsOf(name, tasksText, linked))
       waits.set(to, [...(waits.get(to) ?? []), from]);
     for (const proposal of proposals)
       if (waits.has(proposal.id)) proposal.requires = waits.get(proposal.id);
   }
   diagnostics.push(
     ...[...orderProblems(items), ...linkProblems(items, linked)].map((found) =>
-      diagnostic(found.code, "tasks.md", found.line, found.message, {
+      diagnostic(found.code, tasksFile, found.line, found.message, {
         taskId: found.taskId,
       }),
     ),
@@ -816,11 +864,12 @@ export function lintSpec({
 }) {
   const data = { tasks: [], ...given },
     parsed = parseSpec(spec),
+    tasksFile = taskFile(spec.files),
     graph =
       parsed.kind === "epic"
         ? { diagnostics: [] }
         : lintPlan({
-            text: spec.files["tasks.md"] || "",
+            text: specTasks(spec.files)?.text ?? "",
             plan,
             data,
             proposals: parsed.proposals,
@@ -828,7 +877,7 @@ export function lintSpec({
           }),
     diagnostics = [
       ...parsed.diagnostics,
-      ...graph.diagnostics.map((item) => ({ file: "tasks.md", ...item })),
+      ...graph.diagnostics.map((item) => ({ file: tasksFile, ...item })),
       ...(namespace ? epicDiagnostics(spec, parsed, namespace) : []),
     ];
   // An ID is unique across the workspace, not only inside one tasks.md.
@@ -841,14 +890,14 @@ export function lintSpec({
       diagnostics.push(
         diagnostic(
           "task.duplicate-id",
-          "tasks.md",
+          tasksFile,
           proposal.lineStart,
           `Task ID "${proposal.id}" is already used by plan ${owner.planId}.`,
           { taskId: proposal.id },
         ),
       );
   }
-  const approvedTasks = approved?.files?.["tasks.md"];
+  const approvedTasks = approved?.files && specTasks(approved.files)?.text;
   if (approvedTasks !== undefined) {
     const before = new Map(
         specItems(spec.name, approvedTasks)
@@ -868,7 +917,7 @@ export function lintSpec({
         diagnostics.push(
           diagnostic(
             "task.changed-text",
-            "tasks.md",
+            tasksFile,
             item.line,
             `Task "${item.key}" was approved as "${title}" and now reads "${item.title}". Give new work a new ID, or approve the new text by naming "${item.key}" in retitled.`,
             { taskId: item.id },
@@ -906,14 +955,14 @@ export function lintSpec({
 // The facts of a folder's tasks.md, keyed as the manifest was: {tasks,
 // integrationBranch, ...}. Diagnostics are lintSpec's.
 export function specFacts(files = {}) {
-  const text = files["tasks.md"] ?? "";
+  const text = specTasks(files)?.text ?? "";
   return readFacts(text, specItems("x", text)).manifest;
 }
 
 // Whether a folder's tasks.md front-matter says `kind: epic` (Requirement
 // 59.1, 111.4).
 export function isEpicFolder(files = {}) {
-  const text = files["tasks.md"];
+  const text = specTasks(files)?.text;
   return typeof text === "string" && readFacts(text, []).isEpic;
 }
 
@@ -955,7 +1004,8 @@ function epicDiagnostics(spec, parsed, namespace) {
         return null;
       }
     },
-    out = [];
+    out = [],
+    tasksFile = taskFile(spec.files);
   if (parsed.kind === "epic") {
     for (const member of parsed.members) {
       const folder = member.plan === spec.name ? spec : read(member.plan);
@@ -963,7 +1013,7 @@ function epicDiagnostics(spec, parsed, namespace) {
         out.push(
           diagnostic(
             "spec.epic-member-missing",
-            "tasks.md",
+            tasksFile,
             member.line,
             `Epic entry "${member.key}" names plan ${member.plan}, which has no spec folder ${(spec.folder ?? specFolderPath(null, spec.name)).replace(/[^/]+\/$/, "")}${member.plan}/. Create it or remove the entry.`,
             { entry: member.key },
@@ -973,7 +1023,7 @@ function epicDiagnostics(spec, parsed, namespace) {
         out.push(
           diagnostic(
             "spec.epic-nested",
-            "tasks.md",
+            tasksFile,
             member.line,
             `Epic entry "${member.key}" names ${member.plan}, which is an epic. An epic lists plans only.`,
             { entry: member.key },
@@ -984,7 +1034,7 @@ function epicDiagnostics(spec, parsed, namespace) {
         out.push(
           diagnostic(
             "spec.epic-member-unconfirmed",
-            "tasks.md",
+            tasksFile,
             member.line,
             named
               ? `Epic entry "${member.key}" lists plan ${member.plan}, whose front-matter names epic ${named}. Change its "epic:" to ${spec.name}, or remove the entry.`
@@ -1069,7 +1119,7 @@ export function specTitle(spec) {
   const prose =
     spec.files["requirements.md"] ??
     spec.files["bugfix.md"] ??
-    spec.files["tasks.md"] ??
+    spec.files[taskFile(spec.files)] ??
     "";
   return (
     withoutFrontMatter(prose)
@@ -1106,7 +1156,7 @@ export function createSpecPlan(store, { id, prompt, context = {} }, spec) {
         spec: spec.name,
         title: specTitle(spec),
         prompt: prompt?.trim() || `Spec ${spec.name}`,
-        text: spec.files["tasks.md"] || "",
+        text: specTasks(spec.files)?.text ?? "",
         files: spec.files,
         hash: spec.hash,
         revision: 1,
@@ -1135,7 +1185,7 @@ export function saveSpecPlan(store, { id, expectedHash }, spec) {
     return writeRevision(
       store,
       plan,
-      spec.files["tasks.md"] || "",
+      specTasks(spec.files)?.text ?? "",
       "Review amended spec: ",
       {
         hash: spec.hash,
@@ -1190,7 +1240,7 @@ export function linkSpecPlan(store, { id, expectedHash }, spec) {
       );
       if (!proposal)
         fail(
-          `Task ${taskId} is missing from ${spec.name}/tasks.md. Add it or retire it before linking.`,
+          `Task ${taskId} is missing from ${spec.name}/${taskFile(spec.files)}. Add it or retire it before linking.`,
           409,
         );
       mapping[proposal.id] = taskId;
@@ -1200,7 +1250,7 @@ export function linkSpecPlan(store, { id, expectedHash }, spec) {
     return writeRevision(
       store,
       plan,
-      spec.files["tasks.md"] || "",
+      specTasks(spec.files)?.text ?? "",
       "Review amended spec: ",
       { hash: spec.hash, files: spec.files, title: specTitle(spec) },
     );
@@ -1245,9 +1295,12 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
         "The spec folder changed on disk. Reload it before proposing work.",
         409,
       );
-    const tasks = spec.files["tasks.md"];
-    if (tasks === undefined) fail("Add tasks.md before proposing work.", 409);
-    if (specItems(plan.spec, tasks).some((item) => item.key === key))
+    const found = specTasks(spec.files);
+    if (!found)
+      fail("Add tasks.md or a ## Tasks section before proposing work.", 409);
+    const { file } = found,
+      tasks = spec.files[file];
+    if (specItems(plan.spec, found.text).some((item) => item.key === key))
       fail("Repeated local task ID " + key);
     const directory = path.join(specsDirectory(spec.root), plan.spec),
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
@@ -1258,17 +1311,19 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
       fail(error.message);
     }
     writeAtomically(
-      path.join(directory, "tasks.md"),
-      tasks +
-        (tasks && !tasks.endsWith("\n") ? eol : "") +
-        `- [ ] ${taskToken(key)} ${title}${eol}` +
-        facts.map((line) => line + eol).join(""),
+      path.join(directory, file),
+      addTaskLines(
+        file,
+        tasks,
+        [`- [ ] ${taskToken(key)} ${title}`, ...facts],
+        eol,
+      ),
     );
     const next = read(plan.spec),
       written = writeRevision(
         store,
         plan,
-        next.files["tasks.md"],
+        specTasks(next.files)?.text ?? "",
         "Review proposed work: ",
         {
           hash: next.hash,
@@ -1279,7 +1334,8 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
     return {
       ...written,
       proposalId: key,
-      proposalCount: specItems(plan.spec, next.files["tasks.md"]).length,
+      proposalCount: specItems(plan.spec, specTasks(next.files)?.text ?? "")
+        .length,
       approved: false,
       policy:
         "Proposed work is not executable. This spec no longer matches its approval receipt and its tasks need review; an authorized plan.approve converts this proposal alongside the existing ones.",

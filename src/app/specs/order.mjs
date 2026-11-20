@@ -5,6 +5,7 @@
 // read the waits from here.
 import path from "node:path";
 import { headingPhases, specItems } from "./spec-plans.mjs";
+import { LINK_DEFINITION, SPEC_TEXT } from "./spec-tasks.mjs";
 
 export const PARALLEL_TAG = "(**PARALLEL**)";
 const TAGGED = /\(\*\*PARALLEL\*\*\)$/;
@@ -12,11 +13,11 @@ const TAGGED = /\(\*\*PARALLEL\*\*\)$/;
 export const isParallel = (title) => TAGGED.test(String(title ?? "").trim());
 
 // Linked specs (§D19.2): a task title's Markdown link, inline or
-// reference-style, to another spec folder's tasks.md makes the task a spec
+// reference-style, to another spec folder's task file makes the task a spec
 // group. `definitions` are the file's `[label]: target` lines.
 const INLINE = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const REFERENCE = /\[([^\]]+)\](?![(:])/g;
-const DEFINITION = /^ {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?/;
+const DEFINITION = LINK_DEFINITION;
 
 export function linkDefinitions(text) {
   const definitions = new Map();
@@ -27,14 +28,24 @@ export function linkDefinitions(text) {
   return definitions;
 }
 
-// The spec a link target names, from the tasks.md of spec `name`, or null.
+// The spec a link target names, from the task file of spec `name`, or null.
+// The target is the spec's tasks.md or its single file (spec-tasks.mjs).
+// shortcut: any Markdown file but Kiro's prose files counts as the single
+// file, since the linked folder is not read here; read it if a spec links
+// another spec's notes.
 function specOfTarget(name, target) {
   const file = target.split("#")[0];
   if (!file || /^[a-z][a-z0-9+.-]*:/i.test(file)) return null;
   const at = path.posix.normalize(path.posix.join("S", name, file)),
-    match = /^S\/([^/]+)\/tasks\.md$/.exec(at);
-  return match && match[1] !== name ? match[1] : null;
+    match = /^S\/([^/]+)\/([^/]+\.md)$/.exec(at);
+  return match &&
+    match[1] !== name &&
+    SPEC_TEXT.test(match[2]) &&
+    !PROSE.has(match[2])
+    ? match[1]
+    : null;
 }
+const PROSE = new Set(["requirements.md", "bugfix.md", "design.md"]);
 
 // The spec a task title links as a spec group, or null.
 export function linkedSpecOf(name, title, definitions) {

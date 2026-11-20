@@ -156,6 +156,7 @@ import { syncWorkspaceRepository } from "../workspace/workspace-repository.mjs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { specTasks, taskFile } from "../specs/spec-tasks.mjs";
 
 // Who an operation's GitHub posts are for (github-posted.mjs), or null when
 // the context does not say and an enclosing operation's actor holds. An
@@ -447,6 +448,7 @@ export class Operations {
         const branch = specsBranch(this.store, this.workspaceRoot, spec.root),
           read = await baseTasks(spec.root, branch, plan.spec, {
             fetched: this.ticksFetched,
+            files: plan.files,
           });
         if (!read?.text) continue;
         const seen = `${read.head}:${plan.approvalId}`;
@@ -455,7 +457,8 @@ export class Operations {
           ...read,
           branch,
           land,
-          commits: () => tickCommits(spec.root, read.head, plan.spec),
+          commits: () =>
+            tickCommits(spec.root, read.head, plan.spec, plan.files),
         });
         this.ticksSeen.set(plan.id, seen);
       } catch {
@@ -511,7 +514,7 @@ export class Operations {
       linked = linkedReader(
         homes.map(({ spec }) => ({
           name: spec.name,
-          text: spec.files?.["tasks.md"] ?? "",
+          text: specTasks(spec.files ?? {})?.text ?? "",
         })),
       );
     return {
@@ -1206,7 +1209,13 @@ export class Operations {
     for (const file of revisionFiles(spec.files))
       if (typeof spec.files[file] === "string")
         documents[file] = spec.files[file];
-    return { name: spec.name, folder: spec.folder, hash: spec.hash, documents };
+    return {
+      name: spec.name,
+      folder: spec.folder,
+      hash: spec.hash,
+      documents,
+      tasksFile: taskFile(spec.files),
+    };
   }
   // The plan change a page edit becomes when the page must not write the
   // row: GitHub or a plugin owns it, or its approved plan does. Preview only:
@@ -1245,7 +1254,7 @@ export class Operations {
         change,
       };
     const spec = this.readSpec(plan.spec),
-      tasks = spec.files["tasks.md"] ?? "",
+      tasks = specTasks(spec.files)?.text ?? "",
       lines = tasks.split("\n"),
       item = specItems(plan.spec, tasks).find(
         (entry) =>
@@ -1280,7 +1289,7 @@ export class Operations {
       change,
     };
   }
-  // The receipt of the plan's last approval, whose tasks.md item text the
+  // The receipt of the plan's last approval, whose task item text the
   // current revision must keep for every approved ID.
   approvedSpec(plan) {
     const receipt = plan.approvalId
@@ -1302,10 +1311,10 @@ export class Operations {
   linkedSpecs(current = null) {
     const texts = new Map();
     for (const plan of this.store.list("plans"))
-      if (plan.spec && !plan.deletedAt && plan.files?.["tasks.md"])
-        texts.set(plan.spec, plan.files["tasks.md"]);
+      if (plan.spec && !plan.deletedAt && specTasks(plan.files ?? {})?.text)
+        texts.set(plan.spec, specTasks(plan.files).text);
     if (current?.name)
-      texts.set(current.name, current.files?.["tasks.md"] ?? "");
+      texts.set(current.name, specTasks(current.files ?? {})?.text ?? "");
     return linkedReader([...texts].map(([name, text]) => ({ name, text })));
   }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {

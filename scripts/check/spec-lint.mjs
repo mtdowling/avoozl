@@ -12,6 +12,7 @@ import {
 import { git } from "../../src/app/git/git.mjs";
 import { foreignCommits } from "../../src/app/specs/integration-lint.mjs";
 import { linkedReader } from "../../src/app/specs/order.mjs";
+import { specTasks } from "../../src/app/specs/spec-tasks.mjs";
 
 // The repository root, or the folder named as the first argument.
 const root = process.argv[2]
@@ -72,7 +73,7 @@ const folders = new Map(
 const linked = linkedReader(
   [...folders].map(([name, spec]) => ({
     name,
-    text: spec.files?.["tasks.md"] ?? "",
+    text: specTasks(spec.files ?? {})?.text ?? "",
   })),
 );
 // The default branch origin names, for integration.foreign.
