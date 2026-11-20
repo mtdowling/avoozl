@@ -995,8 +995,8 @@ export class RepositorySettings {
     return this.readActivitySettings();
   }
 
-  // Settings > Delivery: the workspace's landing.pr (R119.1). Other delivery
-  // keys are kept as they are.
+  // Settings > Autopilot: whether the delivery block is set, and the
+  // workspace's landing.pr (R119.1). Other delivery keys are kept as they are.
   readDeliverySettings() {
     const file = this.readFile(),
       delivery = record(file.value.delivery) ? file.value.delivery : {};
@@ -1018,12 +1018,36 @@ export class RepositorySettings {
   }
 
   // `turnOn: true` writes an empty `delivery` section first (every key at
-  // its default), so Settings > Delivery can turn delivery on with one save.
+  // its default), so Settings > Autopilot can turn Autopilot on with one
+  // save. `turnOff: true` removes the section; it is refused while the
+  // section holds a setting, so turning off never drops one.
   // `landingPr` sets the workspace's landing.pr; null removes it.
-  updateDeliverySettings({ delivery, expectedHash, turnOn, landingPr } = {}) {
+  updateDeliverySettings({
+    delivery,
+    expectedHash,
+    turnOn,
+    turnOff,
+    landingPr,
+  } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
+    if (turnOff === true) {
+      const value = this.updateValue(before);
+      if (!record(value.delivery)) return this.readDeliverySettings();
+      // `runner` only holds a workspace for a person (WP1.3).
+      const kept = Object.keys(value.delivery).filter(
+        (key) => key !== "runner",
+      );
+      if (kept.length)
+        fail(
+          `Autopilot stays on: .avoozl.json sets ${kept.map((key) => `delivery.${key}`).join(", ")}. Remove ${kept.length === 1 ? "it" : "them"} there first, or use Stop the line to pause.`,
+          409,
+        );
+      delete value.delivery;
+      this.write(value, { expectedHash: before.hash });
+      return this.readDeliverySettings();
+    }
     if (landingPr !== undefined) {
       if (landingPr !== null && !PR_MODES.includes(landingPr))
         fail("landing.pr must be draft, ready or auto.");
@@ -1049,7 +1073,7 @@ export class RepositorySettings {
     if (!record(value.delivery) && turnOn === true) value.delivery = {};
     if (!record(value.delivery))
       fail(
-        "Delivery is off in .avoozl.json; turn it on before changing these.",
+        "Autopilot is off in .avoozl.json; turn it on before changing these.",
         409,
       );
     const next = { ...value.delivery };

@@ -1386,7 +1386,7 @@ export function startNow(store, input = {}, { policy = null } = {}) {
     fail("Only a task, not an epic, can start.", 409);
   if (!delivery)
     fail(
-      "Delivery is off: .avoozl.json has no delivery block, so nothing starts tasks.",
+      "Autopilot is off: .avoozl.json has no delivery block, so nothing starts tasks.",
       409,
     );
   const data = store.read();

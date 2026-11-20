@@ -37,7 +37,7 @@ try {
   const shots = [
     ['repository-setup', 'Repository setup'],
     ['github', 'GitHub'],
-    ['delivery', 'Delivery'],
+    ['delivery', 'Autopilot'],
     ['content-rules', 'Content rules'],
     ['flow', 'Flow'],
     ['models', 'Models'],
