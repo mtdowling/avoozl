@@ -445,6 +445,28 @@ fs.writeFileSync("seen.json", JSON.stringify({
 }));
 `;
 
+// Run one requested lane child to its exit and read what it recorded.
+async function runSeen({
+  stateDirectory,
+  configDirectory,
+  worktree,
+  defer,
+  db,
+  id,
+}) {
+  const supervisor = startSupervisor({
+    stateDirectory,
+    configDirectory,
+    intervalMs: 60_000,
+  });
+  defer(() => supervisor.close());
+  await until(() => {
+    supervisor.pass();
+    return childStatus(db, id) !== "working";
+  });
+  return JSON.parse(fs.readFileSync(path.join(worktree, "seen.json"), "utf8"));
+}
+
 test("a lane child runs in its lane's home, named by its header, and a new task prunes older sessions (simplify §D22.2)", async (t) => {
   // Nearby inputs: a session file older than the lane's last task (deleted),
   // a newer one (kept), a file outside the session folder (kept), and a
@@ -487,19 +509,14 @@ test("a lane child runs in its lane's home, named by its header, and a new task 
       },
     ),
   );
-  const supervisor = startSupervisor({
+  const seen = await runSeen({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
+    worktree,
+    defer,
+    db,
+    id,
   });
-  defer(() => supervisor.close());
-  await until(() => {
-    supervisor.pass();
-    return childStatus(db, id) !== "working";
-  });
-  const seen = JSON.parse(
-    fs.readFileSync(path.join(worktree, "seen.json"), "utf8"),
-  );
   assert.equal(seen.home, home, childLog(db, id));
   assert.deepEqual(seen.argv.slice(1), ["--name", header]);
   assert.equal(seen.prompt, JSON.stringify({}), "a label names the session");
@@ -533,19 +550,14 @@ test("a lane review round resumes its task's harness session", async (t) => {
       { lane: { home, header: "Avoozl · ws · worker 1", resume } },
     ),
   );
-  const supervisor = startSupervisor({
+  const seen = await runSeen({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
+    worktree,
+    defer,
+    db,
+    id,
   });
-  defer(() => supervisor.close());
-  await until(() => {
-    supervisor.pass();
-    return childStatus(db, id) !== "working";
-  });
-  const seen = JSON.parse(
-    fs.readFileSync(path.join(worktree, "seen.json"), "utf8"),
-  );
   // The resume argv reads the brief as its message, led by the header.
   assert.equal(
     seen.prompt,
