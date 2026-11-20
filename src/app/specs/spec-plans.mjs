@@ -851,8 +851,9 @@ export function parseSpec({
       );
     }
   }
-  // Order from the list (simplify §D19): waitsOf gives every wait.
-  {
+  // Order from the list (simplify §D19): waitsOf gives every wait. A
+  // repeated ID is refused above, and would only wait on itself here.
+  if (!diagnostics.some((d) => d.code === "task.duplicate-id")) {
     const waits = new Map();
     for (const { from, to } of waitsOf(name, tasksText, linked))
       waits.set(to, [...(waits.get(to) ?? []), from]);

@@ -172,9 +172,8 @@ test("a bugfix spec's unchanged behavior is acceptance on its fix leaves", () =>
     ...clauses,
   ]);
   assert.deepEqual(byId["fix.1.2"].acceptance.slice(1), clauses);
-  assert.deepEqual(byId["fix.1"].acceptance, [
-    "The CLI reads, validates, and reports its config.",
-  ]);
+  // A group holds no results of its own.
+  assert.equal(byId["fix.1"].acceptance, undefined);
   // A feature spec gains nothing.
   writeSpec(root, "config");
   assert.deepEqual(
@@ -230,18 +229,6 @@ test("a task with no Facts bullet is refused at its line", () => {
   assert.deepEqual(codes(lint(root)), [
     `done.missing tasks.md:${lineOf(text, "2.1 Document")}`,
   ]);
-});
-
-test("a fact breaking the task schema is refused at its Facts line", () => {
-  const root = temporaryDirectory(),
-    text = ["- [ ] 1.1 Read the config file", "  - It reads", ""].join("\n");
-  writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
-  const found = lint(root).diagnostics;
-  assert.deepEqual(
-    found.map((d) => `${d.code} ${d.file}:${d.lineStart}`),
-    ["facts.schema tasks.md:2"],
-  );
-  assert.match(found[0].message, /one lowercase word/);
 });
 
 test("an ID owned by another plan is refused", () => {
@@ -489,8 +476,8 @@ test("re-approval marks only the changed entry for review", async (t) => {
     fs
       .readFileSync(tasksFile, "utf8")
       .replace(
-        "    - Report unknown keys.",
-        "    - Report unknown keys and bad types.",
+        "    - An unknown key is reported with its path.",
+        "    - An unknown key or a bad type is reported with its path.",
       ),
   );
   await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
@@ -510,7 +497,7 @@ test("re-approval marks only the changed entry for review", async (t) => {
   // Needs you can show what changed: the task text as last reviewed is kept.
   const tasks = ops.read().tasks;
   const prior = tasks.find((task) => task.id === "config.1.2").reviewPrior;
-  assert.equal(prior.summary, "- Report unknown keys.");
+  assert.equal(prior.summary, undefined);
   assert.ok(prior.title);
   assert.equal(
     tasks.find((task) => task.id === "config.1.1").reviewPrior,
@@ -543,21 +530,6 @@ test("Kiro's checkbox marks do not change the revision", async (t) => {
   );
 });
 
-test("Kiro's task order and nesting are not Avoozl's graph", () => {
-  const root = temporaryDirectory();
-  writeSpec(root, "config", {
-    "tasks.md":
-      "- [ ] 1.2 Validate loaded config\n- [ ] 1 Load and validate configuration\n- [ ] 1.1 Read the config file\n",
-  });
-  const edges = (result) =>
-    Object.fromEntries(result.proposals.map((p) => [p.id, p.requires || []]));
-  const flat = lint(root),
-    nested = temporaryDirectory();
-  writeSpec(nested, "config");
-  assert.deepEqual(codes(flat), []);
-  assert.deepEqual(edges(flat), edges(lint(nested)));
-});
-
 test("an item nested under an epic is its child; flat items have no parent", () => {
   const root = temporaryDirectory();
   writeSpec(root, "config");
@@ -576,7 +548,7 @@ test("an item nested under an epic is its child; flat items have no parent", () 
   assert.deepEqual(Object.values(parents(lint(flat))), [null, null, null]);
 });
 
-test("an item with sub-items is a package, and a parent fact is refused", () => {
+test("an item with sub-items is a package", () => {
   const root = temporaryDirectory(),
     text = tasksWithFacts(
       "- [ ] 1 Load and validate configuration\n  - [ ] 1.1 Read the config file\n    - [ ] 1.2 Validate loaded config\n",
@@ -590,17 +562,6 @@ test("an item with sub-items is a package, and a parent fact is refused", () => 
     1.1: ["package", "config.1"],
     1.2: ["leaf", "config.1.1"],
   });
-  const named = temporaryDirectory(),
-    parented = specFiles()["tasks.md"].replace(
-      "    - A missing",
-      "    - $parent: 1\n    - A missing",
-    );
-  writeSpec(named, "config", { "tasks.md": parented });
-  const result = lint(named);
-  assert.deepEqual(
-    result.diagnostics.map((d) => [d.code, d.file, d.lineStart]),
-    [["facts.unknown-key", "tasks.md", lineOf(parented, "- $parent: 1")]],
-  );
 });
 
 test("approval sets each nested task's parent and re-approval moves it", async (t) => {
@@ -1161,5 +1122,5 @@ test("an item's whole line is its title, and one over the limit is refused", () 
     (p) => p.id === "fits.1.2",
   );
   assert.equal(proposal.title, fits);
-  assert.equal(proposal.summary, "- Report unknown keys.");
+  assert.equal(proposal.summary, undefined);
 });

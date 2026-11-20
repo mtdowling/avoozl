@@ -50,7 +50,9 @@ export function withFacts(files) {
     files[MANIFEST] === undefined ||
     files[MANIFEST] === null ||
     typeof tasks !== "string" ||
-    /^\s*[-*+] \$[A-Za-z][A-Za-z0-9]*:/m.test(tasks)
+    /^\s*[-*+] \$[A-Za-z][A-Za-z0-9]*:/m.test(tasks) ||
+    // A tasks.md that already has its bullets keeps them.
+    /^\s+[-*+] (?!\[[ xX~-]\] )/m.test(tasks)
   ) {
     const { [MANIFEST]: _gone, ...rest } = files;
     if (typeof rest["tasks.md"] === "string")
