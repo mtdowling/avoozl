@@ -46,7 +46,6 @@
     "docs/content-rules.md",
     "docs/plugins.md",
     "docs/epic-context.md",
-    "docs/epic-types.md",
     "hosts/kirocrew/",
     "!src/**/test/",
     "!src/**/*.test.mjs",

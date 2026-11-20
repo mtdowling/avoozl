@@ -4,6 +4,7 @@
 import { statusComplete } from "../../model.mjs";
 import { crossPlanEpics } from "./epics.mjs";
 import { stageResults } from "../plugins/check-stages.mjs";
+import { specTasks } from "../specs/spec-tasks.mjs";
 
 const phaseOf = (task) => task.phase?.id ?? "";
 
@@ -41,10 +42,13 @@ function phasesOf(data, rows, tasks) {
 }
 
 // A draft has no tasks in the graph yet: count the checkbox lines in its
-// tasks.md.
+// task list.
 const listedTasks = (plan) =>
-  (String(plan.files?.["tasks.md"] ?? "").match(/^\s*- \[[ xX]\]\s+\S/gm) ?? [])
-    .length;
+  (
+    String(specTasks(plan.files ?? {})?.text ?? "").match(
+      /^\s*- \[[ xX]\]\s+\S/gm,
+    ) ?? []
+  ).length;
 
 // What stops a spec from being coded, in words for the page.
 function whyUnprojected(plan, tasks) {

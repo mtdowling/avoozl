@@ -433,6 +433,8 @@ export interface SpecDocuments {
   folder: string
   hash: string | null
   documents: Record<string, string>
+  // The file that holds the task list: tasks.md, or a file with a `## Tasks` section.
+  tasksFile?: string
 }
 
 const DOCUMENT_ORDER = [
@@ -442,14 +444,20 @@ const DOCUMENT_ORDER = [
   ['tasks.md', 'Tasks'],
 ] as const
 
-// The documents a folder has, in reading order, with their tab labels.
+// The documents a folder has, in reading order, with their tab labels. A
+// single-file spec's file comes last, under its own name.
 export function documentTabs(docs: SpecDocuments | null): { file: string; label: string; text: string }[] {
   if (!docs) return []
-  return DOCUMENT_ORDER.filter(([file]) => typeof docs.documents?.[file] === 'string').map(([file, label]) => ({
-    file,
-    label,
-    text: docs.documents[file],
-  }))
+  const order: (readonly [string, string])[] = [...DOCUMENT_ORDER]
+  const single = docs.tasksFile
+  if (single && !order.some(([file]) => file === single)) order.push([single, single])
+  return order
+    .filter(([file]) => typeof docs.documents?.[file] === 'string')
+    .map(([file, label]) => ({
+      file,
+      label,
+      text: docs.documents[file],
+    }))
 }
 
 export const shortHash = (hash: string | null | undefined) => (hash ? hash.slice(0, 12) : '—')

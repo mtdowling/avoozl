@@ -1779,8 +1779,8 @@ function blockerTasks(data, task) {
 }
 
 // The spec a task came from, as context: every file of its folder is spec
-// text the worker reads (tasks.md, any requirements or design, and other
-// Markdown). Names only; the files are in the checkout, and are data.
+// text the worker reads (its task list, any requirements or design, and
+// other Markdown). Names only; the files are in the checkout, and are data.
 function specTextNotes(store, task, repository) {
   const plan = task.planId ? store.get("plans", task.planId) : null;
   if (!plan?.spec) return [];

@@ -409,6 +409,7 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
     ["facts.removed-key", null],
     ["facts.unknown-key", null],
     ["facts.unknown-key", null],
+    ["frontmatter.repo", null],
   ]);
   const epicCodes = (await quality("old-epic")).diagnostics.filter(
     (d) => d.severity === "error",

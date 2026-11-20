@@ -5,6 +5,7 @@ import { git, remoteGit, withWorkLock } from "../git/git.mjs";
 import { revisionFiles, specFacts, specName } from "../specs/spec-plans.mjs";
 import { specsPath } from "../specs/specs-path.mjs";
 import { fail } from "../store/store.mjs";
+import { specTasks } from "../specs/spec-tasks.mjs";
 
 const SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 
@@ -19,8 +20,8 @@ export async function preparePlanReviewWorktrees(
   if (!workspaceRoot || !planningRoot)
     fail("The planning checkout is unavailable.", 409);
   specName(plan.spec);
-  if (plan.files?.["tasks.md"] === undefined)
-    fail("The reviewed revision has no tasks.md.", 409);
+  if (!specTasks(plan.files ?? {}))
+    fail("The reviewed revision has no task list.", 409);
   const manifest = specFacts(plan.files);
   const repositories = [
     ...new Set(

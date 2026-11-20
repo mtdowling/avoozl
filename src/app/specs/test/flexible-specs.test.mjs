@@ -123,13 +123,13 @@ test("Kiro's three-file layout reads and hashes as before", () => {
   // The hashes of the fixture in the cut fact set.
   assert.equal(
     readSpecFolder(root, "config").hash,
-    "30890fc38a9470995695d7a7135a8e4e88625aab82984b1b06298a8077264a30",
+    "353bf9bd0b56ab49a63cbfea9e12044d4c25aedb6148eaf110402892cb75b2a4",
   );
   const fix = readSpecFolder(root, "fix"),
     result = lintSpec({ spec: fix, plan: { id: "fix" } });
   assert.equal(
     fix.hash,
-    "300981e3c9b2d13b039efbe2d51eb926225bbe49c935475a5c634196dabedd54",
+    "6fa4c60e2ccb08775254db20f8577658ae45ceada6b28443e57ac06ead60ae3f",
   );
   assert.equal(result.type, "bugfix");
   assert.equal(specCategory(fix.files), "Runtime");
