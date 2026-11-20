@@ -188,12 +188,7 @@ export function createAppMcp({
     // forwards every call without a caller block.
     if (message.method === "server/discover")
       return rpcError(message.id, "Method not found", -32601);
-    // A view's HTML needs no workspace either.
-    if (
-      STATIC.has(message.method) ||
-      (message.method === "resources/read" &&
-        String(message.params?.uri).startsWith("ui://"))
-    ) {
+    if (STATIC.has(message.method)) {
       if (message.method === "tools/list")
         return (await handleMcp(message, null)).body;
       const reply = dispatchMcp(message).body;

@@ -1,5 +1,5 @@
 // The Refresh button never shows the time left as text: no digits and no
-// "32s" or "1:40" countdown inside it, on the app page or the side panel.
+// "32s" or "1:40" countdown inside it, on the app page.
 // Its age shows only by color (data-refresh-age) and in the tooltip.
 // Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
@@ -35,7 +35,6 @@ const SCREENS = [
   { name: 'Home', query: { page: 'app', basic: '1' }, ready: `document.querySelectorAll('[data-refresh]').length > 0` },
   // Activity publishes its Refresh to the top line, as Home does.
   { name: 'Activity', query: { page: 'app', activity: '1' }, nav: 'Activity', ready: `document.querySelectorAll('[data-refresh]').length > 0` },
-  { name: 'the side panel', query: { page: 'panel', sid: 'chat-1' }, ready: `document.querySelectorAll('[data-refresh]').length > 0` },
 ]
 
 for (const screen of SCREENS)

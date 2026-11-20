@@ -2,9 +2,7 @@
 // show. The URL shapes are the host's, not a documented contract, so these
 // tests fail when the shape Avoozl relies on changes.
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
 import { classifyChat, currentChat, opensItself } from '../src/panel-chat.ts'
 
 const at = (pathname, search = '') => ({ pathname, search })
@@ -39,15 +37,4 @@ test('the panel opens by itself only for an unapproved tasks.md in a Spec Builde
   assert.equal(opensItself(chat, { files: ['design.md'], approved: false }), false)
   assert.equal(opensItself({ kind: 'avoozl' }, { files: ['tasks.md'], approved: false }), false)
   assert.equal(opensItself({ kind: 'other' }, { files: ['tasks.md'], approved: false }), false)
-})
-
-test('the manifest declares one Avoozl panel tab on a bundle the build writes', () => {
-  const root = fileURLToPath(new URL('../..', import.meta.url))
-  const manifest = JSON.parse(fs.readFileSync(`${root}/app.json`, 'utf8'))
-  const tabs = manifest.contributes?.panelTabs
-  assert.equal(tabs?.length, 1)
-  assert.equal(tabs[0].title, 'Avoozl')
-  assert.equal(tabs[0].entry, 'dist/panel.mjs')
-  const config = fs.readFileSync(`${root}/ui/vite.config.ts`, 'utf8')
-  assert.match(config, /panel\.mjs/)
 })

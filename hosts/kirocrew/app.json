@@ -82,18 +82,6 @@
     "cron": true
   },
   "tags": ["planning", "github", "automation", "developer-tools"],
-  "contributes": {
-    "panelTabs": [
-      {
-        "id": "avoozl",
-        "title": "Avoozl",
-        "menuLabel": "Avoozl",
-        "menuDescription": "Spec check, the crew a chat is on, and a recap",
-        "icon": "Workflow",
-        "entry": "dist/panel.mjs"
-      }
-    ]
-  },
   "ui": {
     "entry": "dist/index.mjs",
     "pages": [

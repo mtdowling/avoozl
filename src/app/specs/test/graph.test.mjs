@@ -14,7 +14,7 @@ import {
 } from "../graph.mjs";
 import { linkedReader } from "../order.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { viewResult } from "../../mcp/mcp-views.mjs";
+import { handleMcp } from "../../mcp/mcp.mjs";
 import {
   createSpecPlan,
   lintSpec,
@@ -142,7 +142,19 @@ test("graph.view and plans_graph give the CLI's text and Mermaid for one scope",
   assert.match(view.text, /^parser /);
   assert.match(view.text, /p-2\.2 {2}Recover after an unknown token/);
   assert.match(view.mermaid, /^flowchart TD/);
-  const tool = viewResult("plans_graph", view, { spec: "parser" });
+  const reply = await handleMcp(
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "plans_graph",
+          arguments: { input: { spec: "parser" } },
+        },
+      },
+      ops,
+    ),
+    tool = reply.body.result.structuredContent;
   assert.equal(tool.text, view.text);
   assert.equal(tool.mermaid, view.mermaid);
   fs.rmSync(path.join(root, ".kiro"), { recursive: true, force: true });

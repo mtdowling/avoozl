@@ -3,13 +3,6 @@ import { workspaceIdentity } from "../store/identity.mjs";
 import { classifyOperation } from "../api/operation-table.mjs";
 import { mcpRefusal, PERSON_ONLY } from "./mcp-policy.mjs";
 import { GROUPED_TOOLS, groupedCall, groupedToolList } from "./mcp-tools.mjs";
-import {
-  VIEW_TOOLS,
-  viewCall,
-  viewResult,
-  viewToolList,
-  withViewLink,
-} from "./mcp-views.mjs";
 // Single-operation tools. Each narrow tool is the one a role's agent, prompt
 // or brief names, so the agent's allowedTools grant that one operation and
 // not a grouped tool's other actions.
@@ -61,6 +54,10 @@ export const NARROW_TOOLS = {
   plans_submit_decide: [
     "check.decide.submit",
     "Narrow tool for the decide chat. Send your one answer for the plugin check your session is bound to: {needed: true|false, reason}, reason one line of at most 300 characters. Any other shape counts as needed. It changes nothing else.",
+  ],
+  plans_graph: [
+    "graph.view",
+    "Narrow tool for the avoozl skills. The dependency graph of {spec} or {plan}, or of every spec with {}: the same text and Mermaid `avoozl graph` prints, with its tasks and edges. Reads only.",
   ],
   plans_lint: [
     "spec.lint",
@@ -120,6 +117,7 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
         "task.get",
         "plan.table",
         "document.get",
+        "graph.view",
       ].includes(operation),
     },
   }),
@@ -164,25 +162,17 @@ export async function handleMcp(
         },
       ],
     });
-  const tools = [
-    ...groupedToolList(classifyOperation),
-    ...viewToolList(),
-    ...WORKSPACE_TOOLS,
-  ].map(withViewLink);
+  const tools = [...groupedToolList(classifyOperation), ...WORKSPACE_TOOLS];
   if (message?.method === "tools/list") return ok({ tools });
   const name = message?.params?.name;
   if (
     message?.method === "tools/call" &&
-    (Object.hasOwn(GROUPED_TOOLS, name) ||
-      Object.hasOwn(VIEW_TOOLS, name) ||
-      Object.hasOwn(operations, name))
+    (Object.hasOwn(GROUPED_TOOLS, name) || Object.hasOwn(operations, name))
   ) {
     const args = message.params.arguments || {},
       route = Object.hasOwn(GROUPED_TOOLS, name)
         ? groupedCall(name, args)
-        : Object.hasOwn(VIEW_TOOLS, name)
-          ? viewCall(name, args)
-          : narrowCall(name, args);
+        : narrowCall(name, args);
     const refuse = (text) =>
       ok({ isError: true, content: [{ type: "text", text }] });
     if (route.error) return refuse(route.error);
@@ -191,15 +181,13 @@ export async function handleMcp(
     if (refusal) return refuse(refusal);
     const { operation } = route;
     try {
-      let result = await ops.execute(
+      const result = await ops.execute(
         operation,
         route.input,
         args.expectedRevision,
         // `mcp`: a session's transport, never a person's (content.allow).
         { caller: attestedCaller ? kiroCrewCaller(message) : null, mcp: true },
       );
-      if (Object.hasOwn(VIEW_TOOLS, name))
-        result = viewResult(name, result, args.input);
       return ok({
         content: [{ type: "text", text: JSON.stringify(result) }],
         structuredContent:

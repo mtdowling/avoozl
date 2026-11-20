@@ -1,6 +1,5 @@
 // The MCP protocol layer shared by every Avoozl server: request checks,
-// initialize, ping and the view resources. Tools live in src/app/mcp.mjs.
-import { readView, viewResources } from "./app/mcp/mcp-views.mjs";
+// initialize and ping. Tools live in src/app/mcp.mjs.
 import { resolveTaskId } from "./task-identity.mjs";
 const MCP_VERSIONS = ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"];
 const identity = { name: "avoozl", version: "0.1.0" };
@@ -133,14 +132,10 @@ export function dispatchMcp(message, { versionHeader } = {}) {
     };
   else if (method === "ping") result = {};
   else if (method === "tools/list") result = { tools: [] };
-  else if (method === "resources/list") result = { resources: viewResources() };
+  else if (method === "resources/list") result = { resources: [] };
   else if (method === "resources/templates/list")
     result = { resourceTemplates: [] };
-  else if (method === "resources/read") {
-    const view = readView(String(args.uri ?? ""));
-    if (!view) return error(-32602, "Unknown resource");
-    result = view;
-  } else if (method === "tools/call") {
+  else if (method === "tools/call") {
     return error(-32602, "Unknown tool");
   } else return error(-32601, "Method not found");
   result = complete(message, result);

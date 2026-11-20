@@ -42,7 +42,6 @@ import { needsContextItems } from './needs-context-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import NewFixDrawer from '../../src/NewFixDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
-import AvoozlPanel from '../../src/Panel.tsx'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
 
 const query = new URLSearchParams(location.search)
@@ -2098,143 +2097,6 @@ if (query.get('rules')) {
   }))
 }
 
-// ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
-// window.__panel holds what the reads return, so a test can change it and see
-// the panel read again; window.__panelReads counts the reads and
-// window.__panelCalls records writes.
-type PanelData = { conflicts: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
-const panelWin = window as unknown as { __panel: PanelData; __panelReads: number; __panelCalls: unknown[] }
-const panelRow = (taskId: string, state: string, reason: string) => ({
-  taskId,
-  title: `Task ${taskId}`,
-  planId: 'search-v2',
-  spec: 'search-v2',
-  phase: 'one',
-  scope: null,
-  label: 'ready',
-  number: null,
-  url: null,
-  manual: false,
-  state,
-  reason,
-  used: 0,
-  capacity: 2,
-})
-if (page === 'panel') {
-  const full = query.get('state') !== 'empty'
-  panelWin.__panelReads = 0
-  panelWin.__panelCalls = []
-  panelWin.__panel = {
-    conflicts: full
-      ? [
-          {
-            kind: 'needs-human',
-            reason: 'crew',
-            taskId: null,
-            title: '#52 asks about the tokenizer',
-            detail: 'Tokenizer A or B? The agent is waiting for an answer.',
-            link: 'https://github.test/acme/recipe-box/issues/52',
-          },
-          { kind: 'stale-session', taskId: 'S9', title: 'A retired worker row', detail: 'must not show' },
-        ]
-      : [],
-    remote: full
-      ? [
-          {
-            host: 'box',
-            crewId: 'r1',
-            taskId: 'S5',
-            state: 'running',
-            chatKey: 'k',
-            status: 'working',
-            updatedAt: new Date().toISOString(),
-            attachUrl: 'https://box.test/chat?sid=k',
-            stale: false,
-            lastOkAt: null,
-          },
-        ]
-      : [],
-    queue: full ? [panelRow('S9', 'next', 'Waits on #52, then it is next.'), panelRow('S10', 'held', 'Held by the line.')] : [],
-    tasks: full ? [{ taskId: 'S4', title: 'Tokenizer', repository: 'acme/recipe-box', finishedAt: new Date(Date.now() - 3600000).toISOString() }] : [],
-    line: [],
-    specs: [
-      {
-        name: 'search-v2',
-        folder: '.kiro/specs/search-v2',
-        type: 'feature',
-        hash: 'h',
-        files: ['requirements.md', 'design.md', 'tasks.md'],
-        counts: { error: 0, warning: 1 },
-        taskCount: 12,
-        critique: null,
-        plan: { id: 'search-v2', state: 'draft', hash: 'h', revision: 1, changed: false, approved: false },
-      },
-    ],
-  }
-  const data = () => {
-    if (panelWin.__panel.fail) throw Object.assign(new Error('down'), { status: 500, body: '{"error":"down"}' })
-    return panelWin.__panel
-  }
-  answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
-  // ?places=1: two workspaces, Avoozl's (/w) and Nupp's (/n, whose code
-  // checkout is /src/nupp), and chats whose project folders sit in each.
-  if (query.get('places')) {
-    answer('workspaces.list', () => ({
-      defaultWorkspace: 'w',
-      items: [
-        { id: 'w', name: 'Avoozl plans', root: '/w', enabled: true, state: 'ready', served: true },
-        { id: 'nupp', name: 'Nupp plans with a long name', root: '/n', enabled: true, state: 'ready', served: false },
-      ],
-    }))
-    answer('repositories.list', (body) => ({
-      items:
-        (body as { workspaceId?: string }).workspaceId === 'nupp'
-          ? [{ id: 'nupp', name: 'nupp', localCheckout: '/src/nupp', github: 'o/nupp', baseBranch: 'main' }]
-          : [{ id: 'av', name: 'avoozl', localCheckout: '/src/avoozl', github: 'o/avoozl', baseBranch: 'main' }],
-    }))
-    answer('GET /api/chat/slots', () => [
-      { key: 'nupp-chat', project: '/src/nupp/compiler' },
-      { key: 'avoozl-chat', project: '/src/avoozl' },
-      { key: 'elsewhere-chat', project: '/srv/other' },
-    ])
-  }
-  // The one read the panel makes. A failed part is null, as in the backend.
-  const part = <T,>(read: () => T): T | null => {
-    try {
-      return read()
-    } catch {
-      return null
-    }
-  }
-  answer('panel.view', () => {
-    panelWin.__panelReads += 1
-    return {
-      readAt: new Date().toISOString(),
-      conflicts: part(() => data().conflicts),
-      remote: part(() => data().remote),
-      queue: part(() => ({ repositories: [{ repository: 'acme/recipe-box', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: data().queue }] })),
-      flow: part(() => ({ tasks: data().tasks, line: data().line })),
-      specs: part(() => data().specs),
-      instance: { id: 'inst-1', name: 'Kelp' },
-    }
-  })
-  // The line, read by the pause button: ?stopped=1 opens a stop; Resume closes it.
-  let panelStops = query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : []
-  answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [] }))
-  answer(
-    'flow.resume',
-    (body) => (panelWin.__panelCalls.push({ resume: (body.input as { stopId?: string }).stopId }), (panelStops = []), { stop: { id: 'l1', closedAt: new Date().toISOString() } }),
-  )
-  answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
-}
-// ?page=panel&real=1: the panel on the replies a real backend gave over the
-// sample workspace (window.__REAL_PANEL, panel-real.test.mjs), so a reply that
-// drifts from what the panel reads shows up here and not only in a live host.
-const realPanel = (window as unknown as { __REAL_PANEL?: Record<string, unknown> }).__REAL_PANEL
-if (page === 'panel' && query.get('real') === '1' && realPanel) {
-  answer('panel.view', () => realPanel['panel.view'])
-  answer('GET /api/apps/spec-builder/specs', () => ({ specs: ((realPanel['panel.view'] as { specs?: { name: string }[] }).specs ?? []).map((item) => ({ name: item.name })) }))
-}
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
   static getDerivedStateFromError(error: unknown) {
@@ -2265,15 +2127,6 @@ function LandingParts(props: { repository: RepositoryForm; set: (change: Partial
       <MergeMethodFields id="t" {...props} />
       <PrModeFields id="t" {...props} />
     </>
-  )
-}
-function PanelPage() {
-  return (
-    <div style={{ width: window.innerWidth <= 640 ? '100%' : 360, padding: 0, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <AvoozlPanel />
-      </HarnessBoundary>
-    </div>
   )
 }
 // &epiccontext=1: two tasks whose last session got epic context, and Settings ›
@@ -2382,8 +2235,6 @@ createRoot(document.getElementById('root')!).render(
     <SpecsPage />
   ) : page === 'tip' ? (
     <TipPage />
-  ) : page === 'panel' ? (
-    <PanelPage />
   ) : page === 'crews-rules' ? (
     <CrewsRulesPage />
   ) : intake ? (

@@ -149,7 +149,7 @@ test("Kiro Crew's own stylesheet, without the page, lacks a planted class (SW12.
 
 test('the styles the page renders are listed, and a run-time style fails the build (SW2.5)', () => {
   const listed = listStyleTexts(src)
-  assert.equal(listed.length, 22)
+  assert.equal(listed.length, 21)
   assert.deepEqual([...new Set(listed.map((s) => s.text))].sort(), [...built().styles].sort())
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kc-style-'))
   fs.writeFileSync(path.join(dir, 'A.tsx'), "const f = () => 'x'\nexport const A = () => <style>{f()}</style>\n")
@@ -188,6 +188,5 @@ export function importSpecifiers(file) {
 test('the Kiro Crew bundles keep the import specifiers they had (SW2.2)', () => {
   const fixture = JSON.parse(text(path.join(ui, 'test', 'bundle-imports.json')))
   assert.deepEqual(importSpecifiers(path.join(dist, 'index.mjs')), fixture['index.mjs'])
-  assert.deepEqual(importSpecifiers(path.join(dist, 'panel.mjs')), fixture['panel.mjs'])
   assert.doesNotMatch(text(path.join(dist, 'index.mjs')), /avoozl-csrf|AppApiProvider/)
 })

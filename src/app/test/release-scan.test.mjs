@@ -86,7 +86,6 @@ test("the npm package ships the app launcher's built lib and page", () => {
     "hosts/kirocrew/bin/lib/cli.mjs",
     "hosts/kirocrew/bin/lib/src/app/executors/kirocrew/app-backend.mjs",
     "hosts/kirocrew/ui/dist/index.mjs",
-    "hosts/kirocrew/ui/dist/panel.mjs",
   ])
     assert.ok(files.includes(file), file);
 });

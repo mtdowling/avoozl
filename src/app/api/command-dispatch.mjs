@@ -41,7 +41,6 @@ export const APP_OPERATIONS = new Set([
   "graph.view",
   "delivery.view",
   "conflicts.view",
-  "panel.view",
   "radar.releasequeue",
   "epics.view",
   "integration.view",

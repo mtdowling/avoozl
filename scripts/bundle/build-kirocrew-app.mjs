@@ -34,12 +34,6 @@ await build({
   root: ui,
   configFile: path.join(ui, "vite.config.ts"),
 });
-// The side-panel tab is its own bundle (contributes.panelTabs).
-await build({
-  root: ui,
-  configFile: path.join(ui, "vite.config.ts"),
-  mode: "panel",
-});
 // The installed backend refuses a page built from other source (ui-bundle.mjs).
 writeUiStamp(ui);
 // The standalone page (SW2). A failure is reported and fails the build at the

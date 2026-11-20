@@ -37,8 +37,6 @@ import { diskNeedsYou } from "../workspace/disk-space.mjs";
 import { resolveDecision } from "../api/direct-links.mjs";
 import { machineLinks } from "../tick/crews.mjs";
 import { fixToSpec, startFix } from "../intake/fix.mjs";
-import { lineBanner } from "../flow/flow-line.mjs";
-import { flowView } from "../flow/flow.mjs";
 import { withWorkLock } from "../git/git.mjs";
 import { paceNeedsYou } from "../github/github-pacer.mjs";
 import { rateNeedsYou } from "../github/github-rate.mjs";
@@ -79,7 +77,6 @@ import {
   taskDetailView,
   withGraphState,
 } from "../api/page-views.mjs";
-import { panelView } from "../api/panel-view.mjs";
 import { archiveTask } from "../specs/plan-retire.mjs";
 import { conversationSettings } from "../settings/repository-settings.mjs";
 import { fail } from "../store/store.mjs";
@@ -381,34 +378,6 @@ export const entries = [
         view.target = target;
       }
       return view;
-    },
-  },
-  // The chat side panel in one read: every part it shows, each null when its
-  // own read fails (panel-view.mjs).
-  {
-    name: "panel.view",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp(
-      "The chat side panel's one read; its parts are each on MCP already.",
-    ),
-    async handler({ context }) {
-      const store = this.store;
-
-      const sub = (op, args = {}) => this.perform(op, args, undefined, context),
-        data = this.read();
-      return panelView({
-        conflicts: async () => (await sub("conflicts.view")).items,
-        // shortcut: no machine runs remote workers now, so In flight lists
-        // none; the side panel goes with the page cut (simplify sim-5.1).
-        remote: () => [],
-        queue: () => sub("radar.releasequeue"),
-        flow: () => ({
-          tasks: flowView(store, data, { window: "10" }).tasks,
-          line: lineBanner(store, data),
-        }),
-        specs: async () => (await sub("plan.specs")).items,
-      });
     },
   },
   {

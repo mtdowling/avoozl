@@ -6,12 +6,10 @@ import { fetchKiroCrewUi } from '../../../scripts/bundle/fetch-kirocrew-ui.mjs'
 
 const version = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')).version as string
 
-// One build per bundle, so each file is self-contained with no shared chunk.
-// `vite build --mode panel` adds the side-panel tab to dist (panel.mjs); the
-// default mode builds the page (index.mjs) and clears dist first.
+// The page bundle (index.mjs), self-contained with no shared chunk; the
+// build clears dist first.
 const entries: Record<string, [string, string]> = {
   page: ['src/App.tsx', 'index.mjs'],
-  panel: ['src/Panel.tsx', 'panel.mjs'],
 }
 
 export default defineConfig(({ mode }) => {
