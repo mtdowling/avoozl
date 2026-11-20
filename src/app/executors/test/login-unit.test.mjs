@@ -88,9 +88,13 @@ test("systemd: every word is quoted and a specifier cannot expand", (t) => {
     path.join(base.env.XDG_CONFIG_HOME, "systemd", "user", SYSTEMD_UNIT),
   );
   assert.ok(unit.text.startsWith(`# ${MARKER}`));
-  assert.match(
-    unit.text,
-    /ExecStart="[^"]*node" "[^"]*odd %%h \$\$HOME dir[\\/]cli\.mjs" "start" "--foreground"/,
+  const exec = unit.text
+    .split("\n")
+    .find((line) => line.startsWith("ExecStart="));
+  assert.ok(exec.includes("odd %%h $$HOME dir"), exec);
+  assert.ok(
+    exec.endsWith('"start" "--foreground" "--starter" "login-unit"'),
+    exec,
   );
   assert.match(unit.text, /Restart=on-failure/);
   assert.match(unit.text, /Environment="PATH=\/opt\/tools:\/usr\/bin"/);

@@ -121,7 +121,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
             Kiro Crew chat <Badge variant="success">built in</Badge>
           </Box>
           {definitions.map((d) => (
-            <Box key={d.name} as="li" flex items="center" gap="2" data-harness-definition={d.name}>
+            <Box key={d.name} as="li" flex flexWrap items="center" gap="2" minW0 data-harness-definition={d.name}>
               {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{d.approved ? 'hash approved' : d.changed ? 'changed since approval' : 'not approved'}</Badge>
               {!d.approved && (
                 <SmallBtn onClick={() => approve(d.name)} attrs={{ 'data-approve-harness': d.name }}>
