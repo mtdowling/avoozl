@@ -104,6 +104,11 @@ test("the design skills pass the release scan", () => {
     "avoozl-answer",
     "avoozl-review",
     "avoozl-triage",
+    "avoozl-spec",
+    "avoozl-work",
+    "avoozl-spec-review",
+    "avoozl-retro",
+    "avoozl-investigate",
   ])
     assert.deepEqual(scanText(skill(name), RULES), [], name);
 });
