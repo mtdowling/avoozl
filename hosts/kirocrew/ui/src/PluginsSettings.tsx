@@ -109,7 +109,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
           <Badge variant={status.attention ? 'warning' : undefined}>{status.label}</Badge>
           {row.health?.state === 'ok' ? <Badge>Healthy</Badge> : null}
           {update ? (
-            <Badge variant="info" data-plugin-update>
+            <Badge variant="warning" data-plugin-update>
               {update}
             </Badge>
           ) : null}
