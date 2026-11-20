@@ -329,7 +329,18 @@ export async function runMcpStep(check, context) {
     }
   } finally {
     stopWatch();
-    if (child && !exited) child.kill("SIGKILL");
-    fs.rmSync(scratch, { recursive: true, force: true });
+    // The server must be gone before its working folder goes: Windows
+    // keeps a running process's folder locked.
+    if (child && !exited) {
+      const gone = new Promise((resolve) => child.once("exit", resolve));
+      child.kill("SIGKILL");
+      await Promise.race([gone, new Promise((r) => setTimeout(r, 5000))]);
+    }
+    fs.rmSync(scratch, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 200,
+    });
   }
 }
