@@ -1689,6 +1689,11 @@ const PAGES: Record<string, () => ReactNode> = {
           review: { calls: 5, notModified: 0, cached: 3 },
           setup: { calls: 2, notModified: 0, cached: 0 },
         },
+        // A long login and a large count, so the tests see both tables keep one column grid.
+        byLogin: {
+          mtdowling: { calls: 12480, notModified: 3021, cached: 118204 },
+          'avoozl-machine-server-dev-desktop-review-bot': { calls: 7, notModified: 0, cached: 0 },
+        },
       }}
     />
   ),
