@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { installHarness, isolatedMachine } from "./machine.mjs";
 import { ROWS } from "./ms-roles-rows.mjs";
+import { realClaude, realCodex } from "./real-claude.mjs";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -218,13 +219,26 @@ function definitionBytes() {
     "AWS_SECRET_ACCESS_KEY",
     "AWS_SESSION_TOKEN",
   ];
-  const binary =
-    AGENT === "claude"
-      ? process.env.MSR_CLAUDE || which("claude")
-      : process.env.MSR_CODEX || which("codex");
+  // The sandboxed child runs the real binary: the toolbox shim and wrapper
+  // fail inside the sandbox (real-claude.mjs).
+  const binary = harnessBinary();
   definition.start[0] = binary;
   definition.resume[0] = binary;
   return JSON.stringify(definition, null, 2) + "\n";
+}
+
+function harnessBinary() {
+  if (AGENT === "claude")
+    return (
+      process.env.MSR_CLAUDE ||
+      realClaude(which("claude"), os.homedir()) ||
+      which("claude")
+    );
+  return (
+    process.env.MSR_CODEX ||
+    realCodex(which("codex"), os.homedir()) ||
+    which("codex")
+  );
 }
 
 async function setup() {
@@ -370,7 +384,8 @@ async function setup() {
 function agentEnv() {
   const env = { ...process.env };
   if (AGENT === "fake") return env;
-  const claude = process.env.MSR_CLAUDE || which("claude");
+  // The credential export runs the command on PATH, under the real HOME.
+  const claude = which("claude");
   const settings = JSON.parse(
     fs.readFileSync(
       path.join(os.homedir(), ".claude", "settings.json"),
@@ -595,15 +610,10 @@ async function rolesOnHarness() {
 // The harness's own version line, for the receipt (ms-p2 item 4).
 function harnessVersion() {
   if (AGENT === "fake") return "fake";
-  const binary = AGENT === "claude" ? "claude" : "codex";
   try {
-    return execFileSync(
-      process.env.MSR_BINARY || which(binary),
-      ["--version"],
-      {
-        encoding: "utf8",
-      },
-    ).trim();
+    return execFileSync(harnessBinary(), ["--version"], {
+      encoding: "utf8",
+    }).trim();
   } catch {
     return "unknown";
   }
