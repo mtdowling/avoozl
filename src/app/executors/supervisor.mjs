@@ -33,6 +33,14 @@ import {
 } from "./sandbox.mjs";
 import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
 import { lockHolder, machineLockPaths, takeLock } from "./machine-lock.mjs";
+import { buildId } from "./machine-build.mjs";
+import {
+  ensureRequestTables,
+  pendingRequests,
+  recordPasses,
+  setRequest,
+} from "./machine-requests.mjs";
+import { readTickSeconds } from "../settings/machine-config.mjs";
 
 const CHILD_WRAPPER = fileURLToPath(
   new URL("./supervisor-child.mjs", import.meta.url),
@@ -126,6 +134,7 @@ export function openSupervisorDatabase(stateDirectory) {
     db.exec("ALTER TABLE children ADD COLUMN runs INTEGER NOT NULL DEFAULT 0");
   if (!columns.has("result"))
     db.exec("ALTER TABLE children ADD COLUMN result TEXT");
+  ensureRequestTables(db);
   return db;
 }
 
@@ -501,7 +510,8 @@ function pidAlive(pid) {
 
 // Whether `pid` is still the process that started at `started`. An unreadable
 // start time keeps the child: a failed observation is never evidence of gone.
-function sameProcess(pid, started, startTime = processStartTime) {
+export const processIsSame = (pid, started) => sameProcess(pid, started);
+export function sameProcess(pid, started, startTime = processStartTime) {
   if (!pidAlive(pid)) return false;
   if (!started) return true;
   const now = startTime(pid);
@@ -520,13 +530,20 @@ function readJson(file) {
 // the lock for the life of the handle; the record only names the holder.
 function acquireSupervisorLock(
   stateDirectory,
-  { startTime = processStartTime } = {},
+  {
+    startTime = processStartTime,
+    starter = "terminal",
+    tickSeconds = null,
+  } = {},
 ) {
   const paths = machineLockPaths(stateDirectory);
   const mine = {
     pid: process.pid,
     started: startTime(process.pid),
     at: stamp(),
+    build: buildId(),
+    starter,
+    tickSeconds,
     stateDirectory: path.resolve(stateDirectory),
   };
   const taken = takeLock(paths, mine);
@@ -606,6 +623,10 @@ export function startSupervisor({
   tickIntervalMs = null,
   startTime = processStartTime,
   env = process.env,
+  // What started it, for `avoozl status` (MS3.6); and a call when a stop
+  // request has closed it (MS3.3).
+  starter = "terminal",
+  onStop = () => {},
   // The standalone page's server child (SW9): restarted this long after it exits.
   serveRetryMs = 2000,
 }) {
@@ -614,7 +635,11 @@ export function startSupervisor({
     !(Number.isInteger(tickIntervalMs) && tickIntervalMs > 0)
   )
     fail("The tick interval must be a whole number of milliseconds.");
-  const lock = acquireSupervisorLock(stateDirectory, { startTime });
+  const lock = acquireSupervisorLock(stateDirectory, {
+    startTime,
+    starter,
+    tickSeconds: tickIntervalMs === null ? null : tickIntervalMs / 1000,
+  });
   const paths = supervisorPaths(stateDirectory);
   const db = openSupervisorDatabase(stateDirectory);
   // Children this process spawned; others were found again after a restart.
@@ -623,6 +648,8 @@ export function startSupervisor({
   let closed = false;
   let ticking = null;
   let nextTick = 0;
+  // Manual tick requests waiting for the pass that serves them (MS1.5).
+  let asked = [];
 
   // The tick runs as its own process, so a slow or failing tick never
   // stalls the children's records. It keeps the supervisor's environment,
@@ -630,6 +657,9 @@ export function startSupervisor({
   const tick = () => {
     if (ticking || Date.now() < nextTick) return;
     const out = fs.openSync(paths.tickLog, "a", 0o600);
+    const from = fs.fstatSync(out).size;
+    const serving = asked;
+    asked = [];
     try {
       ticking = spawn(
         process.execPath,
@@ -647,7 +677,20 @@ export function startSupervisor({
     }
     const ended = () => {
       ticking = null;
-      nextTick = Date.now() + tickIntervalMs;
+      nextTick = asked.length ? 0 : Date.now() + tickIntervalMs;
+      // One JSON line per workspace; they are the pass's result.
+      let lines = [];
+      try {
+        lines = fs
+          .readFileSync(paths.tickLog, "utf8")
+          .slice(from)
+          .split("\n")
+          .filter((line) => line.startsWith("{"));
+      } catch {}
+      if (!closed) {
+        recordPasses(db, lines);
+        setRequest(db, serving, "done", lines.join("\n"));
+      }
     };
     ticking.once("exit", ended);
     ticking.once("error", ended);
@@ -934,6 +977,18 @@ export function startSupervisor({
   const pass = () => {
     if (closed) return;
     if (!lock.holds()) return close();
+    const stops = pendingRequests(db, "stop");
+    if (stops.length) {
+      setRequest(db, stops, "done", "stopped");
+      close();
+      return onStop();
+    }
+    const wanted = pendingRequests(db, "tick");
+    if (wanted.length && tickIntervalMs) {
+      setRequest(db, wanted, "running");
+      asked.push(...wanted);
+      nextTick = 0;
+    }
     for (const row of db
       .prepare("SELECT * FROM children WHERE state = 'running'")
       .all())
@@ -1000,6 +1055,7 @@ export function startSupervisor({
 export function launchSupervisor({
   stateDirectory,
   configDirectory,
+  starter = "terminal",
   env = process.env,
   startTime,
 }) {
@@ -1018,6 +1074,8 @@ export function launchSupervisor({
         path.resolve(stateDirectory),
         "--config-directory",
         path.resolve(configDirectory),
+        "--starter",
+        starter,
       ],
       { detached: true, stdio: ["ignore", out, out], env, windowsHide: true },
     );
@@ -1029,28 +1087,43 @@ export function launchSupervisor({
   return { pid: child.pid, started: true };
 }
 
-// Run as this process's job until a signal, with the machine's folders by
-// default. A second supervisor sets exit code 1 and names the first.
-// `tickSeconds` runs the tick too, on a headless machine (R95.3).
-export function runSupervisor({
+// Run as this process's job until a signal or a stop request, with the
+// machine's folders by default (MS1.1, MS3.2). The tick is always on, every
+// `machine.tickSeconds`. Without `foreground` a second server sets exit code 1
+// and names the first; with it, this process waits for the lock and takes it
+// when the holder ends (MS2.2).
+export async function runSupervisor({
   stateDirectory,
   configDirectory,
-  tickSeconds = null,
+  starter = "terminal",
+  foreground = false,
 } = {}) {
   const machine = machineAvoozlPaths();
-  let supervisor;
-  try {
-    supervisor = startSupervisor({
-      stateDirectory: stateDirectory ?? machine.stateDirectory,
-      configDirectory: configDirectory ?? machine.configDirectory,
-      tickIntervalMs: tickSeconds === null ? null : tickSeconds * 1000,
-    });
-  } catch (error) {
-    console.error(error.message);
-    process.exitCode = 1;
-    return null;
+  stateDirectory ??= machine.stateDirectory;
+  configDirectory ??= machine.configDirectory;
+  let supervisor = null;
+  let said = false;
+  while (!supervisor) {
+    try {
+      supervisor = startSupervisor({
+        stateDirectory,
+        configDirectory,
+        starter,
+        tickIntervalMs: readTickSeconds(configDirectory) * 1000,
+        onStop: () => process.exit(0),
+      });
+    } catch (error) {
+      if (!foreground || error.status !== 409) {
+        console.error(error.message);
+        process.exitCode = 1;
+        return null;
+      }
+      if (!said) console.error(`${error.message} Waiting for it to end.`);
+      said = true;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
   }
-  console.log(`Avoozl supervisor running as pid ${process.pid}.`);
+  console.log(`Avoozl machine server running as pid ${process.pid}.`);
   for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"])
     process.on(signal, () => {
       supervisor.close();

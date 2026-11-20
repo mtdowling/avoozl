@@ -31,6 +31,7 @@ try {
         [
           "start",
           "dry-run",
+          "foreground",
           "auto-start",
           "inactive",
           "skip-verify",

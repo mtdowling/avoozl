@@ -565,6 +565,13 @@
         "alias": {
           "type": "string",
           "description": "This machine's name."
+        },
+        "tickSeconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 86400,
+          "default": 60,
+          "description": "Seconds between the machine server's passes over every enabled workspace. Global configuration only."
         }
       },
       "additionalProperties": false
