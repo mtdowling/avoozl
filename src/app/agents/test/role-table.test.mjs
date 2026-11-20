@@ -80,7 +80,7 @@ test("the saved harness wins over the repository", () => {
   const config = {
     roles: {
       verifier: { harness: "codex" },
-      planReviewer: { harness: "claude-code" },
+      retro: { harness: "claude-code" },
     },
   };
   const repository = { executor: "process" };
@@ -100,19 +100,13 @@ test("the saved harness wins over the repository", () => {
       executor: "kirocrew",
     },
   );
-  // The plan reviewer and review drafts name the harness saved for them.
-  assert.deepEqual(roleRun("planReviewer", { config }), {
+  // The retro names the harness saved for it.
+  assert.deepEqual(roleRun("retro", { config }), {
     executor: "process",
     harness: "claude-code",
   });
-  assert.deepEqual(
-    roleRun("prReview", {
-      config: { roles: { prReview: { harness: "codex" } } },
-    }),
-    { executor: "process", harness: "codex" },
-  );
   // With every role able to run as a child, the repository's executor applies.
-  assert.deepEqual(roleRun("prReview", { repository }), {
+  assert.deepEqual(roleRun("retro", { repository }), {
     executor: "process",
   });
 });

@@ -43,8 +43,6 @@ export const APP_OPERATIONS = new Set([
   "delivery.view",
   "landing.queue",
   "conflicts.view",
-  "plan.review.get",
-  "plan.review.decide",
   "panel.view",
   "remote.view",
   "radar.releasequeue",
@@ -68,7 +66,6 @@ export const APP_OPERATIONS = new Set([
   "flow.view",
   // Make the GitHub issues on an approved spec (R118.7).
   "spec.publish",
-  "review.chat",
   "fix.start",
   "fix.spec",
   "github.repository.labels",

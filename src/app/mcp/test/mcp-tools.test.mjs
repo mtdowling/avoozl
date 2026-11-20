@@ -44,7 +44,7 @@ const call = (ops, name, args) =>
 
 test("every operation has an MCP route or a written reason it has none", () => {
   const operations = allOperations();
-  assert.ok(operations.length > 200, "the scan found the operations");
+  assert.ok(operations.length > 150, "the scan found the operations");
   const missing = operations.filter(
     (name) =>
       !routes.has(name) && !PERSON_ONLY.has(name) && !NOT_ON_MCP.has(name),
@@ -245,7 +245,7 @@ test("a single-operation tool refuses an input that is not an object", async (t)
     ops = new Operations(store),
     before = store.read().revision;
   for (const input of ["x", [1], 0])
-    for (const name of ["plans_answer_review", "plans_plan_review"]) {
+    for (const name of ["plans_get_plan", "plans_next"]) {
       const result = await call(ops, name, { input });
       assert.equal(result.isError, true, `${name} ${JSON.stringify(input)}`);
       assert.equal(result.content[0].text, "input must be an object.");

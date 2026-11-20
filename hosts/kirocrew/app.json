@@ -27,9 +27,6 @@
     "agents/avoozl-falsifier.json",
     "agents/avoozl-responder.json",
     "agents/avoozl-retro.json",
-    "agents/avoozl-code-review.json",
-    "agents/avoozl-plan-review.json",
-    "agents/avoozl-plan-answer-read.json",
     "agents/avoozl-check-decide.json"
   ],
   "mcpServers": {

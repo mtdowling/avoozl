@@ -73,7 +73,6 @@ import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { claimsDue, refreshClaims } from "../workers/claims.mjs";
 import { readLabelFilters } from "../specs/label-filters.mjs";
 import { readLabeledIssues } from "../specs/labeled-issues.mjs";
-import { reviewDispatches } from "../reviews/pr-review.mjs";
 import { investigationStep } from "../delivery/investigate.mjs";
 import {
   RATE_LIMIT_TEXT,
@@ -84,11 +83,7 @@ import {
 } from "../github/github-rate.mjs";
 import { decideStep } from "../plugins/check-decide.mjs";
 import { queuePhaseChecks } from "../plugins/check-stages.mjs";
-import {
-  validateRoles,
-  validatePlanReview,
-  withChatModels,
-} from "../settings/chat-models.mjs";
+import { validateRoles, withChatModels } from "../settings/chat-models.mjs";
 import { syncStep, syncTargets } from "../epics/integration-sync.mjs";
 import { headStep } from "../epics/integration-head.mjs";
 import { repositoryPlugins } from "../plugins/plugins.mjs";
@@ -147,7 +142,6 @@ function parsePolicy(text) {
   repositoryPlugins(value);
   validateContentRules(value.contentRules);
   validateRoles(value);
-  validatePlanReview(value.planReview);
   validateIntake(value.intake);
   return value;
 }
@@ -950,15 +944,11 @@ async function runTick(
       // Timing (§4.11): queued, attempt starts, verifier and review
       // sessions, and merge. Always on; writes only what changed.
       syncSpans(store);
-      // Code review chats a person asked for (pr-review.mjs), cron only.
+      // Plugin checks' decide calls (plugin-checks D5), cron only.
       const roleConfig = memory.value || {},
         reviews =
           script && !unobserved.length
-            ? [
-                ...reviewDispatches(store, { config: roleConfig }),
-                // Plugin checks' decide calls (plugin-checks D5).
-                ...decideStep(store, { config: roleConfig }).dispatch,
-              ]
+            ? decideStep(store, { config: roleConfig }).dispatch
             : [];
       // Read each spec's plan issue again right before its dispatches; a
       // spec reassigned since the sync read dispatches nothing (R66.5).

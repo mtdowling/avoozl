@@ -20,7 +20,6 @@ import {
 import {
   AGENT_ROLE_FIELDS,
   HARNESS_ROLE_FIELDS,
-  PLAN_REVIEW_KEYS,
   ROLE_FIELDS,
   ROLES,
 } from "../chat-models.mjs";
@@ -77,7 +76,6 @@ const PAIRS = [
   ["#/$defs/chatRole", ROLE_FIELDS],
   ["#/$defs/agentRole", AGENT_ROLE_FIELDS],
   ["#/$defs/harnessRole", HARNESS_ROLE_FIELDS],
-  ["#/properties/planReview", PLAN_REVIEW_KEYS],
   ["#/properties/lanes", Object.keys(DEFAULT_LANES)],
   ["#/properties/specs", SPECS_KEYS],
   ["#/properties/notifications", NOTIFICATIONS_KEYS],
@@ -163,7 +161,6 @@ const OPEN = new Map([
       "repositories",
       "github",
       "roles",
-      "planReview",
       "lanes",
       "landing",
       "planningRepository",

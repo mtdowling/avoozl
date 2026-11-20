@@ -11,7 +11,7 @@ const entries = Object.entries(TABLES).flatMap(([feature, table]) =>
 );
 
 test("every operation has a name, class, policy and handler", () => {
-  assert.ok(entries.length > 200, "the tables hold the operations");
+  assert.ok(entries.length > 150, "the tables hold the operations");
   for (const entry of entries) {
     const at = `${entry.feature}: ${entry.name}`;
     assert.match(entry.name, NAME, at);

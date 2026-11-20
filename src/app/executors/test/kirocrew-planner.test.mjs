@@ -78,32 +78,6 @@ test("the planner writes a spec folder, not fenced plan files", () => {
   }
 });
 
-test("the review and reasons-only answer agents have no file or shell writes", () => {
-  for (const name of ["avoozl-plan-review", "avoozl-plan-answer-read"]) {
-    const relative = `agents/${name}.json`,
-      agent = JSON.parse(fs.readFileSync(path.join(app, relative), "utf8"));
-    assert.ok(manifest.agents.includes(relative));
-    assert.deepEqual(
-      agent.tools.filter((tool) => !tool.startsWith("@")),
-      ["fs_read", "grep", "glob", "thinking"],
-    );
-    assert.equal(agent.includeMcpJson, false);
-    if (name === "avoozl-plan-answer-read")
-      for (const tool of ["plans_plan_review", "plans_answer_review"])
-        assert.ok(agent.allowedTools.includes(ownServer + tool));
-    assert.ok(
-      agent.tools.every(
-        (tool) =>
-          !tool.startsWith("@") ||
-          (name === "avoozl-plan-answer-read"
-            ? ["plans_get_plan", "plans_plan_review", "plans_answer_review"]
-            : ["plans_get_plan", "plans_submit_review"]
-          ).some((allowed) => tool === ownServer + allowed),
-      ),
-    );
-  }
-});
-
 // A planner session has no skill tool, so the formats it follows must be in
 // its own prompt, and no brief may send it to the skill.
 test("the planner's prompt carries its own rules", () => {

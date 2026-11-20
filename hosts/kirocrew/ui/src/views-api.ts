@@ -301,16 +301,6 @@ export interface ItemContext {
   // The checks the task stopped on, each with its first error line when the
   // check gave one.
   failedChecks?: { commit: string | null; checks: { name: string; conclusion: string | null; firstError: string | null }[] } | null
-  // A draft's review: counts by severity and the cached AI summary.
-  review?: {
-    state: string
-    current: boolean
-    reviewerModel: string | null
-    openBySeverity: Record<string, number>
-    found: number
-    fixed: number
-    summary: { text: string; revisionHash: string; current: boolean } | null
-  } | null
 }
 
 // One task in a review group.
@@ -336,7 +326,6 @@ export interface ConflictItem extends TaskOwner {
   actions?: NeedsYouAction[]
   // The item a notice's link opened (direct-links D3).
   linked?: boolean
-  planReview?: { planId: string; revisionHash: string }
   kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | string
   // Null for a review group, which stands for many tasks.
   taskId: string | null
@@ -468,8 +457,6 @@ export function viewsClient(api: AppApi) {
     // Send message on a `process` session (R98.2): queued for the supervisor.
     sendSession: (workspaceId: string, slot: string, text: string) =>
       run<{ id: string; state: 'queued'; slot: string; taskId: string }>('session.send', { slot, text }, workspaceId),
-    decidePlanReview: (workspaceId: string, planId: string, revisionHash: string, action: 'review' | 'skip') =>
-      run<unknown>('plan.review.decide', { planId, revisionHash, action }, workspaceId),
     graph: (workspaceId: string, filter: GraphFilter = {}) => {
       const input: Record<string, unknown> = {}
       for (const key of ['epic', 'phase', 'repository', 'status', 'plan', 'spec'] as const) if (filter[key]) input[key] = filter[key]
@@ -602,7 +589,6 @@ export function scalarFields(record: Record<string, unknown>): [string, string][
 }
 
 export const CONFLICT_LABELS: Record<string, string> = {
-  'plan-review': 'Draft review',
   decision: 'Open decision',
   'needs-human': 'Needs you',
   review: 'Review',

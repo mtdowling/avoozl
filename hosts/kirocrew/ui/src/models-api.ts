@@ -13,7 +13,6 @@ export const ROLES = [
   { key: 'worker', label: 'Worker', line: 'Codes each ready task. A task’s manifest may pin another.', agent: true, model: true },
   { key: 'falsifier', label: 'Falsifier', line: 'Tries to prove a worker’s findings wrong before coding. A model equal to the worker’s is skipped.', agent: true, model: true },
   { key: 'planner', label: 'Planner', line: 'Drafts specs from a GitHub planning label.', agent: false, model: true },
-  { key: 'planReviewer', label: 'Plan reviewer', line: 'Reviews draft specs on a different model. Auto skips review until a model is picked.', agent: false, model: true },
   { key: 'retro', label: 'Retro', line: 'Finds the slowest step and proposes one change.', agent: false, model: true },
   { key: 'checkDecide', label: 'Check decide', line: 'Answers whether a plugin check is needed for a task. Auto uses the planner’s model.', agent: false, model: true },
   // These pick only a harness and run on its agent's own model.
@@ -21,8 +20,6 @@ export const ROLES = [
   { key: 'reviewer', label: 'Reviewers', line: 'Each review role a spec adds reads the commit and reports a verdict.', agent: false, model: false },
   { key: 'responder', label: 'Responder', line: 'Answers a labeled GitHub issue or discussion.', agent: false, model: false },
   { key: 'taskSummary', label: 'Task summary', line: 'Writes the summary on a task’s Overview.', agent: false, model: false },
-  { key: 'planAnswer', label: 'Spec review answer', line: 'Answers a spec review’s findings in the spec folder.', agent: false, model: false },
-  { key: 'prReview', label: 'Pull request review', line: 'Reviews a pull request a person asked about.', agent: false, model: false },
   { key: 'assist', label: 'Assistant', line: 'Answers from the page’s Open chat buttons when Kiro Crew is not running. Read-only.', agent: false, model: false },
 ] as const
 export type Role = (typeof ROLES)[number]['key']
@@ -38,15 +35,12 @@ export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = {
   worker: 'write',
   falsifier: 'read',
   planner: 'write',
-  planReviewer: 'read',
   retro: 'read',
   checkDecide: 'read',
   verifier: 'read',
   reviewer: 'read',
   responder: 'read',
   taskSummary: 'read',
-  planAnswer: 'write',
-  prReview: 'read',
   assist: 'read',
 }
 // The Kiro Crew chat; any other harness is a supervisor child.
@@ -143,7 +137,6 @@ export function roleProblem(role: Role, form: RoleTable, definitions: HarnessDef
   const agent = row.agent?.trim()
   if (agent && !AGENT.test(agent)) return 'The agent is an agent name: letters, digits, . _ : or -.'
   if (isSet(row.model) && !harnessTakesModel(row.harness, definitions)) return `${row.harness} takes no model. Set the model to auto.`
-  if (role === 'planReviewer' && isSet(row.model) && row.model === form.planner?.model) return 'The reviewer must use a different model than the planner.'
   const picked = definitions.find((d) => d.name === row.harness)
   if (ROLE_ACCESS[role] === 'read' && picked?.readRoles) return picked.readRoles
   return null

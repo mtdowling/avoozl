@@ -43,7 +43,6 @@ for (const width of [390, 1280]) {
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-model-role="retro"] [data-reset]'))`), false)
     assert.equal(await page.evaluate(`document.querySelector('[data-model-role="worker"] [data-role-access]').dataset.roleAccess`), 'write')
     assert.equal(await page.evaluate(`document.querySelector('[data-model-role="retro"] [data-role-access]').dataset.roleAccess`), 'read')
-    assert.match(await page.evaluate(`document.querySelector('[data-second-model]').textContent`), /different model than the planner \(fake-writer\)/)
     if (width === 1280) {
       // Harness, model and source sit on one line with the role name.
       const tops = await page.evaluate(
@@ -60,15 +59,6 @@ for (const width of [390, 1280]) {
     await page.until(`Boolean(document.querySelector('[data-model-role="planner"] [data-no-model]'))`)
     assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-model-planner'))`), false)
     assert.equal(await page.evaluate(source('planner')), 'set here')
-    // The same model for the planner and the plan reviewer cannot be saved.
-    await page.evaluate(`document.querySelector('[data-model-role="planner"] [data-reset]').click()`)
-    await page.until(`Boolean(document.querySelector('#avoozl-model-planner'))`)
-    await open('avoozl-model-planner')
-    await page.evaluate(pick('avoozl-model-planner', 'fake-writer'))
-    await open('avoozl-model-planReviewer')
-    await page.evaluate(pick('avoozl-model-planReviewer', 'fake-writer'))
-    await page.until(`Boolean(document.querySelector('[data-model-role="planReviewer"] [data-role-problem]'))`)
-    assert.equal(await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').disabled`), true)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
   })
 }

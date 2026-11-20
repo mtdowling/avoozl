@@ -2,7 +2,6 @@
 // why, what answering unblocks, and the evidence Avoozl holds. It comes before
 // every button, so nothing is approved without it. Theme variables only.
 import type { ReactNode } from 'react'
-import { SeverityBadges } from './ui/SeverityBadges.tsx'
 import { checkDot } from './dashboard-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -211,24 +210,6 @@ function Evidence({ item }: { item: ConflictItem }) {
           {(item.tasks ?? []).map((task) => (
             <ReviewTaskContext key={task.id} task={task} />
           ))}
-        </Box>
-      )}
-      {kinds.includes('summary') && context?.review && (
-        <Box flex flexCol gap="1" size="sm" data-review-summary>
-          {context.review.summary ? (
-            <Box as="p" m0 data-ai-summary>
-              {context.review.summary.text}
-              {!context.review.summary.current && <Hint size="xs"> (written for an older revision)</Hint>}
-            </Box>
-          ) : (
-            <Hint as="p" flush>
-              No AI summary is stored for this draft yet.
-            </Hint>
-          )}
-          <Hint as="span" flex flexWrap items="center" gap="2" size="xs">
-            {context.review.state === 'not-reviewed' ? 'Not reviewed yet' : `${context.review.found} found, ${context.review.fixed} fixed`}
-            <SeverityBadges counts={context.review.openBySeverity} label="Open review findings" />
-          </Hint>
         </Box>
       )}
       {kinds.includes('text') && context?.text && <TaskText title={context.task?.title ?? item.title} context={context} />}

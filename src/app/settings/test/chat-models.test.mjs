@@ -176,11 +176,8 @@ test("roles names only known roles and fields; agent only for the worker and fal
     /agent name/,
   );
   assert.throws(
-    () =>
-      validateRoles({
-        roles: { planner: { model: "same" }, planReviewer: { model: "same" } },
-      }),
-    /planReviewer.model must differ/,
+    () => validateRoles({ roles: { planReviewer: {} } }),
+    /roles.planReviewer is not a role/,
   );
 });
 

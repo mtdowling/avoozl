@@ -67,7 +67,7 @@ try {
       await page.until(`Boolean(${TOP})`, 30000)
     },
     approve: async (width, theme) => {
-      await start({ specs: '1', review: '1' }, width, theme)
+      await start({ specs: '1', stored: '1' }, width, theme)
       await goTo(width, 'Specs')
       await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`, 30000)
       await page.evaluate(`document.querySelector('[data-plan-row="spec:byte-types"]').click()`)

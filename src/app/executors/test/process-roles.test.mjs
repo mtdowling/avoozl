@@ -92,7 +92,7 @@ test("no child is moved off its folder: briefs say no cd, result rules are absol
       for (const role of row.roles ?? [setting])
         if (typeof role === "string")
           assert.ok(processBrief(role, "x").includes(STAY_IN_FOLDER), role);
-  for (const role of ["pr-review", "review:security"])
+  for (const role of ["check-decide", "review:security"])
     assert.ok(processBrief(role, "x").includes(STAY_IN_FOLDER), role);
   const { processSteps } = await import("../../delivery/delivery.mjs");
   assert.match(processSteps({ id: "7.1" }).join("\n"), /Do not run cd/);

@@ -70,7 +70,7 @@ function Code({ text, lang, line }: { text: string; lang: string | null; line?: 
 // Every block and list item carries `data-line`, its first source line, so
 // a reader can scroll to a cited line (DocumentReader.tsx).
 // It is also written as `data-source-line`; a block's lines run to the next
-// block's first line minus one (review comments, ReviewView.tsx).
+// block's first line minus one (ref chips, TaskRefs.tsx).
 // `measure` caps prose at a readable line length; tables and code may use
 // the full width.
 // `after` puts something under a block, named by its first source line

@@ -11,7 +11,6 @@ const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
   "plan.create",
   "plan.edit",
   "plan.extract",
-  "plan.review",
   "plan.publish",
   "task",
   "task.create",
@@ -306,7 +305,6 @@ export function workflowCategory(run) {
   if (categories.has(explicit)) return explicit;
   if (run.extraction?.planId || run.extraction?.extractionId)
     return "plan.extract";
-  if (run.review?.planId || run.review?.pipelineId) return "plan.review";
   if (run.mode === "plan")
     return run.context?.planId || run.planId ? "plan.edit" : "plan.create";
   if (run.mode === "implement")

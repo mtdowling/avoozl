@@ -93,31 +93,6 @@ export const needsContextItems = [
     },
   },
   {
-    kind: 'plan-review',
-    id: 'plan-review:p_meals',
-    taskId: null,
-    plan: 'meal-planner',
-    title: 'Review draft meal-planner?',
-    detail: "Read this draft on a different model before approval, or skip this revision's review.",
-    planReview: { planId: 'p_meals', revisionHash: 'a1b2c3d4e5f6' },
-    context: {
-      spec: { planId: 'p_meals', name: 'meal-planner', title: 'Meal planner' },
-      review: {
-        state: 'done',
-        current: true,
-        reviewerModel: 'reviewer-model',
-        found: 5,
-        fixed: 1,
-        openBySeverity: { blocker: 1, warn: 2, info: 1 },
-        summary: {
-          text: 'Plans a week of meals from saved recipes and builds one shopping list. The shopping list task has no acceptance check, and two tasks need the same file.',
-          revisionHash: 'a1b2c3d4e5f6',
-          current: true,
-        },
-      },
-    },
-  },
-  {
     kind: 'investigation',
     id: 'investigation:search.6',
     taskId: 'search.6',

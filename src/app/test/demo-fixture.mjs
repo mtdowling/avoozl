@@ -435,7 +435,6 @@ const SAYS = [
   ["driver.", "change this computer's driver settings"],
   ["plugin", "change plugins"],
   ["content.", "change content rules"],
-  ["review.chat", "open a review chat"],
   ["fix.start", "start this fix as a ready task"],
   ["fix.spec", "make this fix a draft spec folder"],
   ["conflicts.", "settle this conflict"],

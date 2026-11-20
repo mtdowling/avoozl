@@ -28,7 +28,7 @@ for (const width of [390, 1280]) {
   test(`each role picks a harness and the worker's row saves at ${width}px`, { skip }, async () => {
     await page.open(harness.url({ page: 'models' }), { width, height: 900 })
     await page.until(`Boolean(document.querySelector('#avoozl-harness-worker'))`)
-    for (const role of ['worker', 'falsifier', 'planner', 'planReviewer', 'retro']) {
+    for (const role of ['worker', 'falsifier', 'planner', 'retro']) {
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-harness-${role}'))`), true, role)
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-model-${role}'))`), true, role)
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-agent-${role}'))`), role === 'worker' || role === 'falsifier', role)
@@ -50,13 +50,10 @@ for (const width of [390, 1280]) {
       'codex (not approved)',
     ])
     await page.evaluate(pick('avoozl-harness-worker', 'claude-code'))
-    // The retro and the plan reviewer follow their harness.
+    // The retro follows its harness.
     await page.evaluate(`document.querySelector('#avoozl-harness-retro').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-retro').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-harness-retro', 'claude-code'))
-    await page.evaluate(`document.querySelector('#avoozl-harness-planReviewer').focus()`)
-    await page.until(`document.querySelector('#avoozl-harness-planReviewer').getAttribute('aria-expanded') === 'true'`)
-    await page.evaluate(pick('avoozl-harness-planReviewer', 'claude-code'))
     await page.until(`document.querySelector('[data-save-footer] [data-save]')?.disabled === false`)
     await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)
@@ -66,7 +63,6 @@ for (const width of [390, 1280]) {
         planner: { model: 'fake-writer' },
         worker: { agent: 'alt-worker', model: 'fake-reviewer', harness: 'claude-code' },
         retro: { harness: 'claude-code' },
-        planReviewer: { harness: 'claude-code' },
       },
       expectedHash: 'models-before',
     })

@@ -24,9 +24,7 @@ import {
   globalLocalIgnoreStatus,
 } from "../workspace/local-ignore.mjs";
 import { importNewPlans, newPlanStarts } from "../specs/new-plan.mjs";
-import { queueNotifications } from "../tick/notifications.mjs";
 import { archiveEnded } from "../specs/plan-retire.mjs";
-import { planReviewStep } from "../reviews/plan-review-step.mjs";
 import { runnerTick } from "../workers/remote-runner.mjs";
 import { chatBrief } from "../workers/epic-context.mjs";
 import { cliCommand } from "../workers/report-command.mjs";
@@ -157,35 +155,18 @@ export const entries = [
                     model: chatModel(config, "planner"),
                     harness: roleHarness(config, "planner"),
                   }),
-              review = await planReviewStep(store, {
-                workspaceRoot: this.workspaceRoot,
-                config,
-                readSpec: (spec) => this.readSpec(spec),
-                otherSpecs: () => this.specList().items,
-                open: !result.held,
-                prepare: this.planReviewOptions.prepare,
-                remove: this.planReviewOptions.remove,
-              }),
               opened = enqueueSessionRequests(
                 store,
                 { starts: planners },
                 { source: "new-plan" },
-              ),
-              queued = enqueueSessionRequests(
-                store,
-                { starts: review.requests, sends: review.messages },
-                { source: "plan-review" },
               );
-            for (const request of [...opened.starts, ...queued.starts]) {
+            for (const request of opened.starts) {
               const index = result.dispatch.findIndex(
                 (entry) => entry.id === request.id,
               );
               if (index < 0) result.dispatch.push(request);
               else result.dispatch[index] = request;
             }
-            result.messages.push(...queued.sends);
-            result.notify.push(...review.notify);
-            queueNotifications(store, review.notify);
           }
         });
       } catch (error) {

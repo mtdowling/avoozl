@@ -16,10 +16,7 @@ const agents = JSON.parse(
 const OWN = "@avoozl:avoozl/";
 // Agents that change no file and write nothing beyond their one report.
 const READ_ONLY = new Set([
-  "avoozl-code-review",
   "avoozl-falsifier",
-  "avoozl-plan-answer-read",
-  "avoozl-plan-review",
   "avoozl-responder",
   "avoozl-reviewer",
   "avoozl-verifier",

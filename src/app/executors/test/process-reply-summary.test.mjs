@@ -229,8 +229,8 @@ test("every child reaches the model proxy; only an online one the network too", 
       db.close();
     }
   };
-  // The code review reads only its snapshot: its model and nothing else.
-  assert.deepEqual(await network("pr-review"), ["localhost:18471"]);
+  // The responder reads only its folder: its model and nothing else.
+  assert.deepEqual(await network("responder"), ["localhost:18471"]);
   assert.deepEqual(await network("verifier"), [
     "localhost:18471",
     "localhost:8080",

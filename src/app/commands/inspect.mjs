@@ -66,18 +66,9 @@ export const commands = [
     ],
     async run({ positionals, localOrRequest, need }) {
       const id = need(positionals[0], "show TASK_ID");
-      // A pull request review a `process` child wrote (NK4.4).
-      if (/^pr-review:/.test(id)) {
-        const shown = await localOrRequest("review.chat.show", { id });
-        console.log(
-          shown.review
-            ? `${shown.repository}#${shown.number} at ${shown.review.head ?? "unknown head"}\n\n${shown.review.text}`
-            : JSON.stringify(shown, null, 2),
-        );
-      } else
-        console.log(
-          JSON.stringify(await localOrRequest("task.get", { id }), null, 2),
-        );
+      console.log(
+        JSON.stringify(await localOrRequest("task.get", { id }), null, 2),
+      );
     },
   },
   {

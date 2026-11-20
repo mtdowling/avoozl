@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Full-app screenshots of Needs you > Decisions (harness ?page=app&needsctx=1):
-// the list, then six items open (a question, a review group, a ready pull
-// request, a draft review, a stop on failed checks, an item with no
+// the list, then items open (a question, a review group, a ready pull
+// request, a stop on failed checks, an item with no
 // evidence), at 1280 and 390 px, light and dark: <out>/<shot>-<width>-<theme>.png
 //
 //   node test/browser/needs-you-context-shots.mjs <out dir>
@@ -32,7 +32,6 @@ const PICKS = {
   review: 'review:',
   'draft-pr': 'needs-human:search.4:',
   'pr-merge': 'needs-human:search.2:',
-  draft: 'plan-review:',
   failed: 'stale-session:',
   bare: 'needs-human:search.8:',
 }

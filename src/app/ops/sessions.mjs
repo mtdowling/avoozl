@@ -1,6 +1,5 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { resolveTaskId } from "../../task-identity.mjs";
-import { validatePlanReview } from "../settings/chat-models.mjs";
 import { prepareWorktree, reportSession } from "../delivery/delivery.mjs";
 import {
   completeKirocrewRequest,
@@ -9,15 +8,11 @@ import {
   takeKirocrewRequest,
 } from "../executors/kirocrew.mjs";
 import { readFlowPolicy } from "../flow/flow.mjs";
-import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import { machineRoots, postReply } from "../github/github-respond.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { markKirocrewSeen } from "../tick/needs-kirocrew.mjs";
 import { stampPrompts } from "../api/operation-support.mjs";
-import { bindPlanAnswerSession } from "../reviews/plan-review-answers.mjs";
-import { bindSpecReviewRound } from "../reviews/plan-reviews.mjs";
-import { requestReviewChat, showReviewChat } from "../reviews/pr-review.mjs";
 import {
   bindSession,
   recordSessionStatus,
@@ -77,20 +72,6 @@ export const entries = [
         const result = bindSession(store, input, {
           consumer: kirocrewConsumer(context),
         });
-        if (result.changed && result.binding.role === "plan-review") {
-          bindSpecReviewRound(store, {
-            roundId: result.binding.taskId,
-            slot: result.binding.slot,
-          });
-          result.binding = store.get("session_bindings", result.binding.slot);
-        }
-        if (result.changed && result.binding.role === "plan-answer") {
-          bindPlanAnswerSession(store, {
-            roundId: result.binding.taskId,
-            slot: result.binding.slot,
-          });
-          result.binding = store.get("session_bindings", result.binding.slot);
-        }
         return stampPrompts(store, result);
       });
     },
@@ -105,17 +86,7 @@ export const entries = [
       const store = this.store;
       markKirocrewSeen(store);
       return takeKirocrewRequest(store, input, context, (request, queued) =>
-        sessionStartHold(store, request, queued, {
-          planReviewMode:
-            request.role === "plan-review"
-              ? validatePlanReview(
-                  this.workspaceRoot
-                    ? loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
-                        .config.planReview
-                    : undefined,
-                ).mode
-              : undefined,
-        }),
+        sessionStartHold(store, request, queued),
       );
     },
   },
@@ -267,43 +238,6 @@ export const entries = [
     handler({ input }) {
       const store = this.store;
       return prepareWorktree(store, input);
-    },
-  },
-  // Code review (§8.5): queue one review chat for a pull request; the
-  // tick cron opens it. Person-only.
-  {
-    name: "review.chat.show",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp(
-      "A person reads a stored pull request review with avoozl show.",
-    ),
-    handler({ input }) {
-      const store = this.store;
-      return showReviewChat(store, input.id);
-    },
-  },
-
-  {
-    name: "review.chat",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person starts a code review chat."),
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person starts a code review chat, from the Avoozl page.",
-          403,
-        );
-      return requestReviewChat(
-        store,
-        readGitHubPolicyOrNull(this.workspaceRoot),
-        this.read().tasks,
-        input,
-        this.reviewOptions,
-      );
     },
   },
 ];

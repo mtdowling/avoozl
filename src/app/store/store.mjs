@@ -111,6 +111,8 @@ const DROPPED_TABLES = [
   "flow_usage",
   "flow_spans",
   "flow_retros",
+  "review_threads",
+  "review_rounds",
 ];
 
 // The tables of {id, body} rows; the read tables add the three with
@@ -121,8 +123,6 @@ const BODY_TABLES = new Set([
   "receipts",
   "batches",
   "github_repositories",
-  "review_threads",
-  "review_rounds",
   "review_followups",
   "extractions",
   "plan_facts",
@@ -288,8 +288,6 @@ export class Store {
    CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS review_threads(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS review_rounds(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS review_followups(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS extractions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS plan_facts(id TEXT PRIMARY KEY,body TEXT NOT NULL);

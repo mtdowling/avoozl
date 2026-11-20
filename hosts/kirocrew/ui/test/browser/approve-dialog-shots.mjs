@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Full-app screenshots of the Approve dialog (task 57.6) on fake findings,
+// Full-app screenshots of the Approve dialog (task 57.6),
 // desktop (1280) and phone (390), light and dark:
 // <out>/<kind>-<width>-<theme>.png. `dialog` is the single Approve dialog as
 // it opens; `changed` is the same dialog after a revision was written while
@@ -19,7 +19,7 @@ try {
   for (const width of [1280, 390])
     for (const theme of ['light', 'dark'])
       for (const kind of kinds) {
-        await page.open(harness.url({ page: 'app', specs: '1', review: '1', theme }), { width, height: width > 400 ? 900 : 844, dark: theme === 'dark' })
+        await page.open(harness.url({ page: 'app', specs: '1', stored: '1', theme }), { width, height: width > 400 ? 900 : 844, dark: theme === 'dark' })
         await openSpecs(page, width, settle, null)
         await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`, 30000)
         await page.evaluate(click('[data-plan-row="spec:byte-types"]'))

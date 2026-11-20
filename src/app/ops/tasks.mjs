@@ -83,7 +83,6 @@ import {
 } from "../api/page-views.mjs";
 import { panelView } from "../api/panel-view.mjs";
 import { archiveTask } from "../specs/plan-retire.mjs";
-import { planReviewNeedsYou } from "../reviews/plan-review-step.mjs";
 import { conversationSettings } from "../settings/repository-settings.mjs";
 import { fail } from "../store/store.mjs";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
@@ -378,7 +377,6 @@ export const entries = [
             'This workspace\'s .avoozl.json still says "runner": "crew-mode", from before the tick started every task. Avoozl starts nothing here until you let the tick run it.',
           hash: this.settingsFile().readFile().hash,
         });
-      view.items.push(...planReviewNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...pluginCheckNeedsYou(store), ...contextNeedsYou(store));
       view.items.push(...phaseNeedsYou(store));

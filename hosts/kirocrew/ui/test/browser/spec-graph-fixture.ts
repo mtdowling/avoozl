@@ -1,5 +1,5 @@
 // The byte-types spec's graph.view reply for the spec page's Task graph
-// (&review=1): one done task, one that just unlocked, two that wait, and one
+// (&stored=1): one done task, one that just unlocked, two that wait, and one
 // spec of another name that must not show.
 const task = (id: string, title: string, state: string, complete = false, refs: { kind: 'requirement' | 'design'; ref: string; file: string; line: number }[] = []) => ({
   id,

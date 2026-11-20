@@ -95,7 +95,7 @@ merge, shown in chat and never committed.
 
 ## Phase 4: Cuts
 
-- [ ] `sim-4.1` Cut the plan review tower [SM14.1, SM14.4] (§D14)
+- [x] `sim-4.1` Cut the plan review tower [SM14.1, SM14.4] (§D14)
   - `src/app/reviews/` holds no `plan-review-*.mjs`, `plan-reviews.mjs` or `review-findings.mjs`; `pr-review.mjs` and `github/pull-request-snapshot.mjs` are gone; the plan review operations, CLI commands and MCP tools are gone
 - [ ] `sim-4.2` Make investigate a skill only [SM14.4, SM17.5] (§D10, §D20)
   - `delivery/investigate.mjs`, the falsifier stage and every `$investigate` read are gone; the `avoozl-investigate` skill tells a worker to write the findings file its task's `$done` names, and a reviewer how to try to prove it wrong (SM17.5)
