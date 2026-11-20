@@ -328,3 +328,40 @@ test("avoozl land lands a claimed task now by its repository's mode, and refuses
   await seedClaims(w.store, { own: ["t2"] });
   assert.equal((await land("t2", { local: true })).state, "done");
 });
+
+test("a labeled issue landed directly is closed with a comment naming the landed commit", async (t) => {
+  const w = await workspace(t);
+  w.store.put("repositories", {
+    ...w.store.get("repositories", "app"),
+    github: "acme/app",
+  });
+  w.store.mutate("Issue task", (data) => {
+    data.tasks.push({
+      ...leaf("issue-12"),
+      planId: undefined,
+      labeledIssue: { repository: "acme/app", number: 12 },
+    });
+  });
+  const calls = [],
+    github = {
+      deleteBranch: async () => null,
+      issue: async () => ({ state: "open" }),
+      createIssueComment: async (repo, number, body) =>
+        calls.push(["comment", repo, number, body]),
+      updateIssue: async (repo, number, input) =>
+        calls.push(["update", repo, number, input.state]),
+    };
+  verified(w, "issue-12");
+  await integrateVerified(w.store);
+  await landDirect(w.store, {
+    github,
+    workspaceRoot: w.root,
+    rounds: 2,
+    machine: {},
+  });
+  const landed = git(w.origin, "rev-parse", "main");
+  assert.deepEqual(calls, [
+    ["comment", "acme/app", 12, `Landed in ${landed}.`],
+    ["update", "acme/app", 12, "closed"],
+  ]);
+});

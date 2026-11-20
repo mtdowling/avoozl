@@ -279,7 +279,10 @@ export function pullSteps({
           // landing.pr draft opens a draft a person releases (R119.1).
           draft: pr === "draft",
           body: entry.tasks
-            .map((t) => `Avoozl-Task: ${t.public ?? t.task}@${t.definition}`)
+            .flatMap((t) => [
+              `Avoozl-Task: ${t.public ?? t.task}@${t.definition}`,
+              ...(t.closes ? [`Closes #${t.closes}`] : []),
+            ])
             .join("\n"),
         });
       }

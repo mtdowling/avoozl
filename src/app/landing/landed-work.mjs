@@ -6,6 +6,8 @@
 import { tickPlansRepo } from "../specs/spec-ticks.mjs";
 import { cachedOwnClaims, deleteOwnClaim } from "../workers/claims.mjs";
 import { landingAction } from "./landing-action.mjs";
+import { closeLanded } from "../specs/labeled-issues.mjs";
+import { landingSpecOf } from "../intake/fix.mjs";
 
 // One landed entry ({spec, tasks}) at `candidate`, the commit on the base.
 // Returns whether its tick is on the done branch.
@@ -14,14 +16,28 @@ export async function finishLanded(
   github,
   { repository, entry, candidate, workspaceRoot, env },
 ) {
-  const ticked = await tickPlansRepo(store, {
-    entry,
-    candidate,
-    repository,
-    workspaceRoot,
-    env,
-  }).catch(() => null);
-  if (!ticked?.done) return false;
+  const tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
+    issues = entry.tasks
+      .map(({ task }) => tasks.get(task))
+      .filter((task) => task?.labeledIssue);
+  // A labeled issue's landing record is the issue closing (rule 17.3): its
+  // pull request's `Closes #<n>` closes it in `pr` mode, and in `direct`
+  // mode Avoozl closes it with a comment naming the commit.
+  if (issues.length) {
+    if (repository.landing === "direct")
+      for (const task of issues)
+        if (!(await closeLanded(github, task, candidate).catch(() => false)))
+          return false;
+  } else {
+    const ticked = await tickPlansRepo(store, {
+      entry,
+      candidate,
+      repository,
+      workspaceRoot,
+      env,
+    }).catch(() => null);
+    if (!ticked?.done) return false;
+  }
   if (
     repository.github &&
     landingAction({ landed: true, base: repository.baseBranch })
@@ -47,7 +63,7 @@ export async function retryLanded(store, github, { workspaceRoot, env } = {}) {
     if (
       await finishLanded(store, github, {
         repository,
-        entry: { spec: task.planId, tasks: [{ task: task.id }] },
+        entry: { spec: landingSpecOf(task), tasks: [{ task: task.id }] },
         candidate: task.integration.commit,
         workspaceRoot,
         env,

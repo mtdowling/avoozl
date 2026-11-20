@@ -72,6 +72,7 @@ import { respondStep } from "../github/github-respond.mjs";
 import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { claimsDue, refreshClaims } from "../workers/claims.mjs";
 import { readLabelFilters } from "../specs/label-filters.mjs";
+import { readLabeledIssues } from "../specs/labeled-issues.mjs";
 import { reviewDispatches } from "../reviews/pr-review.mjs";
 import { investigationStep } from "../delivery/investigate.mjs";
 import {
@@ -783,11 +784,14 @@ async function runTick(
           });
       // The label filters on spec issues, once per pass (simplify §D5).
       if (script && github)
-        for (const failed of await under(
-          "tick",
-          "check-in",
-          readLabelFilters,
-        )(store, github))
+        for (const failed of [
+          ...(await under("tick", "check-in", readLabelFilters)(store, github)),
+          ...(await under(
+            "tick",
+            "check-in",
+            readLabeledIssues,
+          )(store, github)),
+        ])
           planned.notify.push({
             channel: "failure",
             title: `Avoozl could not read the spec issue labels in ${failed.repository}`,

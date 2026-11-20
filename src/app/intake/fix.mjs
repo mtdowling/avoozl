@@ -67,10 +67,10 @@ export function loadFix(fix) {
 // The issue a fix came from, or null for a fix from text.
 export const fixIssue = (task) => loadFix(task?.fix)?.source?.issue ?? null;
 
-// A fix lands like a spec's task. A fix has no spec, so the "spec" a
-// landing entry names is the task's plan, or the fix itself.
+// A fix or a labeled issue lands like a spec's task. Neither has a spec, so
+// the "spec" a landing entry names is the task's plan, or the task itself.
 export const landingSpecOf = (task) =>
-  task?.planId ?? (loadFix(task?.fix) ? task.id : null);
+  task?.planId ?? (loadFix(task?.fix) || task?.labeledIssue ? task.id : null);
 const fixTask = (store, id) =>
   store
     .read()

@@ -205,6 +205,8 @@ export async function queuePullRequest(
         ...(named
           ? { public: named }
           : { metrics: landingMetrics(store, delivery) }),
+        // A labeled issue closes when its pull request merges (rule 17.3).
+        ...(task.labeledIssue ? { closes: task.labeledIssue.number } : {}),
       },
     ],
     source,

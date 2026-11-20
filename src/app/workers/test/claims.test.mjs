@@ -381,3 +381,68 @@ test("an exclude label added after the claim does not unclaim the task", async (
   assert.deepEqual(next.ready, [], "b is held by the label");
   assert.ok(s.github.refs.has("avoozl/parser/a"), "its claim branch stays");
 });
+
+// Labeled issues (simplify sim-1.7, rule 17): acme/app's issues, each with
+// its labels, who labeled it, and who it is assigned to.
+function issues(s, list, roles = { mona: "write", stranger: "read" }) {
+  Object.assign(s.github, {
+    currentUser: async () => ({ login: "mona" }),
+    listIssues: async () =>
+      list.map(({ by, ...issue }) => ({
+        state: "open",
+        labels: [{ name: "agent-ok" }],
+        assignees: [{ login: "mona" }],
+        ...issue,
+      })),
+    issueEvents: async (_repository, number) => [
+      {
+        event: "labeled",
+        label: { name: "agent-ok" },
+        actor: { login: list.find((i) => i.number === number)?.by ?? "mona" },
+      },
+    ],
+    permission: async (_repository, login) => ({
+      permission: roles[login] ?? "none",
+    }),
+  });
+}
+
+test("an open issue with a writer's require label becomes task issue-<n> and claims avoozl/issue-<n>/issue-<n>", async (t) => {
+  const s = setup(t, { tasks: [] });
+  filtered(s, { require: ["agent-ok"] });
+  issues(s, [
+    {
+      number: 12,
+      title: "Fix the crash",
+      body: "Empty input no longer crashes.",
+    },
+    { number: 13, title: "A stranger's label", body: "x", by: "stranger" },
+    { number: 14, title: "Someone else's", body: "x", assignees: [] },
+    { number: 15, title: "A spec issue", body: "<!-- avoozl:spec parser -->" },
+    { number: 16, title: "A pull request", body: "x", pull_request: {} },
+  ]);
+  const result = await claim(s.ops);
+  assert.equal(result.claimed.id, "issue-12");
+  assert.equal(result.claimed.branch, "avoozl/issue-12/issue-12");
+  const task = s.store.read().tasks.find((x) => x.id === "issue-12");
+  assert.equal(task.title, "Fix the crash");
+  assert.deepEqual(task.acceptance, ["Empty input no longer crashes."]);
+  assert.deepEqual(
+    s.store
+      .read()
+      .tasks.filter((x) => x.labeledIssue)
+      .map((x) => x.id),
+    ["issue-12"],
+  );
+  // The issue closing is its landing record: the next read marks it done.
+  issues(s, [
+    { number: 12, title: "Fix the crash", body: "x", state: "closed" },
+  ]);
+  const { readLabeledIssues } = await import("../../specs/labeled-issues.mjs");
+  await readLabeledIssues(s.store, s.github);
+  const { statusComplete } = await import("../../../model.mjs"),
+    data = s.store.read();
+  assert.ok(
+    statusComplete(data, data.tasks.find((x) => x.id === "issue-12").status),
+  );
+});

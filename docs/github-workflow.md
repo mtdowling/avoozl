@@ -713,8 +713,7 @@ Avoozl does not follow every rule yet. Each item below is not built:
   with `claim` claim through the refs API and take lease generation 1, but
   Avoozl does not renew a lease or read the leases before a push, and the tick
   still starts a task on its own branch `avoozl/<task>` with no claim branch.
-- The stop label's name in settings (16.2), labeled issues (17) and the stop
-  label (18).
+- The stop label's name in settings (16.2) and the stop label (18).
 
 The kit marks each probe Avoozl fails with the task that fixes it. Approval
 (7) reads the revision hash, which sets every checkbox to open, so a tick never
@@ -800,6 +799,13 @@ Each pass reads the spec issue's labels and, for each `require` label, who
 added it last. A label counts only when that person has write, maintain or
 admin access. A spec held by its labels shows in `avoozl next` as waiting,
 with the reason. A task already claimed keeps running.
+
+In a repository with `labels.require`, an open issue that passes them and is
+assigned to this workspace's GitHub login becomes task `issue-<number>` (17).
+It lives only in the workspace cache and lands like any task. In `pr` mode its
+pull request says `Closes #<number>`; in `direct` mode Avoozl closes the issue
+with a comment naming the landed commit. Once the issue is closed, the task is
+done.
 
 ### Refs
 

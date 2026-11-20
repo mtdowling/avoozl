@@ -35,6 +35,7 @@ import { scheduleHolds } from "../specs/spec-scheduler.mjs";
 import { isArchivedTask } from "../../browse-model.mjs";
 import { statusComplete } from "../../query.mjs";
 import { labelHolds, readLabelFilters } from "../specs/label-filters.mjs";
+import { readLabeledIssues } from "../specs/labeled-issues.mjs";
 import {
   completionReached,
   isManual,
@@ -244,6 +245,7 @@ export async function claimNext(
   const errors = [
       ...(await refreshClaims(store, client)),
       ...(await readLabelFilters(store, client)),
+      ...(await readLabeledIssues(store, client)),
     ],
     view = nextView(store, { policy, github }),
     ready = new Set(view.ready.map((item) => item.id)),

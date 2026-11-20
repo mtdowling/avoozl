@@ -461,3 +461,25 @@ test("a pull request closed unmerged leaves the queue and gives a Needs you row 
   assert.deepEqual(github.calls.deleted, [], "Avoozl deletes nothing itself");
   assert.deepEqual(github.calls.merged, []);
 });
+
+test("a labeled issue's pull request says Closes #<n>", async (t) => {
+  const w = await workspace(t),
+    github = fakeGithub(w),
+    bodies = [],
+    create = github.createPullRequest;
+  github.createPullRequest = async (repo, input) => {
+    bodies.push(input.body);
+    return create(repo, input);
+  };
+  w.store.mutate("Issue task", (data) => {
+    data.tasks.push({
+      ...leaf("issue-12"),
+      planId: undefined,
+      labeledIssue: { repository: "acme/app", number: 12 },
+    });
+  });
+  verified(w, "issue-12");
+  await integrateVerified(w.store);
+  await step(w, github);
+  assert.match(bodies[0], /^Closes #12$/m);
+});
