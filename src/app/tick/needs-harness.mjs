@@ -6,6 +6,7 @@ import { rowFor } from "../agents/role-table.mjs";
 import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { requestHarness } from "../executors/process.mjs";
 import { pendingSessionRequests } from "../sessions/session-requests.mjs";
+import { recordWaitingRoles } from "./waiting-roles.mjs";
 
 const ITEMS = "needs-harness.items";
 
@@ -19,26 +20,19 @@ export const blockedHarnesses = (configDirectory) =>
 
 // Record one item per role with a start waiting on a blocked harness.
 export function needsHarnessStep(store, blocked, now = Date.now()) {
-  const before = store.getMeta(ITEMS) ?? {};
-  const next = {};
+  const entries = [];
   for (const request of pendingSessionRequests(store, "process")) {
     if (request.operation === "send") continue;
     const harness = requestHarness(store, request);
     const problem = blocked.get(harness);
-    if (!problem) continue;
-    const role = rowFor(request.role)?.setting ?? request.role;
-    next[role] ??= {
-      role,
-      harness,
-      problem,
-      since: before[role]?.since ?? new Date(now).toISOString(),
-      requests: [],
-    };
-    next[role].requests.push(request.id);
+    if (problem)
+      entries.push({
+        role: rowFor(request.role)?.setting ?? request.role,
+        id: request.id,
+        extra: { harness, problem },
+      });
   }
-  if (JSON.stringify(next) !== JSON.stringify(before))
-    store.setMeta(ITEMS, next);
-  return next;
+  return recordWaitingRoles(store, ITEMS, entries, now);
 }
 
 export const needsHarnessItems = (store) =>

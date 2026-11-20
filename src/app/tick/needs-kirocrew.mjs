@@ -9,6 +9,7 @@
 import { ROLE_TABLE, rowFor } from "../agents/role-table.mjs";
 import { pendingSessionRequests } from "../sessions/session-requests.mjs";
 import { fail } from "../store/store.mjs";
+import { recordWaitingRoles } from "./waiting-roles.mjs";
 
 // Operations name the readers they call (the Operations context keys); a
 // reader of Kiro Crew that an operation outside this table calls fails
@@ -102,20 +103,17 @@ export function needsKirocrewStep(store, now = Date.now()) {
     if (Object.keys(before).length) store.setMeta(ITEMS, {});
     return {};
   }
-  const next = {};
-  for (const request of pendingSessionRequests(store, "kirocrew")) {
-    if (request.operation === "send") continue;
-    const role = rowFor(request.role)?.setting ?? request.role;
-    next[role] ??= {
-      role,
-      since: before[role]?.since ?? new Date(now).toISOString(),
-      requests: [],
-    };
-    next[role].requests.push(request.id);
-  }
-  if (JSON.stringify(next) !== JSON.stringify(before))
-    store.setMeta(ITEMS, next);
-  return next;
+  return recordWaitingRoles(
+    store,
+    ITEMS,
+    pendingSessionRequests(store, "kirocrew")
+      .filter((request) => request.operation !== "send")
+      .map((request) => ({
+        role: rowFor(request.role)?.setting ?? request.role,
+        id: request.id,
+      })),
+    now,
+  );
 }
 
 // Needs you rows: one per waiting role, with the harnesses this machine has
