@@ -64,6 +64,17 @@ export function graphOf(
     });
     edges.push(...waitsOf(name, text, linked));
   }
+  // Edges in file order of the task they lead to, then the one they leave.
+  const order = new Map();
+  const visit = (items) => {
+    for (const item of items) {
+      order.set(item.id, order.size);
+      if (item.items) visit(item.items);
+    }
+  };
+  for (const spec of out) for (const phase of spec.phases) visit(phase.items);
+  const at = (id) => order.get(id) ?? Number.MAX_SAFE_INTEGER;
+  edges.sort((a, b) => at(a.to) - at(b.to) || at(a.from) - at(b.from));
   return { scope, specs: out, edges };
 }
 
@@ -179,4 +190,39 @@ export function graphMermaid(graph, { state = false } = {}) {
     for (const name of STATES)
       lines.push(`  classDef ${name} stroke-width:2px`);
   return lines.join("\n") + "\n";
+}
+
+// The graph of the stored specs, with each leaf's state from the store:
+// `scope` names one spec, or none for every spec no other spec links. A
+// spec group shows the spec it links inside it (§D19.2), so no spec is
+// listed twice.
+export function storeGraph(
+  store,
+  { scope = null, linked, ready, busy, complete },
+) {
+  const tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
+    texts = new Map(
+      store
+        .list("plans")
+        .filter(
+          (plan) => plan.spec && !plan.deletedAt && plan.files?.["tasks.md"],
+        )
+        .map((plan) => [plan.spec, plan.files["tasks.md"]]),
+    ),
+    names = scope
+      ? [scope].filter((name) => texts.has(name))
+      : [...texts.keys()]
+          .filter((name) => !linked?.parents(name).length)
+          .sort();
+  const stateOf = (id, { manual, mark }) => {
+    const task = tasks.get(id);
+    if (mark === "x" || (task && complete(task.status))) return "landed";
+    if (busy.has(id)) return "claimed";
+    if (manual) return "manual";
+    return ready.has(id) ? "ready" : "waiting";
+  };
+  return graphOf(
+    names.map((name) => ({ name, text: texts.get(name) })),
+    { stateOf, linked, scope },
+  );
 }

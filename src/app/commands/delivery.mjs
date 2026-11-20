@@ -118,6 +118,27 @@ export const commands = [
     },
   },
   {
+    command: "graph",
+    help: [
+      help(
+        "deliver",
+        "graph [SPEC] [--format mermaid]",
+        "The task graph by phase in list order, as text or a Mermaid flowchart",
+      ),
+    ],
+    async run({ options, positionals, localOrRequest }) {
+      const graph = await localOrRequest(
+        "graph.view",
+        positionals[0] ? { spec: positionals[0] } : {},
+      );
+      if (options.format && !["text", "mermaid"].includes(options.format))
+        throw Error("Choose --format text or --format mermaid.");
+      process.stdout.write(
+        options.format === "mermaid" ? graph.mermaid : graph.text,
+      );
+    },
+  },
+  {
     command: "next",
     help: [
       help(

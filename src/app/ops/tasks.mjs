@@ -28,7 +28,11 @@ import {
 } from "../agents/agent-instructions.mjs";
 import { describeWorkspace } from "../api/client.mjs";
 import { settleConflicts } from "../delivery/conflict-actions.mjs";
-import { startNow } from "../delivery/delivery.mjs";
+import {
+  busyTaskIds,
+  readyCandidates,
+  startNow,
+} from "../delivery/delivery.mjs";
 import { diskNeedsYou } from "../workspace/disk-space.mjs";
 import { resolveDecision } from "../api/direct-links.mjs";
 import { machineLinks } from "../tick/crews.mjs";
@@ -49,6 +53,7 @@ import {
   requiredCheckNeedsYou,
 } from "../plugins/check-stages.mjs";
 import { syncNeedsYou } from "../epics/integration-sync.mjs";
+import { graphMermaid, graphText, storeGraph } from "../specs/graph.mjs";
 import { integrationNeedsYou } from "../specs/integration-base.mjs";
 import { decideInvestigation } from "../delivery/investigate.mjs";
 import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
@@ -325,7 +330,26 @@ export const entries = [
       } catch {
         // No spec roots in this mode.
       }
-      return graphView(store, this.read(), input, folders);
+      // The one graph builder's text and Mermaid (simplify §D8), which the
+      // CLI and plans_graph print. An older read-only database that lacks
+      // session tables gets the view alone.
+      let printed = {};
+      try {
+        const graph = storeGraph(store, {
+          scope: input?.spec ?? null,
+          linked: this.linkedSpecs(),
+          ready: new Set(readyCandidates(store).map((task) => task.id)),
+          busy: busyTaskIds(store),
+          complete: (status) => statusComplete(store.read(), status),
+        });
+        printed = {
+          text: graphText(graph),
+          mermaid: graphMermaid(graph, { state: true }),
+        };
+      } catch (error) {
+        if (!store.readOnly) throw error;
+      }
+      return { ...graphView(store, this.read(), input, folders), ...printed };
     },
   },
 
