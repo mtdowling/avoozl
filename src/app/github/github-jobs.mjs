@@ -84,8 +84,8 @@ export const JOBS = Object.freeze({
     risk: "low",
     permissions: repo({ issues: w, contents: r, pull_requests: r }),
   },
-  evidence: {
-    description: "Post the evidence comment on a pull request",
+  "review-output": {
+    description: "Post review output on a pull request or spec issue",
     risk: "low",
     permissions: repo({ pull_requests: r, issues: w, contents: r }),
   },

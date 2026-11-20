@@ -96,7 +96,7 @@ which kinds of task it cannot run, so that `process` is a full choice.
 
 1. For every pair of executor (`kirocrew`, `process`) and task kind (single
    task, task with investigate first, member of a batch, landing or feedback
-   round, task on a worker machine), Avoozl SHALL either give the session a
+   round), Avoozl SHALL either give the session a
    brief it can follow to the end or decline that pair in code with a stated
    reason. No pair SHALL give a brief that names a tool or a command the
    session cannot use.
@@ -109,9 +109,6 @@ which kinds of task it cannot run, so that `process` is a full choice.
    the reason "a process child makes no commits, so one session cannot make
    one commit per task" shown where a batch that breaks a rule is shown
    today.
-4. A task on a worker machine SHALL get the brief of that machine's
-   executor: the `process` steps of Requirement 96.1 on `process`, the
-   commit-and-report steps on `kirocrew`.
 5. One table in code SHALL hold, for each pair of WP3.1, the brief it gets
    or the reason it is declined. A test SHALL fail when a pair is missing
    from the table, and SHALL run each brief through a fake executor of its

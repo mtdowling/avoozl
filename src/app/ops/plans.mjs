@@ -15,6 +15,7 @@ import {
   submitExtraction,
 } from "../specs/design-extraction.mjs";
 import { epicsView } from "../epics/epics-view.mjs";
+import { queuePublish } from "../specs/spec-publication.mjs";
 import { crossPlanEpics, epicOfPlan } from "../epics/epics.mjs";
 import { requestNewPlan } from "../specs/new-plan.mjs";
 import { epicView, ownership, plansTableView } from "../api/page-views.mjs";
@@ -675,7 +676,10 @@ export const entries = [
         args.evidence = input.evidence || commit.evidence;
         args.approvalCommit = commit.commit;
       }
-      return approvePlan(store, args);
+      const approved = approvePlan(store, args);
+      // The next tick publishes its spec issue (workflow v1 rule 8.1).
+      if (commit) queuePublish(store, plan.id, commit.commit);
+      return approved;
     },
   },
 

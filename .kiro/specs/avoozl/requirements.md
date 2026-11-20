@@ -1615,8 +1615,7 @@ approve without my running setup steps by hand.
    design §4.42), and no second reader: a spec whose current text a commit
    on main by an approver touched SHALL come in approved; a task ticked
    `[x]` on main SHALL come in done, with the commit that ticked it as its
-   landing commit; landing trailers and retro files SHALL be read back; and
-   every other spec SHALL come in as a draft. A spec that already has a plan
+   landing commit; and every other spec SHALL come in as a draft. A spec that already has a plan
    SHALL be left alone. An approval is the commit's author email on the
    approvers list; the commit message plays no part.
 6. Pick approvers SHALL list the repository's commit authors on its base
@@ -3333,9 +3332,10 @@ issue per task or exposing private planning information.
    issue SHALL hold ownership (its assignee) and discussion; SQLite SHALL
    cache local execution. There SHALL be one issue per published spec and
    epic, never per task.
-2. Publish issue SHALL be an explicit per-spec act in its home repository,
-   independent of approval. Approval alone SHALL make no GitHub write.
-   A fork checkout SHALL NOT move the registered issue home or require fork
+2. The tick SHALL publish the spec issue in its home repository for each
+   approval this workspace adopts or makes, when this runner acts as the
+   approver (workflow v1 rule 8.1, github-native GN3); `avoozl spec
+   publish` SHALL stay a person's retry. A fork checkout SHALL NOT move the registered issue home or require fork
    issues.
 3. Unfinished checkpoints SHALL release nothing. A successor in any spec
    SHALL start once its prerequisite's tick reaches the base branch. Branch
@@ -3870,9 +3870,6 @@ rebuilds its database from main and GitHub.
    reviewed revision, and push it without force. It SHALL refuse a person
    who is not an approver. When main already holds that exact text from a
    non-approver, it SHALL refuse and say to edit through a spec branch.
-6. Each landing commit SHALL carry, under each `Avoozl-Task:` trailer, the
-   task's `Avoozl-Started`, `Avoozl-Tries`, `Avoozl-Harness`, `Avoozl-Model`
-   and `Avoozl-Cost` when known.
 7. A task made from an intake item SHALL name it with a `source:` fact (its
    link), and Avoozl SHALL tie the item to that task instead of making a new
    one. An item pushed over MCP SHALL become
@@ -3884,16 +3881,11 @@ rebuilds its database from main and GitHub.
    only in layout, Requirement 111.6) as that commit's author, and record
    each landing commit's tasks in Activity. A full
    database SHALL be refused.
-9. Each landing commit SHALL also carry the task's Flow spans, and a pull
-    request landing's merge commit SHALL carry the same trailers, written by
-    Avoozl as the merge's commit message. Each finished retro SHALL be a
-    committed file under `.kiro/retros/`, authored by the agent identity,
-    and a rebuild SHALL restore the Flow spans and retros from git.
 11. Tests SHALL show: an author-only approval; an approval whose committer is
     someone else; an agent-authored edit with the owner as committer is no
     approval; and a scratch repository with approvals, a landed task and an intake-made task rebuilds to the same plans,
-    approvals, tasks, Flow spans and retros after its database is deleted;
-    and both a direct and a pull request landing write the trailers.
+    approvals and tasks after its database is deleted; and no direct or
+    pull request landing writes a trailer.
 
 12. The tick SHALL adopt an approval that
     reaches main with no click: a spec pull request an approver authored and
@@ -4024,9 +4016,8 @@ who has it and no two people drive one spec.
    driver SHALL close the spec issue as completed, once. A later revision
    SHALL NOT reopen it.
 5. An approved spec with no spec issue SHALL drive on this workspace and show
-   "Not shared", because no other machine can see who drives it. Avoozl SHALL
-   create no issue for it by itself: publishing stays a person's act
-   (**Make the GitHub issues**, `avoozl spec publish`, Requirement 102.2).
+   "Not shared", because no other machine can see who drives it, until the
+   tick publishes its issue (Requirement 102.2).
 6. Reading the assignee SHALL add no GitHub call. The tick SHALL read each
    spec issue with the conditional read it already makes, its rechecks SHALL
    share the client's cache, and an unchanged issue SHALL answer 304. The

@@ -178,12 +178,12 @@ test("the client asks per job and repository, and the cache shares by permission
     await github.issue("acme/api", 1);
     await github.issue("acme/api", 2);
   });
-  await withJob("evidence", () => github.issue("acme/api", 3));
+  await withJob("review-output", () => github.issue("acme/api", 3));
   await withJob("check-in", () => github.issue("acme/web", 1));
   const asked = m.calls().map((c) => [c.repository, c.purpose]);
   assert.deepEqual(asked, [
     ["acme/api", "check-in"],
-    ["acme/api", "evidence"],
+    ["acme/api", "review-output"],
     ["acme/web", "check-in"],
   ]);
   // A token made for acme/api is never sent on acme/web's call.

@@ -85,6 +85,8 @@ export const entries = [
       await this.applyBaseTicks();
       // An approver's spec commit that reached main approves it (§4.42).
       await this.applyMainApprovals();
+      // An approval adopted or made here publishes its spec issue (rule 8.1).
+      const publishErrors = await this.publishApproved();
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
@@ -163,6 +165,12 @@ export const entries = [
         // Another tick owns the post-import work; its next pass will finish it.
       }
       if (input.cron === true) recordReleased(store, result);
+      for (const failed of publishErrors)
+        result.notify?.push({
+          channel: "failure",
+          title: `Avoozl could not publish a spec issue in ${failed.repository}`,
+          text: failed.error,
+        });
       return result;
     },
   },

@@ -1,14 +1,17 @@
-// Make the GitHub issues (Requirement 102.1-102.2, 115.7): an explicit,
-// per-spec act. Approval never calls it. One issue for the spec and one for
-// its epic; the spec issue is made under its epic's issue when GitHub allows
-// the link. An issue the workspace already holds for the spec or epic (a
-// plan or epic issue from projection) is reused, so the driver read from its
-// assignee stays. Publishing again writes nothing.
+// Make the GitHub issues (Requirement 102.1-102.2, 115.7). The tick
+// publishes a spec an approval adopted (publishApproved, workflow v1 rule
+// 8.1); `avoozl spec publish` is a person's retry. One issue for the spec and
+// one for its epic; the spec issue is made under its epic's issue when GitHub
+// allows the link. An issue the workspace already holds for the spec or epic
+// (a plan or epic issue from projection) is reused, so the assignee read
+// from it stays. Publishing again writes nothing.
 //
 // shortcut: the home is the named or only configured repository.
 import { fail } from "../store/store.mjs";
 import { epicOfPlan } from "../epics/epics.mjs";
 import { asJob } from "../github/github-jobs.mjs";
+import { personOf } from "../github/github.mjs";
+import { noreplyLogin } from "../git/git-approvals.mjs";
 
 const receiptId = (level, id) => `github-parent:${level}:${id}`;
 const lower = (value) => String(value ?? "").toLowerCase();
@@ -116,7 +119,7 @@ export async function readSpecIssues(store, github) {
 // Publishes one spec plan.
 export async function publishSpec(
   store,
-  { github, identity, planId, repository },
+  { github, identity, planId, repository, assignees = [] },
 ) {
   const plan = store.get("plans", planId);
   if (!plan) fail("Plan not found.", 404);
@@ -185,6 +188,7 @@ export async function publishSpec(
     title: plan.title || plan.id,
     body: issueBody("spec", plan.spec),
     ...(under ? { parentIssueId: under } : {}),
+    ...(assignees.length ? { assignees } : {}),
   });
   remember(store, "plan", plan.id, config, issue, {
     planId: plan.id,
@@ -205,4 +209,107 @@ export async function publishSpec(
     number: issue.number,
     ...(epicIssue ? { epicNumber: epicIssue.number } : {}),
   };
+}
+
+// Approvals the next tick publishes (workflow v1 rule 8.1), as plan ID ->
+// approval commit. Only an approval this workspace adopts or makes is queued,
+// so a rebuild publishes nothing and specs approved before stay as they are.
+const PENDING = "publish.pending";
+
+export function queuePublish(store, planId, commit) {
+  if (!commit) return;
+  const pending = store.getMeta(PENDING) ?? {};
+  if (pending[planId] === commit) return;
+  store.setMeta(PENDING, { ...pending, [planId]: commit });
+}
+
+const loginsOf = (entries) =>
+  (entries ?? [])
+    .map((entry) => (typeof entry === "string" ? entry : entry?.login))
+    .filter(Boolean);
+
+const configured = (store, repository) =>
+  store
+    .list("github_repositories")
+    .some((entry) => lower(entry.id) === lower(repository));
+
+// Publish each queued approval that has no spec issue (rule 8.1). Only the
+// runner acting as the approver publishes, so runners do not race: the login
+// that merged the approving pull request, signed the commit, or pushed it
+// from Approve (the evidence cache), else the commit author's GitHub login.
+// Before it creates an issue it reads the open issues for one with the
+// spec's marker (rule 8.2). The new issue copies the approving pull
+// request's assignees, and stays unassigned when it has none or there was
+// no pull request.
+//   evidence  the approval evidence cache (git-approvals evidenceCache)
+//   homeOf    async plan -> the GitHub repository that holds its spec, or null
+// Returns [{repository, error}]; a failed spec stays queued for the next tick.
+export async function publishApproved(
+  store,
+  { github, identity, evidence, homeOf },
+) {
+  const pending = store.getMeta(PENDING) ?? {};
+  if (!Object.keys(pending).length) return [];
+  // `identity` may be a function, read only when something is queued.
+  if (typeof identity === "function") identity = identity();
+  if (!identity?.mode || !github?.available?.()) {
+    store.setMeta(PENDING, {});
+    return [];
+  }
+  const left = { ...pending },
+    errors = [],
+    held = (planId) => store.get("receipts", receiptId("plan", planId))?.number;
+  let login;
+  try {
+    login = await personOf(github);
+    if (Object.keys(left).some((planId) => !held(planId)))
+      errors.push(...(await readSpecIssues(store, github)).errors);
+  } catch (error) {
+    return [{ repository: "GitHub", error: error.message }];
+  }
+  for (const [planId, commit] of Object.entries(pending)) {
+    const plan = store.get("plans", planId);
+    if (!plan || plan.deletedAt || held(planId) || !login) {
+      delete left[planId];
+      continue;
+    }
+    let repository = null;
+    try {
+      repository = await homeOf(plan);
+      if (!repository || !configured(store, repository)) {
+        delete left[planId];
+        continue;
+      }
+      const proof = evidence?.get(commit) ?? {},
+        approval = store.get("approvals", plan.approvalId);
+      let actor =
+        proof.mergedBy ??
+        proof.signer ??
+        proof.pushedBy ??
+        noreplyLogin(approval?.approvedBy);
+      if (!actor)
+        actor = (await github.commit(repository, commit))?.author?.login;
+      if (String(actor ?? "").toLowerCase() !== login.toLowerCase()) {
+        delete left[planId];
+        continue;
+      }
+      const assignees = proof.pull
+        ? loginsOf(
+            (await github.pullRequest(repository, proof.pull))?.assignees,
+          )
+        : [];
+      await publishSpec(store, {
+        github,
+        identity,
+        planId,
+        repository,
+        assignees,
+      });
+      delete left[planId];
+    } catch (error) {
+      errors.push({ repository: repository ?? "GitHub", error: error.message });
+    }
+  }
+  store.setMeta(PENDING, left);
+  return errors;
 }
