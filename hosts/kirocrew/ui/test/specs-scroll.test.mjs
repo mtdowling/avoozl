@@ -1,6 +1,7 @@
 // On a desktop the Specs page does not scroll: the list and the spec view
 // fill the height below the header and scroll inside themselves; the spec's
-// tab bar stays put while a document scrolls under it. In a real Chrome, full app shell. Skipped when no Chrome is found.
+// tab bar stays put while a document scrolls under it.
+// In a real Chrome, full app shell. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
