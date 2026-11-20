@@ -35,7 +35,7 @@ async function specPlan(t) {
   return { root, store, ops, directory, plan };
 }
 
-test("a discovery on a spec plan adds a tasks.md item with its Facts", async (t) => {
+test("a discovery on a spec plan adds a tasks.md item with its done bullets", async (t) => {
   const { root, store, ops, directory, plan } = await specPlan(t);
   const receipt = await approve(ops, plan);
   const before = store.read().tasks.length;
@@ -67,7 +67,6 @@ test("a discovery on a spec plan adds a tasks.md item with its Facts", async (t)
       [
         "- [ ] `cache-invalidation` Invalidate the stale cache entry",
         "  - A changed record invalidates its cache entry.",
-        "  - Found while implementing the delivery task.",
         "",
       ].join("\n"),
     ),
@@ -141,14 +140,9 @@ test("spec proposals are rejected by the task rules with no partial write", asyn
   await rejects(proposal({ title: "" }), /title of 1–240 characters/);
   await rejects(proposal({ title: "two\nlines" }), /on one line/);
   await rejects(proposal({ acceptance: [] }), /observable acceptance criteria/);
-  await rejects(
-    proposal({ tags: ["discovered"] }),
-    /"tags" is not a task fact/,
-  );
   await rejects(proposal({ summary: 7 }), /summary must be text/);
   await rejects(proposal({ id: "1.2" }), /Repeated local task ID 1\.2/);
   await rejects("cache", /one proposed task as a JSON object/);
-  await rejects(proposal({ budget: 3 }), /"budget" is not a task fact/);
   await assert.rejects(
     ops.execute("plan.propose", { id: "plan-missing", proposal: proposal() }),
     /Plan not found/,
