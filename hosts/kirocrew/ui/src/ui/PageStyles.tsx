@@ -73,12 +73,11 @@ export const CSS_NavStyle = `[data-nav-head]{display:flex;align-items:center;gap
 [data-nav-filters] label{font-size:12px}
 [data-nav-filters] label>span:first-child,[data-nav-filters] legend{color:var(--muted)}
 [data-nav-filters]>label select,[data-nav-filters] input[type=search],[data-nav-filters] input[type=text]{width:100%;min-width:0;box-sizing:border-box;font-size:12.5px}
-[data-nav-chevron]{display:inline-flex;flex-shrink:0;transition:transform .15s}
+[data-nav-chevron]{display:inline-flex;flex-shrink:0}
 @media (prefers-reduced-motion:reduce){[data-nav-head],[data-nav-item],[data-nav-filters]>label{max-width:none!important;width:100%}
 [data-nav-filters] label{font-size:12px}
 [data-nav-filters] label>span:first-child,[data-nav-filters] legend{color:var(--muted)}
-[data-nav-filters]>label select,[data-nav-filters] input[type=search],[data-nav-filters] input[type=text]{width:100%;min-width:0;box-sizing:border-box;font-size:12.5px}
-[data-nav-chevron]{transition:none}}`
+[data-nav-filters]>label select,[data-nav-filters] input[type=search],[data-nav-filters] input[type=text]{width:100%;min-width:0;box-sizing:border-box;font-size:12.5px}}`
 
 // Radar's sizes: 12px headers at .05em, 13px rows 8px in, 6px corners.
 export const CSS_RailCss = `[data-rail-head]{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
@@ -111,7 +110,6 @@ export const CSS_PanelCss = `
 [data-pp-section]{border-bottom:1px solid var(--border)}
 [data-pp-section-head]{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:transparent;border:0;border-radius:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;font-size:12px;font-weight:600;transition:background-color .12s}
 [data-pp-section-head]:hover{background:var(--bg-hover)}
-[data-pp-section-head] [data-pp-chevron]{flex:none;color:var(--muted)}
 [data-pp-section-title]{color:var(--text-strong,var(--text))}
 [data-pp-summary]{margin-left:auto;max-width:55%;font-size:11px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 [data-pp-list]{list-style:none;margin:0;padding:0 0 8px}

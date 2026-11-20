@@ -43,6 +43,7 @@ import { changePage } from './nav-history.ts'
 import { errorMessage, pickDefault, readPageState, workspaceClient, writePageState, type WorkspaceList } from './workspace-api'
 import { Box } from './ui/Box'
 import { Glyph } from './ui/Glyph'
+import { DisclosureStyle } from './ui/Disclosure.tsx'
 
 function storage(): Storage | null {
   try {
@@ -75,6 +76,7 @@ export default function AvoozlApp() {
   return (
     <NavHistoryProvider>
       <NavSlotProvider>
+        <DisclosureStyle />
         <AvoozlPage />
       </NavSlotProvider>
     </NavHistoryProvider>

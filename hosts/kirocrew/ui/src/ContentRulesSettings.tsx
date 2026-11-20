@@ -37,6 +37,7 @@ import {
 } from './content-api.ts'
 import { SaveFooter } from './SaveFooter.tsx'
 import { CheckRow, Field, Marker, RawKey } from './ui/Field.tsx'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './ui/controls.tsx'
 import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
 import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
@@ -982,7 +983,8 @@ allow ticket: \bacme-0000\b`
 function HowRulesWork() {
   return (
     <Box id={HELP_ID} as="details" css-border-color="border" rounded="lg" border="all" p="3" data-rules-help>
-      <Box as="summary" css-list-style="none" flex cursorPointer items="center" gap="2" size="sm" weight="semibold">
+      <Box as="summary" flex items="center" gap="2" size="sm" weight="semibold" {...DISCLOSURE}>
+        <DisclosureMark size={ICON} />
         <BookOpen size={ICON} aria-hidden="true" />
         How rules work
       </Box>
