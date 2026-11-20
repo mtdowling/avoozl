@@ -29,15 +29,22 @@ worktrees, and its checks. Checkout paths are per machine, so they stay out of
 [Repository checks and isolation](checks.md)
 for checks, their environment, and the sandbox they run in.
 
-## Turning delivery on
+## Turning Autopilot on
 
-Delivery starts with a `delivery` block in `.avoozl.json`:
+Autopilot starts with a `delivery` block in `.avoozl.json`:
 
 ```json
 {
   "delivery": {}
 }
 ```
+
+**Settings › Autopilot** writes it for you. The page picks **Off** (you take
+and land tasks yourself) or **Autopilot** (the tick starts and lands them),
+and asks once before either change. Only a person changes it. Turning
+Autopilot off removes the block, and is refused while the block holds a
+setting such as `reviewRounds`, so no setting is lost. The page's other
+settings, such as who merges, show and save while Autopilot is off.
 
 A runner starts a spec's tasks only when the spec issue, and every parent
 spec's issue, is assigned to its own login alone; a spec with no issue runs
@@ -237,7 +244,7 @@ stays and the tick tries again.
 `landing.pr` says how Avoozl opens a `pr` repository's pull requests, and who
 merges them. Set it for the workspace at the top of `.avoozl.json`
 (`"landing": {"pr": "ready"}`), or for one repository in its landing block,
-which wins. Settings shows the workspace's in **Settings › Delivery**, and a
+which wins. Settings shows the workspace's in **Settings › Autopilot**, and a
 repository's on its **Landing** tab, where unset uses the workspace's. Only a
 person changes it; agents, MCP and the tick cannot. It is the only setting for
 who merges.

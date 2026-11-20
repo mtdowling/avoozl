@@ -1,5 +1,5 @@
 // ?page=app&inline=1: a small stateful backend for the Settings pages that
-// edit in place (Delivery, Content rules, Plugins, Repository setup
+// edit in place (Autopilot, Content rules, Plugins, Repository setup
 // and Flow). Each update changes what the next get returns and moves the
 // hash on, so a test can edit a field, Save and read the page back. Every
 // write is recorded in window.__writes as { operation, input, workspaceId }.
@@ -21,14 +21,18 @@ export function installInlineFixture() {
     if (given !== hash()) throw new Error(`Stale: expected ${hash()}, got ${given}`)
   }
 
-  // Delivery
+  // Autopilot: ?autopilot=off starts it off.
   let landingPr: string | null = null
-  answer('delivery.settings.get', () => ({ hash: hash(), on: true, landingPr }))
+  let on = new URLSearchParams(location.search).get('autopilot') !== 'off'
+  answer('delivery.settings.get', () => ({ hash: hash(), on, landingPr }))
   answer('delivery.settings.update', (body) => {
     stale(body)
-    landingPr = (body.input as { landingPr: string | null }).landingPr
+    const input = body.input as { landingPr?: string | null; turnOn?: boolean; turnOff?: boolean }
+    if (input.turnOn) on = true
+    else if (input.turnOff) on = false
+    else landingPr = input.landingPr ?? null
     write(body)
-    return { hash: hash(), on: true, landingPr }
+    return { hash: hash(), on, landingPr }
   })
   answer('GET /api/models', () => ({ models: [] }))
 

@@ -294,7 +294,7 @@ const SETTINGS = {
   "configuration.update": "workspace configuration",
   "github.settings.update": "GitHub",
   "flow.settings.update": "Flow",
-  "delivery.settings.update": "Delivery",
+  "delivery.settings.update": "Autopilot",
   "models.settings.update": "model",
   "conversations.settings.update": "conversation",
   "content.sets.update": "content rule set",

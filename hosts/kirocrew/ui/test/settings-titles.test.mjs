@@ -13,7 +13,7 @@ const PAGES = {
   content: 'Content rules',
   flow: 'Flow',
   models: 'Models',
-  delivery: 'Delivery',
+  delivery: 'Autopilot',
 }
 
 test('per-workspace pages carry the workspace name', () => {

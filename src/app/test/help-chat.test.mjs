@@ -9,8 +9,8 @@ test("the help seed names the page, its settings and the docs, and saves nothing
   const message = helpMessage({
     purpose: "help",
     help: {
-      page: "Settings › Delivery",
-      section: "Delivery is off",
+      page: "Settings › Autopilot",
+      section: "Autopilot is off",
       says: "The tick starts no ready task.\nTurn it on.",
       settings: [
         { key: "delivery", value: "not set" },
@@ -22,8 +22,8 @@ test("the help seed names the page, its settings and the docs, and saves nothing
   });
   assert.match(message, /^Context from the Avoozl page\./);
   assert.match(message, /Do not save or change any setting, write any file/);
-  assert.match(message, /- Page: Settings › Delivery/);
-  assert.match(message, /- Section: Delivery is off/);
+  assert.match(message, /- Page: Settings › Autopilot/);
+  assert.match(message, /- Section: Autopilot is off/);
   assert.match(
     message,
     /- It says: The tick starts no ready task\. Turn it on\./,

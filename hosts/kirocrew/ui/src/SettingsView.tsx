@@ -100,7 +100,7 @@ export const SETTINGS_TABS = [
   { key: 'flow', label: 'Flow' },
   // Avoozl's own chats only.
   { key: 'models', label: 'Models' },
-  { key: 'delivery', label: 'Delivery' },
+  { key: 'delivery', label: 'Autopilot' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -115,7 +115,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   models: "Each role's harness, agent and model, in one place.",
-  delivery: 'Who merges pull requests for Avoozl worker chats. Agents and models are in Models.',
+  delivery: 'Whether Avoozl delivers ready tasks on its own, and who merges its pull requests. Agents and models are in Models.',
 }
 
 // Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).

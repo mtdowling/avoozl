@@ -2569,7 +2569,7 @@ already shows it.
 **Setting.** `landingSettings` (`landing-config.mjs`) reads `pr` from the
 repository's landing block, then the workspace's top-level `landing.pr`,
 then `draft`. `validateLandingConfig` and the landing block validator in
-`github-policy.mjs` refuse any other value. Settings › Delivery shows the
+`github-policy.mjs` refuse any other value. Settings › Autopilot shows the
 workspace's value (`delivery.settings.update` with `landingPr`); a
 repository's Landing tab shows its own (`PrModeFields`), whose first
 choice is **The workspace's setting**. Both saves are person only.
@@ -2959,8 +2959,10 @@ goes through it: `chatModel` and `roleHarness` for the chats, and the
 delivery policy's worker agent and model and its falsifier agent and model.
 A file that still sets an older key does not load; the error names the file
 and the key. Settings › Models reads and writes the table
-(`models.settings.get` and `models.settings.update`). Settings › Delivery
-has no Writer section.
+(`models.settings.get` and `models.settings.update`). Settings › Autopilot
+has no Writer section. Its Off and Autopilot picker writes or removes the
+`delivery` block (`delivery.settings.update` with `turnOn` or `turnOff`);
+`turnOff` is refused while the block holds a setting, so nothing is lost.
 
 Not in the table: `delivery.reviewers[]` keep their own `agent` and
 `model`, because each review role is a list entry with its own id and

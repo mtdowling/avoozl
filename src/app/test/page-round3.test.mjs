@@ -118,7 +118,7 @@ test("task.start refuses when delivery is off, and only the owner may call it", 
   const { ops } = workspace(t, { delivery: null });
   await assert.rejects(
     ops.execute("task.start", { taskId: "a" }),
-    /Delivery is off/,
+    /Autopilot is off/,
   );
   assert.equal(classifyOperation("task.start"), "protect");
   assert.equal(principalAllows({ kind: "owner-session" }, "task.start"), true);

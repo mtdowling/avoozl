@@ -24,7 +24,7 @@ if (!chrome) {
 const set = (selector, value) =>
   `(() => { const el = document.querySelector(${JSON.stringify(selector)}); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
 const PAGES = {
-  delivery: { label: 'Delivery', ready: null, wait: 'Boolean(document.querySelector(\'[data-radio-fold="avoozl-delivery-pr"]\'))', edit: null },
+  delivery: { label: 'Autopilot', ready: null, wait: 'Boolean(document.querySelector(\'[data-radio-fold="avoozl-delivery-pr"]\'))', edit: null },
   models: { label: 'Models', ready: null, wait: "Boolean(document.querySelector('[data-models-settings]'))", edit: null },
   content: {
     label: 'Content rules',

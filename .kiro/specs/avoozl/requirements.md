@@ -2456,7 +2456,7 @@ want it to.
 1. `landing.pr` SHALL be the one setting for who merges a `pr` landing's
    pull requests: `draft` (the default), `ready` or `auto`. It MAY be set
    for the workspace at the top level of `.avoozl.json`, shown in
-   Settings › Delivery, and for one repository in its landing block, shown
+   Settings › Autopilot, and for one repository in its landing block, shown
    on its Landing tab, which wins. A repository that sets none SHALL say it
    uses the workspace's setting. Only a person SHALL change it. Settings
    SHALL show one line per choice.
@@ -3051,7 +3051,12 @@ the last tick did.
    `falsifier` rows MAY also set `agent`. A missing key or `auto` keeps
    that role's default.
 6. Settings › Models SHALL be the only page that picks a role's harness,
-   agent or model. Settings › Delivery SHALL keep only delivery choices.
+   agent or model. Settings › Autopilot SHALL keep only delivery choices:
+   a picker of **Off** (you deliver) and **Autopilot** (Avoozl delivers),
+   each with its steps, and below it every Autopilot setting, shown and
+   saved while Autopilot is off. Turning Autopilot on or off SHALL ask once
+   and SHALL be a person's alone. Turning it off SHALL be refused while the
+   `delivery` block holds a setting.
 7. A file that sets any other key for a role's harness, agent or model
    SHALL NOT load, and the error SHALL name the file and the key: `models.<role>`,
    `harnesses.<role>`, `delivery.agent`, `delivery.model`,

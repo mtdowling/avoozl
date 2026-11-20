@@ -1,4 +1,4 @@
-// Settings > Delivery: who merges is landing.pr.
+// Settings > Autopilot: who merges is landing.pr.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
