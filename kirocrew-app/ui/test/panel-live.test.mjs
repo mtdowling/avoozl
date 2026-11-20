@@ -140,16 +140,14 @@ test('Waiting on you keeps what a person settles and drops retired worker items'
       conflict('decision'),
       conflict('investigation'),
       conflict('needs-human', { reason: 'hand-set-review' }),
-      conflict('ready-to-merge', { integrate: true }),
-      conflict('ready-to-merge', { pullRequest: 57, link: 'https://github.test/o/r/pull/57' }),
       conflict('branch-landing', { repository: 'o/r', branch: 'int/x', head: 'abc123' }),
     ],
   })
   assert.deepEqual(
     model.waiting.map((row) => row.kind),
-    ['needs-human', 'ready-to-merge', 'branch-landing'],
+    ['needs-human', 'branch-landing'],
   )
-  const [handed, , land] = model.waiting
+  const [handed, land] = model.waiting
   assert.deepEqual(
     handed.actions.map((a) => [a.kind, a.label]),
     [['link', 'Open issue']],
@@ -158,7 +156,6 @@ test('Waiting on you keeps what a person settles and drops retired worker items'
     land.actions.map((a) => a.kind),
     ['land'],
   )
-  assert.equal(model.waiting[1].actions[0].href, 'https://github.test/o/r/pull/57')
 })
 
 test('only http links become link actions; a row with none deep-links into the page', () => {

@@ -327,13 +327,13 @@ const PERSON = new Set(["draft", "merge"]);
 const PULL_ROWS = {
   draft: {
     reason: "draft-pr",
-    title: (n) => `draft pull request${n} waits for you`,
+    title: (n) => `Draft pull request${n} waits for you`,
     detail:
       "This repository opens pull requests as drafts (landing.pr: draft). Mark it ready for review on GitHub, or press Approve here. A person merges it once its checks pass.",
   },
   merge: {
     reason: "pr-merge",
-    title: (n) => `pull request${n} is ready to merge`,
+    title: (n) => `Pull request${n} is ready to merge`,
     detail:
       "Its checks and reviews passed on this exact head. Merge it on GitHub, or press Merge here. Avoozl never merges it on its own.",
   },
@@ -345,7 +345,6 @@ function pullRow(store, line, item) {
       `${line.repositoryId}\0${line.base}\0${item.key}`,
     ),
     number = entry?.pr ?? item.pr?.number ?? null,
-    task = item.tasks[0]?.id ?? item.key,
     shape = PULL_ROWS[item.hold.kind];
   return {
     kind: "needs-human",
@@ -353,7 +352,8 @@ function pullRow(store, line, item) {
     id: `${shape.reason}:${line.repositoryId}:${line.base}:${item.key}`,
     taskId: item.tasks[0]?.id ?? null,
     authority: "avoozl",
-    title: `${task}: ${shape.title(number ? ` #${number}` : "")}`,
+    // The row names its task beside the title, so the title leaves it out.
+    title: shape.title(number ? ` #${number}` : ""),
     detail: shape.detail,
     commit: entry?.commit ?? item.commit ?? null,
     repositoryId: line.repositoryId,

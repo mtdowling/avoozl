@@ -1,7 +1,8 @@
-// Settings > Delivery (R54.8): investigate first and pull request feedback.
-// Merging is on each repository's Landing tab, and the worker's agent and
-// model are in Settings › Models (R98.7). Saves write `delivery` in
-// .avoozl.json through delivery.settings.update with the file's hash.
+// Settings > Delivery (R54.8): who merges pull requests (the workspace's
+// landing.pr, R119; a repository's Landing tab may override it) and
+// investigate first. The worker's agent and model are in Settings › Models
+// (R98.7). Saves write `landing.pr` and `delivery` in .avoozl.json through
+// delivery.settings.update with the file's hash.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
@@ -18,6 +19,10 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
+import { RadioFold } from './ui/RadioFold.tsx'
+import { PR_MODES, PR_MODE_TEXT } from './settings-api.ts'
+
+type PrMode = (typeof PR_MODES)[number]
 
 const OPTIONAL = { required: false } as const
 const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its investigate and pull request settings show here then.'
@@ -54,23 +59,29 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   const load = useCallback(() => run<Settings>('delivery.settings.get'), [run])
   const { value, error, reload } = useRead<Settings>(workspaceId, load)
   const [form, setForm] = useState<DeliveryForm>(toDeliveryForm())
+  // The workspace's landing.pr; null is unset (draft).
+  const [pr, setPr] = useState<PrMode | null>(null)
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
   const [turning, setTurning] = useState(false)
   const confirm = useConfirm()
   useEffect(() => {
-    if (value) setForm(toDeliveryForm(value.delivery))
+    if (value) {
+      setForm(toDeliveryForm(value.delivery))
+      setPr(value.landingPr ?? null)
+    }
   }, [value])
   const set = (change: Partial<DeliveryForm>) => {
     setMessage(null)
     setForm({ ...form, ...change })
   }
   const built = toDeliverySection(form)
-  const dirty = Boolean(value) && JSON.stringify(form) !== JSON.stringify(toDeliveryForm(value?.delivery))
+  const prDirty = Boolean(value) && pr !== (value?.landingPr ?? null)
+  const dirty = prDirty || (Boolean(value) && JSON.stringify(form) !== JSON.stringify(toDeliveryForm(value?.delivery)))
   const save = async () => {
     if (!value || built.error) return
     setMessage(null)
     try {
-      await run('delivery.settings.update', { delivery: built.delivery, expectedHash: value.hash })
+      await run('delivery.settings.update', { delivery: built.delivery, expectedHash: value.hash, ...(prDirty ? { landingPr: pr } : {}) })
       await reload()
       setMessage({ ok: 'Saved.' })
     } catch (caught) {
@@ -144,6 +155,26 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   return (
     <Stack gap={3} data-delivery-settings>
       <Card flex flexCol gap="4">
+        <Section title="Who merges" blurb="How Avoozl opens pull requests for pr landing, and who merges them. A repository's Landing tab can override this.">
+          <div id="avoozl-delivery-pr">
+            <RadioFold
+              name="avoozl-delivery-pr"
+              label="Who merges"
+              value={pr ?? 'draft'}
+              onChange={(next) => {
+                setMessage(null)
+                setPr(next)
+              }}
+              sections={PR_MODES.map((mode) => ({
+                key: mode,
+                title: `${PR_MODE_TEXT[mode].title} (landing.pr: ${mode})`,
+                line: `${PR_MODE_TEXT[mode].line}${!pr && mode === 'draft' ? ' Not set; this is the default.' : ''}`,
+              }))}
+            />
+          </div>
+        </Section>
+      </Card>
+      <Card flex flexCol gap="4">
         <Section
           title="Investigate first"
           blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand."
@@ -199,11 +230,12 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         problem={built.error}
         error={message?.error}
         ok={message?.ok}
-        note="Writes delivery in .avoozl.json."
+        note="Writes landing.pr and delivery in .avoozl.json."
         onSave={() => void save()}
         onDiscard={() => {
           setMessage(null)
           setForm(toDeliveryForm(value.delivery))
+          setPr(value.landingPr ?? null)
         }}
       />
     </Stack>

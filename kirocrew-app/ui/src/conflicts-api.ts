@@ -91,7 +91,7 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'content-unavailable') return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
   if (item.kind === 'content-match') return null
   // Findings and Ready to merge carry their own actions (ConflictsView.tsx).
-  if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'branch-landing') return null
+  if (item.kind === 'investigation' || item.kind === 'branch-landing') return null
   if (item.kind === 'tick-failed') return 'Fix the error shown. Avoozl runs the tick again by itself, and this row clears after the first tick that works.'
   // The Crew Mode hold carries its own button (ConflictsView.tsx).
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
@@ -111,7 +111,7 @@ export const CONFLICT_TABS: { key: string; label: string; keep: (item: ConflictI
   {
     key: 'needs-human',
     label: 'Needs you',
-    keep: (item) => ['needs-human', 'untick', 'review', 'investigation', 'ready-to-merge', 'tick-failed', 'branch-landing'].includes(item.kind),
+    keep: (item) => ['needs-human', 'untick', 'review', 'investigation', 'tick-failed', 'branch-landing'].includes(item.kind),
   },
   { key: 'other', label: 'Sessions', keep: (item) => ['stale-session'].includes(item.kind) },
 ]

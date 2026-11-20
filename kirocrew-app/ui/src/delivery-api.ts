@@ -245,12 +245,13 @@ export const DELIVERY_DEFAULTS = {
   minConfidence: 'high',
 } as const
 
-export type ShipMode = 'auto-merge' | 'manual'
 export type InvestigateMode = 'all' | 'not-small' | 'off'
 
 export interface DeliverySettings {
   hash: string | null
   on: boolean
+  // The workspace's landing.pr (R119); null when not set.
+  landingPr: 'draft' | 'ready' | 'auto' | null
   delivery: {
     investigate?: { mode?: InvestigateMode; minConfidence?: 'medium' | 'high' }
   }
@@ -279,23 +280,6 @@ export function toDeliverySection(form: DeliveryForm): { delivery?: DeliverySett
   if (Object.keys(investigate).length) delivery.investigate = investigate
   return { delivery }
 }
-
-// Settings > Delivery's ship fold-out (§4.25): one line each, and what the
-// writer, Avoozl and the person do.
-export const SHIP_CHOICES: { key: ShipMode; title: string; line: string; who: [string, string, string] }[] = [
-  {
-    key: 'auto-merge',
-    title: 'Auto-merge',
-    line: 'The writer turns on GitHub auto-merge; the pull request merges when its checks and reviews pass.',
-    who: ['Turns on auto-merge', 'Waits for the merge', 'Nothing'],
-  },
-  {
-    key: 'manual',
-    title: 'I merge',
-    line: 'Auto-merge stays off. Needs you shows Ready to merge with a link when checks and reviews pass.',
-    who: ['Leaves auto-merge off', 'Shows Ready to merge', 'Merges on GitHub, or presses Integrate for a local task'],
-  },
-]
 
 // One chip per value with its card count, in the order `options` gives.
 export function chipCounts(

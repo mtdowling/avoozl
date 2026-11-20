@@ -1479,7 +1479,6 @@
    "src/app/landing/test/merge-batch-words.test.mjs",
    "src/app/landing/test/merge-batch.test.mjs",
    "src/app/test/merge-method.test.mjs",
-   "src/app/landing/test/merge-path.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/api/test/needs-you-context-decision.test.mjs",
    "src/app/specs/test/new-plan.test.mjs",
@@ -2796,7 +2795,6 @@
    "src/app/epics/test/integration-head.test.mjs",
    "src/app/epics/test/integration-sync.test.mjs",
    "src/app/landing/test/landing-pulls.test.mjs",
-   "src/app/landing/test/merge-path.test.mjs",
    "src/app/landing/test/pr-landing.test.mjs",
    "src/app/epics/test/proof-rc-p16.test.mjs"
   ],
@@ -4907,10 +4905,6 @@
    "src/app/workspace/test/repository-checks.test.mjs",
    "src/app/specs/test/spec-ticks-landing.test.mjs"
   ],
-  "src/app/landing/merge-path.mjs": [
-   "src/app/test/landing-block.test.mjs",
-   "src/app/landing/test/merge-path.test.mjs"
-  ],
   "src/app/tick/needs-kirocrew.mjs": [
    "src/app/store/test/activity-log.test.mjs",
    "src/app/agents/test/agent-instructions.test.mjs",
@@ -6810,7 +6804,6 @@
    "src/app/landing/test/merge-batch-words.test.mjs",
    "src/app/landing/test/merge-batch.test.mjs",
    "src/app/test/merge-method.test.mjs",
-   "src/app/landing/test/merge-path.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/api/test/needs-you-context-decision.test.mjs",
    "src/app/specs/test/new-plan.test.mjs",
@@ -7209,7 +7202,6 @@
    "src/app/landing/test/merge-batch-words.test.mjs",
    "src/app/landing/test/merge-batch.test.mjs",
    "src/app/test/merge-method.test.mjs",
-   "src/app/landing/test/merge-path.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/api/test/needs-you-context-decision.test.mjs",
    "src/app/specs/test/new-plan.test.mjs",
@@ -7817,7 +7809,6 @@
    "src/app/landing/test/merge-batch-words.test.mjs",
    "src/app/landing/test/merge-batch.test.mjs",
    "src/app/test/merge-method.test.mjs",
-   "src/app/landing/test/merge-path.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
    "src/app/api/test/needs-you-context-decision.test.mjs",
    "src/app/specs/test/new-plan.test.mjs",

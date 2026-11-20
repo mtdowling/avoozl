@@ -281,12 +281,11 @@ export interface RepositoryForm {
   // conflicts.maxAttempts; blank is the default.
   maxAttempts: string
   // The landing block (design §4.25): landing.mode (direct, pr,
-  // off), landing.autoMerge ('on', 'off') and landing.method (squash or
-  // merge). Blank reads the default.
+  // off), landing.pr and landing.method (squash or merge). Blank reads
+  // the default.
   landingMode: string
   // landing.pr: draft, ready or auto; blank reads the workspace's, else draft.
   prMode: string
-  autoMerge: string
   mergeMethod: string
   // Settings this form does not show (checkout, folder),
   // written back unchanged.
@@ -343,7 +342,6 @@ export function emptyRepository(name = ''): RepositoryForm {
     maxAttempts: '',
     landingMode: '',
     prMode: '',
-    autoMerge: '',
     mergeMethod: '',
     rest: {},
   }
@@ -370,10 +368,6 @@ export function toForm(github: Policy): SettingsForm {
         maxAttempts: str(record(entry.conflicts).maxAttempts),
         landingMode: str(record(entry.landing).mode),
         prMode: str(record(entry.landing).pr),
-        autoMerge: (() => {
-          const on = record(entry.landing).autoMerge
-          return typeof on === 'boolean' ? (on ? 'on' : 'off') : on === undefined || on === null ? '' : String(on)
-        })(),
         mergeMethod: str(record(entry.landing).method),
         rest: Object.fromEntries(Object.entries(entry).filter(([key]) => !SHOWN.has(key))),
       }
@@ -416,8 +410,6 @@ export function toPolicy(form: SettingsForm): Policy {
                   ...record(repository.rest.landing),
                   mode: blank(repository.landingMode),
                   pr: blank(repository.prMode),
-                  // A value it does not know is sent as typed, so the backend names it.
-                  autoMerge: repository.autoMerge === 'on' ? true : repository.autoMerge === 'off' ? false : blank(repository.autoMerge),
                   method: blank(repository.mergeMethod),
                 })
                 return Object.keys(landing).length ? landing : undefined

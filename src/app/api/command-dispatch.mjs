@@ -147,7 +147,6 @@ export const APP_OPERATIONS = new Set([
   "provider.health.clear",
   "providers.settings.update",
   "investigation.decide",
-  "delivery.integrate",
   "delivery.settings.get",
   "delivery.settings.update",
   "delivery.runner.release",

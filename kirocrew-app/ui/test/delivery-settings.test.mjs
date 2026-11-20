@@ -1,4 +1,4 @@
-// Settings > Delivery: who merges (read for Radar pull requests too), and the
+// Settings > Delivery: who merges (the workspace's landing.pr), and the
 // writer settings; and how sessions label their crew.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -9,7 +9,7 @@ import { attachHref } from '../src/task-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('Settings > Delivery holds investigate first, with defaults left unset; the writer model is in Models', () => {
+test('Settings > Delivery holds the workspace landing.pr and investigate first, with defaults left unset; the writer model is in Models', () => {
   assert.deepEqual(toDeliverySection(toDeliveryForm({})), { delivery: {} })
   const page = source('DeliverySettings.tsx')
   // Pull request feedback went with per-task issues (45.4).
@@ -19,9 +19,11 @@ test('Settings > Delivery holds investigate first, with defaults left unset; the
   const form = toDeliveryForm({ investigate: { mode: 'off' } })
   assert.deepEqual(toDeliverySection(form), { delivery: { investigate: { mode: 'off' } } })
   assert.deepEqual(toDeliverySection({ ...form, investigateMode: 'not-small' }), { delivery: {} })
-  // Who merges is the repository's Landing tab (§4.25), never delivery.
+  // Who merges is the workspace's landing.pr here (R119); a repository's
+  // Landing tab may override it. It is never a delivery key.
   assert.ok(page.includes('delivery.investigate.mode'))
-  assert.doesNotMatch(page, /delivery\.ship|Who merges/)
+  assert.match(page, /landingPr: pr/)
+  assert.doesNotMatch(page, /delivery\.ship|autoMerge/)
 })
 
 test('sessions show crew, agent, and an unreachable crew; a remote chat attaches only through MC-10', () => {

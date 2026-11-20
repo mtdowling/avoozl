@@ -76,7 +76,7 @@ const NOTE_UNREAD: Record<SectionName, string> = {
   recent: 'Avoozl could not read recent merges. It tries again soon.',
 }
 
-const WAITING_ICON: Record<string, typeof CircleAlert> = { review: GitPullRequest, 'ready-to-merge': GitPullRequest, 'branch-landing': GitBranch }
+const WAITING_ICON: Record<string, typeof CircleAlert> = { review: GitPullRequest, 'branch-landing': GitBranch }
 
 // What no read has returned yet: every part null, so each section says unread.
 const UNREAD: PanelRead = { conflicts: null, remote: null, queue: null, flow: null, specs: null, instance: null }

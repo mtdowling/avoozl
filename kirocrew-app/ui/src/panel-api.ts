@@ -156,13 +156,12 @@ export interface PanelInput {
 }
 
 // Items a person settles. Local worker items (a stale session, a delivery
-// decision, findings, a hand-set review, Integrate) are not here: local
+// decision, findings, a hand-set review) are not here: local
 // workers are retired.
-const WAITING_KINDS = new Set(['needs-human', 'review', 'ready-to-merge', 'branch-landing', 'content-match', 'content-unavailable'])
+const WAITING_KINDS = new Set(['needs-human', 'review', 'branch-landing', 'content-match', 'content-unavailable'])
 const LABELS: Record<string, string> = {
   'needs-human': 'Needs you',
   review: 'Review',
-  'ready-to-merge': 'Ready to merge',
   'branch-landing': 'Ready to land',
   'content-match': 'Content rule',
   'content-unavailable': 'Rule set unavailable',
@@ -171,12 +170,11 @@ const LABELS: Record<string, string> = {
 function waitingRow(item: ConflictItem): WaitingRow | null {
   if (!WAITING_KINDS.has(item.kind)) return null
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return null
-  if (item.kind === 'ready-to-merge' && item.integrate) return null
   const actions: PanelAction[] = []
   const href = linkHref(item.link) ?? linkHref(item.issue?.url)
   if (item.kind === 'branch-landing' && item.repository && item.branch && item.head)
     actions.push({ kind: 'land', label: 'Land it', repository: item.repository, branch: item.branch, head: item.head })
-  else if (href) actions.push({ kind: 'link', label: item.kind === 'ready-to-merge' ? `Open PR${item.pullRequest ? ` #${item.pullRequest}` : ''}` : 'Open issue', href })
+  else if (href) actions.push({ kind: 'link', label: 'Open issue', href })
   // The host lets an app write only what its own API offers, so a row with no
   // direct action deep-links to the page that has the full item.
   if (!actions.length) actions.push({ kind: 'link', label: 'Open in Avoozl', href: '/apps/avoozl' })

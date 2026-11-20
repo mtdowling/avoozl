@@ -49,7 +49,7 @@ import {
   settingsTitle,
 } from './settings-api.ts'
 import SetupWizard from './SetupWizard.tsx'
-import { AutoMergeFields, PrModeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
+import { PrModeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
 import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
@@ -120,7 +120,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   models: "Each role's harness, agent and model, in one place.",
-  delivery: 'Investigate-first and pull request feedback for Avoozl worker chats. Agents and models are in Models.',
+  delivery: 'Who merges pull requests, and investigate first, for Avoozl worker chats. Agents and models are in Models.',
 }
 
 // Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).
@@ -475,12 +475,9 @@ export function RepositoryEditor(props: {
                 onChange={(value) => set({ landingMode: value })}
               />
             </Box>
-            <AutoMergeFields id={id} repository={repository} set={set} />
-          </FieldGroup>
-          <FieldGroup title="Pull requests" blurb="For pr landing: how Avoozl opens its pull requests and who merges them.">
             <PrModeFields id={id} repository={repository} set={set} />
           </FieldGroup>
-          <FieldGroup title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
+          <FieldGroup title="Merge method" blurb="How a pull request merges.">
             <MergeMethodFields id={id} repository={repository} set={set} />
           </FieldGroup>
           <FieldGroup title={LANDING_PART_TEXT.conflicts.title} blurb={LANDING_PART_TEXT.conflicts.blurb}>

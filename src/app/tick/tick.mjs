@@ -685,7 +685,6 @@ async function runTick(
             ),
             readOnly = readOnlyPlanIds(store);
           const integrated = await integrateVerified(store, {
-            policy: delivery,
             skip: new Set(
               store
                 .read()

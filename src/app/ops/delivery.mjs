@@ -1,9 +1,5 @@
 // Operations of one feature: name, class, MCP policy and handler.
-import {
-  approveIntegration,
-  readyCandidates,
-  retryDelivery,
-} from "../delivery/delivery.mjs";
+import { readyCandidates, retryDelivery } from "../delivery/delivery.mjs";
 import { integrateRun } from "../git/git.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import {
@@ -213,25 +209,6 @@ export const entries = [
     handler({ input }) {
       const store = this.store;
       return updateProviders(store, input);
-    },
-  },
-  // Ship mode manual in Local only (§4.25, R80.4): a person's Integrate.
-  {
-    name: "delivery.integrate",
-    class: "protect",
-    github: "land",
-    policy: person("Only a person presses Integrate on a Ready to merge task."),
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person presses Integrate, in the Avoozl page or the CLI.",
-          403,
-        );
-      return approveIntegration(store, input, {
-        by: context.local ? "cli" : this.operator || "dashboard",
-      });
     },
   },
 

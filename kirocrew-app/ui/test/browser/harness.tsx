@@ -40,7 +40,7 @@ import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
-import { AutoMergeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
+import { PrModeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
 import { toForm } from '../../src/settings-api.ts'
@@ -2781,7 +2781,7 @@ function LandingParts(props: { repository: RepositoryForm; set: (change: Partial
     <>
       <ConflictFields id="t" {...props} />
       <MergeMethodFields id="t" {...props} />
-      <AutoMergeFields id="t" {...props} />
+      <PrModeFields id="t" {...props} />
     </>
   )
 }
@@ -2814,8 +2814,8 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
 function WorkflowMapPage() {
   const config = WORKFLOW_POLICIES[query.get('config') ?? 'single']
   const form = toForm(config.policy as never)
-  // ?autoMerge=off: the repository's landing.autoMerge is false.
-  const [repository, setRepository] = useState<RepositoryForm>({ ...form.repositories[0], ...(query.get('autoMerge') === 'off' ? { autoMerge: 'off' } : {}) })
+  // ?pr=auto: the repository's landing.pr.
+  const [repository, setRepository] = useState<RepositoryForm>({ ...form.repositories[0], ...(query.get('pr') ? { prMode: query.get('pr') ?? '' } : {}) })
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
       <HarnessBoundary>

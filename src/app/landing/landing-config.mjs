@@ -12,7 +12,7 @@ export const PR_MODES = Object.freeze(["draft", "ready", "auto"]);
 // The one landing block of a GitHub repository (design §4.25, R87.1): a key
 // in the block wins, then the default. `github` is the owner/name, and
 // `repository` the checkout's repository row, for its `landing`.
-// {mode, pr, autoMerge, method, mergeBatch, commitPrefix, maxAttempts}; `mode` is null when nothing sets it.
+// {mode, pr, method, mergeBatch, commitPrefix, maxAttempts}; `mode` is null when nothing sets it.
 // `pr` is the repository's landing.pr, then the workspace's, then draft.
 export function landingSettings(config, github, repository = null) {
   const entry = config?.github?.repositories?.[github],
@@ -20,7 +20,6 @@ export function landingSettings(config, github, repository = null) {
   return {
     mode: block.mode ?? repository?.landing ?? null,
     pr: block.pr ?? config?.landing?.pr ?? "draft",
-    autoMerge: block.autoMerge ?? true,
     method: block.method ?? "squash",
     mergeBatch: block.mergeBatch ?? "auto",
     commitPrefix: block.commitPrefix ?? "",

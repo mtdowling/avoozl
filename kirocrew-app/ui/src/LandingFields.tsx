@@ -1,4 +1,4 @@
-// Conflicts, who merges and the merge method for one repository, in the
+// Conflicts, who merges (landing.pr) and the merge method for one repository, in the
 // app's settings style: plain fields with the default shown, each inherited
 // value saying where it comes from, and each mode one radio fold-out. It
 // edits one repository's form on its Landing tab; Save writes .avoozl.json
@@ -6,7 +6,6 @@
 import { Input } from './ui/Input'
 import { Field, fieldDescribedBy } from './ui/Field.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
-import { SHIP_CHOICES } from './delivery-api.ts'
 import { CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, PR_MODES, PR_MODE_TEXT, valueSource, type RepositoryForm } from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
@@ -39,59 +38,12 @@ export const LANDING_PART_TEXT = {
   },
   merge: {
     title: 'Who merges',
-    blurb: 'How verified work lands here, who merges its pull request, and the merge method.',
+    blurb: 'How verified work lands here, and who merges its pull request.',
   },
 } as const
 
 // The landing block's mode values (landing.mode).
 export const LANDING_MODES = ['direct', 'pr', 'off'] as const
-
-// Who merges (landing.autoMerge): one radio fold-out, the writer, Avoozl
-// and the person for each. Blank is on. A value Avoozl does not accept says so.
-export function AutoMergeFields({ id, repository, set }: Part) {
-  const own = repository.autoMerge === 'off' ? 'manual' : repository.autoMerge === 'on' ? 'auto-merge' : null
-  const value = own ?? 'auto-merge'
-  const unknown = repository.autoMerge && !own ? repository.autoMerge : null
-  return (
-    <Stack id={`${id}-auto-merge`} gap={1}>
-      <RadioFold
-        name={`${id}-auto-merge`}
-        label="Who merges"
-        value={value}
-        onChange={(ship) => set({ autoMerge: ship === 'manual' ? 'off' : 'on' })}
-        sections={SHIP_CHOICES.map((choice) => ({
-          key: choice.key,
-          title: `${choice.title} (landing.autoMerge: ${choice.key === 'manual' ? 'false' : 'true'})`,
-          line: `${choice.line}${!repository.autoMerge && choice.key === value ? ' Not set on this repository; this is the default.' : ''}`,
-          description: (
-            <Box as="table" size="sm">
-              <tbody>
-                {['Writer', 'Avoozl', 'You'].map((who, i) => (
-                  <tr key={who}>
-                    <Box scope="row" as="th" pr="3" align="left" weight="medium">
-                      {who}
-                    </Box>
-                    <td>{choice.who[i]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </Box>
-          ),
-        }))}
-      />
-      {value === 'manual' && (
-        <Hint as="p" size="xs">
-          Briefs tell writers not to turn on auto-merge.
-        </Hint>
-      )}
-      {unknown && (
-        <ErrorText role="alert" size="xs" data-ship-unknown>
-          .avoozl.json has landing.autoMerge "{unknown}", which Avoozl does not accept. Pick one above and save.
-        </ErrorText>
-      )}
-    </Stack>
-  )
-}
 
 export function ConflictFields({ id, repository, set }: Part) {
   return (
@@ -110,22 +62,22 @@ export function ConflictFields({ id, repository, set }: Part) {
   )
 }
 
-// How pull requests open and merge (landing.pr), for pr landing: one line
-// per choice. Blank reads the workspace's landing.pr, else draft.
+// How pull requests open and who merges them (landing.pr), for pr landing:
+// one line per choice. Unset uses the workspace's landing.pr (Settings ›
+// Delivery), else draft.
 export function PrModeFields({ id, repository, set }: Part) {
   const own = (PR_MODES as readonly string[]).includes(repository.prMode) ? (repository.prMode as (typeof PR_MODES)[number]) : null
   return (
     <Stack id={`${id}-pr-mode`} gap={1}>
       <RadioFold
         name={`${id}-pr-mode`}
-        label="Pull requests"
-        value={own ?? 'draft'}
-        onChange={(value) => set({ prMode: value })}
-        sections={PR_MODES.map((mode) => ({
-          key: mode,
-          title: `${PR_MODE_TEXT[mode].title} (landing.pr: ${mode})`,
-          line: `${PR_MODE_TEXT[mode].line}${!repository.prMode && mode === 'draft' ? " Not set on this repository; uses the workspace's landing.pr, else this." : ''}`,
-        }))}
+        label="Who merges"
+        value={own ?? 'workspace'}
+        onChange={(value) => set({ prMode: value === 'workspace' ? '' : value })}
+        sections={[
+          { key: 'workspace', title: "The workspace's setting", line: "Not set on this repository: uses the workspace's landing.pr, set in Settings › Delivery." },
+          ...PR_MODES.map((mode) => ({ key: mode, title: `${PR_MODE_TEXT[mode].title} (landing.pr: ${mode})`, line: PR_MODE_TEXT[mode].line })),
+        ]}
       />
       {repository.prMode && !own && (
         <ErrorText role="alert" size="xs">

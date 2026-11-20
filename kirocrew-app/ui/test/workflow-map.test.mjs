@@ -41,7 +41,7 @@ test('Local only shows one local-worker lane, no labels, and says why', () => {
   assert.match(built.note, /hidden in Local only/)
 })
 
-test('the merge method shows on the auto-merge card and round-trips (RC28.7)', () => {
+test('the merge method shows on the merge card, landing.pr says who merges, and both round-trip (RC28.7)', () => {
   const merge = (built) =>
     valueOf(
       cards(built, 'spec').find((item) => item.key === 'spec-merge'),
@@ -55,18 +55,14 @@ test('the merge method shows on the auto-merge card and round-trips (RC28.7)', (
   assert.deepEqual(merge(map(policy)).jump, { tab: 'landing', field: 'mergeMethod' })
   assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].landing, { method: 'merge' })
   assert.equal(toPolicy(toForm(SINGLE)).repositories['example/code'].landing, undefined)
-  // With autoMerge off a person merges, so no method shows.
-  const off = structuredClone(SINGLE)
-  off.repositories['example/code'].landing = { autoMerge: false }
-  assert.equal(merge(map(off)), undefined)
-  assert.equal(cards(map(off), 'spec').find((item) => item.key === 'spec-merge').title, 'You merge')
-  assert.deepEqual(toPolicy(toForm(off)).repositories['example/code'].landing, { autoMerge: false })
-  // A value Avoozl does not accept stays as typed, so the page and the
-  // backend both name it.
-  const odd = structuredClone(SINGLE)
-  odd.repositories['example/code'].landing = { autoMerge: 'yes' }
-  assert.equal(toForm(odd).repositories[0].autoMerge, 'yes')
-  assert.deepEqual(toPolicy(toForm(odd)).repositories['example/code'].landing, { autoMerge: 'yes' })
+  // A person merges unless landing.pr is auto.
+  const card = (built) => cards(built, 'spec').find((item) => item.key === 'spec-merge')
+  assert.equal(card(map(SINGLE)).title, 'You merge')
+  const auto = structuredClone(SINGLE)
+  auto.repositories['example/code'].landing = { pr: 'auto' }
+  assert.equal(card(map(auto)).title, 'Avoozl merges')
+  assert.deepEqual(card(map(auto)).values.find((v) => v.label === 'Pull requests').jump, { tab: 'landing', field: 'prMode' })
+  assert.deepEqual(toPolicy(toForm(auto)).repositories['example/code'].landing, { pr: 'auto' })
 })
 
 test('the conflict count round-trips', () => {
@@ -121,9 +117,9 @@ test('page: plans-repo mode shows the worker lane', { skip }, async () => {
   assert.match(text, /worker chats build/i)
 })
 
-test('page: landing.autoMerge false changes the merge card', { skip }, async () => {
-  const page = await draw('single', 1280, { autoMerge: 'off' })
-  await page.until(`document.querySelector('[data-step="spec-merge"]')?.textContent.includes('You merge')`)
+test('page: landing.pr auto changes the merge card', { skip }, async () => {
+  const page = await draw('single', 1280, { pr: 'auto' })
+  await page.until(`document.querySelector('[data-step="spec-merge"]')?.textContent.includes('Avoozl merges')`)
 })
 
 test('page: Local only draws one lane and no labels', { skip }, async () => {
