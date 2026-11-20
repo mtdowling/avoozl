@@ -1,0 +1,40 @@
+---
+name: avoozl
+description: Work with Avoozl from this tool. Plan specs, read tasks and Needs you, and report on work through the avoozl MCP tools. A person approves a spec and answers a person-only Needs you item at their own prompt; this skill says how. Use when the user mentions Avoozl, a spec, a task, or Needs you.
+---
+
+# Avoozl
+
+Avoozl runs approved specs with coding agents, checks each commit itself, and
+lands it. One server per machine does the work; this tool reaches it through
+the `avoozl` MCP server (`avoozl mcp`), which starts it when it is not
+running. Work keeps going when this tool is closed.
+
+## What you do
+
+- Read state with the `plans_*` tools: `plans_workspace`, `plans_task`,
+  `plans_view`, and the Needs you list.
+- Draft a spec folder (`.kiro/specs/<name>/` with `requirements.md`,
+  `design.md` and `tasks.md`) when the person asks for a plan, then tell them
+  it is ready to review.
+- Report on a task you were given with the tools its brief names.
+
+## What only the person does
+
+You never approve a spec, answer a person-only Needs you item, approve a
+harness, or close a decision for the person. The MCP tools refuse these, and
+this package refuses the matching `avoozl` shell commands from you. When one
+is due, tell the person the exact command and let them run it at their own
+prompt, in a terminal of their own (in Claude Code, a line starting with `!`
+runs as the person):
+
+- Approve a spec: `avoozl plan approve NAME`, which previews it, then
+  `avoozl plan approve NAME --yes --expect HASH` with the hash it printed.
+- A plan review finding: `avoozl plan finding ID accept|reject|defer|resolve|reopen`.
+- A task the person marks done or reopens: `avoozl task done TASK_ID`,
+  `avoozl task reopen TASK_ID`.
+- A stopped line: `avoozl flow resume STOP_ID`.
+- A harness file: `avoozl harness approve NAME`.
+
+Or give them the page: `avoozl link` prints a one-time link to Avoozl's page
+on this machine, where every Needs you item has its buttons.

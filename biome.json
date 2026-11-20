@@ -15,7 +15,8 @@
       "!!docs/research",
       "!!docs/evidence",
       "!scripts/test/test-map.json",
-      "!hosts/kirocrew/agents/*.json"
+      "!hosts/kirocrew/agents/*.json",
+      "!hosts/claude-code/**/*.json"
     ]
   },
   "formatter": {

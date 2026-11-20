@@ -20,7 +20,7 @@ const root = path.resolve(
   lib = path.join(app, "bin", "lib"),
   tsc = path.join(root, "node_modules", "typescript", "bin", "tsc");
 
-buildHosts({ root });
+await buildHosts({ root });
 
 execFileSync(
   process.execPath,

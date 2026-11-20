@@ -414,6 +414,8 @@ class Ctx:
         return {"ok": True}
     def notify(self, text, **kwargs):
         calls.append(["notify", text]); return {}
+    def set_session_mode(self, slot, mode):
+        calls.append(["set_session_mode", slot, mode]); return {}
     def session_status(self):
         calls.append(["session_status"])
         if results.get("sessions") == "raise": raise RuntimeError("no roster")
@@ -598,7 +600,26 @@ test("tick cron sends every other message when the gateway refuses one", () => {
   );
 });
 
-test("tick cron binds each session before its brief, then messages; notices stay with the backend", () => {
+test("tick cron sets trust mode again on each live worker chat it owns, once, and on no other", () => {
+  const result = tick({
+    observe: [
+      { slot: "slot-w", taskId: "t1", role: "worker" },
+      { slot: "slot-w", taskId: "t1", role: "worker" },
+      { slot: "slot-v", taskId: "t1", role: "verifier" },
+    ],
+    dispatch: [],
+    messages: [],
+    notify: [],
+  });
+  // Nothing opened or sent, so the run is silent, but trust was set first.
+  assert.equal(result.outcome, "skip");
+  assert.deepEqual(
+    result.calls.filter((call) => call[0] === "set_session_mode"),
+    [["set_session_mode", "slot-w", "trust"]],
+  );
+});
+
+test("tick cron binds each session before its brief, then messages; it sends no notices", () => {
   const folders = [
     { id: "f0", name: "Avoozl", parent_id: "" },
     { id: "f1", name: "example-app", parent_id: "f0", project_dir: "/repo" },
@@ -633,11 +654,16 @@ test("tick cron binds each session before its brief, then messages; notices stay
         },
       },
     ],
+    ["set_session_mode", "slot-new", "trust"],
     ["send_to_session", "slot-new", "Do the work."],
     ["send_to_session", "slot-2", "Resume."],
   ]);
-  // The app backend pushes notices to the app's own channels; the script's
-  // notify() would post a plain bell note with no channel or session link.
+  // Notices go out from the machine server and the app backend; the cron
+  // only opens, sends and re-trusts (MS12.2).
+  assert.equal(
+    result.calls.some((call) => call[0] === "notify"),
+    false,
+  );
 });
 
 test("tick cron opens a review session on its named model and binds the model and commit", () => {
