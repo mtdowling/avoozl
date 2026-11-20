@@ -343,9 +343,17 @@ export async function claimFirst(github, candidates, { baseOf }) {
       refusals += 1;
       continue;
     }
-    // A new claim has no lease yet, so this runner takes generation 1
-    // (workflow rule 15.1).
-    const lease = await takeLease(github, repository.github, task, 1, head);
+    // The next generation above any lease refs left by a claim branch
+    // deleted outside Avoozl, else 1 (workflow rules 15.1 and 15.5).
+    const generation =
+        (await highestLease(github, repository.github, task)) + 1,
+      lease = await takeLease(
+        github,
+        repository.github,
+        task,
+        generation,
+        head,
+      );
     if (!lease) fail(`Another runner took the lease on ${branch} first.`, 409);
     return { ...candidate, branch, base, head, lease, refusals };
   }
@@ -361,6 +369,15 @@ export async function claimFirst(github, candidates, { baseOf }) {
 // created at most once, say which runner may push to a claim branch.
 export const leaseRef = (task, generation) =>
   `avoozl-lease/${taskSpec(task)}/${task.id}/${generation}`;
+
+// The highest generation whose lease ref exists for a task, or 0 (15.5).
+async function highestLease(github, repository, task) {
+  const refs = await github.branchesUnder(repository, leaseRef(task, ""));
+  return Math.max(
+    0,
+    ...refs.map((lease) => Number(String(lease.ref).split("/").pop()) || 0),
+  );
+}
 
 // Take generation `generation` of a task's lease by creating its ref; null
 // when another runner created it first.
