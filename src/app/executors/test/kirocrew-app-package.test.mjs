@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -12,7 +12,8 @@ import { runOwnMachine } from "../../test/shim-run.mjs";
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(root, "hosts", "kirocrew"),
   manifest = JSON.parse(fs.readFileSync(path.join(app, "app.json"), "utf8")),
-  launcher = path.join(app, "bin", "avoozl.mjs");
+  launcher = path.join(app, "bin", "avoozl.mjs"),
+  CLI = path.join(root, "cli.mjs");
 
 function isolatedEnv(dir) {
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
@@ -341,12 +342,23 @@ test("packaged launcher defaults to a loopback, signed-principal backend", async
   const dir = temporaryDirectory(),
     workspace = path.join(dir, "workspace");
   initializeWorkspace(workspace);
+  // Under the gateway the backend starts this machine's server (MS3.5): it
+  // gets a state folder of its own, and is stopped after.
+  const env = {
+    ...isolatedEnv(dir),
+    XDG_STATE_HOME: path.join(dir, "state"),
+    PORT: "0",
+    KIROCREW_PROXY_SECRET: "s",
+  };
   const child = spawn(process.execPath, [launcher, "--workspace", workspace], {
     cwd: dir,
-    env: { ...isolatedEnv(dir), PORT: "0", KIROCREW_PROXY_SECRET: "s" },
+    env,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  t.after(() => child.kill());
+  t.after(() => {
+    child.kill();
+    spawnSync(process.execPath, [CLI, "stop"], { env, encoding: "utf8" });
+  });
   const port = await new Promise((resolve, reject) => {
     let text = "";
     child.stdout.on("data", (chunk) => {
