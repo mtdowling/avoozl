@@ -89,6 +89,9 @@ export function assertNoMachineKeys(value, file, globalFile) {
     throw Error(`serve.${key} is set in ${file}. Put it in ${globalFile}.`);
   if (value?.serve !== undefined && typeof value.serve !== "object")
     throw Error(`serve is set in ${file}. Put it in ${globalFile}.`);
+  // Epic context widens what a worker reads, so only this machine sets it.
+  if (value?.epicContext !== undefined)
+    throw Error(`epicContext is set in ${file}. Put it in ${globalFile}.`);
   // The OTLP exporter sends data off the machine, so only this machine's
   // owner turns it on.
   if (value?.telemetry !== undefined)

@@ -10,6 +10,7 @@
 // this table; a new operation is one entry in one feature module. An
 // operation with no entry is refused by name.
 import { entries as content } from "../ops/content.mjs";
+import { entries as context } from "../ops/context.mjs";
 import { entries as delivery } from "../ops/delivery.mjs";
 import { entries as flow } from "../ops/flow.mjs";
 import { entries as github } from "../ops/github.mjs";
@@ -25,6 +26,7 @@ import { entries as retro } from "../flow/retro-operations.mjs";
 
 export const TABLES = {
   content,
+  context,
   delivery,
   flow,
   github,

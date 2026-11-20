@@ -1,0 +1,6 @@
+{
+  "research": {
+    "about": "Answers questions from the team's design archive",
+    "command": ["node", "mcp/research.mjs"]
+  }
+}

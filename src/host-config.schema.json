@@ -74,6 +74,68 @@
         }
       }
     },
+    "epicContext": {
+      "type": "object",
+      "description": "Extra reads and MCP servers a worker session gets on the owner's own approved spec tasks in the named repositories (docs/epic-context.md). Machine file only: a repository's .avoozl.json may not set it.",
+      "required": ["repos"],
+      "additionalProperties": false,
+      "properties": {
+        "repos": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "description": "owner/name, owner/*, or a registered repository ID."
+          }
+        },
+        "reads": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "description": "A folder, absolute or under ~/, a worker may read and never write."
+          }
+        },
+        "mcp": {
+          "type": "object",
+          "description": "Up to 10 MCP servers by alias. A worker reaches one only through Avoozl's relay.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["about", "command"],
+            "additionalProperties": false,
+            "properties": {
+              "about": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "command": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "env": {
+                "type": "array",
+                "description": "Names of the environment variables the server may read. Never values.",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "contentSets": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "workspaces": {
       "type": "object",
       "propertyNames": {

@@ -32,6 +32,7 @@ import { jsonLines } from "./child-io.mjs";
 import { mappingHash, validateChecksPart } from "./plugin-checks.mjs";
 import { fail } from "../store/store.mjs";
 import { readTemplates } from "../specs/templates.mjs";
+import { contextHash, readContextPart } from "../context/plugin-context.mjs";
 
 const PLUGIN_MANIFEST = "avoozl-plugin.json";
 const RESERVED_IDS = new Set(["local", "github"]);
@@ -48,7 +49,8 @@ export const CAPABILITIES = {
 // `credentials` hands Avoozl GitHub tokens (plugin-credentials §D1) from its
 // own entry, in a child apart from the plugin's other code.
 // `checks` are check definitions and their files (plugin-checks D1): they
-// run as checks, never as a plugin child.
+// run as checks, never as a plugin child. `context` is data too: skills,
+// reads and MCP servers for the owner's own work (epic-context).
 export const PARTS = [
   "pack",
   "rules",
@@ -56,6 +58,7 @@ export const PARTS = [
   "template",
   "credentials",
   "checks",
+  "context",
 ];
 // Parts Avoozl no longer reads. A plugin may still list them, so its other
 // parts keep working; they do nothing. Lessons packs went with the lessons
@@ -120,6 +123,8 @@ export function readPluginSettings(file) {
     // commands (plugin-checks PK10.2), and plugins marked broken (PK7.5).
     ...(record(value.mcp) ? { mcp: value.mcp } : {}),
     ...(record(value.broken) ? { broken: value.broken } : {}),
+    // Each context plugin's answers to its asks (epic-context EC4.2).
+    ...(record(value.context) ? { context: value.context } : {}),
     // This machine's intake sources (design §4.12), kept through plugin edits.
     ...(record(value.intake) ? { intake: value.intake } : {}),
     // Which credentials plugin serves a host where two claim one owner
@@ -159,7 +164,7 @@ const snake = (key) =>
     .replace(/[^a-zA-Z0-9]+/g, "_")
     .toLowerCase();
 
-function checkConfig(value, where) {
+export function checkConfig(value, where) {
   if (Array.isArray(value))
     return value.forEach((item, i) => checkConfig(item, `${where}.${i}`));
   if (typeof value === "string") {
@@ -409,6 +414,9 @@ export function validateManifest(manifest, entry, folder = null) {
       fail(`${PLUGIN_MANIFEST} pack must be a .json file inside the plugin.`);
   } else if (manifest.pack !== undefined)
     fail(`${PLUGIN_MANIFEST} pack goes with provides pack.`);
+  if (folder) readContextPart(manifest, folder);
+  else if (!provides.includes("context") && manifest.context !== undefined)
+    fail(`${PLUGIN_MANIFEST} context goes with provides context.`);
   if (provides.includes("credentials")) checkCredentials(manifest.credentials);
   else if (manifest.credentials !== undefined)
     fail(`${PLUGIN_MANIFEST} credentials goes with provides credentials.`);
@@ -583,6 +591,9 @@ export function inspectPlugin(declared, options, settings) {
     capabilities: manifest.capabilities ?? {},
     hash,
     manifest,
+    ...(provides.includes("context")
+      ? { context: readContextPart(manifest, location) }
+      : {}),
     ...(provides.includes("credentials")
       ? {
           credentials: {
@@ -644,6 +655,19 @@ export function inspectPlugin(declared, options, settings) {
       approval,
       reason:
         "This machine's MCP server mapping changed since the approval; approve it again.",
+    };
+  // A context part's approval binds this machine's answers and mappings
+  // too (epic-context EC4.4).
+  if (
+    shown.context &&
+    (approval.contextHash ?? null) !== contextHash(settings, entry.id)
+  )
+    return {
+      ...shown,
+      state: "changed",
+      approval,
+      reason:
+        "This machine's answers or server mappings changed since the approval; approve it again.",
     };
   return { ...shown, state: "approved", approval, reason: null };
 }
@@ -1129,6 +1153,7 @@ export function approvePlugin(
     ...(plugin.manifest?.servers
       ? { mcpHash: mappingHash(settings.mcp?.[id]) }
       : {}),
+    ...(plugin.context ? { contextHash: contextHash(settings, id) } : {}),
     approvedAt: new Date().toISOString(),
     ...(approvedBy ? { approvedBy } : {}),
   };

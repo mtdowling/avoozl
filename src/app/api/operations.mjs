@@ -110,6 +110,7 @@ import {
 } from "../plugins/plugins.mjs";
 import { mergePath } from "../landing/merge-path.mjs";
 import { pluginChecksView } from "../plugins/plugin-checks.mjs";
+import { contextView } from "../context/plugin-context.mjs";
 import { localRequired, taskPluginChecks } from "../plugins/check-stages.mjs";
 import { RepositorySettings } from "../settings/repository-settings.mjs";
 import { bindRetroMemory } from "../flow/retro-memory.mjs";
@@ -390,6 +391,16 @@ export class Operations {
                   this.store,
                   { ...p, manifest },
                   options,
+                ),
+              }
+            : {}),
+          // A context part's repositories, skills, reads, asks and servers,
+          // shown before approval too (epic-context EC4.1).
+          ...(p.context
+            ? {
+                context: contextView(
+                  p,
+                  readPluginSettings(options.settingsFile),
                 ),
               }
             : {}),
