@@ -299,11 +299,13 @@ export async function claimNext(
     },
     { github },
   );
+  // `own`: this runner created it, so it deletes it once the task lands.
   cacheClaim(store, claim.repository.github, {
     spec: taskSpec(claim.task),
     task: claim.task.id,
     branch: claim.branch,
     sha: claim.head,
+    own: true,
   });
   const data = store.read(),
     brief = leafBrief(store, data, {

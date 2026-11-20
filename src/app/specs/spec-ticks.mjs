@@ -205,14 +205,16 @@ export async function tickEntry(store, dir, entry) {
 // A spec that lives in a plans repository other than the code repository:
 // its tick is its own commit there, after the code landed. Does nothing for a spec the code
 // repository holds, whose landing commit carried the tick. The tick goes on
-// the workspace's specs branch (specs-branch.mjs).
+// the workspace's specs branch (specs-branch.mjs). Returns `{done: true}`
+// once the tick is known to be on its done branch (in the candidate, newly
+// committed, or already there), else null: a read or push failed.
 export async function tickPlansRepo(
   store,
   { entry, candidate, repository, workspaceRoot, env },
 ) {
   const plan = store.get("plans", entry.spec);
-  if (!plan?.spec || (await inCandidate(repository, candidate, plan)))
-    return null;
+  if (!plan?.spec) return null;
+  if (await inCandidate(repository, candidate, plan)) return { done: true };
   const roots = [
     store.getMeta("workspaceRepository")?.root,
     ...store
@@ -240,7 +242,7 @@ export async function tickPlansRepo(
       // has no setting of its own; add one when the two differ.
       commitPrefix: repository.commitPrefix,
     }).catch(() => null);
-    if (out?.commit) return { root, branch, ...out };
+    if (out?.commit || out?.found) return { root, branch, ...out, done: true };
   }
   return null;
 }
@@ -250,28 +252,73 @@ export async function tickPlansRepo(
 // the branch moved (Requirement 113.10). `files` is [{spec, ids, file}],
 // where `file` names the spec's task file (tasks.md when absent). Returns
 // {ticked, commit}; no commit when nothing ticked.
+// Run `fn(dir)` in a temporary detached worktree of `root` at `commit`,
+// removed afterwards.
+async function inDetached(root, commit, fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-tick-"));
+  try {
+    await git(root, ["worktree", "add", "--detach", "--quiet", dir, commit]);
+    return await fn(dir);
+  } finally {
+    await git(root, ["worktree", "remove", "--force", dir]).catch(() => {});
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// The head a `pr` landing pushes (simplify SM4.1): `commit` with the entry's
+// tasks ticked in a commit of its own on top, so the pull request's checks
+// run on the tick. `commit` itself when its tasks.md is not in this
+// repository or the boxes are already ticked.
+export function tickedHead(
+  store,
+  root,
+  entry,
+  commit,
+  { env, commitPrefix = "" } = {},
+) {
+  return inDetached(root, commit, async (dir) => {
+    await tickEntry(store, dir, entry);
+    if (!(await git(dir, ["diff", "--cached", "--name-only"]))) return commit;
+    await git(
+      dir,
+      [
+        "commit",
+        "--quiet",
+        "-m",
+        commitSubject(
+          commitPrefix,
+          `Tick ${entry.tasks.map((t) => t.task).join(", ")}`,
+        ),
+      ],
+      { env },
+    );
+    return git(dir, ["rev-parse", "HEAD"]);
+  });
+}
+
 export async function tickBranch(
   root,
   { branch, files, remote = "origin", tries = 5, env, commitPrefix = "" },
 ) {
   for (let attempt = 1; ; attempt++) {
     await remoteGit(root, ["fetch", "--quiet", remote, branch], { env });
-    const base = await git(root, ["rev-parse", "FETCH_HEAD"]),
-      dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-tick-"));
-    try {
-      await git(root, ["worktree", "add", "--detach", "--quiet", dir, base]);
+    const base = await git(root, ["rev-parse", "FETCH_HEAD"]);
+    const out = await inDetached(root, base, async (dir) => {
       const ticked = [];
+      let found = 0;
       for (const { spec, ids, file: name = TASKS_FILE } of files) {
         const relative = `${specsPath(dir)}/${spec}/${name}`,
           file = path.join(dir, relative);
         if (!fs.existsSync(file)) continue;
+        found += 1;
         const tick = tickedText(spec, fs.readFileSync(file, "utf8"), ids, name);
         if (!tick.ticked.length) continue;
         fs.writeFileSync(file, tick.text);
         await git(dir, ["add", relative]);
         ticked.push(...tick.ticked, ...(await tickParents(dir, spec)));
       }
-      if (!ticked.length) return { ticked };
+      // `found`: a tasks file was there, so nothing left to tick is done.
+      if (!ticked.length) return { ticked, found };
       await git(
         dir,
         [
@@ -292,11 +339,10 @@ export async function tickBranch(
         return { ticked, commit };
       } catch (error) {
         if (attempt >= tries) throw error;
+        return null;
       }
-    } finally {
-      await git(root, ["worktree", "remove", "--force", dir]).catch(() => {});
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
+    });
+    if (out) return out;
   }
 }
 

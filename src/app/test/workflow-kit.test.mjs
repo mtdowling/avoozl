@@ -13,6 +13,7 @@ import { unblockCounts } from "../specs/ranking.mjs";
 import { claimFirst, resumeClaim } from "../workers/claims.mjs";
 import { linkedReader } from "../specs/order.mjs";
 import { catchUp, integrationBase } from "../specs/integration-base.mjs";
+import { landingAction } from "../landing/landing-action.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file) => fs.readFileSync(root + file, "utf8");
@@ -238,9 +239,29 @@ async function claim(testCase, specs, order) {
     : null;
 }
 
-// Landing and spec issue markers run through operations the simplify spec
-// adds, so the adapter leaves those probes out until each simplify task
-// lands.
+// The landing: Avoozl's landing step for the case's task, on the base its
+// integration branch rule picks; landed work is ticked on the specs branch
+// when the runner names one, else on that base.
+async function landing(testCase, specs) {
+  const { land, runner } = testCase,
+    base = await integrationBase(land.task.split("/")[0], {
+      linked: linkedOf(specs),
+      exists: (name) => testCase.origin.branches.includes(name),
+      fallback: runner.defaultBranch,
+    });
+  return landingAction({
+    mode: land.mode,
+    pr: land.pr,
+    checks: land.checks === "pass",
+    baseMoved: land.baseMoved,
+    landed: land.state === "landed-unticked",
+    base,
+    done: runner.specsBranch ?? null,
+  });
+}
+
+// Spec issue markers run through operations the simplify spec adds, so the
+// adapter leaves that probe out until its simplify task lands.
 async function avoozl(testCase) {
   const specs = specsOf(testCase.files),
     got = {};
@@ -251,6 +272,7 @@ async function avoozl(testCase) {
   if (testCase.expect.claim)
     got.claim = await claim(testCase, specs, got.ready);
   if (testCase.expect.resume) got.resume = await resume(testCase);
+  if (testCase.expect.landing) got.landing = await landing(testCase, specs);
   return got;
 }
 

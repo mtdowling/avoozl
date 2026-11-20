@@ -28,8 +28,5 @@
       "deleteClaimBranch": true,
       "mergeGuard": "head-sha"
     }
-  },
-  "expectFail": {
-    "landing": "sim-1.4"
   }
 }

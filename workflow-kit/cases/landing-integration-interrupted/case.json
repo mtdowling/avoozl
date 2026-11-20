@@ -27,8 +27,5 @@
       "mergeBase": false,
       "deleteClaimBranch": true
     }
-  },
-  "expectFail": {
-    "landing": "sim-1.4"
   }
 }

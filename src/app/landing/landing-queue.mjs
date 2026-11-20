@@ -224,7 +224,9 @@ export function withdrawLanding(store, { repositoryId, base, key }, reason) {
 // steps:
 //   observe(entry)  (optional)          -> {merged, candidate, ...record} when
 //                                          someone else already landed the
-//                                          head; checked before anything else
+//                                          head, or {closed, pr} when its pull
+//                                          request closed unmerged; checked
+//                                          before anything else
 //   readBase()                          -> the base's current commit
 //   prepare(entries, baseHead)          -> {candidate}, or {conflict: [files],
 //                                          key} naming the conflicted member
@@ -248,7 +250,7 @@ export function withdrawLanding(store, { repositoryId, base, key }, reason) {
 //
 // Returns {state, entry, entries} with state one of: empty, paused,
 // running, conflict, failed, retry, waiting, base-moved, busy, not-landed,
-// landed. `batch` is {held, waiting, landed, culprits} (member keys) for
+// closed, landed. `batch` is {held, waiting, landed, culprits} (member keys) for
 // the size record. `sentBack` lists members that left the queue as
 // {state: "conflict" | "failed", entry} while the rest went on. A member
 // that conflicted or failed alone leaves the queue; landed takes out what
@@ -268,6 +270,13 @@ export async function landNext(
     const queue = landingQueue(store, { repositoryId, base });
     if (!queue.length) return { state: "empty" };
     const seen = await steps.observe?.(queue[0]);
+    // A pull request closed unmerged leaves the queue; its claim branch
+    // stays until a person deletes it (simplify §D4).
+    if (seen?.closed)
+      return {
+        state: "closed",
+        entry: finish(store, queue[0], "closed", { pr: seen.pr }),
+      };
     if (seen?.merged) {
       const { merged, ...record } = seen,
         entry = finish(store, queue[0], "landed", {

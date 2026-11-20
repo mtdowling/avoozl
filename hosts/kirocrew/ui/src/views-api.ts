@@ -354,7 +354,20 @@ export interface ConflictItem extends TaskOwner {
   // 'draft-pr': a draft pull request Avoozl opened, waiting for a person
   // to release it; 'pr-merge': one whose checks passed, waiting for a
   // person to merge it (R119).
-  reason?: 'review' | 'blocked' | 'crew-mode' | 'hand-set-review' | 'approval' | 'disk' | 'phase-check' | 'required-check' | 'plugin-check-clash' | 'draft-pr' | 'pr-merge'
+  reason?:
+    | 'review'
+    | 'blocked'
+    | 'crew-mode'
+    | 'hand-set-review'
+    | 'approval'
+    | 'disk'
+    | 'phase-check'
+    | 'required-check'
+    | 'plugin-check-clash'
+    | 'draft-pr'
+    | 'pr-merge'
+    | 'stale-claim'
+    | 'pr-closed'
   // A failed phase plugin check (plugin-checks D7): the proposed fix, whose
   // text holds the check's output as untrusted data, and the run it is for.
   phaseFix?: { run: string; plan: string; phase: string; repository: string; text: string }

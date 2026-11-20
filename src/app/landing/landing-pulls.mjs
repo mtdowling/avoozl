@@ -216,9 +216,12 @@ export function pullSteps({
     async readBase() {
       return (await github.branchHead(target, base)).oid;
     },
-    // Someone else merged exactly this head: record their landing once.
+    // Someone else merged exactly this head: record their landing once. A
+    // pull request closed unmerged is reported as closed.
     async observe(entry) {
       const pull = await findPull(github, target, entry, entry.base);
+      if (pull?.state === "closed" && !pull.merged_at)
+        return { closed: true, pr: pull.number };
       if (!pull?.merged_at || pull.head?.sha !== entry.commit) return null;
       return {
         merged: true,

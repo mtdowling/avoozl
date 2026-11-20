@@ -105,6 +105,7 @@ import {
 import { scheduleHolds } from "../specs/spec-scheduler.mjs";
 import { landPullRequests } from "../landing/pr-landing.mjs";
 import { landDirect } from "../landing/direct-landing.mjs";
+import { retryLanded } from "../landing/landed-work.mjs";
 import {
   applyLandingModes,
   landingSettings,
@@ -669,6 +670,12 @@ async function runTick(
           });
           planned.notify.push(...pushed.notify);
           planned.messages.push(...pushed.messages);
+          // Landed work whose tick or claim branch delete did not go
+          // through is finished again (rule 13.6).
+          if (github)
+            await under("tick", "land", retryLanded)(store, github, {
+              workspaceRoot,
+            });
         }
         // Stop the line (§4.11): a failure on the task's own base, a worker
         // that names its cause, and the landing branch's checks. Pauses new

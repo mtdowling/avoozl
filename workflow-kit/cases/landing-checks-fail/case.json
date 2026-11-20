@@ -22,8 +22,5 @@
     "landing": {
       "action": "none"
     }
-  },
-  "expectFail": {
-    "landing": "sim-1.4"
   }
 }

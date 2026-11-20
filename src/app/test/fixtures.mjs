@@ -247,3 +247,20 @@ export function verifiedTask(w, taskId, file = `${taskId}.txt`, extra = {}) {
   });
   return { commit, wt, branch };
 }
+
+// Claim branches in acme/app's cache (simplify §D3): `own` lists the tasks
+// this runner claimed, `other` the ones another runner holds.
+export async function seedClaims(store, { own = [], other = [] } = {}) {
+  const { cacheClaim } = await import("../workers/claims.mjs");
+  for (const [task, mine] of [
+    ...own.map((id) => [id, true]),
+    ...other.map((id) => [id, false]),
+  ])
+    cacheClaim(store, "acme/app", {
+      spec: "s",
+      task,
+      branch: `avoozl/s/${task}`,
+      sha: "a".repeat(40),
+      ...(mine ? { own: true } : {}),
+    });
+}

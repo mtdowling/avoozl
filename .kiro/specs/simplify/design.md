@@ -96,12 +96,14 @@ three key values, and `avoozl next` prints them.
   repository, and in a commit on the claim branch before the checks
   otherwise. The tick for a spec in another repository is its own commit on
   that specs branch after the code lands.
-- `pr` mode opens a draft pull request (`draft: true`) with `Closes #N` for a
-  labeled issue. Avoozl never calls the merge, ready-for-review or
-  auto-merge endpoints. The task stays claimed while the pull request is
-  open. When the pull request merges, the next read sees the tick on the
-  base and the task is done. When it closes unmerged, the task shows in
-  Needs you with "Delete claim branch".
+- `pr` mode opens the pull request as `landing.pr` says (draft by default,
+  ready, or auto), with `Closes #N` for a labeled issue. Only `auto` makes
+  Avoozl merge, through the merge API with `sha` set to the checked head; a
+  person merges a draft or ready pull request, or presses Approve or Merge
+  on its Needs you row. Avoozl never arms GitHub auto-merge. The task stays
+  claimed while the pull request is open. When the pull request merges, the
+  next read sees the tick on the base and the task is done. When it closes
+  unmerged, the task shows in Needs you with "Delete claim branch".
 - `direct` mode keeps merge batches (`landing/merge-batch.mjs`) and the
   per-base queue (`landing/landing-queue.mjs`), and pushes a fast-forward.
 - After landing, Avoozl deletes the claim branch it created.

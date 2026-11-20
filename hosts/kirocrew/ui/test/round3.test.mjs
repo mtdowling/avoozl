@@ -231,3 +231,12 @@ test('icons sit on buttons, and every icon is one the host module has', () => {
     )
   }
 })
+
+test('a stale claim and a closed pull request say why in their own words, and carry their own buttons', async () => {
+  const { noActionReason } = await import('../src/conflicts-api.ts')
+  for (const reason of ['stale-claim', 'pr-closed']) {
+    const item = { kind: 'needs-human', reason, authority: 'github', taskId: null, title: 't', detail: 'Delete the branch to make it ready.' }
+    assert.equal(whyLine(item), item.detail, reason)
+    assert.equal(noActionReason(item), null, reason)
+  }
+})

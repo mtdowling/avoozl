@@ -121,6 +121,13 @@ review. Each repository's `landing` setting picks how:
   for its required checks and reviews on that head. `landing.pr` says whether
   it opens as a draft and who merges it (see below).
 
+The task's box is ticked before its checks run: in the landing commit with
+`direct`, and in a commit of its own on top of the work with `pr`, so the
+pull request carries the tick. A spec kept in another repository is ticked
+there once the work lands. After a task lands, Avoozl deletes the claim branch
+it created and its leases. Until its tick is on the done branch, the claim
+stays and the tick tries again.
+
 ### How pull requests land
 
 `landing.pr` says how Avoozl opens a `pr` repository's pull requests, and who
@@ -166,6 +173,10 @@ In every mode a draft is never merged, never auto-merged and never batched
 while it is a draft. Pull request landing never makes a merge batch, and
 Avoozl never arms GitHub auto-merge. Only a person can press **Approve** or
 **Merge**.
+
+A pull request closed without merging leaves the landing queue. Its task
+stays claimed, and **Needs you** offers **Delete claim branch**, after the
+high-risk confirm, to make the task ready again.
 
 GitHub does not let anyone approve their own pull request, and Avoozl opens
 pull requests as the owner. So **Ready for review** is the release signal, not

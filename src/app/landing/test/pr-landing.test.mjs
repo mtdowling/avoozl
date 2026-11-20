@@ -16,9 +16,10 @@ import {
 import { landingQueue } from "../landing-queue.mjs";
 import { landPullRequests } from "../pr-landing.mjs";
 import { approveMerge } from "../landing-pulls.mjs";
+import { claimOf, closedPullNeedsYou } from "../../workers/claims.mjs";
 import { addItemContext } from "../../api/needs-you-context.mjs";
 import { taskLinks } from "../../tasks/scm-links.mjs";
-import { snapshot, verifiedTask } from "../../test/fixtures.mjs";
+import { seedClaims, snapshot, verifiedTask } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
@@ -38,7 +39,12 @@ const leaf = (id) => ({
   planId: "s",
 });
 
-async function workspace(t) {
+const FILE = ".kiro/specs/s/tasks.md";
+const TASKS = "# Tasks\n\n- [ ] 1.1 First\n  - It works\n";
+
+// `spec`: the spec's tasks.md is in the code repository, so a landing
+// ticks it there.
+async function workspace(t, { spec = false } = {}) {
   const root = temporaryDirectory("avoozl-prland-"),
     origin = path.join(root, "origin.git"),
     checkout = path.join(root, "app");
@@ -50,6 +56,10 @@ async function workspace(t) {
   ])
     git(checkout, "config", k, v);
   fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
+  if (spec) {
+    fs.mkdirSync(path.join(checkout, path.dirname(FILE)), { recursive: true });
+    fs.writeFileSync(path.join(checkout, FILE), TASKS);
+  }
   git(checkout, "add", ".");
   git(checkout, "commit", "-qm", "Start");
   git(checkout, "push", "-q", "origin", "main");
@@ -68,7 +78,12 @@ async function workspace(t) {
     github: "acme/app",
     worktreeRoot: path.join(root, "wt"),
   });
-  store.put("plans", { id: "s", spec: "s", hash: digest("plan s") });
+  store.put("plans", {
+    id: "s",
+    spec: "s",
+    hash: digest("plan s"),
+    ...(spec ? { mapping: { "s.1.1": "t1" } } : {}),
+  });
   return { root, origin, checkout: fs.realpathSync.native(checkout), store };
 }
 
@@ -91,7 +106,7 @@ const verified = (w, taskId, file) =>
 // the bare origin's main to the head (a fast-forward stands in for it).
 function fakeGithub(w) {
   const pulls = [],
-    calls = { created: 0, merged: [], statuses: [] };
+    calls = { created: 0, merged: [], statuses: [], deleted: [] };
   let conclusion = "pending";
   const pullOf = (n) => pulls.find((p) => p.number === n);
   const github = {
@@ -156,6 +171,7 @@ function fakeGithub(w) {
     createCommitStatus: async (_repo, sha, input) =>
       calls.statuses.push({ sha, ...input }),
     pullRequestReviews: async () => [],
+    deleteBranch: async (_repo, branch) => calls.deleted.push(branch),
     mergePullRequest: async (_repo, n, { sha }) => {
       const pull = pullOf(n);
       if (pull.head.sha !== sha) return { merged: false };
@@ -369,4 +385,79 @@ test("a queued task whose base moved is withdrawn, merged with the base and veri
     landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     0,
   );
+});
+
+// A person merges the pull request on GitHub: origin's main moves to its head.
+const mergeOnGitHub = (w, pull) => {
+  git(w.origin, "update-ref", "refs/heads/main", pull.head.sha);
+  Object.assign(pull, {
+    state: "closed",
+    merged_at: "2026-11-18T00:00:00Z",
+    merged_by: { login: "mona" },
+    merge_commit_sha: pull.head.sha,
+  });
+};
+
+test("the pull request carries the work commit and its tick on top, so its checks run on the tick", async (t) => {
+  const w = await workspace(t, { spec: true }),
+    github = fakeGithub(w),
+    commit = verified(w, "t1");
+  await integrateVerified(w.store);
+  const head = git(w.origin, "rev-parse", "avoozl/t1");
+  assert.notEqual(head, commit);
+  assert.equal(git(w.origin, "rev-parse", `${head}^`), commit);
+  assert.match(git(w.origin, "show", `${head}:${FILE}`), /- \[x\] 1\.1 First/);
+  assert.equal(
+    landingQueue(w.store, { repositoryId: "app", base: "main" })[0].commit,
+    head,
+  );
+  await step(w, github);
+  assert.equal(github.pulls[0].head.sha, head);
+  assert.equal(github.pulls[0].draft, true);
+});
+
+test("a pull request a person merges lands its task with its tick, and Avoozl deletes the claim branch it created", async (t) => {
+  const w = await workspace(t, { spec: true }),
+    github = fakeGithub(w);
+  await seedClaims(w.store, { own: ["t1"], other: ["t2"] });
+  const commit = verified(w, "t1");
+  await integrateVerified(w.store);
+  github.setChecks("success");
+  await step(w, github);
+  mergeOnGitHub(w, github.pulls[0]);
+  await step(w, github);
+  assert.equal(w.store.get("task_deliveries", "t1").state, "integrated");
+  const landed = w.store.read().tasks.find((x) => x.id === "t1")
+    .integration.commit;
+  assert.equal(git(w.origin, "rev-parse", `${landed}^`), commit);
+  assert.match(git(w.origin, "show", `${landed}:${FILE}`), /- \[x\] 1\.1/);
+  assert.deepEqual(github.calls.merged, [], "Avoozl merged nothing");
+  assert.deepEqual(github.calls.deleted, ["avoozl/s/t1"]);
+  assert.equal(claimOf(w.store, "acme/app", "t1"), null);
+  assert.ok(claimOf(w.store, "acme/app", "t2"), "another runner's claim stays");
+});
+
+test("a pull request closed unmerged leaves the queue and gives a Needs you row with Delete claim branch", async (t) => {
+  const w = await workspace(t),
+    github = fakeGithub(w);
+  await seedClaims(w.store, { own: ["t1"] });
+  verified(w, "t1");
+  await integrateVerified(w.store);
+  await step(w, github);
+  github.pulls[0].state = "closed";
+  await step(w, github);
+  assert.equal(
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
+    0,
+  );
+  const [row] = closedPullNeedsYou(w.store);
+  assert.equal(row.reason, "pr-closed");
+  assert.equal(row.taskId, "t1");
+  assert.equal(row.link, "https://github.com/acme/app/pull/1");
+  assert.match(row.detail, /stays claimed by avoozl\/s\/t1/);
+  assert.equal(row.actions[0].label, "Delete claim branch");
+  assert.equal(row.actions[0].operation, "claim.delete");
+  assert.equal(row.actions[0].confirm[0].job, "claim-delete");
+  assert.deepEqual(github.calls.deleted, [], "Avoozl deletes nothing itself");
+  assert.deepEqual(github.calls.merged, []);
 });

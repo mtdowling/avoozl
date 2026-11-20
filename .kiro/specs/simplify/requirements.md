@@ -117,10 +117,13 @@ holds unchecked work or a stale task list.
    base.
 2. In `direct` mode Avoozl SHALL push the checked head to the base as a
    fast-forward, and SHALL go back to step 1 when the base moved.
-3. In `pr` mode Avoozl SHALL open a draft pull request from the claim branch
-   and SHALL NOT merge it, mark it ready or arm auto-merge on it. WHEN the
-   base moves under it THEN Avoozl SHALL merge the base in and run the checks
-   again.
+3. In `pr` mode Avoozl SHALL open a pull request from the claim branch as
+   `landing.pr` says: `draft` (the default) opens a draft, `ready` opens it
+   ready for review, and a person merges either; `auto` opens it ready and
+   Avoozl merges it once the checks pass on its head, guarded by that head.
+   Avoozl SHALL NOT merge a `draft` or `ready` pull request on its own, and
+   SHALL NOT arm GitHub auto-merge. WHEN the base moves under it THEN Avoozl
+   SHALL merge the base in and run the checks again.
 4. Avoozl SHALL never force push, rebase a claim branch or add a trailer or
    attribution to a commit.
 5. Review output and evidence SHALL go only where the landing spec's "Review

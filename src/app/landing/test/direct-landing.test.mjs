@@ -11,7 +11,9 @@ import { integrateVerified } from "../../delivery/delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landDirect } from "../direct-landing.mjs";
 import { graphView } from "../../api/page-views.mjs";
-import { snapshot, verifiedTask } from "../../test/fixtures.mjs";
+import { cacheClaim, claimOf } from "../../workers/claims.mjs";
+import { retryLanded } from "../landed-work.mjs";
+import { seedClaims, snapshot, verifiedTask } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
@@ -208,4 +210,93 @@ test("the tick lands a merge batch, then each landed member's ref is gone and th
     "refs/heads/main",
   );
   assert.equal(git(w.checkout, "for-each-ref", "refs/avoozl/land"), "");
+});
+
+// The spec's tasks.md in the code repository, so a landing ticks it there.
+function specInCode(w) {
+  const file = path.join(w.checkout, ".kiro/specs/s/tasks.md");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, "# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 Second\n");
+  git(w.checkout, "add", ".");
+  git(w.checkout, "commit", "-qm", "Spec");
+  git(w.checkout, "push", "-q", "origin", "main");
+  w.store.put("plans", {
+    ...w.store.get("plans", "s"),
+    mapping: { "s.1.1": "t1", "s.1.2": "t2" },
+  });
+}
+
+test("after a direct landing Avoozl deletes the claim branch it created, and no other runner's", async (t) => {
+  const w = await workspace(t);
+  specInCode(w);
+  w.store.put("repositories", {
+    ...w.store.get("repositories", "app"),
+    github: "acme/app",
+  });
+  const deleted = [],
+    github = { deleteBranch: async (_repo, branch) => deleted.push(branch) };
+  await seedClaims(w.store, { own: ["t1"], other: ["t2"] });
+  verified(w, "t1");
+  verified(w, "t2");
+  await integrateVerified(w.store);
+  const step = () =>
+    landDirect(w.store, {
+      github,
+      workspaceRoot: w.root,
+      rounds: 2,
+      machine: {},
+    });
+  await step();
+  await step();
+  assert.equal(w.store.get("task_deliveries", "t2").state, "integrated");
+  assert.match(
+    git(w.origin, "show", "main:.kiro/specs/s/tasks.md"),
+    /- \[x\] 1\.1 First/,
+    "the tick landed with the work",
+  );
+  assert.deepEqual(deleted, ["avoozl/s/t1"]);
+  assert.equal(claimOf(w.store, "acme/app", "t1"), null);
+  assert.equal(claimOf(w.store, "acme/app", "t2").branch, "avoozl/s/t2");
+});
+
+test("landed work keeps its own claim until its tick is known on the done branch, then a later pass deletes it (13.6)", async (t) => {
+  const w = await workspace(t),
+    file = path.join(w.checkout, ".kiro/specs/s/tasks.md");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, "# Tasks\n\n- [x] 1.1 First\n  - It works\n");
+  git(w.checkout, "add", ".");
+  git(w.checkout, "commit", "-qm", "Land t1 with its tick");
+  const landed = git(w.checkout, "rev-parse", "HEAD"),
+    repository = { ...w.store.get("repositories", "app"), github: "acme/app" };
+  w.store.mutate("Landed", (data) => {
+    data.tasks.find((x) => x.id === "t1").integration = { commit: landed };
+  });
+  cacheClaim(w.store, "acme/app", {
+    spec: "s",
+    task: "t1",
+    branch: "avoozl/s/t1",
+    sha: landed,
+    own: true,
+  });
+  const deleted = [],
+    github = { deleteBranch: async (_repo, branch) => deleted.push(branch) };
+  // The done branch cannot be read: the claim stays, so nobody takes t1.
+  w.store.put("repositories", {
+    ...repository,
+    root: path.join(w.root, "gone"),
+  });
+  assert.equal(
+    await retryLanded(w.store, github, { workspaceRoot: w.root }),
+    0,
+  );
+  assert.deepEqual(deleted, []);
+  assert.ok(claimOf(w.store, "acme/app", "t1"));
+  // Readable again, with the tick in the landed commit: the claim goes.
+  w.store.put("repositories", repository);
+  assert.equal(
+    await retryLanded(w.store, github, { workspaceRoot: w.root }),
+    1,
+  );
+  assert.deepEqual(deleted, ["avoozl/s/t1"]);
+  assert.equal(claimOf(w.store, "acme/app", "t1"), null);
 });

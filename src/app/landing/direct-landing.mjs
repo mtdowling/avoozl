@@ -28,9 +28,10 @@ import {
   sizeRecord,
   testingNow,
 } from "./merge-batch-size.mjs";
-import { tickEntry, tickPlansRepo } from "../specs/spec-ticks.mjs";
+import { tickEntry } from "../specs/spec-ticks.mjs";
 import { sendConflictBack } from "./landing-conflicts.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
+import { finishLanded } from "./landed-work.mjs";
 import { taskDefinition } from "../specs/task-outcomes.mjs";
 import { landingMetrics } from "./landing-trailers.mjs";
 import { fail } from "../store/store.mjs";
@@ -205,17 +206,18 @@ export async function landDirect(
           });
           await dropMember(repository.root, entry);
         }
+        await syncBase(repository, { env }).catch(() => null);
         // A spec in a separate plans repository is ticked there, as its own
-        // guarded commit (spec-ticks.mjs).
+        // guarded commit (spec-ticks.mjs); then the claim branches this
+        // runner created go (rule 13.1).
         for (const entry of result.entries)
-          await tickPlansRepo(store, {
+          await finishLanded(store, github, {
+            repository,
             entry,
             candidate: result.candidate,
-            repository,
             workspaceRoot,
             env,
-          }).catch(() => null);
-        await syncBase(repository, { env }).catch(() => null);
+          });
         for (const entry of result.entries) {
           const worktree = store.get("task_worktrees", entry.key);
           if (worktree?.path)

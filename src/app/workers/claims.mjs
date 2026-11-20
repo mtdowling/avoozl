@@ -3,7 +3,7 @@
 // second one with 422, so two runners never hold one task. The cache keeps
 // the branches each read saw, so a rebuilt cache finds every claim again.
 import { fail } from "../store/store.mjs";
-import { confirmStep } from "../github/github-jobs.mjs";
+import { asJob, confirmStep } from "../github/github-jobs.mjs";
 
 const PREFIX = "avoozl/";
 const META = "claims.branches";
@@ -80,13 +80,15 @@ export async function refreshClaims(store, github) {
     if (repository.github)
       try {
         const claims = await readClaims(github, repository.github),
-          known = new Map(
-            (cached[repository.github] || []).map((c) => [c.sha, c.at]),
-          );
-        for (const claim of claims)
+          before = cached[repository.github] || [],
+          known = new Map(before.map((c) => [c.sha, c.at])),
+          own = new Set(before.filter((c) => c.own).map((c) => c.branch));
+        for (const claim of claims) {
           claim.at =
             known.get(claim.sha) ??
             (await headTime(github, repository.github, claim.sha));
+          if (own.has(claim.branch)) claim.own = true;
+        }
         read[repository.github] = claims;
       } catch (error) {
         errors.push({ repository: repository.github, error: error.message });
@@ -116,6 +118,102 @@ export function forgetClaim(store, repository, branch) {
     ...all,
     [repository]: all[repository].filter((c) => c.branch !== branch),
   });
+}
+
+// The cached claim of one task, in one GitHub repository.
+export function claimOf(store, repository, taskId) {
+  return (
+    ((store.getMeta(META) || {})[repository] || []).find(
+      (claim) => claim.task === taskId,
+    ) ?? null
+  );
+}
+
+// The claims this runner created, each with its GitHub repository.
+export const cachedOwnClaims = (store) =>
+  Object.entries(store.getMeta(META) || {}).flatMap(([repository, claims]) =>
+    claims
+      .filter((claim) => claim.own)
+      .map((claim) => ({ ...claim, repository })),
+  );
+
+// After a task lands, the claim branch this runner created goes from origin
+// with its leases (rule 13.1, simplify SM4.1). A claim another runner
+// created stays: a person deletes that one. Returns whether it was deleted.
+export async function deleteOwnClaim(store, github, repository, taskId) {
+  const claim = claimOf(store, repository, taskId);
+  if (!claim?.own || !github?.deleteBranch) return false;
+  const land = asJob("land", github),
+    leases = github.branchesUnder
+      ? await land.branchesUnder(
+          repository,
+          `avoozl-lease/${claim.spec}/${claim.task}/`,
+        )
+      : [];
+  for (const lease of Array.isArray(leases) ? leases : [])
+    await land.deleteBranch(
+      repository,
+      String(lease.ref).replace(/^refs\/heads\//, ""),
+    );
+  await land.deleteBranch(repository, claim.branch);
+  forgetClaim(store, repository, claim.branch);
+  return true;
+}
+
+// One Needs you row per pull request that closed unmerged: its task stays
+// claimed, so Delete claim branch (the high-risk claim-delete job) makes it
+// ready again. A newer landing of the same task clears the row.
+export function closedPullNeedsYou(store) {
+  const repositories = new Map(
+      store
+        .list("repositories")
+        .map((repository) => [repository.id, repository]),
+    ),
+    entries = store.list("landing_queue"),
+    newest = new Map();
+  for (const entry of entries) {
+    const key = `${entry.repositoryId}\0${entry.key}`;
+    if ((newest.get(key)?.seq ?? -1) < (entry.seq ?? 0)) newest.set(key, entry);
+  }
+  return [...newest.values()]
+    .filter((entry) => entry.state === "closed")
+    .map((entry) => {
+      const github = repositories.get(entry.repositoryId)?.github ?? null,
+        claim = github ? claimOf(store, github, entry.key) : null;
+      return {
+        kind: "needs-human",
+        reason: "pr-closed",
+        id: `pr-closed:${entry.repositoryId}:${entry.key}`,
+        taskId: entry.key,
+        authority: "github",
+        ...(github && entry.pr
+          ? { link: `https://github.com/${github}/pull/${entry.pr}` }
+          : {}),
+        title: `Pull request${entry.pr ? ` #${entry.pr}` : ""} for ${entry.key} closed unmerged`,
+        detail: claim
+          ? `${entry.key} stays claimed by ${claim.branch}. Delete the claim branch to make the task ready again, or reopen the pull request on GitHub.`
+          : `${entry.key} did not land. Reopen the pull request on GitHub, or send the task back to its worker.`,
+        openedAt: entry.finishedAt,
+        ...(claim
+          ? {
+              actions: [
+                {
+                  label: "Delete claim branch",
+                  operation: "claim.delete",
+                  input: { repository: github, branch: claim.branch },
+                  confirm: [
+                    confirmStep({
+                      job: "claim-delete",
+                      target: github,
+                      action: `Delete ${claim.branch}`,
+                    }),
+                  ],
+                },
+              ],
+            }
+          : {}),
+      };
+    });
 }
 
 export const DEFAULT_STALE_HOURS = 24;

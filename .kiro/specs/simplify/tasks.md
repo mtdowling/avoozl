@@ -35,8 +35,8 @@ merge, shown in chat and never committed.
   - A rebuilt cache finds every claimed task from the claim branches alone
 - [x] `sim-1.3` Stale claims in Needs you [SM2.4] (§D3)
   - Tests: a claim branch whose newest commit is older than `claims.staleHours` (default 24) gives one Needs you item for the spec issue's assignee; Delete branch runs as a high-risk job behind the confirm popup and the CLI prompt; Avoozl deletes no other runner's claim branch on its own
-- [ ] `sim-1.4` Draft pull requests and claim branch delete [SM4] (§D4)
-  - Tests: `pr` mode opens a draft pull request from the claim branch and never calls the merge, ready-for-review or auto-merge endpoints; a moved base is merged in and checked again; a merged pull request's tick marks the task done on the next read; a pull request closed unmerged gives a Needs you item
+- [x] `sim-1.4` Draft pull requests and claim branch delete [SM4] (§D4)
+  - Tests: `pr` mode opens the pull request from the claim branch as `landing.pr` says: a draft by default, never merged, marked ready or armed for auto-merge by the tick, and with `auto` merged guarded by the checked head; a moved base is merged in and checked again; a merged pull request's tick marks the task done on the next read; a pull request closed unmerged gives a Needs you item
   - After landing in any mode, Avoozl deletes the claim branch it created, and a test checks the tick is in the work commit or in a commit on the claim branch before the checks
 - [ ] `sim-1.5` `avoozl land` and `plans_land` [SM7.1, SM7.3] (§D7)
   - `avoozl land TASK` and `plans_land` run one operation that lands a reported task by its repository's mode, and refuse a task the caller did not claim

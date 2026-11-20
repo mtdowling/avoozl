@@ -44,6 +44,8 @@ import { taskDefinition } from "../specs/task-outcomes.mjs";
 import { pushHead, sourceRegistry } from "../workers/working-heads.mjs";
 import { fail } from "../store/store.mjs";
 import { firstErrorLine } from "../delivery/verify.mjs";
+import { finishLanded } from "./landed-work.mjs";
+import { tickedHead } from "../specs/spec-ticks.mjs";
 
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
 // A fenced block longer than any backtick run inside it.
@@ -169,18 +171,28 @@ export async function queuePullRequest(
     source = {
       repository: repository.github,
       branch: named ? `avoozl/${named}` : worktree.branch,
-    };
-  await pushHead(
-    repository.root,
-    { ...source, commit: delivery.commit },
-    registry,
-    { since, env, machine, configFile, store },
-  );
+    },
+    // The tick goes on the branch before the checks (simplify SM4.1): the
+    // pull request carries the work commit and, on top, its tick.
+    head = await tickedHead(
+      store,
+      repository.root,
+      { spec: planId, tasks: [{ task: delivery.taskId }] },
+      delivery.commit,
+      { env, commitPrefix: repository.commitPrefix },
+    );
+  await pushHead(repository.root, { ...source, commit: head }, registry, {
+    since,
+    env,
+    machine,
+    configFile,
+    store,
+  });
   enqueueLanding(store, {
     repositoryId: repository.id,
     base,
     key: delivery.taskId,
-    commit: delivery.commit,
+    commit: head,
     spec: planId,
     tasks: [
       {
@@ -387,6 +399,13 @@ export async function landPullRequests(
           at,
         });
         await syncBase(repository, { env }).catch(() => null);
+        await finishLanded(store, github, {
+          repository,
+          entry: result.entry,
+          candidate: pull?.merge_commit_sha ?? result.entry.mergeCommit,
+          workspaceRoot,
+          env,
+        });
       } else if (result.state === "failed") {
         const sent = sendFailureBack(store, result, { rounds: tries, now });
         messages.push(...sent.messages);
