@@ -23,6 +23,10 @@ import {
   workerDone,
 } from "../../test/delivery-fixture.mjs";
 import { pluginWorkspace } from "../../test/plugin-checks-fixture.mjs";
+import { loopOn } from "../../test/fixtures.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 // Only parity, at task stage, with its decide prompt at `decideAt`.
 const decideWorkspace = (t, decideAt = ["diff"], extra = {}) =>

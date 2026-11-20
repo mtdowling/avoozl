@@ -293,3 +293,17 @@ export function seedSpan(
     detail,
   });
 }
+
+// Turn on the server loop (simplify §D6) for this test process: a machine
+// config of its own, in a fresh temporary XDG folder, whose `loop` runs
+// specs and issues, so the tick starts and lands work as it does with the
+// loop on.
+export function loopOn(run = ["specs", "issues"]) {
+  process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-loop-xdg-");
+  const dir = path.join(process.env.XDG_CONFIG_HOME, "avoozl");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "config.json"),
+    JSON.stringify({ version: 1, loop: { run } }),
+  );
+}

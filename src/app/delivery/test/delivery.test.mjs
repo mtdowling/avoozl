@@ -12,6 +12,12 @@ import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { loopOn } from "../../test/fixtures.mjs";
+import { workspaceConfig } from "../../settings/config.mjs";
+import { loopAllows, machineLoop } from "../../tick/loop.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -370,7 +376,11 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
   fs.mkdirSync(path.join(xdg, "avoozl"));
   fs.writeFileSync(
     path.join(xdg, "avoozl", "config.json"),
-    JSON.stringify({ version: 1, lanes: { local: 1 } }),
+    JSON.stringify({
+      version: 1,
+      lanes: { local: 1 },
+      loop: { run: ["specs"] },
+    }),
   );
   assert.deepEqual(
     (await ops.execute("workspace.tick", { sessions: [] })).dispatch.map(
@@ -379,7 +389,11 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
     ["urgent"],
     "this machine's lanes",
   );
-  fs.rmSync(path.join(xdg, "avoozl", "config.json"));
+  // Back to no machine lanes, with the loop still on.
+  fs.writeFileSync(
+    path.join(xdg, "avoozl", "config.json"),
+    JSON.stringify({ version: 1, loop: { run: ["specs"] } }),
+  );
 
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -801,4 +815,75 @@ test("after a restart, every session the cron opened is observed before any new 
     sessions: [{ target: "slot-a", status: "working" }],
   });
   assert.equal(finished.held, undefined, "a closed slot need not be listed");
+});
+
+// This machine's config for one test: `loop` when given, none otherwise.
+function machine(t, loop) {
+  const saved = process.env.XDG_CONFIG_HOME,
+    xdg = temporaryDirectory("avoozl-loop-");
+  t.after(() => (process.env.XDG_CONFIG_HOME = saved));
+  process.env.XDG_CONFIG_HOME = xdg;
+  fs.mkdirSync(path.join(xdg, "avoozl"));
+  fs.writeFileSync(
+    path.join(xdg, "avoozl", "config.json"),
+    JSON.stringify({ version: 1, ...(loop ? { loop } : {}) }),
+  );
+}
+
+test("with no loop in this machine's config the tick starts nothing, and next and the graph still answer", async (t) => {
+  const issue = leaf("issue-7", {
+      labeledIssue: { repository: "acme/app", number: 7 },
+    }),
+    { ops } = setup(t, {
+      tasks: [leaf("a"), issue],
+      lanes: { local: 4 },
+      delivery: {},
+    }),
+    started = async () =>
+      (await ops.execute("workspace.tick", { sessions: [] })).dispatch
+        .map((d) => d.task)
+        .sort();
+  machine(t, null);
+  assert.deepEqual(await started(), []);
+  assert.deepEqual(
+    (await ops.execute("runner.next", {})).ready.map((r) => r.id).sort(),
+    ["a", "issue-7"],
+  );
+  assert.ok(
+    (await ops.execute("graph.view", {})).tasks.some((x) => x.id === "a"),
+  );
+  // Each kind loop.run names starts only that kind.
+  machine(t, { run: ["issues"] });
+  assert.deepEqual(await started(), ["issue-7"]);
+  machine(t, { run: ["specs"] });
+  assert.deepEqual(await started(), ["a"]);
+});
+
+test("loop in .avoozl.json is refused, naming the file", (t) => {
+  const { root } = setup(t);
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({ version: 1, loop: { run: ["specs"] } }),
+  );
+  assert.throws(
+    () => workspaceConfig({ workspace: root }),
+    /loop is set in .*\.avoozl\.json\. Put it in /,
+  );
+});
+
+test("loop.run epics runs only the named specs and the specs they link", (t) => {
+  machine(t, { run: ["epics"], epics: ["v2"] });
+  const loop = machineLoop(),
+    // parser is linked from v2; lexer from nothing.
+    chain = (spec) => (spec === "parser" ? ["parser", "v2"] : [spec]);
+  assert.equal(loopAllows(loop, { planId: "parser" }, chain), true);
+  assert.equal(loopAllows(loop, { planId: "v2" }, chain), true);
+  assert.equal(loopAllows(loop, { planId: "lexer" }, chain), false);
+  assert.equal(
+    loopAllows(loop, { labeledIssue: { number: 1 } }, chain),
+    false,
+    "issues need loop.run issues",
+  );
+  machine(t, { run: ["epics"] });
+  assert.equal(machineLoop(), null, "epics with no loop.epics is refused");
 });

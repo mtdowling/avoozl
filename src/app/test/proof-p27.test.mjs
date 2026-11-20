@@ -15,8 +15,10 @@ import { commitIn, fakeCrew, git } from "./fake-crew.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { loopOn } from "./fixtures.mjs";
 
-process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 // A node script, not a .sh file: Windows cannot exec a shell script directly.
 const CHECK_FILE = "scripts/validate.mjs",

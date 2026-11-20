@@ -1,4 +1,5 @@
 import { validateTelemetry } from "./telemetry-config.mjs";
+import { validateLoop } from "../tick/loop.mjs";
 import { validateNotifications } from "../tick/notification-sinks.mjs";
 import fs from "node:fs";
 import os from "node:os";
@@ -399,6 +400,7 @@ export function loadLayeredConfig({
   validateSpecs(config.specs);
   validateNotifications(config.notifications);
   validateTelemetry(config.telemetry);
+  validateLoop(config.loop);
   for (const layer of fileLayers)
     if (layer.filename === files.repository)
       assertNoMachineKeys(layer.value, layer.filename, files.global);

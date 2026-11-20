@@ -18,6 +18,10 @@ import {
   leaf,
   workerDone,
 } from "../../test/delivery-fixture.mjs";
+import { loopOn } from "../../test/fixtures.mjs";
+
+// The tick starts and lands work only with the server loop on.
+loopOn();
 
 const node = process.execPath;
 

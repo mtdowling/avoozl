@@ -29,7 +29,7 @@ import {
 import { bindDriver } from "../workers/driver.mjs";
 import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
 import { readSpecIssues } from "../specs/spec-publication.mjs";
-import { linkedReader } from "../specs/order.mjs";
+import { linkedReader, storedLinks } from "../specs/order.mjs";
 import { taskEpic } from "../epics/epics.mjs";
 import { recordSpan } from "../flow/flow.mjs";
 import {
@@ -1293,13 +1293,7 @@ export class Operations {
   // The stored specs, with `current` read as given, so a spec group reaches
   // into the spec it links (§D19.2).
   linkedSpecs(current = null) {
-    const texts = new Map();
-    for (const plan of this.store.list("plans"))
-      if (plan.spec && !plan.deletedAt && specTasks(plan.files ?? {})?.text)
-        texts.set(plan.spec, specTasks(plan.files).text);
-    if (current?.name)
-      texts.set(current.name, specTasks(current.files ?? {})?.text ?? "");
-    return linkedReader([...texts].map(([name, text]) => ({ name, text })));
+    return storedLinks(this.store, current);
   }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {
     const files = plan.files || {},

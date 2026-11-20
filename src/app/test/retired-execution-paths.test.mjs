@@ -7,12 +7,13 @@ import { workspaceConfig } from "../settings/config.mjs";
 import { groupedCall, GROUPED_TOOLS } from "../mcp/mcp-tools.mjs";
 import { Operations } from "../api/operations.mjs";
 import { Store } from "../store/store.mjs";
-import { fixture, snapshot } from "./fixtures.mjs";
+import { fixture, loopOn, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
-// The machine file the tick reads provider settings from.
-const XDG = temporaryDirectory("avoozl-retired-xdg-");
-process.env.XDG_CONFIG_HOME = XDG;
+// The machine file the tick reads, in this file's own folder, with the
+// server loop on.
+loopOn();
+const XDG = process.env.XDG_CONFIG_HOME;
 const MACHINE = path.join(XDG, "avoozl", "config.json");
 
 const git = (cwd, ...args) =>
@@ -93,7 +94,10 @@ test("an unknown machine file key is refused, naming it", async (t) => {
     () => workspaceConfig({ workspace: root }),
     /Unknown setting "oldKey" in global Avoozl configuration/,
   );
-  fs.writeFileSync(MACHINE, JSON.stringify({ version: 1 }));
+  fs.writeFileSync(
+    MACHINE,
+    JSON.stringify({ version: 1, loop: { run: ["specs"] } }),
+  );
   const env = workspace(t, [leaf("a"), leaf("b")]);
   const result = await env.ops.execute("workspace.tick", { sessions: [] }),
     workers = Object.fromEntries(
