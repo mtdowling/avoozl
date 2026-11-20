@@ -15,6 +15,13 @@ export const SYSTEMD_UNIT = "avoozl-machine.service";
 export const TASK_NAME = "Avoozl machine";
 export const MARKER = "Written by avoozl start --at-login";
 const FOREGROUND_LINE = "avoozl start --foreground";
+// The variables machineAvoozlPaths reads. shortcut: the Windows task does
+// not carry them; add them when a Windows proof needs an isolated home.
+const MACHINE_FOLDER_VARIABLES = [
+  "KIROCREW_HOME",
+  "XDG_CONFIG_HOME",
+  "XDG_STATE_HOME",
+];
 
 const plain = (value, name) => {
   if (typeof value !== "string" || !value || /[\0\r\n]/.test(value))
@@ -83,6 +90,15 @@ export function loginUnit({
       fail(`${value} must be an absolute path in a login unit.`);
   const log = path.join(stateDirectory, "supervisor", "service.log");
   const searchPath = plain(pathEnv || "/usr/bin:/bin", "PATH");
+  // The variables that pick the machine folders go with PATH, so the server
+  // at login uses the folders of the shell that installed it.
+  const variables = [
+    ["PATH", searchPath],
+    ...MACHINE_FOLDER_VARIABLES.filter((name) => env[name]).map((name) => [
+      name,
+      plain(path.resolve(env[name]), name),
+    ]),
+  ];
   if (kind === "launchd") {
     const file = path.join(
       home,
@@ -108,8 +124,7 @@ ${strings(argv)}
   </array>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>PATH</key>
-    <string>${xml(searchPath)}</string>
+${variables.map(([name, value]) => `    <key>${name}</key>\n    <string>${xml(value)}</string>`).join("\n")}
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -149,7 +164,7 @@ Description=Avoozl machine server: the loop and the agent children
 [Service]
 Type=simple
 ExecStart=${argv.map(systemdWord).join(" ")}
-Environment=${systemdWord(`PATH=${searchPath}`)}
+${variables.map(([name, value]) => `Environment=${systemdWord(`${name}=${value}`)}`).join("\n")}
 Restart=on-failure
 RestartSec=30
 KillMode=process
