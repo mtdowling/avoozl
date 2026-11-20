@@ -11,7 +11,7 @@ const skip = ["docs/research", "docs/evidence"];
 function* markdown(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
-    const rel = path.relative(root, file);
+    const rel = path.relative(root, file).split(path.sep).join("/");
     if (entry.isDirectory()) {
       if (!skip.includes(rel) && entry.name !== "node_modules")
         yield* markdown(file);
