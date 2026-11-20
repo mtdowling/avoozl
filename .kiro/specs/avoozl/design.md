@@ -4287,8 +4287,20 @@ says where the folder is read and the path says which folder.
 **Files.** `readSpecFolder` reads every regular `.md` file directly in the
 folder. `revisionFiles(files)` orders them: Kiro's in their old order, then
 the rest by name. `specHash` reads that order, so a Kiro folder hashes as
-before. `parseSpec` refuses only a missing `tasks.md` and a folder with both
-prose kinds; a folder with no `bugfix.md` is a feature spec. Approve writes
+before. `parseSpec` refuses a folder with no task list, a folder with two
+(`spec.tasks-twice`, naming both files), and a folder with both prose kinds;
+a folder with no `bugfix.md` is a feature spec.
+
+**Task file.** `spec-tasks.mjs` says where a spec's tasks are: `taskFile`
+names `tasks.md`, or with none the one file whose `## Tasks` heading sits
+outside a fence, and `specTasks` returns that file and its task text. The
+task text of a single file keeps the file's line numbers: its front-matter
+and the section's lines stay, other lines are blank, and headings under
+`## Tasks` lose one `#`. So `specItems`, `headingPhases`, `readFacts`, ticks
+(`tickedText`, `baseTasks`, `tickCommits`) and diagnostics read it as they
+read `tasks.md`, and a line number is a line of the real file. `specHash`
+hashes the whole single file with the section's marks open and its facts
+left out. A proposed task goes at the end of the section (`addTaskLines`). Approve writes
 every spec file and removes ones the reviewed revision left out
 (`commitOnMain` `replace`). `approvalCommits` reads, at each approval commit,
 every spec file name the spec's history touched. A worker's brief names the

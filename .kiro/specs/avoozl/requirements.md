@@ -3920,13 +3920,14 @@ approval and a task opens the text it builds.
    reads, as all of `tasks.md` is.
 7. Every spec in this repository SHALL lint clean under the ref rules.
 
-### Requirement FS1: A spec folder needs only tasks.md, at a path the repository names
+### Requirement FS1: A spec folder needs only its task list, at a path the repository names
 
 Design §FS1.
 
 **User story:** As the owner, I want a repository to say where its spec
 folders live and a spec to need only its task list, so that a spec can be one
-`tasks.md`, carry any notes it needs, and still read Kiro's layout as before.
+`tasks.md` or one file, carry any notes it needs, and still read Kiro's layout
+as before.
 
 #### Acceptance criteria
 
@@ -3938,9 +3939,15 @@ folders live and a spec to need only its task list, so that a spec can be one
    names the folder, the branch names where it is read.
 2. Every reader and writer of spec folders SHALL use the resolved path:
    listing, reading, creating, approving, ticking, reviewing and retiring.
-3. `tasks.md` SHALL be the only required file. `requirements.md` (or
-   `bugfix.md`) and `design.md` SHALL be optional; a folder SHALL still hold
-   at most one of `requirements.md` and `bugfix.md`.
+3. A task list SHALL be the only required part: a `tasks.md`, or, with no
+   `tasks.md`, the `## Tasks` section of one `.md` file in the folder. In
+   that file the task list SHALL be the list under `## Tasks` up to the next
+   heading of level 2 or 1, its `###` headings SHALL be phases, and every
+   other line SHALL be spec text. A folder with a `tasks.md` and a file with
+   a `## Tasks` section, or two such files, SHALL be a lint error that names
+   both files. `requirements.md` (or `bugfix.md`) and `design.md` SHALL be
+   optional; a folder SHALL hold at most one of `requirements.md` and
+   `bugfix.md`.
 4. Every other Markdown file directly in the folder SHALL be spec text: part
    of the revision hash, written by Approve, read from approval commits, and
    named to workers as context. Files in subfolders, files that are not
@@ -3955,9 +3962,15 @@ folders live and a spec to need only its task list, so that a spec can be one
    Unchanged Behavior acceptance and the front-matter category.
 7. The planner prompt, templates, skills and `docs/github-workflow.md` SHALL describe
    the path setting, the one required file and other files as spec text.
-8. Tests SHALL show: a custom path; a `tasks.md`-only spec; an extra `.md`
-   file changing the hash; refs with and without their files; Kiro's layout
-   unchanged; and path validation.
+8. Tests SHALL show: a custom path; a `tasks.md`-only spec; a single-file
+   spec reading as the same `tasks.md` does; the both-present lint error; a
+   tick in a single file changing no spec text while its prose does; an extra
+   `.md` file changing the hash; refs with and without their files; Kiro's
+   layout unchanged; and path validation.
+9. Every reader of the task list (the parser, lint, the revision hash, ticks,
+   landing, rebuild and the spec page) SHALL find it through one shared
+   function. A task that links a spec MAY target either that spec's
+   `tasks.md` or its single file.
 
 ### Requirement 116: The spec issue's assignee says who works on a spec
 

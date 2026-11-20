@@ -2168,6 +2168,9 @@ Requirement FS1, design §FS1.
 - [x] `fs-1` specs.path, only tasks.md required, other Markdown as spec text [FS1] (§FS1)
   - $done: `specs.path` in `.avoozl.json` names the specs folder (default `.kiro/specs`) and is refused when absolute, with `.` or `..`, or through a symlink out of the checkout; only `tasks.md` is required; every other `.md` file in a spec folder is part of the revision hash and named to workers; a requirement or design ref is checked only when its file exists and otherwise names the missing file; Kiro's three-file layout hashes and lints as before.
   - `specs-path.mjs`, `readSpecFolder` and `revisionFiles` in `spec-plans.mjs`, `resolveRefs` in `spec-refs.mjs`, `git-approvals.mjs`, `src/app/specs/test/flexible-specs.test.mjs`.
+- [x] `fs-2` A spec in one file, its tasks under ## Tasks [FS1.3, FS1.8, FS1.9] (§FS1)
+  - $done: A folder with no `tasks.md` reads the `## Tasks` section of its one `.md` file as its task list, with `###` phases and the file's own line numbers; a folder with both is a lint error naming both files; a tick in the section changes no spec text and the prose does; the parser, lint, hash, ticks, landing, rebuild and the page find the task file through `spec-tasks.mjs`; `docs/github-workflow.md` rule 1.2 and the workflow kit cover both layouts.
+  - `spec-tasks.mjs`, `src/app/specs/test/single-file-spec.test.mjs`, `workflow-kit/cases/single-file-spec`.
 
 ## Phase 68: The spec issue's assignee says who works on a spec
 
