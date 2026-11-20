@@ -156,6 +156,21 @@ test("runner.next with claim creates avoozl/<spec>/<task> at the base head", asy
   );
 });
 
+// Workflow rule 15.5: a claim branch deleted outside Avoozl can leave its
+// lease refs behind, and lease numbers never repeat.
+test("a claim takes the generation above leftover lease refs", async (t) => {
+  const s = setup(t, {
+    tasks: [leaf("a")],
+    existing: [
+      "avoozl-lease/parser/a/1",
+      "avoozl-lease/parser/a/3",
+      "avoozl-lease/parser/ab/7",
+    ],
+  });
+  const result = await claim(s.ops);
+  assert.equal(result.claimed.lease, "avoozl-lease/parser/a/4");
+});
+
 test("a 422 from the create call takes the next ready task", async (t) => {
   const s = setup(t, { tasks: [leaf("a"), leaf("b"), leaf("c")] });
   // Another runner claims a between this runner's read and its create.

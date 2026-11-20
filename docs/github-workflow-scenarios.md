@@ -780,6 +780,34 @@ Then
 
 - No task is ready.
 
+### A claim takes the generation above leases its deleted branch left
+
+Rules: [15.1](github-workflow.md#15-claims), [15.5](github-workflow.md#15-claims). Case: `claim-leftover-leases`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`, `avoozl-lease/parser/p-2/1`, `avoozl-lease/parser/p-2/2`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `ready`, `claim`.
+
+Then
+
+- The ready tasks are `parser/p-2`.
+- Probe `claim` is `{"branch":"avoozl/parser/p-2","base":"main","mergeBase":false,"lease":"avoozl-lease/parser/p-2/3"}`.
+
 ### Without a takeover commit the old holder's push to its own claim branch is accepted
 
 Rules: [15.3](github-workflow.md#15-claims). Case: `claim-no-takeover`.
@@ -2842,6 +2870,7 @@ Then
 
 ### Rule 15.1
 
+- [A claim takes the generation above leases its deleted branch left](#a-claim-takes-the-generation-above-leases-its-deleted-branch-left)
 - [A fresh claim after a restart holds no landed work](#a-fresh-claim-after-a-restart-holds-no-landed-work-1)
 - [A fresh claim after a restart holds no landed work](#a-fresh-claim-after-a-restart-holds-no-landed-work)
 - [Landing on an integration branch is interrupted before the tick](#landing-on-an-integration-branch-is-interrupted-before-the-tick)
@@ -2864,6 +2893,7 @@ Then
 
 ### Rule 15.5
 
+- [A claim takes the generation above leases its deleted branch left](#a-claim-takes-the-generation-above-leases-its-deleted-branch-left)
 - [The newest lease is the highest generation, whatever its age](#the-newest-lease-is-the-highest-generation-whatever-its-age)
 - [Two runners resume one handed-off claim, and the first lease create wins](#two-runners-resume-one-handed-off-claim-and-the-first-lease-create-wins)
 - [Two runners race for one claim](#two-runners-race-for-one-claim)

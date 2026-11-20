@@ -219,6 +219,10 @@ export function origin(testCase) {
         throw Object.assign(Error("exists"), { status: 422 });
       branches.add(name);
     },
+    branchesUnder: async (_repository, prefix) =>
+      [...branches]
+        .filter((name) => name.startsWith(prefix))
+        .map((name) => ({ ref: `refs/heads/${name}` })),
   };
 }
 
@@ -280,6 +284,8 @@ export async function claim(
         branch: claimed.branch,
         base: claimed.base,
         mergeBase: github.merged.includes(claimed.base),
+        // The lease a case names: only cases about lease numbers ask.
+        ...("lease" in testCase.expect.claim ? { lease: claimed.lease } : {}),
       }
     : null;
 }

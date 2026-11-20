@@ -1,0 +1,28 @@
+{
+  "title": "A claim takes the generation above leases its deleted branch left",
+  "rules": ["15.1", "15.5"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": [
+      "main",
+      "avoozl-lease/parser/p-2/1",
+      "avoozl-lease/parser/p-2/2"
+    ],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["parser/p-2"],
+    "claim": {
+      "branch": "avoozl/parser/p-2",
+      "base": "main",
+      "mergeBase": false,
+      "lease": "avoozl-lease/parser/p-2/3"
+    }
+  }
+}
