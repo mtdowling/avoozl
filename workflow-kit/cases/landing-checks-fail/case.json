@@ -1,0 +1,29 @@
+{
+  "title": "Failing checks land nothing",
+  "rules": ["13.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "fail",
+    "baseMoved": false,
+    "mode": "direct"
+  },
+  "expect": {
+    "landing": {
+      "action": "none"
+    }
+  },
+  "expectFail": {
+    "landing": "sim-1.4"
+  }
+}

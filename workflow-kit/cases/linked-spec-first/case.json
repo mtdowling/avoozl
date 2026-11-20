@@ -1,0 +1,22 @@
+{
+  "title": "A task that links a spec waits for the task above it",
+  "rules": ["6.1", "6.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "ctx": ["acme-alice"],
+    "epic-context": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["ctx/ctx-spec"]
+  },
+  "expectFail": {
+    "ready": "sim-2.5"
+  }
+}

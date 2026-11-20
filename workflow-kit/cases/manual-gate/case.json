@@ -1,0 +1,21 @@
+{
+  "title": "A manual task is never offered, and the task after it waits",
+  "rules": ["3.1", "4.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "release": ["acme-alice"]
+  },
+  "expect": {
+    "ready": []
+  },
+  "expectFail": {
+    "ready": "sim-2.1"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "title": "A linked spec runs only when its parent's issue is assigned too",
+  "rules": ["8.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "ctx": [],
+    "epic-context": ["acme-alice"]
+  },
+  "expect": {
+    "ready": []
+  },
+  "expectFail": {
+    "ready": "sim-2.5"
+  }
+}
