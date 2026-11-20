@@ -17,8 +17,9 @@ const write = (file) => [
 const read = (file) => [
   "{node}",
   "-e",
-  // A folder counts as read when its names can be listed.
-  "const fs = require('node:fs'); const f = process.argv[1]; fs.statSync(f).isDirectory() ? fs.readdirSync(f) : fs.readFileSync(f)",
+  // A folder counts as read when it shows what it holds: an empty folder
+  // the sandbox put in its place reveals nothing.
+  "const fs = require('node:fs'); const f = process.argv[1]; if (fs.statSync(f).isDirectory() ? !fs.readdirSync(f).length : !fs.readFileSync(f).length) process.exit(1)",
   file,
 ];
 const connect = (host, port) => [
