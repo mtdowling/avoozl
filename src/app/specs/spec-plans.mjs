@@ -843,10 +843,8 @@ export function parseSpec({
       );
     }
   }
-  // Order from the list (simplify §D19): a spec with no `$after` fact takes
-  // its waits from waitsOf. shortcut: a spec that still has `$after` facts
-  // is read by them, until every spec is rewritten (sim-2.2).
-  if (!proposals.some((proposal) => proposal.requires?.length)) {
+  // Order from the list (simplify §D19): waitsOf gives every wait.
+  {
     const waits = new Map();
     for (const { from, to } of waitsOf(name, tasksText, linked))
       waits.set(to, [...(waits.get(to) ?? []), from]);
@@ -1341,18 +1339,19 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
       fail("Repeated local task ID " + key);
     const directory = path.join(specsDirectory(spec.root), plan.spec),
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
-    let facts;
-    try {
-      facts = [...factsLines(entry), ...summaryLines(summary)];
-    } catch (error) {
-      fail(error.message);
-    }
+    // A leaf's results are its plain bullets (simplify §D20); a summary has
+    // no place in the list form.
+    const facts = (entry.acceptance ?? []).map((result) => `  - ${result}`);
+    if (!facts.length) fail("A proposed task needs at least one result.");
     writeAtomically(
       path.join(directory, file),
       addTaskLines(
         file,
         tasks,
-        [`- [ ] ${taskToken(key)} ${title}`, ...facts],
+        [
+          `- [ ] ${taskToken(key)} ${title}${entry.manual ? " (**MANUAL**)" : ""}`,
+          ...facts,
+        ],
         eol,
       ),
     );

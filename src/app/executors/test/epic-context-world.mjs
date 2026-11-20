@@ -93,7 +93,7 @@ export function world(t, { mcp = true } = {}) {
   const files = {
     "requirements.md": "# Config\n\nRead config.json.\n",
     "design.md": "# Design\n\nA loader.\n",
-    "tasks.md": "- [ ] `sample-task` Read the file\n  - $done: It reads\n",
+    "tasks.md": "- [ ] `sample-task` Read the file\n  - It reads\n",
   };
   writeSpec(m.checkout, "config", files);
   gitIn(m.checkout, "add", "-A");

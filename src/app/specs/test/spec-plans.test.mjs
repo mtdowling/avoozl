@@ -234,12 +234,7 @@ test("a task with no Facts bullet is refused at its line", () => {
 
 test("a fact breaking the task schema is refused at its Facts line", () => {
   const root = temporaryDirectory(),
-    text = [
-      "- [ ] 1.1 Read the config file",
-      "  - $type: Two Words",
-      "  - $done: It reads",
-      "",
-    ].join("\n");
+    text = ["- [ ] 1.1 Read the config file", "  - It reads", ""].join("\n");
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   const found = lint(root).diagnostics;
   assert.deepEqual(
@@ -597,8 +592,8 @@ test("an item with sub-items is a package, and a parent fact is refused", () => 
   });
   const named = temporaryDirectory(),
     parented = specFiles()["tasks.md"].replace(
-      "    - $done: A missing",
-      "    - $parent: 1\n    - $done: A missing",
+      "    - A missing",
+      "    - $parent: 1\n    - A missing",
     );
   writeSpec(named, "config", { "tasks.md": parented });
   const result = lint(named);

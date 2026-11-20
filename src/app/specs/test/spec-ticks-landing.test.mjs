@@ -25,10 +25,10 @@ const TASKS = [
   "",
   "- [ ] 1 Parent",
   "  - [ ] 1.1 First",
-  "    - $done: It works",
+  "    - It works",
   "    - A summary.",
   "  - [ ] 1.2 Second",
-  "    - $done: It works",
+  "    - It works",
   "",
 ].join("\n");
 const mainOf = (w) => git(w.origin, "rev-parse", "main");
@@ -223,8 +223,8 @@ test("a person's Built: note names the landed work, and $built is refused", () =
   const sha = "0123456789abcdef0123456789abcdef01234567",
     note = (line) =>
       tick(TASKS, 1).replace(
-        "    - $done: It works\n    - A summary.",
-        `    - $done: It works\n    - ${line}\n    - A summary.`,
+        "    - It works\n    - A summary.",
+        `    - It works\n    - ${line}\n    - A summary.`,
       ),
     text = note(`Built: ${sha.slice(0, 12)}`);
   assert.equal(checkedItems("s", text).get("s.1.1").built, sha.slice(0, 12));

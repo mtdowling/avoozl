@@ -117,13 +117,11 @@ test("a task ID reads the same bare or as a code span, and neither is a lint err
   // Avoozl's writers write a named ID as a code span.
   assert.equal(taskToken("load-1"), "`load-1`");
   assert.equal(taskToken("1.2"), "1.2");
-  const parsed = parseSpec(
-    spec("- [ ] load-2 Load more\n  - $done: It loads\n"),
-  );
+  const parsed = parseSpec(spec("- [ ] load-2 Load more\n  - It loads\n"));
   assert.deepEqual(problems(parsed), []);
   assert.equal(
-    specHash(spec("- [ ] load-2 Load more\n  - $done: It loads\n").files) ===
-      specHash(spec("- [ ] `load-2` Load more\n  - $done: It loads\n").files),
+    specHash(spec("- [ ] load-2 Load more\n  - It loads\n").files) ===
+      specHash(spec("- [ ] `load-2` Load more\n  - It loads\n").files),
     false,
     "the form is part of the spec text",
   );
@@ -134,11 +132,11 @@ test("every ref must exist in the spec, and lint names the ref, file and line", 
     spec(
       [
         "- [ ] `ok-1` Fine [R1, R1.2a, DL2.1, F13, R1.1–R1.2] (§4.26, §D1)",
-        "  - $done: Fine",
+        "  - Fine",
         "- [ ] `bad-1` Broken [R9, DL2.4, R1.1–R1.7] (§4.99, §9)",
-        "  - $done: Broken",
+        "  - Broken",
         "- [ ] `bad-2` Wrong form [DL2 step 3] (D1)",
-        "  - $done: Wrong",
+        "  - Wrong",
       ].join("\n"),
     ),
   );
@@ -177,9 +175,9 @@ test("every ref must exist in the spec, and lint names the ref, file and line", 
 test("a ref is checked only when its file exists, and names a missing file", () => {
   const tasks = [
       "- [ ] `ok-1` Fine [R1] (§D1)",
-      "  - $done: Fine",
+      "  - Fine",
       "- [ ] `bad-1` Broken [R9] (§9)",
-      "  - $done: Broken",
+      "  - Broken",
     ].join("\n"),
     full = spec(tasks),
     only = (drop) => ({
@@ -210,8 +208,7 @@ test("a ref is checked only when its file exists, and names a missing file", () 
       parseSpec({
         ...only(["requirements.md", "design.md"]),
         files: {
-          "tasks.md":
-            "---\nrepo: app\n---\n- [ ] `a-1` Do it\n  - $done: Done\n",
+          "tasks.md": "---\nrepo: app\n---\n- [ ] `a-1` Do it\n  - Done\n",
         },
       }),
     ),
@@ -220,7 +217,7 @@ test("a ref is checked only when its file exists, and names a missing file", () 
 });
 
 test("refs and the ID's form are part of the revision hash", () => {
-  const files = (line) => spec(`${line}\n  - $done: Fine\n`).files;
+  const files = (line) => spec(`${line}\n  - Fine\n`).files;
   const base = specHash(files("- [ ] `ok-1` Fine [R1] (§D1)"));
   assert.notEqual(specHash(files("- [ ] `ok-1` Fine [R1.1] (§D1)")), base);
   assert.notEqual(specHash(files("- [ ] `ok-1` Fine [R1]")), base);

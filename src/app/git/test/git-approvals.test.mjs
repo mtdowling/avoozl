@@ -52,7 +52,7 @@ test("approvals read and write every spec file under specs.path", async () => {
     JSON.stringify({ version: 1, specs: { path: "docs/specs" } }),
   );
   fs.mkdirSync(path.join(r.root, folder), { recursive: true });
-  const tasks = "- [ ] `a-1` Do it\n  - $done: Done\n";
+  const tasks = "- [ ] `a-1` Do it\n  - Done\n";
   fs.writeFileSync(path.join(r.root, folder, "tasks.md"), tasks);
   fs.writeFileSync(path.join(r.root, folder, "old.md"), "Old\n");
   r.run(["add", "-A"]);
@@ -186,10 +186,7 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   assert.match(approved.evidence, new RegExp(head));
   // A second approved spec, with a fact of its own.
   const files = specFiles();
-  files["tasks.md"] = files["tasks.md"].replace(
-    "    - Parse",
-    "    - $type: intake\n    - Parse",
-  );
+  files["tasks.md"] = files["tasks.md"].replace("    - Parse");
   writeSpec(r.root, "intake", files);
   await first.ops.execute("plan.create", { spec: "intake" });
   await approve(first.ops, "intake");

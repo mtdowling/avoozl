@@ -369,13 +369,11 @@ const builderTasks = [
   "## Phase 1",
   "",
   "- [ ] 1. Load and validate configuration",
-  "  - $after: 1.1, 1.2",
   "  - [ ] 1.1 Read the config file",
-  "    - $done: A missing file yields defaults.",
+  "    - A missing file yields defaults.",
   "    - _Requirements: 1.1_",
   "  - [ ] 1.2 Validate loaded config",
-  "    - $after: 1.1",
-  "    - $done: An unknown key is reported with its path.",
+  "    - An unknown key is reported with its path.",
   "",
 ].join("\n");
 const builderFiles = (tasks = builderTasks) => ({
