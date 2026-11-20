@@ -636,8 +636,8 @@ Specs no spec group links do not wait on each other.
 | `link.children` | A spec group has sub-items of its own |
 | `facts.removed-key` | Any `$after` fact, with the fix "order tasks by the list; tag a group `(**PARALLEL**)` for tasks that run side by side" |
 
-The tag ends the title and comes before any refs:
-``- [ ] `ec-2.3` Ways out (**PARALLEL**) [EC7] (§D6)``. A group keeps its ID,
+The tag ends the title and comes after any refs:
+``- [ ] `ec-2.3` Ways out [EC7] (§D6) (**PARALLEL**)``. A group keeps its ID,
 title and refs; it is never sent to a worker.
 
 ### D19.4 Rewriting the specs

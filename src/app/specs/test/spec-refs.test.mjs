@@ -85,6 +85,25 @@ test("a title keeps its text and gives up its trailing refs", () => {
     });
 });
 
+test("a tag ends the title after its refs, and a tag before them is marked", () => {
+  assert.deepEqual(splitRefs("Sign off [R1] (§D1) (**MANUAL**)"), {
+    title: "Sign off (**MANUAL**)",
+    requirements: ["R1"],
+    design: ["§D1"],
+  });
+  assert.deepEqual(splitRefs("Reports (§D2) (**PARALLEL**)"), {
+    title: "Reports (**PARALLEL**)",
+    requirements: [],
+    design: ["§D2"],
+  });
+  assert.deepEqual(splitRefs("Sign off (**MANUAL**) [R1]"), {
+    title: "Sign off (**MANUAL**)",
+    requirements: ["R1"],
+    design: [],
+    tagBeforeRefs: true,
+  });
+});
+
 test("each kind's IDs come from its own file, with the line they are on", () => {
   const requirements = requirementIds(REQUIREMENTS);
   assert.deepEqual(
@@ -114,9 +133,9 @@ test("a task ID reads the same bare or as a code span, and neither is a lint err
     requirements: ["R1.1"],
     design: ["§4.26"],
   });
-  // Avoozl's writers write a named ID as a code span.
+  // Avoozl's writers write every ID as a code span (Workflow v1 2.1).
   assert.equal(taskToken("load-1"), "`load-1`");
-  assert.equal(taskToken("1.2"), "1.2");
+  assert.equal(taskToken("1.2"), "`1.2`");
   const parsed = parseSpec(spec("- [ ] load-2 Load more\n  - It loads\n"));
   assert.deepEqual(problems(parsed), []);
   assert.equal(

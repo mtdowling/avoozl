@@ -24,9 +24,8 @@ export const NAMED = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/;
 // `P1`, `P2b`: a proof or other lettered item, namespaced like a number.
 export const LETTERED = /^[A-Z]\d+[a-z]?$/;
 
-// How Avoozl writes an item's ID in tasks.md.
-export const taskToken = (key) =>
-  NUMBERED.test(key) || LETTERED.test(key) ? key : `\`${key}\``;
+// How Avoozl writes an item's ID in tasks.md: a code span (Workflow v1 2.1).
+export const taskToken = (key) => `\`${key}\``;
 // The first entry of a trailing [...] or (...) that is read as refs. Any
 // other trailing brackets are title text.
 const REF_START = /^(?:§|[A-Z]+\d)/;
@@ -51,16 +50,28 @@ function trailing(text, open, close) {
   return { before: text.slice(0, at).trimEnd(), entries };
 }
 
-// An item's title without its refs, and the refs as written.
+// The `(**MANUAL**)` or `(**PARALLEL**)` tag ending a title (Workflow v1
+// 3.5, 4.2). Refs are part of the title, so the tag follows them.
+const END_TAG = /\s*(\(\*\*(?:MANUAL|PARALLEL)\*\*\))$/;
+
+// An item's title without its refs, and the refs as written. A tag after the
+// refs stays at the end of the title. `tagBeforeRefs` is set when a tag
+// stands before the refs instead, which lint refuses.
 export function splitRefs(text) {
   let title = String(text).trim(),
     design = [],
     requirements = [];
+  const tag = END_TAG.exec(title);
+  if (tag) title = title.slice(0, tag.index);
   const designs = trailing(title, "(", ")");
   if (designs) ({ before: title, entries: design } = designs);
   const named = trailing(title, "[", "]");
   if (named) ({ before: title, entries: requirements } = named);
-  return { title, requirements, design };
+  const refs = { requirements, design };
+  if (tag) return { title: `${title} ${tag[1]}`, ...refs };
+  if ((designs || named) && END_TAG.test(title))
+    return { title, ...refs, tagBeforeRefs: true };
+  return { title, ...refs };
 }
 
 // The lines of a text outside code fences, numbered from 1.

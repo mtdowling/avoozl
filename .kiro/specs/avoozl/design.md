@@ -2605,18 +2605,22 @@ feedback round.
 **One landing block per repository.**
 
 ```json
-"landing": { "pr": "draft" },
-"github": {
-  "repositories": {
-    "owner/name": {
-      "landing": {
-        "mode": "pr",
-        "pr": "ready",
-        "method": "squash"
-      },
-      "conflicts": {
-        "onSourceConflict": "fix",
-        "maxAttempts": 2
+{
+  "landing": {
+    "pr": "draft"
+  },
+  "github": {
+    "repositories": {
+      "owner/name": {
+        "landing": {
+          "mode": "pr",
+          "pr": "ready",
+          "method": "squash"
+        },
+        "conflicts": {
+          "onSourceConflict": "fix",
+          "maxAttempts": 2
+        }
       }
     }
   }
@@ -4058,21 +4062,6 @@ and parses again only when the hash changes. Ticks stay outside it.
 **No carry-over.** A revision with a new hash needs a normal approval, even
 when only its layout changed.
 
-**Removed.** `avoozl/manifest.json` and everything that read it from disk or
-wrote it, `spec-manifest.mjs` (the manifest drafted from marker bullets), the
-review tabs' manifest tab, and the marker bullets (`_Repository: x_`) the
-steering file taught. The planner prompt and the steering file teach
-`$` facts; each older steering text counts as an older Avoozl copy, kept as
-its sha256, so New spec offers the new one over it. Keys nothing reads, such as a task's `agent`,
-`model`, `size` and `budget`, are unknown facts now.
-
-**Conversion.** A one-off script folded each manifest into its `tasks.md` on
-a copy, the old and new parses were compared, and the manifests were deleted
-in the same change. It is not shipped as a command, and no disk reader
-accepts the old file. `spec-conversion.test.mjs` keeps the proof: a digest of
-the old reader's tasks for each spec, checked while the spec is unchanged
-since the conversion.
-
 **Tests.** `spec-facts.test.mjs`: each key, each refusal with its line,
 defaults and packages, an epic folder, a leftover manifest.
 `spec-plans.test.mjs` and the fixtures write `$` facts. A hash test: an
@@ -4376,8 +4365,7 @@ and `commitApproval(..., {branch})` make Approve's commit there. Landing still
 targets each code repository's base.
 
 **Plans-repo mode.** The planning checkout holds `.avoozl.json` and is on
-the specs branch; code repositories land on their own base. This is Nupp's
-shape (`nupp-planning` on `avoozl-plans`, code in `nupp-lang/nupp`).
+the specs branch; code repositories land on their own base.
 
 ### 4.46 Avoozl reads git and GitHub
 
@@ -4998,8 +4986,8 @@ their new parent, the plan issue; nothing is closed or recreated.
 | Graph            | Top level: epics and **No epic**; drill to member plans                                                    | Plan drill-in: phases, then tasks; **No phase** last   |
 | Delivery         | Filter; row shows plan and phase                                                                           | Filter, enabled once a plan is picked                  |
 | Flow             | Filter                                                                                                     | Filter                                                 |
-| Dashboard        | **Progress by epic**: one row per epic over all member plans' tasks, plus **No epic**                      | —                                                      |
-| Plans            | Filter and an Epic column; epic folders listed with kind **Epic**                                          | —                                                      |
+| Dashboard        | **Progress by epic**: one row per epic over all member plans' tasks, plus **No epic**                      | None                                                      |
+| Plans            | Filter and an Epic column; epic folders listed with kind **Epic**                                          | None                                                      |
 | Plan left column | The plan's epic as a link to its epic page                                                                 | Phases with progress, replacing today's per-plan epics |
 | Epic page        | Goal, what done means, member plans with status and progress, open decisions, Edit and Discuss like a plan | Each member's phase counts                             |
 
@@ -5008,51 +4996,6 @@ Focus: task. The epic page is the Graph's epic drill-in with the epic's
 prose beside it, so no new top tab is added. The New plan drawer offers
 **Epic** (pick one) and **Phases**; the seed tells the planner to write the
 `epic:` key and the phase headings.
-
-**One-time rewrite** (task 21.7, done; it ran on `avoozl/manifest.json`
-files, before §4.40 moved task facts into `tasks.md`). No operation, CLI command or MCP action
-migrates a workspace: the owner is Avoozl's only user, so the owner's data
-is rewritten once and the old forms are errors from then on. Task 21.7
-writes a script, runs it, and keeps it in the task's report, not in `src/`.
-The script calls only existing operations (`plan.save`, `task.archive`,
-`task.update`, `flow.settings.update`) and edits spec files as local commits.
-
-1. Copy the workspace database and every spec repository to a temporary
-   folder and run the whole rewrite there first. Lint every plan.
-2. Back up the live SQLite file with its sha256, and record the path and
-   hash in the task's report.
-3. Each `epics` row that is neither a `doc:` epic nor backed by an epic
-   folder becomes a phase, with the same ID and title, of each plan whose
-   tasks use it: the plan's manifest gets `phase` values and a `phases`
-   object, saved as a new draft revision of that plan.
-4. Each task in a `doc:` epic whose source is a spec plan's `tasks.md`
-   takes that item's heading as its phase; any other goes to **No phase**.
-5. Each task whose plan record is gone is archived with `task.archive`,
-   reason "plan removed". Done tasks are archived the same way, so history
-   stays readable.
-6. Each manifest in the old form is rewritten: `kind: "epic"` to
-   `package`, per-entry `epic` to `phase`, `epics` to `phases`; an epic
-   folder gets the top-level `"kind": "epic"`, and its entries keep only
-   `plan` (renamed from `memberPlan`) and `summary`.
-7. Run it again; it finds nothing to change. Nothing is approved, no
-   session is started or stopped, nothing is written to GitHub, and
-   nothing is pushed. Rewritten plans come back as drafts for the owner to
-   approve; the next projection preview shows the GitHub side.
-
-The plans covered: Nupp's plans, including the rewrite epic folder and its
-native runtime plan, and Avoozl's own spec (which already uses headings
-only, so it should need no change).
-
-**Nupp example.** A planning repository holds a rewrite epic folder
-listing 21 member plans, each with `epic:` front-matter. Its manifest has
-`memberPlan` entries with `kind` and `repository` and no top-level kind.
-The native runtime plan's manifest gives each task an `epic` value `W1`–`W7`,
-and its `tasks.md` headings are "From design.md" and "Recorded only in the
-workspace database". After the build, both folders fail lint with
-`spec.epic-task-fields` and `spec.entry-epic` until task 21.7 rewrites
-them. After the rewrite the epic folder lists its 21 members, and the
-runtime plan's tasks group under phases W1–W7 (manifest values win over
-headings).
 
 ### 6.10 Driver: one machine drives each spec
 
@@ -5320,7 +5263,7 @@ writes only after one confirmation.
 | 2   | Mode and planning repository | Named repository exists        | Plans-repo mode only: new repository, private |
 | 3   | Issues                       | `has_issues` is on             | Turns issues on in the repositories the mode needs |
 | 6   | Epic issue type              | Organization has `Epic`        | Created when the organization has issue types and the person may create one |
-| 8   | `.avoozl.json`               | —                              | One proposed diff; the person saves it through `github.settings.update` |
+| 8   | `.avoozl.json`               | None                           | One proposed diff; the person saves it through `github.settings.update` |
 
 **Rules.**
 

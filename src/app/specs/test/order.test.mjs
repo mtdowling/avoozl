@@ -27,7 +27,7 @@ const OWNER_EXAMPLE = [
   "  - Done",
   "- [ ] `ec-2.2` Reads, skills and the brief",
   "  - Done",
-  "- [ ] `ec-2.3` Ways out (**PARALLEL**) [EC7] (§D6)",
+  "- [ ] `ec-2.3` Ways out [EC7] (§D6) (**PARALLEL**)",
   "  - [ ] `ec-2.4` The MCP relay",
   "    - Done",
   "  - [ ] `ec-2.5` Kiro Crew chat workers",
@@ -49,7 +49,7 @@ test("the owner's example: ec-2.1, then ec-2.2, then ec-2.4 to ec-2.6 side by si
     "ec-2.5>ec-2.7",
     "ec-2.6>ec-2.7",
   ]);
-  // The tag before refs parses, and the group is never a leaf to start.
+  // The tag after refs parses, and the group is never a leaf to start.
   const { proposals } = parseSpec(spec(OWNER_EXAMPLE)),
     byId = new Map(proposals.map((p) => [p.id, p]));
   assert.notEqual(byId.get("ec-2.3").kind, "leaf");
@@ -131,6 +131,11 @@ test("lint reports group.box, parallel.size, parallel.leaf and parallel.tag", ()
     "  - Done",
     "- [ ] `x-t4` Early (**PARALLEL**) then text",
     "  - Done",
+    "- [ ] `x-t5` Before refs (**PARALLEL**) [X1] (§D1)",
+    "  - [ ] `x-t5a` One",
+    "    - Done",
+    "  - [ ] `x-t5b` Two",
+    "    - Done",
     "- [ ] `x-ok` Runs in parallel with nothing, said in words",
     "  - Done",
     "",
@@ -144,6 +149,7 @@ test("lint reports group.box, parallel.size, parallel.leaf and parallel.tag", ()
     ["parallel.tag", "x-t2"],
     ["parallel.tag", "x-t3"],
     ["parallel.tag", "x-t4"],
+    ["parallel.tag", "x-t5"],
   ]);
 });
 
