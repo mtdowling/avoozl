@@ -3,7 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../../api/operations.mjs";
-import { publishSpec } from "../spec-publication.mjs";
+import {
+  publishApproved,
+  publishSpec,
+  queuePublish,
+} from "../spec-publication.mjs";
 import { planningIdentity } from "../../github/github-marker.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { FakeGitHub } from "../../test/fake-github.mjs";
@@ -195,4 +199,115 @@ test("an input issue in another repository is not reused", async (t) => {
   assert.equal(published.reused, undefined);
   assert.equal(w.github.created.length, 1);
   assert.notEqual(published.number, 7);
+});
+
+// An approved plan queued for publishing as approval commit `c1`, with the
+// approval evidence `proof` and GitHub signed in as `login`.
+async function queued(t, { proof = {}, login = "maintainer", pull } = {}) {
+  const w = await workspace(t, { mode: "single-repo" });
+  await w.ops.execute("plan.approve", {
+    id: w.plan.id,
+    expectedHash: w.plan.hash,
+    expectedRevision: w.store.read().revision,
+  });
+  w.github.login = login;
+  w.github.pullRequest = async (_repository, number) =>
+    number === pull?.number ? pull : null;
+  w.github.commit = async () => ({ author: { login: "maintainer" } });
+  queuePublish(w.store, w.plan.id, "c1");
+  const run = () =>
+    publishApproved(w.store, {
+      github: w.github,
+      identity: planningIdentity(w.root),
+      evidence: { get: (commit) => (commit === "c1" ? proof : undefined) },
+      homeOf: async () => REPOSITORY,
+    });
+  return { ...w, run };
+}
+
+test("the merger of an approving pull request publishes its spec issue with the pull request's assignees", async (t) => {
+  const w = await queued(t, {
+    proof: { mergedBy: "maintainer", pull: 7 },
+    pull: { number: 7, assignees: [{ login: "alice" }] },
+  });
+  assert.deepEqual(await w.run(), []);
+  assert.equal(w.github.created.length, 1);
+  assert.deepEqual(w.github.created[0].assignees, [{ login: "alice" }]);
+  assert.match(w.github.created[0].body, /<!-- avoozl:spec config -->/);
+  // Published once: the next tick writes nothing.
+  assert.deepEqual(await w.run(), []);
+  assert.equal(w.github.created.length, 1);
+});
+
+test("an approval with no pull request publishes an unassigned spec issue", async (t) => {
+  const w = await queued(t, { proof: { pushedBy: "maintainer" } });
+  await w.run();
+  assert.equal(w.github.created.length, 1);
+  assert.deepEqual(w.github.created[0].assignees, []);
+});
+
+test("a runner that is not the approver makes no issue", async (t) => {
+  const w = await queued(t, {
+    proof: { mergedBy: "maintainer", pull: 7 },
+    login: "someone-else",
+  });
+  await w.run();
+  assert.equal(w.github.created.length, 0);
+  // Dropped from the queue: the approver's runner publishes it.
+  await w.run();
+  assert.equal(w.github.created.length, 0);
+});
+
+test("with no evidence the commit author's login decides who publishes", async (t) => {
+  const w = await queued(t);
+  await w.run();
+  assert.equal(w.github.created.length, 1);
+});
+
+test("an open issue with the spec's marker is used, not made again", async (t) => {
+  const w = await queued(t, { proof: { mergedBy: "maintainer" } });
+  w.store.put("repositories", {
+    ...w.store.get("repositories", "code"),
+    github: REPOSITORY,
+  });
+  w.github.listIssues = async () => [
+    { number: 5, state: "open", body: "<!-- avoozl:spec config -->" },
+  ];
+  await w.run();
+  assert.equal(w.github.created.length, 0);
+  assert.equal(
+    w.store.get("receipts", `github-parent:plan:${w.plan.id}`).number,
+    5,
+  );
+});
+
+test("a failed publish stays queued for the next tick", async (t) => {
+  const w = await queued(t, { proof: { mergedBy: "maintainer" } });
+  const create = w.github.createIssue.bind(w.github);
+  w.github.createIssue = async () => {
+    throw new Error("GitHub is down");
+  };
+  assert.deepEqual(
+    (await w.run()).map((failed) => failed.error),
+    ["GitHub is down"],
+  );
+  w.github.createIssue = create;
+  await w.run();
+  assert.equal(w.github.created.length, 1);
+});
+
+test("a local-only workspace publishes nothing on approval", async (t) => {
+  const w = await workspace(t);
+  queuePublish(w.store, w.plan.id, "c1");
+  const github = new FakeGitHub();
+  assert.deepEqual(
+    await publishApproved(w.store, {
+      github,
+      identity: planningIdentity(w.root),
+      evidence: { get: () => ({ mergedBy: "worker" }) },
+      homeOf: async () => REPOSITORY,
+    }),
+    [],
+  );
+  assert.equal(github.created.length, 0);
 });

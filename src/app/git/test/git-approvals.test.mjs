@@ -272,6 +272,13 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
     { store, ops } = open(r.root, "workspace.sqlite"),
     tick = () => ops.execute("workspace.tick", {});
   t.after(() => store.close());
+  const queuedAtPublish = [],
+    publish = ops.publishApproved.bind(ops);
+  ops.publishApproved = () => {
+    const pending = store.getMeta("publish.pending") ?? {};
+    if (Object.keys(pending).length) queuedAtPublish.push(pending);
+    return publish();
+  };
   // Drafts on disk, as their spec branches hold them.
   for (const name of ["merged", "foreign", "clicked"]) {
     writeSpec(r.root, name, specFiles());
@@ -293,6 +300,8 @@ test("the tick adopts an approver's spec commit on main, and nothing else", asyn
     [["merged", merged.hash, OWNER]],
   );
   assert.match(store.list("approvals")[0].evidence, new RegExp(squash));
+  // The adopted approval was queued for its spec issue (rule 8.1).
+  assert.deepEqual(queuedAtPublish, [{ merged: squash }]);
   assert.equal(taskStates(store, "merged").length, 3);
   assert.equal(store.get("plans", "foreign").state, "draft");
   assert.deepEqual(taskStates(store, "foreign"), []);
@@ -490,6 +499,8 @@ test("what GitHub returned for a commit is read back from the evidence file", as
         cache: evidenceCache(root),
       });
   assert.equal(await make(first)("x@example.com", "c1"), true);
+  // The approving pull request's number is kept for spec issue publishing.
+  assert.equal(evidenceCache(root).get("c1").pull, 7);
   const offline = fakeGithub({});
   offline.commitPullRequests =
     offline.pullRequest =

@@ -111,11 +111,13 @@ export function approverCheck({
     return allowed;
   };
   // What GitHub says about one commit: who merged the pull request whose
-  // merge commit it is, and who signed it with a verified signature.
+  // merge commit it is (and its number, for spec issue publishing), and who
+  // signed it with a verified signature.
   const read = async (commit) => {
     let found = cache?.get(commit);
     if (found) return found;
-    let mergedBy = null;
+    let mergedBy = null,
+      number = null;
     for (const pull of (await github.commitPullRequests(
       repositoryName,
       commit,
@@ -124,6 +126,7 @@ export function approverCheck({
         const full = await github.pullRequest(repositoryName, pull.number);
         if (full?.merged && full.merge_commit_sha === commit) {
           mergedBy = full.merged_by?.login ?? null;
+          number = full.number ?? pull.number;
           break;
         }
       }
@@ -131,7 +134,11 @@ export function approverCheck({
       signer = data?.commit?.verification?.verified
         ? (data.committer?.login ?? null)
         : null;
-    found = { mergedBy, signer: signer === "web-flow" ? null : signer };
+    found = {
+      mergedBy,
+      signer: signer === "web-flow" ? null : signer,
+      ...(number ? { pull: number } : {}),
+    };
     cache?.set(commit, found);
     return found;
   };

@@ -27,7 +27,12 @@ import {
   proposalsFromFacts,
 } from "../specs/design-extraction.mjs";
 import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
-import { readSpecIssues } from "../specs/spec-publication.mjs";
+import {
+  publishApproved,
+  queuePublish,
+  readSpecIssues,
+} from "../specs/spec-publication.mjs";
+import { planningIdentity } from "../github/github-marker.mjs";
 import { linkedReader, storedLinks } from "../specs/order.mjs";
 import { taskEpic } from "../epics/epics.mjs";
 import {
@@ -877,6 +882,7 @@ export class Operations {
     }
     for (const id of this.adoptApprovals(found)) {
       const match = found.get(id);
+      queuePublish(store, id, match.commit);
       recordActivity(store, {
         source: "tick",
         actor: match.email,
@@ -947,6 +953,20 @@ export class Operations {
       } catch {
         // Read again on the next tick.
       }
+  }
+  // Publish the spec issue of each approval this workspace adopted or made
+  // (workflow v1 rule 8.1), in the GitHub repository that holds the spec.
+  // Returns the GitHub errors; a failed spec is tried again next tick.
+  async publishApproved() {
+    return publishApproved(this.store, {
+      github: this.github,
+      identity: planningIdentity(this.workspaceRoot),
+      evidence: evidenceCache(this.workspaceRoot),
+      homeOf: async (plan) => {
+        const root = await this.approvalCheckout(plan);
+        return root ? originRepositorySync(root) : null;
+      },
+    });
   }
   // The one reader behind `avoozl rebuild`: the same steps over the
   // named specs, with `allowed` (an approverCheck) in place of the
