@@ -342,7 +342,7 @@ test("removing, disabling or dropping an owner moves the next call to the built-
   assert.equal((await call(credentials, "acme/api", "land")).provider, "gh");
   removePlugin(m.options, { id: "acme-github" });
   assert.equal(
-    (await call(credentials, "acme/api", "evidence")).provider,
+    (await call(credentials, "acme/api", "review-output")).provider,
     "gh",
   );
   credentials.close();
