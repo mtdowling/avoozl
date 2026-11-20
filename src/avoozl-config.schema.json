@@ -168,7 +168,7 @@
       }
     },
     "plugins": {
-      "description": "Plugins this repository declares (design \u00a74.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
+      "description": "Plugins this repository declares (design §4.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
       "type": "array",
       "items": {
         "type": "object",
@@ -223,7 +223,7 @@
       }
     },
     "intake": {
-      "description": "Every source that brings work in (design \u00a74.12, \u00a74.39): GitHub repositories (via github, set in Repository setup), intake plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
+      "description": "Every source that brings work in (design §4.12, §4.39): GitHub repositories (via github, set in Repository setup), intake plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -465,12 +465,33 @@
     },
     "telemetry": {
       "type": "object",
+      "description": "Export task timing to an OTLP endpoint. Machine file only: a repository's .avoozl.json may not set it. The OTEL_EXPORTER_OTLP_* environment of the process that runs the tick beats endpoint, protocol and headers, and header values come only from OTEL_EXPORTER_OTLP_HEADERS.",
       "additionalProperties": false,
-      "description": "Send task timing to an OpenTelemetry endpoint. Global configuration only; the repository file may not set it. The endpoint and headers come from the OTEL_EXPORTER_OTLP_* environment of the process that runs the tick.",
       "properties": {
         "enabled": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "Send traces and metrics. Off by default."
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "The collector's base URL: https, or http to localhost, 127.0.0.1 or ::1. No user, password or query. /v1/traces and /v1/metrics are added."
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["http/json"],
+          "default": "http/json",
+          "description": "OTLP over HTTP with JSON bodies, the only protocol sent."
+        },
+        "headers": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9!#$%&'*+.^_`|~-]+$"
+          },
+          "description": "Header names each request needs. Their values come from OTEL_EXPORTER_OTLP_HEADERS and are never stored."
         }
       }
     },
@@ -1044,7 +1065,7 @@
     },
     "github": {
       "type": "object",
-      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design \u00a74.4), Remote setup remains an explicit action.",
+      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design §4.4), Remote setup remains an explicit action.",
       "properties": {
         "mode": {
           "enum": ["local", "plans-repo", "single-repo"],

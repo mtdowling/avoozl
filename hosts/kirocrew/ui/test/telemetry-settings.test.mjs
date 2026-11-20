@@ -1,6 +1,7 @@
-// Settings > Workspaces > Telemetry (spec otel-export, OT11): each status
-// shows its words, the switch calls telemetry.configure, and the box never
-// holds a header value or a URL path. Skipped when no Chrome is found.
+// Settings > Workspaces > Telemetry (spec otel-export, OT11): the local store
+// row comes first, each status shows its words, the Set up export dialog
+// saves through telemetry.configure, and the box never holds a header value
+// or a URL path. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { harnessPage } from './browser/harness-page.mjs'
@@ -11,6 +12,8 @@ const skip = state.skip
 const wait = (ms) => state.page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 const click = (selector, text) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
+const type = (id, value) =>
+  `(() => { const i = document.getElementById(${JSON.stringify(id)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ${JSON.stringify(value)}); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
 
 async function openBox(status, width = 1280) {
   const { page, harness } = state
@@ -26,34 +29,53 @@ async function openBox(status, width = 1280) {
 const text = (name) => state.page.evaluate(`document.querySelector('[data-telemetry-value="${name}"]')?.textContent ?? null`)
 
 for (const [status, words] of [
-  ['off', 'Off'],
-  ['no-endpoint', 'Waiting for an endpoint'],
-  ['protocol', 'Protocol not supported'],
-  ['endpoint-not-allowed', 'Endpoint not allowed'],
-  ['sending', 'Sending'],
-  ['backing-off', 'Backing off (http 503)'],
+  ['off', 'Recording locally · export off'],
+  ['no-endpoint', 'Recording locally · export waiting for an endpoint'],
+  ['protocol', 'Recording locally · export protocol not supported'],
+  ['endpoint-not-allowed', 'Recording locally · export endpoint not allowed'],
+  ['sending', 'Recording locally · exporting'],
+  ['backing-off', 'Recording locally · export backing off (http 503)'],
 ])
   test(`the Telemetry box shows ${status} as "${words}"`, { skip }, async () => {
     const { page } = state
     await openBox(status)
     assert.equal(await text('status'), words)
+    assert.match(await text('local'), /^On, always · 5,120 spans, 48,210 points · kept 90 days/)
+    const first = await page.evaluate(`document.querySelector('[data-telemetry] [data-telemetry-value]').dataset.telemetryValue`)
+    assert.equal(first, 'local', 'the local store row comes first')
     const box = await page.evaluate(`document.querySelector('[data-field-box="Telemetry"]').textContent`)
     assert.match(box, /OTEL_EXPORTER_OTLP_\*/)
-    assert.doesNotMatch(box, /Bearer|v1\/traces|secret/)
+    assert.doesNotMatch(box, /Bearer|v1\/traces|secret|OpenTelemetry/)
     if (status === 'sending') {
-      assert.equal(await text('endpoint'), 'https://otlp.example:4318')
-      assert.equal(await text('headers'), 'authorization')
+      assert.equal(await text('endpoint'), 'https://otlp.example:4318 (saved here)')
+      assert.equal(await text('headers'), 'authorization (value from OTEL_EXPORTER_OTLP_HEADERS)')
       assert.equal(await text('sent'), '41')
-      assert.equal(await text('local'), '5120 spans, 48210 points')
     }
+    if (status === 'off') assert.equal(await text('sent'), null, 'no export counts while export is off')
   })
 
-test('the switch calls telemetry.configure and the box follows', { skip }, async () => {
+test('Set up export walks three steps and saves through telemetry.configure', { skip }, async () => {
   const { page } = state
   await openBox('off')
-  assert.ok(await page.evaluate(`(() => { const t = document.querySelector('[data-telemetry-switch] [role="switch"]'); if (t) t.click(); return Boolean(t) })()`))
-  await page.until(`document.querySelector('[data-telemetry-value="status"]')?.textContent === 'Waiting for an endpoint'`)
-  assert.ok(await page.evaluate(`document.querySelector('[data-telemetry-switch] [role="switch"]').getAttribute('aria-checked') === 'true'`))
+  assert.ok(await page.evaluate(click('[data-telemetry] button, [data-field-box="Telemetry"] button', 'Set up export')))
+  await page.until(`document.querySelector('[data-telemetry-dialog]')?.dataset.telemetryDialog === '0'`)
+  assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-telemetry-step="recorded"]'))`))
+  assert.ok(await page.evaluate(click('dialog button', 'Next')))
+  await page.until(`Boolean(document.querySelector('[data-telemetry-step="export"]'))`)
+  await page.evaluate(`document.querySelector('[data-telemetry-export-switch] [role="switch"]').click()`)
+  await page.evaluate(type('avoozl-telemetry-headers', 'authorization=Bearer x'))
+  await page.until(`document.querySelector('[data-telemetry-step="export"] [role="alert"]')?.textContent.includes('names only')`)
+  await page.evaluate(type('avoozl-telemetry-headers', 'authorization'))
+  await page.evaluate(type('avoozl-telemetry-endpoint', 'https://otlp.example:4318'))
+  await wait(100)
+  assert.ok(await page.evaluate(click('dialog button', 'Next')))
+  await page.until(`Boolean(document.querySelector('[data-telemetry-step="review"]'))`)
+  assert.equal(await text('review-export'), 'On')
+  assert.equal(await text('review-endpoint'), 'https://otlp.example:4318')
+  assert.ok(await page.evaluate(click('dialog button', 'Save')))
+  await page.until(`!document.querySelector('[data-telemetry-dialog]')`)
+  await page.until(`document.querySelector('[data-telemetry-value="status"]')?.textContent === 'Recording locally · exporting'`)
+  assert.equal(await text('headers'), 'authorization (value from OTEL_EXPORTER_OTLP_HEADERS)')
 })
 
 test('the box fits a phone', { skip }, async () => {

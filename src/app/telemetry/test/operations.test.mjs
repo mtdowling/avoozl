@@ -1,4 +1,4 @@
-// ot-4.1: operations and CLI (OT5.3, OT5.5, OT11.5, OT11.6).
+// ot-4.1: operations and CLI (OT5.3, OT5.5, OT11.7, OT11.8).
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -67,6 +67,43 @@ test("configure writes only telemetry.enabled and keeps the other keys", async (
   );
 });
 
+test("configure saves the endpoint, protocol and header names, never a value", async (t) => {
+  const { ops, file } = setup(t);
+  const saved = await ops.execute("telemetry.configure", {
+    enabled: true,
+    endpoint: "https://otlp.example:4318",
+    protocol: "http/json",
+    headers: ["authorization"],
+  });
+  assert.equal(saved.status, "missing-headers");
+  assert.deepEqual(saved.missingHeaders, ["authorization"]);
+  assert.deepEqual(saved.saved, {
+    endpoint: "https://otlp.example:4318",
+    protocol: "http/json",
+    headers: ["authorization"],
+  });
+  await ops.execute("telemetry.configure", { enabled: false });
+  assert.equal(
+    JSON.parse(fs.readFileSync(file, "utf8")).telemetry.endpoint,
+    "https://otlp.example:4318",
+    "turning it off keeps the rest",
+  );
+  await ops.execute("telemetry.configure", { endpoint: "" });
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")).telemetry, {
+    enabled: false,
+    protocol: "http/json",
+    headers: ["authorization"],
+  });
+  for (const input of [
+    {},
+    { headers: ["authorization=Bearer x"] },
+    { endpoint: "https://u:p@otlp.example" },
+    { token: "x" },
+  ])
+    await assert.rejects(ops.execute("telemetry.configure", input));
+  assert.ok(!fs.readFileSync(file, "utf8").includes("Bearer"));
+});
+
 test("status holds the status, the counts and the local rows, never a header value or a path", async (t) => {
   const { ops, file } = setup(t);
   fs.writeFileSync(file, JSON.stringify({ telemetry: { enabled: true } }));
@@ -74,17 +111,26 @@ test("status holds the status, the counts and the local rows, never a header val
   assert.deepEqual(Object.keys(status).sort(), [
     "dropped",
     "endpoint",
+    "endpointFrom",
     "failure",
     "headerNames",
     "lastSuccessAt",
     "local",
+    "missingHeaders",
     "protocol",
     "queued",
     "rejected",
+    "saved",
     "sent",
     "status",
   ]);
-  assert.deepEqual(status.local, { spans: 0, points: 0 });
+  assert.deepEqual(status.local, {
+    spans: 0,
+    points: 0,
+    days: 90,
+    spanCap: 200_000,
+    pointCap: 1_000_000,
+  });
 });
 
 test("the CLI prints the status and writes the setting", () => {

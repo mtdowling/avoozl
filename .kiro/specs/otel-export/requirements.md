@@ -133,8 +133,9 @@ send nothing off this machine, so that I never have to check.
    be registered, SHALL open no network connection and SHALL build no OTLP
    body. The SQLite exporter SHALL still record.
 2. WHEN `telemetry.enabled` is `true` and no endpoint is set in the
-   environment THEN the OTLP exporter SHALL stay idle and Settings SHALL show
-   **Waiting for an endpoint**.
+   environment or machine config THEN the OTLP exporter SHALL stay idle and
+   Settings SHALL show **Recording locally · export waiting for an
+   endpoint**.
 3. WHEN `telemetry.enabled` is `false` or removed THEN a running OTLP
    exporter SHALL stop at its next pass and drop its queue without sending.
 4. Enabling SHALL send only what is recorded after it is enabled. Avoozl SHALL
@@ -155,15 +156,20 @@ cannot start sending data out.
    plugin lint SHALL refuse a manifest that names one.
 3. The operation that writes `telemetry` SHALL be person-only: MCP calls and
    app tokens SHALL be refused, as for every person-only operation.
-4. The `telemetry` object SHALL take one key, `enabled`, and SHALL refuse any
-   other key and any value that is not `true` or `false`.
+4. The `telemetry` object SHALL take the keys `enabled` (`true` or
+   `false`), `endpoint` (an endpoint OT12.1 allows, with no user, password,
+   query or fragment), `protocol` (`http/json`) and `headers` (a list of at
+   most 20 header names). It SHALL refuse any other key and any other value,
+   and a header list entry that holds a value.
 5. No agent prompt, brief or skill SHALL tell an agent how to change the
    setting.
 
-### Requirement OT6: Endpoint and headers from the OTLP environment
+### Requirement OT6: Endpoint and headers from machine config and the OTLP environment
 
 **User story:** As someone who already points other tools at a collector, I
-want the standard OTLP variables to work, so that I configure one place.
+want the standard OTLP variables to work, and as someone who starts Avoozl
+from a desktop app, I want to save the endpoint in Settings, so that I
+configure one place.
 
 #### Acceptance criteria
 
@@ -175,19 +181,26 @@ want the standard OTLP variables to work, so that I configure one place.
    OpenTelemetry specification gives them. A signal's own endpoint SHALL beat
    the shared endpoint, and only the shared endpoint gets `/v1/traces` or
    `/v1/metrics` appended.
-2. The exporter SHALL support the protocol `http/json` only. It SHALL treat an
+2. A variable that is set SHALL beat the saved `telemetry.endpoint` and
+   `telemetry.protocol`. With no endpoint variable, the saved endpoint SHALL
+   be the shared endpoint.
+3. The exporter SHALL support the protocol `http/json` only. It SHALL treat an
    unset protocol as `http/json`, and SHALL treat `grpc` and `http/protobuf`
-   as unsupported: Settings SHALL show **Protocol not supported** and the
-   exporter SHALL send nothing.
-3. Header values SHALL come from the environment on each start. Avoozl SHALL
-   NOT write them to machine config, the database, a log, a receipt, a status
-   reply or a test fixture.
-4. Settings, the status operation and the CLI SHALL show header names and
+   as unsupported: Settings SHALL show **Recording locally · export protocol
+   not supported** and the exporter SHALL send nothing.
+4. Header values SHALL come from `OTEL_EXPORTER_OTLP_HEADERS` on each start.
+   Avoozl SHALL NOT write them to machine config, the database, a log, a
+   receipt, a status reply or a test fixture.
+5. WHEN `telemetry.headers` names a header that `OTEL_EXPORTER_OTLP_HEADERS`
+   does not hold THEN the exporter SHALL send nothing and Settings SHALL show
+   **Recording locally · export waiting for header values** and the missing
+   name.
+6. Settings, the status operation and the CLI SHALL show header names and
    never header values, and the endpoint as scheme, host and port only.
-5. `OTEL_SERVICE_NAME` SHALL default to `avoozl`. `service.instance.id` SHALL
+7. `OTEL_SERVICE_NAME` SHALL default to `avoozl`. `service.instance.id` SHALL
    be a random identifier Avoozl makes once per machine (§D2), so flow from
    several machines stays apart.
-6. A process that Avoozl starts for an agent SHALL NOT receive any `OTEL_`
+8. A process that Avoozl starts for an agent SHALL NOT receive any `OTEL_`
    variable from Avoozl's own environment, so a coding agent's own tools do
    not send to the team's backend by accident.
 
@@ -325,23 +338,38 @@ and whether it works, so that I notice a wrong endpoint without a backend.
 
 #### Acceptance criteria
 
-1. **Settings** SHALL have a **Telemetry** box with a switch **Send task
-   timing over OpenTelemetry**, the endpoint's scheme, host and port, the
-   protocol, the header names, and the status.
-2. The status SHALL be one of: **Off**, **Waiting for an endpoint**,
-   **Protocol not supported**, **Endpoint not allowed**, **Sending**, or
-   **Backing off** with the failure's kind (`timeout`, `refused`, `tls`,
-   `dns` or `http <status>`).
-3. The box SHALL show counts of sent, queued, dropped and rejected items and
-   the time of the last success, and the local store's span and point counts.
-   Counts of items start at zero when Avoozl starts.
-4. The box SHALL say, in one sentence, that endpoint and headers come from
-   the `OTEL_EXPORTER_OTLP_*` environment of the process that runs Avoozl, and
-   that a process a desktop app starts may not inherit a shell's variables.
-5. `avoozl telemetry status` SHALL print the same status and counts.
-   `avoozl telemetry enable` and `avoozl telemetry disable` SHALL write the
-   setting, as a person-only operation.
-6. A failure message SHALL name a kind from the list in criterion 2 and
+1. **Settings** SHALL have a box titled **Telemetry** whose first row,
+   **Local store**, reads **On, always** with the local span and point
+   counts, the 90-day retention and both row caps.
+2. The status SHALL lead with **Recording locally ·** and then name the
+   export: **export off**, **export waiting for an endpoint**, **export
+   protocol not supported**, **export endpoint not allowed**, **export
+   waiting for header values**, **exporting**, or **export backing off**
+   with the failure's kind (`timeout`, `refused`, `tls`, `dns` or
+   `http <status>`).
+3. WHEN export is on THEN the box SHALL show the endpoint's scheme, host and
+   port with where it came from, the protocol, each header name with where
+   its value comes from, counts of sent, queued, dropped and rejected items
+   and the time of the last success. Counts of items start at zero when
+   Avoozl starts.
+4. The box SHALL say that the `OTEL_EXPORTER_OTLP_*` environment of the
+   process that runs Avoozl beats what is saved, that header values come only
+   from `OTEL_EXPORTER_OTLP_HEADERS`, and that a process a desktop app starts
+   may not inherit a shell's variables.
+5. A **Set up export** button (**Change export** when export is on) SHALL
+   open three steps: **What is recorded**, which lists what is recorded and
+   says it is kept on this computer; **Export**, with an on/off switch, the
+   endpoint, the protocol and the header names; and **Review and save**.
+   **Save** SHALL call `telemetry.configure` once. The form SHALL refuse a
+   header entry that holds a value, and an endpoint OT5.4 refuses, before it
+   sends.
+6. The heading and labels SHALL NOT say "OpenTelemetry" or "OTel". The word
+   MAY appear once, in the protocol's help line.
+7. `avoozl telemetry status` SHALL print the same status and counts.
+   `avoozl telemetry enable` and `avoozl telemetry disable` SHALL write
+   `telemetry.enabled` and keep the other keys, as a person-only
+   operation.
+8. A failure message SHALL name a kind from the list in criterion 2 and
    SHALL NOT hold a URL, a header value or a response body.
 
 ### Requirement OT12: Transport and credentials
@@ -359,7 +387,7 @@ channel I can name, so that I can sign off.
 3. The exporter SHALL NOT follow a redirect.
 4. The exporter SHALL log the endpoint's host and port when it starts, and
    SHALL log no header, no body and no URL with a user, a password or a query.
-5. A request SHALL carry the header names from `OTEL_EXPORTER_OTLP_HEADERS`,
+5. A request SHALL carry the headers from `OTEL_EXPORTER_OTLP_HEADERS`,
    `Content-Type: application/json` and a `User-Agent` of
    `avoozl/<version>`, and no other header.
 6. The exporter SHALL make no other network call: no DNS lookup of any name

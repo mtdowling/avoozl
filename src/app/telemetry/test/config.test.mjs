@@ -115,3 +115,50 @@ test("the instance ID is made once and returned after", () => {
   assert.notEqual(fresh, first);
   assert.equal(instanceId(directory), fresh);
 });
+
+test("a saved endpoint and protocol are used, and the environment beats them", () => {
+  const directory = temporaryDirectory("avoozl-telemetry-");
+  fs.writeFileSync(
+    path.join(directory, "config.json"),
+    JSON.stringify({
+      telemetry: {
+        enabled: true,
+        endpoint: "https://saved.example:4318",
+        protocol: "http/json",
+      },
+    }),
+  );
+  const saved = readTelemetryConfig(directory, {});
+  assert.equal(saved.status, "ready");
+  assert.equal(saved.endpoints.traces, "https://saved.example:4318/v1/traces");
+  assert.equal(saved.endpointFrom, "machine");
+  const env = readTelemetryConfig(directory, {
+    OTEL_EXPORTER_OTLP_ENDPOINT: "https://env.example",
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc",
+  });
+  assert.equal(env.endpoint, "https://env.example");
+  assert.equal(env.endpointFrom, "environment");
+  assert.equal(env.status, "protocol");
+});
+
+test("a saved header name with no value in the environment holds the export", () => {
+  const directory = temporaryDirectory("avoozl-telemetry-");
+  fs.writeFileSync(
+    path.join(directory, "config.json"),
+    JSON.stringify({
+      telemetry: {
+        enabled: true,
+        endpoint: "https://saved.example",
+        headers: ["Authorization"],
+      },
+    }),
+  );
+  const missing = readTelemetryConfig(directory, {});
+  assert.equal(missing.status, "missing-headers");
+  assert.deepEqual(missing.missingHeaders, ["Authorization"]);
+  const found = readTelemetryConfig(directory, {
+    OTEL_EXPORTER_OTLP_HEADERS: "authorization=Bearer%20x",
+  });
+  assert.equal(found.status, "ready");
+  assert.deepEqual(found.missingHeaders, []);
+});

@@ -1,4 +1,4 @@
-// ot-3.4: register the exporter beside the tick (OT4.2, OT4.4, OT6.6, OT7.2,
+// ot-3.4: register the exporter beside the tick (OT4.2, OT4.4, OT6.8, OT7.2,
 // OT10.1, OT10.7).
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";

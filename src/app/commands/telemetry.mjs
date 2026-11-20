@@ -1,4 +1,4 @@
-// `avoozl telemetry status|enable|disable` (spec otel-export, OT11.5).
+// `avoozl telemetry status|enable|disable` (spec otel-export, OT11.7).
 import { help } from "../cli/command-help.mjs";
 
 const show = (value) => console.log(JSON.stringify(value, null, 2));
