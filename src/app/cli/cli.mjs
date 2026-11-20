@@ -32,6 +32,7 @@ try {
           "start",
           "dry-run",
           "foreground",
+          "at-login",
           "auto-start",
           "inactive",
           "skip-verify",

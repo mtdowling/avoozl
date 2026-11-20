@@ -12,6 +12,13 @@ import {
   startMachineServer,
   stopMachineServer,
 } from "../executors/machine-server.mjs";
+import {
+  installLoginUnit,
+  loginUnit,
+  removeLoginUnit,
+} from "../executors/login-unit.mjs";
+import fs from "node:fs";
+import path from "node:path";
 import { runSupervisor } from "../executors/supervisor.mjs";
 import readline from "node:readline";
 import { help } from "../cli/command-help.mjs";
@@ -29,6 +36,14 @@ function refuseChild(name) {
       `A supervisor child may not run avoozl ${name}. Do it at this machine's command line.`,
     );
 }
+
+// The login unit for this machine, naming this CLI by absolute path.
+const unitFor = (machine) =>
+  loginUnit({
+    cli: fs.realpathSync(process.argv[1]),
+    stateDirectory: path.resolve(machine.stateDirectory),
+    configDirectory: path.resolve(machine.configDirectory),
+  });
 
 const send = (body) => process.stdout.write(JSON.stringify(body) + "\n");
 
@@ -180,14 +195,25 @@ export const commands = [
     help: [
       help(
         "machine",
-        "start [--foreground]",
-        "Start this machine's server (the loop and the process children); a second start names the holder, and one of another build is replaced",
+        "start [--foreground | --at-login]",
+        "Start this machine's server (the loop and the process children); a second start names the holder, and one of another build is replaced. --at-login also starts it at each login",
       ),
     ],
     async run({ options, positionals }) {
       refuseChild("start");
-      if (positionals.length) throw Error("Usage: avoozl start [--foreground]");
+      if (positionals.length || (options["at-login"] && options.foreground))
+        throw Error("Usage: avoozl start [--foreground | --at-login]");
       const machine = machineAvoozlPaths();
+      if (options["at-login"]) {
+        const done = installLoginUnit(unitFor(machine));
+        console.log(
+          [
+            ...done.ran.map((line) => `ran: ${line}`),
+            `${done.replaced ? "Replaced" : "Wrote"} ${done.file}. The machine server now starts at each login.`,
+          ].join("\n"),
+        );
+        return;
+      }
       const starter = options.starter ?? "terminal";
       if (options.foreground) {
         await runSupervisor({
@@ -212,13 +238,25 @@ export const commands = [
     help: [
       help(
         "machine",
-        "stop",
-        "Stop this machine's server; its process children keep running",
+        "stop [--at-login]",
+        "Stop this machine's server; its process children keep running. --at-login removes the login unit too",
       ),
     ],
-    async run({ positionals }) {
+    async run({ options, positionals }) {
       refuseChild("stop");
-      if (positionals.length) throw Error("Usage: avoozl stop");
+      if (positionals.length) throw Error("Usage: avoozl stop [--at-login]");
+      if (options["at-login"]) {
+        const done = removeLoginUnit(unitFor(machineAvoozlPaths()));
+        console.log(
+          [
+            ...done.ran.map((line) => `ran: ${line}`),
+            done.removed
+              ? "Removed the login unit; the machine server it ran has stopped."
+              : "No login unit is installed.",
+          ].join("\n"),
+        );
+        return;
+      }
       console.log(
         await stopMachineServer({
           stateDirectory: machineAvoozlPaths().stateDirectory,

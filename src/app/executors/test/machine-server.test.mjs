@@ -162,6 +162,18 @@ test("a supervisor child is refused start, stop and link", (t) => {
     assert.notEqual(found.status, 0, command);
     assert.match(found.stderr, /A supervisor child may not run/, command);
   }
+  for (const args of [
+    ["start", "--at-login"],
+    ["stop", "--at-login"],
+  ]) {
+    const found = m.run(args, { AVOOZL_CHILD: "1" });
+    assert.notEqual(found.status, 0, args.join(" "));
+    assert.match(
+      found.stderr,
+      /A supervisor child may not run/,
+      args.join(" "),
+    );
+  }
   assert.equal(m.state().running, false);
 });
 

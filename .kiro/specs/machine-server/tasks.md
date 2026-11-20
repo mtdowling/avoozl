@@ -35,11 +35,11 @@ they never collide with the IDs of the other specs.
   - $done: Tests with a fake gateway: the backend starts a machine server when none runs and never a second; it calls neither drain; its notices still reach Kiro Crew's channels; the cron's `plans_maintain tick` call records its observations, returns the pending `kirocrew` dispatch, messages and re-trust for its own job, and never reaches the planner; with no server it starts one and returns no intents; a `kirocrew` task goes from ready to an opened chat in two passes; the design's F129 reason is in the code comment of the cron call.
   - $after: ms-1.2
   - Delete `machineSupervisor` and the drain block in `src/app/executors/kirocrew/app-backend.mjs`, keeping the channel push and the readers; the cron call in `src/app/executors/kirocrew/app-mcp.mjs` reads pending intents from the database.
-- [ ] ms-1.4 Login install on macOS and Linux, after ms-1.2 [MS4] (§D4)
+- [x] ms-1.4 Login install on macOS and Linux, after ms-1.2 [MS4] (§D4)
   - $done: Tests with a fake `launchctl` and `systemctl`: `avoozl start --at-login` writes the unit with absolute paths, argv lists, the captured `PATH` and no secret, and runs the load commands it prints; `avoozl stop --at-login` unloads and deletes it; `--at-login` replaces its own unit and refuses a file without its marker; a Linux without a user systemd is refused with the `--foreground` line; both are refused with `AVOOZL_CHILD` and have no MCP tool.
   - $after: ms-1.2
-  - `avoozl start --at-login` and `avoozl stop --at-login`; `src/app/executors/supervisor-unit.mjs` is replaced by the new unit module.
-- [ ] ms-1.5 Login install on Windows, after ms-1.2 [MS4] (§D4)
+  - `avoozl start --at-login` and `avoozl stop --at-login`. The code is `src/app/executors/login-unit.mjs`; the Windows task is part of it (ms-1.5).
+- [x] ms-1.5 Login install on Windows, after ms-1.2 [MS4] (§D4)
   - $done: Tests on the Windows CI leg with a fake `schtasks`: `avoozl start --at-login` writes the XML with a logon trigger for the current user, least privilege, restart on failure and the marker description, and runs `/Create` and `/Run`; `avoozl stop --at-login` runs `/Delete`; a task without the marker is refused.
   - $after: ms-1.2
 - [ ] ms-1.6 Model access and harness readiness for unattended children, after ms-1.2 [MS5] (§D6)
