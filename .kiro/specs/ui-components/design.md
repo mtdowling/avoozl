@@ -59,11 +59,11 @@ Crew part's behavior.
 
 ## D4. The raw-style test (UC3)
 
-`kirocrew-app/ui/test/raw-style.test.mjs` parses each view with the
+`hosts/kirocrew/ui/test/raw-style.test.mjs` parses each view with the
 TypeScript compiler the page already uses for its type check, and counts
 `className` and `style` attributes, `<style>` elements and `var(--`
 strings outside `src/ui/`. The allow-list,
-`kirocrew-app/ui/test/raw-style-allow.json`, maps each file to its count.
+`hosts/kirocrew/ui/test/raw-style-allow.json`, maps each file to its count.
 The test fails when a file's count rises, when a file not on the list has
 any, and when a file at zero is still listed. A task that moves a view
 lowers its number in the same change.
@@ -77,7 +77,7 @@ needs `KIROCREW_HOST_CSS`). The change is where its stylesheet comes from:
   and builds the stylesheet with Kiro Crew's own `@source` lines only, not
   the extra line the standalone page adds. That is the stylesheet a person
   gets inside Kiro Crew.
-- Before that, `kirocrew-app/ui/test/kirocrew-css.json` names a release and
+- Before that, `hosts/kirocrew/ui/test/kirocrew-css.json` names a release and
   the digest of its built stylesheet. The test downloads the built
   stylesheet from that release's published package, checks the digest and
   caches it. Which published file to take is the first task's question

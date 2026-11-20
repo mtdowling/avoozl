@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fetches the Kiro Crew source the standalone page builds on, at the release
-// named in kirocrew-app/ui/kirocrew-pin.json, into a cache outside git, and
+// named in hosts/kirocrew/ui/kirocrew-pin.json, into a cache outside git, and
 // checks its digest before anything reads a file. No Kiro Crew file is ever
 // committed (SW12.1), and a fetched file is never edited (SW12.3).
 //
@@ -23,7 +23,8 @@ const root = path.resolve(
 );
 export const PIN_FILE = path.join(
   root,
-  "kirocrew-app",
+  "hosts",
+  "kirocrew",
   "ui",
   "kirocrew-pin.json",
 );

@@ -75,7 +75,7 @@ give them role tokens when one of them runs as a chat without sharing.
 `src/app/delivery/delivery.mjs:488` already holds the absolute path of the running
 CLI (V). The brief's report line becomes `<node> <cli> runner report …`,
 with the Node binary from `process.execPath`, both quoted for a shell. The
-installed app's copy of the CLI is under `kirocrew-app/bin/lib` and resolves
+installed app's copy of the CLI is under `hosts/kirocrew/bin/lib` and resolves
 the same way, so a chat needs no `avoozl` on its `PATH`.
 
 ## D6. Manual take (WP2)

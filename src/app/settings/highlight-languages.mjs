@@ -1,6 +1,6 @@
 // highlight.languages: the extra code-fence grammars a workspace names in
 // `.avoozl.json` `highlight.languages` ({ "<fence name>": "<file>" }). Each
-// file is JSON data (an ordered token list, see kirocrew-app/ui/src/
+// file is JSON data (an ordered token list, see hosts/kirocrew/ui/src/
 // highlight.ts), read from inside the workspace only; it is never code.
 // Reads only. A bad entry is reported and skipped, never fatal.
 import fs from "node:fs";

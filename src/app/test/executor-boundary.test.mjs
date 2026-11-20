@@ -19,8 +19,8 @@ const nativeCalls = new Set([
 const privatePath = (name) =>
   name === "src/app/executors/kirocrew.mjs" ||
   name.startsWith("src/app/executors/kirocrew/") ||
-  name === "kirocrew-app/executors/kirocrew.py" ||
-  name === "kirocrew-app/ui/src/executors/kirocrew.ts";
+  name === "hosts/kirocrew/executors/kirocrew.py" ||
+  name === "hosts/kirocrew/ui/src/executors/kirocrew.ts";
 const pathProblem = (value) =>
   typeof value === "string" &&
   (/^Avoozl\//.test(value) ||
@@ -135,7 +135,7 @@ function files(directory) {
     const name = `${directory}/${entry.name}`;
     if (["test", "tests", "node_modules", "__pycache__"].includes(entry.name))
       continue;
-    if (["kirocrew-app/ui/dist", "kirocrew-app/bin/lib"].includes(name))
+    if (["hosts/kirocrew/ui/dist", "hosts/kirocrew/bin/lib"].includes(name))
       continue;
     if (entry.isDirectory()) result.push(...files(name));
     else if (/\.(mjs|js|ts|tsx|py)$/.test(name) && !/\.test\./.test(name))
@@ -149,10 +149,10 @@ test("the runtime boundary rejects native folder/project/agent-file paths outsid
     python = [];
   for (const name of [
     ...files("src"),
-    ...files("kirocrew-app/crons"),
-    ...files("kirocrew-app/executors"),
-    ...files("kirocrew-app/bin"),
-    ...files("kirocrew-app/ui/src"),
+    ...files("hosts/kirocrew/crons"),
+    ...files("hosts/kirocrew/executors"),
+    ...files("hosts/kirocrew/bin"),
+    ...files("hosts/kirocrew/ui/src"),
     "cli.mjs",
   ]) {
     if (privatePath(name)) continue;

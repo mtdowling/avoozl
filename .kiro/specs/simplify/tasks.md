@@ -104,13 +104,13 @@ merge, shown in chat and never committed.
 
 - [ ] `sim-3.1` Skills generated from `prompts/skills/` [SM10.2, SM10.3, SM10.4] (§D10)
   - $after: sim-1.5, sim-2.4
-  - `avoozl-spec`, `avoozl-work`, `avoozl-spec-review`, `avoozl-retro` and `avoozl-investigate` are generated from `prompts/skills/<name>.md` beside the ones the triage removal ships, and `npm run check:agents` fails when one differs from its source
+  - `avoozl-spec`, `avoozl-work`, `avoozl-spec-review`, `avoozl-retro` and `avoozl-investigate` are generated from `prompts/skills/<name>.md` beside the ones the triage removal ships, and `npm run check:hosts` fails when one differs from its source
   - `avoozl-spec` writes the spec in the §D20 format (no `$` facts, plain done bullets on every leaf, `(**PARALLEL**)` and `(**MANUAL**)` tags, one repository in front matter `repo`, spec links), and `avoozl-spec-review` checks a spec for that format, flags a same-name branch on origin that holds other work (§D21.1), and posts findings without editing; `avoozl-spec` runs `avoozl graph SPEC --write` and `avoozl spec lint SPEC`, and stops at a `spec/<name>` branch; `avoozl-work` claims with `avoozl next --claim`, reports with `avoozl runner report` and lands with `avoozl land`
   - Each skill reaches Avoozl only through the CLI or MCP tools, and a test checks every command or tool a skill names exists
 - [ ] `sim-3.2` Roles cut to worker and reviewer [SM10.1] (§D10)
   - $after: sim-3.1
   - `ROLE_TABLE` holds `worker` and `reviewer`; the reviewer is off unless a repository turns it on; a `roles` setting that names another role is refused naming it
-  - `kirocrew-app/agents/` holds only `avoozl-reviewer`, and the prompts of cut roles are gone from `prompts/`
+  - `hosts/kirocrew/agents/` holds only `avoozl-reviewer`, and the prompts of cut roles are gone from `prompts/`
 
 ## Phase 4: Cuts
 

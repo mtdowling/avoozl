@@ -23,7 +23,7 @@ and nothing more.
 | Worker side of `runner status`, the envelope | `remote-runner.mjs`                            | gone; `runner report` moves to `report-command.mjs` |
 | `worker` and `spec offer`/`spec grants` commands | `commands/machine.mjs:436`, `commands/setup.mjs:296` | gone |
 | `worker.*`, `spec.offer`, `spec.grants*`, `remote.view` | `ops/delivery.mjs`, `ops/specs.mjs`  | gone       |
-| Page worker link and worker fields           | `kirocrew-app/ui/src/WorkerLink.tsx` and its callers | gone |
+| Page worker link and worker fields           | `hosts/kirocrew/ui/src/WorkerLink.tsx` and its callers | gone |
 | Driver, generations of a driver, hand-off    | `driver.mjs`, `driver-generations.mjs`, `driver-scope.mjs` | stay |
 | Manual take, report command, report match    | `manual-take.mjs`, `report-command.mjs`, `report-match.mjs` | stay |
 | Spec working heads                           | `working-heads.mjs`                            | stay       |

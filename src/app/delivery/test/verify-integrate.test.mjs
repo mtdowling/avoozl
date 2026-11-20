@@ -22,7 +22,7 @@ import {
 } from "../../test/delivery-fixture.mjs";
 
 const repo = fileURLToPath(new URL("../../../../", import.meta.url)),
-  app = path.join(repo, "kirocrew-app");
+  app = path.join(repo, "hosts", "kirocrew");
 
 const setup = (t, options = {}) =>
   deliveryWorkspace(t, { prefix: "avoozl-verify-", ...options });

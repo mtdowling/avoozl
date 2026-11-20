@@ -29,10 +29,10 @@ const files = (dir, pattern) =>
 
 test("the page, the help, the README and the docs do not say train or integrator", () => {
   const checked = [
-    ...files("kirocrew-app/ui/src", /\.(ts|tsx)$/),
+    ...files("hosts/kirocrew/ui/src", /\.(ts|tsx)$/),
     ...files("docs", /^[^/\\]+\.md$/),
     "README.md",
-    "kirocrew-app/README.md",
+    "hosts/kirocrew/README.md",
   ];
   assert.ok(checked.length > 20);
   for (const file of checked)

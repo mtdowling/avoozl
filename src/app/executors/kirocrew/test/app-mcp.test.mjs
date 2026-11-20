@@ -15,7 +15,7 @@ import { initializeWorkspace } from "../../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../../test/temporary.mjs";
 
 const root = fileURLToPath(new URL("../../../../../", import.meta.url)),
-  launcher = path.join(root, "kirocrew-app", "bin", "avoozl_mcp.py");
+  launcher = path.join(root, "hosts", "kirocrew", "bin", "avoozl_mcp.py");
 
 function isolatedEnv(dir) {
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };

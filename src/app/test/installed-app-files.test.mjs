@@ -6,12 +6,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url)),
-  app = path.join(root, "kirocrew-app"),
+  app = path.join(root, "hosts", "kirocrew"),
   agent = (name) =>
     JSON.parse(fs.readFileSync(path.join(app, "agents", name + ".json")))
       .prompt;
 
-// Kiro Crew installs the app by copying kirocrew-app on its own, so the
+// Kiro Crew installs the app by copying hosts/kirocrew on its own, so the
 // bundle in bin/lib has no checkout around it. `npm test` builds bin/lib.
 test("the installed bundle reads the shipped agent prompts and version", async () => {
   const installed = temporaryDirectory();

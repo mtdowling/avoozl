@@ -12,7 +12,7 @@ PORT="${AVOOZL_HARNESS_PORT:-5690}"
 REPO_URL="${AVOOZL_HARNESS_REPO:-https://github.com/mtdowling/avoozl-radar-test}"
 AGENT="${AVOOZL_HARNESS_AGENT:-avoozl-crew}"
 # The built app the harness installs (run npm run build first).
-APP_SRC="${AVOOZL_HARNESS_APP_SRC:-$ROOT/kirocrew-app}"
+APP_SRC="${AVOOZL_HARNESS_APP_SRC:-$ROOT/hosts/kirocrew}"
 
 die() { echo "harness: $*" >&2; exit 1; }
 
