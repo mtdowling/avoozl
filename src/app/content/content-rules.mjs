@@ -891,6 +891,16 @@ export function writeTermsFile(store, { id, text } = {}) {
   return { id, rules: checked.rules, allows: checked.allows, saved: true };
 }
 
+// The boundaries a giving epic-context source's `contentSets` add to a task's
+// own sets (epic-context EC9.3).
+const CONTEXT_BOUNDARIES = new Set(["diff", "github", "brief"]);
+
+// The rule set IDs the task's last epic-context session was given.
+export const taskContentSets = (store, taskId) => {
+  const last = taskId ? store.getMeta("epicContext")?.tasks?.[taskId] : null;
+  return last?.given ? (last.contentSets ?? []) : [];
+};
+
 export const covers = (set, boundary, repository) =>
   (set.boundaries
     ? set.boundaries.includes(boundary)
@@ -960,10 +970,23 @@ export function check(store, input) {
     fail(`Unknown content boundary ${boundary}.`);
   const binding = contentBinding(store),
     { sets } = resolveSets(store),
-    applying = sets.filter((set) => covers(set, boundary, repository)),
-    unavailable = applying
-      .filter((set) => !set.available)
-      .map((set) => ({ set: set.id, reason: set.reason })),
+    named = CONTEXT_BOUNDARIES.has(boundary) ? (input.contextSets ?? []) : [],
+    applying = sets.filter(
+      (set) => covers(set, boundary, repository) || named.includes(set.id),
+    ),
+    unavailable = [
+      ...applying
+        .filter((set) => !set.available)
+        .map((set) => ({ set: set.id, reason: set.reason })),
+      // A named set this machine does not have blocks as a missing terms
+      // file does.
+      ...named
+        .filter((id) => !sets.some((set) => set.id === id))
+        .map((id) => ({
+          set: id,
+          reason: "this machine has no rule set with that ID",
+        })),
+    ],
     ready = applying.filter((set) => set.available),
     lines = linesOf(input),
     findings = privacyFindings(binding, boundary, lines);
@@ -1048,7 +1071,10 @@ export function enforce(
   input,
   { mode = "decide", taskId = null, source = null } = {},
 ) {
-  const result = check(store, input),
+  const result = check(store, {
+      ...input,
+      contextSets: input.contextSets ?? taskContentSets(store, taskId),
+    }),
     hash = contentHash(input),
     notify = [],
     allowances = store.list("content_allowances").filter((a) => !a.usedAt),

@@ -57,6 +57,7 @@ try {
           "retire",
           "delete-spec-folder",
           "write",
+          "remove",
           "help",
         ].includes(key)
       )

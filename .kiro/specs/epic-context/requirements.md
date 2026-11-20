@@ -51,9 +51,9 @@ cited at `a8a22391`; or **A**, assumed and not checked, with the reason.
   `src/app/git/git-approvals.mjs:64` and `:301`), Requirement 66 (one driver
   per spec), Requirement 40 (content rules) and Requirement 34 (plugin
   approval by hash).
-- Requirement 115 (the spec issue's assignee says who drives a spec, and a
-  spec with no spec issue drives here as "Not shared"), on branch
-  `spec/spec-assignee-2`, not yet approved.
+- The driver state (V: `driverStatus`, `src/app/workers/driver.mjs`): the
+  spec issue's one assignee says who drives a spec, and a spec with no
+  spec issue drives here as "Not shared".
 - `.kiro/specs/plugin-credentials/` PC2.2: a plugin part that only this
   machine's `plugins.json` may declare.
 - `.kiro/specs/plugin-checks/` PK10: MCP servers named by alias, mapped on
@@ -112,9 +112,8 @@ never widen what a worker reaches.
      approver, read with the git approval reader (`approvalCommits` with
      `approverCheck`, Requirement 114).
    - **you drive**: this workspace drives the spec as this person: the spec
-     issue's one assignee is this machine's `gh` login and its claim names
-     this machine ("You drive", Requirement 115.11), or the spec has no
-     spec issue ("Not shared", Requirement 115.8).
+     issue's one assignee is this machine's `gh` login ("This workspace
+     drives it"), or the spec has no spec issue ("Not shared").
 2. WHEN any test fails THEN the session SHALL start with its normal sandbox,
    exactly as it would with no context source at all.
 3. A test that cannot be read (a git error, an unread spec issue) SHALL

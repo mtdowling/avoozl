@@ -52,7 +52,7 @@ const KEPT_MARKERS = new Set([
 // The real path of a file that may not exist yet: the nearest existing
 // parent resolved, the rest joined. macOS profiles match real paths only
 // (/tmp is /private/tmp).
-function realPath(file) {
+export function realPath(file) {
   const resolved = path.resolve(file);
   try {
     return fs.realpathSync.native(resolved);

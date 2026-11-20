@@ -46,6 +46,7 @@ import { highlightLanguages } from "../settings/highlight-languages.mjs";
 import { instanceView } from "../workspace/instance.mjs";
 import { landingNeedsYou } from "../epics/integration-head.mjs";
 import { pluginCheckNeedsYou } from "../plugins/plugin-checks.mjs";
+import { contextNeedsYou } from "../workers/epic-context.mjs";
 import {
   phaseNeedsYou,
   requiredCheckNeedsYou,
@@ -465,7 +466,7 @@ export const entries = [
         });
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
-      view.items.push(...pluginCheckNeedsYou(store));
+      view.items.push(...pluginCheckNeedsYou(store), ...contextNeedsYou(store));
       view.items.push(...phaseNeedsYou(store));
       view.items.push(...requiredCheckNeedsYou(store));
       view.items.push(...landingWaitNeedsYou(store, this.read()));

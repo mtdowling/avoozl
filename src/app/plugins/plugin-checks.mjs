@@ -306,7 +306,11 @@ export function validateChecksPart(manifest, folder) {
 
 // One alias's mapping, checked: {command: argv, env: [names]}, no
 // credential in it.
-export function validateMapping(value, where = "mapping") {
+export function validateMapping(
+  value,
+  where = "mapping",
+  { commandOptional = false } = {},
+) {
   if (!record(value)) fail(`${where} must be {command, env}.`);
   for (const key of Object.keys(value))
     if (!["command", "env"].includes(key))
@@ -315,6 +319,14 @@ export function validateMapping(value, where = "mapping") {
           ? `${where}.${key} looks like a credential. Name an environment variable in env instead.`
           : `${where}.${key} is not a mapping setting; use command and env.`,
       );
+  if (
+    value.env !== undefined &&
+    (!Array.isArray(value.env) ||
+      value.env.some((n) => typeof n !== "string" || !ENV_NAME.test(n)))
+  )
+    fail(`${where}.env must list environment variable names.`);
+  if (commandOptional && value.command === undefined)
+    return { env: [...(value.env ?? [])] };
   if (
     !Array.isArray(value.command) ||
     !value.command.length ||
@@ -329,12 +341,6 @@ export function validateMapping(value, where = "mapping") {
       fail(
         `${where}.command holds what looks like a credential. Name an environment variable in env instead.`,
       );
-  if (
-    value.env !== undefined &&
-    (!Array.isArray(value.env) ||
-      value.env.some((n) => typeof n !== "string" || !ENV_NAME.test(n)))
-  )
-    fail(`${where}.env must list environment variable names.`);
   return { command: [...value.command], env: [...(value.env ?? [])] };
 }
 
@@ -353,7 +359,9 @@ export function setMapping(
 ) {
   const plugin = inspectPlugins(options).find((p) => p.id === id);
   if (!plugin) fail(`Plugin ${id} is not declared.`, 404);
-  const declared = plugin.manifest?.servers ?? {};
+  // A context plugin's aliases are in its servers file; its mapping's
+  // command is optional and replaces the plugin's (epic-context EC4.3).
+  const declared = plugin.manifest?.servers ?? plugin.context?.servers ?? {};
   if (!Object.hasOwn(declared, alias))
     fail(`Plugin ${id} declares no server ${alias}.`, 404);
   const settings = readPluginSettings(options.settingsFile),
@@ -361,8 +369,9 @@ export function setMapping(
   if (remove) delete own[alias];
   else
     own[alias] = validateMapping(
-      { command, ...(env ? { env } : {}) },
+      { ...(command ? { command } : {}), ...(env ? { env } : {}) },
       `mcp.${id}.${alias}`,
+      { commandOptional: Boolean(plugin.context) },
     );
   settings.mcp = { ...settings.mcp, [id]: own };
   if (!Object.keys(own).length) delete settings.mcp[id];
