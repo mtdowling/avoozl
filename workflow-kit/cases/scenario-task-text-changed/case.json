@@ -1,0 +1,124 @@
+{
+  "title": "An approved task text changes during a claim",
+  "rules": ["7.3", "15.10", "16.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "landing": {
+    "mode": "direct"
+  },
+  "runners": {
+    "A": "acme-alice",
+    "bob": "acme-bob"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next"
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "push",
+      "task": "parser/p-2",
+      "pause": true,
+      "expect": {
+        "push": "accepted"
+      }
+    },
+    {
+      "runner": "bob",
+      "do": "push",
+      "branch": "main",
+      "files": {
+        ".kiro/specs/parser/tasks.md": "---\nrepo: app\n---\n\n# Tasks: Parser\n\n- [x] `p-1` Read the token table\n  - Every row of `tokens.csv` becomes one token kind\n- [ ] `p-2` Report unknown tokens\n  - An unknown token is reported with its line, column and file\n- [ ] `p-3` Recover after an unknown token\n  - The parser skips to the next line\n"
+      },
+      "expect": {
+        "push": "accepted"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "land",
+      "task": "parser/p-2",
+      "expect": {
+        "action": "none",
+        "revision": "redo-or-stop"
+      }
+    }
+  ],
+  "then": {
+    "ticked": ["parser/p-1"],
+    "branches": ["avoozl/parser/p-2"],
+    "leases": {
+      "parser/p-2": [1]
+    }
+  },
+  "variants": {
+    "other-task": {
+      "title": "another task's text changes",
+      "steps": [
+        {
+          "runner": "A",
+          "do": "next"
+        },
+        {
+          "runner": "A",
+          "do": "claim",
+          "expect": {
+            "claimed": "avoozl/parser/p-2"
+          }
+        },
+        {
+          "runner": "A",
+          "do": "push",
+          "task": "parser/p-2",
+          "pause": true,
+          "expect": {
+            "push": "accepted"
+          }
+        },
+        {
+          "runner": "bob",
+          "do": "push",
+          "branch": "main",
+          "files": {
+            ".kiro/specs/parser/tasks.md": "---\nrepo: app\n---\n\n# Tasks: Parser\n\n- [x] `p-1` Read the token table\n  - Every row of `tokens.csv` becomes one token kind\n- [ ] `p-2` Report unknown tokens\n  - An unknown token is reported with its line and column\n- [ ] `p-3` Recover after an unknown token\n  - The parser skips to the next token\n"
+          },
+          "expect": {
+            "push": "accepted"
+          }
+        },
+        {
+          "runner": "A",
+          "do": "land",
+          "task": "parser/p-2",
+          "expect": {
+            "action": "fast-forward-base",
+            "landed": true
+          }
+        }
+      ],
+      "then": {
+        "ticked": ["parser/p-1", "parser/p-2"],
+        "branches": [],
+        "leases": {
+          "parser/p-2": []
+        }
+      }
+    }
+  }
+}

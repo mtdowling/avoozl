@@ -1,8 +1,10 @@
 # Workflow kit
 
 The kit is a set of sample repositories with the answers a runner must give for
-each. Any runner can read it, because a case is plain files and one JSON
-document.
+each, and scenarios that check what runners do over time. Any runner can read
+it, because a case is plain files and one JSON document. The
+[scenarios page](../docs/github-workflow-scenarios.md) shows every case as
+Given, When and Then.
 
 ```text
 workflow-kit/cases/serial-list-next/
@@ -79,6 +81,12 @@ workflow-kit/cases/serial-list-next/
 | `resume` | Present on resume cases: the task, and the runners that act as one login and try to take its claim, in the order their creates reach GitHub |
 | `expect` | The probes the runner answers |
 | `expectFail` | A probe the runner is known to fail, with the task that fixes it |
+| `runners` | Present on scenarios: each runner's name and the login it acts as |
+| `landing` | Present on scenarios: the landing `mode`, and `pr` for `pr` mode |
+| `repository` | Present on scenarios: `deleteBranchOnMerge`, whether GitHub deletes a pull request's head branch when it merges |
+| `steps` | Present on scenarios: what the runners do, in order |
+| `then` | Present on scenarios: the state the steps end in, in place of `expect` |
+| `variants` | Other inputs for the same case, by name, each holding the fields it replaces |
 
 A box marked `x` in `repo/` is ticked on the specs branch. `runner.specsBranch`
 names the specs branch when it is not the default branch, and
@@ -115,6 +123,117 @@ A case belongs to the required profile unless one of its `rules` is in an
 optional part of the workflow page's optional parts table. A runner runs the
 cases of the required profile and of each optional part it supports.
 
+## Scenarios
+
+A scenario has `steps` and `then` in place of `expect`. Each step names a
+runner and one of the actions in the [adapter contract](#adapter-contract), and
+the runners take turns in the order the steps list. Two runners race for one
+task like this:
+
+```json
+{
+  "runners": {
+    "A": "acme-alice",
+    "B": "acme-alice"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next"
+    },
+    {
+      "runner": "B",
+      "do": "next"
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2"
+      }
+    },
+    {
+      "runner": "B",
+      "do": "claim",
+      "expect": {
+        "claimed": null
+      }
+    }
+  ],
+  "then": {
+    "claims": {
+      "A": "parser/p-2",
+      "B": null
+    },
+    "leaseHolder": {
+      "parser/p-2": "A"
+    }
+  }
+}
+```
+
+A step's `expect` lists keys of its own result, and the scenario fails at the
+first step that differs. A step with `"pause": true` leaves its runner idle
+while the steps after it run, until the runner's next step. A scenario fails
+when a paused runner never acts again.
+
+`then` lists the probes of the final state. Each is judged like a snapshot
+probe, and `expectFail` can mark one.
+
+| Probe | The final state |
+| --- | --- |
+| `claims` | For each runner that claimed, the task it holds or `null` |
+| `leaseHolder` | For each listed task, the runner that made its newest lease |
+| `leases` | For each listed task, the lease generations on origin |
+| `branches` | The claim branches on origin, sorted |
+| `rejectedPushes` | The runners with a push that GitHub rejected, sorted |
+| `ticked` | The tasks ticked on their done branches, sorted |
+| `pullRequests` | For each pull request's head branch, its `state`, who merged it and whether the merge has a verified signature |
+| `ready` | The ready tasks, as `next` answers them at the end |
+
+A case with `variants` is also run once per variant. A variant replaces the
+fields it names, such as `runners`, `steps` and `then`, and adds its `title`
+after the case's.
+
+## Adapter contract
+
+A runner takes part in a scenario by implementing the actions below. Each takes
+the step's arguments, acts as the step's runner against the repository and
+GitHub, and returns the keys listed. The runner decides each action as the
+[workflow](../docs/github-workflow.md) says, so a rule it does not follow
+shows as a failed probe.
+
+| `do` | Arguments | The runner | Returns |
+| --- | --- | --- | --- |
+| `next` | | Reads the specs and GitHub, and ranks the ready tasks (13) | `ready` |
+| `claim` | `task` (default: the first of `next`) | Creates the claim branch and the first lease (15.1) | `claimed`, the branch or `null`, and `base` and `lease` |
+| `readLeases` | `task` | Reads the generations of the task's leases (15.3) | `generations` |
+| `takeOver` | `task`, `afterHours` | Takes the next lease of a claim, which the clock `afterHours` after its last commit makes stale, and pushes its takeover commit (15.7, 15.8) | `holder`, whether it took the lease, and `lease` |
+| `push` | `task` or `branch`, `files` | Pushes a commit to the task's claim branch, or to `branch`, never forced | `push`, `accepted` or `rejected` |
+| `land` | `task`, `mode`, `pr`, `checks`, `interrupt` | Decides the landing from the mode and the checks, ticks, and lands (16, 17). `interrupt: "before-tick"` stops after the work reaches the base and before the tick | `action`, and `landed` or `pull` |
+| `recover` | `task` | Reads whether the claim holds landed work, then ticks it on its done branch and deletes the claim branch and leases (16.5) | `action` and `landed` |
+| `mergePr` | `task` | Merges the task's open pull request at its head, as the step's runner (a person, in the scenarios) | `merged` |
+| `deleteBranch` | `task` or `branch` | Deletes a claim branch with its leases, as a person does (15.4) | `deleted` |
+
+A `push` with `branch` and `files` writes each file, so a scenario changes
+an approved task text this way. A `land` step first compares the task text its
+lease recorded with the text now approved (15.10), and returns `action: "none"`
+with `revision: "redo-or-stop"` when they differ.
+
+### Avoozl's adapter
+
+Avoozl's adapter is `src/app/test/workflow-kit-scenario.mjs`. It calls Avoozl's
+own claim, lease, landing and tick code, and runs it against a bare local git
+repository with a fake GitHub API over it (`workflow-kit-world.mjs`). The fake
+API keeps pull requests, merges with `merged_by`, deletes a head branch when
+the repository says so, and signs the commits it makes. A rejected push is
+git's own answer. Nothing uses a network or a real GitHub, so the scenarios run
+in CI as they do on a laptop.
+
+Avoozl has no takeover push, so `takeOver` takes the lease and pushes
+nothing, and the stale holder scenario marks `rejectedPushes` with
+`expectFail`.
+
 ## Running it
 
 `load.mjs` exports `readCases()`, which returns each case with its `files`, and
@@ -122,6 +241,7 @@ cases of the required profile and of each optional part it supports.
 `pass`, `fail`, `expected-fail` or `unexpected-pass` for each probe.
 
 Avoozl runs the kit in `src/app/test/workflow-kit.test.mjs` as part of its
-tests. A probe with `expectFail` passes while Avoozl gets it wrong. The test
+tests, and the same test fails when the scenarios page is out of date. Run
+`npm run kit:docs` to write it again. A probe with `expectFail` passes while Avoozl gets it wrong. The test
 fails once Avoozl gets it right, or once the named task is ticked in
 `.kiro/specs/simplify/tasks.md`, and the mark is then removed.

@@ -21,34 +21,52 @@ function filesUnder(dir, prefix = "") {
 // Each case: its `case.json` fields, its `name`, and `files`, the tree under
 // its `repo` folder keyed by path from the repository root. A case with a
 // `history` also gets each commit's `files`, read from `commits/<commit>`.
+// A case with `variants` is also read once per variant, as `<name>/<variant>`:
+// the variant's fields replace the case's, and its `title` is the case's
+// title and the variant's `title` after a colon.
 export function readCases(dir = path.join(here, "cases")) {
   return fs
     .readdirSync(dir)
     .sort()
-    .map((name) => {
+    .flatMap((name) => {
       const found = JSON.parse(
         fs.readFileSync(path.join(dir, name, "case.json"), "utf8"),
       );
-      return {
-        name,
-        ...found,
-        ...(found.history && {
-          history: found.history.map((entry) => ({
-            ...entry,
-            files: filesUnder(path.join(dir, name, "commits", entry.commit)),
-          })),
-        }),
-        files: filesUnder(path.join(dir, name, "repo")),
-      };
+      const { variants, ...base } = found,
+        read = {
+          ...base,
+          ...(found.history && {
+            history: found.history.map((entry) => ({
+              ...entry,
+              files: filesUnder(path.join(dir, name, "commits", entry.commit)),
+            })),
+          }),
+          files: filesUnder(path.join(dir, name, "repo")),
+        };
+      return [
+        { name, ...read },
+        ...Object.entries(variants ?? {}).map(
+          ([key, { title, ...fields }]) => ({
+            ...read,
+            ...fields,
+            name: `${name}/${key}`,
+            title: `${read.title}: ${title}`,
+          }),
+        ),
+      ];
     });
 }
+
+// The probes a case checks: a scenario's `then`, else a snapshot case's
+// `expect`.
+export const probesOf = (testCase) => testCase.then ?? testCase.expect ?? {};
 
 // One verdict per probe in `expect`: `pass`, `fail`, `expected-fail` or
 // `unexpected-pass`. `got` holds the runner's value for each probe it can
 // compute and leaves the others out.
 export function judge(testCase, got) {
   const verdicts = {};
-  for (const [probe, want] of Object.entries(testCase.expect ?? {})) {
+  for (const [probe, want] of Object.entries(probesOf(testCase))) {
     const ok = isDeepStrictEqual(got?.[probe], want),
       marked = testCase.expectFail?.[probe] !== undefined;
     verdicts[probe] = ok

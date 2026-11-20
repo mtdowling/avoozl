@@ -20,6 +20,7 @@
     "test:ci": "node scripts/test/run-tests.mjs --ui",
     "test:changed": "node scripts/test/run-tests.mjs --changed",
     "test:ui": "node --test --test-timeout=60000 hosts/kirocrew/ui/test/*.test.mjs",
+    "kit:docs": "node scripts/kit/scenarios-doc.mjs",
     "dup": "node scripts/check/dup.mjs",
     "dup:changed": "node scripts/check/dup.mjs --changed",
     "format": "biome format --write",
