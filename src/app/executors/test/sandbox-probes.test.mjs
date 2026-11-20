@@ -61,7 +61,9 @@ async function machine(t) {
   }
   const database = path.join(workspace, ".avoozl", "local", "workspace.sqlite");
   fs.mkdirSync(path.dirname(database), { recursive: true });
-  new DatabaseSync(database).close();
+  const db = new DatabaseSync(database);
+  db.exec("CREATE TABLE tasks (id TEXT)");
+  db.close();
   const catalog = new DatabaseSync(path.join(stateDirectory, "catalog.sqlite"));
   catalog.exec("CREATE TABLE workspaces (id TEXT, root TEXT)");
   catalog.prepare("INSERT INTO workspaces VALUES ('w', ?)").run(workspace);
@@ -248,6 +250,7 @@ test("every probe is refused inside Avoozl's sandbox", {
     "write-home",
     "write-config",
     "read-ssh",
+    "read-state",
     "read-workspace-database",
     "net-loopback-port",
   ])
