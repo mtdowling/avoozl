@@ -95,8 +95,8 @@ export function openSupervisorDatabase(stateDirectory) {
   fs.mkdirSync(paths.root, { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(paths.database);
   db.exec(`
-    PRAGMA journal_mode = WAL;
     PRAGMA busy_timeout = 5000;
+    PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS children (
       session_id TEXT PRIMARY KEY,
       role TEXT NOT NULL,

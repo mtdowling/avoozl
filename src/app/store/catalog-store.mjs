@@ -34,8 +34,8 @@ export class CatalogStore {
     this.db = new DatabaseSync(this.filename);
     fs.chmodSync(this.filename, 0o600);
     this.db.exec(`PRAGMA foreign_keys=ON;
-      PRAGMA journal_mode=WAL;
       PRAGMA busy_timeout=5000;
+      PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS meta(
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL

@@ -260,7 +260,7 @@ export class Store {
         .prepare("SELECT 1 FROM sqlite_master WHERE name='activity_log'")
         .get();
       this.db.exec(
-        "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;",
+        "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;",
       );
       renameProjects(this.db);
       // Defer the write lock so reopening a complete schema can still read
