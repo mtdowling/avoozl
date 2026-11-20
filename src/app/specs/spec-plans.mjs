@@ -23,10 +23,8 @@ import { lintPlan } from "./plan-quality.mjs";
 import { specFolderPath, specsDirectory } from "./specs-path.mjs";
 import {
   factName,
-  factsLines,
   factsText,
   itemBullets,
-  summaryLines,
   readFacts,
   withoutFacts,
 } from "./spec-facts.mjs";

@@ -1,14 +1,13 @@
 // The Recipe Box sample specs the page tests' sample workspace drafts
 // (demo-fixture.mjs). Every name in them is made up. Test only.
-import { factsLines } from "../specs/spec-facts.mjs";
 import { taskToken } from "../specs/spec-refs.mjs";
 
-// A task item, its Facts bullet (Requirement 111) and its summary bullets.
-const item = (id, title, { summary = [], ...entry }) =>
+// A task item and its done bullets (simplify §D20); a person's task ends
+// its title with the tag.
+const item = (id, title, { acceptance = [], manual = false }) =>
   [
-    `- [ ] ${taskToken(id)} ${title}`,
-    ...factsLines(entry),
-    ...summary.map((line) => `  - ${line}`),
+    `- [ ] ${taskToken(id)} ${title}${manual ? " (**MANUAL**)" : ""}`,
+    ...acceptance.map((line) => `  - ${line}`),
   ].join("\n");
 
 const leaf = (done, extra = {}) => ({
@@ -102,7 +101,7 @@ export function sampleSpecs({ word = "demo" } = {}) {
   };
   const files = {};
   for (const [name, spec] of Object.entries(specs)) {
-    const lines = ["# Tasks", ""];
+    const lines = ["---", "repo: app", "---", "# Tasks", ""];
     for (const [phase, items] of spec.phases) {
       lines.push(`## ${phase}`, "");
       for (const [id, title] of items)
@@ -110,7 +109,7 @@ export function sampleSpecs({ word = "demo" } = {}) {
       lines.push("");
     }
     files[name] = {
-      "requirements.md": `---\nepic: recipe-box\n---\n# ${spec.title}\n\nMade-up ${word} spec. ${spec.goal}\n\n## Requirement 1\n\nWHEN a person uses ${spec.title.toLowerCase()} THEN it SHALL work as the tasks say.\n`,
+      "requirements.md": `# ${spec.title}\n\nMade-up ${word} spec. ${spec.goal}\n\n## Requirement 1\n\nWHEN a person uses ${spec.title.toLowerCase()} THEN it SHALL work as the tasks say.\n`,
       "design.md": `# ${spec.title} design\n\nMade-up ${word} design. ${spec.goal}\n`,
       "tasks.md": lines.join("\n"),
     };
@@ -119,15 +118,19 @@ export function sampleSpecs({ word = "demo" } = {}) {
   files["recipe-box"] = {
     "requirements.md": `# Recipe Box\n\nMade-up ${word} epic: a small app to import recipes, plan meals and shop.\n\n## What done means\n\nEvery member spec is done.\n`,
     "design.md": "# Design\n\nImport first, then the planner, then the list.\n",
-    "tasks.md": `---\nkind: epic\n---\n# Plans\n\n${members
-      .map((m, i) => item(i + 1, specs[m].title, { plan: m }) + "\n")
+    // The parent links each member spec, in order (simplify §D19.2).
+    "tasks.md": `# Plans\n\n${members
+      .map(
+        (m, i) =>
+          `- [ ] \`rb-${i + 1}\` Build [${specs[m].title}](../${m}/tasks.md)\n`,
+      )
       .join("")}`,
   };
   // A draft spec the demo never approves.
   files["pantry-photos"] = {
     "requirements.md": `# Pantry photos\n\nMade-up ${word} draft. Take a photo of the pantry and list what is in it.\n`,
     "design.md": "# Design\n\nNot written yet.\n",
-    "tasks.md": `# Tasks\n\n## Try it\n\n${item(
+    "tasks.md": `---\nrepo: app\n---\n# Tasks\n\n## Try it\n\n${item(
       "1.1",
       "Read one photo into a list",
       leaf("A photo of three jars lists three items."),
