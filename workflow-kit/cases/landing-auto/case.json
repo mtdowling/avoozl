@@ -1,0 +1,34 @@
+{
+  "title": "An auto pull request is merged by the runner once checks pass",
+  "rules": ["14.4"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "pr",
+    "pr": "auto"
+  },
+  "expect": {
+    "landing": {
+      "action": "open-and-merge-pull-request",
+      "base": "main",
+      "tick": "same-commit",
+      "mergeBase": false,
+      "deleteClaimBranch": true
+    }
+  },
+  "expectFail": {
+    "landing": "sim-1.4"
+  }
+}

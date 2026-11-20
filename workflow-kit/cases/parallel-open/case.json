@@ -1,0 +1,31 @@
+{
+  "title": "A parallel group's children are ready together, in file order",
+  "rules": ["3.2", "3.3", "10.1", "10.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "epic-context": ["acme-alice"]
+  },
+  "expect": {
+    "ready": [
+      "epic-context/ec-2.4",
+      "epic-context/ec-2.5",
+      "epic-context/ec-2.6"
+    ],
+    "claim": {
+      "branch": "avoozl/epic-context/ec-2.4",
+      "base": "main",
+      "mergeBase": false
+    }
+  },
+  "expectFail": {
+    "ready": "sim-2.1",
+    "claim": "sim-1.1"
+  }
+}

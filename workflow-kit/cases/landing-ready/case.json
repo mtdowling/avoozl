@@ -1,0 +1,34 @@
+{
+  "title": "A ready pull request is opened and left to a person",
+  "rules": ["14.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "pr",
+    "pr": "ready"
+  },
+  "expect": {
+    "landing": {
+      "action": "open-pull-request",
+      "base": "main",
+      "tick": "same-commit",
+      "mergeBase": false,
+      "deleteClaimBranch": false
+    }
+  },
+  "expectFail": {
+    "landing": "sim-1.4"
+  }
+}

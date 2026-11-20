@@ -1,0 +1,21 @@
+{
+  "title": "A claim branch takes the task, and the next waits",
+  "rules": ["9.1", "12.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "ready": []
+  },
+  "expectFail": {
+    "ready": "sim-2.1"
+  }
+}

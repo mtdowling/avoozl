@@ -1,0 +1,33 @@
+{
+  "title": "With landing off the runner pushes the claim branch only",
+  "rules": ["14.5"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "off"
+  },
+  "expect": {
+    "landing": {
+      "action": "push-claim-branch",
+      "base": "main",
+      "tick": "same-commit",
+      "mergeBase": false,
+      "deleteClaimBranch": false
+    }
+  },
+  "expectFail": {
+    "landing": "sim-1.4"
+  }
+}
