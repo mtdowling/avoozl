@@ -49,6 +49,7 @@ import {
 } from "../workspace/repository-checks.mjs";
 import { pluginChecksOf } from "../plugins/plugin-checks.mjs";
 import { taskPluginChecks } from "../plugins/check-stages.mjs";
+import { contextChip } from "../context/context-record.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
@@ -423,6 +424,8 @@ export function graphView(store, data, input = {}, folders = []) {
       nextAction: task.nextAction ?? null,
       // The archived plan this task belongs to; the page hides it by default.
       planArchived: archivedOf(task),
+      // The chip: epic context the task's last session got (EC9.1).
+      epicContext: contextChip(store, task.id),
       ...ownership(task),
     })),
     edges: data.edges

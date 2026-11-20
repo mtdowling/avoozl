@@ -5,7 +5,7 @@
 // text, rendered as text.
 import { useCallback, useMemo, useState } from 'react'
 import Badge from './ui/Badge.tsx'
-import { Input } from './ui/Input'
+import { MappingForm } from './MappingForm.tsx'
 import { TipBtn } from './ui/controls.tsx'
 import { Card } from './ui/Card'
 import { SectionHeading } from './ui/controls.tsx'
@@ -139,37 +139,20 @@ function ServerMapping(props: { plugin: string; server: PluginChecksPart['server
           'Not mapped on this machine: its checks do not run.'
         )}
       </Hint>
-      {editing ? (
-        <Stack gap={2}>
-          <Input aria-label={`Command for ${props.server.alias}`} value={command} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCommand(e.target.value)} />
-          <Input
-            aria-label={`Environment names for ${props.server.alias}`}
-            value={env}
-            placeholder="REVIEW_TOKEN"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEnv(e.target.value)}
-          />
-          {problem ? <ErrorText size="xs">{problem}</ErrorText> : null}
-          <Row gap={2}>
-            <TipBtn tooltip="Save this machine's mapping. The plugin needs approving again." primary disabled={props.busy} onClick={save}>
-              Save mapping
-            </TipBtn>
-            <TipBtn tooltip="Keep the mapping as it is" disabled={props.busy} onClick={() => setEditing(false)}>
-              Cancel
-            </TipBtn>
-          </Row>
-        </Stack>
-      ) : (
-        <Row gap={2}>
-          <TipBtn
-            tooltip="Name the local stdio MCP server command for this alias, and the environment names it may read. No credential goes in it."
-            disabled={props.busy}
-            onClick={() => setEditing(true)}
-            data-set-mapping
-          >
-            Set mapping
-          </TipBtn>
-        </Row>
-      )}
+      <MappingForm
+        alias={props.server.alias}
+        busy={props.busy}
+        editing={editing}
+        setEditing={setEditing}
+        command={command}
+        setCommand={setCommand}
+        env={env}
+        setEnv={setEnv}
+        envPlaceholder="REVIEW_TOKEN"
+        openTip="Name the local stdio MCP server command for this alias, and the environment names it may read. No credential goes in it."
+        problem={problem}
+        onSave={save}
+      />
     </Box>
   )
 }

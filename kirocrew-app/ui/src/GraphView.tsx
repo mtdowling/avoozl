@@ -226,6 +226,11 @@ function Details(props: { task: GraphTask; batch: GraphBatch | null; neighbors: 
           <Badge variant={state === 'needs-you' ? 'warning' : state === 'ready' ? 'info' : undefined}>{STATE_LABEL[state]}</Badge>
           {task.review && <Badge>review</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
+          {task.epicContext && (
+            <Box as="span" data-epic-context>
+              <Badge>{task.epicContext.label}</Badge>
+            </Box>
+          )}
           {task.handSetReview && <Badge variant="warning">set by hand</Badge>}
         </Box>
         {task.handSetReview && (

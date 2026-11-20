@@ -6,11 +6,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { approverCheck, approvalCommits } from "../../git/git-approvals.mjs";
+import { approverCheck } from "../../git/git-approvals.mjs";
 import { epicContextGate } from "../epic-context.mjs";
-import { bindDriver } from "../driver.mjs";
 import { parseSpec } from "../../specs/spec-plans.mjs";
 import { fixture } from "../../test/fixtures.mjs";
+import { seedApproval } from "../../test/epic-context-seed.mjs";
 import { OWNER, specCheckout } from "../../test/spec-checkout.mjs";
 import { writeSpec } from "../../test/spec-fixture.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
@@ -40,39 +40,11 @@ async function world(
     { store } = fixture(t);
   writeSpec(r.root, "config");
   commitAs(r, author);
-  const [entry] = await approvalCommits(r.root, { allowed: async () => true });
-  const plan = {
-    id: "config",
-    spec: "config",
-    state: "approved",
-    hash: entry.hash,
-    approvalId: "approval-1",
-    files: entry.files,
-  };
-  store.put("plans", plan);
-  store.put("approvals", {
-    id: "approval-1",
-    planId: "config",
-    hash: entry.hash,
+  await seedApproval(store, {
+    root: r.root,
+    tasks: [TASK, ...(extraTask ? [extraTask] : [])],
+    drive,
   });
-  const data = store.read();
-  for (const id of [TASK, ...(extraTask ? [extraTask] : [])])
-    data.tasks.push({
-      id,
-      title: id,
-      scope: "catalog",
-      status: "planned",
-      track: "catalog",
-      tags: [],
-      acceptance: ["x"],
-      planId: "config",
-    });
-  store.commit(data, "seed", data.revision);
-  bindDriver(store, {
-    settingsFile: path.join(temporaryDirectory(), "driver.json"),
-    workspaceRoot: r.root,
-  });
-  setDriver(store, drive);
   const deps = {
     workspaceRoot: r.root,
     checkout: async () => r.root,
@@ -85,23 +57,6 @@ async function world(
     deps,
     gate: (id = TASK) => epicContextGate(store, { taskId: id }, deps),
   };
-}
-
-const DRIVER = {
-  driver: { state: "driver", reason: "driver" },
-  "not-shared": { state: "driver", reason: "not-shared" },
-  "other-person": {
-    state: "read-only",
-    reason: "other-person",
-    assignees: ["octo-dev"],
-  },
-  "no-assignee": { state: "read-only", reason: "no-assignee" },
-  several: { state: "read-only", reason: "several", assignees: ["a", "b"] },
-  unreadable: { state: "read-only", reason: "unreadable", error: "boom" },
-};
-function setDriver(store, name) {
-  if (name === "none") return;
-  store.put("drivers", { id: "config", mode: "github", ...DRIVER[name] });
 }
 
 const failed = (result) =>

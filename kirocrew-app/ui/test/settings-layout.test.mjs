@@ -160,7 +160,7 @@ test('who counts is one row on the GitHub tab, with write as the default; no sep
 })
 
 test('Settings has a GitHub page; Workspaces keeps only workspace things', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'context', 'content', 'flow', 'models', 'delivery'])
   assert.doesNotMatch(settings, /Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
   const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf('if (!workspaceId)'))
