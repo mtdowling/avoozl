@@ -663,8 +663,7 @@ The same change makes lint refuse every `$` bullet and the removed keys,
 removes their reads, and updates the "Task facts", "Front matter", "Epics",
 "Ready tasks", "Next task", "Investigating first", "Labeled issues",
 "Manual tasks and gates" and "Integration branches" sections of
-`docs/github-workflow.md` and the task list and front matter sections of
-`docs/avoozl-specs.md`.
+`docs/github-workflow.md`.
 
 ## D20. Tasks with no facts
 

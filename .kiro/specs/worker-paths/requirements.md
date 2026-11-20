@@ -195,5 +195,5 @@ which one a sentence means.
    `runner.role: "worker"` keep their names.
 3. A test over the page's strings, the help table and those documents SHALL
    fail on "Crew Mode", "runner mode", "remote crew" and
-   "conductor". Dated records under `docs/research/`, `docs/evidence/` and
-   `docs/proposals/` are not checked.
+   "conductor". Dated records under `docs/research/` and
+   `docs/evidence/` are not checked.

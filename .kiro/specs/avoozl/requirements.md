@@ -2569,7 +2569,7 @@ chatty agent cannot reach my secrets or my approvals.
    the database opens. Backups and `export --output` files SHALL be 0600. An
    existing workspace SHALL be tightened on open. The docs SHALL say what
    happens on Windows.
-4. `docs/policies.md` SHALL name the repository-owned code that runs on its
+4. `docs/checks.md` SHALL name the repository-owned code that runs on its
    own. `scripts/worktree` SHALL run only when the repository's `worktreeHelper`
    equals its SHA-256 hash; otherwise the refusal SHALL show the hash.
 5. A repository MAY set `checksEnv`, a list of variable names. Check processes
@@ -3953,7 +3953,7 @@ folders live and a spec to need only its task list, so that a spec can be one
 6. Kiro's `requirements.md` (or `bugfix.md`) + `design.md` + `tasks.md`
    layout SHALL read, hash and lint as before, including a bugfix spec's
    Unchanged Behavior acceptance and the front-matter category.
-7. The planner prompt, templates, skills and `docs/avoozl-specs.md` SHALL describe
+7. The planner prompt, templates, skills and `docs/github-workflow.md` SHALL describe
    the path setting, the one required file and other files as spec text.
 8. Tests SHALL show: a custom path; a `tasks.md`-only spec; an extra `.md`
    file changing the hash; refs with and without their files; Kiro's layout
