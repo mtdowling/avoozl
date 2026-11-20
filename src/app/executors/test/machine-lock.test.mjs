@@ -6,7 +6,6 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import {
   loopLockPaths,
   lockHolder,
@@ -15,7 +14,7 @@ import {
   tryLock,
 } from "../machine-lock.mjs";
 
-const LOCK = fileURLToPath(new URL("../machine-lock.mjs", import.meta.url));
+const LOCK = new URL("../machine-lock.mjs", import.meta.url).href;
 
 // A starter: waits for the barrier file, takes the lock, prints "held" or
 // "refused <pid>", and keeps a held lock until its stdin closes.
