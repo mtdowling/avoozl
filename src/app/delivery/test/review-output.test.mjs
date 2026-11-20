@@ -80,7 +80,7 @@ test("the first pass posts nothing; a later review round is one spec issue comme
 
 test("a task with a pull request gets its output there", async (t) => {
   const { store, github, comments } = setup(t);
-  await postReviewOutput(store, github, { now: START });
+  store.setMeta("review-output.since", START);
   store.put("repositories", { id: "code", github: "example/code", root: "/x" });
   store.mutate("Name the repository", (data) => {
     data.tasks[0].repository = "code";
@@ -96,7 +96,7 @@ test("a task with a pull request gets its output there", async (t) => {
 
 test("a failing check run is posted with its command and output tail", async (t) => {
   const { store, github, comments } = setup(t);
-  await postReviewOutput(store, github, { now: START });
+  store.setMeta("review-output.since", START);
   store.put("flow_records", {
     id: "check-run:sample-task:1",
     kind: "check-run",
@@ -144,7 +144,7 @@ test("output the content rules refuse is held, not posted", async (t) => {
     configFile: path.join(ws, "no-config.json"),
     machine: { hostname: "made-up-host", username: "madeupuser" },
   });
-  await postReviewOutput(store, github, { now: START });
+  store.setMeta("review-output.since", START);
   review(store, 1, LATER, [
     { ...FINDING, text: "It names made-up-private-plan." },
   ]);
@@ -158,7 +158,7 @@ test("output the content rules refuse is held, not posted", async (t) => {
 
 test("a failed post is tried again on the next pass", async (t) => {
   const { store, github, comments } = setup(t);
-  await postReviewOutput(store, github, { now: START });
+  store.setMeta("review-output.since", START);
   review(store, 1, LATER);
   const post = github.createIssueComment;
   github.createIssueComment = async () => {

@@ -250,6 +250,8 @@ export async function publishApproved(
 ) {
   const pending = store.getMeta(PENDING) ?? {};
   if (!Object.keys(pending).length) return [];
+  // `identity` may be a function, read only when something is queued.
+  if (typeof identity === "function") identity = identity();
   if (!identity?.mode || !github?.available?.()) {
     store.setMeta(PENDING, {});
     return [];

@@ -107,6 +107,9 @@ export async function postReviewOutput(store, github, { now } = {}) {
   if (!github?.createIssueComment) return [];
   let since = store.getMeta(SINCE);
   if (!since) {
+    // Written once, the first time there is any output to post, so a pass
+    // with none writes nothing.
+    if (!due(store, "").length) return [];
     since = new Date(now ?? Date.now()).toISOString();
     store.setMeta(SINCE, since);
     return [];

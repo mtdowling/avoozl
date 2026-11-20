@@ -36,7 +36,7 @@ or internal tool.
 ## Phase 4: Review output on GitHub
 
 - [x] `gn-4.1` Post each review round on the pull request or the spec issue [GN5.1, GN5.2, GN5.4, GN5.5, GN5.6, GN5.7] (§D4)
-  - With a fake GitHub: a review round is one marked spec issue comment naming the task and commit, once; a task with a pull request gets it there; text the content rules refuse is held; a failed post is tried again; rounds from before the first pass are not posted
+  - With a fake GitHub: a review round is one marked spec issue comment naming the task and commit, once; a task with a pull request gets it there; text the content rules refuse is held; a failed post is tried again; output that exists before the first pass is not posted
 - [x] `gn-4.2` Post failing checks the same way [GN5.3] (§D4)
   - A failing check run is one comment with each failing check's command, exit code and output tail, and no passing check
 

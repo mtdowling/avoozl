@@ -64,8 +64,9 @@ kind=<role or checks> -->`. A `review-output:<task>:<round>:<kind>` receipt
 records it as `posted`, or `held` when the content rules refuse it; either
 way it is not posted again.
 
-The first pass stores `review-output.since` and posts nothing, so turning
-this on does not post every review a workspace already holds.
+The first pass that finds any output stores `review-output.since` and posts
+nothing, so turning this on does not post every review a workspace already
+holds, and a pass with no output writes nothing.
 
 ## D5. Edits to other specs
 

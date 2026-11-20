@@ -117,7 +117,8 @@ read them without Avoozl's page.
    posted.
 6. Avoozl SHALL post each round once, through the `review-output` GitHub
    job, a low-risk job. A failed post SHALL be tried again on the next
-   tick. Rounds from before the first pass SHALL NOT be posted.
+   tick. Output that already exists when Avoozl first finds any SHALL NOT be
+   posted, and a pass with no output SHALL write nothing.
 7. Tests with a fake GitHub SHALL show: a review round is one spec issue
    comment, once; a task with a pull request gets it there; a failing check
    run is posted with its command and tail; refused text is held; and a

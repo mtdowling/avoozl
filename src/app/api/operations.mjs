@@ -960,8 +960,10 @@ export class Operations {
   async publishApproved() {
     return publishApproved(this.store, {
       github: this.github,
-      identity: planningIdentity(this.workspaceRoot),
-      evidence: evidenceCache(this.workspaceRoot),
+      identity: () => planningIdentity(this.workspaceRoot),
+      evidence: {
+        get: (commit) => evidenceCache(this.workspaceRoot).get(commit),
+      },
       homeOf: async (plan) => {
         const root = await this.approvalCheckout(plan);
         return root ? originRepositorySync(root) : null;
