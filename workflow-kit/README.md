@@ -58,12 +58,14 @@ workflow-kit/cases/serial-list-next/
 | `runner` | The login the runner acts as, and the repository's default branch |
 | `origin.branches` | Every branch on origin, claim branches and lease refs included |
 | `origin.behind` | Integration branches that do not yet hold the default branch's head |
-| `origin.leases` | Each task's leases as `{generation, ageHours}`, by `spec/task` |
+| `origin.leases` | Each task's leases as `{generation, ageHours}`, by `spec/task`, with `released: true` on a released lease |
 | `origin.claimAgeHours` | Hours since each claim branch's newest commit, by `spec/task` |
 | `origin.graph` | The commits a case names, as `{commit: [parents]}` |
 | `origin.heads` | The head commit of each branch the case reads, by branch name |
+| `origin.taskFiles` | For an integration branch, the specs whose task file it holds. A branch missing here holds every spec's |
 | `origin.mergedPullHeads` | Head ref names of merged pull requests, claim branches GitHub deleted included |
 | `issues` | Each spec's issue assignees, by spec name. A spec missing here has no issue |
+| `stops` | The specs whose issue carries a writer's stop label |
 | `issueList` | Present on marker cases: each issue's `number`, `state`, `author` and `body` |
 | `writers` | The logins with write access, when a case needs to tell them from strangers |
 | `approvers` | The logins that may approve a spec, with `history` |

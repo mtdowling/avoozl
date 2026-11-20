@@ -63,13 +63,13 @@ Each term below has one meaning in this document.
 | File-backed task | A task in a task file. The other kind is a labeled issue (11). |
 | Spec issue | The issue whose assignee decides which login runs a spec (8.2). |
 | Integration branch | A branch a person creates, named exactly as a spec's folder, to collect that spec's tasks (14). |
-| Base | The branch a task lands on: the integration branch that holds its spec (14.1), else the default branch. |
-| Done branch | The branch whose task file says whether a task is done: its base when the base is an integration branch that holds the spec's task file (14.1), else the specs branch. |
+| Base | The branch a task lands on: its spec's integration branch, the outermost one up a link chain (14.1), else the default branch. |
+| Done branch | The branch whose task file says whether a task is done: its base when the base is an integration branch that holds the task file of the task's own spec, else the specs branch (14.6). For a task of a linked spec, that base is the outermost parent's integration branch (14.1). |
 | Claim | A runner's hold on a task: its claim branch and the lease on it (15). |
 | Claim branch | `avoozl/<spec>/<task>`, the branch a task is worked and checked on. |
 | Start commit | The base's head a claim branch was created at. The lease commit records it (15.1). |
-| Lease | A ref named `avoozl-lease/<spec>/<task>/<generation>` that gives its holder permission to push to the claim branch (15.5). |
-| Stale hours | The time a claim may go without a new commit before its lease is stale (15.4, 15.6). The runner's setting. |
+| Lease | A ref named `avoozl-lease/<spec>/<task>/<generation>` (15.5). The newest lease, the one with the highest generation, gives its holder permission to push to the claim branch until it is released (15.6). |
+| Stale hours | The runner's setting for how long a claim branch and its newest lease may go without a new commit before the claim is stale (15.4, 15.6). |
 | Landed work | Checked work that is on the base, or whose pull request merged (16.5). |
 
 ## 1. Spec folders
@@ -250,6 +250,8 @@ inline or reference-style.
   ticks it in its own commit. When the linked spec's tasks are done on an
   integration branch, the spec group is ticked on the parent spec's done
   branch once every task of the linked spec is done on its own done branch.
+  Each of these ticks is a checkbox-only commit under 7.5, even on another
+  repository's specs branch, so it needs no approval and approves nothing.
 - **6.4** A runner MUST refuse a spec group with sub-items of its own, a spec
   linked as a spec group more than once in a repository, and a link to a spec
   folder that does not exist. The last case is allowed when an earlier
@@ -273,10 +275,10 @@ whoever authors it, and it approves nothing, even when an approver authors it.
 +- [x] `p-1` Read the token table
 ```
 
-- **7.1** An approver merges a pull request that changes the spec, or pushes a
-  commit to the specs branch. Anyone MAY open the pull request. The commit
-  message carries nothing, and the committer does not matter, so a squash
-  merge made by GitHub counts.
+- **7.1** An approver approves by merging a pull request that changes the
+  spec, or by pushing a commit to the specs branch. Anyone MAY open the pull
+  request. A runner MUST NOT require anything of the commit message or the
+  committer, so a squash merge made by GitHub counts.
 - **7.2** A commit approves only with evidence that an approver stands behind
   it. The evidence MUST be one of these three:
   - the commit is the merge commit of a pull request whose GitHub `merged_by`
@@ -296,8 +298,10 @@ whoever authors it, and it approves nothing, even when an approver authors it.
   returns the text to the approved text approves the spec again.
 - **7.4** A commit that changes only task checkboxes is not an approval and
   does not end one.
-- **7.5** A runner's commit to the specs branch MAY change only task checkboxes
-  in spec files. A task that writes spec text lands by a pull request that an
+- **7.5** A runner's commit to a specs branch MAY change only task checkboxes
+  in spec files. This holds on another repository's specs branch too, as for
+  a tick under 6.3 or 16.2. Such a commit needs no approval and approves
+  nothing (7.4). A task that writes spec text lands by a pull request that an
   approver merges (7.1).
 
 ## 8. Spec issues and assignment
@@ -319,9 +323,9 @@ The assignee of a spec's issue decides which login runs the spec.
   to no one else.
 - **8.4** A person takes a spec by assigning themselves and releases it by
   removing themselves. To give a spec to another login, the current runner
-  stops claiming new tasks, pushes every claim branch it holds and releases
-  each lease (15.6), and a person changes the assignee. The new login's runner
-  resumes each pushed claim branch (15.7).
+  stops claiming new tasks, pushes every claim branch it holds, keeps those
+  branches and releases each lease (15.6), and a person changes the assignee.
+  The new login's runner resumes each pushed claim branch (15.7).
 
 For a runner acting as `acme-alice`:
 
@@ -343,9 +347,8 @@ label and exclude issues labeled `needs-design`.
   added by a writer count (20.3). Both lists are empty by default.
 - **9.2** Every default label name a runner supplies for this workflow MUST
   start with `avoozl:`. A runner MUST let the operator choose each label
-  name per repository, including the stop label (10) when it supports
-  stopping. A configured name may use any prefix. A work-in-progress label is
-  optional and grants no claim.
+  name per repository, including the stop label (10). A configured name may
+  use any prefix. A work-in-progress label is optional and grants no claim.
 
 ## 10. Stopping a spec
 
@@ -353,11 +356,14 @@ A writer stops a spec by labeling its issue. The default stop label is
 `avoozl:stopped`, and a repository can use another name, such as `team:hold`
 (9.2). Runners that should stop together need the same name.
 
-- **10.1** When a writer applies the runner's stop label to a spec issue or
-  to any ancestor spec's issue, the runner MUST stop making new claims for that
-  spec. Existing claims keep their leases. Only an approver's removal of that
-  label clears the stop. A labeled issue (11) is its own spec issue for this
-  rule.
+- **10.1** A spec is stopped while a writer's stop label is on its spec issue
+  or on the issue of any parent spec that links it. A labeled issue (11) is
+  its own spec issue for this rule. A runner MUST treat the stop as cleared
+  only when an approver removes that label.
+- **10.2** A task of a stopped spec is not ready (12.1), so a runner MUST NOT
+  claim it. A runner that holds a claim on it MAY keep its lease or release it
+  (15.6). It MUST make no further push to the claim branch, and MUST NOT land
+  the task, until the stop clears.
 
 ## 11. Labeled issues
 
@@ -380,17 +386,18 @@ edit.
   even if the text is restored. A writer authorizes the current text by
   removing and reapplying the label.
 - **11.2** Before claiming, the runner MUST verify that the issue is open,
-  assigned solely to its login, and authorized under 11.1. The claim branch is
-  `avoozl/issue-<number>/issue-<number>`. Before starting work, the lease
-  holder records the revision in an empty commit with the subject
-  `Issue #<number> label event <id>`, using the authorizing GitHub event ID. A
-  runner resuming the claim reads the latest such commit on the claim
+  assigned solely to its login, and authorized under 11.1. The claim branch
+  MUST be `avoozl/issue-<number>/issue-<number>`. Before starting work, the
+  lease holder MUST record the revision in an empty commit with the subject
+  `Issue #<number> label event <id>`, using the authorizing GitHub event ID.
+  A runner resuming the claim MUST read the latest such commit on the claim
   branch's first-parent history since the claim began.
 - **11.3** The issue's closure records completion in place of a checkbox. A
-  pull request references the issue by number without a closing keyword. After
-  landing, the lease holder verifies the authorization again, names the landed
-  commit on the issue and closes it. If the text changed, the issue stays open
-  for the writer to review.
+  pull request MUST reference the issue by number and MUST NOT use a closing
+  keyword. After landing, the lease holder MUST verify the authorization
+  again, SHOULD name the landed commit on the issue, and MUST close it. If
+  the text changed, the holder MUST leave the issue open for the writer to
+  review.
 - **11.4** On resume, the lease holder MUST verify that the issue is open,
   assigned solely to its login, and still authorized by the recorded event.
   Whoever merges or pushes the work to the base MUST repeat that check
@@ -411,7 +418,8 @@ A runner ranks only the tasks it can claim.
   - No claim branch exists for it, and no merged pull request names its
     claim branch as the head ref (16.5).
   - It passes the assignment rule (8.3, or 11.2 for a labeled issue) and any
-    label filters or stops the runner supports (9, 10).
+    label filters the runner supports (9.1).
+  - Its spec is not stopped (10.1).
 - **12.2** A runner MUST create a claim only for a ready task. The lease
   holder works the claimed task and lands it under sections 16 and 17. For a
   labeled issue, the authorization also passes 11.4 at landing.
@@ -449,10 +457,14 @@ A person creates a branch named for a spec to collect its tasks there.
 - **14.4** Tasks claimed together SHOULD start from one merged head.
 - **14.5** When the merge conflicts, a runner MUST NOT claim a task on that
   branch until a person resolves it.
-- **14.6** A task whose base is an integration branch that holds its spec is
-  done when its box is ticked on that branch (18.1), and a task that waits for
-  it is ready once the tick is there. The tick reaches the default branch when
-  a person merges the integration branch.
+- **14.6** A task's done branch is its base when the base is an integration
+  branch that holds the task file of the task's own spec. For a task of a
+  linked spec, that base is the outermost parent's integration branch (14.1).
+  Otherwise the done branch is the specs branch, even when the task lands on
+  an integration branch. A task is done when its box is ticked on its done
+  branch (18.1), and a task that waits for it is ready once the tick is
+  there. A tick on an integration branch reaches the default branch when a
+  person merges that branch.
 
 ## 15. Claims
 
@@ -478,6 +490,13 @@ it, or uses the claim branch's head when no lease exists, because no agent runs
 before the first lease. It records the task text approved when it takes the
 lease.
 
+A runner releases its lease by moving the lease ref to a release commit, a
+child of the lease commit with the same tree:
+
+```text
+Release parser/p-2 generation 1
+```
+
 In this handoff, runner A releases its lease before the assignee changes.
 
 ```mermaid
@@ -490,9 +509,9 @@ sequenceDiagram
   G-->>A: Created
   G-->>B: Already exists
   A->>G: Create avoozl-lease/parser/p-2/1
-  A->>G: Push claim branch, delete lease 1
+  A->>G: Push claim branch, release lease 1
   Note over A,B: Assignee changes to B's login
-  B->>G: Create avoozl-lease/parser/p-2/1
+  B->>G: Create avoozl-lease/parser/p-2/2
   G-->>B: Created, resume p-2
 ```
 
@@ -503,26 +522,35 @@ sequenceDiagram
 - **15.2** A runner whose create fails MUST NOT work on that task and SHOULD
   refresh the ready tasks and select again under 13.
 - **15.3** A runner MUST push to a claim branch only while it holds the
-  newest lease of that claim. It MUST read the claim's leases before each push
-  and before it lands the task. A runner that finds a newer lease it did not
-  create MUST stop work on that task.
+  newest lease of that claim and has not released it. It MUST read the
+  claim's leases before each push and before it lands the task. A runner that
+  finds a newer lease it did not create MUST stop work on that task.
 - **15.4** When a claim branch has no new commit for the stale hours, the
   runner SHOULD notify the assignee. A runner MUST NOT delete another runner's
   claim branch on its own. A person can delete the branch to free the task.
 - **15.5** A runner takes a lease by creating generation `n + 1`, where `n` is
-  the highest generation that exists for the task, or `0` when none does. A
-  runner whose create fails MUST NOT work on the task.
-- **15.6** A runner that stops a task MUST release its lease by deleting the
-  lease ref. A holder MUST renew its lease at least every half of the stale
-  hours by moving the lease ref to a new lease commit. A lease is stale when
-  its lease commit and the claim branch's newest commit are both older than
-  the stale hours. A stale lease needs no cleanup, because the next generation
-  replaces it, and a runner MUST NOT delete another runner's lease. A runner
-  deletes every lease of a task together with the claim branch it deletes.
+  the highest generation whose ref exists for the task, or `0` when none does.
+  A runner whose create fails MUST NOT work on the task. Lease refs stay until
+  their claim branch goes (15.6), so a generation number is never used twice
+  for one claim branch, and the newest lease is always the highest
+  generation.
+- **15.6** A holder MUST renew its lease at least every half of the stale
+  hours by moving the lease ref to a new lease commit. A runner that stops
+  working a task it holds MUST release its lease by moving the lease ref to a
+  release commit. A released lease grants no push. A lease is stale when its
+  lease commit and the claim branch's newest commit are both older than the
+  stale hours. A stale or released lease needs no cleanup, because the next
+  generation replaces it. Lease refs are deleted only with their claim
+  branch, or once it is gone. A runner MUST NOT delete a lease another runner
+  may still hold: the newest lease, when it is neither released nor stale. A
+  runner deletes only leases it created, with one exception: a runner that
+  deletes a claim branch it may delete (20.5) MUST delete every older lease
+  of that task with it, whoever created them.
 - **15.7** A runner MAY resume an existing claim branch of a spec assigned to
   its own login, after a handoff (8.4) or a restart, when the claim has no
-  lease or its newest lease is stale (15.6). It resumes by taking a lease
-  (15.5), so one runner resumes it, even when several share the login.
+  lease or its newest lease is stale or released (15.6). It resumes by
+  taking a lease (15.5), so one runner resumes it, even when several share
+  the login.
 - **15.8** A runner that takes a lease on an existing claim (15.7) MUST push a
   takeover commit to the claim branch before it works or lands. The takeover
   commit is a child of the branch's head that changes no file. GitHub moves a
@@ -559,12 +587,15 @@ Landing puts the checked work on the base and records completion.
   checked head by mode (17). If the base moves before landing, it MUST repeat
   the merge and checks. The task MUST stay claimed until the work has landed
   and the holder has recorded completion on the done branch (18.1) or the
-  issue (11.3). The holder then deletes the claim branch and its leases.
+  issue (11.3). The holder SHOULD then delete the claim branch and the
+  task's leases (20.5).
 - **16.2** A file-backed task's tick MUST be on its done branch. When the done
   branch is the base, the tick MUST be in the same commit as the work, or in a
   commit on the claim branch before the checks run. When the done branch is
   another branch, such as the specs branch of another repository, the runner
-  ticks the task there in its own commit once the work has landed.
+  ticks the task there in its own commit once the work has landed. That
+  commit changes only the checkbox (7.5), so it needs no approval and
+  approves nothing.
 - **16.3** A runner MUST run the repository's checks on the exact head that
   will land, and MUST land nothing when they fail. In `direct` mode that head
   is the commit pushed to the base. In `pr` mode it is the pull request's
@@ -577,10 +608,11 @@ Landing puts the checked work on the base and records completion.
   request from the claim branch merged with that commit as its head. If the
   claim branch was deleted, find the merged pull request by its head ref.
   After an interruption, a runner on the spec assignee's login MAY record a
-  missing tick on the done branch (15.10, 16.2). For a labeled issue, the
-  lease holder verifies the authorization before closing it (11.3). The
-  runner MUST delete any remaining claim branch and leases once it records
-  completion.
+  missing tick on the done branch (15.10, 16.2). When the claim branch
+  remains, it first takes a lease on it (15.7). For a labeled issue, the
+  lease holder verifies the authorization before closing it (11.3). Once it
+  records completion, the runner SHOULD delete any remaining claim branch and
+  the task's leases (20.5).
 
 ## 17. Landing modes
 
@@ -624,10 +656,10 @@ base between the runner's last read and the merge.
 A file-backed task is done when its checkbox is ticked. A labeled issue is
 done when it closes (11.3).
 
-- **18.1** A file-backed task is done when its box is ticked on its done
-  branch. The commit that changes `- [ ]` to `- [x]` records who marked the
-  task done and when. A person may also mark a task done by ticking it on that
-  branch.
+- **18.1** A runner MUST treat a file-backed task as done only when its box
+  is ticked on its done branch. The commit that changes `- [ ]` to `- [x]`
+  records who marked the task done and when. A person MAY also mark a task
+  done by ticking it on that branch.
 
 ## 19. Review output
 
@@ -652,8 +684,12 @@ These limits apply in every landing mode.
 - **20.3** A runner MUST NOT act on a label a non-writer added.
 - **20.4** A runner MUST NOT force push, rewrite history, or rebase a shared
   branch (16.4).
-- **20.5** A runner MUST NOT delete a branch or lease it did not create,
-  except its own claim branch and that claim's leases after landing.
+- **20.5** A runner MUST NOT delete another runner's claim branch. It MAY
+  delete its own claim branch, the one whose newest lease it holds or
+  released, after the task lands or when it releases the claim unlanded: on a
+  stop (10.2), when it gives up the task, or in cleanup after an interruption
+  (16.5). It deletes the task's leases with it (15.6), and MUST NOT delete
+  any other branch or lease it did not create.
 - **20.6** A runner MUST NOT grant approval: it MUST NOT merge a spec pull
   request, land spec text on the specs branch (7.5), or change the list of
   approvers.
@@ -679,6 +715,7 @@ optional part it supports, and the kit cases for those parts.
 | Spec format | 1 to 5 |
 | Approval | 7 |
 | Assignment and finding the spec issue | 8.2, 8.3 |
+| Stopping a spec | 9.2, 10 |
 | Ready tasks and next task ranking | 12, 13 |
 | Claims and leases | 15.1 to 15.6, 15.9, 15.10 |
 | Landing and landed work | 16, and the rules of one landing mode in 17 |
@@ -700,9 +737,8 @@ A runner that leaves out an optional part gives the result in the last column.
 | Direct landing | 17.1 | The runner does not run in `direct` mode |
 | Pull request landing | 17.2 to 17.4, 17.6, 17.7 | The runner does not run in `pr` mode |
 | Off landing | 17.5 | The runner does not run in `off` mode |
-| Label filters | 9.1, 9.2 | Required and excluded labels do not affect this runner's claims |
-| Labeled issues | 9, 11 | The runner makes no spec from an issue |
-| Stop label | 9.2, 10 | Stop labels do not affect this runner's claims |
+| Label filters | 9.1 | Required and excluded labels do not affect this runner's claims |
+| Labeled issues | 9.1, 11 | The runner makes no spec from an issue |
 | Review output | 19 | The runner posts no review |
 
 ### Workflow kit
@@ -720,13 +756,16 @@ read and the answer it gave, so it cannot show what a runner writes or when.
 | Rules | Why the kit does not check them |
 | --- | --- |
 | 15.4, 16.4 | A runner's waiting time and the commits it writes are not in a case |
-| 1.1, 1.3, 2.1, 5.2, 5.3, 6.3, 7.5, 8.1, 9.1, 9.2, 10.1, 11.1, 11.2, 11.3, 11.4, 12.2, 14.2, 14.4, 14.5, 15.2, 17.6, 17.7, 19.1, 19.2 | No case yet |
+| 1.1, 1.3, 2.1, 5.2, 5.3, 8.1, 9.1, 9.2, 11.1, 11.2, 11.3, 11.4, 12.2, 14.2, 14.4, 14.5, 15.2, 17.6, 17.7, 19.1, 19.2 | No case yet |
 
 The kit checks these rules in part:
 
 | Rule | What the kit checks | What it leaves out |
 | --- | --- | --- |
+| 6.3 | That a runner's tick of a linked spec and its spec group keeps both approvals | When the runner ticks the spec group |
 | 7.2 | Whether each kind of evidence approves | That the runner says which kind it used |
+| 7.5 | That a runner's tick approves nothing and keeps the approval | That the runner's commit changes only checkboxes |
+| 10.2 | That a stopped spec's task is not ready | That a holder makes no push while the stop lasts |
 | 15.1 | The start commit decides landed work | The lease commit's message |
 | 15.9 | The old holder's push is rejected | That the runner lands only the head it pushed, and the remaining window |
 | 15.10 | That a changed text is not landed | That the runner redoes the work or stops |

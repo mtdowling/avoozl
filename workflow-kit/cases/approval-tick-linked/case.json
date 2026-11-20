@@ -1,0 +1,34 @@
+{
+  "title": "A runner's tick of a linked spec and its spec group approves nothing and keeps both approvals",
+  "rules": ["6.3", "7.4", "7.5"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "approvers": ["acme-owner"],
+  "approvalTrust": "branch-protection",
+  "history": [
+    {
+      "commit": "1",
+      "author": "acme-owner"
+    },
+    {
+      "commit": "2",
+      "author": "acme-alice"
+    }
+  ],
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "client": ["acme-alice"],
+    "client-parser": ["acme-alice"]
+  },
+  "expect": {
+    "approved": {
+      "client": true,
+      "client-parser": true
+    }
+  }
+}

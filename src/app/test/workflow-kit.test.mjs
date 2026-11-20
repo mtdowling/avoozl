@@ -307,9 +307,15 @@ async function landing(testCase, specs) {
     done: doneBranch(base, {
       fallback: runner.defaultBranch,
       specs: runner.specsBranch,
+      holds: holds(testCase, base, land.task),
     }),
   });
 }
+
+// Rule 14.6: whether an integration branch holds the task file of the
+// task's own spec. A branch missing from `origin.taskFiles` holds them all.
+const holds = (testCase, branch, task) =>
+  testCase.origin.taskFiles?.[branch]?.includes(task.split("/")[0]) ?? true;
 
 // Rule 16.5: whether the case's claim holds landed work, from its commit
 // graph and the base's head.
@@ -361,6 +367,7 @@ async function manualTick(testCase, specs) {
     branch: doneBranch(base, {
       fallback: testCase.runner.defaultBranch,
       specs: testCase.runner.specsBranch,
+      holds: holds(testCase, base, testCase.manual.task),
     }),
   };
 }

@@ -23,11 +23,13 @@ function fakeGitHub(heads) {
   const calls = { commit: [], delete: [] };
   return {
     calls,
-    async branchesUnder(repository) {
-      return Object.entries(heads[repository] ?? {}).map(([branch, h]) => ({
-        ref: `refs/heads/${branch}`,
-        object: { sha: `${branch}@${h}` },
-      }));
+    async branchesUnder(repository, prefix) {
+      return Object.entries(heads[repository] ?? {})
+        .filter(([branch]) => branch.startsWith(prefix))
+        .map(([branch, h]) => ({
+          ref: `refs/heads/${branch}`,
+          object: { sha: `${branch}@${h}` },
+        }));
     },
     async commit(repository, sha) {
       calls.commit.push(sha);
@@ -58,7 +60,12 @@ function workspace(t) {
 }
 
 const HEADS = {
-  "o/app": { "avoozl/search/s-1": 10, "avoozl/search/s-2": 2 },
+  "o/app": {
+    "avoozl/search/s-1": 10,
+    "avoozl/search/s-2": 2,
+    "avoozl-lease/search/s-1/1": 10,
+    "avoozl-lease/search/s-1/2": 10,
+  },
   "o/web": { "avoozl/search/w-1": 10, "avoozl/other/w-2": 30 },
 };
 
@@ -132,7 +139,12 @@ test("claim.delete is a person's: refused over MCP, and deletes only a claim bra
     }),
     { deleted: "avoozl/search/s-1", repository: "o/app" },
   );
-  assert.deepEqual(github.calls.delete, ["o/app avoozl/search/s-1"]);
+  // The task's leases go with it, every generation (workflow rule 15.6).
+  assert.deepEqual(github.calls.delete, [
+    "o/app avoozl-lease/search/s-1/1",
+    "o/app avoozl-lease/search/s-1/2",
+    "o/app avoozl/search/s-1",
+  ]);
   assert.ok(
     !claimsNeedsYou(store, NOW).some((item) =>
       item.id.endsWith("avoozl/search/s-1"),

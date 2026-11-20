@@ -1,0 +1,47 @@
+{
+  "title": "The newest lease is the highest generation, whatever its age",
+  "rules": ["15.5", "15.6", "15.7"],
+  "runner": {
+    "login": "acme-bob",
+    "defaultBranch": "main",
+    "staleHours": 24
+  },
+  "origin": {
+    "branches": [
+      "main",
+      "avoozl/parser/p-2",
+      "avoozl-lease/parser/p-2/1",
+      "avoozl-lease/parser/p-2/2"
+    ],
+    "behind": [],
+    "claimAgeHours": {
+      "parser/p-2": 30
+    },
+    "leases": {
+      "parser/p-2": [
+        {
+          "generation": 1,
+          "ageHours": 1
+        },
+        {
+          "generation": 2,
+          "ageHours": 30
+        }
+      ]
+    }
+  },
+  "issues": {
+    "parser": ["acme-bob"]
+  },
+  "resume": {
+    "task": "parser/p-2",
+    "runners": ["r1", "r2"]
+  },
+  "expect": {
+    "resume": {
+      "holder": "r1",
+      "lease": "avoozl-lease/parser/p-2/3",
+      "stopped": ["r2"]
+    }
+  }
+}

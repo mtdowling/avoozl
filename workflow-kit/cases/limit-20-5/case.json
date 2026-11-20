@@ -1,6 +1,6 @@
 {
-  "title": "Only a runner's own claim branch after landing is deleted",
-  "rules": ["20.5"],
+  "title": "A runner deletes only its own claim branch, with the task's leases",
+  "rules": ["15.6", "20.5"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"
@@ -15,21 +15,37 @@
   "actions": [
     {
       "kind": "delete-branch",
+      "own": false,
+      "landed": true
+    },
+    {
+      "kind": "delete-branch",
+      "own": true,
+      "landed": false,
+      "released": false
+    },
+    {
+      "kind": "delete-branch",
+      "own": true,
+      "landed": true
+    },
+    {
+      "kind": "delete-branch",
+      "own": true,
+      "released": true
+    },
+    {
+      "kind": "delete-lease",
       "createdByRunner": false,
-      "afterLanding": true
+      "withOwnClaimBranch": false
     },
     {
-      "kind": "delete-branch",
-      "createdByRunner": true,
-      "afterLanding": false
-    },
-    {
-      "kind": "delete-branch",
-      "createdByRunner": true,
-      "afterLanding": true
+      "kind": "delete-lease",
+      "createdByRunner": false,
+      "withOwnClaimBranch": true
     }
   ],
   "expect": {
-    "limits": ["20.5", "20.5", null]
+    "limits": ["20.5", "20.5", null, null, "20.5", null]
   }
 }

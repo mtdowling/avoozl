@@ -33,10 +33,11 @@ export async function integrationBase(spec, { linked, exists, fallback }) {
 }
 
 // The branch whose task file says whether a task is done (workflow rule
-// 15.1): its base when that is an integration branch, else the specs branch,
-// which is the default branch unless `specs` names another.
-export const doneBranch = (base, { fallback, specs = null }) =>
-  base === fallback ? (specs ?? fallback) : base;
+// 14.6): its base when that is an integration branch that `holds` the task
+// file of the task's own spec, else the specs branch, which is the default
+// branch unless `specs` names another.
+export const doneBranch = (base, { fallback, specs = null, holds = true }) =>
+  base !== fallback && holds ? base : (specs ?? fallback);
 
 // Files both sides changed, which is where a conflict can be.
 export async function sharedFiles(github, repository, branch, base) {

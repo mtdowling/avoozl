@@ -137,25 +137,28 @@ export const cachedOwnClaims = (store) =>
       .map((claim) => ({ ...claim, repository })),
   );
 
+// Delete a claim branch with every lease of its task, older generations
+// included (workflow rules 15.6 and 20.5). Lease refs go only with their
+// claim branch, so a generation number is never used twice.
+async function deleteWithLeases(github, repository, { spec, task, branch }) {
+  const leases = github.branchesUnder
+    ? await github.branchesUnder(repository, `avoozl-lease/${spec}/${task}/`)
+    : [];
+  for (const lease of Array.isArray(leases) ? leases : [])
+    await github.deleteBranch(
+      repository,
+      String(lease.ref).replace(/^refs\/heads\//, ""),
+    );
+  await github.deleteBranch(repository, branch);
+}
+
 // After a task lands, the claim branch this runner created goes from origin
 // with its leases (rule 16.1, simplify SM4.1). A claim another runner
 // created stays: a person deletes that one. Returns whether it was deleted.
 export async function deleteOwnClaim(store, github, repository, taskId) {
   const claim = claimOf(store, repository, taskId);
   if (!claim?.own || !github?.deleteBranch) return false;
-  const land = asJob("land", github),
-    leases = github.branchesUnder
-      ? await land.branchesUnder(
-          repository,
-          `avoozl-lease/${claim.spec}/${claim.task}/`,
-        )
-      : [];
-  for (const lease of Array.isArray(leases) ? leases : [])
-    await land.deleteBranch(
-      repository,
-      String(lease.ref).replace(/^refs\/heads\//, ""),
-    );
-  await land.deleteBranch(repository, claim.branch);
+  await deleteWithLeases(asJob("land", github), repository, claim);
   forgetClaim(store, repository, claim.branch);
   return true;
 }
@@ -307,7 +310,7 @@ export async function deleteClaim(store, github, { repository, branch }) {
       )
   )
     fail(`${repository} is not a repository in this workspace.`, 404);
-  await github.deleteBranch(repository, branch);
+  await deleteWithLeases(github, repository, claim);
   forgetClaim(store, repository, branch);
   return { deleted: branch, repository };
 }
@@ -374,20 +377,25 @@ export async function takeLease(github, repository, task, generation, sha) {
   return ref;
 }
 
-// Whether a lease is stale (12.6): its lease commit and the claim branch's
-// newest commit are both older than the stale hours.
+// Whether a lease is stale (workflow rule 15.6): its lease commit and the
+// claim branch's newest commit are both older than the stale hours.
 export const leaseStale = (lease, claimAgeHours, staleHours) =>
   lease.ageHours > staleHours && claimAgeHours > staleHours;
 
-// Resume a claim (12.7): with no lease, or a stale newest one, each runner
-// in turn tries the next generation; the first create wins and the rest stop.
-// With a live lease nobody resumes.
+// Resume a claim (15.7): with no lease, or a newest one (the highest
+// generation) that is stale or released, each runner in turn tries the next
+// generation; the first create wins and the rest stop. With a live lease
+// nobody resumes.
 export async function resumeClaim(
   github,
   { repository, task, leases, claimAgeHours, staleHours, runners, sha },
 ) {
   const newest = [...leases].sort((a, b) => b.generation - a.generation)[0];
-  if (newest && !leaseStale(newest, claimAgeHours, staleHours))
+  if (
+    newest &&
+    !newest.released &&
+    !leaseStale(newest, claimAgeHours, staleHours)
+  )
     return { holder: null, lease: null, stopped: [...runners] };
   const generation = (newest?.generation ?? 0) + 1,
     stopped = [];

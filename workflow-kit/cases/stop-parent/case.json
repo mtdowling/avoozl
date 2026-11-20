@@ -1,0 +1,25 @@
+{
+  "title": "A stop on a parent spec's issue makes the linked tasks not ready",
+  "rules": ["10.1", "10.2", "12.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "client-v2": ["acme-alice"],
+    "client-parser": ["acme-alice"],
+    "client-formatter": ["acme-alice"],
+    "widget": ["acme-alice"]
+  },
+  "stops": ["client-v2"],
+  "expect": {
+    "ready": ["widget/w-1"]
+  },
+  "expectFail": {
+    "ready": "sim-6.1"
+  }
+}
