@@ -2,7 +2,7 @@
 
 Avoozl does not triage issues or review other people's pull requests. It
 ships three skills that any agent runner can use for that work, such as an
-Issue Radar crew or glorp:
+Issue Radar crew or another agent runner:
 
 | Skill           | What it does                                                                                                    |
 | --------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -36,10 +36,10 @@ Triage new issues with the avoozl-triage skill, answer questions with avoozl-ans
 The last sentence matters: a Radar crew's brief otherwise lets it write only
 its claim label and the needs-human label.
 
-## glorp and other runners
+## Other agent runners
 
 From a checkout of this repository, install the skills for the runner's
-agents the way glorp installs its own (here for Claude Code and Codex):
+agents (here for Claude Code and Codex):
 
 ```sh
 npx --yes skills add ./kirocrew-app/skills/avoozl-answer --global --agent claude-code codex -y
@@ -47,12 +47,11 @@ npx --yes skills add ./kirocrew-app/skills/avoozl-review --global --agent claude
 npx --yes skills add ./kirocrew-app/skills/avoozl-triage --global --agent claude-code codex -y
 ```
 
-With glorp, run them as a scheduled prompt on the repository, for example:
-
-```sh
-glorp schedule add --name "Triage" --repo OWNER/REPO --daily 09:00 \
-  --prompt "Make one pass over the open issues and open pull requests in OWNER/REPO, then stop. Triage new issues with the avoozl-triage skill, answer questions with avoozl-answer, review PRs you did not open with avoozl-review."
-```
+Then run them as a scheduled prompt on the repository, with a prompt such
+as: "Make one pass over the open issues and open pull requests in
+OWNER/REPO, then stop. Triage new issues with the avoozl-triage skill,
+answer questions with avoozl-answer, review PRs you did not open with
+avoozl-review."
 
 Keep the agent's own permission checks on; the skills need no flag that
 skips them.

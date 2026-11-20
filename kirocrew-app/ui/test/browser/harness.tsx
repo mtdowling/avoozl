@@ -622,6 +622,28 @@ answer('instance.view', () => ({
 }))
 answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: (instanceName = String((body.input as { name?: string }).name)), others: [], shared: false }))
 
+// Settings > Workspaces > Telemetry. &telemetry=STATUS picks what the status
+// operation says (off by default); the switch flips it on and off.
+let telemetryStatus = query.get('telemetry') ?? 'off'
+const telemetryView = () => ({
+  status: telemetryStatus,
+  failure: telemetryStatus === 'backing-off' ? 'http 503' : null,
+  endpoint: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? null : 'https://otlp.example:4318',
+  protocol: telemetryStatus === 'protocol' ? 'grpc' : 'http/json',
+  headerNames: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? [] : ['authorization'],
+  sent: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? 41 : 0,
+  queued: telemetryStatus === 'backing-off' ? 3 : 0,
+  dropped: 0,
+  rejected: 0,
+  lastSuccessAt: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? '2026-11-20T03:12:09.000Z' : null,
+  local: { spans: 5120, points: 48210 },
+})
+answer('telemetry.status', telemetryView)
+answer('telemetry.configure', (body) => {
+  telemetryStatus = (body.input as { enabled?: boolean }).enabled ? 'no-endpoint' : 'off'
+  return telemetryView()
+})
+
 // &graph=chains: the Graph on three specs with real chains (graph-chains.ts).
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 // &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).

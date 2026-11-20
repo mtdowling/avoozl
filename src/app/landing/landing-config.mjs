@@ -92,6 +92,10 @@ export function assertNoMachineKeys(value, file, globalFile) {
   // Epic context widens what a worker reads, so only this machine sets it.
   if (value?.epicContext !== undefined)
     throw Error(`epicContext is set in ${file}. Put it in ${globalFile}.`);
+  // The OTLP exporter sends data off the machine, so only this machine's
+  // owner turns it on.
+  if (value?.telemetry !== undefined)
+    throw Error(`telemetry is set in ${file}. Put it in ${globalFile}.`);
   // A sink's URL may hold a secret, so sinks live only on the machine.
   if (value?.notifications !== undefined)
     throw Error(`notifications is set in ${file}. Put it in ${globalFile}.`);

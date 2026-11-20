@@ -129,6 +129,8 @@ export const APP_OPERATIONS = new Set([
   "driver.status",
   "instance.view",
   "instance.rename",
+  "telemetry.status",
+  "telemetry.configure",
   "driver.settings.update",
   "providers.view",
   "provider.switch.preview",

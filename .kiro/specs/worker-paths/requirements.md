@@ -4,75 +4,20 @@ category: Planning
 
 # Requirements: one way to run a worker
 
-Approved 2026-11-18, with the five defaults of design D10.
-
 ## Introduction
 
-A ready task can reach an agent by eight routes today. This spec cuts that to
-one dispatcher, two executors, no remote route and one way to finish per
-executor, and makes every kind of task work on both executors.
-
-Approving it, creating issues and starting agents are separate acts.
-Nothing here changes code, GitHub repositories or settings until its tasks
-run.
-
-Every claim about today's code carries one label: **V**, read in the file
-cited at `deca253`; or **A**, assumed and not checked, with the reason.
-
-### Why
-
-The routes, counted at `deca253`:
-
-| #   | Route                                | Selected by                                       |
-| --- | ------------------------------------ | ------------------------------------------------- |
-| 1   | Tick, Kiro Crew chat, local task     | default                                           |
-| 2   | Tick, `process` child                | `harnesses.worker`, `repositories.*.executor`, a pin  |
-| 3   | Tick, batch of tasks in one chat     | the tasks' `batch` facts                          |
-| 4   | Tick, worker pushes and opens the PR | the task's GitHub route                           |
-| 5   | Crew Mode conductor claims and relays | `delivery.runner: "crew-mode"`                   |
-| 6   | A person claims and reports          | `avoozl take`, only under route 5's setting      |
-| 7   | Runner mode over SSH                 | `runner.role: "runner"` or `"driver"`             |
-| 8   | Worker machine pulls                 | `runner.role: "worker"`, by hand-run commands     |
-
-What that costs:
-
-- The manual path of Requirement 96.5 works only when Crew Mode is on.
-  `claimTask` refuses unless `delivery.runner` is `crew-mode` (V:
-  `src/app/workers/runner.mjs:293`), and the tick starts no task while it is on (V:
-  `src/app/tick/tick.mjs:1325`).
-- A `process` worker is given briefs that name what it cannot use.
-  Investigate first is on by default (V: `src/app/delivery/investigate.mjs:24`) and
-  is added to a worker's brief whatever the executor (V:
-  `src/app/delivery/delivery.mjs:2427`). Its lines say "call plans_session" (action report) with the
-  findings and then "wait" for a message (V: `investigateLines`,
-  `src/app/delivery/investigate.mjs:158`). A child has no MCP tool, and the `process`
-  executor rewrites the report step only for the verifier, the reviewers,
-  the retro and the planner, not for a worker (V: `processFinish`,
-  `src/app/executors/process.mjs:137`). What a child does with such a
-  brief was not run (A); proof P57 ran with investigate first off.
-- A `process` child on a worker machine gets the chat's brief: "Commit your
-  work there" and "run … runner report" (V: `src/app/workers/remote-runner.mjs:531`
-  names the executor and `:538` still passes `workerBrief`). Its result is
-  read from the result file (V: `finishProcessSession`,
-  `src/app/executors/process.mjs:277`), which that brief never mentions.
-- Work on another Kiro Crew instance was wired into the tick, delivery, plans
-  and settings. Nothing records a crew that can take work.
-- A finished worker's report depends on which route it took: an MCP tool, a
-  command with a token, a command with no token, a relay through a
-  conductor, or a result file.
+A ready task reaches an agent through one dispatcher, two executors and one
+way to finish per executor, and every kind of task works on both executors.
+Every session runs on the machine that drives its spec.
 
 ### What this builds on
 
-`.kiro/specs/avoozl/` stays the product spec. This spec keeps Requirement 93
-(one executor seam) and Requirement 96.1 to 96.4 (one way to finish). It
-changes Requirement 96.5 (WP2), retires Requirement 84 (WP5),
-and retires what is left of Requirement 41 (WP6). WP9 lists every edit to
-that spec.
+`.kiro/specs/avoozl/` is the product spec. This spec builds on its
+Requirement 93 (one executor seam) and Requirement 96 (one way to finish).
 
 ### Scope
 
 - How a ready task is started, run and reported on this machine.
-- The settings, commands, hook and modules of the routes that go.
 
 ### Out of scope
 
@@ -81,11 +26,7 @@ that spec.
   Requirement 97.3 already says each runs on either executor; moving the
   ones that still need a Kiro Crew chat is separate work.
 - The page without Kiro Crew (`.kiro/specs/standalone-web/`).
-- The GitHub-route steps in which a worker pushes and opens its own pull
-  request (route 4). Requirement 86.3 already forbids them, and task 45.4 of
-  the avoozl spec removes them. WP4.4 names the dependency.
-- Issue Radar. None of its modules imports a module this spec removes.
-- How many tasks run at once. The simplification audit's F1 covers it.
+- How many tasks run at once (avoozl Requirement 6.3).
 
 ### Words
 
@@ -94,7 +35,6 @@ that spec.
 | Dispatcher     | The code that decides a ready task starts now and writes its session request                |
 | Executor       | What runs the agent: `kirocrew` (a Kiro Crew chat) or `process` (a child of the supervisor) |
 | Manual take   | A person taking a ready task with `avoozl take` and finishing it by hand                   |
-| Crew           | An Issue Radar crew, and nothing else, once this spec is done                               |
 
 ## Requirements
 
@@ -109,14 +49,12 @@ place.
 1. The tick SHALL be the only dispatcher. It SHALL run from the Kiro Crew
    cron or from `avoozl supervisor --tick-seconds N`, with the same code and
    the same result for the same workspace state.
-2. `delivery.runner` SHALL be removed. A file that holds
+2. There SHALL be no `delivery.runner` setting. A file that holds
    `"runner": "tick"` SHALL load and the key SHALL be ignored.
 3. A file that holds `"runner": "crew-mode"` SHALL load, the tick SHALL
-   start no task in that workspace, and one Needs you item SHALL say that
-   Crew Mode dispatch is gone and offer **Let the tick run it**. Only a
+   start no task in that workspace, and one Needs you item SHALL say the
+   setting is not supported and offer **Let the tick run it**. Only a
    person SHALL be able to choose it; choosing it SHALL remove the key.
-   Avoozl SHALL NOT start work in a workspace that a conductor used to drive
-   until a person says so.
 4. A source test SHALL fail when any module other than the tick's planner
    writes a session request with role `worker` for a ready task, apart from
    the manual take of WP2.
@@ -219,10 +157,9 @@ drives its spec, so that there is one set of rules about what runs where.
 #### Acceptance criteria
 
 1. Every task SHALL run on the driver's own machine, on its own executors.
-2. Runner mode over SSH SHALL be removed: `runner.role` values `runner` and
-   `driver`, the SSH transport, `avoozl runner accept`, `avoozl runner
-   handoff` and `avoozl runner pull`. A file with a removed role SHALL be
-   refused when it loads, naming the key.
+2. Avoozl SHALL hand no task to another machine over SSH. A `runner.role`
+   of `runner` or `driver` SHALL be refused when a file loads, naming the
+   key.
 
 ### Requirement WP6: Every session runs on this machine
 
@@ -234,35 +171,15 @@ answer.
 
 1. Avoozl SHALL start a session only on its own machine. No setting, pin,
    command or operation SHALL start, send to or stop a session on another
-   Kiro Crew instance. (Changed 2026-11-19 by direct-links D2: a read-only
-   link that opens an existing chat on another Crew may name that Crew.)
-2. The remote steps, the `crew` argument of the `kirocrew` executor and the
-   hand-back over SSH SHALL be removed. The crew snapshot stays for the In
-   flight view's unreachable-crew flag.
+   Kiro Crew instance. A read-only link that opens an existing chat on
+   another Crew may name that Crew (direct-links D2).
+2. The `kirocrew` executor SHALL take no `crew` argument. The crew snapshot
+   serves the In flight view's unreachable-crew flag.
 3. The roles table's agent, model and harness (Requirement 53),
    this machine's lane limit, and the provider checks (Requirement 72) SHALL
    stay.
-4. Retired.
-5. Retired.
 6. Unknown keys in a machine file SHALL be dropped, and SHALL NOT stop a
    workspace from loading.
-
-### Requirement WP7: Removed names are gone
-
-**User story:** As the only user, I want removed commands and operations
-deleted, so that nothing old stays to maintain.
-
-#### Acceptance criteria
-
-1. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) Each removed command and operation SHALL be deleted. A call
-   to one SHALL be refused as unknown.
-2. `avoozl register-session` and `avoozl session-hook` SHALL be deleted.
-3. The narrow `plans_*` MCP tools a shipped agent, prompt or brief names,
-   the `AVOOZL_*` variables and the `avoozl` command SHALL keep working.
-4. The installed app's entry point (`kirocrew-app/bin/avoozl.mjs`) SHALL
-   list only the commands the app still runs.
-5. `kirocrew-app/hooks/avoozl-runner.json` SHALL be removed, and the app's
-   README SHALL no longer tell a person to copy it.
 
 ### Requirement WP8: One meaning for each word
 
@@ -272,29 +189,11 @@ which one a sentence means.
 
 #### Acceptance criteria
 
-1. On the page, in the CLI help and in `README.md` and `docs/*.md`, "crew"
-   SHALL mean an Issue Radar crew only, and "Crew Mode" SHALL NOT appear.
+1. On the page, in the CLI help and in `README.md` and `docs/*.md`, "Crew
+   Mode" SHALL NOT appear.
 2. "Runner" SHALL NOT name a mode or a machine. `avoozl runner report` and
-   `runner.role: "worker"` keep their names as compatibility interfaces.
+   `runner.role: "worker"` keep their names.
 3. A test over the page's strings, the help table and those documents SHALL
    fail on "Crew Mode", "runner mode", "remote crew" and
    "conductor". Dated records under `docs/research/`, `docs/evidence/` and
    `docs/proposals/` are not checked.
-
-### Requirement WP9: The product spec says the same thing
-
-**User story:** As the maintainer, I want the avoozl spec to describe what
-is built, so that a later reader does not rebuild a retired route.
-
-#### Acceptance criteria
-
-1. Requirement 96.5 of the avoozl spec SHALL be changed to: "`avoozl take`,
-   `avoozl next` and `avoozl runner report` SHALL stay as the manual path
-   for a person."
-2. Requirement 84 SHALL be marked retired by WP5, and
-   Requirement 41 retired by WP6, each with the date and this spec's name.
-   Their text stays as the record.
-3. Tasks 11.1, 11.10, 16.7 and proof `avoozl-p29` of the avoozl spec SHALL
-   be marked superseded by this spec and not run.
-4. Design §4.10, §5.1 and §6.13 of the avoozl spec SHALL each open with one
-   line naming what replaced it.

@@ -133,7 +133,7 @@ export function sandboxEnv(env = process.env, { keep = [] } = {}) {
       continue;
     }
     if (SECRET_VARIABLES.has(name) || SECRET_NAME.test(name)) continue;
-    if (/^(AWS_|KIROCREW_|KIRO_|GH_|GITHUB_)/.test(name)) continue;
+    if (/^(AWS_|KIROCREW_|KIRO_|GH_|GITHUB_|OTEL_)/.test(name)) continue;
     if (/^AVOOZL_/.test(name)) continue;
     if (/^GIT_CONFIG_(COUNT|KEY_|VALUE_)/.test(name)) continue;
     out[name] = value;

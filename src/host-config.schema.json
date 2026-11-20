@@ -47,6 +47,18 @@
         }
       }
     },
+    "telemetry": {
+      "type": "object",
+      "description": "Send task timing to an OpenTelemetry endpoint. Machine file only: a repository's .avoozl.json may not set it. The endpoint and headers come from the OTEL_EXPORTER_OTLP_* environment of the process that runs the tick.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Send traces and metrics. Off by default."
+        }
+      }
+    },
     "links": {
       "type": "object",
       "description": "Where this machine's page opens worker chats (direct-links). Machine file only: a repository's .avoozl.json may not set it.",

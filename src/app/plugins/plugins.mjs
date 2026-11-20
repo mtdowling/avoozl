@@ -401,6 +401,8 @@ export function validateManifest(manifest, entry, folder = null) {
         `${PLUGIN_MANIFEST} capabilities.${kind} may list only ${CAPABILITIES[kind].join(", ") || "nothing"}.`,
       );
   }
+  if (manifest.telemetry !== undefined)
+    fail(`${PLUGIN_MANIFEST} may not set telemetry: it is a machine setting.`);
   if (provides.includes("pack")) {
     const file = manifest.pack ?? PACK_FILE;
     if (

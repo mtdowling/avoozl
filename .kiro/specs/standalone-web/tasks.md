@@ -14,10 +14,8 @@ repository's checks; no real workspace data, machine configuration, credentials 
 to the owner and never committed (AGENTS.md). Before landing a task that touches the server, run the D10 search and explain
 every hit in the pull request.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Task IDs start with `sw-` so they never collide with the IDs
-of the other specs. SW11.1 is done by the pull request that adds this spec;
-SW11.2 is a spec edit made when the owner approves it.
+Task IDs start with `sw-` so they never collide with the IDs
+of the other specs.
 
 ## Phase 1: The page without Kiro Crew
 

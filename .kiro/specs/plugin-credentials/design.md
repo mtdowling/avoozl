@@ -444,7 +444,7 @@ helper's stdout, never git's environment, arguments or config, so hooks
 and process listings never see it (PC5.5, PC6.3). The cost is one Node
 start, and for a plugin one provider call, per git network command (the
 helper's process has its own cache, PC5.1); a provider that is slow should
-cache on its side. Decided in D15 (3).
+cache on its side (D15, rule 3).
 
 Workers keep today's filters: `sandboxEnv` drops `GH_`, `GITHUB_`,
 `AVOOZL_` and `GIT_CONFIG_*` and empties `credential.helper`; checks and
@@ -578,9 +578,7 @@ against a provider that misuses its own tokens outside Avoozl.
 - **Permission names.** Rows marked **A** in D6 may be named differently by
   GitHub; pc-1.3 checks them against the docs before code reads them.
 
-## D15. Decisions
-
-The owner settled the questions the first draft left open (2026-11-19):
+## D15. Rules
 
 1. **The person's login** comes from an optional `person` in the reply
    (PC1.5, PC10.4). Commits and their author and committer always come from

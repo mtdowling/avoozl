@@ -18,8 +18,7 @@ byte for byte (EC10.3). Screen changes need phone and desktop, light and
 dark screenshots for owner approval before merge, shown to the owner and
 never committed. Examples use only `acme/*`, `research` and `team-context`.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Task IDs start with `ec-` so
+Task IDs start with `ec-` so
 they never collide with the IDs of the other specs.
 
 ## Phase 1: The gate and the two sources

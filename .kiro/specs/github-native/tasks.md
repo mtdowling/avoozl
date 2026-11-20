@@ -22,8 +22,7 @@ screenshots for owner approval before merge (R92.12); screenshots are shown
 to the owner and never committed (AGENTS.md). Public text names no company
 or internal tool.
 
-Approving this spec, creating issues and starting agents are separate
-acts. Task IDs start with `gn-` so they never collide with the IDs of the
+Task IDs start with `gn-` so they never collide with the IDs of the
 other specs.
 
 ## Phase 1: Worker machines go
@@ -80,8 +79,8 @@ other specs.
 
 ## Phase 7: The other specs
 
-- [ ] gn-7.1 Mark what this spec retires in the other specs [GN8.1, GN8.2, GN8.3, GN8.4, GN8.5, GN8.6] (§D8)
-  - $done: Each requirement, task and proof GN8 names carries a dated line naming this spec, with its text kept; `node scripts/check/spec-lint.mjs` reports 0 errors.
+- [ ] gn-7.1 Delete what this spec removes from the other specs [GN8.1, GN8.3, GN8.5, GN8.6] (§D8)
+  - $done: Each requirement and criterion GN8 names is deleted, with no dated note; `node scripts/check/spec-lint.mjs` reports 0 errors.
 
 - [ ] gn-p1 Proof: one machine, from spec PR to closed epic, with no Avoozl button, after gn-1.1, gn-2.1, gn-3.2, gn-3.3, gn-4.3, gn-5.1, gn-6.1 [GN1, GN2, GN3, GN4, GN5, GN6, GN7] (§D3, §D5)
   - $done: Expected: (1) one spec issue and one epic issue appear with the spec PR's assignee copied, and the spec runs only on the instance tied to that login; (2) the review and failing check output are on the pull request and the spec issue, and none is only in the database; (3) both tasks land with no trailer; (4) the epic closes; (5) the rebuilt workspace shows the same landed tasks and findings.

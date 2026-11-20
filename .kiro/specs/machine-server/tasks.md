@@ -19,15 +19,14 @@ approval before merge (R92.12), shown to the owner and never committed.
 Before landing a task that touches a listener, run the D10 search and
 explain every hit in the pull request.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Task IDs start with `ms-` so
+Task IDs start with `ms-` so
 they never collide with the IDs of the other specs.
 
 ## Phase 1: One server on Claude Code
 
-- [ ] ms-1.1 The machine lock and the workspace loop lock [MS2] (§D3)
+- [x] ms-1.1 The machine lock and the workspace loop lock [MS2] (§D3)
   - $done: The first test shows on Linux, macOS and Windows that an exclusive SQLite lock is held for the handle's life and refused at once to a second opener; eight processes started behind one barrier leave exactly one holder and seven that name it; after the holder is killed and eight more start, exactly one new holder exists within 5 seconds; two state folders on one workspace leave one loop lock holder and one skip; a waiter takes over within 5 seconds; no code path renames or deletes a lock file.
-  - Replace `acquireSupervisorLock` and `runningSupervisor` in `src/app/executors/supervisor.mjs` with the OS-held lock on `machine/lock.sqlite` and the `lock.json` record written after it; add the per-workspace `<database>.loop-lock`. If the first test fails on any system, stop and report (D14).
+  - Replace `acquireSupervisorLock` and `runningSupervisor` in `src/app/executors/supervisor.mjs` with the OS-held lock on `machine/lock.sqlite` and the `lock.json` record written after it; add the per-workspace `<database>.loop-lock`, taken for each tick pass in `src/app/tick/headless-tick.mjs`. The code is in `src/app/executors/machine-lock.mjs`. If the first test fails on any system, stop and report (D14).
 - [ ] ms-1.2 `avoozl start`, `stop`, `link` and the loop, after ms-1.1 [MS1.1, MS1.2, MS1.4, MS1.5, MS1.6, MS3] (§D2, §D4)
   - $done: Tests: `avoozl start` returns once the lock is held and a second names the holder; `--foreground` runs until a signal or a stop row; `avoozl stop` stops it through a database row, falls back to the pid after 30 seconds, and a fake child survives and is found again; the loop ticks every catalog workspace each `machine.tickSeconds` and drains after each; a killed starter does not stop the next pass; `avoozl tick` gets a pass from a running server and runs one itself with none; a server of another build is replaced by `avoozl start` only; `machine.tickSeconds` in `.avoozl.json` is refused naming the machine file; `supervisor`, `supervisor unit`, `serve` and `serve link` are deleted with no alias and refused as unknown; `start`, `stop` and `link` are refused with `AVOOZL_CHILD`; the existing `avoozl status` shows pid, build, start time, starter, interval and each workspace's last pass; the source test of MS1.2 passes.
   - $after: ms-1.1
@@ -87,7 +86,7 @@ they never collide with the IDs of the other specs.
 - [ ] ms-2.1 Codex's read class inside Avoozl's sandbox, after ms-1.2 [MS7.1, MS7.2, MS7.5] (§D7)
   - $done: Tests: `permission.read: "danger-full-access"` loads only with write roots and runs only inside Avoozl's sandbox; with no sandbox it is refused for every role, opt-in or not, on the Windows leg too; a read child's write roots exclude the task folder; `codex.json` uses it and still loads.
   - $after: ms-1.2
-  - Codex's own sandbox stays off only inside Avoozl's sandbox, as the owner decided (D12).
+  - Codex's own sandbox stays off only inside Avoozl's sandbox (D12).
 - [ ] ms-2.2 The containment probes and their CI test, after ms-1.2, ms-1.7 [MS8.1, MS8.2, MS8.3, MS8.4] (§D7)
   - $done: `src/app/sandbox-probes.mjs` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proof-ms-roles-live.mjs --probes` runs the same set in a live child.
   - $after: ms-1.2, ms-1.7

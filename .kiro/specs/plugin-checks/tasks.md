@@ -23,8 +23,7 @@ name no company-internal tool (R34.10); examples use neutral names such as
 screenshots for owner approval before merge (R92.12); screenshots are shown
 to the owner and never committed (AGENTS.md).
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Task IDs start with `pk-` so
+Task IDs start with `pk-` so
 they never collide with the IDs of the other specs.
 
 ## Phase 1: Task-stage plugin checks
