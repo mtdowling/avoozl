@@ -79,7 +79,7 @@ test("a removed operation or command answers as an unknown one", () => {
   );
   const sync = cli(workspace, "github", "sync");
   assert.notEqual(sync.status, 0);
-  assert.match(sync.stderr, /Choose github status, configure or setup./);
+  assert.match(sync.stderr, /Choose github status or configure./);
 });
 
 test("no removed module is left, and no source names one", () => {

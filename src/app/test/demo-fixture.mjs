@@ -280,7 +280,6 @@ export const GITHUB_WRITE_METHODS = Object.freeze([
   "updateCommitComment",
   "addSubIssue",
   "removeSubIssue",
-  "createIssueType",
   "setIssueType",
   "createLinkedBranch",
   "addDiscussionComment",

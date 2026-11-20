@@ -1216,21 +1216,6 @@ export class GitHubClient {
     });
   }
 
-  createIssueType(org, { name, description = "", color, enabled = true }) {
-    return this.request(
-      "POST",
-      `/orgs/${encodeURIComponent(org)}/issue-types`,
-      {
-        body: {
-          name,
-          description,
-          is_enabled: enabled,
-          ...(color ? { color } : {}),
-        },
-      },
-    );
-  }
-
   setIssueType(value, number, type) {
     return this.updateIssue(value, number, { type });
   }

@@ -330,8 +330,6 @@ these permissions:
 | `integration` | low | checks: read, contents: write, metadata: read, statuses: read | Move an epic's integration branch |
 | `worker-grants` | low | contents: write, issues: write, metadata: read | Open and checkpoint worker branches |
 | `workspace-publish` | low | contents: write, metadata: read, pull_requests: write | Publish a workspace repository |
-| `repo-setup` | high | administration: write, issues: write, metadata: read | Create labels and set up repository checks |
-| `issue-types-setup` | high | organization_administration: write | Create an organization's issue types |
 | `landing-setup` | high | administration: write, metadata: read, statuses: write, variables: write | Set rulesets, repository settings and variables |
 
 A `high` job asks first. Before any provider is asked for its token, the
