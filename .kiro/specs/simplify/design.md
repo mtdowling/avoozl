@@ -807,3 +807,95 @@ branch `avoozl/client-v2` and the claim branches `avoozl/client-v2/<task>`
 cannot both exist, since one name would have to be a file and a folder at
 once. It is not `spec/<spec>` because that name is the branch an approver
 merges to approve the spec.
+
+## D22. Lane sessions
+
+A machine runs a fixed set of lanes per workspace, each one long-lived
+session on its role's harness. The tick starts a task only on a free lane.
+
+```json
+{
+  "lanes": {
+    "local": 3,
+    "reviewers": 1
+  }
+}
+```
+
+`lanes` is in the machine file. The lanes are `worker-1` to `worker-N` and
+`reviewer-1` to `reviewer-M`. Each session carries a header Avoozl sets:
+`Avoozl · <workspace> · worker 2`, and `Avoozl · <workspace> · reviewer`
+while `reviewers` is 1. `<workspace>` is the workspace folder's name.
+
+| Harness | Where a workspace's lanes live | Header | New task | Review round | Person reads it |
+| --- | --- | --- | --- | --- | --- |
+| Kiro Crew | sidebar folder `Avoozl › <workspace>` | the chat title, pinned at open and set again on a tick that reads another | `POST /api/chat/slots/<slot>/reset-conversation` with `{"replay": false}`, then the brief | a new brief in the same chat | the chat |
+| Claude Code | `~/.avoozl/lanes/<workspace>/<lane>/` | `--name` | `--session-id <uuid>` | `--resume <uuid>` | `claude --resume <uuid>` with the lane's `CLAUDE_CONFIG_DIR` |
+| Codex | `~/.avoozl/lanes/<workspace>/<lane>/` | the first line of the prompt (`codex exec` names no session) | a new session; Avoozl reads its id from the first `--json` event | `resume <id>` | `codex resume <id>` with the lane's `CODEX_HOME` |
+
+A lane is free when no session bound to it is live and its last task's
+outcome is recorded. A worker that went quiet keeps its lane: it is nudged,
+never replaced.
+
+### D22.1 Kiro Crew lanes
+
+The tick cron opens a lane chat once with `open_session` and the header as
+its name and title, in the folder `Avoozl/<workspace>` with no project
+directory, because each brief names its worktree. A title given at open is
+pinned, so Kiro Crew's own titles never replace it. For each later task the
+cron clears the chat with `reset-conversation`, which Kiro Crew lets a cron
+call for a chat it opened, then sends the brief. `replay: false` keeps the
+earlier transcript out of the new context, while the tab still shows it.
+A clear refused because a turn is running releases the request, and the
+next tick tries again.
+
+Trust is set when the chat opens and on every tick, because a gateway
+restart drops it. The reviewer lane needs `trust` too: it runs git and the
+repository's checks, and `trust_reads` allows no shell. Its agent,
+`avoozl-reviewer`, has no file-writing tool, and its prompt forbids edits.
+
+A session binding is keyed by its chat's slot. When a lane takes a new
+task, the lane's earlier binding moves to the key `<slot>#<boundAt>` and
+keeps every field, so the history of each attempt stays readable and a
+report from the chat matches its current task.
+
+### D22.2 Process lanes
+
+A harness definition names the variable that holds the harness's home:
+`"home": "CLAUDE_CONFIG_DIR"` or `"home": "CODEX_HOME"`. Avoozl sets it to
+the lane folder and adds the folder to the child's write roots, so the
+lane's sessions, transcripts and config stay in the lane folder and never in
+the person's `~/.claude` or `~/.codex`. A sign-in the harness keeps in its
+home (a Claude.ai login, a ChatGPT login for Codex) is not visible there; a
+definition for one sets no `home`, and Avoozl then deletes only the session
+files named by ids it started. Sign-in by environment (an API key in
+`keepEnv`, or a managed provider) works with a lane home.
+
+Each task's first run starts a new session with an id Avoozl chose
+(`--session-id`), or the id the harness reports. A rework run after
+`changes-requested` resumes the same session with the findings. When a
+lane's next task starts, Avoozl deletes the lane's sessions other than the
+newest finished one, by the ids it recorded.
+
+### D22.3 Reading a lane
+
+`avoozl lanes` prints one row per lane:
+
+```text
+LANE        ROLE      HARNESS      STATE   TASK      OPEN
+worker-1    worker    kirocrew     busy    sim-3.3   kirocrew://chat/dashboard:avoozl-ws-worker-1
+worker-2    worker    claude-code  free    -         CLAUDE_CONFIG_DIR=~/.avoozl/lanes/ws/worker-2 claude --resume 5b0c...
+reviewer-1  reviewer  kirocrew     paused  -         Resume in Needs you
+```
+
+The In flight view shows the same rows, each with an Open action that opens
+the chat or copies the command.
+
+### D22.4 Closed lanes
+
+A lane chat Kiro Crew reports closed, lost or gone pauses its lane. Needs
+you shows one row, `Lane worker 2 was closed`, with Resume (`lane.resume`, a
+person's). The next tick after Resume opens a new chat with the same
+header. The task that was running there follows the vanished-session rule
+(one automatic resume, on any free lane). Quiet or an expired activity lease
+never pauses a lane.

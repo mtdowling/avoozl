@@ -661,8 +661,9 @@ reaches the integration branch or a dependent task.
 
 #### Acceptance criteria
 
-1. Review and check sessions only read, so they SHALL NOT count against
-   this machine's lanes (Requirement 6.3). Avoozl SHALL add no separate
+1. Review sessions SHALL run on this machine's reviewer lanes and check runs
+   on none, so neither SHALL count against its worker lanes (Requirement
+   6.3, and the lane sessions of the simplify spec, SM20). Avoozl SHALL add no separate
    writer limit: every task writes in its own worktree and landing merges
    one head at a time. `lanes.local: 1` gives one writer on the machine.
 2. Every repository SHALL get one review role by default: id `review`, agent
@@ -2751,16 +2752,19 @@ instead of a stuck chat.
 
 #### Acceptance criteria
 
-1. Avoozl SHALL set the worker chat's trust mode when it opens the chat and
-   SHALL set it again on every tick, because a gateway restart loses it.
+1. Avoozl SHALL set each lane chat's trust mode, worker and reviewer, when
+   it opens the chat and SHALL set it again on every tick, because a gateway
+   restart loses it.
 2. A worker SHALL report by CLI from its worktree. Avoozl SHALL match the report to the task by the worktree path
    and the task's report token in the brief, so a report needs neither MCP
    sharing nor the gateway's session identity.
 3. A local worker chat SHALL open with `project: false` and the worktree path
    in its brief.
-4. WHEN Kiro Crew reports a worker chat gone THEN Avoozl SHALL open one new
-   chat in the same worktree with the same brief and the last report
-   quoted as data. A second vanish of the same task SHALL go to Needs you.
+4. WHEN Kiro Crew reports a worker chat gone THEN Avoozl SHALL start the
+   task once more on a free worker lane, in the same worktree with the same
+   brief and the last report quoted as data, and the closed lane SHALL wait
+   for a person's Resume (simplify SM20.8). A second vanish of the same task
+   SHALL go to Needs you.
    Avoozl SHALL NOT replace a chat because it went quiet or its activity
    lease expired.
 5. `lanes.local`, default 3, SHALL be a setting in the machine file
