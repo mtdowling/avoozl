@@ -16,7 +16,7 @@
       "!!docs/evidence",
       "!scripts/test/test-map.json",
       "!hosts/kirocrew/agents/*.json",
-      "!hosts/claude-code"
+      "!hosts/claude-code/**/*.json"
     ]
   },
   "formatter": {

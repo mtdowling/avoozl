@@ -144,7 +144,7 @@ function claudeCode(root, source, { personOnly, version }) {
       },
     }),
   );
-  files.set(path.join("hooks", "guard.mjs"), source.host("guard.mjs"));
+  // hooks/guard.mjs is hand-written and kept: it reads person-only.json.
   files.set(path.join("hooks", "person-only.json"), json(personOnly));
   files.set(
     path.join("skills", "avoozl", "SKILL.md"),

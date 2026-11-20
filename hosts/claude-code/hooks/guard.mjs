@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The person-only guard a host package installs as a pre-tool hook
+// The person-only guard this package installs as a pre-tool hook
 // (machine-server MS11.3): it refuses the agent's own shell call to an
 // `avoozl` command only a person may run, and lets every other call through.
 // It is a speed bump, not a wall (R95.7): code running as the same user can
