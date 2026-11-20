@@ -25,8 +25,8 @@ function record(sql) {
   );
 }
 
-// The machine server's own databases (its lock, requests and children)
-// live in the machine state folder and are not workspace data.
+// The tick's own machine databases (its pass locks, last passes and
+// children) live in the machine state folder and are not workspace data.
 const real = (file) => {
   try {
     return fs.realpathSync.native(file);
@@ -34,12 +34,11 @@ const real = (file) => {
     return file;
   }
 };
-const machineState = process.env.XDG_STATE_HOME
-  ? real(process.env.XDG_STATE_HOME)
-  : null;
+// Resolved at each check: the folder may not exist when this loads.
 const machineOwn = (db) => {
-  const where = db?.location?.();
-  return Boolean(machineState && where && real(where).startsWith(machineState));
+  const state = process.env.XDG_STATE_HOME,
+    where = db?.location?.();
+  return Boolean(state && where && real(where).startsWith(real(state)));
 };
 
 if (trace) {

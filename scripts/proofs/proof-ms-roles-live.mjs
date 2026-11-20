@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Proof ms-p2 and ms-p3 (machine-server D6, D7), and ms-roles (without-kirocrew
-// D8): every role of Avoozl on one harness, with no front end open. The
-// machine server (`avoozl start`) runs the tick, the drain and every `process`
-// child, and a `command` sink is the only notification channel. One line per
-// row of ms-roles-rows.mjs says whether it reached its result.
+// D8): every role of Avoozl on one harness, with no front end open. A timer
+// runs `avoozl tick` every 10 seconds, each a process of its own that runs one
+// pass (the tick, the drain and every `process` child) and exits, and a
+// `command` sink is the only notification channel. One line per row of
+// ms-roles-rows.mjs says whether it reached its result.
 //
 //   1 start a spec from a goal; 2 the plan review runs on a second model and
 //   one finding is answered; 3 approve from the command line; 4 the tasks
@@ -112,6 +113,7 @@ const P = {
   report: path.join(ROOT, "report.json"),
   events: path.join(ROOT, "events.jsonl"),
   backendLog: path.join(ROOT, "backend.log"),
+  tickLog: path.join(ROOT, "tick.log"),
   proxyLog: path.join(ROOT, "proxy.log"),
 };
 const DB = path.join(P.ws, ".avoozl", "local", "workspace.sqlite");
@@ -326,8 +328,6 @@ async function setup() {
   const machine = fs.existsSync(machineFile)
     ? JSON.parse(fs.readFileSync(machineFile, "utf8"))
     : { version: 1 };
-  // A short pass, so the run takes minutes, not hours.
-  machine.machine = { ...(machine.machine || {}), tickSeconds: 10 };
   machine.notifications = {
     sinks: [
       {
@@ -654,9 +654,6 @@ async function rowResults(roles, now, { lineStopped }) {
 
 async function prove() {
   const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
-  const { startMachineServer, stopMachineServer } = await import(
-    "../../src/app/executors/machine-server.mjs"
-  );
   if (AGENT !== "fake" && !sandboxKind())
     throw Error(
       "No sandbox here (inside another sandbox?). Run ms-roles from a terminal outside Kiro Crew.",
@@ -682,15 +679,11 @@ async function prove() {
     );
     await sleep(1000);
   }
-  // The machine server, started as a person starts it: `avoozl start`. It
-  // gets the agent's credentials in its own environment and no front end runs.
-  const started = await startMachineServer({
-    stateDirectory: MACHINE.stateDirectory,
-    configDirectory: MACHINE.configDirectory,
-    starter: "terminal",
-    env: agentEnv(),
-  });
-  event("server.start", { message: started.message });
+  // The timer, as launchd, systemd or cron runs it: `avoozl tick` every 10
+  // seconds, one after another, each with the agent's credentials in its
+  // own environment. No front end runs.
+  const timer = tickTimer(agentEnv(), 10_000);
+  event("timer.start", { everySeconds: 10 });
   const minutes = AGENT === "fake" ? 8 : 60;
   const expected = {};
   try {
@@ -926,12 +919,35 @@ async function prove() {
     );
   } finally {
     if (proxy) proxy.kill("SIGTERM");
-    // Children are detached and outlive the server; the run is over.
-    await stopMachineServer({
-      stateDirectory: MACHINE.stateDirectory,
-      waitMs: 30_000,
-    }).catch((error) => event("server.stop-failed", { error: error.message }));
+    await timer.stop();
   }
+}
+
+// Run `avoozl tick` every `everyMs` until stop(), each as its own process that
+// exits after its pass, the way an operating-system timer runs it.
+function tickTimer(env, everyMs) {
+  let stopped = false;
+  const runs = (async () => {
+    while (!stopped) {
+      const out = fs.openSync(P.tickLog, "a");
+      await new Promise((resolve) => {
+        const tick = spawn(process.execPath, [CLI, "tick"], {
+          env,
+          stdio: ["ignore", out, out],
+        });
+        tick.once("exit", resolve);
+        tick.once("error", resolve);
+      });
+      fs.closeSync(out);
+      if (!stopped) await sleep(everyMs);
+    }
+  })();
+  return {
+    stop: async () => {
+      stopped = true;
+      await runs;
+    },
+  };
 }
 
 await prove();

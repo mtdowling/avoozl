@@ -2814,7 +2814,7 @@ executor interface and never Kiro Crew directly.
 tick (planner) ──writes──> session requests {executor, role, task, ...}
                               │                         │
                      kirocrew executor            process executor
-                     (Kiro Crew chats)            avoozl supervisor (one per machine)
+                     (Kiro Crew chats)            supervisor pass (each avoozl tick)
                                                   child = agent CLI in the worktree
                               │                         │
               runner report (chats) ┴ exit code + .avoozl/result.json (children) ──> Avoozl commits or reads HEAD
@@ -2826,7 +2826,7 @@ permissionClass) -> sessionId`, `send(sessionId, text)`,
 `stop` and `usage`. The `kirocrew` executor holds today's calls from
 `hosts/kirocrew/crons/tick.py`; folders and project directories are its
 private detail. The `process` executor hands the request to the
-supervisor.
+supervisor pass.
 
 **Harness definitions.** One JSON file per harness in the machine config,
 approved by hash like the worktree helper. Commands are argv lists with
@@ -2889,18 +2889,18 @@ sandbox values are not verified yet; they are proof items of Phase 47
 | Kiro Crew repo | Avoozl's own repository on `kirocrew` chats has trust mode set again each tick, or ordinary workers stall unattended |
 | Person-only    | Children get `AVOOZL_CHILD=1`, and the CLI refuses person-only commands there. That is a speed bump: the child runs as the owner. "Never" holds only through the sandbox: database, credentials and the Kiro Crew home outside its reach, network off or restricted. For `kirocrew` chats it stays a speed bump |
 
-**Supervisor.** `avoozl supervisor` owns children: pid, start time, exit
-code and log file, in SQLite. It takes only `process` requests. On a Kiro
-Crew machine the app backend starts it; on a headless machine launchd or
-systemd starts it and it runs the tick too. After a restart it finds its
-children by pid and start time; one it cannot find is `gone`. Whether the
-app backend may keep a detached long-lived child is not verified yet; it is
-a proof item of Phase 47. If it may not, the backend asks launchd to run the
-supervisor on Kiro Crew machines too.
+**Supervisor pass.** Each `avoozl tick` runs the supervisor pass, which owns
+children: session id, pid, start time, exit code and log file, in SQLite in
+the machine state folder. It takes only `process` requests and starts each
+child detached, so the child outlives the tick. A later pass finds it by pid
+and start time, reads its exit file once it ends, and resumes it on a queued
+message with the same session id; one it cannot find is `gone`. Whatever runs
+the tick runs the pass: the app's cron on a Kiro Crew machine, a launchd,
+systemd or cron timer, or a driver chat (`.kiro/specs/machine-server/`).
 
 **Finishing.** A sandboxed child cannot reach the database, so a `process`
 child ends by writing `.avoozl/result.json` in its task folder (`state`
-`done` or `blocked`, and `text`) and exiting. The supervisor reads the exit
+`done` or `blocked`, and `text`) and exiting. The supervisor pass reads the exit
 code and the file; Avoozl commits the changes and checks the diff. Avoozl
 never stages a path under `.avoozl/`, whatever the repository's
 .gitignore says, and refuses to land a worker commit that holds one
@@ -2968,9 +2968,9 @@ focus, per repository.
 (`radar.crew.models`). `github.issueIntake.*.model` is saved but never
 read.
 
-`avoozl serve` (the `standalone-web` spec) hosts the same page on
-`127.0.0.1` only, signed in by a one-time owner link, for machines with no
-Kiro Crew.
+With `serve.enabled`, each tick keeps the standalone page (the
+`standalone-web` spec) up on `127.0.0.1` only, signed in by a one-time owner
+link from `avoozl link`, for machines with no Kiro Crew.
 
 **Steps and exits.**
 

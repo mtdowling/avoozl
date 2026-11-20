@@ -101,7 +101,7 @@ lists their IDs.
 
 `avoozl plan restore PLAN_ID` brings a deleted plan back. Both commands are for
 a person, and MCP and chat callers are refused. The CLI runs them anywhere but
-a supervisor child, and says so when it runs inside an agent session.
+a `process` child, and says so when it runs inside an agent session.
 
 ## Agent prompts
 

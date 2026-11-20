@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../../settings/config.mjs";
 import { Store } from "../../store/store.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
-import { tickWorkspace } from "../headless-tick.mjs";
+import { tickWorkspace } from "../tick-pass.mjs";
 import {
   BACKLOG,
   deliverNotifications,

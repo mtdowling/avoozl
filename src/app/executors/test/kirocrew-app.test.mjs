@@ -21,6 +21,7 @@ test("Kiro Crew app package contains its page, skill, icon, and built UI", () =>
     "skills/avoozl-plugin",
     "skills/avoozl-rules",
     "skills/avoozl-answer",
+    "skills/avoozl-drive",
     "skills/avoozl-review",
     "skills/avoozl-triage",
     "skills/avoozl-spec",

@@ -45,14 +45,27 @@ run `npm run build && kirocrew app update avoozl` in the checkout.
 
 ## Run it without Kiro Crew
 
-```sh
-npm run build
-avoozl serve --workspace ~/plans
+Without Kiro Crew, a timer runs the tick ([below](#run-the-tick-on-a-timer)).
+To use the page too, set `serve.enabled` (and, if you like, a fixed
+`serve.port`) in this machine's `config.json`:
+
+```json
+{
+  "version": 1,
+  "serve": {
+    "enabled": true,
+    "port": 4800
+  }
+}
 ```
 
-`avoozl serve` serves the same page on `127.0.0.1` only. It has no host or
-bind option. It prints a one-time owner link that signs one browser in;
-`avoozl serve link` prints another for the running server.
+The next tick starts the page on `127.0.0.1` only, and each tick after keeps
+it up. It has no host or bind option. Sign a browser in with a one-time owner
+link, printed by:
+
+```sh
+avoozl link
+```
 
 Without Kiro Crew, a button that opens a chat opens a **Start a session**
 dialog. Start runs the message as a read-only session on a harness approved on
@@ -67,7 +80,164 @@ avoozl help
 avoozl status --workspace ~/plans
 ```
 
-Any stdio MCP client can run `avoozl mcp --workspace /path/to/my-plans`.
+Any stdio MCP client can run `avoozl mcp --workspace /path/to/my-plans`. It
+serves that chat from the workspace database and starts nothing; its
+`plans_maintain` `tick` tool runs one pass.
+
+### Claude Code
+
+`hosts/claude-code/` is a Claude Code plugin: the Avoozl skills (including
+`avoozl-drive`), an MCP entry that runs `avoozl mcp`, and a hook that refuses
+the agent's own shell call to a command only a person may run. Load it with:
+
+```sh
+claude --plugin-dir /path/to/avoozl/hosts/claude-code
+```
+
+The hook is a speed bump, not a wall; see [Person-only](person-only.md).
+
+## Run the tick on a timer
+
+All of Avoozl's work happens in `avoozl tick`: one pass that plans, starts
+and checks agents, lands what passed, and exits. Something has to run it
+again and again. In Kiro Crew, the app's `avoozl-tick` cron runs it every
+minute, so there is nothing to set up. On a machine without Kiro Crew, pick
+one of the timers below. Each runs `avoozl tick` once a minute for every
+enabled workspace in this machine's catalog.
+
+A tick starts and lands work only on a machine whose `config.json` turns its
+`loop` on ([Delivery](delivery.md#the-server-loop)); without it, each tick
+still reads and caches.
+
+An agent a tick starts keeps running after that tick exits; the next tick
+finds it again by its process and session, and reaps or resumes it. Two
+ticks that overlap are safe: the second skips what the first holds.
+
+First find the two paths every timer names, since a timer does not read your
+shell's setup:
+
+```sh
+command -v node
+realpath "$(command -v avoozl)"
+```
+
+Below, `/usr/local/bin/node` stands for the first and
+`/path/to/avoozl/cli.mjs` for the second. Put your own in their place. The
+`PATH` line must reach `git`, `gh` and each harness program (`claude`,
+`codex`). No timer line holds a secret: model keys go in `machine.env`
+([below](#model-access-for-unattended-agents)).
+
+### macOS: a launchd agent
+
+Save this as `~/Library/LaunchAgents/dev.avoozl.tick.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.avoozl.tick</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>/path/to/avoozl/cli.mjs</string>
+    <string>tick</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/avoozl-tick.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/avoozl-tick.log</string>
+</dict>
+</plist>
+```
+
+Load it, and unload it to stop:
+
+```sh
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.avoozl.tick.plist
+launchctl bootout gui/$(id -u)/dev.avoozl.tick
+```
+
+### Linux: a systemd user timer
+
+Save this as `~/.config/systemd/user/avoozl-tick.service`:
+
+```ini
+[Unit]
+Description=One Avoozl tick
+
+[Service]
+Type=oneshot
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/local/bin/node /path/to/avoozl/cli.mjs tick
+```
+
+And this as `~/.config/systemd/user/avoozl-tick.timer`:
+
+```ini
+[Unit]
+Description=Run an Avoozl tick every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target
+```
+
+Start it, and stop it:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user enable --now avoozl-tick.timer
+systemctl --user disable --now avoozl-tick.timer
+```
+
+`journalctl --user -u avoozl-tick` shows each tick's output. To keep ticking
+while you are logged out, run `loginctl enable-linger` once.
+
+### Any Unix: a crontab line
+
+Run `crontab -e` and add one line:
+
+```text
+* * * * * PATH=/usr/local/bin:/usr/bin:/bin /usr/local/bin/node /path/to/avoozl/cli.mjs tick >> /tmp/avoozl-tick.log 2>&1
+```
+
+### From a chat
+
+With no timer, a chat can drive Avoozl. The `avoozl-drive` skill, in both
+host packages, tells it to run `avoozl tick` once on each wake, read
+`avoozl next` and `avoozl status`, and tell you what needs you. It decides
+nothing the tick decides. Any scheduled chat or loop in Claude Code or Kiro
+Crew can follow it.
+
+`avoozl status` shows when each workspace last had a pass, so a timer that
+stopped is easy to see.
+
+### Model access for unattended agents
+
+A tick a timer runs does not have your shell's environment. Put the model
+keys a harness needs in `machine.env` in this machine's Avoozl config folder
+(`~/.config/avoozl/machine.env`), one `NAME=value` per line, readable only by
+you (`chmod 600`). A child gets only the names its harness definition lists
+in `keepEnv`. A sign-in that Claude Code keeps only in the macOS keychain is
+out of a sandboxed child's reach: use an API key, a cloud provider's
+short-lived credentials, or the repository's model proxy instead.
+**Settings › Models** and `avoozl status` show a harness that cannot start
+here, and why.
+
 
 ## Approve a harness
 
@@ -82,7 +252,7 @@ avoozl harness approve NAME
 
 `list` shows each harness as approved, not approved, or changed since approval.
 `approve` prints the name, path and hash it approved. **Settings › Models** has
-the same **Approve** button. Only a person can approve; MCP and supervisor
+the same **Approve** button. Only a person can approve; MCP and `process`
 children are refused.
 
 ## Create a workspace

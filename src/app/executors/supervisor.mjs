@@ -1,20 +1,20 @@
-// `avoozl supervisor` (R95.1-R95.4, design §4.28): one long-lived process per
-// machine that owns every `process` child. Its state is one SQLite file in the
-// machine state folder. A caller (the `process` executor) writes a session
-// request there; the supervisor starts the approved harness in the request's
+// The supervisor pass (R95.1-R95.4, design §4.28): each `avoozl tick` runs it
+// over every `process` child of the machine. Its state is one SQLite file in
+// the machine state folder. A caller (the `process` executor) writes a session
+// request there; a pass starts the approved harness in the request's
 // worktree, through supervisor-child.mjs, and records the child's pid, start
 // time, log and exit code. The children are detached, so they outlive the
-// supervisor; a restarted supervisor finds each one again by pid and start
-// time, and records one it cannot find as `gone` (R88.4 decides what follows).
+// tick that started them; a later pass finds each one again by pid and start
+// time, reads its exit file once it has ended, and records one it cannot find
+// as `gone` (R88.4 decides what follows). No process stays up between ticks.
 // Nothing here listens on a socket.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
-import { readServeConfig } from "../settings/serve-config.mjs";
 import { fail } from "../store/store.mjs";
 import { withoutPushCredentials } from "../git/git.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
@@ -32,32 +32,16 @@ import {
   sandboxSecretPaths,
 } from "./sandbox.mjs";
 import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
-import { lockHolder, machineLockPaths, takeLock } from "./machine-lock.mjs";
-import { createBroker } from "./context-broker.mjs";
-import { markPluginBroken } from "../plugins/plugin-checks.mjs";
-import { buildId } from "./machine-build.mjs";
+import { tryLock } from "./pass-lock.mjs";
 import { readMachineEnv, withKeptValues } from "./machine-env.mjs";
-import {
-  ensureRequestTables,
-  pendingRequests,
-  recordPasses,
-  setRequest,
-} from "./machine-requests.mjs";
-import { readTickSeconds } from "../settings/machine-config.mjs";
+import { ensurePassTable, recordPasses } from "./tick-passes.mjs";
 
 const CHILD_WRAPPER = fileURLToPath(
   new URL("./supervisor-child.mjs", import.meta.url),
 );
-const SUPERVISOR_MAIN = fileURLToPath(
-  new URL("./supervisor-main.mjs", import.meta.url),
+const BROKER_MAIN = fileURLToPath(
+  new URL("./context-broker-main.mjs", import.meta.url),
 );
-const TICK_MAIN = fileURLToPath(
-  new URL("../tick/headless-tick-main.mjs", import.meta.url),
-);
-const SERVE_MAIN = fileURLToPath(
-  new URL("../serve/serve-main.mjs", import.meta.url),
-);
-const SERVE_SCAN_MS = 5_000;
 const SESSION = /^process-[0-9a-f-]{36}$/;
 // Placeholders the supervisor fills itself; a request cannot set them.
 const OWN_VALUES = [
@@ -84,8 +68,8 @@ export function supervisorPaths(stateDirectory) {
   return {
     root,
     database: path.join(root, "supervisor.sqlite"),
-    log: path.join(root, "supervisor.log"),
-    tickLog: path.join(root, "tick.log"),
+    // Held for one pass, so two ticks never start the same child.
+    lock: path.join(root, "pass.lock"),
     serveLog: path.join(root, "serve.log"),
     children: path.join(root, "children"),
   };
@@ -142,7 +126,7 @@ export function openSupervisorDatabase(stateDirectory) {
     db.exec("ALTER TABLE children ADD COLUMN runs INTEGER NOT NULL DEFAULT 0");
   if (!columns.has("result"))
     db.exec("ALTER TABLE children ADD COLUMN result TEXT");
-  ensureRequestTables(db);
+  ensurePassTable(db);
   return db;
 }
 
@@ -579,7 +563,7 @@ export function stopChild(
 // be read. A pid with a different start time is another process.
 // shortcut: macOS needs the setuid `ps`, which some sandboxes forbid; then
 // only pid liveness is checked. Read sysctl directly if pid reuse shows up.
-function processStartTime(pid) {
+export function processStartTime(pid) {
   try {
     const out =
       process.platform === "win32"
@@ -638,44 +622,6 @@ function readJson(file) {
   }
 }
 
-// One machine server per machine (MS2, design D3). The operating system holds
-// the lock for the life of the handle; the record only names the holder.
-function acquireSupervisorLock(
-  stateDirectory,
-  {
-    startTime = processStartTime,
-    starter = "terminal",
-    tickSeconds = null,
-  } = {},
-) {
-  const paths = machineLockPaths(stateDirectory);
-  const mine = {
-    pid: process.pid,
-    started: startTime(process.pid),
-    at: stamp(),
-    build: buildId(),
-    starter,
-    tickSeconds,
-    stateDirectory: path.resolve(stateDirectory),
-  };
-  const taken = takeLock(paths, mine);
-  if (!taken.held)
-    fail(
-      `A supervisor already runs on this machine: pid ${taken.holder?.pid ?? "unknown"}, started ${taken.holder?.at ?? "unknown"}.`,
-      409,
-    );
-  return {
-    holder: mine,
-    holds: taken.holds,
-    release: taken.close,
-  };
-}
-
-// The supervisor that runs now, from its lock, or null.
-export function runningSupervisor(stateDirectory) {
-  return lockHolder(machineLockPaths(stateDirectory));
-}
-
 function update(db, sessionId, fields) {
   const keys = Object.keys(fields);
   db.prepare(
@@ -730,74 +676,69 @@ function killGroup(pid) {
   }
 }
 
-// Run the supervisor until close(). Takes the machine lock first, so a second
-// one refuses and names the first (R95.1). Each pass starts requested children
-// and records the state of running ones. With `tickIntervalMs` (a headless
-// machine, R95.3) it also runs the tick of every catalog workspace, one pass
-// at a time, that long after the last pass ended.
-export function startSupervisor({
+// The broker process serving a session's MCP aliases, recorded in its folder.
+const brokerRecord = (folder) => path.join(folder, "broker.json");
+
+// One supervisor for one tick: `pass()` records the state of running
+// children, reaps those that ended, starts requested ones and resumes those
+// with a queued message, all under the pass lock; a pass that finds the lock
+// held does nothing and returns false. `close()` ends it; children run on.
+export function openSupervisor({
   stateDirectory,
   configDirectory,
-  intervalMs = 1000,
-  tickIntervalMs = null,
   startTime = processStartTime,
   env = process.env,
-  // What started it, for `avoozl status` (MS3.6); and a call when a stop
-  // request has closed it (MS3.3).
-  starter = "terminal",
-  onStop = () => {},
-  // The standalone page's server child (SW9): restarted this long after it exits.
-  serveRetryMs = 2000,
 }) {
-  if (
-    tickIntervalMs !== null &&
-    !(Number.isInteger(tickIntervalMs) && tickIntervalMs > 0)
-  )
-    fail("The tick interval must be a whole number of milliseconds.");
-  const lock = acquireSupervisorLock(stateDirectory, {
-    startTime,
-    starter,
-    tickSeconds: tickIntervalMs === null ? null : tickIntervalMs / 1000,
-  });
   const paths = supervisorPaths(stateDirectory);
   const db = openSupervisorDatabase(stateDirectory);
-  // Children this process spawned; others were found again after a restart.
+  // Children this process spawned; others are found again by pid.
   const own = new Map();
-  // The epic context MCP broker: one socket per session that was given
-  // servers, outside every sandbox. Its calls go to the session's folder
-  // for its evidence.
-  const broker = createBroker({
-    onCall: (entry) => {
-      const file = path.join(
-        paths.children,
-        entry.session,
-        "context-calls.jsonl",
-      );
-      try {
-        fs.appendFileSync(file, JSON.stringify(entry) + "\n", { mode: 0o600 });
-      } catch {}
-    },
-    onViolation: ({ plugin, reason }) => {
-      if (plugin)
-        markPluginBroken(
-          {
-            settingsFile: path.join(
-              path.resolve(configDirectory),
-              "plugins.json",
-            ),
-          },
-          plugin,
-          reason,
-        );
-    },
-  });
-  // A finished session's epic context: its sockets and servers, and the
-  // folders made for it (the skills copy).
-  // One stdio MCP server per alias, each the relay: the file holds no
-  // environment value, only where to connect (EC7.2).
-  const openContextMcp = (session, mcp, folder) => {
-    const { socket, token } = broker.open({ session, servers: mcp }),
-      file = path.join(folder, "context-mcp.json");
+  // The epic context MCP broker of a session: its own detached process, since
+  // the child outlives this tick. It ends when the run's exit file appears.
+  const openContextMcp = (session, mcp, folder, exitFile) => {
+    const sockets = fs.mkdtempSync(path.join(os.tmpdir(), "avz-"));
+    fs.chmodSync(sockets, 0o700);
+    const socket = path.join(sockets, "mcp.sock"),
+      token = randomBytes(24).toString("hex"),
+      spec = path.join(folder, "broker-spec.json");
+    fs.writeFileSync(
+      spec,
+      JSON.stringify({
+        session,
+        servers: mcp,
+        socket,
+        token,
+        exitFile,
+        calls: path.join(folder, "context-calls.jsonl"),
+        plugins: path.join(path.resolve(configDirectory), "plugins.json"),
+      }),
+      { mode: 0o600 },
+    );
+    const out = fs.openSync(path.join(folder, "broker.log"), "a", 0o600);
+    let broker;
+    try {
+      broker = spawn(process.execPath, [BROKER_MAIN, spec], {
+        detached: true,
+        stdio: ["ignore", out, out],
+        env,
+      });
+    } finally {
+      fs.closeSync(out);
+    }
+    broker.on("error", () => {});
+    broker.unref();
+    fs.writeFileSync(
+      brokerRecord(folder),
+      JSON.stringify({ pid: broker.pid, started: startTime(broker.pid) }),
+      { mode: 0o600 },
+    );
+    // The relay connects as the agent starts, so the socket must be there.
+    const end = Date.now() + 10_000;
+    while (!fs.existsSync(socket) && Date.now() < end)
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+    if (!fs.existsSync(socket))
+      fail(`The MCP broker for ${session} did not start.`);
+    const file = path.join(folder, "context-mcp.json");
     fs.writeFileSync(
       file,
       JSON.stringify(
@@ -827,118 +768,26 @@ export function startSupervisor({
     );
     return { file, socket };
   };
+  const endBroker = (sessionId) => {
+    const record = brokerRecord(path.join(paths.children, sessionId)),
+      found = readJson(record);
+    if (found && sameProcess(found.pid, found.started, startTime))
+      try {
+        process.kill(found.pid, "SIGTERM");
+      } catch {}
+    fs.rmSync(record, { force: true });
+  };
+  // A finished session's epic context: its broker, and the folders made for
+  // it (the skills copy).
   const endContext = (row) => {
-    broker.close(row.session_id);
+    endBroker(row.session_id);
     try {
       for (const folder of JSON.parse(row.settings || "{}").context?.cleanup ??
         [])
         fs.rmSync(folder, { recursive: true, force: true });
     } catch {}
   };
-  let timer = null;
   let closed = false;
-  let ticking = null;
-  let nextTick = 0;
-  // Manual tick requests waiting for the pass that serves them (MS1.5).
-  let asked = [];
-
-  // The tick runs as its own process, so a slow or failing tick never
-  // stalls the children's records. It keeps the supervisor's environment,
-  // which reads GitHub; only agent children are confined.
-  const tick = () => {
-    if (ticking || Date.now() < nextTick) return;
-    const out = fs.openSync(paths.tickLog, "a", 0o600);
-    const from = fs.fstatSync(out).size;
-    const serving = asked;
-    asked = [];
-    try {
-      ticking = spawn(
-        process.execPath,
-        [
-          TICK_MAIN,
-          "--state-directory",
-          path.resolve(stateDirectory),
-          "--config-directory",
-          path.resolve(configDirectory),
-        ],
-        { stdio: ["ignore", out, out], env, windowsHide: true },
-      );
-    } finally {
-      fs.closeSync(out);
-    }
-    const ended = () => {
-      ticking = null;
-      nextTick = asked.length ? 0 : Date.now() + tickIntervalMs;
-      // One JSON line per workspace; they are the pass's result.
-      let lines = [];
-      try {
-        lines = fs
-          .readFileSync(paths.tickLog, "utf8")
-          .slice(from)
-          .split("\n")
-          .filter((line) => line.startsWith("{"));
-      } catch {}
-      if (!closed) {
-        recordPasses(db, lines);
-        setRequest(db, serving, "done", lines.join("\n"));
-      }
-    };
-    ticking.once("exit", ended);
-    ticking.once("error", ended);
-  };
-
-  // The standalone page's server (SW9), when the machine file has
-  // `serve.enabled`. It ends with the supervisor, which restarts it on the same
-  // fixed port. This process itself never listens.
-  let serveChild = null,
-    serveRetryAt = 0,
-    serveRead = 0,
-    serveConfig = { enabled: false, port: 0 };
-  const hostServe = () => {
-    const now = Date.now();
-    if (now >= serveRead) {
-      serveConfig = readServeConfig(configDirectory);
-      serveRead = now + SERVE_SCAN_MS;
-    }
-    const alive =
-      Boolean(serveChild) &&
-      serveChild.exitCode === null &&
-      serveChild.signalCode === null;
-    if (
-      alive &&
-      (!serveConfig.enabled || serveChild.wantedPort !== serveConfig.port)
-    ) {
-      serveChild.kill("SIGTERM");
-      return;
-    }
-    if (!serveConfig.enabled || alive || now < serveRetryAt) return;
-    const out = fs.openSync(paths.serveLog, "a", 0o600);
-    let child;
-    try {
-      child = spawn(
-        process.execPath,
-        [
-          SERVE_MAIN,
-          "--state-directory",
-          path.resolve(stateDirectory),
-          "--config-directory",
-          path.resolve(configDirectory),
-          "--port",
-          String(serveConfig.port),
-        ],
-        { stdio: ["ignore", out, out], env, windowsHide: true },
-      );
-    } finally {
-      fs.closeSync(out);
-    }
-    serveChild = child;
-    child.wantedPort = serveConfig.port;
-    const ended = () => {
-      serveRetryAt = Date.now() + serveRetryMs;
-    };
-    child.once("exit", ended);
-    child.once("error", ended);
-  };
 
   const start = (row, message = null) => {
     const folder = path.join(paths.children, row.session_id);
@@ -994,9 +843,9 @@ export function startSupervisor({
         context &&
         Object.keys(context.mcp).length &&
         definition.context?.mcp
-          ? openContextMcp(row.session_id, context.mcp, folder)
-          : null;
-      if (!contextMcp) broker.close(row.session_id);
+          ? (endBroker(row.session_id),
+            openContextMcp(row.session_id, context.mcp, folder, exitFile))
+          : (endBroker(row.session_id), null);
       const filled = {
         ...values,
         worktree: row.worktree,
@@ -1225,205 +1074,54 @@ export function startSupervisor({
     endContext(row);
     update(db, row.session_id, {
       state: "gone",
-      error: "The supervisor cannot find this child.",
+      error: "No process of this child is left.",
     });
   };
 
+  // Under the pass lock: a second tick at the same time would start each
+  // requested child twice. Returns false when another tick holds it.
   const pass = () => {
-    if (closed) return;
-    if (!lock.holds()) return close();
-    const stops = pendingRequests(db, "stop");
-    if (stops.length) {
-      setRequest(db, stops, "done", "stopped");
-      close();
-      return onStop();
+    if (closed) return false;
+    const lock = tryLock(paths.lock);
+    if (!lock.held) return false;
+    try {
+      for (const row of db
+        .prepare("SELECT * FROM children WHERE state = 'running'")
+        .all())
+        observe(row);
+      for (const row of db
+        .prepare(
+          "SELECT * FROM children WHERE state = 'requested' ORDER BY requested_at",
+        )
+        .all())
+        start(row);
+      // A message for a session whose run has exited resumes it.
+      for (const row of db
+        .prepare(
+          `SELECT c.* FROM children c WHERE c.state = 'exited' AND c.runs > 0
+             AND EXISTS (SELECT 1 FROM messages m
+               WHERE m.session_id = c.session_id AND m.state = 'queued')`,
+        )
+        .all())
+        start(row, queuedMessage(db, row.session_id));
+      return true;
+    } finally {
+      lock.close();
     }
-    const wanted = pendingRequests(db, "tick");
-    if (wanted.length && tickIntervalMs) {
-      setRequest(db, wanted, "running");
-      asked.push(...wanted);
-      nextTick = 0;
-    }
-    for (const row of db
-      .prepare("SELECT * FROM children WHERE state = 'running'")
-      .all())
-      observe(row);
-    for (const row of db
-      .prepare(
-        "SELECT * FROM children WHERE state = 'requested' ORDER BY requested_at",
-      )
-      .all())
-      start(row);
-    // A message for a session whose run has exited resumes it.
-    for (const row of db
-      .prepare(
-        `SELECT c.* FROM children c WHERE c.state = 'exited' AND c.runs > 0
-           AND EXISTS (SELECT 1 FROM messages m
-             WHERE m.session_id = c.session_id AND m.state = 'queued')`,
-      )
-      .all())
-      start(row, queuedMessage(db, row.session_id));
-    if (tickIntervalMs) tick();
-    hostServe();
   };
 
-  const schedule = () => {
-    timer = setTimeout(() => {
-      try {
-        pass();
-      } finally {
-        if (!closed) schedule();
-      }
-    }, intervalMs);
-  };
-
-  // Children are left running: they outlive the supervisor by design.
+  // Children are left running: they outlive the tick by design.
   const close = () => {
     if (closed) return;
     closed = true;
-    clearTimeout(timer);
-    broker.closeAll();
-    serveChild?.kill("SIGTERM");
     db.close();
-    lock.release();
   };
 
-  pass();
-  schedule();
   return {
     pass,
     close,
-    holder: lock.holder,
+    // Each workspace's result from this tick, for `avoozl status`.
+    record: (results) => recordPasses(db, results),
     database: paths.database,
-    ticking: () => Boolean(ticking),
-    // The standalone page's server child, or null: its pid.
-    serve: () =>
-      serveChild &&
-      serveChild.exitCode === null &&
-      serveChild.signalCode === null
-        ? { pid: serveChild.pid }
-        : null,
   };
-}
-
-// Start a detached supervisor unless one runs (R95.3, used by the app
-// backend). Returns the running or new supervisor's pid.
-export function launchSupervisor({
-  stateDirectory,
-  configDirectory,
-  starter = "terminal",
-  env = process.env,
-  startTime,
-}) {
-  const running = runningSupervisor(stateDirectory);
-  if (running) return { pid: running.pid, started: false };
-  const { root, log } = supervisorPaths(stateDirectory);
-  fs.mkdirSync(root, { recursive: true, mode: 0o700 });
-  const args = [
-    SUPERVISOR_MAIN,
-    "--state-directory",
-    path.resolve(stateDirectory),
-    "--config-directory",
-    path.resolve(configDirectory),
-    "--starter",
-    starter,
-  ];
-  if (process.platform === "win32")
-    return launchWindows([...args, "--log", log], env);
-  const out = fs.openSync(log, "a", 0o600);
-  let child;
-  try {
-    child = spawn(process.execPath, args, {
-      detached: true,
-      stdio: ["ignore", out, out],
-      env,
-      windowsHide: true,
-    });
-  } finally {
-    fs.closeSync(out);
-  }
-  child.on("error", () => {});
-  child.unref();
-  return { pid: child.pid, started: true };
-}
-
-// On Windows a child process inherits every inheritable handle of its
-// parent, so a server started directly would hold the starter's stdout open
-// and its caller would wait on it forever. Start-Process starts it through
-// the shell, which passes no handle; the server writes its own log (--log).
-function launchWindows(args, env) {
-  const quote = (value) => `"${value.replaceAll('"', '\\"')}"`;
-  const literal = (value) => `'${value.replaceAll("'", "''")}'`;
-  const command = [
-    "Start-Process -WindowStyle Hidden -PassThru",
-    `-FilePath ${literal(process.execPath)}`,
-    `-ArgumentList ${literal(args.map(quote).join(" "))}`,
-    "| ForEach-Object { $_.Id }",
-  ].join(" ");
-  const started = spawnSync(
-    "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-Command", command],
-    { env, encoding: "utf8", windowsHide: true, timeout: 60_000 },
-  );
-  return { pid: Number(started.stdout?.trim()) || null, started: true };
-}
-
-// Run as this process's job until a signal or a stop request, with the
-// machine's folders by default (MS1.1, MS3.2). The tick is always on, every
-// `machine.tickSeconds`. Without `foreground` a second server sets exit code 1
-// and names the first; with it, this process waits for the lock and takes it
-// when the holder ends (MS2.2).
-export async function runSupervisor({
-  stateDirectory,
-  configDirectory,
-  starter = "terminal",
-  foreground = false,
-} = {}) {
-  const machine = machineAvoozlPaths();
-  stateDirectory ??= machine.stateDirectory;
-  configDirectory ??= machine.configDirectory;
-  let supervisor = null;
-  let said = false;
-  let stopped = () => {};
-  while (!supervisor) {
-    try {
-      supervisor = startSupervisor({
-        stateDirectory,
-        configDirectory,
-        starter,
-        tickIntervalMs: readTickSeconds(configDirectory) * 1000,
-        onStop: () => {
-          stopped();
-          process.exit(0);
-        },
-      });
-    } catch (error) {
-      if (!foreground || error.status !== 409) {
-        console.error(error.message);
-        process.exitCode = 1;
-        return null;
-      }
-      if (!said) console.error(`${error.message} Waiting for it to end.`);
-      said = true;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-  }
-  // The control interface for `avoozl mcp` (MS9). Loaded here, so the
-  // supervisor module itself pulls in no MCP code.
-  let control = null;
-  try {
-    const { serveControl } = await import("./machine-control.mjs");
-    control = await serveControl({ stateDirectory });
-  } catch (error) {
-    console.error(`The control interface did not start: ${error.message}`);
-  }
-  stopped = () => control?.close();
-  console.log(`Avoozl machine server running as pid ${process.pid}.`);
-  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"])
-    process.on(signal, () => {
-      control?.close();
-      supervisor.close();
-      process.exit(0);
-    });
-  return supervisor;
 }

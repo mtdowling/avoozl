@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// Whole-number port range of `avoozl serve --port` (SW3.2).
+// Whole-number port range of `serve.port` (SW3.2).
 const SERVE_PORT_MIN = 1024;
 const SERVE_PORT_MAX = 65535;
 

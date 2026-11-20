@@ -1,4 +1,5 @@
-// `avoozl serve`: the standalone page on 127.0.0.1 (spec standalone-web, SW3).
+// The standalone page on 127.0.0.1 (spec standalone-web, SW3), which each tick
+// keeps up when `serve.enabled` (page-child.mjs, serve-main.mjs).
 // The listener binds the loopback address and nothing else; there is no host
 // or bind option. Every request is checked by serve-auth.mjs before any other
 // work, then handed to the same dispatch the Kiro Crew app backend uses.
@@ -126,7 +127,7 @@ export async function startServe({
   registryOptions = {},
   now = () => Date.now(),
   log = (line) => console.error(line),
-  // Print the first owner link (avoozl serve); a supervised server prints none.
+  // Print the first owner link; the page a tick keeps up prints none.
   link = true,
 }) {
   if (!Number.isInteger(port) || (port !== 0 && (port < 1024 || port > 65535)))

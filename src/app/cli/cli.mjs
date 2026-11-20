@@ -32,8 +32,6 @@ try {
         [
           "start",
           "dry-run",
-          "foreground",
-          "at-login",
           "auto-start",
           "inactive",
           "skip-verify",
@@ -94,11 +92,11 @@ try {
     command = "help";
   }
   const env = options.env || process.env;
-  // The CLI acts on the workspace database itself; agents reach the machine
-  // server through `avoozl mcp` (machine-server MS10.4).
+  // The CLI acts on the workspace database itself, and so does each agent's
+  // `avoozl mcp` (machine-server MS10.4); no command reaches a server.
   if (options.url !== undefined || process.env.AVOOZL_URL !== undefined)
     throw Error(
-      `${options.url !== undefined ? "--url" : "AVOOZL_URL"} is gone: the CLI works on the workspace database directly, and agents use avoozl mcp, which reaches this machine's server.`,
+      `Avoozl takes no ${options.url !== undefined ? "--url" : "AVOOZL_URL"}: the CLI works on the workspace database directly, and agents use avoozl mcp.`,
     );
   const requestedWorkspace = options.workspace || env.AVOOZL_WORKSPACE;
   // Where the workspace was named, for `status` to say so.

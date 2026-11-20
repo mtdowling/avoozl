@@ -58,12 +58,12 @@ try {
 // resolve the same way they do in a checkout.
 fs.rmSync(lib, { recursive: true, force: true });
 const bundle = await rolldown({
-  // The CLI, and the programs the machine server starts by path.
+  // The CLI, and the programs a tick starts by path.
   input: [
     "cli.mjs",
-    "src/app/executors/supervisor-main.mjs",
     "src/app/executors/supervisor-child.mjs",
-    "src/app/tick/headless-tick-main.mjs",
+    "src/app/executors/context-broker-main.mjs",
+    "src/app/executors/context-relay.mjs",
     "src/app/serve/serve-main.mjs",
   ].map((file) => path.join(root, file)),
   platform: "node",

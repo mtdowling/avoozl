@@ -13,7 +13,7 @@ import { enqueueSessionRequests } from "../../../sessions/session-requests.mjs";
 import { Store } from "../../../store/store.mjs";
 import { initializeWorkspace } from "../../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../../test/temporary.mjs";
-import { runOwnMachine } from "../../../test/shim-run.mjs";
+import { runOwnMachine } from "../../../test/own-machine.mjs";
 
 const root = fileURLToPath(new URL("../../../../../", import.meta.url)),
   launcher = path.join(root, "hosts", "kirocrew", "bin", "avoozl_mcp.py");

@@ -16,7 +16,7 @@ import { Operations } from "../api/operations.mjs";
 import { issueReportToken } from "../workers/report-match.mjs";
 import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
 import { Store } from "../store/store.mjs";
-import { startFakeSupervisor } from "../executors/test/process-machine.mjs";
+import { openFakeSupervisor } from "../executors/test/process-machine.mjs";
 import { loopOn, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -136,7 +136,7 @@ async function workspace(t, { process: onProcess = false } = {}) {
     // How a read-only child writes its result (NK6.1); the fake ignores it.
     resultAllow: ["--result-file"],
   });
-  const supervisor = startFakeSupervisor({
+  const supervisor = openFakeSupervisor({
     stateDirectory,
     configDirectory,
     bytes,

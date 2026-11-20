@@ -46,9 +46,10 @@ place.
 
 #### Acceptance criteria
 
-1. The tick SHALL be the only dispatcher. It SHALL run from the Kiro Crew
-   cron or from `avoozl supervisor --tick-seconds N`, with the same code and
-   the same result for the same workspace state.
+1. The tick SHALL be the only dispatcher. It SHALL run only in
+   `avoozl tick`, from whatever timer runs it (the Kiro Crew cron, launchd,
+   systemd, cron or a driver chat), with the same code and the same result
+   for the same workspace state.
 2. There SHALL be no `delivery.runner` setting. A file that holds
    `"runner": "tick"` SHALL load and the key SHALL be ignored.
 3. A file that holds `"runner": "crew-mode"` SHALL load, the tick SHALL

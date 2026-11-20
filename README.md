@@ -106,9 +106,13 @@ Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
 **Avoozl** page appears in the sidebar. To update, pull and run
 `npm run build && kirocrew app update avoozl` in the checkout.
 
-To run Avoozl without Kiro Crew, build it with `npm run build` and start the
-page with `avoozl serve --workspace ~/plans`. It listens on `127.0.0.1` only
-and prints a one-time link that signs your browser in.
+To run Avoozl without Kiro Crew, build it with `npm run build` and run
+`avoozl tick` on a timer: launchd, systemd or cron, with the lines in
+[Getting started](docs/getting-started.md#run-the-tick-on-a-timer), or a chat
+that follows the `avoozl-drive` skill. Each tick is one pass that exits. With
+`serve.enabled` in the machine's `config.json`, the tick also keeps the page
+up on `127.0.0.1`, and `avoozl link` prints a one-time link that signs your
+browser in. Claude Code users can load the plugin in `hosts/claude-code/`.
 
 ## Trying it out
 

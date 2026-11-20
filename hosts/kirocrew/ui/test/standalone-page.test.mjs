@@ -1,4 +1,4 @@
-// The standalone page in a real Chrome, served by the real `avoozl serve`
+// The standalone page in a real Chrome, served by the real page server
 // code on a scratch machine: Open chat as a process session (SW7), the
 // Needs Kiro Crew states (SW10) and browser notices (SW8). Skipped when no
 // Chrome is found (AVOOZL_CHROME).

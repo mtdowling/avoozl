@@ -1,7 +1,7 @@
-// What the Kiro Crew cron's `plans_maintain tick` call does (MS12.1, design
-// D5): record the sessions it observed, then return the `kirocrew` starts and
-// messages the machine server's tick released, and the chats to re-trust. It
-// never reaches the planner: the machine server's loop owns that.
+// What the Kiro Crew cron's `plans_maintain tick` call returns after the tick
+// pass it runs (MS12.1, design D5): record the sessions it observed, then
+// return the `kirocrew` starts and messages the pass released, and the chats
+// to re-trust. This step itself never reaches the planner.
 //
 // F129 (branch `spec/node-tick`): a Node process cannot open or control a chat,
 // because Kiro Crew refuses a session another cron job opened (not_creator),

@@ -19,8 +19,7 @@ function isolatedEnv(root, extra = {}) {
   const env = {
     ...process.env,
     XDG_CONFIG_HOME: path.join(root, "config"),
-    // `avoozl mcp` starts this root's own machine server (MS10.3), which
-    // loads the trace too.
+    // A tick through `avoozl mcp` or the CLI keeps its machine state here.
     XDG_STATE_HOME: path.join(root, "state"),
     NODE_OPTIONS: [process.env.NODE_OPTIONS, `--import=${hook}`]
       .filter(Boolean)
@@ -46,9 +45,6 @@ export function setup({ deny = false } = {}) {
       env,
       input,
     });
-    // The machine server the shim started ends with the call.
-    if (args[0] === "mcp")
-      spawnSync(process.execPath, [cli, "stop"], { encoding: "utf8", env });
     return result;
   };
   const writes = () =>

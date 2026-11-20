@@ -19,7 +19,7 @@ import {
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
-import { runOwnMachine } from "../../test/shim-run.mjs";
+import { runOwnMachine } from "../../test/own-machine.mjs";
 
 const cli = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url));
 const SECRET = "test-proxy-secret";
@@ -277,8 +277,13 @@ test("avoozl mcp serves plans_* tools over stdio without a web server", () => {
   assert.ok(names.every((name) => name.startsWith("plans_")));
   const tick = responses[2].result;
   assert.notEqual(tick.isError, true, JSON.stringify(tick));
-  assert.equal(tick.structuredContent.policy.status, "loaded");
-  assert.deepEqual(tick.structuredContent.dispatch, []);
+  // The tick tool ran one pass for the workspace.
+  assert.deepEqual(
+    JSON.parse(tick.content[0].text)
+      .filter((r) => r.root)
+      .map((r) => r.tick),
+    ["ran"],
+  );
 });
 
 test("workspace.tick is locked, loads policy, and writes nothing twice", async (t) => {

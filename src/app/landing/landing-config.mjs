@@ -1,6 +1,5 @@
 // `landing` settings from .avoozl.json (Requirement 87.6). Kept apart from
 // landing-conflicts.mjs so the config loader pulls in no delivery code.
-import { validateTickSeconds } from "../settings/machine-config.mjs";
 export const DEFAULT_CONFLICT_ROUNDS = 2;
 const MAX_ROUNDS = 10;
 export const LANDING_MODES = Object.freeze(["direct", "pr", "off"]);
@@ -101,16 +100,11 @@ export function validateLandingConfig(config, files = {}) {
   const machine = config?.machine;
   if (machine !== undefined && !isRecord(machine))
     throw Error(`machine must be an object (${glob})`);
-  validateTickSeconds(machine?.tickSeconds, glob);
 }
 
 // Machine keys belong in the global file only: a repository file that sets
 // them is refused, naming the global file.
 export function assertNoMachineKeys(value, file, globalFile) {
-  if (value?.machine?.tickSeconds !== undefined)
-    throw Error(
-      `machine.tickSeconds is set in ${file}. Put it in ${globalFile}.`,
-    );
   for (const key of Object.keys(value?.serve ?? {}))
     throw Error(`serve.${key} is set in ${file}. Put it in ${globalFile}.`);
   if (value?.serve !== undefined && typeof value.serve !== "object")
