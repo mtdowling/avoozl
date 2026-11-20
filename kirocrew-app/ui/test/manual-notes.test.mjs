@@ -1,51 +1,26 @@
-// Manual tasks and task links on the page: the
-// field checks match the backend, a blocked save names its decisions, the
-// calls name their operations, a manual task is tagged Manual in Needs you
-// and on its Delivery card, and the drawers hold the new parts.
+// Manual tasks on the page: the calls name their operations, a manual task
+// is tagged Manual in Needs you and on its Delivery card, and the drawers
+// hold the new parts.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { authorLabel, blockedDecisions, linkProblem, notesClient } from '../src/notes-api.ts'
+import { manualClient } from '../src/manual-api.ts'
 import { summarize } from '../src/dashboard-api.ts'
 import { deliveryLanes } from '../src/delivery-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('a link is checked as the backend checks it', () => {
-  assert.equal(linkProblem('https://docs.example.test/a', 'Doc'), null)
-  assert.equal(linkProblem('javascript:x', 'x'), 'Use an http or https link.')
-  assert.equal(linkProblem('https://me@docs.example.test/', 'x'), 'Leave the user name and password out of the link.')
-  assert.equal(linkProblem('https://docs.example.test/', ''), 'Give the link a label.')
-  assert.match(linkProblem('https://docs.example.test/' + 'a'.repeat(2000), 'x'), /2000/)
-  assert.equal(authorLabel({ author: 'person', login: 'alice' }), 'alice (person)')
-  assert.equal(authorLabel({ author: 'session:chat-1' }), 'Session chat-1')
-})
-
-test('a blocked save names the decisions Allow once takes', () => {
-  assert.deepEqual(blockedDecisions({ body: JSON.stringify({ error: 'Content rules refused this', decisions: ['content:abc'] }) }), ['content:abc'])
-  assert.deepEqual(blockedDecisions({ body: JSON.stringify({ error: 'Other' }) }), [])
-  assert.deepEqual(blockedDecisions(new Error('plain')), [])
-})
-
 test('each call names its operation', async () => {
   const sent = []
-  const api = { post: async (_path, body) => (sent.push(body), { result: { entries: [], templates: [] } }) }
-  const client = notesClient(api)
-  const entry = { id: 'note-1', kind: 'link' }
-  await client.list('w', 't')
-  await client.addLink('w', 't', ' https://a.test ', ' A ')
-  await client.edit('w', 't', entry, { url: 'https://b.test', label: 'B' })
-  await client.remove('w', 't', 'note-1')
-  await client.allowOnce('w', 'content:abc', 'why')
-  await client.markDone('w', 't', { choice: 'skipped' })
+  const api = { post: async (_path, body) => (sent.push(body), { result: {} }) }
+  const client = manualClient(api)
+  await client.markDone('w', 't', 'skipped')
   await client.reopen('w', 't')
   assert.deepEqual(
     sent.map((body) => body.operation),
-    ['task.notes.list', 'task.notes.add', 'task.notes.edit', 'task.notes.remove', 'content.allow', 'task.manual.complete', 'task.manual.reopen'],
+    ['task.manual.complete', 'task.manual.reopen'],
   )
-  assert.deepEqual(sent[1].input, { taskId: 't', kind: 'link', url: 'https://a.test', label: 'A' })
-  assert.deepEqual(sent[5].input, { taskId: 't', choice: 'skipped' })
-  assert.equal('addNote' in client, false)
+  assert.deepEqual(sent[0].input, { taskId: 't', choice: 'skipped' })
 })
 
 const graphTask = (id, extra = {}) => ({
@@ -95,10 +70,10 @@ test('the drawer has Links and Mark done, and no notes; New spec has Blank or Fr
   assert.match(drawer, /<SectionBox id="task-links" title="Links">/)
   assert.doesNotMatch(drawer, /Links and notes|id="notes"/)
   assert.match(drawer, /task\.manual && \(\s*<ManualTask/)
-  const notes = source('TaskNotes.tsx')
-  for (const words of ['Add link', 'Show on the issue', 'Allow once', 'Mark done', "title: 'Done'", "title: 'Skipped'", 'Reopen']) assert.ok(notes.includes(words), words)
-  // Tasks keep no notes: no note field, in the drawer or in Mark done.
-  for (const gone of ['Add note', 'Outcome note', 'textarea', "kind === 'note'"]) assert.ok(!notes.includes(gone), gone)
+  const notes = source('ManualTask.tsx')
+  for (const words of ['Mark done', "title: 'Done'", "title: 'Skipped'", 'Reopen']) assert.ok(notes.includes(words), words)
+  // Tasks keep no notes or links: no field for either in Mark done.
+  for (const gone of ['Add note', 'Outcome note', 'textarea', 'Add a link']) assert.ok(!notes.includes(gone), gone)
   assert.doesNotMatch(notes, /<Markdown/)
   assert.match(notes, /<Modal/)
   assert.match(notes, /<RadioFold/)

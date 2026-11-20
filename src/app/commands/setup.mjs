@@ -165,7 +165,7 @@ export async function runWorkspace({
 function runTask({ command }) {
   throw Error(
     {
-      task: "Choose task supersede.",
+      task: "Choose task done or task reopen.",
       checks: "Choose checks run.",
     }[command],
   );

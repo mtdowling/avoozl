@@ -35,7 +35,6 @@ import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
 import { healthContext, providerOf } from "../flow/provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { hasRemoteTask } from "../workers/remote-runner.mjs";
-import { addEvidence } from "../tasks/evidence.mjs";
 import { processRow } from "../agents/role-table.mjs";
 import { loadHarnessDefinition } from "./harness-definitions.mjs";
 import { sessionServedModel } from "./process-view.mjs";
@@ -566,15 +565,6 @@ export async function finishProcessSession(ops, binding, result, store = null) {
       asSession(),
     );
   }
-  if (hands === "summary")
-    return result.state === "done"
-      ? ops.execute(
-          "tasksummary.submit",
-          { summary: result.report?.summary ?? result.text },
-          undefined,
-          asSession(),
-        )
-      : null;
   // A falsifier's verdict is its done report, with no commit: it judges
   // findings, not code. A commit field in its report is passed on, so
   // session.report refuses it as it refuses a chat's (NK2.1).
@@ -837,13 +827,6 @@ export async function drainProcessRequests(
         },
         { consumer: CONSUMER },
       );
-      if (request.investigateSkipped)
-        addEvidence(store, request.task, {
-          kind: "note",
-          source: "avoozl",
-          text: `Investigate first was skipped: ${request.investigateSkipped}.`,
-          key: `investigate-skipped:${request.task}`,
-        });
       // The head a snapshot was read at, kept on the session (NK4.1).
       if (snapshot?.head)
         store.put("session_bindings", {

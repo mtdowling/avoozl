@@ -32,8 +32,6 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "task.unarchive",
   "task.sessions",
   "task.accept",
-  "task.supersede",
-  "task.duplicates",
   "activity",
   "report.save",
   "report.delete",

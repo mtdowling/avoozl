@@ -106,8 +106,7 @@ task's phase is the `##` heading above it, and the heading text is the
 phase title.
 
 The summary says what the task delivers and how, and its worker reads it after
-the title. Write one only when it adds to the title. Lint refuses a summary
-that repeats the title.
+the title. Write one only when it adds to the title.
 
 A leaf with no `$done` gives its results as plain bullets instead: each plain
 bullet under it is one result, and it has no summary. Avoozl's own writers

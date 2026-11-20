@@ -192,7 +192,7 @@ The [docs](docs/README.md) cover the rest:
   sandbox they run in
 - [Person-only operations](docs/person-only.md) for what an agent session cannot
   do
-- [Manual tasks and task links](docs/manual-tasks.md) for steps only a person
+- [Manual tasks](docs/manual-tasks.md) for steps only a person
   does
 - [Intake sources](docs/intake.md) for bringing in work from trackers and
   scripts

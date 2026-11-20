@@ -98,16 +98,10 @@ export const DIRECT_TASK_EDITS = new Set([
   "task.archive",
   "task.unarchive",
   "task.accept",
-  "task.merge",
-  "task.supersede",
 ]);
 
 export function refuseGitHubAuthority(data, name, input) {
-  const ids =
-    name === "task.merge"
-      ? [input.targetId, ...(input.duplicateIds || [])]
-      : [input.id];
-  for (const id of ids) {
+  for (const id of [input.id]) {
     const task = data.tasks.find((t) => t.id === resolveTaskId(data, id));
     if (!task || taskAuthority(task) !== "github") continue;
     const issue = task.github?.number

@@ -6,7 +6,6 @@ import {
   withDefaults,
 } from "../specs/spec-facts.mjs";
 import { specItems, taskToken } from "../specs/spec-plans.mjs";
-import { repeatsTitle } from "../tasks/title-repeat.mjs";
 
 // Fixture shorthand: tests may describe a spec's facts as one object under
 // this key, in the shape `specFacts` returns. `withFacts` writes them into
@@ -57,9 +56,7 @@ export function withFacts(files) {
       indent = /^\s*/.exec(row)[0].length + 2;
     out.push(
       ...factsLines(own, { indent }),
-      ...(repeatsTitle(summary, item.title)
-        ? []
-        : summaryLines(summary, { indent })),
+      ...summaryLines(summary, { indent }),
     );
   });
   const { [MANIFEST]: _gone, ...rest } = files;

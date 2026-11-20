@@ -16,7 +16,6 @@ import {
   completionReached,
   isManual,
   isRefused,
-  supersedingTask,
   taskKind,
   taskRepository,
   taskRoute,
@@ -90,14 +89,10 @@ export function nextView(store, { policy, github = null }) {
         (edge) =>
           edge.to === task.id &&
           BLOCKING.has(edge.kind) &&
-          !completionReached(
-            supersedingTask(byId, edge.from),
-            edge.condition,
-            complete,
-          ),
+          !completionReached(byId.get(edge.from), edge.condition, complete),
       )
       .map((edge) => {
-        const from = supersedingTask(byId, edge.from);
+        const from = byId.get(edge.from);
         return {
           id: from?.id ?? edge.from,
           title: from ? title(from) : edge.from,

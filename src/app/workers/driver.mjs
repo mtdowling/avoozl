@@ -451,7 +451,7 @@ function landedInFull(store, planId) {
   const data = store.read(),
     complete = (status) => statusComplete(data, status),
     leaves = planTasks(data, planId).filter(
-      (task) => taskKind(task) === "leaf" && task.status !== "superseded",
+      (task) => taskKind(task) === "leaf",
     );
   return (
     leaves.length > 0 &&

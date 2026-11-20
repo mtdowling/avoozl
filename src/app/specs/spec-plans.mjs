@@ -31,7 +31,6 @@ import {
 import { frontMatter, withoutFrontMatter } from "../../front-matter.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { integrationOf } from "../epics/integration-branch.mjs";
-import { repeatsTitle } from "../tasks/title-repeat.mjs";
 import {
   LETTERED,
   NAMED,
@@ -694,21 +693,8 @@ export function parseSpec({
     try {
       // The item's whole line is its title. One over the limit is refused;
       // its cut form only keeps the other checks from failing on it.
-      // The item's description bullets are its summary. One that repeats
-      // the title is refused and left out.
-      let own = (bullets.get(item.line) ?? []).filter((bullet) => {
-        if (!repeatsTitle(bullet.text, item.title)) return true;
-        diagnostics.push(
-          diagnostic(
-            "task.summary-repeats-title",
-            "tasks.md",
-            bullet.line,
-            "This repeats the title; say what the title does not, or delete it.",
-            { taskId: item.id },
-          ),
-        );
-        return false;
-      });
+      // The item's description bullets are its summary.
+      let own = bullets.get(item.line) ?? [];
       const rest = structuredClone(entry);
       // A leaf with no `$done` gives its results as plain bullets: each
       // one is a result, and it has no summary.

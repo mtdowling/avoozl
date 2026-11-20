@@ -9,7 +9,6 @@ import { queryTasks, reviewSettled, statusComplete } from "../../model.mjs";
 import {
   completionReached,
   isManual,
-  supersedingTask,
   taskAuthority,
   taskCompletion,
   taskKind,
@@ -31,9 +30,7 @@ import { processSessionDetails } from "../executors/process-view.mjs";
 import { attemptDestination } from "./direct-links.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { taskSourceRefs } from "../../task-identity.mjs";
-import { listSpans, taskFlow } from "../flow/flow.mjs";
-import { taskSteps } from "../tasks/task-steps.mjs";
-import { observationsForTask } from "../flow/build-receipt-read.mjs";
+import { taskFlow } from "../flow/flow.mjs";
 import { NODE_STATES } from "../../delivery-lanes.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "../epics/epics.mjs";
 import { fail } from "../store/store.mjs";
@@ -41,7 +38,6 @@ import { linkSets } from "../tasks/scm-links.mjs";
 import { driverDecisions } from "../workers/driver.mjs";
 import { epicRows } from "../epics/epic-rows.mjs";
 import { taskLinks } from "../tasks/scm-links.mjs";
-import { ownSummary } from "../tasks/title-repeat.mjs";
 import { DEFAULT_SPECS_PATH } from "../specs/specs-path.mjs";
 import {
   checkCommand,
@@ -434,7 +430,7 @@ export function graphView(store, data, input = {}, folders = []) {
         condition: edge.condition ?? null,
         blocking: BLOCKING.has(edge.kind),
         satisfied: completionReached(
-          supersedingTask(byId, edge.from),
+          byId.get(edge.from),
           edge.condition,
           complete,
         ),
@@ -454,7 +450,7 @@ export function graphView(store, data, input = {}, folders = []) {
             ? {
                 ...edge,
                 satisfied: completionReached(
-                  supersedingTask(byId, edge.from),
+                  byId.get(edge.from),
                   edge.condition ?? undefined,
                   complete,
                 ),
@@ -488,11 +484,7 @@ export function epicView(store, data, { id, spec = null, members = null }) {
         plans.find((entry) => entry.spec === planId) ||
         null,
       tasks = data.tasks.filter(
-        (task) =>
-          plan &&
-          task.planId === plan.id &&
-          taskKind(task) === "leaf" &&
-          task.status !== "superseded",
+        (task) => plan && task.planId === plan.id && taskKind(task) === "leaf",
       ),
       finished = (task) =>
         state.get(task.id) === "done" || Boolean(task.archivedAt),
@@ -790,8 +782,6 @@ export function deliveryView(store, data, { destinations = {} } = {}) {
       status: task.status ?? null,
       complete: statusComplete(data, task.status),
       repository: taskRepository(task),
-      supersedes: task.supersedes ?? null,
-      supersededBy: task.supersededBy ?? null,
       ...ownership(task),
       sessions: (bindings.get(id) || [])
         .map((binding) => ({
@@ -1134,22 +1124,13 @@ export function taskDetailView(
             message: `This task comes from the approved spec ${plan.title || plan.id}. Its title, description and steps are the spec's: change them there.`,
           }
         : null;
-  const timeline = taskTimeline(detail, delivery),
-    approval = plan?.approvalId
-      ? store.get("approvals", plan.approvalId)
-      : null,
-    steps = taskSteps({
-      approval,
-      spans: listSpans(store, { taskId: id }),
-      delivery,
-      builds: observationsForTask(store, detail),
-    });
+  const timeline = taskTimeline(detail, delivery);
   return {
     revision: data.revision,
     task: {
       id,
       title: detail.title ?? id,
-      summary: ownSummary(detail) ?? "",
+      summary: detail.summary?.trim() ?? "",
       acceptance: detail.acceptance || [],
       // The repository's checks, which every task runs.
       // A plugin check shows by name, plugin and stage only (PK6.2).
@@ -1207,8 +1188,6 @@ export function taskDetailView(
     delivery,
     conflicts,
     timeline,
-    // The Timeline box's steps, from stored records only (R106).
-    steps,
     // The drawer's Timing fold (§8.4): stages, spans and their sources.
     timing: taskFlow(store, detail),
     // The Links box (R92.5): branch, PR, checks, landed commit and issue,
@@ -1426,9 +1405,7 @@ export function plansTableView(store, data, { specs = [], stored = [] }) {
   const graph = graphView(store, data, {}),
     state = new Map(graph.tasks.map((task) => [task.id, task.state]));
   const counts = (scope) => {
-    const tasks = data.tasks.filter(
-        (task) => inPlan(task, scope) && task.status !== "superseded",
-      ),
+    const tasks = data.tasks.filter((task) => inPlan(task, scope)),
       leaves = tasks.filter((task) => taskKind(task) === "leaf"),
       of = (name) =>
         leaves.filter((task) => state.get(task.id) === name).length;

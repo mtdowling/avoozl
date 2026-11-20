@@ -44,7 +44,7 @@ import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
 import { toForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
-import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
+import { MarkDoneDialog } from '../../src/ManualTask.tsx'
 import { reviewFixture } from './review-fixture.ts'
 import { needsContextItems } from './needs-context-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
@@ -52,7 +52,6 @@ import NewFixDrawer from '../../src/NewFixDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
-import { TaskFiles } from '../../src/TaskFiles.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -116,24 +115,6 @@ const row = {
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
 // A manual task waiting for a person, with links (R61).
-// The AI summary (?summary=none|working|ready|failed): what task.detail
-// carries, and what task.summary.request answers. A request for a summary that
-// is not written yet answers working, then ready on the next one.
-const SUMMARY_TEXT =
-  'Team review is the last gate before cutover. It is waiting on you: the protocol tests passed, and nothing else blocks it. Cutover starts once you mark it done.'
-const summaryAt = (name: string) => ({
-  state: name,
-  text: name === 'ready' ? SUMMARY_TEXT : null,
-  hash: 'h1',
-  ...(name === 'failed' ? { reason: 'The summary chat ended without sending a summary.' } : {}),
-})
-let summaryAsks = 0
-answer('task.summary.request', (body) => {
-  state.calls.push(body)
-  summaryAsks++
-  if ((body.input as { retry?: boolean }).retry) return summaryAt('working')
-  return summaryAt(query.get('summary') === 'failed' || summaryAsks < 2 ? 'working' : 'ready')
-})
 // The spec file the task came from: 40 lines, the task's own at 20–21.
 const SPEC_LINES = Array.from({ length: 40 }, (_, i) => `Spec line ${i + 1}`)
 answer('document.get', () => ({ id: '.kiro/specs/team/tasks.md', title: 'tasks.md', text: SPEC_LINES.join('\n') }))
@@ -146,7 +127,6 @@ const baseDetail = () => ({
     plan: null,
     sources: [{ document: '.kiro/specs/team/tasks.md', title: null, lineStart: 20, lineEnd: 21, checked: null, readable: true }],
   },
-  summary: summaryAt(query.get('summary') ?? 'none'),
   revision: 1,
   task: {
     id: 'team-review',
@@ -212,76 +192,8 @@ const baseDetail = () => ({
     issue: { kind: 'issue', repository: 'o/sdk', number: 47, url: 'https://github.com/o/sdk/issues/47' },
     source: null,
   },
-  steps: [
-    { key: 'spec', label: 'Spec approved', at: '2026-11-13T08:00:00Z', state: 'done', by: 'owner' },
-    { key: 'ready', label: 'Ready', at: null, state: 'skipped' },
-    { key: 'started-1', label: 'Started (attempt 1)', at: '2026-11-13T08:10:00Z', state: 'done', by: 'model-a', detail: 'worker' },
-    { key: 'failed-1', label: 'Attempt 1 failed', at: '2026-11-13T08:40:00Z', state: 'done', failed: true, detail: 'tests red' },
-    { key: 'started-2', label: 'Started (attempt 2)', at: '2026-11-13T09:00:00Z', state: 'done', detail: 'worker' },
-    { key: 'checks', label: 'Checks', at: '2026-11-13T09:30:00Z', state: 'done', detail: '2 passed' },
-    { key: 'landed', label: 'Landed', at: '2026-11-13T09:35:00Z', state: 'done', detail: 'Commit 0123456789ab' },
-    {
-      key: 'builds',
-      label: 'Builds',
-      at: '2026-11-13T09:32:00Z',
-      state: 'done',
-      detail: '2 builds, 2 min in all · costliest test 1.5 min',
-      builds: [
-        { phase: 'build', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 38000, failed: false }] },
-        { phase: 'test', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 90000, failed: true }] },
-      ],
-    },
-    { key: 'integrated', label: 'Integrated', at: null, state: 'now' },
-  ],
 })
 answer('task.detail', () => baseDetail())
-answer('task.evidence', () => ({
-  taskId: 'team-review',
-  entries: query.get('evidence') === 'none' ? [] : [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
-}))
-answer('task.notes.list', () => ({
-  taskId: 'team-review',
-  entries: [
-    {
-      id: 'note-000000000002',
-      taskId: 'team-review',
-      kind: 'link',
-      label: 'Protocol test results',
-      url: 'https://docs.example.test/results',
-      outcome: false,
-      author: 'session:chat-1',
-      at: '2026-11-13T10:05:00Z',
-      onIssue: false,
-    },
-    {
-      id: 'note-000000000001',
-      taskId: 'team-review',
-      kind: 'link',
-      label: 'Review agenda',
-      url: 'https://docs.example.test/agenda',
-      outcome: false,
-      author: 'person',
-      login: 'alice',
-      at: '2026-11-13T09:00:00Z',
-      onIssue: true,
-    },
-  ],
-}))
-answer('task.notes.add', (body) => {
-  state.calls.push(body)
-  const input = body.input as { taskId: string; url: string; label: string }
-  return {
-    id: 'note-000000000003',
-    taskId: input.taskId,
-    kind: 'link',
-    url: input.url,
-    label: input.label,
-    outcome: false,
-    author: 'person',
-    at: '2026-11-13T11:00:00Z',
-    onIssue: false,
-  }
-})
 answer('repositories.list', () => ({ items: [{ id: 'sdk', name: 'sdk', localCheckout: '/w/sdk', github: 'o/sdk', baseBranch: 'main' }] }))
 function OpenTask() {
   const drawer = useTaskDrawer()
@@ -367,12 +279,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   ),
   'file-viewer': shown((close) => <DocumentReader workspaceId="w" target={{ document: 'docs/guide.md', lineStart: null, lineEnd: null }} text={text} onClose={close} />),
   'stop-line': own('Stop the line', <StopLineButton workspaceId="w" onPulled={() => undefined} />),
-  // Not a modal: the drawer's Files fold, at a drawer's width.
-  'task-files': shown(() => (
-    <div style={{ maxWidth: 620 }}>
-      <TaskFiles workspaceId="w" taskId="a1" active />
-    </div>
-  )),
   'task-drawer': own('Open the dialog', <OpenTask />),
   'review-info': own('Open the dialog', <OpenReview />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onClose={close} onDone={close} />),
@@ -480,69 +386,6 @@ if (query.get('app')) {
   answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Workspace', served: true }] }))
   answer('flow.view', () => ({ line: query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : [] }))
 }
-
-// The Files fold's reads: a worktree with each kind of change.
-const change = (path: string, status: string, additions: number | null, deletions: number | null, extra = {}) => ({
-  path,
-  from: null,
-  status,
-  additions,
-  deletions,
-  binary: false,
-  ...extra,
-})
-const changed = [
-  change('README.md', 'modified', 3, 1),
-  change('src/app/tasks/task-files.mjs', 'added', 256, 0),
-  change('src/app/api/operations.mjs', 'modified', 3, 0),
-  change('src/app/old-name.mjs', 'deleted', 0, 40),
-  change('src/app/renamed.mjs', 'renamed', 2, 2, { from: 'src/app/before.mjs' }),
-  change('assets/logo.png', 'modified', null, null, { binary: true }),
-  change('notes.md', 'added', null, null, { untracked: true }),
-]
-answer('task.files', (body) => ({
-  taskId: 'a1',
-  mode: 'worktree',
-  branch: 'avoozl/a1',
-  remote: false,
-  github: 'https://github.com/octo/app/tree/avoozl/a1',
-  worktree: '/srv/worktrees/a1',
-  base: 'abc123',
-  head: 'def456',
-  files: changed,
-  totals: { files: changed.length, additions: 264, deletions: 43 },
-  truncated: false,
-  all: (body.input as { all?: boolean })?.all
-    ? { paths: ['README.md', 'package.json', 'src/app/store/store.mjs', 'src/app/api/operations.mjs', 'src/app/tasks/task-files.mjs', 'src/app/renamed.mjs'], truncated: false }
-    : null,
-}))
-answer('task.diff', (body) => ({
-  path: (body.input as { path: string }).path,
-  status: 'modified',
-  from: null,
-  additions: 3,
-  deletions: 1,
-  binary: false,
-  tooLarge: false,
-  diff: [
-    'diff --git a/README.md b/README.md',
-    'index 1a2b3c4..5d6e7f8 100644',
-    '--- a/README.md',
-    '+++ b/README.md',
-    '@@ -1,6 +1,8 @@',
-    ' # Avoozl',
-    ' ',
-    '-Plans and tasks in one place.',
-    '+Plans, tasks, and agents in one local workspace.',
-    '+',
-    '+Review what a worker changed from the task drawer.',
-    ' ',
-    ' ## Install',
-    ' ',
-    ' Run npm install.',
-    '',
-  ].join('\n'),
-}))
 
 function Scenario({ name }: { name: string }) {
   const [open, setOpen] = useState(false)

@@ -54,7 +54,7 @@ export interface TaskDetail {
     // A step only a person does, and how it was marked (R61.12); older
     // backends omit them.
     manual?: boolean
-    manualDone?: import('./notes-api.ts').ManualDone | null
+    manualDone?: import('./manual-api.ts').ManualDone | null
   }
   plan: { id: string; title: string; spec: string | null; state: string | null; approved: boolean } | null
   // Where the task came from (page-views.mjs taskOrigin).
@@ -66,29 +66,16 @@ export interface TaskDetail {
   delivery: DeliveryItem | null
   conflicts: ConflictItem[]
   timeline: { at: string; text: string }[]
-  // The Timeline box's steps from stored records (R106); older backends omit it.
-  steps?: TaskStep[]
   // The Timing fold (§8.4): null until the task's first dispatch.
   timing?: TaskTimingDetail | null
   // The Links box (R92.5, scm-links.mjs): from stored records only; older
   // backends omit it.
   links?: TaskScmLinks | null
-  // The AI summary for these inputs; older backends omit it.
-  summary?: TaskSummary
-}
-
-// none: not written for the inputs now shown (the page asks for it).
-export interface TaskSummary {
-  state: 'none' | 'working' | 'ready' | 'failed'
-  text: string | null
-  hash: string
-  // Why a failed summary has no text: its chat ended or never started.
-  reason?: string
 }
 
 // The task details tabs. One rule for all: a tab or section with no data is
 // not drawn at all, with no empty-state line (tabHasData, visibleTabs).
-// Links stays because Add link lives there; Overview and Details always
+// Overview and Details always
 // have the task's own fields.
 export const TASK_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -104,7 +91,7 @@ export const TASK_TAB_PARAM = 'task-tab'
 
 // Whether a tab has anything to show.
 export function tabHasData(tab: TaskTab, detail: TaskDetail, reviewRunCount: number): boolean {
-  if (tab === 'timeline') return Boolean(detail.steps?.length || detail.timeline.length)
+  if (tab === 'timeline') return Boolean(detail.timeline.length)
   if (tab === 'work') return Boolean(detail.delivery)
   if (tab === 'review') return reviewRunCount > 0 || Boolean(detail.task.handSetReview)
   return true
@@ -315,7 +302,6 @@ export function taskClient(api: AppApi) {
     detail: (workspaceId: string, id: string) => run<TaskDetail>('task.detail', { id }, workspaceId),
     // Ask for the AI summary of the inputs now shown. The same inputs never
     // write a second one; retry writes a failed one again.
-    summaryRequest: (workspaceId: string, id: string, retry = false) => run<TaskSummary>('task.summary.request', { id, retry }, workspaceId),
     // A workspace Markdown file, for reading where a task came from.
     document: (workspaceId: string, id: string) => run<{ id: string; title: string; text: string }>('document.get', { id }, workspaceId),
     // Writes nothing: what a locked task's edit becomes as a plan change.
@@ -496,44 +482,4 @@ export function attemptAction(session: DeliverySession): { label: string | null;
     note: href ? null : 'Session waits on Kiro Crew',
     machine: session.crew && session.crew !== 'local' ? session.crew : 'this machine',
   }
-}
-
-// One step of a task's Timeline (src/app/tasks/task-steps.mjs). `at` is a stored
-// record's time; no step comes from GitHub.
-export interface TaskStep {
-  key: string
-  label: string
-  at: string | null
-  state: 'done' | 'now' | 'later' | 'skipped'
-  by?: string | null
-  detail?: string | null
-  failed?: boolean
-  // Every build record of the task, grouped by phase (R101.4).
-  builds?: { phase: string; items: { target: string; start: string; attempt: number; task: string | null; ms: number; failed: boolean }[] }[]
-}
-
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-// UTC, so the page and the tests read the same time on any machine.
-export function clock(at: string | null | undefined): string {
-  const time = Date.parse(at ?? '')
-  if (Number.isNaN(time)) return '—'
-  const date = new Date(time),
-    two = (n: number) => String(n).padStart(2, '0')
-  return `${DAYS[date.getUTCDay()]} ${two(date.getUTCHours())}:${two(date.getUTCMinutes())} UTC`
-}
-
-// "6 min after Ready": the wait since the last step that has a time.
-export function afterPrevious(steps: Pick<TaskStep, 'label' | 'at'>[], index: number): string | null {
-  const at = Date.parse(steps[index]?.at ?? '')
-  if (Number.isNaN(at)) return null
-  for (let before = index - 1; before >= 0; before--) {
-    const earlier = Date.parse(steps[before].at ?? '')
-    if (Number.isNaN(earlier)) continue
-    // A step recorded before the one above it (builds can finish first) has no wait.
-    if (at < earlier) return null
-    const minutes = Math.round((at - earlier) / 60000)
-    const wait = minutes < 60 ? `${minutes} min` : minutes < 2880 ? `${Math.round(minutes / 60)} h` : `${Math.round(minutes / 1440)} d`
-    return `${wait} after ${steps[before].label}`
-  }
-  return null
 }

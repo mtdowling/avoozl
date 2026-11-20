@@ -57,6 +57,7 @@ import {
   planVerifierDispatches,
   reconcileDeliveries,
   reconcileVerifications,
+  summaryLine,
 } from "../delivery/delivery.mjs";
 import { fail } from "../store/store.mjs";
 import {
@@ -78,7 +79,6 @@ import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { reviewDispatches } from "../reviews/pr-review.mjs";
 import { investigationStep } from "../delivery/investigate.mjs";
 import { revertCorrections } from "../flow/corrections.mjs";
-import { evidenceCommentStep } from "../tasks/evidence.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -86,10 +86,8 @@ import {
   rateLimitNotices,
   withSource,
 } from "../github/github-rate.mjs";
-import { taskSummaryDispatches } from "../tasks/task-summary.mjs";
 import { decideStep } from "../plugins/check-decide.mjs";
 import { queuePhaseChecks } from "../plugins/check-stages.mjs";
-import { summaryLine } from "../tasks/title-repeat.mjs";
 import {
   validateRoles,
   validatePlanReview,
@@ -735,33 +733,6 @@ async function runTick(
             text: error.message,
           });
         }
-      // The evidence comment on each open pull request (§4.22, R76.4).
-      if (script && github && delivery)
-        try {
-          const policy = readGitHubPolicy(workspaceRoot);
-          planned.notify.push(
-            ...(
-              await under("tick", "evidence", evidenceCommentStep)(
-                store,
-                github,
-                {
-                  leak: (text) =>
-                    policy.mode === "plans-repo" &&
-                    findPlanningLeak(
-                      [["evidence", text]],
-                      policy.planningRepository,
-                    ),
-                },
-              )
-            ).notify,
-          );
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not update evidence comments",
-            text: error.message,
-          });
-        }
       // CI per pull request for the retro (§4.30).
       if (script)
         try {
@@ -910,7 +881,6 @@ async function runTick(
           script && !unobserved.length
             ? [
                 ...reviewDispatches(store, { config: roleConfig }),
-                ...taskSummaryDispatches(store, { config: roleConfig }),
                 // Plugin checks' decide calls (plugin-checks D5).
                 ...decideStep(store, { config: roleConfig }).dispatch,
               ]

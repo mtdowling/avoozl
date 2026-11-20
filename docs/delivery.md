@@ -186,10 +186,3 @@ you** with **Go ahead**, **Investigate again**, and **Stop**.
 
 `mode` is `not-small` (the default), `all`, or `off`, and `minConfidence`
 defaults to `high`. A task's facts may set `investigate: true` or `false`.
-
-## Evidence
-
-Each task keeps one evidence bundle under `.avoozl/local/evidence/`. It holds
-the task's findings, decisions, review verdicts, check results, and the images
-or videos the worker attaches, up to 20 MB. The task drawer shows it, and one
-comment on the pull request holds its text summary.

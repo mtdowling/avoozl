@@ -132,7 +132,7 @@ merge, shown in chat and never committed.
   - $after: sim-0
   - Demo mode, example installs, sample specs, instance names, onboarding, repository kinds and roles, setup access and `avoozl setup` are gone, with `seed`, `examples` and `setup` commands
   - A test adds a repository with `avoozl repository configure ID --root PATH`, runs `avoozl rebuild`, and finds its specs, ticks, claims and spec issues, with no GitHub write
-- [ ] `sim-4.6` Cut task extras [SM4.5, SM14.1] (§D14)
+- [x] `sim-4.6` Cut task extras [SM4.5, SM14.1] (§D14)
   - $after: sim-0
   - Evidence bundles, supersede, dedup, title repeat, task notes, task steps, task files and task summaries are gone from `src/app/tasks/`, with their operations, commands and MCP tools; lint's summary-repeats-title check goes, since a task has no summary
 - [x] `sim-4.7` Refuse the cut plugin parts [SM11] (§D11)

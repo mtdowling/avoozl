@@ -30,10 +30,6 @@ export const NARROW_TOOLS = {
     "document.get",
     "Narrow tool for the planner. Read one workspace document: {id}. Read only.",
   ],
-  plans_duplicates: [
-    "task.duplicates",
-    "Narrow tool for the planner. List repeated-title task candidates, or find similarly worded work with a title. Matching wording does not prove duplicate scope.",
-  ],
   plans_create_plan: [
     "plan.create",
     "Narrow tool for the planner. Store one Kiro spec folder as a draft plan: {spec: <name>, prompt?, id?}. Avoozl reads <specs.path>/<name>/ (default .kiro/specs) in the planning repository; the plan ID defaults to the name and its hash is the folder revision. {prompt, text} stores a free-form design for extraction instead. Does not publish execution tasks.",
@@ -60,15 +56,11 @@ export const NARROW_TOOLS = {
   ],
   plans_report: [
     "session.report",
-    "Narrow tool for worker, verifier, reviewer and falsifier chats. Report on your bound task from its worker, verifier, falsifier, or review session: {taskId, kind: progress|done|blocked|question|findings, text?, commit?, checks?, verdict?, findings?, closures?}. A local worker's done needs no commit: Avoozl reads HEAD of its task worktree and refuses a different one. Other done reports need the full commit SHA; a verifier's done also lists checks: [{command, exitCode}], one per declared check, and a check it could not run as {command, exitCode: null, notRun: reason}. A review's done names the commit it judged with verdict approved|changes-requested, findings [{id, kind: defect|observation, paths, text}], and closures [{finding: \"<attempt>:<role>:<id>\", state: fixed|unchanged, note?}] for every open finding of its role. blocked and question need text. A progress report may mark phase coding|tests|commands|ci-wait for timing, and a check entry may add durationMs. A worker told to investigate first reports kind findings with findings {read, cause, plan, check, confidence: low|medium|high}, changes no file, and reports done only after Avoozl's Go ahead; a falsifier's done has no commit and carries falsifier {verdict: stands|refuted, evidence, confidence}. Any report may attach evidence: [{kind: file, path, note?}] (an image or video of at most 20 MB, by absolute path) or [{kind: note, text}]. Only the session bound to the task's newest attempt may report.",
+    "Narrow tool for worker, verifier, reviewer and falsifier chats. Report on your bound task from its worker, verifier, falsifier, or review session: {taskId, kind: progress|done|blocked|question|findings, text?, commit?, checks?, verdict?, findings?, closures?}. A local worker's done needs no commit: Avoozl reads HEAD of its task worktree and refuses a different one. Other done reports need the full commit SHA; a verifier's done also lists checks: [{command, exitCode}], one per declared check, and a check it could not run as {command, exitCode: null, notRun: reason}. A review's done names the commit it judged with verdict approved|changes-requested, findings [{id, kind: defect|observation, paths, text}], and closures [{finding: \"<attempt>:<role>:<id>\", state: fixed|unchanged, note?}] for every open finding of its role. blocked and question need text. A progress report may mark phase coding|tests|commands|ci-wait for timing, and a check entry may add durationMs. A worker told to investigate first reports kind findings with findings {read, cause, plan, check, confidence: low|medium|high}, changes no file, and reports done only after Avoozl's Go ahead; a falsifier's done has no commit and carries falsifier {verdict: stands|refuted, evidence, confidence}. Only the session bound to the task's newest attempt may report.",
   ],
   plans_post_reply: [
     "reply.post",
     "Narrow tool for the responder. Post your one reply on the GitHub issue your responder session is bound to: {body}. Avoozl picks the issue from your session, refuses a reply with a secret-looking token, a URL with credentials, or an absolute or home path, or (on a public repository) one that quotes another repository on this machine (nothing is posted; fix it and post again), posts at most one comment per issue snapshot, and removes the responding label.",
-  ],
-  plans_submit_task_summary: [
-    "tasksummary.submit",
-    "Narrow tool for the task summary chat. Send your one task summary: {summary}, 2 to 4 short plain sentences (at most 800 characters). Avoozl picks the task from your session. It changes nothing else.",
   ],
   plans_submit_decide: [
     "check.decide.submit",
@@ -128,7 +120,6 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
       readOnlyHint: [
         "plan.get",
         "plan.review.findings",
-        "task.duplicates",
         "runner.next",
         "query",
         "task.get",

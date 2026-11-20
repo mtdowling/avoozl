@@ -39,7 +39,6 @@ export const APP_OPERATIONS = new Set([
   "highlight.languages",
   "activity.recent",
   "activity.list",
-  "task.evidence",
   "activity.settings.get",
   "activity.settings.update",
   "chat.context",
@@ -76,9 +75,6 @@ export const APP_OPERATIONS = new Set([
   "fix.spec",
   "github.repository.labels",
   "task.detail",
-  "task.summary.request",
-  "task.files",
-  "task.diff",
   "plan.spec.read",
   "plan.table",
   "epic.list",
@@ -162,13 +158,9 @@ export const APP_OPERATIONS = new Set([
   "session.send",
   "session.open",
   "session.view",
-  // Manual tasks and task links.
+  // Manual tasks.
   "task.manual.complete",
   "task.manual.reopen",
-  "task.notes.list",
-  "task.notes.add",
-  "task.notes.edit",
-  "task.notes.remove",
 ]);
 // Machine-catalog operations, served by this backend rather than a workspace.
 const MACHINE_OPERATIONS = new Map([

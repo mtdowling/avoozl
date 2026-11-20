@@ -16,7 +16,7 @@ itself, and lands it. These pages say how to set it up and how each part works.
 - [Specs](avoozl-specs.md): the task list format, approvals and dependencies across
   specs.
 - [Epic types](epic-types.md): goals that need many changes in a set order.
-- [Manual tasks and task links](manual-tasks.md): steps only a person does.
+- [Manual tasks](manual-tasks.md): steps only a person does.
 - [Delivery](delivery.md): workers, checks, landing and merge batches.
 - [Drivers](drivers.md): which workspace drives a spec, and handing off.
 - [People and machines](scale-out.md): spec lanes per person, shared state

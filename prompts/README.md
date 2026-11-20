@@ -19,7 +19,6 @@ roles are the keys of the `roles` setting, and each file serves these roles:
 - `retro.md` is the `retro` role.
 - `falsifier.md` is the `falsifier` role, for investigate first.
 - `responder.md` is the `responder` role.
-- `task-summary.md` is the `taskSummary` role.
 - `plan-review.md` is the `planReviewer` role.
 - `code-review.md` is the `prReview` role.
 - `assist.md` is the `assist` role, the page's chat when Kiro Crew is absent. It

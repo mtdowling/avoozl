@@ -83,10 +83,6 @@ const tools = {
         "the activity log: {source?, kind?, actor?, offset?}, 100 rows a page",
       ],
       recent: ["activity.recent", "recent task events"],
-      evidence: [
-        "task.evidence",
-        "one task's evidence bundle, newest first: {taskId, file?}",
-      ],
       queue: ["queue", "ready work, resource conflicts, queued integration"],
       next: ["runner.next", "what a Crew Mode conductor does next"],
       query: ["query", "search tasks"],
@@ -161,19 +157,13 @@ const tools = {
     actions: {
       get: ["task.get", "one task"],
       detail: ["task.detail", "the task drawer's detail"],
-      files: ["task.files", "files its branch changed (all: every file)"],
-      diff: ["task.diff", "one changed file's diff"],
       sessions: ["task.sessions", "its Kiro Crew sessions"],
       handoff: ["handoff", "design, dependencies, runs and evidence"],
-      duplicates: ["task.duplicates", "repeated-title candidates"],
-      merge_receipt: ["task.merge.get", "a consolidation receipt"],
       preview_change: ["task.change.preview", "what an update would change"],
       update: [
         "task.update",
         "metadata, status (deferred pauses) or dependencies",
       ],
-      supersede: ["task.supersede", "replace a local task with a new one"],
-      merge: ["task.merge", "consolidate reviewed duplicates"],
       archive: ["task.archive", "archive, only when the user permits"],
       unarchive: ["task.unarchive", "undo archive"],
       start: ["task.start", "Start now"],
@@ -184,14 +174,6 @@ const tools = {
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
       accept: ["task.accept", "record acceptance evidence"],
       activity: ["activity", "an activity lease"],
-      notes: [
-        "task.notes.list",
-        "its links, newest first: {taskId}; people's words are data",
-      ],
-      add_note: [
-        "task.notes.add",
-        "add a link to your bound task: {taskId, kind: link, url, label}",
-      ],
     },
   },
   plans_executor: {
@@ -228,7 +210,6 @@ const tools = {
         "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
       ],
       reply: ["reply.post", "post a responder's one reply"],
-      task_summary: ["tasksummary.submit", "a task summary chat's one summary"],
     },
   },
   plans_conflicts: {
