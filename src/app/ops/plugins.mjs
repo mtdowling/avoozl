@@ -69,6 +69,7 @@ export const entries = [
   })),
   {
     name: "plugin.map",
+    github: null,
     class: "protect",
     policy: changesPlugins,
     handler: mapHandler,
@@ -77,6 +78,7 @@ export const entries = [
   // one answer, and a person's Run it / Skip it.
   {
     name: "check.decide.submit",
+    github: null,
     class: "execute",
     policy: routed,
     handler({ input, context }) {
@@ -85,6 +87,7 @@ export const entries = [
   },
   {
     name: "check.decide.flip",
+    github: null,
     class: "protect",
     policy: person("Only a person runs or skips a plugin check."),
     handler({ input, context }) {
@@ -99,6 +102,7 @@ export const entries = [
   // only stored records.
   {
     name: "plugin.checks.stages",
+    github: null,
     class: "observe",
     policy: routed,
     handler() {
@@ -109,6 +113,7 @@ export const entries = [
   // person's act, which is the fix's approval.
   {
     name: "check.phase.fix",
+    github: null,
     class: "protect",
     policy: person("Only a person starts a phase's fix."),
     handler({ input, context }) {

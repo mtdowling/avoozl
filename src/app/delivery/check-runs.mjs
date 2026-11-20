@@ -12,7 +12,7 @@ import fs from "node:fs";
 import { withStrangerChecks } from "../intake/stranger-input.mjs";
 import os from "node:os";
 import path from "node:path";
-import { commandEvidence, git, withWorkLock } from "../git/git.mjs";
+import { commandEvidence, git, withWorkLock, remoteGit } from "../git/git.mjs";
 import {
   checkApplies,
   repositoryChecks,
@@ -232,12 +232,16 @@ async function stageRange(repository, record) {
   const scope = record.scope,
     root = repository.root;
   if (scope.kind === "branch")
-    await git(root, [
-      "fetch",
-      "--quiet",
-      "origin",
-      `+refs/heads/${scope.branch}:refs/avoozl/heads/${scope.branch}`,
-    ]).catch(() => {});
+    await remoteGit(
+      root,
+      [
+        "fetch",
+        "--quiet",
+        "origin",
+        `+refs/heads/${scope.branch}:refs/avoozl/heads/${scope.branch}`,
+      ],
+      { job: "check-in" },
+    ).catch(() => {});
   const base =
       scope.kind === "phase"
         ? await git(root, ["rev-parse", `${scope.first}^1`])
