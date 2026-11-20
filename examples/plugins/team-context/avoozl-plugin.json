@@ -1,0 +1,22 @@
+{
+  "id": "team-context",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": ["context"],
+  "context": {
+    "repos": ["acme/*"],
+    "skills": "skills",
+    "reads": [
+      {
+        "id": "team-notes",
+        "about": "The team's design notes",
+        "path": "{ask:notesRoot}/widgets"
+      }
+    ],
+    "ask": {
+      "notesRoot": "The folder of your clone of acme/team-notes"
+    },
+    "mcp": "mcp/servers.json",
+    "contentSets": ["acme-terms"]
+  }
+}

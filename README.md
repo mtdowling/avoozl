@@ -15,25 +15,23 @@ the [workflow kit](workflow-kit/README.md) holds sample repositories that check
 a runner against them. Any tool can follow it. Avoozl is one way to run it,
 through its CLI, MCP server, web app, Kiro Crew plugin and skills.
 
-Avoozl does not follow every rule yet. It still reads `$` fact bullets, and
-the list order, the two tags, linked specs and integration branches by name are
-planned in the `simplify` spec.
+Avoozl does not follow every rule yet. See
+[Avoozl status](docs/github-workflow.md#avoozl-status) for the gaps.
 
-- **Parallel work.** A task waits for the task above it, and the children of a
-  group whose title ends with `(**PARALLEL**)` start side by side. Avoozl
-  ranks ready tasks by how many tasks they unblock, then by file order.
-  Planned: claims by creating `avoozl/<spec>/<task>` branches, so two runners
-  never take one task.
-- **Teams.** The spec issue's assignee drives the spec. To hand it off,
-  reassign the issue. Specs, approvals and ticks live in git, and issues and
-  assignees live on GitHub.
-- **People decide.** An approval is a commit by an approver. A task whose title
-  ends with `(**MANUAL**)` is a gate that holds everything after it until a
-  person ticks it. The repository's `landing` setting is `off`, `direct` or
-  `pr`, and `landing.pr` is `draft`, `ready` or `auto`.
-- **Specs or epics.** A parent spec links its member specs from task titles
-  with normal Markdown links. A branch named exactly like a spec folder is its
-  integration branch.
+- **Parallel work.** Tasks run in [list order](docs/github-workflow.md#3-order),
+  and the children of a parallel group start side by side.
+  [Claim branches](docs/github-workflow.md#12-claims) keep two runners off one
+  task.
+- **Teams.** The spec issue's assignee drives the spec. See
+  [Spec issues and assignment](docs/github-workflow.md#8-spec-issues-and-assignment)
+  for hand-offs.
+- **People decide.** See [Approval](docs/github-workflow.md#7-approval),
+  [Manual tasks](docs/github-workflow.md#4-manual-tasks) and
+  [Landing modes](docs/github-workflow.md#14-landing-modes) for where a person
+  signs off.
+- **Specs or epics.** See [Linked specs](docs/github-workflow.md#6-linked-specs)
+  and [Integration branches](docs/github-workflow.md#11-integration-branches)
+  for epics.
 
 ## Task list
 
@@ -46,14 +44,16 @@ Each task in a spec is an ID, a title and the bullets that say what done means:
   - An unknown key is reported with its path
 ```
 
-Avoozl starts `cfg-2` once `cfg-1` has landed. The commit that lands `cfg-2`
-ticks its box on main, so anyone who reads the branch sees it done.
+See [Tasks](docs/github-workflow.md#2-tasks) for the format and
+[Landing](docs/github-workflow.md#13-landing) for the tick that marks a task
+done.
 
 ## How it works
 
 1. You write a spec: requirements, a design, and a list of tasks. You can
    write it by hand or have an agent draft it for you to review.
-2. You approve it. An approval is a commit on main that you authored.
+2. You approve it with a commit. See
+   [Approval](docs/github-workflow.md#7-approval).
 3. Avoozl starts a coding agent on each task whose dependencies are done. The
    agent runs as a Kiro Crew chat or as a process such as Claude Code or Codex.
 4. When the agent reports done, Avoozl runs the repository's checks itself on
@@ -134,8 +134,8 @@ repository with `avoozl repository configure ID --root PATH`, then run
 ## Delivering a spec
 
 Choose **New spec** on the Specs page, review the lint results and the task
-graph, then choose **Approve revision**. Editing the spec later makes it read
-as unapproved until you approve it again.
+graph, then choose **Approve revision**. See
+[Approving in Avoozl](docs/github-workflow.md#approving-in-avoozl).
 
 Register the checkout the work changes, with its base branch, a folder for
 worktrees, and the checks every task must pass:
@@ -166,13 +166,9 @@ adding a `delivery` object to `.avoozl.json`:
 
 With no GitHub, this workspace drives every spec.
 
-The repository's `landing` setting decides what happens to work that passes:
-
-- `off`, the default, holds the verified commit in **Needs you**.
-- `direct` stacks verified tasks on the base branch, checks the result, and
-  fast-forwards the remote.
-- `pr` opens a pull request, waits for its required checks and reviews, and
-  merges it.
+The repository's `landing` setting, `off` by default, decides what happens to
+work that passes. See
+[Landing modes](docs/github-workflow.md#14-landing-modes) for each value.
 
 In Kiro Crew, two one-time steps finish the setup. Share the `avoozl:avoozl`
 server in **MCP Management** and restart the gateway, so agent chats can
@@ -216,8 +212,8 @@ The [docs](docs/README.md) cover the rest:
 - [Overview](docs/overview.md) for where state lives and what each page shows
 - [Workspaces](docs/workspaces.md) for settings files, the standalone server,
   backup, and rebuilding
-- [Specs](docs/avoozl-specs.md) for the task list format, approvals, and dependencies
-  across specs
+- [Workflow v1](docs/github-workflow.md) for the task list format, order,
+  approvals, claims and landing, and what Avoozl adds
 - [Delivery](docs/delivery.md) for workers, checks, landing, and merge batches
 - [Drivers](docs/drivers.md) for which machine drives a spec, and handing off
 - [GitHub](docs/github.md) for repository roles and GitHub modes

@@ -252,6 +252,50 @@ export function tickHealthPath(store) {
     : null;
 }
 
+// Statuses the script read land before any planning (the tick's first step)
+// and when the cron's call records its observations (cron-intents.mjs).
+export function recordRoster(store, roster) {
+  const bound = new Set(listSessionBindings(store).map((b) => b.slot));
+  for (const row of roster)
+    if (bound.has(row.target))
+      recordSessionStatus(
+        store,
+        { slot: row.target, status: row.status },
+        { served: servedOf(row) },
+      );
+}
+
+// The requests the last cron tick released, beside the health receipt: the
+// cron's call carries out these and no others (MS12.1).
+const releasedPath = (store) => {
+  const health = tickHealthPath(store);
+  return health ? path.join(path.dirname(health), "tick-released.json") : null;
+};
+
+export function recordReleased(store, { dispatch, messages }) {
+  const file = releasedPath(store);
+  if (!file) return;
+  const temporary = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(
+    temporary,
+    JSON.stringify({
+      starts: dispatch.map((request) => request.id),
+      sends: messages.map((request) => request.id),
+    }) + "\n",
+    { mode: 0o600 },
+  );
+  fs.renameSync(temporary, file);
+}
+
+export function readReleased(store) {
+  try {
+    const found = JSON.parse(fs.readFileSync(releasedPath(store), "utf8"));
+    return { starts: new Set(found.starts), sends: new Set(found.sends) };
+  } catch {
+    return { starts: new Set(), sends: new Set() };
+  }
+}
+
 function recordRun(store, run) {
   const filename = tickHealthPath(store);
   let previousAt = null;
@@ -456,7 +500,7 @@ function brief(task, repository) {
 // model_withheld and model_changed.
 const NAME = (value) =>
   value === null || (typeof value === "string" && value.length <= 128);
-function sessionList(value) {
+export function sessionList(value) {
   if (value === undefined) return null;
   if (
     !Array.isArray(value) ||
@@ -556,16 +600,7 @@ async function runTick(
         ).notify,
       );
       // Observe first: statuses the script read land before any planning.
-      if (roster) {
-        const bound = new Set(listSessionBindings(store).map((b) => b.slot));
-        for (const row of roster)
-          if (bound.has(row.target))
-            recordSessionStatus(
-              store,
-              { slot: row.target, status: row.status },
-              { served: servedOf(row) },
-            );
-      }
+      if (roster) recordRoster(store, roster);
       // An invalid file keeps the last valid policy's delivery settings.
       const bindings = listSessionBindings(store),
         delivery = ["loaded", "invalid"].includes(policy.status)

@@ -31,6 +31,7 @@ try {
         [
           "start",
           "dry-run",
+          "foreground",
           "auto-start",
           "inactive",
           "skip-verify",
@@ -57,6 +58,7 @@ try {
           "retire",
           "delete-spec-folder",
           "write",
+          "remove",
           "help",
         ].includes(key)
       )

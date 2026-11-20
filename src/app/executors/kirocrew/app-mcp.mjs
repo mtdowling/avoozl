@@ -26,6 +26,8 @@ import { driverSettingsPath } from "../../workers/driver.mjs";
 import { Store } from "../../store/store.mjs";
 import { callerSlot } from "../../delivery/delivery.mjs";
 import { dispatchMcp } from "../../../mcp.mjs";
+import { cronIntents } from "./cron-intents.mjs";
+import { ensureMachineServer } from "./ensure-server.mjs";
 
 // kiro_crew/mcp_caller.py CALLER_CAPABILITY_KEY and caller_identity_capability().
 const CALLER_CAPABILITY = "kirocrew.caller-identity";
@@ -81,7 +83,12 @@ function withCronCaller(message, env) {
   };
 }
 
-export function createAppMcp({ fallback = null, env = process.env } = {}) {
+export function createAppMcp({
+  fallback = null,
+  env = process.env,
+  // Starts the machine server when none runs (MS12.3); returns { started }.
+  ensureServer = () => ensureMachineServer({ env }),
+} = {}) {
   // One Store and Operations per database, opened on first use and kept, so
   // tick memory and caches stay per workspace.
   const opened = new Map();
@@ -230,6 +237,31 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
           }),
         };
       return rpcError(message.id, target.error);
+    }
+    // The cron's tick is the machine server's job; this call only records
+    // what the cron saw and hands back what the server released (MS12.1).
+    if (cronTick(message)) {
+      const running = !ensureServer().started;
+      const intents = cronIntents(
+        target.entry.store,
+        message.params.arguments.input,
+      );
+      return {
+        jsonrpc: "2.0",
+        id: message.id,
+        result: complete(message, {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                running
+                  ? intents
+                  : { observe: [], dispatch: [], messages: [], notify: [] },
+              ),
+            },
+          ],
+        }),
+      };
     }
     return (
       await handleMcp(message, target.entry.ops, { attestedCaller: true })

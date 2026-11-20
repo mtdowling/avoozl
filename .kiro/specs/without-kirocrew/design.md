@@ -142,7 +142,7 @@ already takes the function that sends. Today that function is
   Kiro Crew. Its payload and its Kiro Crew link are unchanged.
 - The `command` sink runs an argument list from the machine file with the
   title and body appended, the way the tick watchdog runs `osascript` (V:
-  `scripts/tick-watchdog.mjs`). No shell.
+  `src/app/tick/tick-watchdog.mjs`). No shell.
 - The `webhook` sink posts JSON. Its URL may hold a secret (an `ntfy` topic,
   a chat webhook), which is why sinks are refused in `.avoozl.json` and
   live only in the machine file.

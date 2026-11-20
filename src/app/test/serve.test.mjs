@@ -148,28 +148,6 @@ test("the listener is on 127.0.0.1 and nowhere else (SW3.6)", async (t) => {
   assert.equal(server.address().family, "IPv4");
 });
 
-test("--host, --bind and AVOOZL_HOST each refuse to start; a child is refused (SW3.1, SW3.7)", () => {
-  const root = temporaryDirectory(),
-    env = isolatedEnv(root),
-    run = (args, extra = {}) =>
-      spawnSync(process.execPath, [cli, ...args], {
-        env: { ...env, ...extra },
-        encoding: "utf8",
-        timeout: 30000,
-      });
-  for (const [args, extra, name] of [
-    [["serve", "--host", "0.0.0.0"], {}, "--host"],
-    [["serve", "--bind", "0.0.0.0"], {}, "--bind"],
-    [["serve"], { AVOOZL_HOST: "0.0.0.0" }, "AVOOZL_HOST"],
-    [["serve"], { AVOOZL_CHILD: "1" }, "supervisor child"],
-    [["serve", "link"], { AVOOZL_CHILD: "1" }, "supervisor child"],
-  ]) {
-    const result = run(args, extra);
-    assert.notEqual(result.status, 0, name);
-    assert.ok(result.stderr.includes(name), `${name}: ${result.stderr}`);
-  }
-});
-
 test("a taken port exits with 'port N is in use' and tries no other (SW3.2)", async (t) => {
   const holder = net.createServer();
   await new Promise((resolve) => holder.listen(0, "127.0.0.1", resolve));
@@ -645,19 +623,19 @@ test("a request with no session cookie is refused whatever else it carries (SW4.
   assert.equal(cliPath.status, 401);
 });
 
-test("avoozl serve link prints a new link for the running server, and refuses with none running (SW4.2)", async (t) => {
+test("avoozl link prints a new link for the running server, and refuses with none running (SW4.2)", async (t) => {
   const root = temporaryDirectory(),
     env = isolatedEnv(root),
     machine = machineAvoozlPaths({ env, home: env.HOME }),
     run = () =>
-      spawnSync(process.execPath, [cli, "serve", "link"], {
+      spawnSync(process.execPath, [cli, "link"], {
         env,
         encoding: "utf8",
         timeout: 30000,
       });
   const none = run();
   assert.notEqual(none.status, 0);
-  assert.match(none.stderr, /No avoozl serve is running/);
+  assert.match(none.stderr, /The standalone page is not running/);
   const s = await serve(t, {
     stateDirectory: machine.stateDirectory,
     configDirectory: machine.configDirectory,

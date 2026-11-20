@@ -32,6 +32,10 @@ waits for **Allow** (or `--yes` in the CLI) before it asks for a token. Avoozl
 never makes a label as part of other work; a missing label waits in Needs you
 with **Create labels**.
 
+The planning repository's specs may live on a branch other than its base
+branch, such as `avoozl-plans`. Name it with `specs.branch`; see
+[Specs path and branch](github-workflow.md#specs-path-and-branch).
+
 ## GitHub modes
 
 `github.mode` gives the workspace one of these modes, and
@@ -47,11 +51,6 @@ Local only is the default. Switching to Local only keeps your GitHub settings
 in the file, unused, so switching back restores them. In plans-repo mode a
 leak screen keeps the planning repository's name out of branches, pull
 requests, and comments in the code repositories.
-
-The planning repository's specs may live on a branch other than its base
-branch, such as `avoozl-plans`. Name it with `specs.branch`; see
-[The specs branch](avoozl-specs.md#the-specs-branch).
-
 ### Plans repository
 
 Plans-repo mode keeps spec issues and Kiro specs in a planning repository and

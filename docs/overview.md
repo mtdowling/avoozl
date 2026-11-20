@@ -39,16 +39,16 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 - **Specs** live in `.kiro/specs/<name>/` in git: `requirements.md` (or
   `bugfix.md`), `design.md` and `tasks.md`.
 - **Task facts** are the `$key:` bullets under each task in `tasks.md`.
-- **Approvals** are commits on main whose author is an approver.
-- **Task completion** is the commit that lands a task and ticks its box in
-  `tasks.md` on main. Other machines read the tick.
+- **Approvals** and **task completion** are commits on the specs branch. See
+  [Approval](github-workflow.md#7-approval) and
+  [Done tasks](github-workflow.md#15-done-tasks).
 - **Landings** are the trailers on the landing commits.
 - **Retros** live in `.kiro/retros/`.
 - **Execution state** is the workspace database, rebuilt from the items above.
 
 A task never gets a GitHub issue. A spec can have one issue, whose assignee
 drives it, and a fix started from an issue keeps its record there. See
-[Specs](avoozl-specs.md) for the task format and
+[workflow v1](github-workflow.md#2-tasks) for the task format and
 [Workspaces](workspaces.md#rebuilding-the-database) for rebuilding. See [People and machines](scale-out.md) for how several people's
 machines share this state.
 

@@ -4,7 +4,6 @@
 // database is rebuilt from git with the same state. Scratch repositories
 // only; no network.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -25,27 +24,12 @@ import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { specFiles, writeSpec } from "../../test/spec-fixture.mjs";
+import { OWNER, specCheckout as repo } from "../../test/spec-checkout.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-const OWNER = "owner@example.com";
 const OTHER = "someone@example.com";
-
-function repo() {
-  const root = temporaryDirectory("avoozl-git-approvals-"),
-    run = (args, env = {}) =>
-      execFileSync("git", args, {
-        cwd: root,
-        encoding: "utf8",
-        env: { ...process.env, ...env },
-      }).trim();
-  run(["init", "-q", "-b", "main"]);
-  run(["config", "user.email", OWNER]);
-  run(["config", "user.name", "Owner"]);
-  run(["config", "commit.gpgsign", "false"]);
-  return { root, run };
-}
 
 // Commit one spec folder with this author and committer.
 function commitSpec({ root, run }, name, { author, committer, files }) {

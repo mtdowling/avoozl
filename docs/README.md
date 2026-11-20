@@ -13,8 +13,6 @@ itself, and lands it. These pages say how to set it up and how each part works.
 
 - [Workspaces](workspaces.md): settings files, the standalone server, backup
   and rebuilding.
-- [Specs in Avoozl](avoozl-specs.md): spec folders, refs, lint, approvals and
-  ticks as Avoozl handles them.
 - [Epic types](epic-types.md): goals that need many changes in a set order.
 - [Manual tasks](manual-tasks.md): steps only a person does.
 - [Delivery](delivery.md): workers, checks, landing and merge batches.
@@ -28,9 +26,9 @@ itself, and lands it. These pages say how to set it up and how each part works.
 ## GitHub
 
 - [GitHub](github.md): repository roles and GitHub modes.
-- [Workflow v1](github-workflow.md): the numbered rules for the spec format,
-  approvals, assignees, claims, landing and ticks on GitHub, for any tool that
-  runs specs.
+- [Workflow v1](github-workflow.md): the one page for the spec format and the
+  numbered rules for approvals, assignees, claims, landing and ticks, plus
+  Avoozl's spec settings, refs, lint and commands.
 - [Agent skills](agent-skills.md): the answer, review and triage skills any
   agent runner can use on issues and pull requests.
 - [Intake sources](intake.md): bringing in work from trackers and scripts.
