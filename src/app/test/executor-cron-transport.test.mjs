@@ -13,7 +13,7 @@ import {
 import { fixture } from "./fixtures.mjs";
 
 const cronPath = fileURLToPath(
-  new URL("../../../kirocrew-app/crons/tick.py", import.meta.url),
+  new URL("../../../hosts/kirocrew/crons/tick.py", import.meta.url),
 );
 async function cron(ops, intents, { mode = "normal" } = {}) {
   const child = spawn(

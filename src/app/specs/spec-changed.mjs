@@ -5,6 +5,7 @@
 // planned. Nothing here reads GitHub or the store: callers pass the issues.
 import { createHash } from "node:crypto";
 import { specFacts, specItems } from "./spec-plans.mjs";
+import { specTasks as taskList } from "./spec-tasks.mjs";
 
 const sha = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -14,7 +15,7 @@ const sha = (value) =>
 export function specTasks(name, files = {}) {
   const manifest = specFacts(files).tasks;
   const tasks = new Map();
-  for (const item of specItems(name, files["tasks.md"] || "")) {
+  for (const item of specItems(name, taskList(files)?.text ?? "")) {
     if (!item.id) continue;
     tasks.set(item.id, {
       id: item.id,

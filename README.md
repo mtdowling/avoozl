@@ -98,7 +98,7 @@ git clone https://github.com/mtdowling/avoozl.git
 cd avoozl
 npm ci
 npm run build:kirocrew-app
-kirocrew app install "$PWD/kirocrew-app"
+kirocrew app install "$PWD/hosts/kirocrew"
 ```
 
 `npm ci` also links a global `avoozl` command to this checkout, as `npm link`
@@ -240,7 +240,7 @@ The [docs](docs/README.md) cover the rest:
 ## Development
 
 Application operations and storage live in `src/app/`, shared models in
-`src/`, and the Kiro Crew page in `kirocrew-app/ui/`. See
+`src/`, and the Kiro Crew page in `hosts/kirocrew/ui/`. See
 [AGENTS.md](AGENTS.md) for the rules a change follows.
 
 ```sh

@@ -27,6 +27,7 @@ import {
   actorAllowed,
   readGitHubPolicyOrNull,
 } from "../github/github-policy.mjs";
+import { specTasks } from "../specs/spec-tasks.mjs";
 
 export const TESTS = Object.freeze(["approved", "approver", "you-drive"]);
 const RECENT = 10;
@@ -82,7 +83,7 @@ async function approvedRevision(store, task, deps) {
     found = {
       commit: match.commit,
       email: match.email,
-      taskIds: specItems(plan.spec, match.files["tasks.md"] ?? "")
+      taskIds: specItems(plan.spec, specTasks(match.files)?.text ?? "")
         .map((item) => item.id)
         .filter(Boolean),
       root,

@@ -5,8 +5,8 @@ Markdown file per role. Edit the file here, because nothing else holds a second
 copy.
 
 ```sh
-npm run build:agents
-npm run check:agents
+npm run build:hosts
+npm run check:hosts
 ```
 
 The directory ships beside `src/`, in a checkout and in the installed app. The
@@ -33,18 +33,18 @@ roles are the keys of the `roles` setting, and each file serves these roles:
 `skills/<name>.md` is a whole skill (front matter and text) that any agent
 runner can read, such as an Issue Radar crew: `avoozl-answer`,
 `avoozl-review` and `avoozl-triage` (see `docs/agent-skills.md`). They
-call no Avoozl tool. `npm run build:agents` copies each one to
-`kirocrew-app/skills/<name>/SKILL.md`, which the app installs like its other
-skills, and `npm run check:agents` fails when a copy differs or `app.json`
+call no Avoozl tool. `npm run build:hosts` copies each one to
+`hosts/kirocrew/skills/<name>/SKILL.md`, which the app installs like its other
+skills, and `npm run check:hosts` fails when a copy differs or `app.json`
 does not list it. Do not edit the copies.
 
 ## Kiro Crew agents
 
-A Kiro Crew chat gets its prompt from an agent file in `kirocrew-app/agents/`.
-Those files are generated: `src/app/executors/kirocrew/agent-metadata.json`
+A Kiro Crew chat gets its prompt from an agent file in `hosts/kirocrew/agents/`.
+Those files are generated: `roles.json`
 holds each agent's tools, permissions and other settings with no prompt, and
-`npm run build:agents` copies the matching `prompts/<role>.md` into each
-agent's `prompt` field. `npm run check:agents` fails when a generated file
+`npm run build:hosts` copies the matching `prompts/<role>.md` into each
+agent's `prompt` field. `npm run check:hosts` fails when a generated file
 differs from its prompt or metadata, or when `app.json` and the metadata name
 different agents. It runs before `npm test`. Do not edit the generated JSON.
 
@@ -68,4 +68,4 @@ are locked and always use the shipped text. A person can revert an override in
 one step. When an update changes a section that has an override, Avoozl shows a
 three-way diff and a rebased proposal, and keeps the override until a person
 approves the rebase. To change the shipped text for everyone, edit the file here
-and run `npm run build:agents`.
+and run `npm run build:hosts`.

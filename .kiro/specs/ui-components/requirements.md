@@ -22,8 +22,8 @@ cited at `05474af`; or **A**, assumed and not checked, with the reason.
   UI Components" in Kiro Crew's `docs/app-kit/getting-started.md`, release
   0.12.2). The page imports six: `Btn`, `Card`, `Input`, `EmptyState`,
   `SegmentedControl` and `Badge` (V: the module declaration in
-  `kirocrew-app/ui/src/kirocrew-app-sdk.d.ts` and the imports under
-  `kirocrew-app/ui/src`).
+  `hosts/kirocrew/ui/src/kirocrew-app-sdk.d.ts` and the imports under
+  `hosts/kirocrew/ui/src`).
 - Where Kiro Crew has a component, the page often draws its own:
 
   | Kiro Crew documents           | The page has                                                  |
@@ -41,14 +41,14 @@ cited at `05474af`; or **A**, assumed and not checked, with the reason.
 
 - The look is spread over every view: 2,383 `className` attributes with 631
   distinct strings, 820 inline style objects and 882 uses of a CSS variable,
-  in 121 view files (V: counted under `kirocrew-app/ui/src`). A few strings
+  in 121 view files (V: counted under `hosts/kirocrew/ui/src`). A few strings
   carry most of it: the three muted-text strings `text-xs text-muted`,
   `text-muted` and `text-sm text-muted` appear 497 times, and
   `flex flex-col gap-N` about 180 (V).
 - Inside Kiro Crew a utility class works only when Kiro Crew's own pages use
   it, because Kiro Crew's stylesheet is generated from its own sources (V:
   the `@source` lines of Kiro Crew's `website/src/index.css`). The check for
-  this, `kirocrew-app/ui/test/host-classes.test.mjs`, is skipped unless
+  this, `hosts/kirocrew/ui/test/host-classes.test.mjs`, is skipped unless
   `KIROCREW_HOST_CSS` is set (V). With 631 distinct strings in 121 files,
   nothing stops a view from using a class that does nothing inside Kiro
   Crew.
@@ -64,7 +64,7 @@ cited at `05474af`; or **A**, assumed and not checked, with the reason.
 
 ### Scope
 
-- Every view under `kirocrew-app/ui/src`, including the side panel.
+- Every view under `hosts/kirocrew/ui/src`, including the side panel.
 
 ### Out of scope
 
@@ -79,8 +79,8 @@ cited at `05474af`; or **A**, assumed and not checked, with the reason.
 | Word              | Meaning                                                                                   |
 | ----------------- | ----------------------------------------------------------------------------------------- |
 | Kiro Crew part    | One of the 27 components Kiro Crew documents in `@kirocrew/app-sdk/ui`                    |
-| Avoozl part       | A component in `kirocrew-app/ui/src/ui/`, the folder this spec adds                       |
-| View              | Any other file under `kirocrew-app/ui/src` that renders                                   |
+| Avoozl part       | A component in `hosts/kirocrew/ui/src/ui/`, the folder this spec adds                       |
+| View              | Any other file under `hosts/kirocrew/ui/src` that renders                                   |
 | Raw style         | A `className` or `style` written in a view, or a `<style>` element a view renders        |
 
 ## Requirements
@@ -105,7 +105,7 @@ supported surface.
    task SHALL say what in its pull request and either keep Avoozl's version
    in `src/ui/` or give up the difference; the owner decides which on the
    screenshots.
-4. `kirocrew-app/ui/src/kirocrew-app-sdk.d.ts` SHALL declare every Kiro Crew
+4. `hosts/kirocrew/ui/src/kirocrew-app-sdk.d.ts` SHALL declare every Kiro Crew
    part the page uses, with the props Kiro Crew documents.
 
 ### Requirement UC2: A small set of Avoozl parts for the rest
@@ -115,7 +115,7 @@ be components, so that a change of look is one edit.
 
 #### Acceptance criteria
 
-1. `kirocrew-app/ui/src/ui/` SHALL hold the Avoozl parts. Each SHALL be
+1. `hosts/kirocrew/ui/src/ui/` SHALL hold the Avoozl parts. Each SHALL be
    named for what it is on the page, not for its classes, and the first set
    SHALL cover: muted and small text (`Hint`), an error line (`ErrorText`,
    built on `ErrorNotice` where it fits), a vertical stack with a gap
@@ -158,7 +158,7 @@ missing quietly inside Kiro Crew.
 #### Acceptance criteria
 
 1. CI SHALL run `host-classes.test.mjs` on every change to
-   `kirocrew-app/ui/src`, against a stylesheet built from Kiro Crew's own
+   `hosts/kirocrew/ui/src`, against a stylesheet built from Kiro Crew's own
    stylesheet source at the `standalone-web` pin, with only Kiro Crew's
    sources scanned. It SHALL NOT be skipped.
 2. Until the pin's fetch exists (`standalone-web`, sw-1.2), the test SHALL
@@ -179,7 +179,7 @@ each change is small enough to look at.
    being, or one group of views onto them, and SHALL change no behavior.
 2. Each task that changes a screen SHALL give the owner screenshots of the
    views it touched, at 390 and 1280 px, light and dark, before and after,
-   in Kiro Crew at the release `kirocrew-app/app.json` names in
+   in Kiro Crew at the release `hosts/kirocrew/app.json` names in
    `minKiroCrewVersion` or later (R92.12).
 3. The existing page tests SHALL pass with their assertions unchanged,
    except where a test reads a class or an element that a Kiro Crew part

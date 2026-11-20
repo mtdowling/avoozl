@@ -76,7 +76,7 @@ No label is an order. The labels Avoozl reads are per-repository settings:
 
 ## Screens
 
-The nav has seven entries, defined in `kirocrew-app/ui/src/nav-api.ts`:
+The nav has seven entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
 
 - **Dashboards:** Home, Graph, Delivery, Landing queue.
 - **Specs:** one list with status chips, and spec details with tabs.

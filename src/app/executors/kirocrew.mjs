@@ -238,7 +238,7 @@ export function kirocrewRequest(store, legacy) {
 // in a folder whose project directory is that workspace.
 // shortcut: the agent's write scope is fixed at build time to the default
 // specs path; a workspace with another specs.path drafts with a process
-// planner, or widen allowedPaths in agent-metadata.json if Kiro Crew chats
+// planner, or widen allowedPaths in roles.json if Kiro Crew chats
 // must write there.
 // shortcut: one folder for every workspace on this Kiro Crew; name it per
 // workspace once a gateway serves two planning workspaces.

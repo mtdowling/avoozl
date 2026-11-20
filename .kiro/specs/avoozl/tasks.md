@@ -29,8 +29,8 @@ that landed the task.
 - [x] 1.2 Add `avoozl mcp` as the app's stdio MCP server, keeping every `plans_*` tool name. [R24.5] (§4.1)
   - Add `avoozl mcp` as the app's stdio MCP server, keeping every `plans_*` tool name.
   - Built: `d22f2b9` (receipt `docs/evidence/phase1-core-runtime.md`, `5202d53`).
-- [x] 1.3 Replace `kirocrew-app/app.json` with the manifest in §4.2: node backend with `signedPrincipal`, `mcpServers`, script cron, notification channels, agents, skill, optional `gh`. [R1, R26.3]
-  - Replace `kirocrew-app/app.json` with the manifest in §4.2: node backend with `signedPrincipal`, `mcpServers`, script cron, notification channels, agents, skill, optional `gh`.
+- [x] 1.3 Replace `hosts/kirocrew/app.json` with the manifest in §4.2: node backend with `signedPrincipal`, `mcpServers`, script cron, notification channels, agents, skill, optional `gh`. [R1, R26.3]
+  - Replace `hosts/kirocrew/app.json` with the manifest in §4.2: node backend with `signedPrincipal`, `mcpServers`, script cron, notification channels, agents, skill, optional `gh`.
   - Built: `e5c0f58` (receipt `docs/evidence/phase1-app-package.md`, `d3ac3d1`).
 - [x] 1.4 Ship `crons/tick.py:run` that calls `plans_tick`, opens and messages sessions from the returned intents, and raises `Skip` when there is nothing to do. [R26.2–26.5] (§4.6)
   - Ship `crons/tick.py:run` that calls `plans_tick`, opens and messages sessions from the returned intents, and raises `Skip` when there is nothing to do.
@@ -461,8 +461,8 @@ that landed the task.
   - Built: `156ae8e` (flow-checks.mjs, `plans_run_checks`, `avoozl checks run`).
 - [x] 12.9 Retrospectives, after 12.5, 10.4 [R47.1–R47.6, R47.8, R47.9] (§4.11)
   - Retrospectives, after 12.5, 10.4
-  - Tool-less `avoozl-retro` agent in `kirocrew-app/agents/`; triggers with the defaults in §4.11, one at a time per workspace, folded triggers, one-hour spike gap; brief through the `brief` content-rule boundary; reply schema-checked, at most 3 typed proposals, refused safety keys, "removes a check" marked; Approve writes settings through the validated operation or opens a planner draft; Reject records why; 10-minute timeout.
-  - Tool-less `avoozl-retro` agent in `kirocrew-app/agents/`; triggers with the defaults in §4.11, one at a time per workspace, folded triggers, one-hour spike gap; brief through the `brief` content-rule boundary; reply schema-checked, at most 3 typed proposals, refused safety keys, "removes a check" marked; Approve writes settings through the validated operation or opens a planner draft; Reject records why; 10-minute timeout.
+  - Tool-less `avoozl-retro` agent in `hosts/kirocrew/agents/`; triggers with the defaults in §4.11, one at a time per workspace, folded triggers, one-hour spike gap; brief through the `brief` content-rule boundary; reply schema-checked, at most 3 typed proposals, refused safety keys, "removes a check" marked; Approve writes settings through the validated operation or opens a planner draft; Reject records why; 10-minute timeout.
+  - Tool-less `avoozl-retro` agent in `hosts/kirocrew/agents/`; triggers with the defaults in §4.11, one at a time per workspace, folded triggers, one-hour spike gap; brief through the `brief` content-rule boundary; reply schema-checked, at most 3 typed proposals, refused safety keys, "removes a check" marked; Approve writes settings through the validated operation or opens a planner draft; Reject records why; 10-minute timeout.
   - Built: `736fbd6` (flow-retro.mjs, `avoozl-retro` agent).
 - [x] 12.10 PDCA check, after 12.9 [R47.7] (§4.11)
   - PDCA check, after 12.9
@@ -654,7 +654,7 @@ that landed the task.
   - Cancel before Set up writes nothing; each GitHub write asks first; the flow never approves, dispatches or pushes.
   - Adopt from git: Pick approvers lists the commit authors, and Import specs calls `onboarding.adopt`, which runs `readFromGit`, the reader `avoozl rebuild` uses. The issue preview step and the per-task issue text are gone.
   - Steps with Cancel on each; steps that do not apply are left out and satisfied ones show done; one confirm per GitHub write; nothing written before Set up; never approves, starts or pushes.
-  - Built: see the commit that adds `kirocrew-app/ui/src/Onboard.tsx`.
+  - Built: see the commit that adds `hosts/kirocrew/ui/src/Onboard.tsx`.
 
 ## Phase 21: Epics and phases
 
@@ -697,7 +697,7 @@ Requirement 59, design §6.9.
   - Expected: (1) 0 errors; `gamma` gets `spec.epic-unknown` and shows under No epic; (2) `spec.epic-member-unconfirmed` blocks only the epic's approval; (3) the epic lists `alpha` then `beta` with computed progress; phases come from headings; the headless task is under No phase; no response contains `doc:` or a file path as a group name; (4) one epic issue with the epic type, two plan issues as its sub-issues, task issues under them, the phase line in each body; `beta`'s third task is unlinked, names its plan issue in the marker, and shows "Over the sub-issue limit"; the second preview writes nothing; (5) the tick closes both plan issues, then the epic issue; (6) `facts.removed-key`, `facts.unknown-key` and `spec.epic-task-fields` errors naming each entry, and neither folder can be approved; (7) the sub-issue cap shows only in plans-repo mode.
   - Failure means: one word still means two things, a group is still made up from a path, or an old form still loads.
   - Next decision: keep phases as Avoozl-only groups and project only epics and tasks.
-  - Built: a5871a4 `src/app/test/proof-p36.test.mjs`; bae8870 `kirocrew-app/ui/test/epics.test.mjs`
+  - Built: a5871a4 `src/app/test/proof-p36.test.mjs`; bae8870 `hosts/kirocrew/ui/test/epics.test.mjs`
 - [x] 21.7 Rewrite the owner's plans once, after avoozl-p36 [R59.12] (§6.9)
   - Rewrite the owner's plans once, after avoozl-p36
   - A one-time script, kept in the task's report and not in `src/`, runs through existing operations on a copy and then live after a sha256 backup; per-plan epics become phases, `doc:` tasks go to their section or No phase, orphaned tasks are archived as "plan removed", old manifest forms are rewritten, every plan lints with 0 errors, a second run changes nothing, spec edits are local commits, and nothing is approved, started, written to GitHub, or pushed.
@@ -722,7 +722,7 @@ Requirement 61, design §4.16.
   - Task drawer Links and notes and the Mark done dialog, after 22.1, 22.3
   - The drawer lists links and notes newest first with author and time, adds, edits and removes them after a confirm, and shows a manual leaf's acceptance with a Mark done dialog that saves an outcome and Done or Skipped.
   - Drawer section newest first with author and time, Add link and Add note, edit, and remove after a confirm; a manual leaf shows its acceptance and Mark done with outcome note, links, and Done or Skipped; checked by drawing the page and looking at it.
-  - Built: `kirocrew-app/ui/src/TaskNotes.tsx` (Links and notes fold, Mark done dialog on the shared Modal and RadioFold, Allow once in place), Manual badge on Dashboard and Delivery. Tests: `kirocrew-app/ui/test/manual-notes.test.mjs`; drawn at 320, 768 and 1280 in light and dark with the harness and looked at.
+  - Built: `hosts/kirocrew/ui/src/TaskNotes.tsx` (Links and notes fold, Mark done dialog on the shared Modal and RadioFold, Allow once in place), Manual badge on Dashboard and Delivery. Tests: `hosts/kirocrew/ui/test/manual-notes.test.mjs`; drawn at 320, 768 and 1280 in light and dark with the harness and looked at.
 - [x] 22.5 Links and notes on the issue, after 22.3 [R61.23] (§4.16, §3.3)
   - Links and notes on the issue, after 22.2, 22.3
   - Only entries a person marks Show on the issue reach the managed body, after the `github` boundary; edits there are conflicts; a rebuild restores shown entries.
@@ -737,7 +737,7 @@ Requirement 61, design §4.16.
   - From template in the New plan drawer, after 22.6, 21.6, 19.1
   - From template lists approved templates, fills their inputs, seeds the planner chat, and returns a draft plan that records the template; settings import only when ticked, through the pack preview hash; a picked epic gets a draft revision; nothing is approved, started or pushed.
   - Blank or From template as radio fold-outs; template inputs as fields beside Name, Category and Epic; `plan.new` takes `template` and `inputs`, checks required inputs, reads a file input in the page up to 200 KB, and runs content rules on the seed; the pack preview with Import these settings unticked; the draft records the template; a picked epic gets its own draft revision; nothing approved, started or pushed.
-  - Built: `kirocrew-app/ui/src/NewPlanDrawer.tsx` Blank or From template fold-outs, `kirocrew-app/ui/src/TemplateStart.tsx` (inputs, file read in the page up to 200 KB, pack preview with Import these settings unticked); `src/app/specs/new-plan.mjs` takes `template` and `inputs`, records the template on the draft and saves the epic's own draft revision. Tests: `src/app/test/proof-p37.test.mjs`, `kirocrew-app/ui/test/manual-notes.test.mjs`.
+  - Built: `hosts/kirocrew/ui/src/NewPlanDrawer.tsx` Blank or From template fold-outs, `hosts/kirocrew/ui/src/TemplateStart.tsx` (inputs, file read in the page up to 200 KB, pack preview with Import these settings unticked); `src/app/specs/new-plan.mjs` takes `template` and `inputs`, records the template on the draft and saves the epic's own draft revision. Tests: `src/app/test/proof-p37.test.mjs`, `hosts/kirocrew/ui/test/manual-notes.test.mjs`.
 - [x] 22.8 Sample SDK rewrite template, docs, and skills, after 22.7, 22.4 [R61.24] (§4.16)
   - Sample SDK rewrite template, docs, and skills, after 22.7, 22.4
   - The sample SDK rewrite template lints and loads; the docs and the plugin and planner skills describe templates, manual leaves, and links and notes; the sample names no private system or company.
@@ -761,7 +761,7 @@ Requirement 62, design §8.7.
   - Say spec on the page, in docs and in skills, after 19.1
   - Every user-facing plan word reads spec; the compatibility names are unchanged; a page-source test fails on any plan word outside its allowlist.
   - Every user-facing plan word becomes spec; Plan a change becomes Change spec; `plans_*`, `plan.*`, CLI, `.avoozl.json` keys, SQLite, the Plans repo mode and `avoozl-planner` are unchanged; a page-source test fails on any `plan` or `plans` word outside its allowlist.
-  - Built: `e179407`, `46ed4da` (page-source test `kirocrew-app/ui/test/specs-name.test.mjs`); the Specs tab, Change spec in `PlansView.tsx`.
+  - Built: `e179407`, `46ed4da` (page-source test `hosts/kirocrew/ui/test/specs-name.test.mjs`); the Specs tab, Change spec in `PlansView.tsx`.
 - [x] avoozl-p38 P38 Proof: the Specs name and ideas [R62] (§8.7)
   - Proof: the Specs name and ideas
   - Expected: no user-facing plan word outside the allowlist and compat names unchanged; bad idea fields and blocked text refused; ideas never start work or count as untriaged; a session cannot archive or graduate; riff only appends; Make it a spec prefills New spec and graduates the idea; archived ideas survive the purge.
@@ -784,7 +784,7 @@ Requirement 64, design §4.11.
   - Stop the line on the Dashboard, after 24.1
   - The red header button, its dialog and the banner with Resume work at 375 and 1280 px in light and dark.
   - A red Stop the line button in the Dashboard header opens a dialog with a scope, its target and a required reason; the Line stopped banner shows who, when, scope, reason and the paused count, with a Resume button that asks first; checked by drawing the page at 375 and 1280 px in light and dark.
-  - Built: `79e5fa7` (`StopLine.tsx`, the Line stopped banner in `DashboardView.tsx`; `kirocrew-app/ui/test/stop-line.test.mjs`).
+  - Built: `79e5fa7` (`StopLine.tsx`, the Line stopped banner in `DashboardView.tsx`; `hosts/kirocrew/ui/test/stop-line.test.mjs`).
 - [x] avoozl-p39 P39 Proof: pull the Andon cord [R64] (§4.11)
   - Proof: pull the Andon cord
   - Expected: a pulled stop pauses its scope and leaves running sessions alone; bad pulls are refused with nothing recorded; only a person resumes; nothing else closes a pulled stop; Flow, the retro and the CLI see each pull.
@@ -880,7 +880,7 @@ Requirement 71, design §4.19.
   - Activity tab and the retention setting, after 29.3, 12.11
   - The Activity tab uses the shared heading, filter panel and 100-row pages; task rows open the drawer and GitHub links open in a new tab with noopener noreferrer; the tab's Keep activity field sets the retention.
   - The Activity tab with the `History` icon, `ViewHeading`, the shared filter panel (Source, Kind, Actor), 100 rows per page with Show more, task targets that open the drawer and GitHub links with `target="_blank" rel="noopener noreferrer"`; the Keep activity (days) field on the tab, saved by a person.
-  - Built: `84b92b4`, `e8c84e7`, PR #12 (`ActivityView.tsx`, Keep activity (days) on the tab; `kirocrew-app/ui/test/activity.test.mjs`).
+  - Built: `84b92b4`, `e8c84e7`, PR #12 (`ActivityView.tsx`, Keep activity (days) on the tab; `hosts/kirocrew/ui/test/activity.test.mjs`).
 - [x] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
   - Proof: activity log
   - Expected: every listed local action and tick event makes one row, a change seen twice makes one, secret-shaped and rule-matched values are saved redacted, old rows are pruned on the tick, and the tab and plans_view read the same rows.
@@ -938,7 +938,7 @@ Requirements 64.12–64.16 and 73, design §4.11 and §8.9.
   - One searchable picker for tasks and specs, after 24.2
   - Every task and spec choice uses one keyboard-accessible combobox that matches ID, title and spec, shows state, and stays fast with 5,000 tasks.
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.
-  - Built: `2456191`, PR #11 (`Picker.tsx`, `picker.ts`; `kirocrew-app/ui/test/picker.test.mjs`).
+  - Built: `2456191`, PR #11 (`Picker.tsx`, `picker.ts`; `hosts/kirocrew/ui/test/picker.test.mjs`).
 
 ## Phase 34: Investigate first, evidence, staying current, rules, fix share, who merges
 
@@ -994,7 +994,7 @@ Requirement 81, design §8.10.
 - [x] 35.2 Files fold in the task drawer, after 35.1 [R81.1–R81.3] (§8.10)
   - Files fold in the task drawer, after 35.1
   - The drawer's Files fold shows the changed-file tree with badges and counts, Show all files, unified and split diffs with summaries for binaries and large files, Open in editor links (Kiro by default), and the GitHub branch for remote tasks.
-  - `TaskFiles.tsx` and `files-api.ts`: the tree with badges and counts, Show all files, unified and split diffs, summaries, Open in editor with the editor choice, and the GitHub branch link; `kirocrew-app/ui/test/task-files.test.mjs`, `task-files-browser.test.mjs`, screenshots in `docs/evidence/task-files/`.
+  - `TaskFiles.tsx` and `files-api.ts`: the tree with badges and counts, Show all files, unified and split diffs, summaries, Open in editor with the editor choice, and the GitHub branch link; `hosts/kirocrew/ui/test/task-files.test.mjs`, `task-files-browser.test.mjs`, screenshots in `docs/evidence/task-files/`.
   - Built: `3505ff3`.
 - [x] avoozl-p46 P46 Proof: review a task's changes in the drawer [R81] (§8.10)
   - Proof: review a task's changes in the drawer
@@ -1004,7 +1004,7 @@ Requirement 81, design §8.10.
   - Expected: (1) each change has its badge and counts; (2) text diffs show, binaries, large files and links are summarized; (3) each is refused and nothing outside is read or written; (4) the branch is read and MCP gets both; (5) the diff draws both ways and every editor link follows the choice.
   - Failure means: a read leaves the worktree or an input reaches Git as an option.
   - Next decision: drop untracked files, or read diffs through a provider instead of local Git.
-  - Built: pass, `src/app/tasks/test/task-files.test.mjs`, `kirocrew-app/ui/test/task-files.test.mjs`, `kirocrew-app/ui/test/task-files-browser.test.mjs`.
+  - Built: pass, `src/app/tasks/test/task-files.test.mjs`, `hosts/kirocrew/ui/test/task-files.test.mjs`, `hosts/kirocrew/ui/test/task-files-browser.test.mjs`.
 
 ## Phase 36: Demo mode
 
@@ -1017,7 +1017,7 @@ Requirement 82, design §6.11.
 - [x] 36.2 Demo badge, bar, tour and exit, after 36.1, 31.3 [R82.3] (§6.11)
   - Demo badge, bar, tour and exit, after 36.1, 31.3
   - The tour walks the nine pages with keys and reduced motion, a change shows its preview, and Exit demo returns to the person's workspace.
-  - `host.ts`, `demo-api.ts`, `Demo.tsx` and the App wiring; `kirocrew-app/ui/test/demo-tour.test.mjs` with tour, keys, preview, exit and layout at 320, 768 and 1280 px, light and dark.
+  - `host.ts`, `demo-api.ts`, `Demo.tsx` and the App wiring; `hosts/kirocrew/ui/test/demo-tour.test.mjs` with tour, keys, preview, exit and layout at 320, 768 and 1280 px, light and dark.
 - [x] 36.3 README and screenshots, after 36.2 [R82] (§6.11)
   - README and screenshots, after 36.2
   - The README says how to start the demo, and screenshots show it at three widths in light and dark.
@@ -1545,6 +1545,10 @@ Requirement 102, design §4.32.
   - Missing records show as none; check state carries head SHA and age, and a non-current head is never shown as current. A counting-client test asserts the GitHub call count is unchanged with link sets on.
   - Pure read model over the spec issue, spec working branch, task branch and worktree, task PR and check state from landing, landed commit from delivery records, and intake/escalation issues. URLs come from validated repository, number, ref and SHA fields only.
   - Missing records show as none; check state carries head SHA and age, and a non-current head is never shown as current. A counting-client test asserts the GitHub call count is unchanged with link sets on.
+- [x] 44.6 Radar back-links through intake, after 44.1, 56.11 [R92.10] (§4.27)
+  - Radar back-links through intake
+  - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
+  - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
 - [x] 44.5 Landing queue page under Dashboards, after 44.1 [R92.7, R92.2, R92.12] (§4.27)
   - Landing queue page under Dashboards
   - A Dashboards page next to CI, not a nav pill. Per target base, items in landing order with each hold reason; full-width rows at 390 px. No GitHub call; Refresh redraws.
@@ -1561,10 +1565,6 @@ Requirement 102, design §4.32.
   - Links box in the spec details panel
   - Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel="noopener noreferrer"; a private spec issue renders only locally.
   - Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel="noopener noreferrer"; a private spec issue renders only locally.
-- [x] 44.6 Radar back-links through intake, after 44.1, 56.11 [R92.10] (§4.27)
-  - Radar back-links through intake
-  - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
-  - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
 - [x] avoozl-p54 P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.5, R102.7] (§4.27)
   - P54 Proof: links and the landing queue on real GitHub
   - Setup: isolated scratch workspace with two registered targets, one PR from a fork, a spec created from a scratch Radar-style issue, one landed and one held task; no real workspace tick.
@@ -1731,6 +1731,9 @@ Requirement FS1, design §FS1.
 - [x] `fs-1` specs.path, only tasks.md required, other Markdown as spec text [FS1] (§FS1)
   - `specs.path` in `.avoozl.json` names the specs folder (default `.kiro/specs`) and is refused when absolute, with `.` or `..`, or through a symlink out of the checkout; only `tasks.md` is required; every other `.md` file in a spec folder is part of the revision hash and named to workers; a requirement or design ref is checked only when its file exists and otherwise names the missing file; Kiro's three-file layout hashes and lints as before.
   - `specs-path.mjs`, `readSpecFolder` and `revisionFiles` in `spec-plans.mjs`, `resolveRefs` in `spec-refs.mjs`, `git-approvals.mjs`, `src/app/specs/test/flexible-specs.test.mjs`.
+- [x] `fs-2` A spec in one file, its tasks under ## Tasks [FS1.3, FS1.8, FS1.9] (§FS1)
+  - A folder with no `tasks.md` reads the `## Tasks` section of its one `.md` file as its task list, with `###` phases and the file's own line numbers; a folder with both is a lint error naming both files; a tick in the section changes no spec text and the prose does; the parser, lint, hash, ticks, landing, rebuild and the page find the task file through `spec-tasks.mjs`; `docs/github-workflow.md` rule 1.2 and the workflow kit cover both layouts.
+  - `spec-tasks.mjs`, `src/app/specs/test/single-file-spec.test.mjs`, `workflow-kit/cases/single-file-spec`.
 
 ## Phase 68: The spec issue's assignee says who works on a spec
 

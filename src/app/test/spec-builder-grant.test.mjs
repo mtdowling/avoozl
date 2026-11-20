@@ -28,7 +28,7 @@ function sources(directory) {
 
 test("the manifest grants Spec Builder's specs path and nothing wider", () => {
   const manifest = JSON.parse(
-    fs.readFileSync(path.join(root, "kirocrew-app", "app.json"), "utf8"),
+    fs.readFileSync(path.join(root, "hosts", "kirocrew", "app.json"), "utf8"),
   );
   const grants = manifest.permissions.api.filter((entry) =>
     entry.includes("spec-builder"),
@@ -40,11 +40,11 @@ test("no source file calls a Spec Builder route other than create", () => {
   const files = [
     path.join(root, "cli.mjs"),
     ...sources(path.join(root, "src")),
-    ...sources(path.join(root, "kirocrew-app")),
+    ...sources(path.join(root, "hosts", "kirocrew")),
   ];
   const found = [];
   for (const file of files) {
-    if (file.endsWith(path.join("kirocrew-app", "app.json"))) continue;
+    if (file.endsWith(path.join("hosts", "kirocrew", "app.json"))) continue;
     const text = fs.readFileSync(file, "utf8");
     for (const match of text.matchAll(/\/api\/apps\/spec-builder[^\s'"`),]*/g))
       if (match[0] !== CREATE)
@@ -61,7 +61,14 @@ test("no source file calls a Spec Builder route other than create", () => {
   assert.ok(
     fs
       .readFileSync(
-        path.join(root, "kirocrew-app", "ui", "src", "spec-builder-api.ts"),
+        path.join(
+          root,
+          "hosts",
+          "kirocrew",
+          "ui",
+          "src",
+          "spec-builder-api.ts",
+        ),
         "utf8",
       )
       .includes(`api.post<SpecBuilderCreated>(SPEC_BUILDER_SPECS, body)`),

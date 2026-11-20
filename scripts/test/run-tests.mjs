@@ -102,7 +102,7 @@ if ((shard || chromeOnly) && !system)
   throw Error("--shard and --chrome-only need --system");
 
 let nodeFiles = ["src/*.test.mjs", "src/app/**/test/*.test.mjs"],
-  uiFiles = ["kirocrew-app/ui/test/*.test.mjs"];
+  uiFiles = ["hosts/kirocrew/ui/test/*.test.mjs"];
 if (system && !changed) ({ node: nodeFiles, ui: uiFiles } = allTestFiles());
 if (changed) {
   const sel = select(changedFiles(base));
@@ -133,7 +133,7 @@ if (system) {
 if (changed || system) {
   if (nodeFiles.length || uiFiles.length) {
     // Same prerequisites as npm's pretest.
-    for (const script of ["check:agents", "build"]) {
+    for (const script of ["check:hosts", "build"]) {
       const r = spawnSync("npm", ["run", script, "--silent"], {
         stdio: "inherit",
         shell: process.platform === "win32",

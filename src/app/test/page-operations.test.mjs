@@ -20,7 +20,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 
 const UI = fileURLToPath(
-  new URL("../../../kirocrew-app/ui/src", import.meta.url),
+  new URL("../../../hosts/kirocrew/ui/src", import.meta.url),
 );
 const OPERATION = /^[a-z][a-zA-Z]*(\.[a-zA-Z]+)+$/;
 // Operation-shaped strings in arrays that name files, not operations.

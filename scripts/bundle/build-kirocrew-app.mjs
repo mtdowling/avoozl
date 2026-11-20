@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import { build } from "vite";
-import { buildAgents } from "../../src/app/executors/kirocrew/build-agents.mjs";
+import { buildHosts } from "../build-hosts.mjs";
 import { writeUiStamp } from "../../src/app/serve/ui-bundle.mjs";
 import { buildStandalone } from "./build-standalone.mjs";
 
@@ -15,12 +15,12 @@ const root = path.resolve(
     "..",
     "..",
   ),
-  app = path.join(root, "kirocrew-app"),
+  app = path.join(root, "hosts", "kirocrew"),
   ui = path.join(app, "ui"),
   lib = path.join(app, "bin", "lib"),
   tsc = path.join(root, "node_modules", "typescript", "bin", "tsc");
 
-buildAgents({ root });
+buildHosts({ root });
 
 execFileSync(
   process.execPath,

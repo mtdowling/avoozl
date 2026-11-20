@@ -21,7 +21,7 @@
 // pull request; upgrade with the worktree cleanup after landing (40.4).
 import { personOf } from "../github/github.mjs";
 import { landingMetrics } from "./landing-trailers.mjs";
-import { git, remoteGit } from "../git/git.mjs";
+import { baseRef, branchTip, git, remoteGit } from "../git/git.mjs";
 import {
   enqueueLanding,
   landingQueue,
@@ -78,14 +78,17 @@ async function registryOf(repository) {
 
 // Brings origin's base into the local base branch by fast-forward only.
 // A diverged local base, or a checkout on the base with changes, is left
-// as it is.
+// as it is. A checkout with no local base branch keeps none: the fetch
+// moved origin's tracking copy, which is its base.
 export async function syncBase(repository, { env } = {}) {
   const base = repository.baseBranch || "main";
   await remoteGit(repository.root, ["fetch", "--quiet", "origin", base], {
     env: { ...(env ?? process.env), ...NO_PROMPT },
   });
   const remote = await git(repository.root, ["rev-parse", "FETCH_HEAD"]),
-    local = await git(repository.root, ["rev-parse", `refs/heads/${base}`]);
+    tip = await branchTip(repository.root, base);
+  if (tip?.ref !== `refs/heads/${base}`) return remote;
+  const local = tip.commit;
   if (remote === local || !(await isAncestor(repository.root, local, remote)))
     return local;
   const current = await git(repository.root, ["branch", "--show-current"]);
@@ -115,7 +118,13 @@ export async function syncBase(repository, { env } = {}) {
 export async function stillQueued(store, { delivery, repository }) {
   if (delivery.landing?.commit !== delivery.commit) return false;
   const base = repository.baseBranch || "main";
-  if (await isAncestor(repository.root, `refs/heads/${base}`, delivery.commit))
+  if (
+    await isAncestor(
+      repository.root,
+      await baseRef(repository.root, base),
+      delivery.commit,
+    )
+  )
     return true;
   withdrawLanding(
     store,
@@ -145,7 +154,10 @@ export async function queuePullRequest(
   if (!planId) fail("Only a spec's task lands.", 409);
   const registry = await registryOf(repository),
     base = repository.baseBranch || "main",
-    since = await git(repository.root, ["rev-parse", `refs/heads/${base}`]),
+    since = await git(repository.root, [
+      "rev-parse",
+      await baseRef(repository.root, base),
+    ]),
     // A private plan's task goes by an opaque name on a public repository:
     // its remote branch, pull request title and trailer.
     named = publicTaskName(store, {

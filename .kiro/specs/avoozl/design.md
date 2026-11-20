@@ -987,7 +987,7 @@ flight view's unreachable-crew flag.
 
 | #   | Fact                                                                                                                                                                                                                                                                                                                  | Evidence                                                                                      |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| F75 | **Verified.** The tick opens every session with `ctx.open_session(title, folder_id=, agent=, model=)`. The script API posts `name`, `title`, `folder_id`, `agent`, and `model` to `/api/chat/slots`. Every Avoozl session runs on this machine.                                                                        | `kirocrew-app/crons/tick.py` `run`; Kiro Crew `cron_script_context.py` `open_session`         |
+| F75 | **Verified.** The tick opens every session with `ctx.open_session(title, folder_id=, agent=, model=)`. The script API posts `name`, `title`, `folder_id`, `agent`, and `model` to `/api/chat/slots`. Every Avoozl session runs on this machine.                                                                        | `hosts/kirocrew/crons/tick.py` `run`; Kiro Crew `cron_script_context.py` `open_session`         |
 | F83 | **Verified.** A worker finds its checkout through its Kiro Crew folder's project directory (MC-1), which exists only on this machine. The content-rules pre-push hook is installed per worktree on this machine (task 10.4).                                                                                          | `src/app/delivery/delivery.mjs` folder `Avoozl/<repository id>`; §7.1 MC-1; §4.9                       |
 
 #### Agent and model per session
@@ -2109,7 +2109,7 @@ external skill ─▶ note on the plugin card (nothing sent)
 | ID   | Fact                                                                                                                                                                                                                        | Source                                                                                   |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | F121 | **Verified.** Avoozl composes the worker brief and the reviewer role brief itself; each quotes earlier words with "data, not instructions" lines, and a review role's `focus` (1–300 characters) comes from `.avoozl.json`. | `src/app/delivery/delivery.mjs` `workerBrief`, `reviewBrief`, `deliveryPolicy`                    |
-| F122 | **Verified.** The retro and planner prompts ship in the app's agent files, and Kiro Crew loads an agent's prompt from the installed app; `retroPrompt()` reads the shipped file.                                            | `kirocrew-app/agents/avoozl-retro.json`, `avoozl-planner.json`; `src/app/flow/flow-retro.mjs` |
+| F122 | **Verified.** The retro and planner prompts ship in the app's agent files, and Kiro Crew loads an agent's prompt from the installed app; `retroPrompt()` reads the shipped file.                                            | `hosts/kirocrew/agents/avoozl-retro.json`, `avoozl-planner.json`; `src/app/flow/flow-retro.mjs` |
 | F123 | **Verified.** The Spec Builder steering text is one constant, written into a repository only after a person agrees and never over a changed copy.                                                                           | `src/app/specs/spec-steering.mjs` `STEERING_TEXT`                                              |
 | F124 | **Verified.** Content-rule boundaries are `plan`, `github`, `brief`, `diff`, and `intake` (opt-in); an unknown boundary is refused.                                                                                         | `src/app/content/content-rules.mjs` `BOUNDARIES`                                                 |
 | F125 | **Unknown.** Whether Kiro Crew lets an app replace an agent's prompt for one session. Until known, an agent-prompt override travels in the seed (below).                                                                    | Not checked live                                                                         |
@@ -2824,7 +2824,7 @@ tick (planner) ──writes──> session requests {executor, role, task, ...}
 permissionClass) -> sessionId`, `send(sessionId, text)`,
 `status(sessionId) -> working | idle | exited <code> | gone`, and optional
 `stop` and `usage`. The `kirocrew` executor holds today's calls from
-`kirocrew-app/crons/tick.py`; folders and project directories are its
+`hosts/kirocrew/crons/tick.py`; folders and project directories are its
 private detail. The `process` executor hands the request to the
 supervisor.
 
@@ -3896,7 +3896,7 @@ issue matches and opens its details; with no match it opens Delivery. The
 Trace buttons on On the line rows and the Dashboard drawer are removed.
 
 **Tests.** `src/app/tasks/test/task-steps.test.mjs` (records to steps, failed,
-skipped, in progress, builds, no GitHub call); `kirocrew-app/ui/test`
+skipped, in progress, builds, no GitHub call); `hosts/kirocrew/ui/test`
 cases for the redirects, the nav, and the box; `trace.test.mjs`,
 `trace-page.test.mjs` and `trace-api.test.mjs` are removed with the code.
 
@@ -4287,8 +4287,20 @@ says where the folder is read and the path says which folder.
 **Files.** `readSpecFolder` reads every regular `.md` file directly in the
 folder. `revisionFiles(files)` orders them: Kiro's in their old order, then
 the rest by name. `specHash` reads that order, so a Kiro folder hashes as
-before. `parseSpec` refuses only a missing `tasks.md` and a folder with both
-prose kinds; a folder with no `bugfix.md` is a feature spec. Approve writes
+before. `parseSpec` refuses a folder with no task list, a folder with two
+(`spec.tasks-twice`, naming both files), and a folder with both prose kinds;
+a folder with no `bugfix.md` is a feature spec.
+
+**Task file.** `spec-tasks.mjs` says where a spec's tasks are: `taskFile`
+names `tasks.md`, or with none the one file whose `## Tasks` heading sits
+outside a fence, and `specTasks` returns that file and its task text. The
+task text of a single file keeps the file's line numbers: its front-matter
+and the section's lines stay, other lines are blank, and headings under
+`## Tasks` lose one `#`. So `specItems`, `headingPhases`, `readFacts`, ticks
+(`tickedText`, `baseTasks`, `tickCommits`) and diagnostics read it as they
+read `tasks.md`, and a line number is a line of the real file. `specHash`
+hashes the whole single file with the section's marks open and its facts
+left out. A proposed task goes at the end of the section (`addTaskLines`). Approve writes
 every spec file and removes ones the reviewed revision left out
 (`commitOnMain` `replace`). `approvalCommits` reads, at each approval commit,
 every spec file name the spec's history touched. A worker's brief names the
@@ -4411,8 +4423,8 @@ approved spec with no `links.issue` in a workspace whose GitHub mode is not
 **Tests.** `src/app/git/test/git-approvals.test.mjs`,
 `src/app/landing/test/guarded-push.test.mjs`,
 `src/app/workers/test/spec-assignee.test.mjs`,
-`kirocrew-app/ui/test/plans-api.test.mjs` and
-`kirocrew-app/ui/test/spec-header.test.mjs`.
+`hosts/kirocrew/ui/test/plans-api.test.mjs` and
+`hosts/kirocrew/ui/test/spec-header.test.mjs`.
 
 ## 5. Local workflow
 
@@ -4470,7 +4482,7 @@ below read `kirocrew-native` at `dd8b28b`.
 | F62 | **Verified.** `validateRun` records `exitCode: null` when a command cannot start and stops at the first failure. A verifier report needs an integer exit code for each check; a check it leaves out is a rejection, which fails the worker's attempt.                                                                                                                                                     | `src/app/git/git.mjs` `commandEvidence`, `validateUnlocked`; `delivery.mjs` `checkResults`, `reconcileVerifications`            |
 | F63 | **Verified.** `integrateRun` rebases the branch onto the integration branch and reruns the repository's checks, so the integrated commit can differ from the verified one.                                                                                                                                                                                                                                | `git.mjs` `integrateRun`                                                                                                    |
 | F64 | **Verified.** Plan approval deletes and rebuilds each task's incoming edges that carry the plan's `planId`.                                                                                                                                                                                                                                                                                               | `src/app/specs/plans.mjs` approval                                                                                                |
-| F65 | **Verified.** The verifier agent's model is `auto`; session bindings record no model; `tick.py` calls `open_session` without the `model` argument F31 lists. Whether Kiro Crew reports the model a session actually ran on is **Inferred** not available.                                                                                                                                                 | `kirocrew-app/agents/avoozl-verifier.json`; `src/app/sessions/session-bindings.mjs`; `kirocrew-app/crons/tick.py`                    |
+| F65 | **Verified.** The verifier agent's model is `auto`; session bindings record no model; `tick.py` calls `open_session` without the `model` argument F31 lists. Whether Kiro Crew reports the model a session actually ran on is **Inferred** not available.                                                                                                                                                 | `hosts/kirocrew/agents/avoozl-verifier.json`; `src/app/sessions/session-bindings.mjs`; `hosts/kirocrew/crons/tick.py`                    |
 | F66 | **Verified.** Task rows already use `acceptance` (criteria text) and `distinctFrom` (duplicate-review reasons). A new task flag cannot reuse either name.                                                                                                                                                                                                                                                 | `delivery.mjs` `workerBrief`; `operations.mjs` `task.update`                                                                |
 
 So the handoff's two main gaps are already closed on this branch: review
@@ -5075,7 +5087,7 @@ read can overlap, at most one tick's worth.
 Demo mode has the sample, the fake GitHub, the badge, the bar and Exit demo, and no tour. **Start demo** is in the empty In flight box on Home.
 
 Requirement 82. `src/app/workspace/demo.mjs` builds the sample; the app backend
-serves it; `kirocrew-app/ui/src/Demo.tsx` shows it.
+serves it; `hosts/kirocrew/ui/src/Demo.tsx` shows it.
 
 **Sample.** `installDemo(root)` builds in `<root>.staging-*` and renames the
 folder into place; the `demo:sample` receipt marks it done. Built through

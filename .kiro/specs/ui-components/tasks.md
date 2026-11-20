@@ -23,11 +23,11 @@ of the other specs.
 
 - [x] uc-1.1 The raw-style test with today's counts [UC3.1, UC3.2, UC3.3] (§D4)
   - The test passes on today's views; it fails on a planted extra `className` in a listed view, on any raw style in a new view, and on a listed file whose count is zero.
-  - `kirocrew-app/ui/test/raw-style.test.mjs` and `raw-style-allow.json`, counting `className`, `style`, `<style>` and `var(--` per view outside `src/ui/`.
+  - `hosts/kirocrew/ui/test/raw-style.test.mjs` and `raw-style-allow.json`, counting `className`, `style`, `<style>` and `var(--` per view outside `src/ui/`.
   - Built: PR #614.
 - [x] uc-1.2 The class check runs in CI against Kiro Crew's own stylesheet [UC4] (§D5)
-  - The test fails on a planted class Kiro Crew's stylesheet lacks and names the file that uses it; a stylesheet with the wrong digest is refused; the CI classifier selects the test for a change under `kirocrew-app/ui/src`; every class it finds missing today is listed in the pull request with its files.
-  - A Kiro Crew stylesheet named by release and digest, fetched and cached by the test; `host-classes.test.mjs` runs on every change to `kirocrew-app/ui/src` with no skip.
+  - The test fails on a planted class Kiro Crew's stylesheet lacks and names the file that uses it; a stylesheet with the wrong digest is refused; the CI classifier selects the test for a change under `hosts/kirocrew/ui/src`; every class it finds missing today is listed in the pull request with its files.
+  - A Kiro Crew stylesheet named by release and digest, fetched and cached by the test; `host-classes.test.mjs` runs on every change to `hosts/kirocrew/ui/src` with no skip.
   - Built: PR #615.
 
 ## Phase 2: The parts that remove the most strings

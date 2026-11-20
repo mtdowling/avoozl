@@ -68,10 +68,11 @@ that follows rule `3.1` is one the kit's `3.1` cases accept. See
 | Specs branch | The branch that holds the specs: the default branch unless the repository's settings name another, such as `plans`. |
 | Leaf | A task with no children. |
 | Group | A task with children. |
-| Spec group | A task whose title links another spec's `tasks.md`. |
+| Task file | The file that holds a spec's tasks: its `tasks.md`, or its one file with a `## Tasks` heading (1.2). |
+| Spec group | A task whose title links another spec's task file. |
 | Parent spec | A spec with a spec group. |
 | Base | The branch a task lands on: the branch named for its spec when one exists on origin, else the default branch. |
-| Done branch | The branch whose `tasks.md` says whether a task is done: its base when the base is an integration branch that holds the spec's `tasks.md` (11.1), else the specs branch. |
+| Done branch | The branch whose task file says whether a task is done: its base when the base is an integration branch that holds the spec's task file (11.1), else the specs branch. |
 | Spec text | A spec's files (1.2) with every task checkbox set to open, so a tick changes no spec text. |
 | Claim branch | `avoozl/<spec>/<task>`, the branch a task is worked and checked on. |
 | Lease | A ref named `avoozl-lease/<spec>/<task>/<generation>`, created at most once, that says which runner may push to a claim branch (12.5). |
@@ -84,17 +85,55 @@ subfolder is one spec:
 ```text
 .kiro/specs/
   parser/
-    tasks.md          required
+    tasks.md          the tasks
     requirements.md   optional
     design.md         optional
+  config/
+    config.md         the whole spec, tasks under ## Tasks
 ```
+
+A spec in one file keeps its tasks in a `## Tasks` section. The list under
+that heading is the task list, and its `###` headings are phases (3.6). Every
+other line of the file is spec text:
+
+```markdown [acme/widget: .kiro/specs/config/config.md]
+---
+repo: widget
+---
+
+# Config
+
+Settings load from one file.
+
+## Tasks
+
+### Load
+
+- [x] `c-1` Read the file
+  - A file with every key loads
+- [ ] `c-2` Report unknown keys
+  - An unknown key is reported with its path
+
+## Notes
+
+The file is read once at start.
+```
+
+Task `c-1` is ticked, so task `c-2` is ready. The `## Notes` heading ends the
+task list, because a heading of level 2 or 1 ends a section.
 
 - **1.1** A spec MUST be a subfolder of the specs folder, and its name MUST be
   the folder name.
-- **1.2** A spec MUST have a `tasks.md`. Every other `.md` file directly in the
-  folder is spec text: an approver approves it and agents read it, but a
-  runner reads no task from it. Files in subfolders, files that are not
-  Markdown, and symlinks are not part of the spec.
+- **1.2** A spec MUST have exactly one task file: a `tasks.md`, or, with no
+  `tasks.md`, one `.md` file directly in the folder with a `## Tasks` heading
+  outside code fences. In `tasks.md` the whole file is the task list. In a
+  single file the task list is the lines under `## Tasks`, up to the next
+  heading of level 2 or 1. Every other line of the folder's `.md` files is
+  spec text: an approver approves it and agents read it, but a runner reads no
+  task from it. A runner MUST refuse a folder with a `tasks.md` and a file
+  with a `## Tasks` heading, or two files with one, naming both files. Files
+  in subfolders, files that are not Markdown, and symlinks are not part of the
+  spec.
 
 ## 2. Tasks
 
@@ -156,8 +195,9 @@ Task `ec-2.1` runs first, then `ec-2.2`. Tasks `ec-2.4` and `ec-2.5` wait for
   title that holds the word `parallel`, in any casing, in parentheses or bold
   in any other form, a tagged task with no children, and a tagged group with
   fewer than two children.
-- **3.6** `##` headings are phases, and phases run in order. The first task of
-  a phase MUST wait for every task of the phase above it.
+- **3.6** `##` headings in `tasks.md`, and `###` headings under a single
+  file's `## Tasks`, are phases, and phases run in order. The first task of a
+  phase MUST wait for every task of the phase above it.
 
 A run of tasks inside a parallel group stays in order when it is an untagged
 group:
@@ -187,8 +227,8 @@ A task only a person does ends its title with `(**MANUAL**)`:
 
 - **4.1** A leaf whose title ends with `(**MANUAL**)` is a manual task. A
   runner MUST NOT offer it as ready and MUST NOT give it to an agent. A person
-  does it and ticks it on the specs branch, by a commit or by editing
-  `tasks.md` on GitHub. The tasks after it wait for the tick, so a manual task
+  does it and ticks it on the specs branch, by a commit or by editing the task
+  file on GitHub. The tasks after it wait for the tick, so a manual task
   is also a gate.
 - **4.2** The tag MUST be exactly `(**MANUAL**)`, in capitals, at the end of a
   leaf's title. A runner MUST refuse a title that holds the word `manual`, in
@@ -218,8 +258,9 @@ inline or reference-style:
 [epic context]: ../epic-context/tasks.md
 ```
 
-- **6.1** A task whose title links `<specs folder>/<name>/tasks.md` is a spec
-  group. The first task above writes the spec and links nothing, so it is a
+- **6.1** A task whose title links a spec's task file, its
+  `<specs folder>/<name>/tasks.md` or the one file of a single-file spec, is a
+  spec group. The first task above writes the spec and links nothing, so it is a
   leaf. Its children are that spec's tasks. A link to anything else, such as a
   doc page, leaves the task as it is.
 - **6.2** A linked spec's tasks MUST be ready only when the spec group's own
@@ -316,7 +357,7 @@ whoever authors it, and it approves nothing, even when an approver authors it.
   keys, in order: it unblocks the most open tasks downstream, counting every
   task that waits on it, directly or not; then it is on the longest remaining
   chain of waits.
-- **10.2** A tie SHOULD go to the task that comes earlier in its `tasks.md`.
+- **10.2** A tie SHOULD go to the task that comes earlier in its task file.
 
 ## 11. Integration branches
 

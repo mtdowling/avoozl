@@ -18,9 +18,9 @@ Avoozl tool, so they work without Avoozl running.
 
 ## Where they come from
 
-Each skill's text is `prompts/skills/<name>.md`. `npm run build:agents`
-copies it to `kirocrew-app/skills/<name>/SKILL.md`, and `npm run
-check:agents` fails when the copy differs. See [the prompts
+Each skill's text is `prompts/skills/<name>.md`. `npm run build:hosts`
+copies it to `hosts/kirocrew/skills/<name>/SKILL.md`, and `npm run
+check:hosts` fails when the copy differs. See [the prompts
 README](../prompts/README.md).
 
 ## Kiro Crew and Issue Radar
@@ -42,9 +42,9 @@ From a checkout of this repository, install the skills for the runner's
 agents (here for Claude Code and Codex):
 
 ```sh
-npx --yes skills add ./kirocrew-app/skills/avoozl-answer --global --agent claude-code codex -y
-npx --yes skills add ./kirocrew-app/skills/avoozl-review --global --agent claude-code codex -y
-npx --yes skills add ./kirocrew-app/skills/avoozl-triage --global --agent claude-code codex -y
+npx --yes skills add ./hosts/kirocrew/skills/avoozl-answer --global --agent claude-code codex -y
+npx --yes skills add ./hosts/kirocrew/skills/avoozl-review --global --agent claude-code codex -y
+npx --yes skills add ./hosts/kirocrew/skills/avoozl-triage --global --agent claude-code codex -y
 ```
 
 Then run them as a scheduled prompt on the repository, with a prompt such
