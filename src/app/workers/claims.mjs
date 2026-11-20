@@ -105,7 +105,58 @@ export async function claimFirst(github, candidates, { baseOf }) {
       refusals += 1;
       continue;
     }
-    return { ...candidate, branch, base, head, refusals };
+    // A new claim has no lease yet, so this runner takes generation 1
+    // (workflow rule 12.1).
+    const lease = await takeLease(github, repository.github, task, 1, head);
+    if (!lease) fail(`Another runner took the lease on ${branch} first.`, 409);
+    return { ...candidate, branch, base, head, lease, refusals };
   }
   fail(`No task claimed: ${ALL_CLAIMED}.`, 409);
+}
+
+// Leases (workflow rule 12.5): `avoozl-lease/<spec>/<task>/<generation>`,
+// created at most once, say which runner may push to a claim branch.
+export const leaseRef = (task, generation) =>
+  `avoozl-lease/${taskSpec(task)}/${task.id}/${generation}`;
+
+// Take generation `generation` of a task's lease by creating its ref; null
+// when another runner created it first.
+// shortcut: the lease points at the claim's head and is not renewed (12.6);
+// renew it when the loop runs tasks that outlive the stale hours.
+export async function takeLease(github, repository, task, generation, sha) {
+  const ref = leaseRef(task, generation);
+  try {
+    await github.createBranch(repository, ref, sha);
+  } catch (error) {
+    if (error.status !== 422 || error.contentBlocked) throw error;
+    return null;
+  }
+  return ref;
+}
+
+// Whether a lease is stale (12.6): its lease commit and the claim branch's
+// newest commit are both older than the stale hours.
+export const leaseStale = (lease, claimAgeHours, staleHours) =>
+  lease.ageHours > staleHours && claimAgeHours > staleHours;
+
+// Resume a claim (12.7): with no lease, or a stale newest one, each runner
+// in turn tries the next generation; the first create wins and the rest stop.
+// With a live lease nobody resumes.
+export async function resumeClaim(
+  github,
+  { repository, task, leases, claimAgeHours, staleHours, runners, sha },
+) {
+  const newest = [...leases].sort((a, b) => b.generation - a.generation)[0];
+  if (newest && !leaseStale(newest, claimAgeHours, staleHours))
+    return { holder: null, lease: null, stopped: [...runners] };
+  const generation = (newest?.generation ?? 0) + 1,
+    stopped = [];
+  let holder = null,
+    lease = null;
+  for (const runner of runners) {
+    const ref = await takeLease(github, repository, task, generation, sha);
+    if (ref && !holder) [holder, lease] = [runner, ref];
+    else stopped.push(runner);
+  }
+  return { holder, lease, stopped };
 }

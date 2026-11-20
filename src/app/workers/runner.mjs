@@ -265,6 +265,7 @@ export async function claimNext(
       branch: claim.branch,
       base: claim.base,
       head: claim.head,
+      lease: claim.lease,
       refusals: claim.refusals,
     },
     worktree: take.worktree,

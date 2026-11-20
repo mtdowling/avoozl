@@ -100,9 +100,14 @@ test("runner.next with claim creates avoozl/<spec>/<task> at the base head", asy
   assert.equal(result.claimed.branch, "avoozl/parser/a");
   assert.equal(result.claimed.base, "main");
   assert.equal(result.claimed.head, s.head);
+  assert.equal(result.claimed.lease, "avoozl-lease/parser/a/1");
   assert.deepEqual(
     s.github.calls.filter((call) => call[0] === "create"),
-    [["create", "acme/app", "avoozl/parser/a", s.head]],
+    [
+      ["create", "acme/app", "avoozl/parser/a", s.head],
+      // Then generation 1 of its lease (workflow rule 12.1).
+      ["create", "acme/app", "avoozl-lease/parser/a/1", s.head],
+    ],
   );
   assert.equal(
     result.worktree?.branch,

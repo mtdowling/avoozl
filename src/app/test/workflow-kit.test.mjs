@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { judge, readCases } from "../../../workflow-kit/load.mjs";
 import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.mjs";
 import { unblockCounts } from "../specs/release-ranking.mjs";
-import { claimFirst } from "../workers/claims.mjs";
+import { claimFirst, resumeClaim } from "../workers/claims.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file) => fs.readFileSync(root + file, "utf8");
@@ -130,17 +130,38 @@ function ready(testCase, specs) {
     .map(({ task }) => `${task.spec}/${task.id}`);
 }
 
-// The claim: Avoozl's claim call over the ready list, against an origin
-// whose refs create call refuses a branch it already has.
-async function claim(testCase, order) {
-  const branches = new Set(testCase.origin.branches),
-    github = {
-      branch: async () => ({ commit: { sha: "base" } }),
-      createBranch: async (_repository, name) => {
-        if (branches.has(name))
-          throw Object.assign(Error("exists"), { status: 422 });
-      },
+// An origin whose refs create call refuses a ref it already has, and keeps
+// each one it makes.
+function origin(testCase) {
+  const branches = new Set(testCase.origin.branches);
+  return {
+    branch: async () => ({ commit: { sha: "base" } }),
+    createBranch: async (_repository, name) => {
+      if (branches.has(name))
+        throw Object.assign(Error("exists"), { status: 422 });
+      branches.add(name);
     },
+  };
+}
+
+// The resume: the runners of one login try Avoozl's lease call in turn.
+async function resume(testCase) {
+  const key = testCase.resume.task,
+    [spec, id] = key.split("/");
+  return resumeClaim(origin(testCase), {
+    repository: "o/r",
+    task: { id, planId: spec },
+    leases: testCase.origin.leases?.[key] ?? [],
+    claimAgeHours: testCase.origin.claimAgeHours?.[key] ?? 0,
+    staleHours: testCase.runner.staleHours ?? 24,
+    runners: testCase.resume.runners,
+    sha: "head",
+  });
+}
+
+// The claim: Avoozl's claim call over the ready list.
+async function claim(testCase, order) {
+  const github = origin(testCase),
     candidates = order.map((name) => {
       const [spec, id] = name.split("/");
       return { task: { id, planId: spec }, repository: { github: "o/r" } };
@@ -153,9 +174,9 @@ async function claim(testCase, order) {
     : null;
 }
 
-// Leases, landing and spec issue markers run through operations the
-// simplify spec adds, so the adapter leaves those probes out until each
-// simplify task lands.
+// Landing and spec issue markers run through operations the simplify spec
+// adds, so the adapter leaves those probes out until each simplify task
+// lands.
 async function avoozl(testCase) {
   const specs = specsOf(testCase.files),
     got = {};
@@ -164,6 +185,7 @@ async function avoozl(testCase) {
   if (testCase.expect.ready || testCase.expect.claim)
     got.ready = ready(testCase, specs);
   if (testCase.expect.claim) got.claim = await claim(testCase, got.ready);
+  if (testCase.expect.resume) got.resume = await resume(testCase);
   return got;
 }
 

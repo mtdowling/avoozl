@@ -670,8 +670,9 @@ Avoozl does not follow every rule yet. Each item below is not built:
 - Integration branches (11) and the done branch they set (11.6, 15.1): Avoozl
   still reads an `integrationBranch` key.
 - Claims, leases and resuming (12): `avoozl next --claim` and `plans_next`
-  with `claim` claim through the refs API, but the tick still starts a task on
-  its own branch `avoozl/<task>` with no claim branch, and takes no lease.
+  with `claim` claim through the refs API and take lease generation 1, but
+  Avoozl does not renew a lease or read the leases before a push, and the tick
+  still starts a task on its own branch `avoozl/<task>` with no claim branch.
 - Landing (13, 14): Avoozl does not guard a pull request merge by head SHA
   and does not tick landed work whose tick is missing (13.6).
 - Next task (10): Avoozl ranks by the number of tasks unblocked and then file
