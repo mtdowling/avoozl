@@ -398,7 +398,7 @@ mirror removal or triage removal before this spec starts).
 | `executors/` | 6021 | 6021 | | | | |
 | `flow/` | 8186 | 2311 | 4151 | 1724 | | keep `flow-line.mjs` (stop the line), `flow-checks.mjs`, `flow.mjs` (shrinks to stop-the-line settings); `flow-retro.mjs`, `retro-files.mjs` become `avoozl-retro`; cut build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chat, memory and operations |
 | `git/` | 1971 | 1698 | | | 273 | `repo-files.mjs` in flight |
-| `github/` | 8834 | 5816 | 2003 | 148 | 867 | cut `github-intake`, `github-respond`, `github-reviews`, `github-setup`, `github-sources`, `setup-landing`, `source-backlinks`; `pull-request-snapshot` becomes `avoozl-review`; `github-items`, `github-pages` in flight |
+| `github/` | 8834 | 5816 | 2003 | 148 | 867 | cut `github-intake`, `github-reviews`, `github-setup`, `setup-landing`, `source-backlinks`; keep `github-sources` (it connects a repository to GitHub) and `github-respond` (the responder); `pull-request-snapshot` becomes `avoozl-review`; `github-items`, `github-pages` in flight |
 | `intake/` | 3586 | | 350 | | 3236 | cut `fix.mjs`; intake and triage in flight |
 | `landing/` | 3106 | 2526 | 580 | | | cut `landing-queue-view`, `landing-trailers`, `merge-path`; merge batches stay for `direct` |
 | `mcp/` | 950 | 733 | 217 | | | cut `mcp-views.mjs` (in-chat views) |
@@ -407,9 +407,9 @@ mirror removal or triage removal before this spec starts).
 | `plugins/` | 2542 | 2189 | 353 | | | cut `plugin-pack.mjs` |
 | `reviews/` | 2748 | | 1711 | 1037 | | plan review tower cut; `plan-review-step.mjs` becomes `avoozl-spec-review`, `pr-review.mjs` becomes `avoozl-review` |
 | `serve/` | 705 | 705 | | | | |
-| `sessions/` | 1079 | 901 | 178 | | | cut `session-open.mjs` (the assist chat) |
-| `settings/` | 2902 | 2728 | 174 | | | cut `chat-models.mjs`; `repository-settings.mjs` drops cut keys and gains `labels`, `claims` |
-| `specs/` | 10213 | 3922 | 2263 | 1133 | 2895 | cut `design-extraction`, `gap-report`, `plan-archive`, `plan-retire`, `plans.mjs` (old plan files), `source-sync`, `spec-changed`, `task-outcomes`; `new-plan`, `spec-steering`, `templates` become `avoozl-spec`; approval and journal files in flight |
+| `sessions/` | 1079 | 1079 | | | | keep `session-open.mjs`: the standalone page's Open chat |
+| `settings/` | 2902 | 2728 | 174 | | | cut `chat-models.mjs` with the roles cut, its `roles` reads moving to `role-table.mjs`; `repository-settings.mjs` drops cut keys and gains `labels`, `claims` |
+| `specs/` | 10213 | 3922 | 2263 | 1133 | 2895 | cut `gap-report`, `spec-changed`, `task-outcomes`; the old plan-document model goes last (sim-4.10): `design-extraction`, `plan-archive`, `plan-retire`, `plans.mjs` (old plan files and the approval it holds), `source-sync`; `new-plan`, `spec-steering`, `templates` become `avoozl-spec`; approval and journal files in flight |
 | `store/` | 1722 | 1722 | | | | `activity-log.mjs` stays for `avoozl activity` |
 | `tasks/` | 2605 | 550 | 2055 | | | keep `manual-tasks`, `scm-links`, `issue-reference`; cut `evidence`, `supersede`, `task-dedup`, `task-files`, `task-notes`, `task-steps`, `task-summary`, `title-repeat` |
 | `tick/` | 2280 | 2280 | | | | the tick plans the loop pass (§D6) |

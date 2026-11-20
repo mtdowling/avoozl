@@ -112,8 +112,8 @@ merge, shown in chat and never committed.
   - Evidence bundles, supersede, dedup, title repeat, task notes, task steps, task files and task summaries are gone from `src/app/tasks/`, with their operations, commands and MCP tools; lint's summary-repeats-title check goes, since a task has no summary
 - [x] `sim-4.7` Refuse the cut plugin parts [SM11] (§D11)
   - `PARTS` is `rules`, `credentials`, `checks` and `context`; a manifest listing `pack`, `intake`, `template` or `policy` is refused with "<part> is not a plugin part"; `plugin-pack.mjs` is gone
-- [ ] `sim-4.9` Cut GitHub extras [SM12.3, SM14.1] (§D14)
-  - `github-intake`, `github-respond`, `github-reviews`, `github-setup`, `github-sources`, `setup-landing`, `source-backlinks`, `landing-trailers`, `merge-path`, `landing-queue-view`, `intake/fix.mjs`, `mcp-views.mjs`, `panel-view.mjs`, `session-open.mjs` and `chat-models.mjs` are gone; the specs files §D14 marks cut are gone
+- [x] `sim-4.9` Cut GitHub extras [SM12.3, SM14.1] (§D14)
+  - `github-intake`, `github-reviews`, `github-setup`, `setup-landing`, `source-backlinks`, `landing-trailers`, `merge-path`, `landing-queue-view`, `intake/fix.mjs`, `mcp-views.mjs` and `panel-view.mjs` are gone, with the side panel; `gap-report.mjs` and `spec-changed.mjs` are gone; `github-sources`, `github-respond` and `session-open.mjs` stay, and `chat-models.mjs` goes with the roles cut (sim-3.2)
   - A test checks every person-only operation is still refused over MCP after the cuts
 
 ## Phase 5: The page
@@ -142,6 +142,12 @@ merge, shown in chat and never committed.
   - Tests: a definition's `home` variable is set to `~/.avoozl/lanes/<workspace>/<lane>/` and that folder is a write root; Claude Code starts with `--session-id` and `--name`, Codex gets the header as its prompt's first line; a rework run resumes the task's session; the lane's older sessions are deleted when its next task starts, and no other file is
 - [x] `sim-7.3` `avoozl lanes` [SM20.7] (§D22.3)
   - `avoozl lanes` and the `lanes.view` operation list each lane's role, harness, state, task and open command or link, and `avoozl lane resume LANE` runs `lane.resume`
+
+## Phase 8: The old plan model
+
+- [ ] `sim-4.10` Cut the old plan-document model [SM14.1] (§D14)
+  - `specs/plans.mjs`, `design-extraction.mjs`, `source-sync.mjs`, `plan-archive.mjs` and `plan-retire.mjs` are gone, with the old-plan lint in `plan-quality.mjs`, `avoozl generate`, the catalog's section review flags, plan archive and delete, and their operations, MCP tools and UI
+  - Approval follows workflow v1: an approver's commit on main approves a spec, and the code that records it lives in the spec modules
 
 <!-- avoozl:graph start -->
 ```mermaid
@@ -194,6 +200,9 @@ flowchart TD
     sim_7_2["sim-7.2 Process lane sessions"]
     sim_7_3["sim-7.3 avoozl lanes"]
   end
+  subgraph s9["Phase 8: The old plan model"]
+    sim_4_10["sim-4.10 Cut the old plan-document model"]
+  end
   sim_0 --> sim_1_1
   sim_1_1 --> sim_1_3
   sim_1_3 --> sim_1_4
@@ -225,5 +234,6 @@ flowchart TD
   sim_6_2 --> sim_7_1
   sim_7_1 --> sim_7_2
   sim_7_2 --> sim_7_3
+  sim_7_3 --> sim_4_10
 ```
 <!-- avoozl:graph end -->
