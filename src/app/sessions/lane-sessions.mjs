@@ -7,8 +7,6 @@ import { fail } from "../store/store.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 
 const STATE = "lanes";
-// A binding still working, or whose report Avoozl has not recorded yet.
-const FINAL_REPORTS = new Set(["done", "blocked"]);
 // A Kiro Crew chat a person closed: Kiro Crew says closed or lost, or a
 // stock Kiro Crew no longer lists it. (A literal: session-bindings.mjs's
 // FINAL_STATUSES is not set yet while the import cycle through
@@ -71,12 +69,13 @@ function laneRequests(store, bindings) {
   return out;
 }
 
-// Whether a lane's binding still holds it: live, or ended but not recorded
-// on its delivery yet (a worker's attempt, or a review's verification).
+// Whether a lane's binding still holds it: until its delivery records the
+// binding's attempt (a worker's attempt, or a review's verification), with
+// or without a report. A quiet review the tick failed after its nudges has
+// no report of its own, and must still free the lane.
 export function holdsLane(store, binding) {
   if (!binding || binding.interrupted || CLOSED.has(binding.status))
     return false;
-  if (!FINAL_REPORTS.has(binding.report?.kind)) return true;
   const delivery = store.get("task_deliveries", binding.taskId);
   if (binding.role === "worker")
     return !delivery?.attempts?.some((a) => a.attempt === binding.attempt);

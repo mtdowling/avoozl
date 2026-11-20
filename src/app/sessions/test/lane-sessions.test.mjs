@@ -225,6 +225,51 @@ test("reviews wait for a free reviewer lane", async (t) => {
   );
 });
 
+test("a quiet review recorded as failed frees its reviewer lane for the next review", async (t) => {
+  // Nearby inputs: a reviewer that never reports (no MCP identity) and the
+  // nudge bound. Once the delivery records the quiet failure, the lane's
+  // chat takes the next review; before, the lane stayed busy forever.
+  const { store, ops } = setup(t, {
+    tasks: [leaf("a")],
+    delivery: { reviewers: undefined, nudges: 0, quietMinutes: 1 },
+  });
+  await tick(ops);
+  await workerDone(ops, "a", "w-a");
+  const first = (await tick(ops, { "w-a": "idle" })).dispatch.filter(
+    (d) => d.role === "review:review",
+  );
+  assert.deepEqual(
+    first.map((d) => d.lane.id),
+    ["reviewer-1"],
+  );
+  await ops.execute("session.bind", {
+    taskId: "a",
+    slot: "lane-r1",
+    role: "review:review",
+    attempt: 1,
+    source: "tick",
+    title: first[0].lane.header,
+    lane: "reviewer-1",
+  });
+  await tick(ops, { "w-a": "idle", "lane-r1": "idle" });
+  const binding = store.get("session_bindings", "lane-r1"),
+    at = new Date(Date.now() - 10 * 60_000).toISOString();
+  store.put("session_bindings", { ...binding, boundAt: at, statusAt: at });
+  await tick(ops, { "w-a": "idle", "lane-r1": "idle" });
+  assert.match(
+    store.get("task_deliveries", "a").verifications.at(-1).cause,
+    /quiet after 0 nudges/,
+  );
+  const again = (
+    await tick(ops, { "w-a": "idle", "lane-r1": "idle" })
+  ).dispatch.filter((d) => d.role === "review:review");
+  assert.deepEqual(
+    again.map((d) => [d.attempt, d.lane.id, d.lane.slot]),
+    [[2, "reviewer-1", "lane-r1"]],
+    "the next review runs in the lane's chat",
+  );
+});
+
 test("a start request not bound yet holds its lane", async (t) => {
   // One lane: task a, first in line, finds it held by b's request.
   const { store, ops } = setup(t);

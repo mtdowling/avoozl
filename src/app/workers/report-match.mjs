@@ -114,24 +114,42 @@ export const cliReportCaller = (binding) => ({
 });
 
 // `avoozl runner report TASK done|blocked [--token T]`, run from the
-// worktree; with no token it speaks for a command-line take. `ops` is an
+// worktree; with no token it speaks for a command-line take. A review runs
+// it from its detached worktree with `--role review:<id>`, and a done one
+// names its verdict file with `--review FILE`. `ops` is an
 // Operations on this workspace's store. The commit of a done report is read
 // from the worktree's HEAD, never taken from the caller.
 export async function reportByToken(
   store,
   ops,
-  { taskId, state, token, cwd, text },
+  { taskId, state, token, cwd, text, role = "worker", review = null },
 ) {
   if (!["done", "blocked"].includes(state)) fail("State is done or blocked.");
+  if (role !== "worker" && !/^review:[A-Za-z0-9._-]+$/.test(role))
+    fail("--role is worker or review:<id>.");
+  if (role !== "worker" && token === undefined)
+    fail("A review reports with the --token in its brief.", 403);
+  if (review && (role === "worker" || state !== "done"))
+    fail("--review goes with --role review:<id> and done.");
   const binding =
       token === undefined
         ? matchTakeReport(store, { taskId, cwd })
-        : matchCliReport(store, { taskId, token, cwd }),
+        : matchCliReport(store, { taskId, token, cwd, role }),
     input =
       state === "done"
         ? {
             taskId,
             kind: "done",
+            // A review's verdict, findings and closures (reviewBrief); the
+            // commit is still read from the cwd's HEAD.
+            ...(review
+              ? {
+                  verdict: review.verdict,
+                  findings: review.findings,
+                  closures: review.closures,
+                  ...(review.text === undefined ? {} : { text: review.text }),
+                }
+              : {}),
             commit: await new Promise((resolve, reject) =>
               execFile("git", ["rev-parse", "HEAD"], { cwd }, (error, out) =>
                 error ? reject(error) : resolve(out.trim()),

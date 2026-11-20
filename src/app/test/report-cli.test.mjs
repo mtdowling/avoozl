@@ -204,3 +204,102 @@ test("the tick's dispatched brief carries the token and the worktree path", asyn
   assert.ok(brief.includes(`runner report a done --token ${token}`));
   assert.ok(brief.includes(worktreePath({ id: "a" }, repository)));
 });
+
+test("a review reports its verdict by command line with its own token", async (t) => {
+  // Nearby inputs: the worker's token on the review, the review's token
+  // without --role, and a verdict file that is not JSON.
+  const { root, store } = await setup(t, {
+      bind: false,
+      lanes: { local: 1, reviewers: 1 },
+      delivery: {},
+    }),
+    ops = new Operations(store, { workspaceRoot: root });
+  await ops.execute("workspace.tick", { sessions: [] });
+  await ops.execute("session.bind", {
+    taskId: "a",
+    slot: "slot-a",
+    role: "worker",
+    attempt: 1,
+    source: "tick",
+    title: "avoozl:a Task a",
+  });
+  const wt = (await ops.execute("worktree.prepare", { taskId: "a" })).path;
+  fs.writeFileSync(path.join(wt, "a.txt"), "x\n");
+  git(wt, "add", ".");
+  git(wt, "-c", "user.name=T", "-c", "user.email=t@e.x", "commit", "-m", "W");
+  const head = git(wt, "rev-parse", "HEAD"),
+    worker = issueReportToken(store, { taskId: "a", attempt: 1 });
+  const done = run(root, wt, [
+    "runner",
+    "report",
+    "a",
+    "done",
+    "--token",
+    worker,
+  ]);
+  assert.equal(done.status, 0, done.stderr);
+  const { dispatch } = await ops.execute("workspace.tick", {
+      sessions: [{ target: "slot-a", status: "idle" }],
+    }),
+    review = dispatch.find((d) => d.role === "review:review"),
+    token = issueReportToken(store, {
+      taskId: "a",
+      attempt: 1,
+      role: "review:review",
+    });
+  assert.ok(review, "the review starts");
+  assert.ok(
+    review.brief.includes(
+      `runner report a done --token ${token} --role review:review`,
+    ),
+    review.brief,
+  );
+  assert.doesNotMatch(review.brief, /Call plans_report/);
+  await ops.execute("session.bind", {
+    taskId: "a",
+    slot: "slot-r",
+    role: "review:review",
+    attempt: 1,
+    source: "tick",
+    title: "avoozl:a review",
+  });
+  const detached = path.join(root, "review-wt");
+  git(
+    store.get("repositories", "app").root,
+    "worktree",
+    "add",
+    "--detach",
+    detached,
+    head,
+  );
+  const file = path.join(root, "verdict.json"),
+    bad = path.join(root, "bad.json");
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ verdict: "approved", findings: [], closures: [] }),
+  );
+  fs.writeFileSync(bad, "{not json");
+  const report = (args) =>
+    run(root, detached, ["runner", "report", "a", "done", ...args]);
+  for (const args of [
+    ["--token", worker, "--role", "review:review", "--review", file],
+    ["--token", token, "--review", file],
+    ["--token", token, "--role", "review:review", "--review", bad],
+  ])
+    assert.notEqual(report(args).status, 0, args.join(" "));
+  assert.equal(store.get("session_bindings", "slot-r").report, undefined);
+  const ok = report([
+    "--token",
+    token,
+    "--role",
+    "review:review",
+    "--review",
+    file,
+  ]);
+  assert.equal(ok.status, 0, ok.stderr);
+  const { report: saved } = store.get("session_bindings", "slot-r");
+  assert.deepEqual(
+    [saved.kind, saved.commit, saved.review?.verdict],
+    ["done", head, "approved"],
+  );
+});
