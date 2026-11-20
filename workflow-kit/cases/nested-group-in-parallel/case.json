@@ -1,6 +1,6 @@
 {
   "title": "An untagged group inside a parallel group runs in order",
-  "rules": ["3.3", "3.4", "10.1"],
+  "rules": ["3.3", "3.4", "13.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

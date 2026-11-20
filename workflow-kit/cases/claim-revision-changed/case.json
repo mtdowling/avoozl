@@ -1,6 +1,6 @@
 {
   "title": "A claim does not tick when the approved task text changed after its lease",
-  "rules": ["7.3", "12.10"],
+  "rules": ["7.3", "15.10"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

@@ -126,7 +126,7 @@ test("runner.next with claim creates avoozl/<spec>/<task> at the base head", asy
     s.github.calls.filter((call) => call[0] === "create"),
     [
       ["create", "acme/app", "avoozl/parser/a", s.head],
-      // Then generation 1 of its lease (workflow rule 12.1).
+      // Then generation 1 of its lease (workflow rule 15.1).
       ["create", "acme/app", "avoozl-lease/parser/a/1", s.head],
     ],
   );
@@ -382,7 +382,7 @@ test("an exclude label added after the claim does not unclaim the task", async (
   assert.ok(s.github.refs.has("avoozl/parser/a"), "its claim branch stays");
 });
 
-// Labeled issues (simplify sim-1.7, rule 17): acme/app's issues, each with
+// Labeled issues (simplify sim-1.7, rule 11): acme/app's issues, each with
 // its labels, who labeled it, and who it is assigned to.
 function issues(s, list, roles = { mona: "write", stranger: "read" }) {
   Object.assign(s.github, {

@@ -1,6 +1,6 @@
 {
   "title": "A stale lease is replaced by the next generation",
-  "rules": ["12.6", "12.7"],
+  "rules": ["15.6", "15.7"],
   "runner": {
     "login": "acme-bob",
     "defaultBranch": "main",

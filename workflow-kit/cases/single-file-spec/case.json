@@ -1,6 +1,6 @@
 {
   "title": "A spec in one file keeps its tasks under ## Tasks",
-  "rules": ["1.2", "3.6", "6.1", "15.1"],
+  "rules": ["1.2", "3.6", "6.1", "18.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

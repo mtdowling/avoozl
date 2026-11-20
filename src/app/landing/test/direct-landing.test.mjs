@@ -260,7 +260,7 @@ test("after a direct landing Avoozl deletes the claim branch it created, and no 
   assert.equal(claimOf(w.store, "acme/app", "t2").branch, "avoozl/s/t2");
 });
 
-test("landed work keeps its own claim until its tick is known on the done branch, then a later pass deletes it (13.6)", async (t) => {
+test("landed work keeps its own claim until its tick is known on the done branch, then a later pass deletes it (16.5)", async (t) => {
   const w = await workspace(t),
     file = path.join(w.checkout, ".kiro/specs/s/tasks.md");
   fs.mkdirSync(path.dirname(file), { recursive: true });

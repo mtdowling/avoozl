@@ -1,6 +1,6 @@
 {
   "title": "A claim on an integration branch merges the default branch in first",
-  "rules": ["11.1", "11.3"],
+  "rules": ["14.1", "14.3"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

@@ -1,6 +1,6 @@
 {
   "title": "Failing checks land nothing",
-  "rules": ["13.3"],
+  "rules": ["16.3"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

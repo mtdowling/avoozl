@@ -1,6 +1,6 @@
 {
   "title": "A spec with every task ticked has nothing ready",
-  "rules": ["9.1"],
+  "rules": ["12.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

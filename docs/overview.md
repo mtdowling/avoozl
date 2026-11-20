@@ -41,7 +41,7 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 - **Task facts** are the `$key:` bullets under each task in `tasks.md`.
 - **Approvals** and **task completion** are commits on the specs branch. See
   [Approval](github-workflow.md#7-approval) and
-  [Done tasks](github-workflow.md#15-done-tasks).
+  [Done tasks](github-workflow.md#18-done-tasks).
 - **Landings** are the trailers on the landing commits.
 - **Execution state** is the workspace database, rebuilt from the items above.
 

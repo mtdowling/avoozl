@@ -1,4 +1,4 @@
-// Landed work (workflow v1 rule 13.6, simplify SM4.1): once a task's work is
+// Landed work (workflow v1 rule 16.5, simplify SM4.1): once a task's work is
 // on the base, its tick goes on the done branch if it is missing, in its own
 // commit (a plans repository's specs branch), and then the claim branch this
 // runner created goes with its leases. A tick that fails keeps the claim, so
@@ -20,7 +20,7 @@ export async function finishLanded(
     issues = entry.tasks
       .map(({ task }) => tasks.get(task))
       .filter((task) => task?.labeledIssue);
-  // A labeled issue's landing record is the issue closing (rule 17.3): its
+  // A labeled issue's landing record is the issue closing (rule 11.3): its
   // pull request's `Closes #<n>` closes it in `pr` mode, and in `direct`
   // mode Avoozl closes it with a comment naming the commit.
   if (issues.length) {

@@ -1,6 +1,6 @@
 {
   "title": "A base that moved is merged into the claim branch before the checks",
-  "rules": ["13.1", "13.3"],
+  "rules": ["16.1", "16.3"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

@@ -1,6 +1,6 @@
 {
   "title": "An auto pull request is merged by the runner once checks pass",
-  "rules": ["14.4"],
+  "rules": ["17.4"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

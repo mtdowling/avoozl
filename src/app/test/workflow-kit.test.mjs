@@ -311,7 +311,7 @@ async function landing(testCase, specs) {
   });
 }
 
-// Rule 13.6: whether the case's claim holds landed work, from its commit
+// Rule 16.5: whether the case's claim holds landed work, from its commit
 // graph and the base's head.
 const landed = (testCase, base) =>
   Boolean(testCase.land.claim) &&
@@ -323,7 +323,7 @@ const landed = (testCase, base) =>
     pull: testCase.land.claim.pull,
   });
 
-// Rule 12.8: each runner's push to the claim branch is accepted only when it
+// Rule 15.8: each runner's push to the claim branch is accepted only when it
 // moves the branch forward.
 function push(testCase) {
   const { branch, by } = testCase.push,
@@ -338,7 +338,7 @@ function push(testCase) {
   );
 }
 
-// Rule 12.10: the lease's recorded text against the task's text in the spec.
+// Rule 15.10: the lease's recorded text against the task's text in the spec.
 function revision(testCase, specs) {
   const [spec, id] = testCase.revision.task.split("/"),
     task = parseSpec({

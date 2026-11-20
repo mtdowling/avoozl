@@ -1,6 +1,6 @@
 {
   "title": "A merge of an auto pull request is guarded by the checked head, and a moved base is merged in first",
-  "rules": ["13.3", "14.4"],
+  "rules": ["16.3", "17.4"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"
