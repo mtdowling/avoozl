@@ -19,6 +19,7 @@ import { entries as plugins } from "../ops/plugins.mjs";
 import { entries as sessions } from "../ops/sessions.mjs";
 import { entries as specs } from "../ops/specs.mjs";
 import { entries as tasks } from "../ops/tasks.mjs";
+import { entries as telemetry } from "../ops/telemetry.mjs";
 import { entries as workspace } from "../ops/workspace.mjs";
 import { entries as retro } from "../flow/retro-operations.mjs";
 
@@ -34,6 +35,7 @@ export const TABLES = {
   sessions,
   specs,
   tasks,
+  telemetry,
   workspace,
 };
 

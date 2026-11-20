@@ -63,6 +63,7 @@ import {
 import { pollSources, sourceMap } from "../intake/intake.mjs";
 import { parseIssueReference } from "../tasks/issue-reference.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { telemetryHandle } from "../telemetry/index.mjs";
 import { mcpRefusal } from "../mcp/mcp-policy.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import {
@@ -1027,6 +1028,10 @@ export class Operations {
   async writeRetroFiles() {
     const root = await this.retroRoot();
     return root ? writeRetroFiles(this.store, root) : null;
+  }
+  // Send what the OTLP exporter has queued, for a process about to end.
+  async flushTelemetry() {
+    await telemetryHandle(this.store)?.flush();
   }
   async rebuild() {
     if (this.store.list("plans").length)
