@@ -24,7 +24,7 @@ only on `p-1`, so it is ready. A runner claims it by creating the branch
 `avoozl/parser/p-2`, does the work there, ticks the box in the same commit,
 and lands it.
 
-See [specs.md](specs.md) for how Avoozl's own pages and commands work with
+See [avoozl-specs.md](avoozl-specs.md) for how Avoozl's own pages and commands work with
 specs.
 
 ## Terms
@@ -446,6 +446,6 @@ The reference implementation does not do these parts yet:
 
 ## Related pages
 
-- See [specs.md](specs.md) for Avoozl's spec pages, lint and commands.
+- See [avoozl-specs.md](avoozl-specs.md) for Avoozl's spec pages, lint and commands.
 - See [delivery.md](delivery.md) for how Avoozl checks and lands a task.
 - See [drivers.md](drivers.md) for which Avoozl workspace runs a spec.

@@ -38,7 +38,7 @@ a hostname, because the claim is on the issue.
 A task in one spec can wait on a task in another by naming its ID in `$after`.
 The waiting spec's driver starts it once the other task's tick reaches that
 spec's base branch, whoever drove that task. See
-[Specs](specs.md#dependencies-across-specs) for the rules.
+[Specs](avoozl-specs.md#dependencies-across-specs) for the rules.
 
 ### Handing off a spec
 
@@ -78,7 +78,7 @@ database is a cache that every machine builds from the same commits:
 A tick another person lands counts on your machine at your next tick, and so
 does one committed by hand. An approval counts on every machine that pulls
 main, because the author of the commit is the approval. See
-[Specs](specs.md#approval-commits) for who counts as an approver.
+[Specs](avoozl-specs.md#approval-commits) for who counts as an approver.
 
 Each landed task's trailers carry when its first worker started, its tries,
 its harness and model, its cost and its Flow spans:

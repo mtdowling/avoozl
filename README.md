@@ -181,7 +181,7 @@ The [docs](docs/README.md) cover the rest:
 - [Overview](docs/overview.md) for where state lives and what each page shows
 - [Workspaces](docs/workspaces.md) for settings files, the standalone server,
   backup, and rebuilding
-- [Specs](docs/specs.md) for the task list format, approvals, and dependencies
+- [Specs](docs/avoozl-specs.md) for the task list format, approvals, and dependencies
   across specs
 - [Delivery](docs/delivery.md) for workers, checks, landing, and merge batches
 - [Drivers](docs/drivers.md) for which machine drives a spec, and handing off

@@ -676,7 +676,7 @@ removes their reads, and updates the "Task facts", "Front matter", "Epics",
 "Ready tasks", "Next task", "Investigating first", "Labeled issues",
 "Manual tasks and gates" and "Integration branches" sections of
 `docs/github-workflow.md` and the task list and front matter sections of
-`docs/specs.md`.
+`docs/avoozl-specs.md`.
 
 ## D20. Tasks with no facts
 

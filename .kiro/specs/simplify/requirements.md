@@ -347,7 +347,7 @@ runs first, so that I never write or check a dependency fact.
 9. One function SHALL derive the waits, and the ready rule, ranking, the
    graph builder and lint SHALL read only it.
 10. Every spec in this repository SHALL use this form, and
-    `docs/github-workflow.md` and `docs/specs.md` SHALL describe it.
+    `docs/github-workflow.md` and `docs/avoozl-specs.md` SHALL describe it.
 11. WHEN an old `$after` graph has no exact list form THEN the rewrite SHALL
     add the fewest extra waits that keep every old one, and SHALL list each
     added wait in its commit message.
@@ -390,7 +390,7 @@ bullets that say when it is done, so that a spec reads as plain Markdown.
    a `(**MANUAL**)` task.
 8. Flow SHALL keep no fix-work share: no task SHALL be marked fix work, and
    no metric, chart or retro input SHALL count fix work.
-9. `docs/github-workflow.md` and `docs/specs.md` SHALL describe tasks with
+9. `docs/github-workflow.md` and `docs/avoozl-specs.md` SHALL describe tasks with
    no facts, the two tags, and the keys of SM17.4 and no other.
 
 ### Requirement SM18: Linked specs

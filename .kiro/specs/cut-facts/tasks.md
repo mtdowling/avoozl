@@ -10,7 +10,7 @@ repo: avoozl
   - $done: Nesting gives a task's kind and the `##` heading its phase
   - $done: A leaf's plain bullets are its results when it has no `$done`
   - $done: Every spec in the repository lints with 0 errors
-  - $done: `docs/specs.md` lists every fact the reader takes, checked by a test
+  - $done: `docs/avoozl-specs.md` lists every fact the reader takes, checked by a test
 - [x] `cf-2` One session and worktree per ready leaf (§2)
   - $after: cf-1
   - $done: The tick dispatches each ready leaf alone
