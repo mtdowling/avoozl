@@ -27,9 +27,8 @@ itself, and lands it. These pages say how to set it up and how each part works.
 ## GitHub
 
 - [GitHub](github.md): repository roles and GitHub modes.
-- [Workflow v1](github-workflow.md): the one page for the spec format and the
-  numbered rules for approvals, assignees, claims, landing and ticks, plus
-  Avoozl's spec settings, refs, lint and commands.
+- [Workflow v1](github-workflow.md) defines the spec format and the rules for
+  approvals, assignment, task order, claims and landing.
 - [Agent skills](agent-skills.md): the answer, review and triage skills any
   agent runner can use on issues and pull requests.
 - [Intake sources](intake.md): bringing in work from trackers and scripts.

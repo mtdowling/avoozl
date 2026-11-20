@@ -59,8 +59,8 @@ database is a cache that every machine builds from the same commits:
 
 A tick another person lands counts on your machine at your next tick, and so
 does one committed by hand. An approval counts on every machine that pulls
-main. See [Approving in Avoozl](github-workflow.md#approving-in-avoozl) for
-who counts as an approver.
+main. For who counts as an approver, see
+[Approval](github-workflow.md#7-approval).
 
 Each landed task's trailers carry when its first worker started, its tries,
 its harness and model, its cost and its Flow spans:
