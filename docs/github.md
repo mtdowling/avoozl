@@ -1,15 +1,9 @@
 # GitHub
 
 GitHub is optional: a workspace can keep spec issues and land pull requests on
-GitHub, or run entirely on local Git. Each repository's role decides which, and
-the workspace's GitHub mode follows from the roles.
-
-```sh
-avoozl setup OWNER/REPO --repo app --landing pr
-avoozl setup OWNER/REPO --repo app --landing pr --yes
-```
-
-The first command previews the setup, and `--yes` applies it.
+GitHub, or run entirely on local Git. The `github.mode` setting decides which.
+Branch rules and labels are the repository owner's to set on GitHub; Avoozl
+reads branch rules and follows them.
 
 ## How Avoozl signs in
 
@@ -38,27 +32,14 @@ waits for **Allow** (or `--yes` in the CLI) before it asks for a token. Avoozl
 never makes a label as part of other work; a missing label waits in Needs you
 with **Create labels**.
 
-## Repository roles
-
-Each repository has a role, chosen in **Settings › Repository setup**, in
-**Edit** or in **Add repository**. Only a repository with a GitHub remote can
-take a role other than `local`.
-
-| Role | Issues live in | Pull requests land in | Needs a GitHub remote |
-| --- | --- | --- | --- |
-| `local` | The workspace database | The repository | No |
-| `code` | The planning repository | The repository | Yes |
-| `planning` | The repository itself | None | Yes |
-| `both` | The repository itself | The repository | Yes |
-
 The planning repository's specs may live on a branch other than its base
 branch, such as `avoozl-plans`. Name it with `specs.branch`; see
 [Specs path and branch](github-workflow.md#specs-path-and-branch).
 
 ## GitHub modes
 
-The roles give the workspace one of these modes. Nothing else sets it, and
-Avoozl never writes `github.mode` or `github.planningRepository`.
+`github.mode` gives the workspace one of these modes, and
+`github.planningRepository` names the planning repository in plans-repo mode.
 
 | Mode | `github.mode` | Spec issues live in | Pull requests |
 | --- | --- | --- | --- |
@@ -70,10 +51,6 @@ Local only is the default. Switching to Local only keeps your GitHub settings
 in the file, unused, so switching back restores them. In plans-repo mode a
 leak screen keeps the planning repository's name out of branches, pull
 requests, and comments in the code repositories.
-
-An `.avoozl.json` with no `role` keys is read through its stored
-`github.mode`.
-
 ### Plans repository
 
 Plans-repo mode keeps spec issues and Kiro specs in a planning repository and
@@ -106,11 +83,12 @@ one issue. Its assignee drives the spec.
 
 ## Setting up GitHub
 
-Give each repository a role, then use **Set up GitHub** under **Settings ›
-GitHub**. For a new folder, use **Add repository** and then **Set up GitHub and
-import specs**. Both read GitHub first and preview every write, such as the
-epic issue type, and nothing is written until you confirm. Public and private
-repositories both work.
+Add a checkout with `avoozl repository configure ID --root PATH`, set
+`github.mode` and the repository's owner/name in `.avoozl.json`, then run
+`avoozl rebuild`. Rebuild reads git and GitHub and writes nothing to GitHub.
+Branch rules and labels are the repository owner's to set on GitHub; Avoozl
+reads branch rules and follows them. Public and private repositories both
+work.
 
 ## Fixes
 

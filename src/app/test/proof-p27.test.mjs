@@ -25,14 +25,12 @@ const CHECK_FILE = "scripts/validate.mjs",
 const W1 = "p27.1",
   D1 = "p27.2",
   W2 = "p27.3",
-  D2 = "p27.4",
-  W2B = "p27-w2b";
+  D2 = "p27.4";
 const aliases = {
   [W1]: "w1",
   [D1]: "d1",
   [W2]: "w2",
   [D2]: "d2",
-  [W2B]: "w2b",
 };
 
 const REVIEWERS = [
@@ -355,48 +353,6 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     evidence: "Reviewed at the integrated commit.",
   });
   assert.equal(accepted.status, "accepted");
-
-  // (7) Supersede w2 by w2b, then re-approve the unchanged plan.
-  const w2Before = structuredClone(store.get("task_deliveries", W2)),
-    w2Bindings = store
-      .list("session_bindings")
-      .filter((b) => b.taskId === W2)
-      .map((b) => b.slot);
-  assert.equal(w2Before.state, "done", "w2's reviews are still open");
-  await ops.execute("task.supersede", {
-    id: W2,
-    create: { id: W2B, title: "Write w2 again" },
-    reason: "P27: replace w2 by hand.",
-  });
-  await approve(ops);
-  assert.equal(task(ops, W2).status, "superseded");
-  assert.equal(task(ops, W2).supersededBy, W2B);
-  assert.equal(task(ops, W2B).supersedes, W2);
-  assert.deepEqual(store.get("task_deliveries", W2), w2Before, "history kept");
-  assert.deepEqual(
-    store
-      .list("session_bindings")
-      .filter((b) => b.taskId === W2)
-      .map((b) => b.slot),
-    w2Bindings,
-  );
-  assert.ok(!ready(ops).includes("d2"), "d2 waits on w2b");
-  // d1's writer finishes, which frees the one writer slot for w2b.
-  await play((s) => s.alias === "d1");
-  let next = await crew.tick();
-  assert.deepEqual(writers(next), ["w2b"]);
-  assert.ok(
-    !next.dispatch.some((d) => d.task === W2),
-    "a superseded task gets no new session",
-  );
-  // Deliver w2b through its own review round; only then is d2 released.
-  for (let i = 0; i < 6 && !writers(next).includes("d2"); i++) {
-    await play((s) => s.alias !== "d1");
-    next = await crew.tick();
-  }
-  assert.equal(store.get("task_deliveries", W2B).state, "integrated");
-  assert.ok(writers(next).includes("d2"), "d2 follows w2b");
-  assert.equal(task(ops, W2).status, "superseded");
 
   // Every earlier verdict stays on w1's delivery, by round.
   const view = await ops.execute("delivery.view", {}),

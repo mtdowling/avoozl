@@ -20,8 +20,6 @@ const ROLES = new Set([
   "pr-review",
   "plan-review",
   "plan-answer",
-  // The AI summary on a task's Overview tab (task-summary.mjs).
-  "task-summary",
   // Tries to prove a worker's findings wrong (§4.21).
   "falsifier",
   // One plugin check's decide call (check-decide.mjs).
@@ -156,9 +154,6 @@ export function bindSession(
         // A code review chat binds to its request (pr-review.mjs).
         (role === "pr-review" &&
           store.get("receipts", named)?.kind === "pr-review") ||
-        // A task summary chat binds to its receipt (task-summary.mjs).
-        (role === "task-summary" &&
-          store.get("receipts", named)?.kind === "task-summary") ||
         // A spec review binds to its revision-bound round, not a task.
         (["plan-review", "plan-answer"].includes(role) &&
           store.get("review_rounds", named)?.spec) ||

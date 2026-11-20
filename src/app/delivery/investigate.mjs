@@ -25,7 +25,6 @@ import {
 } from "../sessions/session-bindings.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { flowOnDecision } from "../flow/flow.mjs";
-import { addEvidence } from "../tasks/evidence.mjs";
 
 export const TABLE = "task_investigations";
 export const CONFIDENCE = Object.freeze(["low", "medium", "high"]);
@@ -384,13 +383,6 @@ export function decideInvestigation(
     };
   }
   store.transaction(() => store.put(TABLE, next));
-  addEvidence(store, row.taskId, {
-    kind: "decision",
-    source: by || "person",
-    text: `${{ go: "Go ahead", again: "Investigate again", stop: "Stop" }[action]} on findings round ${round.n}, by ${who}.`,
-    repository: taskRepository(task) || null,
-    at,
-  });
   return { investigation: next };
 }
 

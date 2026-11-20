@@ -165,7 +165,7 @@ export async function runWorkspace({
 function runTask({ command }) {
   throw Error(
     {
-      task: "Choose task supersede.",
+      task: "Choose task done or task reopen.",
       checks: "Choose checks run.",
     }[command],
   );
@@ -196,47 +196,6 @@ export const commands = [
           null,
           2,
         ),
-      );
-    },
-  },
-  {
-    command: "seed",
-    help: [
-      help(
-        "setup",
-        "seed --workspace PATH [--example ID]",
-        "Install an example once; with no ID, draft Recipe Box spec folders",
-        {
-          usage: "seed --workspace PATH",
-          about: "Install the example pack (optional)",
-        },
-      ),
-    ],
-    async run({ options, positionals, localOrRequest }) {
-      console.log(
-        JSON.stringify(
-          // No name installs the default pack (`examples` says which).
-          await localOrRequest("workspace.seed", {
-            example: options.example || positionals[0],
-          }),
-          null,
-          2,
-        ),
-      );
-    },
-  },
-  {
-    command: "examples",
-    help: [
-      help(
-        "setup",
-        "examples --workspace PATH",
-        "List available example packs",
-      ),
-    ],
-    async run({ localOrRequest }) {
-      console.log(
-        JSON.stringify(await localOrRequest("workspace.examples"), null, 2),
       );
     },
   },
@@ -304,11 +263,6 @@ export const commands = [
         "",
       ),
       help(
-        "setup",
-        "github setup --mode plans-repo|single-repo [--planning-repository OWNER/REPO]\n[--repositories A,B] [--no-epic]",
-        "Preview the GitHub setup; add --confirm --preview-hash HASH to apply",
-      ),
-      help(
         "inspect",
         "github status",
         "Show repository and machine registration",
@@ -331,91 +285,9 @@ export const commands = [
           autoStart: options["auto-start"],
           active: !options.inactive,
         };
-      } else if (action === "setup") {
-        // Preview first; rerun with --confirm --preview-hash HASH to write.
-        const list = (value) =>
-          value
-            ?.split(",")
-            .map((entry) => entry.trim())
-            .filter(Boolean);
-        const provided = input();
-        operation = "github.setup";
-        value = {
-          ...provided,
-          mode: options.mode ?? provided.mode,
-          planningRepository:
-            options["planning-repository"] ?? provided.planningRepository,
-          repositories: list(options.repositories) ?? provided.repositories,
-          epic: options["no-epic"] ? false : provided.epic,
-          confirm: options.confirm ?? provided.confirm,
-          previewHash: options["preview-hash"] ?? provided.previewHash,
-        };
-      } else throw Error("Choose github status, configure or setup.");
-      // An apply shows each high-risk write with its permissions and asks
-      // first (plugin-credentials PC13.6).
-      if (operation === "github.setup" && value.confirm) {
-        refuseAgentYes(options.yes === true);
-        const preview = await localOrRequest(operation, {
-          ...value,
-          confirm: false,
-        });
-        const grants = await confirmHighRisk(preview.writes, {
-          yes: options.yes === true,
-          localOrRequest,
-        });
-        if (grants === null) return console.log(CANCELLED);
-        value.allow = grants;
-      }
+      } else throw Error("Choose github status or configure.");
       console.log(
         JSON.stringify(await localOrRequest(operation, value), null, 2),
-      );
-    },
-  },
-  {
-    command: "setup",
-    help: [
-      help(
-        "setup",
-        "setup OWNER/REPO --repo ID\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
-        "Preview repository setup for landing; the required checks and base branch come from the repository's settings; --yes applies it",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      // Preview by default; --yes applies (R89.1). Not `github setup`.
-      const list = (value) =>
-        value
-          ?.split(",")
-          .map((entry) => entry.trim())
-          .filter(Boolean);
-      const value = {
-        repository: need(
-          positionals[0],
-          "setup OWNER/REPO --repo ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
-        ),
-        repositoryId: options.repo,
-        methods: list(options.methods),
-        landing: options.landing,
-        confirm: Boolean(options.yes),
-      };
-      // --yes applies: it shows each GitHub write with its permissions and
-      // counts as the person's yes to them (PC13.6).
-      if (value.confirm) {
-        refuseAgentYes(true);
-        const preview = await localOrRequest("repository.setup", {
-          ...value,
-          confirm: false,
-        });
-        value.allow = await confirmHighRisk(
-          (preview.github || []).filter((step) => step.status === "change"),
-          { yes: true, localOrRequest },
-        );
-      }
-      console.log(
-        JSON.stringify(
-          await localOrRequest("repository.setup", value),
-          null,
-          2,
-        ),
       );
     },
   },
@@ -505,16 +377,6 @@ export const commands = [
       ),
       help(
         "setup",
-        "plugins pack-preview ID [--github OWNER/REPO]",
-        "What importing a plugin's pack would create, change, or keep",
-      ),
-      help(
-        "setup",
-        "plugins pack-import ID --preview HASH [--github OWNER/REPO] [--accept-lowered] [--confirm-public]",
-        "Import the exact preview",
-      ),
-      help(
-        "setup",
         "plugins map ID ALIAS --command JSON [--env NAME]... | --remove",
         "Map a checks plugin's MCP server alias to a local stdio server command; the plugin needs approving again",
       ),
@@ -538,29 +400,6 @@ export const commands = [
           disable: () => ["plugin.disable", { id, disabled: true }],
           enable: () => ["plugin.disable", { id, disabled: false }],
           remove: () => ["plugin.remove", { id }],
-          // A pack: what importing it would change, then the import of that
-          // exact preview (design §4.14).
-          "pack-preview": () => [
-            "plugin.pack.preview",
-            {
-              id,
-              ...(options.github
-                ? { repositories: [options.github].flat() }
-                : {}),
-            },
-          ],
-          "pack-import": () => [
-            "plugin.pack.import",
-            {
-              id,
-              previewHash: options.preview,
-              ...(options.github
-                ? { repositories: [options.github].flat() }
-                : {}),
-              acceptLowered: Boolean(options["accept-lowered"]),
-              confirmPublic: Boolean(options["confirm-public"]),
-            },
-          ],
           // A checks plugin's server alias on this machine (plugin-checks
           // PK10.2): an argv list, and the variable names it may read.
           map: () => [
@@ -597,7 +436,7 @@ export const commands = [
         };
       if (!calls[action])
         throw Error(
-          "Choose plugins list, add, update, approve, disable, enable, remove, map, pack-preview, or pack-import.",
+          "Choose plugins list, add, update, approve, disable, enable, remove, or map.",
         );
       if (action !== "list") need(id, `plugins ${action} ID ...`);
       console.log(

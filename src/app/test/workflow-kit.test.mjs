@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { judge, readCases } from "../../../workflow-kit/load.mjs";
 import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.mjs";
 import { unblockCounts } from "../specs/release-ranking.mjs";
+import { claimFirst, resumeClaim } from "../workers/claims.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file) => fs.readFileSync(root + file, "utf8");
@@ -129,16 +130,62 @@ function ready(testCase, specs) {
     .map(({ task }) => `${task.spec}/${task.id}`);
 }
 
-// Claims, leases, landing and spec issue markers run through operations the
-// simplify spec adds, so the adapter leaves those probes out until each
-// simplify task lands.
-function avoozl(testCase) {
+// An origin whose refs create call refuses a ref it already has, and keeps
+// each one it makes.
+function origin(testCase) {
+  const branches = new Set(testCase.origin.branches);
+  return {
+    branch: async () => ({ commit: { sha: "base" } }),
+    createBranch: async (_repository, name) => {
+      if (branches.has(name))
+        throw Object.assign(Error("exists"), { status: 422 });
+      branches.add(name);
+    },
+  };
+}
+
+// The resume: the runners of one login try Avoozl's lease call in turn.
+async function resume(testCase) {
+  const key = testCase.resume.task,
+    [spec, id] = key.split("/");
+  return resumeClaim(origin(testCase), {
+    repository: "o/r",
+    task: { id, planId: spec },
+    leases: testCase.origin.leases?.[key] ?? [],
+    claimAgeHours: testCase.origin.claimAgeHours?.[key] ?? 0,
+    staleHours: testCase.runner.staleHours ?? 24,
+    runners: testCase.resume.runners,
+    sha: "head",
+  });
+}
+
+// The claim: Avoozl's claim call over the ready list.
+async function claim(testCase, order) {
+  const github = origin(testCase),
+    candidates = order.map((name) => {
+      const [spec, id] = name.split("/");
+      return { task: { id, planId: spec }, repository: { github: "o/r" } };
+    }),
+    claimed = await claimFirst(github, candidates, {
+      baseOf: () => testCase.runner.defaultBranch,
+    });
+  return claimed
+    ? { branch: claimed.branch, base: claimed.base, mergeBase: false }
+    : null;
+}
+
+// Landing and spec issue markers run through operations the simplify spec
+// adds, so the adapter leaves those probes out until each simplify task
+// lands.
+async function avoozl(testCase) {
   const specs = specsOf(testCase.files),
     got = {};
   if (testCase.expect.violations) got.violations = violations(specs);
   if (testCase.expect.approved) got.approved = approved(testCase, specs);
   if (testCase.expect.ready || testCase.expect.claim)
     got.ready = ready(testCase, specs);
+  if (testCase.expect.claim) got.claim = await claim(testCase, got.ready);
+  if (testCase.expect.resume) got.resume = await resume(testCase);
   return got;
 }
 
@@ -159,7 +206,7 @@ if (/^# Workflow v1$/m.test(doc))
     rules.add(match[1]);
 
 for (const testCase of readCases()) {
-  test(`workflow kit: ${testCase.name}`, () => {
+  test(`workflow kit: ${testCase.name}`, async () => {
     for (const [probe, task] of Object.entries(testCase.expectFail ?? {})) {
       assert.ok(probe in testCase.expect, `${probe} is not an expected probe`);
       assert.ok(
@@ -171,7 +218,7 @@ for (const testCase of readCases()) {
     if (rules.size)
       for (const rule of testCase.rules)
         assert.ok(rules.has(rule), `rule ${rule} is not in the workflow doc`);
-    const verdicts = judge(testCase, avoozl(testCase));
+    const verdicts = judge(testCase, await avoozl(testCase));
     for (const [probe, verdict] of Object.entries(verdicts))
       assert.ok(
         verdict === "pass" || verdict === "expected-fail",

@@ -1,5 +1,5 @@
 // Phase 34 parts the P45 proof does not reach (tasks 34.2, 34.4–34.6): the
-// other correction sources, the evidence export, fix work from a GitHub
+// other correction sources, fix work from a GitHub
 // Bug, and the manifest's investigate and ship fields. Every value is fake.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -10,7 +10,6 @@ import { Operations } from "../api/operations.mjs";
 import { Store } from "../store/store.mjs";
 import { retryDelivery } from "../delivery/delivery.mjs";
 import { revertCorrections, recordCorrection } from "../flow/corrections.mjs";
-import { taskEvidence } from "../tasks/evidence.mjs";
 import { isFixWork } from "../flow/flow.mjs";
 import { validateProposal } from "../specs/plans.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -111,9 +110,6 @@ test("Send back with a reason, and a revert, are corrections", async (t) => {
     ["a", "reverted", "Pat"],
     ["b", "sent-back", "dashboard"],
   ]);
-  // The decision is in b's evidence bundle.
-  const entries = taskEvidence(w.store, { taskId: "b" }).entries;
-  assert.match(entries[0].text, /Sent back by a person: Keep the old API\./);
   // A summary is cut to 300 characters; a secret is saved redacted.
   const long = recordCorrection(w.store, {
     key: "x1",

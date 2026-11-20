@@ -171,10 +171,8 @@ GitHub does not let anyone approve their own pull request, and Avoozl opens
 pull requests as the owner. So **Ready for review** is the release signal, not
 a review approval. The review rule of the base branch still applies as before.
 
-`avoozl setup OWNER/REPO --repo ID --landing pr|direct|off` previews the
-repository setup, and `--yes` applies it. Setup requires the GitHub checks
-named in the repository's **Required checks** setting (**Edit repository ›
-Landing**), which are separate from the repository's own checks.
+The GitHub checks named in the repository's **Required checks** setting
+(**Edit repository › Landing**) are separate from the repository's own checks.
 
 ### Merge batches
 
@@ -224,10 +222,3 @@ you** with **Go ahead**, **Investigate again**, and **Stop**.
 
 `mode` is `not-small` (the default), `all`, or `off`, and `minConfidence`
 defaults to `high`. A task's facts may set `investigate: true` or `false`.
-
-## Evidence
-
-Each task keeps one evidence bundle under `.avoozl/local/evidence/`. It holds
-the task's findings, decisions, review verdicts, check results, and the images
-or videos the worker attaches, up to 20 MB. The task drawer shows it, and one
-comment on the pull request holds its text summary.

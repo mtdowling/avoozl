@@ -41,7 +41,6 @@ import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
 import { healthContext, providerOf } from "../flow/provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { hasRemoteTask } from "../workers/remote-runner.mjs";
-import { addEvidence } from "../tasks/evidence.mjs";
 import { processRow } from "../agents/role-table.mjs";
 import { loadHarnessDefinition } from "./harness-definitions.mjs";
 import { sessionServedModel } from "./process-view.mjs";
@@ -583,15 +582,6 @@ export async function finishProcessSession(ops, binding, result, store = null) {
       asSession(),
     );
   }
-  if (hands === "summary")
-    return result.state === "done"
-      ? ops.execute(
-          "tasksummary.submit",
-          { summary: result.report?.summary ?? result.text },
-          undefined,
-          asSession(),
-        )
-      : null;
   // A falsifier's verdict is its done report, with no commit: it judges
   // findings, not code. A commit field in its report is passed on, so
   // session.report refuses it as it refuses a chat's (NK2.1).
@@ -743,8 +733,9 @@ async function workerContext(
   );
 }
 
-// The tool calls a finished session's MCP servers answered, as evidence:
-// alias, tool, time, size and error, never an argument or a reply (EC7.5).
+// The tool calls a finished session's MCP servers answered, as Activity
+// rows: alias, tool, time, size and error, never an argument or a reply
+// (EC7.5).
 function importContextCalls(store, stateDirectory, binding) {
   const file = path.join(
     supervisorPaths(stateDirectory).children,
@@ -764,12 +755,13 @@ function importContextCalls(store, stateDirectory, binding) {
     if (index < seen) continue;
     try {
       const call = JSON.parse(line);
-      addEvidence(store, binding.taskId, {
-        kind: "note",
-        source: "avoozl",
+      recordActivity(store, {
+        source: "tick",
+        kind: "epic-context.call",
+        targetId: binding.taskId,
         at: call.at,
         key: `context-call:${binding.slot}:${index}`,
-        text: `MCP ${call.alias} ${call.tool}: ${call.bytes} bytes, ${call.ms} ms${call.error ? `, error ${call.error}` : ""}.`,
+        summary: `MCP ${call.alias} ${call.tool}: ${call.bytes} bytes, ${call.ms} ms${call.error ? `, error ${call.error}` : ""}.`,
       });
     } catch {}
   }
@@ -1039,13 +1031,6 @@ export async function drainProcessRequests(
         store.put("session_bindings", {
           ...store.get("session_bindings", sessionId),
           epicContext: context.binding,
-        });
-      if (request.investigateSkipped)
-        addEvidence(store, request.task, {
-          kind: "note",
-          source: "avoozl",
-          text: `Investigate first was skipped: ${request.investigateSkipped}.`,
-          key: `investigate-skipped:${request.task}`,
         });
       // The head a snapshot was read at, kept on the session (NK4.1).
       if (snapshot?.head)

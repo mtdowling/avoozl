@@ -19,9 +19,5 @@
       "base": "main",
       "mergeBase": false
     }
-  },
-  "expectFail": {
-    "ready": "sim-2.1",
-    "claim": "sim-1.1"
   }
 }

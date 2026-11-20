@@ -13,7 +13,6 @@ import { parseHarnessDefinition } from "../harness-definitions.mjs";
 import { childRecord, openSupervisorDatabase } from "../supervisor.mjs";
 import { listActivity } from "../../store/activity-log.mjs";
 import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
-import { taskEvidence } from "../../tasks/evidence.mjs";
 import { FakeGitHub } from "../../test/fake-github.mjs";
 import { setDriver } from "../../test/epic-context-seed.mjs";
 import { until } from "./process-machine.mjs";
@@ -101,12 +100,16 @@ test("a passing worker gets reads, skills, the brief and the MCP server, and the
     binding.epicContext.tests.map((x) => x.passed),
     [true, true, true],
   );
-  // Each call reaches the evidence, with no argument or reply (EC7.5).
+  // Each call reaches Activity, with no argument or reply (EC7.5).
   await drainProcessRequests(w.store, {
     stateDirectory: w.m.stateDirectory,
     ops: w.ops,
   });
-  const text = JSON.stringify(taskEvidence(w.store, { taskId: "sample-task" }));
+  const text = JSON.stringify(
+    listActivity(w.store).items.filter(
+      (item) => item.kind === "epic-context.call",
+    ),
+  );
   assert.match(text, /MCP research ask: \d+ bytes/);
   assert.doesNotMatch(text, /SECRET-ARGUMENT|marker:sign-in-value/);
 });

@@ -37,7 +37,6 @@ const config = workspaceConfig({ workspace: root, env: { ...process.env, AVOOZL_
 const store = new Store(config.dbPath)
 const ops = new Operations(store, { operator: config.operator, workspaceRoot: config.workspaceRoot, plansRoot: config.plansRoot, workspaceName: config.name })
 const HOME = [
-  ['instance.view', {}],
   ['flow.view', { window: '10' }],
   ['graph.view', {}],
   ['delivery.view', {}],

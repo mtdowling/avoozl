@@ -48,12 +48,8 @@ import {
   SETTINGS_HOME,
   settingsTitle,
 } from './settings-api.ts'
-import SetupWizard from './SetupWizard.tsx'
 import { PrModeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
-import WorkflowMap, { focusField } from './WorkflowMap.tsx'
-import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
-import SetupRepository from './Onboard.tsx'
 import { AddRepositoryModal, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
 import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
 import type { EditTab } from './repo-edit-tabs.ts'
@@ -397,14 +393,6 @@ export function RepositoryEditor(props: {
   const inspectRepository = useMemo(() => inspectClient(api), [api])
   const [inspect, setInspect] = useState<RepositoryInspect | null>(null)
   const id = `avoozl-settings-repo-${props.index}`
-  // A jump from the Workflow map: open the tab, then any closed fold
-  // around the field, then focus it.
-  const [pending, setPending] = useState<Jump | null>(null)
-  useEffect(() => {
-    if (!pending || tab !== pending.tab) return
-    setPending(null)
-    focusField(id, pending)
-  }, [pending, tab, id])
   const set = (change: Partial<RepositoryForm>) => props.onChange({ ...repository, ...change })
   const name = repository.name.trim()
   // GitHub's rules and checks, read only when the Landing tab needs them.
@@ -431,7 +419,7 @@ export function RepositoryEditor(props: {
             <Box as="span" css-color="text" weight="medium">
               {MODE_TITLES[modeKey(props.mode)]}
             </Box>
-            . It follows from each repository&apos;s role in Repository setup.
+            . It comes from github.mode in .avoozl.json.
           </Hint>
           <Box {...grid()}>
             <Text
@@ -467,7 +455,7 @@ export function RepositoryEditor(props: {
                 id={`${id}-landing-mode`}
                 label="Landing mode"
                 raw="landing.mode"
-                rule={{ required: false, blank: 'blank: as avoozl setup left it' }}
+                rule={{ required: false, blank: 'blank: off' }}
                 value={repository.landingMode}
                 options={[...LANDING_MODES]}
                 none="Not set"
@@ -533,26 +521,12 @@ export function RepositoryEditor(props: {
           </FieldGroup>
         </>
       )}
-      {tab === 'map' && (
-        <FieldGroup title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
-          <WorkflowMap
-            workspaceId={props.workspaceId}
-            mode={props.mode}
-            repository={repository}
-            planningRepository={props.planningRepository}
-            onJump={(jump) => {
-              props.onTab(jump.tab)
-              setPending(jump)
-            }}
-          />
-        </FieldGroup>
-      )}
     </>
   )
 }
 
 // The tabs the repository editor fills.
-export const EDITOR_TABS: readonly EditTab[] = ['general', 'landing', 'github', 'map']
+export const EDITOR_TABS: readonly EditTab[] = ['general', 'landing', 'github']
 
 const MODE_TITLES: Record<string, string> = { local: 'Local only', 'plans-repo': 'Plans repository', 'single-repo': 'Single repository' }
 
@@ -580,18 +554,12 @@ function RepositoriesTab(props: {
   const [adding, setAdding] = useState(false)
   const addBlocked = props.dirty ? 'Save or discard your settings changes first: adding a repository writes .avoozl.json.' : null
   const [open, setOpen] = useState<{ kind: 'view' | 'edit'; key: string } | null>(null)
-  // Set up GitHub and import specs: the folder it is open for, and the folder
-  // just added (offered right after Add repository).
-  const [setupFolder, setSetupFolder] = useState<string | null>(null)
-  const [offer, setOffer] = useState<string | null>(null)
-  const setupBlocked = props.dirty ? 'Save or discard your settings changes first: setting up writes .avoozl.json.' : null
   const openRow = open ? rows.find((row) => row.key === open.key) : undefined
   const roleText = (row: RepositoryRow) => roleLabel(roleOfRow(form, row))
   // A repository leaves the list: its checkout is unregistered, or, with no
   // checkout, its GitHub settings leave the file.
   const removeRow = async (target: RepositoryRow) => {
     setBusy(true)
-    setOffer(null)
     setMessage(null)
     try {
       if (target.checkout) {
@@ -610,7 +578,6 @@ function RepositoriesTab(props: {
   }
   const added = async (id: string, role: AddedRole) => {
     await Promise.all([reload(), props.onRegistryChanged()])
-    setOffer(role.folder)
     if (role.changed && role.github) {
       const failure = await props.onCommit((current) => withRepositoryEdit(current, { github: role.github, branch: role.branch, policy: -1 }, { entry: null, role: role.role }))
       if (failure) return setMessage({ ok: false, text: `Added ${id}, but its role was not saved. ${failure}` })
@@ -717,8 +684,6 @@ function RepositoriesTab(props: {
               onView={(row) => setOpen({ kind: 'view', key: row.key })}
               onEdit={(row) => setOpen({ kind: 'edit', key: row.key })}
               onRemove={(target) => void removeRow(target)}
-              onSetup={(row) => setSetupFolder(row.folder)}
-              setupBlocked={setupBlocked}
               onAdd={() => setAdding(true)}
               addBlocked={addBlocked}
             />
@@ -726,19 +691,6 @@ function RepositoriesTab(props: {
           {message && (
             <Box role={message.ok ? 'status' : 'alert'} as="p" mt="2" size="sm" tone={message.ok ? 'muted' : 'danger'}>
               {message.text}
-            </Box>
-          )}
-          {offer && message?.ok && (
-            <Box mt="2" data-setup-offer>
-              <IconLabel
-                icon={Workflow}
-                primary
-                disabled={Boolean(setupBlocked)}
-                tooltip={setupBlocked ?? 'Choose its mode, set up GitHub and import its specs. Nothing is written before Set up.'}
-                onClick={() => setSetupFolder(offer)}
-              >
-                Set up GitHub and import specs
-              </IconLabel>
             </Box>
           )}
           {rows.length > 0 && (
@@ -769,19 +721,6 @@ function RepositoriesTab(props: {
           onClose={() => setOpen(null)}
         />
       )}
-      {setupFolder && (
-        <SetupRepository
-          workspaceId={props.workspaceId}
-          folder={setupFolder}
-          onChanged={() => Promise.all([reload(), props.onRegistryChanged()])}
-          onOpenPlans={props.onOpenPlans}
-          onClose={(note) => {
-            setSetupFolder(null)
-            setOffer(null)
-            if (note) setMessage({ ok: true, text: note })
-          }}
-        />
-      )}
       {adding && (
         <AddRepositoryModal
           workspaceId={props.workspaceId}
@@ -798,7 +737,7 @@ function RepositoriesTab(props: {
 // Local only: what a repository uses here (landing branch, its checks,
 // reviewer chats), one Edit tab at a time. Its GitHub settings, if any, are
 // kept unused.
-const LOCAL_TABS: readonly EditTab[] = ['general', 'landing', 'map']
+const LOCAL_TABS: readonly EditTab[] = ['general', 'landing']
 function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | undefined; kept: boolean; workspaceId: string; tab: EditTab }) {
   const { row, tab } = props
   if (tab === 'general')
@@ -806,7 +745,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
       <FieldGroup title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
         {props.kept && (
           <Hint as="p" size="xs">
-            Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.
+            Its GitHub settings are kept, not used. They apply again when github.mode is a GitHub mode.
           </Hint>
         )}
       </FieldGroup>
@@ -828,12 +767,6 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />
       </>
     )
-  if (tab === 'map')
-    return (
-      <FieldGroup title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
-        <WorkflowMap workspaceId={props.workspaceId} mode="local" repository={{ ...emptyRepository(row.name), baseBranch: row.branch }} />
-      </FieldGroup>
-    )
   return null
 }
 
@@ -845,27 +778,18 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
 export const GITHUB_TABS = [
   { key: 'issues', label: 'Epic issues' },
   { key: 'sync', label: 'Sync pace' },
-  { key: 'setup', label: 'Set up GitHub' },
   { key: 'calls', label: 'GitHub calls' },
 ] as const
 export type GitHubTab = (typeof GITHUB_TABS)[number]['key']
 const GITHUB_TAB_KEYS = GITHUB_TABS.map((tab) => tab.key)
-// The form keys each tab edits; Set up and GitHub calls edit none.
+// The form keys each tab edits; GitHub calls edits none.
 export const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[]> = {
   issues: ['epicIssueType'],
   sync: ['cacheSeconds', 'writesPerMinute', 'writesPerHour'],
-  setup: [],
   calls: [],
 }
 
-function WorkspaceGitHub(props: {
-  form: SettingsForm
-  saved: SettingsForm
-  choices: SettingsChoices
-  set: (change: Partial<SettingsForm>) => void
-  setup: ReactNode
-  rate: RateView | undefined
-}) {
+function WorkspaceGitHub(props: { form: SettingsForm; saved: SettingsForm; choices: SettingsChoices; set: (change: Partial<SettingsForm>) => void; rate: RateView | undefined }) {
   const { form, set } = props
   const [tab, pick] = useTabParam<GitHubTab>('github', GITHUB_TAB_KEYS, 'issues', 'Back to the last GitHub tab')
   const kept = unusedInLocal(form)
@@ -873,7 +797,7 @@ function WorkspaceGitHub(props: {
     return (
       <>
         <Card>
-          <Section title="GitHub settings" blurb="They apply once a repository has a GitHub role in Repository setup.">
+          <Section title="GitHub settings" blurb="They apply when github.mode in .avoozl.json is a GitHub mode.">
             <Box flex flexCol gap="1.5" size="sm" data-local-note>
               <p>{LOCAL_HIDDEN_LINE}</p>
               <Hint as="p" size="xs">
@@ -881,7 +805,7 @@ function WorkspaceGitHub(props: {
               </Hint>
               {kept.length > 0 && (
                 <Hint as="p" size="xs" data-kept>
-                  Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.
+                  Kept, not used: {kept.join(', ')}. Set github.mode to a GitHub mode to use them again.
                 </Hint>
               )}
             </Box>
@@ -954,13 +878,6 @@ function WorkspaceGitHub(props: {
             </Section>
           </Card>
         )}
-        {tab === 'setup' && (
-          <Card>
-            <Section title="Set up GitHub" blurb="Creates the epic issue type the other tabs name. It reads GitHub first and shows every write before making one.">
-              {props.setup}
-            </Section>
-          </Card>
-        )}
         {tab === 'calls' &&
           (rateLines(props.rate).length || usageRows(props.rate).length || props.rate?.signIns?.length ? (
             <RateBlock rate={props.rate} />
@@ -976,19 +893,6 @@ function WorkspaceGitHub(props: {
       </TabPanel>
     </Box>
   )
-}
-
-// What Set up GitHub takes from the form above it, so each setting has one
-// place: the mode, planning repository and repositories.
-function sharedSetup(form: SettingsForm) {
-  return {
-    mode: form.mode,
-    planningRepository: form.planningRepository,
-    repositories: form.repositories
-      .map((r) => r.name.trim())
-      .filter(Boolean)
-      .join(', '),
-  }
 }
 
 // The tabs that edit `.avoozl.json`: one form, one Save, kept across tabs.
@@ -1079,14 +983,7 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           onOpenPlans={props.onOpenPlans}
         />
       ) : (
-        <WorkspaceGitHub
-          form={form}
-          saved={toForm(settings.github)}
-          choices={choices}
-          set={set}
-          rate={settings.rate}
-          setup={<SetupWizard workspaceId={workspaceId} client={client} settings={settings} shared={sharedSetup(form)} onSaved={reload} />}
-        />
+        <WorkspaceGitHub form={form} saved={toForm(settings.github)} choices={choices} set={set} rate={settings.rate} />
       )}
       <SaveFooter
         dirty={dirty}

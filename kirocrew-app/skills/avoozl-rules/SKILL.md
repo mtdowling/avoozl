@@ -81,8 +81,6 @@ A set checks every boundary but `intake` unless `boundaries` narrows it.
 | `intake`   | Items that come in from a plugin source or MCP               |
 | `proposal` | A retro's proposals, their diffs and evidence                |
 | `activity` | Each activity log row; a match saves the row redacted        |
-| `notes`    | Each link and note on a task, when it is saved               |
-| `evidence` | Each evidence bundle entry; a match saves the entry redacted |
 
 `repositories` narrows a set to some registered repositories. Matching also
 reads through percent and HTML escapes and hidden zero-width characters.

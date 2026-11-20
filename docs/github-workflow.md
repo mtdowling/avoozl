@@ -663,14 +663,16 @@ settings, refs, lint and commands below.
 
 Avoozl does not follow every rule yet. Each item below is not built:
 
-- Order (3), manual tags (4), plain done bullets (2.3, 2.4), front matter (5)
-  and linked specs (6): Avoozl still reads `$` fact bullets and orders tasks
-  by `$after`.
+- Order (3): Avoozl orders a spec's tasks by the list, but a spec that still
+  has `$after` facts is ordered by them.
+- Manual tags (4), plain done bullets (2.3, 2.4), front matter (5) and linked
+  specs (6): Avoozl still reads `$` fact bullets.
 - Integration branches (11) and the done branch they set (11.6, 15.1): Avoozl
   still reads an `integrationBranch` key.
-- Claims, leases and resuming (12), and spec issue markers (8.2): Avoozl names
-  a task branch `avoozl/<task>`, takes no lease, and marks spec issues with
-  its own task marker.
+- Claims, leases and resuming (12): `avoozl next --claim` and `plans_next`
+  with `claim` claim through the refs API and take lease generation 1, but
+  Avoozl does not renew a lease or read the leases before a push, and the tick
+  still starts a task on its own branch `avoozl/<task>` with no claim branch.
 - Landing (13, 14): Avoozl does not guard a pull request merge by head SHA
   and does not tick landed work whose tick is missing (13.6).
 - Next task (10): Avoozl ranks by the number of tasks unblocked and then file

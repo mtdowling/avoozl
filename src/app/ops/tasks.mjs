@@ -32,7 +32,6 @@ import { startNow } from "../delivery/delivery.mjs";
 import { diskNeedsYou } from "../workspace/disk-space.mjs";
 import { resolveDecision } from "../api/direct-links.mjs";
 import { machineLinks } from "../tick/crews.mjs";
-import { taskEvidence } from "../tasks/evidence.mjs";
 import { fixToSpec, startFix } from "../intake/fix.mjs";
 import { lineBanner } from "../flow/flow-line.mjs";
 import { flowView } from "../flow/flow.mjs";
@@ -40,10 +39,8 @@ import { withWorkLock } from "../git/git.mjs";
 import { paceNeedsYou } from "../github/github-pacer.mjs";
 import { rateNeedsYou } from "../github/github-rate.mjs";
 import { credentialsNeedsYou } from "../github/github-credentials.mjs";
-import { missingLabelsNeedsYou } from "../github/github-setup.mjs";
 import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { highlightLanguages } from "../settings/highlight-languages.mjs";
-import { instanceView } from "../workspace/instance.mjs";
 import { landingNeedsYou } from "../epics/integration-head.mjs";
 import { pluginCheckNeedsYou } from "../plugins/plugin-checks.mjs";
 import { contextNeedsYou } from "../workers/epic-context.mjs";
@@ -80,32 +77,12 @@ import { archiveTask } from "../specs/plan-retire.mjs";
 import { planReviewNeedsYou } from "../reviews/plan-review-step.mjs";
 import { conversationSettings } from "../settings/repository-settings.mjs";
 import { fail } from "../store/store.mjs";
-import { supersedeTask } from "../tasks/supersede.mjs";
-import {
-  duplicateAudit,
-  duplicateCandidates,
-  mergeTasks,
-} from "../tasks/task-dedup.mjs";
-import { taskDiff, taskFiles } from "../tasks/task-files.mjs";
-import {
-  addNote,
-  editNote,
-  noteAuthor,
-  notesView,
-  removeNote,
-} from "../tasks/task-notes.mjs";
-import {
-  requestTaskSummary,
-  submitTaskSummary,
-  summaryFacts,
-  taskSummaryView,
-} from "../tasks/task-summary.mjs";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { randomUUID } from "node:crypto";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
-// Manual tasks and task links (§4.16, R61.12–R61.22).
+// Manual tasks (§4.16).
 function taskManualCompleteHandler({ name, input, context }) {
   const store = this.store;
 
@@ -121,27 +98,6 @@ function taskManualCompleteHandler({ name, input, context }) {
     : reopenManual(store, { taskId }, { by });
 }
 
-function taskNotesListHandler({ name, input, context }) {
-  const store = this.store;
-
-  if (typeof input.taskId !== "string" || !input.taskId)
-    fail("Name the task: taskId.");
-  const data = this.read(),
-    task = data.tasks.find((t) => t.id === resolveTaskId(data, input.taskId));
-  if (!task) fail(`No task ${input.taskId}.`, 404);
-  if (name === "task.notes.list") return notesView(store, task.id);
-  if (name === "task.notes.add")
-    return addNote(store, task, input, {
-      author: noteAuthor(store, task.id, context, this.operator),
-    });
-  if (context.caller || context.mcp)
-    fail(
-      "Only a person edits, removes or shows a link, in the Avoozl page or the CLI.",
-      403,
-    );
-  if (name === "task.notes.edit") return editNote(store, task, input);
-  if (name === "task.notes.remove") return removeNote(store, task, input);
-}
 // A fix (design §4.12): one change with no spec files. Starting it
 // is the approval, so only a person starts one or makes it a spec.
 function fixStartHandler({ name, input, context }) {
@@ -202,76 +158,6 @@ export const entries = [
     },
   },
 
-  {
-    name: "task.duplicates",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      return input.title
-        ? {
-            items: duplicateCandidates(this.read(), input, {
-              similar: true,
-              limit: input.limit,
-            }),
-          }
-        : duplicateAudit(this.read(), input);
-    },
-  },
-
-  {
-    name: "task.merge",
-    class: "protect",
-    github: "check-in",
-    policy: routed,
-    handler({ input, expectedRevision }) {
-      const store = this.store;
-      return mergeTasks(store, input, expectedRevision);
-    },
-  },
-
-  {
-    name: "task.supersede",
-    class: "protect",
-    github: "check-in",
-    policy: routed,
-    handler({ input, expectedRevision }) {
-      const store = this.store;
-      return store.mutate(
-        "Supersede " + input.id,
-        (data) => supersedeTask(data, input, { operator: this.operator }),
-        expectedRevision,
-      );
-    },
-  },
-
-  {
-    name: "task.merge.get",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-
-      const receipt = store.get("evidence", input.id);
-      if (receipt?.kind !== "task-merge") fail("Merge receipt not found.", 404);
-      return receipt;
-    },
-  },
-  // The task's evidence bundle (§4.22): read only.
-  {
-    name: "task.evidence",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return taskEvidence(store, {
-        ...input,
-        taskId: resolveTaskId(this.read(), String(input.taskId ?? "")),
-      });
-    },
-  },
   // Investigate first (§4.21): Go ahead, Investigate again or Stop.
   {
     name: "investigation.decide",
@@ -474,7 +360,6 @@ export const entries = [
       view.items.push(...diskNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...credentialsNeedsYou(store));
-      view.items.push(...missingLabelsNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
       // A role waiting on Kiro Crew on a machine with none, with this
       // machine's approved harnesses for Run on (NK8.2).
@@ -524,7 +409,6 @@ export const entries = [
           line: lineBanner(store, data),
         }),
         specs: async () => (await sub("plan.specs")).items,
-        instance: () => instanceView(store),
       });
     },
   },
@@ -541,34 +425,6 @@ export const entries = [
     github: "check-in",
     policy: person("Only a person reopens a manual task."),
     handler: taskManualCompleteHandler,
-  },
-  {
-    name: "task.notes.list",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler: taskNotesListHandler,
-  },
-  {
-    name: "task.notes.add",
-    class: "execute",
-    github: "check-in",
-    policy: routed,
-    handler: taskNotesListHandler,
-  },
-  {
-    name: "task.notes.edit",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person edits a link."),
-    handler: taskNotesListHandler,
-  },
-  {
-    name: "task.notes.remove",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person removes a link."),
-    handler: taskNotesListHandler,
   },
   {
     name: "fix.start",
@@ -596,7 +452,7 @@ export const entries = [
       const data = this.read(),
         detail = this.detail(input.id),
         plan = detail.planId ? store.get("plans", detail.planId) : null;
-      const view = taskDetailView(store, data, detail, {
+      return taskDetailView(store, data, detail, {
         plan: plan && !plan.deletedAt ? plan : null,
         approved: Boolean(plan && this.planApproved(plan)),
         destinations: {
@@ -604,68 +460,8 @@ export const entries = [
           links: machineLinks(),
         },
       });
-      return {
-        ...view,
-        summary: taskSummaryView(store, view.task.id, summaryFacts(view)),
-      };
     },
   },
-  // The page asks for the AI summary of the inputs it shows; the same
-  // inputs never write a second one (task-summary.mjs).
-  {
-    name: "task.summary.request",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person asks for a task summary."),
-    handler({ input }) {
-      const store = this.store;
-
-      const data = this.read(),
-        detail = this.detail(input.id),
-        plan = detail.planId ? store.get("plans", detail.planId) : null,
-        view = taskDetailView(store, data, detail, {
-          plan: plan && !plan.deletedAt ? plan : null,
-          approved: Boolean(plan && this.planApproved(plan)),
-        });
-      return requestTaskSummary(store, view.task.id, summaryFacts(view), {
-        retry: input.retry === true,
-      });
-    },
-  },
-
-  {
-    name: "tasksummary.submit",
-    class: "execute",
-    github: "check-in",
-    policy: routed,
-    handler({ input, context }) {
-      const store = this.store;
-      return submitTaskSummary(store, input, context.caller);
-    },
-  },
-
-  {
-    name: "task.files",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return taskFiles(store, this.read(), input);
-    },
-  },
-
-  {
-    name: "task.diff",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return taskDiff(store, this.read(), input);
-    },
-  },
-
   {
     name: "task.change.preview",
     class: "observe",

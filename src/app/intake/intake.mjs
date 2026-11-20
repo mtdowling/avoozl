@@ -20,8 +20,7 @@ import {
   priorityRank,
 } from "../github/github-policy.mjs";
 import { enforce, findingText } from "../content/content-rules.mjs";
-import { PluginUnavailable } from "../plugins/plugin-session.mjs";
-import { declaredPlugins, readPluginSettings } from "../plugins/plugins.mjs";
+import { readPluginSettings } from "../plugins/plugins.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { canonical, fail } from "../store/store.mjs";
 import { GITHUB_VIA, validateGitHubSource } from "../github/github-sources.mjs";
@@ -30,12 +29,10 @@ import { asJob } from "../github/github-jobs.mjs";
 // `retro` holds the skill changes a person approved from a retrospective
 // (design §4.18).
 const RESERVED_SOURCES = Object.freeze(["github", "local", "retro"]);
-const POLL_LIMIT = 500;
 const SUBMIT_LIMIT = 100;
 const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
 export const WAITING_REASON = "Waiting on the author";
 const SOURCE_ID = /^[a-z][a-z0-9-]{0,60}$/;
-const PLUGIN_ID = /^[a-z][a-z0-9-]{0,60}$/;
 export const SOURCE_KEYS = [
   "via",
   "repository",
@@ -79,7 +76,6 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
     return {
       id,
       via: GITHUB_VIA,
-      plugin: null,
       repository,
       github: repository,
       ...settings,
@@ -89,14 +85,7 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
     if (!SOURCE_KEYS.includes(key))
       fail(`${where}.${key} is not an intake source setting.`);
   const via = value.via;
-  if (
-    typeof via !== "string" ||
-    !(
-      via === "mcp" ||
-      (via.startsWith("plugin:") && PLUGIN_ID.test(via.slice(7)))
-    )
-  )
-    fail(`${where}.via must be plugin:<id>, mcp or github.`);
+  if (via !== "mcp") fail(`${where}.via must be mcp or github.`);
   if (typeof value.repository !== "string" || !value.repository.trim())
     fail(`${where}.repository must name a registered repository.`);
   const labelFields = names(value.labelFields, `${where}.labelFields`);
@@ -108,7 +97,6 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
   return {
     id,
     via,
-    plugin: via === "mcp" ? null : via.slice(7),
     repository: value.repository,
     labelFields,
     assigneeField: value.assigneeField ?? null,
@@ -207,13 +195,6 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
   const counts = new Map();
   for (const row of found)
     if (row.id) counts.set(row.id, (counts.get(row.id) || 0) + 1);
-  let plugins = null;
-  const pluginIds = () =>
-    (plugins ??= new Set(
-      declaredPlugins({ workspaceRoot, settingsFile })
-        .filter((p) => !p.error)
-        .map((p) => p.entry.id),
-    ));
   const repositories = store ? workspaceRepositories(store) : null,
     githubSeen = new Map();
   for (const row of found) {
@@ -227,9 +208,7 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
       else if (githubSeen.has(key))
         row.error = `Intake source ${row.id} names GitHub repository ${row.source.repository}, which source ${githubSeen.get(key)} already reads.`;
       else githubSeen.set(key, row.id);
-    } else if (row.source.plugin && !pluginIds().has(row.source.plugin))
-      row.error = `Intake source ${row.id} names plugin ${row.source.plugin}, which no plugins entry declares.`;
-    else if (repositories && row.source.via !== GITHUB_VIA) {
+    } else if (repositories && row.source.via !== GITHUB_VIA) {
       const repository = repositories.find(
         (entry) =>
           entry.id === row.source.repository ||
@@ -762,11 +741,6 @@ export async function submitItems(sources, githubPolicy, github, input = {}) {
       `Source ${id} is not declared, or cannot be used. Declare it with via mcp first.`,
       404,
     );
-  if (source.via !== "mcp")
-    fail(
-      `Source ${id} is read through plugin ${source.plugin}; only an mcp source takes items this way.`,
-      403,
-    );
   if (
     !Array.isArray(input.items) ||
     !input.items.length ||
@@ -815,83 +789,6 @@ export async function submitItems(sources, githubPolicy, github, input = {}) {
     });
   }
   return { source: id, repository, results };
-}
-
-// The tick's poll of each plugin source (R50.7): at most once per source per
-// tick, the cursor stored only after every item is handled.
-export async function pollSources(
-  store,
-  session,
-  sources,
-  githubPolicy,
-  { now = new Date().toISOString() } = {},
-) {
-  const notify = [],
-    report = [];
-  for (const source of sources.values()) {
-    if (!source.plugin) continue;
-    const id = `source:${source.id}`,
-      before = sourceRow(store, id) ?? {
-        id,
-        source: source.id,
-        cursor: null,
-        readAt: null,
-        more: false,
-        error: null,
-        refused: [],
-      };
-    const fail = (error) => {
-      saveSourceRow(store, { ...before, error, failedAt: now });
-      report.push({ source: source.id, error });
-    };
-    const status = await session.use(source.plugin, "intake");
-    if (!status.ok) {
-      fail(`Plugin ${source.plugin} is unavailable: ${status.reason}`);
-      continue;
-    }
-    const capabilities =
-      session.describe(source.plugin, "intake")?.capabilities || [];
-    let reply;
-    try {
-      reply = await session.call(source.plugin, "intake", "poll", {
-        cursor: before.cursor,
-        limit: POLL_LIMIT,
-      });
-    } catch (error) {
-      fail(
-        error instanceof PluginUnavailable
-          ? error.message
-          : `Plugin ${source.plugin} poll failed: ${error.message}`,
-      );
-      continue;
-    }
-    const bound = withPolicy(source, githubPolicy),
-      actorCapable = capabilities.includes("actor"),
-      counts = {};
-    for (const item of reply.items) {
-      const taken = takeItem(store, bound, item, { actorCapable, now });
-      notify.push(...taken.notify);
-      counts[taken.result] = (counts[taken.result] || 0) + 1;
-    }
-    const changed =
-      reply.items.length > 0 || reply.cursor !== before.cursor || before.error;
-    saveSourceRow(store, {
-      ...before,
-      cursor: reply.cursor ?? before.cursor,
-      more: reply.more,
-      error: null,
-      failedAt: null,
-      readAt: changed ? now : before.readAt,
-      refused: reply.refused,
-    });
-    report.push({
-      source: source.id,
-      items: reply.items.length,
-      refused: reply.refused.length,
-      ...counts,
-    });
-  }
-  return { notify, report };
 }
 
 // A closed item tied to no task is deleted 30 days after it closed; an item

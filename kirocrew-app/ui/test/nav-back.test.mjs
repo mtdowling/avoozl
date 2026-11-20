@@ -214,8 +214,7 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   const shared = source('ui/Modal.tsx')
   assert.match(shared, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', \(\) => \(latest\.current\.onBack \?\? dismiss\)\(\), dismiss\)/)
   assert.match(shared, /if \(!unsaved\) return onDismiss\(\)[\s\S]*?void ask\(unsaved\)\.then\(\(yes\) => \{[\s\S]*?if \(yes\) latest\.current\.onDismiss\(\)/)
-  for (const name of ['AddPlugin.tsx', 'PackImport.tsx', 'SetupWizard.tsx'])
-    assert.match(source(name), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/, name)
+  for (const name of ['AddPlugin.tsx']) assert.match(source(name), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/, name)
   assert.match(
     source('ui/controls.tsx'),
     /<Modal\s+id="avoozl-confirm"\s+kind="confirm"\s+role="alertdialog"\s+focusClose\s+backLabel="Cancel"[\s\S]*?onDismiss=\{\(\) => answer\(false\)\}/,
@@ -284,19 +283,7 @@ test('the views use the shared history: inner tabs, the plan, the Graph, the dra
   assert.match(source('GraphView.tsx'), /useRemembered<DrillEntry\[\]>\('graph-stack', \[\]\)/)
   assert.match(source('TaskDrawer.tsx'), /<Modal\s+id="avoozl-drawer"\s+role="dialog"\s+kind="drawer"/)
   assert.match(source('NewPlanDrawer.tsx'), /<Modal\s+id="avoozl-new-plan"[\s\S]*?kind="drawer"[\s\S]*?unsaved=\{dirty/)
-  assert.match(source('Onboard.tsx'), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/)
   // No view keeps its own Esc listener any more.
-  for (const name of [
-    'ui/Modal.tsx',
-    'TaskDrawer.tsx',
-    'AddPlugin.tsx',
-    'PackImport.tsx',
-    'SetupWizard.tsx',
-    'DocumentReader.tsx',
-    'ui/controls.tsx',
-    'PlansView.tsx',
-    'NewPlanDrawer.tsx',
-    'Onboard.tsx',
-  ])
+  for (const name of ['ui/Modal.tsx', 'TaskDrawer.tsx', 'AddPlugin.tsx', 'DocumentReader.tsx', 'ui/controls.tsx', 'PlansView.tsx', 'NewPlanDrawer.tsx'])
     assert.doesNotMatch(source(name), /key === 'Escape'|key !== 'Escape'/, name)
 })

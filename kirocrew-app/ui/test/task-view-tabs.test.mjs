@@ -46,7 +46,6 @@ test('one rule for no data: a tab or section with none is not drawn, and says no
   // No empty-state line is left in the task view.
   assert.doesNotMatch(drawer, /data-tab-empty|No description|No delivery yet|Nothing recorded|>None\.<|>Nothing\.</)
   assert.doesNotMatch(source('TaskScmLinks.tsx'), /none<\/span>/)
-  assert.doesNotMatch(source('TaskNotes.tsx'), /No links yet/)
 })
 
 const chrome = findChrome()
@@ -69,7 +68,6 @@ const open = async (summary, width = 1280, extra = {}) => {
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
   await page.until(`Boolean(document.querySelector('[data-tabs="task-tabs"]'))`)
 }
-const asks = () => page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'task.summary.request').map((c) => c.input)`)
 
 test('page: tabs switch by click and arrow keys, and a tab with no data is not in the bar', { skip }, async () => {
   await open('ready')
@@ -109,39 +107,6 @@ test('page: a section with no data renders nothing, with no empty line in its pl
   await page.until(`Boolean(document.querySelector('[data-section-box="summary"]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-section-box="conflicts"]')`), null)
   assert.deepEqual(page.errors, [])
-})
-
-test('page: the summary shows the working box, then the text; the same inputs ask once and never again', { skip }, async () => {
-  await open('none')
-  await page.until(`Boolean(document.querySelector('[data-review-working]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-task-summary] [data-plan-review-state]').textContent`), 'AI working')
-  // The data is there while it works.
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-section-box="summary"]'))`), true)
-  await page.until(`Boolean(document.querySelector('[data-task-summary-text]'))`, 15000)
-  assert.equal(await page.evaluate(`document.querySelector('[data-review-working]')`), null)
-  assert.match(await page.evaluate(`document.querySelector('[data-task-summary-text]').textContent`), /last gate before cutover/)
-  assert.equal((await asks()).length, 2, 'one ask, one read of the same answer')
-  // Reopening with a summary already written asks for nothing.
-  await open('ready')
-  await page.until(`Boolean(document.querySelector('[data-task-summary-text]'))`)
-  assert.deepEqual(await asks(), [])
-})
-
-test('page: a failed summary is a muted line with Retry, and the view still works', { skip }, async () => {
-  await open('failed')
-  await page.until(`Boolean(document.querySelector('[data-task-summary-fallback]'))`)
-  // The line says why the summary has no text.
-  assert.match(
-    await page.evaluate(`document.querySelector('[data-task-summary-fallback]').textContent`),
-    /^Summary unavailable: The summary chat ended without sending a summary\.\s+Retry$/,
-  )
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-section-box="summary"]'))`), true)
-  await page.evaluate(`document.querySelector('[data-task-summary-retry]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-review-working]'))`)
-  assert.deepEqual(
-    (await asks()).map((a) => a.retry),
-    [true],
-  )
 })
 
 test('page: a task a spec made has no Edit, and its line opens the spec', { skip }, async () => {

@@ -168,11 +168,10 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
       at: newest(item),
     })
   }
-  // Superseded tasks are history; the Delivery tab offers them separately.
-  for (const item of items) if (item.status !== 'superseded') add(tasks.get(item.id) ?? null, item)
+  for (const item of items) add(tasks.get(item.id) ?? null, item)
   // Leaves with no delivery record yet still belong in their lane, so each
   // lane holds every task the Dashboard's state counts name.
-  for (const task of graph?.tasks ?? []) if (!seen.has(task.id) && task.kind === 'leaf' && task.status !== 'superseded') add(task, null)
+  for (const task of graph?.tasks ?? []) if (!seen.has(task.id) && task.kind === 'leaf') add(task, null)
   lanes.done.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   lanes.running.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   return lanes

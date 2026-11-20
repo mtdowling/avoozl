@@ -111,9 +111,6 @@ test("every CLI command and subcommand runs without crashing", {
   execFileSync(process.execPath, [cli, "init", template, "--port", "0"], {
     env,
   });
-  execFileSync(process.execPath, [cli, "seed", "--workspace", template], {
-    env,
-  });
 
   const help = (await run(["help", "all"], env)).stdout,
     paths = helpPaths(help),
@@ -140,7 +137,7 @@ test("every CLI command and subcommand runs without crashing", {
         paths.push([command, action]);
   }
 
-  // Each top-level command gets its own copy of the seeded workspace, so
+  // Each top-level command gets its own copy of the workspace, so
   // commands run side by side without sharing a database.
   const workspaces = new Map();
   const workspaceFor = (command) => {

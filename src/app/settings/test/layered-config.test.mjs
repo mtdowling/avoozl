@@ -29,13 +29,13 @@ test("configuration layers merge deterministically and resolve their own paths",
     version: 1,
     name: "Global",
     dbPath: "state/global.sqlite",
-    packs: { global: true, winner: "global" },
+    delivery: { retries: 1, quietMinutes: 5 },
   });
   writeJson(repositoryFile, {
     version: 1,
     name: "Repository",
     documents: "repository-plans",
-    packs: { repository: true, winner: "repository" },
+    delivery: { retries: 2 },
   });
 
   const loaded = loadLayeredConfig({
@@ -59,14 +59,10 @@ test("configuration layers merge deterministically and resolve their own paths",
     loaded.config.documents,
     path.join(workspaceRoot, "command-plans"),
   );
-  assert.deepEqual(loaded.config.packs, {
-    global: true,
-    repository: true,
-    winner: "repository",
-  });
-  assert.deepEqual(loaded.configWithoutRepository.packs, {
-    global: true,
-    winner: "global",
+  assert.deepEqual(loaded.config.delivery, { retries: 2, quietMinutes: 5 });
+  assert.deepEqual(loaded.configWithoutRepository.delivery, {
+    retries: 1,
+    quietMinutes: 5,
   });
   assert.deepEqual(
     loaded.sources.map(({ label }) => label),
@@ -171,7 +167,7 @@ test("secret-like keys are rejected recursively", () => {
     repositoryFile = path.join(workspaceRoot, ".avoozl.json");
   writeJson(repositoryFile, {
     version: 1,
-    packs: {
+    delivery: {
       github: {
         apiKey: "must-not-be-here",
       },
@@ -185,7 +181,7 @@ test("secret-like keys are rejected recursively", () => {
           XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-"),
         },
       }),
-    /secret-like key packs\.github\.apiKey/,
+    /secret-like key delivery\.github\.apiKey/,
   );
 });
 

@@ -13,26 +13,19 @@ import { fail } from "../store/store.mjs";
 async function pluginHandler({ name, input, context }) {
   const result = await this.pluginOperation(name, input, context);
   // A plugin change reloads rules plugins on the next operation.
-  if (!["plugins.list", "plugin.preview", "plugin.pack.preview"].includes(name))
+  if (!["plugins.list", "plugin.preview"].includes(name))
     contentBinding(this.store)?.plugins.clear();
   return result;
 }
 
 const changesPlugins = person("Only a person changes plugins.");
-const reads = [
-  "plugins.list",
-  "plugin.preview",
-  "plugin.pack.preview",
-  "template.list",
-  "template.preview",
-];
+const reads = ["plugins.list", "plugin.preview"];
 const writes = [
   "plugin.add",
   "plugin.approve",
   "plugin.disable",
   "plugin.remove",
   "plugin.update",
-  "plugin.pack.import",
   // Which credentials plugin serves a host where two claim one owner
   // (plugin-credentials PC2.6, PC8.2).
   "plugin.credentials.pick",
@@ -48,7 +41,7 @@ function mapHandler({ input, context }) {
   if (!options?.workspaceRoot) fail("Plugins need a workspace root.", 409);
   const plugin = setMapping(options, input ?? {});
   contentBinding(this.store)?.plugins.clear();
-  const { manifest: _m, entry: _e, pack: _p, ...shown } = plugin;
+  const { manifest: _m, entry: _e, ...shown } = plugin;
   return shown;
 }
 

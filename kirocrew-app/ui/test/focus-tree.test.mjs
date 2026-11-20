@@ -231,13 +231,11 @@ test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, a
   // reads each of the two times they opened (TaskDrawer.tsx). The others are
   // Refresh's rate and the nav's own counts, which every page change reads (App.tsx).
   const ops = await page.evaluate('window.__ops')
-  const detailReads = ['task.detail', 'task.notes.list', 'task.files', 'task.evidence']
+  const detailReads = ['task.detail']
   assert.equal(ops.filter((op) => op === 'graph.view').length, 1 + 2, ops.join(','))
   assert.equal(ops.filter((op) => op === 'task.detail').length, 2, ops.join(','))
   assert.deepEqual(
-    [...new Set(ops)].filter(
-      (op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', 'triage.view', 'task.summary.request', ...detailReads].includes(op),
-    ),
+    [...new Set(ops)].filter((op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', 'triage.view', ...detailReads].includes(op)),
     [],
     ops.join(','),
   )

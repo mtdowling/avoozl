@@ -39,9 +39,7 @@ test('the real sample: Specs is one list with a status chip per spec, and a spec
     width: 1280,
     height: 800,
   })
-  await page.until(`Boolean(${button('Start demo')})`)
-  await click(button('Start demo'))
-  await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
+  await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   await click(specsTab)
   await page.until(`Boolean(document.querySelector('[data-spec-list] [data-plan-row]'))`)
   const chips = await page.evaluate(

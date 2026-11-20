@@ -27,6 +27,8 @@ import {
   proposalsFromFacts,
 } from "../specs/design-extraction.mjs";
 import { bindDriver } from "../workers/driver.mjs";
+import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
+import { readSpecIssues } from "../specs/spec-publication.mjs";
 import { taskEpic } from "../epics/epics.mjs";
 import { putSpan } from "../flow/flow.mjs";
 import {
@@ -61,7 +63,7 @@ import {
   personOf,
   requirePrivateRepository,
 } from "../github/github.mjs";
-import { pollSources, sourceMap } from "../intake/intake.mjs";
+import { sourceMap } from "../intake/intake.mjs";
 import { parseIssueReference } from "../tasks/issue-reference.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { telemetryHandle } from "../telemetry/index.mjs";
@@ -77,7 +79,6 @@ import {
 import { OPERATIONS } from "./operation-table.mjs";
 import { flushOutbox } from "../store/outbox.mjs";
 import { processGrants, withJob } from "../github/github-jobs.mjs";
-import { recordMissingLabels } from "../github/github-setup.mjs";
 import {
   credentialsNeedsYou,
   machineCredentials,
@@ -95,18 +96,13 @@ import {
   addGitPlugin,
   addPlugin,
   approvePlugin,
-  approvedTemplates,
   disablePlugin,
-  importPluginPack,
   inspectPlugins,
-  pickTemplate,
   pluginHost,
   pluginSettingsPath,
   readPluginSettings,
   previewPlugin,
-  previewPluginPack,
   removePlugin,
-  repositoryPacks,
   updateGitPlugin,
 } from "../plugins/plugins.mjs";
 import { pluginChecksView } from "../plugins/plugin-checks.mjs";
@@ -147,7 +143,6 @@ import {
   specRoots,
   specTitle,
 } from "../specs/spec-plans.mjs";
-import { sameFolder } from "../workspace/onboarding.mjs";
 import {
   applyTicks,
   baseHead,
@@ -155,12 +150,6 @@ import {
   tickCommits,
 } from "../specs/spec-ticks.mjs";
 import { canonical, fail } from "../store/store.mjs";
-import {
-  checkInputs,
-  fill,
-  templateSeed,
-  templateSummary,
-} from "../specs/templates.mjs";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
 import { syncWorkspaceRepository } from "../workspace/workspace-repository.mjs";
 import { randomUUID } from "node:crypto";
@@ -178,6 +167,15 @@ export function postingActor(name, context) {
   if (AUTOMATION.has(name)) return "avoozl";
   return context.person === true ? "person" : null;
 }
+
+const realpath = (value) => {
+  try {
+    return fs.realpathSync.native(value);
+  } catch {
+    return value;
+  }
+};
+const sameFolder = (a, b) => realpath(a) === realpath(b);
 
 export class Operations {
   constructor(
@@ -255,8 +253,6 @@ export class Operations {
       recordCredentialEvents(store, client.credentials);
       client.onNoPerson = (provider, owner) =>
         recordNoPerson(store, { provider, owner });
-      client.onMissingLabels = (repository, names) =>
-        recordMissingLabels(store, repository, names);
     }
     this.githubClient = client;
     this.github = guardGitHub(client, store);
@@ -300,25 +296,6 @@ export class Operations {
   read() {
     return this.store.read();
   }
-  // Check now for plugin sources: one poll each, under the tick's lock.
-  async pollNow() {
-    const sources = sourceMap(this.pluginOptions, this.store);
-    if (![...sources.values()].some((source) => source.plugin)) return;
-    await withWorkLock(this.store, WORKSPACE_LOCK, async () => {
-      const session = this.plugins.open();
-      try {
-        const polled = await pollSources(
-          this.store,
-          session,
-          sources,
-          readGitHubPolicyOrNull(this.workspaceRoot),
-        );
-        queueNotifications(this.store, polled.notify);
-      } finally {
-        await session.close();
-      }
-    });
-  }
   // What the provider operations need: the clock and each session's review
   // roles, so a switch never breaks review distinctness (R72.9).
   providerOptions() {
@@ -339,38 +316,12 @@ export class Operations {
   // act in Settings or the CLI: an agent session cannot approve a plugin,
   // and no MCP tool offers it.
   async pluginOperation(name, input, context) {
-    const options = {
-      ...this.pluginOptions,
-      screenPack: (pack) => this.screenPack(pack),
-    };
+    const options = this.pluginOptions;
     if (!options.workspaceRoot) fail("Plugins need a workspace root.", 409);
     if (name === "plugins.list") {
       const health = pluginHealth(this.store),
-        packs = repositoryPacks(options.workspaceRoot),
         plugins = inspectPlugins(options).map(({ manifest, entry, ...p }) => ({
           ...p,
-          // Templates by name only; template.list reads the rest.
-          ...(p.templates
-            ? {
-                templates: p.templates.map((t) => ({
-                  id: t.id,
-                  title: t.title,
-                  description: t.description,
-                })),
-              }
-            : {}),
-          // The pack's description and groups, and what was imported from
-          // it; a newer version offers its diff again (R55.7).
-          ...(p.pack
-            ? {
-                pack: {
-                  description: p.pack.description ?? null,
-                  groups: Object.keys(p.pack.settings),
-                  imported: packs[p.id] ?? null,
-                  offer: packs[p.id]?.version !== p.version,
-                },
-              }
-            : {}),
           config: entry?.config ?? {},
           ...(entry?.git !== undefined
             ? {
@@ -414,35 +365,11 @@ export class Operations {
           readPluginSettings(options.settingsFile).credentialsPick ?? {},
       };
     }
-    // What importing a plugin's pack would change. Reads only.
-    if (name === "plugin.pack.preview")
-      return previewPluginPack(options, input);
-    // Workflow templates of approved plugins only (R61.1, R61.6). Reads only.
-    if (name === "template.list")
-      return {
-        templates: approvedTemplates(options).map(({ plugin, template }) =>
-          templateSummary(plugin, template),
-        ),
-      };
-    if (name === "template.preview") {
-      const { plugin, template } = pickTemplate(options, input),
-        { text } = checkInputs(template, input.inputs ?? {});
-      return {
-        template: templateSummary(plugin, template),
-        starter: Object.fromEntries(
-          Object.entries(template.starterFiles).map(([file, body]) => [
-            file,
-            fill(body, text),
-          ]),
-        ),
-        seed: templateSeed(template, text),
-      };
-    }
     if (context.caller)
       fail("Only a person changes plugins, in Settings or the CLI.", 403);
     const strip = (plugin) => {
       if (!plugin) return plugin;
-      const { manifest, entry, pack, ...rest } = plugin;
+      const { manifest, entry, ...rest } = plugin;
       return rest;
     };
     if (name === "plugin.approve")
@@ -462,36 +389,7 @@ export class Operations {
     if (name === "plugin.remove") return removePlugin(options, input);
     if (name === "plugin.credentials.pick")
       return pickCredentials(options, input);
-    if (name === "plugin.pack.import") {
-      const result = importPluginPack(options, input, this.operator);
-      this.configuration?.reload();
-      return result;
-    }
     fail("Unknown operation " + name, 404);
-  }
-  // Refuse a pack whose text a content rule blocks (RC7.4). It names the set
-  // and rule, never the text. Only the crews section writes to GitHub.
-  screenPack(pack) {
-    const crews = pack?.settings?.crews;
-    if (!crews) return;
-    const text = [pack.description, Object.values(crews.labels ?? {})]
-        .flat()
-        .filter((entry) => typeof entry === "string")
-        .join("\n"),
-      result = checkContent(this.store, {
-        boundary: "github",
-        target: "pack-crews",
-        text,
-      }),
-      blocked = [
-        ...result.findings.map((f) => `${f.set}/${f.rule}`),
-        ...result.unavailable.map((u) => `${u.set} unavailable`),
-      ];
-    if (blocked.length)
-      fail(
-        `A content rule blocks this pack's crews section (${blocked.join(", ")}). Nothing was changed.`,
-        422,
-      );
   }
   // The mode Settings > Content rules shows, or null when it can't be read.
   contentMode() {
@@ -665,8 +563,8 @@ export class Operations {
       ...(homeErrors.length ? { homeErrors } : {}),
     };
   }
-  // Store a spec folder as a draft plan: `plan.create` with a spec, and
-  // each folder of a spec-folder example. It approves nothing.
+  // Store a spec folder as a draft plan: `plan.create` with a spec. It
+  // approves nothing.
   createSpecDraft(input, context = {}) {
     const store = this.store,
       spec = this.readSpec(input.spec);
@@ -679,22 +577,6 @@ export class Operations {
       caller: context.caller,
     });
     return created;
-  }
-  // Where a spec-folder example is written: the workspace's own folder, and
-  // only when that is where this workspace reads its specs. An example never
-  // writes into a code repository or a separate planning checkout.
-  exampleSpecRoot() {
-    const roots = this.specRoots();
-    if (
-      !this.workspaceRoot ||
-      roots.length !== 1 ||
-      path.resolve(roots[0]) !== path.resolve(this.workspaceRoot)
-    )
-      fail(
-        "This example installs spec folders in the workspace's own specs folder, and this workspace reads its specs from a repository. Nothing was installed.",
-        409,
-      );
-    return roots[0];
   }
   // A folder on disk by name.
   readSpec(name) {
@@ -1051,7 +933,18 @@ export class Operations {
         "Rebuild starts from an empty database. Move workspace.sqlite aside, then run it again.",
         409,
       );
-    return this.readFromGit();
+    const result = await this.readFromGit();
+    // Claims come back from the claim branches on origin (simplify §D3).
+    const claimErrors = await refreshClaims(this.store, this.github),
+      issues = await readSpecIssues(this.store, this.github);
+    return {
+      ...result,
+      claims: [...claimedTaskIds(this.store)],
+      specIssues: issues.found,
+      ...(claimErrors.length || issues.errors.length
+        ? { githubErrors: [...claimErrors, ...issues.errors] }
+        : {}),
+    };
   }
   // Approve each plan as its approval commit names it: `found` is plan ID
   // -> an approvalCommits entry whose hash is the plan's. Owners first: a
@@ -1191,8 +1084,7 @@ export class Operations {
         // Read again on the next tick.
       }
   }
-  // The one reader behind `avoozl rebuild` and adopting a repository in
-  // Settings > Repository setup (onboarding.adopt): the same steps over the
+  // The one reader behind `avoozl rebuild`: the same steps over the
   // named specs, with `allowed` (an approverCheck) in place of the
   // repository's own approvers list and `root` limiting landings and retros
   // to one checkout. A spec that already has a plan is left alone.

@@ -1,7 +1,6 @@
 import {
   defaultJob,
   fixedCredentials,
-  granted,
 } from "../../test/github-credentials.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -41,9 +40,6 @@ test("sub-issue, dependency, and issue type endpoints", async () => {
   await github.listIssueBlocking("example/plans", 4);
   assert.deepEqual(await github.listIssueTypes("user"), []);
   await github.listIssueTypes("example");
-  await granted("issue-types-setup", "example", () =>
-    github.createIssueType("example", { name: "Epic", color: "purple" }),
-  );
   await github.setIssueType("example/plans", 3, "Epic");
   assert.deepEqual(
     requests.map(({ method, url, body }) => [method, url, body]),
@@ -66,11 +62,6 @@ test("sub-issue, dependency, and issue type endpoints", async () => {
       ],
       ["GET", "/orgs/user/issue-types", undefined],
       ["GET", "/orgs/example/issue-types", undefined],
-      [
-        "POST",
-        "/orgs/example/issue-types",
-        { name: "Epic", description: "", is_enabled: true, color: "purple" },
-      ],
       ["PATCH", "/repos/example/plans/issues/3", { type: "Epic" }],
     ],
   );

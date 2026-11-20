@@ -1029,7 +1029,12 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
   // A mark made on disk after the reviewed revision is stored is not read:
   // marks leave the hash alone, so approval reads the stored tasks.md.
   const tasks = path.join(directory, "tasks.md");
-  fs.writeFileSync(tasks, marked.replace("- [-] 1.2", "- [x] 1.2"));
+  fs.writeFileSync(
+    tasks,
+    marked
+      .replace("- [-] 1.2", "- [x] 1.2")
+      .replace("- [ ] 1 Load", "- [x] 1 Load"),
+  );
   const receipt = await approve(ops, "config", { approvedBy: "owner" });
   assert.deepEqual(receipt.baseline, ["config.1.1"]);
   const row = (id) => store.read().tasks.find((task) => task.id === id),

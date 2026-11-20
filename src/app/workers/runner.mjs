@@ -4,9 +4,20 @@
 import {
   busyTaskIds,
   DELIVERY_DEFAULTS,
+  leafBrief,
   liveAttempt,
+  readyCandidates,
   readyLeaves,
 } from "../delivery/delivery.mjs";
+import {
+  cacheClaim,
+  claimBranch,
+  claimedTaskIds,
+  claimFirst,
+  refreshClaims,
+  taskSpec,
+} from "./claims.mjs";
+import { manualTake } from "./manual-take.mjs";
 import { sessionUrl } from "../tick/notifications.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { scheduleHolds } from "../specs/spec-scheduler.mjs";
@@ -16,7 +27,6 @@ import {
   completionReached,
   isManual,
   isRefused,
-  supersedingTask,
   taskKind,
   taskRepository,
   taskRoute,
@@ -49,7 +59,9 @@ const phase = (binding, delivery) =>
       ? "integrating"
       : binding && liveAttempt(binding)
         ? "working"
-        : "recording";
+        : binding || delivery
+          ? "recording"
+          : "claimed";
 
 // plans_next / `avoozl next`: every local leaf, in exactly one bucket.
 export function nextView(store, { policy, github = null }) {
@@ -58,6 +70,7 @@ export function nextView(store, { policy, github = null }) {
     bindings = listSessionBindings(store),
     newest = newestWorkers(bindings),
     claimed = busyTaskIds(store, bindings),
+    branches = claimedTaskIds(store),
     deliveries = new Map(
       store.list("task_deliveries").map((d) => [d.taskId, d]),
     ),
@@ -90,14 +103,10 @@ export function nextView(store, { policy, github = null }) {
         (edge) =>
           edge.to === task.id &&
           BLOCKING.has(edge.kind) &&
-          !completionReached(
-            supersedingTask(byId, edge.from),
-            edge.condition,
-            complete,
-          ),
+          !completionReached(byId.get(edge.from), edge.condition, complete),
       )
       .map((edge) => {
-        const from = supersedingTask(byId, edge.from);
+        const from = byId.get(edge.from);
         return {
           id: from?.id ?? edge.from,
           title: from ? title(from) : edge.from,
@@ -165,6 +174,7 @@ export function nextView(store, { policy, github = null }) {
       result.running.push({
         ...item,
         phase: phase(binding, record),
+        ...(branches.has(task.id) ? { branch: claimBranch(task) } : {}),
         ...session,
       });
       continue;
@@ -200,4 +210,68 @@ export function nextView(store, { policy, github = null }) {
   }
   result.finished = leaves.length > 0 && result.done.length === leaves.length;
   return result;
+}
+
+// `avoozl next --claim` / plans_next with claim (simplify §D3): read the claim
+// branches, then claim the best ready task by creating its branch on origin
+// at the base head, and make its worktree on that branch. A task whose
+// repository has no GitHub name is not claimable this way.
+export async function claimNext(
+  store,
+  { policy, github = null, client, workspaceRoot },
+) {
+  const errors = await refreshClaims(store, client),
+    view = nextView(store, { policy, github }),
+    ready = new Set(view.ready.map((item) => item.id)),
+    repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
+    candidates = readyCandidates(store)
+      .filter((task) => ready.has(task.id))
+      .map((task) => ({
+        task,
+        repository: repositories.get(taskRepository(task)),
+      }))
+      .filter(({ repository }) => repository?.github);
+  // shortcut: the base is the repository's base branch; integration
+  // branches named for a spec (simplify §D21) change it.
+  const claim = await claimFirst(client, candidates, {
+    baseOf: ({ repository }) => repository.baseBranch || "main",
+  });
+  if (!claim) return { ...view, claimed: null, errors };
+  // The take binds this caller's session before the claim is cached, so its
+  // guard still sees the task as ready.
+  const take = await manualTake(
+    store,
+    { taskId: claim.task.id, claim: true, workspaceRoot },
+    { github },
+  );
+  cacheClaim(store, claim.repository.github, {
+    spec: taskSpec(claim.task),
+    task: claim.task.id,
+    branch: claim.branch,
+    sha: claim.head,
+  });
+  const data = store.read(),
+    brief = leafBrief(store, data, {
+      task: data.tasks.find((t) => t.id === claim.task.id),
+      repository: claim.repository,
+      attempt: take.binding.attempt,
+      delivery: store.get("task_deliveries", claim.task.id),
+    });
+  return {
+    claimed: {
+      id: claim.task.id,
+      title: title(claim.task),
+      repository: claim.repository.id,
+      branch: claim.branch,
+      base: claim.base,
+      head: claim.head,
+      lease: claim.lease,
+      refusals: claim.refusals,
+    },
+    worktree: take.worktree,
+    ...(take.worktreeError ? { worktreeError: take.worktreeError } : {}),
+    report: take.report,
+    brief,
+    errors,
+  };
 }

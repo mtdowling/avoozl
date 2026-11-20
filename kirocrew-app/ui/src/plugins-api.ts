@@ -27,8 +27,6 @@ export interface PluginRow {
   kinds?: string[]
   capabilities?: Record<string, string[]>
   hash?: string
-  // A plugin with a pack: what it sets, and what was imported from it.
-  pack?: PackSummary
   // A git plugin's source and the commit this machine pinned it to (R34.13).
   git?: { url: string; ref: string; subdir?: string }
   commit?: string
@@ -68,35 +66,6 @@ export interface PluginForm {
   scope: 'machine' | 'repository'
 }
 
-export interface PackSummary {
-  description: string | null
-  groups: string[]
-  imported: { version: string; importedAt: string; importedBy?: string; settings: string[] } | null
-  // A version not imported yet: its diff is offered (R55.7).
-  offer: boolean
-}
-
-// One setting of a pack import preview (R55.5).
-export interface PackChange {
-  setting: string
-  action: 'create' | 'change' | 'keep' | 'skip'
-  from?: unknown
-  to?: unknown
-  reason?: string
-  warning?: string
-}
-
-export interface PackPreview {
-  id: string
-  version: string
-  description: string | null
-  repositories: string[]
-  changes: PackChange[]
-  warnings: string[]
-  previewHash: string
-  imported: PackSummary['imported']
-}
-
 // What plugin.preview found before anything was declared.
 export interface PluginPreview {
   error?: string
@@ -106,7 +75,6 @@ export interface PluginPreview {
   contract?: number
   provides?: string[]
   kinds?: string[]
-  pack?: { description?: string; settings: Record<string, unknown> }
   capabilities?: Record<string, string[]>
   credentials?: { hosts: string[]; owners: string[] | null }
   context?: ContextPart
@@ -152,14 +120,10 @@ export const locationOf = (form: PluginForm) => form[form.where].trim()
 
 // Each part a plugin may bundle, in plain words (R55.1).
 export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
-  pack: { title: 'Settings pack', line: 'Settings you preview and copy into .avoozl.json once. Runs no code.' },
   rules: { title: 'Content rules', line: 'Rule sets supplied while Avoozl runs. The terms never go into Git.' },
-  intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
   credentials: { title: 'GitHub sign-in', line: 'Hands Avoozl short-lived GitHub tokens, one per job, from a process of its own.' },
   context: { title: 'Epic context', line: 'Skills, read folders and MCP servers a worker gets on its owner’s own approved spec tasks. Kept on this machine.' },
   checks: { title: 'Checks', line: 'Checks Avoozl runs on the repositories they name, kept on this machine. Results never go to GitHub.' },
-  // Still listed by older plugins; Avoozl reads nothing from it (RC30.4).
-  lessons: { title: 'Lessons pack (removed)', line: 'Avoozl no longer reads lessons packs. Remove lessons from provides.' },
 }
 
 // What a credentials plugin claims (plugin-credentials PC2.3), one line per
@@ -201,46 +165,13 @@ export const partTitles = (row: { provides?: string[]; kinds?: string[] }) => pa
 // plugin of data parts only runs nothing.
 export const runsAs = (kinds: string[] | undefined): string | undefined => (kinds === undefined ? undefined : kinds.length ? 'node' : 'nothing: settings only')
 
-// Each kind with its optional features: "intake", or "intake, actor".
+// Each kind with its optional features: "rules", or "rules, x".
 export const capabilityLine = (capabilities: Record<string, string[]> | undefined): string | undefined =>
   capabilities
     ? Object.entries(capabilities)
         .map(([kind, list]) => [kind, ...list].join(', '))
         .join('; ') || undefined
     : undefined
-
-// The preview's lines by action, for the summary above the table.
-export function packCounts(changes: PackChange[]): Record<PackChange['action'], number> {
-  const counts = { create: 0, change: 0, keep: 0, skip: 0 }
-  for (const change of changes) counts[change.action]++
-  return counts
-}
-
-// A setting value in one short line for the preview table.
-export function shortValue(value: unknown): string {
-  if (value === undefined) return ''
-  const text = typeof value === 'string' ? value : JSON.stringify(value)
-  return text.length > 80 ? text.slice(0, 77) + '...' : text
-}
-
-// The import input for a preview the person saw.
-export const importInput = (preview: PackPreview, acceptLowered: boolean, confirmPublic: boolean) => ({
-  id: preview.id,
-  repositories: preview.repositories,
-  previewHash: preview.previewHash,
-  acceptLowered,
-  confirmPublic,
-})
-
-// Why Import is off, or null.
-export function importBlocked(row: PluginRow, preview: PackPreview | null, acceptLowered: boolean, confirmPublic: boolean): string | null {
-  if (row.state !== 'approved') return `Approve version ${row.version ?? ''} first. Nothing from the pack applies before that.`
-  if (!preview) return 'Avoozl has not previewed the pack yet.'
-  if (!preview.changes.some((c) => c.action === 'create' || c.action === 'change')) return 'Nothing to import: every setting is already the same.'
-  if (preview.warnings.length && !acceptLowered) return 'Accept the who-counts change to import.'
-  if (row.source === 'machine' && !confirmPublic) return 'Confirm that the settings and the plugin id go into .avoozl.json.'
-  return null
-}
 
 // The plugin.preview input for the open source.
 export function previewInput(form: PluginForm): Record<string, unknown> {
@@ -364,12 +295,6 @@ export function pluginsClient(api: AppApi) {
     remove: (workspaceId: string, id: string) => run<{ id: string; removed: boolean }>('plugin.remove', { id }, workspaceId),
     // Use this one: the credentials plugin that serves a host where two claim one owner.
     pick: (workspaceId: string, host: string, id: string) => run<{ host: string; id: string }>('plugin.credentials.pick', { host, id }, workspaceId),
-    // What importing the pack would change. Reads only.
-    packPreview: (workspaceId: string, id: string) => run<PackPreview>('plugin.pack.preview', { id }, workspaceId),
-    // A template's pack and flow defaults, as a pack (R61.6).
-    templatePackPreview: (workspaceId: string, id: string, template: string) => run<PackPreview>('plugin.pack.preview', { id, template }, workspaceId),
-    // The exact preview the person saw (R55.5).
-    packImport: (workspaceId: string, input: Record<string, unknown>) => run<PackPreview>('plugin.pack.import', input, workspaceId),
   }
 }
 

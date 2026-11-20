@@ -15,10 +15,6 @@ import {
   buildView,
   observationsForTask,
 } from "../build-receipt-read.mjs";
-import {
-  INSTANCE_NAMES,
-  plainInstanceName,
-} from "../../workspace/instance.mjs";
 import { ciStep } from "../flow-ci.mjs";
 // Flow's Builds, as the builds.view operation shows them.
 const flowView = (store) => ({ builds: buildView(buildRows(store)) });
@@ -438,21 +434,6 @@ test("Flow names the costliest phase, summed over targets, and keeps failed time
   assert.equal(view.recent[0].totalMs, 650_000);
   assert.equal(view.totalMs, 650_000);
   assert.equal(view.failedMs, 500_000);
-});
-
-test("an instance with no known name gets a plain name, never its ID", () => {
-  const view = buildView(
-    [
-      { pullNumber: 1, instance: INSTANCE("a"), builds: [obs("test", 1000)] },
-      { pullNumber: 2, instance: INSTANCE("b"), builds: [obs("test", 1000)] },
-    ],
-    { instanceName: (id) => (id === INSTANCE("a") ? "Draco" : null) },
-  );
-  const names = view.byInstance.map((row) => row.name);
-  assert.equal(names[0], "Draco");
-  assert.equal(names[1], plainInstanceName(INSTANCE("b")));
-  assert.ok(INSTANCE_NAMES.includes(names[1]));
-  assert.doesNotMatch(names.join(" "), /inst-/);
 });
 
 test("failed attempts stay out of the medians", () => {

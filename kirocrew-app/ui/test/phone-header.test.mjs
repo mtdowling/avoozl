@@ -1,5 +1,5 @@
 // The page's phone chrome, after Kiro Crew's phone layout. In a real Chrome
-// (AVOOZL_CHROME, or an installed Chrome or Chromium) on the Demo sample, at
+// (AVOOZL_CHROME, or an installed Chrome or Chromium) on the sample workspace, at
 // 390 and 1280 px, light and dark: a phone has one thin header row, a one-line
 // demo bar, and headings whose many buttons sit in a More menu; a desktop keeps
 // its header, bar and buttons. Skipped when no Chrome is found.
@@ -27,10 +27,7 @@ const wait = (ms = 250) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}
 const height = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect().height ?? null`)
 const start = async (width, dark) => {
   await page.open(harness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height: 844, dark })
-  const startButton = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Start demo')`
-  await page.until(`Boolean(${startButton})`)
-  await page.evaluate(`${startButton}.click()`)
-  await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
+  await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   await wait(500)
 }
 const toSpecs = async (phone) => {
@@ -45,18 +42,9 @@ const toSpecs = async (phone) => {
 
 for (const dark of [false, true]) {
   const theme = dark ? 'dark' : 'light'
-  test(`a phone at 390 px: one menu row, a demo bar with the intro, Specs buttons in More (${theme})`, { skip }, async () => {
+  test(`a phone at 390 px: one menu row, Specs buttons in More (${theme})`, { skip }, async () => {
     await start(390, dark)
     assert.ok((await height('[data-phone-header]')) <= 56, 'one header row')
-    assert.match(
-      await page.evaluate(`document.querySelector('[data-demo-intro]').textContent`),
-      /Approve a spec; Avoozl runs it with coding agents/,
-      'the demo bar says what Avoozl is',
-    )
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-badge]'))`), true, 'the bar has the Demo badge')
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-exit]'))`), true, 'Exit demo is one tap')
-    // The demo's own controls are in the bar, since there is no header menu.
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-bar] [data-demo-stop-example]').length`), 1, 'one Stop the line example icon')
 
     await toSpecs(true)
     const heading = `document.querySelector('#avoozl-plans-title').closest('[data-section-heading]')`
@@ -76,10 +64,9 @@ for (const dark of [false, true]) {
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no sideways scroll (${wide})`)
   })
 
-  test(`a desktop at 1280 px keeps its header, bar and heading buttons (${theme})`, { skip }, async () => {
+  test(`a desktop at 1280 px keeps its header and heading buttons (${theme})`, { skip }, async () => {
     await start(1280, dark)
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-phone-header]'))`), false)
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-bar] [data-demo-stop-example]').length`), 1, 'one Stop the line example icon')
     await toSpecs(false)
     const heading = `document.querySelector('#avoozl-plans-title').closest('[data-section-heading]')`
     assert.equal(await page.evaluate(`Boolean(${heading}.querySelector('[data-heading-more]'))`), false)

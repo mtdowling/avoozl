@@ -103,15 +103,12 @@ async function assertCloses(name, opener) {
 // [opener, title, dismiss label]: Cancel where the modal edits or confirms.
 const SCENARIOS = {
   'add-plugin': ['Add plugin', null, 'Cancel'],
-  onboard: ['Open the dialog', null, 'Cancel'],
   'repo-edit': ['Open the dialog', 'avoozl', 'Cancel'],
-  'setup-github': ['Open the dialog', null, 'Cancel'],
   'archive-plan': ['Open the dialog', 'Archive the spec Modal plan?', 'Cancel'],
   'delete-plan': ['Open the dialog', /^Delete the spec /, 'Cancel'],
   confirm: ['Remove', 'Remove avoozl?', 'Cancel'],
   'file-viewer': ['Open the dialog', 'docs/guide.md', 'Close'],
   'stop-line': ['Stop the line', 'Stop the line', 'Cancel'],
-  'pack-import': ['Open the dialog', 'Import pack-1 version 1.0.0', 'Cancel'],
   'mark-done': ['Open the dialog', 'Mark done: Review with team', 'Cancel'],
   'new-spec': ['Open the dialog', 'New spec', 'Cancel'],
   'review-info': ['Open the dialog', 'Meal planner: sections changed', 'Close'],

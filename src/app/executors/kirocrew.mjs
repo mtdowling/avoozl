@@ -208,7 +208,6 @@ const ROLE_AGENTS = {
   falsifier: "avoozl-falsifier",
   "plan-review": "avoozl-plan-review",
   "plan-answer": "avoozl-planner",
-  "task-summary": "avoozl-task-summary",
   "check-decide": "avoozl-check-decide",
 };
 

@@ -4,7 +4,6 @@ import { Store, fail } from "../store/store.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
 import { Operations } from "../api/operations.mjs";
 import { generateNamespace } from "../github/github-marker.mjs";
-import { SUPERSEDED_STATUS } from "../tasks/supersede.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "../settings/config-schema.mjs";
 import { specsDirectory } from "../specs/specs-path.mjs";
 import { shellQuote } from "../executors/process-view.mjs";
@@ -26,7 +25,6 @@ export function emptySnapshot(name = "My workspace") {
       { id: "blocked", label: "Blocked", complete: false },
       { id: "deferred", label: "Deferred", complete: false },
       { id: "recorded", label: "Historical completion", complete: false },
-      { ...SUPERSEDED_STATUS },
     ],
     // Cross-plan epics only; each comes from an approved epic folder.
     epics: [],

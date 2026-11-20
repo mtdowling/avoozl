@@ -1,5 +1,5 @@
 // Proof 13 (rc-p13): the work split. The scope statement shows in the README
-// and Set up from one source string. Quick goal and its one-pull-request hint
+// from one source string. Quick goal and its one-pull-request hint
 // were removed (RC30.1); goals start in New spec as From a goal.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -9,12 +9,10 @@ import { SCOPE_RULE, SCOPE_STATEMENT } from "../../work-split.mjs";
 const read = (file) =>
   fs.readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
 
-test("Proof 13: the statement shows in the README and Set up", () => {
-  assert.ok(read("README.md").replace(/\s+/g, " ").includes(SCOPE_STATEMENT));
-  const source = read("kirocrew-app/ui/src/SetupWizard.tsx");
-  assert.match(source, /SCOPE_STATEMENT/);
-  assert.match(source, /SCOPE_RULE/);
-  assert.ok(source.includes("work-split.mjs"));
+test("Proof 13: the statement shows in the README", () => {
+  const readme = read("README.md").replace(/\s+/g, " ");
+  assert.ok(readme.includes(SCOPE_STATEMENT));
+  assert.ok(readme.includes(SCOPE_RULE));
 });
 
 test("Quick goal is gone: no operation, page or module", async () => {

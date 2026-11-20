@@ -9,27 +9,13 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { useAppApi, useNavigate } from './host.ts'
 import { Btn } from './ui/Btn'
 import { Input } from './ui/Input'
-import { Crosshair, ExternalLink, FileText, MessageSquare, Package } from './icons.ts'
+import { Crosshair, ExternalLink, FileText, MessageSquare } from './icons.ts'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { Picker } from './Picker.tsx'
-import { TemplateStart, templateKey, type InputValues } from './TemplateStart.tsx'
-import { missingInputs, notesClient, type TemplateSummary } from './notes-api.ts'
-import { importInput, pluginsClient, type PackPreview } from './plugins-api.ts'
 import { ICON } from './ui/controls.tsx'
 import { Modal } from './ui/Modal.tsx'
 import { errorMessage, workspaceClient, type Repository } from './workspace-api.ts'
-import {
-  EMPTY_NEW_PLAN,
-  EPIC_PROBLEM,
-  formProblems,
-  isDirty,
-  nameProblem,
-  newPlanClient,
-  SPEC_NAME,
-  templateProblems,
-  type NewPlanForm,
-  type NewPlanPreview,
-} from './new-plan-api.ts'
+import { EMPTY_NEW_PLAN, EPIC_PROBLEM, formProblems, isDirty, nameProblem, newPlanClient, SPEC_NAME, type NewPlanForm, type NewPlanPreview } from './new-plan-api.ts'
 import { openSpecBuilder, specBuilderClient, specBuilderProblem } from './spec-builder-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
@@ -70,9 +56,9 @@ function Field(props: { id: string; label: string; need: 'required' | 'optional'
   )
 }
 
-// The three starts: Spec Builder, a plugin's template, or a planner chat
-// that writes the spec from a goal (RC30.1).
-type Start = 'blank' | 'template' | 'goal'
+// The two starts: Spec Builder, or a planner chat that writes the spec
+// from a goal (RC30.1).
+type Start = 'blank' | 'goal'
 
 // A picker's last choice, which turns into a field for a new name.
 const NEW_CHOICE = '__new__'
@@ -104,24 +90,10 @@ export default function NewPlanDrawer(props: {
   const [steering, setSteering] = useState<NewPlanPreview['steering'] | null>(null)
   // Spec Builder could not be reached: offer the planner chat instead.
   const [fallback, setFallback] = useState(false)
-  // Blank, or From template (R61.7): a template's inputs, and its settings
-  // imported only when ticked.
   const [start, setStart] = useState<Start | null>(props.start ?? null)
   // A picker's "New …" choice turns into a name field.
   const [newCategory, setNewCategory] = useState(false)
   const [newEpic, setNewEpic] = useState(false)
-  const [templates, setTemplates] = useState<TemplateSummary[] | null>(null)
-  const [picked, setPicked] = useState<string | null>(null)
-  const [values, setValues] = useState<InputValues>({})
-  const [importSettings, setImportSettings] = useState(false)
-  const [settingsPreview, setSettingsPreview] = useState<PackPreview | null>(null)
-  const onPreview = useCallback((preview: PackPreview | null) => {
-    setSettingsPreview(preview)
-    setImportSettings(false)
-  }, [])
-  const notes = useMemo(() => notesClient(api), [api])
-  const plugins = useMemo(() => pluginsClient(api), [api])
-  const template = templates?.find((t) => templateKey(t) === picked) ?? null
   const set = (change: Partial<NewPlanForm>) => {
     setForm((now) => ({ ...now, ...change }))
     // The question was about the old fields; Open in Spec Builder asks again.
@@ -148,31 +120,8 @@ export default function NewPlanDrawer(props: {
     }
   }, [api, props.workspaceId])
 
-  useEffect(() => {
-    if (start !== 'template' || templates !== null) return
-    let live = true
-    notes.templates(props.workspaceId).then(
-      (found) => {
-        if (!live) return
-        setTemplates(found.templates)
-        if (found.templates.length === 1) setPicked(templateKey(found.templates[0]))
-      },
-      (caught: unknown) => live && (setTemplates([]), setError(errorMessage(caught))),
-    )
-    return () => {
-      live = false
-    }
-  }, [notes, props.workspaceId, start, templates])
-
-  const dirty = isDirty(form) || Object.values(values).some((v) => (Array.isArray(v) ? v.length > 0 : Boolean(String(v).trim())))
-  const problems =
-    start === null
-      ? ['Pick Blank, From template or From a goal.']
-      : start === 'template'
-        ? [...(template ? [] : ['Pick a template.']), ...templateProblems(form, props.taken, template ? missingInputs(template, values) : [])]
-        : repositories
-          ? formProblems(form, props.taken, repositories.length)
-          : []
+  const dirty = isDirty(form)
+  const problems = start === null ? ['Pick Blank or From a goal.'] : repositories ? formProblems(form, props.taken, repositories.length) : []
   const nameIssue = nameTouched || tried ? nameProblem(form.name, props.taken) : null
 
   const run = async (step: () => Promise<void>) => {
@@ -210,25 +159,9 @@ export default function NewPlanDrawer(props: {
   }
   const handOff = (writeSteering: boolean) => run(() => handOffNow(writeSteering))
 
-  // From template: import the settings only when ticked, against the exact
-  // preview shown; the tick opens the planner chat the template seeds.
-  const fromTemplate = () =>
-    run(async () => {
-      if (!template) return
-      if (importSettings && settingsPreview) await plugins.packImport(props.workspaceId, { ...importInput(settingsPreview, false, false), template: template.id })
-      const result = await client.fromTemplate(props.workspaceId, form, { plugin: template.plugin, id: template.id, version: template.version }, values)
-      props.onClose(
-        `Avoozl is opening a planner chat for ${result.name} from ${template.title}; find it in your chats.${importSettings ? ' Its settings were imported.' : ''} It shows here as a draft once its folder is complete; you approve it.`,
-      )
-    })
-
   const submit = () => {
     setTried(true)
     if (start === null) return
-    if (start === 'template') {
-      if (problems.length) return
-      return fromTemplate()
-    }
     if (problems.length || !repositories) return
     // From a goal: the planner chat writes the spec folder from the goal.
     if (start === 'goal') return plannerChat()
@@ -341,7 +274,7 @@ export default function NewPlanDrawer(props: {
         <>
           {tried && start === null && (
             <Box role="alert" as="span" css-order={-1} mrAuto size="xs" tone="danger" data-start-problem>
-              Pick Blank, From template or From a goal.
+              Pick Blank or From a goal.
             </Box>
           )}
           <Btn
@@ -353,8 +286,8 @@ export default function NewPlanDrawer(props: {
             css-align-items="center"
             css-gap="6"
           >
-            {start === 'template' || start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
-            {busy ? 'Opening…' : start === 'template' || start === 'goal' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
+            {start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
+            {busy ? 'Opening…' : start === 'goal' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
           </Btn>
         </>
       }
@@ -369,13 +302,11 @@ export default function NewPlanDrawer(props: {
         }}
       >
         <Hint as="p" size="xs">
-          {start === 'template'
-            ? 'An Avoozl planner chat drafts the spec from the template and what you fill in. It shows in Specs as a draft. Nothing is approved or started.'
-            : start === 'goal'
-              ? 'An Avoozl planner chat writes the spec from your goal: requirements, design and tasks. It shows in Specs as a draft and is approved like any spec. Nothing is started.'
-              : start === 'blank'
-                ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. The spec shows in Specs as a draft once it lints clean. Nothing is approved or started."
-                : 'Name it, then pick how to start: Blank, From template or From a goal. It shows in Specs as a draft. Nothing is approved or started.'}
+          {start === 'goal'
+            ? 'An Avoozl planner chat writes the spec from your goal: requirements, design and tasks. It shows in Specs as a draft and is approved like any spec. Nothing is started.'
+            : start === 'blank'
+              ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. The spec shows in Specs as a draft once it lints clean. Nothing is approved or started."
+              : 'Name it, then pick how to start: Blank or From a goal. It shows in Specs as a draft. Nothing is approved or started.'}
         </Hint>
         <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
           <Input
@@ -489,31 +420,6 @@ export default function NewPlanDrawer(props: {
                   </Field>
                   {sharedFields}
                 </Stack>
-              ),
-            },
-            {
-              key: 'template',
-              title: 'From template',
-              line: "Start from a workflow template in an approved plugin. It brings its own phases, proofs and manual steps, and a planner chat fills them in. Use it when a team's way of working already exists.",
-              icon: Package,
-              fields: (
-                <TemplateStart
-                  workspaceId={props.workspaceId}
-                  templates={templates}
-                  picked={picked}
-                  onPick={(key) => {
-                    setPicked(key)
-                    setValues({})
-                  }}
-                  values={values}
-                  onValues={setValues}
-                  repositories={repositories ?? []}
-                  epics={props.epics ?? []}
-                  tried={tried}
-                  importSettings={importSettings}
-                  onImportSettings={setImportSettings}
-                  onPreview={onPreview}
-                />
               ),
             },
             {

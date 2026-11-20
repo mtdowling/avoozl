@@ -39,7 +39,7 @@ async function handle({ id, method, params }) {
       throw Error(`The entry module exports no ${params.kind}.`);
     if (params.kind === "credentials") only = "credentials";
     return {
-      kinds: ["intake", "rules", "credentials"].filter(
+      kinds: ["rules", "credentials"].filter(
         (kind) => plugin[kind] && (!only || kind === only),
       ),
     };

@@ -91,10 +91,10 @@ test('tab logic: keys wrap, the address names a tab, a dirty tab is one whose ke
 test('one full-width tab per group, arrow keys move between them', { skip }, async () => {
   await openGitHub(1280)
   let m = await page.evaluate(READ)
-  assert.deepEqual(m.keys, ['issues', 'sync', 'setup', 'calls'])
-  assert.deepEqual(m.labels, ['Epic issues', 'Sync pace', 'Set up GitHub', 'GitHub calls'])
+  assert.deepEqual(m.keys, ['issues', 'sync', 'calls'])
+  assert.deepEqual(m.labels, ['Epic issues', 'Sync pace', 'GitHub calls'])
   assert.deepEqual(m.selected, ['issues'])
-  assert.deepEqual(m.tabIndex, [0, -1, -1, -1])
+  assert.deepEqual(m.tabIndex, [0, -1, -1])
   assert.equal(m.panel, 'issues')
   assert.equal(m.labelledBy, 'issues')
   assert.deepEqual(m.sections, ['Epic issues'])
@@ -122,24 +122,24 @@ test('one full-width tab per group, arrow keys move between them', { skip }, asy
 test('Back (Alt+Left) returns to the tab before', { skip }, async () => {
   await openGitHub(1280)
   assert.ok(await page.evaluate(click('[role=tab]', 'Sync pace')))
-  assert.ok(await page.evaluate(click('[role=tab]', 'Set up GitHub')))
-  assert.deepEqual((await page.evaluate(READ)).selected, ['setup'])
-  const back = `(document.querySelector('[data-tab="setup"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })), true)`
+  assert.ok(await page.evaluate(click('[role=tab]', 'GitHub calls')))
+  assert.deepEqual((await page.evaluate(READ)).selected, ['calls'])
+  const back = `(document.querySelector('[data-tab="calls"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })), true)`
   await page.evaluate(back)
   await wait(50)
   assert.deepEqual((await page.evaluate(READ)).selected, ['sync'])
 })
 
 test('the address opens a tab, and the browser moving the address moves the tab', { skip }, async () => {
-  await openGitHub(1280, { github: 'setup' })
+  await openGitHub(1280, { github: 'sync' })
   let m = await page.evaluate(READ)
-  assert.deepEqual(m.selected, ['setup'])
-  assert.ok(m.sections.includes('Set up GitHub'))
-  await page.evaluate(`(history.pushState(null, '', location.search.replace(/github=setup/, 'github=calls')), dispatchEvent(new PopStateEvent('popstate')), true)`)
+  assert.deepEqual(m.selected, ['sync'])
+  assert.ok(m.sections.includes('Sync pace'))
+  await page.evaluate(`(history.pushState(null, '', location.search.replace(/github=sync/, 'github=calls')), dispatchEvent(new PopStateEvent('popstate')), true)`)
   await wait(50)
   assert.deepEqual((await page.evaluate(READ)).selected, ['calls'])
   await page.evaluate(`(history.back(), true)`)
-  await page.until(`document.querySelector('[role=tab][aria-selected=true]')?.dataset.tab === 'setup'`)
+  await page.until(`document.querySelector('[role=tab][aria-selected=true]')?.dataset.tab === 'sync'`)
 })
 
 test('a tab with unsaved changes shows a dot until Save or Discard', { skip }, async () => {
@@ -161,11 +161,10 @@ test('a tab with unsaved changes shows a dot until Save or Discard', { skip }, a
   await page.until(`!document.querySelector('[data-tab-dot]')`)
 })
 
-test('on a phone the bar scrolls sideways and the page does not', { skip }, async () => {
+test('on a phone the bar may scroll sideways and the page does not', { skip }, async () => {
   await openGitHub(390)
   const m = await page.evaluate(READ)
   assert.equal(m.scrolls, 'auto')
-  assert.equal(m.barScroll, true, 'five tabs do not fit 390 px')
   assert.equal(m.pageOverflow, false)
   assert.ok(await page.evaluate(click('[role=tab]', 'GitHub calls')))
   await wait(50)

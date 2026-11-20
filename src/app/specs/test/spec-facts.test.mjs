@@ -300,43 +300,6 @@ test("a task's summary is its bullets as written, without facts, Done when or su
   assert.equal(facts.manifest.tasks["1.1"].summary, undefined);
 });
 
-test("a summary that repeats the title is refused and never reaches the brief", () => {
-  const repeating = parse(
-      described.replace(
-        "    - A missing file is not an error.",
-        "    - Read the config file.",
-      ),
-    ),
-    repository = { id: "app", root: "/repo", baseBranch: "main" },
-    brief = (proposal) =>
-      workerBrief(
-        { ...proposal, id: `config.${proposal.specKey}` },
-        repository,
-        {
-          attempt: 1,
-          worktree: "/wt",
-          steps: [],
-        },
-      );
-  assert.deepEqual(codes(repeating), [
-    "task.summary-repeats-title tasks.md:13",
-  ]);
-  assert.match(repeating.diagnostics[0].message, /repeats the title/);
-  const kept = repeating.proposals.find((p) => p.specKey === "1.1");
-  assert.doesNotMatch(kept.summary, /Read the config file/);
-  // One that adds context passes and reaches the brief.
-  const adds = parse(described).proposals.find((p) => p.specKey === "1.1");
-  assert.match(
-    brief(adds),
-    /\nSummary:\n- Per file: read config\.json[\s\S]*\nAcceptance: A missing file/,
-  );
-  // A stored summary that repeats the title stays out of the brief too.
-  assert.doesNotMatch(
-    brief({ ...adds, summary: "Read the config file." }),
-    /Summary:/,
-  );
-});
-
 test("a checks fact or front-matter default is refused: tasks run the repository's", () => {
   const fact = parse(
       described.replace(

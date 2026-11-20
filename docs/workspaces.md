@@ -16,31 +16,9 @@ Create one on the Avoozl page under **Add or initialize a workspace** with
 
 ## Example data
 
-A new workspace has no tasks and no repositories.
-`seed` writes the made-up Recipe Box epic and its three specs to
-`.kiro/specs/` as drafts:
-
-```sh
-avoozl seed --workspace ~/plans
-avoozl epics --workspace ~/plans
-```
-
-`epics` shows the epic and its draft specs.
-Loading examples never approves a plan, starts a session, or configures a
-repository.
-
-## Demo mode
-
-**Start demo** opens a made-up Recipe Box workspace to look around in. It
-shows in the empty **In flight** box on Home while nothing is in flight and the
-workspace has never run a task, and on the empty page when you have no
-workspace yet.
-
-While the demo is on, a **Demo** badge shows in the header. Reads work. Every
-change only says what it would do, no agent or chat starts, and GitHub is a
-fake that writes nothing. **Exit demo** returns to your own workspace, which
-the demo never opens. The sample is built once in a folder under your system
-temp folder, and it is kept with your edits for the next demo.
+A new workspace has no tasks and no repositories. Add a repository with
+`avoozl repository configure ID --root PATH`, then run `avoozl rebuild` to read
+its specs, ticks, claims and spec issues from git and GitHub.
 
 ## Settings files
 

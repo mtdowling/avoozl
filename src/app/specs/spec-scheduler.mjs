@@ -13,12 +13,7 @@
 //   work is prepared on that working head. Any other successor waits until
 //   the prerequisite lands or a person records its outcome.
 import { statusComplete } from "../../query.mjs";
-import {
-  isManual,
-  supersedingTask,
-  taskCompletion,
-  taskRepository,
-} from "../../work-model.mjs";
+import { isManual, taskCompletion, taskRepository } from "../../work-model.mjs";
 import {
   busyTaskIds,
   readyCandidates,
@@ -95,7 +90,7 @@ export function scheduleReady({
   const prerequisites = (task) =>
     data.edges
       .filter((edge) => edge.to === task.id && BLOCKING.has(edge.kind))
-      .map((edge) => supersedingTask(byId, edge.from))
+      .map((edge) => byId.get(edge.from))
       .filter(Boolean);
   for (const task of order) {
     const waits = prerequisites(task).filter(

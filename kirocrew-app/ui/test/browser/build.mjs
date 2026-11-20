@@ -27,7 +27,7 @@ export const realLucide = process.env.AVOOZL_LUCIDE ? path.resolve(process.env.A
 // `hostCss` is an optional stylesheet (the host's own) used instead of the
 // harness's; screenshots use it to look like the real page.
 // `scripts` maps file names to classic scripts that load before the page,
-// such as the Demo mode replies (demo-replies.mjs).
+// such as the sample workspace's replies (demo-replies.mjs).
 export async function buildHarness({ hostCss, scripts = {}, entry = path.join(here, 'harness.tsx') } = {}) {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'avoozl-harness-'))
   await build({

@@ -1,8 +1,0 @@
-{
-  "id": "fake-intake",
-  "version": "1.0.0",
-  "contract": 1,
-  "provides": ["intake"],
-  "capabilities": { "intake": ["actor"] },
-  "entry": "index.mjs"
-}
