@@ -1,12 +1,12 @@
-"""The avoozl-tick script cron (design §4.6).
+"""The avoozl-tick script cron (machine-server MS12, design D5).
 
-It holds no planning logic. It reads the status of the sessions this cron
-opened, hands them to the Avoozl MCP server's tick, and carries out the
-intents it returns: open and bind sessions before their first brief and send
-messages. Notifications are not sent from here: the tick queues them and the
-app backend pushes them to the app's channels. Statuses go in first, so after a restart
-nothing new is dispatched before every bound session has been observed. A
-tick with nothing to do raises Skip, so it stays silent.
+Kiro Crew lets only the cron that opened a chat control it, so this cron does
+the three things only it can: open and bind each chat the machine server's
+tick released, send each released message, and set trust mode again on the
+chats it owns. It plans nothing: ``plans_maintain tick`` with ``cron: true``
+records the session statuses it read and returns the released intents (the
+machine server's loop runs the tick, the drain and the notifications). With
+nothing to do it raises Skip, so it stays silent.
 
 Every ``plans_*`` tool takes its arguments wrapped as ``{"input": {...}}``.
 """
@@ -98,12 +98,7 @@ def run(ctx):
         else:
             executor.complete_message(m, "sent")
 
-    # Notices reach the person on the app's own notification channels, with a
-    # link to the session: the tick queued them, and the app backend pushes
-    # them when this tick's health receipt lands (src/app/tick/notifications.mjs).
-    notify = intents.get("notify") or []
-
-    if not (opened or messages or notify):
+    if not (opened or messages):
         raise Skip()
     # The run's summary (cron history) names what did not get through.
     if refused:
