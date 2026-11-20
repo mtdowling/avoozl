@@ -1,0 +1,107 @@
+{
+  "title": "Two runners race for one claim",
+  "rules": ["13.1", "15.1", "15.2", "15.5"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "runners": {
+    "A": "acme-alice",
+    "B": "acme-alice"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next",
+      "expect": {
+        "ready": ["parser/p-2"]
+      }
+    },
+    {
+      "runner": "B",
+      "do": "next",
+      "expect": {
+        "ready": ["parser/p-2"]
+      }
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2"
+      }
+    },
+    {
+      "runner": "B",
+      "do": "claim",
+      "expect": {
+        "claimed": null
+      }
+    },
+    {
+      "runner": "B",
+      "do": "next",
+      "expect": {
+        "ready": []
+      }
+    }
+  ],
+  "then": {
+    "claims": {
+      "A": "parser/p-2",
+      "B": null
+    },
+    "leaseHolder": {
+      "parser/p-2": "A"
+    },
+    "leases": {
+      "parser/p-2": [1]
+    },
+    "branches": ["avoozl/parser/p-2"]
+  },
+  "variants": {
+    "other-login": {
+      "title": "the second runner is not the assignee",
+      "runners": {
+        "A": "acme-alice",
+        "B": "acme-bob"
+      },
+      "steps": [
+        {
+          "runner": "A",
+          "do": "next",
+          "expect": {
+            "ready": ["parser/p-2"]
+          }
+        },
+        {
+          "runner": "B",
+          "do": "next",
+          "expect": {
+            "ready": []
+          }
+        },
+        {
+          "runner": "A",
+          "do": "claim",
+          "expect": {
+            "claimed": "avoozl/parser/p-2"
+          }
+        },
+        {
+          "runner": "B",
+          "do": "claim",
+          "expect": {
+            "claimed": null
+          }
+        }
+      ]
+    }
+  }
+}
