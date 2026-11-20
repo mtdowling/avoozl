@@ -1211,7 +1211,7 @@ Requirements 64.12–64.16 and 73, design §4.11 and §8.9.
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.
   - Built: `2456191`, PR #11 (`Picker.tsx`, `picker.ts`; `kirocrew-app/ui/test/picker.test.mjs`).
 
-## Phase 34: Investigate first, evidence, staying current, rules, fix share, ship mode
+## Phase 34: Investigate first, evidence, staying current, rules, fix share, who merges
 
 Requirements 75–80, design §4.11 and §4.21–§4.25.
 
@@ -1245,21 +1245,19 @@ Requirements 75–80, design §4.11 and §4.21–§4.25.
   - $after: 12.11
   - The fix-work rule, the Flow card and charts, and the retro payload.
   - Built: PR #42 (`isFixWork`, `metrics.fixWork`, `fixShare` per day and week, `fixWork` in the retro payload; leaves of a bugfix spec carry `specType`, and issue intake keeps the issue type).
-- [x] 34.6 Ship mode, after 15.4 [R80] (§4.25)
-  - $done: Ship mode
-  - $done: With delivery.ship manual, writers do not enable auto-merge and Needs you shows Ready to merge; auto-merge stays the default.
+- [x] 34.6 Who merges a pull request (`landing.pr`), after 15.4 [R80] (§4.25)
+  - $done: `landing.pr` (draft, ready, auto) is the one merge setting, for the workspace with a per-repository override; a draft waits for Ready for review or Approve and is never merged; with draft or ready a person merges on GitHub or with Merge for the exact head; with auto Avoozl merges after exact-head checks; Approve and Merge are person only; every `createPullRequest` call site says whether it opens a draft.
   - $after: 15.4
-  - `delivery.ship` in workspace and repository settings, the briefs, the Ready to merge item, and Integrate in Local only; Settings > Delivery shows it.
-  - Built: PR #42 (`shipMode` with task, spec, repository and workspace values; `ready-to-merge` in Needs you; person-only `delivery.integrate`; closed without merging goes back to the writer; the radio fold-out in `DeliverySettings.tsx`).
+  - `landing-config.mjs`, `landing-pulls.mjs`, `landing-queue-view.mjs`, `landing.ready` and `landing.merge` in `ops/delivery.mjs`, `markPullRequestReadyForReview` in `github.mjs`, `PullAction` in `ConflictsView.tsx`, `PrModeFields` in `LandingFields.tsx`, the Who merges section in `DeliverySettings.tsx`.
 
-- [x] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules, fix share and ship mode [R75–R80] (§4.21–§4.25)
+- [x] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules and fix share [R75–R79] (§4.21–§4.24)
   - $done: P45 Proof
   - $done: P45 passes with fake workers, a fake falsifier and a fake GitHub.
-  - $after: 34.1, 34.2, 34.3, 34.4, 34.5, 34.6
+  - $after: 34.1, 34.2, 34.3, 34.4, 34.5
   - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaves `a1` (plain), `a2` (`investigate: false`) and `a3` (plain), a bugfix spec with leaf `f1`, fake workers and a fake falsifier.
-  - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow; (8) set `delivery.ship` to `manual` and let `a3`'s checks pass.
-  - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3; (8) no auto-merge, one Ready to merge item, and completion after the person merges.
-  - Failure means: coding starts on refuted findings, a writer force pushes, or a manual ship merges without a person.
+  - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow.
+  - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3.
+  - Failure means: coding starts on refuted findings, or a writer force pushes.
   - Next decision: keep the falsifier only for large tasks, or drop the PR comment and keep evidence local.
   - Built: pass with fakes, `src/app/test/proof-p45.test.mjs` and `src/app/test/phase34.test.mjs`, PR #42. Not run live: no real falsifier chat, GitHub pull request, base move or merge has run yet.
 
