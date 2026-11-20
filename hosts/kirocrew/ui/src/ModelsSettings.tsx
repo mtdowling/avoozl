@@ -15,14 +15,17 @@ import { Field } from './ui/Field.tsx'
 import { FieldGroup } from './ui/FieldGroup.tsx'
 import { Picker } from './Picker.tsx'
 import { optionItems } from './picker.ts'
-import { SmallBtn } from './ui/controls.tsx'
+import { InfoTip, SmallBtn } from './ui/controls.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { modelOptions } from './flow-api.ts'
 import {
   DEFAULT_AGENTS,
+  PROVED_TIP,
   ROLES,
+  approvalLabel,
+  approvalTip,
   ROLE_ACCESS,
   harnessTakesModel,
   provedLine,
@@ -120,7 +123,8 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           </Box>
           {definitions.map((d) => (
             <Box key={d.name} as="li" flex flexWrap items="center" gap="2" minW0 data-harness-definition={d.name}>
-              {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{d.approved ? 'hash approved' : d.changed ? 'changed since approval' : 'not approved'}</Badge>
+              {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{approvalLabel(d)}</Badge>
+              <InfoTip text={approvalTip(d)} label={`What ${approvalLabel(d)} means`} />
               {!d.approved && (
                 <SmallBtn onClick={() => approve(d.name)} attrs={{ 'data-approve-harness': d.name }}>
                   Approve
@@ -129,6 +133,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
               <Hint size="xs" data-harness-proved>
                 {provedLine(d)}
               </Hint>
+              <InfoTip text={PROVED_TIP} label="What read and write proved mean" />
               {d.startProblem && (
                 <ErrorText as="span" size="xs" data-harness-start-problem>
                   Cannot start on this machine: {d.startProblem}
