@@ -19,16 +19,28 @@ function filesUnder(dir, prefix = "") {
 }
 
 // Each case: its `case.json` fields, its `name`, and `files`, the tree under
-// its `repo` folder keyed by path from the repository root.
+// its `repo` folder keyed by path from the repository root. A case with a
+// `history` also gets each commit's `files`, read from `commits/<commit>`.
 export function readCases(dir = path.join(here, "cases")) {
   return fs
     .readdirSync(dir)
     .sort()
-    .map((name) => ({
-      name,
-      ...JSON.parse(fs.readFileSync(path.join(dir, name, "case.json"), "utf8")),
-      files: filesUnder(path.join(dir, name, "repo")),
-    }));
+    .map((name) => {
+      const found = JSON.parse(
+        fs.readFileSync(path.join(dir, name, "case.json"), "utf8"),
+      );
+      return {
+        name,
+        ...found,
+        ...(found.history && {
+          history: found.history.map((entry) => ({
+            ...entry,
+            files: filesUnder(path.join(dir, name, "commits", entry.commit)),
+          })),
+        }),
+        files: filesUnder(path.join(dir, name, "repo")),
+      };
+    });
 }
 
 // One verdict per probe in `expect`: `pass`, `fail`, `expected-fail` or

@@ -1,0 +1,34 @@
+{
+  "title": "Landed work with no tick on an integration branch is ticked there",
+  "rules": ["11.6", "13.2", "13.6", "15.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "parser", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "direct",
+    "state": "landed-unticked"
+  },
+  "expect": {
+    "landing": {
+      "action": "tick-landed-work",
+      "base": "parser",
+      "tick": "own-commit",
+      "mergeBase": false,
+      "deleteClaimBranch": true
+    }
+  },
+  "expectFail": {
+    "landing": "sim-2.6"
+  }
+}
