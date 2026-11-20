@@ -27,8 +27,5 @@
       "front-kind": ["5.1"],
       "front-integration": ["5.1"]
     }
-  },
-  "expectFail": {
-    "violations": "sim-2.2"
   }
 }

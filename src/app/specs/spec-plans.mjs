@@ -762,15 +762,22 @@ export function parseSpec({
       // A leaf's plain bullets are its results, one each (§D20).
       if (rest.kind === "leaf") {
         if (!own.length) {
-          diagnostics.push(
-            diagnostic(
-              "done.missing",
-              tasksFile,
-              item.line,
-              `Task "${item.key}" has no done bullet. Add a plain bullet under it for each result someone can check.`,
-              { taskId: item.id },
-            ),
-          );
+          // A leaf whose only bullets are removed `$` facts is reported
+          // once, as those facts.
+          if (
+            !facts.problems.some(
+              (p) => p.code === "facts.removed-key" && p.key === item.key,
+            )
+          )
+            diagnostics.push(
+              diagnostic(
+                "done.missing",
+                tasksFile,
+                item.line,
+                `Task "${item.key}" has no done bullet. Add a plain bullet under it for each result someone can check.`,
+                { taskId: item.id },
+              ),
+            );
           continue;
         }
         // Each bullet's text, without its list marker or the indent of its
@@ -795,7 +802,9 @@ export function parseSpec({
         );
       // A person's task ends its title with the tag (§D20).
       const manual = isManual(item.title);
-      if (manual) rest.manual = true;
+      // A group with the tag is manual.group (order.mjs); only a leaf is a
+      // person's task.
+      if (manual && rest.kind === "leaf") rest.manual = true;
       const summary = own.map((bullet) => bullet.text).join("\n"),
         title = (manual ? withoutManual(item.title) : item.title).slice(
           0,
