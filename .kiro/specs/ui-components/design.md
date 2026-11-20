@@ -19,9 +19,8 @@ src/ui/  Avoozl parts            the only place that writes classes and variable
 
 A view composes parts. A part either is a Kiro Crew part, re-exported by
 name, or is drawn from Kiro Crew parts and a few classes and variables. When
-Kiro Crew renames a class or a variable, the change is in `src/ui/`. When
-the owner wants a different look for hints or errors, the change is one
-part.
+Kiro Crew renames a class or a variable, the change is in `src/ui/`. A
+different look for hints or errors is a change to one part.
 
 ## D2. The first Avoozl parts
 
@@ -54,9 +53,9 @@ before it swaps:
 | raw `<select>`          | `Select`            | Grouped options and a blank choice                                    |
 | `Badge.tsx` variants    | `Badge`             | Today's mapping of five page variants onto Kiro Crew's five (V)       |
 
-What a Kiro Crew part lacks is decided by the owner on the screenshots
-(UC1.3): keep the Avoozl version in `src/ui/`, or accept the Kiro Crew
-part's behavior.
+Where a Kiro Crew part lacks something, the screenshots of UC1.3 show it,
+and the part either keeps an Avoozl version in `src/ui/` or takes the Kiro
+Crew part's behavior.
 
 ## D4. The raw-style test (UC3)
 

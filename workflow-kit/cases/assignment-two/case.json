@@ -1,0 +1,18 @@
+{
+  "title": "A spec assigned to two logins does not run",
+  "rules": ["8.3", "9.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice", "acme-bob"]
+  },
+  "expect": {
+    "ready": []
+  }
+}

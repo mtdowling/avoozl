@@ -12,22 +12,19 @@ Kiro Crew, Claude Code, Codex and Kiro CLI become thin front ends to it, on
 the command line and in a page. A person approves specs and handles Needs you
 from whichever tool they use, and work keeps running when that tool closes.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Nothing here changes code,
+Nothing here changes code,
 GitHub repositories or settings until its tasks run.
 
 Every claim about today's code carries one label: **V**, read in the file
 cited at `c670051c`; or **A**, assumed and not checked, with the reason.
 
-### The owner's goal
-
-The owner listed six parts (2026-11-19):
+### The parts
 
 1. One machine server. Standalone serve gets the tick timer, the supervisor
    and the post-tick drain, which today live only in the Kiro Crew backend.
-2. Starting it: `avoozl machine start`, `stop`, and an opt-in
-   `install --login` for macOS (launchd), Linux (systemd) and Windows (Task
-   Scheduler). No service is required.
+2. Starting it: `avoozl start` and `avoozl stop`, and an opt-in
+   `avoozl start --at-login` for macOS (launchd), Linux (systemd) and
+   Windows (Task Scheduler). No service is required.
 3. MCP as a shim: `avoozl mcp` forwards calls to the server with the
    session's identity, and starts the server if it is down.
 4. Workers on the process executor: the `claude-code` and `codex` harnesses
@@ -41,12 +38,10 @@ The owner listed six parts (2026-11-19):
 
 The first milestone is parts 1, 2 and 4 on Claude Code (design D11).
 
-Changed 2026-11-19 (owner decision): the commands are top level, not under
-`machine`. They are `avoozl start`, `avoozl stop` and `avoozl link`. The
-login unit is `avoozl start --at-login`, undone by `avoozl stop --at-login`.
-The server's state goes in the existing `avoozl status`. `avoozl serve`,
-`avoozl supervisor` and `avoozl supervisor unit` are deleted with no
-aliases.
+The commands are top level: `avoozl start`, `avoozl stop` and `avoozl
+link`. The login unit is `avoozl start --at-login`, undone by `avoozl stop
+--at-login`. The server's state goes in `avoozl status`. There is no
+`avoozl serve`, `avoozl supervisor` or `avoozl supervisor unit`.
 
 ### What already exists
 
@@ -290,8 +285,8 @@ I can pick either harness per role.
 1. `permission.read` MAY be exactly `danger-full-access` under the rules
    R94.4d sets for `permission.write`: only inside Avoozl's sandbox, only
    with the read class's write roots (its temp folder, `.avoozl/` and named
-   caches), and refused on a machine with no Avoozl sandbox, opt-in or not.
-   The owner decided this on 2026-11-19 (design D12).
+   caches), and refused on a machine with no Avoozl sandbox, opt-in or not
+   (design D12).
 2. `examples/harnesses/codex.json` SHALL use it for the read class.
 3. Every row of MS6.1 SHALL run on the `codex` definition and reach its
    result kind. A role that needs a served model SHALL read it from Codex's

@@ -33,6 +33,7 @@ import { FLOW_PATHS } from "../../flow/flow.mjs";
 import { GITHUB_BLOCK_KEYS, POLICY_KEYS } from "../../github/github-policy.mjs";
 import { SOURCE_KEYS } from "../../intake/intake.mjs";
 import { SERVE_KEYS } from "../serve-config.mjs";
+import { TELEMETRY_KEYS } from "../telemetry-config.mjs";
 import { GITHUB_SOURCE_KEYS } from "../../github/github-sources.mjs";
 import {
   INVESTIGATE_KEYS,
@@ -80,6 +81,7 @@ const PAIRS = [
   ["#/$defs/commandSink", COMMAND_SINK_KEYS],
   ["#/$defs/webhookSink", WEBHOOK_SINK_KEYS],
   ["#/properties/serve", SERVE_KEYS],
+  ["#/properties/telemetry", TELEMETRY_KEYS],
   ["#/properties/plugins/items", ENTRY_KEYS],
   ["#/properties/contentRules", CONTENT_RULES_KEYS],
   ["#/properties/contentRules/properties/sets/items", RULE_SET_KEYS],
@@ -180,6 +182,7 @@ const OPEN = new Map([
       "machine",
       "notifications",
       "serve",
+      "telemetry",
       "specs",
     ],
   ],

@@ -1,4 +1,6 @@
 import { validateServe } from "./serve-config.mjs";
+import { validateEpicContext } from "../context/epic-context-config.mjs";
+import { validateTelemetry } from "./telemetry-config.mjs";
 import { validateLinks } from "../api/direct-links.mjs";
 import fs from "node:fs";
 import os from "node:os";
@@ -222,7 +224,10 @@ export function normalizeHostConfig(
   const port = value.port ?? 9428;
   assertInteger(port, "port", { minimum: 0, maximum: 65535 });
   validateServe(value.serve, source);
+  validateTelemetry(value.telemetry, source);
   validateLinks(value.links, source);
+  if (value.epicContext !== undefined)
+    validateEpicContext(value.epicContext, `${source}: epicContext`);
   if (value.workspaces != null && !record(value.workspaces))
     throw Error("workspaces must be an object.");
   const workspaces = Object.fromEntries(

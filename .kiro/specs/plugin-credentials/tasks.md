@@ -25,8 +25,7 @@ fake one the test made. Screen changes need phone and desktop, light and
 dark screenshots for owner approval before merge (R92.12); screenshots are
 shown to the owner and never committed (AGENTS.md).
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Task IDs start with `pc-` so
+Task IDs start with `pc-` so
 they never collide with the IDs of the other specs.
 
 ## Phase 1: Providers, jobs and the client

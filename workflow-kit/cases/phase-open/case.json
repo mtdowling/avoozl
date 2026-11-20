@@ -1,0 +1,21 @@
+{
+  "title": "The first task of a phase waits for the phase above",
+  "rules": ["3.6"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "config": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["config/c-2"]
+  },
+  "expectFail": {
+    "ready": "sim-2.1"
+  }
+}

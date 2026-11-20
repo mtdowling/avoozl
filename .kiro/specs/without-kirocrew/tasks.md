@@ -21,8 +21,7 @@ not copy a number from this spec. Screen changes need phone and desktop,
 light and dark screenshots for owner approval before merge (R92.12).
 Screenshots are shown to the owner and never committed (AGENTS.md).
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Task IDs start with `nk-` so they never collide with the IDs
+Task IDs start with `nk-` so they never collide with the IDs
 of the other specs.
 
 ## Phase 1: The seam
@@ -125,4 +124,4 @@ of the other specs.
   - Action: (1) start a spec from a goal; (2) let the plan review run with a second model and answer one finding; (3) approve from the command line; (4) run the tick until the tasks land, with investigate first on; (5) label a pull request for a review draft and ask for a reply on an issue; (6) read the sink's file and `avoozl status`; (7) repeat steps 1 to 5 with every role on Codex.
   - Expected: (1) to (5) each step finishes and every session has executor `process`; the pending review is on GitHub and not submitted; (6) the file holds one line per decision and failure, each with only a channel, a title, an ID and a time, and `status` shows nothing waiting on Kiro Crew; (7) the receipt lists each role Codex ran and each it could not, with the reason.
   - Failure means: some part of Avoozl still needs Kiro Crew and does not say so.
-  - Next decision: whether Requirement 98, "Kiro Crew stays the only UI", is retired once `standalone-web` has its own proof.
+  - Next decision: none.

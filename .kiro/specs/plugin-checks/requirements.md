@@ -8,13 +8,11 @@ category: Planning
 
 An organization often wants every engineer's machine to run the same extra
 checks on certain repositories: a parity check that asks an outside review
-service, a license scan, a slow compatibility run. Today the only checks are
-a repository's own `checks` (`docs/checks.md`), so such a check has to be
-written into each repository's settings, and a settings pack copies it into
-`.avoozl.json` (Requirement 55.4), which is the wrong tool: the check would
-then live in the files it should stay out of.
+service, a license scan, a slow compatibility run. Written into each
+repository's `checks` (`docs/checks.md`), such a check would live in the
+files it should stay out of.
 
-This spec adds a fifth plugin part, `checks`. A privately hosted plugin
+The `checks` plugin part does this instead. A privately hosted plugin
 (Requirement 34.12) ships check definitions, their scripts and optional
 decide prompts. A check's step is either a script in the plugin (a run
 step) or a fixed sequence of calls to an outside service's MCP server (an
@@ -28,11 +26,7 @@ changed paths, by an optional decide prompt that a small read-only model
 call answers, and by a result cache. A check also names its stage: a task's
 landing, a phase's combined changes, or the merge of an integration branch.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts that a person does later.
-Nothing in it changes code until its tasks run.
-
-Claims about today's code carry one label: **V**, read in the file cited at
+Claims about code carry one label: **V**, read in the file cited at
 `eed9d8d3`; or **A**, assumed and not checked, with the reason.
 
 ### Why
@@ -62,8 +56,7 @@ Claims about today's code carry one label: **V**, read in the file cited at
 ### Out of scope
 
 - Checks a model runs with tools. The decide call only answers yes or no.
-- Posting plugin check results to GitHub in any form. This is decided, not
-  deferred (PK6.6).
+- Posting plugin check results to GitHub in any form (PK6.6).
 - A model choosing MCP tools or arguments. An MCP step's calls are fixed in
   the manifest (PK10).
 - MCP servers reached any way but a local stdio process.
@@ -208,10 +201,9 @@ its failure holds, so that a whole-phase check does not block single tasks.
    diff passes PK2 and, with `decide`, any of the phase's tasks had
    `needed: true`.
 3. WHEN a `phase` check fails THEN Avoozl SHALL propose one fix (design
-   §4.12 of `avoozl`) for that plan and phase, holding the check's name and
-   the bounded output excerpt as untrusted text, in one Needs you item.
-   A person's **Start** SHALL create the fix in that phase, since starting a
-   fix is its approval. WHEN the fix lands THEN the phase check SHALL
+   §4.12 of `avoozl`) for that plan and phase, holding the check's name and the bounded output excerpt
+   as untrusted text, in one Needs you item. A person's **Start** SHALL
+   create the fix in that phase, since starting a fix is its approval. WHEN the fix lands THEN the phase check SHALL
    run again over the phase's changes and the fix.
 4. `branch` SHALL run on each new head of an epic's integration branch
    (V: `src/app/epics/integration-branch.mjs`) and SHALL count in that head's acceptance state

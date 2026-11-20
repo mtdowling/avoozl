@@ -547,6 +547,17 @@
         }
       }
     },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Send task timing to an OpenTelemetry endpoint. Global configuration only; the repository file may not set it. The endpoint and headers come from the OTEL_EXPORTER_OTLP_* environment of the process that runs the tick.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
     "machine": {
       "type": "object",
       "description": "This machine's settings. Global configuration only.",

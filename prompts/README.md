@@ -32,7 +32,7 @@ roles are the keys of the `roles` setting, and each file serves these roles:
 ## Skills for any agent runner
 
 `skills/<name>.md` is a whole skill (front matter and text) that any agent
-runner can read, such as an Issue Radar crew or glorp: `avoozl-answer`,
+runner can read, such as an Issue Radar crew: `avoozl-answer`,
 `avoozl-review` and `avoozl-triage` (see `docs/agent-skills.md`). They
 call no Avoozl tool. `npm run build:agents` copies each one to
 `kirocrew-app/skills/<name>/SKILL.md`, which the app installs like its other

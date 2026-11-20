@@ -5,11 +5,8 @@ repo: avoozl
 
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
-brackets (`WP1` to `WP9`, in `requirements.md`); `D` sections refer to this
+brackets (`WP1` to `WP8`, in `requirements.md`); `D` sections refer to this
 spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
-
-Phase 1 adds and removes nothing. Every removal is after `wp-p1`, so no
-route goes before both executors cover every kind of task.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders, real git with a bare remote, and fake
@@ -21,9 +18,8 @@ afterward (D7). Screen changes need phone and desktop, light and dark
 screenshots for owner approval before merge (R92.12). Screenshots are shown
 to the owner and never committed (AGENTS.md).
 
-Approving this spec, creating issues and starting agents are separate
-acts, and no task here has started. Task IDs start with `wp-` so they never collide with the IDs
-of the other specs.
+Task IDs start with `wp-` so they never collide with the IDs of the other
+specs.
 
 ## Phase 1: Every kind of task on both executors
 
@@ -59,7 +55,7 @@ of the other specs.
 - [x] wp-2.1 A person claims a task with the tick on [WP2.1, WP2.2, WP2.3, WP2.4, WP2.5, WP2.7] (§D6)
   - $done: Tests with the tick on: a claimed task stays unstarted across three ticks; `runner report` from its worktree with no token finishes it and Avoozl runs the checks; a claim is refused for a task that is not ready, has a running session or is held by Stop the line, each with its reason; a claim over MCP and from a child of the supervisor is refused; release refuses a dirty worktree without `--discard`.
   - `src/app/workers/manual-take.mjs` from `claimTask` (now `manualTake`), with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl take TASK --release` and `--discard`.
-- [x] wp-2.2 Remove Crew Mode dispatch, and hold the workspaces that used it, after wp-2.1, wp-p1 [WP1.1, WP1.2, WP1.3, WP1.4, WP2.6, WP7.4, WP7.5] (§D7)
+- [x] wp-2.2 Remove Crew Mode dispatch, and hold the workspaces that used it, after wp-2.1, wp-p1 [WP1.1, WP1.2, WP1.3, WP1.4, WP2.6] (§D7)
   - $done: Tests: a `crew-mode` workspace starts nothing across three ticks and shows one Needs you item; the operation is refused from MCP and from an agent session, and from a person it removes the key and the next tick starts work; `"runner": "tick"` loads and is ignored; the source test of WP1.4 passes and fails on a planted second dispatcher; the pull request lists what each moved or deleted test covered and where it is covered now; the schema parity test passes.
   - $after: wp-2.1, wp-p1
   - `delivery.runner` leaves the validators and the schema; a file with `crew-mode` reads as held with one Needs you item and the person-only **Let the tick run it**; `runner.mjs` keeps `nextView`; the hook file, the runner prompt, the relay branches and the `--slot` forms go; the app entry point lists the commands it still runs; the seven test files that name `crew-mode` move to the manual take or the tick.
@@ -95,21 +91,16 @@ of the other specs.
 
 ## Phase 5: Names
 
-- [x] wp-5.1 Removed commands and operations are refused as unknown, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
-  - $done: (Changed 2026-11-19, owner decision: no replacement messages.) A test calls each removed command and operation and gets the generic unknown error and no change to the workspace; the help test passes; the `plans_*` tools a shipped agent, prompt or brief names, the `AVOOZL_*` variables and the `avoozl` command pass their existing tests.
-  - $after: wp-2.2, wp-3.3, wp-4.2
-  - Every command and operation this spec removes, and `register-session` and `session-hook`, is deleted; a call to one gets the generic unknown error, and the help table drops them.
-- [x] wp-5.2 One meaning for each word, and the product spec says the same, after wp-5.1 [WP8, WP9] (§D1)
-  - $done: The word test passes and fails on a planted "Crew Mode"; `node scripts/spec-lint.mjs` reports 0 errors; each retired requirement keeps its text under a dated line naming this spec.
-  - $after: wp-5.1
-  - The word test over the page's strings, the help table, `README.md` and `docs/*.md`; the edits to Requirements 41, 84 and 96.5, to design §4.10, §5.1 and §6.13, and to tasks 11.1, 11.10, 16.7 and `avoozl-p29` of the avoozl spec.
+- [x] wp-5.2 One meaning for each word [WP8] (§D1)
+  - $done: The word test passes and fails on a planted "Crew Mode"; `node scripts/check/spec-lint.mjs` reports 0 errors.
+  - The word test over the page's strings, the help table, `README.md` and `docs/*.md`.
 
-- [x] wp-p4 Proof: one dispatcher, two executors, no remote route, after wp-p1, wp-p2, wp-4.2, wp-5.2 [WP1 to WP9] (§D1)
-  - $done: Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
+- [x] wp-p4 Proof: one dispatcher, two executors, no remote route, after wp-p1, wp-p2, wp-4.2, wp-5.2 [WP1 to WP8] (§D1)
+  - $done: Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found; (4) the receipt records the two counts and the modules that went.
   - $done: Expected result observed; receipt under `docs/evidence/`.
   - $after: wp-p1, wp-p2, wp-4.2, wp-5.2
   - Setup: the repository at the commit that lands wp-5.2.
   - Action: (1) run the source test of WP1.4 and the pair table's test; (2) list every operation that writes a session request with role `worker`; (3) search every worker brief the pair table builds for "push", "pull request" and "auto-merge"; (4) count the lines of `src/app` before Phase 2 and now.
-  - Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
+  - Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found; (4) the receipt records the two counts and the modules that went.
   - Failure means: a second route to an agent is still in the code.
   - Next decision: whether the settings that pick a worker's executor become one table (simplification audit, F7).

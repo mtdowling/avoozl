@@ -63,6 +63,7 @@ import {
 import { pollSources, sourceMap } from "../intake/intake.mjs";
 import { parseIssueReference } from "../tasks/issue-reference.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { telemetryHandle } from "../telemetry/index.mjs";
 import { mcpRefusal } from "../mcp/mcp-policy.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import {
@@ -109,6 +110,7 @@ import {
 } from "../plugins/plugins.mjs";
 import { mergePath } from "../landing/merge-path.mjs";
 import { pluginChecksView } from "../plugins/plugin-checks.mjs";
+import { contextView } from "../context/plugin-context.mjs";
 import { localRequired, taskPluginChecks } from "../plugins/check-stages.mjs";
 import { RepositorySettings } from "../settings/repository-settings.mjs";
 import { bindRetroMemory } from "../flow/retro-memory.mjs";
@@ -389,6 +391,16 @@ export class Operations {
                   this.store,
                   { ...p, manifest },
                   options,
+                ),
+              }
+            : {}),
+          // A context part's repositories, skills, reads, asks and servers,
+          // shown before approval too (epic-context EC4.1).
+          ...(p.context
+            ? {
+                context: contextView(
+                  p,
+                  readPluginSettings(options.settingsFile),
                 ),
               }
             : {}),
@@ -1027,6 +1039,10 @@ export class Operations {
   async writeRetroFiles() {
     const root = await this.retroRoot();
     return root ? writeRetroFiles(this.store, root) : null;
+  }
+  // Send what the OTLP exporter has queued, for a process about to end.
+  async flushTelemetry() {
+    await telemetryHandle(this.store)?.flush();
   }
   async rebuild() {
     if (this.store.list("plans").length)

@@ -9,6 +9,8 @@ import { commands as machine } from "../commands/machine.mjs";
 import { commands as inspect } from "../commands/inspect.mjs";
 import { commands as setup } from "../commands/setup.mjs";
 import { commands as data } from "../commands/data.mjs";
+import { commands as context } from "../commands/context.mjs";
+import { commands as telemetry } from "../commands/telemetry.mjs";
 
 export const COMMANDS = [
   ...plans,
@@ -17,6 +19,8 @@ export const COMMANDS = [
   ...inspect,
   ...setup,
   ...data,
+  ...context,
+  ...telemetry,
 ];
 
 const byWords = new Map();

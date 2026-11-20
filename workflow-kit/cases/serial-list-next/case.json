@@ -1,0 +1,27 @@
+{
+  "title": "A task waits for the one above it",
+  "rules": ["3.1", "9.1", "12.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["parser/p-2"],
+    "claim": {
+      "branch": "avoozl/parser/p-2",
+      "base": "main",
+      "mergeBase": false
+    }
+  },
+  "expectFail": {
+    "ready": "sim-2.1",
+    "claim": "sim-1.1"
+  }
+}

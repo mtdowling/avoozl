@@ -3,9 +3,9 @@
 `EC` numbers are in this spec's `requirements.md`; `R` numbers are in
 `.kiro/specs/avoozl/requirements.md`, `PK` numbers in
 `.kiro/specs/plugin-checks/`,
-and `PC` numbers in `.kiro/specs/plugin-credentials/`. Requirement 115 is on branch
-`spec/spec-assignee-2`. Labels are as in the requirements: **V** read in
-the file cited at `a8a22391`; **A** assumed.
+and `PC` numbers in `.kiro/specs/plugin-credentials/`. Labels are as in
+the requirements: **V** read in the file cited at `a8a22391`; **A**
+assumed.
 
 ## D1. Shape
 
@@ -61,7 +61,7 @@ that fails the gate goes through today's path with nothing added (EC10.3).
 | --- | --- | --- |
 | `approved` | the task's plan row and its approved revision hash; the task ID | the plan's approved revision is on the specs branch (`approvalBase`, V: `git-approvals.mjs:106`), the task ID is in that revision's `tasks.md`, and the ID does not start with `intake-` (V: `intakeTaskId`, `intake.mjs:50`) |
 | `approver` | `approvalCommits(root, {allowed: approverCheck(...), specs: [spec]})` (V: `git-approvals.mjs:301`) | the newest approval commit whose hash equals the approved revision's hash has an allowed author |
-| `you-drive` | the driver state the Specs list shows from the workspace cache (Requirement 115.11) | "You drive" or "Not shared"; any other state fails, and so does no state |
+| `you-drive` | the driver state the Specs list shows from the workspace cache (`driverStatus`, V: `src/app/workers/driver.mjs`) | the state is `driver`, with reason `driver` ("This workspace drives it") or `not-shared`; any other state fails, and so does no state |
 
 The tests never read a spec's prose, an issue body, a comment or a
 repository file. They run in `processExecutor.start` and in the resume path
@@ -71,7 +71,7 @@ them all.
 
 Approval commits are read once per spec and approved hash and cached in
 memory with the hash as key, so a resume costs no git log. The driver state
-adds no GitHub call (Requirement 115.9).
+adds no GitHub call.
 
 ### Comments after the start (EC1.7)
 
@@ -121,7 +121,7 @@ naming the file, beside the other machine-only keys (A: the loader in
 `src/app/settings/repository-settings.mjs` lists known keys; the task finds
 the exact place). One operation, `context.machine.set`, is `person(...)` in
 its feature table and refused in its handler for a bound or MCP caller and
-for a child marked `AVOOZL_CHILD`. The CLI
+for a child marked `AVOOZL_CHILD`, as other person-only operations are. The CLI
 entry is `avoozl context set --json '{...}'` and `avoozl context show`.
 
 ## D4. The context part (EC3)
@@ -194,9 +194,8 @@ every ask answered and every alias mapped. A plugin that `.avoozl.json`
 declares is skipped. Settings marks such a part "context ignored: declared
 in .avoozl.json".
 
-The parts list grows by one. Plugin-checks and plugin-credentials each add
-a part too; whichever lands first sets the order, and the docs list them
-all.
+`context` is the last of the parts: pack, rules, intake, template,
+credentials, checks, context.
 
 ## D5. Approval, asks and mappings (EC4)
 
@@ -226,10 +225,10 @@ approval record has room for one more hash, as PK10.3 also needs). A
 plugin whose answers or mappings no longer match the stored hash reads as
 `changed`, and its context part gives nothing until approved again.
 
-If plugin-checks' PK10 mapping lands first, this reuses its `servers`
-mapping shape and hash, keyed by plugin and alias; there is one mapping
-store, not two. `checkConfig` refuses credential-like keys and values in
-both.
+This reuses plugin-checks' PK10 mapping: `mcp` in `plugins.json`, keyed by
+plugin and alias, and its `mappingHash`; there is one mapping store, not
+two. A context mapping's `command` is optional. `checkConfig` refuses
+credential-like keys and values in both.
 
 The approval view lists, for the part: `repos`; each skill as name,
 description and the SHA-256 of its `SKILL.md`; each read as `about`, the
@@ -334,7 +333,7 @@ it plainly: a chat is a speed bump, not a sandbox.
 | A spec's text, an issue or a pull request asks for context | The gate reads no prose (EC1.4) | a spec whose text asks for it gets none |
 | A stranger's issue or pull request reaches a context session | `approved` fails for intake and fix tasks; a comment that does not count is never sent to a context session (EC1.7) | each alone |
 | A stranger reviews a context task's pull request | the send is refused and a new session starts without context | EC1.7 |
-| A coworker's spec runs with my context | `you-drive` needs this person as the one assignee, or no spec issue; taking a spec over is my own act (Requirement 115.2) | a spec assigned to another login gets none |
+| A coworker's spec runs with my context | `you-drive` needs this person as the one assignee, or no spec issue; taking a spec over is my own act | a spec assigned to another login gets none |
 | A coworker edits an approved spec | a new revision needs a new approval commit by an approver; the old approval no longer matches the hash | `approver` fails on an edit after approval |
 | A non-approver's commit on main | `approverCheck` refuses its author | `approver` fails |
 | A plugin widens access in an update | a new content hash, answer or mapping needs approval again (EC4.4) | a changed plugin gives nothing |
@@ -407,8 +406,8 @@ The task that depends on each choice says so.
 
 ## D12. Risks
 
-- Requirement 115 is not approved. If its driver words change, `you-drive`
-  follows them; a task here says so.
+- `you-drive` follows the driver states of `driverStatus`; a new state
+  fails the test until the gate names it.
 - Claude Code's `--mcp-config` with `--strict-mcp-config` loading exactly
   one file is read in its docs, not run here (A). ec-p1 checks it.
 - A skill copied at start is the approved one; a skill the worker writes to

@@ -6,17 +6,16 @@ category: Planning
 
 ## Introduction
 
-The owner decided on 2026-11-19 that Avoozl should keep less of its own
-machinery where git and GitHub already have a normal way to do the same
-thing. This spec writes down those decisions. It changes no code until its
-tasks run.
+Avoozl keeps less of its own machinery where git and GitHub already have a
+normal way to do the same thing. This spec says what that means for each
+part. It changes no code until its tasks run.
 
 Every claim about today's code carries one label: **V**, read in the file
 cited at `a8a22391`; or **A**, assumed and not checked, with the reason.
 
-The decisions, in short:
+In short:
 
-| #   | Decision                                                                   | Requirement |
+| #   | Rule                                                                       | Requirement |
 | --- | -------------------------------------------------------------------------- | ----------- |
 | 1   | No worker machines. One Avoozl runs a spec; fan-out is the person's own agent | GN1      |
 | 2   | No `Avoozl-*` trailers on landing commits. Flow and rebuild read plain git | GN2         |
@@ -26,7 +25,7 @@ The decisions, in short:
 | 6   | The epic issue's assignee is the epic owner, and it closes when its specs land | GN6     |
 
 GN7 lists the Avoozl-only actions that remain and which could be GitHub
-actions. GN8 lists every edit to other specs.
+actions. GN8 lists what the other specs lose.
 
 ### Why
 
@@ -53,18 +52,12 @@ actions. GN8 lists every edit to other specs.
 
 ### What this builds on
 
-`.kiro/specs/avoozl/` stays the product spec. This spec assumes three
-branches land first, in this order: `spec/spec-assignee` (the spec issue's
-assignee is who drives the spec), `spec/drop-mirror` (no mirror; a
-repository names its specs branch) and `spec/approval-cutdown` (approval is
-a commit on GitHub). Each of them claims Requirement 115 to 116, design
-§4.43 to §4.44 and Phase 67 to 68 of the avoozl spec, so this spec uses its
-own folder and `GN` numbers. Where this spec and one of those branches
-disagree, this spec wins, and GN8 names each change.
-
-The spec folder format this spec assumes is the cut one of design §D10.
-Its code is built on `spec/cut-facts` and in the `specs.path` work, not
-here.
+`.kiro/specs/avoozl/` is the product spec. This spec builds on its
+Requirements 116 (the spec issue's assignee drives the spec), 117 (a
+repository names its specs branch) and 118 (approval is a commit on
+GitHub). Where they disagree, this spec wins, and GN8 names each change.
+The spec folder format is the one of design §D10 (avoozl Requirement FS1
+and the `cut-facts` spec).
 
 ### Scope
 
@@ -89,11 +82,11 @@ here.
 | Epic owner    | The one login assigned to the epic issue                                  |
 | Review output | Review findings, falsifier verdicts and failing check output for a task  |
 | Round         | One worker attempt and the checks and reviews that follow it              |
-| Spec PR       | A pull request whose changes are all under `.kiro/specs/` (R107)          |
+| Spec PR       | A pull request whose changes are all under `.kiro/specs/`          |
 
 ## Requirements
 
-### Requirement GN1: One machine runs a spec; worker machines are gone
+### Requirement GN1: One machine runs a spec
 
 **User story:** As the owner, I want Avoozl to run each spec on one
 machine, so that there is one trust boundary and no claim protocol to
@@ -165,7 +158,7 @@ history.
    them, and Flow SHALL show "not known" for each one it has no row for.
    GN design §D2 lists what Flow loses after a rebuild.
 6. A retro file under `.kiro/retros/` (R114.10) SHALL keep its own
-   summary, with no per-task credits (owner decision, 2026-11-19). Credits
+   summary, with no per-task credits. Credits
    survive only in the database that recorded them.
 7. Requirement 102.5 SHALL read "the tick" for "a trailer": a tick in
    `tasks.md` is a pointer, not proof, and `landed` still needs verified
@@ -197,7 +190,7 @@ asking anyone to press a button.
    creates one it SHALL read the marker back. WHEN two open issues hold the
    same marker THEN the workspace that made the newer one SHALL close it as
    a duplicate of the older one, and nothing else SHALL change.
-4. (Changed 2026-11-19, owner decision.) A new spec issue SHALL copy the
+4. A new spec issue SHALL copy the
    assignees of the spec PR that approved it. WHEN that pull request has
    none, or the approval was a pushed commit with no pull request, THEN the
    spec issue SHALL stay unassigned. Avoozl SHALL NOT assign the approver
@@ -242,7 +235,7 @@ is the normal GitHub review I already know.
 
 1. Anyone with access to the repository SHALL be able to propose a spec, or
    a change to one, by opening a spec PR. Avoozl SHALL adopt it as a draft
-   revision (R107) whoever the author is.
+   revision whoever the author is.
 2. The approval SHALL be the merge commit, or a pushed commit, on the specs
    branch, authored by an approver (R114.1 to R114.3, R114.13). Avoozl
    SHALL read it on its tick with no click. The proposer need not be an
@@ -333,7 +326,7 @@ says the truth without my upkeep.
    or with **Take over epic** on the page, which assigns this login and
    removes no one else's unless forced. Avoozl SHALL read the assignee with
    the conditional read it already makes of the epic issue.
-3. (Changed 2026-11-19, owner decision.) A member spec SHALL be driven only
+3. A member spec SHALL be driven only
    by the instance whose login is both the spec issue's assignee and the
    epic issue's assignee (GN3.5). WHEN they differ, or either is
    unassigned, THEN no instance SHALL drive it, and the page SHALL show
@@ -377,7 +370,7 @@ Avoozl's own page, CLI or MCP, so that I can do the rest on GitHub.
 5. Creating the `avoozl:stopped` label SHALL be a high-risk job and SHALL go
    through the popup, once, in setup. Adding or removing it SHALL be low
    risk.
-6. (Added 2026-11-19, owner decision.) Investigate first's **Go ahead**,
+6. Investigate first's **Go ahead**,
    **Investigate again** and **Stop** SHALL each also be an approver's
    reply on the findings comment (the spec issue comment or pull request
    review of GN5): a reply whose first line is `go ahead`, `investigate
@@ -398,29 +391,17 @@ built, so that a later reader does not rebuild a removed part.
 
 #### Acceptance criteria
 
-1. In `.kiro/specs/avoozl/`: Requirement 90 SHALL be marked retired by GN1;
-   Requirement 102.9 SHALL drop claim acknowledgments; Requirement 102.14
-   SHALL be retired; Requirement 102.5 SHALL change as GN2.7 says;
-   Requirement 114.7, 114.10 (its trailer part) and 114.12 (its trailer
-   part) SHALL be retired by GN2; Requirement 102.2's "independent of
-   approval" SHALL be retired by GN3; Requirement 99.9's GitHub clause
-   SHALL be retired by GN5. Each keeps its text under a dated line naming
-   this spec.
-2. Tasks 43.1 to 43.6 and proof `avoozl-p53` of the avoozl spec SHALL be
-   marked superseded by this spec, and `avoozl-p53` SHALL not be run.
-3. In `.kiro/specs/worker-paths/`: WP5 SHALL be marked retired by GN1 except
-   that it removed SSH runner mode; WP3.1's "task on a worker machine" kind
-   and WP3.4 SHALL be retired; tasks `wp-3.1` and `wp-3.2` and proof `wp-p3`
-   SHALL be marked superseded; proof `wp-p4`'s "one remote route" SHALL
-   read "no remote route".
-4. In `.kiro/specs/direct-links/`: DL1's worker machine and remote attempt
-   parts SHALL be retired, and task `dl-2` SHALL open only attempts on this
-   machine.
-5. In the branches named under "What this builds on", whichever has landed:
-   `spec/spec-assignee` criterion 8 (publishing stays a person's act),
-   criterion 3's epic stand-in, and criterion 1's "driver named by the spec
-   issue alone" SHALL be retired by GN3 and GN6;
-   `spec/approval-cutdown` criteria 6 and 7 (Approve for a checkout, and
-   the **Make the GitHub issues** button) SHALL be retired by GN4 and GN3.
+1. In `.kiro/specs/avoozl/`: Requirement 102.9's claim acknowledgments,
+   Requirement 102.14, Requirement 114.7, the trailer parts of 114.10 and
+   114.12, Requirement 102.2's "independent of approval" and Requirement
+   99.9's GitHub clause SHALL be deleted, and Requirement 102.5 SHALL change
+   as GN2.7 says.
+3. In `.kiro/specs/worker-paths/`: WP3.1's "task on a worker machine" kind
+   and WP3.4 SHALL be deleted.
+5. Whatever the spec issue assignee and approval requirements (avoozl
+   Requirements 116 and 118) say against GN3, GN4 and GN6 SHALL be deleted:
+   publishing as a person's separate act, the epic assignee standing in for
+   a spec issue's, Approve for a checkout, and the **Make the GitHub
+   issues** button.
 6. `node scripts/check/spec-lint.mjs` SHALL report 0 errors after each
    edit.

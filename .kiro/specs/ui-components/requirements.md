@@ -13,10 +13,6 @@ Kiro Crew's components wherever one exists, and onto a small set of
 Avoozl's own components everywhere else, so that class names and CSS
 variables are written in one folder.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts that a person does later. Nothing in it changes code until its
-tasks run.
-
 Every claim about today's code carries one label: **V**, read in the file
 cited at `05474af`; or **A**, assumed and not checked, with the reason.
 

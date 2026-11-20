@@ -490,7 +490,7 @@ A team rewrites its client library, `acme/client`, over several months.
 9. When every member spec is ticked, the tech lead merges `client-v2` into
    `main`. Avoozl never merges it.
 
-The same flow runs under Issue Radar or any runner that follows the landing
+The same flow runs under any runner that follows the landing
 spec.
 
 ## D17. Order
@@ -504,27 +504,23 @@ cuts in phase 4 delete the code they replace. Skills (phase 3) ship before the
 modules they replace are cut. The page (phase 5) changes last, after its
 operations have settled. Docs and the live proof close the spec.
 
-## D18. Open questions
+## D18. Rules
 
-1. **Graph block required?** Recommendation: optional (SM9.5). Specs written
-   by hand or by other runners still lint, and `avoozl-spec` always writes
-   one.
-2. **Plugin `phase` checks propose a fix through triage.** `plugin-checks`
-   PK5.3 proposes a triage fix when a `phase` check fails, and triage is
-   being removed. Recommendation: a failing `phase` or `branch` check is a
-   Needs you item with "Run in a chat"; change PK5.3 in its own spec PR.
-3. **Epic context's "you drive" test.** `epic-context` EC1 tests the driver
-   table, which this spec removes. Recommendation: the test becomes "the
-   spec issue is assigned to this runner's login and the task's claim branch
-   was created by this machine".
-4. **The side panel.** Recommendation: cut it (1200 lines); Needs you and In
-   flight cover it, and a chat gets the same reads through `plans_query`.
-5. **Activity page.** Recommendation: cut the page and keep `avoozl activity`
-   and the activity log, since GitHub history covers most of it.
+1. **The graph block is optional** (SM9.5). Specs written by hand or by
+   other runners still lint, and `avoozl-spec` always writes one.
+2. **A failing plugin `phase` or `branch` check** is a Needs you item with
+   "Run in a chat". PK5.3 changes in its own spec pull request.
+3. **Epic context's "you drive" test** becomes "the spec issue is assigned
+   to this runner's login and the task's claim branch was created by this
+   machine" (`epic-context` EC1).
+4. **The side panel is cut** (1200 lines); Needs you and In flight cover it,
+   and a chat gets the same reads through `plans_query`.
+5. **The Activity page is cut.** `avoozl activity` and the activity log
+   stay, since GitHub history covers most of it.
 
 ## D19. Order from the list
 
-Every checkbox line is a task with a backticked ID and a title. The owner's
+Every checkbox line is a task with a backticked ID and a title. For
 example:
 
 ```markdown

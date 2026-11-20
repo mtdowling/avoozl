@@ -1,0 +1,27 @@
+{
+  "title": "A linked spec lands on the branch named for its parent",
+  "rules": ["11.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "client-v2"],
+    "behind": []
+  },
+  "issues": {
+    "client-v2": ["acme-alice"],
+    "client-parser": ["acme-alice"],
+    "client-formatter": ["acme-alice"]
+  },
+  "expect": {
+    "claim": {
+      "branch": "avoozl/client-parser/client-parser-1",
+      "base": "client-v2",
+      "mergeBase": false
+    }
+  },
+  "expectFail": {
+    "claim": "sim-2.6"
+  }
+}

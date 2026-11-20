@@ -48,6 +48,7 @@ Ask what the team needs, then list only those parts in `provides`:
 | A repeated kind of work started the same way each time, as folders under `templates/`                           | `template` |
 | GitHub sign-in through the organization's own short-lived tokens, per job                                        | `credentials` |
 | Checks every engineer's machine runs on certain repositories, kept out of those repositories                    | `checks`   |
+| Skills, read folders and MCP servers a worker gets on its owner's own approved spec tasks                        | `context`  |
 
 A plugin with only `pack`, `template` or `checks` has no `entry` and runs no
 plugin process. A `checks` part's scripts run as checks, and an MCP step calls a local MCP server this
@@ -56,6 +57,9 @@ never go to GitHub.
 
 A `credentials` part runs from its own `credentials.entry`, in a child of
 its own; see **Credentials** below.
+
+A `context` part is data too. Declare it on **This computer only**; a
+`.avoozl.json` entry for it is ignored. See **Context** below.
 
 The code kinds are `intake` and `rules`. A manifest written
 before `provides` lists `kinds` instead; with `provides`, leave `kinds` out,
@@ -113,6 +117,22 @@ job. Declare it on **This computer only**: a `.avoozl.json` entry for it is
 invalid. An owner it claims never falls back to `gh`. Copy the fake
 provider in `docs/plugins.md` (Credentials part), with neutral names such as
 `acme-github` and `acme-bot[bot]`.
+
+## Context
+
+A `context` part gives a worker skills, read folders and MCP servers, only
+on its owner's own approved spec tasks in the repositories it names. The
+manifest holds `"context": {"repos": ["acme/*"], "skills": "skills",
+"reads": [{"id", "about", "path"}], "ask": {"NAME": "question"},
+"mcp": "mcp/servers.json", "contentSets": []}`. A read's `path` may hold
+`{ask:NAME}`; each person answers it once with
+`avoozl plugins answer ID NAME VALUE`. `mcp/servers.json` maps each alias to
+`{about, command}`, an argument list, with no `env` and no credential; the
+person maps each alias on their machine (`avoozl plugins map ID ALIAS`)
+with the environment variable names the server may read. Each skill is a
+folder with one `SKILL.md` whose front matter holds `name` (the folder
+name) and `description`. A changed file, answer or mapping needs approval
+again. Copy `examples/plugins/team-context/` and read `docs/epic-context.md`.
 
 ## Where it comes from
 

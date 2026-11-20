@@ -11,16 +11,10 @@ agent CLI, and no Kiro Crew, use today's Avoozl page in a browser. Avoozl
 serves the page itself with `avoozl serve`, on `127.0.0.1` only, behind a
 one-time owner link.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts that a person does later.
-
-Changed 2026-11-18 (owner decision): the standalone page must look exactly
-as the page does in Kiro Crew, and must not be a fork. It is built with Kiro
-Crew's own UI parts, SDK provider and stylesheet, unmodified, at a pinned
-release, where this spec first had Avoozl write stand-ins and its own
-themes. SW1, SW2 and SW6 changed, SW4.8 gained style hashes, and SW12 was
-added. A one-day spike built it; design D11 records what it showed and what
-it did not check. Claims marked **S** were seen in that spike.
+The page looks exactly as it does in Kiro Crew and is not a fork: it is
+built with Kiro Crew's own UI parts, SDK provider and stylesheet, unmodified,
+at a pinned release (SW12). Claims marked **S** were seen in a build of this
+page against Kiro Crew v0.12.2 (design D11).
 
 ### Why
 
@@ -53,8 +47,7 @@ The page is close to portable already:
 
 ### What this builds on
 
-`.kiro/specs/avoozl/` stays the product spec. This spec changes Requirement
-98 (SW11) and design §4.28's UI paragraph, and reuses Requirement 95 (one
+`.kiro/specs/avoozl/` stays the product spec. This spec builds on Requirement 98 and design §4.28, and reuses Requirement 95 (one
 supervisor per machine), Requirement 98.1 and 98.2 (process sessions on the
 page), and the operation set in `src/app/api/operations.mjs`. It adds no
 operation for agents.
@@ -394,8 +387,7 @@ Crew, so that I do not look for a feature that cannot work.
    task pinned to it); Kiro Crew's side panel; Kiro Crew notification
    channels; opening a Kiro Crew chat; Kiro Crew's model list (the model
    field becomes free text plus the harness definition's own list); per-turn
-   usage read from Kiro Crew's log; Send to Issue Radar and Radar session
-   reads; Stop all agents for Kiro Crew chats.
+   usage read from Kiro Crew's log; Stop all agents for Kiro Crew chats.
 2. The app backend's Kiro Crew readers (`notifier`, `slotReader`,
    `rowReader`, `usageReader`, `modelSwitcher`, `modelReader`,
    `crewReader`, `sessionsReader`, `sessionStopper`) SHALL be absent in the
@@ -407,22 +399,6 @@ Crew, so that I do not look for a feature that cannot work.
 4. A task pinned to the `kirocrew` executor on a machine with no Kiro Crew
    SHALL wait with one Needs you item that names the pin. It SHALL NOT fall
    back to another executor by itself.
-
-### Requirement SW11: Change to Requirement 98
-
-**User story:** As the owner, I want the product spec to say the standalone
-page is a proposed change, so that the two specs do not contradict each
-other.
-
-#### Acceptance criteria
-
-1. Requirement 98 and design §4.28 SHALL say that this spec proposes a
-   second, loopback-only host for the same page, and that Requirement 98.4
-   stands until this spec is approved.
-2. On approval, Requirement 98.4 SHALL change to: a headless machine gets
-   the CLI, and the standalone page when `avoozl serve` or `serve.enabled`
-   runs it; Avoozl SHALL host no other UI and SHALL serve nothing beyond
-   `127.0.0.1`.
 
 ### Requirement SW12: Kiro Crew's parts as a pinned, unmodified dependency
 
@@ -454,7 +430,7 @@ fork and a new Kiro Crew release is one change.
    Crew's `LICENSE` and `NOTICE`, the notices of the third-party packages
    bundled with it, and the licenses of its fonts.
    `THIRD_PARTY_NOTICES.md` SHALL list them and
-   `scripts/release-scan.mjs` SHALL fail when one is missing.
+   `scripts/check/release-scan.mjs` SHALL fail when one is missing.
 7. Moving the pin SHALL be one change: the pin file and the package
    versions. It SHALL pass the contract test, the class check and the
    variable test, and its screenshots SHALL go to the owner as SW12.10

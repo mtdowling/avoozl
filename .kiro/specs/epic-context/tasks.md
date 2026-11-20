@@ -8,9 +8,6 @@ numbers alone do not impose a dependency. Requirement numbers are in
 brackets (`EC1` to `EC11`, in `requirements.md`); `D` sections refer to this
 spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
 
-Some tasks need Requirement 115 of `spec/spec-assignee-2`, named in their
-summaries. Do not start such a task before it has landed.
-
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders, a fake GitHub, fake executors and fake MCP
 servers; Avoozl runs the repository's checks; no real workspace data,
@@ -21,24 +18,23 @@ byte for byte (EC10.3). Screen changes need phone and desktop, light and
 dark screenshots for owner approval before merge, shown to the owner and
 never committed. Examples use only `acme/*`, `research` and `team-context`.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Task IDs start with `ec-` so
+Task IDs start with `ec-` so
 they never collide with the IDs of the other specs.
 
 ## Phase 1: The gate and the two sources
 
-- [ ] `ec-1.1` The three tests and their record [EC1.1, EC1.2, EC1.3, EC1.4, EC1.5] (§D2)
-  - $done: Tests with real git and a fake GitHub: a task of an approved, driven spec passes all three; each test failing alone gives `given: false` and names that test with its reason; an `intake-` task and a fix fail `approved`; a task added to `tasks.md` after approval fails `approved`; an approval commit by a non-approver fails `approver`; "Taken by", "Your other machine", "N assignees" and "Nobody drives" fail `you-drive`, and "You drive" and "Not shared" pass; a git error fails; spec text, an issue body and a `.avoozl.json` key that ask for context change nothing; `$context` and `$epicContext` facts are refused by lint.
-  - `epicContextGate` in `src/app/workers/epic-context.mjs`, with approval commits cached per spec and hash. Needs Requirement 115.
-- [ ] `ec-1.2` The machine `epicContext` block [EC2] (§D3)
+- [x] `ec-1.1` The three tests and their record [EC1.1, EC1.2, EC1.3, EC1.4, EC1.5] (§D2)
+  - $done: Tests with real git and a fake GitHub: a task of an approved, driven spec passes all three; each test failing alone gives `given: false` and names that test with its reason; an `intake-` task and a fix fail `approved`; a task added to `tasks.md` after approval fails `approved`; an approval commit by a non-approver fails `approver`; "Taken by", "N assignees", "Nobody drives" and an unread driver fail `you-drive`, and "This workspace drives it" and "Not shared" pass; a git error fails; spec text, an issue body and a `.avoozl.json` key that ask for context change nothing; `$context` and `$epicContext` facts are refused by lint.
+  - `epicContextGate` in `src/app/workers/epic-context.mjs`, with approval commits cached per spec and hash.
+- [x] `ec-1.2` The machine `epicContext` block [EC2] (§D3)
   - $done: Tests: the block loads with `repos`, `reads`, `mcp` and `contentSets`; an unknown key (`network` among them), a missing `repos`, more than the limits, a shell string `command` and a credential-like key or value are each refused naming the key; `.avoozl.json` and layered workspace config refuse `epicContext` naming the file; `context.machine.set` is refused over MCP, for a bound caller and for a child marked `AVOOZL_CHILD`; `avoozl context set` and `avoozl context show` work from a terminal; the schema in `host-config.schema.json` matches.
-- [ ] `ec-1.3` The `context` plugin part [EC3] (§D4)
+- [x] `ec-1.3` The `context` plugin part [EC3] (§D4)
   - $done: Tests: a `team-context` manifest with skills, reads, asks and `mcp/servers.json` loads; a plugin that provides only `context` and names an `entry` is refused; each EC3.2 key error, an unused or unknown ask, a `SKILL.md` over 64 KB or with a wrong `name`, a servers file with `env` or a credential, a `command` path outside the plugin and a shell string are each refused naming it; `contextSources` returns only approved machine plugins and skips a part `.avoozl.json` declares, which Settings marks "context ignored: declared in .avoozl.json" while its other parts still work.
   - `checkContext` beside `checkPolicy` in `src/app/plugins/plugins.mjs`; `context` joins the data parts.
-- [ ] `ec-1.4` Asks, MCP mappings and the approval hash, after `ec-1.3` [EC4] (§D5)
+- [x] `ec-1.4` Asks, MCP mappings and the approval hash, after `ec-1.3` [EC4] (§D5)
   - $done: Tests: an unanswered ask gives nothing and raises one Needs you item naming the questions; `avoozl plugins answer` stores the answer in `plugins.json`; an alias with no mapping gives nothing; a mapping holds `env` names and an optional `command`, and a credential value is refused; changing an answer or a mapping turns the plugin `changed` until approved again; `readPluginSettings` keeps `context` through plugin edits; answer, map and approve are refused over MCP, for a bound caller, a child and the tick; the approval view lists repos, each skill with its hash, each read as written and filled, each alias with its command and env names, and each content set; screenshots of the approval view go to the owner.
   - $after: ec-1.3
-  - Reuses PK10's mapping store and hash when `pk-1.6` has landed; otherwise adds it in the shape PK10.2 gives.
+  - Reuses PK10's mapping store (`mcp` in `plugins.json`) and its `mappingHash`.
 
 ## Phase 2: The session
 
