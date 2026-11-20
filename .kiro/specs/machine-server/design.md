@@ -120,7 +120,7 @@ up to the tick's own timeout for a tick.
 
 **Build.** The build is the package version plus a SHA-256 of the sorted
 source files under `src/` and `cli.mjs`, computed once at start. The Kiro
-Crew app runs its own copy of the code (V: `kirocrew-app/bin/avoozl.mjs`
+Crew app runs its own copy of the code (V: `hosts/kirocrew/bin/avoozl.mjs`
 imports `./lib/cli.mjs`), so its build can differ from the person's global
 `avoozl`. Only `avoozl start` replaces a server of another build
 (MS3.4). Replacing is safe because children are detached and found again by
@@ -265,7 +265,7 @@ only picks the workspace and records who called, by the rules
 
 **Shim.** `avoozl mcp` reads stdio, sends `hello`, and pipes lines both ways.
 If the connect fails because no lock is held, it runs the start function
-and retries. It has no `Store` import. `kirocrew-app/bin/avoozl_mcp.py`
+and retries. It has no `Store` import. `hosts/kirocrew/bin/avoozl_mcp.py`
 keeps launching `avoozl mcp --kirocrew`, so Kiro Crew needs no change.
 
 **Removed.** The `--url` bridge posts to `/mcp`, which nothing serves (V:
@@ -276,7 +276,7 @@ keeps launching `avoozl mcp --kirocrew`, so Kiro Crew needs no change.
 ## D9. Host packages and one source (MS11)
 
 ```text
-prompts/<role>.md   skills/<name>/   roles.json
+prompts/<role>.md   prompts/skills/<name>.md   roles.json
           \             |             /
            npm run build:hosts (scripts/build-hosts.mjs)
           /        |            |           \
@@ -367,7 +367,7 @@ a proof, `lsof -nP -iTCP -sTCP:LISTEN` (macOS), `ss -ltnx` (Linux) or
 
 Milestones 2 and 3 can start once ms-1.2 lands, beside the rest of
 milestone 1; only their proofs wait for ms-p2. Milestone 4's move of
-`kirocrew-app/` waits for ms-1.3, which edits files under it.
+`hosts/kirocrew/` follows ms-1.3, which edits files under it.
 
 ## D12. Rules
 

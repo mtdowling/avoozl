@@ -148,7 +148,7 @@ test("no source file imports a removed module", () => {
       else if (/\.(mjs|ts|tsx)$/.test(entry.name)) files.push(full);
     }
   };
-  for (const dir of ["src", "scripts", "kirocrew-app/ui/src"])
+  for (const dir of ["src", "scripts", "hosts/kirocrew/ui/src"])
     walk(path.join(repo, dir));
   assert.ok(files.length > 100);
   for (const file of files)

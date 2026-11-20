@@ -1,5 +1,5 @@
 // The installed page must come from the page source installed beside it.
-// `kirocrew app update` copies kirocrew-app as it lies in the checkout and does
+// `kirocrew app update` copies hosts/kirocrew as it lies in the checkout and does
 // not build, and ui/dist is not in git, so a pull without `npm run build` left
 // an older page installed with nothing saying so. The build stamps the hash of
 // ui/src into ui/dist; the backend compares it with the ui/src it was
@@ -59,9 +59,9 @@ export function uiBundleProblem(uiDir) {
     stamp = null;
   }
   if (!stamp)
-    return `This Avoozl install has no built page (kirocrew-app/ui/dist). In the Avoozl checkout, run: ${UPDATE_COMMAND}`;
+    return `This Avoozl install has no built page (hosts/kirocrew/ui/dist). In the Avoozl checkout, run: ${UPDATE_COMMAND}`;
   if (stamp.source !== uiSourceHash(uiDir))
-    return `This Avoozl page is out of date: kirocrew-app/ui/dist was built from other source than kirocrew-app/ui/src. In the Avoozl checkout, run: ${UPDATE_COMMAND}`;
+    return `This Avoozl page is out of date: hosts/kirocrew/ui/dist was built from other source than hosts/kirocrew/ui/src. In the Avoozl checkout, run: ${UPDATE_COMMAND}`;
   return null;
 }
 
@@ -69,7 +69,7 @@ export function uiBundleProblem(uiDir) {
 // src/app, or beside the installed app's bin/lib copy of it.
 export function standaloneUiDirectory(here = import.meta.dirname) {
   const candidates = [
-    path.join(here, "..", "..", "..", "kirocrew-app", "ui"),
+    path.join(here, "..", "..", "..", "hosts", "kirocrew", "ui"),
     path.join(here, "..", "..", "..", "..", "..", "ui"),
     path.join(here, "..", "..", "..", "..", "..", "..", "ui"),
   ];

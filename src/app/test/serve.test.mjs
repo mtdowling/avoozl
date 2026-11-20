@@ -654,7 +654,7 @@ test("the placeholder in the real built page is the one the server fills (SW4.6)
   const built = path.join(
     fileURLToPath(
       new URL(
-        "../../../kirocrew-app/ui/dist/standalone/index.html",
+        "../../../hosts/kirocrew/ui/dist/standalone/index.html",
         import.meta.url,
       ),
     ),

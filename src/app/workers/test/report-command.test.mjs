@@ -149,7 +149,7 @@ test("the report command runs with no node or avoozl on PATH against the source 
 });
 
 test("the report command runs with no node or avoozl on PATH against the built app package", async (t) => {
-  const lib = path.join(root, "kirocrew-app", "bin", "lib");
+  const lib = path.join(root, "hosts", "kirocrew", "bin", "lib");
   assert.ok(fs.existsSync(lib), "npm run build makes bin/lib");
   const built = await import(
     pathToFileURL(path.join(lib, "src", "app", "delivery", "delivery.mjs"))

@@ -7,33 +7,33 @@ third-party code copied into this repository or its packages.
 
 | Component | Version | License                                        | File                                  | npm package | App package |
 | --------- | ------- | ---------------------------------------------- | ------------------------------------- | ----------- | ----------- |
-| Prism     | 1.30.0  | MIT                                            | `kirocrew-app/ui/dist/` (page bundle) | Yes         | Yes         |
+| Prism     | 1.30.0  | MIT                                            | `hosts/kirocrew/ui/dist/` (page bundle) | Yes         | Yes         |
 
 The Kiro Crew app page bundles Prism's core and the language grammars listed
-in `kirocrew-app/ui/src/prism/languages.ts`, taken unchanged from
+in `hosts/kirocrew/ui/src/prism/languages.ts`, taken unchanged from
 `https://registry.npmjs.org/prismjs/-/prismjs-1.30.0.tgz` (integrity
 `sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw==`)
 and minified by the page build. Its license text is in
-[kirocrew-app/PRISM-LICENSE.md](kirocrew-app/PRISM-LICENSE.md), a copy of the
+[hosts/kirocrew/PRISM-LICENSE.md](hosts/kirocrew/PRISM-LICENSE.md), a copy of the
 upstream `LICENSE`, so it ships with the app package.
 
 Apart from Prism and the standalone page (next section), the Kiro Crew app
-package (`kirocrew-app/`) contains no third-party code. Its page bundle leaves `react`, `react-dom`, `react/jsx-runtime`,
+package (`hosts/kirocrew/`) contains no third-party code. Its page bundle leaves `react`, `react-dom`, `react/jsx-runtime`,
 `@kirocrew/app-sdk`, and `lucide-react` external; Kiro Crew provides them at
 run time. Its `bin/lib` copy of the CLI is built from this repository's own
 sources and has no npm dependency.
 
 ## The standalone page
 
-`avoozl serve` serves a second build of the page, `kirocrew-app/ui/dist/standalone/`.
+`avoozl serve` serves a second build of the page, `hosts/kirocrew/ui/dist/standalone/`.
 It is built on the source of Kiro Crew release v0.12.2
-(`kirocrew-app/ui/kirocrew-pin.json` names the commit and a digest), fetched at build
+(`hosts/kirocrew/ui/kirocrew-pin.json` names the commit and a digest), fetched at build
 time, never committed here and never edited. Kiro Crew is licensed under the
 Apache License 2.0. Its `LICENSE`, `NOTICE` and `THIRD-PARTY-NOTICES` files are copied
 into the bundle folder unchanged, and this file is copied beside them.
 
 The script bundles these npm packages beside Kiro Crew's own modules. The versions
-are the ones in Kiro Crew's lockfile at the pin, and `kirocrew-app/ui/dist/standalone-build.json`
+are the ones in Kiro Crew's lockfile at the pin, and `hosts/kirocrew/ui/dist/standalone-build.json`
 lists what each build holds.
 
 | Package                                                     | License |
@@ -60,5 +60,5 @@ dependency too; only the parts named above reach the page bundle.
 
 ## Project assets
 
-`kirocrew-app/assets/icon.png` was added with the app package and carries no
+`hosts/kirocrew/assets/icon.png` was added with the app package and carries no
 third-party attribution; it is treated as project work under the MIT license.

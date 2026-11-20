@@ -11,10 +11,7 @@ import { Operations } from "../api/operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const agents = JSON.parse(
-  fs.readFileSync(
-    new URL("../executors/kirocrew/agent-metadata.json", import.meta.url),
-    "utf8",
-  ),
+  fs.readFileSync(new URL("../../../roles.json", import.meta.url), "utf8"),
 );
 const OWN = "@avoozl:avoozl/";
 // Agents that change no file and write nothing beyond their one report.

@@ -9,7 +9,7 @@ import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
-  app = path.join(root, "kirocrew-app"),
+  app = path.join(root, "hosts", "kirocrew"),
   manifest = JSON.parse(fs.readFileSync(path.join(app, "app.json"), "utf8")),
   plannerPath = "agents/avoozl-planner.json",
   planner = JSON.parse(fs.readFileSync(path.join(app, plannerPath), "utf8")),

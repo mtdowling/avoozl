@@ -8,7 +8,7 @@ const root = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     "../../../..",
   ),
-  appRoot = path.join(root, "kirocrew-app"),
+  appRoot = path.join(root, "hosts", "kirocrew"),
   manifest = JSON.parse(
     fs.readFileSync(path.join(appRoot, "app.json"), "utf8"),
   );
