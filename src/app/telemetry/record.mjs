@@ -350,7 +350,16 @@ export function finishTask(store, input) {
       value: 1,
       attrs,
     });
-    notify(store, "onTrace", { root, spans: stages });
+    // shortcut: a point is in the span of its attempt by time alone; upgrade
+    // when two spans of one task overlap.
+    const models = {};
+    if (context(store).others.length)
+      for (const s of stages) {
+        const model =
+          s.ended_at && sqlite.modelIn(taskId, s.started_at, s.ended_at);
+        if (model) models[s.span_id] = model;
+      }
+    notify(store, "onTrace", { root, spans: stages, models });
     return true;
   });
 }

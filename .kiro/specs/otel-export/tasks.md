@@ -65,20 +65,20 @@ another spec cannot be a `$after` here, so `ot-2.1` says it in a bullet.
 
 ## Phase 3: OTLP exporter
 
-- [ ] `ot-3` Bodies and environment (**PARALLEL**)
-  - [ ] `ot-3.1` The environment and the endpoint check [OT6.1, OT6.2, OT6.3, OT6.4, OT12.1, OT12.5] (§D6)
+- [x] `ot-3` Bodies and environment (**PARALLEL**)
+  - [x] `ot-3.1` The environment and the endpoint check [OT6.1, OT6.2, OT6.3, OT6.4, OT12.1, OT12.5] (§D6)
     - $after: ot-1.2
     - Tests: a shared endpoint gets `/v1/traces` and `/v1/metrics` appended and a signal endpoint does not; a signal endpoint beats the shared one
     - Tests: protocol unset is `http/json`; `grpc` and `http/protobuf` give status `protocol`; an `http` endpoint on a non-loopback host gives `endpoint-not-allowed`, and `http://localhost`, `http://127.0.0.1` and `http://[::1]` pass
     - Tests: `OTEL_EXPORTER_OTLP_HEADERS` parses `a=1,b=2` into names and values, a malformed pair is refused by name, and `status()` holds names and never values; the endpoint shows scheme, host and port only
     - `state.mjs` makes the instance ID once and returns it after; a file that cannot be read gives a fresh ID
-  - [ ] `ot-3.2` Trace and metric bodies [OT7.1, OT7.3, OT7.4, OT7.5, OT7.6, OT7.7, OT8.1, OT8.2, OT8.3, OT8.4, OT8.5] (§D7, §D9)
+  - [x] `ot-3.2` Trace and metric bodies [OT7.1, OT7.3, OT7.4, OT7.5, OT7.6, OT7.7, OT8.1, OT8.2, OT8.3, OT8.4, OT8.5] (§D7, §D9)
     - $after: ot-1.3
     - `otlp.mjs` builds `resourceSpans` for one trace and `resourceMetrics` for up to 100 points, from recorded rows, through the export allowlist
     - Tests: the same trace built twice gives equal bodies; two instance IDs give equal trace IDs and different span IDs; a stage span's `parentSpanId` is the root's ID; IDs are lowercase hex of 32 and 16 characters; times are decimal strings; no span has status `error`
     - Tests: a first-pass task and a reworked one give two `avoozl.tasks.finished` data points that differ only in `first_pass`; a manual task has outcome `done` and no `first_pass`; no metric data point holds a task ID; histograms use the bounds of §D9 and delta temporality
     - Tests: `avoozl.model` is sent only when the token points inside a stage span name one model; a span's `detail` is never in a body
-- [ ] `ot-3.3` Queue, send and retry [OT10.2, OT10.3, OT10.4, OT10.5, OT10.6, OT10.8, OT12.2, OT12.3, OT12.4, OT12.6] (§D10)
+- [x] `ot-3.3` Queue, send and retry [OT10.2, OT10.3, OT10.4, OT10.5, OT10.6, OT10.8, OT12.2, OT12.3, OT12.4, OT12.6] (§D10)
   - $after: ot-3.1, ot-3.2
   - Tests against the fake collector: a batch posts one traces request and one metrics request, each with `Content-Type: application/json`, a `User-Agent` of `avoozl/<version>` and the owner's header names
   - Tests: `503`, `429` with `Retry-After`, a reset connection and a timeout retry with backoff and fake timers; the fifth failure drops the batch and adds to `dropped`; a `400` adds to `rejected` and is not retried; a `302` is a failure of kind `http 302` and is not followed

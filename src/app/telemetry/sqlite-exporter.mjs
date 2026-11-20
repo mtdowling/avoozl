@@ -240,6 +240,17 @@ export function createSqliteExporter(
            ORDER BY started_at, span_id`,
         )
         .all(traceId),
+    // The one model the token points inside a time span name, or null.
+    modelIn(taskId, from, to) {
+      const models = db
+        .prepare(
+          `SELECT DISTINCT model FROM telemetry_points
+           WHERE task_id=? AND name='avoozl.tokens' AND model IS NOT NULL
+             AND at >= ? AND at <= ?`,
+        )
+        .all(taskId, from, to);
+      return models.length === 1 ? models[0].model : null;
+    },
     counts: () => ({
       spans: db.prepare("SELECT COUNT(*) AS n FROM telemetry_spans").get().n,
       points: db.prepare("SELECT COUNT(*) AS n FROM telemetry_points").get().n,
