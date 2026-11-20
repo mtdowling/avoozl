@@ -1,0 +1,18 @@
+{
+  "title": "A ticked manual task releases the task after it",
+  "rules": ["4.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "release": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["release/m-3"]
+  }
+}

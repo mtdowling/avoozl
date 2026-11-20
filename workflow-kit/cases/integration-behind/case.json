@@ -1,0 +1,27 @@
+{
+  "title": "A claim on an integration branch merges the default branch in first",
+  "rules": ["11.1", "11.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "client"],
+    "behind": ["client"]
+  },
+  "issues": {
+    "client": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["client/c-1"],
+    "claim": {
+      "branch": "avoozl/client/c-1",
+      "base": "client",
+      "mergeBase": true
+    }
+  },
+  "expectFail": {
+    "ready": "sim-2.1",
+    "claim": "sim-2.6"
+  }
+}

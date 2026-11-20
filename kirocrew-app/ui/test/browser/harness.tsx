@@ -262,7 +262,7 @@ export const SCENARIOS: Record<string, Scenario> = {
   'add-plugin': own('Add plugin', <AddPlugin workspaceId="w" client={idle} supported={[1]} onChanged={async () => undefined} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
-    'archive-plan': shown((close) => <ArchivePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
+  'archive-plan': shown((close) => <ArchivePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   'delete-plan': shown((close) => <DeletePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   confirm: own(
     'Remove',
@@ -402,6 +402,28 @@ answer('workspaces.list', () => ({
     ...(query.get('long') === '1' ? [{ id: 'w2', name: 'Avoozl', root: '/w2', enabled: true, state: 'ready', served: false }] : []),
   ],
 }))
+// Settings > Workspaces > Telemetry. &telemetry=STATUS picks what the status
+// operation says (off by default); the switch flips it on and off.
+let telemetryStatus = query.get('telemetry') ?? 'off'
+const telemetryView = () => ({
+  status: telemetryStatus,
+  failure: telemetryStatus === 'backing-off' ? 'http 503' : null,
+  endpoint: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? null : 'https://otlp.example:4318',
+  protocol: telemetryStatus === 'protocol' ? 'grpc' : 'http/json',
+  headerNames: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? [] : ['authorization'],
+  sent: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? 41 : 0,
+  queued: telemetryStatus === 'backing-off' ? 3 : 0,
+  dropped: 0,
+  rejected: 0,
+  lastSuccessAt: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? '2026-11-20T03:12:09.000Z' : null,
+  local: { spans: 5120, points: 48210 },
+})
+answer('telemetry.status', telemetryView)
+answer('telemetry.configure', (body) => {
+  telemetryStatus = (body.input as { enabled?: boolean }).enabled ? 'no-endpoint' : 'off'
+  return telemetryView()
+})
+
 // &graph=chains: the Graph on three specs with real chains (graph-chains.ts).
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 // &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).

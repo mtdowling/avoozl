@@ -696,6 +696,8 @@ export async function publishPlanningPullRequest(store, github, { planId }) {
         title: plan.title,
         head,
         base: config.branch,
+        // Always a draft: a person releases it (R119.1).
+        draft: true,
         body: `<!-- avoozl-planning-pr
 ${JSON.stringify({ version: 1, planId: plan.id, planHash: plan.hash, commit: publication.commit })}
 -->

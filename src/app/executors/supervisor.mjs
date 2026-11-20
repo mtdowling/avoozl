@@ -32,6 +32,7 @@ import {
   sandboxSecretPaths,
 } from "./sandbox.mjs";
 import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
+import { lockHolder, machineLockPaths, takeLock } from "./machine-lock.mjs";
 
 const CHILD_WRAPPER = fileURLToPath(
   new URL("./supervisor-child.mjs", import.meta.url),
@@ -67,7 +68,6 @@ export function supervisorPaths(stateDirectory) {
   return {
     root,
     database: path.join(root, "supervisor.sqlite"),
-    lock: path.join(root, "supervisor.lock"),
     log: path.join(root, "supervisor.log"),
     tickLog: path.join(root, "tick.log"),
     serveLog: path.join(root, "serve.log"),
@@ -516,60 +516,35 @@ function readJson(file) {
   }
 }
 
-// One supervisor per machine (R95.1). The lock holds the owner's pid and
-// start time; a lock whose owner is gone is taken over.
+// One machine server per machine (MS2, design D3). The operating system holds
+// the lock for the life of the handle; the record only names the holder.
 function acquireSupervisorLock(
   stateDirectory,
   { startTime = processStartTime } = {},
 ) {
-  const { root, lock } = supervisorPaths(stateDirectory);
-  fs.mkdirSync(root, { recursive: true, mode: 0o700 });
+  const paths = machineLockPaths(stateDirectory);
   const mine = {
     pid: process.pid,
     started: startTime(process.pid),
     at: stamp(),
+    stateDirectory: path.resolve(stateDirectory),
   };
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      fs.writeFileSync(lock, JSON.stringify(mine) + "\n", {
-        flag: "wx",
-        mode: 0o600,
-      });
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      const holder = readJson(lock);
-      if (holder && sameProcess(holder.pid, holder.started, startTime))
-        fail(
-          `A supervisor already runs on this machine: pid ${holder.pid}, started ${holder.at}.`,
-          409,
-        );
-      // The owner is gone. Rename, not unlink, so only one taker wins it.
-      try {
-        fs.renameSync(lock, `${lock}.${process.pid}.stale`);
-        fs.rmSync(`${lock}.${process.pid}.stale`, { force: true });
-      } catch {
-        // Another taker moved it first; try again.
-      }
-      continue;
-    }
-    const holds = () => readJson(lock)?.pid === process.pid;
-    return {
-      holder: mine,
-      holds,
-      release() {
-        if (holds()) fs.rmSync(lock, { force: true });
-      },
-    };
-  }
-  fail("Could not take the supervisor lock; try again.", 409);
+  const taken = takeLock(paths, mine);
+  if (!taken.held)
+    fail(
+      `A supervisor already runs on this machine: pid ${taken.holder?.pid ?? "unknown"}, started ${taken.holder?.at ?? "unknown"}.`,
+      409,
+    );
+  return {
+    holder: mine,
+    holds: taken.holds,
+    release: taken.close,
+  };
 }
 
 // The supervisor that runs now, from its lock, or null.
-export function runningSupervisor(stateDirectory, { startTime } = {}) {
-  const holder = readJson(supervisorPaths(stateDirectory).lock);
-  return holder && sameProcess(holder.pid, holder.started, startTime)
-    ? holder
-    : null;
+export function runningSupervisor(stateDirectory) {
+  return lockHolder(machineLockPaths(stateDirectory));
 }
 
 function update(db, sessionId, fields) {
@@ -1028,7 +1003,7 @@ export function launchSupervisor({
   env = process.env,
   startTime,
 }) {
-  const running = runningSupervisor(stateDirectory, { startTime });
+  const running = runningSupervisor(stateDirectory);
   if (running) return { pid: running.pid, started: false };
   const { root, log } = supervisorPaths(stateDirectory);
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });

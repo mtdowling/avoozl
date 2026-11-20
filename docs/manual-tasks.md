@@ -1,23 +1,21 @@
 # Manual tasks
 
 A manual task is a step only a person does, such as a team review before a
-cutover. Mark it with `$manual: true` in `tasks.md`:
+cutover. End its title with `(**MANUAL**)` in `tasks.md`:
 
 ```markdown [tasks.md]
-- [ ] `team-review` Review with the team
-  - $manual: true
-  - $repo: sdk
-  - $after: protocol-tests-proof
-  - $done: The team agreed the results are good enough to cut over
+- [ ] `team-review` Review with the team (**MANUAL**)
+  - The team agreed the results are good enough to cut over
 ```
 
-A manual task needs `$done` and a `$repo`. `$manual: true` is the one way to say a
-person does a task. It completes by a person.
+A manual task has at least one done bullet. The tag is the one way to say a
+person does a task. It completes by a person. The task below it waits for it.
 
 ## Lint rules
 
-Lint refuses `$paths` on a manual task, by name. It refuses `$completion`
-anywhere, and names `$manual: true` as the fix.
+Lint refuses a title that holds the word `manual` in any form but exactly
+`(**MANUAL**)` at its end, and a group that carries the tag. See
+[Manual tasks](github-workflow.md#4-manual-tasks) in workflow v1.
 
 ## Running a manual task
 
@@ -50,4 +48,4 @@ Manual tasks are tested with a fake GitHub and have not run live.
 
 ## See also
 
-- [Specs](avoozl-specs.md) for the `$` fact bullets
+- [Workflow v1](github-workflow.md#4-manual-tasks) for the manual tag

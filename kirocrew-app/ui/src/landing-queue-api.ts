@@ -6,7 +6,7 @@ import { COMMAND_PATH } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 import type { BadgeVariant } from './ui/Badge.tsx'
 
-export type HoldKind = 'stopped' | 'off' | 'review' | 'failing' | 'pending' | 'conflict' | 'path' | 'behind' | 'next' | 'held' | 'waiting'
+export type HoldKind = 'stopped' | 'off' | 'draft' | 'merge' | 'review' | 'failing' | 'pending' | 'conflict' | 'path' | 'behind' | 'next' | 'held' | 'waiting'
 
 export interface LandingLink {
   kind: string
@@ -91,6 +91,8 @@ const VARIANT: Partial<Record<HoldKind, BadgeVariant>> = {
   stopped: 'danger',
   failing: 'danger',
   conflict: 'danger',
+  draft: 'warning',
+  merge: 'warning',
   review: 'warning',
   path: 'warning',
   next: 'success',
@@ -103,6 +105,8 @@ export const holdVariant = (kind: HoldKind): BadgeVariant | undefined => VARIANT
 const WORD: Record<HoldKind, string> = {
   stopped: 'Line stopped',
   off: 'Landing off',
+  draft: 'Draft',
+  merge: 'Ready to merge',
   review: 'Review missing',
   failing: 'Checks failing',
   pending: 'Checks pending',

@@ -115,7 +115,7 @@ else on the spec issue.
 | `direct`     | every round: one spec issue comment          | (no PR)                                     |
 | `off`        | every round: one spec issue comment          | (no PR)                                     |
 
-For `direct` the owner asked for a choice and a recommendation.
+For `direct` there are two choices.
 
 **Recommended: a comment on the spec issue, one per round.** Reasons:
 
@@ -172,16 +172,11 @@ Investigate's Go ahead starts an agent, so the tick checks who wrote the
 reply on every read, the same check GN7.3 makes for a label. Only an
 approver's reply counts, and only for its own round.
 
-## D8. Order with other branches
+## D8. Edits to other specs
 
-This spec's tasks start after `spec/spec-assignee`, `spec/drop-mirror` and
-`spec/approval-cutdown` land, because `gn-3.1`, `gn-4.1` and `gn-6.1` edit
-the same code. The spec edits of GN8 for those branches are made in
-`gn-7.1`, against whatever landed.
+The spec edits of GN8 are made in `gn-7.1`.
 
-## D9. Decisions
-
-These rules settle the design's open questions.
+## D9. Rules
 
 1. Nobody drives a spec by default. An instance drives a spec only when the
    spec issue and every other issue tied to it (its epic issue) name this
@@ -195,10 +190,9 @@ These rules settle the design's open questions.
 
 ## D10. Spec folder format
 
-The owner cut the spec format on 2026-11-19. The code is built separately
-on `spec/cut-facts` (the facts) and in the `specs.path` work (where specs
-live); this section only records the format they build, so that the rest
-of this spec and `docs/github-workflow.md` agree with it.
+The spec format is built by the `cut-facts` spec (the facts) and avoozl
+Requirement FS1 (where specs live). This section restates it, so that the
+rest of this spec and `docs/github-workflow.md` agree with it.
 
 **Where specs live.** A repository's `specs.path` names the folder that
 holds its specs, default `.kiro/specs`. Each subfolder is one spec. Only

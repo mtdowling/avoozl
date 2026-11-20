@@ -29,6 +29,7 @@ import {
   withdrawLanding,
 } from "./landing-queue.mjs";
 import { pullSteps } from "./landing-pulls.mjs";
+import { landingSettings } from "./landing-config.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import { localRequired } from "../plugins/check-stages.mjs";
 import {
@@ -315,6 +316,7 @@ export async function landPullRequests(
     env,
     machine,
     configFile,
+    config = null,
   } = {},
 ) {
   const notify = [],
@@ -355,6 +357,7 @@ export async function landPullRequests(
           configFile,
           store,
           commitPrefix: repository.commitPrefix,
+          pr: landingSettings(config, repository.github, repository).pr,
         });
       const result = await landNext(
         store,

@@ -7,7 +7,7 @@ import { Input } from './ui/Input'
 import { Field, fieldDescribedBy } from './ui/Field.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
-import { CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, valueSource, type RepositoryForm } from './settings-api.ts'
+import { CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, PR_MODES, PR_MODE_TEXT, valueSource, type RepositoryForm } from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
@@ -106,6 +106,32 @@ export function ConflictFields({ id, repository, set }: Part) {
         fallback={CONFLICT_DEFAULTS.maxAttempts}
         onChange={(value) => set({ maxAttempts: value })}
       />
+    </Stack>
+  )
+}
+
+// How pull requests open and merge (landing.pr), for pr landing: one line
+// per choice. Blank reads the workspace's landing.pr, else draft.
+export function PrModeFields({ id, repository, set }: Part) {
+  const own = (PR_MODES as readonly string[]).includes(repository.prMode) ? (repository.prMode as (typeof PR_MODES)[number]) : null
+  return (
+    <Stack id={`${id}-pr-mode`} gap={1}>
+      <RadioFold
+        name={`${id}-pr-mode`}
+        label="Pull requests"
+        value={own ?? 'draft'}
+        onChange={(value) => set({ prMode: value })}
+        sections={PR_MODES.map((mode) => ({
+          key: mode,
+          title: `${PR_MODE_TEXT[mode].title} (landing.pr: ${mode})`,
+          line: `${PR_MODE_TEXT[mode].line}${!repository.prMode && mode === 'draft' ? " Not set on this repository; uses the workspace's landing.pr, else this." : ''}`,
+        }))}
+      />
+      {repository.prMode && !own && (
+        <ErrorText role="alert" size="xs">
+          .avoozl.json has landing.pr "{repository.prMode}", which Avoozl does not accept. Pick one above and save.
+        </ErrorText>
+      )}
     </Stack>
   )
 }

@@ -63,6 +63,7 @@ import {
 import { sourceMap } from "../intake/intake.mjs";
 import { parseIssueReference } from "../tasks/issue-reference.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { telemetryHandle } from "../telemetry/index.mjs";
 import { mcpRefusal } from "../mcp/mcp-policy.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import {
@@ -911,6 +912,10 @@ export class Operations {
     const root = await this.retroRoot();
     return root ? writeRetroFiles(this.store, root) : null;
   }
+  // Send what the OTLP exporter has queued, for a process about to end.
+  async flushTelemetry() {
+    await telemetryHandle(this.store)?.flush();
+  }
   async rebuild() {
     if (this.store.list("plans").length)
       fail(
@@ -1057,8 +1062,7 @@ export class Operations {
         // Read again on the next tick.
       }
   }
-  // The one reader behind `avoozl rebuild` and adopting a repository in
-  // Settings > Repository setup (onboarding.adopt): the same steps over the
+  // The one reader behind `avoozl rebuild`: the same steps over the
   // named specs, with `allowed` (an approverCheck) in place of the
   // repository's own approvers list and `root` limiting landings and retros
   // to one checkout. A spec that already has a plan is left alone.

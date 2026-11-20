@@ -8,43 +8,19 @@ category: Planning
 
 When several verified tasks wait to land on one branch, Avoozl tests them
 together once, and when that fails, finds the one that broke it and lands
-the rest. A group tested and landed together is a **merge batch**. This spec
-makes merge batches part of `direct` landing, sizes them by themselves, and
-removes everything else the `landing-trains` spec built for the same idea.
-
-This spec replaces `.kiro/specs/landing-trains/`, which was deleted on
-2026-11-18 by the owner's decision. Its text is in git history; code
-comments that cite its `LT` numbers refer to that history until the tasks
-here remove or rewrite the code.
-
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts that a person does later. Nothing in it changes code until its
-tasks run.
-
-Claims about today's code carry one label: **V**, read in the file cited at
-`9124dcd`; or **A**, assumed and not checked, with the reason.
+the rest. A group tested and landed together is a **merge batch**. Merge
+batches are part of `direct` landing and size themselves.
 
 ### Why
 
-- **Two systems do one job.** `direct` landing already tests up to four
-  tasks of one driver together and halves a failed group (V: `TRAIN_TASKS =
-  4` in `src/app/landing-trains.mjs:32`; Requirement 87.2). `landing: train`
-  added a second system with its own queue records, lease, platforms,
-  capacity slots, CI fallback and about 25 settings (V: the `integrator-*`
-  modules, 3,167 lines, plus `landing-lease.mjs`, `resource-slots.mjs`,
-  `setup-workflows.mjs` and `train-heads.mjs`, 489 more).
 - **A fixed batch size fails most of the time.** If each change breaks the
   build with probability p, a batch of n passes with probability
   (1 − p)^n. At p = 10% a batch of 10, the old default, passes 35% of the
   time, and each failure costs a bisect. The size has to follow the
   measured failure rate.
-- **"Train" says the wrong thing.** GitLab's merge trains and GitHub's merge
-  queue test each change on its own run. Avoozl tests several in one run.
-  The owner chose the name merge batch.
-- **The open half of the old spec was built ahead of evidence.** Its live
-  proof on Nupp never ran, and its later phases (reaping, footprint
-  scheduling, CI capacity, a resolver chat, bisect on a red trunk) answered
-  problems no run had shown.
+- **One run for several changes.** GitLab's merge trains and GitHub's merge
+  queue test each change on its own run. A merge batch tests several in one
+  run.
 
 ### Scope
 
@@ -81,9 +57,9 @@ branch, so that I do not choose between two systems that do the same thing.
 1. `direct` landing SHALL land in merge batches. A merge batch of one member
    SHALL behave as `direct` landing of one task does today.
 2. The landing mode `train` SHALL be removed. A file that sets `train`
-   SHALL NOT load (changed 2026-11-19: it loaded as `direct`).
+   SHALL NOT load.
 3. A file that sets the `landing.trains` block SHALL NOT load, and the error
-   SHALL name the file and the key (changed 2026-11-19: it was ignored).
+   SHALL name the file and the key.
 4. A merge batch MAY hold tasks of several specs in this workspace.
 5. The words "train" and "integrator" SHALL NOT appear on the page, in the
    CLI help or in `README.md` and `docs/*.md`. A test SHALL check this.
@@ -127,8 +103,7 @@ that passed, so that a merge batch never turns the branch red.
    paths a member's diff touches, and every check that names no paths. Each
    SHALL be keyed by its name in reruns and bisect steps. A
    check MAY itself run another platform, through a container or a VM, as
-   the repository chooses. (Changed 2026-11-18: checks are named and MAY
-   name paths.)
+   the repository chooses.
 3. Only a candidate whose checks pass SHALL be pushed, as a guarded
    fast-forward from the base it was built on (Requirement 87.4). A base
    that moved SHALL mean a new candidate and new checks.
@@ -214,23 +189,3 @@ what slows delivery, so that I change the mode when it matters.
    GitHub's merge queue for one whose platforms can only be tested in CI.
 2. The proposal SHALL go through the retro's existing approve or reject
    step (Requirement 47) and SHALL change nothing by itself.
-
-### Requirement MB9: The old system goes
-
-**User story:** As the maintainer, I want the second landing system deleted,
-not left beside the first, so that there is one place to read.
-
-#### Acceptance criteria
-
-1. The integrator modules, the landing lease, the resource slots, the
-   platform environments and CI fallback, the batch branches, the review
-   pull requests of trains and `docs/integrator-trains.md` SHALL be
-   removed.
-2. `avoozl integrator …` and `avoozl landing submit` SHALL answer with one
-   line naming `direct` landing, and change nothing.
-3. A machine file that holds `machine.platforms`, `machine.slots` or
-   `lease` SHALL NOT load, and the error SHALL name the file and the key
-   (changed 2026-11-19: they were ignored).
-4. Requirement 87.1 and 87.2 of `.kiro/specs/avoozl/` SHALL describe merge
-   batches, and every mention of `train` as a landing mode there SHALL be
-   marked as retired by this spec.

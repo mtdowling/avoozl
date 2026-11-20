@@ -277,4 +277,3 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
     </Modal>
   )
 }
-

@@ -804,9 +804,10 @@ export class RepositorySettings {
       hash: file.hash,
       github: policySection(
         Object.fromEntries(
-          POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map(
-            (key) => [key, github[key]],
-          ),
+          POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map((key) => [
+            key,
+            github[key],
+          ]),
         ),
       ),
     };

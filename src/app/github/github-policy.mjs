@@ -1,5 +1,5 @@
 import { kirocrewSessionSettings } from "../executors/kirocrew.mjs";
-import { LANDING_MODES } from "../landing/landing-config.mjs";
+import { LANDING_MODES, PR_MODES } from "../landing/landing-config.mjs";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
 // authority, the Project, and per-repository settings. No label is an
 // order. Validation is deterministic; the one check that needs GitHub (base
@@ -52,7 +52,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "landing",
   ],
   conflicts: ["maxAttempts"],
-  landing: ["mode", "autoMerge", "method", "mergeBatch", "commitPrefix"],
+  landing: ["mode", "pr", "autoMerge", "method", "mergeBatch", "commitPrefix"],
 });
 // Who counts when a repository names nobody.
 export const DEFAULT_PERMISSION = "write";
@@ -198,6 +198,8 @@ function landingInput(value, label) {
   const block = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.landing, label);
   if (block.mode != null && !LANDING_MODES.includes(block.mode))
     fail(`${label}.mode must be direct, pr or off.`);
+  if (block.pr != null && !PR_MODES.includes(block.pr))
+    fail(`${label}.pr must be draft, ready or auto.`);
   if (block.autoMerge != null && typeof block.autoMerge !== "boolean")
     fail(`${label}.autoMerge must be true or false.`);
   if (
@@ -221,6 +223,7 @@ function landingInput(value, label) {
     fail(`${label}.method must be squash or merge.`);
   return {
     mode: block.mode ?? null,
+    pr: block.pr ?? null,
     autoMerge: block.autoMerge ?? null,
     method: block.method ?? MERGE_METHOD_DEFAULT,
     mergeBatch: block.mergeBatch ?? null,

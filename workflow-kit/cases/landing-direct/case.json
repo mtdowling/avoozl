@@ -1,0 +1,33 @@
+{
+  "title": "Direct landing fast-forwards the base and deletes the claim branch",
+  "rules": ["13.1", "13.2", "14.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "direct"
+  },
+  "expect": {
+    "landing": {
+      "action": "fast-forward-base",
+      "base": "main",
+      "tick": "same-commit",
+      "mergeBase": false,
+      "deleteClaimBranch": true
+    }
+  },
+  "expectFail": {
+    "landing": "sim-1.4"
+  }
+}

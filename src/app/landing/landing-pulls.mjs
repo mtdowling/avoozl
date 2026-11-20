@@ -21,6 +21,18 @@
 //   guarded by the head (`headGuardedMerge`). Without them Avoozl keeps the
 //   portion queued and observes an authorized maintainer's merge.
 // - The kept record holds the actual approvers and the actual merger.
+// - `pr` (landing.pr, R119) says how a pull request opens and merges.
+//   draft: it opens as a draft and waits ("waiting", reason "draft"),
+//   never merged; a failed check on it still goes back to the worker. A
+//   person releases it: Ready for review on GitHub, seen on the next read
+//   of the pull request, or Approve in Avoozl (`releaseDraft`), which only
+//   marks it ready. A push to a released pull request leaves it released.
+//   draft and ready: once the checks and reviews pass on the exact head it
+//   waits (reason "merge") for a person, who merges on GitHub (seen by
+//   `observe`) or presses Merge in Avoozl (`approveMerge`) for that head.
+//   auto: it opens ready and Avoozl merges it guarded by the head.
+//   shortcut: auto merges from the tick and never arms GitHub auto-merge;
+//   add that when a repository needs merges between ticks.
 //
 // shortcut: required checks are read from rulesets and classic protection
 // only; a repository that requires none needs `checks` names passed in.
@@ -40,6 +52,7 @@ import { postVerified } from "../github/setup-landing.mjs";
 import { fail } from "../store/store.mjs";
 import { firstErrorLine } from "../delivery/verify.mjs";
 import { asJob } from "../github/github-jobs.mjs";
+import { landingQueue } from "./landing-queue.mjs";
 
 const lower = (value) => String(value).toLowerCase();
 const PASS = new Set(["success", "neutral", "skipped"]);
@@ -109,6 +122,7 @@ async function requiredChecks(github, target, base, declared) {
 //   method      merge method (default "merge")
 //   store       the workspace, whose content rules check every push
 //   commitPrefix  the repository's landing.commitPrefix, for pull request titles
+//   pr          the repository's landing.pr: draft (default), ready or auto
 export function pullSteps({
   github,
   registry,
@@ -124,6 +138,7 @@ export function pullSteps({
   configFile,
   store,
   commitPrefix = "",
+  pr = "draft",
 }) {
   const refOf = (entry, base, commit = entry.commit) => {
     if (!entry.source?.repository || !entry.source?.branch)
@@ -258,6 +273,8 @@ export function pullSteps({
               : ref.source.branch,
           ...(sameOwner ? { head_repo: `${sourceOwner}/${sourceName}` } : {}),
           base: entry.base,
+          // landing.pr draft opens a draft a person releases (R119.1).
+          draft: pr === "draft",
           body: entry.tasks
             .map((t) => `Avoozl-Task: ${t.public ?? t.task}@${t.definition}`)
             .join("\n"),
@@ -307,6 +324,9 @@ export function pullSteps({
             !r.pending && !PASS.has(r.conclusion) && r.conclusion !== "success",
         );
       if (failed) return { ok: false, checks: shown };
+      // A failed check goes back to the worker even on a draft; otherwise a
+      // draft waits for a person before any review read (R119.2).
+      if (pull.draft) return { wait: true, reason: "draft", checks: shown };
       if (results.some((r) => r.pending))
         return { wait: true, reason: "checks", checks: shown };
       current.passed = results.map((r) => ({
@@ -332,6 +352,11 @@ export function pullSteps({
           .filter((r) => r.allowed && !r.stale && r.state === "approved")
           .map((r) => r.reviewer);
       }
+      // Unless landing.pr is auto, a person merges (R119.4): Merge in
+      // Avoozl for this exact head, else it waits, and a merge on GitHub is
+      // recorded by observe().
+      if (pr !== "auto" && entry.mergeApproved?.commit !== candidate)
+        return { wait: true, reason: "merge", checks: shown };
       return {
         ok: true,
         checks: shown,
@@ -341,8 +366,9 @@ export function pullSteps({
     // Merges only with merge rights; otherwise the next observe() records
     // the maintainer's merge and nothing is written here.
     async land({ entry, candidate }) {
-      const { pull, ref } = current,
-        rights = await landingRights(github, ref, login);
+      const { pull, ref } = current;
+      if (pull.draft) return false; // never a draft (R119.2)
+      const rights = await landingRights(github, ref, login);
       if (rights.land !== "merge") return false;
       // Avoozl writes the merge commit's message: the same trailers a
       // direct landing carries, so its metrics live in git (§4.42). A
@@ -360,4 +386,53 @@ export function pullSteps({
       });
     },
   };
+}
+
+// The queued portion of `key`, in a `pr` repository, or a refusal.
+function queuedPull(store, { repositoryId, base, key }) {
+  const repository = store.get("repositories", repositoryId ?? ""),
+    entry = landingQueue(store, { repositoryId, base }).find(
+      (e) => e.key === key,
+    );
+  if (!repository?.github || !entry)
+    fail(`${key ?? "That portion"} is not waiting to land.`, 404);
+  if (!entry.pr) fail(`${key} has no pull request yet.`, 409);
+  return { repository, entry };
+}
+
+// Merge in Avoozl (R119.3): a person's go-ahead for the exact head whose
+// checks and reviews passed. The next tick checks that head again and
+// merges it, guarded by the head. A person's only (`landing.merge`).
+export function approveMerge(store, at, { commit, by }) {
+  const { entry } = queuedPull(store, at);
+  if (
+    entry.waiting?.reason !== "merge" ||
+    entry.waiting.candidate !== commit ||
+    entry.commit !== commit
+  )
+    fail(
+      `Pull request #${entry.pr} is not ready to merge at ${String(commit ?? "").slice(0, 12)}: its checks have not passed on that head.`,
+      409,
+    );
+  store.transaction(() =>
+    store.put("landing_queue", {
+      ...store.get("landing_queue", entry.id),
+      mergeApproved: { commit, by, at: new Date().toISOString() },
+    }),
+  );
+  return { pr: entry.pr, commit };
+}
+
+// Approve in Avoozl (R119.3): the queued portion's draft pull request is
+// marked ready for review on GitHub. A person's only (the `landing.ready`
+// operation). It only marks it ready; landing.pr says who merges. Returns
+// {pr, released}; `released` is false when it was already ready.
+export async function releaseDraft(store, github, at) {
+  const { repository, entry } = queuedPull(store, at),
+    pull = await github.pullRequest(repository.github, entry.pr);
+  if (pull?.state !== "open")
+    fail(`Pull request #${entry.pr} is not open.`, 409);
+  if (!pull.draft) return { pr: entry.pr, released: false };
+  await asJob("land", github).markPullRequestReadyForReview(pull.node_id);
+  return { pr: entry.pr, released: true };
 }

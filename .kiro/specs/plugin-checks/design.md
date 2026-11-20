@@ -176,10 +176,9 @@ cache entries are `flow_records` kinds beside them.
 
 ## D3. One list of checks
 
-`repositoryChecks(repository)` is read by seven modules (V: `git grep`
+`repositoryChecks(repository)` is read by six modules (V: `git grep`
 over `src/app`: `check-runs.mjs` through `selectedChecks`, `direct-landing.mjs`,
-`flow-line.mjs`, `page-views.mjs`, `plan-quality.mjs`, `triage-reproduce.mjs`,
-`git.mjs`). Its signature becomes `repositoryChecks(repository, plugins)`,
+`flow-line.mjs`, `page-views.mjs`, `plan-quality.mjs`, `git.mjs`). Its signature becomes `repositoryChecks(repository, plugins)`,
 where `plugins` is `approvedPluginChecks(options)`, loaded once per run or
 view. Every caller passes it; none keeps a repository-only path. Each entry:
 
@@ -266,7 +265,7 @@ the role table and the executors every other role uses
 
 | Field    | Value                                                                                       |
 | -------- | ------------------------------------------------------------------------------------------- |
-| `setting`| `checkDecide` (Settings › Models, one model; default the planner's model, Q4)               |
+| `setting`| `checkDecide` (Settings › Models, one model; default the planner's model, D12)               |
 | `access` | `read`                                                                                      |
 | `folder` | `snapshot`: `prompt.md` (the decide prompt), `input.md` (task text) or `input.diff` (diff)  |
 | `offline`| `true`: no network but the model's route (`sandbox.modelProxy` on macOS)                     |
@@ -426,18 +425,19 @@ beyond the machine, and is started and stopped by the proof script.
 | A `phase` failure is found after its tasks landed                | That is the stage's point; the fix lands like any task and the check runs again        |
 | Engineers without the plugin cannot land a repository requiring it | PK6.4's Needs you item names the check; the repository chose to require it            |
 
-## D12. Decisions and open questions
+## D12. Rules
 
-Decided by the owner (2026-11-19): `run[0]` is always a file inside the
-plugin, never a bare `PATH` name (PK1.4); results never post to GitHub
-(PK6.6, D8). Q3 to Q6 below take their recommendation.
-
-| #  | Question                                                                                     | Recommendation                                                                                                   |
-| -- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Q3 | Can a decide `no` skip a check that `requiredChecks` names?                                  | Yes, recorded as `skipped: decide` and counted as checked; the author wrote the prompt, and a person can flip.  |
-| Q4 | Which model does `checkDecide` default to?                                                   | The planner's model until Settings › Models offers a small-model default; the call is short either way.          |
-| Q5 | Should a phase fix start on its own, without a person's Start?                               | No. Its text is outside output; a person's Start keeps an outside service from steering a write worker, and starting is a fix's approval (TA9). |
-| Q6 | Do worker machines report which plugin checks they can run, so a required name can wait for one of them? | Not in this spec. PK6.4 looks at the machine that lands; add worker reports when a second machine needs it. |
+1. `run[0]` is always a file inside the plugin, never a bare `PATH` name
+   (PK1.4).
+2. Results never post to GitHub (PK6.6, D8).
+3. A decide `no` may skip a check that `requiredChecks` names. It is
+   recorded as `skipped: decide` and counted as checked; the author wrote
+   the prompt, and a person can flip it.
+4. `checkDecide` defaults to the planner's model until Settings › Models
+   offers a small-model default; the call is short either way.
+5. A phase fix does not start on its own. Its text is outside output, so a
+   person's Start keeps an outside service from steering a write worker.
+6. PK6.4 looks only at the machine that lands.
 
 ## D13. MCP steps
 

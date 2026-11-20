@@ -1,0 +1,21 @@
+{
+  "title": "A claimed child leaves its siblings ready",
+  "rules": ["3.3", "9.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/epic-context/ec-2.4"],
+    "behind": []
+  },
+  "issues": {
+    "epic-context": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["epic-context/ec-2.5", "epic-context/ec-2.6"]
+  },
+  "expectFail": {
+    "ready": "sim-2.1"
+  }
+}

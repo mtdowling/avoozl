@@ -76,6 +76,37 @@ export const landingFixture: LandingQueue = {
       ],
     },
     {
+      key: 'meal-planner\u0000main',
+      repositoryId: 'meal-planner',
+      repository: 'acme/meal-planner',
+      base: 'main',
+      landing: 'pr',
+      items: [
+        item('swap', 'Swap a meal for another', {
+          position: 1,
+          pr: { ...pr(17), repository: 'acme/meal-planner', url: 'https://github.com/acme/meal-planner/pull/17' },
+          since: at(6),
+          hold: { kind: 'draft', text: 'Draft, waiting for you.' },
+        }),
+      ],
+    },
+    {
+      key: 'pantry\u0000main',
+      repositoryId: 'pantry',
+      repository: 'acme/pantry',
+      base: 'main',
+      landing: 'pr',
+      items: [
+        item('shop', 'Group the shopping list by aisle', {
+          position: 1,
+          pr: { ...pr(16), repository: 'acme/pantry', url: 'https://github.com/acme/pantry/pull/16' },
+          checks: checks('pass'),
+          since: at(5),
+          hold: { kind: 'merge', text: 'Ready to merge, waiting for you.' },
+        }),
+      ],
+    },
+    {
       key: 'meal-planner\u0000release/2',
       repositoryId: 'meal-planner',
       repository: 'acme/meal-planner',

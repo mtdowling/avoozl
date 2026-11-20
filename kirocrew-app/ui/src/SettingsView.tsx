@@ -48,7 +48,7 @@ import {
   SETTINGS_HOME,
   settingsTitle,
 } from './settings-api.ts'
-import { AutoMergeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
+import { AutoMergeFields, PrModeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
 import WorkspaceView from './WorkspaceView.tsx'
 import { AddRepositoryModal, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
 import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
@@ -69,6 +69,7 @@ import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
 import { NoticesSettings } from './NoticesSettings.tsx'
+import { TelemetrySettings } from './TelemetrySettings.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
@@ -461,6 +462,9 @@ export function RepositoryEditor(props: {
             </Box>
             <AutoMergeFields id={id} repository={repository} set={set} />
           </FieldGroup>
+          <FieldGroup title="Pull requests" blurb="For pr landing: how Avoozl opens its pull requests and who merges them.">
+            <PrModeFields id={id} repository={repository} set={set} />
+          </FieldGroup>
           <FieldGroup title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
             <MergeMethodFields id={id} repository={repository} set={set} />
           </FieldGroup>
@@ -785,13 +789,7 @@ export const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[
   calls: [],
 }
 
-function WorkspaceGitHub(props: {
-  form: SettingsForm
-  saved: SettingsForm
-  choices: SettingsChoices
-  set: (change: Partial<SettingsForm>) => void
-  rate: RateView | undefined
-}) {
+function WorkspaceGitHub(props: { form: SettingsForm; saved: SettingsForm; choices: SettingsChoices; set: (change: Partial<SettingsForm>) => void; rate: RateView | undefined }) {
   const { form, set } = props
   const [tab, pick] = useTabParam<GitHubTab>('github', GITHUB_TAB_KEYS, 'issues', 'Back to the last GitHub tab')
   const kept = unusedInLocal(form)
@@ -985,13 +983,7 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           onOpenPlans={props.onOpenPlans}
         />
       ) : (
-        <WorkspaceGitHub
-          form={form}
-          saved={toForm(settings.github)}
-          choices={choices}
-          set={set}
-          rate={settings.rate}
-        />
+        <WorkspaceGitHub form={form} saved={toForm(settings.github)} choices={choices} set={set} rate={settings.rate} />
       )}
       <SaveFooter
         dirty={dirty}
@@ -1036,6 +1028,7 @@ function SettingsBody(
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
         <ThisComputer workspaceId={workspaceId} />
         <NoticesSettings workspaceId={workspaceId} />
+        <TelemetrySettings workspaceId={workspaceId} />
       </Box>
     )
   if (!workspaceId)

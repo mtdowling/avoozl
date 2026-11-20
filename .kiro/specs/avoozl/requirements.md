@@ -2,91 +2,40 @@
 category: Planning
 ---
 
-Owner pivot, 2026-11-16: Requirement 102 and design §4.32 govern issues,
-working heads and completion. They supersede conflicting per-task
-GitHub projection, task-issue completion, epic-only integration and snapshot
-rebuild rules in earlier requirements and the `radar-coder` spec. Historical
-completed tasks remain history, not instructions to recreate the retired path.
-
-
-# Requirements: Avoozl as a Kiro Crew-native, GitHub-native product
-
-Status 2026-11-18 (spec audit against `origin/main`). The built page is no
-longer in git (#490), and CI selects tests by changed files (#521).
-Scope (2026-11-18, owner decision): Avoozl takes specs of any size, and a
-light spec with one task becomes one pull request. The epics-only scope
-statement and its one-pull-request rule of thumb (`radar-coder` RC13.1,
-RC13.2) are history; `src/work-split.mjs` holds the statement in use.
-One way to run a worker (2026-11-18, `.kiro/specs/worker-paths/`, approved
-by the owner's delegate): Crew Mode dispatch, runner mode over SSH (Requirement 84)
-and Requirement 41 are
-to be removed, and Requirement 96.5's manual path stays without Crew Mode.
-That spec's task wp-5.2 marks each of these here; until its tasks land, the
-code still has them.
+# Requirements: Avoozl
 
 ## Introduction
 
-This spec assesses Avoozl's future and defines the smallest useful product that
-runs inside Kiro Crew, works fully offline from GitHub, and uses GitHub for
-shared plans and delivery. It is a planning and product-design spec. Nothing in
-it changes code, GitHub repositories, app settings, or local databases.
+Avoozl turns a spec a person approves into landed code. It reads Kiro spec
+folders, builds a task graph from each spec's `tasks.md`, starts a coding
+agent on each ready task in its own worktree, runs the repository's checks on
+the exact commit the agent made, and lands the work by the repository's
+`landing` setting. Agents run as Kiro Crew chats or as process harnesses
+under Avoozl's supervisor. Avoozl is a local application with a Kiro Crew app
+page, a CLI and an MCP server; the page can also be served by `avoozl serve`.
 
-The three documents together form the recommendation:
+Git and GitHub hold the state that matters: specs, approvals, ticks and what
+landed. SQLite is a cache that `avoozl rebuild` makes again. GitHub is
+optional: a Local only workspace needs only Git.
 
-| Document          | Holds                                                                                                                                                                                                                 |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requirements.md` | Evidence baseline, product question, scope, and the behavior the product must have, with acceptance criteria                                                                                                          |
-| `design.md`       | Product thesis, non-goals, state ownership, architecture, workflows, Kiro Crew integration map, app UX, code disposition, moving an existing workspace, release gates, kill criteria, and the final product statement |
-| `tasks.md`        | The ordered proof sequence and phased roadmap as checkable tasks                                                                                                                                                      |
+| Document          | Holds                                                     |
+| ----------------- | --------------------------------------------------------- |
+| `requirements.md` | Facts Avoozl relies on, scope, and each requirement with acceptance criteria |
+| `design.md`       | State ownership, architecture, workflows and the page     |
+| `tasks.md`        | Built and open tasks, and the proofs that check them      |
 
 **Autopilot** is the name people read for delivery: the tick starting ready
-leaves on its own. Only the name changes (owner decision, 2026-11-13). The
-`delivery` key in `.avoozl.json`, the `delivery.*` operations, the CLI and the
-`plans_*` MCP names stay as they are, and so do the requirements below that
-say delivery.
+tasks on its own. The `delivery` key in `.avoozl.json`, the `delivery.*`
+operations, the CLI and the `plans_*` MCP names keep the word delivery.
 
-Every conclusion carries one label:
+Facts carry one label:
 
-- **Verified**: confirmed by reading current code, documentation, or data, with the source named.
+- **Verified**: confirmed by reading code, documentation, or data, with the source named.
 - **Inferred**: follows from verified facts, but was not directly observed.
-- **Proposed**: a recommendation this spec makes.
 
-### Sources inspected
+## Facts
 
-- Avoozl source, branch
-  `feature/kirocrew-github-delivery`, commits `df6778a`, `d262ce0`, `8a64fee`,
-  and `e54ebf5`, compared with `main`.
-- The prior direction draft (a local note, not published).
-- `docs/evidence/github-projection-2026-11-11.md` (live projection proof).
-- The Nupp planning workspace and its database
-  `.avoozl/local/workspace.sqlite`, opened read-only.
-- Kiro Crew documentation and shipped app sources in the installed
-  `KiroCrew.app` bundle (`kiro_crew/docs`, `kiro_crew/apps`,
-  `kiro_crew/apps/builtins/*`), plus installed app manifests under
-  `~/.kiro/crew/apps`.
-- GitHub documentation and changelog pages for sub-issues, issue
-  dependencies, issue types, milestones, Projects, iteration fields, closing
-  keywords, and `gh project`. Design facts F37–F48 cite each page.
-- Kiro documentation for specs: [Specs](https://kiro.dev/docs/specs) and
-  [Best practices](https://kiro.dev/docs/specs/best-practices).
-
-### Owner decisions of 2026-11-11 (update)
-
-The owner made GitHub issues and Projects the default record for shared work,
-defined two GitHub modes (plans-repo and single-repo), kept local tasks as an
-opt-in that never syncs, and required every plan to be a Kiro spec folder.
-Requirements 28–31 hold these decisions; design.md lists them under
-"Decisions already made". Where an older criterion below conflicts, the
-criterion says which mode it applies to. Requirement 32 (2026-11-12) adds a
-GitHub setup wizard, so nobody sets up GitHub by hand. Requirement 33
-(2026-11-12) moves Project Status, the blocked signal, and leaf-issue closing
-to GitHub's own features; the criteria it changed say "changed 2026-11-12".
-Its criteria 8–10 (2026-11-12) make a close without merged code by an
-allowed actor an order that releases dependents.
-
-## Evidence baseline
-
-### Facts the brief asked to preserve
+### Kiro Crew facts
 
 | #   | Claim                                                              | Result                    | Evidence and correction                                                                                                                                                                                                                                                                                                                                                                        |
 | --- | ------------------------------------------------------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -99,21 +48,18 @@ allowed actor an order that releases dependents.
 | F7  | Spec Builder writes requirements, design, and task Markdown.       | **Verified, refined**     | `spec_builder/backend/parsers.py`: `requirements.md`, `design.md`, `tasks.md`, plus `.spec-state.json`. Only requirements and design are approvable; approving the task list _is_ the handoff into one autonomous execution session. There is no fourth phase for another app.                                                                                                                 |
 | F8  | Crew Mode supervises independent worker sessions.                  | **Verified, refined**     | `docs/agents.md`, `docs/work-ledger.md`. Crew Mode is a feature preview behind Settings → Developer. A conductor (`kirocrew-conductor`) dispatches one `kirocrew-worker` session per item. Items must be independent: an item that consumes another item's output is not a valid item.                                                                                                         |
 | F9  | Crew Mode work items are not GitHub tasks.                         | **Verified**              | Work-ledger items hold title, acceptance, state, status, summary, artifacts, and an optional `pr` number. They have no issue identity and no dependency edges.                                                                                                                                                                                                                                 |
-| F10 | Removed 2026-11-14: the owner dropped the separate review app. | **Removed** | Avoozl's own code review chat stays (Requirement 49.16). |
 | F11 | GitHub projection supports native cross-repository dependencies.   | **Verified, with limits** | `src/app/github/github-sync.mjs` `projectPlanIssues` and the live proof. Limits: every target repository must be registered and private; a dependency outside the plan must already be projected; drift detection applies to edges only.                                                                                                                                                              |
 | F12 | Fresh Avoozl workspaces can recover projected issues from markers. | **Corrected**             | Recovery reuses existing issues only when the _same approved plan ID_ is projected again: issues are matched by the hidden marker's `taskId` and `planId` under the managed label. It does not rebuild local tasks, status, or edges from GitHub. `syncGitHubIssues` fails when a marker names a task that is not present locally. A closed projected issue makes re-projection fail with 409. |
 | F13 | Avoozl verifies exact pull-request completion and required checks. | **Corrected**             | `src/app/github-completion.mjs` implements the check correctly and was proved live. It was called only by a live proof script that now lives in git history. No operation, CLI command, MCP tool, or dependent-release path uses it. It also requires the closing pull request to live in the issue's repository.                                                                                            |
-| F14 | The current Kiro Crew Avoozl app is only a proof shell.            | **Verified**              | `kirocrew-app/app.json` declares one page and one skill, no backend, no MCP server, and no crons. `ui/src/App.tsx` renders four static cards and one button that opens a draft chat.                                                                                                                                                                                                           |
 
-### Additional facts that change the plan
+### Facts about Avoozl and Kiro Crew apps
 
 | #   | Fact                                                                                                                                                                                                                                                                                                                                                                                                                         | Label                                                                                    | Evidence                                                                                                                                                                          |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | F15 | Trigger labels and managed state labels are the same label today. One `label` (default `avoozl:ready`) authorizes intake _and_ is the readiness label projection adds. Intake supports one label, one assignee, an actor allowlist, and a minimum permission. There are no AND, OR, or exclusion rules.                                                                                                                      | **Verified**                                                                             | `github-sync.mjs` `syncGitHubIssues`, `prepareGitHubRepository`; `repository-settings.mjs`.                                                                                       |
-| F16 | Avoozl refuses public repositories for intake and projection with HTTP 403. This was a lockdown for testing, not a product rule; the product must support public repositories.                                                                                                                                                                                                                                               | **Verified** (code); owner decision 2026-11-11                                           | `prepareGitHubRepository` and `requirePrivateRepository` in `github-sync.mjs`.                                                                                                    |
+| F16 | Avoozl supports public and private repositories.                                                                                                                                                                                                                                               | **Verified** (code)                                                              | `prepareGitHubRepository` and `requirePrivateRepository` in `github-sync.mjs`.                                                                                                    |
 | F17 | Managed-field conflict detection covers dependency edges only. Titles and the managed body section are overwritten without comparing to the last applied value.                                                                                                                                                                                                                                                              | **Verified**                                                                             | `projectPlanIssues` compares `managedBlockerIssueIds`; title and body go straight to `updateIssue`.                                                                               |
 | F18 | GitHub task dispatch and all local execution use Avoozl's own agent host and providers (`codex`, `claude`, `openhands`), not Kiro Crew.                                                                                                                                                                                                                                                                                      | **Verified**                                                                             | `startAuthorizedIssue` calls `ops.manager.start`; `src/app/providers/`.                                                                                                           |
-| F19 | The feature branch is 6 commits ahead and 31 commits behind `main`. `main` adds design-prose extraction, durable andon safety controls, a team coordination control plane, and remote execution targets. The Nupp database already contains `main`-only tables (`extractions`, `plan_facts`, `execution_jobs`, `safety_*`, `team_checkpoints`).                                                                              | **Verified**                                                                             | `git rev-list --left-right --count main...feature/kirocrew-github-delivery`; Nupp `.tables`.                                                                                      |
 | F20 | A Kiro Crew app may declare a `node` backend that the gateway spawns on loopback and reverse-proxies at `/apps/<name>/api/`, plus `mcpServers`, `crons`, `agents`, and `skills`. Third-party apps run with gateway privileges after the user grants trust.                                                                                                                                                                   | **Verified**                                                                             | `apps/manifest_sections.py` `BackendConfig`; `apps/routes_proxy.py`; `docs/apps.md`. The current Avoozl app is installed and trusted (`~/.kiro/crew/apps/avoozl/installed.json`). |
 | F21 | No supported API lets an app backend create a _visible, project-bound_ Kiro Crew session. The app spawn SDK starts background agent turns with no project or working-directory argument. `session_create` has no project argument; a session inherits a project only from a folder whose `project_dir` a person set.                                                                                                         | **Verified**                                                                             | `apps/spawn_sdk.py`; `docs/session-control.md` (`session_create`, `chat_folder_update`).                                                                                          |
 | F22 | Kiro Crew inbound webhooks run one LLM turn in an ephemeral session, bind loopback by default, and use Kiro Crew's own HMAC headers, not GitHub's webhook signature.                                                                                                                                                                                                                                                         | **Verified**                                                                             | `docs/inbound-webhooks.md`.                                                                                                                                                       |
@@ -126,93 +72,32 @@ allowed actor an order that releases dependents.
 | F29 | No documented Kiro Crew event pushes a session's completion to an app backend. Apps can declare permitted event names (Task Runner declares `refine`; Workflows declares `workflow_run_event`), but no session-lifecycle event for third-party apps was found.                                                                                                                                                               | **Verified** (absence in docs and manifests searched); push support **Inferred** missing | `~/.kiro/crew/apps/*/app.json`; `docs/session-control.md`.                                                                                                                        |
 | F30 | Apps can declare notification channels in their manifest.                                                                                                                                                                                                                                                                                                                                                                    | **Verified**                                                                             | Issue Radar manifest `notifications.channels`.                                                                                                                                    |
 
-### Example workspace facts
-
-The first existing workspace moved was Nupp's. All counts come from a
-read-only query of its `.avoozl/local/workspace.sqlite` on 2026-11-11.
-
-| Fact                                                                  | Value                                                                                                                                                           | Label        |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| W1–W7 epics                                                           | 7, stored in the workspace snapshot                                                                                                                             | **Verified** |
-| Tasks in W1–W7                                                        | 141 (W1 33, W2 27, W3 22, W4 9, W5 12, W6 21, W7 17)                                                                                                            | **Verified** |
-| Finished W tasks                                                      | 61 (58 implemented, 3 accepted)                                                                                                                                 | **Verified** |
-| Unfinished W tasks                                                    | 80 (41 partial, 30 planned, 6 deferred, 2 blocked, 1 review)                                                                                                    | **Verified** |
-| Edges among W tasks                                                   | 130 (80 `requires`, 21 `sequence`, 29 `supports`); 101 of them block readiness                                                                                  | **Verified** |
-| Milestones                                                            | 3 (`compiler-on-core`, `runtime-flip`, `six-workload-execution`)                                                                                                | **Verified** |
-| Document-derived entries from `todo/nupp-compiler-runtime-rewrite.md` | 94, all `planned`, generated `plan-<hash>` IDs, zero edges                                                                                                      | **Verified** |
-| Those 94 entries duplicate W task scope                               | Likely                                                                                                                                                          | **Inferred** |
-| Whole database                                                        | 4,075 tasks; 3,888 are document-derived across many documents (2,036 recorded, 1,576 planned, 276 archived)                                                     | **Verified** |
-| Other native-runtime documents                                        | 357 more document-derived entries (`nupp-native-runtime-handoff.md`, `native-runtime-plan-before-consolidation-2026-10-28.md`, `nupp-native-runtime-ledger.md`) | **Verified** |
-| Prior deduplication receipts                                          | 149 `task-merge` evidence rows                                                                                                                                  | **Verified** |
-| Runs                                                                  | 12 (6 completed, 5 observing, 1 interrupted)                                                                                                                    | **Verified** |
-| GitHub projection                                                     | 0 projected issues, 0 registered intake repositories; the read-only GitHub queue tracks public repositories such as `nupp-lang/nupp`                            | **Verified** |
-| Integration branch                                                    | `codex/native-core-first-programs` recorded in the snapshot                                                                                                     | **Verified** |
-
-## Product question
-
-> What job does Avoozl own that Kiro Crew and GitHub do not already own?
-
-**Verified gaps.** No current Kiro Crew feature or GitHub feature does all of
-the following together:
-
-1. holds a durable, multi-level task graph with stable IDs and blocking edges
-   across repositories (Crew Mode items must be independent; Task Runner steps
-   are internal; Spec Builder hands one checklist to one session);
-2. computes readiness from those edges _before_ work is claimed (Issue Radar
-   claims by label and random pick, F4);
-3. turns one broad goal or issue into many tracked GitHub issues with native
-   edges (Issue Radar creates no sub-issues, F3);
-4. releases dependents only from exact completion facts (F13).
-
-**Proposed answer.** The brief's statement is close. It is refined in three ways:
-
-- "assigned GitHub issues" becomes "issues selected by repository trigger
-  rules", because assignment is one rule among several;
-- "launches bounded work through Kiro Crew" becomes "dispatches only ready,
-  bounded leaves through Kiro Crew sessions and Issue Radar", because Avoozl
-  must not run agents itself;
-- "keeps dependencies moving until completion" becomes "releases dependents
-  only from verified completion facts", which is the testable part.
-
-Refined statement (**Proposed**):
-
-> Avoozl turns local goals, reviewed designs, and GitHub issues selected by
-> repository rules into durable work graphs. It computes readiness from
-> dependencies, dispatches only ready, bounded leaves through Kiro Crew, projects
-> shared work into GitHub issues and native dependencies, and releases each
-> dependent only after verified completion.
-
 ## Scope
 
 ### In scope
 
-- One Avoozl Kiro Crew app with a real backend, page, skill, and MCP surface.
-- Kiro spec folders (`.kiro/specs/<name>/`) as the only plan layout.
-- Local planning and delivery with no GitHub dependency, as an opt-in.
-- GitHub as the default record: issues, sub-issues, issue dependencies, and a
-  GitHub Project, in plans-repo mode or single-repo mode.
-- GitHub intake, projection, Project field sync, completion, and dependent
-  release.
-- Use of Issue Radar, Task Runner, Spec Builder, Crew Mode, Workflows, chat,
-  sessions, and cron through supported interfaces only.
-- A plugin seam for intake sources, content rules, packs and templates, with
-  plugin loading and consent (Requirements 34, 55). The public repository ships only
-  test-only fake plugins; real integrations are separate packages.
-- Moving an existing workspace (Nupp's) as the large proof.
+- One Avoozl Kiro Crew app with a backend, page, skill, and MCP surface, and
+  the same page served by `avoozl serve`.
+- Kiro spec folders as the plan layout.
+- Local planning and delivery with no GitHub dependency.
+- GitHub spec issues, epic issues, pull requests and landing.
+- Agents on any harness: Kiro Crew chats or process harnesses under the
+  supervisor.
+- A plugin seam for intake sources, content rules, settings packs, templates,
+  credentials and checks, loaded only with consent (Requirements 34, 55).
+  The public repository ships only test-only fake plugins; real integrations
+  are separate packages.
 - An open-source release.
 
 ### Non-goals
 
-- An agent runtime, chat, terminal, file browser, model picker, or memory system.
-- A pull-request browser or code-review agent.
-- A scheduler, background poller, process supervisor, admission controller,
-  webhook receiver, or notification system of Avoozl's own.
-- A second writable task store for GitHub-backed work.
+- A chat, terminal, file browser or memory system.
+- A second writable task store beside git.
 - Any private or company-internal integration in the public repository, by
   name or by implementation. Such integrations live in their own packages and
   plug in through the seam (Requirement 34.10).
 - Reading or writing another Kiro Crew app's private data or routes.
-- New GitHub Apps, hosted services, or shared databases in the first release.
+- GitHub Apps, hosted services, or shared databases.
 
 ## Requirements
 
@@ -224,8 +109,8 @@ session to be a Kiro Crew session, so that I use one place to watch and steer wo
 #### Acceptance criteria
 
 1. WHEN Avoozl starts planning or implementation work THEN the work SHALL run in
-   a Kiro Crew session, Task Runner run, Crew Mode worker, workflow, or Issue
-   Radar crew, and in no Avoozl-owned agent process.
+   a Kiro Crew chat or a process harness that the supervisor starts
+   (Requirements 93 to 95).
 2. WHEN a task has a worker THEN Avoozl SHALL show a link that opens that exact
    Kiro Crew session or run.
 3. WHEN the Avoozl app is enabled THEN no separate Avoozl website, Canvas page,
@@ -276,11 +161,10 @@ safe pieces.
 1. WHEN a user submits a goal THEN a Kiro Crew planning session SHALL draft a
    graph, and an independent critique SHALL review it before approval.
 2. Every task SHALL have a stable ID that never changes after approval.
-3. Every task SHALL be classified as an epic, a work package, or a leaf.
-   (Changed 2026-11-13: a task is a package or a leaf; epics span plans,
-   Requirement 59.7.)
-4. Only leaves SHALL be dispatchable; epics and work packages SHALL complete
-   only from their children.
+3. Every task SHALL be a package or a leaf; epics span specs
+   (Requirement 59.7).
+4. Only leaves SHALL be dispatchable; packages SHALL complete only from
+   their children.
 5. A leaf SHALL be bounded: one target repository, observable acceptance
    criteria, and a completion condition.
 6. Dependency edges SHALL be explicit and typed; blocking and advisory edges
@@ -291,9 +175,6 @@ safe pieces.
    revision.
 
 ### Requirement 5: Design-first task facts
-
-(Changed 2026-11-18, Requirement 111: task facts are `$` fact bullets in
-`tasks.md`; there is no `avoozl/manifest.json`.)
 
 **User story:** As a developer who wrote requirements and design in Spec Builder,
 I want Avoozl to read each task's facts beside it in `tasks.md`, so that I can
@@ -328,20 +209,16 @@ limits I set, so that I do not file, start, or chase routine work.
 3. Concurrency SHALL have exactly two settings: `lanes.local` in the machine
    file (`~/.config/avoozl/config.json`), how many worker chats this machine
    runs at once (default 3), and Release N (`release.capacity`), how many
-   issues a repository releases at once. (Changed 2026-11-18, simplification
-   audit F1 and F2: it was bounded per workspace and per repository.)
+   issues a repository releases at once.
    `lanes.local` in `.avoozl.json` SHALL count as this machine's lanes when
    the machine file sets none. A file that still sets `delivery.concurrency`
    or `delivery.repositories.*.concurrency` SHALL NOT load, and the error
-   SHALL name the file and the key (changed 2026-11-19); the host and
+   SHALL name the file and the key; the host and
    workspace `maxConcurrentRuns` SHALL be ignored. Settings › Workspaces
    SHALL NOT show an "Agents at once" field, and `avoozl workspace
    concurrency` SHALL NOT exist, because nothing enforced them.
 4. WHEN a leaf needs several internal steps THEN Avoozl MAY run it through Task
    Runner, and those steps SHALL NOT become Avoozl tasks.
-5. WHEN several independent ready leaves exist and Crew Mode is enabled THEN
-   Avoozl MAY dispatch them as one Crew Mode goal; leaves with edges between
-   them SHALL NOT share one Crew Mode goal.
 6. Each worker SHALL use an isolated worktree.
 
 ### Requirement 7: Verification, integration, and dependent release
@@ -364,9 +241,8 @@ before dependents start, so that later tasks build on accepted code.
    run, cannot start (exit 126 or 127), or times out SHALL fail the
    checking, not the writer's attempt. A verifier session SHALL open only
    for a bar that needs judgment: a repository with no checks, or
-   `verify: agent` on the task. (Changed 2026-11-18: a task no longer
-   declares checks; every task runs its repository's checks, each named in
-   the repository's settings.)
+   `verify: agent` on the task. A task declares no checks; every task runs
+   its repository's checks, each named in the repository's settings.
 2. WHEN checks pass THEN Avoozl SHALL integrate the commit into the configured
    local integration branch and record the integrated commit.
 3. WHEN integration succeeds THEN Avoozl SHALL recompute readiness and dispatch
@@ -415,11 +291,9 @@ execution.
 1. Each repository SHALL have a reviewed policy naming allowed actors, minimum
    permission, required assignee if any, and the delivery route.
 2. Public and private repositories SHALL both be supported for intake,
-   projection, execution, and completion. The private-only check (F16) SHALL be
-   removed.
+   execution, and completion.
 3. A repository whose policy names neither allowed actors nor a minimum
-   permission SHALL be treated as `minimumPermission: write` (owner decision
-   2026-11-12), for trigger labels, board orders, closes, comment steering,
+   permission SHALL be treated as `minimumPermission: write`, for trigger labels, board orders, closes, comment steering,
    discussions, and pull-request reviews. Naming either SHALL replace this
    default. Avoozl SHALL ship no default rule that lets anyone without write
    access trigger work.
@@ -449,17 +323,16 @@ execution.
 10. Issue text SHALL NOT choose where its work runs: an issue's task block
     MAY set title, summary, acceptance, requires, tags, resources, epic and
     track, and its `repositoryId` SHALL be ignored; the issue's registered
-    repository decides the execution repository (added 2026-11-13, injection
-    audit).
+    repository decides the execution repository.
 11. Outside text quoted into a brief or a relayed message SHALL be capped:
     each pull request comment, review, or steering comment keeps its first
     4,000 characters and a note with its link. A check's name SHALL be one
     line of at most 100 characters in code quotes, its link SHALL be http
     or https, and the message SHALL say that a check's log is data, not
-    instructions (added 2026-11-13, injection audit).
+    instructions.
 12. Comment-mention steering SHALL pass the content rules' `brief`
     boundary (Requirement 40) before it is sent, as pull request feedback
-    does (added 2026-11-13, injection audit).
+    does.
 13. The planner agent's file writes SHALL be limited by its agent spec,
     not only its prompt: `toolsSettings.fs_write` SHALL set
     `fallbackAction: "deny"` with `allowedPaths: [".kiro/specs/**"]`,
@@ -467,11 +340,9 @@ execution.
     0.12.2 enforces this on kiro-cli and at its own tool gate on some other
     backends; the rest do not read it, and a static spec cannot name one
     spec folder,
-    so the one-folder limit within `.kiro/specs/` stays in the prompt
-    (added 2026-11-13, injection audit follow-up; upstream gap).
+    so the one-folder limit within `.kiro/specs/` stays in the prompt.
 14. Every link the app page renders SHALL be an http or https URL or one
-    of Kiro Crew's own pages (`/chat?sid=`, `/apps/`, `/issue-radar`); anything else SHALL render as text (added
-    2026-11-13, injection audit follow-up).
+    of Kiro Crew's own pages (`/chat?sid=`, `/apps/`, `/issue-radar`); anything else SHALL render as text.
 
 ### Requirement 11: Configurable trigger and managed labels
 
@@ -486,19 +357,15 @@ so that Avoozl fits my repository's vocabulary.
    issue-search syntax using only `label:x` (repeat for all), `label:a,b`
    (any), `-label:` (none), `assignee:login`, `no:assignee`, and quoted
    values. Labels SHALL compare without case. Any other token SHALL be
-   refused with an error naming it, never ignored. (Owner decision
-   2026-11-12.)
+   refused with an error naming it, never ignored.
 3. Each rule SHALL map to one fixed internal action: `respond`, `plan`,
    `deliver`, `execute`, `pause`, `resume`, or `quarantine`.
 4. Trigger labels SHALL be distinct from Avoozl-managed state labels, and
    validation SHALL reject a configuration where they overlap.
 5. Avoozl SHALL add or remove only its configured managed labels and SHALL
    preserve every other label.
-6. Rules written with the legacy keys `labelsAll`, `labelsAny`, `labelsNone`,
-   and `assignee` SHALL keep working unchanged. A rule with both `match` and
-   a legacy key SHALL be refused as ambiguous. Settings SHALL write `match`,
-   show the parsed terms, refuse a bad token inline, and preview the open
-   issues the line matches now.
+6. Settings SHALL write `match`, show the parsed terms, refuse a bad token
+   inline, and preview the open issues the line matches now.
 
 ### Requirement 12: Issue-first GitHub work
 
@@ -511,146 +378,12 @@ deliver it or break it down, so that one gesture starts the right amount of work
    (body hash, label event, actor) and plan only from that snapshot.
 2. WHEN the issue body or title changes after the snapshot THEN Avoozl SHALL
    quarantine the issue until a new trigger event or explicit confirmation,
-   and the task SHALL keep the snapshot's title (title added 2026-11-13).
+   and the task SHALL keep the snapshot's title.
 3. A planning session SHALL classify the issue as bounded or broad.
 4. WHEN the issue is bounded THEN it SHALL remain its own leaf, and Avoozl SHALL
    create no duplicate issue.
 5. WHEN the issue is broad THEN Avoozl SHALL create a child graph, publish
    children only after approval, and keep the source issue as their parent.
-6. WHEN every required child completes THEN Avoozl SHALL close the parent issue
-   as completed. No pull request closes a parent, so this is the one issue
-   close Avoozl makes besides "take back local" (Requirement 33.3).
-
-### Requirement 13: Projection into GitHub
-
-**User story:** As a maintainer, I want approved tasks to appear as GitHub issues
-with native dependencies, so that collaborators see the same graph.
-
-#### Acceptance criteria
-
-1. WHEN a graph is approved for GitHub THEN Avoozl SHALL show a preview of every
-   issue create, update, label change, and edge change before the first write.
-2. Projection SHALL create native GitHub dependencies within one repository and
-   across repositories.
-3. Projection SHALL withdraw readiness first, reconcile issues and edges, read
-   GitHub again, and add readiness labels last.
-4. Repeated projection of the same approved revision SHALL change nothing.
-5. Only one writer SHALL project a task namespace at a time.
-6. Issues SHALL be identified internally by GitHub node ID and shown as
-   `owner/repo#number`.
-7. Epics and packages SHALL project as parent issues and their children as
-   sub-issues. An epic SHALL get the owner's `Epic` issue type when the owner
-   has one, and no type otherwise. (Changed 2026-11-13: epic, plan issue,
-   then tasks, Requirement 59.8.)
-8. Blocking edges (`requires`) SHALL project as GitHub issue dependencies
-   (blocked by).
-
-### Requirement 14: Identity and fresh-workspace recovery
-
-**User story:** As a developer on a new machine, I want Avoozl to find issues it
-already created, so that I never get duplicates.
-
-#### Acceptance criteria
-
-1. Each managed issue SHALL carry a hidden marker with task ID, plan ID, source
-   commit, and content hash, and no secret or private path.
-2. WHEN a fresh workspace projects an approved revision THEN Avoozl SHALL reuse
-   every issue whose marker matches, open or closed.
-3. WHEN a fresh workspace connects to a repository THEN Avoozl SHALL be able to
-   rebuild the GitHub task graph, its edges, and completion state from markers
-   and native dependencies alone.
-4. WHEN two issues carry one task ID THEN Avoozl SHALL report a conflict and
-   write nothing for that task.
-
-### Requirement 15: Managed-field conflicts
-
-**User story:** As a collaborator, I want my edits to an Avoozl issue respected,
-so that automation never silently overwrites me.
-
-#### Acceptance criteria
-
-1. Avoozl SHALL record the last applied value of every managed field: title,
-   managed body section, managed labels, and dependency edges.
-2. WHEN the current value equals the last applied value THEN Avoozl SHALL apply
-   the new desired value.
-3. WHEN the current value differs from both the last applied and the desired
-   value THEN Avoozl SHALL report a conflict and leave that field unchanged.
-4. Avoozl SHALL never edit assignees (unless policy says so), comments, human
-   labels, claim labels, pull requests, or check results.
-5. A GitHub Project field edit SHALL never be a conflict. Avoozl acts only on
-   the edits Requirement 29 names (a Deferred order, a Release change, a Wave
-   edit) and leaves every other Status value alone (Requirement 29.14,
-   changed 2026-11-12). Edits to the issue itself stay under criteria 1–3.
-
-### Requirement 16: Exact pull-request completion
-
-**User story:** As a maintainer, I want a GitHub task to count as done only when
-its exact change merged and passed, so that dependents never start early.
-
-#### Acceptance criteria
-
-1. A code task SHALL complete only when GitHub reports its issue closed as
-   completed with exactly one merged pull request as the closer, that pull
-   request is in the leaf's code repository and targets the configured base
-   branch, and every check in the policy's `requiredChecks` succeeded on its
-   exact head commit (the list may be empty where branch protection is the
-   gate). The link is `Closes #N` in single-repo mode (a linked branch is
-   also allowed) and the linked branch `avoozl/<task-id>` in plans-repo mode
-   (Requirements 28, 33). Changed 2026-11-12: Avoozl no longer matches pull
-   requests by head branch name.
-2. WHEN several candidate pull requests exist THEN Avoozl SHALL report a conflict.
-3. Completion SHALL be derived from GitHub facts and SHALL feed dependent release
-   automatically.
-4. A manually closed issue SHALL NOT count as a verified completion. WHEN an
-   allowed actor closed it THEN it is an order that releases dependents
-   (Requirement 33.8); otherwise it holds them. (Changed 2026-11-12: a
-   manually closed issue satisfied nothing.)
-5. GitHub SHALL close the leaf issue on merge in both modes; Avoozl SHALL NOT
-   close a leaf issue. GitHub closes only from merges into the default
-   branch, so validation SHALL refuse a `baseBranch` that is not the code
-   repository's default for a github task. WHEN a pull request that should
-   close a leaf merged and passed but the issue is still open THEN Avoozl
-   SHALL open a decision. (Changed 2026-11-12, Requirement 33.)
-
-### Requirement 17: Issue Radar executes ready GitHub leaves
-
-**User story:** As a maintainer, I want Issue Radar to implement ready Avoozl
-leaves, so that GitHub delivery uses the crew I already run.
-
-This requirement applies in single-repo mode. Issue Radar crews read one
-repository's issues and open pull requests in that same repository, so they
-cannot code a planning-repo issue whose code lands elsewhere (Requirement 28).
-
-#### Acceptance criteria
-
-1. Avoozl SHALL expose ready leaves to Issue Radar only through one configured
-   managed readiness label per delivery route.
-2. Because Issue Radar does not gate blockers (F4), Avoozl SHALL add the
-   readiness label only to leaves whose blockers are complete, and SHALL remove
-   it before any change that could block them.
-3. WHEN a claimed issue loses readiness THEN Avoozl SHALL report stale claimed
-   work and SHALL NOT cancel the crew itself.
-4. Avoozl SHALL show the crew label scope a user must configure, and SHALL NOT
-   read or write Issue Radar's crew records (F23).
-
-### Requirement 18: Automatic pull-request merge
-
-**User story:** As a maintainer, I want approved routine changes to merge by
-themselves once checks pass, so that delivery continues overnight.
-
-#### Acceptance criteria
-
-Changed 2026-11-15 (owner decision): Avoozl pushes and merges, after
-checks pass on the updated head (Requirement 87). The old rule that Avoozl
-never merges, and that the worker or Issue Radar enables auto-merge, is
-reversed.
-
-1. Merging SHALL follow the repository's landing setting (Requirement 87):
-   `direct`, `pr` or `off`, gated by the repository's required reviews and
-   checks. The worker chat SHALL NOT enable auto-merge or merge.
-2. Avoozl SHALL merge only after checks passed on the head it merges, and
-   SHALL never force push or bypass a required check or review.
-3. WHEN merge completes THEN Requirement 16 SHALL decide completion.
 
 ### Requirement 19: One authority per state
 
@@ -662,34 +395,24 @@ so that two stores never disagree.
 1. The design SHALL name exactly one authority for: reviewed design, local task
    graph, local task status, GitHub issue graph, Kiro Crew sessions, worktrees
    and branches, pull requests, test results, completion, activity and
-   evidence. (Changed 2026-11-18: tracker plugin state went with
-   Requirement 35.)
+   evidence.
 2. Avoozl SQLite SHALL be authoritative for local-only tasks and SHALL be only a
    cache and receipt store for GitHub-backed tasks.
 3. No task SHALL be writable in two stores.
-4. GitHub Project Status SHALL be owned by GitHub's built-in workflows and
-   by people; Avoozl SHALL NOT write it. Avoozl SHALL set Release at
-   projection (people may change it) and keep Wave current from edges. An
-   allowed actor's move into Deferred SHALL be an order Avoozl reads.
-   SQLite SHALL cache the values (Requirements 29, 33; changed 2026-11-12).
 
 ### Requirement 20: The Avoozl app
-
-**Status 2026-11-18.** The page has seven nav entries, not six views: Dashboards (Home, Graph, Delivery, Landing queue), Specs, Needs you (Decisions, Triage, Issue Radar), Flow, Retros (Retros, Proposals), Activity and Settings (Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery). Criterion 1 is read that way. The Dashboards › CI page is hidden until it is built (owner, 2026-11-18, simplification audit item 10); Flow shows CI, and an old CI link opens Flow.
 
 **User story:** As a developer, I want one Avoozl page in Kiro Crew with clear
 views, so that I see my graph and its delivery without leaving Kiro Crew.
 
 #### Acceptance criteria
 
-1. The app SHALL provide Dashboards, Specs, Needs you, Flow, Retros, Activity,
-   and Settings views. (Changed 2026-11-18: this replaces Workspace, Plans,
-   Graph, Delivery, Conflicts and Settings; those are now pages of these
-   entries, and Workspaces is a Settings page.)
+1. The app SHALL provide seven nav entries: Dashboards (Home, Graph,
+   Delivery, Landing queue), Specs, Needs you (Decisions), Flow, Retros
+   (Retros, Proposals), Activity, and Settings (Workspaces, Repository setup,
+   GitHub, Plugins, Content rules, Flow, Models, Delivery).
 2. For each view the design SHALL name its data, primary actions, canonical
    source, links to existing Kiro Crew surfaces, and what it must not duplicate.
-3. The app SHALL NOT duplicate Issue Radar triage, pipeline, or crew views; it
-   SHALL link to them.
 4. All app data SHALL come from the Avoozl app backend, which uses the same
    operations as the CLI and MCP interface.
 
@@ -704,59 +427,6 @@ so that I can trust automatic delivery.
    integrations, conflicts, and decisions as append-only events.
 2. Evidence SHALL point to its real source (session, commit, check, pull
    request) rather than copy it.
-
-### Requirement 22: Retired
-
-Retired 2026-11-18 (owner decision). Route plugins are gone: worker-paths is
-the one dispatch path. Every task runs in a local worker or on GitHub. The
-number stays so that other requirements keep their references.
-
-### Requirement 23: Move an existing workspace
-
-**User story:** As the owner of an existing Avoozl workspace, I want my real
-workspace moved onto the new model without losing work or creating
-duplicates, so that a large live workspace is the proof. (The first workspace
-moved was Nupp's; its counts are in "Example workspace facts".)
-
-#### Acceptance criteria
-
-1. Every task in the workspace's epics and every edge among them SHALL keep
-   its ID and edge kind.
-2. Finished tasks SHALL be recorded in one migration baseline.
-3. Partial tasks SHALL be reconciled against branches, commits, and evidence
-   before any becomes ready.
-4. Blocked, deferred, and review states SHALL be preserved: deferred as the
-   Deferred Status, set once at cutover as the owner's recorded order;
-   blocked as issue dependencies, or as an open decision when the blocker is
-   not a task; review as the open pull request on the task's branch.
-   (Changed 2026-11-12: Avoozl writes no other Status, Requirement 33.)
-5. Document-derived entries that overlap epic scope SHALL become context or
-   acceptance clauses on existing tasks, not new tasks; every unmatched entry
-   SHALL be reported.
-6. Broad tasks SHALL remain work packages; only bounded leaves become ready.
-7. Automatic delivery SHALL begin only after a reviewed cutover and with active
-   runs drained.
-8. The migration SHALL read the old database without writing it until cutover.
-9. The workspace SHALL use the GitHub mode its owner picks. In plans-repo mode
-   the unfinished work SHALL become issues in the private planning
-   repository, epics as parent issues and their tasks as sub-issues, with
-   blocking edges as issue dependencies.
-   (Changed 2026-11-13: the old work groups become phases, Requirement 59.13.)
-10. The workspace's milestones SHALL become values of the Project's Release
-    field, and each issue's Release SHALL come from its milestone.
-11. Until cutover, the migration SHALL read the old database and fenced plan
-    files only through the migration read path (Requirement 30.8).
-12. In plans-repo mode, no public pull request SHALL name the private
-    planning repository.
-13. After cutover, Avoozl SHALL list plan files in the planning repository
-    that are stale or no longer current, with one evidence-based reason per
-    file: every task it holds is done or migrated, and the file is superseded
-    or has no live references. Files SHALL be deleted only in one reviewed
-    commit after the owner approves that list.
-14. After cutover, each current plan SHALL move to a Kiro spec folder
-    (Requirement 30) with task IDs and issue links unchanged, and validation
-    SHALL pass on every spec.
-15. Neither step 13 nor step 14 SHALL change any issue-to-task mapping.
 
 ### Requirement 24: Open-source release
 
@@ -773,27 +443,10 @@ clean machine, so that I can use it without private context.
 3. Execution in any repository, public or private, SHALL require an explicit
    repository rule; installing Avoozl SHALL enable no trigger rule.
 4. Third-party licenses SHALL be audited and noticed.
-5. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) Only `AVOOZL_*` variables and the `avoozl` command SHALL
+5. Only `AVOOZL_*` variables and the `avoozl` command SHALL
    work; older environment aliases, command names, editor settings and
    settings keys SHALL NOT be read. A configuration file with an unknown
    top-level key SHALL fail to load, naming the file and the key.
-
-### Requirement 25: Assessment deliverable quality
-
-**User story:** As the decision maker, I want the recommendation to be precise and
-checkable, so that I can approve or reject each part.
-
-#### Acceptance criteria
-
-1. Every conclusion SHALL be labeled Verified, Inferred, or Proposed.
-2. Every fact from the brief SHALL be confirmed or corrected with evidence.
-3. The design SHALL classify each major code area as Keep, Adapt, Replace,
-   Delete, or Defer, with a reason, covering `main`-only modules as well (F19).
-4. Each proof SHALL state setup, action, expected result, failure meaning, and
-   next design decision.
-5. The design SHALL list every missing handoff contract with Kiro Crew.
-6. The design SHALL include kill criteria for unnecessary features.
-7. The recommendation SHALL end with one product statement.
 
 ### Requirement 26: Lean on Kiro Crew for scheduling, watching, and runtime
 
@@ -803,9 +456,9 @@ small graph-and-policy app and Kiro Crew remains the one runtime.
 
 #### Acceptance criteria
 
-1. Avoozl SHALL NOT run its own scheduler, background poller, process
-   supervisor, worker lease system, or webhook receiver (F26 lists what exists
-   today and must go).
+1. Avoozl SHALL NOT run a background poller, worker lease system, or webhook
+   receiver of its own. Agent children belong to the supervisor
+   (Requirement 95).
 2. All routine automation SHALL run as one deterministic Avoozl command, here
    called the tick, that syncs GitHub, recomputes readiness, dispatches ready
    leaves, checks completion, and releases dependents.
@@ -820,90 +473,18 @@ small graph-and-policy app and Kiro Crew remains the one runtime.
 7. Concurrency SHALL be enforced by Avoozl policy limits checked inside the tick
    together with Kiro Crew's own session and subagent limits; Avoozl SHALL NOT
    keep a separate admission queue.
-8. Worker liveness SHALL come from Kiro Crew session or run status, read during
-   the tick; Avoozl SHALL NOT keep its own process or lease state.
+8. Worker liveness SHALL come from Kiro Crew session status or the
+   supervisor's child records, read during the tick; Avoozl SHALL NOT keep a
+   lease.
 9. Monitor loops (F28) and inbound webhooks (F22) MAY be used to make a tick run
    sooner, but no workflow SHALL depend on them, and Avoozl SHALL NOT use a
    monitor loop for routine polling.
 10. Human decisions and failures SHALL reach the user through Kiro Crew
     notifications declared by the app (F30) and links to the relevant session.
-11. WHEN Kiro Crew lacks a needed event, such as a push on session completion
-    (F29), the design SHALL list it as a missing handoff contract, and the tick
-    SHALL poll for it until Kiro Crew provides one.
+11. Kiro Crew has no push on session completion (F29), so the tick SHALL poll
+    session status.
 12. WHEN the gateway is stopped THEN no Avoozl automation SHALL run, and the next
     tick after restart SHALL reconcile state before any new dispatch.
-
-### Requirement 27: Label-driven GitHub loop on Kiro Crew
-
-**User story:** As a maintainer, I want to drive work from GitHub labels and
-assignees alone, so that tagging an issue gets it answered, broken into
-sub-issues, fanned out, and delivered in dependency order without me filing or
-starting anything.
-
-The idea is to watch issues, dispatch agents and track to merge. Avoozl builds
-it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
-(**Proposed**)
-
-#### Acceptance criteria
-
-1. Selection SHALL be configurable per repository by a `match` search line
-   (labels all, any, and none; assignee; Requirement 11.2), issue author, and the
-   actor who applied the trigger label. The default rule SHALL select only
-   issues the configured maintainer both authored and is assigned to.
-2. WHEN a `respond` rule matches THEN Avoozl SHALL add its configured
-   in-progress label, start one Kiro Crew session that reads the frozen issue
-   snapshot and the repository read-only, post at most one reply on the issue,
-   and remove the in-progress label when the session ends.
-3. A `respond` session SHALL NOT change code, open branches or pull requests,
-   or edit labels other than through Avoozl.
-4. WHEN a `deliver` rule matches a bounded issue THEN Avoozl SHALL add the
-   configured ready label once its blockers are complete. In single-repo mode
-   an Issue Radar crew scoped to that label SHALL claim it, open the pull
-   request, repair CI, answer review, and merge under the repository's gates.
-   In plans-repo mode an Avoozl worker session SHALL do the same work in the
-   code repository (criterion 14).
-5. WHEN a `deliver` rule matches a broad issue THEN Avoozl SHALL plan child
-   issues with native sub-issue links to the parent and native dependency edges
-   between children, show the preview, and publish them only after approval
-   (or automatically when the rule allows it, per Requirement 9).
-6. Fan-out SHALL be automatic: every child whose blockers are complete SHALL
-   receive the ready label in the same tick, up to the repository's Release N
-   (Requirement 6.3).
-7. WHEN slots are scarce THEN Avoozl SHALL release ready children in a
-   configurable priority order by label (for example `critical`, then `high`),
-   then by graph order.
-8. Dependencies SHALL come from native GitHub dependency edges, and from
-   `depends on #N` text only when the repository rule enables it. Text-derived
-   edges SHALL be written back as native edges after approval.
-9. Pull requests for GitHub leaves SHALL be written by Issue Radar in
-   single-repo mode and by Avoozl worker sessions in plans-repo mode. The
-   Avoozl process itself SHALL NOT open, push to, or merge pull requests.
-10. Concurrency on GitHub SHALL be bounded by how many leaves Avoozl labels ready
-    at once and by the number of crews configured per route, since each crew
-    holds at most one item in its editing phases (F24). In plans-repo mode it
-    SHALL be bounded by this machine's lanes (Requirement 6.3).
-11. WHEN a crew labels an issue as needing a human THEN Avoozl SHALL show it as a
-    decision and SHALL withhold readiness from that issue's dependents.
-12. The parent issue SHALL close as completed only after every required child
-    meets Requirement 16.
-13. Deferred until the core loop is proved: stacked pull requests on an open
-    blocker, Discussions answering, and steering a running crew from comment
-    mentions. Each SHALL appear in `tasks.md` only as a later phase. GitHub
-    Projects are not deferred; Requirement 29 covers them.
-14. In plans-repo mode Avoozl's own worker sessions SHALL code the leaves in
-    the code repository, dispatched by the Phase 2 runner (Crew Mode, with
-    the script cron as fallback), because Issue Radar crews are tied to one
-    repository and open pull requests only there (F23, F24). IF the Issue
-    Radar handoff cannot meet criteria 4, 9, and 10 in single-repo mode THEN
-    the design SHALL use worker sessions there too, and SHALL record why.
-15. A reply on a public repository, or one GitHub cannot read, SHALL quote
-    only that repository. Avoozl SHALL refuse a reply (posting nothing)
-    any of whose lines, of at least 20 characters with quote and list marks
-    dropped, appears in a file of another registered checkout, a plans
-    repository included, and not in the target's own checkout. The refusal
-    SHALL name the line, never the text. Content rules still run. A reply
-    on a private repository is not checked this way (added 2026-11-13,
-    injection audit follow-up).
 
 ### Requirement 28: GitHub modes and task authority
 
@@ -916,127 +497,17 @@ reveal a private plan.
 
 1. Each workspace SHALL configure at most one GitHub mode: `plans-repo` or
    `single-repo`. With no mode, every task is local.
-2. WHEN a GitHub mode is configured THEN the default authority of a new task
-   SHALL be `github`: approving its plan SHALL lead to an issue through an
-   approved projection.
-3. Local tasks SHALL be opt-in, set per task or per workspace as
-   `authority: local`, and SHALL never sync to GitHub.
-4. A task SHALL move from local to github only through an approved
-   projection. Nothing SHALL sync it implicitly.
-5. A person SHALL be able to tell the two apart: a github task has an issue
-   link (`owner/repo#number`) in every view; a local task has none and shows
-   the word "local".
-6. In plans-repo mode the issues, sub-issues, and dependencies SHALL live in
-   one planning repository, and code pull requests SHALL land in the code
-   repositories the leaves name.
+6. In plans-repo mode the spec folders, spec issues and epic issues SHALL
+   live in one planning repository, and code SHALL land in the code
+   repositories the tasks name.
 7. In plans-repo mode no pull request, commit message, branch name, or marker
-   in a code repository SHALL name the planning repository, so closing
-   keywords SHALL NOT be used. At dispatch Avoozl SHALL create a linked
-   branch `avoozl/<task-id>` for the planning issue in the leaf's code
-   repository (GraphQL `createLinkedBranch`), and GitHub SHALL close the
-   planning issue when that branch's pull request merges into the default
-   branch (Requirement 33.4; changed 2026-11-12).
+   in a code repository SHALL name the planning repository.
 8. WHEN the pull request title, body, or a commit message names the planning
-   repository THEN Avoozl SHALL open a decision and SHALL NOT complete the
-   task until it is fixed.
-9. In single-repo mode the issues SHALL live in the code repository, pull
-   requests SHALL say `Closes #N` (a linked branch is also allowed), GitHub
-   SHALL close the issue on merge, and
-   Avoozl SHALL still verify completion (Requirement 16).
+   repository THEN Avoozl SHALL open a decision and SHALL NOT land the task
+   until it is fixed.
 10. Both modes SHALL work when the planning repository is private and the code
     repository is public, and when the two repositories belong to different
     organizations.
-11. Marker v2 SHALL never name the planning repository, its owner, or its path.
-
-### Requirement 29: GitHub Projects as the default view
-
-**User story:** As a maintainer, I want every managed issue on one GitHub
-Project with current fields, so that I can see a release across repositories
-on GitHub.
-
-#### Acceptance criteria
-
-1. WHEN a GitHub mode has a configured Project (v2, organization or user)
-   THEN Avoozl SHALL add each managed issue to it on projection.
-2. Avoozl SHALL NOT write the Project's Status field. GitHub's built-in
-   workflows and people own it (Requirement 33; changed 2026-11-12, replacing
-   "Avoozl SHALL keep the Project's Status field current from task state").
-3. Avoozl SHALL set a single-select Release field from the plan's milestones.
-   Avoozl SHALL NOT use GitHub milestones, which belong to one repository.
-4. Avoozl SHALL set an Iteration field only when the policy names one.
-5. Avoozl SHALL write only the fields the policy names, and never Status. It
-   SHALL read Project changes on its 60-second tick, with no webhooks, and
-   judge each Deferred, Release, and Wave change after this tick's completion
-   and state changes. WHEN a move into or out of Deferred comes from an
-   editor the repository policy's `allowedActors` or `minimumPermission`
-   check (Requirement 10) does not allow, or whose actor cannot be read,
-   THEN Avoozl SHALL ignore it as an order and SHALL NOT revert the card.
-   (Changed 2026-11-12: disallowed edits were reverted.)
-6. Field sync SHALL be idempotent: a second sync with no change SHALL write
-   nothing.
-7. WHEN the token lacks the `project` scope THEN Project sync SHALL report
-   unavailable and issue projection SHALL keep working.
-8. Avoozl SHALL compute and write a number field, Wave, on each managed
-   item. A task that waits on nothing SHALL be wave 1; any other task SHALL be
-   1 plus the highest wave among the tasks it waits on. Only blocking edges
-   (`requires`, `sequence`) SHALL count, not `supports` edges. Done tasks
-   SHALL keep their wave.
-9. Avoozl SHALL recompute Wave on every tick and write it only when it
-   changes. Projection SHALL use the same rule, so a second pass writes
-   nothing.
-10. Wave SHALL describe order, not time: the earliest round a task could
-    run, which capacity may delay. Avoozl SHALL NOT turn a wave into a date.
-11. A Wave edit by anyone SHALL be refused: Avoozl SHALL write the computed
-    wave back and send a Kiro Crew notification.
-12. WHEN an allowed actor moves Status to Deferred (the option
-    `statusValues.deferred` names) THEN Avoozl SHALL dispatch nothing new for
-    the task, SHALL leave a running session alone, and SHALL notify the owner
-    in Kiro Crew.
-13. WHEN an allowed actor moves Status out of Deferred THEN Avoozl SHALL
-    resume the task and SHALL write no Status: the column the person picked
-    stays. (Changed 2026-11-12: Avoozl wrote the computed Status.)
-14. Every other Status value, including a drag to Done, In progress, or
-    Todo, SHALL be the board's own: Avoozl SHALL neither revert nor act on
-    it, and SHALL show it beside Avoozl's own state in the Delivery view when
-    the two disagree. Only an issue closed as completed by a merged pull
-    request completes a task (Requirement 16). A drag to Done closes the
-    issue through the Auto-close issue workflow; that close is judged like
-    any close without a merged pull request (Requirement 33.8). (Changed
-    2026-11-12: drags to Done, Running, Review, and a not-ready Ready were
-    reverted; later the same day, a drag to Done became a close.)
-15. Avoozl SHALL set Release when it adds the item, from the plan's
-    milestones. WHEN someone changes Release THEN Avoozl SHALL keep the
-    value and SHALL draft a change to the task's facts for review, so the plan
-    catches up. Avoozl SHALL write Release again only when an approved revision moves
-    the task and the field still holds the value Avoozl last wrote.
-    (Changed 2026-11-12: the actor check no longer applies to Release.)
-16. Built-in Project workflows (`@github-project-automation`) SHALL write
-    Status; Avoozl SHALL record no Status baseline and revert nothing they
-    write. (Changed 2026-11-12.)
-17. The setup wizard SHALL make sure the Status field has the options the
-    recommended workflows set (Todo, In progress, Done) and a Deferred
-    option, map them through `statusValues`, and SHALL never remove or rename
-    an existing option (Requirement 32). Avoozl SHALL NOT require other
-    Status options. (Changed 2026-11-12.)
-18. Avoozl SHALL fill an optional single-select Project field, Avoozl state,
-    with the task's Delivery lane: Ready, Running, Reviewing, Needs you,
-    Blocked or waiting, Done, or Deferred. The lane SHALL come from the one
-    rule the Delivery tab uses, and Avoozl SHALL write the field only when
-    its value changes. A blank `project.fields.avoozlState` SHALL turn it
-    off. Avoozl SHALL still never write Status. (Added 2026-11-13.)
-19. WHEN anyone else changes Avoozl state THEN Avoozl SHALL write its own
-    value back on the next tick, once, notify the owner, and record a GitHub
-    edit in Conflicts that stays until the state next moves. Avoozl state
-    SHALL NOT name the Status field.
-20. The setup wizard SHALL create Avoozl state with those options and a
-    "Board by Avoozl state" board view with a column per Avoozl state, each
-    shown as create, change, or keep. WHEN the API cannot set the view's
-    columns THEN the checklist SHALL name the one click, marked Inferred
-    until a live call confirms the API cannot.
-21. The wizard SHALL name Status's first option Ready, renaming GitHub's
-    default Todo only on a Project it just created, and SHALL keep an
-    existing Todo through `statusValues.todo`, so older boards keep working.
-    (Changes the Todo in criterion 17, 2026-11-13.)
 
 ### Requirement 30: Every plan is a Kiro spec folder
 
@@ -1047,27 +518,21 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
 
 1. Every Avoozl plan SHALL be one Kiro spec folder, `.kiro/specs/<name>/`,
    holding `requirements.md` or `bugfix.md` (exactly one), `design.md`, and
-   `tasks.md`. (Changed 2026-11-18, Requirement 111: the manifest is gone;
-   each task's facts are `$` fact bullets in `tasks.md`. Changed 2026-11-19,
-   Requirement FS1: the folder is under `specs.path`, and only `tasks.md` is
-   required.)
+   `tasks.md`, under the repository's `specs.path`. Only `tasks.md` is
+   required (Requirement FS1), and each task's facts are `$` fact bullets
+   under it (Requirement 111).
 2. Bugfix specs SHALL be supported the same way as feature specs.
 3. In plans-repo mode spec folders SHALL live in the planning repository; in
    single-repo mode, in the code repository; with no GitHub mode, in the
    workspace's planning repository.
-4. Deterministic validation SHALL refuse a plan whose folder is missing, that
-   lacks any of the three files, or that has both `requirements.md` and
-   `bugfix.md`. (Changed 2026-11-19, Requirement FS1: only a missing
-   `tasks.md` is refused.)
+4. Deterministic validation SHALL refuse a plan whose folder is missing or
+   has no `tasks.md`.
 5. Every checklist item in `tasks.md` SHALL start with a task ID. Validation
    SHALL refuse an item with no ID and any ID used twice in the namespace.
-6. Avoozl SHALL map `tasks.md` items to tasks and issues only by these IDs.
+6. Avoozl SHALL map `tasks.md` items to tasks only by these IDs.
    Edges SHALL come from the task's `$after` facts (Requirement 111). Kiro's own task waves inside
    `tasks.md` SHALL NOT be Avoozl's graph.
 7. Avoozl's planner SHALL write plans into this layout.
-8. Free-form plan files with fenced task blocks (`extractPlan`) SHALL remain
-   only as a read path for migrating old workspaces, such as Nupp. Avoozl
-   SHALL NOT write them.
 9. A plan's category SHALL come only from a `category:` key in YAML
    front-matter at the top of the spec's `requirements.md` or `bugfix.md`
    (for a plan with no spec folder, from front-matter at the top of its own
@@ -1077,172 +542,43 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
    front-matter SHALL produce a warning diagnostic with its file and line and
    SHALL NOT block approval. The Plans view SHALL group plans by category.
 
-### Requirement 31: Proof of both modes and Project sync
-
-**User story:** As the decision maker, I want each GitHub mode proved on real
-repositories before Nupp moves, so that the default is safe.
-
-#### Acceptance criteria
-
-1. The proofs SHALL cover single-repo mode, plans-repo mode in one
-   organization, and plans-repo mode across two organizations.
-2. One proof SHALL use a private planning repository with a public code
-   repository and SHALL show GitHub closing the planning issue through the
-   linked branch while the public pull request names no planning repository.
-3. One proof SHALL show Project fields (Release, Wave, Iteration) set and
-   kept current, and Status following the built-in workflows, for issues
-   from more than one repository.
-4. One proof SHALL show local tasks and github tasks in one workspace, with
-   the local task never synced and a later projection moving it.
-5. Before Phase 6, one proof SHALL repeat the linked-branch close and the
-   logged-out leak check inside one organization, with a private planning
-   repository and a public code repository, as Nupp will use.
-
 ### Requirement 32: GitHub setup wizard
 
-**Changed 2026-11-19 (triage-agent TA13).** Set up GitHub, like all
-repository onboarding, asks nothing about triage, writes no `triage` key and
-makes no triage label; Set up triage on the Triage agent page does that.
-
 **User story:** As a maintainer, I want Avoozl to set up GitHub for me from
-its Settings view, so that I never configure repositories, Projects, fields,
-issue types, or labels by hand.
+its Settings view, so that I never configure repositories or issue types by
+hand.
 
 #### Acceptance criteria
 
 1. The Settings view SHALL offer a **Set up GitHub** flow that runs these
    steps in order:
-   1. check the token and report each missing scope (`repo`, `read:org`,
-      `project`) with the exact command that adds it, for example
-      `gh auth refresh -s project`;
+   1. check the token and report each missing scope (`repo`, `read:org`)
+      with the exact command that adds it;
    2. ask for the mode, plans-repo or single-repo, then pick or create the
       planning repository (plans-repo mode), private by default;
    3. turn on issues in each repository the mode needs;
-   4. pick or create an organization or user Project, private by default;
-   5. create missing fields: Status options mapped through
-      `project.statusValues` (Todo, In progress, Done, Deferred only),
-      Release (single-select) seeded from the plan's
-      milestones, Wave (number), and an optional Iteration field, then a
-      Board view with a column per Status, grouped by Release, and, if the
-      person asks, a Table view grouped by Wave. WHEN the API cannot set a
-      view's grouping THEN the wizard SHALL still create the view and SHALL
-      put the grouping click on the checklist. The wizard SHALL NOT create a
-      Roadmap view, which is date-based; a person may add one later;
-      5a. read the Project's built-in workflows and compare them with the
-      recommended settings (Requirement 33.6). GitHub's API can read a
-      workflow's name and whether it is on, but cannot turn one on or off or
-      read its column or filter, so every difference and every setting it
-      cannot read SHALL go on the checklist;
    6. create the `Epic` issue type when the organization allows it and has
       none;
-   7. create the managed labels;
    8. write the result into `.avoozl.json` through a reviewed change.
 2. The wizard SHALL preview every GitHub write before applying any, and the
    person SHALL confirm once for the whole set.
 3. The wizard SHALL be idempotent: it SHALL reuse what exists and add only
    what is missing. A second run on a finished setup SHALL write nothing.
-4. The wizard SHALL NOT delete or rename any repository, Project, field,
-   option, issue type, or label.
+4. The wizard SHALL NOT delete or rename any repository or issue type.
 5. WHEN a step fails for lack of permission or scope THEN the wizard SHALL
    report that step with the reason and the fix, and SHALL keep every other
-   step. WHEN the token lacks the `project` scope THEN the wizard SHALL make
-   no Project write.
+   step.
 6. The wizard SHALL end with a short checklist of the steps GitHub's API
    cannot do, each with a link to the place to do it.
 7. The design SHALL mark each GitHub API limit the wizard relies on as
    Verified or Inferred and cite GitHub's documentation.
 8. One proof SHALL run the wizard twice on a fresh test organization, user,
-   or repository: the first run creates everything, the second changes
-   nothing, and a token without the `project` scope gets the fix command and
-   no Project writes.
-
-### Requirement 33: Lean on GitHub-native state
-
-Added 2026-11-12 (owner-approved direction). Evidence: the linked-branch probe,
-`docs/evidence/github-linked-branch-probe.md` in the Avoozl repository
-(commit `31adf4e`), and design F51–F55.
-
-**User story:** As a maintainer, I want GitHub to own the state it already
-tracks, so that the board behaves like any GitHub Project and Avoozl writes
-only what GitHub cannot work out.
-
-#### Acceptance criteria
-
-1. Ownership SHALL be split this way:
-
-   | Owner  | State                                                                                                                                                                               |
-   | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-   | GitHub | Project Status (built-in workflows); the Blocked signal (open blocked-by dependencies); closing leaf issues in both modes                                                           |
-   | Avoozl | Issues, sub-issues, blocked-by links, the linked branch; Release at projection; Wave; picking ready work; starting coding sessions; the completion verdict that releases dependents |
-   | People | Assignees, board drags, Deferred; closing a leaf without merged code, as an order when the policy allows the closer (criterion 8)                                                   |
-
-2. Avoozl SHALL NOT write a Blocked Status or a blocked label. The blocked
-   signal SHALL be GitHub's own: the Blocked icon on boards and issue lists,
-   and `is:blocked` in issue search.
-3. Avoozl SHALL NOT close a leaf issue. It SHALL close only a parent issue
-   whose required children are done (Requirement 12.6) and an issue a person
-   takes back local (as `not_planned`).
-4. In plans-repo mode, before it sends a leaf's brief, Avoozl SHALL create
-   one linked branch `avoozl/<task-id>` for the planning issue in the leaf's
-   code repository, from the head of `baseBranch`, with GraphQL
-   `createLinkedBranch` (`repositoryId` = the code repository). It SHALL
-   reuse a branch of that name that is already linked. The worker SHALL push
-   to that branch, and its pull request SHALL carry no planning-repository
-   name and no closing keyword.
-5. Avoozl SHALL take candidate ready leaves from GitHub's own blocked
-   state: open issues with no open blocker, the set issue search
-   `is:open -is:blocked` returns. Because search can lag, the tick MAY read
-   each issue's blockers directly instead of searching. Avoozl SHALL then
-   apply its own gates:
-   policy, Deferred, claims, open decisions, and concurrency. A blocker closed with no merged closing pull
-   request SHALL follow criterion 8: released when the policy allows the
-   closer, otherwise held with a decision. (Changed 2026-11-12: every such
-   blocker was held.)
-6. The setup wizard SHALL recommend these built-in workflow settings:
-   Auto-add sub-issues on; Auto-add on, filtered to the managed label; Item
-   added → Todo on; Pull request linked → In progress on; Item closed →
-   Done on; Pull request merged → Done on; Auto-close issue on; Auto-archive
-   off. Auto-close issue on means a drag to Done closes the issue as done,
-   which criterion 8 then judges. (Changed 2026-11-12: Auto-close issue was
-   off.)
-7. The completion verdict (Requirement 16) SHALL stay Avoozl's, so dependent
-   release never rests on a Status value.
-8. WHEN a leaf issue closes with no merged closing pull request (by hand, or
-   by the Auto-close issue workflow after a drag to Done, where the closer
-   is the person who dragged) THEN Avoozl SHALL check the closer with the
-   same `allowedActors` or `minimumPermission` check used for trigger labels
-   and Deferred (Requirement 10). For a plans-repo leaf, the policy of its
-   code repository decides.
-   - WHEN the policy allows the closer THEN the close SHALL be an order,
-     whether its reason is completed or not planned. On the next tick Avoozl
-     SHALL mark the task done by order and release its dependents. It SHALL
-     record the order (closer, close reason, close time) in the SQLite
-     receipt and the issue marker, and SHALL NOT count it as a verified
-     completion. Avoozl SHALL start no new session for the closed task and
-     SHALL leave a running session alone.
-   - The order SHALL satisfy every `requires` edge on the task. Dependents
-     can start on code that never merged; the owner accepts that risk.
-   - WHEN the policy does not allow the closer, or the closer cannot be read,
-     THEN Avoozl SHALL hold the dependents and open a decision. It SHALL NOT
-     reopen the issue.
-     (Added 2026-11-12.) (Changed 2026-11-13 by Requirement 52.8: a close
-     on an issue that carries Issue Radar's claim label is never an order;
-     it holds and opens a decision unless a closing pull request merged.)
-9. WHEN a released dependent starts THEN its worker brief SHALL say that its
-   blocker closed without merged code, by whom and when, and SHALL tell the
-   worker to check for the missing code first. The brief SHALL name the
-   blocker by its issue link, except in plans-repo mode, where it SHALL name
-   the blocker by task ID and title only (Requirement 28.7). For a leaf
-   Issue Radar codes (no Avoozl brief), the same note SHALL go in the
-   dependent issue's managed body section. (Added 2026-11-12.)
-10. WHEN a closed leaf issue is reopened THEN Avoozl SHALL withdraw its done
-    state, verified or by order, on the next tick. Its dependents that have
-    not started SHALL wait again; a running session SHALL be left alone, and
-    a dependent already done SHALL stay done. (Added 2026-11-12.)
+   or repository: the first run creates everything and the second changes
+   nothing.
 
 ### Requirement 34: Plugin loading and trust
 
-Added 2026-11-12 (owner request). Design §4.8.
+Design §4.8.
 
 **User story:** As a maintainer, I want outside packages to add intake
 sources and content rules to Avoozl, loaded only with my consent and unable to break
@@ -1262,9 +598,8 @@ the tick, so that private integrations stay out of the public repository.
    Crew's secret store by a name `config` gives.
 3. Each plugin SHALL ship a manifest, `avoozl-plugin.json`, naming its `id`,
    `version`, `contract` version, `kinds` (`intake`, `rules`, or both), the
-   capabilities it supports for each kind, and its entry module. (Changed
-   2026-11-18: the `route` and `tracker` kinds are retired, with
-   Requirements 22 and 35; a manifest that lists one is refused.) The ids
+   capabilities it supports for each kind, and its entry module. Any other
+   kind is refused. The ids
    `local` and `github` SHALL be refused.
 4. Before a plugin's first load, and again whenever its version or content
    hash changes, Avoozl SHALL show its id, version, kinds, capabilities,
@@ -1296,7 +631,6 @@ the tick, so that private integrations stay out of the public repository.
     `git` (a repository URL or local repository path), `ref` (a tag, branch,
     or full commit), and an optional `subdir` (the plugin's folder inside the
     repository). Exactly one of `package`, `path`, or `git` SHALL be given.
-    Added 2026-11-12 (owner request).
 13. A person's Add or Update action in Settings or the CLI SHALL resolve
     `ref` to a full commit and store that commit on this machine. Avoozl
     SHALL fetch only that commit, shallow, with the person's own git and
@@ -1310,23 +644,15 @@ the tick, so that private integrations stay out of the public repository.
     `subdir` leaves the repository, whose commit has no plugin manifest, or
     whose plugin declares dependencies it does not ship. Refusals, logs, and
     views SHALL NOT show a credential.
-16. (Added 2026-11-13, owner request.) Settings > Plugins SHALL offer
+16. Settings > Plugins SHALL offer
     Design a plugin, which opens a chat seeded with the shipped
     `avoozl-plugin` skill to plan a plugin and write its files, and Plugin
     guide, which shows the plugin guide in the full-file reader. The chat
     SHALL NOT approve a plugin or import a pack.
 
-### Requirement 35: Retired
-
-Retired 2026-11-18 (owner decision). Tracker plugins are gone: a task keeps
-one record, local or a GitHub issue. Intake plugins (Requirement 50) still
-bring work in. The number stays so that other requirements keep their
-references.
-
 ### Requirement 36: Review gates on a local delivery
 
-Added 2026-11-12 (owner handoff on review verdicts). Design §5.2. Written
-against the Avoozl branch `kirocrew-native` at `dd8b28b` (design F56–F66).
+Design §5.2.
 
 **User story:** As a maintainer running a multi-step rewrite flow in another
 repository, I want every writer's exact commit reviewed by fresh agents
@@ -1337,10 +663,8 @@ reaches the integration branch or a dependent task.
 
 1. Review and check sessions only read, so they SHALL NOT count against
    this machine's lanes (Requirement 6.3). Avoozl SHALL add no separate
-   writer limit. (Changed 2026-11-18: one writer per repository was a
-   per-repository concurrency of 1. That key is now ignored, because every
-   task writes in its own worktree and landing merges one head at a time;
-   `lanes.local: 1` still gives one writer on the machine.)
+   writer limit: every task writes in its own worktree and landing merges
+   one head at a time. `lanes.local: 1` gives one writer on the machine.
 2. A repository's delivery policy MAY name review roles. Each role SHALL have
    a unique `id`, a `focus` (for example "conventions", or "correctness and
    performance"), the agent that runs it, and a `distinctFrom` rule. Two
@@ -1387,23 +711,22 @@ session` SHALL relax this to a new session only.
     subject commit, the model it ran on, whether it is stale, and its
     findings with their closure state.
 13. Review roles SHALL apply to leaves on the local route. For leaves on the
-    GitHub route, GitHub's own required reviews and checks gate the merge
-    (Requirement 33). Avoozl SHALL follow the code repository's base-branch
+    GitHub route, GitHub's own required reviews and checks gate the merge.
+    Avoozl SHALL follow the code repository's base-branch
     rules on GitHub (rulesets and branch protection), read only: WHEN they
     require approving reviews THEN Avoozl SHALL count pull-request reviews on
     the head SHA from reviewers the repository policy allows and SHALL hold
     the leaf until that many approve; WHEN they require none THEN Avoozl's
     reviewer sessions SHALL be the review gate and pull-request reviews SHALL
-    NOT be read. Avoozl SHALL NOT keep its own approval count (owner
-    decision 2026-11-12); a file that still sets the old
-    `pullRequestReviews` key SHALL NOT load (changed 2026-11-19).
+    NOT be read. Avoozl SHALL NOT keep its own approval count; a file that
+    sets `pullRequestReviews` SHALL NOT load.
     WHEN classic protection is on but GitHub hides it from a non-admin THEN
     the rule SHALL show as unknown with that reason; only a count GitHub
     showed SHALL apply, and Avoozl SHALL invent none.
 
 ### Requirement 37: Every finding is closed
 
-Added 2026-11-12 (owner handoff). Design §5.2.
+Design §5.2.
 
 **User story:** As a maintainer, I want every finding from a review to be
 answered by the next review, so that a defect cannot drop out of sight
@@ -1432,12 +755,11 @@ between attempts.
 7. Rules about a domain's own artifacts (for example, what a multi-step
    rewrite flow in another repository must leave in its run folder) SHALL
    stay in that repository's validation script, run as one of the
-   repository's checks. Avoozl SHALL NOT encode them. (Changed 2026-11-18:
-   the script is a repository check, not a leaf's own.)
+   repository's checks. Avoozl SHALL NOT encode them.
 
 ### Requirement 38: Checks that cannot run keep the gate shut
 
-Added 2026-11-12 (owner handoff). Design §5.2.
+Design §5.2.
 
 **User story:** As a maintainer, I want a check that could not run to block
 acceptance, so that a broken tool never reads as a pass.
@@ -1458,12 +780,11 @@ acceptance, so that a broken tool never reads as a pass.
    integrated commit.
 5. Validation evidence used for acceptance SHALL be for the task's current
    commit and SHALL cover every repository check, not the earliest
-   validation on record or a subset of checks. (Changed 2026-11-18: the
-   checks are the repository's; a task carries none.)
+   validation on record or a subset of checks.
 
 ### Requirement 39: Replacing a task by hand
 
-Added 2026-11-12 (owner handoff). Design §5.2.
+Design §5.2.
 
 **User story:** As a maintainer, I want to replace a task with a new one and
 have its dependents follow, so that a wrong task does not have to be bent
@@ -1482,16 +803,13 @@ into the right one.
    undo a rewrite.
 3. Plan approval SHALL NOT change `supersedes`, `supersededBy`, or the
    `superseded` status.
-4. A chain with a cycle SHALL be refused. Superseding a task whose authority
-   is GitHub or a plugin SHALL be refused with 409 (Requirement 19.3); such a
-   task is replaced in the plan or in its tracker.
+4. A chain with a cycle SHALL be refused.
 5. Supersede SHALL NOT be used for review rework, which stays inside one
    delivery as new attempts (Requirement 36.10).
 
 ### Requirement 40: Content rules
 
-Added 2026-11-12 (owner request). Design §4.9. Written against the Avoozl
-branch `kirocrew-native` at `dbf001b` (design F67–F74).
+Design §4.9.
 
 **User story:** As a maintainer at a company that uses Avoozl, I want to ban
 private terms, internal system names, private repository names, hostnames,
@@ -1515,15 +833,14 @@ public or shared repositories cannot leak what the company keeps private.
 3. Avoozl SHALL check content at every boundary where it writes or approves
    content: the planner's drafted spec files before they are proposed; plan
    approval (every spec file); issue and pull
-   request titles and bodies; comments and replies; Project field values;
+   request titles and bodies; comments and replies;
    worker, verifier, and reviewer briefs; and each worker's diff before it
    merges, added lines only. A rule set MAY narrow the boundaries and
    repositories it applies to; by default it applies to all of them.
-   (Changed 2026-11-13: a task's links and notes when saved, the `notes`
-   boundary, Requirement 61.18.)
-4. Text SHALL be decoded before matching the way the plans-repo leak screen
-   decodes it today (percent escapes, HTML character references, zero-width
-   characters, backslashes), so that an encoded term still matches.
+
+4. Text SHALL be decoded before matching (percent escapes, HTML character
+   references, zero-width characters, backslashes), so that an encoded term
+   still matches.
 5. WHEN content matches a rule whose action is `block` (the default) THEN
    Avoozl SHALL NOT write or approve it, SHALL NOT redact or rewrite it, and
    SHALL open a decision for the owner that names the rule set, the rule id,
@@ -1560,11 +877,9 @@ public or shared repositories cannot leak what the company keeps private.
     it SHALL count as unavailable (criterion 10), so that a slow pattern can
     neither stop the tick nor let content through.
 12. The plans-repo leak screen (Requirement 28.7, 28.8), the reply screen
-    (Requirement 27.3, design §4.7), and the secret screen on markers,
-    workspace publications, and broad-issue previews SHALL become built-in
-    rule sets of this feature, applied at the same boundaries with the same
-    patterns, decoding, and refusals as today. Their existing tests SHALL
-    pass unchanged. Configuration SHALL NOT turn a built-in rule set off.
+    (design §4.7), and the secret screen on markers, workspace publications,
+    and broad-issue previews SHALL be built-in rule sets of this feature.
+    Configuration SHALL NOT turn a built-in rule set off.
 13. The release leak scan (Requirement 24.2) SHALL use the same terms file
     parser and matcher, and SHALL keep its public rules and its terms file
     location. For private-term findings it SHALL print the rule id and the
@@ -1572,7 +887,7 @@ public or shared repositories cannot leak what the company keeps private.
 14. Public Avoozl files SHALL name no company-internal tool, term, or rule
     (Requirement 34.10). Tests SHALL use only fake terms files and a fake
     rules plugin kept in the test tree.
-15. (Added 2026-11-13, owner decision.) A terms file MAY hold allow lines
+15. A terms file MAY hold allow lines
     that cancel false positives. `allow: regex` SHALL cancel a match of any
     rule in that file on the same line; `allow <rule>: regex` SHALL cancel a
     match of only that rule. A match SHALL be dropped only when an allow
@@ -1587,36 +902,21 @@ public or shared repositories cannot leak what the company keeps private.
     and a rules plugin's set SHALL be refused if it returns allow patterns.
     The release scan SHALL accept allow lines in its terms file, applying
     them to that file's rules only, never to its public rules.
-16. (Added 2026-11-13, owner request.) Settings > Content rules SHALL offer
+16. Settings > Content rules SHALL offer
     Design a rule set, which opens a chat seeded with the shipped
     `avoozl-rules` skill. The chat SHALL suggest rule and allow lines and
     SHALL NOT write a terms file; the person saves terms in the editor. The
     button and the skill SHALL warn that terms typed into a chat stay in its
     transcript.
-17. Residual risk (named 2026-11-13, injection audit): text a worker
+17. Residual risk: text a worker
     writes to GitHub itself, such as pull request titles and bodies and
     `gh` comments, does not pass through Avoozl and is not checked by
     content rules. The pre-push hook checks the diff, and quoted outside
     text in briefs (Requirement 10.6, 10.11) narrows what can steer it.
 
-### Requirement 41: Retired
-
-Retired 2026-11-18 by the worker-paths spec (WP6). Nothing here exists.
-Every session Avoozl opens runs on this machine, on the executor its harness names
-(Requirement 98). The number stays so that other requirements keep their
-references.
-
-### Requirement 42: Retired
-
-Retired 2026-11-18 (owner decision). The number stays so that other
-requirements keep their references.
-
 ### Requirement 43: Flow timing
 
-Added 2026-11-12 (owner request). Design §4.11. Background: a long
-multi-phase rewrite run through agents took weeks, and finding where the
-time went needed a person to ask for an analysis each time (design §4.11,
-"Why this exists").
+Design §4.11.
 
 **User story:** As the owner, I want Avoozl to record where each task's time
 goes, so that I can see what slows delivery without asking an agent to
@@ -1642,8 +942,8 @@ reconstruct it.
    `commands` from them: a shell call that runs one of the repository's
    checks SHALL count as `tests`, any other shell call as
    `commands`, and the rest as `coding`.
-5. WHERE tool calls cannot be read (a Crew Mode worker, a remote session, or
-   a Kiro Crew without that read) THEN Avoozl SHALL use the phase markers a
+5. WHERE tool calls cannot be read (a process session, or a Kiro Crew
+   without that read) THEN Avoozl SHALL use the phase markers a
    worker sends with `plans_report` `progress` (`phase`: `coding`, `tests`,
    `commands`, or `ci-wait`), and SHALL count unmarked worker time as
    `coding`. Every span SHALL name which of the three sources (tool calls,
@@ -1666,9 +966,7 @@ reconstruct it.
 
 ### Requirement 44: Stop the line
 
-**Status 2026-11-18.** Stop the line is an icon button in the Dashboards › Delivery heading, not in the top bar or the Dashboard header (#488). The dialog, banner and Resume are unchanged.
-
-Added 2026-11-12 (owner request). Design §4.11.
+Design §4.11.
 
 **User story:** As the owner, I want new work to stop when a change breaks
 something that worked, so that a failure is fixed while it is fresh instead
@@ -1725,7 +1023,7 @@ of every later task building on it.
 
 ### Requirement 45: Local checks first
 
-Added 2026-11-12 (owner request). Design §4.11.
+Design §4.11.
 
 **User story:** As the owner, I want every pushed commit to have passed the
 repository's checks on the machine that made it, so that CI only confirms
@@ -1738,8 +1036,7 @@ and nobody waits on CI to learn about a failure.
    the worker to run the repository's checks in its worktree before each
    push, and a `done` report for a pushed commit SHALL list each check's
    name, command, exit code, and duration for that commit. The checks are
-   the ones the commit's diff picks, as in Requirement 7.1. (Changed
-   2026-11-18: checks are named and may name paths.)
+   the ones the commit's diff picks, as in Requirement 7.1.
 3. WHILE it is on THEN Avoozl SHALL refuse a `done` report for a pushed
    commit whose check list is missing, names another commit, or has a
    failed check. A not-run check SHALL keep the gate shut as in
@@ -1752,8 +1049,8 @@ and nobody waits on CI to learn about a failure.
    two environments shows in the Flow tab.
 6. Local delivery, where nothing is pushed, SHALL be unchanged: the
    checks already run on this machine (Requirement 7.1).
-7. Avoozl SHALL NOT enforce this on sessions it does not open (for example
-   Issue Radar's); the Flow tab SHALL show their CI wait like any other.
+7. Avoozl SHALL NOT enforce this on sessions it does not open; the Flow tab
+   SHALL show their CI wait like any other.
 
 ### Requirement 46: One session per task
 
@@ -1772,7 +1069,7 @@ every task keeps its own commit, checks, review and timing.
 
 ### Requirement 47: Retrospectives
 
-Added 2026-11-12 (owner request). Design §4.11.
+Design §4.11.
 
 **User story:** As the owner, I want Avoozl to stop now and then, look at
 where time went, and propose one change to how work runs, so that the
@@ -1803,9 +1100,8 @@ process improves without my asking and without changing on its own.
    key, current value, new value) or a plan change (spec and the change in
    words), and SHALL name the metric it should move, the expected
    direction, and its evidence. Avoozl SHALL check the reply against a
-   schema and SHALL drop a proposal that fails it, recording why.
-   (Changed 2026-11-13: a proposal MAY also be typed `prompt` or
-   `skill`, Requirement 68.)
+   schema and SHALL drop a proposal that fails it, recording why. A
+   proposal MAY also be typed `prompt` or `skill` (Requirement 68).
 5. A settings proposal SHALL be limited to keys the Settings page can edit.
    Avoozl SHALL refuse proposals to change content rules, plugin trust or
    approvals, trigger actors or minimum permission, crew trust, and tokens.
@@ -1831,9 +1127,7 @@ process improves without my asking and without changing on its own.
 
 ### Requirement 48: Flow tab and Flow settings
 
-**Status 2026-11-18.** Retrospectives and Proposals are pages of the Retros nav entry (#468), not tabs of Flow. Flow keeps the metrics and its settings group.
-
-Added 2026-11-12 (owner request). Design §4.11, §8.4.
+Design §4.11, §8.4.
 
 **User story:** As the owner, I want one tab that shows how delivery flows
 and what to change, and one settings group for the flow rules.
@@ -1868,129 +1162,15 @@ and what to change, and one settings group for the flow rules.
    tools (Requirement 20.4), with expected revisions, and each setting SHALL
    live in one place only.
 
-### Requirement 49: Untriaged list
-
-**Changed 2026-11-19 (triage-agent TA8.7, TA11).** Needs you › Triage and the Untriaged settings are gone. The GitHub › Issues and Pull requests pages, with the triage agent's owner queue, replace this list. The text below is the record.
-
-**Status 2026-11-18.** There is no Untriaged or Intake tab. The list is Needs you › Triage (#464), with its count in the nav. Old `untriaged` and `intake` links open Triage. The per-repository **Untriaged** group is under Settings › Repository setup › Triggers and labels.
-
-Added 2026-11-12 (owner request). Design §8.5.
-
-**User story:** As the owner, I want one list of the open issues and pull
-requests no trigger rule or triage label covers, so that nobody misses new
-GitHub work, and I want each item to hand off to Issue Radar or its own code
-review chat for the actual work.
-
-Avoozl acts only on issues a trigger rule matches and reads only the pull
-requests tied to its own tasks; Issue Radar notifies only on CI failures for
-the owner's own pull requests. Only Avoozl knows which items no rule will
-pick up. The list is a triage list, not a second issue browser
-(§2, Requirement 20).
-
-#### Acceptance criteria
-
-1. The list SHALL exist only in the GitHub modes. In Local only mode the tab
-   SHALL be hidden and Avoozl SHALL read nothing for it. (Changed
-   2026-11-12 by Requirement 50.16: GitHub items stay GitHub-mode only,
-   and the tab also shows in Local only mode when a non-GitHub source is
-   declared.)
-2. An item SHALL be **untriaged** in a repository of `github.repositories`
-   when it is an open issue or pull request that matches the repository's
-   untriaged filter, carries none of its triage labels and none of its
-   managed labels, is not tied to an Avoozl task, and, for an issue, matches
-   no trigger rule's labels, assignee, and author. A pull request is tied to
-   a task when a task records it or it closes a task's issue; an issue is
-   tied when it is a task's issue. Labels SHALL compare without case.
-3. Settings › Repository setup › Triggers and labels SHALL have an **Untriaged**
-   group with **Untriaged filter** (optional, `untriaged.filter`): one line
-   in the trigger rules' search grammar and parser (§4.4), shown with its
-   parsed terms as chips and a count of what it matches now. Unlike a rule's
-   `match`, it SHALL NOT need a `label:` term. Blank SHALL mean
-   `-label:<each triage label>`, shown as the placeholder.
-4. The same group SHALL have **Triage labels** (optional,
-   `untriaged.triageLabels`) as one checkbox per label the repository has on
-   GitHub; a saved name GitHub no longer has SHALL stay and be marked. A
-   triage label SHALL NOT be a managed label.
-5. The same group SHALL have **Ignore older than** (optional,
-   `untriaged.ignoreOlderThanDays`, a whole number of days from 1 to 3650;
-   blank shows every age) and **Notify me** (optional, `untriaged.notify`,
-   off by default).
-6. Only the tick cron SHALL read GitHub for the list: at most one search per
-   repository per 10 minutes, read only, cached beside the workspace
-   database with the time it was checked and any error. A failed read SHALL
-   keep the last cached items and show the error. A changed filter, label
-   list, or age SHALL be read again on the next tick. Avoozl SHALL NOT write
-   GitHub for this list.
-7. The read-only operation `untriaged.view` SHALL return each repository's
-   untriaged items, its checked time, its error, and whether the list was
-   cut short, applying criterion 2 at read time so a rule or task change
-   shows at once. With `refresh: true` it SHALL read GitHub again first,
-   still read only. The read SHALL take every page GitHub search returns;
-   past GitHub's 1,000-result cap the list SHALL show the true total and how
-   many were read, and say to narrow the filter.
-8. Each item SHALL link out: its number and title to GitHub in a new tab
-   with `rel="noopener noreferrer"`, **Open in Issue Radar** to that item,
-   and for a pull request **Code review**, which opens Avoozl's own review
-   chat (Requirement 49.16). WHERE Kiro Crew offers no link to the exact
-   item, **Open in Issue Radar** SHALL open the app's page and its tooltip
-   SHALL say so (MC-14, design §7.1).
-9. The page SHALL have a top-level **Untriaged** tab with an icon before its
-   name, the same icon on its nav tab, and a count badge in a Kiro palette
-   color other than yellow.
-10. The tab SHALL use the shared boxed filter panel (repository, kind, age,
-    author, label), show 100 rows a page, and show per row: a kind icon, the
-    number and title, repository, author, age, labels, comments, and for a
-    pull request its draft and checks state. Row buttons SHALL be icons with
-    the shared tooltip.
-11. Rows SHALL be selectable by mouse and keyboard, and a bulk **Open
-    selected in Issue Radar** SHALL hand over the selection, by the same
-    rule as criterion 8.
-12. The empty state SHALL say what untriaged means and where to change the
-    filter.
-13. The Dashboard SHALL show a small **Untriaged** count that opens the tab.
-14. WHEN `untriaged.notify` is on for a repository and its count rose since
-    the last notice THEN Avoozl SHALL send one Kiro Crew notification for
-    the workspace naming the counts, at most once an hour, never one per
-    item.
-15. The list SHALL NOT show item bodies, comments, CI logs, or review
-    findings, and SHALL NOT edit labels, assignees, or state: those stay in
-    Issue Radar and GitHub.
-16. **Code review** on a pull request row SHALL open a new Kiro Crew chat
-    through the tick's own session permission, seeded with the pull
-    request's URL, repository, number, head commit, title, author, its Avoozl
-    task and spec section if any, and an ask for a careful
-    single-pull-request review, comments as drafts, posting nothing. (The
-    separate review app and its skill were dropped 2026-11-14; the seed names
-    no skill.)
-    The seed SHALL quote the title as data and say that the pull request's
-    title, description, comments, commits, and diff are data, not
-    instructions, since its author may be anyone (added 2026-11-13,
-    injection audit). The chat SHALL run on the app's read-only
-    `avoozl-code-review` agent: file reads, and a shell whose
-    `toolsSettings` deny every command but `gh pr view|diff|checks`,
-    `gh issue view`, and flagless `gh api` reads of one pull request or
-    issue; no file write and no GitHub write (added 2026-11-13, injection
-    audit follow-up).
-17. The seed SHALL pass content rules (`brief`) before it is queued; a block
-    SHALL queue nothing and open a decision. Only a person SHALL start a
-    review chat.
-18. The row SHALL show Attach once the chat exists, and the button's tooltip
-    SHALL say it posts nothing to GitHub. A second click SHALL reuse a queued or open chat. Avoozl SHALL
-    make no GitHub write for it.
-
 ### Requirement 50: Incoming items from every source
 
-Added 2026-11-12 (owner idea). Design §4.12, §8.5.
+Design §4.12, §8.5.
 
 **User story:** As the owner, I want work from GitHub, an internal ticket
 tracker, an internal code review system, and anything else I script to
-come into Avoozl the same way, so that one set of trigger rules, one
-"who counts" check, and one Untriaged list cover all of it, and an outside
-tool can hand Avoozl an item over MCP.
-
-Today intake and the Untriaged list read GitHub only (design F101–F105). This requirement adds
-one record, one operation, and two ways in, and moves the GitHub intake
-and the Untriaged reader onto the record without changing what they do.
+come into Avoozl the same way, so that one "who counts" check and one
+intake list cover all of it, and an outside tool can hand Avoozl an item
+over MCP.
 
 #### Acceptance criteria
 
@@ -2013,34 +1193,29 @@ and the Untriaged reader onto the record without changing what they do.
    older than the stored one SHALL be ignored as stale and reported so.
 4. Incoming items and each source's read state (cursor, last read time,
    error) SHALL be stored in the workspace SQLite database. The GitHub
-   intake (`syncGitHubIssues`) SHALL write the issues it lists as items
-   with `source: "github"`, and the Untriaged reader SHALL keep its search
-   results as items, so `untriaged.json` is no longer written. Both SHALL
-   keep their current listing, interval, actor check, snapshot freeze,
-   exclusions, and results (Requirements 10–12, 49).
+   intake SHALL write the issues it lists as items with
+   `source: "github"`, with the actor check and snapshot freeze of
+   Requirements 10 and 12.
 5. The operations `intake.submit`, `intake.list`, and `intake.view` SHALL
    live in `operations.mjs` and be shared by the page, the CLI
    (`avoozl intake submit|list|view`), and MCP (the grouped `plans_intake`
    tool of Requirement 56, actions `submit_items`, `items`, and `item`).
    Existing `plans_*` names SHALL NOT change. `intake.list` and `intake.view` SHALL only read.
-6. Sources other than GitHub SHALL be declared under `intake.sources` in
+6. Sources SHALL be declared under `intake.sources` in
    `.avoozl.json` or in the machine-local Avoozl settings, like `plugins`
    entries (Requirement 34.1): an id (`github` and `local` reserved),
    `via` (`plugin:<id>` or `mcp`), the registered workspace `repository`
    its work lands in, and optional `labelFields`, `assigneeField`,
    `allowedActors`, and `minimumPermission`. Settings SHALL warn before
-   saving a source into a `.avoozl.json` in a public repository.
-   (Changed 2026-11-18, Requirement 110: GitHub repositories are declared
-   here too, as `via: "github"`, and `github.issueIntake` and
-   `github.queue` are retired into this list.)
+   saving a source into a `.avoozl.json` in a public repository. GitHub
+   repositories are declared here too, as `via: "github"`.
 7. A plugin MAY provide `intake` and implement
    `poll({cursor, limit})`, returning `{items, cursor, more}`. The tick
    cron SHALL call it at most once per source per tick with the stored
    cursor, and SHALL store the new cursor only after every item of the
    reply is handled. A failed or invalid poll SHALL keep the cursor and
    the stored items, show the error on the source, and leave the rest of
-   the tick running (design §4.8 failure isolation). (Changed 2026-11-18:
-   `intake` is its own plugin kind now that tracker plugins are retired.)
+   the tick running (design §4.8 failure isolation).
 8. `intake.submit` SHALL take `{source, items}` with 1–100 items for a
    source whose `via` is `mcp`, and return a result per item (`created`,
    `updated`, `unchanged`, `stale`, or `refused`, with a reason) and
@@ -2049,8 +1224,8 @@ and the Untriaged reader onto the record without changing what they do.
    same record and run the same pipeline.
 9. Each stored or changed item SHALL go through, in order: dedup, content
    rules, trigger match, then the matched action (`deliver`, `execute`,
-   `plan`, `respond`, `pause`, `resume`, `quarantine`, by the precedence
-   GitHub intake uses today), or the Untriaged list when no rule matches.
+   `plan`, `respond`, `pause`, `resume`, `quarantine`), or the intake list,
+   where it waits for a person, when no rule matches.
 10. Content rules SHALL gain an `intake` boundary (Requirement 40.3) that
     screens an item's title, body, labels, and fields. A `block` finding
     SHALL quarantine the item and open a decision that names the set and
@@ -2058,8 +1233,7 @@ and the Untriaged reader onto the record without changing what they do.
     and the item SHALL continue. No built-in set SHALL run at `intake`, so
     GitHub intake behaves as before unless a set names the boundary.
 11. A rule's `match` SHALL accept one `source:<id>` term. A rule without
-    one SHALL match only GitHub items, as today. `source:` SHALL be
-    refused in an Untriaged filter, which GitHub search reads. For a
+    one SHALL match only GitHub items. For a
     non-GitHub source, each `labelFields` entry SHALL add a label
     `<field>:<value>` from the item's `fields`, and `assigneeField` SHALL
     add an assignee, before matching.
@@ -2079,18 +1253,11 @@ and the Untriaged reader onto the record without changing what they do.
     `quarantine` rules, and SHALL NOT meet a `deliver`, `execute`,
     `plan`, `respond`, or `resume` rule. A close it reports SHALL be
     treated as a close by an actor who is not allowed (criterion 18).
-15. The Intake tab SHALL offer a person **Plan this** (an inbox task
+15. A person SHALL be offered **Plan this** (an inbox task
     tied to the item, through `task.capture`) and **Deliver this** (one
     leaf in the source's repository, pinned to the item's snapshot) on a
     non-GitHub item. Both SHALL be refused with 403 from an agent session
     or MCP, like `content.allow`.
-16. The Intake tab SHALL list untriaged items from every source, with
-    a **Source** filter and the source on each row. GitHub items SHALL
-    keep Requirement 49 unchanged. The tab SHALL also show in Local only
-    mode when a non-GitHub source is declared, with only those sources.
-    A non-GitHub row SHALL link to its item's `link` and SHALL NOT show
-    Issue Radar buttons. (The tab was named Untriaged until 2026-11-13;
-    see criterion 23.)
 17. WHEN a source changes an item tied to a task THEN Avoozl SHALL update
     the record and the task's cached title and labels, re-run the trigger
     match, and withdraw the task's authorization when no allowed match is
@@ -2102,19 +1269,16 @@ and the Untriaged reader onto the record without changing what they do.
     body) that `intake.view` showed; a changed item SHALL be refused. The
     confirm SHALL move the task's snapshot to that text, record
     `confirmedHash` and when, and let the task run again. Sessions and MCP
-    callers SHALL be refused (added 2026-11-13, injection audit follow-up).
-18. WHEN a source closes an item tied to a task THEN the allowed-close
-    rule SHALL apply (Requirement 33.8–33.10): an allowed actor's close is
-    an order that releases dependents, is recorded, and never counts as a
-    verified completion; any other close, or one whose actor is unknown,
-    holds the dependents and opens a decision. Avoozl SHALL NOT reopen the
+    callers SHALL be refused.
+18. WHEN a source closes an item tied to a task THEN an allowed actor's
+    close SHALL be an order that releases dependents, is recorded, and never
+    counts as a verified completion; any other close, or one whose actor is
+    unknown, SHALL hold the dependents and open a decision. Avoozl SHALL NOT reopen the
     item. A reopened item withdraws the order; dependents wait again for
     new dispatch only, and running sessions are left alone.
 19. An item of kind `review` SHALL go to the review flow, never to
     delivery: no `deliver`, `execute`, `plan`, or `respond` rule SHALL
-    match it. It SHALL be listed in Intake without a **Code review** button.
-    (The `review` rule action and the hand-off to a separate review app were
-    dropped 2026-11-14.)
+    match it.
 20. Avoozl SHALL write nothing to a non-GitHub source in this phase. A
     `respond` rule with a non-GitHub `source:` SHALL be refused at
     validation.
@@ -2125,15 +1289,8 @@ and the Untriaged reader onto the record without changing what they do.
     generically ("internal ticket tracker", "internal code review
     system", the fake plugin, the fake MCP caller), and the release leak
     scan (task 7.4) SHALL cover them.
-23. The tab of Requirement 49 SHALL be named **Intake** in the page,
-    docs, and spec (owner decision 2026-11-13), and **Untriaged** SHALL
-    stay as its default filter. The `untriaged` setting keys and the
-    `untriaged` notification channel id SHALL keep working; `intake`
-    SHALL be accepted as the channel's other name.
 
 ### Requirement 51: Archiving a plan, and review state shown plainly
-
-Added 2026-11-13 (owner request and owner report).
 
 **User story:** As the owner, I want to put a plan away and bring it back
 later without losing anything, and I want a task marked "review" with no
@@ -2147,8 +1304,6 @@ action: retiring is what Delete does to a plan with an approved revision.
 
 #### Acceptance criteria
 
-1. Replaced by Requirement 56.4: a session may archive and unarchive a
-   plan too.
 2. WHEN a plan is archived THEN its open and running tasks SHALL be held
    (no new dispatch: the ready rule SHALL leave them out), a running chat
    SHALL be left alone, and each task outside the plan that waits on one of
@@ -2165,8 +1320,7 @@ action: retiring is what Delete does to a plan with an approved revision.
    Graph, Delivery and the Dashboard counts. A Show archived filter SHALL
    bring them back, each with an Archived badge; a filter that names the
    plan SHALL show it too. A live chat under an archived plan SHALL stay in
-   the Dashboard's In flight list. Untriaged is unchanged: an archived
-   plan's tasks still cover their issues.
+   the Dashboard's In flight list.
 6. The archive confirm SHALL say what happens and that Unarchive undoes it,
    and its button SHALL NOT be red. An archived plan's page SHALL show a
    banner with an Unarchive button.
@@ -2182,83 +1336,6 @@ action: retiring is what Delete does to a plan with an approved revision.
    In flight card SHALL show the reviewer role, the model asked for and the
    model used, the round, the verdict, and an Attach link to the reviewer
    chat.
-
-### Requirement 52: Send to Issue Radar, and working beside crews
-
-**Changed 2026-11-19 (triage-agent TA11.2).** Removed: Send to Issue Radar, With Issue Radar, the crew list, claims and strip, the escalation intake, the crew labels and Settings › Issue Radar. The text below is the record.
-
-Added 2026-11-13 (owner decision). Design §8.5 "Send to Issue Radar" and
-§6.4. Requirement 103 (2026-11-16) supersedes criterion 7 for task issues
-Avoozl projected: Avoozl no longer hands its own issues to a crew.
-
-**User story:** As the owner, I want to hand untriaged issues to an Issue
-Radar crew from Avoozl, and I want Avoozl and crews to work on one
-repository without stepping on each other.
-
-Facts checked in Kiro Crew's Issue Radar source (2026-11-13): a crew runs
-continuously on one repository. Each turn it lists open issues and keeps
-those with a label in its label scope; an empty scope means every open
-issue. It drops any issue that already carries a label starting `crew:`,
-picks one at random, and adds the fixed claim label `crew: in progress`.
-When it needs a person it adds the repository's `needs_human_label`
-(default `crew: needs human`). Those are the only two labels a crew
-writes, and it writes them with the owner's `gh` login, so the actor of a
-crew's label or close is the owner. An app token reaches Issue Radar's `GET /crews` only through a
-`permissions.api` grant, and a grant has no method, so it also admits
-`POST /crews` and `PUT /crews/settings`.
-
-#### Acceptance criteria
-
-1. The Untriaged tab SHALL offer **Send to Issue Radar** for one issue or a
-   selection of issues. Pull requests SHALL NOT be sent: a crew works
-   issues. It SHALL be an operation only a person calls from the page
-   (`untriaged.handoff`); an agent, app token or MCP caller SHALL be
-   refused.
-2. The person SHALL pick a crew. WHERE Kiro Crew lets Avoozl read the
-   repository's crews and their label scopes, the dialog SHALL list each
-   crew with its scope labels and Avoozl SHALL use the crew's first scope
-   label. WHERE it does not, the person SHALL type the label, the dialog
-   SHALL say Avoozl could not read the crews and why, and the upstream ask
-   for a read-only crew list SHALL be drafted.
-3. WHEN the chosen crew's scope is empty THEN the dialog SHALL warn that the
-   crew takes every open issue in the repository, labeled or not, and no
-   label SHALL be needed to hand it work.
-4. The label SHALL be refused when it is empty, longer than 50 characters,
-   starts with `crew:` (a crew skips any issue carrying one), is a managed
-   label, is a crew label, or is a positive label of any trigger rule of
-   that repository (sending would also start Avoozl).
-5. A confirm dialog SHALL show the exact label and every item it goes on,
-   and Cancel SHALL write nothing. On confirm Avoozl SHALL check the
-   person's `gh` login with the repository's Who counts rule
-   (`allowedActors` or `minimumPermission`), pass the label through content
-   rules at the `github` boundary, add it to each item, and record a
-   receipt per item (repository, number, label, crew, actor, time). A
-   failure on one item SHALL NOT stop the others, and the reply SHALL say
-   which failed and why.
-6. An untriaged-candidate issue that has a hand-off receipt, or carries the
-   crew claim or needs-human label, SHALL show under **With Issue Radar**,
-   not under Untriaged. Each row SHALL say whether a crew has claimed it
-   and whether it needs a person.
-7. (a) For a leaf whose repository's coder is Issue Radar, the crew's label
-   is the repository's `ready` label: Avoozl SHALL add it only when the
-   leaf is ready, and SHALL remove it when the leaf is blocked again,
-   including when a blocker's done state is withdrawn by a reopen
-   (Requirement 33.10). A crew's claim is never removed.
-8. (b) WHEN an issue that carries the crew claim label closes with no
-   merged closing pull request THEN the close SHALL NOT be an order, even
-   by an allowed actor: Avoozl SHALL hold the dependents and open a
-   decision naming the claim. This overrides Requirement 33.8 for claimed
-   issues, because a crew closes with the owner's login and its close
-   cannot be told from the owner's. A close with a merged closing pull
-   request is judged as before.
-9. (c) A `labeled` or `unlabeled` event for a crew label (claim or
-   needs-human) SHALL NOT be the event that makes a trigger rule true, and
-   Settings SHALL refuse a rule whose positive labels name a crew label.
-10. (d) WHEN a With Issue Radar issue or a GitHub leaf carries the
-    needs-human label THEN it SHALL show under **Needs you** on the
-    Dashboard and in Conflicts, in plain words, with a link to the issue.
-11. The tab's help text and the docs SHALL say what Send to Issue Radar
-    writes, that crews act with the owner's login, and rules 7–10.
 
 ### Requirement 53: Agent and model per session
 
@@ -2289,27 +1366,17 @@ cheap one.
 
 ### Requirement 54: Pull request feedback goes back to its writer
 
-Added 2026-11-13 (owner request). Design §4.13.
+Design §4.13.
 
 **User story:** As the owner, I want failed checks, review comments, and
 merge conflicts on an Avoozl worker's pull request sent back to that
 worker, so that the pull request gets fixed and merges without me.
 
-Facts (2026-11-13, Avoozl `kirocrew-native`): the plans-repo brief tells
-the worker to "fix failing checks and answer review on that pull request
-until it merges" (`src/app/delivery/delivery.mjs`). Nothing wakes the worker when a
-check fails or a review lands, so a worker whose turn has ended never
-hears of it. The tick already relays two kinds of message to a bound
-worker: the leak screen's edit request (`src/app/github-close.mjs`) and
-comment-mention steering (`src/app/github-steering.mjs`). Issue Radar
-already fixes CI and review for the leaves it codes.
 
 #### Acceptance criteria
 
-1. This requirement SHALL cover each GitHub leaf whose pull request an
-   Avoozl worker session writes: every plans-repo leaf, and single-repo
-   leaves whose repository's coder is `worker`. It SHALL NOT cover leaves
-   Issue Radar codes.
+1. This requirement SHALL cover each task whose pull request an Avoozl
+   worker session writes.
 2. Each tick SHALL read, for each covered leaf with an open pull request
    from its branch: each check run and status on the head commit, the
    reviews and unresolved review threads, the mergeable state, and
@@ -2337,14 +1404,10 @@ already fixes CI and review for the leaves it codes.
    NOT name the planning repository. It SHALL pass the content rules'
    `brief` boundary (Requirement 40) before it is sent.
 7. WHEN the leaf's worker session is live and the tick opened it THEN the
-   message SHALL go to that session. WHEN a Crew Mode conductor opened it
-   THEN the events SHALL go into the conductor's `next`, as the leak
-   screen does today. WHEN no worker session is live (it ended, failed,
+   message SHALL go to that session. WHEN no worker session is live (it ended, failed,
    or was closed) THEN Avoozl SHALL open a new attempt on the same branch
    with a resume brief that carries the events (Requirement 8), with the
-   agent and model kept per Requirement 53.3. WHILE the worker's crew is
-   unreachable THEN Requirement 41.10 SHALL apply and nothing SHALL be
-   re-placed.
+   agent and model kept per Requirement 53.3.
 8. A feedback round SHALL be one message or new attempt. Each leaf SHALL
    get at most `delivery.feedbackRounds` rounds (default 5, per
    repository or workspace). WHEN the bound is reached, or the same check
@@ -2353,25 +1416,22 @@ already fixes CI and review for the leaves it codes.
    under **Needs you** that says which.
 9. A new attempt opened for feedback SHALL count against the retry bound
    of Requirement 8 as well as the round bound.
-10. Changed 2026-11-15 (Requirement 87): Avoozl pushes, updates and merges
-    the pull request; the worker chat only edits and commits. Avoozl SHALL
+10. Avoozl pushes, updates and merges the pull request (Requirement 87); the worker chat only edits and commits. Avoozl SHALL
     NOT comment or re-run checks for this requirement.
 11. A check that failed in CI after passing locally SHALL still be
     recorded as "CI only" (Requirement 45.5), in addition to being
     relayed.
-12. A comment that is both a review comment and a steering mention
-    (Requirement 27.13) SHALL be sent once.
+12. A comment that is both a review comment and a steering mention SHALL be
+    sent once.
 13. The Delivery view SHALL show, for each covered leaf, its latest event,
     rounds used out of the bound, and the session the last round went to.
 14. A repository MAY set `delivery.prFeedback: false` to turn this off.
     It SHALL be on by default, because delivery is meant to run without
-    a person (Requirement 18).
+    a person (Requirement 87).
 
 ### Requirement 55: Plugin bundles and settings packs
 
-Added 2026-11-13 (owner request). Design §4.14. Replaces the separate
-config-pack idea of 2026-11-13: a pack is now one part of a plugin, and a
-plugin may also ship a pack alone.
+Design §4.14.
 
 **User story:** As a team lead, I want one shared plugin to carry our
 settings, our content rules, and our intake source, so that
@@ -2383,13 +1443,10 @@ setting or runs until someone on that computer has seen it and approved it.
 1. A plugin manifest MAY list `provides`: any of `pack`, `rules`, and
    `intake`, each once. Each part SHALL run as a code kind (Requirement
    34.3): `rules` as `rules`, `intake` as `intake`; `pack` SHALL run as
-   nothing. (Changed 2026-11-18: the `tracker` and `route` parts are
-   retired.)
+   nothing.
    A manifest without `provides` SHALL keep working, each of its `kinds`
    being one part. A manifest with both SHALL have `kinds` equal to the
-   kinds its parts need, or be refused naming the mismatch. (Changed
-   2026-11-13: `template` is a sixth part that runs as nothing,
-   Requirement 61.1.)
+   kinds its parts need, or be refused naming the mismatch.
 2. One plugin SHALL be one install, pinned to one version, content hash,
    and, for git, commit (Requirements 34.4, 34.13). Its approval SHALL list
    every part, and Settings and the Add plugin review step SHALL show each
@@ -2399,14 +1456,11 @@ setting or runs until someone on that computer has seen it and approved it.
    if it names one; Avoozl SHALL start no process for it.
 4. The pack file (`avoozl-pack.json`, or the file the manifest names) SHALL
    hold `description` and `settings`, and `settings` MAY set only:
-   per-repository `rules` (trigger `match` lines), `untriaged` (filter and
-   triage labels), `allowedActors` and `minimumPermission` (who counts),
-   `requiredChecks`, `priorityLabels`, and `managedLabels`;
-   `project` `fields` and `statusValues`; `epicIssueType`; `contentRules`
-   `sets` as references only; `delivery` `reviewers` (review roles),
-   `agent`, `model`, `runner`, and `concurrency`; and `flow`. Both
-   `concurrency` keys SHALL be accepted so an old pack imports, and SHALL
-   write nothing (Requirement 6.3; changed 2026-11-18). Every value
+   per-repository `rules` (trigger `match` lines), `allowedActors` and
+   `minimumPermission` (who counts), `requiredChecks`, `priorityLabels`, and
+   `managedLabels`; `epicIssueType`; `contentRules` `sets` as references
+   only; `delivery` `reviewers` (review roles), `agent`, `model` and
+   `runner`; and `flow`. Every value
    SHALL pass the validator Settings uses for that key. Any other key, a
    credential-like key, or anything that could hold a content rule SHALL
    be refused with an error naming the key, and the plugin SHALL show as
@@ -2443,8 +1497,7 @@ setting or runs until someone on that computer has seen it and approved it.
 10. The plugin guide and the app's plugin skill SHALL describe bundles,
     packs, and intake, with a sample bundle in the test tree that names no
     private system or company.
-11. A pack and a repository entry MAY set `waitingLabels` (owner request
-    2026-11-13): labels meaning the item waits on someone outside. A task
+11. A pack and a repository entry MAY set `waitingLabels`: labels meaning the item waits on someone outside. A task
     whose item carries one SHALL wait in **Blocked or waiting** with the
     reason "Waiting on the author". Absent, nothing changes.
 12. A pack and a repository entry MAY set `priorityLabels`, an ordered
@@ -2456,8 +1509,6 @@ setting or runs until someone on that computer has seen it and approved it.
 "p3"]`.
 
 ### Requirement 56: Fewer MCP tools, every safe action
-
-Added 2026-11-13 (owner decision).
 
 **User story:** As the owner, I want a session to reach every safe Avoozl
 action through a few MCP tools, so that its tool list stays short and
@@ -2471,38 +1522,30 @@ nothing a person must decide can be done from a chat.
    authority class unchanged.
 2. Approving a plan or plugin, Allow once, choosing a conflict winner,
    content-rule terms, Who counts and other settings, adding or removing
-   repositories, GitHub setup writes, handing items to Issue Radar, flow
+   repositories, GitHub setup writes, flow
    settings and Run anyway, and deletes SHALL be person only. An MCP call
-   that reaches one, under any tool name, old or new, SHALL be refused
+   that reaches one, under any tool name, SHALL be refused
    before anything runs, saying to do it in the app. A test SHALL fail
    when an operation has neither an MCP route nor a written reason it has
    none, and a test SHALL check that each person-only operation is refused.
-   (Changed 2026-11-13: marking a manual task done or reopening it, and
-   editing, removing or showing a task's links and notes on its issue, are
-   person only too, Requirement 61.13 and 61.22.)
-3. (Changed 2026-11-18, owner decision.) The deprecated one-tool-per-operation
-   `plans_*` names that nothing Avoozl ships uses, the moved-operation stubs,
-   `plans_relay` and `plans_andon_*` SHALL NOT be listed or answered. A narrow
+   Marking a manual task done or reopening it, and editing or removing a
+   task's links, are person only too (Requirement 61.13 and 61.22).
+3. Only registered tools SHALL be listed or answered. A narrow
    tool that a shipped agent, role prompt or brief names (such as
    `plans_report`, `plans_get_plan` or `plans_submit_review`) SHALL stay as a
    current tool, so no agent's allowedTools grows. Agents, prompts and briefs
    SHALL name only registered tools, and a test SHALL fail when one names a
    tool that is not registered or when a read-only role is given a grouped
-   tool with write actions. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) The old plan-file MCP server's tools
-   SHALL NOT be listed. The planner's four reads (`plans_query`,
+   tool with write actions. The planner's four reads (`plans_query`,
    `plans_get_task`, `plans_documents`, `plans_get_document`) SHALL be
    narrow tools over the `query`, `task.get`, `plan.table` and
    `document.get` operations.
 4. A session MAY archive and unarchive a plan, and the record SHALL name
-   the session. This replaces Requirement 51.1.
-5. A grouped tool that keeps an old read-only name SHALL stay read only, so
-   an agent allowed that name gains nothing.
+   the session.
+5. A grouped tool with a read-only name SHALL stay read only, so an agent
+   allowed that name gains nothing.
 
 ### Requirement 57: New plan from the Plans page
-
-**Status 2026-11-18.** The button is **New spec** in the Specs heading and opens a centered modal (#228), not a right drawer. Quick goal was removed (#228); New spec starts From a goal. **Plan a goal** is no longer in the top bar (#488), so criterion 5 no longer applies.
-
-Added 2026-11-13 (owner request).
 
 **User story:** As the owner, I want to start a plan from a few fields on
 the Plans page, so that a planner drafts its spec folder by Avoozl's rules
@@ -2510,15 +1553,12 @@ without my writing a prompt.
 
 #### Acceptance criteria
 
-1. The Plans page SHALL have a **New plan** button that opens a right
-   drawer with Name (the spec folder name), Category (pick or type),
-   Epics or phases (optional), Repositories (checkboxes of registered code
-   repositories), What you want (required) and Links and context
-   (optional). Cancel SHALL ask first when anything was typed. (Changed
-   2026-11-13: Epic and Phases are separate fields, Requirement 59.11, and
-   the drawer offers Blank or From template, Requirement 61.7.; the button is
-   New spec, Requirement 62.1, and an idea can prefill it, Requirement
-   63.9.)
+1. The Specs page SHALL have a **New spec** button in its heading that opens
+   a centered modal with Name (the spec folder name), Category (pick or
+   type), Epic and Phases (Requirement 59.11), Repositories (checkboxes of
+   registered code repositories), What you want (required) and Links and
+   context (optional), starting Blank or From template (Requirement 61.7).
+   Cancel SHALL ask first when anything was typed.
 2. Avoozl SHALL refuse a name that is not a spec folder name, or that a
    plan or spec folder already uses; a request with no registered
    repository, no picked repository or no goal; and a seed that a content
@@ -2526,18 +1566,14 @@ without my writing a prompt.
 3. Submit SHALL open a planner chat seeded with the fields and Avoozl's
    spec rules: the `.kiro/specs/<name>/` layout with requirements.md,
    design.md and tasks.md with `$` fact bullets, the `category:`
-   front-matter, unique task IDs, the folder and the repositories.
-   (Changed 2026-11-13: Submit hands the request to Spec Builder,
-   Requirement 65; the planner chat is the fallback.)
+   front-matter, unique task IDs, the folder and the repositories. Submit
+   hands the request to Spec Builder (Requirement 65); the planner chat is
+   the fallback.
 4. The tick SHALL import the folder as a draft plan once it lints clean.
    New plan SHALL never approve a plan, turn on Autopilot (delivery) or push.
 5. Every top button on the Plans page SHALL show an icon.
 
 ### Requirement 58: Onboard a repository
-
-**Status 2026-11-18.** There is no separate **Onboard** button. Settings › Repository setup has one **Add repository** entry that runs the same steps as follow-up setup (#515).
-
-Added 2026-11-13 (owner request).
 
 **User story:** As the owner, I want adding a repository to offer a guided
 Onboard flow, so that a repository goes from nothing to plans ready to
@@ -2582,13 +1618,7 @@ approve without my running setup steps by hand.
 
 ### Requirement 59: Epics span plans, phases sit inside plans
 
-Added 2026-11-13 (owner decision). Design §6.9. This replaces Requirement
-4.3 and changes 4.4, 13.7, 23.9, 46.2, 48.3 and 57.1 as stated below. It
-drops the separate Initiative level that was discussed: no Initiative field
-or front-matter key exists. Changed 2026-11-13 (owner): no old plan form
-keeps loading. The owner is Avoozl's only user, so the old forms become
-validation errors, and task 21.7 rewrites the owner's existing plans once,
-with a script that is not part of the product.
+Design §6.9.
 
 **User story:** As the owner, I want an epic to be a goal that spans
 several plans, and the groups of tasks inside one plan to be its phases, so
@@ -2630,15 +1660,14 @@ progress, and no grouping is made up from a file path.
    no plan SHALL show under **No plan**. No view, list, filter, export or
    brief SHALL show a raw `doc:` ID or a file path as an epic or phase name.
 7. Inside a plan, the `kind` fact values SHALL be `package` and `leaf`
-   (this replaces Requirement 4.3; Requirement 4.4 reads "packages complete
-   only from their children"). A task with `kind: epic`, a task `epic`
+   (Requirement 4.3). A task with `kind: epic`, a task `epic`
    fact, an `epics` key in a plan's front-matter, and an
    epic entry's `memberPlan` key SHALL each be a validation error naming
    the file, the entry and the edit that fixes it. Avoozl SHALL NOT load
    any of them under another name.
 8. A published epic SHALL have one issue, with one sub-issue per published
    member spec, in each spec's home repository. Tasks and phases SHALL never
-   be issues or GitHub Project state. Cross-repository linking failures SHALL
+   be issues. Cross-repository linking failures SHALL
    keep both issues and show a link, without moving private material or
    manufacturing task issues. Issue closure SHALL NOT determine task completion.
 9. When GitHub cannot link a plan issue under its epic's issue, Avoozl
@@ -2661,23 +1690,6 @@ progress, and no grouping is made up from a file path.
     **Phases** (optional) instead of "Epics or phases"; the planner writes
     the `epic:` front-matter and the phase headings.
 12. No operation, CLI command or MCP action SHALL migrate a workspace.
-    The owner's existing workspace and plans SHALL be rewritten once,
-    inside task 21.7, by a script that runs only in that task and is not
-    added to the product. It SHALL use existing operations only, back up
-    the database with its sha256 first, and run on a copy before the live
-    run. It SHALL turn each per-plan epic into a phase of its plan with the
-    same ID and title, move each task in a `doc:` epic to its `tasks.md`
-    section or **No phase**, archive each task whose plan is gone with
-    `task.archive` and the reason "plan removed", rewrite each old
-    form of criterion 7 into the new one. A second run SHALL change nothing. It
-    SHALL NOT approve a plan, start or stop a session, touch GitHub or
-    push; spec changes SHALL be local commits.
-13. The owner's Nupp plans SHALL be rewritten this way: the W1–W7 groups
-    SHALL become phases of their plan, not epics (this changes
-    Requirement 23.9), and the rewrite epic folder SHALL list the member
-    plans whose front-matter names it, with `"kind": "epic"` and `plan`, optional `summary` and optional `step`
-    in each entry. Avoozl's own spec SHALL be checked
-    the same way and rewritten if it uses an old form.
 14. Avoozl's planner agent and skill SHALL write epic folders and the
     `epic:` key in this layout, and SHALL write phases as `tasks.md`
     headings.
@@ -2722,18 +1734,14 @@ leaving the page.
 
 ### Requirement 61: Workflow templates, manual tasks, and task links and notes
 
-Added 2026-11-13 (owner approval). Design §4.16. This adds the `template`
-part to Requirement 55.1, **From template** to the New plan drawer of
-Requirement 57.1, the `manual` leaf to Requirement 4 and design §4.3, the `notes` content-rule boundary to
-Requirement 40.3, and the actions of criteria 13 and 22 to the person-only
-list of Requirement 56.2.
+Design §4.16.
 
 **User story:** As the owner, I want to start a plan from a reusable
 workflow, such as an SDK rewrite, with its phases, proofs, settings and
 flow habits already in it; to put steps in a plan that only people do,
-such as a team review; and to keep links and notes on any task, so that a
-repeated kind of work starts the same way each time, a person's step gates
-the work after it, and what was decided stays with the task.
+such as a team review; and to keep links on any task, so that a repeated
+kind of work starts the same way each time, a person's step gates the work
+after it, and what was decided stays with the task.
 
 #### Acceptance criteria
 
@@ -2803,42 +1811,21 @@ Manual tasks
 11. Before its blocking edges hold, a manual leaf SHALL sit in **Blocked or
     waiting**. Once they hold, it SHALL sit in **Needs you** with the tag
     **Manual** and the reason "Waiting for a person: <title>", in every
-    view and in the Avoozl state Project field. No new lane SHALL be added.
+    view. No new lane SHALL be added.
 12. The task drawer SHALL show a manual leaf's acceptance and a **Mark
-    done** button. Mark done SHALL open a dialog with ~~an optional outcome
-    note and~~ optional links (criterion 16) and a choice of **Done** or **Skipped**,
+    done** button. Mark done SHALL open a dialog with optional links (criterion 16) and a choice of **Done** or **Skipped**,
     and SHALL record who, when, the choice and the outcome. Dependents
     SHALL be released by either choice; Skipped SHALL show on the task.
 13. Marking a manual leaf done or reopening it SHALL be person only (page
     and CLI). An MCP call SHALL be refused under Requirement 56.2.
-14. In a GitHub mode a manual leaf SHALL get an issue like any task, a
-    sub-issue of its plan issue or package. It SHALL never get a ready or
-    trigger label, SHALL never be sent to Issue Radar, and its managed
-    body section SHALL say that a person closes it and that no agent works
-    on it. Mark done SHALL close the issue (reason completed for Done, not
-    planned for Skipped) as the person's GitHub login, and SHALL be
-    refused when that login fails the repository's Who counts rule.
-    WHEN an allowed actor closes the issue on GitHub THEN the next tick
-    SHALL mark the leaf done with the close reason, and this SHALL count as
-    its completion. WHEN an actor Who counts does not allow closes it, or
-    the closer cannot be read, THEN Avoozl SHALL hold its dependents, open
-    a decision, and SHALL NOT reopen the issue. WHEN the issue is reopened
-    THEN the leaf SHALL be open again: new dispatch of its dependents
-    waits, and running sessions are left alone.
 15. Flow (Requirement 43) SHALL count a manual leaf's time in Needs you as
     waiting on a person, and SHALL leave it out of first-pass rate and
     time to fix.
 
-Task links and notes
+Task links
 
-Removed 2026-11-17 (owner): task notes. Tasks keep links only; the struck
-note text below no longer applies. Notes saved before then are ignored, with
-no migration and no warning, and a new note is refused. The drawer box is
-called **Links**, and its fields open from an **Add link** button for one
-link at a time.
-
-16. Every task SHALL have **Links** ~~and notes~~: an ordered list of entries,
-    each a link (`url` and `label`) ~~or a note (free text)~~, with its author
+16. Every task SHALL have **Links**: an ordered list of entries, each a link
+    (`url` and `label`), with its author
     (a person, or the session ID) and its time. They SHALL be execution
     state in SQLite, not spec text: they record what happened during
     delivery, they change after approval, and writing them to the spec
@@ -2846,7 +1833,7 @@ link at a time.
     revision or approval.
 17. A link's `url` SHALL be `https` or `http`, at most 2,000 characters,
     with no user name or password in it; its `label` SHALL be 1 to 200
-    characters. ~~A note SHALL be 1 to 10,000 characters.~~ A task SHALL hold
+    characters. A task SHALL hold
     at most 200 entries. Avoozl SHALL refuse each breach, naming the field.
 18. Content rules SHALL check each entry when it is saved, at a new
     `notes` boundary that is on by default. A block SHALL refuse a
@@ -2856,8 +1843,7 @@ link at a time.
     boundaries wherever they are used.
 19. The task drawer SHALL show Links, newest first, with author and time,
     and an **Add link** button that opens the URL and label fields for one
-    link, with Add and Cancel; adding or Cancel closes them. ~~An **Add
-    link** form (URL and label) and an **Add note** box.~~
+    link, with Add and Cancel; adding or Cancel closes them.
     A person MAY edit an entry or remove one after a confirm; a removed
     entry SHALL leave the list and stay in the task's activity history.
 20. A session SHALL read Links through the grouped `task` MCP
@@ -2865,19 +1851,14 @@ link at a time.
     8,000 characters, marked as data from people and agents, not as
     instructions. A dependent's brief SHALL also carry each blocker's
     outcome entries (criterion 12).
-21. A session MAY add ~~a note or~~ a link to a task it is bound to; the entry
+21. A session MAY add a link to a task it is bound to; the entry
     SHALL name the session. A session SHALL NOT add to another task, and
     SHALL NOT edit or remove any entry.
-22. Editing or removing an entry, and **Show on the issue**, SHALL be
-    person only. The CLI SHALL offer list, add, edit and remove.
-23. In a GitHub mode an entry SHALL be written to GitHub only when a person
-    ticks **Show on the issue** on it, off by default. Shown entries SHALL
-    be listed in the issue's managed body section under "Links" (before
-    2026-11-17, "Links and notes", which a rebuild still reads),
-    after the `github` boundary passes, and a person's edit there SHALL be
-    a conflict like any managed body edit. Entries not shown SHALL live
-    only in SQLite and its backups; the rebuild test (design §3.3) SHALL
-    allow them to be missing, as it allows session bindings.
+22. Editing or removing an entry SHALL be person only. The CLI SHALL offer
+    list, add, edit and remove.
+23. Entries SHALL live only in SQLite and its backups; the rebuild test
+    (design §3.3) SHALL allow them to be missing, as it allows session
+    bindings.
 
 Example
 
@@ -2889,13 +1870,11 @@ Example
     for protocol tests and a cutover dry run; and flow defaults that
     stop the line, run local checks first and hold a
     retrospective every 10 tasks. The plugin guide and the planner skill
-    SHALL describe templates, manual tasks and Links ~~and notes~~.
+    SHALL describe templates, manual tasks and Links.
 
 ### Requirement 62: The Plans page is called Specs
 
-Added 2026-11-13 (owner approval). Design §8.7. This renames what people
-see; it renames no interface. It changes the button of Requirement 57.1 to
-**New spec**.
+Design §8.7.
 
 **User story:** As the owner, I want the page and its words to say spec,
 so that the name matches the `.kiro/specs/<name>/` folders I write.
@@ -2920,14 +1899,9 @@ so that the name matches the `.kiro/specs/<name>/` folders I write.
    each kept name of criterion 2 and each use of plan as a verb (for
    example **Plan this**), one entry per string.
 
-### Requirement 63: Ideas (retired)
-
-Retired.
-
 ### Requirement 64: Pull the Andon cord
 
-Added 2026-11-13 (owner approval). Design §4.11. This adds a stop that a
-person or an agent pulls by hand to the automatic stops of Requirement 44.
+Design §4.11.
 
 **User story:** As the owner, I want to stop new work myself when I see
 something wrong, so that nothing new builds on it while it is looked at.
@@ -2969,7 +1943,7 @@ something wrong, so that nothing new builds on it while it is looked at.
     automatic stops, counted in the charts over time, its open-to-resume
     time counted as time to fix, and sent to the retro with its scope and
     reason.
-12. Added 2026-11-13 (owner approval). The Stop the line dialog SHALL offer
+12. The Stop the line dialog SHALL offer
     two choices: **Stop the line**, which stops new work only (criteria
     1–11), and **Stop all agents**, a full stop. A full stop SHALL pause
     everything in the workspace like scope `all`, and SHALL also stop every
@@ -2994,8 +1968,7 @@ something wrong, so that nothing new builds on it while it is looked at.
 
 ### Requirement 65: New plan hands off to Spec Builder
 
-Added 2026-11-13 (owner approval, including the Spec Builder grant).
-Design §8.6. This changes Requirement 57.3.
+Design §8.6.
 
 **User story:** As the owner, I want New plan and Plan a goal to open
 Kiro Crew's Spec Builder on a new spec with Avoozl's rules, so that I
@@ -3014,8 +1987,7 @@ still gets a spec folder it can deliver.
    that states the spec layout, the `category:` and `epic:` front-matter,
    task ID format and uniqueness, phases as `##` headings, the `$` fact
    bullets under each task and the front-matter defaults (Requirement 111),
-   and that no spec folder holds `avoozl/manifest.json`. (Changed
-   2026-11-18, Requirement 111.9.) Spec Builder's chat runs the default
+   and that no spec folder holds `avoozl/manifest.json`. Spec Builder's chat runs the default
    agent in the spec's repository, which loads `.kiro/steering/**/*.md`.
 3. Before the hand-off, New plan SHALL check whether that file is in the
    spec's repository. When it is missing, the drawer SHALL show its full
@@ -3032,8 +2004,7 @@ still gets a spec folder it can deliver.
    page.
 6. The tick SHALL lint the folder and import it as a draft plan once it
    lints clean. Avoozl SHALL write nothing into the folder. Nothing SHALL
-   approve, start an agent or push. (Changed 2026-11-18, Requirement 111.9:
-   Avoozl no longer drafts a manifest from `tasks.md`.)
+   approve, start an agent or push.
 7. WHEN Spec Builder is turned off, the grant is not yet approved, or Spec
    Builder is missing THEN the drawer SHALL say so in plain words, with how
    to turn it on or approve the grant, and SHALL offer an Avoozl planner
@@ -3041,9 +2012,7 @@ still gets a spec folder it can deliver.
 
 ### Requirement 66: One driver per spec
 
-Added 2026-11-13 (owner request). Design §6.10 and §4.44. This makes
-Requirement 13.5 hold across machines: two machines with the same planning
-repository never both tick one spec.
+Design §6.10 and §4.44.
 
 **User story:** As the owner, I want exactly one Avoozl to drive each spec
 at a time, named the way GitHub already names who owns an issue, so that
@@ -3058,8 +2027,7 @@ two machines never dispatch, write GitHub or merge for the same spec.
    stand in, by the same rule; a spec issue with several assignees SHALL NOT
    fall back to the epic. WHEN the result is several assignees THEN every
    workspace SHALL read only for that spec, and Avoozl SHALL open one
-   decision naming the issue and its assignees. Task-issue assignees SHALL
-   keep their meaning (intake, Issue Radar) and SHALL NOT affect the driver.
+   decision naming the issue and its assignees.
 3. Avoozl SHALL never change an assignee. Handing a spec to someone SHALL be
    pushing the branch, mentioning the spec issue in it and reassigning the
    issue on GitHub; unassigning SHALL release the spec.
@@ -3072,7 +2040,7 @@ two machines never dispatch, write GitHub or merge for the same spec.
    before each integrate or merge for that spec. WHILE this workspace is not
    the driver THEN the spec SHALL be read-only here: the tick MAY refresh
    its own cache and views, and SHALL NOT dispatch, message a session, write
-   an issue, label, link, marker, Project field or linked branch, close or
+   an issue, label, link or marker, close or
    reopen an issue, revert an edit, integrate, merge, or write the spec
    folder. Other specs SHALL tick as usual.
 6. Assignment is not atomic, so the docs SHALL say that a short overlap is
@@ -3091,15 +2059,9 @@ two machines never dispatch, write GitHub or merge for the same spec.
    Settings › General SHALL have a **This computer** group with Machine
    label (optional) and the machine ID shown small.
 
-### Requirement 67: Per-task budgets and usage receipts (retired)
-
-Retired.
-
 ### Requirement 68: Retros propose prompt and skill changes
 
-Added 2026-11-13 (owner approval). Design §4.18. It widens the proposal
-types of Requirement 47.4 and changes no other rule there: a retrospective
-still applies nothing.
+Design §4.18.
 
 **User story:** As the owner, I want a retrospective to propose changes to
 the prompts and skills my workers run on, with the evidence for each, so that
@@ -3170,21 +2132,13 @@ when I say so.
     it. WHEN it did not help THEN the next retrospective SHALL include a
     typed proposal to revert it.
 14. The Flow tab SHALL have a **Proposals** view listing every proposal
-    with its type, target, base version, diff, evidence, cited lessons
-    (Requirement 69), **Approve** and **Reject**, and per prompt the
+    with its type, target, base version, diff, evidence, **Approve** and
+    **Reject**, and per prompt the
     versions in use with **Revert**.
-
-### Requirement 69: Retro memory across workspaces (retired)
-
-Retired.
-
-### Requirement 70: Lessons and overrides heal as things change (retired)
-
-Retired.
 
 ### Requirement 71: Activity log and Activity tab
 
-Added 2026-11-13 (owner request). Design §4.19.
+Design §4.19.
 
 **User story:** As the owner, I want one list of what people, sessions,
 GitHub and plugins did in this workspace, so that I can see who changed
@@ -3238,21 +2192,12 @@ what and when without reading chats, the tick log or GitHub.
 
 ### Requirement 72: Provider health and switching models
 
-**Status 2026-11-18.** Manual **Switch model**, its dialog and Settings › Providers were removed (#228, #153). Settings › Models sets the model of Avoozl's own chats. Provider health reads stay in the backend (`provider-health.mjs`).
-
-Added 2026-11-13 (owner request). Design §4.20. It builds on the usage read
-of Requirement 43 (`flow_usage`), the session tool-row read (design §4.11),
-the agent and model choices of Requirement 53, and Kiro Crew's per-chat
-model change (design F126).
-
-Changed 2026-11-13 (owner decision): out is a hard check. The thresholds form, groups, fallback list, cooldown and window
-settings are removed (criteria 1, 2, 4, 5, 9, 17).
+Design §4.20.
 
 **User story:** As the owner, I want Avoozl to notice when a model provider
 runs low or runs out, keep new work off it, and move running chats to
 another model without losing their work, so that a rate limit or an empty
-credit balance does not stall delivery, and I can make the same switch by
-hand.
+credit balance does not stall delivery.
 
 #### Acceptance criteria
 
@@ -3288,7 +2233,6 @@ hand.
    role's model this way (Requirement 53.4).
 6. A retry SHALL keep its last model unless that model is `out`; then it
    SHALL pick as a new task does and say that the kept model is out.
-7. Retired.
 8. WHEN a running chat Avoozl opened is on an `out` model THEN Avoozl SHALL
    switch that chat to a healthy model through Kiro Crew's per-chat model
    change, in the same session, so the chat keeps its branch, worktree and
@@ -3314,23 +2258,6 @@ hand.
     switched SHALL NOT be refused only because its model changed mid-session,
     and a reviewer SHALL be refused when any of its models equals any of
     the writer's.
-12. The Dashboard header and the In flight card SHALL have a **Switch
-    model** button. It SHALL open a dialog to pick From (a provider, a
-    model, or tasks chosen from the running ones) and To (the models Kiro
-    Crew lists in `GET /api/models`), then preview the running chats it
-    would switch, read only, before the person confirms.
-13. The dialog SHALL have an optional **Also new tasks** setting. With it
-    on, the From provider or model (for chosen tasks, each model their chats
-    run on) SHALL be marked `out` by the person, with the To model as its
-    replacement for new tasks, until a person undoes it.
-14. A manual switch SHALL go through the same switch path and record as
-    criterion 8 and 10, with `by` the person. Its confirm SHALL carry the
-    preview's hash and SHALL be refused when the running chats changed.
-15. Switching, undoing a mark and saving provider settings SHALL be
-    person-only: MCP SHALL refuse them with the person-only refusal
-    (Requirement 56.2), and the app backend SHALL refuse app tokens and
-    agent tools. The provider view and the switch preview SHALL be readable
-    by MCP.
 16. WHEN a provider or model is `out` THEN Needs you SHALL show one item for
     it with the reason, how many chats were switched and to what, and any
     chat left on it because no model qualified. The item SHALL go away when
@@ -3344,7 +2271,7 @@ hand.
 
 ### Requirement 73: Searchable task and spec pickers
 
-Added 2026-11-13 (owner approval). Design §8.9.
+Design §8.9.
 
 **User story:** As the owner, I want to type to find a task or spec
 wherever I pick one, so that I never scroll a long dropdown.
@@ -3369,36 +2296,9 @@ wherever I pick one, so that I never scroll a long dropdown.
    test SHALL filter 5,000 tasks within the time a 1,000-task filter took
    times 10.
 
-### Requirement 74: Only open tasks get issues
-
-Added 2026-11-13 (owner decision). Design §6.3.
-
-**User story:** As the owner, I want approving a spec to make issues only for
-work that is still open, so that GitHub does not fill with issues for tasks
-that are already done.
-
-#### Acceptance criteria
-
-1. WHEN a spec is approved or projected THEN a task that is already done and
-   has no issue SHALL get no issue, no Project card and no sub-issue link,
-   unless `github.issues.includeDone` is `true`.
-2. `github.issues.includeDone` SHALL be `true` or `false`, default `false`.
-   Settings SHALL refuse any other value or key under `github.issues`, and
-   the GitHub settings page SHALL show it as a checkbox.
-3. An edge from a skipped done task SHALL count as met and SHALL make no
-   blocked-by link.
-4. The plan issue and the epic issue SHALL still be made, even when every
-   task in the spec is done. An open task whose package was skipped SHALL
-   sit under the plan issue.
-5. A task that already has an issue SHALL keep it. WHEN a skipped task is
-   no longer done THEN the next projection SHALL make its issue.
-6. The issue preview SHALL list the skipped tasks (`skippedDone`), and a
-   test SHALL show that a done task gets no issue by default and gets one
-   with `includeDone: true`.
-
 ### Requirement 75: Investigate before coding
 
-Added 2026-11-13 (owner decision). Design §4.21.
+Design §4.21.
 
 **User story:** As the owner, I want a worker to show what it found before
 it writes code, and a second chat to try to prove it wrong, so that agents
@@ -3432,7 +2332,7 @@ do not build on a wrong reading of the task.
 
 ### Requirement 76: Evidence bundle per task
 
-Added 2026-11-13 (owner decision). Design §4.22.
+Design §4.22.
 
 **User story:** As a reviewer, I want one place that shows what a task
 found, decided and checked, so that I can review the change without
@@ -3460,7 +2360,7 @@ reading the chat.
 
 ### Requirement 77: Bring open pull requests up to date when main moves
 
-Added 2026-11-13 (owner decision). Design §4.23.
+Design §4.23.
 
 **User story:** As the owner, I want open agent pull requests to keep up
 with the base branch, so that they do not sit in conflict.
@@ -3485,7 +2385,7 @@ with the base branch, so that they do not sit in conflict.
 
 ### Requirement 78: Rules from repeated corrections
 
-Added 2026-11-13 (owner decision). Design §4.24.
+Design §4.24.
 
 **User story:** As the owner, I want the same correction I keep giving to
 become a written rule, so that I do not give it a third time.
@@ -3511,7 +2411,7 @@ become a written rule, so that I do not give it a third time.
 
 ### Requirement 79: Fix-work share in Flow
 
-Added 2026-11-13 (owner decision). Design §4.11.
+Design §4.11.
 
 **User story:** As the owner, I want to see how much finished work was bug
 fixes, so that I can tell whether delivery is getting cleaner.
@@ -3528,7 +2428,7 @@ fixes, so that I can tell whether delivery is getting cleaner.
 
 ### Requirement 80: Ship mode
 
-Added 2026-11-13 (owner decision). Design §4.25.
+Design §4.25.
 
 **User story:** As the owner, I want to choose whether finished pull
 requests merge by themselves or wait for me, so that I can keep the last
@@ -3536,35 +2436,40 @@ step by hand when I want it.
 
 #### Acceptance criteria
 
-1. Who merges SHALL be `autoMerge` in the repository's landing block
-   (Requirement 87.1): `true` (default, today's behavior) or `false`. A
-   spec's `tasks.md` front-matter MAY set `ship` and a task's facts its own
-   `ship`, `auto-merge` or `manual`, as a pin. The task's pin wins, then the
-   spec's, then the repository's `autoMerge`. A task that came from a GitHub
-   issue follows it like any other. (Changed 2026-11-18, simplification
-   audit F3: it was `delivery.ship` per workspace and per repository.) A
-   file that still sets `delivery.ship` or `delivery.repositories.<id>.ship`
-   SHALL NOT load, and the error SHALL name the file and the key (changed
-   2026-11-19).
-2. With auto-merge on, Requirement 18 SHALL apply unchanged.
-3. With auto-merge off, briefs SHALL tell writers not to enable auto-merge,
-   and Avoozl SHALL say so on the repository's Landing tab. WHEN a pull request's
-   required checks pass and its reviews are met THEN Needs you SHALL show
-   one **Ready to merge** item with a link to it; the person merges on
-   GitHub, and Requirement 16 decides completion as before.
+1. For `direct` landing and Local only, who merges SHALL be `autoMerge` in
+   the repository's landing block (Requirement 87.1): `true` (default) or
+   `false`. A spec's `tasks.md` front-matter MAY set `ship` and a task's
+   facts its own `ship`, `auto-merge` or `manual`, as a pin. The task's pin
+   wins, then the spec's, then the repository's `autoMerge`. A task that
+   came from a GitHub issue follows it like any other. A file that still
+   sets `delivery.ship` or `delivery.repositories.<id>.ship` SHALL NOT
+   load, and the error SHALL name the file and the key.
+2. With auto-merge on, Avoozl SHALL merge as Requirement 87 says.
 4. With auto-merge off in Local only mode, integration SHALL wait for a
    person's **Integrate** on the Ready to merge item. A Local only
    workspace has no GitHub repository entries, so a spec or task pin turns
    auto-merge off there, and each project's `landing` sets its mode.
-5. Avoozl SHALL still never merge a pull request itself.
-6. With auto-merge off, WHEN a writer's pull request closes without merging
-   THEN Avoozl SHALL send the writer one message, as one feedback round, to
-   read why, fix it and reopen it, or report blocked. Settings › Repository
-   setup › Edit › Landing SHALL choose it; Settings › Delivery SHALL NOT.
+6. WHEN a writer's pull request closes without merging THEN Avoozl SHALL
+   send the writer one message, as one feedback round, to read why, fix it
+   and reopen it, or report blocked. Settings › Repository setup › Edit ›
+   Landing SHALL choose it; Settings › Delivery SHALL NOT.
+7. For `pr` landing, `landing.pr` SHALL say how pull requests open and who
+   merges them, set for the workspace with a per-repository override that
+   wins, and changed only by a person: `draft` (the default) opens a draft
+   that waits as **Draft, waiting for you** with one Needs you row until a
+   person marks it ready on GitHub or presses **Approve**; `ready` opens it
+   ready for review; `auto` opens it ready and Avoozl merges once checks and
+   reviews pass on the exact head. With `draft` and `ready`, once checks
+   and reviews pass on the exact head it waits for a person: a merge on
+   GitHub, or **Merge** in Avoozl, which the next tick checks again on that
+   head and merges. A draft SHALL never be merged or batched, a failed
+   check on a draft SHALL still go back to the worker, and `autoMerge`
+   SHALL NOT apply to these pull requests. **Approve** and **Merge** SHALL
+   be person only.
 
 ### Requirement 81: Review a task's changes in the drawer
 
-Added 2026-11-13 (owner request). Design §8.10.
+Design §8.10.
 
 **User story:** As the owner, I want to see what a worker changed from the
 task drawer, so that I can review a task without leaving Avoozl.
@@ -3598,9 +2503,7 @@ task drawer, so that I can review a task without leaving Avoozl.
 
 ### Requirement 82: Demo mode
 
-**Status 2026-11-18.** The demo tour was removed (#311). The Demo badge, the bar, the Stop the line example and Exit demo stay. **Start demo** is in the empty In flight box on Home.
-
-Added 2026-11-13 (owner request). Design §6.11.
+Design §6.11.
 
 **User story:** As the owner, I want a demo I can show anyone, so that they
 see Avoozl working on made-up work while my own work, GitHub and agents
@@ -3617,7 +2520,7 @@ stay untouched.
    box while the workspace has never run a task (no session, evidence,
    integration or completed task), and on the empty page with no workspace;
    it SHALL NOT be in the page header. While the demo is on, the header keeps
-   its Demo badge and Exit demo (owner decision 2026-11-14).
+   its Demo badge and Exit demo.
 2. The sample SHALL be installed once, in its own temporary folder, built
    in a staging folder and moved into place whole. A failed build SHALL
    leave nothing. A second start SHALL reuse the sample and keep its edits.
@@ -3629,11 +2532,8 @@ stay untouched.
    workspace. No dispatch, router, retro, responder or reviewer session
    SHALL start, and the page SHALL open no Kiro Crew chat and call no host
    route outside Avoozl's own commands and reads.
-4. The demo SHALL use a fake GitHub with an epic issue, sub-issues, a
-   Project, pull requests and passing, failing and running checks. It SHALL
+4. The demo SHALL use a fake GitHub with an epic issue, sub-issues, pull requests and passing, failing and running checks. It SHALL
    refuse every write, every raw call and every method it does not know.
-5. Withdrawn 2026-11-16 (owner request): the guided tour is removed. Demo
-   mode keeps the sample, the demo bar and Exit demo, with no tour.
 6. A Demo badge SHALL show in the header on every page while the demo is
    on, and Settings SHALL list only the sample, never the machine's own
    workspaces.
@@ -3643,7 +2543,7 @@ stay untouched.
 
 ### Requirement 83: Security follow-ups from the PR 29 audit
 
-Added 2026-11-14 (owner request). Design §6.12. Findings S4 to S8.
+Design §6.12.
 
 **User story:** As the owner, I want repository code, agent sessions and
 other local users held to what I approved, so that a public repository or a
@@ -3654,10 +2554,7 @@ chatty agent cannot reach my secrets or my approvals.
 1. WHEN the CLI is run with `KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID` set
    THEN it SHALL run a person-only operation, SHALL print that it ran in an
    agent session, and an approval SHALL record that in its receipt's
-   evidence. (Changed 2026-11-18, owner decision: the CLI used
-   to refuse here unless `--as-person` was given; the flag is removed and an
-   old command that passes it runs as before. The command line is a
-   person's tool, and the refusal stopped only well-behaved agents.)
+   evidence. The command line is a person's tool, so it does not refuse.
 2. The docs SHALL say plainly that person-only stops MCP and app tokens, not
    code running as the user. A draft request to Kiro Crew for passing the
    proxy secret by descriptor or a 0600 file SHALL be kept in
@@ -3675,62 +2572,9 @@ chatty agent cannot reach my secrets or my approvals.
 6. A local-folder plugin SHALL be hashed again just before it starts and
    SHALL be refused if the hash changed since approval.
 
-### Requirement 84: Runner mode over SSH
-
-Retired 2026-11-18 by the worker-paths spec (WP5). The text below is the
-record and is not built.
-
-Added 2026-11-14 (owner request). Design §6.13. Prototype, off by default.
-
-**User story:** As the owner, I want one Avoozl to hand a task to an Avoozl on
-another machine over SSH and see that machine's worker, so that work can run
-on a bigger or safer machine without a shared database or a shared gateway.
-
-#### Acceptance criteria
-
-1. A workspace SHALL be in runner mode only when `.avoozl.json` has
-   `runner.role` set to `runner` or `driver`. Without it every `remote.*`
-   operation SHALL be refused and every tick SHALL run as before.
-2. A runner SHALL hold no plans. Its tick SHALL run only the tasks it was
-   handed.
-3. `avoozl runner accept` SHALL take one envelope: `version`, `taskId`, `repo`,
-   `baseCommit`, `brief`, `checks`, `agent`, and optionally `model`. It SHALL
-   refuse an unknown field, a repo or check the runner does not name in its
-   own settings, an agent outside its allowlist, and a base that is not a full
-   SHA. Repo paths and check commands SHALL come only from the runner's own
-   settings. The driver SHALL send the envelope on stdin, and the remote
-   command line SHALL be fixed text.
-4. The same envelope again SHALL be a no-op. A different envelope under the
-   same task ID SHALL be refused.
-5. The runner's own tick SHALL make a worktree at the base commit, open one
-   worker session on its own crew, and bind it. A task with a bound worker
-   SHALL never be dispatched again, across a restart.
-6. A worker SHALL report with `avoozl runner report`. The runner SHALL read
-   the commit from the worktree, run the named checks, and push the branch to
-   its configured remote with a plain push.
-7. `avoozl runner status --json` SHALL give, per task: state, branch, commit,
-   each check's exit code, and for the worker its chat key, crew ID and chat
-   path. It SHALL carry no token and no absolute URL.
-8. The driver SHALL pull status over SSH on its tick and keep the last answer,
-   marked stale, when the link fails. It SHALL show each unfinished remote
-   worker in In flight with a Remote badge and an Attach link that opens the
-   runner crew's dashboard chat in a new tab. The link SHALL be built from the
-   driver's own `dashboardUrl` for that host.
-9. A runner's `workerMode` SHALL be unset by default. When the owner sets it to
-   `trust` or `trust_reads`, the tick SHALL set that mode on the worker
-   session. Unset, an unattended worker's tool calls wait for an approval no
-   one gives.
-10. A worker whose chat ended without a report SHALL raise one decision notice
-    and SHALL NOT be replaced.
-
 ### Requirement 85: The content hook
 
-**Changed 2026-11-19 (triage-agent TA11.3).** Public crews are gone; the content hook stays as a general pre-tool-use command in `src/app/content/content-hook.mjs`, and nothing in Avoozl names an Issue Radar crew's agent.
-
-Added 2026-11-14 (owner request); cut to the hook alone 2026-11-19 (owner
-decision). Design §6.14. Usage in `docs/content-hook.md`. The clean crew
-home, the audit on the tick, the sign-off and Stop public crews were
-removed; they are in git history.
+Design §6.14.. Usage in `docs/content-hook.md`.
 
 **User story:** As the owner of a machine that holds private names, links and
 notes, I want any agent that writes to GitHub with my login to have its
@@ -3758,21 +2602,12 @@ public leak.
    or interpreter does when run, so a write made inside a script,
    `python -c`, or a build tool is not seen, and nothing cleans up such a
    write afterward.
-4. WHEN a person sends issues of a public repository to Issue Radar
-   (Requirement 52) THEN the dialog SHALL say the repository is public, that
-   the crew writes with the person's GitHub login, and to add
-   `avoozl content hook` to the crew's agent first. Sending SHALL stay the
-   person's act, and Avoozl SHALL store nothing about it.
 5. Public Avoozl files, tests and docs SHALL use only fake terms, and SHALL
    describe the private side as internal names and company hosts.
 
 ### Requirement 86: Avoozl owns the coding loop
 
-Added 2026-11-15 (owner decision, a change of direction). Design §4.26.
-This supersedes the Issue Radar path of the `radar-coder` spec (RC1–RC6,
-RC10, RC11, RC14, RC15, RC28) and cancels its Phase 12, the retirement
-of Avoozl's workers. The mirror and its forward pull request flow
-(RC24–RC26) were removed 2026-11-19 (Requirement 117).
+Design §4.26.
 
 **User story:** As the owner, I want one coder that Avoozl runs end to end,
 from picking a task to landing it, so that work lands overnight without a
@@ -3780,9 +2615,8 @@ second system deciding what to claim, push or merge.
 
 #### Acceptance criteria
 
-1. Avoozl SHALL have one coder: its own worker chat. The `coder` setting,
-   `issue-radar`, the remote coder, the remote relay and the router chat
-   SHALL be removed (Requirement 91; the `coder` setting by 91.6).
+1. Avoozl SHALL have one coder: its own worker session, on the harness its
+   role names. There is no `coder` setting.
 2. Avoozl SHALL run one loop per task, in this order, and each step SHALL
    have one owner:
 
@@ -3821,18 +2655,15 @@ second system deciding what to claim, push or merge.
    environment a process needs to start and the names the repository lists
    in `checksEnv`, and never the push or GitHub credentials, even when
    listed. A check that times out SHALL fail with the reason "timed out
-   after N s". (Changed 2026-11-18: checks are the repository's, named, and
-   picked by the diff; a task never names them.)
+   after N s". Checks are the repository's, named, and picked by the diff;
+   a task never names them.
 8. Approval SHALL be an approver's commit on the specs branch, cached as
    the hash receipt (Requirement 4.8, Requirement 114).
-9. Release ranking (RC31) and build receipts (RC32) SHALL stay and SHALL feed
-   Pick and Verify.
+9. Release ranking and build receipts SHALL feed Pick and Verify.
 
 ### Requirement 87: Avoozl lands the work
 
-Added 2026-11-15 (owner decision 1). Design §4.26. This reverses the rule
-that Avoozl never pushes or merges (Requirements 18, 41.5 and 54.10, and
-RC5.5 and RC16.4).
+Design §4.26.
 
 **User story:** As the owner, I want Avoozl to push and merge only after the
 checks pass on the exact head it lands, so that main stays green without me
@@ -3842,19 +2673,13 @@ pressing merge.
 
 1. Each repository SHALL have one landing block,
    `github.repositories.<owner/name>.landing`, edited in one place,
-   Settings › Repository setup › Edit › Landing: `mode` (`direct`, `pr`,
-   or `off`; `train` is retired and loads as `direct`, by the
-   `merge-batches` spec, which replaced the deleted `landing-trains` spec on
-   2026-11-18), `autoMerge` (Requirement 80, default `true`) and
-   `method` (`squash` or `merge`, default `squash`, RC28.7). The default
+   Settings › Repository setup › Edit › Landing: `mode`, `autoMerge` (Requirement 80, default `true`) and
+   `method` (`squash` or `merge`, default `squash`). The default
    mode SHALL be `off` until Set up (Requirement 89) writes another. Under
    `off` Avoozl SHALL push nothing and SHALL list the verified commit in
-   Needs you. (Changed 2026-11-18, simplification audit F3: the mode was
-   the project's `landing`, the method `merge.method`, and who merges
-   `delivery.ship`.) The project's `landing` SHALL still be the mode of a
+   Needs you. The project's `landing` SHALL still be the mode of a
    repository whose block sets none, and the block's mode wins. A file that
-   still sets `merge.method` SHALL NOT load (changed 2026-11-19). Avoozl's own repository and Nupp SHALL land as they
-   did before the change, each covered by a test.
+   sets `merge.method` SHALL NOT load.
 2. `direct` SHALL select an exact verified working-branch portion, or a
    merge batch of waiting members across specs and drivers, up to the size
    limit of `merge-batches` MB2. A landing worktree SHALL stack them on the
@@ -3879,20 +2704,15 @@ pressing merge.
 6. WHEN a merge of the base into the task branch conflicts THEN Avoozl SHALL
    send the conflict to the same worker chat with the list of conflicted
    files, for at most the repository's `conflicts.maxAttempts` rounds
-   (default 2), the same count crew pull requests use (RC28.4). A later
-   failure SHALL go to Needs you. (Changed 2026-11-18, simplification audit
-   F4: the count was `landing.conflictRounds`; a file that still sets it
-   SHALL NOT load, changed 2026-11-19.) The separate resolver chat
-   (`avoozl-conflict-fix`, RC28) SHALL be removed.
-7. A task SHALL start from its spec's recorded working head, generalized
-   from RC16's epic integration branch. Only verified integrations SHALL
+   (default 2). A later failure SHALL go to Needs you. A file that sets
+   `landing.conflictRounds` SHALL NOT load.
+7. A task SHALL start from its spec's recorded working head. Only verified integrations SHALL
    advance that head. After landing, Avoozl SHALL merge the new target base
    back into the working branch without force pushing. Progress on that
    branch SHALL NOT be confused with acceptance on the landing branch.
 8. Avoozl's own repository SHALL honor its current owner-selected landing
    policy. Setup SHALL NOT restore disabled required checks or change real
-   repository settings without the owner's explicit approval. This replaces
-   the earlier requirement to impose three required checks here.
+   repository settings without the owner's explicit approval.
 9. Every push and merge SHALL pass the pre-push content rule (Requirement 40)
    on the commit messages, the branch name and the added lines first.
 10. A push or merge made by the tick SHALL run as the tick's own process,
@@ -3902,7 +2722,7 @@ pressing merge.
 
 ### Requirement 88: Unattended worker basics
 
-Added 2026-11-15 (owner decisions 2, 3 and 4). Design §4.26.
+Design §4.26.
 
 **User story:** As the owner, I want a chain of tasks to keep moving while I
 am away, through a gateway restart, so that I come back to landed work
@@ -3912,15 +2732,11 @@ instead of a stuck chat.
 
 1. Avoozl SHALL set the worker chat's trust mode when it opens the chat and
    SHALL set it again on every tick, because a gateway restart loses it.
-2. A worker SHALL report by CLI from its worktree. (Changed 2026-11-15:
-   the command is `avoozl runner report TASK done|blocked`, Requirement 96.) Avoozl SHALL match the report to the task by the worktree path
+2. A worker SHALL report by CLI from its worktree. Avoozl SHALL match the report to the task by the worktree path
    and the task's report token in the brief, so a report needs neither MCP
    sharing nor the gateway's session identity.
 3. A local worker chat SHALL open with `project: false` and the worktree path
-   in its brief, as runner mode does. The earlier claim that an ordinary
-   local worker already skips Kiro Crew's project folder and MCP sharing was
-   wrong: only runner mode did (`src/app/workers/remote-runner.mjs`); a local worker
-   used `leaf.repository` and `plans_report` needed MCP sharing.
+   in its brief.
 4. WHEN Kiro Crew reports a worker chat gone THEN Avoozl SHALL open one new
    chat in the same worktree with the same brief and the last report
    quoted as data. A second vanish of the same task SHALL go to Needs you.
@@ -3929,15 +2745,15 @@ instead of a stuck chat.
 5. `lanes.local`, default 3, SHALL be a setting in the machine file
    (Requirement 6.3).
 6. Prepare SHALL use the approved `scripts/worktree` helper
-   (`createWorktree`, `src/app/git/git.mjs`), which today has no caller.
+   (`createWorktree`, `src/app/git/git.mjs`).
    Avoozl SHALL remove a task's worktree and its local branch after the
    task lands, and SHALL keep them for a task that did not land.
-7. The Delivery page and the task drawer's Files and diff view SHALL be
-   restored (they were removed in ba04389 and 70c2236).
+7. The page SHALL have a Delivery page and a Files and diff view in the
+   task drawer.
 
 ### Requirement 89: One setup command
 
-Added 2026-11-15. Design §4.26.
+Design §4.26.
 
 **User story:** As the owner, I want one command that shows what it will
 change in the repository settings and on GitHub and then does it, so that a new
@@ -3955,82 +2771,14 @@ repository is ready to land in minutes.
    require the named checks, adding only what is missing and never a second
    rule of the same kind; set the allowed merge methods; set the CI variable
    that tells CI an Avoozl run is landing; and post a commit status
-   `avoozl/verify` on each head Avoozl verified (`createCommitStatus`, which
-   today has no caller).
+   `avoozl/verify` on each head Avoozl verified (`createCommitStatus`).
 4. Setup SHALL NOT create task labels, a Project, task issue types or task
    issues. Spec issue publication SHALL be an explicit per-spec action,
    separate from approval. Setup SHALL preview trusted source repositories,
    optional forks and their push permissions separately from the target's
    landing permissions, without creating another workflow mode.
 
-### Requirement 91: Remove the Issue Radar path
-
-Added 2026-11-15. Design §4.26.
-
-**User story:** As the maintainer, I want the code for the path we left
-removed, so that the app has one way to deliver work.
-
-#### Acceptance criteria
-
-1. Avoozl SHALL delete the code that only serves Issue Radar (about 5,900
-   backend, 1,300 UI and 12,000 test lines), `verify-issue`, the provenance
-   marker, the `avoozl-crew` agent and the Issue Radar grant, and the remote
-   coder, the relay and the router chat with their agents.
-2. Avoozl SHALL retain PR landing, release ranking, setup push plumbing,
-   build receipts and the executor seam. Per-task projection, Project
-   synchronization, task-issue completion, rebuild from GitHub and the issue
-   export SHALL be deleted (changed 2026-11-18: no path creates task issues).
-   Spec issue publication and epic links SHALL remain.
-3. Leaf modules MAY be audited and already unreferenced ones deleted at any
-   time. Task 45.2 SHALL wait for P52 to prove replacement PR landing.
-   Tasks 45.2 and 45.3 MAY edit their shared callers. Remaining
-   shared-module edits SHALL be made last, after Phases 40–44 have landed.
-   (Changed 2026-11-18: the rule to wait for no other lane editing the same
-   files is dropped.)
-4. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) After the deletion, the narrow `plans_*` tools a shipped agent,
-   prompt or brief names SHALL still resolve, and `AVOOZL_*` variables and
-   the `avoozl` command SHALL be the only environment and command names.
-5. A public Nupp setup SHALL land `direct` on the public `core-dev` branch
-   from the start, with `scripts/worktree` as the helper and
-   `scripts/test-changed` as the check. Its plans SHALL stay in a private
-   planning workspace, on the specs branch `avoozl-plans` of the planning
-   repository (Requirement 117). The pre-push content rule (Requirement
-   87.9) SHALL be its one leak guard. The freeze on public
-   `core-dev` is lifted.
-6. (Changed 2026-11-19, triage-agent TA11.2: the Issue Radar intake source this
-   criterion kept, with Radar escalations, Send to Issue Radar
-   and Settings › Issue Radar, is removed too.) Who codes SHALL be removed (owner decision, 2026-11-18). The Avoozl
-   worker SHALL be the only coder; the harness each role runs on (a Kiro
-   Crew chat, Claude Code or Codex) is chosen in Settings › Models
-   (Requirement 97). The repository `coder` setting, its default by mode,
-   the Who codes picker and summary, the Radar coding tour, the Workflow
-   map's Who codes step and every path that routes a task to an Issue
-   Radar crew (the ready-label release and its queue, the crew's merge
-   path and conflict fixes, the crew claim reconcile, the Radar source
-   issue and its approval label, Radar flow rows) SHALL be removed.
-   - A stored `coder` key SHALL be ignored silently: no warning, no
-     migration, and the file SHALL still load. A test SHALL load a file
-     that sets `coder: issue-radar`.
-   - Every repository SHALL use the same Untriaged read; there SHALL be
-     no Radar-coded read that lists only Radar labels.
-   - Issue Radar SHALL stay an intake source only: GitHub intake (56.8),
-     Radar escalations in Triage with Plan this and Deliver this (56.14),
-     Radar back-links (44.6), With Issue Radar and Send to Issue Radar
-     (Requirement 52), and Settings › Issue Radar with the labels Avoozl
-     reads, the handoff labels, crew review rules, conflicts and merge
-     method. A test SHALL show that a repository whose file still says
-     `coder: issue-radar` feeds Triage and its Radar escalations.
-   - The shared task projection and synchronization callers are deleted
-     by 45.4 (criterion 2).
-
 ### Requirement 92: Links to related GitHub items, and the landing queue
-
-**Changed 2026-11-19 (triage-agent TA8.7).** Avoozl now has GitHub › Issues and Pull requests pages (TA8); the rule below that it has none is replaced. The links and the landing queue stay. The text below is the record.
-
-Revised 2026-11-17 (owner decision; design §4.27). Avoozl has no Issues or
-Pull requests pages. It links from specs and in-flight work to the related
-GitHub items instead, and shows what waits to land. Replaces the 2026-11-16
-landing queue panel; task IDs 44.1–44.6 and P54 are reused.
 
 **User story:** As a driver, I want each spec and task to link to its issue,
 branch, pull request, checks and landed commit, so that I can reach the
@@ -4043,7 +2791,7 @@ GitHub item in one click without Avoozl copying GitHub's browser.
    the spec working branch, the task branch and worktree, the task pull
    request and its check state from landing (Requirements 87 and 88), the
    landed commit from delivery records, and the intake issues a spec came
-   from (Requirement 103).
+   from.
 2. Building, showing, filtering or refreshing link sets SHALL make no GitHub
    call. A counting-client test SHALL show the call count with link sets on
    equals the count without them.
@@ -4053,8 +2801,7 @@ GitHub item in one click without Avoozl copying GitHub's browser.
    its age, and state from a head that is no longer current SHALL NOT show
    as current.
 4. The spec details panel SHALL have a **Links** box: the spec issue, the
-   working branch, open pull requests with a check dot each, and the Issue
-   Radar issues the spec came from.
+   working branch, and open pull requests with a check dot each.
 5. The task details view, and the Graph modal that reuses it, SHALL have a
    **Links** box: branch, pull request, checks, landed commit and issue.
 6. Each In flight row SHALL show small chips: `PR #N` with a check dot, and
@@ -4063,11 +2810,6 @@ GitHub item in one click without Avoozl copying GitHub's browser.
    nav pill. It SHALL list what waits to land per target base, in landing
    order, and why each held item is held. It SHALL be usable at 390 and
    1280 px.
-8. A spec SHALL show the Issue Radar issues it came from. The Radar issue
-   SHALL get a link to its Avoozl spec only through the existing
-   `crew:avoozl` intake status comment, and only where the spec's
-   visibility permits. Avoozl and Issue Radar code
-   SHALL stay uncoupled: no Radar API, grant or import.
 9. Every link to GitHub SHALL open in a new tab with `target="_blank"` and
    `rel="noopener noreferrer"`.
 10. Public text SHALL follow the privacy rule (Requirements 102.12 and
@@ -4081,9 +2823,7 @@ GitHub item in one click without Avoozl copying GitHub's browser.
 
 ### Requirement 93: Any harness runs the work; one executor seam
 
-Added 2026-11-15 (owner plan: any harness runs the work, Kiro Crew stays the
-only UI). Design §4.28. This seam comes before the worker rebuild of
-Phases 40–45, so everything rebuilt there is harness-neutral.
+Design §4.28.
 
 **User story:** As the owner, I want Avoozl to start, message and watch a
 worker through one small interface, so that I can run a task with any agent
@@ -4102,8 +2842,8 @@ harness without changing the loop.
    | `stop`   | session ID (optional for an executor)                            | stopped                                 |
    | `usage`  | session ID (optional for an executor)                            | tokens and cost, when the harness has them |
 
-2. Avoozl SHALL ship two executors. `kirocrew` SHALL hold today's
-   Kiro Crew session calls from `kirocrew-app/crons/tick.py`; folders and
+2. Avoozl SHALL ship two executors. `kirocrew` SHALL hold the Kiro Crew
+   session calls; folders and
    project directories SHALL be its private detail, not part of the
    interface. `process` SHALL run an agent CLI as a child process in the
    task worktree (Requirement 95).
@@ -4118,16 +2858,10 @@ harness without changing the loop.
    until the proof of Phase 47 passes. On `kirocrew`, the chat's trust mode
    SHALL be set again on every tick (Requirement 88.1), because an ordinary
    worker chat stalls unattended without it.
-6. Moving today's calls behind the interface SHALL preserve existing
-   behavior and keep the suite passing. Tests that assert the retired
-   folder, project or agent fields in planner requests MAY change to assert
-   the neutral request and executor behavior instead; their surviving
-   behavior coverage SHALL be retained. Other existing assertions SHALL
-   remain unchanged.
 
 ### Requirement 94: Harness definition files
 
-Added 2026-11-15. Design §4.28.
+Design §4.28.
 
 **User story:** As the owner, I want to add a harness by writing one file
 that I approve, so that a new agent CLI needs no code change.
@@ -4146,7 +2880,7 @@ that I approve, so that a new agent CLI needs no code change.
 3. A definition SHALL be approved by hash, as the worktree helper is
    (R83.4). A changed file SHALL not run until a person approves its new
    hash.
-4. Permission for unattended children, settled by the owner: a write role
+4. Permission for unattended children: a write role
    SHALL use the harness's workspace-write sandbox, whose write roots are
    the task folder, the temp directory, and the cache directories the
    repository config names (`sandbox.writeRoots`, for example a compiler cache
@@ -4161,8 +2895,7 @@ that I approve, so that a new agent CLI needs no code change.
     `bypassPermissions` or `danger-full-access`, or any flag that starts with
     `--dangerously-`, and SHALL name the value. A test SHALL load one
     definition with each and see it refused. The one exception is 4d.
-4d. Inner sandbox under Avoozl's sandbox, settled by the owner on
-    2026-11-17: a harness whose own sandbox cannot run inside Avoozl's (on
+4d. Inner sandbox under Avoozl's sandbox: a harness whose own sandbox cannot run inside Avoozl's (on
     macOS a nested `sandbox-exec` fails with `sandbox_apply: Operation not
     permitted`, so Codex can neither edit a file nor run a command) MAY set
     `permission.write` to exactly `danger-full-access`, its value for no
@@ -4179,7 +2912,6 @@ that I approve, so that a new agent CLI needs no code change.
 5. A harness that cannot confine writes to the worktree SHALL be refused for
    write roles, unless the owner opts in for that machine (person-only,
    recorded in Activity).
-6. Retired.
 6a. Plan quota: WHEN a harness on a plan login reports its quota as low
     (Requirement 72's `low` or `out`) THEN Avoozl SHALL start no new session
     on it; running sessions SHALL finish.
@@ -4188,7 +2920,7 @@ that I approve, so that a new agent CLI needs no code change.
 
 ### Requirement 95: One supervisor per machine
 
-Added 2026-11-15. Design §4.28.
+Design §4.28.
 
 **User story:** As the owner, I want one process per machine to own the
 agent children, so that a child outlives a page reload and a backend
@@ -4223,10 +2955,7 @@ restart, and its exit is never lost.
 
 ### Requirement 96: One way to finish
 
-Added 2026-11-15. Design §4.28.
-
-Changed 2026-11-15 (owner correction): a sandboxed child cannot reach the
-workspace database, so it cannot run `avoozl runner report`.
+Design §4.28.
 
 **User story:** As the owner, I want every worker, on any harness, to finish
 in a way Avoozl reads the same, so that Avoozl reads one kind of result.
@@ -4248,12 +2977,11 @@ in a way Avoozl reads the same, so that Avoozl reads one kind of result.
    exit code with `done` SHALL be treated as `exited <code>`, and its task
    SHALL follow the retry path (Requirement 8).
 5. `avoozl take`, `avoozl next` and `avoozl runner report` SHALL stay as
-   the manual path for a person. (Changed 2026-11-18 by the worker-paths
-   spec, WP9.1.)
+   the manual path for a person.
 
 ### Requirement 97: Role prompts as files
 
-Added 2026-11-15. Design §4.28.
+Design §4.28.
 
 **User story:** As the maintainer, I want each role's prompt in one file any
 harness can read, so that a role behaves the same on every executor.
@@ -4266,18 +2994,12 @@ harness can read, so that a role behaves the same on every executor.
    time. A test SHALL fail when a built agent differs from its prompt.
 3. Every role SHALL run on either executor.
 
-### Requirement 98: Kiro Crew stays the only UI
+### Requirement 98: One page, in Kiro Crew or served by Avoozl
 
-Added 2026-11-15. Design §4.28.
-
-Proposed change, 2026-11-18 (draft, not approved):
-`.kiro/specs/standalone-web/` would let `avoozl serve` host this same page on
-`127.0.0.1` only, for a machine with no Kiro Crew (SW1 to SW11 there). Kiro
-Crew's page stays as it is. Until that spec is approved, criterion 5 stands
-as written; on approval it changes as SW11.2 says.
+Design §4.28.
 
 **User story:** As the owner, I want to watch and steer every session in the
-Avoozl page, whatever harness runs it, so that I never need another UI.
+Avoozl page, whatever harness runs it, so that I need no other UI.
 
 #### Acceptance criteria
 
@@ -4285,8 +3007,11 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
    its cost when known, and a copyable attach command.
 2. **Send message** on a `process` session SHALL queue a `send`.
 3. Settings › Models SHALL set a harness and a model per role.
-4. A headless machine SHALL get only the CLI: `avoozl status` and
-   `avoozl runner status --json`. Avoozl SHALL host no other UI.
+4. A headless machine SHALL get the CLI (`avoozl status` and
+   `avoozl runner status --json`), and the standalone page when
+   `avoozl serve` or `serve.enabled` runs it (`.kiro/specs/standalone-web/`).
+   Avoozl SHALL host no other UI and SHALL serve nothing beyond
+   `127.0.0.1`.
 
 5. `.avoozl.json` SHALL hold one `roles` table with one row per role:
    `worker`, `falsifier`, `planner`, `planReviewer`, `retro` and
@@ -4308,24 +3033,12 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
 
 ### Requirement 99: Cross-model plan review
 
-Added 2026-11-15 (owner request). Design §4.29. This adds to Requirement 4.1
-and Requirement 5.3: the planner's critique stays, and this review runs on a
-different model beside it. Settings › Models is RC11.9 in
-`.kiro/specs/radar-coder/`.
+Design §4.29.
 
 **User story:** As the owner, I want every spec draft read by a second model
 before I approve it, with what it found and what the planner did about it
 in front of me when I approve, so that one model's blind spots do not reach
 the task graph unchecked.
-
-Facts. Spec drafting uses one planner chat. Settings › Models has one model
-per role (`planner`, `driver`, `retro`, `reviewDraft`) in
-`src/app/settings/chat-models.mjs`; a role left out or `auto` runs on its agent's own
-model. The only check on another model today is the falsifier
-(Requirement 75), which runs only for Avoozl's own workers. Plan review
-threads (`review_threads`, `plan.review.submit`, `plans_submit_review` in
-`src/app/reviews/plan-reviews.mjs`) are already keyed by plan and revision hash,
-and a run bound to a review may submit only for its own plan revision.
 
 #### Acceptance criteria
 
@@ -4403,27 +3116,16 @@ and a run bound to a review may submit only for its own plan revision.
 
 ### Requirement 100: Retrospectives catch steady CI waste
 
-Added 2026-11-15 (owner request). Design §4.30. This adds to Requirement 47
-and Requirement 48: the outlier triggers of Requirement 47.1 stay, and these
-triggers and findings run beside them.
+Design §4.30.
 
 **User story:** As the owner, I want the retrospective to notice CI time
 that is spent the same way on every pull request, such as the full test
 matrix on a spec-only change or two runs of one workflow on one commit, so
 that waste which is the usual case is caught, not hidden by the median.
 
-Facts. On 2026-11-15 every Avoozl pull request, spec-only ones included, ran
-the full test suite on Linux, macOS and Windows, and the test workflow ran on
-both `push` and `pull_request`, so each pull request ran it twice. No
-retrospective fired. That work ran in chats that were not Avoozl tasks, so
-the workspace had no `flow_spans` rows and no `flow_retros` rows. The CI
-trigger in `src/app/flow/flow-retro.mjs` (`triggers`) fires only when one CI wait
-passes `flow.retro.slowFactor` times the repository's median CI wait (or 30
-minutes with fewer than 5 samples), so a cost that every pull request pays
-is the median and never fires. The retro brief has no field for what a pull
-request changed or for repeat runs. `openPullRequests` in
-`src/app/github/github.mjs` already reads every open pull request of a repository
-in one GraphQL query per check.
+The outlier trigger of Requirement 47.1 fires only when one CI wait passes
+`flow.retro.slowFactor` times the median, so a cost that every pull request
+pays never fires it. These triggers catch that steady cost.
 
 #### Acceptance criteria
 
@@ -4487,25 +3189,13 @@ in one GraphQL query per check.
 
 ### Requirement 101: Every build receipt, and a build breakdown for retrospectives
 
-Added 2026-11-16 (owner request). Design §4.31. This adds to Requirement
-RC32 of the radar-coder spec (kept by Requirement 86.9), Requirement 47 and
-Requirement 100. RC32's wrapper, cold or warm check and counters parser stay.
+Design §4.31.
 
 **User story:** As the owner, I want Avoozl to keep every build and test
 record a pull request's CI writes, failed attempts included, and to hand the
 retrospective a repository's own breakdown of where build time goes, so
 that the costliest step is visible and a change is judged only against
 builds that did the same work.
-
-Facts. `parseReceipt` in `src/app/flow/build-receipt.mjs` keeps only the last
-line of a JSONL file. `receiptReader` in `src/app/flow/build-receipt-read.mjs`
-lists artifacts named exactly `build-receipt` and takes the first one whose
-run matches the head commit, so one pull request keeps one receipt. The CI
-workflow uploads that artifact from the Linux job only, because artifact
-names must be unique within a run. The receipts are kept in one metadata
-value with one receipt per pull request, and they are read from
-`radar-flow.mjs`, only for repositories whose coder is Issue Radar. The
-retrospective brief has no build data.
 
 #### Acceptance criteria
 
@@ -4540,9 +3230,8 @@ retrospective brief has no build data.
    whose head commit runs are all complete and have no receipt artifact
    SHALL be remembered as having none. Each call SHALL count under `receipt`
    in the GitHub usage counter.
-6. **Not tied to Issue Radar.** Receipts SHALL be read in the tick's CI step
-   for every repository with `buildReceipts` on, so the
-   reader survives the removal of Phase 45.
+6. Receipts SHALL be read in the tick's CI step for every repository with
+   `buildReceipts` on.
 7. **Report format.** Avoozl SHALL define a documented, versioned build
    report, `avoozl.build-report` version 1, with: `workload`, `engine`,
    `target`, `toolchain` (a toolchain or seed ID), `cache` (the cache mode),
@@ -4600,7 +3289,7 @@ retrospective brief has no build data.
 
 ### Requirement 102: Working branches and spec issues
 
-Added 2026-11-16 (owner pivot). Design §4.32.
+Design §4.32.
 
 **User story:** As a spec owner or contributor, I want pushed work to
 survive a change of driver, including work on forks, without one GitHub
@@ -4696,131 +3385,26 @@ issue per task or exposing private planning information.
     `C:\Users\<name>`, `~/`); and this machine's own hostname and username.
     Tests SHALL insert a made-up hostname and username into every public
     field and expect refusal with nothing written.
-
-### Requirement 103: Issue Radar stays off Avoozl's issues
-
-**Changed 2026-11-19 (triage-agent TA11.2).** The Issue Radar integration is removed, so Avoozl writes no `crew:avoozl` label and reads no crew label. The text below is the record.
-
-Added 2026-11-16 (owner decision). Design §4.32.10. Planning only. Extends
-Requirement 102. Where they conflict it supersedes Requirement 52.7 and,
-in `radar-coder`, the hand-over of projected issues (RC1.6, RC2) and the
-claim at approval (RC19). Phase 45 is no longer paused: 45.2 landed in #509.
-
-The owner's words: Issue Radar should not take on Avoozl-created issues.
-It can take on maintenance and triage, and can punt an issue to Avoozl to
-turn it into a spec-driven fix.
-
-Facts checked in Kiro Crew's Issue Radar crew brief (`crew_brief.md`, Kiro
-Crew main, 2026-11-16): selection drops any issue that already carries a
-label starting `crew:`, and an empty label scope makes every open issue a
-candidate. A crew writes only the claim label `crew: in progress` and the
-repository's needs-human label (default `crew: needs human`). A scope-gate
-pass (`architecture`, `new-feature`, `needs-design`, `breaking-change`)
-stays skipped. Removing the needs-human label is how a person hands a
-needs-decision or needs-investigation issue back to a crew. A claim counts
-as dead only with a claim marker whose version the crew understands. The
-skip is a rule in the crew's prompt, not code.
-
-#### Acceptance criteria
-
-1. Every GitHub issue Avoozl creates SHALL carry the `crew:avoozl` label
-   in its create call: spec and epic issues at publication, sub-issues
-   created under an epic, intake-owned issues, task issues projected before retirement, and any create
-   path added later. Avoozl SHALL NOT add it by a later label edit. The only
-   exception is criterion 6.
-2. The label SHALL be added in one place, the GitHub client's issue create
-   call, for both its REST and GraphQL forms, so a new caller cannot miss
-   it. Only the export path SHALL opt out, by name. A test SHALL fail when
-   any `createIssue` call in `src/` opts out other than export, and a
-   fake-GitHub test SHALL check that each create path's request carries the
-   label and that no create is followed by a label edit.
-3. `crew:avoozl` SHALL be Avoozl's ownership label, never read as a crew's.
-   Untriaged and the plan-me hand-off SHALL leave out issues that carry it.
-   Settings SHALL refuse it as the name of any other label: ready, planning,
-   claim, needs-human, a trigger rule's label or a Send to Issue Radar label.
-4. Until issue-binding retirement (56.5) has run, Avoozl SHALL add no Radar
-   ready or scope label to any task issue it projected, and SHALL write no
-   Radar claim label or claim marker at approval, in any repository.
-   Avoozl's executor SHALL run those tasks as it does elsewhere. Radar
-   intake code and settings SHALL stay (Requirement 91.6).
-5. Because an empty-scope crew takes any open issue without a `crew:`
-   label, Avoozl SHALL add `crew:avoozl` once to each open task issue it
-   projected that carries no `crew:` label, after a preview a person
-   confirms, through the write pacer, and idempotently on retry. An issue a
-   crew already claimed SHALL be left alone and shown once in Needs you.
-   Avoozl SHALL NOT remove a crew's claim or needs-human label.
-   (Changed 2026-11-18: 45.4 deleted per-task issues, so there are no
-   projected task issues left to label.)
-6. Export issues (56.9) SHALL NOT set `crew:avoozl` on any issue they
-   create (owner decision, 2026-11-16). (Changed 2026-11-18: 45.4 deleted
-   the issue export.)
-7. Radar SHALL keep maintenance and triage of issues Avoozl did not create.
-   Send to Issue Radar (Requirement 52) SHALL stay for those issues and
-   SHALL refuse an issue that carries `crew:avoozl`.
-8. A crew punts an issue to Avoozl with the repository's needs-human label
-   (`crewLabels.needsHuman`), the only escalation it can write. Avoozl
-   SHALL keep the plan-me path: the trust check, scope-gate skips to
-   Intake, other scopes to Needs you, untrusted issues left alone. It SHALL
-   list trusted escalations first in Untriaged with **Plan this** and
-   **Deliver this**,
-   and the Needs you row for one SHALL offer the same two buttons. Plan this
-   SHALL draft a proportionate fix spec or the compact bounded-fix
-   acceptance of Requirement 102.13.
-9. Only a person SHALL press Plan this or Deliver this for an escalation.
-   A per-repository escalation rule, off by default, MAY draft the plan
-   when the needs-human label appears. The draft SHALL write nothing to
-   GitHub, and approval and dispatch SHALL stay person-only. The rule is
-   not a trigger rule, so Requirement 52.9 stands.
-10. Taking an escalated issue into Avoozl SHALL apply `crew:avoozl` as one
-    of intake's two writes (Requirement 102.13) so crews skip it. Avoozl
-    SHALL NOT remove the needs-human label, because removing it hands the
-    issue back to a crew; a person MAY clear it afterwards. When the issue
-    carries a live crew claim, Plan this SHALL say so and ask the person to
-    confirm.
-11. None of this SHALL tie Avoozl's code to Radar. Avoozl reads labels,
-    comments and the plan-me scope from GitHub only, calls no Radar API and
-    needs no Radar grant.
-12. Tests SHALL cover: every create path labeled (2); no ready label, claim
-    or marker for a projected task (4); backfill preview, pacing, retry and
-    the claimed-issue skip (5); unlabeled export (6); escalation order,
-    buttons, person-only start, and an auto-draft with zero GitHub writes
-    (8, 9); one label write on take-over and no needs-human removal (10).
+19. A fix SHALL be one task with no spec files whose definition is its text
+    (the issue's title and body as they read when it started, or what the
+    owner typed), its repository and two acceptance lines: it does what the
+    text asks, and the repository's checks pass on the exact head that
+    lands. Its definition hash SHALL be the hash of those. A fix SHALL start
+    from **Deliver this** on an incoming issue, from **New fix** beside
+    **New spec** on the page, or from `avoozl fix "TEXT" --repo ID`;
+    starting it is the approval. A fix from an issue SHALL keep its record
+    on that issue, and a fix without one in the workspace database. It SHALL
+    run, be checked and land like any task, and **Make this a spec** SHALL
+    turn a fix that grew into a spec folder holding its text.
 
 ### Requirement 104: Review findings the owner can read and decide
 
-Added 2026-11-16 (owner request). Design §4.33. Planning only. Extends
-Requirement 99. Where they conflict it supersedes Requirement 99.5 (the
-four severity values and the single line) and Requirement 99.8 (closing a
-finding from the Approve dialog). Requirement 99.9 holds unchanged: a
-review never approves, never blocks approval, and never writes to GitHub.
-
-The owner's words, in short: each finding has a severity that sets its
-border color (grey, yellow, red) and sits in its own section; clicking a
-finding shows the line it refers to; better, a view of the rendered spec
-with a right-hand rail listing each finding next to its line; buttons per
-finding (resolve, accept, reject, defer); and a link to open the review
-chat itself. He also asked whether this is meant to be the review process,
-and whether it repeats. It is, and it does (criterion 14).
+Design §4.33.
 
 **User story:** As the owner, I want to read each review finding next to
 the spec text it is about, see what the planner did with it, and decide
 the rest with one click each, so that a review round ends with every
 finding either fixed, answered, or decided by me at a known revision.
-
-Facts. Phase 53 is built (53.1–53.5). Spec findings are `review_threads`
-rows with `source: "plan-review"` and `kind`, `severity` (`blocking`,
-`important`, `suggestion`, `question`), `file`, `line`, `statement`,
-`evidence` and `answer` (`src/app/reviews/plan-reviews.mjs`,
-`src/app/reviews/plan-review-answers.mjs`). `plan.review.dispose` closes a finding
-as resolved, accepted, rejected or deferred; it records no revision, does
-not reach the planner, and is not person-only in `src/app/mcp/mcp-policy.mjs`.
-`kirocrew-app/ui/src/PlanReviewSummary.tsx` lists open findings inside
-both Approve dialogs. `plansClient.approve` in
-`kirocrew-app/ui/src/plans-api.ts` throws "This revision changed. Reload
-it before approving." when the hash moves while the dialog is open. Text
-plan threads already anchor on an exact quote (`lineFor` in
-`plan-reviews.mjs`). Spec files render through `Markdown.tsx` in one card
-per file on the spec page.
 
 #### Acceptance criteria
 
@@ -4923,19 +3507,7 @@ per file on the spec page.
 
 ### Requirement 105: Where tasks live follows from each repository's role
 
-**Status 2026-11-19.** Add repository is a guided dialog (owner request). Avoozl reads the folder (a leading `~` is the home folder) and guesses its kind: Local only, Code repository, Planning repository, Code and planning, or a private mirror. It uses the GitHub remote, an upstream remote, GitHub visibility, code and spec files, and the roles the workspace already has (`repositories.detect`, repository-kind.mjs). It lists why and asks "Is this right?". Yes adds it as that kind. No opens the full form (role, short ID, branch) in the same dialog. The "What the roles make" help is gone.
-
-**Status 2026-11-18.** Criterion 4 changed (#484): Repository setup is a compact list with a read-only role badge and View, Edit and Remove icon buttons, not an in-place picker. The role is chosen in Edit and in Add repository. A fifth choice, `mirror` ("Private mirror of a public repository", a private copy that crews work in), is part of that choice and replaces the separate Mirror box (removed 2026-11-19 with the mirror, Requirement 117). Criterion 5 and the one "Tasks live in" line are unchanged.
-
-Added 2026-11-17 (owner request). Design §4.34. Extends Requirement 28.
-Where they conflict it supersedes the part of Requirement 28.1 that says a
-workspace configures the mode: a person now picks a role per repository and
-the mode follows from the roles. Requirements 28.2–28.11 hold unchanged.
-
-The owner's words, in short: "Where tasks live" is not its own Settings
-page. Each repository gets a role on the Repository setup page, and where
-tasks live follows from those roles. Parts that cannot be a per-repository
-role stay in the workspace settings.
+Design §4.34.
 
 **User story:** As the owner, I want to say what each repository is for,
 so that I never choose a workspace mode on a separate page and then match
@@ -4947,7 +3519,7 @@ my repositories to it.
    `both`. `local` means no GitHub issues: the repository's tasks live in
    the workspace database. `code` means a repository whose pull requests
    land code while its issues live in the planning repository. `planning`
-   means the repository that holds issues, sub-issues, dependencies and spec
+   means the repository that holds spec issues, epic issues and spec
    folders and receives no code pull requests. `both` means a code
    repository that also holds its own issues and spec folders.
 2. The mode SHALL follow from the roles, and nothing else SHALL set it.
@@ -4971,11 +3543,9 @@ my repositories to it.
    when it has no checkout on this computer, marked "GitHub only". It SHALL
    NOT be added as a checkout by this change.
 6. Settings SHALL have no **Where tasks live** page and no `github` tab.
-   The settings that belong to the whole workspace (default authority, epic
-   issue type, GitHub cache and write limits, sub-issue cap, include-done,
-   Project and its field names, the **Set up GitHub** wizard, crews and
-   This computer) SHALL move to Settings › Workspaces. An old link to the
-   Where tasks live page SHALL open Repository setup.
+   The settings that belong to the whole workspace (epic issue type, GitHub
+   cache and write limits, sub-issue cap, include-done, the **Set up
+   GitHub** wizard and This computer) SHALL be in Settings › Workspaces.
 7. Every existing workspace SHALL keep its behavior. On read, a workspace
    with no `role` keys SHALL get roles from its stored mode: `local` or
    absent gives every repository `local`; `plans-repo` gives the repository
@@ -4997,14 +3567,7 @@ my repositories to it.
 
 ### Requirement 106: Task details hold the task's timeline; Trace is removed
 
-Added 2026-11-17 (owner decision). Design §4.35. Supersedes RC8.2 (Trace
-as a drawer and a page) and the Trace (Done) lane in RC8's nav list.
-Requirement 101.4 (every build record shown) and
-RC32.6 stay, now shown in the task's Timeline box.
-
-The owner's words, in short: Trace was built for one GitHub issue per task
-with a Radar claim. The pivot (retire-issues) retired that, so the page
-goes. What it showed for a task moves into that task's details.
+Design §4.35.
 
 **User story:** As the owner, I want a task's steps in its own details, so
 that I read how it went in one place and the nav has no page that needs a
@@ -5026,16 +3589,12 @@ GitHub issue.
 4. The box SHALL read stored records only: the plan's approval, flow spans,
    session bindings, the task's delivery record and integration, evidence,
    and build observations. It SHALL make no GitHub call and need no issue.
-5. What only Trace showed for a task SHALL move into the box so nothing is
-   lost: the build records grouped by phase, with the one-line summary,
-   failed records marked (R101.4, RC32.6). The GitHub-only steps (Issue
-   created, Claimed, PR opened, Review, Mirror steps) SHALL NOT be shown,
-   because they need an issue or a pull request that tasks no longer have.
+5. The box SHALL show the build records grouped by phase, with the one-line
+   summary, failed records marked (R101.4).
 6. The earlier history list of task details (row changes, evidence,
    deliveries, runs) SHALL stay in the same box, below the steps.
 7. The **Trace** nav entry, page, drawer, and Done work list SHALL be
-   removed, and so SHALL the `radar.trace` and `trace.done` operations and
-   every "Trace" button on other pages. Delivery and Home's Recently landed
+   removed, and so SHALL every "Trace" button on other pages. Delivery and Home's Recently landed
    cover the list.
 8. An old link to the Trace page SHALL open Dashboards › Delivery. An old
    `?trace=owner/repo#N` link SHALL open the details of the task whose
@@ -5049,15 +3608,7 @@ GitHub issue.
 
 ### Requirement 110: One intake list
 
-**Changed 2026-11-19 (triage-agent TA8.7, TA11.1).** Rules no longer route intake items: every item waits for a person (`avoozl intake deliver|plan`, or the GitHub pages for GitHub items). The Triage list is gone; `intake.sources` stays.
-
-Added 2026-11-18 (owner decision on `docs/research/simplification-audit.md` item 6
-and F5). Design §4.39. Changes Requirement 50.6 and the issue intake part
-of Requirement 10; keeps Requirements 49, 52 and 103.8 to 103.11.
-
-The owner's words, in short: one intake list. Five paths turn an issue into
-work today. Retire `github.issueIntake` and `github.queue` into
-`intake.sources`, so every source is one entry there.
+Design §4.39.
 
 **User story:** As the owner, I want every place work comes in from listed
 once under `intake.sources`, so that I read and change intake in one place.
@@ -5066,8 +3617,7 @@ once under `intake.sources`, so that I read and change intake in one place.
 
 1. `intake.sources` SHALL accept `via: "github"` beside `plugin:<id>` and
    `mcp`. A GitHub source names the GitHub `repository` (owner/name) and
-   SHALL carry the keys `github.issueIntake` held: `executionRepository` (the
-   execution repository), optional `workspaceRepository` when it differs
+   SHALL carry `executionRepository` (the execution repository), optional `workspaceRepository` when it differs
    from `executionRepository`,
    `assignee`, `autoStart`, `provider` and `model`. A source has no label
    and no trust list: the ready label is `managedLabels.ready` and who counts
@@ -5075,60 +3625,25 @@ once under `intake.sources`, so that I read and change intake in one place.
    `github.repositories` entry. `labelFields` and
    `assigneeField` SHALL be refused on a GitHub source, and the GitHub
    keys SHALL be refused on a plugin or MCP source.
-2. A GitHub source SHALL live in `.avoozl.json`, as `github.issueIntake`
-   did. One declared in this machine's settings SHALL be listed with the
+2. A GitHub source SHALL live in `.avoozl.json`. One declared in this machine's settings SHALL be listed with the
    reason it is not used. At most one GitHub source SHALL name a GitHub
    repository.
 3. `github configure`, `github.repository.connect` and Repository setup's
-   "issues here" SHALL write a GitHub source and SHALL NOT write
-   `github.issueIntake` or `github.queue`. Removing a repository or
+   "issues here" SHALL write a GitHub source. Removing a repository or
    turning its issues off SHALL remove its GitHub source.
-4. An old `github.issueIntake` entry SHALL load as the GitHub source it
-   describes, with an id `github-<owner>-<name>` (lowercase; other
-   characters as `-`; a number added on a clash), and an entry with
-   `enabled: false` SHALL load as no source. An old `github.queue` SHALL be
-   accepted and ignored: it never let anyone start work, so it SHALL NOT
-   become a source that does. Neither SHALL warn, fail a load or a save, or
-   mark settings as needing apply.
-5. The first time Avoozl's settings writer (Repository setup, Settings and
-   Intake sources) writes `.avoozl.json` after loading old keys, it
-   SHALL move every `github.issueIntake` entry into `intake.sources` and
-   drop `github.issueIntake` and `github.queue`, in the same write. A
-   file Avoozl does not write SHALL keep loading as in criterion 4.
-6. A GitHub source SHALL be applied as `github.issueIntake` was: the
-   `github_repositories` record and `github sync` keep their behavior,
-   and the repository's `github.repositories` rules still replace its
-   single label (Requirements 10 to 12). GitHub items SHALL keep source
-   `github`; a rule's `source:` term SHALL still name only plugin and MCP
-   sources (Requirement 50.11).
+6. GitHub items SHALL keep source `github`.
 7. Settings › Plugins › Intake sources SHALL list each GitHub source as one
    entry in the same box as every other source, with its repository,
-   label, assignee, who counts and whether it starts on its own, and SHALL
-   name the repository's Issue Radar escalation label when it has one. A
-   GitHub source is changed in Repository setup, so its entry SHALL link
-   there instead of offering Remove. The Add dialog SHALL stay for plugin
-   and MCP sources. The built-in GitHub box SHALL stay as the reader of
-   Triage: what no source covers.
-8. Issue Radar intake (56.8), Radar escalations in Triage (56.14) and Radar
-   back-links (44.6) SHALL keep working for a repository whose GitHub
-   source came from an old `github.issueIntake` entry and for one written
-   as a source.
-9. Tests SHALL cover: each kind's keys and refusals; an old
-   `github.issueIntake` loaded as a source with no warning and no apply
-   flag; an old `github.queue` ignored; the one-time move on the next
-   write; `github configure` and Repository setup writing a source; and
-   Radar intake, escalations and back-links on a migrated repository.
-   Screenshots of Intake sources (phone and desktop, light and dark),
-   before and after, SHALL be checked outside git; no image is committed.
+   label, assignee, who counts and whether it starts on its own. A GitHub
+   source is changed in Repository setup, so its entry SHALL link there
+   instead of offering Remove. The Add dialog SHALL stay for plugin and MCP
+   sources.
+9. Tests SHALL cover each kind's keys and refusals, and `github configure`
+   and Repository setup writing a source.
 
 ### Requirement 111: Task facts live in tasks.md
 
-Added 2026-11-18 (owner decision). Design §4.40. Changes Requirement 30.1
-and 30.6, and the manifest rules of Requirements 59, 105 and 108. The
-owner's words, in short: remove `avoozl/manifest.json`; every per-task fact
-moves into `tasks.md`, one `Facts:` bullet per task. (Changed 2026-11-19,
-owner decision: the `Facts:` layer is gone; each fact is a `$key: value`
-bullet directly under its task.)
+Design §4.40.
 
 **User story:** As the owner, I want one file per spec to read and review
 the tasks, so that a task's title and its acceptance sit
@@ -5172,8 +3687,7 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    NOT read the old layouts (`avoozl/manifest.json`, `Facts:` blocks) from
    disk or from a record stored in SQLite: a stored revision in an old
    layout reads as a folder lint refuses, and a person recreates it.
-   (Changed 2026-11-19: owner decision, no backward compatibility; the
-   approval carry-over of 2026-11-18 is removed.)
+
 7. Avoozl SHALL parse a spec once, store its revision, and parse again only
    when the revision changes, as it did. Ticks SHALL stay outside the hash.
 8. The spec page, the review tabs, the graph, proposed work, import and the plan-review view SHALL read facts from
@@ -5193,9 +3707,7 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
 
 ### Requirement 112: A repository's checks run in its isolation
 
-Added 2026-11-18 (owner decision). Design §5.2. Changes Requirements 7.1
-and 86.7: a check no longer runs as the person with nothing between it and
-the machine.
+Design §5.2.
 
 **User story:** As the owner, I want every check Avoozl runs to run in a
 sandbox with the network off by default, so that a worker's commit cannot
@@ -5229,9 +3741,7 @@ read my credentials or reach the network through its checks.
 
 ### Requirement 113: A tick on the base branch completes the task
 
-Added 2026-11-19 (owner request). Design §4.41. Changes Requirement 30.6 and
-111.7: a tick in `tasks.md` is no longer read only when a revision is
-approved.
+Design §4.41.
 
 **User story:** As the owner, I want Avoozl to notice a commit that ticks off
 a task and know it is complete, so that I do not approve the spec again for a
@@ -5297,9 +3807,7 @@ box someone checked.
 
 ### Requirement 114: Git is the source of truth; SQLite is a cache
 
-Added 2026-11-19 (owner request). Design §4.42. Replaces the approval pull
-request's `Status: Approved` lines, its `avoozl/approval.json` marker and the
-decision record (Requirement RC3.8), and changes Requirement 50.8.
+Design §4.42.
 
 **User story:** As the owner, I want everything that matters to live in git
 and GitHub, so that Avoozl fits normal git workflows, can adopt an existing
@@ -5335,35 +3843,27 @@ rebuilds its database from main and GitHub.
    and `Avoozl-Cost` when known.
 7. A task made from an intake item SHALL name it with a `source:` fact (its
    link), and Avoozl SHALL tie the item to that task instead of making a new
-   one. Dismissing a GitHub item SHALL add the `avoozl:dismissed` label, and
-   Untriaged SHALL leave such items out. An item pushed over MCP SHALL become
+   one. An item pushed over MCP SHALL become
    a GitHub issue in its source's repository at once, with no labels, or be
    refused when the source names no GitHub repository.
 8. `avoozl rebuild` (operation `workspace.rebuild`, a person's) SHALL, from an
    empty database, make every spec folder a plan, approve again each spec
    whose current text an approver committed on main (or that differs from it
-   only in layout, Requirement 111.6) as that commit's author, read GitHub's
-   issues, and record each landing commit's tasks in Activity. A full
+   only in layout, Requirement 111.6) as that commit's author, and record
+   each landing commit's tasks in Activity. A full
    database SHALL be refused.
 9. Each landing commit SHALL also carry the task's Flow spans, and a pull
     request landing's merge commit SHALL carry the same trailers, written by
     Avoozl as the merge's commit message. Each finished retro SHALL be a
     committed file under `.kiro/retros/`, authored by the agent identity,
     and a rebuild SHALL restore the Flow spans and retros from git.
-10. Triage SHALL show a Dismiss button on each GitHub item that asks first and
-    adds `avoozl:dismissed`. (Changed 2026-11-19, triage-agent TA8.7: Triage,
-    its Dismiss, `intake.dismiss` and the `avoozl:dismissed` label are removed;
-    Close with a reason on the GitHub pages replaces it. The same goes for
-    the dismiss part of criteria 8 and 12, and criterion 9's read of
-    GitHub's issues, which went with `github.sync`.)
 11. Tests SHALL show: an author-only approval; an approval whose committer is
     someone else; an agent-authored edit with the owner as committer is no
-    approval; and a scratch repository with approvals, a landed task, a
-    dismissed item and an intake-made task rebuilds to the same plans,
+    approval; and a scratch repository with approvals, a landed task and an intake-made task rebuilds to the same plans,
     approvals, tasks, Flow spans and retros after its database is deleted;
     and both a direct and a pull request landing write the trailers.
 
-12. (Added 2026-11-19, owner request.) The tick SHALL adopt an approval that
+12. The tick SHALL adopt an approval that
     reaches main with no click: a spec pull request an approver authored and
     GitHub merged, or a push. When a checkout's base branch, as the tick
     already fetched it, has moved, or a spec's text has, the reader of
@@ -5381,7 +3881,7 @@ rebuilds its database from main and GitHub.
 
 ### Requirement 115: Task IDs and refs in tasks.md are checked and linked
 
-Added 2026-11-19 (owner request). Design §4.43.
+Design §4.43.
 
 **User story:** As the owner, I want a task's requirement and design refs
 read, checked and linked, so that a ref that names nothing is caught before
@@ -5416,8 +3916,7 @@ approval and a task opens the text it builds.
 
 ### Requirement FS1: A spec folder needs only tasks.md, at a path the repository names
 
-Added 2026-11-19 (owner decision). Design §FS1. Changes Requirement 30.1 and
-30.4 and Requirement 115.4.
+Design §FS1.
 
 **User story:** As the owner, I want a repository to say where its spec
 folders live and a spec to need only its task list, so that a spec can be one
@@ -5429,7 +3928,7 @@ folders live and a spec to need only its task list, so that a spec can be one
    accept `specs.path`, one folder relative to that root. Unset SHALL mean
    `.kiro/specs`. Avoozl SHALL refuse a value that is absolute, names a `.`
    or `..` folder, or resolves through a symlink to a place outside the
-   checkout. It SHALL compose with a `specs.branch` setting (spec/drop-mirror): the path
+   checkout. It SHALL compose with `specs.branch` (Requirement 117): the path
    names the folder, the branch names where it is read.
 2. Every reader and writer of spec folders SHALL use the resolved path:
    listing, reading, creating, approving, ticking, reviewing and retiring.
@@ -5456,7 +3955,7 @@ folders live and a spec to need only its task list, so that a spec can be one
 
 ### Requirement 116: The spec issue's assignee says who works on a spec
 
-Added 2026-11-19 (owner decision). Design §4.44.
+Design §4.44.
 
 **User story:** As one of several people on a repository, I want the spec
 issue's assignee to say who is working on each spec, so that GitHub shows
@@ -5499,14 +3998,11 @@ who has it and no two people drive one spec.
 
 ### Requirement 117: A repository names the branch its specs live on
 
-Added 2026-11-19 (owner decision). Design §4.45. Removes the private mirror,
-forwarding and the orphan plans branch (RC24 to RC27, RC25's two homes,
-avoozl-next AN2, and criterion 21 of Requirement 102), and reads "the specs
-branch" for "main" in Requirement 114.1, 114.5 and 114.9.
+Design §4.45.
 
 **User story:** As the owner, I want a private or public repository to say
 which branch its specs live on, so that plans can sit on their own branch
-(as Nupp's do on `avoozl-plans`) with no mirror and no forwarding.
+(as Nupp's do on `avoozl-plans`).
 
 #### Acceptance criteria
 
@@ -5522,10 +4018,7 @@ which branch its specs live on, so that plans can sit on their own branch
 4. Plans-repo mode with the specs on a branch of the planning repository
    SHALL work with this setting alone.
 5. Avoozl SHALL NOT forward pull requests or code between repositories. The
-   mirror setting, its operations, CLI command, MCP actions, tick steps,
-   Needs you rows, Settings tab, the Private mirror role and the forward-only
-   leak scan SHALL be gone. The pre-push content rule for normal landing
-   SHALL stay.
+   pre-push content rule runs on normal landing.
 6. Tests SHALL show: in plans-repo mode with `specs.branch`, a landing ticks
    the spec on that branch and leaves the planning repository's main alone,
    and another machine reads the tick there; Approve commits on the specs
@@ -5534,7 +4027,7 @@ which branch its specs live on, so that plans can sit on their own branch
 
 ### Requirement 118: Avoozl reads git and GitHub
 
-Added 2026-11-19 (owner decision). Design §4.46.
+Design §4.46.
 
 **User story:** As the owner, I want Avoozl to start almost entirely from a
 GitHub repository, with GitHub as the identity and permission provider and
@@ -5557,10 +4050,8 @@ what git and GitHub already hold.
    approval SHALL be a person's instruction carried out as their commit:
    `plan.approve` SHALL stay person-only and SHALL NOT be a tool an agent
    calls on its own. Nothing else SHALL be stored.
-3. A spec pull request SHALL be a pull request: the triage agent's pull
-   request review SHALL check a spec pull request too, for spec lint and its
-   requirement and design references, and merging it SHALL be the approval
-   when an approver authored it.
+3. A spec pull request SHALL be a pull request, reviewed like any other on
+   GitHub, and merging it SHALL be the approval when an approver authored it.
 4. The driver SHALL be the spec issue's single assignee (R66, R116), set by
    a person on GitHub.
 5. A landing SHALL be a guarded fast-forward or a head-guarded merge

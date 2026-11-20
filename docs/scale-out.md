@@ -32,10 +32,10 @@ avoozl driver set --label "Draco"
 
 `driver set --label` names this machine in the driver banner and status.
 
-A task in one spec can wait on a task in another by naming its ID in `$after`.
-The waiting spec's driver starts it once the other task's tick reaches that
-spec's base branch, whoever drove that task. See
-[Specs](avoozl-specs.md#dependencies-across-specs) for the rules.
+A spec can wait on another when a parent spec links both and lists one first.
+The waiting spec's driver starts it once the other spec's last tick reaches the
+base branch, whoever drove those tasks. See
+[Order across specs](avoozl-specs.md#order-across-specs) for the rules.
 
 ### Handing off a spec
 

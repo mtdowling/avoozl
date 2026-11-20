@@ -1,0 +1,33 @@
+{
+  "title": "A base that moved is merged into the claim branch before the checks",
+  "rules": ["13.1", "13.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": true,
+    "mode": "direct"
+  },
+  "expect": {
+    "landing": {
+      "action": "fast-forward-base",
+      "base": "main",
+      "tick": "same-commit",
+      "mergeBase": true,
+      "deleteClaimBranch": true
+    }
+  },
+  "expectFail": {
+    "landing": "sim-1.4"
+  }
+}

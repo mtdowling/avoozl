@@ -291,6 +291,7 @@ export const GITHUB_WRITE_METHODS = Object.freeze([
   "addAssignees",
   "removeAssignees",
   "createPullRequest",
+  "markPullRequestReadyForReview",
   "createCommitStatus",
   "createRuleset",
   "updateRuleset",
@@ -408,9 +409,7 @@ export function demoGitHub(sample = demoGitHubData()) {
 
 // Reads that still reach outside the sample (a folder picker, a scan of the
 // disk) are previews too, even though they change nothing.
-const OUTSIDE_READS = new Set([
-  "repositories.detect",
-]);
+const OUTSIDE_READS = new Set(["repositories.detect"]);
 
 // What a change would do, said plainly. The first matching prefix wins.
 const SAYS = [

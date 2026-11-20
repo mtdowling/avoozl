@@ -242,6 +242,7 @@ const GRAPHQL_MUTATIONS = {
   createCommitOnBranch: { contents: w },
   createIssue: { issues: w },
   createLinkedBranch: { contents: w, issues: w },
+  markPullRequestReadyForReview: { pull_requests: w },
 };
 const GRAPHQL_READS = [
   [/\bpullRequests?\b|\bissueOrPullRequest\b/, { pull_requests: r }],

@@ -6,27 +6,18 @@ category: Planning
 
 ## Introduction
 
-Avoozl signs in to GitHub one way today: `localToken()` reads
-`AVOOZL_GITHUB_TOKEN`, then `GH_TOKEN`, then `GITHUB_TOKEN`, then runs
-`gh auth token` (V: `src/app/github/github.mjs:248-264`). Every API call
-of every job then uses that one token with that one person's full access.
-An organization that wants its engineers' Avoozl to act through its own
-GitHub App, with short-lived tokens and only the access each job needs,
-has no way in.
+An organization may want its engineers' Avoozl to act through its own
+GitHub App, with short-lived tokens and only the access each job needs.
 
-This spec adds a sixth plugin part, `credentials`. A plugin that provides
-it answers one call, `token({repository, owner, permissions, purpose})`,
+The `credentials` plugin part does that. A plugin that provides it answers
+one call, `token({repository, owner, permissions, purpose})`,
 with a token for that repository, the GitHub permissions that job needs,
 and the job's name, so that the provider can mint a narrow token, audit
 it and refuse a job it does not allow. Installing the plugin and approving
-its hash is the whole configuration. The two ways Avoozl signs in today
-become two built-in providers of the same part: `gh` and `env`.
+its hash is the whole configuration. With no plugin, Avoozl signs in
+through one of two built-in providers of the same part: `gh` and `env`.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts that a person does later.
-Nothing in it changes code until its tasks run.
-
-Claims about today's code carry one label: **V**, read in the file cited at
+Claims about code carry one label: **V**, read in the file cited at
 `84d792aa`; or **A**, assumed and not checked, with the reason.
 
 ### Why
@@ -35,8 +26,8 @@ Claims about today's code carry one label: **V**, read in the file cited at
   issues holds the same token as the landing step that merges. A leak of
   either is a leak of everything that person can write.
 - **An organization wants the audit.** A provider that sees which job asked
-  for which repository can log it and can refuse, for example, triage
-  comments on one repository while landing still works there.
+  for which repository can log it and can refuse, for example, agent
+  replies on one repository while landing still works there.
 - **An app's tokens carry their own rate limit**, separate from the
   person's, and expire within the hour (GitHub's
   [installation token docs](https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app)).
@@ -70,7 +61,7 @@ Claims about today's code carry one label: **V**, read in the file cited at
 | Provider        | The code that hands Avoozl a GitHub token: a `credentials` plugin, or built-in `gh` or `env` |
 | Host            | A GitHub host name, such as `github.com`, that a provider signs Avoozl in to                  |
 | Claim           | A provider's statement that it serves a host, or some owners on it: `credentials.hosts` and `owners` |
-| Job             | One named kind of GitHub work, such as `land` or `triage`; the `purpose` of a token call      |
+| Job             | One named kind of GitHub work, such as `land` or `respond`; the `purpose` of a token call      |
 | Job table       | The one table in Avoozl that maps each job to the GitHub permissions it needs                |
 | Permission set  | A job's permissions, such as `{contents: "write", pull_requests: "write"}`                    |
 | Risk            | `high` for a job that sets a repository up or deletes on GitHub, else `low` (PC13)            |
@@ -206,7 +197,7 @@ does not allow.
    description, its permission set and its `risk` (`low` or `high`,
    PC13). No other code SHALL list a job's permissions or risk. Jobs that
    prepare a repository (labels, branch rules and rulesets, repository
-   settings, variables, issue types, and the triage setup flow) SHALL be
+   settings, variables and issue types) SHALL be
    ordinary jobs in this table with the permissions they really need, such
    as `administration: write`; there SHALL be no separate step that raises
    a token's access.
@@ -466,7 +457,7 @@ so that no setup or delete happens on a token I did not see asked for.
    the exact GitHub permissions the job will ask for, with **Allow** and
    **Cancel**. This SHALL hold for every provider, `gh` and `env` included.
 3. Where a setup flow already has a preview and confirm step (Set up
-   GitHub, landing setup, triage setup), that confirm SHALL be this modal
+   GitHub, landing setup), that confirm SHALL be this modal
    and SHALL list, per write, the job and its permissions. It SHALL NOT add
    a second popup.
 4. **Allow** SHALL let only that step, on that repository, with that

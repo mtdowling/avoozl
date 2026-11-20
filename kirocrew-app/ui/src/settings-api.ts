@@ -284,6 +284,8 @@ export interface RepositoryForm {
   // off), landing.autoMerge ('on', 'off') and landing.method (squash or
   // merge). Blank reads the default.
   landingMode: string
+  // landing.pr: draft, ready or auto; blank reads the workspace's, else draft.
+  prMode: string
   autoMerge: string
   mergeMethod: string
   // Settings this form does not show (checkout, folder),
@@ -340,6 +342,7 @@ export function emptyRepository(name = ''): RepositoryForm {
     priority: '',
     maxAttempts: '',
     landingMode: '',
+    prMode: '',
     autoMerge: '',
     mergeMethod: '',
     rest: {},
@@ -366,6 +369,7 @@ export function toForm(github: Policy): SettingsForm {
         priority: joined(entry.priorityLabels),
         maxAttempts: str(record(entry.conflicts).maxAttempts),
         landingMode: str(record(entry.landing).mode),
+        prMode: str(record(entry.landing).pr),
         autoMerge: (() => {
           const on = record(entry.landing).autoMerge
           return typeof on === 'boolean' ? (on ? 'on' : 'off') : on === undefined || on === null ? '' : String(on)
@@ -413,6 +417,7 @@ export function toPolicy(form: SettingsForm): Policy {
                 const landing = compact({
                   ...record(repository.rest.landing),
                   mode: blank(repository.landingMode),
+                  pr: blank(repository.prMode),
                   // A value it does not know is sent as typed, so the backend names it.
                   autoMerge: repository.autoMerge === 'on' ? true : repository.autoMerge === 'off' ? false : blank(repository.autoMerge),
                   method: blank(repository.mergeMethod),
@@ -730,6 +735,14 @@ export const CONFLICT_DEFAULTS = { maxAttempts: '2' } as const
 
 // How a pull request lands.
 export const MERGE_METHODS = ['squash', 'merge'] as const
+// landing.pr (R119): how Avoozl's pull requests open and merge, one line each.
+export const PR_MODES = ['draft', 'ready', 'auto'] as const
+export const PR_MODE_TEXT: Record<(typeof PR_MODES)[number], { title: string; line: string }> = {
+  draft: { title: 'Draft', line: 'Opens as a draft. You mark it ready, here or on GitHub, then you merge it.' },
+  ready: { title: 'Ready for review', line: 'Opens ready for review. You merge it, here or on GitHub.' },
+  auto: { title: 'Auto', line: 'Opens ready. Avoozl merges it once checks pass on the exact head.' },
+}
+
 export const MERGE_METHOD_TEXT: Record<(typeof MERGE_METHODS)[number], { title: string; line: string }> = {
   squash: { title: 'Squash', line: 'One commit per pull request on the base, with its title and body. The repository must allow squash merging.' },
   merge: { title: 'Merge commit', line: 'The branch lands with a merge commit. The repository must allow merge commits.' },

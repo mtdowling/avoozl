@@ -1,20 +1,53 @@
 # Avoozl
 
-Avoozl turns a spec you approve into merged code. It splits the spec into
-tasks, gives each task to a coding agent in its own worktree, runs your checks
-on the exact commit the agent made, and lands the work once they pass.
+Avoozl is an open workflow for landing specs and epics on GitHub. Write the
+plan as a task list. Many agents and teammates can work on it at once without
+doing the same task twice. Each task lands in order, after checks pass. You
+choose where people sign off: every PR, only the gates, or never.
 
-Each task in a spec says what it waits on and what done means:
+Plan in specs. Land in parallel. You keep the final say.
+
+## Open workflow
+
+[Workflow v1](docs/github-workflow.md) is the public workflow. Its numbered
+rules say how a tool lands an epic task by task from spec files on GitHub, and
+the [workflow kit](workflow-kit/README.md) holds sample repositories that check
+a runner against them. Any tool can follow it. Avoozl is one way to run it,
+through its CLI, MCP server, web app, Kiro Crew plugin and skills.
+
+Avoozl does not follow every rule yet. It still reads `$` fact bullets, and
+the list order, the two tags, linked specs and integration branches by name are
+planned in the `simplify` spec.
+
+- **Parallel work.** A task waits for the task above it, and the children of a
+  group whose title ends with `(**PARALLEL**)` start side by side. Avoozl
+  ranks ready tasks by how many tasks they unblock, then by file order.
+  Planned: claims by creating `avoozl/<spec>/<task>` branches, so two runners
+  never take one task.
+- **Teams.** The spec issue's assignee drives the spec. To hand it off,
+  reassign the issue. Specs, approvals and ticks live in git, and issues and
+  assignees live on GitHub.
+- **People decide.** An approval is a commit by an approver. A task whose title
+  ends with `(**MANUAL**)` is a gate that holds everything after it until a
+  person ticks it. The repository's `landing` setting is `off`, `direct` or
+  `pr`, and `landing.pr` is `draft`, `ready` or `auto`.
+- **Specs or epics.** A parent spec links its member specs from task titles
+  with normal Markdown links. A branch named exactly like a spec folder is its
+  integration branch.
+
+## Task list
+
+Each task in a spec is an ID, a title and the bullets that say what done means:
 
 ```markdown
-- [ ] 1.2 Validate config
-  - $after: 1.1
-  - $done: An unknown key is reported with its path
-  - Report each key the schema does not name, with its JSON path.
+- [ ] `cfg-1` Read the config file
+  - A file with every key loads
+- [ ] `cfg-2` Validate config
+  - An unknown key is reported with its path
 ```
 
-Avoozl starts task 1.2 once 1.1 has landed. The commit that lands 1.2 ticks
-its box on main, so anyone who reads the branch sees it done.
+Avoozl starts `cfg-2` once `cfg-1` has landed. The commit that lands `cfg-2`
+ticks its box on main, so anyone who reads the branch sees it done.
 
 ## How it works
 
@@ -123,8 +156,15 @@ avoozl repository configure code --workspace ~/plans \
 ```
 
 Each check is a name and a command, run without a shell. Turn delivery on by
-adding `{ "delivery": {} }` to `.avoozl.json`. With no GitHub, this
-workspace drives every spec.
+adding a `delivery` object to `.avoozl.json`:
+
+```json
+{
+  "delivery": {}
+}
+```
+
+With no GitHub, this workspace drives every spec.
 
 The repository's `landing` setting decides what happens to work that passes:
 

@@ -11,7 +11,7 @@
 //   checks sent to the worker chat, and a verified task held for a protected
 //   path.
 // - Hold reasons, first match wins: line stopped, landing off, then for the
-//   head the stored wait (review missing, checks pending) or the cached
+//   head the stored wait (draft, review missing, checks pending) or the cached
 //   checks (failing, pending); every other queued portion is behind the ones
 //   before it.
 import { linkSets } from "../tasks/scm-links.mjs";
@@ -70,6 +70,12 @@ function queuedHold(store, entry, position, repository, checks) {
       text: `Behind ${plural(position, "portion")}.`,
     };
   const wait = entry.waiting?.candidate ? entry.waiting : null;
+  if (wait?.reason === "draft")
+    return { kind: "draft", text: "Draft, waiting for you." };
+  if (wait?.reason === "merge")
+    return entry.mergeApproved?.commit === entry.commit
+      ? { kind: "next", text: "Merge approved; merges on the next tick." }
+      : { kind: "merge", text: "Ready to merge, waiting for you." };
   if (wait?.reason === "review")
     return { kind: "review", text: "Review missing on this head." };
   if (checks?.current && checks.state === "fail")
@@ -279,7 +285,9 @@ export function landingQueueView(
 
 // A member that has waited more than 60 minutes is one Needs you row naming
 // why it waits (MB7.3). The row's id is the entry's, so reading twice shows
-// one row, and it goes when the member leaves the queue.
+// one row, and it goes when the member leaves the queue. A draft pull
+// request, and one ready to merge, is one row at once, with Ready or Merge
+// (R119), and no wait row.
 export const LONG_WAIT_MINUTES = 60;
 export function landingWaitNeedsYou(
   store,
@@ -289,18 +297,74 @@ export function landingWaitNeedsYou(
   const view = landingQueueView(store, data, { now, config });
   return view.bases.flatMap((line) =>
     line.items
-      .filter((i) => i.position != null && i.waitedMinutes > LONG_WAIT_MINUTES)
-      .map((i) => ({
-        kind: "needs-human",
-        reason: "approval",
-        id: `landing-wait:${line.repositoryId}:${line.base}:${i.key}`,
-        taskId: i.tasks[0]?.id ?? null,
-        authority: "avoozl",
-        title: `${i.tasks[0]?.id ?? i.key} has waited ${i.waitedMinutes} minutes to land on ${line.base}`,
-        detail: i.hold.text,
-        openedAt: new Date(
-          Date.parse(i.since) + LONG_WAIT_MINUTES * 60000,
-        ).toISOString(),
-      })),
+      .filter(
+        (i) =>
+          i.position != null &&
+          (PERSON.has(i.hold.kind) || i.waitedMinutes > LONG_WAIT_MINUTES),
+      )
+      .map((i) =>
+        PERSON.has(i.hold.kind)
+          ? pullRow(store, line, i)
+          : {
+              kind: "needs-human",
+              reason: "approval",
+              id: `landing-wait:${line.repositoryId}:${line.base}:${i.key}`,
+              taskId: i.tasks[0]?.id ?? null,
+              authority: "avoozl",
+              title: `${i.tasks[0]?.id ?? i.key} has waited ${i.waitedMinutes} minutes to land on ${line.base}`,
+              detail: i.hold.text,
+              openedAt: new Date(
+                Date.parse(i.since) + LONG_WAIT_MINUTES * 60000,
+              ).toISOString(),
+            },
+      ),
   );
+}
+
+// The holds only a person moves: a draft, and a pull request whose
+// checks passed, which a person merges (R119).
+const PERSON = new Set(["draft", "merge"]);
+const PULL_ROWS = {
+  draft: {
+    reason: "draft-pr",
+    title: (n) => `draft pull request${n} waits for you`,
+    detail:
+      "This repository opens pull requests as drafts (landing.pr: draft). Mark it ready for review on GitHub, or press Approve here. A person merges it once its checks pass.",
+  },
+  merge: {
+    reason: "pr-merge",
+    title: (n) => `pull request${n} is ready to merge`,
+    detail:
+      "Its checks and reviews passed on this exact head. Merge it on GitHub, or press Merge here. Avoozl never merges it on its own.",
+  },
+};
+
+function pullRow(store, line, item) {
+  const entry = store.get(
+      TABLE,
+      `${line.repositoryId}\0${line.base}\0${item.key}`,
+    ),
+    number = entry?.pr ?? item.pr?.number ?? null,
+    task = item.tasks[0]?.id ?? item.key,
+    shape = PULL_ROWS[item.hold.kind];
+  return {
+    kind: "needs-human",
+    reason: shape.reason,
+    id: `${shape.reason}:${line.repositoryId}:${line.base}:${item.key}`,
+    taskId: item.tasks[0]?.id ?? null,
+    authority: "avoozl",
+    title: `${task}: ${shape.title(number ? ` #${number}` : "")}`,
+    detail: shape.detail,
+    commit: entry?.commit ?? item.commit ?? null,
+    repositoryId: line.repositoryId,
+    repository: line.repository,
+    base: line.base,
+    key: item.key,
+    pullRequest: number,
+    link:
+      number && line.repository
+        ? `https://github.com/${line.repository}/pull/${number}`
+        : (item.pr?.url ?? null),
+    openedAt: entry?.waiting?.since ?? item.since ?? null,
+  };
 }

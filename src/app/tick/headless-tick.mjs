@@ -18,6 +18,7 @@ import { drainProcessRequests } from "../executors/process.mjs";
 import { drainCheckRuns } from "../delivery/check-runs.mjs";
 import { machineFile } from "./crews.mjs";
 import { sinkPushers, validateNotifications } from "./notification-sinks.mjs";
+import { loopLockPaths, takeLock } from "../executors/machine-lock.mjs";
 import { needsKirocrewStep } from "./needs-kirocrew.mjs";
 
 // The enabled workspace roots in the machine catalog, synced from the
@@ -50,11 +51,23 @@ export async function tickWorkspace(
   });
   if (!fs.existsSync(target.dbPath))
     return { root, skipped: "The workspace is not initialized." };
+  // One loop per workspace, whichever state folder started it (MS2.3).
+  const loop = takeLock(loopLockPaths(target.dbPath), {
+    pid: process.pid,
+    at: new Date().toISOString(),
+    stateDirectory: path.resolve(stateDirectory),
+  });
+  if (!loop.held)
+    return {
+      root,
+      skipped: `Another machine server (pid ${loop.holder?.pid ?? "unknown"}) runs this workspace's loop.`,
+    };
   const store = new Store(target.dbPath);
+  let ops = null;
   try {
     if (!store.initialized())
       return { root, skipped: "The workspace is not initialized." };
-    const ops = new Operations(store, {
+    ops = new Operations(store, {
       operator: target.operator,
       workspaceRoot: target.workspaceRoot,
       plansRoot: target.plansRoot,
@@ -86,7 +99,11 @@ export async function tickWorkspace(
       ...(notifications ? { notifications } : {}),
     };
   } finally {
+    // This process ends with the store, so send what is queued first. The
+    // tick's result is already decided and does not wait on the outcome.
+    await ops?.flushTelemetry();
     store.close();
+    loop.close();
   }
 }
 

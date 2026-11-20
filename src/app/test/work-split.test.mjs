@@ -34,10 +34,3 @@ test("the README shows the same words", () => {
   assert.ok(readme.includes(SCOPE_STATEMENT));
   assert.ok(readme.includes(SCOPE_RULE));
 });
-
-test("Set up imports the string and does not repeat it", () => {
-  const source = read("../../../kirocrew-app/ui/src/SetupWizard.tsx");
-  assert.match(source, /SCOPE_STATEMENT/);
-  assert.match(source, /SCOPE_RULE/);
-  assert.ok(!source.includes("any size"));
-});

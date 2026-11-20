@@ -108,20 +108,21 @@ A new workspace has no tasks and no repositories. Add one with
 ## Write and approve a spec
 
 A spec is a Kiro spec folder: `requirements.md` (or `bugfix.md`), `design.md`
-and `tasks.md`. Each task in `tasks.md` has an ID, a title, and `$` fact
-bullets that give its dependencies and what done means:
+and `tasks.md`. Each task in `tasks.md` has an ID, a title, and plain bullets
+that say what done means. A task waits for the task above it:
 
 ```markdown
-- [ ] 1.2 Validate config
-  - $after: 1.1
-  - $done: An unknown key is reported with its path
-  - Report each key the schema does not name, with its JSON path.
+- [ ] `cfg-1` Read the config file
+  - A file with every key loads
+- [ ] `cfg-2` Validate config
+  - An unknown key is reported with its path
 ```
 
 Choose **New spec** on the Specs page. Review the lint results and the graph,
 then choose **Approve revision**. An approval is a commit on main authored by
 an approver, so a later edit reads as unapproved until you approve again. See
-[Specs](avoozl-specs.md) for the full task format and for approvals.
+[Specs](avoozl-specs.md) for Avoozl's spec pages and approvals, and
+[workflow v1](github-workflow.md) for the task format.
 
 ## Deliver
 

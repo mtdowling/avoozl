@@ -168,7 +168,9 @@ function finish(store, entry, state, extra = {}) {
 // when the reason, candidate or check list changes, not on every tick.
 function noteWait(store, entry, candidate, verdict) {
   const waiting = {
-    reason: verdict.reason === "review" ? "review" : "checks",
+    reason: ["review", "draft", "merge"].includes(verdict.reason)
+      ? verdict.reason
+      : "checks",
     candidate,
     checks: (verdict.checks ?? []).map(({ name, command, conclusion }) => ({
       ...(name !== undefined ? { name } : {}),

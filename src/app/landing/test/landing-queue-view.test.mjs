@@ -370,3 +370,95 @@ test("a member that waited 61 minutes opens one Needs you row, and a second read
     [first[0].id],
   );
 });
+
+// A `pr` repository whose one queued portion, pull request #7, waits for
+// `reason` after one step.
+async function waitingPull(t, reason) {
+  const { root, store } = fixture(t),
+    Q = { repositoryId: "app", base: "main" };
+  store.put("repositories", {
+    id: "app",
+    root: "/x",
+    baseBranch: "main",
+    landing: "pr",
+    github: "acme/app",
+  });
+  enqueueLanding(store, { ...Q, key: "t1", commit: sha("a"), tasks: ["t1"] });
+  await landNext(store, Q, {
+    readBase: async () => sha("b"),
+    prepare: async () => ({ candidate: sha("a"), pr: 7 }),
+    check: async () => ({ wait: true, reason, checks: [] }),
+  });
+  return { root, store, Q };
+}
+
+test("a draft pull request shows Draft, waiting for you, opens one Needs you row at once, and only a person releases it", async (t) => {
+  const { root, store, Q } = await waitingPull(t, "draft");
+  const [line] = landingQueueView(store, { tasks: [] }).bases;
+  assert.deepEqual(line.items[0].hold, {
+    kind: "draft",
+    text: "Draft, waiting for you.",
+  });
+  const rows = landingWaitNeedsYou(store, { tasks: [] }),
+    again = landingWaitNeedsYou(store, { tasks: [] }, { now: NOW + 1e9 });
+  assert.deepEqual(
+    rows.map((r) => [r.reason, r.id, r.pullRequest, r.link]),
+    [
+      [
+        "draft-pr",
+        "draft-pr:app:main:t1",
+        7,
+        "https://github.com/acme/app/pull/7",
+      ],
+    ],
+  );
+  // Long after: still the one draft row, no wait row beside it.
+  assert.deepEqual(
+    again.map((r) => r.id),
+    ["draft-pr:app:main:t1"],
+  );
+  const ready = [],
+    github = {
+      available: () => true,
+      pullRequest: async () => ({ state: "open", draft: true, node_id: "N7" }),
+      markPullRequestReadyForReview: async (id) => ready.push(id),
+    },
+    ops = new Operations(store, { workspaceRoot: root, github }),
+    input = { ...Q, key: "t1" };
+  for (const context of [{ mcp: true }, { caller: "s" }])
+    await assert.rejects(
+      ops.execute("landing.ready", input, undefined, context),
+      /person/,
+    );
+  assert.deepEqual(ready, []);
+  assert.deepEqual(await ops.execute("landing.ready", input), {
+    pr: 7,
+    released: true,
+  });
+  assert.deepEqual(ready, ["N7"]);
+});
+
+test("a released pull request whose checks passed waits for a person's Merge, which only a person can press", async (t) => {
+  const { root, store, Q } = await waitingPull(t, "merge");
+  const hold = () => landingQueueView(store, { tasks: [] }).bases[0].items[0];
+  assert.deepEqual(hold().hold, {
+    kind: "merge",
+    text: "Ready to merge, waiting for you.",
+  });
+  const [row] = landingWaitNeedsYou(store, { tasks: [] });
+  assert.deepEqual(
+    [row.reason, row.id, row.commit],
+    ["pr-merge", "pr-merge:app:main:t1", sha("a")],
+  );
+  const ops = new Operations(store, { workspaceRoot: root }),
+    input = { ...Q, key: "t1", commit: sha("a") };
+  for (const context of [{ mcp: true }, { caller: "s" }])
+    await assert.rejects(
+      ops.execute("landing.merge", input, undefined, context),
+      /person/,
+    );
+  assert.equal(hold().hold.kind, "merge");
+  await ops.execute("landing.merge", input);
+  assert.equal(hold().hold.text, "Merge approved; merges on the next tick.");
+  assert.deepEqual(landingWaitNeedsYou(store, { tasks: [] }), []);
+});

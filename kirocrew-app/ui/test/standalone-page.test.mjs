@@ -155,42 +155,38 @@ test('a new Needs you item gives one notice, two give two, and a reload gives no
   await page.evaluate(`localStorage.setItem('avoozl-notices', 'on'); localStorage.removeItem('avoozl-noticed'); window.dispatchEvent(new Event('avoozl:notices-changed')); true`)
   await page.until(`localStorage.getItem('avoozl-noticed') !== null`, 8000)
   assert.deepEqual(await page.evaluate('window.__shown'), [], 'the backlog is not shown')
-  // Two tasks pinned to Kiro Crew wait with a Needs you item each, in a second
-  // workspace built from the test fixtures.
+  // Two blocked tasks wait with a Needs you item each, in a second workspace
+  // built from the test fixtures.
   const { snapshot } = await import('../../../src/app/test/fixtures.mjs')
-  const { enqueueSessionRequests } = await src('sessions/session-requests.mjs')
-  const { deliveryPolicy, planReadyDispatches } = await src('delivery/delivery.mjs')
   const { workspaceConfig } = await src('settings/config.mjs')
   const { Store } = await src('store/store.mjs')
   const { WorkspaceRegistry } = await src('settings/host-config.mjs')
-  const pinned = (id) => ({
+  const blocked = (id) => ({
     id,
-    title: `Pinned ${id}`,
+    title: `Blocked ${id}`,
     kind: 'leaf',
     scope: 'catalog',
-    status: 'planned',
+    status: 'blocked',
     epic: 'sample',
     track: 'catalog',
     tags: [],
     acceptance: ['Works.'],
     repository: 'r1',
-    session: { harness: 'kirocrew' },
   })
   const other = path.join(scratch, 'other')
   fs.mkdirSync(other, { recursive: true })
   const second = new Store(workspaceConfig({ workspace: other, env: process.env }).dbPath)
-  second.initialize({ ...snapshot(), tasks: [pinned('p1'), pinned('p2')], edges: [] })
+  second.initialize({ ...snapshot(), tasks: [blocked('p1'), blocked('p2')], edges: [] })
   second.put('repositories', { id: 'r1', root: fs.mkdtempSync(path.join(scratch, 'r1-')) })
   const registry = new WorkspaceRegistry({ configPath: path.join(machine.configDirectory, 'config.json'), catalogPath: path.join(machine.stateDirectory, 'catalog.sqlite') })
   registry.add('other', { root: other, name: 'Other' })
   registry.close?.()
   await page.evaluate(`localStorage.setItem('avoozl-noticed', '[]'); localStorage.setItem('avoozl.page', JSON.stringify({ workspaceId: 'other' })); true`)
-  enqueueSessionRequests(second, { starts: planReadyDispatches(second, deliveryPolicy({ lanes: { local: 5 }, delivery: {} }), {}) }, { source: 'tick' })
   second.close()
   await page.evaluate(`window.dispatchEvent(new Event('avoozl:notices-changed')); true`)
   await page.until(`window.__shown.length >= 2`, 8000)
   assert.equal((await page.evaluate('window.__shown')).length, 2)
-  assert.ok((await page.evaluate('window.__shown')).every((title) => /pinned to Kiro Crew/.test(title)))
+  assert.ok((await page.evaluate('window.__shown')).every((title) => /^Blocked p[12]$/.test(title)))
   // A reload with the same items gives none.
   await page.open(`${server.origin}/apps/avoozl`, { width: 1280, height: 900, dark: false })
   await page.until(`document.body.innerText.includes('Other')`, 20000)

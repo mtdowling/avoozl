@@ -97,7 +97,7 @@ No label is an order. A fix is one task with no spec files. Start one with
 `avoozl fix "TEXT" --repo ID`; starting it is the approval.
 
 Avoozl does not triage issues or review other people's pull requests. Any
-agent runner, such as Issue Radar or glorp, can do that with the skills
+agent runner, such as Issue Radar, can do that with the skills
 Avoozl ships; see [Agent skills](agent-skills.md).
 
 ## Pull-request reviews

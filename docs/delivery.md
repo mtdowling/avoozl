@@ -117,9 +117,57 @@ review. Each repository's `landing` setting picks how:
 - `off` pushes nothing. The verified commit waits in **Needs you**. This is the
   default until setup writes another.
 - `direct` lands it in merge batches on the base branch.
-- `pr` pushes the task branch, opens or reuses one pull request, waits for its
-  required checks and reviews on that head, and merges. Without merge
-  permission it waits for an authorized person to merge.
+- `pr` pushes the task branch, opens or reuses one pull request, and waits
+  for its required checks and reviews on that head. `landing.pr` says whether
+  it opens as a draft and who merges it (see below).
+
+### How pull requests land
+
+`landing.pr` says how Avoozl opens a `pr` repository's pull requests, and who
+merges them. Set it for the workspace at the top of `.avoozl.json`
+(`"landing": {"pr": "ready"}`), or for one repository in its landing block,
+which wins. Settings shows it on the repository's **Landing** tab. Only a
+person changes it; agents, MCP and the tick cannot.
+
+| `landing.pr` | Opens as | Who merges |
+| --- | --- | --- |
+| `draft` (default) | Draft | A person, after marking it ready |
+| `ready` | Ready for review | A person |
+| `auto` | Ready for review | Avoozl, once checks pass on the exact head |
+
+With `draft`:
+
+1. **Draft.** The **Landing queue** shows **Draft, waiting for you**, and
+   **Needs you** has one row for it. A person releases it: click **Ready for
+   review** on GitHub, or press **Approve** on the row. Avoozl sees a GitHub
+   click on its next read of the pull request, which it makes anyway, so it
+   costs no extra GitHub call. **Approve** calls
+   `markPullRequestReadyForReview` and only marks it ready. A later push does
+   not make it a draft again. A required check that fails on a draft still
+   goes back to the worker.
+2. Then it goes on as with `ready`.
+
+With `draft` and `ready`:
+
+1. **Ready to merge.** Avoozl waits for the required checks and reviews on the
+   exact head. Then the queue shows **Ready to merge, waiting for you**, and
+   **Needs you** has one row for it.
+2. **Merge.** A person merges it on GitHub, and Avoozl records that merge. Or
+   the person presses **Merge** on the row: the next tick checks that exact
+   head again and merges it, guarded by the head. If the head moved, nothing
+   merges.
+
+With `auto`, Avoozl merges the pull request itself from the tick once the
+required checks and reviews pass on the exact head.
+
+In every mode a draft is never merged, never auto-merged and never batched
+while it is a draft. Pull request landing never makes a merge batch.
+`landing.autoMerge` does not apply to these pull requests. Only a person can
+press **Approve** or **Merge**.
+
+GitHub does not let anyone approve their own pull request, and Avoozl opens
+pull requests as the owner. So **Ready for review** is the release signal, not
+a review approval. The review rule of the base branch still applies as before.
 
 The GitHub checks named in the repository's **Required checks** setting
 (**Edit repository › Landing**) are separate from the repository's own checks.
@@ -162,6 +210,9 @@ Each GitHub repository's `landing.autoMerge` decides who presses merge:
 
 A spec, through `ship` in its `tasks.md` front matter, or a single task may
 pin `auto-merge` or `manual`.
+
+This setting does not cover a `pr` repository. There `landing.pr` says who
+merges (see [How pull requests land](#how-pull-requests-land)).
 
 ## Investigate first
 

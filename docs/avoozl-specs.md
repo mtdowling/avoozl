@@ -1,8 +1,29 @@
-# Specs
+# Specs in Avoozl
 
 A spec is a Kiro spec folder that says what to build and in what order. Avoozl
-turns an approved spec into tasks and runs each one once the tasks it waits on
-have landed.
+runs an approved spec as [workflow v1](github-workflow.md) says, and this page
+covers what Avoozl adds: where it finds specs, how it names refs, what its
+lint refuses and how its page and commands handle a spec.
+
+```markdown
+---
+repo: app
+---
+
+- [ ] `cfg-1` Validate config [R1.2] (§2.1)
+  - An unknown key is reported with its path
+- [ ] `cfg-2` Report the keys (**PARALLEL**)
+  - [ ] `cfg-3` Print each key
+    - Each key the schema does not name is printed with its JSON path
+  - [ ] `cfg-4` Count the keys
+    - The report names how many keys were unknown
+```
+
+[Workflow v1](github-workflow.md#2-tasks) defines the task format, the order
+of the list, the two title tags, front matter, linked specs and integration
+branches. Avoozl reads each of them as written there.
+
+## Spec folders
 
 ```text
 .kiro/specs/<name>/
@@ -12,13 +33,12 @@ have landed.
   <anything>.md                    optional
 ```
 
-Only `tasks.md` is required. Kiro's layout of `requirements.md` (or
-`bugfix.md`), `design.md` and `tasks.md` works as it always has. Every other
-Markdown file directly in the folder is spec text: it is part of the
-revision, so editing it needs a new approval, and workers and reviewers read
-it beside `tasks.md`. Files in subfolders such as `avoozl/`, files that are
-not Markdown, and symlinks are not part of the spec. A spec file may be at
-most 1 MB, and a folder may hold at most 50 of them.
+Kiro's layout of `requirements.md` (or `bugfix.md`), `design.md` and `tasks.md`
+works as it always has. Every other Markdown file directly in the folder is
+spec text: it is part of the revision, so editing it needs a new approval, and
+workers and reviewers read it beside `tasks.md`. Files in subfolders such as
+`avoozl/`, files that are not Markdown, and symlinks are not part of the spec.
+A spec file may be at most 1 MB, and a folder may hold at most 50 of them.
 
 ### Where specs live
 
@@ -44,31 +64,7 @@ Inside Avoozl's interfaces a spec is stored as a plan, so the `plan.*`
 operations, the `plans_*` MCP tools, and the `plan` CLI commands keep that
 name.
 
-See [GitHub workflow](github-workflow.md) for the protocol any tool can
-follow to run specs on GitHub: approvals, assignees, claims, landing and
-ticks.
-
-## Task list
-
-Each checkbox in `tasks.md` is a task with an ID and a title. The bullets
-under it that start with `$` are its facts, and the other bullets are its
-summary:
-
-```markdown
----
-repo: app
----
-
-- [ ] 1.2 Validate config [R1.2] (§2.1)
-  - $after: 1.1
-  - $done: An unknown key is reported with its path
-  - Report each key the schema does not name, with its JSON path.
-```
-
-An ID is Kiro's number (`1`, `1.2`) or a named ID with a hyphen or period.
-Write a named ID as a code span, as Avoozl does:
-``- [ ] `cache-invalidation` Drop stale entries``. A bare
-`- [ ] cache-invalidation Drop stale entries` names the same task.
+## Refs
 
 A title may end in refs. `[R1.2]` names the requirements the task builds and
 `(§2.1)` the design sections it follows; each is a comma-separated list, and
@@ -80,7 +76,6 @@ exist in the same spec:
   numbered criterion `<m>.`, such as `R1.2` or `DL2.3`.
 - A design ref is `§` and the number a `design.md` heading starts with, such
   as `§2.1` for `### 2.1 Loader` or `§D1` for `## D1. Shape`.
-- Either list may name a fact row such as `| F13 |` in its own file.
 
 A ref is checked against its file only when the spec has that file. A spec
 with no `requirements.md` or `bugfix.md` can name no requirement, and one
@@ -89,110 +84,18 @@ with no `design.md` no design section: lint names the missing file.
 The page shows a task's refs as chips beside it, and a chip opens that
 requirement or section in the spec.
 
-The facts give the task's acceptance (`$done`) and its dependencies
-(`$after`). Each fact is one bullet on one line. A list is comma-separated
-(`$after: 1.1, 1.2`) or the same fact written again, and each `$done:`
-bullet is one result. A comma inside backticks does not split. `$paths`
-also reads a Files note as written: in
-``$paths: `src/a.nupp` (new), `README.md`.`` the backticks, the `(new)` note
-and the closing period are not part of the paths. The front matter holds
-defaults for every task, such as `repo`, written without the `$`.
-[Task facts](#task-facts) lists every fact, and
-[Front matter](#front-matter) every front-matter key.
-
-Two things are read from the layout, not from facts. An item with sub-items
-is a package, done when its sub-items are; every other item is a leaf. A
-task's phase is the `##` heading above it, and the heading text is the
-phase title.
-
-The summary says what the task delivers and how, and its worker reads it after
-the title. Write one only when it adds to the title.
-
-A leaf with no `$done` gives its results as plain bullets instead: each plain
-bullet under it is one result, and it has no summary. Avoozl's own writers
-(the planner, templates and skills) always write `$done`, so a task can keep
-a summary.
-
 A task never names checks. Every task runs its repository's checks. See
-[Repository checks and isolation](checks.md) for how
-checks are set.
+[Repository checks and isolation](checks.md) for how checks are set.
 
-### Task facts
+## Lint
 
-These are all the facts a task can have. A fact not listed here is the lint
-error `facts.unknown-key`. A list fact takes `a, b` on one line, or the same
-fact written again.
-
-| Fact | What it does | Required? | Format | Example |
-| --- | --- | --- | --- | --- |
-| `$done` | One result someone can check. The task is accepted when all hold. | Yes, on every leaf, or plain bullets in its place. A package may leave it out. | one per bullet | `$done: An unknown key is reported` |
-| `$after` | Tasks that must finish first. | No | list | `$after: 1.1, x-2` |
-| `$repo` | The one repository the task changes. | Yes when the workspace has several repositories, and on a manual task | one value | `$repo: app` |
-| `$manual` | `true` makes a step only a person does. It is never sent to an agent and is done when a person marks it. It may not have `$paths`. | No | one value | `$manual: true` |
-| `$paths` | Files the task changes. Avoozl holds a task back while a running task changes the same paths. | No | list | ``$paths: `src/a.mjs` (new)`` |
-| `$investigate` | `true` or `false`. With `true` the worker writes up its findings before it codes. | No | one value | `$investigate: true` |
-| `$type` | One lowercase word for the kind of change. `fix` counts as a bug fix in Flow. | No | one value | `$type: fix` |
-| `$plan` | In an epic folder only: the member spec's folder name. | Yes, on each epic item | one value | `$plan: runtime-contracts` |
-| `$step` | In an epic folder only: `design`, `review` or `implement` (the default). | No | one value | `$step: review` |
-
-An epic item may hold only `$plan` and `$step`.
-
-Lint refuses any other fact as `facts.removed-key` or `facts.unknown-key`
-at its line, naming it and saying what to do. `$after` takes task IDs
-only.
-
-A small spec with every common fact:
-
-```markdown
----
-repo: app
----
-
-- [ ] `x-1` Parse the config file
-  - $done: A file with every key loads
-  - $paths: `src/config.mjs`
-- [ ] `x-2` Check the config with a person
-  - $after: x-1
-  - $manual: true
-  - $done: The owner read the sample output
-```
-
-### Front matter
-
-`tasks.md` may start with a front-matter block of `key: value` lines,
-written without the `$`. A key not listed here is the lint error
-`facts.unknown-key`. A `Status:` line and a `#` comment are skipped.
-
-| Key | What it does | Required? | Format | Example |
-| --- | --- | --- | --- | --- |
-| `repo` | The default `$repo` for every leaf. | No | one value | `repo: app` |
-| `integrationBranch` | The branch the spec's tasks land on before main. | No | one value | `integrationBranch: rewrite` |
-| `integrationSync` | How often main merges into the integration branch: `weekly` (the default), `daily` or `off`. Needs `integrationBranch`. | No | one value | `integrationSync: daily` |
-| `kind` | Only `epic`: this folder lists member specs, not tasks. Leave it out otherwise. | Yes, in an epic folder | one value | `kind: epic` |
-
-Lint refuses any other key, naming it and saying what to do.
-
-`requirements.md` or `bugfix.md` may start with front matter too. Avoozl
-reads two keys there, and skips the rest without a warning. A bad value is
-a warning, not an error, because it changes only how the spec is grouped.
-
-| Key | What it does | Required? | Format | Example |
-| --- | --- | --- | --- | --- |
-| `category` | The group the spec is shown under, up to 160 characters. | No | one value | `category: Runtime` |
-| `epic` | The epic folder the spec belongs to. The epic's `tasks.md` must list it too. | No | one value | `epic: rewrite` |
-
-Avoozl reads no front matter in `design.md`.
-
-### Lint
-
-Avoozl refuses a folder that:
+Spec lint checks a folder against the spec rules of workflow v1 (sections 1 to
+6). Avoozl also refuses a folder that:
 
 - has no `tasks.md`, or has both `requirements.md` and `bugfix.md`
 - has a `tasks.md` with a missing or repeated ID
 - has a requirement or design ref that names nothing in the spec, or whose
   file the spec does not have
-- uses a fact or front-matter key Avoozl does not take
-- still has a `Facts:` bullet, the old layout; write its facts as `$` bullets
 - still holds an `avoozl/manifest.json`
 
 ## Creating a spec
@@ -254,20 +157,17 @@ as you reviewed it, and pushes it without force. If main already holds that
 exact text from someone who is not an approver, Approve refuses, because git
 cannot record an approval that changes nothing; edit it through a spec branch.
 
-## Dependencies across specs
+## Order across specs
 
-A task can wait on a task in another spec. Load each referenced spec as a
-stored draft first; the preview then tells a declared task apart from an
-existing approved one.
+A parent spec links each member spec from a task title, and the order of those
+tasks is the order of the specs. See
+[Linked specs](github-workflow.md#6-linked-specs) for the rules.
 
 You approve each spec separately, and approval creates only that spec's tasks.
-`plan approve NAME...` approves exactly the specs it names. A task that waits
-on a draft spec stays pending, and the preview counts those tasks. They start
-once that spec is approved too. Only a task marked `[x]`, which starts as
-done, needs its owners approved in the same batch.
-
-An unrelated newer draft does not erase a spec's last real approval. Retiring
-an owning spec puts the waiting tasks on hold again.
+`plan approve NAME...` approves exactly the specs it names. A task of a linked
+spec waits until that spec is approved too, and the preview counts those tasks.
+Retiring a spec puts the tasks that wait on it on hold again. An unrelated
+newer draft does not erase a spec's last real approval.
 
 ## Ticks in tasks.md
 

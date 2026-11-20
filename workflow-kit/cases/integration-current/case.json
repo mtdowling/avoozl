@@ -1,0 +1,25 @@
+{
+  "title": "An integration branch that already holds the default branch is not merged",
+  "rules": ["11.1", "11.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "client"],
+    "behind": []
+  },
+  "issues": {
+    "client": ["acme-alice"]
+  },
+  "expect": {
+    "claim": {
+      "branch": "avoozl/client/c-1",
+      "base": "client",
+      "mergeBase": false
+    }
+  },
+  "expectFail": {
+    "claim": "sim-2.6"
+  }
+}

@@ -17,6 +17,7 @@ import {
 import { requirePrivateRepository } from "../github/github.mjs";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { startTelemetry } from "../telemetry/index.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import {
   ensureGlobalLocalIgnore,
@@ -72,6 +73,13 @@ export const entries = [
     policy: routed,
     async handler({ input }) {
       const store = this.store;
+      // The exporter runs in the process that runs the tick (§D6).
+      if (this.configDirectory)
+        startTelemetry({
+          store,
+          configDirectory: this.configDirectory,
+          stateDirectory: machineAvoozlPaths().stateDirectory,
+        });
 
       // A runner holds no plans, so its tick only runs handed tasks.
       const remote = await runnerTick(store, this.workspaceRoot, {

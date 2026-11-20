@@ -12,8 +12,7 @@ still cannot do: the roles that only run as Kiro Crew chats, and
 notifications. With the two specs named below, a person who never installs
 Kiro Crew can use all of Avoozl.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts that a person does later. Nothing in it changes code, GitHub
+Nothing in it changes code, GitHub
 repositories or settings until its tasks run.
 
 Every claim about today's code carries one label: **V**, read in the file
@@ -66,7 +65,7 @@ The pattern already moved four roles (V: `processFinish` and
 `finishProcessSession`, `src/app/executors/process.mjs:137` and `:277`): the
 child gets its role's prompt file, then its brief, then one instruction to
 write `.avoozl/result.json` instead of calling an Avoozl tool; Avoozl reads
-the file and does the write the chat used to ask for. A child has no
+the file and does the write a chat would ask for. A child has no
 database, no network and no credentials (V: `src/app/executors/sandbox.mjs:1`), and
 its result file is at most 8,192 bytes (V: `src/app/executors/supervisor.mjs:251`).
 
@@ -84,10 +83,6 @@ not write a file, merge or post still cannot.
 
 - The worker (`worker-paths`) and the page (`standalone-web`).
 - New abilities for any role.
-- The conflict-fix chat for a crew's pull request. Requirement 91.6 removes
-  it.
-- Issue Radar's crew views, which read Kiro Crew's own API. They are among
-  the things NK8 marks.
 - Remote access, and notifications to more than one person.
 
 ### Words
@@ -281,9 +276,8 @@ something I asked for needs it, so that nothing waits forever in a queue.
    leave the request queued without one.
 3. `avoozl status` SHALL say whether Kiro Crew is reachable from this
    machine, and SHALL list each waiting item of NK8.2.
-4. After this spec, the table SHALL hold only: Issue Radar's crew views and
-   Send to Issue Radar, Spec Builder as a way to start a spec, attaching to
-   a Kiro Crew chat, and the Kiro Crew side panel.
+4. The table SHALL hold only: Spec Builder as a way to start a spec,
+   attaching to a Kiro Crew chat, and the Kiro Crew side panel.
 
 ### Requirement NK9: Proof of the whole
 
