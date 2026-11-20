@@ -7,7 +7,7 @@
 //   Avoozl-Harness: kirocrew                    the worker's executor
 //   Avoozl-Model: claude-opus-5.5               the worker's model
 //   Avoozl-Cost: 1.20                           credits, all roles
-//   Avoozl-Span: ID STAGE START END ROLE ATTEMPT SOURCE BATCH
+//   Avoozl-Span: ID STAGE START END ROLE ATTEMPT SOURCE
 //                                               one Flow span, "-" for none
 //
 // A landing commit with several tasks repeats the block per task. A pull
@@ -34,7 +34,6 @@ const SPAN_FIELDS = [
   "role",
   "attempt",
   "source",
-  "batchId",
 ];
 // shortcut: at most 200 spans per task ride on its landing commit; a task
 // with more keeps its oldest 200 in git. Raise it if Flow needs them.

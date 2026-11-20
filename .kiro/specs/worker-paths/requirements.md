@@ -51,9 +51,7 @@ What that costs:
   `src/app/delivery/investigate.mjs:158`). A child has no MCP tool, and the `process`
   executor rewrites the report step only for the verifier, the reviewers,
   the retro and the planner, not for a worker (V: `processFinish`,
-  `src/app/executors/process.mjs:137`). `flow-batch.mjs` has no `process`
-  branch either (V), and a child makes no commit (Requirement 96.1), so it
-  cannot make a batch's one commit per task. What a child does with such a
+  `src/app/executors/process.mjs:137`). What a child does with such a
   brief was not run (A); proof P57 ran with investigate first off.
 - A `process` child on a worker machine gets the chat's brief: "Commit your
   work there" and "run … runner report" (V: `src/app/workers/remote-runner.mjs:531`
@@ -278,7 +276,7 @@ answer.
 2. The remote steps, the `crew` argument of the `kirocrew` executor and the
    hand-back over SSH SHALL be removed. The crew snapshot stays for the In
    flight view's unreachable-crew flag.
-3. The agent, model and harness pins of a task's `session` (Requirement 53),
+3. The roles table's agent, model and harness (Requirement 53),
    this machine's lane limit, and the provider checks (Requirement 72) SHALL
    stay.
 4. Retired.

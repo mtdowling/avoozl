@@ -46,26 +46,14 @@ function setup(t, n) {
     for (const id of list) {
       const at = (m) => new Date(clock + m * 60_000).toISOString();
       store.db
-        .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?,?)")
-        .run(
-          "q" + id,
-          id,
-          1,
-          null,
-          null,
-          "queued",
-          at(0),
-          at(10),
-          "events",
-          null,
-        );
+        .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
+        .run("q" + id, id, 1, null, "queued", at(0), at(10), "events", null);
       store.db
-        .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?,?)")
+        .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
         .run(
           "c" + id,
           id,
           1,
-          null,
           "worker",
           "coding",
           at(10),
@@ -395,12 +383,11 @@ test("a slow task triggers a retro past 3x the usual lead time by default; a sav
     const clock = s.finish(s.ids.slice(0, 5)),
       at = (m) => new Date(clock + m * 60_000).toISOString();
     s.store.db
-      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
       .run(
         "ct6",
         "t6",
         1,
-        null,
         "worker",
         "coding",
         at(0),

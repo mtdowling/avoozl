@@ -155,12 +155,11 @@ function workspace(t, name, { skill = false, ids }) {
 
 const insertSpan = (store, id, taskId, stage, from, to) =>
   store.db
-    .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?,?)")
+    .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
     .run(
       id,
       taskId,
       1,
-      null,
       stage === "queued" ? null : "worker",
       stage,
       from,

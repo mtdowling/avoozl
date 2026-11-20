@@ -305,7 +305,7 @@ export async function largeWorkspace(
       });
   });
   const spans = store.db.prepare(
-    "INSERT INTO flow_spans(id,task_id,attempt,batch_id,role,stage,started_at,ended_at,source,detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
+    "INSERT INTO flow_spans(id,task_id,attempt,role,stage,started_at,ended_at,source,detail) VALUES (?,?,?,?,?,?,?,?,?)",
   );
   store.transaction(() => {
     const data = store.read();
@@ -322,7 +322,6 @@ export async function largeWorkspace(
             `${task.id}:${stage}`,
             task.id,
             1,
-            null,
             "worker",
             stage,
             new Date(start + offset).toISOString(),

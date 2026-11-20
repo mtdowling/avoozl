@@ -41,7 +41,7 @@ definition in this machine's config. Only the worker and the falsifier take an
 `agent`. A field left out, or set to `auto`, keeps the role's default: its
 agent's own model and its repository's executor.
 
-A task's `session` pin wins over its role's row. The worker, planner, and
+The worker, planner, and
 retro follow the harness. The falsifier and plan reviewer still run as Kiro
 Crew chats. Avoozl moves no running chat to another model.
 

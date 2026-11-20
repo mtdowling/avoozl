@@ -163,8 +163,8 @@ test("task.detail returns steps from stored records and makes no GitHub call", a
     approvalId: "ap",
   });
   store.db
-    .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?,?)")
-    .run("s1", "a", 1, null, "worker", "queued", at(3), at(9), "events", null);
+    .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
+    .run("s1", "a", 1, "worker", "queued", at(3), at(9), "events", null);
   const github = new Proxy(
       {},
       {

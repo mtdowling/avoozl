@@ -333,7 +333,6 @@ export interface TimingSpan {
   detail: string | null
   attempt: number | null
   role: string | null
-  batchId: string | null
 }
 
 export interface TaskTimingDetail extends TaskTiming {

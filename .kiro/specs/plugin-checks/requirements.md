@@ -188,8 +188,7 @@ question first, so that it runs only on the changes that need it.
    that one check applies to that one task. It SHALL NOT change any other
    check, task, setting or state.
 8. The decide call SHALL run off the tick's path, as check runs do. The
-   tick SHALL stay a pure planner with no model call (the rule Requirement
-   108.4 states for batches). A check waiting on its decide
+   tick SHALL stay a pure planner with no model call. A check waiting on its decide
    answer SHALL show **Deciding** on the task.
 
 ### Requirement PK4: Stages

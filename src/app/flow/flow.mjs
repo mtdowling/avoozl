@@ -261,12 +261,11 @@ export function flowPolicy(config) {
 // ------------------------------------------------------------------- spans
 
 const COLUMNS =
-  "id,task_id,attempt,batch_id,role,stage,started_at,ended_at,source,detail";
+  "id,task_id,attempt,role,stage,started_at,ended_at,source,detail";
 const rowSpan = (row) => ({
   id: row.id,
   taskId: row.task_id,
   attempt: row.attempt,
-  batchId: row.batch_id,
   role: row.role,
   stage: row.stage,
   startedAt: row.started_at,
@@ -303,7 +302,6 @@ export function putSpan(store, span) {
     span.id,
     span.taskId,
     span.attempt ?? null,
-    span.batchId ?? null,
     span.role ?? null,
     span.stage,
     span.startedAt,
@@ -313,13 +311,12 @@ export function putSpan(store, span) {
   ];
   store.db
     .prepare(
-      `INSERT INTO flow_spans(${COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?)
-       ON CONFLICT(id) DO UPDATE SET attempt=excluded.attempt,batch_id=excluded.batch_id,
+      `INSERT INTO flow_spans(${COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(id) DO UPDATE SET attempt=excluded.attempt,
        role=excluded.role,stage=excluded.stage,started_at=excluded.started_at,
        ended_at=excluded.ended_at,source=excluded.source,detail=excluded.detail
        WHERE ifnull(flow_spans.ended_at,'')<>ifnull(excluded.ended_at,'')
           OR flow_spans.stage<>excluded.stage
-          OR ifnull(flow_spans.batch_id,'')<>ifnull(excluded.batch_id,'')
           OR ifnull(flow_spans.detail,'')<>ifnull(excluded.detail,'')`,
     )
     .run(...values);
@@ -1170,17 +1167,7 @@ export function taskFlow(store, task, { now = Date.now() } = {}) {
     ...taskTiming(store, task, { spans, now }),
     versions,
     spans: spans.map(
-      ({
-        id,
-        stage,
-        startedAt,
-        endedAt,
-        source,
-        detail,
-        attempt,
-        role,
-        batchId,
-      }) => ({
+      ({ id, stage, startedAt, endedAt, source, detail, attempt, role }) => ({
         id,
         stage,
         startedAt,
@@ -1190,7 +1177,6 @@ export function taskFlow(store, task, { now = Date.now() } = {}) {
         detail,
         attempt,
         role,
-        batchId,
       }),
     ),
   };

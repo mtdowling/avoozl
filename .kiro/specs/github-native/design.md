@@ -181,7 +181,7 @@ the same code. The spec edits of GN8 for those branches are made in
 
 ## D9. Decisions
 
-The owner decided the open questions on 2026-11-19.
+These rules settle the design's open questions.
 
 1. Nobody drives a spec by default. An instance drives a spec only when the
    spec issue and every other issue tied to it (its epic issue) name this
@@ -222,19 +222,12 @@ read, hashed and shown, never parsed for tasks.
 A plain sub-bullet (no `$`) under a leaf also counts as one `$done`
 result.
 
-**Inferred, not written.** A task with sub-items is a package, done when
+**Read from the layout.** A task with sub-items is a package, done when
 its sub-items are. A task takes its phase from the `##` heading above it.
-`$kind` and `$phase` are deleted.
+An agent groups its own work inside a task. Lint refuses any fact not in
+the table above.
 
-**Deleted.** `$batch` and every `batch-<id>` key go: grouping tasks into
-one session is the agent's choice, not the spec's. Every fact not in the
-table above is deleted (`$completion`, `$sequence`, `$supports`,
-`$unblocks`, `$verify`, `$acceptFrom`, `$ship`, `$session`, `$labels`,
-`$milestone`, `$iteration`, `$scope`, `$track`, `$authority`, `$route`,
-`$repositoryId`, `$taskId`, `$nextAction`, `$distinctReason`, `$source`,
-`$tags`, `$resources`, `$needs`, `$built`).
-
-**Front matter.** Only `kind`, `epic`, `category`, `integrationBranch`,
-`integrationSync` and `repo` stay. `kind: epic` marks an epic folder.
+**Front matter.** `kind`, `epic`, `category`, `integrationBranch`,
+`integrationSync` and `repo`. `kind: epic` marks an epic folder.
 
 This spec's own `tasks.md` uses only the kept facts.

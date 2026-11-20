@@ -142,8 +142,6 @@ never widen what a worker reaches.
    pull request comment) THEN Avoozl SHALL mark the task with stranger
    input, end that session's use of epic context, and start the follow-up
    as a new session with its normal sandbox.
-8. A batch (`$batch`) SHALL get epic context only when every member passes
-   all four tests.
 
 ### Requirement EC2: The machine block
 

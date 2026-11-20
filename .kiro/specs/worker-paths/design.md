@@ -43,8 +43,8 @@ that worked before the phase without a route after it.
 One frozen table in `src/app/workers/worker-briefs.mjs` maps executor and task kind
 to the function that builds the brief, or to a reason. Delivery asks the
 table; it no longer picks steps with its own conditionals (V: today the
-choice is spread over the brief builder at `src/app/delivery/delivery.mjs:2282`,
-`batchBrief` in `src/app/flow/flow-batch.mjs:192` and `workerBrief`
+choice is spread over the brief builder at `src/app/delivery/delivery.mjs:2282`
+and `workerBrief`
 in `src/app/workers/remote-runner.mjs:388`).
 
 | Kind                     | `kirocrew`                                   | `process`                                        |

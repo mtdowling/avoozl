@@ -345,8 +345,8 @@ test("flow.view computes lead time, flow efficiency and first-pass rate on read"
   const { store, ops } = setup(t, { tasks: [leaf("a"), leaf("b")] });
   const put = (id, task, stage, from, to, attempt = 1, role = "worker") =>
     store.db
-      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?,?)")
-      .run(id, task, attempt, null, role, stage, from, to, "events", null);
+      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
+      .run(id, task, attempt, role, stage, from, to, "events", null);
   // a: 10 min queued, 30 coding, 20 review, 10 merge = 70 min lead, 40 active.
   put(
     "1",
@@ -414,8 +414,8 @@ test("tokens and credits are attributed to session, task, stage by time, and mod
   const { ingestUsage } = await import("../flow-usage.mjs");
   const put = (id, task, stage, from, to, role = "worker") =>
     store.db
-      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?,?)")
-      .run(id, task, 1, null, role, stage, from, to, "events", null);
+      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
+      .run(id, task, 1, role, stage, from, to, "events", null);
   put("1", "a", "coding", "2026-11-12T10:00:00Z", "2026-11-12T10:30:00Z");
   put("2", "a", "tests", "2026-11-12T10:30:00Z", "2026-11-12T10:40:00Z");
   const binding = { slot: "w1", taskId: "a", attempt: 1, role: "worker" };

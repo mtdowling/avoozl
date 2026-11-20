@@ -542,10 +542,8 @@ with native dependencies, so that collaborators see the same graph.
    sub-issues. An epic SHALL get the owner's `Epic` issue type when the owner
    has one, and no type otherwise. (Changed 2026-11-13: epic, plan issue,
    then tasks, Requirement 59.8.)
-8. Blocking edges (`requires`, `sequence`) SHALL project as GitHub issue
-   dependencies (blocked by). Avoozl-only detail, such as a `requires`
-   completion level and advisory `supports` edges, SHALL live only in the
-   hidden marker.
+8. Blocking edges (`requires`) SHALL project as GitHub issue dependencies
+   (blocked by).
 
 ### Requirement 14: Identity and fresh-workspace recovery
 
@@ -1196,8 +1194,7 @@ only what GitHub cannot work out.
    `is:open -is:blocked` returns. Because search can lag, the tick MAY read
    each issue's blockers directly instead of searching. Avoozl SHALL then
    apply its own gates:
-   policy, Deferred, claims, open decisions, completion levels from the
-   marker, and concurrency. A blocker closed with no merged closing pull
+   policy, Deferred, claims, open decisions, and concurrency. A blocker closed with no merged closing pull
    request SHALL follow criterion 8: released when the policy allows the
    closer, otherwise held with a decision. (Changed 2026-11-12: every such
    blocker was held.)
@@ -1223,8 +1220,7 @@ only what GitHub cannot work out.
      receipt and the issue marker, and SHALL NOT count it as a verified
      completion. Avoozl SHALL start no new session for the closed task and
      SHALL leave a running session alone.
-   - The order SHALL satisfy every `requires` edge on the task, at any
-     completion level, including `merged-pr` and `integrated`. Dependents
+   - The order SHALL satisfy every `requires` edge on the task. Dependents
      can start on code that never merged; the owner accepts that risk.
    - WHEN the policy does not allow the closer, or the closer cannot be read,
      THEN Avoozl SHALL hold the dependents and open a decision. It SHALL NOT
@@ -1457,13 +1453,9 @@ acceptance, so that a broken tool never reads as a pass.
 3. A not-run check SHALL fail the checking session, not the writer's
    attempt, because the writer did nothing wrong; the check SHALL be retried
    within the retry bound and then open a decision.
-4. A leaf MAY set `acceptFrom: "validation"`. Such a leaf SHALL be accepted
-   only from validation evidence Avoozl recorded itself: every repository
-   check passed at the leaf's integrated commit. `task.accept` SHALL refuse
-   typed evidence and `componentOnly` for it, and `task.update` SHALL
-   refuse a typed `integration` receipt, a complete status, and a change to
-   its `acceptFrom`, which changes only through plan approval. This closes
-   the path where a caller types evidence instead of running checks.
+4. `task.accept` SHALL take a person's typed evidence, or derive it from
+   validation Avoozl recorded: every repository check passed at the leaf's
+   integrated commit.
 5. Validation evidence used for acceptance SHALL be for the task's current
    commit and SHALL cover every repository check, not the earliest
    validation on record or a subset of checks. (Changed 2026-11-18: the
@@ -1763,44 +1755,20 @@ and nobody waits on CI to learn about a failure.
 7. Avoozl SHALL NOT enforce this on sessions it does not open (for example
    Issue Radar's); the Flow tab SHALL show their CI wait like any other.
 
-### Requirement 46: Batching small tasks
+### Requirement 46: One session per task
 
-Added 2026-11-12 (owner request). Design §4.11.
+Design §4.11.
 
-**Changed 2026-11-18.** Criteria 1 to 4 are replaced by Requirement 108:
-the planner decides batches in `tasks.md` (Requirement 111.4), and batching
-has no setting.
-Criteria 5 to 7 still hold.
-
-**User story:** As the owner, I want small related tasks to share one run,
-so that the fixed cost of a session, a worktree, checks, and review is paid
-once instead of once per tiny task.
+**User story:** As the owner, I want each task to run on its own, so that
+every task keeps its own commit, checks, review and timing.
 
 #### Acceptance criteria
 
-1. (Replaced by Requirement 108.) A leaf SHALL be batchable only when its
-   facts set `size: "small"`. Leaves without it SHALL never be batched.
-2. Avoozl SHALL group ready batchable leaves into one run when they share
-   the key `flow.batch.by` names: `epic` (the same parent) or `files`
-   (overlapping `paths` facts). The default SHALL be `epic`. (Changed
-   2026-11-13: `epic` is now named `phase`, and `epic` is refused,
-   Requirement 59.11.)
-3. A batch SHALL hold at most `flow.batch.max` leaves, default 3. A value of
-   1 SHALL turn batching off.
-4. A batch SHALL hold only leaves with the same repository, route, crew,
-   and review roles, no edge between them, and local authority. Leaves with
-   GitHub authority SHALL NOT be batched in this phase, because their
-   closing links are one per issue (design §4.11).
-5. A batch SHALL run in one worker session and one worktree. The worker
-   SHALL make one commit per task, in order, and report `done` per task.
-   Checks and review SHALL run once on the batch head, and the batch SHALL
-   integrate as one rebase.
-6. WHEN a batch's checks or review fail THEN Avoozl SHALL split the batch and
-   retry each task alone, never batched again in that delivery. A split
-   SHALL NOT cost any task an attempt.
-7. Every task in a batch SHALL keep its own ID, acceptance, commit, timing,
-   and evidence. The Graph and Delivery views SHALL show the batch it ran
-   in.
+1. Avoozl SHALL hand each ready leaf to its own worker session and its own
+   worktree. An agent MAY group its own work inside one task.
+2. Checks and review SHALL run on the task's own head commit.
+3. Every task SHALL keep its own ID, acceptance, commit, timing and
+   evidence.
 
 ### Requirement 47: Retrospectives
 
@@ -1883,13 +1851,12 @@ and what to change, and one settings group for the flow rules.
    window, stage) and SHALL be read-only except for Approve, Reject, and
    starting a retrospective by hand.
 4. The task drawer SHALL have a **Timing** section with the task's stacked
-   bar, each span's stage, length, and source, and the batch it ran in.
+   bar, and each span's stage, length, and source.
 5. The Dashboard SHALL show the **Line stopped** banner of Requirement 44.9
    above every other section while a stop is open.
 6. Settings SHALL have one **Flow** group with sub-groups **Timing**
    (read-only explanation, no fields), **Stop the line** (scope), **Local
-   checks first** (on or off), ~~**Batching** (max, by),~~ (removed
-   2026-11-18, Requirement 108) and **Retro**
+   checks first** (on or off) and **Retro**
    (every N tasks, slow factor, model, instructions). Each SHALL have a
    heading and one short line, plain labels with the raw key shown small,
    "(required)" or "(optional)" in plain text, and defaults as placeholders.
@@ -2293,51 +2260,32 @@ crew's label or close is the owner. An app token reaches Issue Radar's `GET /cre
 11. The tab's help text and the docs SHALL say what Send to Issue Radar
     writes, that crews act with the owner's login, and rules 7–10.
 
-### Requirement 53: Agent and model per task
+### Requirement 53: Agent and model per session
 
-Added 2026-11-13 (owner request). Design §4.10 "Agent and model per
-session".
+Design §4.10 "Agent and model per session".
 
-**User story:** As the owner, I want to choose which Kiro Crew agent and
-model write each task, so that hard work gets a strong model and routine
-work gets a cheap one.
-
-Facts (2026-11-13): the tick opens every session with
-`open_session(title, folder_id=, agent=, model=)` (design F75). One writer
-model is set per workspace or repository (`delivery.model`), and each review
-role names its own `agent` and `model` (design §5.2).
+**User story:** As the owner, I want to choose which agent and model write
+the tasks, so that hard work gets a strong model and routine work gets a
+cheap one.
 
 #### Acceptance criteria
 
-1. A task's facts MAY carry `session`: `{agent, model, harness}`, every
-   field optional. Validation SHALL refuse an empty agent or model string
-   and any other key.
-2. The checks role and review roles SHALL keep their own `agent` and
+1. The checks role and review roles SHALL keep their own `agent` and
    `model` (design §5.2).
-3. The writer's session SHALL come from, in order: the task's
-   `session`, the repository's `delivery` settings, the workspace's
-   `delivery` settings, and then Kiro Crew's default agent and `auto`.
-4. Retired.
-5. Retired.
-6. A retry or resume of the same task SHALL keep the model of its last
+2. The writer's session SHALL come from the `worker` row of the `roles`
+   table (Requirement 98.5), and then Kiro Crew's default agent and `auto`.
+3. A retry or resume of the same task SHALL keep the model of its last
    attempt unless that model is `out`, so that one task's work stays on one
    model.
-7. For a review role with `distinctFrom: model` (Requirement 36), Avoozl
+4. For a review role with `distinctFrom: model` (Requirement 36), Avoozl
    SHALL NOT give the writer that role's model. IF no model is left THEN
    the task SHALL wait and Avoozl SHALL open one decision. Avoozl SHALL
    never run a review on the writer's model under `distinctFrom: model`.
-8. Retired.
-9. Retired.
-10. Every session binding SHALL record the agent and the model asked for,
-    how they were chosen (pinned, kept, or the default), and the model Kiro
-    Crew reports it ran on, when Kiro Crew reports one (design F65).
-11. The Delivery view SHALL show the agent and model of each running
-    session.
-12. A leaf on the Issue Radar route SHALL ignore
-    `session`, because Avoozl opens no session for it.
-13. With no `session` set anywhere, every session SHALL open as it does
-    today. Installing or upgrading Avoozl SHALL NOT change which agent or
-    model any session uses.
+5. Every session binding SHALL record the agent and the model asked for,
+   how they were chosen (kept or the default), and the model Kiro Crew
+   reports it ran on, when Kiro Crew reports one (design F65).
+6. The Delivery view SHALL show the agent and model of each running
+   session.
 
 ### Requirement 54: Pull request feedback goes back to its writer
 
@@ -2394,7 +2342,7 @@ already fixes CI and review for the leaves it codes.
    screen does today. WHEN no worker session is live (it ended, failed,
    or was closed) THEN Avoozl SHALL open a new attempt on the same branch
    with a resume brief that carries the events (Requirement 8), with the
-   agent and model kept per Requirement 53.6. WHILE the worker's crew is
+   agent and model kept per Requirement 53.3. WHILE the worker's crew is
    unreachable THEN Requirement 41.10 SHALL apply and nothing SHALL be
    re-placed.
 8. A feedback round SHALL be one message or new attempt. Each leaf SHALL
@@ -2673,11 +2621,9 @@ progress, and no grouping is made up from a file path.
    revision SHALL approve only its member list and prose, never a member
    plan or a task.
 5. A **phase** SHALL be a group of tasks inside one plan. A task's phase
-   SHALL come from its `phase` fact when it has one, and
-   otherwise from the nearest heading of level 2 or lower above its item in
-   `tasks.md`. The front-matter MAY name a title for each phase ID as
-   `phase-<id>: <title>`. A task under no heading and with no `phase` value SHALL
-   sit under its plan as **No phase**. Phases SHALL group and filter only:
+   SHALL be the nearest heading of level 2 or lower above its item in
+   `tasks.md`, and the heading text SHALL be its title. A task under no
+   heading SHALL sit under its plan as **No phase**. Phases SHALL group and filter only:
    they SHALL NOT add edges, readiness or completion.
 6. Avoozl SHALL NOT invent an epic or a phase. It SHALL NOT create
    `doc:<path>` epics or any other grouping named after a file. A task with
@@ -2711,11 +2657,7 @@ progress, and no grouping is made up from a file path.
     a link and its phases with progress. An **epic page** (or Graph
     drill-in) SHALL show the epic's goal, what done means, each member
     plan with its status and progress, and open decisions.
-11. (Superseded 2026-11-18 by Requirement 108: there is no
-    `flow.batch.by`.) Flow batching (Requirement 46.2) SHALL name the grouping `phase`: the
-    same parent package, otherwise the same phase. The value `epic` SHALL
-    be refused by the Settings validator, naming `phase`. The New plan drawer (Requirement
-    57.1) SHALL offer **Epic** (pick an existing epic, optional) and
+11. The New plan drawer (Requirement 57.1) SHALL offer **Epic** (pick an existing epic, optional) and
     **Phases** (optional) instead of "Epics or phases"; the planner writes
     the `epic:` front-matter and the phase headings.
 12. No operation, CLI command or MCP action SHALL migrate a workspace.
@@ -2727,8 +2669,7 @@ progress, and no grouping is made up from a file path.
     same ID and title, move each task in a `doc:` epic to its `tasks.md`
     section or **No phase**, archive each task whose plan is gone with
     `task.archive` and the reason "plan removed", rewrite each old
-    form of criterion 7 into the new one, and set `flow.batch.by` to
-    `phase` where it was `epic`. A second run SHALL change nothing. It
+    form of criterion 7 into the new one. A second run SHALL change nothing. It
     SHALL NOT approve a plan, start or stop a session, touch GitHub or
     push; spec changes SHALL be local commits.
 13. The owner's Nupp plans SHALL be rewritten this way: the W1–W7 groups
@@ -2783,8 +2724,7 @@ leaving the page.
 
 Added 2026-11-13 (owner approval). Design §4.16. This adds the `template`
 part to Requirement 55.1, **From template** to the New plan drawer of
-Requirement 57.1, the `manual` leaf and the `person` completion to
-Requirement 4 and design §4.3, the `notes` content-rule boundary to
+Requirement 57.1, the `manual` leaf to Requirement 4 and design §4.3, the `notes` content-rule boundary to
 Requirement 40.3, and the actions of criteria 13 and 22 to the person-only
 list of Requirement 56.2.
 
@@ -2854,15 +2794,12 @@ Manual tasks
 
 9. A leaf MAY set `$manual: true` in its facts: a step only a
    person does. A manual leaf SHALL have `done` (what the person
-   checks), `repo` (where its issue lives in a GitHub mode) and
-   completion `person`, the only completion it may have. It SHALL NOT
-   hold `checks`, `agent`, `model`, `size`, `paths` or `route`; lint SHALL
-   refuse each, naming the key. A non-manual leaf SHALL NOT use completion
-   `person`.
-10. A manual leaf SHALL never be dispatched, batched, verified, reviewed or
+   checks) and `repo` (where its issue lives in a GitHub mode). It SHALL
+   NOT hold `paths`; lint SHALL refuse it, naming the key.
+10. A manual leaf SHALL never be dispatched, verified, reviewed or
     integrated, and SHALL never appear in the ready leaves a conductor or
     the tick reads. Edges into and out of it SHALL work as for any task;
-    every edge condition on it SHALL be met when it is done.
+    its dependents SHALL wait until it is done.
 11. Before its blocking edges hold, a manual leaf SHALL sit in **Blocked or
     waiting**. Once they hold, it SHALL sit in **Needs you** with the tag
     **Manual** and the reason "Waiting for a person: <title>", in every
@@ -3449,7 +3386,7 @@ hand.
    person marked out, the model the person switched it to SHALL be offered
    instead. With no model left the task SHALL wait and say why; it SHALL
    NOT open on an `out` model. A writer SHALL never be given a review
-   role's model this way (Requirement 53.7).
+   role's model this way (Requirement 53.4).
 6. A retry SHALL keep its last model unless that model is `out`; then it
    SHALL pick as a new task does and say that the kept model is out.
 7. Retired.
@@ -3461,7 +3398,7 @@ hand.
    the chat.
 9. Only `out` SHALL switch a running chat; `low` SHALL affect new tasks only.
    The new model SHALL be the person's replacement, else the first healthy
-   one among the task's pinned model and then the models Kiro Crew lists,
+   one among the models Kiro Crew lists,
    never on the same provider when
    the provider is `out`, never the writer's model for a review role whose
    `distinctFrom` is `model`, and never a review role's model for a writer.
@@ -3587,10 +3524,9 @@ do not build on a wrong reading of the task.
 4. Otherwise the task SHALL wait in **Needs you** with the findings and the
    falsifier's reply, offering **Go ahead**, **Investigate again** (one new
    round, with the reply as data), and **Stop**. These SHALL be person only.
-5. `delivery.investigate.mode` SHALL be `all`, `not-small` (default) or
-   `off`. `not-small` skips leaves in a planner batch group (Requirement
-   108.10; it skipped `size: "small"` before 2026-11-18). A task's facts
-   MAY set `investigate: false` or `true` to override the mode.
+5. `delivery.investigate.mode` SHALL be `all`, `not-small` (the default,
+   which investigates every leaf) or `off`. A task's facts MAY set
+   `investigate: false` or `true` to override the mode.
 6. Investigation and the falsifier SHALL be Flow spans of their own and
    SHALL count in Flow's usage.
 7. With `mode: off`, dispatch SHALL behave exactly as before.
@@ -4514,30 +4450,23 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
    its cost when known, and a copyable attach command.
 2. **Send message** on a `process` session SHALL queue a `send`.
 3. Settings › Models SHALL set a harness and a model per role.
-4. A task's `session` pin MAY name a harness.
-5. A headless machine SHALL get only the CLI: `avoozl status` and
+4. A headless machine SHALL get only the CLI: `avoozl status` and
    `avoozl runner status --json`. Avoozl SHALL host no other UI.
 
-Added 2026-11-18 (owner approval of the simplification audit, item 8 and
-F7 in `docs/research/simplification-audit.md`): one roles table. Today a role's
-model is picked in seven places, and the worker's is on Settings ›
-Delivery while the others are on Settings › Models.
-
-6. `.avoozl.json` SHALL hold one `roles` table with one row per role:
+5. `.avoozl.json` SHALL hold one `roles` table with one row per role:
    `worker`, `falsifier`, `planner`, `planReviewer`, `retro` and
    `reviewDraft`. A row MAY set `harness` and `model`; the `worker` and
    `falsifier` rows MAY also set `agent`. A missing key or `auto` keeps
    that role's default.
-7. Settings › Models SHALL be the only page that picks a role's harness,
+6. Settings › Models SHALL be the only page that picks a role's harness,
    agent or model. Settings › Delivery SHALL keep only delivery choices.
-8. A file that still sets an older key of the table SHALL NOT load, and the
-   error SHALL name the file and the key: `models.<role>`,
+7. A file that sets any other key for a role's harness, agent or model
+   SHALL NOT load, and the error SHALL name the file and the key: `models.<role>`,
    `harnesses.<role>`, `delivery.agent`, `delivery.model`,
    `delivery.investigate.agent`, `delivery.investigate.model` and
-   `flow.retro.model` (changed 2026-11-19: they were read into the table).
-9. Saving Settings › Models SHALL write `roles`.
-10. A task's `session` pin SHALL still win over its role's row. The
-    existing checks SHALL hold against the table: a named plan reviewer
+   `flow.retro.model`.
+8. Saving Settings › Models SHALL write `roles`.
+9. The existing checks SHALL hold against the table: a named plan reviewer
     model differs from a named planner model, and a review role with
     `distinctFrom: model` needs a named worker model that differs from its
     own.
@@ -5429,94 +5358,6 @@ the spec and merging its pull request is one decision.
    (phone and desktop, light and dark) SHALL be under
    `docs/evidence/spec-pr-adoption/`.
 
-### Requirement 108: The planner decides batches; batching has no setting
-
-Added 2026-11-18 (owner decision). Design §4.37. Replaces Requirement 46.1
-to 46.4 and the Batching settings of Requirement 48.6; keeps
-46.5 to 46.7.
-
-The owner's words, in short: batching is not configurable. Tasks are handed
-off in batches based on what an agent decides is most efficient, with no
-setting for it.
-
-**User story:** As the owner, I want the planner to decide which tasks one
-worker does together in one chat, so that tiny related edits share one
-handoff without my tuning a batch size.
-
-#### Acceptance criteria
-
-1. WHEN the planner writes or revises a spec's tasks THEN it MAY group
-   leaves that one worker should do together in one chat: each member's
-   facts say `batch: <group ID>`, and `tasks.md` front-matter gives the
-   group's one-line reason as `batch-<group ID>: <reason>` (Requirement
-   111.4). The
-   planner prompt (`prompts/planner.md`) SHALL make grouping the default
-   for related leaves in the same repository and area, with no limit on
-   the number of tasks, because one medium-sized pull request of related
-   work beats many small ones (changed 2026-11-18, owner decision). It
-   SHALL split only where the parts can truly run at the same time
-   (different files or areas two workers can do without stepping on each
-   other), or for a hard reason: one task must land before another, a
-   different repository, a manual step, or a task that needs its own
-   review or investigation. It SHALL never split just to land tasks one at
-   a time. The retro prompt (`prompts/retro.md`) SHALL ask the retro to
-   flag a spec whose related tasks landed as many small pull requests.
-2. Spec lint SHALL refuse a `batches` value that is not an object of
-   entries with a group ID of letters, digits, `.`, `_` or `-`, 2 or more
-   task IDs that name leaves in this spec, and a reason of 1 to 200
-   characters on one line, and a task listed in two groups. These SHALL be
-   `facts.schema` errors in `tasks.md`, like any other facts error.
-3. Approval SHALL store the group on each member task as
-   `batch: {id, tasks, reason}` with the members' task IDs, from the
-   approved revision only. A later draft revision SHALL NOT change a stored
-   group until it is approved.
-4. The tick SHALL stay a pure planner with no model call. It SHALL
-   dispatch a group as one handoff WHEN every open member is ready. Members
-   already complete SHALL be left out. Ready members SHALL wait while
-   another open member of their group is not ready, unless the group breaks
-   a rule of criterion 5 or was split.
-5. Avoozl SHALL check these rules in code, never in a setting, each time it
-   would dispatch a group: every member is in the same plan and the same
-   repository (so the same base branch); no `requires` or `sequence` edge
-   joins two members; every member
-   carries the same group from the same approved plan hash, and the plan is
-   approved at that hash; every member is an automatic leaf with local
-   route and authority; no member has an earlier attempt or was split from
-   a batch. A group that breaks a rule SHALL be dispatched as single tasks,
-   and the task's details and its Delivery card SHALL show **Runs alone**
-   with the rule it broke.
-6. A batched handoff SHALL keep Requirement 46.5 to 46.7: one worker
-   session and one worktree, one commit and one `done` per task in order,
-   checks and review once on the last commit, and on failure a split in
-   which each task retries alone at no attempt cost and is not batched
-   again in that delivery.
-7. Batching SHALL add no landing step. Merge batches (the
-   `merge-batches` spec) test once on landing and find a culprit there;
-   a batch's commits land through the repository's landing like any other.
-8. Batching SHALL have no setting. `flow.batch` SHALL NOT be a Flow key,
-   Settings > Flow SHALL have no Batching section, the Flow settings
-   validator and settings packs SHALL have no batch keys, and `size` SHALL
-   NOT be a task field. An old `flow.batch` in `.avoozl.json`, in a repository's `flow`
-   or in a pack SHALL be ignored silently and SHALL never fail a load, a
-   save, an import or lint. (Changed 2026-11-18, Requirement 111.5: `size`
-   in a task's facts is an unknown key, which lint refuses.)
-9. Delivery's **In progress** lane SHALL show a batched handoff as one card
-   that lists each task (ID and title) and the planner's reason. Each
-   task's details SHALL name its batch and link to it, and show the reason.
-10. `delivery.investigate.mode: not-small` SHALL skip leaves in a planner
-    group instead of leaves marked `size: "small"`. The value keeps its
-    name so saved settings still load.
-11. Radar coder projection (radar-coder RC2.5) SHALL suggest the planner's
-    groups instead of grouping `size: "small"` tasks up to `flow.batch.max`.
-12. Tests SHALL cover: a planner group dispatched as one handoff; a group
-    that breaks each rule of criterion 5 dispatched as single tasks with its
-    reason; a related group of 12 tasks dispatched as one handoff; a failing
-    batch split with each task retried alone; no batch key
-    in the Flow settings validator or in Settings > Flow; and an old
-    `flow.batch` and an old `size` ignored on load. Screenshots of the
-    batched card (phone and desktop, light and dark) SHALL be under
-    `docs/evidence/agent-batching/`.
-
 ### Requirement 109: Approval delegation and exact-set approval
 
 Added 2026-11-18 (owner request). Design §4.38. Keeps Requirement 4.8:
@@ -5674,30 +5515,23 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
 2. Each `tasks.md` item SHALL carry its facts as bullets directly under
    the item that start with `$`, one fact per bullet on one line:
    `- $after: 1.1`. Nothing SHALL nest under a fact. Facts, subtasks and
-   other bullets MAY come in any order; other plain bullets under an item
-   are its summary.
-3. The known keys SHALL cover everything the manifest held: `kind`, `repo`
-   (the repository), `summary`, `done` (the acceptance), `completion`,
-   `after`, `sequence`, `supports`, `manual`, `phase`, `batch`,
-   and the other task keys `validateProposal` accepts, plus `plan` and
-   `step` on an epic's rows. `after` names the tasks that must finish
-   first, each with an optional `:<completion>`. A list SHALL be written
-   comma separated on one bullet, or as the same fact written again, each
-   bullet adding to the list. `$done` SHALL be one result per bullet and
-   SHALL NOT be split on commas. A task SHALL NOT name
-   checks: every task runs its repository's checks (Requirement 7.1), and
-   a `$checks` fact or `checks` front-matter line SHALL be a lint error that says
-   "Every task runs the repository's checks; delete this line." (Changed
-   2026-11-18: the `checks` fact and default are removed.)
+   other bullets MAY come in any order. An item with sub-items SHALL be a
+   package and every other item a leaf. A leaf's plain bullets SHALL be its
+   summary when it has `$done`, and its results when it has none.
+3. The facts SHALL be `done` (the acceptance), `after` (task IDs that must
+   finish first), `repo` (the repository), `manual`, `paths`,
+   `investigate` and `type`, plus `plan` and `step` on an epic's rows. A
+   list SHALL be written comma separated on one bullet, or as the same fact
+   written again, each bullet adding to the list. `$done` SHALL be one
+   result per bullet and SHALL NOT be split on commas. A task SHALL NOT
+   name checks: every task runs its repository's checks (Requirement 7.1).
 4. `tasks.md` MAY start with front-matter that holds spec-wide values:
-   `repo` and `completion` as defaults for every leaf; `ship`,
-   `integrationBranch`, `integrationSync`, `forwardTarget`, `publicBranch`
-   and `kind: epic` for the spec; `phase-<id>: <title>` for a named phase;
-   and `batch-<id>: <reason>` for a planner batch group, whose members
-   each write `$batch: <id>`. Front-matter keys take no `$`. A task's own fact SHALL win over a default. A
-   package SHALL NOT take a default.
-5. Lint SHALL refuse, with the file and line of the bullet: an unknown `$`
-   fact or front-matter key; a one-value fact or a front-matter key written
+   `repo` as the default for every leaf; `integrationBranch`,
+   `integrationSync` and `kind: epic` for the spec. Front-matter keys take
+   no `$`. A task's own fact SHALL win over the default. A package SHALL
+   NOT take the default.
+5. Lint SHALL refuse, with the file and line of the bullet: any other `$`
+   fact or front-matter key, naming it and what to do; a one-value fact or a front-matter key written
    twice; a value of the wrong shape; anything nested under a fact; a `$`
    fact that is not directly under a task item; a bullet under an item that
    reads as a fact without its `$`, such as `done:`; a `Facts:` block in
@@ -5726,7 +5560,7 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
     SHALL be converted the same way in one change in their own repository,
     after the build merges, tested on a copy first.
 11. Tests SHALL cover: each key and each refusal in 5, the leftover manifest,
-    default and package rules, an epic folder, a batch group, the hash in 6,
+    default and package rules, an epic folder, the hash in 6,
     proposed work writing `$` fact bullets, and the planner text.
 
 ### Requirement 112: A repository's checks run in its isolation
@@ -5834,10 +5668,7 @@ box someone checked.
     their tick. Avoozl SHALL keep it on the task in SQLite, read once, and
     receipts and Flow SHALL look the task's CI up by it (Requirement
     101.14). Avoozl SHALL NOT write a `Built:` line. A `Built: <commit>`
-    note or `$built: <commit>` fact a person wrote under a ticked item SHALL
-    still be read, and used first. A `$built:` fact SHALL stay outside the
-    revision hash: the hash skips fact bullets' text, and the fact is not a
-    manifest value.
+    note a person wrote under a ticked item SHALL be read, and used first.
     Tests SHALL show a direct push and a squash-merged pull request each
     resolving to their tick commit, a fresh database rebuilt from git
     finding the same commits, and an unchanged hash.

@@ -743,7 +743,7 @@ function seedState(store, now) {
       });
     // Flow history: queued, work and verify spans for four leaves.
     const spans = store.db.prepare(
-      "INSERT INTO flow_spans(id,task_id,attempt,batch_id,role,stage,started_at,ended_at,source,detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO flow_spans(id,task_id,attempt,role,stage,started_at,ended_at,source,detail) VALUES (?,?,?,?,?,?,?,?,?)",
     );
     ["recipe-import.1.1", "recipe-import.1.2", review, running].forEach(
       (taskId, i) => {
@@ -762,7 +762,6 @@ function seedState(store, now) {
             `demo:${taskId}:${stage}`,
             taskId,
             1,
-            null,
             "worker",
             stage,
             new Date(start + offset * 3600_000).toISOString(),

@@ -133,14 +133,9 @@ fact written again.
 
 An epic item may hold only `$plan` and `$step`.
 
-Every other fact is gone. Lint reports each one as `facts.removed-key` at
-its line and says what to do: `$kind`, `$phase`, `$batch`, `$completion`,
-`$sequence`, `$repositoryId`, `$taskId`, `$nextAction`, `$labels`,
-`$milestone`, `$iteration`, `$scope`, `$resources`, `$needs`, `$tags`,
-`$supports`, `$unblocks`, `$authority`, `$route`, `$track`, `$source`,
-`$distinctReason`, `$session`, `$verify`, `$acceptFrom`, `$ship`, `$built`,
-`$summary` and `$checks`. An `$after` entry with a completion level, such
-as `x-2:released`, is refused too: write the task ID alone.
+Lint refuses any other fact as `facts.removed-key` or `facts.unknown-key`
+at its line, naming it and saying what to do. `$after` takes task IDs
+only.
 
 A small spec with every common fact:
 
@@ -171,9 +166,7 @@ written without the `$`. A key not listed here is the lint error
 | `integrationSync` | How often main merges into the integration branch: `weekly` (the default), `daily` or `off`. Needs `integrationBranch`. | No | one value | `integrationSync: daily` |
 | `kind` | Only `epic`: this folder lists member specs, not tasks. Leave it out otherwise. | Yes, in an epic folder | one value | `kind: epic` |
 
-The keys `completion`, `ship`, `forwardTarget`, `publicBranch`, `checks`,
-`phase-<id>` and `batch-<id>` are gone. Lint reports each one as
-`facts.removed-key` and says what to do.
+Lint refuses any other key, naming it and saying what to do.
 
 `requirements.md` or `bugfix.md` may start with front matter too. Avoozl
 reads two keys there, and skips the rest without a warning. A bad value is
@@ -194,7 +187,7 @@ Avoozl refuses a folder that:
 - has a `tasks.md` with a missing or repeated ID
 - has a requirement or design ref that names nothing in the spec, or whose
   file the spec does not have
-- uses a fact or front-matter key Avoozl does not know, or one that is gone
+- uses a fact or front-matter key Avoozl does not take
 - still has a `Facts:` bullet, the old layout; write its facts as `$` bullets
 - still holds an `avoozl/manifest.json`
 

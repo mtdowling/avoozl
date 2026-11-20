@@ -76,7 +76,7 @@ on `kirocrew-native`; Avoozl does not read checkbox marks.
 
 Change note (2026-11-12, flow, Requirements 43–48). New Phase 12 records
 where each task's time goes, stops new dependent work when a change breaks a
-check that passed, runs checks locally before any push, batches small tasks,
+check that passed, runs checks locally before any push,
 and runs retrospectives that propose changes for the owner to approve. It
 changes no earlier task. Like Phases 9–11 it starts after Phase 2's proofs;
 tasks that read GitHub or push also wait for 3.11, 4.7, and 10.4. Design
@@ -1402,12 +1402,6 @@ Phase 8 because task IDs never move.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
   - Integrate a `verified` delivery only by fast-forwarding the commit every role approved; when the base moved, rebase in the task's worktree and, if the head changed, open a new round on it instead of merging.
   - Built: `4b82981`.
-- [x] 9.7 `acceptFrom: "validation"` [R36.11, R38.4, R38.5] (§5.2, F60, F61, F66)
-  - $done: `acceptFrom: "validation"`
-  - $done: Manifest field and lint; `task.accept` refuses typed evidence and `componentOnly` and accepts only Avoozl-recorded validation at the integrated commit covering every declared check; `task.update` refuses a typed `integration`, a complete status, and edits to `checks` or `acceptFrom` on such a leaf, and refuses typed `integration` and a complete status on any leaf whose repository has review roles. Fix `acceptanceFromValidation` and `validatedEvidence` to use the current commit and require every declared check.
-  - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
-  - Manifest field and lint; `task.accept` refuses typed evidence and `componentOnly` and accepts only Avoozl-recorded validation at the integrated commit covering every declared check; `task.update` refuses a typed `integration`, a complete status, and edits to `checks` or `acceptFrom` on such a leaf, and refuses typed `integration` and a complete status on any leaf whose repository has review roles. Fix `acceptanceFromValidation` and `validatedEvidence` to use the current commit and require every declared check.
-  - Built: `c69f0e5`.
 - [x] 9.8 Supersede by hand [R39] (§5.2, F64)
   - $done: Supersede by hand
   - $done: `task.supersede` (CLI, `plans_supersede_task`, a Delivery view action) per §5.2; status `superseded` (not complete, hidden by default); the ready rule resolves edges through `supersededBy`; plan approval leaves the chain and status alone; refuse cycles and GitHub or plugin authority with 409; no new dispatch for a superseded task, and a running session is left alone.
@@ -1430,8 +1424,8 @@ Phase 8 because task IDs never move.
 - [x] avoozl-p27 P27 Proof: review gates with fake writers and reviewers [R36, R37, R38, R39] (§5.2)
   - $done: Expected: (1) `w2` does not start while `w1`'s writer is live; three role sessions open on C1 with three different models; (2) `d1` stays waiting, the attempt fails, and the retry brief quotes F1; (3) the `unchanged` approval is refused in-session; the not-run check fails only the checks session and is retried, and no writer attempt is spent; (4) the rebase produces C3, nothing merges, and all three roles review C3, with F1 still closed; after they approve, C3 fast-forwards and `d1` dispatches; (5) both calls are refused, and `w1` is accepted only from validation recorded at its integrated commit; (6) policy validation refuses `fake-a`, and `auto` opens a decision instead of a review; (7) `d2` waits on `w2b`, not `w2`, `w2` stays `superseded` after re-approval, and its history is intact. Every earlier verdict stays on the delivery.
   - $done: A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-  - $after: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9
-  - Setup: an isolated temporary workspace and sample repository in the test tree; delivery policy with `concurrency: 1`, writer model `fake-a`, and two review roles (`conventions` on `fake-b`, `correctness` on `fake-c`); a test-only fake session driver that plays worker, checks, and reviewer sessions from scripts; an approved spec with leaves `w1 -> d1` and an independent `w2 -> d2`, all in that repository, with `acceptFrom: "validation"` on `w1` and a declared check `scripts/validate.sh` standing in for that repository's validation script.
+  - $after: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.8, 9.9
+  - Setup: an isolated temporary workspace and sample repository in the test tree; delivery policy with `concurrency: 1`, writer model `fake-a`, and two review roles (`conventions` on `fake-b`, `correctness` on `fake-c`); a test-only fake session driver that plays worker, checks, and reviewer sessions from scripts; an approved spec with leaves `w1 -> d1` and an independent `w2 -> d2`, all in that repository; a declared check `scripts/validate.sh` standing in for that repository's validation script.
   - Action: (1) tick until `w1` reports commit C1; (2) `conventions` approves C1, `correctness` requests changes with defect F1 on `src/a.txt`; (3) the next attempt reports C2 that changes `src/a.txt`; both roles review C2, `correctness` first tries `approved` closing F1 `unchanged`, then closes it `fixed` and approves; the checks role first reports `scripts/validate.sh` as not run, then passes; (4) move the base branch by hand before integration; (5) try `task.update` with a typed `integration` on `d1`, and `task.accept` with typed evidence on `w1`; (6) set a reviewer's model to `fake-a`, and separately to `auto`; (7) supersede `w2` by `w2b`, then re-approve the unchanged plan.
   - Expected: (1) `w2` does not start while `w1`'s writer is live; three role sessions open on C1 with three different models; (2) `d1` stays waiting, the attempt fails, and the retry brief quotes F1; (3) the `unchanged` approval is refused in-session; the not-run check fails only the checks session and is retried, and no writer attempt is spent; (4) the rebase produces C3, nothing merges, and all three roles review C3, with F1 still closed; after they approve, C3 fast-forwards and `d1` dispatches; (5) both calls are refused, and `w1` is accepted only from validation recorded at its integrated commit; (6) policy validation refuses `fake-a`, and `auto` opens a decision instead of a review; (7) `d2` waits on `w2b`, not `w2`, `w2` stays `superseded` after re-approval, and its history is intact. Every earlier verdict stays on the delivery.
   - Failure means: reviews cannot be gates on one delivery without breaking retry, integration, or readiness.
@@ -1580,7 +1574,7 @@ references hold; nothing in them exists.
 ## Phase 12: Flow
 
 Starts when Phase 2's proofs pass, like Phases 9–11, and does not wait for
-Phases 3–8, because timing, stop the line, batching, and retrospectives
+Phases 3–8, because timing, stop the line, and retrospectives
 work on local delivery. Tasks that read GitHub or push wait for the tasks
 that built those paths, as each item says. Everything proves with fake
 workers and scripted timings. Per-call tool timing for Crew Mode and remote
@@ -1590,9 +1584,9 @@ never move.
 
 - [x] 12.1 Timing store and event spans [R43.1–R43.3, R43.6–R43.8] (§4.11, F96)
   - $done: Timing store and event spans
-  - $done: New `flow_spans` table (`task_id`, `attempt`, `batch_id`, `role`, `stage`, `started_at`, `ended_at`, `source`, `detail`) and `src/app/flow/flow.mjs`; spans for `queued`, `review`, `rework`, `merge`, and `waiting` from readiness, bindings, reports, verdicts, retries, and integration; no setting; open spans close at the next ending event after a restart; `detail` passes the content rules; no prompts, output, tokens, or cost; old `usage_samples` and `provider_events` untouched.
+  - $done: New `flow_spans` table (`task_id`, `attempt`, `role`, `stage`, `started_at`, `ended_at`, `source`, `detail`) and `src/app/flow/flow.mjs`; spans for `queued`, `review`, `rework`, `merge`, and `waiting` from readiness, bindings, reports, verdicts, retries, and integration; no setting; open spans close at the next ending event after a restart; `detail` passes the content rules; no prompts, output, tokens, or cost; old `usage_samples` and `provider_events` untouched.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
-  - New `flow_spans` table (`task_id`, `attempt`, `batch_id`, `role`, `stage`, `started_at`, `ended_at`, `source`, `detail`) and `src/app/flow/flow.mjs`; spans for `queued`, `review`, `rework`, `merge`, and `waiting` from readiness, bindings, reports, verdicts, retries, and integration; no setting; open spans close at the next ending event after a restart; `detail` passes the content rules; no prompts, output, tokens, or cost; old `usage_samples` and `provider_events` untouched.
+  - New `flow_spans` table (`task_id`, `attempt`, `role`, `stage`, `started_at`, `ended_at`, `source`, `detail`) and `src/app/flow/flow.mjs`; spans for `queued`, `review`, `rework`, `merge`, and `waiting` from readiness, bindings, reports, verdicts, retries, and integration; no setting; open spans close at the next ending event after a restart; `detail` passes the content rules; no prompts, output, tokens, or cost; old `usage_samples` and `provider_events` untouched.
   - Built: `156ae8e` (flow.mjs, `flow_spans`).
 - [x] 12.2 Tool-call reader, after 12.1 [R43.4] (§4.11, F90–F94)
   - $done: Tool-call reader, after 12.1
@@ -1632,13 +1626,6 @@ never move.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 12.3, 4.7, 10.4
   - `flow.localChecksFirst` (default `true`); briefs for pushing sessions say to run the declared checks before each push; `done` for a pushed commit refused without a passing check list for that commit; the 10.4 pre-push hook also refuses a push with no recorded local pass and does not rerun checks; local delivery unchanged.
   - Built: `156ae8e` (flow-checks.mjs, `plans_run_checks`, `avoozl checks run`).
-- [x] 12.8 Batching, after 12.1, 9.2, and 9.6 [R46] (§4.11)
-  - $done: Batching, after 12.1, 9.2, and 9.6
-  - $done: Manifest `size: "small"`; group ready local-authority leaves by `flow.batch.by` (`epic` default, or `files`) up to `flow.batch.max` (default 3, 1 is off), same repository, route, crew, and review roles, no edges; one session and worktree, one commit and `done` per task, checks and review once on the batch head, one rebase; on failure split and retry alone with no attempt cost; Graph and Delivery show the batch.
-  - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 12.1, 9.2, 9.6
-  - Changed 2026-11-18: the grouping and `flow.batch` settings are replaced by planner groups with no setting (61.1, R108, §4.37).
-  - Manifest `size: "small"`; group ready local-authority leaves by `flow.batch.by` (`epic` default, or `files`) up to `flow.batch.max` (default 3, 1 is off), same repository, route, crew, and review roles, no edges; one session and worktree, one commit and `done` per task, checks and review once on the batch head, one rebase; on failure split and retry alone with no attempt cost; Graph and Delivery show the batch.
-  - Built: `736fbd6` (flow-batch.mjs); split worktree retired `2f2de0c`.
 - [x] 12.9 Retrospectives, after 12.5 and 10.4 [R47.1–R47.6, R47.8, R47.9] (§4.11)
   - $done: Retrospectives, after 12.5 and 10.4
   - $done: Tool-less `avoozl-retro` agent in `kirocrew-app/agents/`; triggers with the defaults in §4.11, one at a time per workspace, folded triggers, one-hour spike gap; brief through the `brief` content-rule boundary; reply schema-checked, at most 3 typed proposals, refused safety keys, "removes a check" marked; Approve writes settings through the validated operation or opens a planner draft; Reject records why; 10-minute timeout.
@@ -1657,11 +1644,11 @@ never move.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 12.5, 12.6, 12.9
   - Top-level Flow tab with the `Gauge` icon (or `Timer` if the host lacks it) on heading and nav; metric cards with the previous window; stacked bars marked coarse when not from tool calls; bottleneck callout; retros with Approve, Reject, PDCA, and Run a retro now; shared filter panel; drawer Timing fold after Delivery; red Dashboard banner with Open fix task and confirmed Run anyway. Check the page by drawing it and looking at it.
   - Built: `07a7d4c`; charts, tokens and credits `fc2db02`; checked from screenshots, light and dark, wide to 320 px.
-- [x] 12.12 Settings Flow group and validation, after 12.6, 12.7, 12.8, and 12.9 [R48.6–R48.8, R47.8] (§4.11, §8.4)
-  - $done: Settings Flow group and validation, after 12.6, 12.7, 12.8, and 12.9
-  - $done: `flow` in `.avoozl.json` per workspace and per repository (`repositories.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Batching, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
-  - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 12.6, 12.7, 12.8, 12.9
-  - `flow` in `.avoozl.json` per workspace and per repository (`repositories.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Batching, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
+- [x] 12.12 Settings Flow group and validation, after 12.6, 12.7, and 12.9 [R48.6–R48.8, R47.8] (§4.11, §8.4)
+  - $done: Settings Flow group and validation, after 12.6, 12.7, and 12.9
+  - $done: `flow` in `.avoozl.json` per workspace and per repository (`repositories.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
+  - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 12.6, 12.7, 12.9
+  - `flow` in `.avoozl.json` per workspace and per repository (`repositories.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
   - Built: `07a7d4c`; model dropdown and built-in prompt part `fc2db02`.
 - [x] 12.13 MC-13 upstream ask [R43.4, R43.5] (§4.11, §7.1, F90–F94)
   - $done: MC-13 upstream ask
@@ -1675,14 +1662,14 @@ never move.
   - Dropped 2026-11-18: the owner forbids filing requests with Kiro Crew. 12.2 keeps its phase markers, and the earlier request is not followed up.
 
 - [x] avoozl-p30 P30 Proof: flow with fake workers and scripted timings [R43–R48] (§4.11, §8.4)
-  - $done: Expected: (1) `c1` shows `coding`, `commands`, and `tests` spans from tool calls, the check counted as `tests`, and no output stored; (2) `b1`'s spans come from markers and show as coarse; (3) one batch of 3 by epic, one session, one commit and one `done` per task, checks once on the head; `a4` waits; (4) the batch splits, each task retries alone, no attempt counts; (5) the culprit is `a1`, the line stops, `d1` is not dispatched, `c2` keeps running, `c2`'s result for that check after its rebase is not judged and costs no attempt, a fix task is first in line, and the red banner names the check, `main`, `a1`, the fix task, and the paused count; Needs you stays empty; (6) a flaky record and no stop; (7) green on `main` resumes `d1`, records time to fix, and notifies once; `a1` stays accepted; (8) dispatch resumes with the stop still shown and who pressed it; the agent call gets 403; (9) the push without a pass is refused by the hook and the `done` is refused; the CI failure is recorded as "CI only" with a `ci-wait` span from the feed; (10) the retro names the biggest bottleneck with numbers; the content-rules proposal is dropped with a reason; Approve writes `flow.batch.max` 5 with an expected revision and nothing else changes; (11) PDCA marks "did not help" and the next retro carries a revert proposal; (12) the open span closes at its next ending event, not at the restart; (13) validation refuses the file and names the key. The Flow tab and drawer show each of these, and lead time, flow efficiency, first-pass rate, and time to fix match values computed by hand from the script.
+  - $done: Expected: (1) `c1` shows `coding`, `commands`, and `tests` spans from tool calls, the check counted as `tests`, and no output stored; (2) `b1`'s spans come from markers and show as coarse; (5) the culprit is `a1`, the line stops, `d1` is not dispatched, `c2` keeps running, `c2`'s result for that check after its rebase is not judged and costs no attempt, a fix task is first in line, and the red banner names the check, `main`, `a1`, the fix task, and the paused count; Needs you stays empty; (6) a flaky record and no stop; (7) green on `main` resumes `d1`, records time to fix, and notifies once; `a1` stays accepted; (8) dispatch resumes with the stop still shown and who pressed it; the agent call gets 403; (9) the push without a pass is refused by the hook and the `done` is refused; the CI failure is recorded as "CI only" with a `ci-wait` span from the feed; (10) the retro names the biggest bottleneck with numbers; the content-rules proposal is dropped with a reason; Approve writes the proposed setting with an expected revision and nothing else changes; (11) PDCA marks "did not help" and the next retro carries a revert proposal; (12) the open span closes at its next ending event, not at the restart; (13) validation refuses the file and names the key. The Flow tab and drawer show each of these, and lead time, flow efficiency, first-pass rate, and time to fix match values computed by hand from the script.
   - $done: A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
-  - $after: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 12.10, 12.11, 12.12
-  - Setup: an isolated temporary workspace with a sample repository in the test tree, integration branch `main`, one declared check `node test/check.mjs`, an approved spec with epic `e1` holding leaves `a1`, `a2`, `a3`, `a4` (all `size: "small"`), and `b1`, `c1`, `c2` (independent), and `d1` (requires `a1`); fake workers that follow a script of tool rows, phase markers, reports, and sleeps on a fake clock; a fake GitHub check-run feed for one plans-repo leaf `g1`; the fake retro model.
-  - Action: (1) run `c1` as a tick-opened worker whose script has 2 edits, `npm install`, and the check, then `done`; (2) run `b1` as a Crew Mode worker that sends phase markers only; (3) let the batcher see `a1`–`a4` ready with `flow.batch.max` 3; (4) script `a2`'s commit to make the check fail on the batch head; (5) integrate `a1`'s retried commit, which breaks the check on `main`, with `c2` running and `d1` ready; (6) script a one-time failure of the check on a later commit; (7) let the fix task revert the break; (8) open a second stop and press Run anyway as the owner, then call Run anyway from an agent session; (9) push `g1` once without a local pass and once with one, and have CI fail on the passing commit; (10) finish 10 tasks so a retro starts, and have the fake model propose `flow.batch.max` 3 → 5 and a forbidden content-rules change; approve the first; (11) finish 10 more tasks with lead time unchanged; (12) restart the backend with a span open; (13) put `flow.retro.instructions` in the repository's `.avoozl.json`.
-  - Expected: (1) `c1` shows `coding`, `commands`, and `tests` spans from tool calls, the check counted as `tests`, and no output stored; (2) `b1`'s spans come from markers and show as coarse; (3) one batch of 3 by epic, one session, one commit and one `done` per task, checks once on the head; `a4` waits; (4) the batch splits, each task retries alone, no attempt counts; (5) the culprit is `a1`, the line stops, `d1` is not dispatched, `c2` keeps running, `c2`'s result for that check after its rebase is not judged and costs no attempt, a fix task is first in line, and the red banner names the check, `main`, `a1`, the fix task, and the paused count; Needs you stays empty; (6) a flaky record and no stop; (7) green on `main` resumes `d1`, records time to fix, and notifies once; `a1` stays accepted; (8) dispatch resumes with the stop still shown and who pressed it; the agent call gets 403; (9) the push without a pass is refused by the hook and the `done` is refused; the CI failure is recorded as "CI only" with a `ci-wait` span from the feed; (10) the retro names the biggest bottleneck with numbers; the content-rules proposal is dropped with a reason; Approve writes `flow.batch.max` 5 with an expected revision and nothing else changes; (11) PDCA marks "did not help" and the next retro carries a revert proposal; (12) the open span closes at its next ending event, not at the restart; (13) validation refuses the file and names the key. The Flow tab and drawer show each of these, and lead time, flow efficiency, first-pass rate, and time to fix match values computed by hand from the script.
-  - Failure means: timing cannot be trusted to show where time went, or stop the line and batching cost writers attempts or lose work.
-  - Next decision: keep timing and stop the line and drop batching and retrospectives, or move retrospectives to a by-hand button only.
+  - $after: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.9, 12.10, 12.11, 12.12
+  - Setup: an isolated temporary workspace with a sample repository in the test tree, integration branch `main`, one declared check `node test/check.mjs`, an approved spec with epic `e1` holding leaves `a1`, `a2`, `a3`, `a4`, and `b1`, `c1`, `c2` (independent), and `d1` (requires `a1`); fake workers that follow a script of tool rows, phase markers, reports, and sleeps on a fake clock; a fake GitHub check-run feed for one plans-repo leaf `g1`; the fake retro model.
+  - Action: (1) run `c1` as a tick-opened worker whose script has 2 edits, `npm install`, and the check, then `done`; (2) run `b1` as a Crew Mode worker that sends phase markers only; (5) integrate `a1`'s retried commit, which breaks the check on `main`, with `c2` running and `d1` ready; (6) script a one-time failure of the check on a later commit; (7) let the fix task revert the break; (8) open a second stop and press Run anyway as the owner, then call Run anyway from an agent session; (9) push `g1` once without a local pass and once with one, and have CI fail on the passing commit; (10) finish 10 tasks so a retro starts, and have the fake model propose a Flow setting change and a forbidden content-rules change; approve the first; (11) finish 10 more tasks with lead time unchanged; (12) restart the backend with a span open; (13) put `flow.retro.instructions` in the repository's `.avoozl.json`.
+  - Expected: (1) `c1` shows `coding`, `commands`, and `tests` spans from tool calls, the check counted as `tests`, and no output stored; (2) `b1`'s spans come from markers and show as coarse; (5) the culprit is `a1`, the line stops, `d1` is not dispatched, `c2` keeps running, `c2`'s result for that check after its rebase is not judged and costs no attempt, a fix task is first in line, and the red banner names the check, `main`, `a1`, the fix task, and the paused count; Needs you stays empty; (6) a flaky record and no stop; (7) green on `main` resumes `d1`, records time to fix, and notifies once; `a1` stays accepted; (8) dispatch resumes with the stop still shown and who pressed it; the agent call gets 403; (9) the push without a pass is refused by the hook and the `done` is refused; the CI failure is recorded as "CI only" with a `ci-wait` span from the feed; (10) the retro names the biggest bottleneck with numbers; the content-rules proposal is dropped with a reason; Approve writes the proposed setting with an expected revision and nothing else changes; (11) PDCA marks "did not help" and the next retro carries a revert proposal; (12) the open span closes at its next ending event, not at the restart; (13) validation refuses the file and names the key. The Flow tab and drawer show each of these, and lead time, flow efficiency, first-pass rate, and time to fix match values computed by hand from the script.
+  - Failure means: timing cannot be trusted to show where time went, or stop the line costs writers attempts or loses work.
+  - Next decision: keep timing and stop the line and drop retrospectives, or move retrospectives to a by-hand button only.
   - Built: `2f2de0c` (`src/app/test/proof-p30.test.mjs`, receipt `docs/evidence/proof-p30.md`).
 
 ## Phase 13: Untriaged
@@ -1887,7 +1874,7 @@ proves against a fake GitHub and fake workers. It is numbered after Phase
   - $done: One message per pull request per tick, quoted with `fence()`, failed checks with conclusion and details link and the `gh run view --log-failed` hint, task ID and title only in plans-repo mode, through the `brief` content boundary and the leak screen; to `intents.messages` for a live tick-opened worker, to `next` for a Crew Mode worker, else a new attempt on the same branch with a resume brief, the kept agent and model (R53.6), counted against the R8 retry bound; an unreachable crew waits; Avoozl writes nothing to GitHub.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 4.7, 10.4, 15.2
   - One message per pull request per tick, quoted with `fence()`, failed checks with conclusion and details link and the `gh run view --log-failed` hint, task ID and title only in plans-repo mode, through the `brief` content boundary and the leak screen; to `intents.messages` for a live tick-opened worker, to `next` for a Crew Mode worker, else a new attempt on the same branch with a resume brief, the kept agent and model (R53.6), counted against the R8 retry bound; an unreachable crew waits; Avoozl writes nothing to GitHub.
-  - Built: `d192dfb`. The new attempt keeps the last worker's model; R53's per-task agent and model is not built yet. R41.10 (unreachable crew) is not built, so nothing waits on it.
+  - Built: `d192dfb`. The new attempt keeps the last worker's model. R41.10 (unreachable crew) is not built, so nothing waits on it.
 - [x] 15.4 Bounds and decisions, after 15.3 [R54.8, R54.14] (§4.13)
   - $done: Bounds and decisions
   - $done: `delivery.feedbackRounds` (default 5) and `delivery.prFeedback` (default on) per repository and workspace, validated; a round counted on send or attempt; stop and one **Needs you** decision on the bound, on the same check failing on 3 head commits in a row, or on `blocked`.
@@ -2081,26 +2068,25 @@ the owner's own plans once, after P36 passes.
   - $after: 21.3
   - Graph levels All > Epic > Plan > Phase > task with the back stack; separate Epic and Phase filters in Graph, Delivery, Flow, and Plans; Dashboard Progress by epic across member plans; the plan left column shows its epic link and phases; the epic page; no `doc:` ID or path shown anywhere.
   - Built: bae8870 Show epics, plans and phases in the views; batch by phase; add Epic and Phases to New plan
-- [x] 21.6 Batch by phase and the New plan fields, after 21.2 and 19.1 [R59.11, R59.14] (§6.9, §8.6)
-  - $done: Batch by phase and the New plan fields, after 21.2 and 19.1
-  - $done: `flow.batch.by` accepts `phase` as the default and `files`, and refuses `epic` naming `phase`; New plan has Epic and Phases fields; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
+- [x] 21.6 The New plan fields, after 21.2 and 19.1 [R59.11, R59.14] (§6.9, §8.6)
+  - $done: New plan has Epic and Phases fields; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
   - $after: 21.2, 19.1
-  - `flow.batch.by` accepts `phase` (default) and `files`, and refuses `epic` naming `phase`; the New plan drawer has Epic (pick) and Phases; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
-  - Built: bae8870 (batch by phase, New plan Epic and Phases, planner agent and skill); 9535b47 planner prompt
+  - The New plan drawer has Epic (pick) and Phases; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
+  - Built: bae8870 (New plan Epic and Phases, planner agent and skill); 9535b47 planner prompt
 - [x] 21.7 Rewrite the owner's plans once, after avoozl-p36 [R59.12, R59.13] (§6.9)
   - $done: Rewrite the owner's plans once, after avoozl-p36
-  - $done: A one-time script, kept in the task's report and not in `src/`, runs through existing operations on a copy and then live after a sha256 backup; per-plan epics become phases, `doc:` tasks go to their section or No phase, orphaned tasks are archived as "plan removed", old manifest forms and `flow.batch.by: "epic"` are rewritten, every plan lints with 0 errors, a second run changes nothing, spec edits are local commits, and nothing is approved, started, written to GitHub, or pushed.
+  - $done: A one-time script, kept in the task's report and not in `src/`, runs through existing operations on a copy and then live after a sha256 backup; per-plan epics become phases, `doc:` tasks go to their section or No phase, orphaned tasks are archived as "plan removed", old manifest forms are rewritten, every plan lints with 0 errors, a second run changes nothing, spec edits are local commits, and nothing is approved, started, written to GitHub, or pushed.
   - $after: avoozl-p36
-  - A script kept in the task's report, not in `src/`, run through existing operations: first on a copy of the database and spec repositories, then live after a sha256 backup; per-plan epics to phases, `doc:` epics to their `tasks.md` section or No phase, orphaned tasks archived with `task.archive` reason "plan removed", old manifest forms rewritten in Nupp's plans (the rewrite epic folder and the native runtime plan) and checked in Avoozl's own spec, `flow.batch.by: "epic"` set to `phase`; every plan lints with 0 errors; a second run changes nothing; spec edits are local commits; nothing is approved, started, written to GitHub or pushed.
+  - A script kept in the task's report, not in `src/`, run through existing operations: first on a copy of the database and spec repositories, then live after a sha256 backup; per-plan epics to phases, `doc:` epics to their `tasks.md` section or No phase, orphaned tasks archived with `task.archive` reason "plan removed", old manifest forms rewritten in Nupp's plans (the rewrite epic folder and the native runtime plan) and checked in Avoozl's own spec; every plan lints with 0 errors; a second run changes nothing; spec edits are local commits; nothing is approved, started, written to GitHub or pushed.
   - Built: Rewrite run once live on the owner's Nupp and Avoozl workspaces; script and receipts kept in the task report. Nupp plans: one local commit; Avoozl's own spec needed no change. 7cc538a and 334c7e8 let the existing operations do it.
 
 - [x] avoozl-p36 P36 Proof: one epic over two member plans, and old forms refused [R59] (§6.9)
   - $done: Proof: one epic over two member plans, and old forms refused
-  - $done: Expected: membership needs both sides; phases come from manifest values or headings; no `doc:` group appears; three levels of sub-issues project, children past `github.subIssues.maxPerParent` stay unlinked and are shown, and a second preview writes nothing; plan then epic issues close from children; every old form is a validation error; `flow.batch.by: "epic"` is refused.
+  - $done: Expected: membership needs both sides; phases come from headings; no `doc:` group appears; three levels of sub-issues project, children past `github.subIssues.maxPerParent` stay unlinked and are shown, and a second preview writes nothing; plan then epic issues close from children; every old form is a validation error.
   - $after: 21.1, 21.2, 21.3, 21.4, 21.5, 21.6
   - Setup: an isolated temporary workspace in plans-repo mode with a fake GitHub; an epic folder `rewrite` listing plans `alpha` and `beta`; `alpha` has `epic: rewrite` and two `## ` headings, one task under none; `beta` has `epic: rewrite`, manifest `phase` values and a `phases` title; a third plan `gamma` says `epic: rewrite` but is not listed; `github.subIssues.maxPerParent` set to 2, and `beta` has three tasks outside packages. A fourth folder `old` has an entry with `kind: "epic"`, per-entry `epic` values and an `epics` list; a fifth, `old-epic`, is an epic folder with `memberPlan` entries.
-  - Action: (1) lint and approve `rewrite`, `alpha`, `beta` and `gamma`; (2) list `beta` as a member while it names no epic, then restore; (3) read the epic, the Graph levels, Delivery, Flow, and Plans with each filter, and the Dashboard; (4) preview projection, apply it, preview again; (5) close every `alpha` and `beta` task issue; (6) lint `old` and `old-epic`; (7) save `flow.batch.by: "epic"`; (8) open Settings in Local only, then in plans-repo mode.
-  - Expected: (1) 0 errors; `gamma` gets `spec.epic-unknown` and shows under No epic; (2) `spec.epic-member-unconfirmed` blocks only the epic's approval; (3) the epic lists `alpha` then `beta` with computed progress; phases come from headings or manifest values; the headless task is under No phase; no response contains `doc:` or a file path as a group name; (4) one epic issue with the epic type, two plan issues as its sub-issues, task issues under them, the phase line in each body; `beta`'s third task is unlinked, names its plan issue in the marker, and shows "Over the sub-issue limit"; the second preview writes nothing; (5) the tick closes both plan issues, then the epic issue; (6) `spec.kind-epic`, `spec.entry-epic` and `spec.epic-task-fields` errors naming each entry, and neither folder can be approved; (7) refused naming `phase`; (8) the sub-issue cap shows only in plans-repo mode.
+  - Action: (1) lint and approve `rewrite`, `alpha`, `beta` and `gamma`; (2) list `beta` as a member while it names no epic, then restore; (3) read the epic, the Graph levels, Delivery, Flow, and Plans with each filter, and the Dashboard; (4) preview projection, apply it, preview again; (5) close every `alpha` and `beta` task issue; (6) lint `old` and `old-epic`; (7) open Settings in Local only, then in plans-repo mode.
+  - Expected: (1) 0 errors; `gamma` gets `spec.epic-unknown` and shows under No epic; (2) `spec.epic-member-unconfirmed` blocks only the epic's approval; (3) the epic lists `alpha` then `beta` with computed progress; phases come from headings; the headless task is under No phase; no response contains `doc:` or a file path as a group name; (4) one epic issue with the epic type, two plan issues as its sub-issues, task issues under them, the phase line in each body; `beta`'s third task is unlinked, names its plan issue in the marker, and shows "Over the sub-issue limit"; the second preview writes nothing; (5) the tick closes both plan issues, then the epic issue; (6) `facts.removed-key`, `facts.unknown-key` and `spec.epic-task-fields` errors naming each entry, and neither folder can be approved; (7) the sub-issue cap shows only in plans-repo mode.
   - Failure means: one word still means two things, a group is still made up from a path, or an old form still loads.
   - Next decision: keep phases as Avoozl-only groups and project only epics and tasks.
   - Built: a5871a4 `src/app/test/proof-p36.test.mjs`; bae8870 `kirocrew-app/ui/test/epics.test.mjs`
@@ -2113,10 +2099,10 @@ P28; its proof runs after P36.
 
 - [x] 22.1 Manual leaves in lint and the tick, after 21.1 [R61.9–R61.11, R61.13, R61.15] (§4.16, §4.3)
   - $done: Manual leaves in lint and the tick, after 21.1
-  - $done: A manual leaf lints only with completion `person` and no run fields; it is never dispatched or batched; it shows in Blocked or waiting, then Needs you tagged Manual; only a person marks it Done or Skipped or reopens it, and either releases its dependents; MCP calls are refused.
+  - $done: A manual leaf lints only with no run fields; it is never dispatched; it shows in Blocked or waiting, then Needs you tagged Manual; only a person marks it Done or Skipped or reopens it, and either releases its dependents; MCP calls are refused.
   - $after: 21.1
-  - `manual: true` with completion `person`; `spec.manual-field` and `spec.person-completion`; left out of ready, batching, verification, review and integration; every edge condition met when done; Blocked or waiting, then Needs you tagged Manual; `task.manual.complete` (Done or Skipped, outcome) and `task.manual.reopen` person only, refused over MCP; Flow counts waiting on a person and skips first-pass rate and time to fix.
-  - Built: `src/work-model.mjs` (`person`, `isManual`), `src/app/specs/plan-quality.mjs` (`spec.manual-field`, `spec.person-completion`), `src/query.mjs` (never ready), `src/app/api/page-views.mjs` (Needs you tagged Manual), `src/app/workers/runner.mjs` (`needsYou` reason `manual`), `src/app/tasks/manual-tasks.mjs` (`task.manual.complete`/`reopen`, person only), `src/app/flow/flow.mjs` (waiting on a person; out of first-pass and time to fix); the spec's 25 manual tasks now carry completion `person`. Tests: `src/app/tasks/test/manual-tasks.test.mjs`.
+  - `manual: true`; `spec.manual-field`; left out of ready, verification, review and integration; dependents wait until it is done; Blocked or waiting, then Needs you tagged Manual; `task.manual.complete` (Done or Skipped, outcome) and `task.manual.reopen` person only, refused over MCP; Flow counts waiting on a person and skips first-pass rate and time to fix.
+  - Built: `src/work-model.mjs` (`person`, `isManual`), `src/app/specs/plan-quality.mjs` (`spec.manual-field`), `src/query.mjs` (never ready), `src/app/api/page-views.mjs` (Needs you tagged Manual), `src/app/workers/runner.mjs` (`needsYou` reason `manual`), `src/app/tasks/manual-tasks.mjs` (`task.manual.complete`/`reopen`, person only), `src/app/flow/flow.mjs` (waiting on a person; out of first-pass and time to fix); the spec's 25 manual tasks now carry completion `person`. Tests: `src/app/tasks/test/manual-tasks.test.mjs`.
 - [x] 22.2 Manual leaves on GitHub, after 22.1 and 18.1 [R61.14] (§4.16, §6.3, §6.7)
   - $done: Manual leaves on GitHub, after 22.1 and 18.1
   - $done: The manual leaf's issue never gets a ready or trigger label and says a person closes it; Mark done closes it as the person's login after Who counts; an allowed GitHub close completes it; any other close holds dependents with a decision and no reopen; a reopen leaves running sessions alone.
@@ -2319,7 +2305,7 @@ Task IDs stay so they are never reused.
 - [x] 27.3 Retired
   - $done: Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4
   - $done: At a cap nothing new is dispatched for the task, each live session gets one stop message and budget_reached on its Avoozl calls, and no session is stopped, interrupted or closed; Raise budget and Stop are person only and cost no attempt; unpriced turns use the token and credit caps; unknown spend warns and never stops; no gate reads the budget.
-  - $after: 27.2, 12.8, 15.4
+  - $after: 27.2, 15.4
   - Removed 2026-11-17 (owner).
 - [x] 27.4 Retired
   - $done: Spend on the page, after 27.3 and 12.11
@@ -2596,7 +2582,7 @@ isolated temporary workspaces, a fake GitHub and fake workers.
   - $done: P45 Proof
   - $done: P45 passes with fake workers, a fake falsifier and a fake GitHub.
   - $after: 34.1, 34.2, 34.3, 34.4, 34.5, 34.6
-  - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaves `a1` (plain), `a2` (`size: "small"`) and `a3` (plain), a bugfix spec with leaf `f1`, fake workers and a fake falsifier.
+  - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaves `a1` (plain), `a2` (`investigate: false`) and `a3` (plain), a bugfix spec with leaf `f1`, fake workers and a fake falsifier.
   - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow; (8) set `delivery.ship` to `manual` and let `a3`'s checks pass.
   - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3; (8) no auto-merge, one Ready to merge item, and completion after the person merges.
   - Failure means: coding starts on refuted findings, a writer force pushes, or a manual ship merges without a person.
@@ -3296,10 +3282,10 @@ approved.
 - [x] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
   - $done: Send message queues a `send`
   - $after: 50.1
-- [x] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
-  - $done: Settings › Models picks harness and model per role; a `session` pin may name a harness
+- [x] 50.3 Settings › Models picks harness and model per role, after avoozl-p57 [R98.3] (§4.28)
+  - $done: Settings › Models picks harness and model per role
   - $after: avoozl-p57
-- [x] 50.4 One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.6, R98.7, R98.8, R98.9, R98.10] (§4.28)
+- [x] 50.4 One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.5, R98.6, R98.7, R98.8, R98.9] (§4.28)
   - $done: One `roles` table for harness, agent and model; Settings › Models is the only place to pick them
   - $after: 50.3
   - Built: PR #610 (`7e504bc4`). Merged 2026-11-18.
@@ -3319,17 +3305,17 @@ approved.
 
 ## Phase 51: Headless workers
 
-Requirements 95.3, 98.5 (design §4.28). The base for the pull-based worker
+Requirements 95.3, 98.4 (design §4.28). The base for the pull-based worker
 mode of Phase 43.
 
 - [x] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
   - $done: The supervisor under launchd or systemd, running the tick too
   - $after: avoozl-p57
-- [x] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.5] (§4.28)
+- [x] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.4] (§4.28)
   - $done: CLI only: `avoozl status` and `avoozl runner status --json`
   - $after: 51.1
 
-- [x] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)
+- [x] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.4] (§4.28)
   - $done: Proof: a headless machine runs tasks with the CLI only
   - $done: Expected: both tasks finish; the supervisor comes back and finds its state; `runner status --json` reports both.
   - $after: 51.1, 51.2
@@ -3764,26 +3750,13 @@ the spec pull request item through the same list, not a second one.
   - $after: 58.1, 57.6
   - `spec-pull-requests.mjs` detects, links and adopts; the Triage read gains changed file paths; Approve records the revision, merges after checks, and Reject and Request changes act on the pull request. Tests and screenshots under `docs/evidence/spec-pr-adoption/`.
 
-## Phase 61: The planner decides batches
-
-Owner decision 2026-11-18 (Requirement 108, design §4.37). One build task.
-Merge batches (`merge-batches` spec) touch `delivery.mjs`;
-merge main often and keep to `flow-batch.mjs` and the call sites.
-
-- [x] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)
-  - $done: Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8
-  - $done: A manifest `batches` group is linted, stored on its member tasks at approval, and dispatched by the tick as one handoff when every open member is ready; a group that breaks a code rule (plan, approved hash, repository, at most 5, no edge, local automatic leaf, no earlier attempt or split) runs as single tasks with the reason on the task; a failing batch splits and each task retries alone; `flow.batch`, `size` and the Batching box are gone and old values load silently; Delivery shows one In progress card per batch with its tasks and reason and each task links to its batch; tests cover each case, and screenshots are under docs/evidence/agent-batching/.
-  - $after: 12.8
-  - `parseSpec` reads `batches` and approval stores `batch` on each member; `flow-batch.mjs` dispatches a planner group as one handoff when every open member is ready, checks the rules in code and runs a rule-breaking group alone with its reason; split on failure as before. `flow.batch`, `size`, the Batching box and `BATCH_BY` are removed, and old values are ignored. Delivery shows a batched handoff as one In progress card; task details link to the batch. The planner prompt says when to group. Tests and screenshots under `docs/evidence/agent-batching/`.
-
 ## Phase 62: Approval delegation and exact-set approval
 
 Owner request 2026-11-18 (Requirement 109, design §4.38). One build task.
 
-- [x] 62.1 Approval delegation and an exact-set preview, after 61.1 [R109.1, R109.2, R109.3, R109.4, R109.5, R109.6, R109.7, R109.8, R109.9] (§4.38)
-  - $done: Approval delegation and an exact-set preview, after 61.1
+- [x] 62.1 Approval delegation and an exact-set preview [R109.1, R109.2, R109.3, R109.4, R109.5, R109.6, R109.7, R109.8, R109.9] (§4.38)
+  - $done: Approval delegation and an exact-set preview
   - $done: A person grants or revokes approval delegation to a named identity, stored in the workspace database; plan.approve and plan.approveMany with delegate are refused without an active grant and otherwise approve as the granting person, recording delegation {delegate, onBehalfOf, grantedAt} on the receipt and on approval pull requests; grant and revoke are person-only; the approval preview counts tasks waiting on draft specs left out and says approval does not need them; tests cover each case.
-  - $after: 61.1
   - `approval-delegation.mjs` stores grants in the workspace database; `plan.approve` and `plan.approveMany` take `delegate`, approve as the granting person and record `delegation` on the receipt and on approval pull requests. `approval delegates|delegate|revoke` in the CLI, `plans_plan.delegates` over MCP. The preview counts tasks that wait on draft specs left out. Tests in `approval-delegation.test.mjs`.
 
 ## Phase 63: One intake list
@@ -3806,10 +3779,10 @@ build in this repository, then the Nupp plans. Other spec pull requests may
 still touch `avoozl/manifest.json`; merge main often, keep their changes
 and convert them too.
 
-- [x] 64.1 Facts bullets replace `avoozl/manifest.json`, convert this repository's specs, after 61.1, 62.1 [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.8, R111.9, R111.10, R111.11] (§4.40)
+- [x] 64.1 Facts bullets replace `avoozl/manifest.json`, convert this repository's specs, after 62.1 [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.8, R111.9, R111.10, R111.11] (§4.40)
   - $done: Facts bullets replace avoozl/manifest.json, convert this repository's specs, after 61.1, 62.1
   - $done: `spec-facts.mjs` reads `Facts:` bullets and front-matter into the parse; lint refuses each bad shape with its file and line; a leftover manifest is an error; the revision hash is unchanged by a pure conversion; every spec here is converted and its manifest deleted; tests cover each rule and the before and after parse.
-  - $after: 61.1, 62.1
+  - $after: 62.1
   - `spec-facts.mjs` reads `Facts:` bullets and front-matter into the object `parseSpec` read from the manifest, with lint codes and lines; `specHash` stops reading the manifest and hashes prose plus canonical parsed facts, so a converted spec keeps its hash; the manifest readers, `spec-manifest.mjs`, the manifest review tab, the planner prompt and the steering file change; every spec here is converted once and its `manifest.json` deleted; tests cover each rule and the before and after parse.
 - [x] 64.2 Convert the Nupp plans to Facts bullets, after 64.1 [R111.10] (§4.40)
   - $done: Convert the Nupp plans to Facts bullets, after 64.1

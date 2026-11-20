@@ -28,7 +28,7 @@ The any-harness plan (`.kiro/specs/avoozl/`, Requirements 93 to 98, design
 §4.28) made the work harness-neutral: a `process` child under
 `avoozl supervisor` can code, verify and review a task with no Kiro Crew on
 the machine. The page did not follow. Requirement 98 says Kiro Crew stays the
-only UI, and Requirement 98.5 leaves a machine without Kiro Crew with only
+only UI, and Requirement 98.4 leaves a machine without Kiro Crew with only
 `avoozl status` and `avoozl runner status --json`. A person who never
 installed Kiro Crew can run every role but cannot see Needs you, approve a
 plan or read a process session's log without the CLI.
@@ -417,9 +417,9 @@ other.
 #### Acceptance criteria
 
 1. Requirement 98 and design §4.28 SHALL say that this spec proposes a
-   second, loopback-only host for the same page, and that Requirement 98.5
+   second, loopback-only host for the same page, and that Requirement 98.4
    stands until this spec is approved.
-2. On approval, Requirement 98.5 SHALL change to: a headless machine gets
+2. On approval, Requirement 98.4 SHALL change to: a headless machine gets
    the CLI, and the standalone page when `avoozl serve` or `serve.enabled`
    runs it; Avoozl SHALL host no other UI and SHALL serve nothing beyond
    `127.0.0.1`.

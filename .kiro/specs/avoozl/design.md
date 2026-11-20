@@ -231,10 +231,8 @@ be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
 -->
 ```
 
-- `edges` holds the Avoozl-only edge detail that GitHub dependencies cannot
-  carry: a `requires` edge's completion level, keyed by the blocking task ID,
-  and advisory `supports` edges. Blocking edges themselves are GitHub issue
-  dependencies (F39); the marker never duplicates them as truth.
+- Blocking edges are GitHub issue dependencies (F39); the marker never
+  duplicates them as truth.
 - `applied.project` holds the last Project field values Avoozl wrote
   (Release, Wave, Iteration; never Status, §6.7).
 - `order` is present only while the issue is closed by an allowed actor's
@@ -362,24 +360,21 @@ be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
 **Proposed.** The model extends today's tasks and edges (`src/model.mjs`,
 `src/query.mjs`).
 
-| Field        | Values                                                                                       | Rule                                                                                                                                                  |
-| ------------ | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`         | lowercase, dotted path allowed (`w3.reactor-timers`)                                         | Immutable after approval; comes from the `tasks.md` item's ID (§6.8)                                                                                  |
-| `kind`       | `epic`, `package`, `leaf`                                                                    | Only leaves dispatch; epics and packages complete from children. Changed 2026-11-13: inside a plan only `package` and `leaf`; epics span plans (§6.9) |
-| `authority`  | `local`, `github`                                                                           | §3.2; default `github` when a GitHub mode is set                                                                                                      |
-| `route`      | `local`, `github`                                                                           | How a leaf is delivered                                                                                                                               |
-| `repository` | registered repository ID                                                                     | Required for leaves; exactly one                                                                                                                      |
-| `acceptance` | list of observable statements                                                                | Required for leaves                                                                                                                                   |
-| `checks`     | none: not a task field                                                                       | Changed 2026-11-18: every leaf runs its repository's named checks (§5.2); a stored task's list is ignored                                             |
-| `completion` | `merged-pr`, `integrated`, `released`, `answered`, `person`                                  | `answered` only for `respond`; `person` only, and always, for a `manual` leaf (§4.16)                                                                 |
-| `manual`     | `true` or absent                                                                             | A leaf only a person does: never dispatched, waits in Needs you, marked done by a person (§4.16)                                                      |
-| `status`     | `draft`, `approved`, `running`, `review`, `done`, `failed`, `blocked`, `deferred`, `partial` | `partial` exists only for migrated tasks (§10)                                                                                                        |
-| `decision`   | open decision ID or null                                                                     | Any open decision blocks readiness                                                                                                                    |
+| Field        | Values                                       | Rule                                                                       |
+| ------------ | -------------------------------------------- | -------------------------------------------------------------------------- |
+| `id`         | lowercase, dotted path allowed               | Immutable after approval; comes from the `tasks.md` item's ID (§6.8)       |
+| `kind`       | `package`, `leaf`                            | From nesting: an item with sub-items is a package. Only leaves dispatch    |
+| `repository` | registered repository ID                     | Required for leaves; exactly one                                           |
+| `acceptance` | list of observable statements                | Required for leaves                                                        |
+| `manual`     | `true` or absent                             | A leaf only a person does: never dispatched, marked done by a person (§4.16) |
+| `status`     | `draft`, `approved`, `running`, `review`, `done`, `failed`, `blocked`, `deferred`, `partial` | `partial` exists only for migrated tasks (§10) |
+| `decision`   | open decision ID or null                     | Any open decision blocks readiness                                         |
 
-Edge kinds stay as today (F25): `requires` and `sequence` block; `supports` is
-advisory. A `requires` edge may name a completion level
-(`{"task":"sdk-code","condition":"integrated"}`); the default is the
-dependency's own `completion`.
+A leaf completes when it lands; a manual leaf completes when a person marks
+it done. Every leaf runs its repository's checks (§5.2).
+
+A `requires` edge, written as `$after`, blocks a task until the task it
+names is done.
 
 A leaf is **ready** when: it is approved; every blocking edge's condition holds;
 no conflict, open decision, quarantine, or pause applies; its repository is
@@ -992,14 +987,9 @@ allow host: \bbuild0\.corp\.example\b
 
 ### 4.10 Agent and model per session
 
-Replaced 2026-11-18 by the worker-paths spec (D9): every session runs on this machine.
-
-**Decided**, owner 2026-11-18: every session Avoozl opens runs on this
-machine, on the executor its harness names (§4.28). `src/app/sessions/session-pins.mjs`
-checks a task's `session` fact: `agent`, `model` or `harness`, and
-nothing else. The crew snapshot (`crews.mjs`) stays for the In flight
-view's unreachable-crew flag. Its reader had no caller and was deleted; it
-is in git history.
+Every session Avoozl opens runs on this machine, on the executor its
+harness names (§4.28). The crew snapshot (`crews.mjs`) stays for the In
+flight view's unreachable-crew flag.
 
 #### Current-code facts
 
@@ -1010,12 +1000,11 @@ is in git history.
 
 #### Agent and model per session
 
-The writer's session comes from: the task's `session` fact, `delivery`
-(repository, then workspace), then Kiro Crew's default agent and `auto`. A
-retry keeps its last model unless it is out. Checks and review roles keep
+The writer's session comes from the `worker` row of the `roles` table
+(§4.28), then Kiro Crew's default agent and `auto`. A retry keeps its last
+model unless it is out. Checks and review roles keep
 their own agent and model (§5.2). The binding records `agent`, `model`,
-`modelUsed` (when Kiro Crew reports it, F65), and `sessionReason`. Issue
-Radar leaves ignore `session`. A coding agent outside Kiro Crew is a
+`modelUsed` (when Kiro Crew reports it, F65), and `sessionReason`. A coding agent outside Kiro Crew is a
 process harness (§4.28).
 
 ### 4.11 Flow: timing, stop the line, and retrospectives
@@ -1032,14 +1021,13 @@ for a meta-analysis after the fact. Each time the same causes came back:
 
 1. Too much process and ceremony per task: a session, a worktree, a
    verifier, review rounds, and a report for every small change.
-2. Too little batching: tiny related tasks each paid that fixed cost.
-3. Waiting on GitHub CI to learn about failures a local run would have shown
+2. Waiting on GitHub CI to learn about failures a local run would have shown
    in minutes.
-4. Failures not fixed when introduced: later tasks built on a broken branch,
+3. Failures not fixed when introduced: later tasks built on a broken branch,
    failed, retried, and failed again for a cause that was not theirs.
-5. No record of where each task's time went (code, tests, commands, waiting),
+4. No record of where each task's time went (code, tests, commands, waiting),
    so every analysis started from transcripts.
-6. No pause to improve: the same slow step repeated for weeks because nothing
+5. No pause to improve: the same slow step repeated for weeks because nothing
    stopped to look at it.
 
 This section answers each with a standard practice from lean delivery,
@@ -1047,11 +1035,11 @@ named so that a later reader can look it up rather than reinvent it:
 
 | Cause                                 | Practice                                                                                                                                                                                                                                                                                 | Avoozl feature                          |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| 5. No record of time                  | **Value stream map** (each step's active and waiting time from request to delivery); **flow efficiency** (active time over lead time); **DORA metrics** (lead time for changes, change failure rate, time to restore)                                                                    | Flow timing, always on (Requirement 43) |
-| 4. Failures not fixed when introduced | **Andon / stop the line**: anyone who sees a defect stops the line, the defect is fixed first, then work resumes                                                                                                                                                                         | Stop the line (Requirement 44)          |
-| 3. Waiting on CI                      | Shift checks left: run them where the change is made, so CI confirms                                                                                                                                                                                                                     | Local checks first (Requirement 45)     |
-| 1, 2. Ceremony and no batching        | Right-size the batch: pay the fixed cost once for several small changes                                                                                                                                                                                                                  | Batching small tasks (Requirement 46)   |
-| 6. No pause to improve                | **Kaizen** (small, continuous improvement) through a **retrospective**; **theory of constraints** (improve the one biggest bottleneck, because speeding any other step does not speed the whole); **PDCA** (plan, do, check, act: check that a change helped, and undo it if it did not) | Retrospectives (Requirement 47)         |
+| 4. No record of time                  | **Value stream map** (each step's active and waiting time from request to delivery); **flow efficiency** (active time over lead time); **DORA metrics** (lead time for changes, change failure rate, time to restore)                                                                    | Flow timing, always on (Requirement 43) |
+| 3. Failures not fixed when introduced | **Andon / stop the line**: anyone who sees a defect stops the line, the defect is fixed first, then work resumes                                                                                                                                                                         | Stop the line (Requirement 44)          |
+| 2. Waiting on CI                      | Shift checks left: run them where the change is made, so CI confirms                                                                                                                                                                                                                     | Local checks first (Requirement 45)     |
+| 1. Ceremony per task                  | Keep each step that every task pays small and cheap                                                                                                                                                                                                                                      | Batching small tasks (Requirement 46)   |
+| 5. No pause to improve                | **Kaizen** (small, continuous improvement) through a **retrospective**; **theory of constraints** (improve the one biggest bottleneck, because speeding any other step does not speed the whole); **PDCA** (plan, do, check, act: check that a change helped, and undo it if it did not) | Retrospectives (Requirement 47)         |
 
 The parts a later change must keep, and why:
 
@@ -1117,7 +1105,7 @@ Kiro Crew for the missing parts. Until then the fallback below fills in.
 A **span** is one stretch of one attempt in one stage:
 
 ```text
-flow_spans(id, task_id, attempt, batch_id, role, stage, started_at, ended_at,
+flow_spans(id, task_id, attempt, role, stage, started_at, ended_at,
            source, detail)        -- source: tool-calls | markers | events
 ```
 
@@ -1316,28 +1304,11 @@ differ; the retrospective sees those counts. Local delivery pushes nothing
 and is unchanged. Issue Radar's sessions are not Avoozl's, so this cannot be
 enforced there.
 
-#### Batching
+#### One session per task
 
-**Changed 2026-11-18.** The planner decides batches in `tasks.md` (§4.40), and
-batching has no setting (§4.37, Requirement 108). The grouping rules below
-are replaced; the run, checks and split still hold.
-
-A leaf was batchable only when the plan marked it `size: "small"` in its
-facts, because only the planner knows a task is small before it runs.
-Avoozl groups ready batchable leaves by `flow.batch.by` (`phase`, the same
-parent or phase, by default, renamed from `epic` in §6.9; or `files`, overlapping `paths` facts) up to
-`flow.batch.max` (default 3). Every leaf in a batch shares the repository,
-route, crew, and review roles, has no edge to another, and has local
-authority. GitHub-authority leaves are not batched yet: each closes through
-its own linked branch (plans-repo, F51) or `Closes #N` in its own pull
-request (single-repo, through Issue Radar), and a shared branch for several
-issues is not proved.
-
-One worker session, one worktree, one commit per task in order, one
-`done` per task. Checks and review run once on the batch head, which is the
-saving. If they fail, Avoozl splits the batch and retries each task alone
-without costing anyone an attempt, because a failing batch does not say
-which task broke it.
+Each ready leaf gets its own worker session and worktree, and makes its own
+commit. Checks and review run on that commit. An agent may group its own
+work inside one task.
 
 #### Retrospectives
 
@@ -1361,7 +1332,7 @@ anything. One local session per retrospective, on `roles.retro.model`
 (default `auto`, meaning Kiro Crew's default for the agent). The brief holds
 the window's stage totals per task and per repository, the metrics with the
 previous window's values, line stops with culprits and time to fix, flaky
-checks, CI-only failures, batches, the earlier proposals with their PDCA
+checks, CI-only failures, the earlier proposals with their PDCA
 results, and the owner's machine-local `flow.retro.instructions`. It passes
 the content rules at the `brief` boundary.
 
@@ -1454,8 +1425,6 @@ validation refuses it in a tracked file. There is no timing key.
 | Run anyway is person-only                       | Overriding a stop is the owner's call                                                                          |
 | Local checks first, default on                  | CI should confirm, not discover                                                                                |
 | Hook checks a record, not a rerun               | The checks run once                                                                                            |
-| Planner groups, local authority (§4.37)         | Only the planner knows in advance what is cheaper in one chat; GitHub closing links are one per issue          |
-| Split a failed batch, no attempt cost           | A failing batch does not say which task broke it                                                               |
 | Tool-less retro agent                           | It can only propose, never act                                                                                 |
 | Typed proposals with evidence                   | A proposal must be checkable and reversible                                                                    |
 | Safety settings out of reach                    | A speed review must not loosen what protects the owner                                                         |
@@ -1955,8 +1924,7 @@ a draft revision of the epic (§6.9: both sides must agree).
 `pack` or `flow`, the drawer shows the pack preview (create, change, keep,
 skip) with **Import these settings**, unticked. Ticking it and submitting
 runs the person-only pack import against the shown preview hash, exactly as
-Settings does (Requirement 55.5–55.7). Batches come from the planner's
-`batch` facts (§4.37, §4.40), never from a template setting.
+Settings does (Requirement 55.5–55.7).
 
 #### Manual leaves
 
@@ -1964,21 +1932,16 @@ Settings does (Requirement 55.5–55.7). Batches come from the planner's
 - [ ] review Review with the team
   - $manual: true
   - $repo: sdk
-  - $completion: person
   - $after: protocol-tests
   - $done: The team agreed the runtime and protocol results are good enough to cut over
 ```
 
-- **Lint.** `manual` leaves need `done`, `repo` and completion `person`;
-  `checks`, `session`, `batch`, `paths` and `route` are errors
-  (`spec.manual-field`), `agent`, `model` and `size` are unknown facts
-  (§4.40), and `person` on any other leaf is an error
-  (`spec.person-completion`). `repo` only says where the issue lives,
-  since nothing runs in it.
-- **Tick.** A manual leaf is left out of `ready` for dispatch, batching,
+- **Lint.** `manual` leaves need `done` and `repo`; `paths` is an error
+  (`spec.manual-field`). `repo` only says where the issue lives, since
+  nothing runs in it.
+- **Tick.** A manual leaf is left out of `ready` for dispatch,
   verification, review and integration. Its edges work as for any task, and
-  every edge condition on it is met when it is done, because there is no
-  merge or integration to wait for.
+  its dependents wait until it is done.
 - **Lane.** Before its blockers finish it is in **Blocked or waiting**.
   Then it is in **Needs you**, tagged **Manual**, reason "Waiting for a
   person: Review with team". This reuses the lane people already watch and
@@ -2072,7 +2035,7 @@ missing after a rebuild, like session bindings.
 
 | Phase          | Starter tasks                                                 | Kind                                                 |
 | -------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
-| Inventory      | List `{{sdk}}`'s operations and features; read the gap list   | leaves, one planner batch group                      |
+| Inventory      | List `{{sdk}}`'s operations and features; read the gap list   | leaves                                               |
 | Codegen        | Generate the client from the models; compare with the old one | leaves                                               |
 | Runtime        | Port transport, auth, retries, paging                         | leaves                                               |
 | Protocol tests | Run the protocol test suite until it passes                   | leaf, plus proof `protocol-tests`                    |
@@ -2595,8 +2558,7 @@ A retry keeps its model unless it is `out` (R72.6).
 
 After the reads, the backend looks at each live session the tick opened.
 Only `out` moves a running chat; `low` never does. On an `out` model it picks
-a target (R72.9: the person's replacement, then the task's pinned model,
-then the models Kiro Crew lists, the first `ok`, else `low`) and calls F126. The binding's
+a target (R72.9: the person's replacement, then the models Kiro Crew lists, the first `ok`, else `low`) and calls F126. The binding's
 `model` becomes the target and its `switches` list gains `{from, to, at,
 by}`; the session, worktree and branch stay, so committed work is kept and
 the next turn runs on the new model (R72.8). A refusal is recorded on the
@@ -3078,10 +3040,10 @@ the Kiro Crew agent files from them, and a test fails on drift.
 **UI.** Only the Avoozl page in Kiro Crew. In flight shows a `process`
 session's status, log tail, cost and a copyable attach command; Send
 message queues a `send`; Settings › Models picks a harness and model per
-role; a task's `session` pin may name a harness. Headless machines have
+role. Headless machines have
 `avoozl status` and `avoozl runner status --json` only.
 
-**Roles table** (added 2026-11-18, R98.6 to R98.10). One `roles` object
+**Roles table** (R98.5 to R98.9). One `roles` object
 in `.avoozl.json` holds each role's harness, agent and model:
 
 ```json
@@ -3117,8 +3079,7 @@ Not in the table: `delivery.reviewers[]` keep their own `agent` and
 `model`, because each review role is a list entry with its own id and
 focus, per repository. Issue Radar crews pick their own models
 (`radar.crew.models`). `github.issueIntake.*.model` is saved but never
-read, and item 6 of the audit retires that block. A task's `session`
-pin wins over every row.
+read.
 
 Proposed change, 2026-11-18 (draft, not approved): the
 `standalone-web` spec would add a second host for the same page,
@@ -3134,7 +3095,7 @@ is approved.
 | 47    | Supervisor and `process` with Claude Code | A 3-task chain on a scratch repository with one feedback round by resume, a killed child that recovers, a backend restart mid-run |
 | 48    | Codex by definition file only           | Codex runs a task; the proof fails if any source file changed                                     |
 | 49    | Every role on any executor              | Verifier, reviewer, planner, retro and watch each run on `process`                                |
-| 50    | The UI                                  | In flight, Send message, Settings › Models and the `session` pin work for `process` sessions      |
+| 50    | The UI                                  | In flight, Send message and Settings › Models work for `process` sessions                         |
 | 51    | Headless workers                        | A machine under launchd runs tasks with the CLI only; the base for §4.26's pull-based worker mode |
 | 52    | The manual path                         | `next`, `take` and `runner report` still work for a person                                       |
 
@@ -4006,9 +3967,6 @@ stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
   record instead of closing an issue.
 - **Spec edits.** A changed definition makes earlier outcomes stale. A changed or
   removed task with a live ref goes to Needs you.
-- **Old fact values.** Reinterpret, never rewrite. `route: github` means "lands
-  through the queue"; `merged-pr` means "landed". Sites: `src/work-model.mjs:128-140`,
-  `src/app/specs/plan-quality.mjs:59-63`, `src/app/delivery/delivery.mjs:2019-2030`.
 
 
 #### 4.32.13 Repository layouts and migration
@@ -4025,9 +3983,6 @@ close reconciliation, Project sync, rebuild from GitHub and the binding
 migration were deleted together. A tick reads and writes no task issue and
 ignores an old binding row, so closing an obsolete task issue by hand changes
 nothing in Avoozl. Existing spec issues remain journals.
-
-Retain the legacy fact spellings `route: github` (landing queue) and
-`merged-pr` (accepted landing). Do not rewrite approved plans to rename them.
 
 #### 4.32.14 Module changes and implementation order
 
@@ -4406,131 +4361,6 @@ shortcut: one spec folder per pull request and at most 20 changed files; a
 larger or two-folder pull request stays in Triage. Upgrade if such pull
 requests are common.
 
-### 4.37 The planner decides batches
-
-Added 2026-11-18 (Requirement 108). Replaces the Batching part of §4.11
-(`size: "small"`, `flow.batch.max`, `flow.batch.by`) and the Batching box
-of Settings > Flow (§8.4). The batch run itself (one chat, one commit per
-task, checks once, split on failure) is unchanged.
-
-**Why.** The owner's decision: batching is not configurable. A size tag and
-a count were a guess made twice, once by the planner and once by a person
-in Settings. The planner already reads the code and writes the tasks, so it
-is the one place that knows which tasks are cheaper in one chat. The tick
-stays a pure planner: no model call there.
-
-**Grouping is the default** (changed 2026-11-18, owner decision). One
-medium-sized pull request of related tasks beats many small pull requests
-of the same work. The planner groups related leaves in one repository and
-area by default, with no limit on the number of tasks. It splits only where
-the parts can truly run at the same time (different files or areas two
-workers can do without stepping on each other), or for a hard reason: one
-task must land before another, a different repository, a manual step, or a
-task that needs its own review or investigation. It never splits just to
-land tasks one at a time. The retro flags a spec whose related tasks landed
-as many small pull requests.
-
-**In `tasks.md`** (changed 2026-11-18, §4.40). Each member names its group
-in a `batch` fact, and front-matter gives the group's reason once:
-
-```markdown
----
-batch-doc-links: Two one-line link fixes in README.md
----
-- [ ] 3.1 Fix the install link
-  - $batch: doc-links
-- [ ] 3.2 Fix the license link
-  - $batch: doc-links
-```
-
-`parseSpec` (`spec-plans.mjs`) reads the group's tasks from its members and
-refuses, as `facts.schema` in `tasks.md`: a group ID outside
-`[A-Za-z0-9._-]{1,60}`, fewer than 2 tasks, a member that is
-not a leaf, a group with no reason, and a reason that is empty, over 200
-characters or more than one line. Each member proposal gets
-`batch: {id, tasks, reason}` with full task IDs. `approvePlan` copies
-`batch` onto the task with `planHash`, as it copies the other fields, so a
-stored group always comes from an approved revision. An old `size` fact
-is an unknown key, which lint refuses (§4.40).
-
-**Dispatch (`flow-batch.mjs`, pure).** `planBatches` keeps its signature for
-`planReadyDispatches`. For each ready leaf with a `batch`:
-
-```text
-members  = the group's tasks still open
-problem  = groupProblem(store, data, members)   ─▶ null, or one line
-problem? ─▶ dispatch the leaf alone; the line is the "Runs alone" reason
-any open member not ready (blocked, held, waiting)? ─▶ the ready ones wait
-else     ─▶ one handoff: the first open member in the group leads,
-            batch {id, tasks, reason, by: "planner"}
-```
-
-`groupProblem` checks, in order, and returns the first that fails:
-
-| Rule                                                          | Reason shown                                      |
-| ------------------------------------------------------------- | ------------------------------------------------- |
-| every member exists and stores this same group                 | "the group changed; it runs alone until approved" |
-| same plan, same `planHash`, and the plan is approved at it     | "the group is not from the approved revision"     |
-| same repository (same plan means the same base branch)         | "its tasks are in different repositories"         |
-| no `requires` or `sequence` edge between two members           | "3.2 waits on 3.1"                                |
-| each member a local, automatic leaf (not manual, not a gate)   | "3.2 is not a local automatic leaf"               |
-| no member has an earlier attempt or was split                  | "3.1 already ran alone" / "the batch was split"   |
-
-`waitingForBatch` keeps ready members of a live or incomplete group out of
-free slots. A routed tick still requires the leader on the local crew and
-every member allowed there (R46.4 as before); a member that cannot run
-there makes the group run alone with "3.2 cannot run on this machine".
-`batchRules(store, data, task)` returns `{group, problem}` for reads, so
-the task's details and its card show the same reason the tick used, with no
-write in the tick.
-
-**Run, check, split.** Unchanged from §4.11: `batchBrief`, one commit and
-one `done` per task, checks and review on the last commit, `splitBatch` on
-failure with no attempt cost and `batchSplit` on each delivery. The
-`flow_batches` record gains `reason`. Merge batches (the `merge-batches`
-spec) do the test-once and bisect on landing; batching adds no landing
-step.
-
-**No setting.** `FLOW_DEFAULTS.batch`, `BATCH_BY` and the `batch.*` keys of
-`FLOW_KEYS` are removed. `flowSection` drops a `batch` group silently (as it
-does `lessons`), so an old `.avoozl.json`, a repository's `flow` or a pack's
-`settings.flow` with `batch` loads, saves and imports. Settings > Flow loses
-its Batching box. A retro settings proposal can no longer name a batch key,
-because it is not a Flow key; a stored one is refused at Approve as "not a
-flow setting". `delivery.investigate.mode: not-small` skips leaves with a
-`batch`. Radar coder's `planProjectionBatches` (radar-coder D4.2) suggests
-the planner's groups, open and unblocked, instead of grouping `size: "small"`
-tasks.
-
-**Show.** `deliveryView` keeps `batch` (the run's ID) and adds to each
-grouped item `batchGroup: {id, group, tasks, leader, reason, state}` (`id`
-is the run once it has one) and `alone: "<reason>"` for a grouped task that
-runs alone. The Delivery page folds a live batch into one In progress card
-keyed by the leader: the reason, then each member's ID and title, each
-opening that task's details. The task's details (Overview) show **Batch**
-with the group ID linking to the leader's details, the other members and
-the reason, and **Runs alone** with the reason when the group broke a rule.
-
-**Prompt.** `prompts/planner.md` says: group related leaves in the same
-repository and area by default, with no task limit; split only at a
-boundary two workers can truly work in parallel, or for a hard reason;
-never split just to land tasks one at a time; never group tasks that
-depend on each other, tasks in different repositories, a manual leaf, or a
-task that needs its own review or investigation; one line of reason.
-`prompts/retro.md` asks the retro to flag a spec whose related tasks
-landed as many small pull requests.
-
-**Tests.** `src/app/flow/test/flow-batch.test.mjs`: a planner group dispatched as
-one handoff and its members waiting for each other; each rule of the table
-dispatched alone with its reason; a related group of 12 tasks dispatched
-as one handoff; a failing batch split, each task alone at no attempt cost. `flow.test.mjs`: no batch key in `FLOW_KEYS`, and an old
-`flow.batch` ignored on load and save. `spec-plans` tests: shape errors, an
-old `size` ignored. UI tests: the batched card and the task's Batch row;
-screenshots under `docs/evidence/agent-batching/`.
-
-shortcut: a group holds tasks of one spec only; upgrade if the planner
-needs to batch across specs.
-
 ### 4.38 Approval delegation and exact-set approval
 
 Added 2026-11-18 (Requirement 109).
@@ -4663,8 +4493,7 @@ git, not kept in it.
 
 ### 4.40 Task facts live in tasks.md
 
-Added 2026-11-18 (Requirement 111). Replaces `avoozl/manifest.json`; changes
-§6.8, §6.9 and the task keys of §4.32.6, §4.35 and §4.37.
+Requirement 111.
 
 **Why.** Two files described each task: the title in `tasks.md`, its
 repository, edges, checks and acceptance in a JSON file keyed by the same ID.
@@ -4691,56 +4520,44 @@ repo: avoozl
     - $done: The migration runs twice with no change the second time
 ```
 
-Changed 2026-11-19 (owner decision): the `Facts:` bullet and its nested
-`key: value` bullets are gone. A `Facts:` layer made every task two levels
-deep and its `done` list three, which was hard to read and easy to
-mis-indent; a `$` on the fact itself marks it without the layer.
-
-| Key | Was (manifest) | Value |
+| Key | Stored as | Value |
 | --- | --- | --- |
-| `kind` | `kind` | `leaf` (the default) or `package` |
 | `repo` | `repository` | one text |
-| `summary`, `completion`, `phase`, `batch`, `authority`, `route`, `type`, `milestone`, `iteration`, `scope`, `track`, `repositoryId`, `taskId`, `nextAction`, `distinctReason`, `acceptFrom`, `verify`, `ship` | the same name | one text |
+| `type` | `type` | one text |
 | `done` | `acceptance` | list |
-| `sequence`, `supports`, `unblocks`, `tags`, `resources`, `paths`, `labels`, `needs` | the same name | list |
-| `after` | `requires` | list; an entry may end `:<completion>` |
+| `after` | `requires` | list of task IDs |
+| `paths` | `paths` | list |
 | `manual`, `investigate` | the same name | `true` or `false` |
-| `session`, `tracker` | the same name | one line of JSON |
-| `plan`, `summary`, `step` | an epic's entry | text, in an epic folder |
+| `plan`, `step` | an epic's entry | text, in an epic folder |
+
+An item with sub-items is a package and every other item a leaf. A leaf
+with no `$done` takes each plain bullet under it as one result. The `##`
+heading above a task is its phase.
 
 A list is `$key: a, b`, or the same fact written again, each bullet adding
 to the list. `$done` is one result per bullet and is never split on commas,
 so a result may hold one; Avoozl writes one `$done:` bullet per result.
 Nothing nests under a fact. A comma inside backticks does not split.
-`$paths` reads a Files note as written (changed 2026-11-19, owner request):
+`$paths` reads a Files note as written:
 each item's backticks, a note in parentheses after it, such as `(new)`, and
 a sentence's closing period are not part of the path.
 
-Changed 2026-11-18: there is no `checks` fact and no `checks` default.
-Every task runs its repository's checks (§5.2); a `$checks` fact or a
-`checks` front-matter line is the error `facts.removed-key`, "Every task runs
-the repository's checks; delete this line." A stored record's task list is
-dropped when it is read.
+Every task runs its repository's checks (§5.2).
 
-**Front-matter keys.** `repo`, `completion` (defaults for leaves);
-`ship`, `integrationBranch`, `integrationSync`, `forwardTarget`,
-`publicBranch`, `kind: epic` (the spec); `phase-<id>: <title>` and
-`batch-<id>: <reason>`. A batch group's members each write `$batch: <id>`, so
-the group's task list is read from the members and its reason sits once in
-front-matter. This is the simplest home: no heading carries prose, a task's
-bullet names its own group, and a reader sees both without a second file.
+**Front-matter keys.** `repo` (the default for leaves); `integrationBranch`,
+`integrationSync`, `kind: epic` (the spec).
 
 **Reader.** `spec-facts.mjs` turns `tasks.md` into the object `parseSpec`
-already read from the manifest, `{tasks, ship, phases, batches, ...}`, plus
-the line of each bullet. `parseSpec`, `lintSpec`, `proposeSpecWork`, the
+reads, `{tasks, integrationBranch, ...}`, plus the line of each bullet. `parseSpec`, `lintSpec`, `proposeSpecWork`, the
 spec page, review tabs, graph, spec pull request adoption, import and the
-plan-review view take the facts from it. A default fills a leaf's missing
-`repo` and `completion`; a package takes none. Diagnostics name
+plan-review view take the facts from it. The default fills a leaf's missing
+`repo`; a package takes none. Diagnostics name
 `tasks.md` and the bullet's line. A leftover `avoozl/manifest.json` is one
 error, `spec.manifest-left`, and nothing reads the file.
 
 **Lint codes** (errors): `facts.unknown-key` (a `$` fact Avoozl does not
-know), `facts.duplicate-key` (a one-value fact written twice), `facts.value`
+know), `facts.removed-key` (a fact or key outside the set above, with what to
+do), `facts.duplicate-key` (a one-value fact written twice), `facts.value`
 (a wrong value, or anything nested under a fact), `facts.misplaced` (a `$`
 fact that is not directly under a task item), `facts.stray` (a bullet such
 as `done:` under an item that reads as a fact without its `$`),
@@ -4786,7 +4603,7 @@ the old reader's tasks for each spec, checked while the spec is unchanged
 since the conversion.
 
 **Tests.** `spec-facts.test.mjs`: each key, each refusal with its line,
-defaults and packages, an epic folder, a batch group, a leftover manifest.
+defaults and packages, an epic folder, a leftover manifest.
 `spec-plans.test.mjs` and the fixtures write `$` facts. A hash test: an
 inline list and repeated bullets hash the same, marks stay outside, and a
 changed fact changes it. `facts-blocks.test.mjs`: a `Facts:` block is
@@ -4825,7 +4642,6 @@ compares the `[x]` items with the database:
   `reopen` returns the task to planned, and with `keep` clears the item.
 - Marks stay outside the revision hash (`withoutMarks`), so none of this
   creates a revision, an approval or a GitHub change by itself.
-- A task with `acceptFrom: validation` is skipped (Requirement 38.4).
 - Lint reports `task.ticked-unknown-id` for a ticked item with no task ID.
 
 **Write side: ticks are the shared state.** Each machine's SQLite is private,
@@ -4849,8 +4665,7 @@ is found from the tick commit (§4.31, R101.14).
   completing task's `integration.commit`. A fresh database finds the same
   commits from git.
 - A `Built:` line a person wrote is read into `task.built` and looked up
-  first. `readFacts` skips a `$built` fact, so it is neither a manifest value
-  nor hashed text. Avoozl writes none.
+  first. Avoozl writes none.
 - shortcut: in a merge batch only the head gets a push run, so a member's
   own landing merge has no CI of its own on another machine; the landing
   machine looks up its `integration.commit`, the batch head. Upgrade: map a
@@ -4912,7 +4727,7 @@ add no attribution, and never push spec edits to main.
 worker bindings, attempts, usage and Flow spans (at most 200) when it is
 queued to land, directly or by pull request. `landingMessage` writes them
 under its `Avoozl-Task:` line, one `Avoozl-Span: ID STAGE START END ROLE
-ATTEMPT SOURCE BATCH` line per span. A direct landing's merge commit carries
+ATTEMPT SOURCE` line per span. A direct landing's merge commit carries
 it (`merge-batch.mjs`); a pull request landing passes it as the merge's
 `commit_message` (`landing-pulls.mjs`, `mergePullRequest`), so GitHub's
 squash commit on main carries the same block. A private task's public name
@@ -5301,14 +5116,6 @@ a picked repository check missing from the report as not run (Requirement
 acceptance now also needs every repository check present at the current
 commit.
 
-**`acceptFrom: validation`.** A fact on a leaf, linted like
-`completion`. It changes `task.accept` and `task.update` as Requirement 38.4
-says. A leaf whose repository has review roles gets the same `task.update`
-refusals (Requirement 36.11) whether or not it sets the flag. The
-multi-step rewrite flow sets it on each writer leaf and lists that
-repository's validation script as one of its checks, so the checks role runs
-it on the exact commit and acceptance can only come from its pass.
-
 **Supersede by hand.** `task.supersede` (`avoozl task supersede`,
 `plans_task {action: "supersede"}`) takes `{id, create}` and, in one transaction,
 creates the new task, copying the old task's `requires` and `sequence`
@@ -5335,18 +5142,17 @@ the head moves. It is not part of the first cut (Requirement 36.13).
 | Choice                                                             | Why                                                                                                                                                                                                                                                                                                                                     |
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Reviews are roles on one delivery, not review tasks in the graph   | A delivery already ties a verifier to the writer's exact commit, retries, and holds history (F56, F57). Review tasks would need integration-free acceptance, a fake integration record, supersede chains for every rework, and edges from every dependent to every review. Roles need none of that, and the graph stays the user's plan |
-| No dedicated task kind for reviews                                 | Same reason: a review has no repository change, no completion level, and no dependents of its own                                                                                                                                                                                                                                       |
+| No dedicated task kind for reviews                                 | Same reason: a review has no repository change, no landing, and no dependents of its own                                                                                                                                                                                                                                       |
 | `distinctFrom: model` is the default                               | Rule 2 forbids a reviewer sharing the writer's model. A new session alone is already guaranteed; the model is what reviewers would share otherwise                                                                                                                                                                                      |
 | Unknown model shuts the gate                                       | Kiro Crew does not report the model a session ran on (F65), so Avoozl relies on the model it asked for. When it did not ask (`auto`, or a conductor that names none) it cannot prove the rule and asks a person                                                                                                                         |
 | Split focus                                                        | Two reviewers with one focus each catch more than two reviewers skimming everything. The focus is text in policy so each repository picks its own                                                                                                                                                                                       |
 | Verdicts name their commit; a moved head makes them stale          | Rule 3: the review judges what merges. Comparing the stored commit is enough; no timer or invalidation step is needed                                                                                                                                                                                                                   |
 | Re-review after a rebase that changes the commit                   | A rebase can change behavior. With one writer per repository the base rarely moves, so the extra round is rare                                                                                                                                                                                                                          |
 | Rework is a new attempt, not a superseded task                     | The retry path already keeps the worktree, quotes the cause, bounds retries, and keeps history (F57). Superseding for each rework would grow the graph and need edge tricks                                                                                                                                                             |
-| Closure checked in Avoozl, domain rules in the repository's script | The fixed-or-unchanged check is generic: paths and diffs. What a rewrite run must contain is that repository's business, so its validation script runs as a repository check, and Avoozl gains only `acceptFrom`                                                                                                                        |
+| Closure checked in Avoozl, domain rules in the repository's script | The fixed-or-unchanged check is generic: paths and diffs. What a rewrite run must contain is that repository's business, so its validation script runs as a repository check, and Avoozl adds no field for it                                                                                                                            |
 | Task's own diff via patch-id                                       | A plain diff between two commits also shows base changes after a rebase, which would let `fixed` pass on someone else's edit                                                                                                                                                                                                            |
 | Not-run fails the checking session, not the writer                 | A missing tool is not the writer's fault; today it costs a worker retry (F62). It still never passes                                                                                                                                                                                                                                    |
-| `acceptFrom`, not `acceptance`                                     | `acceptance` already holds criteria text on every task (F66)                                                                                                                                                                                                                                                                            |
-| Typed integration refused where reviews or `acceptFrom` apply      | `task.update` can set `integration` or `accepted` directly (F60), which would skip every gate this section adds                                                                                                                                                                                                                         |
+| Typed integration refused where reviews apply                      | `task.update` can set `integration` or `accepted` directly (F60), which would skip every gate this section adds                                                                                                                                                                                                                         |
 | Supersede resolves on read                                         | Plan approval rebuilds plan edges (F64), so a rewritten edge would snap back on the next approval                                                                                                                                                                                                                                       |
 | Supersede only for local authority                                 | GitHub and plugin rows are caches of their tracker (Requirement 19.3)                                                                                                                                                                                                                                                                   |
 | No separate writer limit (changed 2026-11-18)                      | Each task writes in its own worktree and landing merges one head at a time, so the machine's lanes are the only cap (Requirement 6.3). A second mechanism would only drift from it                                                                                                                                                        |
@@ -5531,9 +5337,8 @@ GitHub closes every leaf issue (Requirement 33):
     records the order in the SQLite receipt and in the marker's `order`
     field (§3.4), releases dependents, and recomputes readiness in the same
     tick. It starts no new session for the task and leaves a running one
-    alone. The order satisfies every completion level on a `requires` edge,
-    including `merged-pr` and `integrated`, so a dependent can start on code
-    that never merged. The owner accepts that risk. The Delivery view shows
+    alone. The order satisfies every `requires` edge on the task, so a
+    dependent can start on code that never merged. The owner accepts that risk. The Delivery view shows
     "Closed without merged code by <actor>" beside the task.
   - **Not allowed, or no readable closer: held.** Dependents stay held even
     though GitHub shows them unblocked, and Avoozl opens a decision. It does
@@ -5900,25 +5705,14 @@ kind: epic
 | `spec.epic-task-fields`        | error    | An entry holds a key other than `plan` and `summary` (`memberPlan` included)                               |
 | `spec.epic-bugfix`             | error    | The epic folder has `bugfix.md`                                                                            |
 | `spec.epic-unknown`            | warning  | A plan's `epic:` names no epic folder, or one that does not list it                                        |
-| `spec.kind-epic`               | error    | A plan's task has `kind: epic`; use `package`                                                              |
-| `facts.unknown-key`            | error    | A task has an `epic` fact, or front-matter has `epics`; use `phase` and `phase-<id>` (was `spec.entry-epic`) |
+| `facts.unknown-key`            | error    | A task has an `epic` fact, or front-matter has `epics`; use a `##` heading |
 
-**Phases.** A task's phase is, in order: its `phase` fact; otherwise the nearest heading of level 2 or lower above its item in
-`tasks.md`; otherwise **No phase**. The heading's text is the title, and
-its slug is the ID, made unique within the plan by a `-2` suffix.
-`tasks.md` front-matter may name titles for `phase` values:
-
-```markdown
----
-phase-w1: W1: core execution
----
-```
-
-A `phase` value with no title shows its ID. A heading renamed in
-`tasks.md` changes the phase ID; no issue or edge depends on it, so
-nothing else moves. Phases never add edges, readiness, or completion. A
-heading-only plan such as this spec gets its phases from its
-`## Phase N: ...` headings with no `phase` facts.
+**Phases.** A task's phase is the nearest heading of level 2 or lower above
+its item in `tasks.md`; otherwise **No phase**. The heading's text is the
+title, and its slug is the ID, made unique within the plan by a `-2`
+suffix. A heading renamed in `tasks.md` changes the phase ID; no issue or
+edge depends on it, so nothing else moves. Phases never add edges,
+readiness, or completion.
 
 **No invented groups.** The `doc:` form goes away. Capture and catalog
 paths stop creating `doc:<path>` epics; a captured task keeps its source
@@ -6026,7 +5820,7 @@ their new parent, the plan issue; nothing is closed or recreated.
 | ---------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | Graph            | Top level: epics and **No epic**; drill to member plans                                                    | Plan drill-in: phases, then tasks; **No phase** last   |
 | Delivery         | Filter; row shows plan and phase                                                                           | Filter, enabled once a plan is picked                  |
-| Flow             | Filter                                                                                                     | Filter; `flow.batch.by: "phase"` (`epic` is refused)   |
+| Flow             | Filter                                                                                                     | Filter                                                 |
 | Dashboard        | **Progress by epic**: one row per epic over all member plans' tasks, plus **No epic**                      | —                                                      |
 | Plans            | Filter and an Epic column; epic folders listed with kind **Epic**                                          | —                                                      |
 | Plan left column | The plan's epic as a link to its epic page                                                                 | Phases with progress, replacing today's per-plan epics |
@@ -6063,8 +5857,7 @@ The script calls only existing operations (`plan.save`, `task.archive`,
    `package`, per-entry `epic` to `phase`, `epics` to `phases`; an epic
    folder gets the top-level `"kind": "epic"`, and its entries keep only
    `plan` (renamed from `memberPlan`) and `summary`.
-7. `flow.batch.by: "epic"` becomes `"phase"` in each `.avoozl.json`.
-8. Run it again; it finds nothing to change. Nothing is approved, no
+7. Run it again; it finds nothing to change. Nothing is approved, no
    session is started or stopped, nothing is written to GitHub, and
    nothing is pushed. Rewritten plans come back as drafts for the owner to
    approve; the next projection preview shows the GitHub side.
@@ -6789,7 +6582,7 @@ Where delivery time goes, and what the last retro proposed.
   when it is in. **Run a retro now** starts one by hand. Empty: "A retro runs
   after 10 finished tasks."
 - **Task drawer.** A **Timing** fold after **Delivery**: the task's bar,
-  each span's stage, length, and source, and the batch it ran in.
+  and each span's stage, length, and source.
 - **Dashboard banner.** While a stop is open, above every other section:
   "Line stopped: `npm test` fails on `main` since `abc1234` (task 3.2).
   Fix: 3.2.fix-1, running. 4 tasks paused." with **Open fix task** and
@@ -7290,7 +7083,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P27   | Review gates with fake writers and reviewers: two review roles on distinct models gate integration of the exact commit, changes requested rework the same delivery, closures are checked against changed files, a not-run check keeps the gate shut without costing a writer attempt, a rebase forces re-review, typed paths around the gate are refused, and supersede survives plan re-approval (Phase 9)                                                                                                                                                                                                                                             |
 | P28   | Content rules with a fake terms file and a fake rules plugin: every boundary blocks a match and opens a decision without logging the term, agent calls are refused in-call, allow once passes one exact write, a missing or broken set fails closed, the built-in screens behave as before, and the terms never reach Git (Phase 10)                                                                                                                                                                                                                                                                                                                    |
 | P29   | Retired 2026-11-18 (Phase 11) |
-| P30   | Flow with fake workers and scripted timings: spans from tool calls and from markers, a batch that runs once and splits on failure, a breaking commit that stops dependent work and resumes on green after a fix task, a flaky check that does not stop, local checks first refusing a push, and a retro proposal approved and then PDCA-checked into a revert proposal (Phase 12)                                                                                                                                                                                                                                                                       |
+| P30   | Flow with fake workers and scripted timings: spans from tool calls and from markers, a breaking commit that stops dependent work and resumes on green after a fix task, a flaky check that does not stop, local checks first refusing a push, and a retro proposal approved and then PDCA-checked into a revert proposal (Phase 12)                                                                                                                                                                                                                                                                       |
 | P31   | The Untriaged list with a fake GitHub: rule matches, triage labels, managed labels, and task-linked items are left out; the filter's default and errors; one cached read per interval; a failed read keeps items; the hand-off links and their fallback; Local only hides the tab; one batched notice; then a live read-only count on real repositories (Phase 13)                                                                                                                                                                                                                                                                                      |
 | P32   | Incoming items from a fake plugin source and a fake MCP caller: one record and pipeline for both, dedup and stale replays, the cursor kept on failure, content rules quarantining at intake, `source:` rules, who counts for each source, updates and closes following the allowed-close rule, a review that never delivers, every source in Untriaged, and GitHub intake and the GitHub Untriaged list unchanged (Phase 14)                                                                                                                                                                                                                            |
 | P33   | Superseded 2026-11-13 by P29 and P44: rules and weighted choices are removed. Agent and model per task with fake crews and fake agents: no `session` changes nothing, the order of sources holds, weighted choices split a batch as computed, retries keep the model, review distinctness skips colliding choices, a missing agent rules a crew out (Phase 11)                                                                                                                                                                                                                                                                                          |
@@ -7342,10 +7135,10 @@ Detailed in `tasks.md`. **Proposed** order:
 | 6. Move an existing workspace                                                 | Migration on a copy, cutover to planning-repository issues and the Project, then stale-plan cleanup and the move to spec folders                                                                                                                                                                                                                                    | P14, P22, P23                                                                                                       |
 | 7. Release                                                                    | Docs, license audit, scans, npm and app publish                                                                                                                                                                                                                                                                                                                     | P15                                                                                                                 |
 | 8. Later                                                                      | Plugin seam: loading and consent (§4.8); deferred GitHub features                                                                                                                                                                                                                                                                                                    | Only after P1–P25 pass; the seam also waits for a second real route (§14); then P26                                 |
-| 9. Review gates                                                               | Review roles on a local delivery, findings closure, not-run checks, `acceptFrom: "validation"`, supersede by hand (§5.2); GitHub pull-request reviews as verdicts later                                                                                                                                                                                             | Starts after Phase 2's proofs, independent of Phases 3–8; P27                                                       |
+| 9. Review gates                                                               | Review roles on a local delivery, findings closure, not-run checks, supersede by hand (§5.2); GitHub pull-request reviews as verdicts later                                                                                                                                                                                             | Starts after Phase 2's proofs, independent of Phases 3–8; P27                                                       |
 | 10. Content rules                                                             | One matcher for banned terms at every write and approval boundary; terms outside Git; built-in sets from today's screens; rules plugins (§4.9)                                                                                                                                                                                                                      | Starts after Phase 2's proofs; GitHub and plugin tasks also wait for the tasks that built those boundaries; P28     |
 | 11. Retired                                                                   | Removed 2026-11-18. Only the `session` facts and the crew snapshot remain (§4.10)                                                                                                                                                                                                                                                                                          | None |
-| 12. Flow                                                                      | Flow timing, stop the line, local checks first, batching, retrospectives with PDCA, the Flow tab and settings (§4.11, §8.4)                                                                                                                                                                                                                                         | Starts after Phase 2's proofs; GitHub timing and local checks first also wait for 3.11, 4.7, and 10.4; P30          |
+| 12. Flow                                                                      | Flow timing, stop the line, local checks first, retrospectives with PDCA, the Flow tab and settings (§4.11, §8.4)                                                                                                                                                                                                                                         | Starts after Phase 2's proofs; GitHub timing and local checks first also wait for 3.11, 4.7, and 10.4; P30          |
 | 13. Untriaged                                                                 | Untriaged filter and triage labels, the cached read in the tick, `untriaged.view`, the Untriaged tab and Dashboard count, the optional notice (§8.5)                                                                                                                                                                                                                | Starts after Phase 2's proofs and after 3.13 and 3.14; exact hand-off links wait for MC-14 (13.6); P31              |
 | 14. Incoming items                                                            | One incoming-item record in SQLite; `intake.submit`, `intake.list`, `intake.view` on the page, CLI, and MCP; plugin `poll` and MCP submit; the `intake` content boundary; `source:` rules and who counts per source; updates and closes; reviews to the Code review chat; every source in Untriaged; GitHub intake and the Untriaged read moved onto the record (§4.12) | Starts after Phase 2's proofs and after 8.7, 10.6, 13.3, and 13.4; the `review` action waits for MC-15 (14.11); P32 |
 | 15. Pull request feedback                                                     | Failed checks, reviews, conflicts, and auto-merge state on worker pull requests sent back to the worker, with a round bound (§4.13)                                                                                                                                                                                                                                 | Starts after Phase 2's proofs and after 4.7 and 10.4; P34                                                           |
