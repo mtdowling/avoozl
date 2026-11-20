@@ -149,7 +149,6 @@ const OPEN = new Map([
       "port",
       "host",
       "url",
-      "runner",
       "agentInstructions",
       "conversations",
       "repositories",
@@ -173,22 +172,6 @@ const OPEN = new Map([
       "specs",
     ],
   ],
-  // readRunnerConfig in remote-runner.mjs.
-  [
-    "#/$defs/runner",
-    [
-      "role",
-      "crewId",
-      "agents",
-      "executor",
-      "workerMode",
-      "remote",
-      "checkTimeoutSeconds",
-      "checks",
-      "repos",
-    ],
-  ],
-  ["#/$defs/runner/properties/checks/additionalProperties", ["argv"]],
 ]);
 
 // Keys a validator accepts only so an old file loads, and never reads.

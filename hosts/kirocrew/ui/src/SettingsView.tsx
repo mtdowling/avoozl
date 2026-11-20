@@ -68,7 +68,6 @@ import { errorMessage, workspaceClient, type Repository, type WorkspaceList } fr
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading } from './ui/controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
-import { ThisComputer } from './Driver.tsx'
 import { NoticesSettings } from './NoticesSettings.tsx'
 import { TelemetrySettings } from './TelemetrySettings.tsx'
 import { ErrorText } from './ui/ErrorText'
@@ -1026,7 +1025,6 @@ function SettingsBody(
     return (
       <Box flex flexCol gap="3.5">
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
-        <ThisComputer workspaceId={workspaceId} />
         <NoticesSettings workspaceId={workspaceId} />
         <TelemetrySettings workspaceId={workspaceId} />
       </Box>

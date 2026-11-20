@@ -1,12 +1,11 @@
 # People and machines
 
-An epic spreads across people by giving each of its specs one driver. Every
-Avoozl reads the shared state from git, so no one machine holds the work for
-the others. Spreading one person's work over several machines is that
-person's own agent's job, such as a Kiro Crew ultra mode run.
+An epic spreads across people by assigning each of its specs to one person.
+Every Avoozl reads the shared state from git and GitHub, so no one machine
+holds the work for the others. Claim branches keep two machines off one task.
 
 ```sh
-avoozl driver status
+avoozl next
 avoozl tick
 avoozl rebuild --workspace ~/plans
 ```
@@ -15,33 +14,19 @@ avoozl rebuild --workspace ~/plans
 
 An epic is a parent spec whose task titles link one spec per part of the
 work, as [linked specs](github-workflow.md) describe. Each linked spec is
-approved and released on its own, and each has one driver: the one machine
-that starts its tasks, writes to GitHub for it, and lands it. Give each spec
-to the person who runs that part, and their machine runs its lane. Every other
-Avoozl only reads that spec.
-
-In a GitHub mode, the spec issue's one assignee is the driver, and that
-person's Avoozl drives it. A spec with no spec issue is not shared, and the
-machine that holds it drives it. `avoozl driver status` says who drives each
-spec, and why this machine only reads:
-
-```sh
-avoozl driver status recipe-box
-avoozl driver set --label "Draco"
-```
-
-`driver set --label` names this machine in the driver banner and status.
+approved and released on its own. Give each spec to the person who runs that
+part by assigning its spec issue to them: their runner starts its tasks, and
+every other runner leaves it alone. A spec with no spec issue is not shared,
+so every machine that holds it runs it.
 
 A spec can wait on another when a parent spec links both and lists one first.
 See [Linked specs](github-workflow.md#6-linked-specs) for the rules.
 
 ### Handing off a spec
 
-Push the branch you were working on, mention the spec issue in it, and
-reassign the spec issue on GitHub. The new assignee's Avoozl drives the spec
-from its next tick; unassigning releases it. Nothing moves the role because a
-machine went quiet. See [Drivers](drivers.md) for what each machine sets up
-again.
+Reassign the spec issue on GitHub. Each claim branch the old runner pushed
+stays, and the new runner resumes it. Nothing moves the spec because a machine
+went quiet.
 
 ## Shared state in git
 
@@ -54,7 +39,8 @@ database is a cache that every machine builds from the same commits:
 | Approval | A commit on main that changes the spec's files, authored by an approver |
 | Task done | The tick in `tasks.md` on the spec's base branch |
 | Landing record | `Avoozl-Task:` trailers on the landing commit |
-| Driver | The spec issue's assignee on GitHub |
+| Who runs a spec | The spec issue's assignee on GitHub |
+| Who holds a task | Its claim branch on origin |
 
 A tick another person lands counts on your machine at your next tick, and so
 does one committed by hand. An approval counts on every machine that pulls
@@ -95,8 +81,8 @@ avoozl runner status --json
 ```
 
 `avoozl status` names the workspace, each workspace's last pass and this
-machine's agents, and `avoozl runner status --json` lists the worker's tasks
-and their states. A
+machine's agents, and `avoozl runner status --json` lists this machine's
+process children. A
 harness runs only after a person on that machine approves it with
 `avoozl harness approve NAME`. See
 [Getting started](getting-started.md#approve-a-harness) for harness files.
@@ -134,16 +120,6 @@ for the roles and the ones that still run as Kiro Crew chats.
 
 ## Limits
 
-Who is working on what is shared per spec, not per task: the spec issue's
-assignee names the person who drives it, and the Specs list shows it on each
-row. Which of that spec's tasks are running, or held with `avoozl take`, is
-known only to the driver's own database until each tick reaches main. A
-coworker who wants to know whether a task is in progress asks its spec's
-driver.
-
-Other limits:
-
 - A spec with no spec issue shows "Not shared": two machines that both hold
-  it both drive it.
-- In Local only mode there is no spec issue, so this machine drives every
-  spec and a spec cannot move between people's machines.
+  it both run it, and only the claim branches keep them off one task.
+- In Local only mode there is no spec issue, so this machine runs every spec.

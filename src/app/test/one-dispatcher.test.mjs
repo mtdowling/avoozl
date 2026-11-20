@@ -18,12 +18,8 @@ import { loopOn } from "./fixtures.mjs";
 loopOn();
 
 const APP = fileURLToPath(new URL("..", import.meta.url));
-// The tick's planner (planReadyDispatches) and the worker machine's own tick
-// (runnerTick, a pulled task).
-const PLANNERS = new Set([
-  "delivery/delivery.mjs",
-  "workers/remote-runner.mjs",
-]);
+// The tick's planner (planReadyDispatches).
+const PLANNERS = new Set(["delivery/delivery.mjs"]);
 const REQUEST = /\b(kirocrewRequest|startRequest|enqueueSessionRequests)\(/g;
 
 // The modules whose source asks for a session with role worker: a request

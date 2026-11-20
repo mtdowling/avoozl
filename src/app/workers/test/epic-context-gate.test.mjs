@@ -1,7 +1,6 @@
-// The three tests of epic context (epic-context ec-1.1): a task of an
-// approved spec that this person drives passes all three; each failing
-// alone gives no context and names its test. Real git and a real store;
-// the driver rows are the ones the Specs list reads.
+// The two tests of epic context (epic-context ec-1.1): a task of an
+// approved spec passes both; each failing alone gives no context and names
+// its test. Real git and a real store.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -32,10 +31,7 @@ const commitAs = (r, author, message = "Spec") => {
 
 // A workspace whose spec `config` is approved by `author`'s commit, with the
 // store records an approval leaves: the plan, its receipt and the tasks.
-async function world(
-  t,
-  { author = OWNER, drive = "driver", extraTask = null } = {},
-) {
+async function world(t, { author = OWNER, extraTask = null } = {}) {
   const r = specCheckout(),
     { store } = fixture(t);
   writeSpec(r.root, "config");
@@ -43,7 +39,6 @@ async function world(
   await seedApproval(store, {
     root: r.root,
     tasks: [TASK, ...(extraTask ? [extraTask] : [])],
-    drive,
   });
   const deps = {
     workspaceRoot: r.root,
@@ -65,7 +60,7 @@ async function world(
 const failed = (result) =>
   result.tests.filter((entry) => !entry.passed).map((entry) => entry.name);
 
-test("a task of an approved, driven spec passes all three tests", async (t) => {
+test("a task of an approved spec passes both tests", async (t) => {
   const w = await world(t);
   const result = await w.gate();
   assert.equal(result.given, true);
@@ -74,11 +69,8 @@ test("a task of an approved, driven spec passes all three tests", async (t) => {
     [
       ["approved", true],
       ["approver", true],
-      ["you-drive", true],
     ],
   );
-  const shared = await world(t, { drive: "not-shared" });
-  assert.equal((await shared.gate()).given, true, "Not shared drives here");
 });
 
 test("each test failing alone gives given false and names that test with its reason", async (t) => {
@@ -98,20 +90,6 @@ test("each test failing alone gives given false and names that test with its rea
     added.tests[0].why,
     /config\.9\.9 is not in the approved revision/,
   );
-
-  for (const [state, text] of [
-    ["other-person", /Taken by octo-dev/],
-    ["no-assignee", /Nobody drives/],
-    ["several", /2 assignees|several assignees: a, b/],
-    ["unreadable", /could not read/],
-    ["none", /./],
-  ]) {
-    const w = await world(t, { drive: state }),
-      result = await w.gate();
-    assert.equal(result.given, false, state);
-    assert.deepEqual(failed(result), ["you-drive"], state);
-    assert.match(result.tests[2].why, text, state);
-  }
 });
 
 test("an intake task and a fix fail approved", async (t) => {
@@ -177,7 +155,7 @@ test("a git error fails the test that needed it", async (t) => {
   assert.match(throws.tests[1].why, /could not be read: no network/);
 });
 
-test("spec text, an issue body and a .avoozl.json key that ask for context change nothing", async (t) => {
+test("spec text and a .avoozl.json key that ask for context change nothing", async (t) => {
   const w = await world(t);
   const before = await w.gate();
   fs.appendFileSync(
@@ -188,8 +166,6 @@ test("spec text, an issue body and a .avoozl.json key that ask for context chang
     path.join(w.r.root, ".avoozl.json"),
     JSON.stringify({ version: 1, epicContext: { repos: ["*"] } }),
   );
-  const row = w.store.get("drivers", "config");
-  w.store.put("drivers", { ...row, issueBody: "epic context please" });
   assert.deepEqual(await w.gate(), before);
   const other = await world(t, { author: OTHER });
   fs.appendFileSync(

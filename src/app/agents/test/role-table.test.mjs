@@ -59,7 +59,6 @@ test("no module outside the Kiro Crew executor defaults a request to kirocrew", 
     "session-bindings.mjs",
     "page-views.mjs",
     "retro-chat.mjs",
-    "remote-runner.mjs",
   ]);
   for (const file of sources(app)) {
     if (file.endsWith(path.join("executors", "kirocrew.mjs"))) continue;

@@ -9,9 +9,6 @@
     "$schema": {
       "type": "string"
     },
-    "runner": {
-      "$ref": "#/$defs/runner"
-    },
     "version": {
       "const": 1
     },
@@ -619,63 +616,6 @@
         },
         "model": {
           "$ref": "#/$defs/chatModel"
-        }
-      }
-    },
-    "runner": {
-      "type": "object",
-      "description": "Worker mode, off unless role is set. A worker runs the task envelopes it accepted. Machine paths (repos) belong in ~/.config/avoozl/config.json.",
-      "properties": {
-        "role": {
-          "enum": ["worker"]
-        },
-        "crewId": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
-        },
-        "agents": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "executor": {
-          "description": "What runs the session: a Kiro Crew chat, or a process child of the supervisor.",
-          "enum": ["kirocrew", "process"],
-          "default": "kirocrew"
-        },
-        "workerMode": {
-          "description": "How an unattended worker's tool calls are approved. Off unless set.",
-          "enum": ["trust", "trust_reads"]
-        },
-        "remote": {
-          "type": "string"
-        },
-        "checkTimeoutSeconds": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "checks": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "required": ["argv"],
-            "properties": {
-              "argv": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "repos": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object"
-          }
         }
       }
     },

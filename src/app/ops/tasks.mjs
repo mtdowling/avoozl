@@ -401,7 +401,9 @@ export const entries = [
         data = this.read();
       return panelView({
         conflicts: async () => (await sub("conflicts.view")).items,
-        remote: async () => (await sub("remote.view")).workers,
+        // shortcut: no machine runs remote workers now, so In flight lists
+        // none; the side panel goes with the page cut (simplify sim-5.1).
+        remote: () => [],
         queue: () => sub("radar.releasequeue"),
         flow: () => ({
           tasks: flowView(store, data, { window: "10" }).tasks,

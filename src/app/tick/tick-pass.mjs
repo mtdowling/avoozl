@@ -13,7 +13,6 @@ import path from "node:path";
 import { Store } from "../store/store.mjs";
 import { Operations } from "../api/operations.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
-import { driverSettingsPath } from "../workers/driver.mjs";
 import { WorkspaceRegistry } from "../settings/host-config.mjs";
 import { prepareWorktree } from "../delivery/delivery.mjs";
 import { drainProcessRequests } from "../executors/process.mjs";
@@ -79,7 +78,6 @@ export async function tickWorkspace(
       workspaceRoot: target.workspaceRoot,
       plansRoot: target.plansRoot,
       configDirectory,
-      driver: { settingsFile: driverSettingsPath() },
       notifier: sinks,
     });
     const tick = await ops.execute("workspace.tick", { cron: true });

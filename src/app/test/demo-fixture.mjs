@@ -432,7 +432,6 @@ const SAYS = [
   ["route.", "change where this task runs"],
   ["provider", "switch a running chat to another model"],
   ["delivery.", "change delivery"],
-  ["driver.", "change this computer's driver settings"],
   ["plugin", "change plugins"],
   ["content.", "change content rules"],
   ["fix.start", "start this fix as a ready task"],

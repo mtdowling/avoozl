@@ -61,6 +61,7 @@ import { isDirectLanding, queueDirect } from "../landing/direct-landing.mjs";
 import { integrationBranchOf } from "../epics/integration-branch.mjs";
 import { specBase } from "../specs/spec-base.mjs";
 import { labelHolds } from "../specs/label-filters.mjs";
+import { assigneeHolds } from "../specs/spec-assignee.mjs";
 import { revisionFiles } from "../specs/spec-plans.mjs";
 import { specFolderPath } from "../specs/specs-path.mjs";
 import {
@@ -1682,8 +1683,9 @@ export function readyCandidates(
   } = {},
 ) {
   const line = paused ? linePausedTaskIds(store, data) : new Set(),
-    // Specs whose spec issue the label filters hold (simplify §D5).
-    labels = labelHolds(store);
+    // Specs whose spec issue the label filters (simplify §D5) or the
+    // assignee rule (workflow v1 rule 8.3) hold.
+    labels = new Map([...labelHolds(store), ...assigneeHolds(store)]);
   return queryTasks(data, {
     scope: "all",
     repositories: [...repositories.keys()],

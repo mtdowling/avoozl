@@ -213,7 +213,6 @@ test("worker consumption rechecks prerequisites, owner approval and the approved
       store.put("plans", { ...store.get("plans", "p"), state: "draft" }),
     (store) =>
       store.put("plans", { ...store.get("plans", "p"), hash: "new-hash" }),
-    (store) => store.put("drivers", { id: "p", state: "read-only" }),
   ]) {
     const { store, ops } = env(t);
     store.put("plans", { id: "p", state: "approved", hash: "approved-hash" });
@@ -270,38 +269,6 @@ test("request IDs cannot be reassigned to another executor or start target", (t)
       /cannot change/,
     );
   assert.equal(store.get("session_requests", request.id).executor, "kirocrew");
-});
-
-test("runner starts recheck their own state without requiring a local plan", async (t) => {
-  for (const record of [
-    { state: "starting" },
-    { state: "working" },
-    { state: "reported" },
-    { state: "starting", worker: { slot: "old" } },
-  ]) {
-    const { store, ops } = env(t);
-    store.setMeta("runner.tasks", { "remote-only": record });
-    const request = enqueueSessionRequests(store, {
-      starts: [
-        start({
-          task: "remote-only",
-          remote: true,
-          worktree: "/scratch/worktree",
-        }),
-      ],
-    }).starts[0];
-    const claim = await call(ops, "take", input(request));
-    assert.equal(Boolean(claim), record.state === "starting" && !record.worker);
-  }
-  const { store, ops } = env(t);
-  const request = enqueueSessionRequests(store, {
-    starts: [start({ task: "missing-remote", remote: true })],
-  }).starts[0];
-  assert.equal(
-    await call(ops, "take", input(request)),
-    null,
-    "remote flag alone does not bypass task readiness",
-  );
 });
 
 test("later real ticks reoffer pending transport rows but never claimed or completed ones", async (t) => {

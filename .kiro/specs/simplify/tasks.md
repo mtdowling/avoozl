@@ -99,7 +99,7 @@ merge, shown in chat and never committed.
   - `src/app/reviews/` holds no `plan-review-*.mjs`, `plan-reviews.mjs` or `review-findings.mjs`; `pr-review.mjs` and `github/pull-request-snapshot.mjs` are gone; the plan review operations, CLI commands and MCP tools are gone
 - [x] `sim-4.2` Make investigate a skill only [SM14.4, SM17.5] (§D10, §D20)
   - `delivery/investigate.mjs`, the falsifier stage and every `$investigate` read are gone; the `avoozl-investigate` skill tells a worker to write the findings file its task's `$done` names, and a reviewer how to try to prove it wrong (SM17.5)
-- [ ] `sim-4.3` Cut driver bookkeeping [SM2.5, SM14.1] (§D3)
+- [x] `sim-4.3` Cut driver bookkeeping [SM2.5, SM14.1] (§D3)
   - `workers/driver.mjs`, `driver-scope.mjs`, `working-heads.mjs` and `remote-runner.mjs` are gone, with the `drivers` table and the `driver` and `worker` CLI commands; the assignee rule and claim branches decide who runs a task
 - [x] `sim-4.4` Cut flow extras [SM14.1, SM14.4, SM17.3] (§D14, §D20)
   - Build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chats, retro memory and retro operations are gone from `src/app/flow/`, with `bin/build-receipt` and the `avoozl-costs` skill; `flow-retro.mjs` and `retro-files.mjs` are gone once `avoozl-retro` ships

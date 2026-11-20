@@ -15,7 +15,6 @@ itself, and lands it. These pages say how to set it up and how each part works.
   and rebuilding.
 - [Manual tasks](manual-tasks.md): steps only a person does.
 - [Delivery](delivery.md): workers, checks, landing and merge batches.
-- [Drivers](drivers.md): which workspace drives a spec, and handing off.
 - [People and machines](scale-out.md): spec lanes per person, shared state
   in git, headless machines and harnesses per role.
 - [Flow](flow.md): when work pauses, Stop the line, and retros.

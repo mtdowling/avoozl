@@ -327,15 +327,6 @@ export function globalAvoozlConfigPath({
   return path.join(configHome, "avoozl", "config.json");
 }
 
-// Runner mode over SSH was removed; a file that still names its roles is
-// refused, naming the key (worker-paths WP5.2).
-function validateRunnerRole(runner) {
-  if (["runner", "driver"].includes(runner?.role))
-    throw Error(
-      `runner.role "${runner.role}" was removed. Remove runner.role; the only role left is "worker".`,
-    );
-}
-
 // `specs`, where spec folders live: `path` (specs-path.mjs) and `branch`
 // (specs-branch.mjs). The symlink check needs the checkout, so specsPath
 // makes it when it reads.
@@ -394,7 +385,6 @@ export function loadLayeredConfig({
     selected.reduce((result, layer) => deepMerge(result, layer.value), {});
   const config = mergeLayers(layers);
   validateRoles(config);
-  validateRunnerRole(config.runner);
   validateLanes(config.lanes);
   validateSpecs(config.specs);
   validateNotifications(config.notifications);

@@ -443,7 +443,6 @@ export function viewsClient(api: AppApi) {
       for (const key of ['epic', 'phase', 'repository', 'status', 'plan', 'spec'] as const) if (filter[key]) input[key] = filter[key]
       return run<Graph>('graph.view', input, workspaceId)
     },
-    remote: (workspaceId: string) => run<{ workers: RemoteWorker[] }>('remote.view', {}, workspaceId),
     landing: (workspaceId: string) => run<LandingView>('landing.view', {}, workspaceId),
     epic: (workspaceId: string, id: string) => run<EpicView>('epic.get', { id }, workspaceId),
     delivery: (workspaceId: string) => run<{ revision: number; items: DeliveryItem[] }>('delivery.view', {}, workspaceId).then((r) => r.items),

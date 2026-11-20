@@ -13,11 +13,13 @@
 //   forced here.
 import { branchRefs, branchTip, git } from "../git/git.mjs";
 import { branchNameProblem } from "../epics/integration-branch.mjs";
-import { workingBranch } from "../workers/working-heads.mjs";
 import { fail } from "../store/store.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;
 const SPEC = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
+
+// The spec's working branch, by its opaque id.
+export const workingBranch = (spec) => `avoozl/${spec}/work`;
 
 async function tip(root, branch) {
   try {

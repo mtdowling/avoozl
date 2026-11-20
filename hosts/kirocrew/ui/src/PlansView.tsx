@@ -13,9 +13,6 @@ import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
 import NewFixDrawer from './NewFixDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
-import { DriverBanner, DriverChip, useDriver } from './Driver.tsx'
-import type { DriverSpec } from './driver-api.ts'
-import { rowDriverText } from './driver-api.ts'
 import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
 import {
   Archive,
@@ -1008,14 +1005,6 @@ export function SpecList(props: { rows: PlanRow[]; order?: SpecOrder; selected: 
                 <Box as="span" truncate>
                   {row.kind === 'epic' ? 'Epic' : (row.epicTitle ?? 'No epic')}
                 </Box>
-                {rowDriverText(row.driver) && (
-                  <>
-                    <span>·</span>
-                    <Box as="span" truncate data-spec-driver={row.driver?.reason}>
-                      {rowDriverText(row.driver)}
-                    </Box>
-                  </>
-                )}
                 {row.archived && <Badge>Archived</Badge>}
               </Hint>
             </PlainButton>
@@ -1113,7 +1102,7 @@ function specMeta(row: PlanRow, plan: (SpecPlan & { createdAt?: string; updatedA
   return parts
 }
 
-function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecActions; busy: boolean; driver: ReactNode; flush: boolean }) {
+function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecActions; busy: boolean; flush: boolean }) {
   const { row, plan, actions } = props
   const primary = primaryAction(row, plan, actions.approveBlocker ?? null, Boolean(actions.onPublish))
   const id = row.planId ?? row.spec ?? row.key
@@ -1161,7 +1150,6 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
               {part}
             </Box>
           ))}
-          {props.driver}
         </Hint>
       </Box>
       <Box
@@ -2138,8 +2126,6 @@ export default function PlansView(props: {
     look()
     return () => clearTimeout(timer)
   }, [refJump])
-  // Who drives the open spec (§6.10): the chip and the read-only banner.
-  const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
 
   // The opened row's stored plan, preview, documents and tasks. Opening is
@@ -2254,7 +2240,7 @@ export default function PlansView(props: {
   const tabNames = specTabNames(docs, Boolean(plan))
   const shownTab = specTab
   const specTabs = plan && row?.planId ? <SpecTabs tabs={tabNames.includes(shownTab) ? tabNames : [...tabNames, shownTab]} current={shownTab} onPick={pickTab} /> : null
-  const specHeader = row ? <SpecHeader row={row} plan={plan} busy={busy} flush={phone} driver={<DriverChip spec={driver.spec} />} actions={specActions(row)} /> : null
+  const specHeader = row ? <SpecHeader row={row} plan={plan} busy={busy} flush={phone} actions={specActions(row)} /> : null
   // The specs list column.
   const specList = (
     <Stack gap={3} data-plans-list-pane>
@@ -2324,7 +2310,6 @@ export default function PlansView(props: {
       >
         <Box id="avoozl-plan-main" css-gap="20" css-scroll-margin-top="48" flex minW0 flexCol>
           <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
-          <DriverBanner spec={driver.spec} />
           {row.categoryProblem && (
             <Hint as="p" size="sm">
               <Badge variant="warning">front-matter</Badge> {row.categoryProblem}

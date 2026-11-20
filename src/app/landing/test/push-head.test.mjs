@@ -1,24 +1,25 @@
-// Qualified working heads, fork checkpoints and verified integration (task
-// 56.3). Every repository here is a local scratch repository: an upstream,
-// two forks and the driver's checkout. Nothing reaches GitHub.
+// Pushing a landing's exact commit (push-head.mjs): relationships, forks,
+// the content scan and no push credentials for agents. Every repository here
+// is a local scratch repository: an upstream, two forks and a checkout.
+// Nothing reaches GitHub.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { git } from "../../git/git.mjs";
+import { git, withoutPushCredentials } from "../../git/git.mjs";
 import { bindContentRules } from "../../content/content-rules.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 
 import {
-  checkpointBranch,
   landingRights,
   pushHead,
   qualifiedRef,
   sourceRegistry,
   verifyRelationship,
-  withoutPushCredentials,
-} from "../working-heads.mjs";
+} from "../push-head.mjs";
+
+const checkpointBranch = (spec, task) => `avoozl/${spec}/task/${task}`;
 
 // Made-up names only.
 const MACHINE = { hostname: "made-up-host", username: "madeupuser" };

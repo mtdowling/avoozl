@@ -10,7 +10,7 @@ import { approverCheck } from "../../git/git-approvals.mjs";
 import { bindSession } from "../../sessions/session-bindings.mjs";
 import { listActivity } from "../../store/activity-log.mjs";
 import { contextMachine } from "../../context/test/context-fixture.mjs";
-import { seedApproval, setDriver } from "../../test/epic-context-seed.mjs";
+import { seedApproval, unapprove } from "../../test/epic-context-seed.mjs";
 import { keepKiroCrewHome } from "../../executors/test/epic-context-world.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { OWNER, specCheckout } from "../../test/spec-checkout.mjs";
@@ -80,7 +80,7 @@ test("a passing chat worker's brief names its skills and reads and no MCP server
   assert.equal(binding.epicContext.mode, "brief only");
   assert.deepEqual(
     binding.epicContext.tests.map((x) => x.passed),
-    [true, true, true],
+    [true, true],
   );
   const row = listActivity(w.store).items.find(
     (i) => i.kind === "epic-context.session",
@@ -97,7 +97,7 @@ test("a passing chat worker's brief names its skills and reads and no MCP server
 
 test("a failing chat worker's brief has no epic context section and its binding no context", async (t) => {
   const w = await world(t);
-  setDriver(w.store, "other-person");
+  unapprove(w.store);
   assert.equal(await chatBrief(w.store, w.ops, entry), "");
   const { binding } = bindSession(w.store, {
     slot: "chat-2",

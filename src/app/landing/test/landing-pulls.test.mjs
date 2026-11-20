@@ -8,7 +8,7 @@ import { fixture } from "../../test/fixtures.mjs";
 import { landNext, landingQueue, enqueueLanding } from "../landing-queue.mjs";
 import { approveMerge, pullSteps, releaseDraft } from "../landing-pulls.mjs";
 import { landingSettings, validateLandingConfig } from "../landing-config.mjs";
-import { sourceRegistry } from "../../workers/working-heads.mjs";
+import { sourceRegistry } from "../../landing/push-head.mjs";
 
 const Q = { repositoryId: "fixture", base: "main" };
 const DEF = digest("definition t1");

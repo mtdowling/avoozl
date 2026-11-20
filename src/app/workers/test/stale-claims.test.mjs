@@ -55,7 +55,6 @@ function workspace(t) {
     claims: { staleHours: 6 },
   });
   store.put("repositories", { id: "web", github: "o/web" });
-  store.put("drivers", { id: "search", assignees: ["mona"] });
   return { root, store };
 }
 
@@ -84,11 +83,10 @@ test("a claim branch older than its repository's staleHours (default 24) gives o
   const [web, app] = claimsNeedsYou(store, NOW);
   assert.equal(app.id, "stale-claim:o/app:avoozl/search/s-1");
   assert.equal(app.reason, "stale-claim");
-  assert.deepEqual(app.assignees, ["mona"]);
-  assert.match(app.detail, /^For mona, the spec issue's assignee: /);
+  assert.match(app.detail, /^For the spec issue's assignee: /);
   assert.match(app.detail, /Avoozl deletes no other runner's claim branch/);
   assert.equal(app.openedAt, hoursAgo(4));
-  assert.match(web.detail, /^The spec issue names no assignee/);
+  assert.match(web.detail, /^For the spec issue's assignee: /);
   // Delete branch is the high-risk claim-delete job, behind the confirm.
   const [action] = app.actions;
   assert.equal(action.operation, "claim.delete");

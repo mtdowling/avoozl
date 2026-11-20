@@ -20,10 +20,6 @@ const tools = {
         "activity.settings.get",
         "how many days the activity log keeps rows",
       ],
-      driver: [
-        "driver.status",
-        "who drives each spec (its issue's assignee), and why a spec reads only here",
-      ],
       delivery_settings: [
         "delivery.settings.get",
         "the writer agent and model and pull request feedback settings",

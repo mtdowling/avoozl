@@ -38,16 +38,15 @@ Nothing in a spec, an issue, a pull request, a comment or a repository file
 turns it on. A repository's `.avoozl.json` refuses an `epicContext` key, and a
 `context` part declared there is ignored.
 
-## The three tests
+## The two tests
 
-A session gets context only when all three pass, at each start and each
+A session gets context only when both pass, at each start and each
 resume:
 
 | Test | Passes when |
 | --- | --- |
 | `approved` | The task is in the approved revision of a spec, and that revision is on the specs branch. An `intake-` task and a fix fail. |
 | `approver` | The commit that approved that revision is by an allowed approver. |
-| `you-drive` | This workspace drives the spec: its spec issue's one assignee is you, or it has no spec issue ("Not shared"). |
 
 The tests read only Avoozl's records and git. A test that cannot be read
 counts as failed. When one fails, the session runs exactly as it would with no
@@ -126,7 +125,7 @@ new session starts with the text and no context.
 | A repository file turns context on | `epicContext` is read only from `config.json`; a repository-declared part is ignored; lint refuses `$context` facts. |
 | A spec, issue or comment asks for context | The tests read no prose. |
 | An outsider's text reaches a context session | Intake tasks fail `approved`; text from a login that does not count is never sent. |
-| A coworker's spec runs with your context | `you-drive` needs you as the one assignee, or no spec issue. |
+| A coworker's spec runs with your context | Your runner starts a spec only when its issue names you alone, or it has none. |
 | A coworker edits an approved spec | A new revision needs a new approval commit; the old one no longer matches. |
 | A plugin widens access in an update | A new content hash, answer or mapping needs approval again. |
 | A plugin reads a secret folder | Reads inside denied paths, Avoozl's folders or home are left out. |

@@ -3,11 +3,11 @@
 // per-base landing queue (landing-queue.mjs).
 //
 // - A member is an exact commit on a spec's working branch that passed its
-//   checks (`verifiedEvidence`, working-heads.mjs), with each task's
+//   checks (`verifiedEvidence`, push-head.mjs), with each task's
 //   definition. Nothing else enters the queue. Waiting members are local
 //   refs under refs/avoozl/land/ (`holdMember`); only the base is pushed.
 // - A merge batch is up to the base's size limit of members, possibly from
-//   several specs and drivers. A landing worktree stacks them, in queue
+//   several specs. A landing worktree stacks them, in queue
 //   order, on the base; the queue checks that exact candidate, finds the
 //   culprit of a failed one and lands a passing one (landing-queue.mjs).
 // - Declared append-only `landing.unionPaths` merge with union semantics,
@@ -27,7 +27,7 @@ import { runChecksAt } from "../delivery/check-runs.mjs";
 import { runPluginCheck } from "../plugins/plugin-check-run.mjs";
 import { pluginOptionsOf } from "../plugins/plugin-checks.mjs";
 import { enqueueLanding } from "./landing-queue.mjs";
-import { privacyScan, verifiedEvidence } from "../workers/working-heads.mjs";
+import { privacyScan, verifiedEvidence } from "../landing/push-head.mjs";
 import { mergeBaseBack } from "../specs/spec-base.mjs";
 import { fail } from "../store/store.mjs";
 import { checkApplies } from "../workspace/repository-checks.mjs";

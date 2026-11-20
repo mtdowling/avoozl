@@ -72,6 +72,7 @@ import { respondStep } from "../github/github-respond.mjs";
 import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { claimsDue, refreshClaims } from "../workers/claims.mjs";
 import { readLabelFilters } from "../specs/label-filters.mjs";
+import { readSpecAssignees } from "../specs/spec-assignee.mjs";
 import { readLabeledIssues } from "../specs/labeled-issues.mjs";
 import {
   RATE_LIMIT_TEXT,
@@ -92,12 +93,6 @@ import {
   settleUnavailable,
   validateContentRules,
 } from "../content/content-rules.mjs";
-import { driverStep, recheckDrivers } from "../workers/driver.mjs";
-import {
-  driverGuard,
-  driverHeldTaskIds,
-  readOnlyPlanIds,
-} from "../workers/driver-scope.mjs";
 import { scheduleHolds } from "../specs/spec-scheduler.mjs";
 import { landPullRequests } from "../landing/pr-landing.mjs";
 import { landDirect } from "../landing/direct-landing.mjs";
@@ -534,15 +529,6 @@ function servedOf(row) {
   };
 }
 
-// The specs of these task IDs.
-function plansOf(store, taskIds) {
-  const wanted = new Set(taskIds),
-    plans = new Set();
-  for (const task of store.read().tasks)
-    if (wanted.has(task.id) && task.planId) plans.add(task.planId);
-  return plans;
-}
-
 // Runs a step with its GitHub calls counted under `source`, as the GitHub
 // job `job` (plugin-credentials §D6). The tick holds no grant, so a
 // high-risk job fails here as person-only (PC8.4).
@@ -578,25 +564,13 @@ async function runTick(
     // state, so the first tick after the wait does each pending write once.
     gate = client && script ? githubGate(store) : { skip: false },
     live = gate.skip ? null : client,
-    // Every GitHub write of every step passes the driver backstop (§6.10).
-    github = live ? driverGuard(store, live) : live;
+    github = live;
   if (gate.low) markGithubRun(store);
   try {
     const result = await withWorkLock(store, WORKSPACE_LOCK, async () => {
       const { policy, notify } = await loadPolicy(workspaceRoot, memory);
       // A content rule set that is available again settles its decision.
       settleUnavailable(store);
-      // Who drives each spec (§6.10): read before anything plans or writes,
-      // so a spec driven elsewhere is read-only for this whole tick.
-      // Its own plan-issue writes (claim, heartbeat, epic link) are the
-      // lock itself, so it holds the unguarded client.
-      notify.push(
-        ...(
-          await under("tick", "spec-issues", driverStep)(store, live, {
-            script,
-          })
-        ).notify,
-      );
       // Observe first: statuses the script read land before any planning.
       if (roster) recordRoster(store, roster);
       // This machine's server loop (simplify §D6): with none, or between
@@ -657,28 +631,8 @@ async function runTick(
         // Integration moves branches and may raise a decision, so only the
         // cron, which carries out notifications, runs it.
         if (script) {
-          // Read the plan issue again before each integrate (R66.5).
-          const verified = store
-              .list("task_deliveries")
-              .filter((d) => d.state === "verified")
-              .map((d) => d.taskId),
-            lost = await recheckDrivers(
-              store,
-              github,
-              plansOf(store, verified),
-            ),
-            readOnly = readOnlyPlanIds(store);
           const integrated = await integrateVerified(store, {
-            skip: new Set([
-              ...outOfLoop,
-              ...store
-                .read()
-                .tasks.filter(
-                  (t) =>
-                    t.planId && (readOnly.has(t.planId) || lost.has(t.planId)),
-                )
-                .map((t) => t.id),
-            ]),
+            skip: outOfLoop,
           });
           planned.notify.push(...integrated.notify);
           // A conflict at integration goes back to the worker chat.
@@ -820,10 +774,16 @@ async function runTick(
             title: `Avoozl could not read the claim branches of ${failed.repository}`,
             text: failed.error,
           });
-      // The label filters on spec issues, once per pass (simplify §D5).
+      // The label filters (simplify §D5) and assignees (workflow v1 rule
+      // 8.3) of the spec issues, once per pass.
       if (script && github)
         for (const failed of [
           ...(await under("tick", "check-in", readLabelFilters)(store, github)),
+          ...(await under(
+            "tick",
+            "check-in",
+            readSpecAssignees,
+          )(store, github)),
           ...(await under(
             "tick",
             "check-in",
@@ -832,7 +792,7 @@ async function runTick(
         ])
           planned.notify.push({
             channel: "failure",
-            title: `Avoozl could not read the spec issue labels in ${failed.repository}`,
+            title: `Avoozl could not read the spec issues in ${failed.repository}`,
             text: failed.error,
           });
       // Closed intake items no task holds go after 30 days.
@@ -882,13 +842,10 @@ async function runTick(
             text: error.message,
           });
         }
-      // No new work for a spec driven elsewhere (R66.5).
-      const held = driverHeldTaskIds(store),
-        readOnly = readOnlyPlanIds(store);
       const requested = unobserved.length
           ? []
-          : planDispatches(store, bindings).filter((d) => !held.has(d.task)),
-        readySkip = new Set([...requested.map((d) => d.task), ...held]),
+          : planDispatches(store, bindings),
+        readySkip = new Set(requested.map((d) => d.task)),
         // Ranking, release and repository-wide path holds (spec-scheduler.mjs).
         schedule =
           unobserved.length || !delivery || delivery.crewModeHeld
@@ -915,14 +872,9 @@ async function runTick(
               });
       // Command-only bars are checked by Avoozl itself, off this path: the
       // cron queues each run here and the app backend runs the queue
-      // (check-runs.mjs). A spec driven elsewhere queues nothing.
+      // (check-runs.mjs).
       if (script && delivery) {
-        queueCheckRuns(
-          store,
-          planCheckRuns(store, delivery).filter(
-            (run) => !readOnly.has(run.task.planId),
-          ),
-        );
+        queueCheckRuns(store, planCheckRuns(store, delivery));
         // A landed phase's plugin checks (plugin-checks D7), queued the
         // same way; they hold no task.
         queuePhaseChecks(store);
@@ -936,23 +888,12 @@ async function runTick(
           script && !unobserved.length
             ? decideStep(store, { config: roleConfig }).dispatch
             : [];
-      // Read each spec's plan issue again right before its dispatches; a
-      // spec reassigned since the sync read dispatches nothing (R66.5).
-      const taskPlan = new Map(
-          store
-            .read()
-            .tasks.filter((t) => t.planId)
-            .map((t) => [t.id, t.planId]),
-        ),
-        readOnlyTask = (id) => readOnly.has(taskPlan.get(id)),
-        heldTask = (id) => held.has(id) || readOnlyTask(id);
       let dispatch = [
         ...requested,
         ...ready,
-        // A verifier judges work already done: it runs while a spec drains.
-        ...verify.filter((d) => !readOnlyTask(d.task)),
-        ...responders.filter((d) => !heldTask(d.task)),
-        ...reviews.filter((d) => !heldTask(d.task)),
+        ...verify,
+        ...responders,
+        ...reviews,
       ];
       // Settings › Models: the planner chats open on
       // the saved model.
@@ -967,26 +908,6 @@ async function runTick(
             return section ? { ...d, brief: `${d.brief}\n\n${section}` } : d;
           }),
         );
-      const pending = cron ? pendingSessionRequests(store) : [],
-        lostDispatchPlans = script
-          ? await recheckDrivers(
-              store,
-              live,
-              new Set(
-                [...dispatch, ...pending]
-                  .map((d) => taskPlan.get(d.task))
-                  .filter(Boolean),
-              ),
-            )
-          : new Set();
-      if (lostDispatchPlans.size)
-        dispatch = dispatch.filter(
-          (d) => !lostDispatchPlans.has(taskPlan.get(d.task)),
-        );
-      // No message reaches a session of a read-only spec.
-      planned.messages = planned.messages.filter(
-        (m) => !readOnly.has(taskPlan.get(m.task)),
-      );
       // Avoozl never asks for a force push (R77.3): such a brief or
       // message is dropped here, whichever step wrote it, and said once.
       const forced = [
@@ -1046,18 +967,11 @@ async function runTick(
                 : pending.filter(
                     (request) =>
                       request.operation === "start" &&
-                      !readOnlyTask(request.task) &&
-                      !lostDispatchPlans.has(taskPlan.get(request.task)) &&
-                      (request.role === "verifier" ||
-                        !heldTask(request.task)) &&
                       !asksForcePush(request.brief),
                   ),
               sends: pending.filter(
                 (request) =>
-                  request.operation === "send" &&
-                  !readOnlyTask(request.task) &&
-                  !lostDispatchPlans.has(taskPlan.get(request.task)) &&
-                  !asksForcePush(request.text),
+                  request.operation === "send" && !asksForcePush(request.text),
               ),
             };
           })

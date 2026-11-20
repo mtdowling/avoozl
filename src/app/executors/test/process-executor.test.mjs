@@ -578,7 +578,7 @@ test("a process worker's brief names its file tools and allowed commands", () =>
   assert.doesNotMatch(processSteps({ id: "7.1" }).join("\n"), /Your shell/);
 });
 
-// Like a runner's report (remote-runner.mjs reportDone): a write worker's
+// A write worker's
 // done with no commit since its base is refused, recorded blocked with why,
 // so the task takes the retry path with that feedback.
 test("a write worker's done with nothing committed is refused", async (t) => {

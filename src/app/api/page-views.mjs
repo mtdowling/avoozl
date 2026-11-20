@@ -33,7 +33,6 @@ import { NODE_STATES } from "../../delivery-lanes.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "../epics/epics.mjs";
 import { fail } from "../store/store.mjs";
 import { linkSets } from "../tasks/scm-links.mjs";
-import { driverDecisions } from "../workers/driver.mjs";
 import { epicRows } from "../epics/epic-rows.mjs";
 import { taskLinks } from "../tasks/scm-links.mjs";
 import { DEFAULT_SPECS_PATH } from "../specs/specs-path.mjs";
@@ -1001,12 +1000,6 @@ export function conflictsView(store, data) {
       openedAt: decision.openedAt ?? null,
     });
   }
-  // Driver (§6.10): no single assignee on a plan issue, and away tasks
-  // waiting for Start it here or Wait.
-  for (const item of driverDecisions(store)) {
-    const task = item.taskId ? byId.get(item.taskId) : null;
-    items.push({ ...item, ...(task ? ownership(task) : {}) });
-  }
   // The tick failed three times in a row.
   items.push(...tickFailedItems(store));
   for (const item of items) {
@@ -1443,20 +1436,7 @@ export function plansTableView(store, data, { specs = [], stored = [] }) {
       ...archiveFields(plan),
     });
   }
-  // Each approved spec's driver, from the cache the tick's driver step
-  // writes (R116.7): no GitHub call.
-  const drivers = new Map(store.list("drivers").map((row) => [row.id, row]));
-  for (const row of rows) {
-    delete row.changedAt;
-    const driver = row.planId && drivers.get(row.planId);
-    if (driver && ["approved", "done", "changed"].includes(row.status))
-      row.driver = {
-        mode: driver.mode ?? null,
-        state: driver.state,
-        reason: driver.reason,
-        assignees: driver.assignees ?? [],
-      };
-  }
+  for (const row of rows) delete row.changedAt;
   return { revision: data.revision, items: rows };
 }
 

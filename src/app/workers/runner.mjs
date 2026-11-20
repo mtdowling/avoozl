@@ -35,6 +35,7 @@ import { scheduleHolds } from "../specs/spec-scheduler.mjs";
 import { isArchivedTask } from "../../browse-model.mjs";
 import { statusComplete } from "../../query.mjs";
 import { labelHolds, readLabelFilters } from "../specs/label-filters.mjs";
+import { assigneeHolds, readSpecAssignees } from "../specs/spec-assignee.mjs";
 import { readLabeledIssues } from "../specs/labeled-issues.mjs";
 import {
   completionReached,
@@ -84,7 +85,7 @@ export function nextView(store, { policy, github = null }) {
     newest = newestWorkers(bindings),
     claimed = busyTaskIds(store, bindings),
     branches = claimedTaskIds(store),
-    labels = labelHolds(store),
+    labels = new Map([...labelHolds(store), ...assigneeHolds(store)]),
     deliveries = new Map(
       store.list("task_deliveries").map((d) => [d.taskId, d]),
     ),
@@ -245,6 +246,7 @@ export async function claimNext(
   const errors = [
       ...(await refreshClaims(store, client)),
       ...(await readLabelFilters(store, client)),
+      ...(await readSpecAssignees(store, client)),
       ...(await readLabeledIssues(store, client)),
     ],
     view = nextView(store, { policy, github }),

@@ -15,7 +15,6 @@ import { manualTake } from "../workers/manual-take.mjs";
 import { deliverNotifications } from "../tick/notifications.mjs";
 import { stampPrompts } from "../api/operation-support.mjs";
 import { deliveryView } from "../api/page-views.mjs";
-import { reportDone, runnerStatus } from "../workers/remote-runner.mjs";
 import { claimNext, nextView } from "../workers/runner.mjs";
 import { deleteClaim } from "../workers/claims.mjs";
 import { lanesView, resumeLane } from "../sessions/lane-sessions.mjs";
@@ -29,47 +28,6 @@ import { machineLinks } from "../tick/crews.mjs";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
-  // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
-  // shortcut: no machine reports remote workers to a driver now, so the
-  // list is always empty. The page's In flight and Delivery still read it;
-  // remove it with their remote rows, which need new screenshots.
-  {
-    name: "remote.view",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp(
-      "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
-    ),
-    handler({}) {
-      return { workers: [] };
-    },
-  },
-  {
-    name: "remote.status",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp(
-      "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
-    ),
-    handler({}) {
-      const store = this.store;
-      return runnerStatus(store, this.workspaceRoot);
-    },
-  },
-
-  {
-    name: "remote.report",
-    class: "execute",
-    github: "worker-grants",
-    policy: notOnMcp(
-      "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
-    ),
-    handler({ input }) {
-      const store = this.store;
-      return reportDone(store, this.workspaceRoot, input);
-    },
-  },
-
   // With `claim`, it creates the best ready task's claim branch on origin
   // (simplify §D3), so it may write.
   {

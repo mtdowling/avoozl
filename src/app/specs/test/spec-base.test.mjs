@@ -6,11 +6,9 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { mergeBaseBack } from "../spec-base.mjs";
-import {
-  checkpointBranch,
-  workingBranch,
-} from "../../workers/working-heads.mjs";
+import { mergeBaseBack, workingBranch } from "../spec-base.mjs";
+
+const checkpointBranch = (spec, task) => `avoozl/${spec}/task/${task}`;
 
 import { temporaryDirectory } from "../../test/temporary.mjs";
 

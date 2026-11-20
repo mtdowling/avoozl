@@ -26,7 +26,6 @@ import {
   getExtraction,
   proposalsFromFacts,
 } from "../specs/design-extraction.mjs";
-import { bindDriver } from "../workers/driver.mjs";
 import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
 import { readSpecIssues } from "../specs/spec-publication.mjs";
 import { linkedReader, storedLinks } from "../specs/order.mjs";
@@ -189,10 +188,6 @@ export class Operations {
       // True on the standalone page: no Kiro Crew runs beside this server.
       kirocrewAbsent = false,
       pluginSettingsFile = pluginSettingsPath(),
-      // The spec driver lock (§6.10): {settingsFile, now?, sleep?}. The
-      // CLI, app backend and app MCP server pass this machine's settings
-      // file; without one the old one-writer rule (task 3.8) holds alone.
-      driver = null,
       plugins = workspaceRoot
         ? pluginHost({ workspaceRoot, settingsFile: pluginSettingsFile })
         : null,
@@ -255,8 +250,6 @@ export class Operations {
     this.configDirectory = configDirectory;
     this.repositoryBindingGuard = repositoryBindingGuard;
     this.pendingIntents = new Map();
-    if (workspaceRoot && driver?.settingsFile)
-      bindDriver(store, { ...driver, workspaceRoot, pluginSettingsFile });
     // Content rules (§4.9) read this workspace's `.avoozl.json` and terms.
     if (workspaceRoot)
       bindContentRules(store, {
@@ -1654,14 +1647,6 @@ export class Operations {
     )
       fail("Only a person changes flow settings, in the Avoozl page.", 403);
 
-    if (
-      ["driver.settings.update"].includes(name) &&
-      (context.caller || context.mcp || context.plugin)
-    )
-      fail(
-        "Only a person hands off, takes over or changes this computer's driver settings, in the Avoozl page or CLI.",
-        403,
-      );
     // Plan this and Deliver this (R50.15), and source settings: a person's.
     if (
       [

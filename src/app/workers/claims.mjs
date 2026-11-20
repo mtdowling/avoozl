@@ -258,25 +258,20 @@ export function staleClaims(store, now = Date.now()) {
   return stale.sort((a, b) => a.staleAt.localeCompare(b.staleAt));
 }
 
-// One Needs you row per stale claim, for the spec issue's assignee. Only a
-// person deletes the branch, through the high-risk confirm; Avoozl never
+// One Needs you row per stale claim, for the spec issue's assignee to act
+// on. Only a person deletes the branch, through the high-risk confirm; Avoozl never
 // deletes another runner's claim branch on its own.
 export function claimsNeedsYou(store, now = Date.now()) {
   return staleClaims(store, now).map((claim) => {
-    const assignees = store.get("drivers", claim.spec)?.assignees ?? [],
-      who = assignees.length
-        ? `For ${assignees.join(", ")}, the spec issue's assignee: `
-        : "The spec issue names no assignee. ";
     return {
       kind: "needs-human",
       reason: "stale-claim",
       id: `stale-claim:${claim.repository}:${claim.branch}`,
       taskId: null,
       authority: "github",
-      assignees,
       link: `https://github.com/${claim.repository}/tree/${claim.branch}`,
       title: `${claim.branch} has had no commit for ${claim.ageHours} hours`,
-      detail: `${who}the claim on ${claim.task} in ${claim.repository} has had no new commit for over ${claim.hours} hours. Ask whoever holds it, or delete the branch so the task is ready again. Avoozl deletes no other runner's claim branch.`,
+      detail: `For the spec issue's assignee: the claim on ${claim.task} in ${claim.repository} has had no new commit for over ${claim.hours} hours. Ask whoever holds it, or delete the branch so the task is ready again. Avoozl deletes no other runner's claim branch.`,
       openedAt: claim.staleAt,
       actions: [
         {

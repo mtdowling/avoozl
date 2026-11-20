@@ -41,7 +41,7 @@ import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { publicTaskName } from "../specs/spec-scheduler.mjs";
 import { landingSpecOf } from "../intake/fix.mjs";
 import { taskDefinition } from "../specs/task-outcomes.mjs";
-import { pushHead, sourceRegistry } from "../workers/working-heads.mjs";
+import { pushHead, sourceRegistry } from "../landing/push-head.mjs";
 import { fail } from "../store/store.mjs";
 import { firstErrorLine } from "../delivery/verify.mjs";
 import { finishLanded } from "./landed-work.mjs";

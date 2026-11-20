@@ -158,7 +158,8 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
   assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'context', 'content', 'flow', 'models', 'delivery'])
   assert.doesNotMatch(settings, /Where tasks live' \}/)
   const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf('if (!workspaceId)'))
-  assert.match(workspaces, /<WorkspaceView[\s\S]*<ThisComputer/)
+  assert.match(workspaces, /<WorkspaceView/)
+  assert.doesNotMatch(workspaces, /ThisComputer/)
   assert.doesNotMatch(workspaces, /PolicyEditor|WorkspaceGitHub|RateBlock|SetupWizard/)
   // The Plugins link to the GitHub settings opens the GitHub page.
   assert.match(settings, /onOpenGitHub=\{\(\) => props\.onTab\('github'\)\}/)

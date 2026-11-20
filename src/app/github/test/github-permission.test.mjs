@@ -7,7 +7,7 @@ import {
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubClient } from "../github.mjs";
-import { landingRights, qualifiedRef } from "../../workers/working-heads.mjs";
+import { landingRights, qualifiedRef } from "../../landing/push-head.mjs";
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), {

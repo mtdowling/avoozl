@@ -22,7 +22,6 @@ import {
 } from "../../settings/host-config.mjs";
 import { complete, handleMcp, kiroCrewCaller } from "../../mcp/mcp.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { driverSettingsPath } from "../../workers/driver.mjs";
 import { Store } from "../../store/store.mjs";
 import { callerSlot } from "../../delivery/delivery.mjs";
 import { dispatchMcp } from "../../../mcp.mjs";
@@ -107,7 +106,6 @@ export function createAppMcp({
           workspaceRoot: config.workspaceRoot,
           plansRoot: config.plansRoot,
           configDirectory: machineAvoozlPaths().configDirectory,
-          driver: { settingsFile: driverSettingsPath() },
           workspaceName: config.name,
         }),
       };

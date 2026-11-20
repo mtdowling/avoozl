@@ -1,5 +1,5 @@
 // Epic context in a process session (epic-context ec-2.2, ec-2.3): reads,
-// skills and the brief for a worker that passes the three tests, the MCP
+// skills and the brief for a worker that passes the two tests, the MCP
 // relay and broker with a fake server, and a session that fails the gate
 // running exactly as one with no source at all. A fake harness CLI, a real
 // supervisor and real git; no network.
@@ -14,7 +14,7 @@ import { childRecord, openSupervisorDatabase } from "../supervisor.mjs";
 import { listActivity } from "../../store/activity-log.mjs";
 import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
 import { FakeGitHub } from "../../test/fake-github.mjs";
-import { setDriver } from "../../test/epic-context-seed.mjs";
+import { unapprove } from "../../test/epic-context-seed.mjs";
 import { until } from "./process-machine.mjs";
 
 import {
@@ -89,16 +89,13 @@ test("a passing worker gets reads, skills, the brief and the MCP server, and the
   const row = listActivity(w.store).items.find(
     (item) => item.kind === "epic-context.session",
   );
-  assert.match(
-    row.summary,
-    /approved passed.*approver passed.*you-drive passed/,
-  );
+  assert.match(row.summary, /approved passed.*approver passed/);
   assert.match(row.summary, /skill module-layout/);
   assert.match(row.summary, /mcp research/);
   const binding = w.store.get("session_bindings", slot);
   assert.deepEqual(
     binding.epicContext.tests.map((x) => x.passed),
-    [true, true, true],
+    [true, true],
   );
   // Each call reaches Activity, with no argument or reply (EC7.5).
   await drainProcessRequests(w.store, {
@@ -140,7 +137,7 @@ test("a failing or sourceless session runs exactly as one with no source", async
   ctx.write((settings) => (settings.disabled = ["team-context"]));
   const plain = await run(w, { attempt: 1 });
   ctx.write((settings) => (settings.disabled = []));
-  setDriver(w.store, "other-person");
+  unapprove(w.store);
   const failed = await run(w, { attempt: 2 });
   const normal = (slot, run) => ({
     argv: JSON.parse(JSON.stringify(run.argv).replaceAll(slot.slice(8), "ID")),
@@ -166,7 +163,10 @@ test("a failing or sourceless session runs exactly as one with no source", async
     (item) => item.kind === "epic-context.session",
   );
   assert.equal(rows.length, 1);
-  assert.match(rows[0].summary, /you-drive failed: Taken by octo-dev/);
+  assert.match(
+    rows[0].summary,
+    /approved failed: The approved revision of config is not on the specs branch/,
+  );
 });
 
 test("a resume runs the tests again and drops context when one now fails", async (t) => {
@@ -176,7 +176,7 @@ test("a resume runs the tests again and drops context when one now fails", async
   await finish(w, ctx);
   const slot = await run(w);
   assert.ok(settings(w, slot).context);
-  setDriver(w.store, "other-person");
+  unapprove(w.store);
   enqueueSessionRequests(w.store, {
     sends: [
       {
@@ -202,7 +202,10 @@ test("a resume runs the tests again and drops context when one now fails", async
     (item) =>
       item.kind === "epic-context.session" && /Resumed/.test(item.summary),
   );
-  assert.match(resumed.summary, /you-drive failed: Taken by octo-dev/);
+  assert.match(
+    resumed.summary,
+    /approved failed: The approved revision of config is not on the specs branch/,
+  );
   assert.equal(w.store.get("session_bindings", slot).epicContext, null);
 });
 

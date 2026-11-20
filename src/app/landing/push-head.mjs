@@ -1,25 +1,16 @@
-// Qualified working heads, fork checkpoints and verified integration
-// (Requirement 102.4-102.8 and 102.15, design §4.32.3 and §4.32.3a, task
-// 56.3).
+// Pushing a landing's exact commit, and the checks around it (Requirement
+// 102.4-102.7, design §4.32.3).
 //
-// - A reference is never a branch name alone. Every working head and task
-//   checkpoint names its source repository, branch and exact commit, apart
-//   from the target repository and base it lands on. Two forks with the
-//   same branch name are two references.
+// - A reference is never a branch name alone: it names its source repository,
+//   branch and exact commit, apart from the target repository and base it
+//   lands on. Two forks with the same branch name are two references.
 // - Sources are registered by trusted repository setup only (`sources`: the
 //   repository identity and where to fetch it). A pull request may name a
-//   registered repository; it cannot add a fetch URL, local path or
-//   command. A fork needs no upstream copy of its branch.
-// - Avoozl's driver makes every ref move and push. A task's unfinished work
-//   lives on its own checkpoint ref; only a task whose exact commit passed
-//   its checks enters the spec's working branch, one at a time, by a merge
-//   commit and a guarded ref update. Nothing here force pushes.
-// - Content checks run before every push, checkpoint or not; the acceptance
-//   gate applies only to integration. Agents get no push credentials
-//   (`withoutPushCredentials` in git.mjs, used by the supervisor).
+//   registered repository; it cannot add a fetch URL, local path or command.
+// - Content checks run before every push. Nothing here force pushes, and
+//   agents get no push credentials (`withoutPushCredentials` in git.mjs).
 import { git, landingJob, remoteGit } from "../git/git.mjs";
 import { currentJob } from "../github/github-jobs.mjs";
-export { withoutPushCredentials } from "../git/git.mjs";
 import { branchNameProblem } from "../epics/integration-branch.mjs";
 import { enforce, pushLines } from "../content/content-rules.mjs";
 import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
@@ -28,10 +19,8 @@ import { fail } from "../store/store.mjs";
 
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const SHA = /^[0-9a-f]{40}$/;
-const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
 
 const lower = (value) => String(value).toLowerCase();
-const short = (sha) => sha.slice(0, 12);
 
 function repositoryOf(value, label) {
   if (
@@ -46,12 +35,6 @@ function repositoryOf(value, label) {
 function branchOf(value, label) {
   const problem = branchNameProblem(value);
   if (problem) fail(`The ${label} branch is not usable: ${problem}`, 400);
-  return value;
-}
-
-function segmentOf(value, label) {
-  if (typeof value !== "string" || !SEGMENT.test(value))
-    fail(`The ${label} must be letters, digits and . _ - only.`, 400);
   return value;
 }
 
@@ -75,19 +58,6 @@ export function qualifiedRef(input = {}) {
     ...(Number.isSafeInteger(input.pr) && input.pr > 0 ? { pr: input.pr } : {}),
   };
 }
-
-// The identity of a reference without its commit: source repository and
-// branch plus target repository and base. Repository names compare without
-// case, as GitHub does.
-export const refKey = (ref) =>
-  `${lower(ref.source.repository)}:${ref.source.branch}>${lower(ref.target.repository)}:${ref.target.base}`;
-
-// The spec's working branch and a task's checkpoint branch, by opaque ids
-// (public branch names carry no spec or task names).
-export const workingBranch = (spec) =>
-  `avoozl/${segmentOf(spec, "spec id")}/work`;
-export const checkpointBranch = (spec, task) =>
-  `avoozl/${segmentOf(spec, "spec id")}/task/${segmentOf(task, "task id")}`;
 
 // The trusted registry of fetchable repositories, from repository setup only:
 // {"owner/name": {url, parent?}}. `parent` names the target a fork belongs
@@ -160,15 +130,6 @@ async function revParse(root, name) {
 
 const hasCommit = async (root, sha) => Boolean(await revParse(root, sha));
 
-async function isAncestor(root, older, newer) {
-  try {
-    await git(root, ["merge-base", "--is-ancestor", older, newer]);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // The acceptance gate for integration: evidence for this exact commit, every
 // check passed and none missing, and paths inside the task's rules. A
 // checkpoint is never evidence.
@@ -185,94 +146,6 @@ export function verifiedEvidence(evidence, commit) {
   if (evidence.paths?.outside?.length || evidence.paths?.protected?.length)
     return "its paths are outside the task's rules or protected";
   return null;
-}
-
-// Guarded local ref move: from `old` (or absent when null) to `next`.
-async function moveRef(root, name, next, old) {
-  try {
-    await git(root, ["update-ref", name, next, old ?? ""]);
-  } catch {
-    fail(
-      `${name.replace(/^refs\/heads\//, "")} moved while Avoozl was updating it. Retry.`,
-      409,
-    );
-  }
-}
-
-// One integration at a time per checkout and working branch, in this
-// process. `lock` wraps the ref move for a cross-process lock (withWorkLock
-// kind integration); checks never run inside it.
-const queues = new Map();
-function serial(key, fn) {
-  const before = queues.get(key) ?? Promise.resolve(),
-    run = before.then(fn, fn);
-  queues.set(
-    key,
-    run.catch(() => {}),
-  );
-  return run;
-}
-
-// Integrates one verified task commit into the spec's working branch with a
-// merge commit and a guarded ref update. Refuses an unverified commit, and a
-// conflict without touching the branch. An already integrated commit is a
-// no-op, so a retry is safe.
-export async function integrateVerified(
-  root,
-  { spec, task, commit, evidence, lock = (fn) => fn() },
-) {
-  const problem = SHA.test(commit ?? "")
-    ? verifiedEvidence(evidence, commit)
-    : "the commit is not exact";
-  if (problem)
-    fail(
-      `Task ${task} is not verified at ${String(commit).slice(0, 7)}: ${problem}. An unfinished checkpoint never enters the working branch.`,
-      409,
-    );
-  const branch = workingBranch(spec),
-    name = `refs/heads/${branch}`;
-  return serial(`${root}\0${name}`, async () => {
-    const head = await revParse(root, name);
-    if (!head) fail(`The working branch ${branch} does not exist yet.`, 409);
-    if (!(await hasCommit(root, commit)))
-      fail(`Commit ${commit.slice(0, 7)} has not been fetched here.`, 409);
-    if (await isAncestor(root, commit, head))
-      return { branch, head, task, commit, integrated: false };
-    let tree;
-    try {
-      tree = (
-        await git(root, [
-          "merge-tree",
-          "--write-tree",
-          "--no-messages",
-          head,
-          commit,
-        ])
-      ).split("\n")[0];
-    } catch (error) {
-      const files = String(error.stdout ?? "")
-        .split("\n")
-        .slice(1)
-        .map((line) => line.split("\t")[1])
-        .filter(Boolean);
-      fail(
-        `Task ${task} at ${commit.slice(0, 7)} conflicts with ${branch}${files.length ? ` in ${[...new Set(files)].slice(0, 5).join(", ")}` : ""}. The working branch is unchanged.`,
-        409,
-      );
-    }
-    const merged = await git(root, [
-      "commit-tree",
-      tree,
-      "-p",
-      head,
-      "-p",
-      commit,
-      "-m",
-      `Integrate task ${task} at ${short(commit)}`,
-    ]);
-    await lock(() => moveRef(root, name, merged, head));
-    return { branch, head: merged, task, commit, integrated: true };
-  });
 }
 
 // The privacy scan of an outgoing range: added lines in the code scope,

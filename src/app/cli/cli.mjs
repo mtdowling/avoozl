@@ -2,7 +2,6 @@
 import { findCommand } from "./cli-commands.mjs";
 import { PROGRAM, helpCommands, helpPointer, helpText } from "./cli-help.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
-import { driverSettingsPath } from "../workers/driver.mjs";
 import {
   loadHostConfig,
   machineAvoozlPaths,
@@ -143,7 +142,6 @@ try {
       workspaceRoot: config.workspaceRoot,
       plansRoot: config.plansRoot,
       configDirectory: machineAvoozlPaths().configDirectory,
-      driver: { settingsFile: driverSettingsPath() },
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.

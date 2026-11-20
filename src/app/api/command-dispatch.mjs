@@ -8,7 +8,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { Store } from "../store/store.mjs";
 import { Operations } from "./operations.mjs";
-import { driverSettingsPath } from "../workers/driver.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-table.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
@@ -44,7 +43,6 @@ export const APP_OPERATIONS = new Set([
   "landing.queue",
   "conflicts.view",
   "panel.view",
-  "remote.view",
   "radar.releasequeue",
   "epics.view",
   "integration.view",
@@ -121,10 +119,8 @@ export const APP_OPERATIONS = new Set([
   "models.settings.update",
   "harness.approve",
   "flow.settings.update",
-  "driver.status",
   "telemetry.status",
   "telemetry.configure",
-  "driver.settings.update",
   "delivery.settings.get",
   "delivery.settings.update",
   "delivery.runner.release",
@@ -317,7 +313,6 @@ export function commandContext({
           notifier: readers.notifier ?? null,
           sessionStopper: readers.sessionStopper ?? null,
           kirocrewAbsent: host === "standalone",
-          driver: { settingsFile: driverSettingsPath() },
           // No page request waits on GitHub or Kiro Crew.
           backgroundReads: true,
         }),

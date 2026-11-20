@@ -49,7 +49,6 @@ const HOME = [
   ['radar.releasequeue', {}],
   ['integration.view', {}],
   ['review.drafts', {}],
-  ['remote.view', {}],
 ]
 const replay = {
   'workspaces.list': { result: { defaultWorkspace: 'w', items: [{ id: 'w', name: config.name, root: '/w', enabled: true, state: 'ready', served: true }] }, ms: HOP },

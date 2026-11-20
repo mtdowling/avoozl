@@ -3,7 +3,6 @@ import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
 import { serveKirocrew, serveWorkspace } from "../mcp/mcp-stdio.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { machineStatus, serveStatus } from "../workspace/machine-status.mjs";
-import { HOLDS_TASKS, readRunnerConfig } from "../workers/remote-runner.mjs";
 import { reportByToken } from "../workers/report-match.mjs";
 import { LinkStore } from "../serve/serve-auth.mjs";
 import { Store } from "../store/store.mjs";
@@ -197,11 +196,8 @@ export const commands = [
       const action = positionals[0];
       let result;
       if (action === "status")
-        // A runner reports its remote tasks; any other machine reports the
-        // process children and the last tick passes (R98.5).
-        result = HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))
-          ? await localOrRequest("remote.status")
-          : machineStatus({ stateDirectory: machineStateDirectory() });
+        // The process children and the last tick passes (R98.5).
+        result = machineStatus({ stateDirectory: machineStateDirectory() });
       else if (action === "report") {
         const state = positionals[2] || options.state,
           token = options.token || process.env.AVOOZL_REPORT_TOKEN;
@@ -209,60 +205,23 @@ export const commands = [
           positionals[1] && state,
           "runner report TASK done|blocked [--token T]",
         );
-        if (token || !HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))) {
-          // R88.2: matched by the report token and the worktree it runs in;
-          // with no token, by the worktree of this command line's claim.
-          requireDatabase();
-          const store = new Store(dbPath);
-          try {
-            result = await reportByToken(store, localOperations(store), {
-              taskId: positionals[1],
-              state,
-              token: token || undefined,
-              cwd: process.cwd(),
-              text: typeof options.text === "string" ? options.text : undefined,
-            });
-          } finally {
-            store.close();
-          }
-        } else
-          result = await localOrRequest("remote.report", {
+        // R88.2: matched by the report token and the worktree it runs in;
+        // with no token, by the worktree of this command line's claim.
+        requireDatabase();
+        const store = new Store(dbPath);
+        try {
+          result = await reportByToken(store, localOperations(store), {
             taskId: positionals[1],
             state,
+            token: token || undefined,
+            cwd: process.cwd(),
+            text: typeof options.text === "string" ? options.text : undefined,
           });
+        } finally {
+          store.close();
+        }
       } else throw Error("Use runner status|report.");
       console.log(JSON.stringify(result, null, 2));
-    },
-  },
-  {
-    command: "driver",
-    help: [
-      help(
-        "machine",
-        "driver status [SPEC]",
-        "Who drives each spec (its issue's assignee), and why one reads only here",
-      ),
-      help("machine", "driver set [--label LABEL]", "This computer's label"),
-    ],
-    async run({ options, positionals, localOrRequest }) {
-      // The spec driver (§6.10) is the spec issue's assignee: hand a spec
-      // to someone by reassigning its issue on GitHub.
-      const action = positionals[0] || "status",
-        planId = options.spec || positionals[1];
-      let result;
-      if (action === "status")
-        result = await localOrRequest(
-          "driver.status",
-          planId ? { planId } : {},
-        );
-      else if (action === "set")
-        result = await localOrRequest("driver.settings.update", {
-          ...(options.label !== undefined ? { label: options.label } : {}),
-        });
-      else throw Error("Use driver status|set.");
-      console.log(
-        typeof result === "string" ? result : JSON.stringify(result, null, 2),
-      );
     },
   },
 ];

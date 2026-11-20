@@ -1,37 +1,11 @@
 // Test helper for epic context: the store records an approval leaves for a
-// spec committed in `root`, tasks linked to it, and the driver row the
-// Specs list reads.
-import path from "node:path";
+// spec committed in `root`, and tasks linked to it.
 import { approvalCommits } from "../git/git-approvals.mjs";
-import { bindDriver } from "../workers/driver.mjs";
-import { temporaryDirectory } from "./temporary.mjs";
-
-const DRIVER = {
-  driver: { state: "driver", reason: "driver" },
-  "not-shared": { state: "driver", reason: "not-shared" },
-  "other-person": {
-    state: "read-only",
-    reason: "other-person",
-    assignees: ["octo-dev"],
-  },
-  "no-assignee": { state: "read-only", reason: "no-assignee" },
-  several: { state: "read-only", reason: "several", assignees: ["a", "b"] },
-  unreadable: { state: "read-only", reason: "unreadable", error: "boom" },
-};
-
-// `none` writes no row: nobody has read who drives yet.
-export function setDriver(store, name, planId = "config") {
-  if (name !== "none")
-    store.put("drivers", { id: planId, mode: "github", ...DRIVER[name] });
-}
 
 // The plan `config` approved at the newest commit that changed it, its
-// receipt, each task in `tasks` (an ID, or a task row) linked to the plan,
-// and a driver bound with `drive` as its state.
-export async function seedApproval(
-  store,
-  { root, tasks, drive = "driver", planId = "config" },
-) {
+// receipt, and each task in `tasks` (an ID, or a task row) linked to the
+// plan.
+export async function seedApproval(store, { root, tasks, planId = "config" }) {
   const [entry] = await approvalCommits(root, { allowed: async () => true });
   store.put("plans", {
     id: planId,
@@ -60,10 +34,14 @@ export async function seedApproval(
     else data.tasks.push({ ...row, planId });
   }
   store.commit(data, "seed", data.revision);
-  bindDriver(store, {
-    settingsFile: path.join(temporaryDirectory(), "driver.json"),
-    workspaceRoot: root,
-  });
-  setDriver(store, drive, planId);
   return entry;
+}
+
+// The plan's approval names a revision git does not hold, so the gate's
+// approved test fails while the task still runs.
+export function unapprove(store, planId = "config") {
+  const plan = store.get("plans", planId),
+    id = `${plan.approvalId}-moved`;
+  store.put("approvals", { id, planId, hash: "0".repeat(64) });
+  store.put("plans", { ...plan, approvalId: id });
 }

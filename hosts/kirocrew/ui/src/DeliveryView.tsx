@@ -34,7 +34,7 @@ import {
 } from './delivery-api.ts'
 import { useMedia } from './use-media.ts'
 import { HandSetReview, ReviewRuns } from './ReviewState.tsx'
-import type { Graph } from './views-api.ts'
+import type { Graph, RemoteWorker } from './views-api.ts'
 import { useSharedFilter } from './FilterBar.tsx'
 import { NO_GROUP, NO_REPOSITORY, filterActive, filterChoices, planKey, type TaskFilter } from './filters.ts'
 import { STATES } from './graph-layout.ts'
@@ -479,15 +479,8 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
   const chats = useMemo(() => chatClient(api), [api])
   const load = useCallback(
     async (id: string) => {
-      const [page, graph, workers] = await Promise.all([
-        client.deliveryPage(id),
-        client.graph(id).catch(() => null),
-        client.remote(id).then(
-          (r) => r.workers,
-          () => [],
-        ),
-      ])
-      return { items: page.items, graph, reports: page.contentReports ?? [], workers, laneLimit: page.laneLimit ?? null }
+      const [page, graph] = await Promise.all([client.deliveryPage(id), client.graph(id).catch(() => null)])
+      return { items: page.items, graph, reports: page.contentReports ?? [], workers: [] as RemoteWorker[], laneLimit: page.laneLimit ?? null }
     },
     [client],
   )

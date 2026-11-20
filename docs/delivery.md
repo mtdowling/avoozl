@@ -39,9 +39,9 @@ Delivery starts with a `delivery` block in `.avoozl.json`:
 }
 ```
 
-A task lands only from the workspace that drives its spec: the spec issue's
-assignee, or this workspace when the spec has no issue. See
-[Drivers](drivers.md) for how a spec's driver is chosen.
+A runner starts a spec's tasks only when the spec issue, and every parent
+spec's issue, is assigned to its own login alone; a spec with no issue runs
+here. See [Spec issues and assignment](github-workflow.md#8-spec-issues-and-assignment).
 
 A workspace whose `.avoozl.json` still says `"runner": "crew-mode"` starts
 nothing until a person chooses **Let the tick run it** in **Needs you**.

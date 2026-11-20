@@ -7,7 +7,6 @@ import {
   checksUnconfinedAllowed,
   isolationSetting,
 } from "../workspace/check-isolation.mjs";
-import { driverStatus } from "../workers/driver.mjs";
 import { detectCheckout, repositoryConfig, withWorkLock } from "../git/git.mjs";
 import { expandHome } from "../workspace/folder-browse.mjs";
 import {
@@ -25,10 +24,7 @@ import {
 } from "../workspace/local-ignore.mjs";
 import { importNewPlans, newPlanStarts } from "../specs/new-plan.mjs";
 import { archiveEnded } from "../specs/plan-retire.mjs";
-import { runnerTick } from "../workers/remote-runner.mjs";
 import { chatBrief } from "../workers/epic-context.mjs";
-import { cliCommand } from "../workers/report-command.mjs";
-import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
 import {
   createSpecPlan,
@@ -86,13 +82,6 @@ export const entries = [
           stateDirectory: machineAvoozlPaths().stateDirectory,
         });
 
-      // A runner holds no plans, so its tick only runs handed tasks.
-      const remote = await runnerTick(store, this.workspaceRoot, {
-        roster: Array.isArray(input.sessions) ? input.sessions : null,
-        bindings: listSessionBindings(store),
-        command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} ${cliCommand()}`,
-      });
-      if (remote) return remote;
       await this.applyBaseTicks();
       // An approver's spec commit that reached main approves it (§4.42).
       await this.applyMainApprovals();
@@ -237,7 +226,6 @@ export const entries = [
         },
         workspaceRepository: workspaceRepositoryStatus(store),
         // Which machine drives each spec (§6.10), from SQLite only.
-        driver: driverStatus(store),
         audit: auditPlans(this.read()),
         lastEvent: store.db
           .prepare("SELECT COALESCE(MAX(seq),0) seq FROM events")

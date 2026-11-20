@@ -22,8 +22,6 @@ meaning. Words that look alike are set apart below.
 
 ## Other terms
 
-- **driver**: the one machine that drives a spec. **worker**: a machine that
-  runs granted tasks.
 - **trust list**: the people or permission whose reviews and discussions count:
   `allowedActors`, `minimumPermission`. Set once, on the repository (Edit
   repository > GitHub).

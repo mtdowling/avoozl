@@ -15,7 +15,6 @@ import { specsBranchSetting } from "../specs/specs-branch.mjs";
 import { recordActivity } from "../store/activity-log.mjs";
 import { enforce } from "../content/content-rules.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
-import { driverStatus } from "./driver.mjs";
 import { repositoryMatches } from "../context/context-shape.mjs";
 import { readEpicContext } from "../context/epic-context-config.mjs";
 import { contextSources, missingFor } from "../context/plugin-context.mjs";
@@ -29,10 +28,10 @@ import {
 } from "../github/github-policy.mjs";
 import { specTasks } from "../specs/spec-tasks.mjs";
 
-export const TESTS = Object.freeze(["approved", "approver", "you-drive"]);
+export const TESTS = Object.freeze(["approved", "approver"]);
 const RECENT = 10;
 
-// ---- The three tests (EC1, D2) ------------------------------------------
+// ---- The two tests (EC1, D2) ------------------------------------------
 
 // Approval commits are read once per spec and approved hash: a hit costs no
 // git log on a resume.
@@ -132,22 +131,7 @@ export async function epicContextGate(store, { taskId }, deps) {
         `The approver could not be read: ${error.message}`,
       );
     }
-  let drive;
-  try {
-    const row = task.planId
-      ? driverStatus(store, { planId: task.planId }).specs[0]
-      : null;
-    drive =
-      row?.state === "driver" && ["driver", "not-shared"].includes(row.reason)
-        ? passes("you-drive")
-        : fails("you-drive", row?.text ?? "Nobody drives this spec here.");
-  } catch (error) {
-    drive = fails(
-      "you-drive",
-      `The driver could not be read: ${error.message}`,
-    );
-  }
-  const tests = [approved, approver, drive];
+  const tests = [approved, approver];
   return { given: tests.every((test) => test.passed), tests };
 }
 

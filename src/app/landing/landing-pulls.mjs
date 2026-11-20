@@ -47,7 +47,7 @@ import {
   pushHead,
   qualifiedRef,
   verifyRelationship,
-} from "../workers/working-heads.mjs";
+} from "../landing/push-head.mjs";
 import { postVerified } from "../github/setup-landing.mjs";
 import { fail } from "../store/store.mjs";
 import { firstErrorLine } from "../delivery/verify.mjs";

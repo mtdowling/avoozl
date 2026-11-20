@@ -504,7 +504,6 @@ if (query.get('page') === 'app') {
   if (!replyFor('delivery.view')) answer('delivery.view', () => ({ revision: 1, items: [] }))
   if (!replyFor('plan.list')) answer('plan.list', () => ({ items: [] }))
   if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
-  if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
   if (!replyFor('landing.view')) answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
   // &home=empty: Home's CI read answers with no runs (only Home reads it).
   if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], flaky: [], ciOnly: [] }))
@@ -925,19 +924,6 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
       item('m4', 'Export meal plans as PDF', { status: 'running', sessions: [session('chat-m4', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
     )
     graphTasks.push(t('m4', 'Export meal plans as PDF', 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
-    const worker = (taskId: string, n: number) => ({
-      host: 'dev desktop',
-      crewId: 'crew-dev',
-      taskId,
-      state: 'running',
-      chatKey: `chat-${n}`,
-      status: 'coding',
-      updatedAt: at,
-      attachUrl: null,
-      stale: false,
-      lastOkAt: at,
-    })
-    answer('remote.view', () => ({ workers: [worker('r1', 1), worker('r2', 2)] }))
   }
   // The line, for the Delivery heading's Stop the line: a stop opens one,
   // Resume closes it. window.__lineCalls records both. &stopped=1 starts stopped.
@@ -1273,7 +1259,6 @@ if (query.get('basic') === '1') {
         : [],
   }))
   answer('plan.list', () => ({ items: [] }))
-  answer('remote.view', () => ({ workers: [] }))
   const noMetrics = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
   answer('radar.releasequeue', () => ({ repositories: [] }))
 }

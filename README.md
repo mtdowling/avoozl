@@ -216,7 +216,6 @@ The [docs](docs/README.md) cover the rest:
 - [Workflow v1](docs/github-workflow.md) for the task list format, order,
   approvals, claims and landing
 - [Delivery](docs/delivery.md) for workers, checks, landing, and merge batches
-- [Drivers](docs/drivers.md) for which machine drives a spec, and handing off
 - [GitHub](docs/github.md) for repository roles and GitHub modes
 - [Flow](docs/flow.md) for Stop the line and retros
 - [Agents and the CLI](docs/agents.md) for roles and models, MCP tools, and

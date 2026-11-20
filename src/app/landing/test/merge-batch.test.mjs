@@ -12,7 +12,7 @@ import { gitTemplate } from "../../test/git-template.mjs";
 import { git } from "../../git/git.mjs";
 import { batchOf, landNext, landingQueue } from "../landing-queue.mjs";
 import { directSteps, memberRef, queuePortion } from "../merge-batch.mjs";
-import { workingBranch } from "../../workers/working-heads.mjs";
+import { workingBranch } from "../../specs/spec-base.mjs";
 
 const Q = { repositoryId: "fixture", base: "main" };
 const BATCH = { limit: 4, bisect: true };

@@ -1,9 +1,4 @@
 // Operations of one feature: name, class, MCP policy and handler.
-import {
-  driverContext,
-  driverStatus,
-  updateMachineSettings,
-} from "../workers/driver.mjs";
 import { planningIdentity } from "../github/github-marker.mjs";
 import { publishSpec } from "../specs/spec-publication.mjs";
 import { fail } from "../store/store.mjs";
@@ -68,34 +63,6 @@ export const entries = [
       return { spec: spec.name, file, changed: after !== before };
     },
   },
-  // The spec driver (§6.10): the spec issue's assignee. Status reads
-  // everywhere; changing this computer's settings is a person's.
-  {
-    name: "driver.status",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return driverStatus(store, input);
-    },
-  },
-
-  {
-    name: "driver.settings.update",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person changes this computer's driver settings."),
-    handler({ input }) {
-      const store = this.store;
-
-      const ctx = driverContext(store);
-      if (!ctx) fail("This workspace has no driver settings.", 409);
-      updateMachineSettings(store, ctx.settingsFile, input);
-      return driverStatus(store);
-    },
-  },
-
   // Publish issue (R102.2): a person's explicit act, never part of approval.
   {
     name: "spec.publish",

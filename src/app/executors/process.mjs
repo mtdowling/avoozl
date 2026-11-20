@@ -40,7 +40,6 @@ import {
 import { branchTip, commitWorkerChanges, git, taskGit } from "../git/git.mjs";
 import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
 import { taskRepository } from "../../work-model.mjs";
-import { hasRemoteTask } from "../workers/remote-runner.mjs";
 import { processRow } from "../agents/role-table.mjs";
 import { loadHarnessDefinition } from "./harness-definitions.mjs";
 import { sessionServedModel } from "./process-view.mjs";
@@ -440,17 +439,6 @@ export async function finishProcessSession(ops, binding, result, store = null) {
       asSession(),
     );
   }
-  // A plan-less worker's task is not in a plan: its own runner reads HEAD,
-  // runs the checks and pushes.
-  if (store && hasRemoteTask(store, binding.taskId))
-    return ops.execute(
-      "remote.report",
-      {
-        taskId: binding.taskId,
-        state: result.state === "done" ? "done" : "blocked",
-      },
-      { local: true },
-    );
   const head = () =>
     new Promise((resolve, reject) =>
       execFile(
@@ -462,7 +450,7 @@ export async function finishProcessSession(ops, binding, result, store = null) {
     );
   const commit = result.state === "done" ? await head() : null;
   // A write worker's done with nothing committed since its base is refused,
-  // as a runner's is (remote-runner.mjs reportDone): it is recorded blocked
+  // as a runner's is: it is recorded blocked
   // with that reason, so the next attempt reads why (R96.4, R8).
   if (
     commit &&
@@ -752,8 +740,7 @@ export async function drainProcessRequests(
         ? snapshot.folder
         : row?.folder === "worktree" &&
             request.permissionClass === "write" &&
-            prepareWorktree &&
-            !hasRemoteTask(store, request.task)
+            prepareWorktree
           ? (
               await prepareWorktree(store, { taskId: request.task }).catch(
                 (error) => {
