@@ -14,7 +14,6 @@ import {
   rowActions,
   location,
   plansClient,
-  reviewCounts,
   revisionChange,
   specStatus,
 } from '../src/plans-api.ts'
@@ -98,27 +97,9 @@ test('Make the GitHub issues sends spec.publish with the home repository, and no
   )
 })
 
-test('the dialog counts severities then states, leaving out zeros', () => {
-  assert.equal(reviewCounts({ bySeverity: { blocker: 2, warn: 3, info: 1 }, byState: { 'for you': 1, fixed: 0 } }), '2 blocker · 3 warn · 1 info · 1 for you')
-  assert.equal(reviewCounts(null), 'No findings')
-})
-
-test('a revision change lists changed files with line counts and findings newly fixed or moved', () => {
-  const finding = (id, state, moved = false) => ({ id, state, anchor: { file: 'design.md', lineStart: 1, lineEnd: 1, moved } })
-  const change = revisionChange(
-    { hash: 'h1', files: { 'a.md': 'one\ntwo\n', 'b.md': 'same\n' }, review: { open: [finding('f1', 'for you'), finding('f2', 'for you'), finding('f3', 'fixed')] } },
-    { hash: 'h2', files: { 'a.md': 'one\n2\nthree\n', 'b.md': 'same\n' }, review: { open: [finding('f1', 'fixed'), finding('f2', 'for you', true), finding('f3', 'fixed')] } },
-  )
-  assert.deepEqual([change.from, change.to], ['h1', 'h2'])
-  assert.deepEqual(change.files, [{ file: 'a.md', added: 2, removed: 1 }])
-  assert.deepEqual(
-    change.fixed.map((f) => f.id),
-    ['f1'],
-  )
-  assert.deepEqual(
-    change.moved.map((f) => f.id),
-    ['f2'],
-  )
+test('a revision change lists changed files with line counts', () => {
+  const change = revisionChange({ hash: 'h1', files: { 'a.md': 'one\ntwo\n', 'b.md': 'same\n' } }, { hash: 'h2', files: { 'a.md': 'one\n2\nthree\n', 'b.md': 'same\n' } })
+  assert.deepEqual(change, { from: 'h1', to: 'h2', files: [{ file: 'a.md', added: 2, removed: 1 }] })
 })
 
 test('a spec row reads as one line', () => {

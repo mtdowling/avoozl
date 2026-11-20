@@ -1,7 +1,6 @@
 // The open items read: one read-only search per GitHub-mode repository per
 // interval, kept in SQLite (design §4.12, R50.4).
-// The code review chat (pr-review.mjs) reads it,
-// and closed input issues withdraw their tasks at the same pace
+// Closed input issues withdraw their tasks at the same pace
 // (github-intake.mjs watchInputs).
 //
 // Each item the search returned is a `github` incoming item, and each

@@ -87,7 +87,6 @@ export function resultMessage(action: SettleAction, result: SettleResult): { ok:
 
 // What the page says for kinds it cannot change, so no item is only text.
 export function noActionReason(item: ConflictItem): string | null {
-  if (item.kind === 'plan-review') return null
   if (item.kind === 'content-unavailable') return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
   if (item.kind === 'content-match') return null
   // Findings and Ready to merge carry their own actions (ConflictsView.tsx).

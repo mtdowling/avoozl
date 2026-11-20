@@ -89,9 +89,6 @@
         "planner": {
           "$ref": "#/$defs/chatRole"
         },
-        "planReviewer": {
-          "$ref": "#/$defs/chatRole"
-        },
         "retro": {
           "$ref": "#/$defs/chatRole"
         },
@@ -109,29 +106,6 @@
         },
         "assist": {
           "$ref": "#/$defs/harnessRole"
-        },
-        "planAnswer": {
-          "$ref": "#/$defs/harnessRole"
-        },
-        "prReview": {
-          "$ref": "#/$defs/harnessRole"
-        }
-      }
-    },
-    "planReview": {
-      "type": "object",
-      "description": "Cross-model draft review. Auto skips review until a reviewer is named and its model can be shown to differ from the writer's.",
-      "additionalProperties": false,
-      "properties": {
-        "mode": {
-          "enum": ["auto", "ask", "off"],
-          "default": "auto"
-        },
-        "rounds": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 3,
-          "default": 1
         }
       }
     },
@@ -802,7 +776,6 @@
               "plan.create",
               "plan.edit",
               "plan.extract",
-              "plan.review",
               "plan.publish",
               "task",
               "task.create",

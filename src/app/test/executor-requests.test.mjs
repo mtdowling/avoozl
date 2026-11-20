@@ -235,84 +235,6 @@ test("worker consumption rechecks prerequisites, owner approval and the approved
   );
 });
 
-test("virtual review roles check round state, revision, model and write scope", async (t) => {
-  for (const bad of [
-    "round",
-    "revision",
-    "model",
-    "approved",
-    "deleted",
-    null,
-  ]) {
-    const { store, ops } = env(t);
-    store.put("plans", {
-      id: "p",
-      spec: "synthetic",
-      state: bad === "approved" ? "approved" : "draft",
-      hash: bad === "revision" ? "changed" : "h",
-      ...(bad === "deleted" ? { deletedAt: "2026-01-01T00:00:00Z" } : {}),
-    });
-    store.put("review_rounds", {
-      id: "r",
-      planId: "p",
-      spec: "synthetic",
-      state: bad === "round" ? "done" : "running",
-      revisionHash: "h",
-      reviewerModel: "review-model",
-    });
-    const request = enqueueSessionRequests(store, {
-      starts: [
-        start({
-          role: "plan-review",
-          task: "r",
-          model: bad === "model" ? "wrong" : "review-model",
-          permissionClass: "read",
-          context: { spec: "synthetic", revisionHash: "h", roundId: "r" },
-        }),
-      ],
-    }).starts[0];
-    const result = await call(ops, "take", input(request));
-    assert.equal(Boolean(result), bad === null, bad ?? "current round");
-  }
-  const { store, ops } = env(t);
-  store.put("plans", {
-    id: "p",
-    spec: "synthetic",
-    state: "approved",
-    hash: "h",
-  });
-  store.put("review_rounds", {
-    id: "r",
-    planId: "p",
-    spec: "synthetic",
-    state: "done",
-    revisionHash: "h",
-  });
-  store.put("receipts", {
-    id: "plan-answer:r",
-    kind: "plan-answer",
-    roundId: "r",
-    planId: "p",
-    state: "queued",
-    slot: null,
-  });
-  store.put("review_threads", {
-    id: "finding",
-    source: "plan-review",
-    roundId: "r",
-  });
-  const request = enqueueSessionRequests(store, {
-    starts: [
-      start({ role: "plan-answer", task: "r", context: { revisionHash: "h" } }),
-    ],
-  }).starts[0];
-  assert.equal(
-    await call(ops, "take", input(request)),
-    null,
-    "approved plans reject queued writes",
-  );
-});
-
 test("native configuration stays outside planner objects and durable neutral rows", async (t) => {
   const { store } = env(t),
     request = kirocrewRequest(store, {
@@ -420,77 +342,16 @@ test("later real ticks reoffer pending transport rows but never claimed or compl
   );
 });
 
-test("a pending write answer rebuilt as read consumes the read-only native agent", async (t) => {
-  const { store, ops } = env(t);
-  store.put("plans", { id: "p", state: "draft", hash: "h" });
-  store.put("review_rounds", {
-    id: "r",
-    planId: "p",
-    spec: "synthetic",
-    state: "done",
-    revisionHash: "h",
-  });
-  store.put("receipts", {
-    id: "plan-answer:r",
-    kind: "plan-answer",
-    roundId: "r",
-    planId: "p",
-    state: "queued",
-    slot: null,
-  });
-  store.put("review_threads", {
-    id: "finding",
-    source: "plan-review",
-    roundId: "r",
-  });
-  const write = kirocrewRequest(store, {
-    ...start({
-      role: "plan-answer",
-      task: "r",
-      context: { revisionHash: "h" },
-    }),
-    folder: "Avoozl/answer",
-    project: false,
-  });
-  const old = enqueueSessionRequests(store, { starts: [write] }).starts[0];
-  persistKirocrewConfiguration(store, old);
-  assert.equal(kirocrewConfiguration(store, old).agent, "avoozl-planner");
-  store.put("plans", { ...store.get("plans", "p"), state: "approved" });
-  const read = enqueueSessionRequests(store, {
-    starts: [{ ...write, permissionClass: "read" }],
-  }).starts[0];
-  assert.equal(read.id, old.id);
-  assert.notEqual(read.version, old.version);
-  assert.equal(await call(ops, "take", input(old)), null);
-  const claim = await call(ops, "take", input(read));
-  assert.equal(claim.configuration.agent, "avoozl-plan-answer-read");
-  assert.equal(claim.configuration.folder, "Avoozl/answer");
-  assert.equal(claim.configuration.project, false);
-  const changed = kirocrewRequest(store, {
-    ...write,
-    folder: "Avoozl/changed",
-    agent: "other-agent",
-  });
-  persistKirocrewConfiguration(store, changed);
-  const frozen = kirocrewConfiguration(store, changed);
-  assert.equal(
-    frozen.agent,
-    "avoozl-plan-answer-read",
-    "a claimed permission class stays frozen",
-  );
-  assert.equal(frozen.folder, "Avoozl/answer");
-});
-
 test("a planner that writes a workspace's specs opens in the Specs folder", (t) => {
-  // Nearby inputs: a read-only answer, a worker with no repository, and a
+  // Nearby inputs: a read-only planner, a worker with no repository, and a
   // planner whose folder has no project directory yet.
   const { store } = env(t);
   const [planner, answer, worker] = enqueueSessionRequests(store, {
     starts: [
       start({ role: "planner", task: "new-plan:x", worktree: "/ws" }),
       start({
-        role: "plan-answer",
-        task: "round-x",
+        role: "planner",
+        task: "new-plan:y",
         worktree: "/ws",
         permissionClass: "read",
       }),

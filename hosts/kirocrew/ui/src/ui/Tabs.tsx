@@ -3,7 +3,7 @@
 // tabs share it, and it scrolls sideways on a narrow screen. Arrow keys, Home and
 // End move between tabs, and a tab with unsaved changes shows a dot. Pages
 // that want tabs use this, not their own bar: Settings › GitHub, the task
-// view, and the spec page through DocTabs (ReviewView.tsx).
+// view, and the spec page (PlansView.tsx SpecTabs).
 //
 // useTabParam keeps the open tab in the page address (?<param>=<key>) on
 // Kiro Crew's /apps/<name> route, so the browser's Back and a pasted link

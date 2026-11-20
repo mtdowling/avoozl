@@ -28,7 +28,7 @@ prints.
 
 **Settings › Models** picks each role's harness, agent, and model. The roles
 are the worker, the falsifier that tests a worker's investigation, the
-planner, the plan reviewer, and the retro. The settings are saved as one
+planner, and the retro. The settings are saved as one
 `roles` table in `.avoozl.json`:
 
 ```json
@@ -51,8 +51,8 @@ definition in this machine's config. Only the worker and the falsifier take an
 agent's own model and its repository's executor.
 
 The worker, planner, and
-retro follow the harness. The falsifier and plan reviewer still run as Kiro
-Crew chats. Avoozl moves no running chat to another model.
+retro follow the harness. The falsifier still runs as a Kiro
+Crew chat. Avoozl moves no running chat to another model.
 
 A role's agent and model live only in `roles`. A file that still sets
 `delivery.agent`, `delivery.model`, `delivery.investigate.agent`,
@@ -104,7 +104,6 @@ these in the Avoozl app:
 - **Run anyway**, and resuming a pulled stop
 - **Deliver this** and **Plan this** on an incoming item
 - acting on an issue or pull request from the GitHub pages
-- opening a code review chat
 
 An agent may pull the Andon cord with `plans_session`, action `stop_line`, but
 not resume it. See

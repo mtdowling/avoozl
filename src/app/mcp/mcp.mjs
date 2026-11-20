@@ -40,11 +40,7 @@ export const NARROW_TOOLS = {
   ],
   plans_get_plan: [
     "plan.get",
-    "Narrow tool for planner and plan answer chats. Read a draft, its immutable revision history and approval receipts.",
-  ],
-  plans_submit_review: [
-    "plan.review.submit",
-    "Narrow tool for the plan review chat. Submit substantive, exact-revision design review comments with unique quoted anchors, and for a spec an optional summary of 2-3 sentences for the spec page. This records feedback only; it cannot edit or approve the plan.",
+    "Narrow tool for the planner. Read a draft, its immutable revision history and approval receipts.",
   ],
   plans_submit_extraction: [
     "plan.extraction.submit",
@@ -86,14 +82,6 @@ export const NARROW_TOOLS = {
     "runner.take",
     "Refused over MCP: taking a task by hand is a person's, with avoozl take TASK at the command line. The tick starts every other task.",
   ],
-  plans_plan_review: [
-    "plan.review.findings",
-    "Narrow tool for planner and plan answer chats. Read spec findings and planner answers: {planId,roundId?,revisionHash?}. Each finding has severity (info|warn|blocker), category, findingState, anchor at the asked revision (moved when its quote is gone) and the person's decisions. Older revision findings stay readable and are marked stale. Read only: only a person decides a finding.",
-  ],
-  plans_answer_review: [
-    "plan.review.answer",
-    "Narrow tool for planner and plan answer chats. Answer your bound review round: {planId,roundId,answers:[{id,action:fixed|answered,revisionHash?,text}]}. Fixed names a revision this planner stored; this never closes findings or approves.",
-  ],
   plans_approve_plan: [
     "plan.approve",
     "Extract an explicitly authorized revision into tasks atomically. Requires expectedHash and expectedRevision; the reviewed document hash and database revision are the authorization. approvedBy and evidence are optional: approvedBy defaults to the workspace operator, and evidence records a real statement when there is one. For a spec plan, retitled lists approved task IDs whose tasks.md item text may change in this approval. Only a person approves, so an agent or MCP caller is refused.",
@@ -127,7 +115,6 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
     annotations: {
       readOnlyHint: [
         "plan.get",
-        "plan.review.findings",
         "runner.next",
         "query",
         "task.get",

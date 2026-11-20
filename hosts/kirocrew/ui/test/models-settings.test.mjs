@@ -10,12 +10,12 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 test('every role is one row, and auto or blank fields leave a row out', () => {
   assert.deepEqual(
     ROLES.map((r) => r.key),
-    ['worker', 'falsifier', 'planner', 'planReviewer', 'retro', 'checkDecide', 'verifier', 'reviewer', 'responder', 'taskSummary', 'planAnswer', 'prReview', 'assist'],
+    ['worker', 'falsifier', 'planner', 'retro', 'checkDecide', 'verifier', 'reviewer', 'responder', 'taskSummary', 'assist'],
   )
   // The roles added for harnesses pick no model.
   assert.deepEqual(
     ROLES.filter((r) => !r.model).map((r) => r.key),
-    ['verifier', 'reviewer', 'responder', 'taskSummary', 'planAnswer', 'prReview', 'assist'],
+    ['verifier', 'reviewer', 'responder', 'taskSummary', 'assist'],
   )
   assert.deepEqual(
     ROLES.filter((r) => r.agent).map((r) => r.key),
@@ -23,7 +23,7 @@ test('every role is one row, and auto or blank fields leave a row out', () => {
   )
   assert.deepEqual(toRoles({ planner: { model: 'm1' }, verifier: { model: 'auto' }, retro: { model: '', harness: 'auto' } }), { planner: { model: 'm1' } })
   assert.deepEqual(toRoles({ worker: { agent: ' alt ', model: 'm1', harness: 'claude-code' } }), { worker: { agent: 'alt', model: 'm1', harness: 'claude-code' } })
-  assert.deepEqual(toRoles({ planReviewer: { model: 'auto' } }), {})
+  assert.deepEqual(toRoles({ retro: { model: 'auto' } }), {})
 })
 
 test('Settings has a Models section with a themed picker per role; Flow and Delivery pick no model', () => {
@@ -107,8 +107,6 @@ test('a role is default until a harness, agent or model is set, and an unusable 
   assert.match(roleProblem('retro', { retro: { model: 'm1', harness: 'plain-cli' } }, defs), /plain-cli takes no model/)
   assert.equal(roleProblem('retro', { retro: { model: 'm1', harness: 'claude-code' } }, defs), null)
   assert.equal(roleProblem('retro', { retro: { model: 'auto', harness: 'plain-cli' } }, defs), null)
-  assert.match(roleProblem('planReviewer', { planner: { model: 'm1' }, planReviewer: { model: 'm1' } }, defs), /different model/)
-  assert.equal(roleProblem('planReviewer', { planner: { model: 'm1' }, planReviewer: { model: 'm2' } }, defs), null)
   assert.equal(roleProblem('worker', { worker: { agent: 'ok-agent' } }, defs), null)
   assert.match(roleProblem('falsifier', { falsifier: { agent: 'bad agent!' } }, defs), /agent name/)
 })

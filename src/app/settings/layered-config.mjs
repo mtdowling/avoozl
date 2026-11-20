@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateRoles, validatePlanReview } from "./chat-models.mjs";
+import { validateRoles } from "./chat-models.mjs";
 import { validateLanes } from "../tick/lanes.mjs";
 import {
   assertNoMachineKeys,
@@ -395,7 +395,6 @@ export function loadLayeredConfig({
   const config = mergeLayers(layers);
   validateRoles(config);
   validateRunnerRole(config.runner);
-  validatePlanReview(config.planReview);
   validateLanes(config.lanes);
   validateSpecs(config.specs);
   validateNotifications(config.notifications);

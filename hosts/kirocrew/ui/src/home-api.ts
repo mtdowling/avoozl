@@ -55,7 +55,6 @@ const ANSWERS: Record<string, string> = {
   decision: 'Decide',
   'needs-human': 'Answer',
   review: 'Review',
-  'plan-review': 'Review the draft',
   delivery: 'Retry or dismiss',
   manual: 'Do the step',
   'stale-session': 'Restart or close',

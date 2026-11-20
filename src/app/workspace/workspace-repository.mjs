@@ -199,8 +199,6 @@ function workspacePublication(store) {
   for (const task of store.read().tasks)
     files[`tasks/${task.id}.json`] =
       JSON.stringify(taskForPublication(store, task), null, 2) + "\n";
-  for (const thread of store.list("review_threads"))
-    files[`reviews/${thread.id}.json`] = JSON.stringify(thread, null, 2) + "\n";
   scanWorkspacePublication(files);
   return files;
 }

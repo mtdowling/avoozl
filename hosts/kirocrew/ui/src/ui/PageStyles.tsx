@@ -3,7 +3,6 @@
 // here, so the standalone page's content security policy can list every
 // style by hash (standalone-web, SW2.5).
 import { NAV_PILL } from '../nav-style.ts'
-import { SEVERITIES, SEVERITY_INK } from '../review-view.ts'
 
 // The mark's look: theme variables only, so it reads in light and dark.
 export const CSS_CitedStyle = `
@@ -158,18 +157,6 @@ a[data-pp-row-title]:hover{text-decoration:underline}
 }
 `
 
-// Kiro Crew's own "AI is working" box (the Projects page's plan banner): a
-// rounded box tinted 10% with a 50% border, and a band of the same tint
-// sweeping across it for 2 s, ease-in-out. The hue is the theme's --aim, the
-// purple Kiro Crew keeps for AI work in every theme. Reduced motion keeps the
-// box and stops the sweep.
-export const CSS_WorkingStyle = `
-@keyframes avoozl-review-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
-[data-review-working] { position: relative; overflow: hidden; border: 1px solid color-mix(in srgb, var(--aim, #7c3aed) 50%, transparent); background: color-mix(in srgb, var(--aim, #7c3aed) 10%, transparent); }
-[data-review-working]::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--aim, #7c3aed) 10%, transparent), transparent); animation: avoozl-review-sweep 2s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { [data-review-working]::before { animation: none; display: none; } }
-`
-
 // The spec's details in one compact bordered box on the Overview: the rail's
 // small labeled sections as a label/value grid, scrolling inside the box.
 // The Overview's Spec details, read like GitHub's About box: one tight row
@@ -232,23 +219,6 @@ export const CSS_NeedsContextStyle = '[data-needs-context] :is(dl,dd,h4,p,ul){ma
 
 export const CSS_PanningStyle = '[data-graph-view] svg[data-panning] *{cursor:grabbing!important}'
 
-// Kiro Crew's own accent for an action, as on its Needs your input cards.
-export const REVIEW_ACCENT = 'color-mix(in srgb, var(--aim) 72%, var(--text-strong, var(--text)))'
-// Every block a finding is anchored to is tinted by its severity and can be
-// focused; the open finding's block is stronger.
-const REVIEW_HIT = `[data-review-doc] [data-review-anchor]{cursor:pointer;border-radius:4px;box-shadow:-3px 0 0 var(--hit,var(--accent));background:color-mix(in srgb,var(--hit,var(--accent)) 10%,transparent)}
-${SEVERITIES.map((s) => `[data-review-doc] [data-review-anchor][data-review-sev=${s}]{--hit:${SEVERITY_INK[s]}}`).join('\n')}
-[data-review-doc] [data-review-anchor]:hover{background:color-mix(in srgb,var(--hit,var(--accent)) 16%,transparent)}
-[data-review-doc] [data-review-anchor]:focus-visible{outline:2px solid var(--hit,var(--accent));outline-offset:2px}
-[data-review-doc] [data-review-hit]{background:color-mix(in srgb,var(--hit,var(--accent)) 24%,transparent)!important}`
-const REVIEW_CARD = `[data-finding-card] [data-card-btn]{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;line-height:1;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;max-width:100%}
-[data-finding-card] [data-card-btn]:hover:not(:disabled){background:var(--bg-hover)}
-[data-finding-card] [data-card-btn]:disabled{opacity:.55;cursor:default}
-[data-finding-card] [data-card-btn][data-main]{color:${REVIEW_ACCENT};border-color:color-mix(in srgb,${REVIEW_ACCENT} 45%,var(--border))}
-[data-finding-card] [data-card-btn]:focus-visible{outline:2px solid ${REVIEW_ACCENT};outline-offset:1px}
-[data-finding-card] [data-clamp]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}`
-export const CSS_ReviewCss = REVIEW_HIT + REVIEW_CARD
-
 // A release row's state and title columns from the small breakpoint up, the
 // widths Kiro Crew's stylesheet has no class for (sm:w-28, sm:w-1/3).
 export const CSS_ReleaseRowStyle = '@media (min-width:40rem){[data-release-state]{width:7rem}[data-release-title]{width:33.333333%}}'
@@ -275,10 +245,6 @@ export function RailCss() {
 
 export function PanelCss() {
   return <style>{CSS_PanelCss}</style>
-}
-
-export function WorkingStyle() {
-  return <style>{CSS_WorkingStyle}</style>
 }
 
 export function DetailsStyle() {
@@ -319,10 +285,6 @@ export function NeedsContextStyle() {
 
 export function PanningStyle() {
   return <style>{CSS_PanningStyle}</style>
-}
-
-export function ReviewCss() {
-  return <style>{CSS_ReviewCss}</style>
 }
 
 export function ReleaseRowStyle() {

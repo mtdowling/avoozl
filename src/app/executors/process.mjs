@@ -372,88 +372,14 @@ export function withChildOutput(row, result) {
     : { ...result, outputValue: read.value };
 }
 
-// A plan answer child (NK5.3): Avoozl stores the folder it edited as this
-// session's revision, with plans_save_plan's own lint and checks, then
-// records each answer from its report; a fixed answer names that revision,
-// so it counts only when this child wrote one. A spec approved meanwhile
-// gets its stored files back and no revision.
-async function finishPlanAnswer(ops, binding, result, store) {
-  const scope = store?.get("session_bindings", binding.slot)?.planAnswer;
-  if (!scope) throw Error("The plan answer session has no bound round.");
-  const caller = { caller: cliReportCaller(binding) },
-    plan = store.get("plans", scope.planId);
-  let stored = null;
-  if (binding.permissionClass === "write" && binding.worktree) {
-    if (plan?.state !== "draft") {
-      for (const [name, text] of Object.entries(plan?.files ?? {})) {
-        const file = path.join(binding.worktree, name);
-        fs.mkdirSync(path.dirname(file), { recursive: true });
-        fs.writeFileSync(file, text);
-      }
-    } else {
-      // The result folder must not be read as part of the spec.
-      fs.rmSync(path.join(binding.worktree, ".avoozl"), {
-        recursive: true,
-        force: true,
-      });
-      // Lint the folder first: one with more lint errors than the stored
-      // revision stores nothing, and the person gets one decision for it.
-      const spec = ops.readSpec?.(plan.spec);
-      const quality = spec?.exists
-        ? ops.lintSpecPlan({ ...plan, files: spec.files })
-        : null;
-      if (
-        quality &&
-        quality.counts.error > ops.lintSpecPlan(plan).counts.error
-      ) {
-        const { queueNotifications } = await import(
-          "../tick/notifications.mjs"
-        );
-        queueNotifications(store, [
-          {
-            channel: "decision",
-            task: scope.planId,
-            title: `The answer for ${plan.spec} left lint errors`,
-            text: `The planner's edited folder has ${quality.counts.error} lint error(s), so Avoozl stored no revision and recorded no answer.`,
-            resume: `Fix the ${plan.spec} spec folder and save it, or ask the planner again.`,
-          },
-        ]);
-        throw Error(
-          `The answer's folder has ${quality.counts.error} lint error(s); no revision was stored.`,
-        );
-      }
-      const saved = await ops.execute(
-        "plan.save",
-        { id: scope.planId, expectedHash: plan.hash },
-        undefined,
-        caller,
-      );
-      if (saved?.hash && saved.hash !== plan.hash) stored = saved.hash;
-    }
-  }
-  const answers = (result.report?.answers ?? []).map((answer) => {
-    const { revisionHash, ...rest } = answer ?? {};
-    return rest.action === "fixed"
-      ? { ...rest, ...(stored ? { revisionHash: stored } : {}) }
-      : rest;
-  });
-  if (!answers.length) return { stored };
-  return ops.execute(
-    "plan.review.answer",
-    { planId: scope.planId, roundId: scope.roundId, answers },
-    undefined,
-    caller,
-  );
-}
-
 // Record a child's result as its session's report, as `runner report` does
 // for a chat (R96.2, R96.3): matched by the supervisor's record, the text
 // kept as data, and a done report's commit read from the worktree's HEAD,
 // never from the child. Avoozl's own commit of the child's edits (R94.4a)
 // comes before this read. A verdict role's report fields come from the
 // file's `report`, which session.report checks as it does plans_report; a
-// retro's reply is recorded as its chat reply is; a planner's folder is
-// stored by the tick's plan import, so its result records nothing.
+// planner's folder is stored by the tick's plan import, so its result
+// records nothing.
 const VERDICT_FIELDS = ["verdict", "findings", "closures", "checks", "text"];
 export const NOTHING_COMMITTED =
   "The worker reported done, but nothing was committed: the worktree has no change since its base. Make the change with your file tools, check the files are there, then report done.";
@@ -482,64 +408,7 @@ async function nothingCommitted(store, taskId, worktree) {
 export async function finishProcessSession(ops, binding, result, store = null) {
   result = withChildOutput(processRow(binding.role), result);
   const hands = processRow(binding.role)?.hands;
-  // A pull request review is kept with its request and shown with the
-  // session; nothing goes to GitHub (NK4.4).
-  if (hands === "pr-review") {
-    if (result.state !== "done" || !store) return null;
-    const receipt = store.get("receipts", binding.taskId);
-    if (!receipt) return null;
-    const review = {
-      text: result.outputValue,
-      slot: binding.slot,
-      head:
-        store.get("session_bindings", binding.slot)?.snapshotHead ??
-        receipt.headSha ??
-        null,
-      at: new Date().toISOString(),
-    };
-    store.put("receipts", { ...receipt, review });
-    return { stored: true };
-  }
   if (hands === "folder") return null;
-  // Plan review (NK3.3): the findings go through plans_submit_review's own
-  // checks, as this session, after its served model (if any) is recorded.
-  if (hands === "plan-review") {
-    if (result.state !== "done") return null;
-    if (store)
-      recordSessionStatus(
-        store,
-        { slot: binding.slot, status: "closed" },
-        result.served
-          ? {
-              served: {
-                model: result.served,
-                requested: binding.model ?? null,
-                changed: false,
-                withheld: false,
-              },
-            }
-          : undefined,
-      );
-    const context = binding.context ?? {};
-    return ops.execute(
-      "plan.review.submit",
-      {
-        planId: context.planId,
-        revisionHash: context.revisionHash,
-        roundId: context.roundId,
-        findings: result.outputValue.findings,
-        ...(result.outputValue.summary !== undefined
-          ? { summary: result.outputValue.summary }
-          : {}),
-      },
-      undefined,
-      { caller: cliReportCaller(binding) },
-    );
-  }
-  if (hands === "plan-answer")
-    return result.state === "done"
-      ? finishPlanAnswer(ops, binding, result, store)
-      : null;
   // The same operation a chat's tool call runs, as the supervisor's record of
   // this session (NK5.1), so it gets the same checks. A blocked result
   // records nothing: no reply is posted and no summary stored.
@@ -1039,23 +908,6 @@ export async function drainProcessRequests(
           ...store.get("session_bindings", sessionId),
           snapshotHead: snapshot.head,
         });
-      // A spec review child binds its round, as session.bind does for a chat.
-      if (request.role === "plan-review") {
-        const { bindSpecReviewRound } = await import(
-          "../reviews/plan-reviews.mjs"
-        );
-        bindSpecReviewRound(store, { roundId: request.task, slot: sessionId });
-      }
-      // A plan answer child binds its round, as session.bind does for a chat.
-      if (request.role === "plan-answer") {
-        const { bindPlanAnswerSession } = await import(
-          "../reviews/plan-review-answers.mjs"
-        );
-        bindPlanAnswerSession(store, {
-          roundId: request.task,
-          slot: sessionId,
-        });
-      }
     } catch (error) {
       errors.push({ id: request.id, error: error.message });
     }

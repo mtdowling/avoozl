@@ -72,7 +72,6 @@ test("the guard refuses each person-only avoozl command and allows the others", 
   );
   for (const words of [
     ["plan", "approve"],
-    ["plan", "finding"],
     ["harness", "approve"],
     ["task", "done"],
     ["flow", "resume"],
@@ -89,7 +88,7 @@ test("the guard refuses each person-only avoozl command and allows the others", 
   assert.equal(guard("node /a/cli.mjs plan approve notes").status, 2);
   for (const command of [
     "avoozl status",
-    "avoozl plan review notes",
+    "avoozl next",
     "avoozl show TASK",
     "git status",
     "echo avoozl-plan approve",

@@ -1,7 +1,6 @@
 // On a desktop the Specs page does not scroll: the list and the spec view
 // fill the height below the header and scroll inside themselves; the spec's
-// tab bar stays put while a document and its inline review comments
-// scroll under it. In a real Chrome, full app shell. Skipped when no Chrome is found.
+// tab bar stays put while a document scrolls under it. In a real Chrome, full app shell. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
@@ -24,7 +23,7 @@ const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringi
 const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 
 async function openApp(height, open = true) {
-  await page.open(harness.url({ page: 'app', basic: '1', specs: '1', review: '1' }), { width: 1280, height })
+  await page.open(harness.url({ page: 'app', basic: '1', specs: '1', stored: '1' }), { width: 1280, height })
   await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head]'))`, 30000)
   await page.evaluate(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes('Specs')).click()`)
   await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`, 30000)
@@ -88,10 +87,10 @@ test('with no spec open the list fills the height and scrolls', { skip }, async 
   assert.ok(list.room > 0 && list.moved, `the list scrolls (${JSON.stringify(list)})`)
 })
 
-test('on a document tab the text and its inline comments scroll in the spec body, under a fixed tab bar', { skip }, async () => {
+test('on a document tab the text scrolls in the spec body, under a fixed tab bar', { skip }, async () => {
   await openApp(640)
   await click('[data-spec-tab="requirements.md"]')
-  await page.until(`Boolean(document.querySelector('[data-finding-card]'))`, 30000)
+  await page.until(`/Byte types/.test(document.querySelector('[data-spec-card="requirements.md"]')?.textContent ?? '')`, 30000)
   await wait(400)
   const fit = await pageFits()
   assert.equal(fit.doc, 0, JSON.stringify(fit))
@@ -106,7 +105,7 @@ test('on a document tab the text and its inline comments scroll in the spec body
 })
 
 test('a phone keeps the normal page scroll', { skip }, async () => {
-  await page.open(harness.url({ page: 'app', basic: '1', specs: '1', review: '1' }), { width: 390, height: 700 })
+  await page.open(harness.url({ page: 'app', basic: '1', specs: '1', stored: '1' }), { width: 390, height: 700 })
   await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`, 30000)
   await click('[data-top-rail-bar]')
   await wait(300)

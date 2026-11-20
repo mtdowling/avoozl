@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parseDecisionLink, withoutDecisionLink } from './decision-link.ts'
 import { useAppApi, useNavigate } from './host.ts'
 import { SpecLinkContext } from './spec-link.ts'
-import { specTabLink } from './review-view.ts'
 import { urlBase } from './focus-tree.ts'
 import { Btn } from './ui/Btn'
 import { EmptyState } from './ui/EmptyState'
@@ -18,7 +17,6 @@ import DashboardView, { type DashboardTarget } from './DashboardView'
 import PlansView, { type PlanTarget } from './PlansView'
 import GraphPage from './FocusTree.tsx'
 import { parseGraphLink } from './focus-tree.ts'
-import { parseReviewLink, parseSpecTab } from './review-view.ts'
 import WaitingView from './WaitingView.tsx'
 import FlowView, { LineBanner } from './FlowView.tsx'
 import { DASHBOARD_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, tabLabel, type Tab, type WaitingSection } from './nav-api.ts'
@@ -31,7 +29,7 @@ import ActivityView from './ActivityView.tsx'
 import { useOpenStops } from './StopLine.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { GITHUB_TABS, SETTINGS_TABS, type SettingsTab } from './SettingsView'
-import { readTab } from './tabs.ts'
+import { parseSpecTab, readTab, specTabLink } from './tabs.ts'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
 import { TaskDrawerProvider } from './TaskDrawer'
 import Badge from './ui/Badge.tsx'
@@ -202,8 +200,8 @@ function AvoozlPage() {
     if (decisionLink) go({ tab: 'waiting', waitingSection: 'decisions', focus: null, drill: null })
     // ?tree=task:<id> or ?graph=frontier opens the Graph there (FocusTree.tsx).
     else if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
-    // ?view=review&plan=P and ?plan=P&tab=T open the Specs page on that spec's tab.
-    else if (parseReviewLink(window.location.search) || parseSpecTab(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
+    // ?plan=P&tab=T opens the Specs page on that spec's tab.
+    else if (parseSpecTab(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
     // ?github=<tab> opens Settings › GitHub, which opens that tab.
     else if (
       readTab(

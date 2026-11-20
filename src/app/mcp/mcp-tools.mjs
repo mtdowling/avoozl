@@ -104,24 +104,8 @@ const tools = {
     },
   },
   plans_review: {
-    summary:
-      "Design reviews and design extraction. None of these approve a plan.",
+    summary: "Design extraction. None of these approve a plan.",
     actions: {
-      current: ["plan.review.get", "current spec revision's review evidence"],
-      findings: ["plan.review.findings", "spec findings and planner answers"],
-      answer: [
-        "plan.review.answer",
-        "answer findings from the bound planner round",
-      ],
-      list: ["plan.review.list", "review comments"],
-      summary: [
-        "plan.reviewSummary",
-        "latest spec review pass, counts and open findings",
-      ],
-      submit: ["plan.review.submit", "submit anchored review comments"],
-      reply: ["plan.review.reply", "reply to a comment"],
-      apply: ["plan.review.apply", "apply a suggestion to the draft"],
-      pipeline: ["plan.review.pipeline.get", "one review round"],
       extract: ["plan.extract", "open an extraction record"],
       extraction: ["plan.extract.get", "extraction rounds and facts"],
       submit_extraction: [

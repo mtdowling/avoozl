@@ -78,8 +78,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
         Loading…
       </Hint>
     )
-  const choices = (role: Role) =>
-    modelOptions(list, form[role]?.model ?? '').map((option) => (role === 'planReviewer' && option.value === 'auto' ? { ...option, label: 'auto (no reviewer)' } : option))
+  const choices = (role: Role) => modelOptions(list, form[role]?.model ?? '')
   const definitions = value.harnessDefinitions ?? []
   const changed = JSON.stringify(toRoles(form)) !== JSON.stringify(toRoles(value.roles ?? {}))
   const save = async () => {
@@ -238,11 +237,6 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                 </Box>
                 <Hint as="div" css-grid-column="1-1" flex flexCol gap="0.5" size="xs">
                   <span>{role.line}</span>
-                  {role.key === 'planReviewer' && (
-                    <span data-second-model>
-                      Must use a different model than the planner{form.planner?.model && form.planner.model !== 'auto' ? ` (${form.planner.model})` : ''}.
-                    </span>
-                  )}
                   {problem && (
                     <ErrorText role="alert" as="span" data-role-problem>
                       {problem}

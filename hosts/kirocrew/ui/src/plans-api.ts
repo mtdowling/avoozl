@@ -5,7 +5,6 @@
 import { unifiedDiff } from '../../../../src/app/agents/text-diff.mjs'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
-import { SEVERITIES, STATES } from './review-view.ts'
 import type { TaskOwner } from './views-api.ts'
 import type { RowDriver } from './driver-api.ts'
 import { TONE } from './ui/tones.ts'
@@ -76,7 +75,6 @@ export interface SpecPlan {
   approvals: { id: string; hash: string; at: string; approvedBy: string }[]
   // Earlier revisions, oldest first; a spec revision keeps its files.
   history?: { revision: number; hash: string; files?: Record<string, string> }[]
-  review?: PlanReviewSummary | null
   // The spec's Links box (R92.4), from stored records only.
   links?: SpecLinks | null
 }
@@ -128,47 +126,6 @@ export function checkDot(checks: CheckState | null, relative: (at: string | null
   return { label: `Checks running${age}`, color: TONE.warnOrAmber }
 }
 
-export interface PlanReviewSummary {
-  state: 'not-reviewed' | 'running' | 'done' | 'skipped'
-  // The stored revision now, which can move while a dialog shows another.
-  planHash?: string
-  reviewerModel: string | null
-  writerModel?: string | null
-  revisionHash: string | null
-  current: boolean
-  found: number
-  fixed: number
-  forYou: number
-  bySeverity?: Record<string, number>
-  // Findings not yet fixed or closed, by severity: the spec Summary's badges.
-  openBySeverity?: Record<string, number>
-  byState?: Record<string, number>
-  // The reviewer's plain summary of the spec, stored with its round; not
-  // current when it was written for an earlier revision.
-  summary?: { text: string; revisionHash: string; current: boolean } | null
-  note: string | null
-  unproven?: boolean
-  canReviewAnyway?: boolean
-  // The pass reached planReview.rounds; Review anyway runs one more round.
-  capped?: boolean
-  open: {
-    id: string
-    roundId: string
-    revisionHash: string
-    current: boolean
-    kind: string
-    severity: string
-    state?: string
-    // Its lines in the current revision, or moved.
-    anchor?: { file: string; lineStart: number; lineEnd: number; moved?: boolean }
-    file: string
-    line: number
-    statement: string
-    evidence: string
-    answer: { action: 'fixed' | 'answered'; revisionHash?: string; text: string; at: string } | null
-  }[]
-}
-
 export interface Preview {
   reviewedHash: string
   expectedRevision: number
@@ -176,7 +133,6 @@ export interface Preview {
   dependencies: { kind: string; from: string; to: string }[]
   // Checked [x] tasks.md items approval creates as accepted.
   baseline?: { count: number; taskIds: string[]; text: string }
-  review?: PlanReviewSummary | null
 }
 
 export interface StoredPlan {
@@ -316,8 +272,6 @@ export function plansClient(api: AppApi) {
     // highlight.languages), as data for highlight.ts.
     languages: (workspaceId: string) =>
       run<{ languages: Record<string, { tokens: { type: string; pattern: string; flags?: string }[] }>; problems: string[] }>(workspaceId, 'highlight.languages'),
-    reviewAnyway: (workspaceId: string, planId: string, revisionHash: string) => run(workspaceId, 'plan.review.decide', { planId, revisionHash, action: 'review', unproven: true }),
-    reviewSummary: (workspaceId: string, planId: string) => run<PlanReviewSummary | null>(workspaceId, 'plan.reviewSummary', { planId }),
     // Approve exactly the revision the user is looking at: one commit on main
     // as the person. The backend refuses a changed hash, a changed database
     // or a folder that moved on disk. A revision that moved since it was shown comes back as `changed`
@@ -353,19 +307,13 @@ export interface ApproveOneResult {
   hash: string
 }
 // What changed while an Approve dialog was open (R104.13): the two hashes,
-// each changed file with lines added and removed, and findings that became
-// fixed or moved in the new revision.
+// and each changed file with lines added and removed.
 export interface RevisionChange {
   from: string
   to: string
   files: { file: string; added: number; removed: number }[]
-  fixed: PlanReviewSummary['open']
-  moved: PlanReviewSummary['open']
 }
-export function revisionChange(
-  from: { hash: string; files?: Record<string, string> | null; review?: PlanReviewSummary | null },
-  to: { hash: string; files?: Record<string, string> | null; review?: PlanReviewSummary | null },
-): RevisionChange {
+export function revisionChange(from: { hash: string; files?: Record<string, string> | null }, to: { hash: string; files?: Record<string, string> | null }): RevisionChange {
   const files =
     from.files && to.files
       ? revisionDiff(from.files, to.files).map(({ file, diff }) => {
@@ -373,24 +321,7 @@ export function revisionChange(
           return { file, added: lines.filter((line) => line.startsWith('+')).length, removed: lines.filter((line) => line.startsWith('-')).length }
         })
       : []
-  const before = new Map((from.review?.open ?? []).map((finding) => [finding.id, finding]))
-  const after = to.review?.open ?? []
-  return {
-    from: from.hash,
-    to: to.hash,
-    files,
-    fixed: after.filter((finding) => finding.state === 'fixed' && before.get(finding.id)?.state !== 'fixed'),
-    moved: after.filter((finding) => finding.anchor?.moved && !before.get(finding.id)?.anchor?.moved),
-  }
-}
-
-// "2 blocker · 3 warn · 1 info · 1 for you": severities, then states, each
-// left out at zero.
-export function reviewCounts(review?: PlanReviewSummary | null): string {
-  const parts = [...SEVERITIES.map((name) => [name, review?.bySeverity?.[name] ?? 0] as const), ...STATES.map((name) => [name, review?.byState?.[name] ?? 0] as const)].filter(
-    ([, count]) => count > 0,
-  )
-  return parts.length ? parts.map(([name, count]) => `${count} ${name}`).join(' · ') : 'No findings'
+  return { from: from.hash, to: to.hash, files }
 }
 
 export interface DeletePreview {

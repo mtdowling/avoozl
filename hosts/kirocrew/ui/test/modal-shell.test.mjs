@@ -191,7 +191,7 @@ test('the task modal from Needs you in the full app', { skip }, async () => {
 })
 
 test('the Approve dialog keeps its buttons in the footer beside Cancel', { skip }, async () => {
-  await page.open(harness.url({ page: 'app', specs: '1', review: '1' }), { width: 1280, height: 900 })
+  await page.open(harness.url({ page: 'app', specs: '1', stored: '1' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head]'))`, 30000)
   await page.evaluate(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes('Specs')).click()`)
   await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`, 30000)
