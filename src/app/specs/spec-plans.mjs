@@ -775,7 +775,15 @@ export function parseSpec({
           );
           continue;
         }
-        rest.acceptance = own.map((bullet) => bullet.text);
+        // Each bullet's text, without its list marker or the indent of its
+        // following lines.
+        rest.acceptance = own.map((bullet) =>
+          bullet.text
+            .replace(/^[-*+]\s+/, "")
+            .split("\n")
+            .map((row) => row.trim())
+            .join(" "),
+        );
         own = [];
       } else if (rest.kind !== "leaf" && own.length)
         diagnostics.push(
