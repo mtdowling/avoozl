@@ -6,7 +6,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import test from "node:test";
-import { machineSinks } from "../tick/headless-tick.mjs";
+import { machineSinks } from "../tick/tick-pass.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import {
   noticeLink,

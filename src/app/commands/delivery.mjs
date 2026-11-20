@@ -1,6 +1,6 @@
 // CLI commands of one kind: command, help lines and run.
-import { loopLockPaths, takeLock } from "../executors/machine-lock.mjs";
-import { requestPass } from "../executors/machine-server.mjs";
+import { runPass } from "../tick/tick-pass.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { contentHook } from "../content/content-hook.mjs";
 import { RETIRED_LANDING, landingStatusLine } from "./support.mjs";
 import { help } from "../cli/command-help.mjs";
@@ -72,35 +72,24 @@ export const commands = [
     help: [
       help(
         "deliver",
-        "tick --workspace PATH",
-        "Run one workspace tick and print its intents",
+        "tick [--workspace PATH]",
+        "One pass, then exit: tick every enabled workspace (or the one named), drain, and reap, resume and start process children",
       ),
     ],
-    async run({ localOrRequest, dbPath, machineStateDirectory }) {
-      // A running machine server runs the pass now (MS1.5); with none, this
-      // process runs one tick under the workspace loop lock (MS2.3).
-      const pass = await requestPass({
+    async run({ requestedWorkspace, config, machineStateDirectory }) {
+      // The fixed engine a timer, the Kiro Crew cron or a driver chat runs
+      // (MS1). It leaves nothing running but the children it started.
+      const results = await runPass({
         stateDirectory: machineStateDirectory(),
+        configDirectory: machineAvoozlPaths().configDirectory,
+        roots: requestedWorkspace ? [config.workspaceRoot] : undefined,
       });
-      if (pass) return console.log(JSON.stringify(pass, null, 2));
-      const loop = dbPath
-        ? takeLock(
-            loopLockPaths(dbPath),
-            { pid: process.pid, at: new Date().toISOString() },
-            { tries: 1 },
-          )
-        : { held: true, close() {} };
-      if (!loop.held)
-        throw Error(
-          `Another process (pid ${loop.holder?.pid ?? "unknown"}) runs this workspace's loop.`,
-        );
-      try {
-        console.log(
-          JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
-        );
-      } finally {
-        loop.close();
-      }
+      console.log(JSON.stringify(results, null, 2));
+      for (const result of results)
+        if (result.error) {
+          console.error(`${result.root ?? "tick"}: ${result.error}`);
+          process.exitCode = 1;
+        }
     },
   },
   {

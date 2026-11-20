@@ -17,8 +17,8 @@ workflow-kit/cases/serial-list-next/
   "title": "A task waits for the one above it",
   "rules": [
     "3.1",
-    "9.1",
-    "12.1"
+    "12.1",
+    "15.1"
   ],
   "runner": {
     "login": "acme-alice",
@@ -110,7 +110,7 @@ A case checks only the probes in its `expect`. `landing.action` is one of
 `none`. For `tick-landed-work`, `base` is the done branch that gets the tick.
 
 A case belongs to the required profile unless one of its `rules` is in an
-optional part of the workflow page's conformance table. A runner runs the
+optional part of the workflow page's optional parts table. A runner runs the
 cases of the required profile and of each optional part it supports.
 
 ## Running it

@@ -1,6 +1,6 @@
 {
   "title": "A live lease is not taken",
-  "rules": ["12.6", "12.7"],
+  "rules": ["15.6", "15.7"],
   "runner": {
     "login": "acme-bob",
     "defaultBranch": "main",

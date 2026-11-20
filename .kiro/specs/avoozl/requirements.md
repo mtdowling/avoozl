@@ -11,8 +11,9 @@ folders, builds a task graph from each spec's `tasks.md`, starts a coding
 agent on each ready task in its own worktree, runs the repository's checks on
 the exact commit the agent made, and lands the work by the repository's
 `landing` setting. Agents run as Kiro Crew chats or as process harnesses
-under Avoozl's supervisor. Avoozl is a local application with a Kiro Crew app
-page, a CLI and an MCP server; the page can also be served by `avoozl serve`.
+started by each `avoozl tick`. Avoozl is a local application with a Kiro Crew
+app page, a CLI and an MCP server; a timer or the app's cron runs the tick,
+and each tick can also keep the page up on its own.
 
 Git and GitHub hold the state that matters: specs, approvals, ticks and what
 landed. SQLite is a cache that `avoozl rebuild` makes again. GitHub is
@@ -77,7 +78,7 @@ Facts carry one label:
 ### In scope
 
 - One Avoozl Kiro Crew app with a backend, page, skill, and MCP surface, and
-  the same page served by `avoozl serve`.
+  the same page served by Avoozl itself, kept up by each tick.
 - Kiro spec folders as the plan layout.
 - Local planning and delivery with no GitHub dependency.
 - GitHub spec issues, epic issues, pull requests and landing.
@@ -2943,27 +2944,29 @@ that I approve, so that a new agent CLI needs no code change.
 7. Adding a second harness SHALL need only its definition file: the proof of
    Phase 48 SHALL fail if any source file changes.
 
-### Requirement 95: One supervisor per machine
+### Requirement 95: The supervisor pass in each tick
 
 Design §4.28.
 
-**User story:** As the owner, I want one process per machine to own the
-agent children, so that a child outlives a page reload and a backend
-restart, and its exit is never lost.
+**User story:** As the owner, I want each tick to own the agent children it
+starts, with no process waiting on them, so that a child outlives the tick, a
+page reload and a backend restart, and its exit is never lost.
 
 #### Acceptance criteria
 
-1. `avoozl supervisor` SHALL run once per machine and SHALL own every
-   `process` child: its pid, exit code and log file. A second supervisor on
-   the same machine SHALL exit and name the first.
-2. The supervisor SHALL take only session requests for the `process`
-   executor, start the child in its worktree with the approved definition,
-   and record `status` from the child's state.
-3. On a Kiro Crew machine the app backend SHALL start the supervisor. On a
-   headless machine launchd or systemd SHALL start it, and it SHALL also run
-   the tick there.
-4. WHEN the supervisor restarts THEN it SHALL find its children again by
-   pid and start time, and SHALL record a child it cannot find as `gone`
+1. Each `avoozl tick` SHALL run the supervisor pass, which owns every
+   `process` child: its session id, pid, start time, exit code and log
+   file, in the machine state folder. Two passes at once SHALL not both run;
+   the second SHALL skip (machine-server MS2.3).
+2. The supervisor pass SHALL take only session requests for the `process`
+   executor, start the child detached in its worktree with the approved
+   definition, and record `status` from the child's state.
+3. Whatever runs `avoozl tick` runs the supervisor pass: on a Kiro Crew
+   machine the app's cron, elsewhere a launchd, systemd or cron timer or a
+   driver chat (machine-server MS4). Nothing else starts children.
+4. A later pass SHALL find each child again by pid and start time, read
+   its exit file once it has ended, resume it on a queued message with the
+   same session id, and record a child it cannot find as `gone`
    (Requirement 88.4 applies).
 5. Every child SHALL get the environment variable `AVOOZL_CHILD=1` with its
    session ID. The CLI SHALL refuse a person-only command in a child. This
@@ -2989,13 +2992,13 @@ in a way Avoozl reads the same, so that Avoozl reads one kind of result.
 
 1. A `process` child SHALL finish by writing a small result file,
    `.avoozl/result.json` in its task folder (`{"state": "done" | "blocked",
-   "text": "..."}`, at most 8 KB), and exiting. The supervisor SHALL read the
-   exit code and that file, and SHALL record the result. The brief SHALL say
+   "text": "..."}`, at most 8 KB), and exiting. The supervisor pass SHALL read
+   the exit code and that file, and SHALL record the result. The brief SHALL say
    so as its last step.
 2. A `kirocrew` chat and a person SHALL finish with
    `avoozl runner report TASK done|blocked` (with text for `blocked`), the
    CLI report of Requirement 88.2.
-3. Avoozl SHALL match a result to its session by the supervisor's record or
+3. Avoozl SHALL match a result to its session by the supervisor pass's record or
    the worktree, SHALL make or read the commit in the worktree itself
    (Requirement 94.4a), and SHALL treat the result text as data.
 4. A child that exits with no result file, an unreadable one, or a non-zero
@@ -3026,6 +3029,10 @@ Design §4.28.
 **User story:** As the owner, I want to watch and steer every session in the
 Avoozl page, whatever harness runs it, so that I need no other UI.
 
+Every front end (Kiro Crew, the page, the CLI and the host packages' `avoozl
+mcp`) works on the same workspace databases, and every one of them sees what
+the last tick did.
+
 #### Acceptance criteria
 
 1. In flight SHALL show a `process` session's status, the tail of its log,
@@ -3033,8 +3040,8 @@ Avoozl page, whatever harness runs it, so that I need no other UI.
 2. **Send message** on a `process` session SHALL queue a `send`.
 3. Settings › Models SHALL set a harness and a model per role.
 4. A headless machine SHALL get the CLI (`avoozl status` and
-   `avoozl runner status --json`), and the standalone page when
-   `avoozl serve` or `serve.enabled` runs it (`.kiro/specs/standalone-web/`).
+   `avoozl runner status --json`), and the standalone page that each tick
+   keeps up when `serve.enabled` is set (`.kiro/specs/standalone-web/`).
    Avoozl SHALL host no other UI and SHALL serve nothing beyond
    `127.0.0.1`.
 

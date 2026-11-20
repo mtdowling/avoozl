@@ -1,6 +1,6 @@
 {
   "title": "A merged pull request whose branch GitHub deleted is landed work awaiting its tick",
-  "rules": ["9.1", "13.2", "13.6"],
+  "rules": ["12.1", "16.2", "16.5"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main",

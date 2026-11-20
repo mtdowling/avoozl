@@ -1,24 +1,12 @@
 // CLI commands of one kind: command, help lines and run.
 import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
-import { runShim, shimClaim } from "../mcp/mcp-shim.mjs";
+import { serveKirocrew, serveWorkspace } from "../mcp/mcp-stdio.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { machineStatus, serveStatus } from "../workspace/machine-status.mjs";
 import { HOLDS_TASKS, readRunnerConfig } from "../workers/remote-runner.mjs";
 import { reportByToken } from "../workers/report-match.mjs";
 import { LinkStore } from "../serve/serve-auth.mjs";
 import { Store } from "../store/store.mjs";
-import {
-  startMachineServer,
-  stopMachineServer,
-} from "../executors/machine-server.mjs";
-import {
-  installLoginUnit,
-  loginUnit,
-  removeLoginUnit,
-} from "../executors/login-unit.mjs";
-import fs from "node:fs";
-import path from "node:path";
-import { runSupervisor } from "../executors/supervisor.mjs";
 import { help } from "../cli/command-help.mjs";
 import {
   approveHarnessByName,
@@ -27,21 +15,13 @@ import {
 import { agentSessionNote, cliRefusal } from "../mcp/mcp-policy.mjs";
 import { runCredentialHelper } from "../github/credential-helper.mjs";
 
-// A `process` child never starts, stops or links the server (MS3.9).
+// A `process` child never makes an owner link for the page (MS3.2).
 function refuseChild(name) {
   if (process.env.AVOOZL_CHILD)
     throw Error(
-      `A supervisor child may not run avoozl ${name}. Do it at this machine's command line.`,
+      `A process child may not run avoozl ${name}. Do it at this machine's command line.`,
     );
 }
-
-// The login unit for this machine, naming this CLI by absolute path.
-const unitFor = (machine) =>
-  loginUnit({
-    cli: fs.realpathSync(process.argv[1]),
-    stateDirectory: path.resolve(machine.stateDirectory),
-    configDirectory: path.resolve(machine.configDirectory),
-  });
 
 export const commands = [
   {
@@ -49,8 +29,8 @@ export const commands = [
     help: [
       help(
         "machine",
-        "mcp [--workspace PATH]",
-        "Stdio MCP for agents: forwards to this machine's server, starting it if needed",
+        "mcp --workspace PATH",
+        "Stdio MCP server for agents, one per chat, on the workspace database; it never loops",
         { usage: "mcp --workspace PATH", about: "Stdio MCP server for agents" },
       ),
       help(
@@ -59,18 +39,30 @@ export const commands = [
         "The same, for the Kiro Crew app: workspace per caller",
       ),
     ],
-    async run({ options, env, requestedWorkspace, config }) {
-      const machine = machineAvoozlPaths();
-      await runShim({
-        stateDirectory: machine.stateDirectory,
-        configDirectory: machine.configDirectory,
-        claim: shimClaim({
-          kirocrew: Boolean(options.kirocrew),
-          workspace: requestedWorkspace ? config.workspaceRoot : null,
+    async run({
+      options,
+      env,
+      requestedWorkspace,
+      config,
+      dbPath,
+      requireDatabase,
+      localOperations,
+    }) {
+      if (options.kirocrew)
+        return serveKirocrew({
+          fallback: requestedWorkspace ? config : null,
           env,
-        }),
-        env,
-      });
+        });
+      requireDatabase();
+      const store = new Store(dbPath);
+      try {
+        await serveWorkspace({
+          ops: localOperations(store),
+          workspaceRoot: config.workspaceRoot,
+        });
+      } finally {
+        store.close();
+      }
     },
   },
   {
@@ -101,86 +93,12 @@ export const commands = [
     },
   },
   {
-    command: "start",
-    help: [
-      help(
-        "machine",
-        "start [--foreground | --at-login]",
-        "Start this machine's server (the loop and the process children); a second start names the holder, and one of another build is replaced. --at-login also starts it at each login",
-      ),
-    ],
-    async run({ options, positionals }) {
-      refuseChild("start");
-      if (positionals.length || (options["at-login"] && options.foreground))
-        throw Error("Usage: avoozl start [--foreground | --at-login]");
-      const machine = machineAvoozlPaths();
-      if (options["at-login"]) {
-        const done = installLoginUnit(unitFor(machine));
-        console.log(
-          [
-            ...done.ran.map((line) => `ran: ${line}`),
-            `${done.replaced ? "Replaced" : "Wrote"} ${done.file}. The machine server now starts at each login.`,
-          ].join("\n"),
-        );
-        return;
-      }
-      const starter = options.starter ?? "terminal";
-      if (options.foreground) {
-        await runSupervisor({
-          stateDirectory: machine.stateDirectory,
-          configDirectory: machine.configDirectory,
-          starter,
-          foreground: true,
-        });
-        return;
-      }
-      const result = await startMachineServer({
-        stateDirectory: machine.stateDirectory,
-        configDirectory: machine.configDirectory,
-        starter,
-        replace: true,
-      });
-      console.log(result.message);
-    },
-  },
-  {
-    command: "stop",
-    help: [
-      help(
-        "machine",
-        "stop [--at-login]",
-        "Stop this machine's server; its process children keep running. --at-login removes the login unit too",
-      ),
-    ],
-    async run({ options, positionals }) {
-      refuseChild("stop");
-      if (positionals.length) throw Error("Usage: avoozl stop [--at-login]");
-      if (options["at-login"]) {
-        const done = removeLoginUnit(unitFor(machineAvoozlPaths()));
-        console.log(
-          [
-            ...done.ran.map((line) => `ran: ${line}`),
-            done.removed
-              ? "Removed the login unit; the machine server it ran has stopped."
-              : "No login unit is installed.",
-          ].join("\n"),
-        );
-        return;
-      }
-      console.log(
-        await stopMachineServer({
-          stateDirectory: machineAvoozlPaths().stateDirectory,
-        }),
-      );
-    },
-  },
-  {
     command: "link",
     help: [
       help(
         "machine",
         "link",
-        "A new one-time owner link for the standalone page the machine server hosts",
+        "A new one-time owner link for the standalone page each tick keeps up",
       ),
     ],
     run({ positionals }) {
@@ -190,7 +108,7 @@ export const commands = [
       const running = serveStatus(machine.stateDirectory);
       if (!running.running || !running.origin)
         throw Error(
-          "The standalone page is not running. Set serve.enabled in this machine's config.json and run: avoozl start",
+          "The standalone page is not running. Set serve.enabled in this machine's config.json and run: avoozl tick",
         );
       const links = new LinkStore(machine.stateDirectory);
       try {
@@ -261,7 +179,7 @@ export const commands = [
       help(
         "machine",
         "runner status --json",
-        "This runner's tasks and workers; elsewhere the supervisor and its children",
+        "This runner's tasks and workers; elsewhere the process children and the last tick passes",
       ),
     ],
     async run({
@@ -280,7 +198,7 @@ export const commands = [
       let result;
       if (action === "status")
         // A runner reports its remote tasks; any other machine reports the
-        // supervisor and its children (R98.5).
+        // process children and the last tick passes (R98.5).
         result = HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))
           ? await localOrRequest("remote.status")
           : machineStatus({ stateDirectory: machineStateDirectory() });

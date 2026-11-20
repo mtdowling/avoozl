@@ -10,7 +10,7 @@
 //   PLAYWRIGHT_CORE=DIR node scripts/proofs/proof-pc-p1.mjs --root DIR
 //
 // The page clicks (Approve, Use this one, Remove) are made by Playwright in
-// a throwaway `avoozl serve` page; screenshots go to DIR/shots. Landing
+// a throwaway standalone page; screenshots go to DIR/shots. Landing
 // setup is `avoozl setup`: `--yes` is the Allow, a run without it the
 // Cancel. PLAYWRIGHT_CORE is a playwright-core package directory with a
 // browser installed (no package of this repository depends on it).
@@ -417,18 +417,36 @@ const { chromium } = await import(
 const browser = await chromium.launch(),
   page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
 let serve = null;
+// The page's server as a tick starts it, then `avoozl link` for the sign-in.
 const startServe = async () => {
-  serve = spawn(process.execPath, [path.join(REPO, "cli.mjs"), "serve"], {
-    env: process.env,
-    stdio: ["ignore", "pipe", "ignore"],
-  });
-  const link = await new Promise((resolve, reject) => {
-    serve.once("exit", () => reject(Error("avoozl serve exited")));
+  const { machineAvoozlPaths } = await import(
+    "../../src/app/settings/host-config.mjs"
+  );
+  const machine = machineAvoozlPaths();
+  serve = spawn(
+    process.execPath,
+    [
+      path.join(REPO, "src", "app", "serve", "serve-main.mjs"),
+      "--state-directory",
+      machine.stateDirectory,
+      "--config-directory",
+      machine.configDirectory,
+      "--port",
+      "0",
+    ],
+    { env: process.env, stdio: ["ignore", "pipe", "ignore"] },
+  );
+  await new Promise((resolve, reject) => {
+    serve.once("exit", () => reject(Error("the page server exited")));
     serve.stdout.on("data", (chunk) => {
-      const found = /http:\/\/\S+\/login\?token=\S+/.exec(String(chunk));
-      if (found) resolve(found[0]);
+      if (/Avoozl is at http/.test(String(chunk))) resolve();
     });
   });
+  const link = execFileSync(
+    process.execPath,
+    [path.join(REPO, "cli.mjs"), "link"],
+    { env: process.env, encoding: "utf8" },
+  ).trim();
   await page.goto(link);
   await page.waitForSelector("[data-nav-head]");
 };

@@ -6,9 +6,10 @@ description: Work with Avoozl from this tool. Plan specs, read tasks and Needs y
 # Avoozl
 
 Avoozl runs approved specs with coding agents, checks each commit itself, and
-lands it. One server per machine does the work; this tool reaches it through
-the `avoozl` MCP server (`avoozl mcp`), which starts it when it is not
-running. Work keeps going when this tool is closed.
+lands it. The work happens in `avoozl tick`, one pass that exits; a timer on
+this machine runs it, so work keeps going when this tool is closed. This tool
+reads and plans through the `avoozl` MCP server (`avoozl mcp`), and the
+`avoozl-drive` skill says how a chat drives the tick when no timer does.
 
 ## What you do
 

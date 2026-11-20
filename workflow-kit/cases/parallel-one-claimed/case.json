@@ -1,6 +1,6 @@
 {
   "title": "A claimed child leaves its siblings ready",
-  "rules": ["3.3", "9.1"],
+  "rules": ["3.3", "12.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

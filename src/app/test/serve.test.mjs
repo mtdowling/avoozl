@@ -180,7 +180,7 @@ test("a link works once, and fails after use and after ten minutes with the same
   assert.equal(first.res.headers.location, "/apps/avoozl");
   const reused = await s.call(`/login?token=${s.token}`);
   assert.equal(reused.status, 403);
-  // A link made for the running server by `serve link`, left past its time.
+  // A link made for the running server by `avoozl link`, left past its time.
   const { LinkStore } = await import("../serve/serve-auth.mjs");
   const links = new LinkStore(s.stateDirectory);
   const old = links.make(s.clock.now);
@@ -267,7 +267,7 @@ test("without a session a page gets how to sign in and the API gets 401 JSON (SW
   const s = await serve(t);
   const page = await s.call("/apps/avoozl");
   assert.equal(page.status, 401);
-  assert.match(page.text, /avoozl serve link/);
+  assert.match(page.text, /avoozl link/);
   const api = await s.call("/apps/avoozl/api/command", {
     method: "POST",
     headers: { Origin: s.origin, "Content-Type": "application/json" },

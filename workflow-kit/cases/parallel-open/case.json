@@ -1,6 +1,6 @@
 {
   "title": "A parallel group's children are ready together, in file order",
-  "rules": ["3.2", "3.3", "10.1", "10.2"],
+  "rules": ["3.2", "3.3", "13.1", "13.2"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

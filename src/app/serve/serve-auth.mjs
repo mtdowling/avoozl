@@ -1,4 +1,4 @@
-// Sign-in and request checks for `avoozl serve` (spec standalone-web, SW4, D5).
+// Sign-in and request checks for the standalone page (spec standalone-web, SW4, D5).
 // The server listens on 127.0.0.1 only, but any local program and any web page
 // the owner visits can reach that socket, so every request is checked here
 // before any work: Host, method, a live session cookie, and for a write the
@@ -17,9 +17,9 @@ export const LINK_TTL_MS = 10 * 60 * 1000;
 export const IDLE_MS = 12 * 60 * 60 * 1000;
 export const ABSOLUTE_MS = 7 * 24 * 60 * 60 * 1000;
 export const CSRF_HEADER = "x-avoozl-csrf";
-export const LINK_REFUSAL = "This link is not valid. Run avoozl serve link.";
+export const LINK_REFUSAL = "This link is not valid. Run avoozl link.";
 export const SIGN_IN_PAGE =
-  "Sign in needed. Run `avoozl serve link` in a terminal on this computer and open the link it prints.";
+  "Sign in needed. Run `avoozl link` in a terminal on this computer and open the link it prints.";
 
 const sha256 = (value) => createHash("sha256").update(value).digest();
 const token = () => randomBytes(32).toString("base64url");
@@ -39,7 +39,7 @@ function writePrivate(file, text) {
 }
 
 // The owner links: SHA-256 hashes with their times, in serve.sqlite in the
-// machine state folder. `avoozl serve link` writes here and the running server
+// machine state folder. `avoozl link` writes here and the running server
 // reads it, so the two need no channel between them.
 export class LinkStore {
   constructor(stateDirectory) {

@@ -1,6 +1,6 @@
 {
   "title": "With no branch named for the spec, tasks land on the default branch",
-  "rules": ["11.1"],
+  "rules": ["14.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

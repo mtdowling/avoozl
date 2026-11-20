@@ -17,17 +17,17 @@ through its CLI, MCP server, web app, Kiro Crew plugin and skills.
 
 - **Parallel work.** Tasks run in [list order](docs/github-workflow.md#3-order),
   and the children of a parallel group start side by side.
-  [Claim branches](docs/github-workflow.md#12-claims) keep two runners off one
+  [Claim branches](docs/github-workflow.md#15-claims) keep two runners off one
   task.
 - **Teams.** The spec issue's assignee drives the spec. See
   [Spec issues and assignment](docs/github-workflow.md#8-spec-issues-and-assignment)
   for hand-offs.
 - **People decide.** See [Approval](docs/github-workflow.md#7-approval),
   [Manual tasks](docs/github-workflow.md#4-manual-tasks) and
-  [Landing modes](docs/github-workflow.md#14-landing-modes) for where a person
+  [Landing modes](docs/github-workflow.md#17-landing-modes) for where a person
   signs off.
 - **Specs or epics.** See [Linked specs](docs/github-workflow.md#6-linked-specs)
-  and [Integration branches](docs/github-workflow.md#11-integration-branches)
+  and [Integration branches](docs/github-workflow.md#14-integration-branches)
   for epics.
 
 ## Task list
@@ -42,7 +42,7 @@ Each task in a spec is an ID, a title and the bullets that say what done means:
 ```
 
 See [Tasks](docs/github-workflow.md#2-tasks) for the format and
-[Landing](docs/github-workflow.md#13-landing) for the tick that marks a task
+[Landing](docs/github-workflow.md#16-landing) for the tick that marks a task
 done.
 
 ## How it works
@@ -106,9 +106,13 @@ Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
 **Avoozl** page appears in the sidebar. To update, pull and run
 `npm run build && kirocrew app update avoozl` in the checkout.
 
-To run Avoozl without Kiro Crew, build it with `npm run build` and start the
-page with `avoozl serve --workspace ~/plans`. It listens on `127.0.0.1` only
-and prints a one-time link that signs your browser in.
+To run Avoozl without Kiro Crew, build it with `npm run build` and run
+`avoozl tick` on a timer: launchd, systemd or cron, with the lines in
+[Getting started](docs/getting-started.md#run-the-tick-on-a-timer), or a chat
+that follows the `avoozl-drive` skill. Each tick is one pass that exits. With
+`serve.enabled` in the machine's `config.json`, the tick also keeps the page
+up on `127.0.0.1`, and `avoozl link` prints a one-time link that signs your
+browser in. Claude Code users can load the plugin in `hosts/claude-code/`.
 
 ## Trying it out
 
@@ -165,7 +169,7 @@ With no GitHub, this workspace drives every spec.
 
 The repository's `landing` setting, `off` by default, decides what happens to
 work that passes. See
-[Landing modes](docs/github-workflow.md#14-landing-modes) for each value.
+[Landing modes](docs/github-workflow.md#17-landing-modes) for each value.
 
 In Kiro Crew, two one-time steps finish the setup. Share the `avoozl:avoozl`
 server in **MCP Management** and restart the gateway, so agent chats can

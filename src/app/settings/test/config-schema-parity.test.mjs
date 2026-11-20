@@ -121,7 +121,7 @@ const PAIRS = [
   [`${REPOSITORY}/landing`, GITHUB_BLOCK_KEYS.landing],
   // validateLandingConfig in landing-config.mjs.
   ["#/properties/landing", ["pr", "unionPaths"]],
-  ["#/properties/machine", ["alias", "tickSeconds"]],
+  ["#/properties/machine", ["alias"]],
 ];
 
 // Closed schema objects whose validator keeps its few keys inline, so there

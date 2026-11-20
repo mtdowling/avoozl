@@ -1,6 +1,6 @@
 {
   "title": "Without a takeover commit the old holder's push to its own claim branch is accepted",
-  "rules": ["12.3"],
+  "rules": ["15.3"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

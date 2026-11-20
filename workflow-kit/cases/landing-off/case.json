@@ -1,6 +1,6 @@
 {
   "title": "With landing off the runner pushes the claim branch only",
-  "rules": ["14.5"],
+  "rules": ["17.5"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

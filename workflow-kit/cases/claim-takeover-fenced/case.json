@@ -1,6 +1,6 @@
 {
   "title": "The old holder's push is rejected once the new holder pushed a takeover commit",
-  "rules": ["12.3", "12.7", "12.8", "12.9"],
+  "rules": ["15.3", "15.7", "15.8", "15.9"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

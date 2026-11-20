@@ -8,8 +8,8 @@ category: Planning
 
 This spec lets a person who runs Avoozl with Claude Code, Codex or another
 agent CLI, and no Kiro Crew, use today's Avoozl page in a browser. Avoozl
-serves the page itself with `avoozl serve`, on `127.0.0.1` only, behind a
-one-time owner link.
+serves the page itself, on `127.0.0.1` only, behind a one-time owner link:
+with `serve.enabled`, each `avoozl tick` keeps the page's server up.
 
 The page looks exactly as it does in Kiro Crew and is not a fork: it is
 built with Kiro Crew's own UI parts, SDK provider and stylesheet, unmodified,
@@ -19,9 +19,9 @@ page against Kiro Crew v0.12.2 (design D11).
 ### Why
 
 The any-harness plan (`.kiro/specs/avoozl/`, Requirements 93 to 98, design
-§4.28) made the work harness-neutral: a `process` child under
-`avoozl supervisor` can code, verify and review a task with no Kiro Crew on
-the machine. The page did not follow. Requirement 98 says Kiro Crew stays the
+§4.28) made the work harness-neutral: a `process` child started by
+`avoozl tick` can code, verify and review a task with no Kiro Crew on the
+machine. The page did not follow. Requirement 98 says Kiro Crew stays the
 only UI, and Requirement 98.4 leaves a machine without Kiro Crew with only
 `avoozl status` and `avoozl runner status --json`. A person who never
 installed Kiro Crew can run every role but cannot see Needs you, approve a
@@ -63,7 +63,7 @@ operation for agents.
 
 ### Out of scope
 
-- Remote access of any kind. `avoozl serve` binds `127.0.0.1` only and has no
+- Remote access of any kind. The page's server binds `127.0.0.1` only and has no
   option to bind anything else. No tunnel, relay, share link, reverse proxy
   support or TLS is built here. Viewing from another machine needs a later
   spec with a real identity provider.
@@ -84,7 +84,7 @@ operation for agents.
 | Word             | Meaning                                                                                                    |
 | ---------------- | ---------------------------------------------------------------------------------------------------------- |
 | Kiro Crew page   | Today's Avoozl page, `hosts/kirocrew/ui/dist/index.mjs`, rendered inside Kiro Crew                          |
-| Standalone page  | The same views built with Kiro Crew's own parts at the pin and served by `avoozl serve`                   |
+| Standalone page  | The same views built with Kiro Crew's own parts at the pin and served by Avoozl's page server             |
 | Host shim        | Avoozl's code on the host side of the SDK: the provider's props, navigation, one request header, the theme |
 | Pin              | The Kiro Crew release whose source the standalone build uses, named with a digest (SW12)                  |
 | Owner link       | A one-time `http://127.0.0.1:<port>/login?token=…` URL that signs the browser in                          |
@@ -166,33 +166,31 @@ own files, so that the Kiro Crew bundle stays exactly as it is.
    SDK entry files reach the whole dashboard, 27.7 MB of script; with its
    chat exports left out the script was 2.7 MB).
 
-### Requirement SW3: `avoozl serve` on loopback only
+### Requirement SW3: The page's server on loopback only
 
 **User story:** As the owner, I want the page served only to my own machine,
 so that nobody on my network can reach Avoozl.
 
 #### Acceptance criteria
 
-1. `avoozl serve [--workspace PATH] [--port N]` SHALL listen on `127.0.0.1`
-   only. It SHALL have no host or bind option, SHALL read no environment
-   variable for one, and SHALL refuse to start with an error naming the
-   variable or flag when one is given (`--host`, `--bind`, `AVOOZL_HOST`).
-2. With no `--port`, or `--port 0`, the server SHALL take a random free
-   port. With `--port N` (1024 to 65535) it SHALL take that port or exit with
-   "port N is in use" and not try another.
+1. The page's server (`src/app/serve/serve-main.mjs`, which a tick starts
+   with `serve.enabled`) SHALL listen on `127.0.0.1` only. It SHALL have no
+   host or bind option and SHALL read no environment variable for one.
+2. With no `serve.port`, or port 0, the server SHALL take a random free
+   port. With `serve.port` N (1024 to 65535) it SHALL take that port or exit
+   with "port N is in use" and not try another.
 3. The server SHALL serve the standalone files at `/apps/avoozl` and below,
    SHALL redirect `/` to `/apps/avoozl`, and SHALL answer
    `POST /apps/avoozl/api/command` with the same dispatch the app backend
    runs for an `owner-session` (SW5). Any other path SHALL get 404.
 4. Static files SHALL come from a fixed list of the built files, by name.
    No request path SHALL be joined to a folder.
-5. On start the server SHALL print the server origin and a fresh owner link
-   (SW4.1) to its own terminal, and SHALL write its origin, port and pid to
-   `serve.json` in the machine state folder with mode `0600`. It SHALL NOT
-   write the link or any token to that file or to a log.
+5. On start the server SHALL print its origin, and SHALL write its origin,
+   port and pid to `serve.json` in the machine state folder with mode
+   `0600`. It SHALL NOT write a link or any token to that file or to a log.
 6. A test on Linux, macOS and Windows SHALL start the server and check that
    the listening socket's address is `127.0.0.1` and no other.
-7. `avoozl serve` SHALL be refused in a supervisor child
+7. `avoozl link` SHALL be refused in a `process` child
    (`AVOOZL_CHILD=1`, Requirement 95.5), as a person-only command.
 
 ### Requirement SW4: The owner signs in with a one-time link
@@ -207,9 +205,9 @@ I visit cannot drive Avoozl.
    secure random source, base64url encoded. It SHALL work once and SHALL
    expire 10 minutes after it was made. The server SHALL keep only a SHA-256
    hash of it and SHALL compare hashes in constant time.
-2. `avoozl serve link` SHALL make a new owner link for the running server
-   and print it to the terminal that ran it. It SHALL be refused in a
-   supervisor child.
+2. `avoozl link` SHALL make a new owner link for the running server and
+   print it to the terminal that ran it. It SHALL be refused in a `process`
+   child.
 3. `GET /login?token=…` with a valid, unused, unexpired token SHALL mark the
    token used, start a browser session, set the session cookie and redirect
    with 303 to `/apps/avoozl`. Any other token SHALL get 403 with one fixed
@@ -222,7 +220,7 @@ I visit cannot drive Avoozl.
    server stops.
 5. Every request other than `/login` SHALL need a live session cookie. A
    page request without one SHALL get a page that says to run
-   `avoozl serve link`, with status 401; an API request without one SHALL
+   `avoozl link`, with status 401; an API request without one SHALL
    get 401 JSON.
 6. Every `POST` SHALL also need the header `X-Avoozl-CSRF` equal to the
    session's CSRF token. The CSRF token SHALL be 32 random bytes made with
@@ -275,8 +273,7 @@ the Kiro Crew page lets me do, and no more, and agents to stay off it.
 4. The standalone server SHALL offer no `app-token` or `agent-tool`
    principal and SHALL accept no bearer token or other credential header. Agents keep the
    MCP server and the CLI, and the CLI works on the workspace database
-   directly: pointed at `avoozl serve` with `--url`, it is refused with an
-   error that says only a browser's session cookie opens `/api/command`. A
+   directly and takes no `--url`. A
    test SHALL send a request with each of the app backend's principal
    headers, a bearer header and a made-up credential header, and no
    session cookie, and require 401.
@@ -304,7 +301,7 @@ page.
 3. A test SHALL list every `var(--…)` name used under `hosts/kirocrew/ui/src`
    and fail when the built stylesheet lacks one for the default palette in
    either mode.
-4. `avoozl serve` SHALL serve the fonts the stylesheet uses from the
+4. The page's server SHALL serve the fonts the stylesheet uses from the
    bundle. The page SHALL request no font the bundle does not hold (S: one
    optional font's address did not resolve in the spike).
 
@@ -356,23 +353,23 @@ if I turn it on, so that I can leave the tab in the background.
 4. With permission denied, the setting SHALL say so and the page SHALL keep
    working.
 
-### Requirement SW9: The supervisor can host the page
+### Requirement SW9: Each tick keeps the page up
 
 **User story:** As the owner of a headless worker machine, I want the page
-kept up by the supervisor, so that I do not keep a terminal open for it.
+kept up by the tick, so that I do not keep a terminal open for it.
 
 #### Acceptance criteria
 
 1. With `serve.enabled: true` (and an optional `serve.port`) in the machine
-   configuration, `avoozl supervisor` SHALL run the server as a supervised
-   child, restart it when it exits, and record its pid and port, as it does
-   for the tick and the integrator. The keys SHALL be refused in
-   `.avoozl.json`.
-2. The supervised server SHALL print no link. The owner SHALL get one with
-   `avoozl serve link` at that machine's own shell.
+   configuration, each `avoozl tick` SHALL start the server detached when it
+   does not run, start it again once it has exited, stop it when the setting
+   is off or the port changed, and record its pid, start time and port
+   (machine-server MS3.4). The keys SHALL be refused in `.avoozl.json`.
+2. The server SHALL print no link. The owner SHALL get one with
+   `avoozl link` at that machine's own shell.
 3. `avoozl status` SHALL show whether the server runs and its origin.
-4. The supervisor process itself SHALL still listen on no socket; only its
-   server child does, under SW3 and SW4.
+4. The tick process itself SHALL listen on no socket; only the server it
+   starts does, under SW3 and SW4.
 
 ### Requirement SW10: Say what needs Kiro Crew
 

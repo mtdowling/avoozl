@@ -1,11 +1,11 @@
-// The machine supervisor (R95.1-R95.4): owns pid, exit code and log; one per
-// machine; finds its children after a restart and records a lost one `gone`.
+// The supervisor pass (R95.1-R95.4): owns pid, exit code and log; a child
+// outlives the tick that started it, and a later tick's pass reaps or resumes
+// it, and records a lost one `gone`; two passes at once start nothing twice.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { spawn, spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 import {
   approveHarnessDefinition,
   harnessDefinitionHash,
@@ -14,21 +14,17 @@ import {
   childRecord,
   harnessSession,
   childStatus,
-  launchSupervisor,
+  openSupervisor,
   openSupervisorDatabase,
   requestChild,
-  runningSupervisor,
   sendChild,
-  startSupervisor,
   supervisorPaths,
 } from "../supervisor.mjs";
+import { tryLock } from "../pass-lock.mjs";
 import { sandboxKind } from "../sandbox.mjs";
 import { scratchRoot } from "./process-machine.mjs";
-import { startAppBackend } from "../kirocrew/app-backend.mjs";
-import { workspaceConfig } from "../../settings/config.mjs";
 
-const MAIN = fileURLToPath(new URL("../supervisor-main.mjs", import.meta.url));
-const CLI = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url));
+const SUPERVISOR = new URL("../supervisor.mjs", import.meta.url).href;
 
 // A fake agent: reads its brief (JSON), writes a file in the worktree, waits
 // for a release file when asked, and exits with the brief's code.
@@ -117,6 +113,13 @@ async function stopProcess(pid) {
   });
 }
 
+// A supervisor for one tick, after its first pass.
+function openAndPass(options) {
+  const supervisor = openSupervisor(options);
+  supervisor.pass();
+  return supervisor;
+}
+
 async function until(check, timeoutMs = 30_000) {
   const end = Date.now() + timeoutMs;
   for (;;) {
@@ -154,10 +157,9 @@ test("supervisor starts the approved harness and records pid, log and exit code"
   const db = openSupervisorDatabase(stateDirectory);
   defer(() => db.close());
   const id = requestChild(db, request(worktree, { exit: 3 }));
-  const supervisor = startSupervisor({
+  const supervisor = openAndPass({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
   });
   defer(() => supervisor.close());
   const running = childRecord(db, id);
@@ -191,10 +193,9 @@ test("a resumed child never reads as exited while its message starts it", async 
   });
   const id = requestChild(db, request(worktree));
   const seen = [];
-  const supervisor = startSupervisor({
+  const supervisor = openAndPass({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
     // Read by the backend's own connection while the supervisor starts a run.
     startTime: () => {
       if (childRecord(reader, id)) seen.push(childStatus(reader, id));
@@ -227,10 +228,9 @@ fs.writeFileSync("marker.json", JSON.stringify([process.env.AVOOZL_CHILD, proces
   const db = openSupervisorDatabase(stateDirectory);
   defer(() => db.close());
   const id = requestChild(db, request(worktree));
-  const supervisor = startSupervisor({
+  const supervisor = openAndPass({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
     env: {
       ...process.env,
       GH_TOKEN: "made-up",
@@ -273,10 +273,9 @@ fs.writeFileSync("seen.json", JSON.stringify([process.env.MODEL_KEY, process.env
   const db = openSupervisorDatabase(stateDirectory);
   defer(() => db.close());
   const id = requestChild(db, request(worktree));
-  const supervisor = startSupervisor({
+  const supervisor = openAndPass({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
   });
   defer(() => supervisor.close());
   await until(() => {
@@ -303,10 +302,9 @@ test("an unapproved definition never runs and takes the retry path", (t) => {
   const db = openSupervisorDatabase(stateDirectory);
   defer(() => db.close());
   const id = requestChild(db, request(worktree));
-  const supervisor = startSupervisor({
+  const supervisor = openAndPass({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
   });
   defer(() => supervisor.close());
   assert.equal(childStatus(db, id), "exited -1");
@@ -314,55 +312,53 @@ test("an unapproved definition never runs and takes the retry path", (t) => {
   assert.equal(fs.existsSync(path.join(worktree, "edited.txt")), false);
 });
 
-test("a second supervisor on the machine exits and names the first", async (t) => {
-  const { stateDirectory, configDirectory, defer } = scratch(t);
-  const supervisor = startSupervisor({
-    stateDirectory,
-    configDirectory,
-    intervalMs: 60_000,
-  });
+test("two passes at once: the one without the pass lock starts nothing", (t) => {
+  const { stateDirectory, configDirectory, worktree, defer } = scratch(t);
+  const db = openSupervisorDatabase(stateDirectory);
+  defer(() => db.close());
+  const id = requestChild(db, request(worktree));
+  const held = tryLock(supervisorPaths(stateDirectory).lock);
+  assert.equal(held.held, true);
+  const supervisor = openSupervisor({ stateDirectory, configDirectory });
   defer(() => supervisor.close());
-  assert.throws(
-    () => startSupervisor({ stateDirectory, configDirectory }),
-    new RegExp(`already runs on this machine: pid ${process.pid}`),
-  );
-  const second = spawnSync(
-    process.execPath,
-    [
-      MAIN,
-      "--state-directory",
-      stateDirectory,
-      "--config-directory",
-      configDirectory,
-    ],
-    { encoding: "utf8", timeout: 30_000 },
-  );
-  assert.equal(second.status, 1);
-  assert.match(second.stderr, new RegExp(`pid ${process.pid}`));
+  try {
+    assert.equal(supervisor.pass(), false);
+    assert.equal(childRecord(db, id).state, "requested");
+  } finally {
+    held.close();
+  }
+  assert.equal(supervisor.pass(), true);
+  assert.equal(childRecord(db, id).state, "running");
 });
 
-test("after a restart the supervisor finds its children again; a missing one is gone", async (t) => {
+test("a child outlives the tick that started it; the next tick reaps it, resumes it, and records a lost one gone", async (t) => {
   const { root, stateDirectory, configDirectory, worktree, defer } = scratch(t);
   const db = openSupervisorDatabase(stateDirectory);
   defer(() => db.close());
   const release = path.join(root, "release");
   const id = requestChild(db, request(worktree, { waitFor: release, exit: 0 }));
 
-  // The first supervisor runs as its own process and dies mid-run.
-  const first = spawn(process.execPath, [
-    MAIN,
-    "--state-directory",
-    stateDirectory,
-    "--config-directory",
-    configDirectory,
-  ]);
-  const firstExit = new Promise((resolve) => first.once("exit", resolve));
-  const pid = await until(() => childRecord(db, id).pid);
-  first.kill("SIGKILL");
-  await firstExit;
+  // The first tick is its own process: one pass, then it exits.
+  const first = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `const { openSupervisor } = await import(${JSON.stringify(SUPERVISOR)});
+       const s = openSupervisor(${JSON.stringify({ stateDirectory, configDirectory })});
+       s.pass(); s.close();`,
+    ],
+    { encoding: "utf8", timeout: 60_000 },
+  );
+  assert.equal(first.status, 0, first.stderr);
+  const { pid, session_id } = childRecord(db, id);
+  assert.equal(session_id, id);
   defer(() => stopProcess(pid));
+  // Its child still runs, with its pid and session recorded.
+  assert.equal(childRecord(db, id).state, "running");
+  process.kill(pid, 0);
 
-  // A dead pid and a reused pid, both left `running` by the old supervisor.
+  // A dead pid and a reused pid, both left `running` by an earlier tick.
   const dead = spawnSync(process.execPath, ["-e", ""]).pid;
   const now = new Date().toISOString();
   const insert = db.prepare(
@@ -377,21 +373,29 @@ test("after a restart the supervisor finds its children again; a missing one is 
   insert.run(lost, worktree, dead, null, now, now);
   insert.run(reused, worktree, process.pid, "not this process", now, now);
 
-  const second = startSupervisor({
-    stateDirectory,
-    configDirectory,
-    intervalMs: 60_000,
-    // Some sandboxes cannot run ps; name this process's start time here.
-    startTime: (at) => (at === process.pid ? "this process" : null),
-  });
-  defer(() => second.close());
+  // Some sandboxes cannot run ps; name this process's start time here.
+  const startTime = (at) => (at === process.pid ? "this process" : null);
+  const tick = () => {
+    const second = openSupervisor({
+      stateDirectory,
+      configDirectory,
+      startTime,
+    });
+    try {
+      second.pass();
+    } finally {
+      second.close();
+    }
+  };
+  tick();
   assert.equal(childStatus(db, id), "working");
   assert.equal(childStatus(db, lost), "gone");
   assert.equal(childStatus(db, reused), "gone");
 
+  // It ends between ticks; the next tick reaps it from its exit file.
   fs.writeFileSync(release, "");
   await until(() => {
-    second.pass();
+    tick();
     return childStatus(db, id) !== "working";
   });
   assert.equal(childStatus(db, id), "exited 0", childLog(db, id));
@@ -399,40 +403,16 @@ test("after a restart the supervisor finds its children again; a missing one is 
     fs.readFileSync(childRecord(db, id).log_file, "utf8"),
     /agent says hello/,
   );
-});
 
-test("launchSupervisor starts one detached supervisor and reuses it", async (t) => {
-  const { stateDirectory, configDirectory, defer } = scratch(t);
-  const first = launchSupervisor({ stateDirectory, configDirectory });
-  assert.equal(first.started, true);
-  defer(() => stopProcess(first.pid));
-  await until(() => runningSupervisor(stateDirectory));
-  assert.equal(runningSupervisor(stateDirectory).pid, first.pid);
-  const again = launchSupervisor({ stateDirectory, configDirectory });
-  assert.deepEqual(again, { pid: first.pid, started: false });
-  assert.ok(fs.existsSync(supervisorPaths(stateDirectory).log));
-});
-
-test("the app backend starts the supervisor once it listens", async (t) => {
-  const { root, defer } = scratch(t);
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "xdg") };
-  for (const name of Object.keys(env))
-    if (/^AVOOZL_/.test(name)) delete env[name];
-  let calls = 0;
-  const server = startAppBackend({
-    config: workspaceConfig({ workspace: path.join(root, "ws"), env }),
-    supervisor: () => calls++,
-    notifier: null,
-    slotReader: null,
-    rowReader: null,
-    usageReader: null,
-    modelSwitcher: null,
-    modelReader: null,
+  // A message queued between ticks resumes the same session on the next.
+  assert.equal(sendChild(db, id, JSON.stringify({ exit: 3 })), "accepted");
+  tick();
+  await until(() => {
+    tick();
+    return childStatus(db, id) !== "working";
   });
-  defer(() => server.close());
-  await new Promise((resolve) => server.once("listening", resolve));
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(calls, 1);
+  assert.equal(childStatus(db, id), "exited 3", childLog(db, id));
+  assert.equal(childRecord(db, id).runs, 2);
 });
 
 // A fake agent that records its argv, its home variable and its prompt.
@@ -454,11 +434,7 @@ async function runSeen({
   db,
   id,
 }) {
-  const supervisor = startSupervisor({
-    stateDirectory,
-    configDirectory,
-    intervalMs: 60_000,
-  });
+  const supervisor = openSupervisor({ stateDirectory, configDirectory });
   defer(() => supervisor.close());
   await until(() => {
     supervisor.pass();

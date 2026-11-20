@@ -1,4 +1,4 @@
-// Which server answers this page: Kiro Crew's app backend or `avoozl serve`,
+// Which server answers this page: Kiro Crew's app backend or the standalone page's,
 // read once from the workspace list.
 import { useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'

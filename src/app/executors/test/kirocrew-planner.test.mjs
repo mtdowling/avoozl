@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { lintSpec, readSpecFolder } from "../../specs/spec-plans.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
-import { packagedTools } from "../../test/shim-run.mjs";
+import { packagedTools } from "../../test/own-machine.mjs";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(root, "hosts", "kirocrew"),

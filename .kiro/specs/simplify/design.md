@@ -101,7 +101,7 @@ three key values, and `avoozl next` prints them.
   Avoozl merge, through the merge API with `sha` set to the checked head; a
   person merges a draft or ready pull request, or presses Approve or Merge
   on its Needs you row. With `auto`, Avoozl arms GitHub auto-merge only where
-  rule 14.7 allows it. The task stays
+  rule 17.7 allows it. The task stays
   claimed while the pull request is open. When the pull request merges, the
   next read sees the tick on the base and the task is done. When it closes
   unmerged, the task shows in Needs you with "Delete claim branch".
@@ -164,8 +164,9 @@ machine's lanes are full, starts a worker session on each claim through the
 repository's worker harness, and calls `runner.land` for each reported task.
 It uses only operations a caller can also call.
 
-The supervisor runs the pass on a headless machine (`avoozl supervisor
---tick`); the Kiro Crew app backend runs it through the tick cron.
+Each `avoozl tick` runs the pass, from whatever timer runs it: launchd,
+systemd or cron on a headless machine, the app's tick cron in Kiro Crew, or a
+driver chat (machine-server MS1).
 
 ## D7. The surface
 

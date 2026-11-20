@@ -1,6 +1,6 @@
 {
   "title": "Direct landing fast-forwards the base and deletes the claim branch",
-  "rules": ["13.1", "13.2", "14.1"],
+  "rules": ["16.1", "16.2", "17.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

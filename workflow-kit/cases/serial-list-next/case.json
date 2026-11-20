@@ -1,6 +1,6 @@
 {
   "title": "A task waits for the one above it",
-  "rules": ["3.1", "9.1", "12.1"],
+  "rules": ["3.1", "12.1", "15.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

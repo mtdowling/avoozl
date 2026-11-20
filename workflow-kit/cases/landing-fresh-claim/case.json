@@ -1,6 +1,6 @@
 {
   "title": "A fresh claim after a restart holds no landed work",
-  "rules": ["12.1", "13.6"],
+  "rules": ["15.1", "16.5"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

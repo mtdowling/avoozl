@@ -10,7 +10,7 @@ import {
   harnessDefinitionHash,
 } from "../harness-definitions.mjs";
 import { sandboxKind } from "../sandbox.mjs";
-import { startSupervisor } from "../supervisor.mjs";
+import { openSupervisor } from "../supervisor.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { Store } from "../../store/store.mjs";
 
@@ -94,12 +94,9 @@ export function initCheckout(checkout) {
 }
 
 // Write the fake CLI's definition, approve it (or opt it out of the sandbox
-// where this machine has none) and start a supervisor on it.
-export function startFakeSupervisor({
-  stateDirectory,
-  configDirectory,
-  bytes,
-}) {
+// where this machine has none) and open a supervisor on it; each pass() is
+// one tick's.
+export function openFakeSupervisor({ stateDirectory, configDirectory, bytes }) {
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),
     bytes,
@@ -111,11 +108,7 @@ export function startFakeSupervisor({
       path.join(configDirectory, "harness-unconfined.json"),
       JSON.stringify({ "fake-cli": hash }),
     );
-  return startSupervisor({
-    stateDirectory,
-    configDirectory,
-    intervalMs: 60_000,
-  });
+  return openSupervisor({ stateDirectory, configDirectory });
 }
 
 export function machine(t, extra = {}, { agent = AGENT } = {}) {
@@ -148,7 +141,7 @@ export function machine(t, extra = {}, { agent = AGENT } = {}) {
     writeRoots: ["{worktree}", "{tmp}"],
     ...extra,
   });
-  const supervisor = startFakeSupervisor({
+  const supervisor = openFakeSupervisor({
     stateDirectory,
     configDirectory,
     bytes,

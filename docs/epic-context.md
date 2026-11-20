@@ -92,8 +92,9 @@ one MCP config file:
 A harness without it gets no MCP servers, and the session's record says so.
 Avoozl writes the config file with one stdio server per alias, each running
 `context-relay.mjs`. The relay connects to a Unix socket in a private folder
-that the supervisor listens on outside every sandbox. The supervisor checks the
-session's token and alias, starts the real server on the first connection with
+that the session's own broker process listens on outside every sandbox; the
+tick that starts the session starts the broker, and it ends with the
+session's run. The broker checks the session's token and alias, starts the real server on the first connection with
 the basic check environment plus the names you mapped, in a scratch folder, and
 passes lines both ways. Each call's alias, tool, time, size and error go to
 Activity as one row, never the arguments or the reply. A server that opens a

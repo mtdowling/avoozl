@@ -41,7 +41,7 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 - **Task facts** are the `$key:` bullets under each task in `tasks.md`.
 - **Approvals** and **task completion** are commits on the specs branch. See
   [Approval](github-workflow.md#7-approval) and
-  [Done tasks](github-workflow.md#15-done-tasks).
+  [Done tasks](github-workflow.md#18-done-tasks).
 - **Landings** are the trailers on the landing commits.
 - **Execution state** is the workspace database, rebuilt from the items above.
 
@@ -101,7 +101,7 @@ lists their IDs.
 
 `avoozl plan restore PLAN_ID` brings a deleted plan back. Both commands are for
 a person, and MCP and chat callers are refused. The CLI runs them anywhere but
-a supervisor child, and says so when it runs inside an agent session.
+a `process` child, and says so when it runs inside an agent session.
 
 ## Agent prompts
 

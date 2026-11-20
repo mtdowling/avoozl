@@ -153,12 +153,22 @@ async function setup() {
     ...(config.delivery || {}),
     retries: 1,
     investigate: { mode: "all", minConfidence: "high" },
+    // A Kiro Crew reviewer reports through MCP sharing, which this test crew
+    // has off; the proof is about the cron, so the task gets no review.
+    reviewers: [],
   };
   config.lanes = { local: 2 };
   // A copy of the stock worker with shell and file tools, in the test crew
   // only (wp-p1): the stock agent cannot run the brief's commands.
   config.roles = { worker: { harness: "kirocrew", agent: "wp-worker" } };
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n");
+  // The tick starts and lands work only with this machine's loop on.
+  const machineFile = path.join(CREW, "avoozl", "config.json");
+  const machine = fs.existsSync(machineFile)
+    ? JSON.parse(fs.readFileSync(machineFile, "utf8"))
+    : { version: 1 };
+  machine.loop = { run: ["specs"] };
+  fs.writeFileSync(machineFile, JSON.stringify(machine, null, 2) + "\n");
   const { Store } = await import("../../src/app/store/store.mjs");
   const store = new Store(DB);
   try {

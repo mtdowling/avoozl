@@ -1,6 +1,6 @@
 {
   "title": "Landed work with no tick is ticked on the specs branch, then the claim branch goes",
-  "rules": ["13.1", "13.2", "13.6"],
+  "rules": ["16.1", "16.2", "16.5"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main",

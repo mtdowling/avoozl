@@ -1,11 +1,11 @@
-// The landing step one claimed task takes (workflow v1 rules 13 and 14,
+// The landing step one claimed task takes (workflow v1 rules 16 and 17,
 // simplify §D4), from what the runner read:
 //
 //   mode      the repository's landing mode: direct, pr or off
 //   pr        landing.pr in `pr` mode: draft (the default), ready or auto
 //   checks    whether the checks passed on the exact head: true or false
 //   baseMoved whether the base moved since the claim branch last took it
-//   landed    the work is on the base already and its tick is missing (13.6)
+//   landed    the work is on the base already and its tick is missing (16.5)
 //   base      the branch the task lands on: its integration branch or the
 //             default branch
 //   done      the branch that gets the tick when it is not the base (the
@@ -25,7 +25,7 @@ export function landingAction({
   done = null,
 }) {
   // Landed work whose tick is missing is ticked on its done branch in its
-  // own commit, then its claim branch goes (13.6).
+  // own commit, then its claim branch goes (16.5).
   if (landed)
     return {
       action: "tick-landed-work",

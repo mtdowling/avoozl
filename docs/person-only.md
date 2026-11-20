@@ -16,15 +16,22 @@ there records that in its receipt.
 
 The CLI tells a session by `KIROCREW_SPAWNED=1` (set on every process Kiro Crew
 starts for an agent) or `KIRO_SESSION_ID` (set in an agent's shell). The one
-place the CLI refuses is a process the supervisor started (`AVOOZL_CHILD`),
+place the CLI refuses is a `process` child a tick started (`AVOOZL_CHILD`),
 where nobody is typing.
 
 For a Kiro Crew chat this is a speed bump. The chat runs as you, with your
 files, your `gh` login and your network, so nothing stops a determined agent
 from writing the database or calling `gh` itself.
 
+The Claude Code plugin (`hosts/claude-code/`) adds one more speed bump: a hook
+that refuses the agent's own shell call to an `avoozl` command only a person
+may run, from `hooks/person-only.json`. Code running as you can reach the same
+command another way, so the commands and the MCP tools are where Avoozl
+enforces it. A chat that drives the tick (`avoozl-drive`) runs `avoozl tick`,
+which is not person-only, and hands every person-only step back to you.
+
 `avoozl credential`, the git credential helper Avoozl hands its own git
-commands, refuses to answer inside an agent session or a supervisor child, and
+commands, refuses to answer inside an agent session or a `process` child, and
 `--yes` for a high-risk GitHub step is refused there too. Both are speed
 bumps, not walls: code running as you can unset the markers. The sandbox is
 what keeps an agent from `plugins.json`, plugin folders and `gh`'s config.
@@ -34,7 +41,7 @@ what keeps an agent from `plugins.json`, plugin folders and `gh`'s config.
 Setting this machine's `epicContext` block (`avoozl context set`), answering a
 context plugin's questions (`avoozl plugins answer`), mapping its servers
 (`avoozl plugins map`) and approving it are a person's acts. They are refused
-over MCP, for a bound session and in a supervisor child. See
+over MCP, for a bound session and in a `process` child. See
 [Epic context](epic-context.md).
 
 ## Approval delegation
@@ -48,9 +55,10 @@ are person-only.
 
 ## Unattended sessions
 
-An unattended `process` child, one the supervisor starts, gets `AVOOZL_CHILD`,
-and the same refusal applies. What keeps a child from a person-only act is the
-sandbox the supervisor wraps it in:
+An unattended `process` child, one a tick starts, gets `AVOOZL_CHILD`, and the
+same refusal applies. It keeps running after that tick exits, and a later tick
+reaps or resumes it. What keeps a child from a person-only act is the sandbox
+the tick wraps it in:
 
 - It can neither read nor write the workspace databases (each catalog
   workspace's `.avoozl` folder), Avoozl's machine config and state folders, the
@@ -72,7 +80,9 @@ sandbox the supervisor wraps it in:
   folder, such as the code review; only `network` is withheld from those.
 - Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
   `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git
-  gets no credential helper.
+  gets no credential helper. The names its harness definition lists in
+  `keepEnv` are kept, with values from the tick's environment or this
+  machine's `machine.env`, an owner-only file outside every child's reach.
 - On Linux it gets an empty `$XDG_RUNTIME_DIR`, and the docker socket,
   podman's socket folder and the SSH agent socket are hidden, since a Unix
   socket on a read-only mount still connects.

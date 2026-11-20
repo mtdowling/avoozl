@@ -1,19 +1,15 @@
-// What this machine's supervisor owns, for a headless machine that has only
-// the CLI (R98.5, design §4.28): `avoozl status` and `avoozl runner status
-// --json`. Read-only: it never creates the supervisor directory, takes the
-// lock or changes a child. No brief, token or log text, only ids and states.
+// This machine's process children and last tick passes, for a machine that
+// has only the CLI (R98.5, design §4.28): `avoozl status` and `avoozl runner
+// status --json`. Read-only: it never creates the supervisor directory, takes
+// a lock or changes a child. No brief, token or log text, only ids and states.
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import {
-  runningSupervisor,
-  supervisorPaths,
-} from "../executors/supervisor.mjs";
+import { supervisorPaths } from "../executors/supervisor.mjs";
 import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { ROLES, resolveRoles } from "../settings/chat-models.mjs";
-import { buildId } from "../executors/machine-build.mjs";
-import { lastPasses } from "../executors/machine-requests.mjs";
+import { lastPasses } from "../executors/tick-passes.mjs";
 
 const COLUMNS = `session_id, role, task, harness, state, pid, exit_code,
   error, requested_at, updated_at`;
@@ -57,8 +53,7 @@ export function machineStatus({
   stateDirectory,
   configDirectory = machineAvoozlPaths().configDirectory,
 }) {
-  const paths = supervisorPaths(stateDirectory),
-    holder = runningSupervisor(stateDirectory);
+  const paths = supervisorPaths(stateDirectory);
   let children = [],
     passes = [];
   let unreadable = null;
@@ -85,7 +80,7 @@ export function machineStatus({
           updatedAt: row.updated_at,
         }));
     } catch (error) {
-      // The server may be setting its database up; status still answers.
+      // A tick may be setting its database up; status still answers.
       unreadable = error.message;
     } finally {
       db?.close();
@@ -94,23 +89,8 @@ export function machineStatus({
   return {
     version: 1,
     at: new Date().toISOString(),
-    supervisor: holder
-      ? {
-          running: true,
-          pid: holder.pid,
-          build: holder.build ?? null,
-          started: holder.at ?? null,
-          starter: holder.starter ?? null,
-          tickSeconds: holder.tickSeconds ?? null,
-          passes,
-          // MS3.5: a server of another build keeps running until `avoozl start`.
-          ...(holder.build && holder.build !== buildId()
-            ? {
-                note: `This command is build ${buildId()}. Run avoozl start to replace the running server.`,
-              }
-            : {}),
-        }
-      : { running: false },
+    // Each workspace's last pass: whether a timer runs `avoozl tick`.
+    passes,
     serve: serveStatus(stateDirectory),
     harnesses: listHarnessDefinitions(configDirectory).map(
       ({ name, approved, startProblem }) => ({ name, approved, startProblem }),

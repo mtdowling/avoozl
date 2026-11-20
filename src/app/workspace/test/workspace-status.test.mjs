@@ -83,7 +83,7 @@ test("status reports a named workspace that this machine has not registered", ()
   });
   // The machine view is still there, beside the workspace.
   assert.deepEqual(status.workspaces, []);
-  assert.deepEqual(status.machine.supervisor, { running: false });
+  assert.deepEqual(status.machine.passes, []);
 });
 
 test("status says a named workspace is registered, by path, by ID and from the environment", () => {

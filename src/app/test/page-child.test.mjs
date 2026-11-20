@@ -1,6 +1,7 @@
-// The supervisor hosts the standalone page (SW9): it starts the server child
-// when `serve.enabled` is set, restarts it on the same fixed port, prints no
-// link, shows the origin in `avoozl status`, and listens on no socket itself.
+// Each tick keeps the standalone page up (SW9): it starts the server child
+// when `serve.enabled` is set, starts it again on the same fixed port once it
+// has exited, stops it when the setting goes off, prints no link, shows the
+// origin in `avoozl status`, and listens on no socket itself.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import net from "node:net";
@@ -8,7 +9,8 @@ import path from "node:path";
 import test from "node:test";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { machineStatus } from "../workspace/machine-status.mjs";
-import { startSupervisor, supervisorPaths } from "../executors/supervisor.mjs";
+import { supervisorPaths } from "../executors/supervisor.mjs";
+import { hostPage } from "../executors/page-child.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const until = async (check, what, ms = 30000) => {
@@ -53,30 +55,37 @@ async function hosted(t, serve) {
   };
   for (const name of Object.keys(env))
     if (/^AVOOZL_/.test(name)) delete env[name];
-  const supervisor = startSupervisor({
+  // One tick's page step; a test calls it again as the next tick.
+  const tick = () => hostPage({ stateDirectory, configDirectory, env });
+  let page = tick();
+  t.after(async () => {
+    const pid = readJson(
+      path.join(supervisorPaths(stateDirectory).root, "page.json"),
+    )?.pid;
+    if (!pid) return;
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {}
+    await until(() => {
+      try {
+        process.kill(pid, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    }, "the server child to stop").catch(() => {});
+  });
+  return {
+    tick,
+    page: () => page,
     stateDirectory,
     configDirectory,
-    env,
-    intervalMs: 100,
-    serveRetryMs: 200,
-  });
-  t.after(async () => {
-    supervisor.close();
-    const pid = supervisor.serve()?.pid;
-    if (pid)
-      await until(() => {
-        try {
-          process.kill(pid, 0);
-          return false;
-        } catch {
-          return true;
-        }
-      }, "the server child to stop").catch(() => {});
-  });
-  return { supervisor, stateDirectory, configDirectory, configFile, root };
+    configFile,
+    root,
+  };
 }
 
-test("with serve.enabled the supervisor starts the server child and records its pid and port (SW9.1)", async (t) => {
+test("with serve.enabled a tick starts the server child and records its pid and port (SW9.1)", async (t) => {
   const port = await freePort();
   const h = await hosted(t, { enabled: true, port });
   const state = await until(
@@ -85,7 +94,9 @@ test("with serve.enabled the supervisor starts the server child and records its 
   );
   assert.equal(state.port, port);
   assert.equal(state.origin, `http://127.0.0.1:${port}`);
-  assert.equal(state.pid, h.supervisor.serve().pid);
+  assert.equal(state.pid, h.page().pid);
+  // The next tick finds the same child and starts no second one.
+  assert.equal(h.tick().pid, state.pid);
   // `avoozl status` shows the origin (SW9.3).
   const status = machineStatus({ stateDirectory: h.stateDirectory });
   assert.deepEqual(status.serve, {
@@ -95,7 +106,7 @@ test("with serve.enabled the supervisor starts the server child and records its 
   });
 });
 
-test("a killed child is restarted on the same fixed port; it prints no link (SW9.1, SW9.2)", async (t) => {
+test("a killed child is started again by the next tick on the same fixed port; it prints no link (SW9.1, SW9.2)", async (t) => {
   const port = await freePort();
   const h = await hosted(t, { enabled: true, port });
   const first = await until(
@@ -103,6 +114,15 @@ test("a killed child is restarted on the same fixed port; it prints no link (SW9
     "the first server",
   );
   process.kill(first.pid, "SIGKILL");
+  await until(() => {
+    try {
+      process.kill(first.pid, 0);
+      return false;
+    } catch {
+      return true;
+    }
+  }, "the first server to end");
+  h.tick();
   const again = await until(() => {
     const now = readJson(path.join(h.stateDirectory, "serve.json"));
     return now && now.pid !== first.pid ? now : null;
@@ -117,7 +137,7 @@ test("a killed child is restarted on the same fixed port; it prints no link (SW9
   assert.doesNotMatch(log, /login|token/i);
 });
 
-test("the supervisor process itself listens on no socket (SW9.4)", async (t) => {
+test("the tick process itself listens on no socket (SW9.4)", async (t) => {
   const port = await freePort();
   const h = await hosted(t, { enabled: true, port });
   await until(
@@ -132,8 +152,7 @@ test("the supervisor process itself listens on no socket (SW9.4)", async (t) => 
 
 test("without serve.enabled no server starts and status says so (SW9.1, SW9.3)", async (t) => {
   const off = await hosted(t, { enabled: false });
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  assert.equal(off.supervisor.serve(), null);
+  assert.equal(off.page(), null);
   assert.equal(
     fs.existsSync(path.join(off.stateDirectory, "serve.json")),
     false,
@@ -144,6 +163,28 @@ test("without serve.enabled no server starts and status says so (SW9.1, SW9.3)",
       running: false,
     },
   );
+});
+
+test("a tick stops the page once serve.enabled is off (SW9.1)", async (t) => {
+  const port = await freePort();
+  const h = await hosted(t, { enabled: true, port });
+  const first = await until(
+    () => readJson(path.join(h.stateDirectory, "serve.json")),
+    "the server",
+  );
+  fs.writeFileSync(
+    h.configFile,
+    JSON.stringify({ version: 1, serve: { enabled: false } }),
+  );
+  assert.equal(h.tick(), null);
+  await until(() => {
+    try {
+      process.kill(first.pid, 0);
+      return false;
+    } catch {
+      return true;
+    }
+  }, "the page to stop");
 });
 
 test("serve.* in .avoozl.json is refused, naming the key (SW9.1)", () => {

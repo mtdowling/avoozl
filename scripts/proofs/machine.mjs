@@ -46,21 +46,6 @@ export async function installHarness(
   return hash;
 }
 
-// Stop the proof's backend, its model proxy and the machine's supervisor.
-export async function stopMachine({ root, backend, proxy, stateDirectory }) {
-  fs.writeFileSync(path.join(root, "stop-backend"), "");
-  await sleep(5000);
-  backend.kill("SIGTERM");
-  if (proxy) proxy.kill("SIGTERM");
-  try {
-    const { runningSupervisor } = await import(
-      "../../src/app/executors/supervisor.mjs"
-    );
-    const sup = runningSupervisor(stateDirectory);
-    if (sup?.pid) process.kill(sup.pid, "SIGTERM");
-  } catch {}
-}
-
 // ---- A headless proof run (nk-p1) ----------------------------------------------
 
 // The command line every headless proof takes, and the paths under --root.
@@ -285,9 +270,10 @@ export function agentEnv(run, { noProxy = "" } = {}) {
   };
 }
 
-// The headless tick of a machine with no Kiro Crew: the tick, the drain of
-// `process` requests and the checks, every 3 s until `seconds` pass or the
-// prover writes stop-backend. `between(store, log)` runs after each drain.
+// The headless tick of a machine with no Kiro Crew: a supervisor pass, the
+// tick, the drain of `process` requests and the checks, and a supervisor pass
+// again, every 3 s until `seconds` pass or the prover writes stop-backend.
+// `between(store, log)` runs after each drain.
 export async function runBackend(
   run,
   machine,
@@ -304,9 +290,21 @@ export async function runBackend(
   const { drainCheckRuns } = await import(
     "../../src/app/delivery/check-runs.mjs"
   );
-  const { launchSupervisor } = await import(
+  const { openSupervisor } = await import(
     "../../src/app/executors/supervisor.mjs"
   );
+  const supervise = () => {
+    const sup = openSupervisor({
+      stateDirectory: machine.stateDirectory,
+      configDirectory: machine.configDirectory,
+      env,
+    });
+    try {
+      sup.pass();
+    } finally {
+      sup.close();
+    }
+  };
   const store = new Store(run.db);
   const ops = new Operations(store, {
     workspaceRoot: run.paths.ws,
@@ -320,12 +318,7 @@ export async function runBackend(
     );
   log("backend start");
   while (Date.now() < end) {
-    const sup = launchSupervisor({
-      stateDirectory: machine.stateDirectory,
-      configDirectory: machine.configDirectory,
-      env,
-    });
-    if (sup.started) log(`supervisor started pid ${sup.pid}`);
+    supervise();
     try {
       const tick = await ops.execute("workspace.tick", { cron: true });
       if (tick.dispatch?.length)
@@ -346,6 +339,7 @@ export async function runBackend(
       });
       for (const e of errors) log(`drain error ${e.id}: ${e.error}`);
       await drainCheckRuns(store);
+      supervise();
     } catch (error) {
       log(`drain failure ${error.message}`);
     }
@@ -428,12 +422,22 @@ export async function preflightModel(
   const { drainProcessRequests, processExecutor } = await import(
     "../../src/app/executors/process.mjs"
   );
-  const {
-    childRecord,
-    launchSupervisor,
-    openSupervisorDatabase,
-    runningSupervisor,
-  } = await import("../../src/app/executors/supervisor.mjs");
+  const { childRecord, openSupervisor, openSupervisorDatabase } = await import(
+    "../../src/app/executors/supervisor.mjs"
+  );
+  // One supervisor pass, as one tick runs it.
+  const supervise = () => {
+    const sup = openSupervisor({
+      stateDirectory: machine.stateDirectory,
+      configDirectory: machine.configDirectory,
+      env,
+    });
+    try {
+      sup.pass();
+    } finally {
+      sup.close();
+    }
+  };
   const folder = path.join(run.root, "preflight");
   fs.mkdirSync(folder, { recursive: true });
   const task = record?.id ?? "preflight";
@@ -468,16 +472,13 @@ export async function preflightModel(
     store.close();
   }
   if (!slot) throw Error("Preflight: the drain started no session.");
-  launchSupervisor({
-    stateDirectory: machine.stateDirectory,
-    configDirectory: machine.configDirectory,
-    env,
-  });
+  supervise();
   const executor = processExecutor({ stateDirectory: machine.stateDirectory });
   const end = Date.now() + 240_000;
   let status = await executor.status(slot);
   while (!status.startsWith("exited") && Date.now() < end) {
     await sleep(2000);
+    supervise();
     status = await executor.status(slot);
   }
   const db = openSupervisorDatabase(machine.stateDirectory);
@@ -502,9 +503,6 @@ export async function preflightModel(
   );
   run.event("preflight", { role, status, network, proxied });
   if (status === "exited 0" && proxied) return;
-  // The proof stops here: the supervisor it started goes too.
-  const sup = runningSupervisor(machine.stateDirectory);
-  if (sup?.pid) process.kill(sup.pid, "SIGTERM");
   throw Error(
     [
       `Preflight: one ${role} turn ${status}, network ${JSON.stringify(network)}, ${proxied ? "with" : "with no"} call through the model proxy.`,

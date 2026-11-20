@@ -28,13 +28,11 @@ import {
 } from "./session-observer.mjs";
 import { declaredChecks } from "../../delivery/delivery.mjs";
 import { checkCommand } from "../../workspace/repository-checks.mjs";
-import { gatewayClient } from "./gateway-client.mjs";
 import { observeUsage } from "../../telemetry/usage.mjs";
 import { traceFields } from "../../flow/flow.mjs";
 import { taskRepository } from "../../../work-model.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "../../tick/tick.mjs";
 import { withWorkLock } from "../../git/git.mjs";
-import { ensureMachineServer } from "./ensure-server.mjs";
 import { uiBundleProblem } from "../../serve/ui-bundle.mjs";
 
 const PRINCIPAL_HEADER = "x-kirocrew-principal";
@@ -182,9 +180,6 @@ export function startAppBackend({
   usageReader = gatewayUsageTurns(process.env),
   // Stops a session for Stop all agents (session-observer.mjs).
   sessionStopper = gatewaySessionStopper(process.env),
-  // Starts the machine server when none runs (MS3.5). Only under Kiro
-  // Crew's gateway, so tests and bare runs start none.
-  supervisor = gatewayClient(process.env) ? ensureMachineServer : null,
   // Where a typed `~` and the folder picker start.
   home = os.homedir(),
   // The installed app's ui folder (bin/avoozl.mjs passes it). A page built
@@ -344,13 +339,6 @@ export function startAppBackend({
   };
   server.drainNotifications = () => drain();
   server.once("listening", follow);
-  server.once("listening", () => {
-    try {
-      supervisor?.();
-    } catch (error) {
-      console.error(`The machine server did not start: ${error.message}`);
-    }
-  });
   server.on("close", () => {
     watcher?.close();
     context.close();
