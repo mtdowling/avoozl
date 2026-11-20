@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   PluginProcess,
@@ -384,7 +385,7 @@ test("a process that used the credentials child exits on its own", async () => {
   const m = machine({ plugins: [{}] });
   m.approve();
   const script = `
-    const { machineCredentials } = await import(${JSON.stringify(path.join(REPO_ROOT, "src/app/github/github-credentials.mjs"))});
+    const { machineCredentials } = await import(${JSON.stringify(pathToFileURL(path.join(REPO_ROOT, "src/app/github/github-credentials.mjs")).href)});
     const credentials = machineCredentials({ settingsFile: ${JSON.stringify(m.settingsFile)}, env: { PATH: process.env.PATH } });
     const auth = await credentials.token({ repository: "acme/api", owner: "acme", job: "check-in" });
     console.log(auth.provider ?? "token");
