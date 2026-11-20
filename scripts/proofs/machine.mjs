@@ -56,7 +56,7 @@ export async function stopMachine({ root, backend, proxy, stateDirectory }) {
     const { runningSupervisor } = await import(
       "../../src/app/executors/supervisor.mjs"
     );
-    const sup = runningSupervisor(stateDirectory, {});
+    const sup = runningSupervisor(stateDirectory);
     if (sup?.pid) process.kill(sup.pid, "SIGTERM");
   } catch {}
 }
@@ -503,7 +503,7 @@ export async function preflightModel(
   run.event("preflight", { role, status, network, proxied });
   if (status === "exited 0" && proxied) return;
   // The proof stops here: the supervisor it started goes too.
-  const sup = runningSupervisor(machine.stateDirectory, {});
+  const sup = runningSupervisor(machine.stateDirectory);
   if (sup?.pid) process.kill(sup.pid, "SIGTERM");
   throw Error(
     [

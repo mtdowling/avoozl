@@ -75,12 +75,12 @@ is open.
 2. Only after that does the holder write `machine/lock.json` (pid, start
    time, build, state folder, control address). Readers use it to name the
    holder and never to decide who holds the lock.
-3. For each workspace, the holder takes the same kind of lock on
-   `<database>.loop-lock` beside the workspace database before its first
-   pass there, and keeps it. A second machine server, with its own state
-   folder (another `XDG_STATE_HOME`, another Kiro Crew home), fails to take
-   it and skips the workspace, naming the holder from a small JSON file
-   written beside it after the lock is held.
+3. For each workspace, the tick pass takes the same kind of lock on
+   `<database>.loop-lock` beside the workspace database and keeps it until
+   the pass ends. A second machine server, with its own state folder
+   (another `XDG_STATE_HOME`, another Kiro Crew home), fails to take it and
+   skips the workspace for that pass, naming the holder from a small JSON
+   file written beside it after the lock is held.
 4. `--foreground` waits by retrying the lock every second. A detached start
    returns at once.
 
