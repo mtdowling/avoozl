@@ -32,9 +32,10 @@ waits for **Allow** (or `--yes` in the CLI) before it asks for a token. Avoozl
 never makes a label as part of other work; a missing label waits in Needs you
 with **Create labels**.
 
-The planning repository's specs may live on a branch other than its base
-branch, such as `avoozl-plans`. Name it with `specs.branch`; see
-[Specs path and branch](github-workflow.md#specs-path-and-branch).
+The planning repository's `.avoozl.json` can set `specs.branch` to a branch
+such as `avoozl-plans` and `specs.path` to a repository-relative folder such
+as `docs/specs`. The folder defaults to `.kiro/specs`. For the file layout,
+see [Spec folders](github-workflow.md#1-spec-folders).
 
 ## GitHub modes
 
