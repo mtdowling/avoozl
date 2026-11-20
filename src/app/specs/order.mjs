@@ -11,6 +11,15 @@ const TAGGED = /\(\*\*PARALLEL\*\*\)$/;
 
 export const isParallel = (title) => TAGGED.test(String(title ?? "").trim());
 
+// A person's task (§D20): its title ends with `(**MANUAL**)`, before refs.
+export const MANUAL_TAG = "(**MANUAL**)";
+const MANUAL = /\s*\(\*\*MANUAL\*\*\)$/;
+export const isManual = (title) => MANUAL.test(String(title ?? "").trim());
+export const withoutManual = (title) =>
+  String(title ?? "")
+    .trim()
+    .replace(MANUAL, "");
+
 // Linked specs (§D19.2): a task title's Markdown link, inline or
 // reference-style, to another spec folder's tasks.md makes the task a spec
 // group. `definitions` are the file's `[label]: target` lines.
@@ -199,9 +208,12 @@ function treeWaits(name, text, linked) {
   return [...edges.values()];
 }
 
-// A word "parallel" in parentheses or bold that is not the one tag at the
-// end of the title.
-const STRAY = /\([^)]*parallel[^)]*\)|\*\*[^*]*parallel[^*]*\*\*/i;
+// A word "parallel" or "manual" in parentheses or bold that is not the one
+// tag at the end of the title.
+const stray = (word) =>
+  new RegExp(`\\([^)]*${word}[^)]*\\)|\\*\\*[^*]*${word}[^*]*\\*\\*`, "i");
+const STRAY = stray("parallel"),
+  STRAY_MANUAL = stray("manual");
 
 // The list's own lint (§D19.3): group.box, parallel.size, parallel.leaf and
 // parallel.tag, as {code, line, message, taskId} over specItems.
@@ -251,6 +263,19 @@ export function orderProblems(items) {
         "parallel.tag",
         item,
         `Write the tag as exactly ${PARALLEL_TAG} at the end of the title of task "${item.key}", before any refs.`,
+      );
+    const manual = isManual(title);
+    if (STRAY_MANUAL.test(manual ? withoutManual(title) : title))
+      add(
+        "manual.tag",
+        item,
+        `Write the tag as exactly ${MANUAL_TAG} at the end of the title of task "${item.key}", before any refs.`,
+      );
+    if (manual && kids.length)
+      add(
+        "manual.group",
+        item,
+        `Group "${item.key}" cannot be a person's task: put ${MANUAL_TAG} on the tasks under it that a person does.`,
       );
   }
   return problems;

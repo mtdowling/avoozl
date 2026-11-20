@@ -63,8 +63,7 @@ Work starts in one of three ways.
   checks and reviews, and merges it.
 - **Epic.** Spec Builder writes requirements, design and tasks. Approve records
   the revision. The tick releases ready tasks by capacity, phase and Stop the
-  line, and Avoozl runs, checks and lands each one. A retro follows. See
-  [Epic types](epic-types.md).
+  line, and Avoozl runs, checks and lands each one. A retro follows.
 
 ## Labels
 

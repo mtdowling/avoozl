@@ -13,8 +13,8 @@ avoozl rebuild --workspace ~/plans
 
 ## Spec lanes
 
-An epic is a parent spec with one sub-spec per part of the work, as
-[Epic types](epic-types.md#cross-repository-proposal) shows. Each sub-spec is
+An epic is a parent spec whose task titles link one spec per part of the
+work, as [linked specs](github-workflow.md) describe. Each linked spec is
 approved and released on its own, and each has one driver: the one machine
 that starts its tasks, writes to GitHub for it, and lands it. Give each spec
 to the person who runs that part, and their machine runs its lane. Every other

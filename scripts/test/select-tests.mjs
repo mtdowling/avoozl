@@ -26,7 +26,6 @@ const READS = {
   docs: [
     "docs-json",
     "docs-links",
-    "epic-templates",
     "no-sage",
     "policy-docs",
     "proof-p32",
@@ -35,13 +34,11 @@ const READS = {
   ],
   examples: [
     "codex-definition",
-    "epic-templates",
     "mcp-tools",
     "no-sage",
     "process-executor",
     "process-roles",
     "proof-rc-p7",
-    "proof-rc-p17",
     "release-scan",
     "workspace",
   ],

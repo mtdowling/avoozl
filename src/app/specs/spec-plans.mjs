@@ -34,9 +34,11 @@ import { integrationOf } from "../epics/integration-branch.mjs";
 import {
   linkDefinitions,
   linkProblems,
+  isManual,
   orderProblems,
   specGroupOf,
   waitsOf,
+  withoutManual,
 } from "./order.mjs";
 import {
   LETTERED,
@@ -711,16 +713,15 @@ export function parseSpec({
       // The item's description bullets are its summary.
       let own = bullets.get(item.line) ?? [];
       const rest = structuredClone(entry);
-      // A leaf with no `$done` gives its results as plain bullets: each
-      // one is a result, and it has no summary.
+      // A leaf's plain bullets are its results, one each (§D20).
       if (rest.kind === "leaf" && rest.acceptance === undefined) {
         if (!own.length) {
           diagnostics.push(
             diagnostic(
-              "facts.missing",
+              "done.missing",
               "tasks.md",
               item.line,
-              `Task "${item.key}" has no results. Add a "$done:" bullet under it for each result.`,
+              `Task "${item.key}" has no done bullet. Add a plain bullet under it for each result someone can check.`,
               { taskId: item.id },
             ),
           );
@@ -728,9 +729,24 @@ export function parseSpec({
         }
         rest.acceptance = own.map((bullet) => bullet.text);
         own = [];
-      }
+      } else if (rest.kind !== "leaf" && own.length)
+        diagnostics.push(
+          diagnostic(
+            "group.bullets",
+            "tasks.md",
+            own[0].line ?? item.line,
+            `Group "${item.key}" has a bullet of its own. A group's tasks say what is done; move the bullet into a task or delete it.`,
+            { taskId: item.id },
+          ),
+        );
+      // A person's task ends its title with the tag (§D20).
+      const manual = isManual(item.title);
+      if (manual) rest.manual = true;
       const summary = own.map((bullet) => bullet.text).join("\n"),
-        title = item.title.slice(0, TITLE_LIMIT),
+        title = (manual ? withoutManual(item.title) : item.title).slice(
+          0,
+          TITLE_LIMIT,
+        ),
         fields = {
           ...rest,
           title,
@@ -799,6 +815,12 @@ export function parseSpec({
   return { type, kind: "plan", items, diagnostics, proposals };
 }
 
+// The front-matter block of a tasks.md, or "".
+const frontBlock = (text) =>
+  /^\uFEFF?---[ \t]*\n([\s\S]*?)\n(?:---|\.\.\.)[ \t]*(?:\n|$)/.exec(
+    text,
+  )?.[1] ?? "";
+
 // Spec structure plus lintPlan's graph and boundedness checks. Any error
 // blocks approval.
 //
@@ -831,6 +853,21 @@ export function lintSpec({
       ...graph.diagnostics.map((item) => ({ file: "tasks.md", ...item })),
       ...(namespace ? epicDiagnostics(spec, parsed, namespace) : []),
     ];
+  // A spec changes one repository (§D20): with more than one in the
+  // workspace, its front matter names it.
+  if (
+    (data.repositories?.length ?? 0) > 1 &&
+    parsed.proposals.some((p) => p.kind === "leaf" && !p.repository) &&
+    !/^repo:\s*\S/m.test(frontBlock(spec.files["tasks.md"] || ""))
+  )
+    diagnostics.push(
+      diagnostic(
+        "frontmatter.repo",
+        "tasks.md",
+        1,
+        "This workspace has more than one repository: name the one this spec changes with `repo:` in the front matter of tasks.md.",
+      ),
+    );
   // An ID is unique across the workspace, not only inside one tasks.md.
   for (const proposal of parsed.proposals) {
     const owner = (data.tasks || []).find(
