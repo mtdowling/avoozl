@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { readServeConfig } from "../settings/serve-config.mjs";
@@ -1224,28 +1224,53 @@ export function launchSupervisor({
   if (running) return { pid: running.pid, started: false };
   const { root, log } = supervisorPaths(stateDirectory);
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
+  const args = [
+    SUPERVISOR_MAIN,
+    "--state-directory",
+    path.resolve(stateDirectory),
+    "--config-directory",
+    path.resolve(configDirectory),
+    "--starter",
+    starter,
+  ];
+  if (process.platform === "win32")
+    return launchWindows([...args, "--log", log], env);
   const out = fs.openSync(log, "a", 0o600);
   let child;
   try {
-    child = spawn(
-      process.execPath,
-      [
-        SUPERVISOR_MAIN,
-        "--state-directory",
-        path.resolve(stateDirectory),
-        "--config-directory",
-        path.resolve(configDirectory),
-        "--starter",
-        starter,
-      ],
-      { detached: true, stdio: ["ignore", out, out], env, windowsHide: true },
-    );
+    child = spawn(process.execPath, args, {
+      detached: true,
+      stdio: ["ignore", out, out],
+      env,
+      windowsHide: true,
+    });
   } finally {
     fs.closeSync(out);
   }
   child.on("error", () => {});
   child.unref();
   return { pid: child.pid, started: true };
+}
+
+// On Windows a child process inherits every inheritable handle of its
+// parent, so a server started directly would hold the starter's stdout open
+// and its caller would wait on it forever. Start-Process starts it through
+// the shell, which passes no handle; the server writes its own log (--log).
+function launchWindows(args, env) {
+  const quote = (value) => `"${value.replaceAll('"', '\\"')}"`;
+  const literal = (value) => `'${value.replaceAll("'", "''")}'`;
+  const command = [
+    "Start-Process -WindowStyle Hidden -PassThru",
+    `-FilePath ${literal(process.execPath)}`,
+    `-ArgumentList ${literal(args.map(quote).join(" "))}`,
+    "| ForEach-Object { $_.Id }",
+  ].join(" ");
+  const started = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", command],
+    { env, encoding: "utf8", windowsHide: true, timeout: 60_000 },
+  );
+  return { pid: Number(started.stdout?.trim()) || null, started: true };
 }
 
 // Run as this process's job until a signal or a stop request, with the
