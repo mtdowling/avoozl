@@ -1,0 +1,35 @@
+{
+  "title": "A checkbox-only commit keeps the approval",
+  "rules": ["7.3", "7.4"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "approvers": ["acme-owner"],
+  "history": [
+    {
+      "commit": "1",
+      "author": "acme-owner"
+    },
+    {
+      "commit": "2",
+      "author": "acme-owner"
+    }
+  ],
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "approved": {
+      "parser": true
+    },
+    "ready": ["parser/p-2"]
+  },
+  "expectFail": {
+    "ready": "sim-2.1"
+  }
+}

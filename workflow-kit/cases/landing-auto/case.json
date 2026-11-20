@@ -25,7 +25,8 @@
       "base": "main",
       "tick": "same-commit",
       "mergeBase": false,
-      "deleteClaimBranch": true
+      "deleteClaimBranch": true,
+      "mergeGuard": "head-sha"
     }
   },
   "expectFail": {
