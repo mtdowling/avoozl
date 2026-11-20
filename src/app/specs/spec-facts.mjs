@@ -43,7 +43,7 @@ const KEYS = {
   plan: { as: "plan", type: "text" },
   step: { as: "step", type: "text" },
 };
-// docs/specs.md has a row for each (spec-facts-docs.test.mjs).
+// docs/avoozl-specs.md has a row for each (spec-facts-docs.test.mjs).
 export const FACT_KEYS = Object.keys(KEYS);
 
 const GONE = "Avoozl no longer reads it; delete this line.";

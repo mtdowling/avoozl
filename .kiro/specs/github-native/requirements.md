@@ -258,7 +258,7 @@ is the normal GitHub review I already know.
 5. In local-only mode, **Approve revision** SHALL stay. It SHALL write the
    approving commit as the person on the local specs branch (R114.5), so
    the approval is still a git commit.
-6. `docs/specs.md` SHALL say, in its Approving section: open a pull request
+6. `docs/avoozl-specs.md` SHALL say, in its Approving section: open a pull request
    with the spec folder; an approver merges it; that merge is the approval.
 7. Tests SHALL show: a spec PR opened by a non-approver and merged by an
    approver is approved on the next tick; the same PR merged by a

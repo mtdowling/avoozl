@@ -51,7 +51,7 @@ other specs.
   - $after: gn-3.1
 - [ ] gn-3.3 A merged spec PR is the only approval in a GitHub workspace [GN4.1, GN4.2, GN4.3, GN4.4, GN4.5, GN4.7] (§D4)
   - $done: A non-approver's spec PR merged by an approver is approved on the next tick; merged by a non-approver it is not; `plan.approve` and the delegation operations are refused as unknown in a GitHub workspace; **Open pull request** pushes `spec/<name>` and opens a spec PR; **Approve revision** writes a commit in local-only mode; screenshots approved by the owner.
-- [ ] gn-3.4 `docs/specs.md` says how to approve, after gn-3.3 [GN4.6] (§D4)
+- [ ] gn-3.4 `docs/avoozl-specs.md` says how to approve, after gn-3.3 [GN4.6] (§D4)
   - $done: The Approving section says: open a pull request with the spec folder; an approver merges it; that merge is the approval; it names no button for a GitHub workspace.
   - $after: gn-3.3
 
