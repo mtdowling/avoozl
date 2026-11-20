@@ -1,4 +1,6 @@
 // CLI commands of one kind: command, help lines and run.
+import { loopLockPaths, takeLock } from "../executors/machine-lock.mjs";
+import { requestPass } from "../executors/machine-server.mjs";
 import { contentHook } from "../content/content-hook.mjs";
 import { RETIRED_LANDING, landingStatusLine } from "./support.mjs";
 import { help } from "../cli/command-help.mjs";
@@ -74,10 +76,31 @@ export const commands = [
         "Run one workspace tick and print its intents",
       ),
     ],
-    async run({ localOrRequest }) {
-      console.log(
-        JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
-      );
+    async run({ localOrRequest, dbPath, machineStateDirectory }) {
+      // A running machine server runs the pass now (MS1.5); with none, this
+      // process runs one tick under the workspace loop lock (MS2.3).
+      const pass = await requestPass({
+        stateDirectory: machineStateDirectory(),
+      });
+      if (pass) return console.log(JSON.stringify(pass, null, 2));
+      const loop = dbPath
+        ? takeLock(
+            loopLockPaths(dbPath),
+            { pid: process.pid, at: new Date().toISOString() },
+            { tries: 1 },
+          )
+        : { held: true, close() {} };
+      if (!loop.held)
+        throw Error(
+          `Another process (pid ${loop.holder?.pid ?? "unknown"}) runs this workspace's loop.`,
+        );
+      try {
+        console.log(
+          JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
+        );
+      } finally {
+        loop.close();
+      }
     },
   },
   {

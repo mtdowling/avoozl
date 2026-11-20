@@ -9,6 +9,8 @@ import {
   runningSupervisor,
   supervisorPaths,
 } from "../executors/supervisor.mjs";
+import { buildId } from "../executors/machine-build.mjs";
+import { lastPasses } from "../executors/machine-requests.mjs";
 
 const COLUMNS = `session_id, role, task, harness, state, pid, exit_code,
   error, requested_at, updated_at`;
@@ -40,11 +42,13 @@ export function serveStatus(stateDirectory) {
 export function machineStatus({ stateDirectory }) {
   const paths = supervisorPaths(stateDirectory),
     holder = runningSupervisor(stateDirectory);
-  let children = [];
+  let children = [],
+    passes = [];
   if (fs.existsSync(paths.database)) {
     const db = new DatabaseSync(paths.database, { readOnly: true });
     try {
       db.exec("PRAGMA busy_timeout = 5000");
+      passes = lastPasses(db);
       children = db
         .prepare(`SELECT ${COLUMNS} FROM children ORDER BY requested_at`)
         .all()
@@ -69,7 +73,21 @@ export function machineStatus({ stateDirectory }) {
     version: 1,
     at: new Date().toISOString(),
     supervisor: holder
-      ? { running: true, pid: holder.pid }
+      ? {
+          running: true,
+          pid: holder.pid,
+          build: holder.build ?? null,
+          started: holder.at ?? null,
+          starter: holder.starter ?? null,
+          tickSeconds: holder.tickSeconds ?? null,
+          passes,
+          // MS3.5: a server of another build keeps running until `avoozl start`.
+          ...(holder.build && holder.build !== buildId()
+            ? {
+                note: `This command is build ${buildId()}. Run avoozl start to replace the running server.`,
+              }
+            : {}),
+        }
       : { running: false },
     serve: serveStatus(stateDirectory),
     children,

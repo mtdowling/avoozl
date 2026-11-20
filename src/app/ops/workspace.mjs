@@ -46,7 +46,13 @@ import {
   saveSpecPlan,
 } from "../specs/spec-plans.mjs";
 import { fail } from "../store/store.mjs";
-import { WORKSPACE_LOCK, tick, tickHealth, tickLog } from "../tick/tick.mjs";
+import {
+  WORKSPACE_LOCK,
+  recordReleased,
+  tick,
+  tickHealth,
+  tickLog,
+} from "../tick/tick.mjs";
 import { planPage, recentIntegrations } from "../api/views.mjs";
 import {
   assertRepositoryRemovable,
@@ -249,6 +255,7 @@ export const entries = [
         if (!error.contention) throw error;
         // Another tick owns the post-import work; its next pass will finish it.
       }
+      if (input.cron === true) recordReleased(store, result);
       return result;
     },
   },
