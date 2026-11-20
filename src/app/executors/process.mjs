@@ -753,7 +753,7 @@ function importContextCalls(store, stateDirectory, binding) {
     try {
       const call = JSON.parse(line);
       recordActivity(store, {
-        source: "avoozl",
+        source: "tick",
         kind: "epic-context.call",
         targetId: binding.taskId,
         at: call.at,

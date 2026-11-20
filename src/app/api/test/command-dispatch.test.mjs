@@ -130,7 +130,7 @@ test("a page read refuses an uninitialized workspace and init then fixes it", as
   const view = () =>
     dispatchCommand({
       principal: OWNER,
-      request: { operation: "instance.view" },
+      request: { operation: "panel.view" },
       context,
     });
   const refused = await view();

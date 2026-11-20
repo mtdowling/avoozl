@@ -105,7 +105,7 @@ test('preview is its own read-only call', async () => {
 
 test('a bundle plugin lists its parts', async () => {
   const { partTitles } = await import('../src/plugins-api.ts')
-  assert.deepEqual(partTitles({ provides: ['rules', 'credentials', 'context'] }), ['Content rules', 'GitHub sign-in', 'Context'])
+  assert.deepEqual(partTitles({ provides: ['rules', 'credentials', 'context'] }), ['Content rules', 'GitHub sign-in', 'Epic context'])
   // A plugin from before `provides` has one part per kind.
   assert.deepEqual(partTitles({ kinds: ['rules'] }), ['Content rules'])
 })

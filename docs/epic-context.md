@@ -95,8 +95,8 @@ Avoozl writes the config file with one stdio server per alias, each running
 that the supervisor listens on outside every sandbox. The supervisor checks the
 session's token and alias, starts the real server on the first connection with
 the basic check environment plus the names you mapped, in a scratch folder, and
-passes lines both ways. Each call's alias, tool, time, size and error go to the
-session's evidence, never the arguments or the reply. A server that opens a
+passes lines both ways. Each call's alias, tool, time, size and error go to
+Activity as one row, never the arguments or the reply. A server that opens a
 network listener is stopped and its plugin marked broken. Servers stop when
 the session ends.
 
