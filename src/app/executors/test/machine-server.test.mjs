@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { loadLayeredConfig } from "../../settings/layered-config.mjs";
 import { machineLockPaths, readRecord } from "../machine-lock.mjs";
 import { requestPass } from "../machine-server.mjs";
+import { ownMachineEnv } from "../../test/shim-run.mjs";
 
 const CLI = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url));
 const SRC = fileURLToPath(new URL("../../../", import.meta.url));
@@ -17,16 +18,7 @@ const SUPERVISOR = new URL("../supervisor.mjs", import.meta.url).href;
 
 function machine(t, { tickSeconds } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-machine-"));
-  const env = { ...process.env };
-  for (const key of Object.keys(env))
-    if (/^AVOOZL(_|$)|^KIROCREW_/.test(key)) delete env[key];
-  Object.assign(env, {
-    HOME: path.join(root, "home"),
-    USERPROFILE: path.join(root, "home"),
-    XDG_CONFIG_HOME: path.join(root, "config"),
-    XDG_STATE_HOME: path.join(root, "state"),
-  });
-  fs.mkdirSync(env.HOME, { recursive: true });
+  const env = ownMachineEnv(root);
   fs.mkdirSync(path.join(env.XDG_CONFIG_HOME, "avoozl"), { recursive: true });
   fs.writeFileSync(
     path.join(env.XDG_CONFIG_HOME, "avoozl", "config.json"),

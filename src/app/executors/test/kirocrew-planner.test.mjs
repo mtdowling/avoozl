@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -7,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { lintSpec, readSpecFolder } from "../../specs/spec-plans.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
-import { runOwnMachine } from "../../test/shim-run.mjs";
+import { packagedTools } from "../../test/shim-run.mjs";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(root, "hosts", "kirocrew"),
@@ -25,18 +24,7 @@ function servedTools() {
   for (const name of Object.keys(env))
     if (/^AVOOZL_/.test(name)) delete env[name];
   initializeWorkspace(workspace);
-  const output = runOwnMachine(
-    "python3",
-    [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
-    {
-      cwd: dir,
-      dir,
-      env,
-      input:
-        JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",
-    },
-  );
-  return JSON.parse(output.trim()).result.tools;
+  return packagedTools({ dir, workspace, env });
 }
 
 test("the planner agent ships, parses, and is listed in the manifest", () => {

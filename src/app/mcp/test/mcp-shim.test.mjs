@@ -18,6 +18,7 @@ import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { Store } from "../../store/store.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { workspaceConfig } from "../../settings/config.mjs";
+import { ownMachineEnv } from "../../test/shim-run.mjs";
 
 const CLI = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url));
 const SHIM = fileURLToPath(new URL("../mcp-shim.mjs", import.meta.url));
@@ -26,16 +27,7 @@ function machine(t) {
   const root = fs.realpathSync.native(
     fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-shim-")),
   );
-  const env = { ...process.env };
-  for (const key of Object.keys(env))
-    if (/^AVOOZL(_|$)|^KIROCREW_/.test(key)) delete env[key];
-  Object.assign(env, {
-    HOME: path.join(root, "home"),
-    USERPROFILE: path.join(root, "home"),
-    XDG_CONFIG_HOME: path.join(root, "config"),
-    XDG_STATE_HOME: path.join(root, "state"),
-  });
-  fs.mkdirSync(env.HOME, { recursive: true });
+  const env = ownMachineEnv(root);
   const run = (args, extra = {}) =>
     spawnSync(process.execPath, [CLI, ...args], {
       env: { ...env, ...extra },
