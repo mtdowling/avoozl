@@ -5,7 +5,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { harnessStartProblem } from "../harness-ready.mjs";
+import {
+  findProgram,
+  harnessStartProblem,
+  loginShellPath,
+} from "../harness-ready.mjs";
 import {
   machineEnvPath,
   readMachineEnv,
@@ -91,8 +95,11 @@ test("a harness that cannot start says why: no program, or no sign-in and no pro
   const value = { start: [process.execPath], keepEnv: ["MODEL_KEY"] };
   const env = { PATH: path.dirname(process.execPath) };
   assert.match(
-    harnessStartProblem({ ...value, start: ["no-such-agent-cli"] }, { env }),
-    /no-such-agent-cli is not on the PATH/,
+    harnessStartProblem(
+      { ...value, start: ["no-such-agent-cli"] },
+      { env, loginPath: () => null },
+    ),
+    /no-such-agent-cli was not found on the server's PATH\. Set PATH in machine\.env/,
   );
   assert.match(harnessStartProblem(value, { env }), /None of MODEL_KEY is set/);
   assert.equal(
@@ -112,6 +119,68 @@ test("a harness that cannot start says why: no program, or no sign-in and no pro
   assert.doesNotMatch(
     harnessStartProblem(value, { env: { ...env, OTHER: "secret-value" } }),
     /secret-value/,
+  );
+});
+
+// A folder holding one executable named `name`, on no PATH the test has.
+function programFolder(t, name) {
+  const folder = config(t);
+  const file = path.join(folder, name);
+  fs.writeFileSync(file, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  return { folder, file };
+}
+
+test("a harness program is found on machine.env's PATH, then the server's, then the login shell's", (t) => {
+  const elsewhere = { PATH: path.dirname(process.execPath) };
+  const shell = programFolder(t, "agent-cli");
+  const machine = programFolder(t, "agent-cli");
+  const value = { start: ["agent-cli"] };
+  // Only on the login shell's PATH: found there, and the child gets it.
+  let calls = 0;
+  const loginPath = () => (calls++, shell.folder);
+  assert.equal(harnessStartProblem(value, { env: elsewhere, loginPath }), null);
+  assert.deepEqual(findProgram("agent-cli", { env: elsewhere, loginPath }), {
+    file: shell.file,
+    path: shell.folder,
+  });
+  // Only on machine.env's PATH: found there first; the shell is not asked.
+  calls = 0;
+  const machineEnv = { PATH: machine.folder };
+  assert.equal(
+    harnessStartProblem(value, { env: elsewhere, machineEnv, loginPath }),
+    null,
+  );
+  assert.deepEqual(
+    findProgram("agent-cli", { env: elsewhere, machineEnv, loginPath }),
+    { file: machine.file, path: machine.folder },
+  );
+  assert.equal(calls, 0);
+  // Nowhere: the sentence names every place looked and the one fix.
+  assert.equal(
+    harnessStartProblem(
+      { start: ["no-such-agent-cli"] },
+      { env: elsewhere, machineEnv, loginPath },
+    ),
+    "no-such-agent-cli was not found on machine.env's PATH, the server's PATH or your login shell's PATH. Set PATH in machine.env, or give an absolute path in the harness definition.",
+  );
+});
+
+test("the login shell's PATH is read with a fixed command, and skipped on Windows", {
+  skip: process.platform === "win32",
+}, (t) => {
+  assert.equal(
+    loginShellPath({ env: { SHELL: "/bin/sh" }, platform: "win32" }),
+    null,
+  );
+  // A fake shell that prints noise and then a PATH line, as startup files may.
+  const { file } = programFolder(t, "fake-shell");
+  fs.writeFileSync(
+    file,
+    '#!/bin/sh\necho "hello from rc"\necho "PATH=/from/login:/bin"\n',
+  );
+  assert.equal(
+    loginShellPath({ env: { SHELL: file }, platform: "linux" }),
+    "/from/login:/bin",
   );
 });
 
