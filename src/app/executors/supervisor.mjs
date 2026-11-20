@@ -915,7 +915,12 @@ export function startSupervisor({
       // through the relay when the harness loads a config file for them.
       const context = settings.context ?? null;
       const contextMcp =
-        context && Object.keys(context.mcp).length && definition.context?.mcp
+        // shortcut: the relay's Unix socket is POSIX only; Windows has no
+        // sandbox to keep a server's sign-in from the worker either.
+        process.platform !== "win32" &&
+        context &&
+        Object.keys(context.mcp).length &&
+        definition.context?.mcp
           ? openContextMcp(row.session_id, context.mcp, folder)
           : null;
       if (!contextMcp) broker.close(row.session_id);

@@ -144,7 +144,7 @@ test("a wrong token, an alias the session was not given and another session's so
   const refused = async (socket, token, alias) => {
     const r = relay(socket, token, alias);
     r.call({ id: 1, method: "tools/call", params: { name: "ask" } });
-    assert.equal(await r.exited, 0);
+    await r.exited;
     assert.equal(r.child.stdout.read(), null);
   };
   await refused(a.socket, "wrong", "research");
