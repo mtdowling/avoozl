@@ -73,10 +73,10 @@ export function lockIsHeld(lock) {
     db.exec("PRAGMA busy_timeout = 0");
     db.prepare("SELECT count(*) FROM sqlite_master").get();
     return false;
-  } catch {
-    // Busy, or caught while a holder sets the file up: either way someone
-    // holds it, and the record names who.
-    return true;
+  } catch (error) {
+    if (isBusy(error)) return true;
+    // Caught while a holder sets the file up: not a holder yet.
+    return false;
   } finally {
     try {
       db?.close();
@@ -113,7 +113,21 @@ export function takeLock(
   return { held: false, holder: readRecord(record) };
 }
 
-// The holder named by the record when the lock is held now, else null.
+const alive = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+};
+
+// The holder named by the record when the lock is held now, else null. Just
+// after a holder ends, the next one holds the lock before it rewrites the
+// record; a record whose process is gone names nobody yet ({}).
 export function lockHolder({ lock, record }) {
-  return lockIsHeld(lock) ? (readRecord(record) ?? {}) : null;
+  if (!lockIsHeld(lock)) return null;
+  const found = readRecord(record) ?? {};
+  return found.pid === undefined || alive(found.pid) ? found : {};
 }

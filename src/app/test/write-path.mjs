@@ -16,7 +16,16 @@ const hook = new URL("./write-trace.mjs", import.meta.url).href;
 const SECRET = "test-proxy-secret";
 
 function isolatedEnv(root, extra = {}) {
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };
+  const env = {
+    ...process.env,
+    XDG_CONFIG_HOME: path.join(root, "config"),
+    // `avoozl mcp` starts this root's own machine server (MS10.3), which
+    // loads the trace too.
+    XDG_STATE_HOME: path.join(root, "state"),
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, `--import=${hook}`]
+      .filter(Boolean)
+      .join(" "),
+  };
   for (const name of Object.keys(env))
     if (/^AVOOZL_/.test(name)) delete env[name];
   delete env.KIROCREW_PROXY_SECRET;
@@ -31,12 +40,17 @@ export function setup({ deny = false } = {}) {
       AVOOZL_WRITE_TRACE: trace,
       ...(deny ? { AVOOZL_DENY_OPERATIONS: "1" } : {}),
     });
-  const avoozl = (args, input) =>
-    spawnSync(process.execPath, ["--import", hook, cli, ...args], {
+  const avoozl = (args, input) => {
+    const result = spawnSync(process.execPath, [cli, ...args], {
       encoding: "utf8",
       env,
       input,
     });
+    // The machine server the shim started ends with the call.
+    if (args[0] === "mcp")
+      spawnSync(process.execPath, [cli, "stop"], { encoding: "utf8", env });
+    return result;
+  };
   const writes = () =>
     fs.existsSync(trace)
       ? fs

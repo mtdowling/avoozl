@@ -171,13 +171,11 @@ test("offline skill export binds the chosen workspace without creating data", as
     "skill",
     "--workspace",
     workspace,
-    "--url",
-    "http://127.0.0.1:9876",
   ];
   const { stdout } = await exec(process.execPath, args, { cwd: root });
   assert.match(stdout, /^---\nname: avoozl\n/);
   assert(stdout.includes(workspace));
-  assert(stdout.includes("http://127.0.0.1:9876/mcp"));
+  assert(stdout.includes(`avoozl mcp --workspace ${workspace}`));
   assert(!stdout.includes("{{"));
   assert.equal(fs.existsSync(workspace), false);
   const command = stdout

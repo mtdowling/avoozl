@@ -25,16 +25,41 @@ function record(sql) {
   );
 }
 
+// The machine server's own databases (its lock, requests and children)
+// live in the machine state folder and are not workspace data.
+const real = (file) => {
+  try {
+    return fs.realpathSync.native(file);
+  } catch {
+    return file;
+  }
+};
+const machineState = process.env.XDG_STATE_HOME
+  ? real(process.env.XDG_STATE_HOME)
+  : null;
+const machineOwn = (db) => {
+  const where = db?.location?.();
+  return Boolean(machineState && where && real(where).startsWith(machineState));
+};
+
 if (trace) {
+  const owner = new WeakMap();
+  const prepare = DatabaseSync.prototype.prepare;
+  DatabaseSync.prototype.prepare = function (...args) {
+    const statement = prepare.apply(this, args);
+    owner.set(statement, this);
+    return statement;
+  };
   const run = StatementSync.prototype.run;
   StatementSync.prototype.run = function (...args) {
     const result = run.apply(this, args);
-    if (result.changes > 0) record(this.sourceSQL);
+    if (result.changes > 0 && !machineOwn(owner.get(this)))
+      record(this.sourceSQL);
     return result;
   };
   const exec = DatabaseSync.prototype.exec;
   DatabaseSync.prototype.exec = function (sql) {
-    if (WRITE.test(sql)) record(sql);
+    if (WRITE.test(sql) && !machineOwn(this)) record(sql);
     return exec.call(this, sql);
   };
 }

@@ -10,7 +10,6 @@ export function workflowSkill(config = workspaceConfig()) {
     quote(config.workspaceRoot);
   const values = {
     PLANS_ROOT: config.workspaceRoot,
-    BASE: config.endpoint,
     CLI: command,
     WORKSPACE_CLI: command,
     APP_ROOT: applicationRoot.replace(/\/$/, ""),
@@ -18,7 +17,7 @@ export function workflowSkill(config = workspaceConfig()) {
   return fs
     .readFileSync(new URL("../skills/avoozl/SKILL.md", import.meta.url), "utf8")
     .replace(
-      /\{\{(PLANS_ROOT|BASE|CLI|WORKSPACE_CLI|APP_ROOT)\}\}/g,
+      /\{\{(PLANS_ROOT|CLI|WORKSPACE_CLI|APP_ROOT)\}\}/g,
       (_, key) => values[key],
     );
 }

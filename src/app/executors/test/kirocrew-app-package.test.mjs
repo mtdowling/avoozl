@@ -216,12 +216,12 @@ test("the MCP launcher names its crew home when the launch env has none", () => 
 
 test("every plans_* tool a brief, prompt, agent, cron or skill names is listed", () => {
   const dir = temporaryDirectory();
-  const listed = execFileSync(
+  const listed = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py")],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env: isolatedEnv(dir),
       input:
         JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",
@@ -287,12 +287,12 @@ test("packaged MCP server answers the tick from any working directory", () => {
       },
     },
   ];
-  const output = execFileSync(
+  const output = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env: isolatedEnv(dir),
       input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
     },
@@ -313,12 +313,12 @@ test("packaged MCP server serves the catalog's default workspace when none is na
   const registry = new WorkspaceRegistry({ env });
   registry.add("sample", { id: "sample", root: workspace, enabled: true });
   registry.close();
-  const output = execFileSync(
+  const output = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py")],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env,
       input:
         JSON.stringify({
