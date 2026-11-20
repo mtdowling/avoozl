@@ -11,6 +11,7 @@ import { judge, readCases } from "../../../workflow-kit/load.mjs";
 import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.mjs";
 import { unblockCounts } from "../specs/release-ranking.mjs";
 import { claimFirst, resumeClaim } from "../workers/claims.mjs";
+import { linkedReader } from "../specs/order.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file) => fs.readFileSync(root + file, "utf8");
@@ -45,10 +46,22 @@ const specsOf = (files) => {
   return specs;
 };
 
+// Every spec of a case, so a spec group reaches into the spec it links.
+const linkedOf = (specs) =>
+  linkedReader(
+    Object.entries(specs).map(([name, files]) => ({
+      name,
+      text: files["tasks.md"] ?? "",
+    })),
+  );
+
 function violations(specs) {
-  const out = {};
+  const out = {},
+    linked = linkedOf(specs);
   for (const [name, files] of Object.entries(specs)) {
-    const { diagnostics } = lintSpec({ spec: { name, exists: true, files } });
+    const { diagnostics } = lintSpec({
+      spec: { name, exists: true, files, linked },
+    });
     out[name] = [
       ...new Set(
         diagnostics
@@ -95,9 +108,15 @@ function ready(testCase, specs) {
     branches = new Set(testCase.origin.branches),
     leaves = [],
     ticked = new Set(),
-    edges = [];
+    edges = [],
+    linked = linkedOf(specs);
   for (const name of Object.keys(specs).sort()) {
-    const parsed = parseSpec({ name, exists: true, files: specs[name] });
+    const parsed = parseSpec({
+      name,
+      exists: true,
+      files: specs[name],
+      linked,
+    });
     for (const item of parsed.items) if (item.mark === "x") ticked.add(item.id);
     for (const task of parsed.proposals) {
       if (task.kind !== "leaf") continue;
@@ -107,9 +126,14 @@ function ready(testCase, specs) {
   }
   const counts = unblockCounts(edges, (id) => !ticked.has(id)),
     isApproved = approved(testCase, specs),
+    // Rule 8.3: the spec's issue and every parent spec's that links it.
     assigned = (name) => {
       const who = testCase.issues?.[name];
-      return who?.length === 1 && who[0] === login;
+      return (
+        who?.length === 1 &&
+        who[0] === login &&
+        linked.parents(name).every((parent) => assigned(parent.name))
+      );
     };
   return leaves
     .map((task, index) => ({ task, index }))

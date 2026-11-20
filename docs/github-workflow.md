@@ -665,8 +665,11 @@ Avoozl does not follow every rule yet. Each item below is not built:
 
 - Order (3): Avoozl orders a spec's tasks by the list, but a spec that still
   has `$after` facts is ordered by them.
-- Manual tags (4), plain done bullets (2.3, 2.4), front matter (5) and linked
-  specs (6): Avoozl still reads `$` fact bullets.
+- Manual tags (4), plain done bullets (2.3, 2.4) and front matter (5): Avoozl
+  still reads `$` fact bullets.
+- Linked specs (6): a parent ticks a spec group's box in the landing commit
+  only when both `tasks.md` files are on one specs branch; otherwise the box
+  waits for a later tick.
 - Integration branches (11) and the done branch they set (11.6, 15.1): Avoozl
   still reads an `integrationBranch` key.
 - Claims, leases and resuming (12): `avoozl next --claim` and `plans_next`

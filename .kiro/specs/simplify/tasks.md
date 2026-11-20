@@ -70,7 +70,7 @@ merge, shown in chat and never committed.
   - `waitsOf` in `src/app/specs/order.mjs` derives the waits, and the ready rule, ranking and lint read only it
   - Tests: the owner's example in §D19 gives `ec-2.1`, then `ec-2.2`, then `ec-2.4` to `ec-2.7` with no wait among them, then `ec-2.8`; an untagged child group of a parallel group runs its children in order; the first item of a phase waits for the phase above; a group is never ready or claimed
   - Tests: lint reports `group.box`, `parallel.size`, `parallel.leaf` and `parallel.tag` as §D19.3 says; the tag before refs parses; a spec that still has `$after` facts is read by them until `sim-2.2`
-- [ ] `sim-2.5` Linked specs as spec groups [SM16.7, SM18] (§D19.2, §D19.3)
+- [x] `sim-2.5` Linked specs as spec groups [SM16.7, SM18] (§D19.2, §D19.3)
   - $after: sim-2.1
   - Tests: a title's inline or reference-style link to a spec folder's `tasks.md` makes a spec group whose children are that spec's tasks; its tasks are ready only after its own wait, the linked spec's approval and the linked spec's order; a link to a doc page leaves the task a leaf; the box is derived, and the last task's landing ticks the parent in the same commit on one specs branch or in its own commit otherwise
   - Tests: lint reports `link.missing` (allowed while an earlier unticked task stands in the same list), `link.twice` and `link.children`

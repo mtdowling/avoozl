@@ -31,7 +31,13 @@ import {
 import { frontMatter, withoutFrontMatter } from "../../front-matter.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { integrationOf } from "../epics/integration-branch.mjs";
-import { orderProblems, waitsOf } from "./order.mjs";
+import {
+  linkDefinitions,
+  linkProblems,
+  orderProblems,
+  specGroupOf,
+  waitsOf,
+} from "./order.mjs";
 import {
   LETTERED,
   NAMED,
@@ -442,6 +448,9 @@ export function parseSpec({
   files,
   leftover = false,
   factsBlocks = false,
+  // linkedReader (order.mjs): the other specs, so a spec group reaches into
+  // the spec it links. Without it a parse reads this spec alone.
+  linked = null,
 }) {
   const diagnostics = [],
     proposals = [];
@@ -560,6 +569,11 @@ export function parseSpec({
       );
   }
 
+  // A title's link to another spec makes its task a spec group (§D19.2).
+  const definitions = linkDefinitions(files["tasks.md"] || ""),
+    taskLines = (files["tasks.md"] || "").split("\n");
+  for (const item of items)
+    if (item.key) item.spec = specGroupOf(name, item, definitions, taskLines);
   const facts = readFacts(files["tasks.md"] || "", items),
     bullets = itemBullets(files["tasks.md"] || "", items),
     manifest = facts.manifest,
@@ -770,13 +784,13 @@ export function parseSpec({
   // is read by them, until every spec is rewritten (sim-2.2).
   if (!proposals.some((proposal) => proposal.requires?.length)) {
     const waits = new Map();
-    for (const { from, to } of waitsOf(name, files["tasks.md"] || ""))
+    for (const { from, to } of waitsOf(name, files["tasks.md"] || "", linked))
       waits.set(to, [...(waits.get(to) ?? []), from]);
     for (const proposal of proposals)
       if (waits.has(proposal.id)) proposal.requires = waits.get(proposal.id);
   }
   diagnostics.push(
-    ...orderProblems(items).map((found) =>
+    ...[...orderProblems(items), ...linkProblems(items, linked)].map((found) =>
       diagnostic(found.code, "tasks.md", found.line, found.message, {
         taskId: found.taskId,
       }),

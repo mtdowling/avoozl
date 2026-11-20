@@ -29,6 +29,7 @@ import {
 import { bindDriver } from "../workers/driver.mjs";
 import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
 import { readSpecIssues } from "../specs/spec-publication.mjs";
+import { linkedReader } from "../specs/order.mjs";
 import { taskEpic } from "../epics/epics.mjs";
 import { putSpan } from "../flow/flow.mjs";
 import {
@@ -504,7 +505,14 @@ export class Operations {
         .filter((plan) => plan.spec && !plan.deletedAt),
       approvals = store.list("approvals"),
       { roots, homes, errors: homeErrors } = this.specHomes(),
-      declarations = specDeclarations(plans);
+      declarations = specDeclarations(plans),
+      // Specs on disk, so each spec group reaches into what it links.
+      linked = linkedReader(
+        homes.map(({ spec }) => ({
+          name: spec.name,
+          text: spec.files?.["tasks.md"] ?? "",
+        })),
+      );
     return {
       root: roots[0],
       roots,
@@ -513,7 +521,7 @@ export class Operations {
           plan = plans.find((entry) => entry.spec === name) || null,
           quality = this.withContentDiagnostics(
             lintSpec({
-              spec: disk,
+              spec: { ...disk, linked },
               plan: plan || { id: name },
               data,
               approved: plan && this.approvedSpec(plan),
@@ -1285,8 +1293,25 @@ export class Operations {
     }
     return this.specNamespace();
   }
+  // The stored specs, with `current` read as given, so a spec group reaches
+  // into the spec it links (§D19.2).
+  linkedSpecs(current = null) {
+    const texts = new Map();
+    for (const plan of this.store.list("plans"))
+      if (plan.spec && !plan.deletedAt && plan.files?.["tasks.md"])
+        texts.set(plan.spec, plan.files["tasks.md"]);
+    if (current?.name)
+      texts.set(current.name, current.files?.["tasks.md"] ?? "");
+    return linkedReader([...texts].map(([name, text]) => ({ name, text })));
+  }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {
-    const spec = { name: plan.spec, exists: true, files: plan.files || {} },
+    const files = plan.files || {},
+      spec = {
+        name: plan.spec,
+        exists: true,
+        files,
+        linked: this.linkedSpecs({ name: plan.spec, files }),
+      },
       declarations = specDeclarations(this.store.list("plans")),
       quality = lintSpec({
         spec,

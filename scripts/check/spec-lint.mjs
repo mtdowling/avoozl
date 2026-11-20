@@ -8,6 +8,7 @@ import {
   lintSpec,
   readSpecFolder,
 } from "../../src/app/specs/spec-plans.mjs";
+import { linkedReader } from "../../src/app/specs/order.mjs";
 
 // The repository root, or the folder named as the first argument.
 const root = process.argv[2]
@@ -61,8 +62,18 @@ function retiredErrors(spec) {
       }),
   );
 }
+// Every spec, so a spec group reaches into the spec it links.
+const folders = new Map(
+  names.map((name) => [name, readSpecFolder(root, name)]),
+);
+const linked = linkedReader(
+  [...folders].map(([name, spec]) => ({
+    name,
+    text: spec.files?.["tasks.md"] ?? "",
+  })),
+);
 for (const name of names) {
-  const spec = readSpecFolder(root, name),
+  const spec = { ...folders.get(name), linked },
     result = lintSpec({ spec }),
     status = [...statusErrors(spec), ...retiredErrors(spec)],
     errors = [

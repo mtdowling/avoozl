@@ -16,8 +16,5 @@
       "leaf": [],
       "missing": ["6.4"]
     }
-  },
-  "expectFail": {
-    "violations": "sim-2.5"
   }
 }
