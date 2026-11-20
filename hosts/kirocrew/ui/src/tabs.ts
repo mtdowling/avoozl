@@ -30,3 +30,27 @@ export function dirtyTabs<F extends object, T extends string>(form: F, saved: F,
   for (const tab of Object.keys(keys) as T[]) if (keys[tab].some((key) => JSON.stringify(form[key]) !== JSON.stringify(saved[key]))) out.add(tab)
   return out
 }
+
+// The spec page's tabs in the address: the spec id plus tab=T, and the
+// Overview is the spec id alone.
+export interface SpecPlace {
+  plan: string
+  tab: string
+}
+export function specTabLink(plan: string, tab: string): string {
+  const query = new URLSearchParams({ plan })
+  if (tab !== 'overview') query.set('tab', tab)
+  return '?' + query.toString()
+}
+export function parseSpecTab(search: string): SpecPlace | null {
+  const query = new URLSearchParams(search)
+  const plan = query.get('plan'),
+    tab = query.get('tab') ?? 'overview'
+  if (!plan) return null
+  if (tab !== 'overview' && (!/^[\w./-]{1,64}$/.test(tab) || tab.includes('..'))) return null
+  return { plan, tab }
+}
+
+// A spec file's text as the page renders it: Markdown as is, a JSON file as
+// a JSON code block.
+export const renderText = (file: string, text: string) => (file.endsWith('.json') ? '```json\n' + text + '\n```' : text)

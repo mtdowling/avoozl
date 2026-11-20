@@ -1,6 +1,5 @@
-// The spec page's tab bar in a real Chrome (browser/harness.tsx &review=1):
-// Overview, Tasks, and one tab per spec file with its open-comment count (the
-// comments show inline there, so there is no Review tab); arrow keys move
+// The spec page's tab bar in a real Chrome (browser/harness.tsx &stored=1):
+// Overview, Tasks, and one tab per spec file; arrow keys move
 // between tabs; no details panel in the list column;
 // the Overview holds the Summary, a scrolling details box and the Frontier.
 // Skipped when no Chrome is found.
@@ -29,7 +28,7 @@ const tabs = () => page.evaluate(`[...document.querySelectorAll('[data-spec-tab]
 const selected = () => page.evaluate(`[...document.querySelectorAll('[data-spec-tab]')].filter((t) => t.getAttribute('aria-selected') === 'true').map((t) => t.dataset.specTab)`)
 
 async function openSpec(size = { width: 1280, height: 900 }, params = {}) {
-  await page.open(harness.url({ page: 'specs', review: '1', ...params }), size)
+  await page.open(harness.url({ page: 'specs', stored: '1', ...params }), size)
   await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`)
   await click('[data-plan-row="spec:byte-types"]')
   await page.until(`Boolean(document.querySelector('[data-spec-tab]'))`)
@@ -43,10 +42,6 @@ for (const [width, height] of [
     await openSpec({ width, height })
     assert.deepEqual(await tabs(), ['overview', 'tasks', 'requirements.md', 'design.md', 'tasks.md'])
     assert.deepEqual(await selected(), ['overview'])
-    // A file's tab carries its open-comment count.
-    assert.equal(await page.evaluate(`document.querySelector('[data-spec-tab="requirements.md"] [data-tab-count]').textContent`), '2')
-    assert.equal(await page.evaluate(`document.querySelector('[data-spec-tab="design.md"] [data-tab-count]').textContent`), '1')
-    assert.equal(await exists('[data-spec-tab="overview"] [data-tab-count]'), false)
     // The bar scrolls sideways on its own when it does not fit; the page does not.
     assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[role=tablist][aria-label="Spec views"]')).overflowX`), 'auto')
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true)
@@ -68,20 +63,15 @@ test('the Overview holds the Summary, a scrolling details box and the Frontier, 
   assert.equal(await exists('[data-spec-summary]'), false)
 })
 
-test('a document tab shows the rendered file with its review comments inline', { skip }, async () => {
+test('a document tab shows the rendered file', { skip }, async () => {
   await openSpec()
   await click('[data-spec-tab="design.md"]')
-  await page.until(`Boolean(document.querySelector('[data-spec-card="design.md"] [data-finding-card]'))`)
-  assert.match(await text('[data-spec-card="design.md"]'), /The loader reads/)
-  assert.equal(await exists('[data-spec-card="design.md"] [data-inline-thread] [data-finding-card="f-info"]'), true)
+  await page.until(`/The loader reads/.test(document.querySelector('[data-spec-card="design.md"]')?.textContent ?? '')`)
   assert.equal(await exists('[data-spec-card="requirements.md"]'), false)
   await click('[data-spec-tab="tasks.md"]')
   await page.until(`/A byte/.test(document.querySelector('[data-spec-card="tasks.md"]')?.textContent ?? '')`)
-  assert.equal(await exists('[data-spec-card="tasks.md"] [data-finding-card]'), false, 'tasks.md has no comments')
-  assert.equal(await exists('[data-review-view]'), false, 'no separate Review page')
   await click('[data-spec-tab="overview"]')
   await page.until(`Boolean(document.querySelector('[data-spec-summary]'))`)
-  assert.equal(await exists('[data-finding-card]'), false)
   assert.deepEqual(page.errors, [])
 })
 

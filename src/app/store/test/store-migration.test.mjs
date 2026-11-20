@@ -5,11 +5,7 @@ import { Store } from "../store.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
-const postMainTables = [
-  "github_repositories",
-  "review_threads",
-  "review_rounds",
-];
+const postMainTables = ["github_repositories"];
 
 test("same-database upgrade and SQLite backup preserve durable workspace history", () => {
   const root = temporaryDirectory("avoozl-migration-"),
@@ -119,12 +115,6 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
     repositoryId: "code",
     private: true,
   });
-  store.put("review_threads", {
-    id: "review-migrated",
-    planId: "plan-migrated",
-    state: "open",
-    comment: "Preserve review discussion.",
-  });
   store.db.prepare("VACUUM INTO ?").run(backup);
   store.close();
 
@@ -134,7 +124,6 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
     store.get("evidence", "evidence-migrated").commit,
     "1234567890abcdef",
   );
-  assert.equal(store.get("review_threads", "review-migrated").state, "open");
   store.close();
 });
 

@@ -35,7 +35,6 @@ test('every item kind says what is asked, and a task item says what it unblocks'
   for (const item of needsContextItems) assert.ok(askLine(item).length > 10, item.kind)
   assert.match(unblockLine(needsContextItems[0]), /Query parser \(search\.4\)/)
   assert.deepEqual(evidenceOf(needsContextItems.at(-1)), [], 'the bare item has no evidence')
-  assert.ok(evidenceOf(needsContextItems.find((i) => i.kind === 'plan-review')).includes('summary'))
   assert.ok(evidenceOf(needsContextItems.find((i) => i.reason === 'pr-merge')).includes('links'))
   assert.deepEqual(evidenceOf(needsContextItems.find((i) => i.kind === 'stale-session')), ['checks'], 'a stop on failed checks shows them')
 })
@@ -73,7 +72,7 @@ test('each kind draws its spec link, evidence and context before Resolve', { ski
   )
   assert.equal(rows.length, needsContextItems.length)
   assert.ok(
-    rows.slice(0, 6).every((r) => r.spec && r.reason),
+    rows.slice(0, 5).every((r) => r.spec && r.reason),
     'each row shows a spec link and a reason',
   )
   const picks = await page.evaluate(`[...document.querySelectorAll('[data-conflict-pick]')].map((b) => b.dataset.conflictPick)`)
@@ -88,7 +87,6 @@ test('each kind draws its spec link, evidence and context before Resolve', { ski
     if (kind !== 'needs-human')
       assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-conflict-detail] [data-context-where] [data-spec-link]'))`), true, `${kind}: spec link`)
     if (kind === 'review') assert.equal(await page.evaluate(`document.querySelectorAll('[data-diff]').length > 0`), true, 'the review shows a diff')
-    if (kind === 'plan-review') assert.match(await page.evaluate(`document.querySelector('[data-ai-summary]').textContent`), /shopping list/)
     if (key.includes(':search.2:')) assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-pr-chip]') && document.querySelector('[data-branch-chip]'))`), true)
     if (key.includes(':search.8:')) assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-no-evidence]'))`), true)
     if (kind === 'stale-session') {

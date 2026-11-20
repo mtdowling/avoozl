@@ -3,12 +3,11 @@
 Each word here has one meaning, and a word that is not listed has its ordinary
 meaning. Words that look alike are set apart below.
 
-## Take, statement, principal
+## Take, principal
 
 | Word | Means | Where you see it |
 | ---- | ----- | ---------------- |
 | take | Hold one item so nothing else works on it: a person takes a ready task by hand, or an executor takes a queued request. | `avoozl take TASK`, `executor.*.take` |
-| statement | The one-sentence point of a review finding. | A finding's `statement` |
 | principal | The signed identity a request carries to the app backend. | `principalAllows`, `verifyPrincipal` |
 
 ## Review
@@ -17,8 +16,7 @@ meaning. Words that look alike are set apart below.
 
 | Name | Means | Setting |
 | ---- | ----- | ------- |
-| plan review | A second model reads a draft spec and files findings. | `planReview` |
-| plan review finding | One problem a plan review found: kind, severity, file, quote, statement, evidence. | |
+| spec review | An agent with the `avoozl-spec-review` skill reads a draft spec and posts findings. It edits nothing. | |
 | code review | Reviewer chats that read a task's commit before it merges, and the pull request's own approval count on GitHub. | `delivery.reviewers`, `pullRequestReviews` |
 | changed tasks | Tasks whose design text changed since they were approved. Needs you lists them as "N tasks in SPEC changed: check them". | |
 

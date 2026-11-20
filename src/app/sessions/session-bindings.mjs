@@ -17,9 +17,6 @@ const ROLES = new Set([
   "retro",
   // A page-opened assistant (session-open.mjs).
   "assist",
-  "pr-review",
-  "plan-review",
-  "plan-answer",
   // Tries to prove a worker's findings wrong (§4.21).
   "falsifier",
   // One plugin check's decide call (check-decide.mjs).
@@ -158,12 +155,6 @@ export function bindSession(
       // A responder binds to the issue snapshot it answers (github-respond.mjs).
       taskId =
         (role === "responder" && store.get("github_responses", named)) ||
-        // A code review chat binds to its request (pr-review.mjs).
-        (role === "pr-review" &&
-          store.get("receipts", named)?.kind === "pr-review") ||
-        // A spec review binds to its revision-bound round, not a task.
-        (["plan-review", "plan-answer"].includes(role) &&
-          store.get("review_rounds", named)?.spec) ||
         // A page-opened assistant binds to its record (session-open.mjs).
         (role === "assist" &&
           store.get("receipts", named)?.kind === "assist-session") ||

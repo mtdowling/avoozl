@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { pluginChecksClient } from './plugin-checks-api.ts'
 import { closedLine } from './decision-link.ts'
-import { PlanReviewDecision } from './PlanReviewDecision.tsx'
 import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
@@ -94,15 +93,6 @@ export function ConflictActions(props: {
   const why = noActionReason(item)
   return (
     <Stack gap={2}>
-      {item.kind === 'plan-review' && item.planReview && (
-        <PlanReviewDecision
-          key={`${workspaceId}:${item.planReview.planId}:${item.planReview.revisionHash}`}
-          {...item.planReview}
-          busy={busy}
-          run={run}
-          onDecide={(action) => views.decidePlanReview(workspaceId, item.planReview!.planId, item.planReview!.revisionHash, action)}
-        />
-      )}
       {item.kind === 'investigation' && item.taskId && (
         <InvestigationActions
           item={item}

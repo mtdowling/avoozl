@@ -12,8 +12,6 @@ export function askLine(item: ConflictItem): string {
       return `Answer the question below. ${task} waits for it.`
     case 'review':
       return 'Read each task’s text and mark it reviewed. None starts before you do.'
-    case 'plan-review':
-      return 'Choose whether a second model reads this draft before you approve it.'
     case 'investigation':
       return 'Read the worker’s findings and the falsifier’s reply, then choose: go ahead, investigate again, or stop.'
     case 'branch-landing':
@@ -49,7 +47,6 @@ export function unblockLine(item: ConflictItem): string | null {
   const names = dependents?.tasks.map((t) => `${t.title} (${t.id})`) ?? []
   const more = dependents && dependents.total > names.length ? ` and ${dependents.total - names.length} more` : ''
   if (item.kind === 'review') return 'Each reviewed task may start when its other needs are met.'
-  if (item.kind === 'plan-review') return 'Approval of this draft waits on the review or your skip.'
   if (item.kind === 'branch-landing') return names.length ? `Landing it starts: ${names.join(', ')}${more}.` : 'Landing it finishes this work.'
   if (!item.taskId) return null
   if (names.length) return `${item.taskId} moves on, and then ${names.join(', ')}${more} can start.`
@@ -105,12 +102,11 @@ export function reviewEvidence(title: string, context: ItemContext | undefined):
 }
 
 // Which evidence blocks an item has. An item with none says so on the page.
-export type Evidence = 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'summary' | 'text'
+export type Evidence = 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'text'
 export function evidenceOf(item: ConflictItem): Evidence[] {
   const out: Evidence[] = []
   if (item.findings || item.reply) out.push('investigation')
   if (item.kind === 'review' && item.tasks?.length) out.push('review')
-  if (item.kind === 'plan-review' && item.context?.review) out.push('summary')
   if (item.context?.text && item.kind !== 'review' && item.context.text.summary) out.push('text')
   const links = item.context?.links
   if (links && (links.branch || links.pr || links.checks)) out.push('links')

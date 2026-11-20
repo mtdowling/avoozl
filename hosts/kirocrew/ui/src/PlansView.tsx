@@ -64,23 +64,9 @@ import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './ui/Modal.tsx'
 import { Button } from './ui/Button.tsx'
-import { PlanReviewSummary, REVIEW_POLL_MS, ReviewWorking, RevisionChanged } from './PlanReviewSummary.tsx'
 import { SpecGraph } from './SpecGraph.tsx'
-import { DocTabs, DocumentComments, ReviewOverview, useReview, type Review } from './ReviewView.tsx'
-import {
-  firstReviewFile,
-  parseReviewLink,
-  parseSpecTab,
-  renderText,
-  reviewClient,
-  reviewHref,
-  reviewLink,
-  reviewPlace,
-  specTabLink,
-  type ReviewFinding,
-  type ReviewPlace,
-} from './review-view.ts'
-import { SeverityBadges } from './ui/SeverityBadges.tsx'
+import { parseSpecTab, renderText, specTabLink } from './tabs.ts'
+import { Tabs } from './ui/Tabs.tsx'
 import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './DiffBlock.tsx'
 import {
@@ -111,7 +97,6 @@ import {
   baseRevision,
   revisionChange,
   revisionDiff,
-  type PlanReviewSummary as ReviewSummary,
   type RevisionChange,
   type PlanListFilter,
   SORT_FIRST,
@@ -333,10 +318,9 @@ function SpecDetailsBox({ children }: { children: ReactNode }) {
   )
 }
 
-// One spec document, rendered, under its tab, with its review comments
-// inline (DocumentComments) when the spec has a review.
-function DocumentTab(props: { docs: SpecDocuments | null; error: string | null; file: string; comments?: DocComments }) {
-  const { docs, error, file, comments } = props
+// One spec document, rendered, under its tab.
+function DocumentTab(props: { docs: SpecDocuments | null; error: string | null; file: string }) {
+  const { docs, error, file } = props
   const text = docs?.documents?.[file]
   return (
     <SpecCard
@@ -361,8 +345,6 @@ function DocumentTab(props: { docs: SpecDocuments | null; error: string | null; 
         <Hint as="p" size="sm">
           This folder has no {file}.
         </Hint>
-      ) : comments ? (
-        <DocumentComments review={comments.review} file={file} text={text} place={comments.place} onPlace={comments.onPlace} measure={PROSE_MEASURE} />
       ) : (
         <Markdown text={renderText(file, text)} idPrefix={docPrefix(file)} measure={PROSE_MEASURE} />
       )}
@@ -370,17 +352,8 @@ function DocumentTab(props: { docs: SpecDocuments | null; error: string | null; 
   )
 }
 
-// The review comments a document tab shows inline, and the place they keep
-// in the page address.
-interface DocComments {
-  review: Review
-  place: ReviewPlace
-  onPlace: (place: ReviewPlace) => void
-}
-
 // The tabs a spec page has: Overview, Tasks, and one per document in the
-// spec folder, each with its review comments. The files come from the
-// folder, in reading order.
+// spec folder. The files come from the folder, in reading order.
 export function specTabNames(docs: SpecDocuments | null, hasPlan: boolean): string[] {
   if (!hasPlan) return []
   const files = Object.keys(docs?.documents ?? {})
@@ -388,85 +361,42 @@ export function specTabNames(docs: SpecDocuments | null, hasPlan: boolean): stri
   return ['overview', 'tasks', ...first, ...files.filter((f) => !first.includes(f)).sort()]
 }
 const TAB_NAME: Record<string, string> = { overview: 'Overview', tasks: 'Tasks' }
-const OPEN = new Set(['open', 'answered', 'for you', 'accepted'])
 
-function SpecTabs(props: { tabs: string[]; current: string; plan: SpecPlan | null; onPick: (tab: string) => void }) {
-  const counts: Record<string, number> = {}
-  for (const finding of props.plan?.review?.open ?? []) if (OPEN.has(finding.state ?? 'open')) counts[finding.file] = (counts[finding.file] ?? 0) + 1
-  const files = props.tabs.filter((tab) => !TAB_NAME[tab])
-  const shown: Record<string, number> = Object.fromEntries(files.map((file) => [file, counts[file] ?? 0]))
+// The spec page's tab bar: one tab per view and spec file. Arrow keys, Home
+// and End move between tabs (WAI-ARIA tabs).
+function SpecTabs(props: { tabs: string[]; current: string; onPick: (tab: string) => void }) {
   // A tabbed heading edge to edge: out over the detail column's inset to its
   // divider, as the spec header's rules are (SpecHeader), so the open tab's
   // square fill reaches the column's edges (the first tab's, its left edge).
   const phone = usePhone()
   return (
     <Box data-spec-tabs-wrap css-margin-left={phone ? 0 : -12} css-min-width="0">
-      <DocTabs
-        tabs={props.tabs}
+      <Tabs
+        id="spec-tab"
+        label="Spec views"
+        barAttr="data-spec-tabs"
+        tabAttr="data-spec-tab"
+        look="heading"
         current={props.current}
-        counts={shown}
         onPick={props.onPick}
-        bar={{ label: 'Spec views', attr: 'data-spec-tab', prefix: 'spec-tab', labels: TAB_NAME, look: 'heading' }}
+        tabs={props.tabs.map((tab) => ({ key: tab, label: TAB_NAME[tab] ?? tab }))}
       />
     </Box>
   )
 }
 
-// The spec Summary. A reviewer writes the plain summary once per revision and
-// the page reads it from Avoozl's own store (never a model call on open, no
-// GitHub call). While the review runs the shared AI working box shows; if
-// there is no summary and no review running, the line says so and Retry reads
-// the plan again (and runs a review when one may).
-function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () => void }) {
+// The spec Summary's facts: its revision, state and folder.
+function SpecFacts(props: { plan: SpecPlan; spec: SpecSummary }) {
   const { plan, spec } = props
-  const review = plan.review
-  const written = review?.summary ?? null
-  const pending = review?.state === 'running' && !written?.current
   return (
-    <Stack data-spec-summary gap={2}>
-      {pending ? (
-        <ReviewWorking model={review?.reviewerModel ?? null} title="AI working" label="Writing a short summary of this spec…" />
-      ) : written ? (
-        <Box as="p" css-margin="0" css-max-width="80ch" size="sm" data-spec-summary-text>
-          {written.text}
-          {!written.current && (
-            <Hint size="xs" data-spec-summary-older>
-              {' '}
-              (written for <code>{shortHash(written.revisionHash)}</code>)
-            </Hint>
-          )}
-        </Box>
-      ) : (
-        <Hint as="p" size="sm" flush data-spec-summary-fallback>
-          Summary unavailable{' '}
-          {props.onRetry && (
-            <PlainButton
-              type="button"
-              css-background="none"
-              css-border="0"
-              css-padding="0"
-              css-color="accent"
-              css-cursor="pointer"
-              underline
-              underlineOffset2
-              data-spec-summary-retry
-              onClick={props.onRetry}
-            >
-              Retry
-            </PlainButton>
-          )}
-        </Hint>
-      )}
-      <Hint as="div" flex flexWrap items="center" gapX="2" gapY="1" size="xs" data-spec-summary-data>
-        <span>
-          Revision {plan.revision} · <code>{shortHash(plan.hash)}</code> · {plan.state}
-        </span>
-        <span>
-          {spec.folder} · {spec.files.join(', ') || 'no files'}
-        </span>
-        <SeverityBadges counts={review?.openBySeverity} label="Open review findings" />
-      </Hint>
-    </Stack>
+    <Hint as="div" flex flexWrap items="center" gapX="2" gapY="1" size="xs" data-spec-summary data-spec-summary-data>
+      <span>
+        Revision {plan.revision} · <code>{shortHash(plan.hash)}</code> · {plan.state}
+      </span>
+      <span>
+        {spec.folder} · {spec.files.join(', ') || 'no files'}
+      </span>
+    </Hint>
   )
 }
 
@@ -485,19 +415,10 @@ function SpecDetail(props: {
   onOpenTask: (id: string) => void
   // A ref chip on a task: its file's tab at its line.
   onOpenRef?: (ref: TaskRef) => void
-  onReview?: () => void
-  // Retry for a summary that is not there: the page reads the plan again, and
-  // runs a review when one can run.
-  onRetrySummary?: () => void
   // The open tab (SpecTabs) and, for the Overview, the spec details box.
   tab: string
   details: ReactNode
   onTasks: () => void
-  // The spec's review: comments inline on each document tab, and the
-  // Overview's Review card, whose list opens a comment on its tab.
-  comments?: DocComments
-  onOpenFinding?: (finding: ReviewFinding) => void
-  onCurrentReview?: () => void
 }) {
   const { spec, plan, preview, tab } = props
   const overview = tab === 'overview' || !plan
@@ -508,18 +429,9 @@ function SpecDetail(props: {
     <Box css-gap="20" flex minW0 flexCol role="tabpanel" id="spec-tab-panel">
       {overview && (
         <>
-          <SpecCard
-            title="Summary"
-            actions={
-              plan && props.onReview ? (
-                <TipBtn {...COMPACT} tooltip="Read each review comment under the spec text it is on, and decide it." onClick={props.onReview} data-open-review="">
-                  Open review{plan.review?.found ? ` (${plan.review.found})` : ''}
-                </TipBtn>
-              ) : undefined
-            }
-          >
+          <SpecCard title="Summary">
             {plan ? (
-              <SpecAiSummary plan={plan} spec={spec} onRetry={props.onRetrySummary} />
+              <SpecFacts plan={plan} spec={spec} />
             ) : props.planId ? (
               props.planError ? (
                 <ErrorText size="sm">{props.planError}</ErrorText>
@@ -572,7 +484,7 @@ function SpecDetail(props: {
         </>
       )}
 
-      {plan && tab !== 'overview' && tab !== 'tasks' && <DocumentTab key={tab} docs={props.docs} error={props.docsError} file={tab} comments={props.comments} />}
+      {plan && tab !== 'overview' && tab !== 'tasks' && <DocumentTab key={tab} docs={props.docs} error={props.docsError} file={tab} />}
 
       {!plan && (
         <>
@@ -583,11 +495,6 @@ function SpecDetail(props: {
 
       {overview && (
         <>
-          {plan && props.comments && (
-            <SpecCard title="Review" id="avoozl-spec-review">
-              <ReviewOverview review={props.comments.review} onOpen={(finding) => props.onOpenFinding?.(finding)} onCurrent={() => props.onCurrentReview?.()} />
-            </SpecCard>
-          )}
           <SpecCard title="Diagnostics">
             {!plan ? (
               <Hint as="p" size="sm">
@@ -1874,7 +1781,10 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   )
 }
 
-// While an Approve dialog is open, run `read` now and every REVIEW_POLL_MS.
+// How often an open Approve dialog reads the plan again.
+const DIALOG_POLL_MS = 3000
+
+// While an Approve dialog is open, run `read` now and every DIALOG_POLL_MS.
 // It reads Avoozl's own database only, never GitHub. A read still running
 // skips the next tick.
 function useOpenDialogReads(read: () => Promise<unknown>) {
@@ -1893,51 +1803,91 @@ function useOpenDialogReads(read: () => Promise<unknown>) {
         })
     }
     tick()
-    const timer = setInterval(tick, REVIEW_POLL_MS)
+    const timer = setInterval(tick, DIALOG_POLL_MS)
     return () => clearInterval(timer)
   }, [])
 }
 
-// Approve one exact revision after showing its independent review evidence.
-export function ApproveSpecDialog(props: {
-  workspaceId: string
-  plan: SpecPlan
-  client: PlansClient
-  onDone: (text: string | null) => void
-  onOpenReview?: (planId: string, rev: string) => void
-}) {
+// What moved while the Approve dialog was open: both hashes, and each
+// changed file with lines added and removed.
+function RevisionChanged(props: { change: RevisionChange }) {
+  const { change } = props
+  return (
+    <Box
+      role="status"
+      data-revision-moved
+      as="section"
+      css-border-color="mix-info-accent-40%-transparent"
+      css-background="mix-info-accent-8%-transparent"
+      css-overflow-wrap="anywhere"
+      flex
+      flexCol
+      gap="1"
+      rounded="base"
+      border="all"
+      p="3"
+      size="sm"
+    >
+      <Box as="p" m0 weight="medium">
+        Changed while open:{' '}
+        <Tooltip text={change.from}>
+          <code>{shortHash(change.from)}</code>
+        </Tooltip>{' '}
+        →{' '}
+        <Tooltip text={change.to}>
+          <code>{shortHash(change.to)}</code>
+        </Tooltip>
+      </Box>
+      {change.files.length > 0 && (
+        <Box as="ul" css-list-style="disc" m0 flex flexCol pl="5" data-revision-moved-files>
+          {change.files.map((file) => (
+            <li key={file.file}>
+              <code>{file.file}</code>{' '}
+              <Box as="span" css-color={file.added ? 'success-text' : undefined}>
+                +{file.added}
+              </Box>{' '}
+              <Box as="span" css-color={file.removed ? 'danger' : undefined}>
+                −{file.removed}
+              </Box>
+            </li>
+          ))}
+        </Box>
+      )}
+      <Hint as="p" flush>
+        Approve now applies to <code>{shortHash(change.to)}</code>. Press it again to approve this revision.
+      </Hint>
+    </Box>
+  )
+}
+
+// Approve one exact revision.
+export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; client: PlansClient; onDone: (text: string | null) => void }) {
   const { client, workspaceId } = props
   // The plan can move while the dialog is open (the planner writes a
   // revision). The dialog updates in place, and Approve always targets the
   // revision shown here (R104.13).
   const [plan, setPlan] = useState(props.plan)
   const [change, setChange] = useState<RevisionChange | null>(null)
-  const [review, setReview] = useState(plan.review)
   const [showDiff, setShowDiff] = useState(false)
   const base = baseRevision(plan)
   const diffs = showDiff && base ? revisionDiff(base.files, plan.files) : []
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const shown = useRef({ plan, review })
-  shown.current = { plan, review }
+  const shown = useRef(plan)
+  shown.current = plan
   // Swap to the stored revision when it moved from the one on screen. The
   // Approve button resets, so approving it takes a new click.
   const update = async () => {
-    const [fresh, next] = await Promise.all([client.get(workspaceId, plan.id), client.reviewSummary(workspaceId, plan.id)])
+    const fresh = await client.get(workspaceId, plan.id)
     const was = shown.current
-    if (fresh.hash !== was.plan.hash) {
-      setChange(revisionChange({ hash: was.plan.hash, files: was.plan.files, review: was.review }, { hash: fresh.hash, files: fresh.files, review: next }))
+    if (fresh.hash !== was.hash) {
+      setChange(revisionChange({ hash: was.hash, files: was.files }, { hash: fresh.hash, files: fresh.files }))
       setPlan(fresh)
       setShowDiff(false)
       setError(null)
     }
-    if (next) setReview(next)
   }
-  useOpenDialogReads(async () => {
-    const next = await client.reviewSummary(workspaceId, plan.id)
-    if (next?.planHash && next.planHash !== shown.current.plan.hash) await update()
-    else if (next) setReview(next)
-  })
+  useOpenDialogReads(update)
   const run = async () => {
     setBusy(true)
     setError(null)
@@ -1993,7 +1943,7 @@ export function ApproveSpecDialog(props: {
               <code>{shortHash(plan.hash)}</code>
             </Tooltip>
           )}
-          . Approving commits it to main as you. Review findings are evidence for your decision; they do not block approval.
+          . Approving commits it to main as you.
         </Hint>
         {change && <RevisionChanged change={change} />}
         {showDiff && base && (
@@ -2017,13 +1967,6 @@ export function ApproveSpecDialog(props: {
             )}
           </Stack>
         )}
-        <PlanReviewSummary
-          key={`${workspaceId}:${plan.id}:${plan.hash}`}
-          review={review}
-          onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)}
-          reviewHref={reviewHref(window.location.pathname, plan.id, plan.hash)}
-          onOpenReview={props.onOpenReview && (() => props.onOpenReview!(plan.id, plan.hash))}
-        />
         {error && (
           <ErrorText role="alert" flush>
             {error}
@@ -2048,7 +1991,6 @@ export default function PlansView(props: {
   const { openChat } = useChatLauncher()
   const plans = useMemo(() => plansClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
-  const reviews = useMemo(() => reviewClient(api), [api])
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
   const phone = usePhone()
@@ -2134,28 +2076,18 @@ export default function PlansView(props: {
   }, [workspace, load, plans])
 
   const row = table?.items.find((item) => item.key === selected) ?? null
-  // The open spec's review place (R104.9): the revision, filters and picked
-  // comment its document tabs show, kept in the page address on Kiro
-  // Crew's route. A pasted ?view=review&plan=P link opens it once.
-  const [review, setReview] = useState<ReviewPlace | null>(null)
-  // The other tabs: Overview, Tasks and one per spec document, in the address
-  // as the spec id plus tab=T. Review has its own link. Back and Forward walk them.
+  // The spec's tabs: Overview, Tasks and one per spec document, in the address
+  // as the spec id plus tab=T. Back and Forward walk them.
   const [specAt, setSpecAt] = useState<{ plan: string; tab: string }>({ plan: '', tab: 'overview' })
-  const reviewLinkRead = useRef(false)
+  const addressRead = useRef(false)
   const readAddress = useCallback(() => {
-    const link = parseReviewLink(window.location.search)
-    if (link) {
-      setReview(link)
-      return link.plan
-    }
     const at = parseSpecTab(window.location.search)
-    setReview(null)
     setSpecAt(at ?? { plan: '', tab: 'overview' })
     return at?.plan ?? null
   }, [])
   useEffect(() => {
-    if (!table || reviewLinkRead.current) return
-    reviewLinkRead.current = true
+    if (!table || addressRead.current) return
+    addressRead.current = true
     const plan = readAddress(),
       found = plan && table.items.find((item) => item.planId === plan)
     if (found) setSelected(found.key)
@@ -2180,22 +2112,10 @@ export default function PlansView(props: {
       // The address is a convenience; the view still changes.
     }
   }
-  const placeReview = (next: ReviewPlace | null) => {
-    setReview(next)
-    if (next) goAddress(reviewLink(next))
-  }
-  const reviewing = review && row?.planId === review.plan ? review : null
-  // A new spec opens on its Overview.
-  useEffect(() => {
-    if (review && row?.planId !== review.plan) setReview(null)
-  }, [row?.planId, review])
   const specTab = specAt.plan === row?.planId ? specAt.tab : 'overview'
   const pickTab = (next: string) => {
     const id = row?.planId
     if (!id || !workspace) return
-    // Between document tabs a review place keeps its revision and filters.
-    if (reviewing && next !== 'overview' && next !== 'tasks') return placeReview({ ...reviewing, file: next, finding: null })
-    setReview(null)
     setSpecAt({ plan: id, tab: next })
     goAddress(specTabLink(id, next))
   }
@@ -2218,26 +2138,9 @@ export default function PlansView(props: {
     look()
     return () => clearTimeout(timer)
   }, [refJump])
-  // An Approve dialog's Open review: the spec's comments at the revision
-  // the dialog showed. The caller closes the dialog.
-  const openReview = (planId: string, rev: string) => {
-    const found = table?.items.find((item) => item.planId === planId)
-    if (found) setSelected(found.key)
-    placeReview(reviewPlace(planId, { rev }))
-  }
   // Who drives the open spec (§6.10): the chip and the read-only banner.
   const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
-  // The open spec's review, shared by the Overview and its document tabs. A
-  // decision changes the plan's open counts: read the plan again in place.
-  const specReview = useReview(reviews, workspace, plan && row?.planId === plan.id ? plan.id : null, reviewing?.rev ?? null, plan?.hash, () => {
-    const id = plan?.id
-    if (!workspace || !id) return
-    plans.get(workspace, id).then(
-      (fresh) => setPlan((shown) => (shown?.id === id ? fresh : shown)),
-      () => undefined,
-    )
-  })
 
   // The opened row's stored plan, preview, documents and tasks. Opening is
   // immediate: the row's own data is already here, and these fill in.
@@ -2259,31 +2162,6 @@ export default function PlansView(props: {
     },
     [plans],
   )
-  // While the reviewer writes the summary, read the plan again until it lands.
-  const summaryPending = plan?.review?.state === 'running' && !plan.review.summary?.current
-  const pendingId = plan?.id
-  useEffect(() => {
-    if (!summaryPending || !workspace || !pendingId) return
-    let live = true
-    const timer = setInterval(() => {
-      plans.get(workspace, pendingId).then(
-        (stored) => live && setPlan((now) => (now?.id === stored.id ? stored : now)),
-        () => undefined,
-      )
-    }, REVIEW_POLL_MS)
-    return () => {
-      live = false
-      clearInterval(timer)
-    }
-  }, [summaryPending, workspace, pendingId, plans])
-  const retrySummary = () => {
-    if (!workspace || !row) return
-    const review = plan?.review
-    void attempt(async () => {
-      if (plan && review?.canReviewAnyway) await plans.reviewAnyway(workspace, plan.id, plan.hash)
-      await loadPlan(workspace, row.planId)
-    })
-  }
   useEffect(() => {
     setDocs(null)
     setDocsError(null)
@@ -2374,15 +2252,8 @@ export default function PlansView(props: {
   }
 
   const tabNames = specTabNames(docs, Boolean(plan))
-  // A review place opens its document tab; one that names none, the first
-  // document with an open comment.
-  const reviewFile = reviewing ? (reviewing.file ?? firstReviewFile(tabNames.slice(2), plan?.review?.open ?? [])) : null
-  const shownTab = reviewFile ?? specTab
-  const specTabs = plan && row?.planId ? <SpecTabs tabs={tabNames.includes(shownTab) ? tabNames : [...tabNames, shownTab]} current={shownTab} plan={plan} onPick={pickTab} /> : null
-  const comments: DocComments | undefined =
-    plan && row?.planId
-      ? { review: specReview, place: reviewing ? { ...reviewing, file: shownTab } : reviewPlace(row.planId, { file: shownTab }), onPlace: placeReview }
-      : undefined
+  const shownTab = specTab
+  const specTabs = plan && row?.planId ? <SpecTabs tabs={tabNames.includes(shownTab) ? tabNames : [...tabNames, shownTab]} current={shownTab} onPick={pickTab} /> : null
   const specHeader = row ? <SpecHeader row={row} plan={plan} busy={busy} flush={phone} driver={<DriverChip spec={driver.spec} />} actions={specActions(row)} /> : null
   // The specs list column.
   const specList = (
@@ -2472,14 +2343,9 @@ export default function PlansView(props: {
               busy={busy}
               onOpenTask={(id) => drawer.openTask(id)}
               onOpenRef={openRef}
-              onRetrySummary={retrySummary}
-              onReview={row.planId ? () => placeReview(reviewPlace(row.planId!)) : undefined}
               tab={shownTab}
               details={<SpecDetailsBox>{specRail}</SpecDetailsBox>}
               onTasks={() => pickTab('tasks')}
-              comments={comments}
-              onCurrentReview={() => pickTab('overview')}
-              onOpenFinding={(finding) => row.planId && placeReview({ ...(reviewing ?? reviewPlace(row.planId)), file: finding.anchor.file, finding: finding.id })}
             />
           ) : null}
         </Box>
@@ -2493,10 +2359,6 @@ export default function PlansView(props: {
           workspaceId={singleApproval.workspaceId}
           plan={singleApproval.plan}
           client={plans}
-          onOpenReview={(planId, rev) => {
-            setSingleApproval(null)
-            openReview(planId, rev)
-          }}
           onDone={(text) => {
             if (shownWorkspace.current !== singleApproval.workspaceId) return
             setSingleApproval(null)

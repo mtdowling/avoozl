@@ -88,8 +88,6 @@ import {
   recordNoPerson,
 } from "../github/github-credentials.mjs";
 import { lintPlan } from "../specs/plan-quality.mjs";
-import { recordPlanReviewWriter } from "../reviews/plan-review-authorship.mjs";
-import { planReviewSummary } from "../reviews/plan-review-summary.mjs";
 import { approvePlan, createPlan } from "../specs/plans.mjs";
 import { SUPPORTED_CONTRACTS } from "../plugins/plugin-contract.mjs";
 import { pluginHealth } from "../plugins/plugin-session.mjs";
@@ -190,10 +188,6 @@ export class Operations {
       sessionStopper = null,
       // True on the standalone page: no Kiro Crew runs beside this server.
       kirocrewAbsent = false,
-      // {now} for the code review chat (pr-review.mjs); tests fix the clock.
-      reviewOptions = {},
-      // Tests can delay isolated review-view preparation without opening chats.
-      planReviewOptions = {},
       pluginSettingsFile = pluginSettingsPath(),
       // The spec driver lock (§6.10): {settingsFile, now?, sleep?}. The
       // CLI, app backend and app MCP server pass this machine's settings
@@ -227,7 +221,6 @@ export class Operations {
     this.notifier = notifier;
     this.sessionStopper = sessionStopper;
     this.kirocrewAbsent = kirocrewAbsent;
-    this.reviewOptions = reviewOptions;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     // Every GitHub text write passes content rules first (§4.9).
@@ -259,7 +252,6 @@ export class Operations {
     // projections before it returns, so no caller writes the outbox itself.
     this.plansRoot = plansRoot;
     this.tickPolicy = {};
-    this.planReviewOptions = planReviewOptions;
     this.configDirectory = configDirectory;
     this.repositoryBindingGuard = repositoryBindingGuard;
     this.pendingIntents = new Map();
@@ -542,13 +534,7 @@ export class Operations {
       spec = this.readSpec(input.spec);
     if (spec.exists && (context.caller || context.mcp))
       enforceSpec(store, spec, { mode: "refuse" });
-    const previousHash = store.get("plans", input.id || input.spec)?.hash;
-    const created = createSpecPlan(store, input, spec);
-    recordPlanReviewWriter(store, created, {
-      previousHash,
-      caller: context.caller,
-    });
-    return created;
+    return createSpecPlan(store, input, spec);
   }
   // A folder on disk by name.
   readSpec(name) {
@@ -726,7 +712,6 @@ export class Operations {
       specQuality,
       proposals,
       quality,
-      review: planReviewSummary(this.store, plan.id),
     };
   }
   // This workspace's saved config, which names each role's executor

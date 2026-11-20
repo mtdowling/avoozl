@@ -1,11 +1,10 @@
 // What a person needs to decide a Needs you item without opening anything
-// else: its spec, its task, what it unblocks, the task text, and the review
-// evidence for a draft, and the failing checks with their first error line
+// else: its spec, its task, what it unblocks, the task text, and the failing
+// checks with their first error line
 // when the task stopped on them. Built from stored records only; it makes no
 // GitHub call and writes nothing.
 import { taskSourceRefs } from "../../task-identity.mjs";
 import { linkSets } from "../tasks/scm-links.mjs";
-import { planReviewSummary } from "../reviews/plan-review-summary.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 
@@ -120,34 +119,6 @@ export function addItemContext(store, data, items) {
         const task = byId.get(entry.id);
         if (task) entry.context = light(task);
       }
-      continue;
-    }
-    if (item.planReview) {
-      const plan = plans.get(item.planReview.planId);
-      let review = null;
-      try {
-        review = planReviewSummary(store, item.planReview.planId);
-      } catch {
-        // The plan went away; the item clears on the next read.
-      }
-      item.context = {
-        spec: plan
-          ? {
-              planId: plan.id,
-              name: plan.spec ?? null,
-              title: plan.title ?? plan.spec ?? plan.id,
-            }
-          : null,
-        review: review && {
-          state: review.state,
-          current: review.current,
-          reviewerModel: review.reviewerModel,
-          openBySeverity: review.openBySeverity,
-          found: review.found,
-          fixed: review.fixed,
-          summary: review.summary,
-        },
-      };
       continue;
     }
     const id = item.taskId ?? null;

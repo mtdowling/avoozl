@@ -39,7 +39,6 @@ import { PrModeFields, ConflictFields, MergeMethodFields } from '../../src/Landi
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/ManualTask.tsx'
-import { reviewFixture } from './review-fixture.ts'
 import { needsContextItems } from './needs-context-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import NewFixDrawer from '../../src/NewFixDrawer.tsx'
@@ -1846,12 +1845,34 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     spec('window-design', 'not imported', 10),
   ]
   answer('plan.table', () => ({ root: '/repo', problem: null, specs: [], revision: 7, items }))
-  // &review=1: byte-types is stored and reviewed, so its page has Open
-  // review (ReviewView.tsx) on fake findings (review-fixture.ts).
-  if (query.get('review') === '1') {
-    const fixture = reviewFixture()
-    const hash = fixture.data.revisionHash
-    const files = fixture.data.files
+  // &stored=1: byte-types is a stored draft with three files.
+  if (query.get('stored') === '1') {
+    const hash = 'c0ffee12'.repeat(8)
+    const files: Record<string, string> = {
+      'requirements.md': [
+        '# Requirements',
+        '',
+        '## Requirement 1: Byte types',
+        '',
+        'The runtime SHALL offer fixed-width byte types. They are the base for strings, buffers and the wire codecs, so their range, overflow and conversion rules must hold on every target the runtime builds for, including the small embedded ones.',
+        '',
+        '1. A byte value SHALL hold 0 to 255.',
+        '2. Overflow SHALL wrap.',
+        '',
+        '## Requirement 2: Byte strings',
+        '',
+        'A byte string SHALL be a run of bytes with a length. It SHALL know its length without a scan, SHALL compare by content, and SHALL hash the same way on every platform, so a byte string read from a file on one machine and written on another keeps its identity. Byte strings are immutable; a builder makes a new one. The builder grows by doubling and never copies more than once per doubling, which keeps appends amortized constant time even for large inputs read in small chunks from a socket or a pipe.',
+        '',
+        '1. Indexing past the end SHALL fail with an error that names the index.',
+        '2. Slicing SHALL copy no bytes.',
+        '',
+        '## Requirement 3: Encoding',
+        '',
+        'Text SHALL convert to and from UTF-8 byte strings.',
+      ].join('\n'),
+      'design.md': ['# Design', '', 'The loader reads `bytes.toml` once at start.', '', '## D1. Layout', '', 'Bytes pack into words of eight.'].join('\n'),
+      'tasks.md': ['# Tasks', '', '- [ ] 1.1 Add the byte type [R1.1] (§D1)', '  - A byte holds 0 to 255', '- [ ] 1.2 Wrap on overflow', '  - 256 wraps to 0'].join('\n'),
+    }
     let at = hash
     const summary = {
       name: 'byte-types',
@@ -1867,10 +1888,8 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     answer('plan.table', () => ({ root: '/repo', problem: null, specs: [summary], revision: 7, items }))
     answer('plan.preview', () => ({ reviewedHash: at, expectedRevision: 3, tasks: [], dependencies: [] }))
     answer('plan.spec.read', () => ({ name: 'byte-types', folder: '.kiro/specs/byte-types/', hash, documents: files }))
-    answer('plan.review.view', () => structuredClone(fixture.data))
-    // The Approve dialogs' summary (task 57.6): counts by severity and state.
     // window.__moveRevision() stands for the planner writing a revision while
-    // a dialog is open: one finding becomes fixed and one moves.
+    // an Approve dialog is open.
     const moved = 'd00dfeed'.repeat(8)
     const movedFiles = {
       ...files,
@@ -1880,83 +1899,7 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     ;(window as unknown as { __moveRevision: () => void }).__moveRevision = () => {
       at = moved
     }
-    let summaryReady = false
-    ;(window as unknown as { __summaryReady: () => void }).__summaryReady = () => {
-      summaryReady = true
-    }
     answer('graph.view', () => specGraph)
-    const reviewOf = () => {
-      const now = at === moved
-      const open = fixture.data.findings
-        .filter((f) => f.state !== 'rejected')
-        .map((f) => ({
-          id: f.id,
-          roundId: f.roundId,
-          revisionHash: f.revisionHash,
-          current: true,
-          kind: f.category,
-          severity: f.severity,
-          file: f.anchor.file,
-          line: f.anchor.lineStart,
-          statement: f.statement,
-          evidence: f.evidence,
-          answer: f.answer,
-          state: now && f.id === 'f-blocker' ? 'fixed' : f.state,
-          anchor: { ...f.anchor, moved: f.id === 'f-moved' ? now : false },
-        }))
-      const byState: Record<string, number> = { rejected: 1 }
-      for (const f of open) byState[f.state] = (byState[f.state] ?? 0) + 1
-      // Open findings by severity, live as the person decides them.
-      const openBySeverity = { blocker: 0, warn: 0, info: 0 }
-      for (const f of fixture.data.findings) if (['open', 'answered', 'for you', 'accepted'].includes(f.state)) openBySeverity[f.severity]++
-      // &summary=running: the reviewer is still writing it (the AI working
-      // box) until window.__summaryReady(); &summary=none: none, no review.
-      const running = query.get('summary') === 'running' && !summaryReady
-      const summary =
-        query.get('summary') === 'none' || running
-          ? null
-          : {
-              text: 'Adds fixed-width byte types and byte strings to the runtime, with UTF-8 conversion. It covers three requirements and two tasks.',
-              revisionHash: hash,
-              current: !now,
-            }
-      return {
-        state: running ? 'running' : 'done',
-        planHash: at,
-        reviewerModel: 'fake-reviewer',
-        writerModel: 'fake-writer',
-        revisionHash: hash,
-        current: !now,
-        found: fixture.data.findings.length,
-        fixed: byState.fixed ?? 0,
-        forYou: byState['for you'] ?? 0,
-        bySeverity: fixture.data.bySeverity,
-        openBySeverity,
-        byState,
-        summary,
-        note: null,
-        open,
-      }
-    }
-    answer('plan.reviewSummary', (body) => {
-      const id = (body.input as { planId: string }).planId
-      return id === 'byte-types'
-        ? reviewOf()
-        : {
-            state: 'not-reviewed',
-            planHash: null,
-            reviewerModel: null,
-            revisionHash: null,
-            current: false,
-            found: 0,
-            fixed: 0,
-            forYou: 0,
-            bySeverity: { blocker: 0, warn: 0, info: 0 },
-            byState: {},
-            note: null,
-            open: [],
-          }
-    })
     answer('plan.get', () => ({
       id: 'byte-types',
       spec: 'byte-types',
@@ -1969,13 +1912,7 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
       history: at === moved ? [{ revision: 3, hash, files }] : [],
       quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
       disk: { folder: '.kiro/specs/byte-types/', exists: true, hash: at, changed: false, critique: null },
-      review: reviewOf(),
     }))
-    answer('plan.review.finding.decide', (body) => {
-      state.calls.push(body as never)
-      fixture.decide(body.input as Parameters<typeof fixture.decide>[0])
-      return {}
-    })
   }
   // &publish=1: load-config is approved in a GitHub workspace and has no
   // spec issue yet, so its header offers Make the GitHub issues (R118.7).
@@ -2105,48 +2042,18 @@ if (page === 'needs') {
   })
   answer('conflicts.view', () => ({
     revision: 1,
-    items:
-      query.get('draftReview') === '1'
-        ? [
-            {
-              id: 'draft-review-1',
-              kind: 'plan-review',
-              taskId: null,
-              plan: 'reader',
-              title: 'Review draft reader?',
-              detail: 'Read this draft on a different model, or skip this revision.',
-              planReview: { planId: 'reader', revisionHash: 'a'.repeat(64) },
-            },
-          ]
-        : [it(1, 'decision'), it(2, 'decision'), it(3, 'needs-human'), it(4, 'review')],
+    items: [it(1, 'decision'), it(2, 'decision'), it(3, 'needs-human'), it(4, 'review')],
   }))
-  answer('plan.review.decide', (body) => {
-    state.calls.push(body)
-    if (query.get('draftDelay') === '1')
-      return new Promise((resolve) => {
-        window.addEventListener('release-draft-review', () => resolve({ state: (body.input as { action: string }).action }), { once: true })
-      })
-    return { state: (body.input as { action: string }).action }
-  })
   answer('delivery.view', () => ({ revision: 1, items: [] }))
 }
 function NeedsPage() {
-  const [workspaceId, setWorkspaceId] = useState('w')
-  return (
-    <>
-      {query.get('draftReview') === '1' && (
-        <button data-review-workspace={workspaceId} onClick={() => setWorkspaceId('other')}>
-          Switch workspace
-        </button>
-      )}
-      {query.get('signin') === '1' ? (
-        <ConfirmProvider>
-          <ConflictsView workspaceId={workspaceId} />
-        </ConfirmProvider>
-      ) : (
-        <ConflictsView workspaceId={workspaceId} />
-      )}
-    </>
+  const workspaceId = 'w'
+  return query.get('signin') === '1' ? (
+    <ConfirmProvider>
+      <ConflictsView workspaceId={workspaceId} />
+    </ConfirmProvider>
+  ) : (
+    <ConflictsView workspaceId={workspaceId} />
   )
 }
 const intake = page === 'intake'

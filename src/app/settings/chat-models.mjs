@@ -1,44 +1,18 @@
-// The models of Avoozl's own chats (Settings › Models): the planner, the
-// retro and plan reviewer. Saved as `models` in .avoozl.json; a role left
-// out, or "auto", runs on its agent's own model, except the plan reviewer
-// stays unset and skips review. Avoozl moves no running chat to another one.
+// The models of Avoozl's own chats (Settings › Models): the planner and the
+// retro. Saved in `roles` in .avoozl.json; a role left out, or "auto", runs
+// on its agent's own model. Avoozl moves no running chat to another one.
 import { fail } from "../store/store.mjs";
 
 // `checkDecide` is a plugin check's decide call (plugin-checks D5); unset,
 // it runs on the planner's model.
-export const MODEL_ROLES = Object.freeze([
-  "planner",
-  "planReviewer",
-  "retro",
-  "checkDecide",
-]);
+export const MODEL_ROLES = Object.freeze(["planner", "retro", "checkDecide"]);
 // The dispatch role each saved role names (tick.mjs).
 export const DISPATCH_ROLE = Object.freeze({
   planner: "planner",
-  "plan-review": "planReviewer",
   retro: "retro",
 });
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
-
-export const PLAN_REVIEW_KEYS = Object.freeze(["mode", "rounds"]);
-
-// Effective cross-model review settings. Auto without a named reviewer
-// skips the review; it never falls back to the writer's model.
-export function validatePlanReview(value, where = "planReview") {
-  if (value === undefined) return { mode: "auto", rounds: 1 };
-  if (!record(value)) fail(`${where} must be an object.`);
-  for (const key of Object.keys(value))
-    if (!PLAN_REVIEW_KEYS.includes(key))
-      fail(`${where}.${key} is not a setting; use mode or rounds.`);
-  const mode = value.mode === undefined ? "auto" : value.mode,
-    rounds = value.rounds === undefined ? 1 : value.rounds;
-  if (!["auto", "ask", "off"].includes(mode))
-    fail(`${where}.mode must be auto, ask or off.`);
-  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 3)
-    fail(`${where}.rounds must be an integer from 1 to 3.`);
-  return { mode, rounds };
-}
 
 // The model a role's chat opens on, or null for the agent's own.
 export function chatModel(config, role) {
@@ -82,8 +56,6 @@ const HARNESS_ONLY_ROLES = Object.freeze([
   "verifier",
   "reviewer",
   "responder",
-  "planAnswer",
-  "prReview",
   // The assistant the page's Open chat buttons start without Kiro Crew.
   "assist",
 ]);
@@ -155,15 +127,6 @@ export function validateRoles(config, where = "roles") {
         fail(`${at}.agent must be an agent name.`);
     }
   }
-  const { planner, planReviewer } = resolveRoles(config);
-  if (
-    planner?.model &&
-    planner.model !== "auto" &&
-    planReviewer?.model === planner.model
-  )
-    fail(
-      `${where}.planReviewer.model must differ from the named planner model.`,
-    );
   return structuredClone(value);
 }
 

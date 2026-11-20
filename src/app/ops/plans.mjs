@@ -4,7 +4,6 @@ import { digest } from "../../model.mjs";
 import { applyPlanMetadata } from "../../plan-model.mjs";
 import { approvedSpecDependency } from "../../spec-dependencies.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
-import { chatModel, validatePlanReview } from "../settings/chat-models.mjs";
 import {
   enforce as enforceContent,
   enforceSpec,
@@ -17,7 +16,6 @@ import {
 } from "../specs/design-extraction.mjs";
 import { epicsView } from "../epics/epics-view.mjs";
 import { crossPlanEpics, epicOfPlan } from "../epics/epics.mjs";
-import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { requestNewPlan } from "../specs/new-plan.mjs";
 import { epicView, ownership, plansTableView } from "../api/page-views.mjs";
 import { archivePlan, unarchivePlan } from "../specs/plan-archive.mjs";
@@ -28,35 +26,12 @@ import {
   specFolderState,
 } from "../specs/plan-retire.mjs";
 import {
-  answerReview,
-  assertPlanAnswerWrite,
-  reviewFindings,
-} from "../reviews/plan-review-answers.mjs";
-import {
-  completePlanReviewWriter,
-  recordPlanReviewWriter,
-} from "../reviews/plan-review-authorship.mjs";
-import { decidePlanReview } from "../reviews/plan-review-step.mjs";
-import { planReviewSummary } from "../reviews/plan-review-summary.mjs";
-import { currentPlanReview } from "../reviews/plan-review-tools.mjs";
-import { planReviewView } from "../reviews/plan-review-view.mjs";
-import {
-  applyReviewSuggestion,
-  createReviewThreads,
-  createSpecReviewFindings,
-  disposeReview,
-  listReviewThreads,
-  listSpecReviewRounds,
-  replyToReview,
-} from "../reviews/plan-reviews.mjs";
-import {
   approvePlan,
   createPlan,
   extractPlan,
   proposeWork,
   savePlan,
 } from "../specs/plans.mjs";
-import { recordFindingDecision } from "../reviews/review-findings.mjs";
 import { specLinks } from "../tasks/scm-links.mjs";
 import {
   checkedItems,
@@ -69,7 +44,7 @@ import {
 import { fail } from "../store/store.mjs";
 import { planPage } from "../api/views.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
-import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+import { person, routed } from "../api/operation-policy.mjs";
 import { taskFile } from "../specs/spec-tasks.mjs";
 
 // Archive or unarchive a plan (plan-archive.mjs): a session may too
@@ -447,7 +422,6 @@ export const entries = [
     handler({ input, context }) {
       const store = this.store;
 
-      assertPlanAnswerWrite(store, { id: input.id || input.spec }, context);
       if (input.spec === undefined) return createPlan(store, input);
       return this.createSpecDraft(input, context);
     },
@@ -462,28 +436,17 @@ export const entries = [
       const store = this.store;
       const agent = Boolean(context.caller || context.mcp);
 
-      assertPlanAnswerWrite(store, { id: input.id }, context);
       const plan = store.get("plans", input.id);
       if (plan?.spec && input.text === undefined) {
         const spec = this.readSpec(plan.spec);
         if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-        const saved = saveSpecPlan(store, input, spec);
-        recordPlanReviewWriter(store, saved, {
-          previousHash: plan.hash,
-          caller: context.caller,
-        });
-        return saved;
+        return saveSpecPlan(store, input, spec);
       }
       // An old-style plan whose spec folder now exists: link it as a draft.
       if (plan && !plan.spec && input.spec !== undefined) {
         const spec = this.readSpec(input.spec);
         if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-        const linked = linkSpecPlan(store, input, spec);
-        recordPlanReviewWriter(store, linked, {
-          previousHash: plan.hash,
-          caller: context.caller,
-        });
-        return linked;
+        return linkSpecPlan(store, input, spec);
       }
       return savePlan(store, input);
     },
@@ -555,11 +518,6 @@ export const entries = [
         // call. A local read, so a private spec issue shows only here.
         ...(plan.spec ? { links: specLinks(store, plan.id) } : {}),
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
-        reviews: listReviewThreads(store, { planId: plan.id }).items,
-        review: planReviewSummary(store, plan.id),
-        reviewPipelines: store
-          .list("review_rounds")
-          .filter((round) => round.planId === plan.id),
         extractions: store
           .list("extractions")
           .filter((extraction) => extraction.planId === plan.id)
@@ -645,7 +603,6 @@ export const entries = [
       return {
         planId: plan.id,
         reviewedHash: plan.spec ? plan.hash : digest(text),
-        review: planReviewSummary(store, plan.id),
         currentHash: plan.hash,
         state: plan.state,
         quality,
@@ -810,243 +767,6 @@ export const entries = [
     handler({ input }) {
       const store = this.store;
       return disposeFact(store, input);
-    },
-  },
-
-  {
-    name: "plan.review.get",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return currentPlanReview(store, input);
-    },
-  },
-
-  {
-    name: "plan.review.list",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return listReviewThreads(store, input);
-    },
-  },
-
-  {
-    name: "plan.reviewSummary",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return planReviewSummary(store, input.planId || input.id);
-    },
-  },
-
-  {
-    name: "plan.review.findings",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return reviewFindings(store, input);
-    },
-  },
-
-  {
-    name: "plan.review.view",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp("App page rendering only."),
-    handler({ input }) {
-      const store = this.store;
-      return planReviewView(store, input);
-    },
-  },
-
-  {
-    name: "plan.review.answer",
-    class: "draft",
-    github: "check-in",
-    policy: routed,
-    handler({ input, context }) {
-      const store = this.store;
-      return answerReview(store, input, context);
-    },
-  },
-
-  {
-    name: "plan.review.decide",
-    class: "draft",
-    github: "check-in",
-    policy: person("Only a person starts or skips a draft review."),
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail("Only a person starts or skips a draft review.", 403);
-      if (input.action === "review") {
-        const plan = store.get("plans", input.planId),
-          existing =
-            plan?.hash === input.revisionHash &&
-            listSpecReviewRounds(store, {
-              planId: input.planId,
-              revisionHash: input.revisionHash,
-            }).items.at(-1);
-        if (
-          existing &&
-          (existing.slot || ["running", "done"].includes(existing.state))
-        )
-          return {
-            existing: true,
-            state: existing.state,
-            roundId: existing.id,
-          };
-        const config = loadLayeredConfig({
-            workspaceRoot: this.workspaceRoot,
-          }).config,
-          reviewer = chatModel(config, "planReviewer"),
-          writer = completePlanReviewWriter(
-            store,
-            input.planId,
-            input.revisionHash,
-          )?.actualModel;
-        if (validatePlanReview(config.planReview).mode === "off")
-          fail(
-            "Plan reviews are off. Enable them in Settings before starting a review.",
-            409,
-          );
-        if (!reviewer)
-          fail("Pick a Plan reviewer model in Settings › Models.", 409);
-        if (reviewer === writer)
-          fail(
-            "The reviewer model is the same as the model that wrote this revision.",
-            409,
-          );
-      }
-      return decidePlanReview(store, input, context);
-    },
-  },
-
-  {
-    name: "plan.review.submit",
-    class: "draft",
-    github: "check-in",
-    policy: routed,
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (store.get("plans", input.planId)?.spec)
-        return createSpecReviewFindings(store, input, {
-          caller: context.caller,
-          mcp: context.mcp,
-        });
-      return createReviewThreads(store, {
-        ...input,
-        author: input.author || this.operator,
-      });
-    },
-  },
-
-  {
-    name: "plan.review.reply",
-    class: "draft",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return replyToReview(store, {
-        ...input,
-        author: input.author || this.operator,
-      });
-    },
-  },
-  // A person's action on a spec review finding (R104.5). Person-only:
-  // perform refuses MCP and agent sessions before this runs.
-  // Without a revision (the CLI) it is the spec's current one.
-  {
-    name: "plan.review.finding.decide",
-    class: "draft",
-    github: "check-in",
-    policy: person("Only a person decides a review finding."),
-    handler({ input }) {
-      const store = this.store;
-
-      const thread = store.get("review_threads", input.id);
-      return recordFindingDecision(store, {
-        id: input.id,
-        action: input.action,
-        revisionHash:
-          input.revisionHash || store.get("plans", thread?.planId)?.hash,
-        note: input.note,
-        by: this.operator,
-      });
-    },
-  },
-
-  {
-    name: "plan.review.dispose",
-    class: "draft",
-    github: "check-in",
-    policy: person("Only a person closes a review comment."),
-    handler({ input }) {
-      const store = this.store;
-
-      const thread = store.get("review_threads", input.id);
-      if (thread?.source !== "plan-review")
-        return disposeReview(store, {
-          ...input,
-          author: input.author || this.operator,
-        });
-      // The four old dispositions, as decisions at the named or current
-      // revision (R104.6).
-      const action = {
-        resolved: "resolve",
-        accepted: "accept",
-        rejected: "reject",
-        deferred: "defer",
-      }[input.disposition];
-      if (!action) fail("Choose resolved, accepted, rejected, or deferred.");
-      return recordFindingDecision(store, {
-        id: input.id,
-        action,
-        revisionHash:
-          input.revisionHash || store.get("plans", thread.planId)?.hash,
-        note: input.note,
-        by: this.operator,
-      });
-    },
-  },
-
-  {
-    name: "plan.review.apply",
-    class: "draft",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return applyReviewSuggestion(store, {
-        ...input,
-        author: input.author || this.operator,
-      });
-    },
-  },
-
-  {
-    name: "plan.review.pipeline.get",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-
-      const round = store.get("review_rounds", input.id);
-      if (!round) fail("Review pipeline not found.", 404);
-      return round;
     },
   },
 ];

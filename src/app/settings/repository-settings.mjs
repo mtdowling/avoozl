@@ -1,9 +1,4 @@
-import {
-  mergeRoles,
-  resolveRoles,
-  validateRoles,
-  validatePlanReview,
-} from "./chat-models.mjs";
+import { mergeRoles, resolveRoles, validateRoles } from "./chat-models.mjs";
 import { sandboxWriteRoots } from "../executors/harness-definitions.mjs";
 import { sandboxAllowCommands } from "../executors/harness-allow.mjs";
 import { sandboxNetwork } from "../executors/sandbox.mjs";
@@ -510,7 +505,6 @@ function parse(text, filename, { portable = false } = {}) {
     fail(error.message);
   }
   validateRoles(value);
-  validatePlanReview(value.planReview);
   if (portable)
     assertPortableRepositoryConfig(
       value,
@@ -817,7 +811,6 @@ export class RepositorySettings {
     validateContentRules(value.contentRules);
     validateRoles(value);
     validateRoles({ roles: mergeRoles(this.baseRoles, resolveRoles(value)) });
-    validatePlanReview(value.planReview);
     validateLanes(value.lanes);
     try {
       validateActivitySettings(value.activity);

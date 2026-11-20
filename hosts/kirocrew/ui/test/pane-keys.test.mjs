@@ -1,4 +1,4 @@
-// The Specs page's keys in a real Chrome (browser/harness.tsx &review=1):
+// The Specs page's keys in a real Chrome (browser/harness.tsx &stored=1):
 // Home, End, Page Up and Page Down scroll the pane under the mouse, not the
 // window, and leave a focused text box alone. Skipped when no Chrome.
 import assert from 'node:assert/strict'
@@ -22,7 +22,7 @@ after(async () => {
 const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 
 async function openSpec(params = {}, size = { width: 1280, height: 800 }) {
-  await page.open(harness.url({ page: 'specs', review: '1', ...params }), size)
+  await page.open(harness.url({ page: 'specs', stored: '1', ...params }), size)
   await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`)
   await click('[data-plan-row="spec:byte-types"]')
   await page.until(`Boolean(document.querySelector('[data-spec-tab="overview"]'))`)

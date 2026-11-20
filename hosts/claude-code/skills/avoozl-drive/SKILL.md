@@ -64,7 +64,6 @@ these from an agent. Give the person the command to run at their own prompt:
 
 - Approve a spec: `avoozl plan approve NAME`, then
   `avoozl plan approve NAME --yes --expect HASH` with the hash it printed.
-- A plan review finding: `avoozl plan finding ID accept|reject|defer|resolve|reopen`.
 - A manual task: `avoozl task done TASK_ID` or `avoozl task reopen TASK_ID`.
 - A stopped line: `avoozl flow resume STOP_ID`.
 - A harness file: `avoozl harness approve NAME`.

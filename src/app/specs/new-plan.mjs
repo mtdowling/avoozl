@@ -12,7 +12,6 @@ import { createSpecPlan, isEpicFolder, specName } from "./spec-plans.mjs";
 import { specFolderPath, specsDirectory } from "./specs-path.mjs";
 import { sessionRepository } from "../executors/process.mjs";
 import { roleRun } from "../agents/role-table.mjs";
-import { recordPlanReviewWriter } from "../reviews/plan-review-authorship.mjs";
 import { shippedPrompts } from "../agents/prompts.mjs";
 import {
   STEERING_FILE,
@@ -370,19 +369,6 @@ export function newPlanStarts(
     });
 }
 
-// The planner chat Avoozl opened for this request, if it is bound.
-function newPlanWriter(store, entry) {
-  return store
-    .list("session_bindings")
-    .filter(
-      (binding) =>
-        binding.taskId === newPlanTask(entry.name) &&
-        binding.role === "planner" &&
-        (binding.attempt ?? 1) === entry.attempt,
-    )
-    .at(-1);
-}
-
 // Store each requested folder that lints clean as a draft plan.
 // `deps`: {readSpec(name), lint(spec)} where lint
 // returns {canApprove}, content rule matches included, so a blocked folder
@@ -440,12 +426,6 @@ export function importNewPlans(store, deps) {
         },
         spec,
       );
-      // The first revision is the planner chat's: a plan review reads the
-      // model Kiro Crew reports for it (§4.29). shortcut: a person's edit
-      // between the chat's write and this import is credited to the chat;
-      // upgrade when the planner stores the revision itself.
-      const writer = newPlanWriter(store, entry);
-      if (writer) recordPlanReviewWriter(store, created, { slot: writer.slot });
       imported.push(entry.name);
       // The planner added the plan to the picked epic: the epic's change
       // comes back as its own draft revision (R61.8).

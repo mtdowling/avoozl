@@ -31,7 +31,6 @@ runs as the person):
 
 - Approve a spec: `avoozl plan approve NAME`, which previews it, then
   `avoozl plan approve NAME --yes --expect HASH` with the hash it printed.
-- A plan review finding: `avoozl plan finding ID accept|reject|defer|resolve|reopen`.
 - A task the person marks done or reopens: `avoozl task done TASK_ID`,
   `avoozl task reopen TASK_ID`.
 - A stopped line: `avoozl flow resume STOP_ID`.
