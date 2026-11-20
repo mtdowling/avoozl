@@ -1,0 +1,88 @@
+{
+  "title": "Landing on an integration branch is interrupted before the tick",
+  "rules": ["14.6", "15.1", "16.2", "16.5", "18.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "parser"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "landing": {
+    "mode": "direct"
+  },
+  "runners": {
+    "A": "acme-alice",
+    "B": "acme-alice"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next",
+      "expect": {
+        "ready": ["parser/p-2"]
+      }
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2",
+        "base": "parser"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "push",
+      "task": "parser/p-2",
+      "expect": {
+        "push": "accepted"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "land",
+      "task": "parser/p-2",
+      "interrupt": "before-tick",
+      "pause": true,
+      "expect": {
+        "action": "fast-forward-base",
+        "landed": true
+      }
+    },
+    {
+      "runner": "B",
+      "do": "next",
+      "expect": {
+        "ready": []
+      }
+    },
+    {
+      "runner": "A",
+      "do": "recover",
+      "task": "parser/p-2",
+      "expect": {
+        "action": "tick-landed-work",
+        "landed": true
+      }
+    },
+    {
+      "runner": "B",
+      "do": "next",
+      "expect": {
+        "ready": ["parser/p-3"]
+      }
+    }
+  ],
+  "then": {
+    "ticked": ["parser/p-1", "parser/p-2"],
+    "branches": [],
+    "leases": {
+      "parser/p-2": []
+    },
+    "ready": ["parser/p-3"]
+  }
+}

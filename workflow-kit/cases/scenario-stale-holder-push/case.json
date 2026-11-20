@@ -1,0 +1,67 @@
+{
+  "title": "A stale holder's push is rejected after a takeover",
+  "rules": ["15.3", "15.5", "15.7", "15.8", "15.9"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "staleHours": 24
+  },
+  "origin": {
+    "branches": ["main"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "runners": {
+    "A": "acme-alice",
+    "B": "acme-alice"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next"
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "readLeases",
+      "task": "parser/p-2",
+      "pause": true,
+      "expect": {
+        "generations": [1]
+      }
+    },
+    {
+      "runner": "B",
+      "do": "takeOver",
+      "task": "parser/p-2",
+      "afterHours": 30,
+      "expect": {
+        "holder": true
+      }
+    },
+    {
+      "runner": "A",
+      "do": "push",
+      "task": "parser/p-2"
+    }
+  ],
+  "then": {
+    "leaseHolder": {
+      "parser/p-2": "B"
+    },
+    "leases": {
+      "parser/p-2": [1, 2]
+    },
+    "rejectedPushes": ["A"]
+  },
+  "expectFail": {
+    "rejectedPushes": "sim-6.1"
+  }
+}

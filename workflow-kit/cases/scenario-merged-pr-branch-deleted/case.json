@@ -1,0 +1,107 @@
+{
+  "title": "A pull request merges and GitHub deletes its branch before the tick",
+  "rules": ["12.1", "16.2", "16.5", "17.3", "17.6"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "specsBranch": "plans"
+  },
+  "origin": {
+    "branches": ["main", "plans"]
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "landing": {
+    "mode": "pr",
+    "pr": "ready"
+  },
+  "repository": {
+    "deleteBranchOnMerge": true
+  },
+  "runners": {
+    "A": "acme-alice",
+    "B": "acme-alice",
+    "bob": "acme-bob"
+  },
+  "steps": [
+    {
+      "runner": "A",
+      "do": "next",
+      "expect": {
+        "ready": ["parser/p-2"]
+      }
+    },
+    {
+      "runner": "A",
+      "do": "claim",
+      "expect": {
+        "claimed": "avoozl/parser/p-2"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "push",
+      "task": "parser/p-2",
+      "expect": {
+        "push": "accepted"
+      }
+    },
+    {
+      "runner": "A",
+      "do": "land",
+      "task": "parser/p-2",
+      "pause": true,
+      "expect": {
+        "action": "open-pull-request",
+        "pull": 1
+      }
+    },
+    {
+      "runner": "B",
+      "do": "next",
+      "expect": {
+        "ready": []
+      }
+    },
+    {
+      "runner": "bob",
+      "do": "mergePr",
+      "task": "parser/p-2",
+      "expect": {
+        "merged": true
+      }
+    },
+    {
+      "runner": "A",
+      "do": "next",
+      "expect": {
+        "ready": []
+      }
+    },
+    {
+      "runner": "A",
+      "do": "recover",
+      "task": "parser/p-2",
+      "expect": {
+        "action": "tick-landed-work",
+        "landed": true
+      }
+    }
+  ],
+  "then": {
+    "pullRequests": {
+      "avoozl/parser/p-2": {
+        "state": "merged",
+        "mergedBy": "acme-bob",
+        "verified": true
+      }
+    },
+    "ticked": ["parser/p-1", "parser/p-2"],
+    "branches": [],
+    "leases": {
+      "parser/p-2": []
+    },
+    "ready": ["parser/p-3"]
+  }
+}
