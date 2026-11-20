@@ -100,7 +100,8 @@ three key values, and `avoozl next` prints them.
   ready, or auto), with `Closes #N` for a labeled issue. Only `auto` makes
   Avoozl merge, through the merge API with `sha` set to the checked head; a
   person merges a draft or ready pull request, or presses Approve or Merge
-  on its Needs you row. Avoozl never arms GitHub auto-merge. The task stays
+  on its Needs you row. With `auto`, Avoozl arms GitHub auto-merge only where
+  rule 14.7 allows it. The task stays
   claimed while the pull request is open. When the pull request merges, the
   next read sees the tick on the base and the task is done. When it closes
   unmerged, the task shows in Needs you with "Delete claim branch".

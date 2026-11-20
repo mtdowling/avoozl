@@ -121,8 +121,9 @@ holds unchecked work or a stale task list.
    `landing.pr` says: `draft` (the default) opens a draft, `ready` opens it
    ready for review, and a person merges either; `auto` opens it ready and
    Avoozl merges it once the checks pass on its head, guarded by that head.
-   Avoozl SHALL NOT merge a `draft` or `ready` pull request on its own, and
-   SHALL NOT arm GitHub auto-merge. WHEN the base moves under it THEN Avoozl
+   Avoozl SHALL NOT merge a `draft` or `ready` pull request on its own. With
+   `auto` it MAY arm GitHub auto-merge instead, only where workflow rule 14.7
+   allows it. WHEN the base moves under it THEN Avoozl
    SHALL merge the base in and run the checks again.
 4. Avoozl SHALL never force push, rebase a claim branch or add a trailer or
    attribution to a commit.
