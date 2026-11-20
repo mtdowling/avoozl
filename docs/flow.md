@@ -7,9 +7,14 @@ it checks, and when Avoozl stops to look back. They live under `flow` in
 ```json
 {
   "flow": {
-    "stopTheLine": { "scope": "dependents" },
+    "stopTheLine": {
+      "scope": "dependents"
+    },
     "localChecksFirst": true,
-    "retro": { "everyTasks": 10, "slowFactor": 3 }
+    "retro": {
+      "everyTasks": 10,
+      "slowFactor": 3
+    }
   }
 }
 ```

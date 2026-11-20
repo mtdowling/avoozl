@@ -41,10 +41,23 @@ that fails the gate goes through today's path with nothing added (EC11.3).
 {
   "given": false,
   "tests": [
-    { "name": "approved",  "passed": true },
-    { "name": "approver",  "passed": true },
-    { "name": "you-drive", "passed": false, "why": "Taken by octo-dev" },
-    { "name": "no-stranger-input", "passed": true }
+    {
+      "name": "approved",
+      "passed": true
+    },
+    {
+      "name": "approver",
+      "passed": true
+    },
+    {
+      "name": "you-drive",
+      "passed": false,
+      "why": "Taken by octo-dev"
+    },
+    {
+      "name": "no-stranger-input",
+      "passed": true
+    }
   ]
 }
 ```
@@ -81,17 +94,30 @@ now fails `no-stranger-input`.
 ```json [~/.config/avoozl/config.json]
 {
   "epicContext": {
-    "repos": ["acme/*"],
-    "reads": ["~/notes/acme-widgets"],
+    "repos": [
+      "acme/*"
+    ],
+    "reads": [
+      "~/notes/acme-widgets"
+    ],
     "mcp": {
       "research": {
         "about": "Answers questions from the team's design archive",
-        "command": ["research-mcp", "--stdio"],
-        "env": ["RESEARCH_TOKEN"]
+        "command": [
+          "research-mcp",
+          "--stdio"
+        ],
+        "env": [
+          "RESEARCH_TOKEN"
+        ]
       }
     },
-    "network": ["docs.acme.example:443"],
-    "contentSets": ["acme-terms"]
+    "network": [
+      "docs.acme.example:443"
+    ],
+    "contentSets": [
+      "acme-terms"
+    ]
   }
 }
 ```
@@ -113,9 +139,13 @@ entry is `avoozl context set --json '{...}'` and `avoozl context show`.
   "id": "team-context",
   "version": "1.0.0",
   "contract": 1,
-  "provides": ["context"],
+  "provides": [
+    "context"
+  ],
   "context": {
-    "repos": ["acme/*"],
+    "repos": [
+      "acme/*"
+    ],
     "skills": "skills",
     "reads": [
       {
@@ -124,10 +154,16 @@ entry is `avoozl context set --json '{...}'` and `avoozl context show`.
         "path": "{ask:notesRoot}/widgets"
       }
     ],
-    "ask": { "notesRoot": "The folder of your clone of acme/team-notes" },
+    "ask": {
+      "notesRoot": "The folder of your clone of acme/team-notes"
+    },
     "mcp": "mcp/servers.json",
-    "network": ["docs.acme.example:443"],
-    "contentSets": ["acme-terms"]
+    "network": [
+      "docs.acme.example:443"
+    ],
+    "contentSets": [
+      "acme-terms"
+    ]
   }
 }
 ```
@@ -136,7 +172,10 @@ entry is `avoozl context set --json '{...}'` and `avoozl context show`.
 {
   "research": {
     "about": "Answers questions from the team's design archive",
-    "command": ["node", "mcp/research.mjs"]
+    "command": [
+      "node",
+      "mcp/research.mjs"
+    ]
   }
 }
 ```
@@ -177,8 +216,16 @@ all.
 {
   "context": {
     "team-context": {
-      "answers": { "notesRoot": "~/src/acme/team-notes" },
-      "servers": { "research": { "env": ["RESEARCH_TOKEN"] } }
+      "answers": {
+        "notesRoot": "~/src/acme/team-notes"
+      },
+      "servers": {
+        "research": {
+          "env": [
+            "RESEARCH_TOKEN"
+          ]
+        }
+      }
     }
   }
 }
@@ -234,7 +281,13 @@ The supervisor removes it when the child exits.
   "mcpServers": {
     "research": {
       "command": "/path/to/node",
-      "args": ["/path/to/avoozl/bin/context-relay.mjs", "--session", "process-…", "--alias", "research"]
+      "args": [
+        "/path/to/avoozl/bin/context-relay.mjs",
+        "--session",
+        "process-…",
+        "--alias",
+        "research"
+      ]
     }
   }
 }
@@ -243,7 +296,11 @@ The supervisor removes it when the child exits.
 ```json [~/.config/avoozl/harnesses/claude-code.json, the new key]
 {
   "context": {
-    "mcp": ["--mcp-config", "{context_mcp}", "--strict-mcp-config"]
+    "mcp": [
+      "--mcp-config",
+      "{context_mcp}",
+      "--strict-mcp-config"
+    ]
   }
 }
 ```

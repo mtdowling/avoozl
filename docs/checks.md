@@ -10,9 +10,25 @@ this machine approved; see the [Checks part](plugins.md#checks-part).
   "repositories": {
     "code": {
       "checks": {
-        "test": ["npm", "test"],
-        "diff": ["git", "diff", "--check"],
-        "ui": { "run": ["npm", "run", "test:ui"], "paths": ["src/ui/**"] }
+        "test": [
+          "npm",
+          "test"
+        ],
+        "diff": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "ui": {
+          "run": [
+            "npm",
+            "run",
+            "test:ui"
+          ],
+          "paths": [
+            "src/ui/**"
+          ]
+        }
       }
     }
   }
@@ -43,7 +59,15 @@ A check sees only the basics a process needs to start (`PATH`, `HOME`, temp
 folders) plus the names a repository lists in `checksEnv`:
 
 ```json [.avoozl.json]
-{ "repositories": { "code": { "checksEnv": ["NODE_OPTIONS"] } } }
+{
+  "repositories": {
+    "code": {
+      "checksEnv": [
+        "NODE_OPTIONS"
+      ]
+    }
+  }
+}
 ```
 
 Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK` and the
@@ -64,8 +88,13 @@ Every check runs in the repository's `isolation`. Only a person sets it.
       "isolation": {
         "run": "sandbox",
         "network": "off",
-        "writable": ["/var/cache/code-build"],
-        "prepare": ["npm", "ci"]
+        "writable": [
+          "/var/cache/code-build"
+        ],
+        "prepare": [
+          "npm",
+          "ci"
+        ]
       }
     }
   }

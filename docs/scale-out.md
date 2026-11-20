@@ -112,7 +112,13 @@ it drives once, stops starting those tasks itself, and answers grant
 requests:
 
 ```json
-{ "workers": { "offerTo": ["worker-a"] } }
+{
+  "workers": {
+    "offerTo": [
+      "worker-a"
+    ]
+  }
+}
 ```
 
 On the worker, a `runner` block with `role` `worker` names the specs it pulls
@@ -124,7 +130,14 @@ from, the checks it runs, its executor and its lanes (1 to 16, default 1):
     "role": "worker",
     "executor": "process",
     "lanes": 3,
-    "checks": { "test": { "argv": ["npm", "test"] } },
+    "checks": {
+      "test": {
+        "argv": [
+          "npm",
+          "test"
+        ]
+      }
+    },
     "pools": [
       {
         "spec": "recipe-box",
@@ -147,8 +160,16 @@ source repositories it may fetch belong to the machine, so they go in
 {
   "version": 1,
   "runner": {
-    "repos": { "recipes": { "path": "/path/to/recipes" } },
-    "sources": { "acme/recipes": { "url": "https://github.com/acme/recipes" } }
+    "repos": {
+      "recipes": {
+        "path": "/path/to/recipes"
+      }
+    },
+    "sources": {
+      "acme/recipes": {
+        "url": "https://github.com/acme/recipes"
+      }
+    }
   }
 }
 ```
@@ -207,9 +228,15 @@ in `.avoozl.json`:
 ```json
 {
   "roles": {
-    "worker": { "harness": "codex" },
-    "planner": { "harness": "claude-code" },
-    "retro": { "harness": "kirocrew" }
+    "worker": {
+      "harness": "codex"
+    },
+    "planner": {
+      "harness": "claude-code"
+    },
+    "retro": {
+      "harness": "kirocrew"
+    }
   }
 }
 ```

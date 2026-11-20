@@ -11,45 +11,95 @@ requirements: **V** read in the file cited at `eed9d8d3`, **A** assumed.
   "id": "acme-checks",
   "version": "1.4.0",
   "contract": 1,
-  "provides": ["checks"],
+  "provides": [
+    "checks"
+  ],
   "servers": {
-    "review": { "about": "The acme review service, which compares API behavior" }
+    "review": {
+      "about": "The acme review service, which compares API behavior"
+    }
   },
   "checks": {
     "parity": {
-      "repos": ["acme/*"],
-      "paths": ["src/api/**", "schema/**"],
-      "run": ["bin/parity.mjs", "--repo", "{repo}", "--from", "{base}", "--to", "{commit}"],
-      "env": ["PARITY_TOKEN"],
+      "repos": [
+        "acme/*"
+      ],
+      "paths": [
+        "src/api/**",
+        "schema/**"
+      ],
+      "run": [
+        "bin/parity.mjs",
+        "--repo",
+        "{repo}",
+        "--from",
+        "{base}",
+        "--to",
+        "{commit}"
+      ],
+      "env": [
+        "PARITY_TOKEN"
+      ],
       "network": true,
       "timeout": 1800,
       "decide": "prompts/parity.md",
-      "decideAt": ["approve", "diff"],
+      "decideAt": [
+        "approve",
+        "diff"
+      ],
       "stage": "phase"
     },
     "license-scan": {
-      "repos": ["acme/web-*"],
-      "run": ["bin/license-scan.sh"]
+      "repos": [
+        "acme/web-*"
+      ],
+      "run": [
+        "bin/license-scan.sh"
+      ]
     },
     "parity-review": {
-      "repos": ["acme/*"],
-      "paths": ["src/api/**"],
+      "repos": [
+        "acme/*"
+      ],
+      "paths": [
+        "src/api/**"
+      ],
       "timeout": 3600,
       "stage": "branch",
       "mcp": {
         "server": "review",
         "start": {
           "tool": "create_review",
-          "args": { "repo": "{repo}", "from": "{base}", "to": "{commit}", "diff": "{diff_path}", "question": "{file:ask.md}" },
+          "args": {
+            "repo": "{repo}",
+            "from": "{base}",
+            "to": "{commit}",
+            "diff": "{diff_path}",
+            "question": "{file:ask.md}"
+          },
           "id": "$.review.id"
         },
         "poll": {
           "tool": "get_review",
-          "args": { "id": "{id}" },
+          "args": {
+            "id": "{id}"
+          },
           "everySeconds": 60,
-          "until": { "path": "$.state", "in": ["done", "error"] }
+          "until": {
+            "path": "$.state",
+            "in": [
+              "done",
+              "error"
+            ]
+          }
         },
-        "result": { "path": "$.verdict", "pass": ["same"], "text": "$.summary" }
+        "result": {
+          "path": "$.verdict",
+          "pass": [
+            "same"
+          ],
+          "text": "$.summary"
+        }
       }
     }
   }
@@ -63,7 +113,15 @@ the plugin's approval binds its hash (PK10.3):
 {
   "mcp": {
     "acme-checks": {
-      "review": { "command": ["/opt/acme/bin/review-mcp", "--stdio"], "env": ["REVIEW_TOKEN"] }
+      "review": {
+        "command": [
+          "/opt/acme/bin/review-mcp",
+          "--stdio"
+        ],
+        "env": [
+          "REVIEW_TOKEN"
+        ]
+      }
     }
   }
 }

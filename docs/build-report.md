@@ -12,9 +12,22 @@ with its own tooling. This page describes version 1 of the format.
   "target": "target-x",
   "toolchain": "seed-0001",
   "cache": "warm",
-  "costs": { "build": 1200, "provisioning": 300, "cache": 50, "test": 4000 },
-  "parts": [{ "name": "compile-gadget", "kind": "build", "ms": 900 }],
-  "counters": { "units": 42 }
+  "costs": {
+    "build": 1200,
+    "provisioning": 300,
+    "cache": 50,
+    "test": 4000
+  },
+  "parts": [
+    {
+      "name": "compile-gadget",
+      "kind": "build",
+      "ms": 900
+    }
+  ],
+  "counters": {
+    "units": 42
+  }
 }
 ```
 
@@ -75,7 +88,13 @@ field. A line without the field has no report. The line's `task`,
 cannot be one of the receipt line's own fields.
 
 ```json
-{ "receipts": { "report": { "field": "breakdown" } } }
+{
+  "receipts": {
+    "report": {
+      "field": "breakdown"
+    }
+  }
+}
 ```
 
 ### Artifact form
@@ -85,7 +104,13 @@ report per line. The prefix cannot start with `build-receipt`, which names
 receipts.
 
 ```json
-{ "receipts": { "report": { "artifact": "build-report-" } } }
+{
+  "receipts": {
+    "report": {
+      "artifact": "build-report-"
+    }
+  }
+}
 ```
 
 Avoozl refuses any other shape when it loads the configuration.

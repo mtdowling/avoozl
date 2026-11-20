@@ -24,7 +24,10 @@ Declare a script's source with `via: mcp`. Put it in this machine's
 {
   "intake": {
     "sources": {
-      "script": { "via": "mcp", "repository": "example/app" }
+      "script": {
+        "via": "mcp",
+        "repository": "example/app"
+      }
     }
   }
 }
@@ -45,7 +48,9 @@ found with the `plans_intake` tool and the `submit_items` action:
         "link": "https://tickets.example.test/Q-17",
         "title": "Export fails on an empty sheet",
         "body": "Steps to reproduce ...",
-        "labels": ["hold"],
+        "labels": [
+          "hold"
+        ],
         "state": "open",
         "updatedAt": "2026-11-12T20:01:00Z"
       }

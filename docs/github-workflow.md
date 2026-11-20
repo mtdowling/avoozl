@@ -213,7 +213,16 @@ A runner MAY narrow what it picks up with two lists per repository in its own
 settings:
 
 ```json
-{ "labels": { "require": ["agent-ok"], "exclude": ["needs-design"] } }
+{
+  "labels": {
+    "require": [
+      "agent-ok"
+    ],
+    "exclude": [
+      "needs-design"
+    ]
+  }
+}
 ```
 
 A spec runs on that runner only when its spec issue carries every `require`
@@ -256,7 +265,10 @@ head through the GitHub refs API:
 
 ```http
 POST /repos/acme/widget/git/refs
-{ "ref": "refs/heads/avoozl/parser/p-2", "sha": "<base head>" }
+{
+  "ref": "refs/heads/avoozl/parser/p-2",
+  "sha": "<base head>"
+}
 ```
 
 GitHub refuses the create when the branch exists (HTTP 422). The first runner

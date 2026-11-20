@@ -115,7 +115,16 @@ evidence bundle.
 Repository settings gain:
 
 ```json
-{ "labels": { "require": ["agent-ok"], "exclude": ["needs-design"] } }
+{
+  "labels": {
+    "require": [
+      "agent-ok"
+    ],
+    "exclude": [
+      "needs-design"
+    ]
+  }
+}
 ```
 
 The filter is read on the spec issue on each loop pass. A `require` label
@@ -134,7 +143,18 @@ the closing comment in `direct` mode.
 ## D6. The server loop
 
 ```json
-{ "loop": { "run": ["specs", "issues"], "epics": ["v2"], "every": "1m" } }
+{
+  "loop": {
+    "run": [
+      "specs",
+      "issues"
+    ],
+    "epics": [
+      "v2"
+    ],
+    "every": "1m"
+  }
+}
 ```
 
 `loop` is in this machine's config (`~/.config/avoozl/config.json`), never

@@ -11,11 +11,18 @@ requirements: **V** read in the file cited at `84d792aa`, **A** assumed.
   "id": "acme-github",
   "version": "2.1.0",
   "contract": 1,
-  "provides": ["credentials"],
+  "provides": [
+    "credentials"
+  ],
   "credentials": {
     "entry": "token.mjs",
-    "hosts": ["github.com"],
-    "owners": ["acme", "acme-labs"]
+    "hosts": [
+      "github.com"
+    ],
+    "owners": [
+      "acme",
+      "acme-labs"
+    ]
   }
 }
 ```
@@ -36,7 +43,10 @@ The plugin is declared in this machine's `plugins.json` only (PC2.2):
       "ref": "v2.1.0",
       "subdir": "acme-github",
       "contract": 1,
-      "config": { "serviceUrl": "https://tokens.example.com/mint", "keyEnv": "ACME_TOKEN_KEY" }
+      "config": {
+        "serviceUrl": "https://tokens.example.com/mint",
+        "keyEnv": "ACME_TOKEN_KEY"
+      }
     }
   ]
 }
@@ -181,7 +191,11 @@ Avoozl sends `credentials.token` with:
 {
   "repository": "acme/api",
   "owner": "acme",
-  "permissions": { "metadata": "read", "contents": "write", "pull_requests": "write" },
+  "permissions": {
+    "metadata": "read",
+    "contents": "write",
+    "pull_requests": "write"
+  },
   "purpose": "land"
 }
 ```

@@ -9,7 +9,11 @@ same state.
   "mcpServers": {
     "avoozl": {
       "command": "avoozl",
-      "args": ["mcp", "--workspace", "/path/to/plans"]
+      "args": [
+        "mcp",
+        "--workspace",
+        "/path/to/plans"
+      ]
     }
   }
 }
@@ -30,8 +34,13 @@ planner, the plan reviewer, and the retro. The settings are saved as one
 ```json
 {
   "roles": {
-    "worker": { "harness": "claude-code", "model": "<model>" },
-    "retro": { "model": "<model>" }
+    "worker": {
+      "harness": "claude-code",
+      "model": "<model>"
+    },
+    "retro": {
+      "model": "<model>"
+    }
   }
 }
 ```
@@ -56,7 +65,12 @@ The MCP server has one tool per area, and each call names one operation in
 its `action` field:
 
 ```json
-{ "action": "get", "input": { "id": "TASK_ID" } }
+{
+  "action": "get",
+  "input": {
+    "id": "TASK_ID"
+  }
+}
 ```
 
 Access differs by tool:

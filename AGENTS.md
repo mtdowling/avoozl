@@ -54,3 +54,7 @@ No backward compatibility until Avoozl has other users.
 Research under `docs/research/` and generated receipts under `docs/evidence/`
 record what was observed at the time: do not rewrite their contents to match a
 later name; regenerate a receipt instead.
+
+JSON shown in docs, README, skills, prompts and specs is pretty-printed across lines
+(2-space indent, one key per line), as `JSON.stringify(value, null, 2)` writes it;
+`docs-json.test.mjs` checks every `json` block.
