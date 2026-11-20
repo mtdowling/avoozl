@@ -103,10 +103,7 @@ export function validateProposal(item) {
   for (const field of ["summary", "repository"])
     if (item[field] !== undefined && typeof item[field] !== "string")
       fail(field + " must be text.");
-  // Investigate first (§4.21), per task; a spec's type comes from its
-  // folder.
-  if (item.investigate !== undefined && typeof item.investigate !== "boolean")
-    fail("investigate must be true or false.");
+  // A spec's type comes from its folder.
   if (item.specType !== undefined && item.specType !== "bugfix")
     fail('specType may only be "bugfix".');
   if (
@@ -568,7 +565,6 @@ export function approvePlan(
               "repository",
               "paths",
               "type",
-              "investigate",
               "specType",
               "manual",
               "refs",
@@ -655,7 +651,6 @@ export function approvePlan(
         for (const key of [
           "paths",
           "type",
-          "investigate",
           "specType",
           "phase",
           "manual",

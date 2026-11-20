@@ -169,7 +169,6 @@ test("the command is quoted for the shell it runs in", () => {
 test("no chat worker brief in the pair table names an MCP tool", async (t) => {
   const w = await setup(t),
     { workerBrief, localSteps } = await import("../../delivery/delivery.mjs"),
-    { investigateLines } = await import("../../delivery/investigate.mjs"),
     token = issueReportToken(w.store, { taskId: "a", attempt: 1 }),
     repository = w.store.get("repositories", "app"),
     task = w.store.read().tasks[0],
@@ -178,11 +177,9 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
   for (const kind of KINDS) {
     const { cell } = briefCell("kirocrew", kind);
     let text;
-    if (kind === "single" || kind === "investigate")
+    if (kind === "single")
       text = workerBrief(task, repository, {
         attempt: 1,
-        investigate: kind === "investigate",
-        findingsVia: { executor: "kirocrew", cliReport },
         steps: cell.steps({ task, repository, relay: false, cliReport }),
       });
     else if (kind === "round") text = cell.finish;
@@ -202,10 +199,7 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
   assert.deepEqual(EXECUTORS.length, 2);
   // The pieces the brief is built from, too.
   assert.doesNotMatch(
-    [
-      ...localSteps({ id: "a" }, repository, { cliReport }),
-      ...investigateLines({ id: "a" }, "kirocrew", cliReport),
-    ].join("\n"),
+    localSteps({ id: "a" }, repository, { cliReport }).join("\n"),
     /plans_/,
   );
 });

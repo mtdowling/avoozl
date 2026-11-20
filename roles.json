@@ -1,26 +1,5 @@
 [
   {
-    "name": "avoozl-falsifier",
-    "model": "auto",
-    "description": "Avoozl Falsifier: tries to prove a worker's findings wrong before any code is written, and reports whether they stand.",
-    "tools": [
-      "fs_read",
-      "grep",
-      "glob",
-      "execute_bash",
-      "thinking",
-      "@avoozl:avoozl/plans_report"
-    ],
-    "allowedTools": [
-      "fs_read",
-      "grep",
-      "glob",
-      "thinking",
-      "@avoozl:avoozl/plans_report"
-    ],
-    "includeMcpJson": false
-  },
-  {
     "name": "avoozl-planner",
     "model": "auto",
     "description": "Avoozl Planner: drafts or critiques one Kiro spec folder for one goal. Writes spec files only.",

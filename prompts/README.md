@@ -17,7 +17,6 @@ roles are the keys of the `roles` setting, and each file serves these roles:
 - `reviewer.md` is the `reviewer` role, for review sessions.
 - `planner.md` is the `planner` role.
 - `retro.md` is the `retro` role.
-- `falsifier.md` is the `falsifier` role, for investigate first.
 - `responder.md` is the `responder` role.
 - `assist.md` is the `assist` role, the page's chat when Kiro Crew is absent. It
   runs only as a process session.

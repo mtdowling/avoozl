@@ -3,7 +3,6 @@
 // `observe`. Old or read-only workspaces may lack newer tables; those read as
 // empty rather than failing the view.
 import { tickFailedItems } from "../tick/tick-activity.mjs";
-import { investigationItems } from "../delivery/investigate.mjs";
 import { queryTasks, reviewSettled, statusComplete } from "../../model.mjs";
 import {
   completionReached,
@@ -1010,11 +1009,6 @@ export function conflictsView(store, data) {
   }
   // The tick failed three times in a row.
   items.push(...tickFailedItems(store));
-  // Findings the gate did not pass (§4.21, R75.4).
-  for (const item of investigationItems(store, data)) {
-    const task = byId.get(item.taskId);
-    items.push({ ...item, ...(task ? ownership(task) : {}) });
-  }
   for (const item of items) {
     const task = item.taskId ? byId.get(item.taskId) : null;
     item.planArchived = task ? archivedOf(task) : null;

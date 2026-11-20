@@ -48,7 +48,7 @@ export function harnessExecutor(harness) {
 }
 
 // One `roles` table (R98.6): each role's harness, model and, for the
-// worker and the falsifier, agent. Settings › Models edits it.
+// worker, agent. Settings › Models edits it.
 // The roles after the chat roles pick only a harness: each runs on its
 // agent's own model (without-kirocrew NK1.3). One entry per row of the role
 // table (role-table.mjs); a test keeps them equal.
@@ -61,11 +61,10 @@ const HARNESS_ONLY_ROLES = Object.freeze([
 ]);
 export const ROLES = Object.freeze([
   "worker",
-  "falsifier",
   ...MODEL_ROLES,
   ...HARNESS_ONLY_ROLES,
 ]);
-const AGENT_ROLES = new Set(["worker", "falsifier"]);
+const AGENT_ROLES = new Set(["worker"]);
 const HARNESS_ONLY = new Set(HARNESS_ONLY_ROLES);
 // The fields a row may set: every role's, and the agent roles'.
 export const ROLE_FIELDS = Object.freeze(["harness", "model"]);

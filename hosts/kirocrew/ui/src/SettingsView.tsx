@@ -116,7 +116,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   models: "Each role's harness, agent and model, in one place.",
-  delivery: 'Who merges pull requests, and investigate first, for Avoozl worker chats. Agents and models are in Models.',
+  delivery: 'Who merges pull requests for Avoozl worker chats. Agents and models are in Models.',
 }
 
 // Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).

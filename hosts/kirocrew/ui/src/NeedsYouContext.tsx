@@ -158,53 +158,12 @@ function Section(props: { name: string; title: string; children: ReactNode }) {
   )
 }
 
-const CONFIDENCE = { low: 'Low', medium: 'Medium', high: 'High' } as const
-
-// A worker's findings and the falsifier's reply.
-export function InvestigationEvidence({ item }: { item: ConflictItem }) {
-  const f = item.findings
-  const row = (label: string, value: string) => (
-    <Box minW0>
-      <Hint as="dt" size="xs">
-        {label}
-      </Hint>
-      <Box as="dd" m0 whitespace="pre-wrap" breakWords size="sm">
-        {value}
-      </Box>
-    </Box>
-  )
-  return (
-    <Stack gap={2}>
-      {f && (
-        <Box as="dl" css-grid-template-columns="repeat-auto-fit-minmax-min-100%-16rem-1fr" m0 grid gap="2">
-          {row('Read', f.read)}
-          {row('Cause or approach', f.cause)}
-          {row('Planned change', f.plan)}
-          {row('How it is checked', f.check)}
-          {row('Worker is sure', CONFIDENCE[f.confidence])}
-        </Box>
-      )}
-      {item.reply && (
-        <Box css-border-color="border" rounded="base" border="all" p="2" size="sm">
-          <Hint as="div" size="xs">
-            Falsifier: {item.reply.verdict === 'refuted' ? 'refuted' : 'stands'}, {CONFIDENCE[item.reply.confidence].toLowerCase()} confidence
-          </Hint>
-          <Box as="p" mt="1" whitespace="pre-wrap" breakWords>
-            {item.reply.evidence}
-          </Box>
-        </Box>
-      )}
-    </Stack>
-  )
-}
-
 function Evidence({ item }: { item: ConflictItem }) {
   const kinds = evidenceOf(item)
   const context = item.context
   const link = safeHref(item.link ?? null)
   return (
     <>
-      {kinds.includes('investigation') && <InvestigationEvidence item={item} />}
       {kinds.includes('review') && (
         <Box as="ul" m0 flex listNone flexCol p="0" data-review-tasks>
           {(item.tasks ?? []).map((task) => (

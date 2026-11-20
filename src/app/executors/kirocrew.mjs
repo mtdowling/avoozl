@@ -211,7 +211,6 @@ const ROLE_AGENTS = {
   planner: "avoozl-planner",
   responder: "avoozl-responder",
   retro: "avoozl-retro",
-  falsifier: "avoozl-falsifier",
   "check-decide": "avoozl-check-decide",
 };
 

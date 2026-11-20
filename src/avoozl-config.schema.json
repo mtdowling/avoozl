@@ -77,13 +77,10 @@
     },
     "roles": {
       "type": "object",
-      "description": "One row per role: its harness, its model where it has one and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins.",
+      "description": "One row per role: its harness, its model where it has one and, for the worker, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins.",
       "additionalProperties": false,
       "properties": {
         "worker": {
-          "$ref": "#/$defs/agentRole"
-        },
-        "falsifier": {
           "$ref": "#/$defs/agentRole"
         },
         "planner": {
@@ -348,9 +345,6 @@
             "$ref": "#/$defs/deliveryReviewer"
           }
         },
-        "investigate": {
-          "$ref": "#/$defs/deliveryWorkspaceInvestigate"
-        },
         "repositories": {
           "type": "object",
           "additionalProperties": {
@@ -369,9 +363,6 @@
                 "items": {
                   "$ref": "#/$defs/deliveryReviewer"
                 }
-              },
-              "investigate": {
-                "$ref": "#/$defs/deliveryInvestigate"
               }
             }
           },
@@ -1376,45 +1367,6 @@
               }
             }
           }
-        }
-      }
-    },
-    "deliveryInvestigate": {
-      "description": "One repository's investigate settings, over the workspace's. agent and model name this repository's falsifier.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "mode": {
-          "enum": ["all", "not-small", "off"],
-          "default": "not-small"
-        },
-        "minConfidence": {
-          "enum": ["medium", "high"],
-          "default": "high"
-        },
-        "agent": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
-          "default": "avoozl-falsifier"
-        },
-        "model": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
-        }
-      }
-    },
-    "deliveryWorkspaceInvestigate": {
-      "description": "Investigate before coding (design 4.21): the worker reports findings, a falsifier tries to refute them, and coding starts only at minConfidence. The falsifier's agent and model are roles.falsifier.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "mode": {
-          "enum": ["all", "not-small", "off"],
-          "default": "not-small"
-        },
-        "minConfidence": {
-          "enum": ["medium", "high"],
-          "default": "high"
         }
       }
     },

@@ -385,28 +385,9 @@ export interface ConflictItem extends TaskOwner {
   tasks?: ReviewTask[]
   // The archived plan the item's task belongs to, or null.
   planArchived?: string | null
-  // An investigation item (design §4.21): the round, the worker's findings
-  // and the falsifier's reply, and the person's choices.
-  round?: number
-  findings?: Findings
-  reply?: FalsifierReply | null
   // A draft-pr or pr-merge item (R119): its pull request and head.
   pullRequest?: number
   commit?: string
-}
-
-export interface Findings {
-  read: string
-  cause: string
-  plan: string
-  check: string
-  confidence: 'low' | 'medium' | 'high'
-}
-
-export interface FalsifierReply {
-  verdict: 'stands' | 'refuted'
-  evidence: string
-  confidence: 'low' | 'medium' | 'high'
 }
 
 // A `report` content rule finding: the content was written.
@@ -475,8 +456,6 @@ export function viewsClient(api: AppApi) {
     // Local tasks only: the backend refuses edits to a github task's row.
     updateTask: (workspaceId: string, id: string, change: Record<string, unknown>, expectedRevision: number) =>
       run<unknown>('task.update', { id, ...change }, workspaceId, expectedRevision),
-    // Go ahead, Investigate again or Stop on a task's findings (§4.21).
-    decideInvestigation: (workspaceId: string, taskId: string, action: 'go' | 'again' | 'stop') => run<unknown>('investigation.decide', { taskId, action }, workspaceId),
     // Let the tick run a workspace a Crew Mode conductor drove (WP1.3).
     letTickRun: (workspaceId: string, expectedHash?: string) => run<unknown>('delivery.runner.release', expectedHash ? { expectedHash } : {}, workspaceId),
     // A Needs you action; its high-risk steps are allowed first, by the
@@ -598,7 +577,6 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'content-unavailable': 'Rule set unavailable',
   'provider-out': 'Provider out',
   'tick-failed': 'Tick failed',
-  investigation: 'Findings',
   'branch-landing': 'Ready to land',
 }
 

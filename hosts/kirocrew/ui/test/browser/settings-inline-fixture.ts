@@ -22,13 +22,13 @@ export function installInlineFixture() {
   }
 
   // Delivery
-  let delivery: Record<string, unknown> = {}
-  answer('delivery.settings.get', () => ({ hash: hash(), on: true, delivery }))
+  let landingPr: string | null = null
+  answer('delivery.settings.get', () => ({ hash: hash(), on: true, landingPr }))
   answer('delivery.settings.update', (body) => {
     stale(body)
-    delivery = (body.input as { delivery: Record<string, unknown> }).delivery
+    landingPr = (body.input as { landingPr: string | null }).landingPr
     write(body)
-    return { hash: hash(), on: true, delivery }
+    return { hash: hash(), on: true, landingPr }
   })
   answer('GET /api/models', () => ({ models: [] }))
 

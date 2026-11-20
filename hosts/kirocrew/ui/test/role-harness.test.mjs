@@ -28,10 +28,10 @@ for (const width of [390, 1280]) {
   test(`each role picks a harness and the worker's row saves at ${width}px`, { skip }, async () => {
     await page.open(harness.url({ page: 'models' }), { width, height: 900 })
     await page.until(`Boolean(document.querySelector('#avoozl-harness-worker'))`)
-    for (const role of ['worker', 'falsifier', 'planner', 'retro']) {
+    for (const role of ['worker', 'planner', 'retro']) {
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-harness-${role}'))`), true, role)
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-model-${role}'))`), true, role)
-      assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-agent-${role}'))`), role === 'worker' || role === 'falsifier', role)
+      assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-agent-${role}'))`), role === 'worker', role)
     }
     assert.equal(await page.evaluate(`document.querySelector('#avoozl-agent-worker').placeholder`), 'kirocrew-worker')
     await page.evaluate(

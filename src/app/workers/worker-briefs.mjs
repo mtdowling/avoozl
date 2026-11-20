@@ -3,20 +3,14 @@
 // worker-machine tick ask it; neither picks steps with a conditional of its
 // own.
 //
-// Kinds: `single` a task; `investigate` a task that investigates first;
-// `round` a landing or feedback
+// Kinds: `single` a task; `round` a landing or feedback
 // message to a worker that already ran; `machine` a task pulled by a worker
 // machine. A cell holds the builder for its kind, or `declined` (the reason)
 // and `fallback` (the kind that runs instead).
 import { localSteps, processSteps } from "../delivery/delivery.mjs";
 
 export const EXECUTORS = Object.freeze(["kirocrew", "process"]);
-export const KINDS = Object.freeze([
-  "single",
-  "investigate",
-  "round",
-  "machine",
-]);
+export const KINDS = Object.freeze(["single", "round", "machine"]);
 
 const cell = (fields) => Object.freeze(fields);
 
@@ -46,7 +40,6 @@ function machineBrief({ envelope }, { worktree, branch }, steps) {
 export const WORKER_BRIEFS = Object.freeze({
   kirocrew: Object.freeze({
     single: cell({ steps: chatSteps }),
-    investigate: cell({ steps: chatSteps }),
     round: cell({
       finish:
         "Commit, and report done again with the new commit SHA. Do not push, rebase or force push.",
@@ -62,8 +55,6 @@ export const WORKER_BRIEFS = Object.freeze({
   }),
   process: Object.freeze({
     single: cell({ steps: childSteps }),
-    // Findings go in the result file; Go ahead resumes the child.
-    investigate: cell({ steps: childSteps }),
     round: cell({
       finish:
         'Do not commit, push, rebase or force push. When it is fixed, write .avoozl/result.json in this folder ({"state": "done", "text": "<what you changed>"}, or {"state": "blocked", "text": "<why>"}) and exit; Avoozl commits your changes.',

@@ -346,8 +346,6 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
     { ...nativeDispatch(store, intent), brief: undefined },
     {
       task: "urgent",
-      // Investigate first is on by default for a leaf not marked small.
-      investigate: true,
       role: "worker",
       attempt: 1,
       title: "avoozl:urgent Task urgent",
@@ -366,7 +364,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
     },
   );
   assert.match(intent.brief, /worktree prepare urgent/);
-  assert.match(intent.brief, /runner report urgent findings --file/);
+  assert.match(intent.brief, /runner report urgent done --token/);
 
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -719,62 +717,6 @@ test("a quiet session is nudged, never replaced, and a person decides past the n
   assert.deepEqual(question.messages, [], "a question is not nudged");
   assert.equal(question.notify.length, 1);
   assert.match(question.notify[0].text, /Which format\?/);
-});
-
-test("a worker waiting on the decision on its findings is not quiet until the decision is sent", async (t) => {
-  // Found by the wp-p1 live run: the nudge and Go ahead went out in one
-  // tick, and the nudge named plans_report to a worker that reports by CLI.
-  // Nearby inputs: no decision yet, a decision sent minutes ago, one sent
-  // long ago.
-  const { store, ops } = setup(t, {
-    lanes: { local: 1 },
-    delivery: { quietMinutes: 10, nudges: 2 },
-  });
-  await bindTick(ops, "a", "slot-1");
-  const idle = [{ target: "slot-1", status: "idle" }],
-    ago = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString(),
-    binding = store.get("session_bindings", "slot-1");
-  store.put("session_bindings", {
-    ...binding,
-    status: "idle",
-    boundAt: ago(600),
-    statusAt: ago(600),
-    report: { kind: "findings", at: ago(600) },
-  });
-  const row = {
-    id: "a",
-    taskId: "a",
-    attempt: 1,
-    slot: "slot-1",
-    state: "needs-you",
-    rounds: [],
-    openedAt: ago(600),
-    updatedAt: ago(600),
-  };
-  store.put("task_investigations", row);
-  const nudges = async () =>
-    (await ops.execute("workspace.tick", { sessions: idle })).messages.filter(
-      (m) => m.slot === "slot-1",
-    );
-  assert.deepEqual(await nudges(), [], "findings wait on Avoozl");
-  const go = (minutes) =>
-    store.put("task_investigations", {
-      ...row,
-      state: "go",
-      message: {
-        action: "go",
-        text: "Go ahead",
-        at: ago(minutes),
-        sentAt: ago(minutes),
-      },
-    });
-  go(5);
-  assert.deepEqual(await nudges(), [], "quiet counts from the Go ahead");
-  go(600);
-  const [nudge, ...rest] = await nudges();
-  assert.deepEqual(rest, []);
-  assert.match(nudge.text, /the way your brief says/);
-  assert.doesNotMatch(nudge.text, /plans_report/);
 });
 
 test("after a restart, every session the cron opened is observed before any new dispatch", async (t) => {

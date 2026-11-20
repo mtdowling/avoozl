@@ -1,52 +1,28 @@
 // Settings > Delivery (R54.8): who merges pull requests (the workspace's
-// landing.pr, R119; a repository's Landing tab may override it) and
-// investigate first. The worker's agent and model are in Settings › Models
-// (R98.7). Saves write `landing.pr` and `delivery` in .avoozl.json through
-// delivery.settings.update with the file's hash.
+// landing.pr, R119; a repository's Landing tab may override it). The
+// worker's agent and model are in Settings › Models (R98.7). Saves write
+// `landing.pr` in .avoozl.json through delivery.settings.update with the
+// file's hash.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import { SaveFooter } from './SaveFooter.tsx'
 import { Section } from './SettingsView.tsx'
-import { Field } from './ui/Field.tsx'
 import { AskForHelp, useConfirm } from './ui/controls.tsx'
 import { useRead } from './useRead.ts'
 import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
-import { DELIVERY_DEFAULTS, toDeliveryForm, toDeliverySection, type DeliveryForm, type DeliverySettings as Settings } from './delivery-api.ts'
+import type { DeliverySettings as Settings } from './delivery-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { SelectField } from './ui/SelectField'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { PR_MODES, PR_MODE_TEXT } from './settings-api.ts'
 
 type PrMode = (typeof PR_MODES)[number]
 
-const OPTIONAL = { required: false } as const
-const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its investigate and pull request settings show here then.'
-
-// A field: the shared Field, every Delivery value optional.
-// `byDefault` is the value a blank field uses; `reset` shows when the field
-// holds another value and puts the default back.
-function Labeled(props: { id: string; label: string; raw: string; width: string; note?: string; byDefault?: string; reset?: () => void; children: React.ReactNode }) {
-  return (
-    <Field
-      id={props.id}
-      label={props.label}
-      raw={props.raw}
-      rule={OPTIONAL}
-      width={props.width}
-      help={props.note}
-      note={props.byDefault ? `Default: ${props.byDefault}.` : undefined}
-      onReset={props.reset}
-      defaultText={props.byDefault}
-    >
-      {props.children}
-    </Field>
-  )
-}
+const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its pull request settings show here then.'
 
 export default function DeliverySettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
@@ -58,30 +34,20 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   )
   const load = useCallback(() => run<Settings>('delivery.settings.get'), [run])
   const { value, error, reload } = useRead<Settings>(workspaceId, load)
-  const [form, setForm] = useState<DeliveryForm>(toDeliveryForm())
   // The workspace's landing.pr; null is unset (draft).
   const [pr, setPr] = useState<PrMode | null>(null)
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
   const [turning, setTurning] = useState(false)
   const confirm = useConfirm()
   useEffect(() => {
-    if (value) {
-      setForm(toDeliveryForm(value.delivery))
-      setPr(value.landingPr ?? null)
-    }
+    if (value) setPr(value.landingPr ?? null)
   }, [value])
-  const set = (change: Partial<DeliveryForm>) => {
-    setMessage(null)
-    setForm({ ...form, ...change })
-  }
-  const built = toDeliverySection(form)
-  const prDirty = Boolean(value) && pr !== (value?.landingPr ?? null)
-  const dirty = prDirty || (Boolean(value) && JSON.stringify(form) !== JSON.stringify(toDeliveryForm(value?.delivery)))
+  const dirty = Boolean(value) && pr !== (value?.landingPr ?? null)
   const save = async () => {
-    if (!value || built.error) return
+    if (!value) return
     setMessage(null)
     try {
-      await run('delivery.settings.update', { delivery: built.delivery, expectedHash: value.hash, ...(prDirty ? { landingPr: pr } : {}) })
+      await run('delivery.settings.update', { expectedHash: value.hash, landingPr: pr })
       await reload()
       setMessage({ ok: 'Saved.' })
     } catch (caught) {
@@ -150,8 +116,6 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         </Section>
       </Card>
     )
-  // A field that does nothing under another's value is disabled with why.
-  const offInvestigate = form.investigateMode === 'off' ? 'Off while Which tasks is Off.' : null
   return (
     <Stack gap={3} data-delivery-settings>
       <Card flex flexCol gap="4">
@@ -174,67 +138,14 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
           </div>
         </Section>
       </Card>
-      <Card flex flexCol gap="4">
-        <Section
-          title="Investigate first"
-          blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand."
-        >
-          <Row gap={4} align="start">
-            <Labeled
-              id="avoozl-delivery-investigate"
-              label="Which tasks"
-              raw="delivery.investigate.mode"
-              width="16rem"
-              note="A task's facts in tasks.md can set investigate: true or false."
-              byDefault="All but small tasks"
-              reset={
-                form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? () => set({ investigateMode: DELIVERY_DEFAULTS.investigateMode }) : undefined
-              }
-            >
-              <SelectField
-                id="avoozl-delivery-investigate"
-                value={form.investigateMode ?? DELIVERY_DEFAULTS.investigateMode}
-                onChange={(e) => set({ investigateMode: e.target.value as DeliveryForm['investigateMode'] })}
-                look="field"
-              >
-                <option value="not-small">All but small tasks</option>
-                <option value="all">All tasks</option>
-                <option value="off">Off</option>
-              </SelectField>
-            </Labeled>
-            <Labeled
-              id="avoozl-delivery-confidence"
-              label="Sure enough at"
-              raw="delivery.investigate.minConfidence"
-              width="16rem"
-              note={offInvestigate ?? 'Less sure waits in Needs you.'}
-              byDefault="High"
-              reset={form.minConfidence && form.minConfidence !== DELIVERY_DEFAULTS.minConfidence ? () => set({ minConfidence: DELIVERY_DEFAULTS.minConfidence }) : undefined}
-            >
-              <SelectField
-                id="avoozl-delivery-confidence"
-                disabled={Boolean(offInvestigate)}
-                value={form.minConfidence ?? DELIVERY_DEFAULTS.minConfidence}
-                onChange={(e) => set({ minConfidence: e.target.value as DeliveryForm['minConfidence'] })}
-                look="field"
-              >
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-              </SelectField>
-            </Labeled>
-          </Row>
-        </Section>
-      </Card>
       <SaveFooter
         dirty={dirty}
-        problem={built.error}
         error={message?.error}
         ok={message?.ok}
-        note="Writes landing.pr and delivery in .avoozl.json."
+        note="Writes landing.pr in .avoozl.json."
         onSave={() => void save()}
         onDiscard={() => {
           setMessage(null)
-          setForm(toDeliveryForm(value.delivery))
           setPr(value.landingPr ?? null)
         }}
       />

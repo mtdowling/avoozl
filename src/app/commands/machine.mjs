@@ -255,7 +255,7 @@ export const commands = [
     help: [
       help(
         "hooks",
-        "runner report TASK_ID done|blocked|findings [--token T] [--file PATH] [--text TEXT]",
+        "runner report TASK_ID done|blocked [--token T] [--text TEXT]",
         "Report from the task's worktree; a worker's brief gives the token",
       ),
       help(
@@ -289,7 +289,7 @@ export const commands = [
           token = options.token || process.env.AVOOZL_REPORT_TOKEN;
         need(
           positionals[1] && state,
-          "runner report TASK done|blocked|findings [--token T] [--file PATH]",
+          "runner report TASK done|blocked [--token T]",
         );
         if (token || !HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))) {
           // R88.2: matched by the report token and the worktree it runs in;
@@ -303,8 +303,6 @@ export const commands = [
               token: token || undefined,
               cwd: process.cwd(),
               text: typeof options.text === "string" ? options.text : undefined,
-              file: typeof options.file === "string" ? options.file : undefined,
-              role: typeof options.role === "string" ? options.role : undefined,
             });
           } finally {
             store.close();

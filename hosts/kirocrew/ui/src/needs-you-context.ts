@@ -12,8 +12,6 @@ export function askLine(item: ConflictItem): string {
       return `Answer the question below. ${task} waits for it.`
     case 'review':
       return 'Read each task’s text and mark it reviewed. None starts before you do.'
-    case 'investigation':
-      return 'Read the worker’s findings and the falsifier’s reply, then choose: go ahead, investigate again, or stop.'
     case 'branch-landing':
       return 'Approve this exact head, then merge the branch on GitHub yourself.'
     case 'untick':
@@ -102,10 +100,9 @@ export function reviewEvidence(title: string, context: ItemContext | undefined):
 }
 
 // Which evidence blocks an item has. An item with none says so on the page.
-export type Evidence = 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'text'
+export type Evidence = 'review' | 'links' | 'checks' | 'content' | 'text'
 export function evidenceOf(item: ConflictItem): Evidence[] {
   const out: Evidence[] = []
-  if (item.findings || item.reply) out.push('investigation')
   if (item.kind === 'review' && item.tasks?.length) out.push('review')
   if (item.context?.text && item.kind !== 'review' && item.context.text.summary) out.push('text')
   const links = item.context?.links

@@ -73,7 +73,6 @@ import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { claimsDue, refreshClaims } from "../workers/claims.mjs";
 import { readLabelFilters } from "../specs/label-filters.mjs";
 import { readLabeledIssues } from "../specs/labeled-issues.mjs";
-import { investigationStep } from "../delivery/investigate.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -914,19 +913,6 @@ async function runTick(
                 workspace: laneWorkspace(workspaceRoot),
                 config: memory.value || {},
               });
-      // Investigate first (§4.21): a falsifier per round of findings, and
-      // the Go ahead, Investigate again or Stop each decision owes.
-      const investigation =
-        unobserved.length || !delivery
-          ? { dispatch: [], messages: [], notify: [] }
-          : investigationStep(store, delivery, {
-              script,
-              briefAllowed: (input) => briefAllowed(store, input),
-              writerModel: (b) => b.model || delivery.model || null,
-              config: memory.value || {},
-            });
-      planned.messages.push(...investigation.messages);
-      planned.notify.push(...investigation.notify);
       // Command-only bars are checked by Avoozl itself, off this path: the
       // cron queues each run here and the app backend runs the queue
       // (check-runs.mjs). A spec driven elsewhere queues nothing.
@@ -965,7 +951,6 @@ async function runTick(
         ...ready,
         // A verifier judges work already done: it runs while a spec drains.
         ...verify.filter((d) => !readOnlyTask(d.task)),
-        ...investigation.dispatch.filter((d) => !heldTask(d.task)),
         ...responders.filter((d) => !heldTask(d.task)),
         ...reviews.filter((d) => !heldTask(d.task)),
       ];

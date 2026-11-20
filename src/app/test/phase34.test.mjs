@@ -1,5 +1,5 @@
 // Phase 34 parts the P45 proof does not reach (tasks 34.4–34.6): the
-// manifest's investigate and ship fields. Every value is fake.
+// manifest's ship fields. Every value is fake.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { validateProposal } from "../specs/plans.mjs";
@@ -14,11 +14,6 @@ const leaf = (id, extra = {}) => ({
   acceptance: ["Works."],
   repository: "app",
   ...extra,
-});
-
-test("the investigate fact", () => {
-  assert.throws(() => validateProposal({ ...leaf("x"), investigate: "yes" }));
-  validateProposal({ ...leaf("x"), investigate: false });
 });
 
 test("a bugfix spec's type reaches each leaf", async () => {

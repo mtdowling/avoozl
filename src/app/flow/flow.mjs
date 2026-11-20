@@ -25,7 +25,6 @@ import { listStageSpans } from "../telemetry/sqlite-exporter.mjs";
 export { STAGES };
 // Active time in flow efficiency; the rest is waiting on someone else.
 const ACTIVE = new Set([
-  "investigate",
   "coding",
   "tests",
   "commands",
@@ -325,9 +324,7 @@ function closeOpen(store, taskId, attempt, role, at, { except = null } = {}) {
 
 const BLOCKING_EDGES = new Set(["requires", "sequence"]);
 const workerStage = (attempt) => (attempt > 1 ? "rework" : "coding");
-// A worker opened to investigate first starts with its findings (§4.21).
-const firstStage = (binding) =>
-  binding.investigate ? "investigate" : workerStage(binding.attempt);
+const firstStage = (binding) => workerStage(binding.attempt);
 const isRunner = (b) =>
   b.role === "worker" && ["tick", "conductor"].includes(b.source);
 
@@ -393,13 +390,6 @@ export function flowOnReport(store, binding, report) {
     if (report.kind === "blocked") put("waiting", "events");
     return;
   }
-  // Findings end the investigation stretch; the worker waits for the gate.
-  if (report.kind === "findings") {
-    if (waiting) return;
-    closeOpen(store, taskId, attempt, "worker", at);
-    put("waiting", "events");
-    return;
-  }
   if (report.kind === "question") {
     if (waiting) return;
     closeOpen(store, taskId, attempt, "worker", at);
@@ -423,24 +413,6 @@ export function flowOnReport(store, binding, report) {
   if (current?.stage === phase && current.source === "markers") return;
   closeOpen(store, taskId, attempt, "worker", at);
   put(phase, "markers");
-}
-
-// A decision on a worker's findings (§4.21): Go ahead starts its coding,
-// Investigate again a new investigation stretch; both end its wait.
-export function flowOnDecision(store, binding, action, at) {
-  if (!binding || !isRunner(binding) || action === "stop") return;
-  const { taskId, attempt } = binding;
-  closeOpen(store, taskId, attempt, "worker", at);
-  const stage = action === "go" ? workerStage(attempt) : "investigate";
-  recordSpan(store, {
-    id: spanId("events", taskId, attempt, "worker", stage, at),
-    taskId,
-    attempt,
-    role: "worker",
-    stage,
-    startedAt: at,
-    source: "events",
-  });
 }
 
 // When a task became ready for this attempt, from events Avoozl already
@@ -549,11 +521,9 @@ export function syncSpans(store, { now = Date.now() } = {}) {
     const stage =
       binding.role === "verifier"
         ? "tests"
-        : binding.role === "falsifier"
-          ? "falsify"
-          : binding.role?.startsWith("review:")
-            ? "review"
-            : null;
+        : binding.role?.startsWith("review:")
+          ? "review"
+          : null;
     if (!stage || binding.source !== "tick") continue;
     const id = spanId(
         "events",

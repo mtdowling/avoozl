@@ -27,8 +27,7 @@ prints.
 ## Roles and models
 
 **Settings › Models** picks each role's harness, agent, and model. The roles
-are the worker, the falsifier that tests a worker's investigation, the
-planner, and the retro. The settings are saved as one
+are the worker, the planner, and the retro. The settings are saved as one
 `roles` table in `.avoozl.json`:
 
 ```json
@@ -46,18 +45,16 @@ planner, and the retro. The settings are saved as one
 ```
 
 A row's `harness` is `kirocrew` for a Kiro Crew chat, or the name of a harness
-definition in this machine's config. Only the worker and the falsifier take an
+definition in this machine's config. Only the worker takes an
 `agent`. A field left out, or set to `auto`, keeps the role's default: its
 agent's own model and its repository's executor.
 
-The worker, planner, and
-retro follow the harness. The falsifier still runs as a Kiro
-Crew chat. Avoozl moves no running chat to another model.
+The worker, planner, and retro follow the harness. Avoozl moves no running
+chat to another model.
 
 A role's agent and model live only in `roles`. A file that still sets
-`delivery.agent`, `delivery.model`, `delivery.investigate.agent`,
-`delivery.investigate.model`, or `flow.retro.model` does not load, and the
-error names the file and the key.
+`delivery.agent`, `delivery.model`, `delivery.investigate`, or
+`flow.retro.model` does not load, and the error names the file and the key.
 
 ## MCP tools
 

@@ -105,10 +105,9 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
 // R98.6: one roles table, the only place for a role's agent and model.
 test("the roles table names each role's agent and model; the older keys are refused", () => {
   const config = {
-    delivery: { investigate: { mode: "all" } },
+    delivery: {},
     roles: {
       worker: { agent: "w-agent", model: "w-new", harness: "codex" },
-      falsifier: { agent: "f-agent", model: "auto" },
       planner: { harness: "kirocrew", model: "p-old" },
       retro: { model: "r-new" },
     },
@@ -117,22 +116,19 @@ test("the roles table names each role's agent and model; the older keys are refu
   assert.equal(chatModel(config, "retro"), "r-new");
   assert.equal(roleHarness(config, "planner"), "kirocrew");
   assert.equal(roleHarness(config, "worker"), "codex");
-  // The delivery policy's worker and falsifier come from the table.
+  // The delivery policy's worker comes from the table.
   const policy = deliveryPolicy(config);
   assert.equal(policy.agent, "w-agent");
   assert.equal(policy.model, "w-new");
-  assert.deepEqual(policy.investigate, {
-    mode: "all",
-    agent: "f-agent",
-    model: "auto",
-  });
   assert.equal(deliveryPolicy({ delivery: {} }).agent, "kirocrew-worker");
   // Nearby inputs: each older spelling of a role's agent or model.
   for (const [delivery, key] of [
     [{ agent: "old" }, /delivery\.agent/],
     [{ model: "old" }, /delivery\.model/],
-    [{ investigate: { agent: "old" } }, /roles\.falsifier\.agent/],
-    [{ investigate: { model: "old" } }, /roles\.falsifier\.model/],
+    [
+      { investigate: { mode: "all" } },
+      /delivery\.investigate is not a delivery setting/,
+    ],
   ])
     assert.throws(() => deliveryPolicy({ delivery }), key);
   assert.deepEqual(resolveRoles({ flow: { retro: { model: "r-old" } } }), {});
@@ -149,10 +145,9 @@ test("the roles table names each role's agent and model; the older keys are refu
   );
 });
 
-test("roles names only known roles and fields; agent only for the worker and falsifier", () => {
+test("roles names only known roles and fields; agent only for the worker", () => {
   const ok = {
     worker: { harness: "claude-code", agent: "w", model: "m" },
-    falsifier: { agent: "f", model: "auto" },
     retro: { harness: "auto" },
   };
   assert.deepEqual(validateRoles({ roles: ok }), ok);
@@ -176,8 +171,8 @@ test("roles names only known roles and fields; agent only for the worker and fal
     /agent name/,
   );
   assert.throws(
-    () => validateRoles({ roles: { planReviewer: {} } }),
-    /roles.planReviewer is not a role/,
+    () => validateRoles({ roles: { falsifier: {} } }),
+    /roles.falsifier is not a role/,
   );
 });
 
@@ -198,10 +193,10 @@ test("a Models save writes roles, and a Delivery save keeps them", (t) => {
   );
   const settings = new RepositorySettings(store, { workspaceRoot: root });
   const delivered = settings.updateDeliverySettings({
-    delivery: { investigate: { mode: "off" } },
+    landingPr: "ready",
     expectedHash: settings.readDeliverySettings().hash,
   });
-  assert.deepEqual(delivered.delivery.investigate, { mode: "off" });
+  assert.equal(delivered.landingPr, "ready");
   const before = settings.readModelSettings();
   assert.deepEqual(before.roles, {
     worker: { harness: "claude-code" },
@@ -227,6 +222,6 @@ test("a Models save writes roles, and a Delivery save keeps them", (t) => {
   assert.deepEqual(saved.roles, roles);
   const file = JSON.parse(fs.readFileSync(filename, "utf8"));
   assert.deepEqual(file.roles, roles);
-  assert.deepEqual(file.delivery, { investigate: { mode: "off" } });
+  assert.deepEqual(file.delivery, {});
   assert.equal(deliveryPolicy(file).agent, "alt-worker");
 });

@@ -2,11 +2,10 @@
 // row per role (role | harness | agent | model | source). A role shows
 // "default" until a harness, agent or model is set here, and Reset puts it back. A model a
 // harness cannot take is dropped on pick and blocks Save if loaded (R98.3).
-// It is the one roles table (R98.6, R98.7): the worker and falsifier also
-// pick their agent here, and no other page picks a role's agent or model.
-// Save writes `roles` in .avoozl.json with the file's hash and drops the
-// older keys. Auto leaves the plan reviewer unset; other roles use their
-// agent's own model and their repository's harness.
+// It is the one roles table (R98.6, R98.7): the worker also picks its agent
+// here, and no other page picks a role's agent or model. Save writes `roles`
+// in .avoozl.json with the file's hash and drops the older keys. Auto uses
+// the agent's own model and the repository's harness.
 import { useHostKind } from './host-kind.ts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Input } from './ui/Input'

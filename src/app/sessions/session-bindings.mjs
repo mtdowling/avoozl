@@ -17,8 +17,6 @@ const ROLES = new Set([
   "retro",
   // A page-opened assistant (session-open.mjs).
   "assist",
-  // Tries to prove a worker's findings wrong (§4.21).
-  "falsifier",
   // One plugin check's decide call (check-decide.mjs).
   "check-decide",
 ]);
@@ -117,9 +115,7 @@ export function bindSession(
         ? null
         : text(input.title, "session title", MAX_TITLE);
   if (!isRole(role))
-    fail(
-      "Choose role worker, verifier, responder, planner, falsifier, or review:<id>.",
-    );
+    fail("Choose role worker, verifier, responder, planner, or review:<id>.");
   if (input.model !== undefined && !MODEL.test(input.model))
     fail("Choose a model name.");
   // The crew, agent, and why (R41.9, R53.10).
@@ -232,11 +228,6 @@ export function bindSession(
       ...(input.commit ? { commit: input.commit } : {}),
       ...(input.lane ? { lane: input.lane } : {}),
       ...(input.harnessSession ? { harnessSession: input.harnessSession } : {}),
-      // A worker opened to investigate first codes only after Go ahead
-      // (§4.21).
-      ...(input.investigate === true && role === "worker"
-        ? { investigate: true }
-        : {}),
       ...(input.executor ? { executor: input.executor } : {}),
       ...(input.permissionClass
         ? { permissionClass: input.permissionClass }

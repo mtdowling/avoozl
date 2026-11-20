@@ -125,7 +125,6 @@ export const APP_OPERATIONS = new Set([
   "telemetry.status",
   "telemetry.configure",
   "driver.settings.update",
-  "investigation.decide",
   "delivery.settings.get",
   "delivery.settings.update",
   "delivery.runner.release",

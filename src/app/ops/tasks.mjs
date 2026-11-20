@@ -57,7 +57,6 @@ import { graphMermaid, graphText, storeGraph } from "../specs/graph.mjs";
 import { integrationNeedsYou } from "../specs/integration-base.mjs";
 import { claimsNeedsYou, closedPullNeedsYou } from "../workers/claims.mjs";
 import { lanesNeedsYou } from "../sessions/lane-sessions.mjs";
-import { decideInvestigation } from "../delivery/investigate.mjs";
 import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
 import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
 import { needsKirocrewItems } from "../tick/needs-kirocrew.mjs";
@@ -163,35 +162,6 @@ export const entries = [
     handler({}) {
       const store = this.store;
       return describeWorkspace(store);
-    },
-  },
-
-  // Investigate first (§4.21): Go ahead, Investigate again or Stop.
-  {
-    name: "investigation.decide",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person decides on a task's findings."),
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person decides on a task's findings, in the Avoozl page or the CLI.",
-          403,
-        );
-      return decideInvestigation(
-        store,
-        this.read(),
-        {
-          ...input,
-          taskId:
-            typeof input.taskId === "string"
-              ? resolveTaskId(this.read(), input.taskId)
-              : input.taskId,
-        },
-        { by: context.local ? "cli" : this.operator || "dashboard" },
-      );
     },
   },
 

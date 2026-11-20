@@ -389,12 +389,6 @@ function operationRow(name, input, result) {
       summary: `Approved plugin ${id}`,
       targetId: id,
     };
-  if (name === "investigation.decide")
-    return {
-      kind: "investigation.decide",
-      summary: `${{ go: "Go ahead", again: "Investigate again", stop: "Stop" }[input?.action] || "Decided"} on ${id}'s findings`,
-      targetId: id,
-    };
   if (name === "delivery.settings.update")
     return {
       kind: "settings.save",

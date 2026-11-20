@@ -253,10 +253,7 @@ test("a file that sets a removed or unknown nested key fails to load, naming its
       "delivery.repositories.app.concurrency",
       { delivery: { repositories: { app: { concurrency: 1 } } } },
     ],
-    [
-      "delivery.investigate.agent",
-      { delivery: { investigate: { agent: "a" } } },
-    ],
+    ["delivery.investigate", { delivery: { investigate: { mode: "all" } } }],
     ["flow.retro", { flow: { retro: { everyTasks: 5 } } }],
     ["landing.conflictRounds", { landing: { conflictRounds: 1 } }],
     ["landing.trains", { landing: { trains: {} } }],

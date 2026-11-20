@@ -72,7 +72,7 @@ test('each kind draws its spec link, evidence and context before Resolve', { ski
   )
   assert.equal(rows.length, needsContextItems.length)
   assert.ok(
-    rows.slice(0, 5).every((r) => r.spec && r.reason),
+    rows.slice(0, 4).every((r) => r.spec && r.reason),
     'each row shows a spec link and a reason',
   )
   const picks = await page.evaluate(`[...document.querySelectorAll('[data-conflict-pick]')].map((b) => b.dataset.conflictPick)`)

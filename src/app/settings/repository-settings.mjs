@@ -540,10 +540,7 @@ export function conversationSettings(store) {
 
 // The worker's agent and model are in the roles table (Settings › Models,
 // R98.7); who merges is each repository's landing block (§4.25).
-const DELIVERY_FORM_KEYS = [
-  // Investigate first (§4.21).
-  "investigate",
-];
+const DELIVERY_FORM_KEYS = [];
 
 export class RepositorySettings {
   constructor(
@@ -998,9 +995,8 @@ export class RepositorySettings {
     return this.readActivitySettings();
   }
 
-  // Settings > Delivery: the workspace's landing.pr (R119.1), investigate
-  // first and pull request feedback (R54.8). Other delivery keys are kept
-  // as they are.
+  // Settings > Delivery: the workspace's landing.pr (R119.1). Other delivery
+  // keys are kept as they are.
   readDeliverySettings() {
     const file = this.readFile(),
       delivery = record(file.value.delivery) ? file.value.delivery : {};

@@ -1,5 +1,5 @@
 // Settings > Models: the one roles table (R98.6), each role's harness,
-// model and, for the worker and falsifier, agent. Saved as `roles` in
+// model and, for the worker, agent. Saved as `roles` in
 // .avoozl.json (src/app/settings/chat-models.mjs); a save drops the older `models`,
 // `harnesses` and Delivery agent and model keys. Issue Radar crews pick
 // their own model. Free of JSX so node can test it.
@@ -11,7 +11,6 @@ import { parseModels } from './flow-api.ts'
 // here too, and `model` the roles whose model is.
 export const ROLES = [
   { key: 'worker', label: 'Worker', line: 'Codes each ready task. A task’s manifest may pin another.', agent: true, model: true },
-  { key: 'falsifier', label: 'Falsifier', line: 'Tries to prove a worker’s findings wrong before coding. A model equal to the worker’s is skipped.', agent: true, model: true },
   { key: 'planner', label: 'Planner', line: 'Drafts specs from a GitHub planning label.', agent: false, model: true },
   { key: 'retro', label: 'Retro', line: 'Finds the slowest step and proposes one change.', agent: false, model: true },
   { key: 'checkDecide', label: 'Check decide', line: 'Answers whether a plugin check is needed for a task. Auto uses the planner’s model.', agent: false, model: true },
@@ -33,7 +32,6 @@ export type RoleTable = Partial<Record<Role, RoleRow>>
 // writes spec files; the others only read.
 export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = {
   worker: 'write',
-  falsifier: 'read',
   planner: 'write',
   retro: 'read',
   checkDecide: 'read',
@@ -46,7 +44,7 @@ export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = {
 // The Kiro Crew chat; any other harness is a supervisor child.
 export const KIROCREW_HARNESS = 'kirocrew'
 // The agent each agent role opens on when none is picked.
-export const DEFAULT_AGENTS: Partial<Record<Role, string>> = { worker: 'kirocrew-worker', falsifier: 'avoozl-falsifier' }
+export const DEFAULT_AGENTS: Partial<Record<Role, string>> = { worker: 'kirocrew-worker' }
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 
 export interface HarnessDefinition {

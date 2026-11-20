@@ -71,17 +71,6 @@ import {
 import { queryTasks, statusComplete } from "../../query.mjs";
 import { rankKeys } from "../specs/ranking.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
-import {
-  falsifierInput,
-  findingsInput,
-  gateOpen,
-  investigateLines,
-  investigateSettings,
-  investigates,
-  recordFalsifier,
-  recordFindings,
-  TABLE as INVESTIGATIONS,
-} from "./investigate.mjs";
 import { currentPrompts } from "../agents/prompts.mjs";
 import {
   blockerNotes,
@@ -106,8 +95,7 @@ const laneFields = (lane, work) =>
     ? { lane: laneRequest(lane, work), ...kirocrewLaneSession(lane.workspace) }
     : {};
 
-// `findings` is a worker's first turn when it investigates first (R75.1).
-const REPORT_KINDS = ["progress", "done", "blocked", "question", "findings"];
+const REPORT_KINDS = ["progress", "done", "blocked", "question"];
 // A done or blocked report ends its attempt; a question waits for an answer.
 const FINAL_REPORTS = new Set(["done", "blocked"]);
 // The cause a full stop records on each attempt it stopped (R64.12).
@@ -154,12 +142,10 @@ export const DELIVERY_KEYS = Object.freeze([
   "repositories",
   "runner",
   "reviewers",
-  "investigate",
 ]);
 export const DELIVERY_REPOSITORY_KEYS = Object.freeze([
   "reviewers",
   "reviewRounds",
-  "investigate",
 ]);
 export const REVIEWER_KEYS = Object.freeze([
   "id",
@@ -183,7 +169,6 @@ export function deliveryPolicy(value, { machineLanes, machineReviewers } = {}) {
   for (const key of Object.keys(delivery))
     if (!DELIVERY_KEYS.includes(key))
       throw Error(`delivery.${key} is not a delivery setting.`);
-  investigateSettings(delivery.investigate);
   for (const [key, [min, max]] of Object.entries(DELIVERY_LIMITS))
     if (delivery[key] !== undefined && !bounded(delivery[key], min, max))
       throw Error(`delivery.${key} must be a whole number ${min}–${max}.`);
@@ -204,9 +189,8 @@ export function deliveryPolicy(value, { machineLanes, machineReviewers } = {}) {
     Array.isArray(repositories)
   )
     throw Error("delivery.repositories must be an object.");
-  // The worker's and falsifier's agent and model come from the roles
-  // table (R98.6).
-  const { worker = {}, falsifier = {} } = resolveRoles(value),
+  // The worker's agent and model come from the roles table (R98.6).
+  const { worker = {} } = resolveRoles(value),
     writer = worker.model;
   const reviewers =
       delivery.reviewers === undefined
@@ -220,12 +204,8 @@ export function deliveryPolicy(value, { machineLanes, machineReviewers } = {}) {
       Object.keys(entry).some((key) => !DELIVERY_REPOSITORY_KEYS.includes(key))
     )
       throw Error(
-        `delivery.repositories.${id} may set only reviewers, reviewRounds and investigate.`,
+        `delivery.repositories.${id} may set only reviewers and reviewRounds.`,
       );
-    investigateSettings(
-      entry.investigate,
-      `delivery.repositories.${id}.investigate`,
-    );
     if (
       entry.reviewRounds !== undefined &&
       !bounded(entry.reviewRounds, ...DELIVERY_LIMITS.reviewRounds)
@@ -252,15 +232,6 @@ export function deliveryPolicy(value, { machineLanes, machineReviewers } = {}) {
     ...(runner === "crew-mode" ? { crewModeHeld: true } : {}),
     agent: worker.agent ?? DELIVERY_DEFAULTS.agent,
     model: writer,
-    ...(falsifier.agent || falsifier.model || delivery.investigate
-      ? {
-          investigate: {
-            ...(delivery.investigate || {}),
-            ...(falsifier.agent ? { agent: falsifier.agent } : {}),
-            ...(falsifier.model ? { model: falsifier.model } : {}),
-          },
-        }
-      : {}),
     concurrency: machineLanes ?? validateLanes(value.lanes).local,
     reviewerLanes: machineReviewers ?? validateLanes(value.lanes).reviewers,
     reviewers,
@@ -836,7 +807,7 @@ export async function reportSession(
   }
   const kind = input.kind;
   if (!REPORT_KINDS.includes(kind))
-    fail("Choose kind progress, done, blocked, question, or findings.");
+    fail("Choose kind progress, done, blocked, or question.");
   const text = reportText(input.text);
   if ((kind === "blocked" || kind === "question") && !text)
     fail(`Say why in text when you report ${kind}.`);
@@ -852,48 +823,11 @@ export async function reportSession(
     binding = bindings.find((b) => slotKey(b.slot) === own);
   if (!binding || binding.taskId !== task.id)
     fail("Only the session bound to this task may report on it.", 403);
-  // A falsifier's done names no commit: it judges findings, not code
-  // (R75.2). Everyone else's done stands for one (doneCommit).
-  const falsifier = binding.role === "falsifier";
-  if (falsifier && input.commit !== undefined)
-    fail("A falsifier's done report names no commit.");
+  // A done report stands for one commit (doneCommit).
   const commit =
-    kind === "done" && !falsifier
+    kind === "done"
       ? await doneCommit(store, task, binding, input.commit)
       : undefined;
-  const findings =
-    kind === "findings"
-      ? binding.role === "worker"
-        ? findingsInput(input.findings)
-        : fail("Only a worker reports findings.")
-      : input.findings !== undefined && !reviewRoleId(binding.role)
-        ? fail("Only a findings report or a review's done has findings.")
-        : undefined;
-  const reply =
-    falsifier && kind === "done" ? falsifierInput(input.falsifier) : undefined;
-  if (!reply && input.falsifier !== undefined)
-    fail("Only a falsifier's done report has a falsifier reply.");
-  // Investigate first (R75.1, R75.3): findings change no file, and a worker
-  // opened to investigate codes only after Go ahead.
-  if (findings) {
-    const worktree = store.get("task_worktrees", task.id);
-    if (
-      worktree?.path &&
-      (await worktreeChanges(
-        worktree.path,
-        store.get("repositories", worktree.repository)?.root,
-      ).catch(() => ""))
-    )
-      fail(
-        "Findings come before any change: the task's worktree has changes. Undo them, report findings, and wait for Go ahead.",
-        409,
-      );
-  }
-  if (kind === "done" && !gateOpen(store, binding))
-    fail(
-      'Investigate first: report kind "findings" and wait for Avoozl\'s Go ahead before you report done.',
-      409,
-    );
   // A verifier's done report carries the exit code of every check it ran;
   // a review role's carries its verdict, findings and closures.
   const checks =
@@ -924,9 +858,7 @@ export async function reportSession(
     fail("Only a verifier's done report lists checks.");
   if (
     !review &&
-    (["closures"]
-      .concat(findings ? [] : ["findings"])
-      .some((key) => input[key] !== undefined) ||
+    (["closures", "findings"].some((key) => input[key] !== undefined) ||
       (!judgment && input.verdict !== undefined))
   )
     fail(
@@ -942,7 +874,7 @@ export async function reportSession(
       `Attempt ${binding.attempt} was replaced by attempt ${newest}; only its session reports now.`,
       409,
     );
-  if (kind === "done" && !falsifier) {
+  if (kind === "done") {
     const repository = taskRepositoryRecord(store, task);
     try {
       await git(repository.root, ["cat-file", "-e", commit + "^{commit}"]);
@@ -980,9 +912,7 @@ export async function reportSession(
         (last.phase ?? null) === (input.phase ?? null) &&
         JSON.stringify(last.checks) === JSON.stringify(checks) &&
         (last.verdict ?? null) === (judgment ? input.verdict : null) &&
-        JSON.stringify(last.review) === JSON.stringify(review) &&
-        JSON.stringify(last.findings) === JSON.stringify(findings) &&
-        JSON.stringify(last.falsifier) === JSON.stringify(reply);
+        JSON.stringify(last.review) === JSON.stringify(review);
     if (same) return { binding: current, report: last, changed: false };
     if (last && FINAL_REPORTS.has(last.kind))
       fail(`This attempt already reported ${last.kind}.`, 409);
@@ -994,16 +924,10 @@ export async function reportSession(
       ...(checks ? { checks } : {}),
       ...(judgment ? { verdict: input.verdict } : {}),
       ...(review ? { review } : {}),
-      ...(findings ? { findings } : {}),
-      ...(reply ? { falsifier: reply } : {}),
       at: new Date().toISOString(),
     };
     const next = { ...current, report };
     store.put("session_bindings", next);
-    // Investigate first (R75): the findings open a falsifier round; the
-    // falsifier's reply runs the gate.
-    if (findings) recordFindings(store, next, findings, report.at);
-    if (reply) recordFalsifier(store, next, reply, report.at, { policy, task });
     // Timing (§4.11): the marker's time is the time Avoozl received it.
     flowOnReport(store, next, report);
     return { binding: next, report, changed: true };
@@ -1337,25 +1261,14 @@ export function reconcileDeliveries(
       } else if (
         open &&
         binding.status === "idle" &&
-        binding.source === "tick" &&
-        (binding.report?.kind !== "findings" || decisionSent(store, binding))
+        binding.source === "tick"
       ) {
         // Only the cron messages a session it opened; a task taken by hand is a
         // person's and is never nudged.
         // Quiet: the session ended its turn without a done or blocked report.
         // It is nudged, never replaced; past the nudge bound a person decides.
-        // A worker that sent findings waits on Avoozl, not quiet, until the
-        // decision on them is sent; its quiet time counts from then.
         const nudge = next.nudge?.slot === binding.slot ? next.nudge : null,
-          sent = decisionSent(store, binding),
-          step = quietStep(
-            sent && sent > binding.statusAt
-              ? { ...binding, statusAt: sent }
-              : binding,
-            nudge,
-            policy,
-            now,
-          );
+          step = quietStep(binding, nudge, policy, now);
         if (step === "nudge") {
           messages.push({
             slot: binding.slot,
@@ -1384,13 +1297,6 @@ export function reconcileDeliveries(
       store.transaction(() => store.put("task_deliveries", next));
   }
   return { messages, notify };
-}
-
-// When Avoozl sent the decision on this session's findings (Go ahead,
-// Investigate again or Stop), or null while none is sent.
-function decisionSent(store, binding) {
-  const row = store.get(INVESTIGATIONS, binding.taskId);
-  return row?.slot === binding.slot ? row.message?.sentAt || null : null;
 }
 
 // Plan order: lower rank first (unset ranks last, as the workbench orders
@@ -1660,8 +1566,6 @@ export function workerBrief(
     findings = [],
     repositoryLine = null,
     outside = outsideSource(task),
-    investigate = false,
-    findingsVia = null,
   },
 ) {
   const own = taskLines(task, `Avoozl task ${task.id}`, outside);
@@ -1674,10 +1578,6 @@ export function workerBrief(
     ...(outside ? [checks, ...own.text] : [...own.text, checks]),
     ...(notes.length ? ["", ...notes] : []),
     "",
-    // Investigate first (R75.1): findings before any change.
-    ...(investigate
-      ? investigateLines(task, findingsVia?.executor, findingsVia?.cliReport)
-      : []),
     ...steps,
   ];
   if (attempt > 1)
@@ -1867,11 +1767,10 @@ function composeLeafBrief(
   store,
   data,
   leaf,
-  { investigate = false, executor = repositoryExecutor(leaf.repository) } = {},
+  { executor = repositoryExecutor(leaf.repository) } = {},
 ) {
   const { task, repository, attempt, delivery } = leaf,
     options = {
-      investigate,
       attempt,
       worktree: store.get("task_worktrees", task.id),
       previous: delivery?.attempts.at(-1),
@@ -1885,7 +1784,7 @@ function composeLeafBrief(
   // The pair table (worker-briefs.mjs) picks the steps; a declined pair runs
   // as the kind its cell names.
   const via = executor,
-    { cell } = briefCell(via, investigate ? "investigate" : "single"),
+    { cell } = briefCell(via, "single"),
     cliReport = token
       ? {
           worktree: options.worktree?.path || worktreePath(task, repository),
@@ -1895,7 +1794,6 @@ function composeLeafBrief(
       : null;
   return workerBrief(task, repository, {
     ...options,
-    findingsVia: { executor: via, cliReport },
     steps: cell.steps({ task, repository, cliReport }),
   });
 }
@@ -1916,17 +1814,8 @@ function keptAgent(store, taskId, policy) {
   return (last?.interrupted && last.agent) || policy.agent;
 }
 
-// shortcut: a harness definition that loads always names `resume`
-// (parseHarnessDefinition refuses one without), so the default is true. A
-// caller that knows better passes `resumable(harnessName)`; drop the option
-// if the loader ever allows a definition with no `resume`.
-const NO_RESUME =
-  "its harness definition has no resume command, so Avoozl cannot send Go ahead to the child";
-const harnessOf = (run, leaf) => run.harness ?? leaf.repository.harness ?? null;
-
 // The tick's worker dispatches for ready leaves. Reads only.
 export function planReadyDispatches(store, policy, options = {}) {
-  const resumable = options.resumable ?? (() => true);
   const data = store.read(),
     leaves = readyLeaves(store, policy, options),
     lanes = planLanes(store, policy, options);
@@ -1941,20 +1830,7 @@ export function planReadyDispatches(store, policy, options = {}) {
       );
     if (lanes && !lane) return [];
     const run = workerExecutor(leaf.task, leaf.repository, options.config);
-    // Investigate first (R75.5): never where the pair table declines it.
-    const wants = investigates(policy, leaf.task),
-      // A child is resumed with Go ahead, so its harness must resume
-      // (WP3.2); with none the task is coded without the step.
-      skipped =
-        wants && run.executor === "process" && !resumable(harnessOf(run, leaf))
-          ? NO_RESUME
-          : null,
-      investigate =
-        wants && !skipped && !briefCell(run.executor, "investigate").declined;
-    const brief = leafBrief(store, data, leaf, {
-      investigate,
-      executor: run.executor,
-    });
+    const brief = leafBrief(store, data, leaf, { executor: run.executor });
     if (
       !briefAllowed(store, {
         taskId: leaf.task.id,
@@ -1973,8 +1849,6 @@ export function planReadyDispatches(store, policy, options = {}) {
         role: "worker",
         attempt: leaf.attempt,
         title: sessionTitle(leaf.task.id, leaf.attempt, leaf.task.title || ""),
-        ...(investigate ? { investigate: true } : {}),
-        ...(skipped ? { investigateSkipped: skipped } : {}),
         // A worker on `process` runs as a supervisor child (R93.5), on the
         // harness its pin or Settings › Models names, else its repository's
         // (R98.3, R98.4); other roles move in Phase 49.

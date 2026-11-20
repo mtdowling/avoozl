@@ -137,7 +137,7 @@ and CLI file, so it needs neither `avoozl` on its `PATH` nor MCP sharing. The
 other chats need two steps in Kiro Crew, each done once:
 
 1. Share the MCP server. A worker that opens a pull request, and every
-   verifier, reviewer, and investigation chat, reports with `plans_report`.
+   verifier and reviewer chat, reports with `plans_report`.
    Kiro Crew names the calling chat only to MCP servers it shares. Open **MCP
    Management**, find `avoozl:avoozl`, turn on sharing, and press **Approve
    sharing**. Then restart the gateway from **Settings › About › Restart
@@ -318,22 +318,7 @@ back to its worker chat. After the repository's `conflicts.maxAttempts` rounds
 
 ## Investigate first
 
-Before it changes a file, a worker reports what it read, the cause it
-believes, the change it plans, how it will check it, and how sure it is. A
-second, read-only chat tries to prove that wrong. Coding starts only when both
-are sure enough and the findings stand. Otherwise the task waits in **Needs
-you** with **Go ahead**, **Investigate again**, and **Stop**.
-
-```json
-{
-  "delivery": {
-    "investigate": {
-      "mode": "all",
-      "minConfidence": "high"
-    }
-  }
-}
-```
-
-`mode` is `not-small` (the default), `all`, or `off`, and `minConfidence`
-defaults to `high`. A task's facts may set `investigate: true` or `false`.
+A task that should be understood before it is fixed names a findings file in
+its done bullets, such as `findings/loader.md`. The worker writes that file
+before the fix, as the `avoozl-investigate` skill says, and the reviewer tries
+to prove it wrong. Avoozl has no setting for this.

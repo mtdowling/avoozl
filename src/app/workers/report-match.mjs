@@ -9,7 +9,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fail } from "../store/store.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
-import { RESULT_BYTES } from "../executors/supervisor.mjs";
 
 const slotKey = (slot) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
@@ -19,8 +18,8 @@ const SECRET = "report.secret";
 // store, so a brief built twice carries the same token, and a new attempt
 // gets a new one. The store keeps the secret, never a token. It reads only:
 // null means no secret exists yet, and the brief keeps the MCP report.
-// A role other than the worker (a falsifier) gets its own token, so one
-// role's token never reports for another.
+// A role other than the worker gets its own token, so one role's token
+// never reports for another.
 export function issueReportToken(
   store,
   { taskId, attempt = 1, role = "worker" },
@@ -82,8 +81,8 @@ export function matchCliReport(store, { taskId, token, cwd, role = "worker" }) {
     got = Buffer.from(token);
   if (want.length !== got.length || !crypto.timingSafeEqual(want, got))
     fail("The report token does not match this task.", 403);
-  // A falsifier reads a checkout and owns no worktree; its token is its
-  // own role's, so it is matched by the token alone.
+  // A read role owns no worktree; its token is its own role's, so it is
+  // matched by the token alone.
   if (role !== "worker") return binding;
   const worktree = store.get("task_worktrees", binding.taskId)?.path;
   if (!worktree || !inside(worktree, cwd))
@@ -114,82 +113,36 @@ export const cliReportCaller = (binding) => ({
   sessionKey: `dashboard:${slotKey(binding.slot)}`,
 });
 
-// A findings file (`runner report TASK findings --file PATH`): a regular file
-// of at most the result file's size (R96.1), read as JSON data. Avoozl's
-// findings validator (findingsInput) judges its fields when it is reported.
-function readFindingsFile(file) {
-  if (typeof file !== "string" || !file)
-    fail("Name the findings file: --file PATH.");
-  let stat;
-  try {
-    stat = fs.lstatSync(file);
-  } catch {
-    fail(`The findings file ${file} does not exist.`);
-  }
-  if (!stat.isFile()) fail("The findings file is not a regular file.");
-  if (stat.size > RESULT_BYTES)
-    fail(`The findings file is over ${RESULT_BYTES} bytes.`);
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    fail("The findings file is not valid JSON.");
-  }
-}
-
-// `avoozl runner report TASK done|blocked|findings [--token T]`, run from the
+// `avoozl runner report TASK done|blocked [--token T]`, run from the
 // worktree; with no token it speaks for a command-line take. `ops` is an
 // Operations on this workspace's store. The commit of a done report is read
 // from the worktree's HEAD, never taken from the caller.
 export async function reportByToken(
   store,
   ops,
-  { taskId, state, token, cwd, text, file, role = "worker" },
+  { taskId, state, token, cwd, text },
 ) {
-  if (!["done", "blocked", "findings"].includes(state))
-    fail("State is done, blocked or findings.");
-  // A falsifier's verdict (R75.2), from its own file and token. shortcut:
-  // the falsifier is the only read role with a command-line report; give the
-  // verifier and review roles one when a proof needs them without MCP.
-  if (role !== "worker") {
-    if (role !== "falsifier")
-      fail("Only a worker or a falsifier reports here.");
-    if (token === undefined) fail("A falsifier reports with its --token.", 403);
-    const binding = matchCliReport(store, { taskId, token, cwd, role });
-    return ops.execute(
-      "session.report",
-      state === "done"
-        ? { taskId, kind: "done", falsifier: readFindingsFile(file) }
-        : {
-            taskId,
-            kind: "blocked",
-            text: text || "The falsifier reported blocked.",
-          },
-      undefined,
-      { caller: cliReportCaller(binding) },
-    );
-  }
+  if (!["done", "blocked"].includes(state)) fail("State is done or blocked.");
   const binding =
       token === undefined
         ? matchTakeReport(store, { taskId, cwd })
         : matchCliReport(store, { taskId, token, cwd }),
     input =
-      state === "findings"
-        ? { taskId, kind: "findings", findings: readFindingsFile(file) }
-        : state === "done"
-          ? {
-              taskId,
-              kind: "done",
-              commit: await new Promise((resolve, reject) =>
-                execFile("git", ["rev-parse", "HEAD"], { cwd }, (error, out) =>
-                  error ? reject(error) : resolve(out.trim()),
-                ),
+      state === "done"
+        ? {
+            taskId,
+            kind: "done",
+            commit: await new Promise((resolve, reject) =>
+              execFile("git", ["rev-parse", "HEAD"], { cwd }, (error, out) =>
+                error ? reject(error) : resolve(out.trim()),
               ),
-            }
-          : {
-              taskId,
-              kind: "blocked",
-              text: text || "The worker reported blocked.",
-            };
+            ),
+          }
+        : {
+            taskId,
+            kind: "blocked",
+            text: text || "The worker reported blocked.",
+          };
   return ops.execute("session.report", input, undefined, {
     caller: cliReportCaller(binding),
   });

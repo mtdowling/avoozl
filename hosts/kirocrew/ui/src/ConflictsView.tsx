@@ -93,18 +93,6 @@ export function ConflictActions(props: {
   const why = noActionReason(item)
   return (
     <Stack gap={2}>
-      {item.kind === 'investigation' && item.taskId && (
-        <InvestigationActions
-          item={item}
-          busy={busy}
-          onDecide={(action, text) =>
-            run(async () => {
-              await views.decideInvestigation(workspaceId, item.taskId!, action)
-              return { ok: true, text }
-            })
-          }
-        />
-      )}
       {item.kind === 'needs-human' && (item.reason === 'draft-pr' || item.reason === 'pr-merge') && item.repositoryId && item.base && item.key && (
         <PullAction
           item={item}
@@ -291,38 +279,6 @@ export function ConflictActions(props: {
           {why}
         </Hint>
       )}
-    </Stack>
-  )
-}
-
-// Findings the gate did not pass (§4.21): the person's three choices. The
-// findings and the falsifier's reply are the item's evidence above them.
-export function InvestigationActions(props: { item: ConflictItem; busy: boolean; onDecide: (action: 'go' | 'again' | 'stop', text: string) => void }) {
-  const { item, busy } = props
-  return (
-    <Stack gap={2} data-investigation={item.taskId}>
-      <Row gap={2}>
-        <IconLabel icon={Check} tooltip="The worker codes the change it planned" disabled={busy} onClick={() => props.onDecide('go', `Go ahead sent to ${item.taskId}.`)}>
-          Go ahead
-        </IconLabel>
-        <IconLabel
-          icon={RefreshCw}
-          tooltip="One more round: the worker reads the falsifier's reply and reports new findings"
-          disabled={busy}
-          onClick={() => props.onDecide('again', `${item.taskId} investigates again.`)}
-        >
-          Investigate again
-        </IconLabel>
-        <DangerBtn
-          icon={X}
-          tooltip="The worker stops and reports blocked"
-          disabled={busy}
-          confirm={{ title: `Stop ${item.taskId}?`, body: 'The worker changes nothing and reports blocked. You can retry the task later.', action: 'Stop' }}
-          onConfirm={() => props.onDecide('stop', `${item.taskId} stops.`)}
-        >
-          Stop
-        </DangerBtn>
-      </Row>
     </Stack>
   )
 }

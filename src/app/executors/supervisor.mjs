@@ -368,9 +368,7 @@ export function readChildResult(worktree) {
       (key) => !["state", "text", "report", "output"].includes(key),
     ) ||
     (value.output !== undefined && !OUTPUT_NAME.test(value.output)) ||
-    !["done", "blocked", "findings"].includes(value.state) ||
-    // Findings (R75.1) are the report; Avoozl's findings check reads them.
-    (value.state === "findings" && !value.report) ||
+    !["done", "blocked"].includes(value.state) ||
     (value.text !== undefined && typeof value.text !== "string") ||
     (value.report !== undefined &&
       (!value.report ||
@@ -379,7 +377,7 @@ export function readChildResult(worktree) {
   )
     return {
       problem:
-        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}, "output"?: "<file name>"}, or {"state": "findings", "report": {...}}.',
+        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}, "output"?: "<file name>"}.',
     };
   return {
     state: value.state,
@@ -481,9 +479,7 @@ export function childResult(db, sessionId) {
   if (row.state !== "exited" || queuedMessage(db, sessionId)) return null;
   const read = row.result ? JSON.parse(row.result) : { problem: row.error };
   const state =
-    read.state === "blocked" ||
-    ((read.state === "done" || read.state === "findings") &&
-      row.exit_code === 0)
+    read.state === "blocked" || (read.state === "done" && row.exit_code === 0)
       ? read.state
       : null;
   return {
@@ -496,8 +492,8 @@ export function childResult(db, sessionId) {
     ...(state && read.output ? { output: read.output } : {}),
     problem: state
       ? null
-      : read.state === "done" || read.state === "findings"
-        ? `The child said ${read.state} but exited ${row.exit_code}.`
+      : read.state === "done"
+        ? `The child said done but exited ${row.exit_code}.`
         : (read.problem ?? "The child wrote no result file."),
   };
 }

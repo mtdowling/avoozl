@@ -179,7 +179,7 @@ test('on a phone the bar may scroll sideways and the page does not', { skip }, a
 // page keeps its own label, marker or raw-key markup.
 test('each settings page uses the shared field row', () => {
   const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
-  const pages = ['SettingsView.tsx', 'DeliverySettings.tsx', 'FlowSettings.tsx', 'ContentRulesSettings.tsx', 'LandingFields.tsx']
+  const pages = ['SettingsView.tsx', 'FlowSettings.tsx', 'ContentRulesSettings.tsx', 'LandingFields.tsx']
   for (const name of pages) {
     const text = source(name)
     assert.match(text, /from '\.\/ui\/Field\.tsx'/, `${name} imports the shared field row`)

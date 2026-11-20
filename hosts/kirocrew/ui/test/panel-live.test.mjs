@@ -138,7 +138,6 @@ test('Waiting on you keeps what a person settles and drops retired worker items'
       conflict('needs-human', { reason: 'crew', link: 'https://github.test/o/r/issues/52', title: 'Tokenizer?' }),
       conflict('stale-session'),
       conflict('decision'),
-      conflict('investigation'),
       conflict('needs-human', { reason: 'hand-set-review' }),
       conflict('branch-landing', { repository: 'o/r', branch: 'int/x', head: 'abc123' }),
     ],

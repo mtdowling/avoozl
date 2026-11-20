@@ -6,15 +6,13 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
-export const STAGES = ['queued', 'investigate', 'falsify', 'coding', 'tests', 'commands', 'checks', 'ci-wait', 'review', 'rework', 'merge', 'waiting'] as const
+export const STAGES = ['queued', 'coding', 'tests', 'commands', 'checks', 'ci-wait', 'review', 'rework', 'merge', 'waiting'] as const
 export type Stage = (typeof STAGES)[number]
 
 // One color per stage, readable on light and dark cards. Waiting stages are
 // muted; rework is the warm red of waste.
 export const STAGE_COLORS: Record<Stage, string> = {
   queued: '#94a3b8',
-  investigate: '#6366f1',
-  falsify: '#f97316',
   coding: '#3b82f6',
   tests: '#10b981',
   commands: '#8b5cf6',
@@ -28,8 +26,6 @@ export const STAGE_COLORS: Record<Stage, string> = {
 
 export const STAGE_LABELS: Record<Stage, string> = {
   queued: 'Queued',
-  investigate: 'Investigate',
-  falsify: 'Falsify',
   coding: 'Coding',
   tests: 'Tests',
   commands: 'Commands',

@@ -35,10 +35,6 @@ import { SERVE_KEYS } from "../serve-config.mjs";
 import { TELEMETRY_KEYS } from "../telemetry-config.mjs";
 import { LOOP_KEYS } from "../../tick/loop.mjs";
 import { GITHUB_SOURCE_KEYS } from "../../github/github-sources.mjs";
-import {
-  INVESTIGATE_KEYS,
-  WORKSPACE_INVESTIGATE_KEYS,
-} from "../../delivery/investigate.mjs";
 import { DEFAULT_LANES } from "../../tick/lanes.mjs";
 import { avoozlConfigSchemaPath, SPECS_KEYS } from "../layered-config.mjs";
 import { ENTRY_KEYS } from "../../plugins/plugins.mjs";
@@ -93,8 +89,6 @@ const PAIRS = [
     [...new Set([...SOURCE_KEYS, ...GITHUB_SOURCE_KEYS])],
   ],
   ["#/properties/delivery", DELIVERY_KEYS],
-  ["#/$defs/deliveryInvestigate", INVESTIGATE_KEYS],
-  ["#/$defs/deliveryWorkspaceInvestigate", WORKSPACE_INVESTIGATE_KEYS],
   ["#/$defs/deliveryReviewer", REVIEWER_KEYS],
   [
     "#/properties/delivery/properties/repositories/additionalProperties",

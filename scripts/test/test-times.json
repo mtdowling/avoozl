@@ -137,8 +137,6 @@
     "src/app/test/executor-cron-transport.test.mjs": 818,
     "src/app/test/executor-requests.test.mjs": 1633,
     "src/app/executors/test/executors.test.mjs": 273,
-    "src/app/test/falsifier-nudge.test.mjs": 507,
-    "src/app/test/falsifier-title.test.mjs": 482,
     "src/app/flow/test/flow-andon.test.mjs": 1863,
     "src/app/flow/test/flow-full-stop.test.mjs": 706,
     "src/app/flow/test/flow-line.test.mjs": 2114,

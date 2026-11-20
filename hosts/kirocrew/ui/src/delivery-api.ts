@@ -237,47 +237,11 @@ export const RESUME_TIP = 'Lets the tick start this task again. Undoes Defer.'
 export const START_TIP = 'Starts this task first on the next tick, within the limit.'
 export const RETRY_TIP = 'Starts a new attempt for this task.'
 
-// Settings > Delivery (R53.3, R54.8): the backend's defaults, shown as
-// placeholders (src/app/delivery/delivery.mjs DELIVERY_DEFAULTS).
-export const DELIVERY_DEFAULTS = {
-  investigateMode: 'not-small',
-  minConfidence: 'high',
-} as const
-
-export type InvestigateMode = 'all' | 'not-small' | 'off'
-
 export interface DeliverySettings {
   hash: string | null
   on: boolean
   // The workspace's landing.pr (R119); null when not set.
   landingPr: 'draft' | 'ready' | 'auto' | null
-  delivery: {
-    investigate?: { mode?: InvestigateMode; minConfidence?: 'medium' | 'high' }
-  }
-}
-
-export interface DeliveryForm {
-  investigateMode?: InvestigateMode
-  minConfidence?: 'medium' | 'high'
-}
-
-export function toDeliveryForm(delivery: DeliverySettings['delivery'] = {}): DeliveryForm {
-  return {
-    investigateMode: delivery.investigate?.mode ?? DELIVERY_DEFAULTS.investigateMode,
-    minConfidence: delivery.investigate?.minConfidence ?? DELIVERY_DEFAULTS.minConfidence,
-  }
-}
-
-// The keys to write; a blank field is left out, so its default applies.
-export function toDeliverySection(form: DeliveryForm): { delivery?: DeliverySettings['delivery']; error?: string } {
-  const delivery: DeliverySettings['delivery'] = {}
-  // A default value is left out, so a later default change still applies.
-  const investigate = {
-    ...(form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? { mode: form.investigateMode } : {}),
-    ...(form.minConfidence && form.minConfidence !== DELIVERY_DEFAULTS.minConfidence ? { minConfidence: form.minConfidence } : {}),
-  }
-  if (Object.keys(investigate).length) delivery.investigate = investigate
-  return { delivery }
 }
 
 // One chip per value with its card count, in the order `options` gives.

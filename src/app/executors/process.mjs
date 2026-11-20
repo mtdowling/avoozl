@@ -156,13 +156,11 @@ const processLane = (lane) => ({
   ...(lane.keepSince ? { keepSince: lane.keepSince } : {}),
 });
 
-// A decision on findings (Go ahead, Investigate again, Stop) resumes the
-// child: its findings report is history (the investigation row keeps it) and its run is open again.
-function reopenAfterFindings(store, slot) {
+// A message sent to a child that waits to be resumed opens its run again.
+function reopenAfterSend(store, slot) {
   const binding = store.get("session_bindings", slot);
-  if (binding?.report?.kind !== "findings" && !binding?.awaitingResume) return;
-  const { report, awaitingResume, ...open } = binding;
-  void report;
+  if (!binding?.awaitingResume) return;
+  const { awaitingResume, ...open } = binding;
   void awaitingResume;
   store.put("session_bindings", {
     ...open,
@@ -253,8 +251,8 @@ async function prepareDetached(checkout, worktree, commit, store = null) {
 }
 
 // A read session whose folder is its own detached worktree, not the
-// checkout (the shape planVerifierDispatches gives a `process` repository, and
-// the responder's at its base branch, and the falsifier's).
+// checkout (the shape planVerifierDispatches gives a `process` repository,
+// and the responder's at its base branch).
 const verdictSession = (session, checkout) =>
   processRow(session.role)?.folder === "detached" &&
   session.permissionClass === "read" &&
@@ -442,29 +440,6 @@ export async function finishProcessSession(ops, binding, result, store = null) {
       asSession(),
     );
   }
-  // A falsifier's verdict is its done report, with no commit: it judges
-  // findings, not code. A commit field in its report is passed on, so
-  // session.report refuses it as it refuses a chat's (NK2.1).
-  if (hands === "falsifier") {
-    const { commit, ...falsifier } = result.report ?? {};
-    return ops.execute(
-      "session.report",
-      result.state === "done"
-        ? {
-            taskId: binding.taskId,
-            kind: "done",
-            falsifier,
-            ...(commit !== undefined ? { commit } : {}),
-          }
-        : {
-            taskId: binding.taskId,
-            kind: "blocked",
-            text: result.text || "The falsifier reported blocked.",
-          },
-      undefined,
-      { caller: cliReportCaller(binding) },
-    );
-  }
   // A plan-less worker's task is not in a plan: its own runner reads HEAD,
   // runs the checks and pushes.
   if (store && hasRemoteTask(store, binding.taskId))
@@ -484,13 +459,6 @@ export async function finishProcessSession(ops, binding, result, store = null) {
         { cwd: result.worktree },
         (error, out) => (error ? reject(error) : resolve(out.trim())),
       ),
-    );
-  if (result.state === "findings")
-    return ops.execute(
-      "session.report",
-      { taskId: binding.taskId, kind: "findings", findings: result.report },
-      undefined,
-      { caller: cliReportCaller(binding) },
     );
   const commit = result.state === "done" ? await head() : null;
   // A write worker's done with nothing committed since its base is refused,
@@ -752,7 +720,7 @@ export async function drainProcessRequests(
           request.slot ?? request.sessionId,
           request.text,
         );
-        if (outcome === "accepted") reopenAfterFindings(store, request.slot);
+        if (outcome === "accepted") reopenAfterSend(store, request.slot);
         completeSessionRequest(
           store,
           {
@@ -877,7 +845,6 @@ export async function drainProcessRequests(
           ...(request.model ? { model: request.model } : {}),
           ...(request.commit ? { commit: request.commit } : {}),
           ...(request.batch ? { batch: request.batch } : {}),
-          ...(request.investigate ? { investigate: true } : {}),
           ...(request.worktree ? { worktree: request.worktree } : {}),
           ...(request.context ? { context: request.context } : {}),
           // Its lane, and the harness session a review round resumes there.
@@ -1015,12 +982,10 @@ export async function drainProcessRequests(
             }
           }
         }
-        // A child that exited with findings waits for Go ahead, as a chat
-        // does: idle, not closed (WP3.2).
+        // A child that exited waiting to be resumed is idle, not closed.
         const now = store.get("session_bindings", binding.slot);
         const waiting =
-          status.startsWith("exited ") &&
-          (now?.report?.kind === "findings" || now?.awaitingResume === true);
+          status.startsWith("exited ") && now?.awaitingResume === true;
         if (status.startsWith("exited "))
           importContextCalls(store, stateDirectory, binding);
         recordSessionStatus(store, {
