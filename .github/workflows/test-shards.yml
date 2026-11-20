@@ -61,11 +61,21 @@ jobs:
           key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci --ignore-scripts
         if: steps.modules.outputs.cache-hit != 'true'
+      # Avoozl's sandbox on Linux is bubblewrap, which needs user namespaces
+      # that Ubuntu's AppArmor limits by default. The containment probes then
+      # run instead of skipping (machine-server MS8.2).
+      - name: Sandbox for agent children
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
       # The build receipt: one JSON line for this shard (RC32.4).
       - name: Run tests
         shell: bash
         env:
           AVOOZL_RECEIPT_FILE: build-receipt.jsonl
+          # The probe test fails, not skips, without a sandbox here.
+          AVOOZL_REQUIRE_SANDBOX: ${{ runner.os != 'Windows' && '1' || '' }}
         run: |
           if [ "${{ github.event_name }}" = pull_request ]; then
             changed="--changed --base HEAD~1"

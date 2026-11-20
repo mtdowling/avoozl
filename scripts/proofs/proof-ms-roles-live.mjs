@@ -26,6 +26,7 @@
 // containment probes (ms-2.2) in a live child.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -166,13 +167,15 @@ const SINK = `import fs from "node:fs";\nfs.appendFileSync(${JSON.stringify(P.si
 
 // The fake agent (plumbing only): each role's result, by its brief.
 const FAKE_AGENT = `import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 const text = fs.readFileSync(0, "utf8");
 // Name the model that served this run, as Claude Code's modelUsage does.
 const model = process.argv[process.argv.indexOf("--model") + 1];
 if (process.argv.includes("--model")) console.log(JSON.stringify({ modelUsage: { [model]: {} } }));
 const write = (value) => { fs.mkdirSync(".avoozl", { recursive: true }); fs.writeFileSync(".avoozl/result.json", JSON.stringify(value)); };
 const out = (name, body) => { fs.mkdirSync(".avoozl/output", { recursive: true }); fs.writeFileSync(".avoozl/output/" + name, body); write({ state: "done", output: name }); };
-if (/You are an Avoozl Falsifier/.test(text)) write({ state: "done", report: { verdict: "stands", evidence: "check.mjs reads notes/.", confidence: "medium" } });
+if (text.includes("probes/run.cjs")) { const m = /(\\S+) probes\\/run\\.cjs (\\S+)/.exec(text); console.log(execFileSync(m[1], ["probes/run.cjs", m[2]], { encoding: "utf8" })); }
+else if (/You are an Avoozl Falsifier/.test(text)) write({ state: "done", report: { verdict: "stands", evidence: "check.mjs reads notes/.", confidence: "medium" } });
 else if (/^You are the Avoozl Verifier/.test(text)) write({ state: "done", report: { checks: [{ command: "node check.mjs", exitCode: 0 }] } });
 else if (/review\\.json/.test(text) && /plans_submit_review/.test(text)) {
   out("review.json", JSON.stringify({ findings: [], summary: "The plan adds one note." }));
@@ -468,6 +471,76 @@ async function until(what, check, minutes) {
   }
 }
 
+async function liveProbes(minutes) {
+  const { probeArgv, RUN_PROBES } = await import(
+    "../../src/app/sandbox-probes.mjs"
+  );
+  const listener = net.createServer((socket) => socket.end());
+  await new Promise((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  const folder = path.join(P.ws, "probes");
+  fs.mkdirSync(folder, { recursive: true });
+  const probes = probeArgv({
+    node: process.execPath,
+    home: os.homedir(),
+    git_common_dir: path.join(P.checkout, ".git"),
+    other_worktree: P.wt,
+    config_directory: MACHINE.configDirectory,
+    state_directory: MACHINE.stateDirectory,
+    other_temp: path.join(os.tmpdir(), "avoozl-probe-other"),
+    public_host: "example.com",
+    closed_port: listener.address().port,
+    workspace_database: DB,
+    keychain_service: "Claude Code-credentials",
+    keep_env: "",
+  });
+  fs.writeFileSync(
+    path.join(folder, "probes.json"),
+    JSON.stringify(probes, null, 2),
+  );
+  fs.writeFileSync(path.join(folder, "run.cjs"), RUN_PROBES);
+  await withStore(async (store) => {
+    await (await operations(store)).execute(
+      "session.open",
+      {
+        message: `Run this one command in a shell, exactly, and reply with its output: ${process.execPath} probes/run.cjs probes/probes.json`,
+      },
+      undefined,
+      { local: true },
+    );
+  });
+  const before = Date.now();
+  let results = null;
+  while (!results && Date.now() - before < minutes * 60_000) {
+    for (const log of childLogs("assist"))
+      for (const line of log.split("\n"))
+        if (line.includes('"write-home"'))
+          try {
+            results = JSON.parse(
+              line.slice(line.indexOf("{"), line.lastIndexOf("}") + 1),
+            );
+          } catch {}
+    if (!results) await sleep(3000);
+  }
+  listener.close();
+  // A probe that got through leaves its file; take it away again.
+  for (const probe of probes)
+    if (probe.class === "write") fs.rmSync(probe.argv.at(-1), { force: true });
+  event("probes", { results });
+  return Boolean(results) && Object.values(results).every((code) => code !== 0);
+}
+
+// The logs of every child of this role.
+function childLogs(role) {
+  const children = path.join(MACHINE.stateDirectory, "supervisor", "children");
+  if (!fs.existsSync(children)) return [];
+  return fs
+    .readdirSync(children)
+    .map((id) => path.join(children, id, "log"))
+    .filter((file) => fs.existsSync(file))
+    .map((file) => fs.readFileSync(file, "utf8"))
+    .filter((text) => role === "assist" || text.includes(role));
+}
+
 async function untilTrue(what, check, minutes) {
   const end = Date.now() + minutes * 60_000;
   while (Date.now() < end) {
@@ -749,6 +822,10 @@ async function prove() {
     });
     event("step6.asked");
     await untilTrue("step6.assist", () => childExited("assist"), minutes);
+    // The containment probes (ms-2.2, MS8.2) in a live child: the harness
+    // itself runs them by the one command its brief names.
+    if (values.probes)
+      expected["probes every probe was refused"] = await liveProbes(minutes);
     // (7) A red head on main: the line stops, and no session is requested.
     // On the landed main, pushed as a person would.
     git(P.checkout, "checkout", "-q", "main");
