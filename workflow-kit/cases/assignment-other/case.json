@@ -1,6 +1,6 @@
 {
   "title": "A spec assigned to another login does not run",
-  "rules": ["8.3", "9.1"],
+  "rules": ["8.3", "12.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

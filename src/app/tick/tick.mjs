@@ -716,7 +716,7 @@ async function runTick(
           planned.notify.push(...pushed.notify);
           planned.messages.push(...pushed.messages);
           // Landed work whose tick or claim branch delete did not go
-          // through is finished again (rule 13.6).
+          // through is finished again (rule 16.5).
           if (github)
             await under("tick", "land", retryLanded)(store, github, {
               workspaceRoot,

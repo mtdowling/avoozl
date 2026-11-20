@@ -1,5 +1,5 @@
 // Workflow v1 rules that decide from git state or from one described action
-// (docs/github-workflow.md sections 12, 13 and 20). The workflow kit calls
+// (docs/github-workflow.md sections 15, 16 and 20). The workflow kit calls
 // them. A commit graph is `{commit: [parents]}`.
 
 // Whether `from` is `to` or one of its ancestors.
@@ -16,7 +16,7 @@ export function reachable(graph, from, to) {
   return false;
 }
 
-// Rule 13.6: a claim holds landed work when its head differs from the start
+// Rule 16.5: a claim holds landed work when its head differs from the start
 // commit its lease records and is in the base, or its pull request merged
 // with a head that differs from that start. A fresh claim's head is its
 // start, which is already in the base, so it holds none.
@@ -25,12 +25,12 @@ export function landedWork({ graph, start, head, baseHead, pull = null }) {
   return Boolean(pull?.merged) && pull.head !== start;
 }
 
-// Rule 12.3: GitHub moves a branch only forward, so a push is accepted when
+// Rule 15.3: GitHub moves a branch only forward, so a push is accepted when
 // the branch's head is the pushed commit or one of its ancestors.
 export const pushAccepted = (graph, branchHead, pushed) =>
   reachable(graph, branchHead, pushed);
 
-// Rule 12.8: the task text the lease recorded, its title and acceptance
+// Rule 15.10: the task text the lease recorded, its title and acceptance
 // bullets, against the approved text now. A runner lands only an unchanged
 // task.
 export const taskRevision = (recorded, current) =>

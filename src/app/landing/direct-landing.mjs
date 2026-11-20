@@ -208,7 +208,7 @@ export async function landDirect(
         await syncBase(repository, { env }).catch(() => null);
         // A spec in a separate plans repository is ticked there, as its own
         // guarded commit (spec-ticks.mjs); then the claim branches this
-        // runner created go (rule 13.1).
+        // runner created go (rule 16.1).
         for (const entry of result.entries)
           await finishLanded(store, github, {
             repository,

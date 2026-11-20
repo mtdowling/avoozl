@@ -1,6 +1,6 @@
 {
   "title": "A draft pull request is opened and never merged by the runner",
-  "rules": ["14.2"],
+  "rules": ["17.2"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

@@ -1,6 +1,6 @@
 {
   "title": "A linked spec lands on the branch named for its parent",
-  "rules": ["11.1"],
+  "rules": ["14.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

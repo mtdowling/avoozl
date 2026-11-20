@@ -1,6 +1,6 @@
 {
   "title": "A claim branch takes the task, and the next waits",
-  "rules": ["9.1", "12.1"],
+  "rules": ["12.1", "15.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

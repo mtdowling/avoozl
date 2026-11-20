@@ -1,6 +1,6 @@
 {
   "title": "A manual task is ticked on the specs branch when the base is the default branch",
-  "rules": ["4.1", "15.1"],
+  "rules": ["4.1", "18.1"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main",

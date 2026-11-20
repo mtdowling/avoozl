@@ -1,6 +1,6 @@
 {
   "title": "A ready pull request is opened and left to a person",
-  "rules": ["14.3"],
+  "rules": ["17.3"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

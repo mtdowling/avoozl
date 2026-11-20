@@ -1,4 +1,4 @@
-// Labeled issues as one-task specs (workflow v1 rule 17, simplify §D5). An
+// Labeled issues as one-task specs (workflow v1 rule 11, simplify §D5). An
 // open issue in a repository whose `labels.require` it passes, each label
 // added by a writer, assigned to this runner's login, and not a spec issue,
 // is task `issue-<n>`: the issue's title, and its body as its one done

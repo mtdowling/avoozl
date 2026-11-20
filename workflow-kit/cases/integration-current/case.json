@@ -1,6 +1,6 @@
 {
   "title": "An integration branch that already holds the default branch is not merged",
-  "rules": ["11.1", "11.3"],
+  "rules": ["14.1", "14.3"],
   "runner": {
     "login": "acme-alice",
     "defaultBranch": "main"

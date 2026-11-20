@@ -1,6 +1,6 @@
 {
   "title": "Two runners resume one handed-off claim, and the first lease create wins",
-  "rules": ["8.4", "12.3", "12.5", "12.7"],
+  "rules": ["8.4", "15.3", "15.5", "15.7"],
   "runner": {
     "login": "acme-bob",
     "defaultBranch": "main",

@@ -138,7 +138,7 @@ export const cachedOwnClaims = (store) =>
   );
 
 // After a task lands, the claim branch this runner created goes from origin
-// with its leases (rule 13.1, simplify SM4.1). A claim another runner
+// with its leases (rule 16.1, simplify SM4.1). A claim another runner
 // created stays: a person deletes that one. Returns whether it was deleted.
 export async function deleteOwnClaim(store, github, repository, taskId) {
   const claim = claimOf(store, repository, taskId);
@@ -341,7 +341,7 @@ export async function claimFirst(github, candidates, { baseOf }) {
       continue;
     }
     // A new claim has no lease yet, so this runner takes generation 1
-    // (workflow rule 12.1).
+    // (workflow rule 15.1).
     const lease = await takeLease(github, repository.github, task, 1, head);
     if (!lease) fail(`Another runner took the lease on ${branch} first.`, 409);
     return { ...candidate, branch, base, head, lease, refusals };
@@ -354,7 +354,7 @@ export async function claimFirst(github, candidates, { baseOf }) {
   fail(`No task claimed: ${ALL_CLAIMED}.`, 409);
 }
 
-// Leases (workflow rule 12.5): `avoozl-lease/<spec>/<task>/<generation>`,
+// Leases (workflow rule 15.5): `avoozl-lease/<spec>/<task>/<generation>`,
 // created at most once, say which runner may push to a claim branch.
 export const leaseRef = (task, generation) =>
   `avoozl-lease/${taskSpec(task)}/${task.id}/${generation}`;
