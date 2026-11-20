@@ -1,5 +1,5 @@
 // The standalone page's build: `vite build --mode standalone` into
-// kirocrew-app/ui/dist/standalone/, on Kiro Crew's source at the pin. It runs
+// hosts/kirocrew/ui/dist/standalone/, on Kiro Crew's source at the pin. It runs
 // after the Kiro Crew bundles are built and stamped, so a machine that cannot
 // fetch that source still has them (SW12.2); this step then fails saying so.
 import path from "node:path";
@@ -13,7 +13,7 @@ const root = path.resolve(
 );
 
 export async function buildStandalone({
-  ui = path.join(root, "kirocrew-app", "ui"),
+  ui = path.join(root, "hosts", "kirocrew", "ui"),
 } = {}) {
   await build({
     configFile: path.join(ui, "vite.config.ts"),

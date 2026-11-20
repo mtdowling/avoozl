@@ -28,12 +28,12 @@ same request to the same dispatch the app backend uses (D4).
 
 | Part                                     | New or changed | Job                                                    |
 | ---------------------------------------- | -------------- | ------------------------------------------------------ |
-| `kirocrew-app/ui/src/standalone/main.tsx` | New            | Entry: Kiro Crew's provider, the page, the header       |
-| `kirocrew-app/ui/src/standalone/host.ts`  | New            | The host shim: navigate, notify, CSRF header, theme     |
-| `kirocrew-app/ui/src/standalone/app.css`  | New            | Imports Kiro Crew's stylesheet; adds the page to its scan |
-| `kirocrew-app/ui/kirocrew-pin.json`       | New            | The pin: tag, commit, digest (D11)                      |
+| `hosts/kirocrew/ui/src/standalone/main.tsx` | New            | Entry: Kiro Crew's provider, the page, the header       |
+| `hosts/kirocrew/ui/src/standalone/host.ts`  | New            | The host shim: navigate, notify, CSRF header, theme     |
+| `hosts/kirocrew/ui/src/standalone/app.css`  | New            | Imports Kiro Crew's stylesheet; adds the page to its scan |
+| `hosts/kirocrew/ui/kirocrew-pin.json`       | New            | The pin: tag, commit, digest (D11)                      |
 | `scripts/bundle/fetch-kirocrew-ui.mjs`           | New            | Fetches the pinned source to a cache and checks it      |
-| `kirocrew-app/ui/vite.config.ts`          | Changed        | `--mode standalone` with aliases and no externals       |
+| `hosts/kirocrew/ui/vite.config.ts`          | Changed        | `--mode standalone` with aliases and no externals       |
 | `scripts/bundle/build-kirocrew-app.mjs`          | Changed        | Runs the third build                                   |
 | `src/app/api/command-dispatch.mjs`            | New            | The body of today's `/api/command` handler              |
 | `src/app/executors/kirocrew/app-backend.mjs`                 | Changed        | Calls `command-dispatch.mjs`; behavior unchanged        |
@@ -321,5 +321,5 @@ from the public repository into the machine's cache folder, keeps
 `website/src`, the fonts under `website/public/fonts` with their license
 files, the lockfile and Kiro Crew's `LICENSE` and `NOTICE`, and checks the
 digest. The packages those files import are development
-dependencies of `kirocrew-app/ui`, at the lockfile's versions (SW12.5), so
+dependencies of `hosts/kirocrew/ui`, at the lockfile's versions (SW12.5), so
 Kiro Crew's whole front end is not installed to build 32 of its modules.

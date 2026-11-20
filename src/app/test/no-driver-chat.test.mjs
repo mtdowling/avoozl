@@ -13,15 +13,13 @@ const exists = (file) =>
   fs.existsSync(new URL(`../../../${file}`, import.meta.url));
 
 test("the avoozl-driver agent and the driver session setting stay removed", () => {
-  const manifest = JSON.parse(read("kirocrew-app/app.json"));
+  const manifest = JSON.parse(read("hosts/kirocrew/app.json"));
   assert.ok(!manifest.agents.some((file) => /avoozl-driver/.test(file)));
-  const metadata = JSON.parse(
-    read("src/app/executors/kirocrew/agent-metadata.json"),
-  );
+  const metadata = JSON.parse(read("roles.json"));
   assert.ok(!metadata.some((agent) => agent.name === "avoozl-driver"));
-  assert.ok(!exists("kirocrew-app/agents/avoozl-driver.json"));
+  assert.ok(!exists("hosts/kirocrew/agents/avoozl-driver.json"));
   assert.ok(!exists("prompts/driver.md"));
-  assert.doesNotMatch(read("kirocrew-app/bin/avoozl.mjs"), /driver hook/);
+  assert.doesNotMatch(read("hosts/kirocrew/bin/avoozl.mjs"), /driver hook/);
   assert.doesNotMatch(
     read("src/app/cli/cli.mjs"),
     /driver-session|registerDriverSession/,
@@ -33,12 +31,12 @@ test("the avoozl-driver agent and the driver session setting stay removed", () =
   // Settings: no driver tab and no driver chat model.
   assert.ok(!MODEL_ROLES.includes("driver"));
   assert.doesNotMatch(
-    read("kirocrew-app/ui/src/models-api.ts"),
+    read("hosts/kirocrew/ui/src/models-api.ts"),
     /key: 'driver'/,
   );
   assert.doesNotMatch(
-    read("kirocrew-app/ui/src/SettingsView.tsx"),
+    read("hosts/kirocrew/ui/src/SettingsView.tsx"),
     /key: 'driver'/,
   );
-  assert.ok(!exists("kirocrew-app/ui/src/DriverSessionBox.tsx"));
+  assert.ok(!exists("hosts/kirocrew/ui/src/DriverSessionBox.tsx"));
 });

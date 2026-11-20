@@ -29,12 +29,12 @@ plan or read a process session's log without the CLI.
 
 The page is close to portable already:
 
-- It reaches the host only through `kirocrew-app/ui/src/host.ts` (`useAppApi`,
+- It reaches the host only through `hosts/kirocrew/ui/src/host.ts` (`useAppApi`,
   `useNavigate`, `useChatLauncher`) and the externals `react`, `react-dom`,
   `react/jsx-runtime`, `lucide-react`, `@kirocrew/app-sdk` and
-  `@kirocrew/app-sdk/ui` (`kirocrew-app/ui/vite.config.ts`).
+  `@kirocrew/app-sdk/ui` (`hosts/kirocrew/ui/vite.config.ts`).
 - Every view calls one route, `POST /apps/avoozl/api/command`, with an
-  operation name (`COMMAND_PATH` in `kirocrew-app/ui/src/workspace-api.ts`).
+  operation name (`COMMAND_PATH` in `hosts/kirocrew/ui/src/workspace-api.ts`).
 - The backend (`src/app/executors/kirocrew/app-backend.mjs`) checks a principal that Kiro Crew's
   proxy signs (`KIROCREW_PROXY_SECRET`) and authorizes by kind:
   `owner-session` may run any offered operation, `app-token` and
@@ -72,7 +72,7 @@ operation for agents.
 - Agents using the web page. Agents keep the MCP server and the CLI (SW5.4).
 - A Kiro Crew chat stand-in. Open chat becomes a process session (SW7); it is
   not a chat UI.
-- Kiro Crew's side panel (`kirocrew-app/ui/src/Panel.tsx`); it is not built
+- Kiro Crew's side panel (`hosts/kirocrew/ui/src/Panel.tsx`); it is not built
   into the standalone bundle.
 - Several people on one server. There is one owner.
 - Kiro Crew's own shell: its sidebar, top bar, chat and toasts. The
@@ -83,7 +83,7 @@ operation for agents.
 
 | Word             | Meaning                                                                                                    |
 | ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| Kiro Crew page   | Today's Avoozl page, `kirocrew-app/ui/dist/index.mjs`, rendered inside Kiro Crew                          |
+| Kiro Crew page   | Today's Avoozl page, `hosts/kirocrew/ui/dist/index.mjs`, rendered inside Kiro Crew                          |
 | Standalone page  | The same views built with Kiro Crew's own parts at the pin and served by `avoozl serve`                   |
 | Host shim        | Avoozl's code on the host side of the SDK: the provider's props, navigation, one request header, the theme |
 | Pin              | The Kiro Crew release whose source the standalone build uses, named with a digest (SW12)                  |
@@ -126,7 +126,7 @@ maintain.
    (SW7). Any other path SHALL do nothing and log one line.
 6. The notify function SHALL show the notice in the standalone header.
 7. A build test SHALL fail when a file under
-   `kirocrew-app/ui/src/standalone/` exports a name that
+   `hosts/kirocrew/ui/src/standalone/` exports a name that
    `@kirocrew/app-sdk` or `@kirocrew/app-sdk/ui` exports, and a source
    test SHALL fail when a view imports a Kiro Crew file by path.
 
@@ -138,7 +138,7 @@ own files, so that the Kiro Crew bundle stays exactly as it is.
 #### Acceptance criteria
 
 1. `npm run build` SHALL build the standalone page as well, into
-   `kirocrew-app/ui/dist/standalone/`: one `index.html`, its script, one
+   `hosts/kirocrew/ui/dist/standalone/`: one `index.html`, its script, one
    stylesheet and its fonts, with React, the `lucide-react` icons the page
    uses and the Kiro Crew modules the page reaches bundled in. React SHALL
    be the version the pin's own lockfile resolves, one copy for the page
@@ -150,7 +150,7 @@ own files, so that the Kiro Crew bundle stays exactly as it is.
 3. The standalone stylesheet SHALL be built from Kiro Crew's own stylesheet
    source at the pin, with the Avoozl page's sources added to what it scans
    for class names, and with no rule of Avoozl's own. The class check in
-   `kirocrew-app/ui/test/host-classes.test.mjs` SHALL run against it on
+   `hosts/kirocrew/ui/test/host-classes.test.mjs` SHALL run against it on
    every test run, with no skip, and SHALL fail on a class it lacks.
 4. The standalone files SHALL hold no absolute machine path, user name or
    host name. A build test SHALL scan them for the build machine's home
@@ -158,7 +158,7 @@ own files, so that the Kiro Crew bundle stays exactly as it is.
 5. The standalone script SHALL load as same-origin files with no inline
    script. Each `<style>` element the page renders SHALL be one the policy
    of SW4.8 allows by hash; the page renders 23 today (V: `<style` in
-   `kirocrew-app/ui/src/*.tsx`).
+   `hosts/kirocrew/ui/src/*.tsx`).
 6. The standalone script SHALL hold only the Kiro Crew modules the page's
    imports need, not Kiro Crew's dashboard. What is left out SHALL be left
    out by build configuration alone (SW12.3). The build SHALL fail when the
@@ -301,7 +301,7 @@ page.
    control in the standalone header MAY set light, dark or system, and MAY
    offer the other palettes the stylesheet has. The choice SHALL be kept in
    the browser's local storage.
-3. A test SHALL list every `var(--…)` name used under `kirocrew-app/ui/src`
+3. A test SHALL list every `var(--…)` name used under `hosts/kirocrew/ui/src`
    and fail when the built stylesheet lacks one for the default palette in
    either mode.
 4. `avoozl serve` SHALL serve the fonts the stylesheet uses from the
@@ -436,7 +436,7 @@ fork and a new Kiro Crew release is one change.
    variable test, and its screenshots SHALL go to the owner as SW12.10
    says.
 8. The pin SHALL be a release the Kiro Crew bundle also runs on: not older
-   than `minKiroCrewVersion` in `kirocrew-app/app.json`. The README SHALL
+   than `minKiroCrewVersion` in `hosts/kirocrew/app.json`. The README SHALL
    name the pin beside the Kiro Crew version it asks for, and say that the
    two pages match when the installed Kiro Crew is the pinned release.
 9. The class check SHALL also run against the stylesheet a person gets

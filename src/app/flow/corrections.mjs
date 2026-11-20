@@ -17,7 +17,7 @@ import {
   check,
   secretReason,
 } from "../content/content-rules.mjs";
-import { git } from "../git/git.mjs";
+import { branchTip, git } from "../git/git.mjs";
 import { taskRepository } from "../../work-model.mjs";
 
 export const TABLE = "corrections";
@@ -217,6 +217,11 @@ export async function revertCorrections(store) {
     if (!repository.root) continue;
     const branch = repository.integrationBranch || repository.baseBranch;
     if (!branch || branch.startsWith("-")) continue;
+    // A base only fetched from the remote is read from its tracking ref.
+    const ref = repository.integrationBranch
+      ? "refs/heads/" + branch
+      : (await branchTip(repository.root, branch))?.ref;
+    if (!ref) continue;
     let log;
     try {
       log = await git(repository.root, [
@@ -225,7 +230,7 @@ export async function revertCorrections(store) {
         "50",
         "--grep=This reverts commit",
         "--format=%H%x1f%an%x1f%cI%x1f%B%x1e",
-        "refs/heads/" + branch,
+        ref,
         "--",
       ]);
     } catch {

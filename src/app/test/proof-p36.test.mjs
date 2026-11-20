@@ -2,7 +2,7 @@
 // and the old forms refused. An isolated temporary workspace in plans-repo
 // mode with a fake GitHub; every value is fake. The page's own parts of
 // (3) and (8), the Graph levels, Dashboard and Settings, are in
-// kirocrew-app/ui/test/epics.test.mjs.
+// hosts/kirocrew/ui/test/epics.test.mjs.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

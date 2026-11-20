@@ -233,7 +233,7 @@ runner needs, so that every other agent step is a skill any harness can run.
    `avoozl-investigate` (how to write an investigation as a task whose done
    bullets name its findings file).
 3. Each skill SHALL be generated from `prompts/skills/<name>.md`, and
-   `npm run check:agents` SHALL fail when a generated skill differs from its
+   `npm run check:hosts` SHALL fail when a generated skill differs from its
    source.
 4. The worker brief SHALL name the `avoozl-work` skill's steps, so a Kiro Crew
    chat and a process harness get the same instructions.

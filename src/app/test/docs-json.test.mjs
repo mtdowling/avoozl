@@ -24,7 +24,7 @@ test("json blocks in the docs are pretty-printed", () => {
     path.join(root, "README.md"),
     ...[
       "docs",
-      "kirocrew-app/skills",
+      "hosts/kirocrew/skills",
       "prompts",
       ".kiro/specs",
       ".kiro/skills",

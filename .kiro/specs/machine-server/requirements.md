@@ -30,7 +30,7 @@ cited at `c670051c`; or **A**, assumed and not checked, with the reason.
 4. Workers on the process executor: the `claude-code` and `codex` harnesses
    run unattended under Avoozl's sandbox, proved for every role, with a check
    that the sandbox contains Codex's `danger-full-access`.
-5. Host packages: `kirocrew-app/` moves to `hosts/kirocrew/`, and
+5. Host packages: the Kiro Crew app is `hosts/kirocrew/`, and
    `hosts/claude-code/`, `hosts/codex/` and `hosts/kiro-cli/` are added, all
    generated from one source, with a check step so they cannot drift.
 6. A smaller Kiro Crew cron that keeps only chat intents (open, send,
@@ -51,14 +51,14 @@ for the gaps.
 | Piece | Today | Gap |
 | --- | --- | --- |
 | Supervisor | `avoozl supervisor` owns every `process` child, one per machine (R95; V: `src/app/executors/supervisor.mjs:577`) | Its lock is a pid file with a rename takeover that two takers can both win (V: `:474-520`; design D3) |
-| Tick on a headless machine | `avoozl supervisor --tick-seconds N` runs the tick and the drain for every catalog workspace (V: `src/app/tick/headless-tick.mjs:42`) | On a Kiro Crew machine the cron runs the tick through MCP and the app backend runs the drain (V: `kirocrew-app/crons/tick.py:51`, `src/app/executors/kirocrew/app-backend.mjs:281-415`); nothing stops both loops running at once |
+| Tick on a headless machine | `avoozl supervisor --tick-seconds N` runs the tick and the drain for every catalog workspace (V: `src/app/tick/headless-tick.mjs:42`) | On a Kiro Crew machine the cron runs the tick through MCP and the app backend runs the drain (V: `hosts/kirocrew/crons/tick.py:51`, `src/app/executors/kirocrew/app-backend.mjs:281-415`); nothing stops both loops running at once |
 | Page | `avoozl serve`, on `127.0.0.1` with a one-time owner link, hosted by the supervisor with `serve.enabled` (standalone-web SW3, SW9) | None; it moves under the new command names |
 | Login unit | `avoozl supervisor unit` prints or writes a launchd or systemd unit; the person loads it (V: `src/app/executors/supervisor-unit.mjs:1-22`) | No Windows; no command that loads it |
 | Process executor | Claude Code ran every role class in P57, P59 and nk-p1; Codex ran a write task in P58 (`docs/evidence/`) | No proof of every role under a server no front end started; Codex read roles are not proved (V: `examples/harnesses/codex.json` `proved: ["write"]`) |
 | Codex's inner sandbox | `permission.write` may be `danger-full-access` only inside Avoozl's sandbox (R94.4d, task 48.2; V: `src/app/executors/harness-definitions.mjs:85-90`) | Only the write class may; Codex's own sandbox cannot nest in Avoozl's on macOS (P58), so its read roles cannot run commands (A: from P58's finding, not run for read) |
 | MCP bridge | `avoozl mcp --url URL` posts to `URL/mcp` (V: `src/app/commands/machine.mjs:121`) | No server serves `/mcp` (V: no such route in `serve-server.mjs` or `app-backend.mjs`); the bridge is dead |
-| Agents from prompts | `npm run check:agents` builds Kiro Crew agents from `prompts/` and `agent-metadata.json` (V: `src/app/executors/kirocrew/build-agents.mjs`) | Kiro Crew only |
-| Cron | `tick.py` runs the whole tick through `plans_maintain tick` (V: `kirocrew-app/crons/tick.py:51-56`) | The Node backend cannot take over chats: it gets 403 opening them (F129, branch `spec/node-tick`, commit `ce63eb27`) |
+| Agents from prompts | `npm run check:hosts` builds Kiro Crew agents and skills from `prompts/` and `roles.json` (V: `scripts/build-hosts.mjs`) | Kiro Crew only |
+| Cron | `tick.py` runs the whole tick through `plans_maintain tick` (V: `hosts/kirocrew/crons/tick.py:51-56`) | The Node backend cannot take over chats: it gets 403 opening them (F129, branch `spec/node-tick`, commit `ce63eb27`) |
 
 ### What this builds on
 
@@ -391,11 +391,11 @@ source of skills, role metadata and prompts, so that they cannot drift.
 
 #### Acceptance criteria
 
-1. `kirocrew-app/` SHALL move to `hosts/kirocrew/`. What Kiro Crew installs
+1. The Kiro Crew app SHALL live in `hosts/kirocrew/`. What Kiro Crew installs
    (manifest, agents, skills, page, cron, MCP entry) SHALL be unchanged.
-2. The one source SHALL be `prompts/` (as today), `skills/` (moved from
-   `kirocrew-app/skills/`) and `roles.json` (moved from
-   `src/app/executors/kirocrew/agent-metadata.json`). `npm run build:hosts`
+2. The one source SHALL be `prompts/` (role prompts, and every skill as
+   `prompts/skills/<name>.md`) and `roles.json` (each Kiro Crew agent's tools,
+   permissions and hooks). `npm run build:hosts`
    SHALL write every generated file of every host package. `npm run
    check:hosts` SHALL fail when any generated file differs from what the
    build writes. They SHALL replace `build:agents` and `check:agents`, and

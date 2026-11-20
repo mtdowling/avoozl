@@ -82,17 +82,17 @@ test("the npm and app packages pass the release scan", () => {
 test("the npm package ships the app launcher's built lib and page", () => {
   const files = npmFiles();
   for (const file of [
-    "kirocrew-app/bin/avoozl.mjs",
-    "kirocrew-app/bin/lib/cli.mjs",
-    "kirocrew-app/bin/lib/src/app/executors/kirocrew/app-backend.mjs",
-    "kirocrew-app/ui/dist/index.mjs",
-    "kirocrew-app/ui/dist/panel.mjs",
+    "hosts/kirocrew/bin/avoozl.mjs",
+    "hosts/kirocrew/bin/lib/cli.mjs",
+    "hosts/kirocrew/bin/lib/src/app/executors/kirocrew/app-backend.mjs",
+    "hosts/kirocrew/ui/dist/index.mjs",
+    "hosts/kirocrew/ui/dist/panel.mjs",
   ])
     assert.ok(files.includes(file), file);
 });
 
 test("the built page is not committed, so pull requests cannot conflict on it", () => {
-  const tracked = execFileSync("git", ["ls-files", "kirocrew-app/ui/dist"], {
+  const tracked = execFileSync("git", ["ls-files", "hosts/kirocrew/ui/dist"], {
     cwd: root,
     encoding: "utf8",
   });

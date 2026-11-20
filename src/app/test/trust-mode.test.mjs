@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 // on restart. tick.py sets a worker chat's trust mode when it opens it and
 // again on the next tick, once per chat, through the kirocrew executor.
 const cronPath = fileURLToPath(
-  new URL("../../../kirocrew-app/crons/tick.py", import.meta.url),
+  new URL("../../../hosts/kirocrew/crons/tick.py", import.meta.url),
 );
 const ticks = (steps) =>
   JSON.parse(

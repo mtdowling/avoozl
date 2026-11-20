@@ -18,7 +18,7 @@ import { postedText } from "../github-posted.mjs";
 
 const REPO = "example/code",
   RESPONSE = "respond-test",
-  app = fileURLToPath(new URL("../../../../kirocrew-app/", import.meta.url));
+  app = fileURLToPath(new URL("../../../../hosts/kirocrew/", import.meta.url));
 
 // A workspace with one open discussion response, bound to slot-r.
 async function boundResponder(t) {

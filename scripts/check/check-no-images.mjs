@@ -5,7 +5,7 @@
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-export const ALLOWED = new Set(["kirocrew-app/assets/icon.png"]);
+export const ALLOWED = new Set(["hosts/kirocrew/assets/icon.png"]);
 const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
 
 export const trackedImages = (files) =>

@@ -20,7 +20,7 @@ The script is `scripts/dev/live-harness.sh`. It needs `kirocrew`, `gh`,
 `python3` and `curl` on the path, and it is a bash script for Linux and macOS.
 
 `start` is safe to repeat. It installs the app from a copy of the built
-`kirocrew-app/` (`AVOOZL_HARNESS_APP_SRC`; run `npm run build` first after
+`hosts/kirocrew/` (`AVOOZL_HARNESS_APP_SRC`; run `npm run build` first after
 changing app source). On every `start` and `restart` it compares the content of
 each built file with the installed app. When any differs, it reinstalls the
 app before the gateway starts: uninstall (the app's `data/` is kept), then
@@ -44,7 +44,7 @@ Settings (environment):
 |---|---|
 | `AVOOZL_HARNESS_DIR` | `/tmp/avoozl-live-harness` |
 | `AVOOZL_HARNESS_PORT` | `5690` |
-| `AVOOZL_HARNESS_APP_SRC` | `<repo>/kirocrew-app` |
+| `AVOOZL_HARNESS_APP_SRC` | `<repo>/hosts/kirocrew` |
 
 The script refuses a relative directory, `/`, your home itself, and anything
 under `~/.kiro`, `~/.local/state` or `$KIROCREW_HOME`, checked again after

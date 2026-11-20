@@ -98,14 +98,14 @@ test("no removed module is left, and no source names one", () => {
     });
   for (const file of [
     ...walk(path.join(ROOT, "src")),
-    ...walk(path.join(ROOT, "kirocrew-app")),
+    ...walk(path.join(ROOT, "hosts", "kirocrew")),
   ])
     assert.doesNotMatch(fs.readFileSync(file, "utf8"), pattern, file);
 });
 
 test("the app asks for no Issue Radar grant", () => {
   const manifest = fs.readFileSync(
-    path.join(ROOT, "kirocrew-app/app.json"),
+    path.join(ROOT, "hosts/kirocrew/app.json"),
     "utf8",
   );
   assert.doesNotMatch(manifest, /issue-radar/);

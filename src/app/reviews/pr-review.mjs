@@ -16,7 +16,7 @@ import { openPull } from "../github/github-open-read.mjs";
 const REVIEW_KIND = "pr-review";
 export const REVIEW_ROLE = "pr-review";
 // Read-only: files, and a shell Kiro Crew limits to `gh` reads of one pull
-// request (kirocrew-app/agents/avoozl-code-review.json). No write, no post.
+// request (hosts/kirocrew/agents/avoozl-code-review.json). No write, no post.
 const REVIEW_AGENT = "avoozl-code-review";
 
 const lower = (value) => String(value).toLocaleLowerCase();

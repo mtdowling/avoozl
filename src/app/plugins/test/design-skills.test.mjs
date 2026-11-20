@@ -21,7 +21,7 @@ const root = path.resolve(
 );
 const skill = (name) =>
   fs.readFileSync(
-    path.join(root, "kirocrew-app", "skills", name, "SKILL.md"),
+    path.join(root, "hosts", "kirocrew", "skills", name, "SKILL.md"),
     "utf8",
   );
 const section = (text, heading) => {
