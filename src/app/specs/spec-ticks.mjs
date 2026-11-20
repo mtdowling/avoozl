@@ -15,6 +15,7 @@ import { commitSubject } from "../landing/landing-config.mjs";
 import { recordActivity } from "../store/activity-log.mjs";
 import { FINAL_STATUSES } from "../sessions/session-bindings.mjs";
 import { checkedItems, specItems } from "./spec-plans.mjs";
+import { linkDefinitions, specGroupOf } from "./order.mjs";
 import { statusComplete } from "../../query.mjs";
 import { specsPath } from "./specs-path.mjs";
 import { specsBranch } from "./specs-branch.mjs";
@@ -91,6 +92,54 @@ export function tickedText(name, text, ids) {
   return { text: lines.join("\n"), ticked };
 }
 
+// Linked specs (simplify §D19.2): once every task of `spec` is ticked in the
+// checkout at `dir`, tick each spec group that links it, in the same commit,
+// and so on up. Returns the IDs it ticked.
+// shortcut: only a parent on the same specs branch is ticked; a parent
+// elsewhere waits for its own tick commit.
+export async function tickParents(dir, spec, seen = new Set([spec])) {
+  const folder = path.join(dir, specsPath(dir)),
+    read = (name) => {
+      try {
+        return fs.readFileSync(path.join(folder, name, "tasks.md"), "utf8");
+      } catch {
+        return null;
+      }
+    },
+    own = read(spec),
+    items = own ? specItems(spec, own).filter((item) => item.key) : [];
+  if (!items.length || items.some((item) => item.mark !== "x")) return [];
+  const ticked = [];
+  let names = [];
+  try {
+    names = fs.readdirSync(folder);
+  } catch {}
+  for (const name of names) {
+    const text = !seen.has(name) && read(name);
+    if (!text) continue;
+    const definitions = linkDefinitions(text),
+      lines = text.split("\n"),
+      groups = specItems(name, text)
+        .filter(
+          (item) =>
+            item.key &&
+            item.mark !== "x" &&
+            specGroupOf(name, item, definitions, lines) === spec,
+        )
+        .map((item) => item.id);
+    if (!groups.length) continue;
+    const tick = tickedText(name, text, groups);
+    if (!tick.ticked.length) continue;
+    fs.writeFileSync(path.join(folder, name, "tasks.md"), tick.text);
+    await git(dir, ["add", tasksPath(dir, name)]);
+    ticked.push(
+      ...tick.ticked,
+      ...(await tickParents(dir, name, new Set([...seen, name]))),
+    );
+  }
+  return ticked;
+}
+
 // The IDs tasks.md names for these task IDs: the plan's mapping, backwards.
 export const itemIdsOf = (plan, taskIds) =>
   Object.entries(plan?.mapping ?? {})
@@ -128,6 +177,7 @@ export async function tickEntry(store, dir, entry) {
   if (!ticked.length) return;
   fs.writeFileSync(file, text);
   await git(dir, ["add", tasksPath(dir, plan.spec)]);
+  await tickParents(dir, plan.spec);
 }
 
 // A spec that lives in a plans repository other than the code repository:
@@ -189,7 +239,7 @@ export async function tickBranch(
         if (!tick.ticked.length) continue;
         fs.writeFileSync(file, tick.text);
         await git(dir, ["add", tasksPath(dir, spec)]);
-        ticked.push(...tick.ticked);
+        ticked.push(...tick.ticked, ...(await tickParents(dir, spec)));
       }
       if (!ticked.length) return { ticked };
       await git(

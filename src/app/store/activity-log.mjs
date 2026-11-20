@@ -346,15 +346,9 @@ function operationRow(name, input, result) {
     };
   if (name === "integration.merge")
     return { kind: "merge", summary: `Merged ${id}`, targetId: id };
-  if (name === "task.merge")
-    return {
-      kind: "merge",
-      summary: `Merged duplicates into ${id}`,
-      targetId: id,
-    };
   if (name === "plan.approve")
     return { kind: "approve", summary: `Approved plan ${id}`, targetId: id };
-  // Manual tasks and task links (§4.16). A removed entry stays here.
+  // Manual tasks (§4.16).
   if (name === "task.manual.complete") {
     const taskId = text(input?.taskId, 200);
     return {
@@ -368,19 +362,6 @@ function operationRow(name, input, result) {
     return {
       kind: "task.reopen",
       summary: `Reopened manual task ${taskId}`,
-      targetId: taskId,
-    };
-  }
-  if (
-    ["task.notes.add", "task.notes.edit", "task.notes.remove"].includes(name)
-  ) {
-    const taskId = text(input?.taskId, 200),
-      verb = { add: "Added", edit: "Edited", remove: "Removed" }[
-        name.slice("task.notes.".length)
-      ];
-    return {
-      kind: "task.note",
-      summary: `${verb} a link ${verb === "Added" ? "to" : "on"} ${taskId}`,
       targetId: taskId,
     };
   }

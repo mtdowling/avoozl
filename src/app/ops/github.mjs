@@ -11,11 +11,6 @@ import {
   requireDefaultBranches,
 } from "../github/github-policy.mjs";
 import {
-  cancelSetup,
-  createMissingLabels,
-  githubSetup,
-} from "../github/github-setup.mjs";
-import {
   configureGitHubRepository,
   machineIdentity,
 } from "../github/github-sync.mjs";
@@ -24,7 +19,7 @@ import { person, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
   // Settings view (§8): the GitHub policy in `.avoozl.json`. Creates no
-  // GitHub object; the Set up GitHub wizard (task 3.18) does that. With a
+  // GitHub object. With a
   // GitHub client, a validate or save also reads each repository's default
   // branch, because GitHub closes issues only from merges into it (R16.5).
   {
@@ -146,46 +141,6 @@ export const entries = [
       } catch (error) {
         return { valid: false, error: error.message, policy: null };
       }
-    },
-  },
-  // Set up GitHub wizard (§8.2): a preview, or with {confirm, previewHash}
-  // the writes it previewed. `.avoozl.json` is saved by settings.update.
-  {
-    name: "github.setup",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person applies GitHub setup.", (input) =>
-      Boolean(input?.confirm),
-    ),
-    handler({ input }) {
-      return githubSetup(
-        {
-          github: this.github,
-          settings: this.settingsFile().readGitHubSettings(),
-        },
-        input,
-      );
-    },
-  },
-  // Stop a running Set up GitHub apply before its next write.
-  {
-    name: "github.setup.cancel",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person cancels a GitHub setup."),
-    handler({ input }) {
-      return cancelSetup(input.previewHash);
-    },
-  },
-  // Needs you's Create labels: the labels an issue named that its
-  // repository lacks, made under a person's repo-setup Allow.
-  {
-    name: "github.labels.create",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person creates labels."),
-    handler({ input }) {
-      return createMissingLabels(this.store, this.github, input.repository);
     },
   },
   // A person's Allow for high-risk GitHub steps (plugin-credentials §D7):

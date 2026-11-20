@@ -460,7 +460,11 @@ export class Store {
   }
   read() {
     const metadata = this.getMeta("snapshot");
-    if (!metadata) fail("Create the workspace first: avoozl init PATH.", 503);
+    if (!metadata)
+      fail(
+        "Initialize this Avoozl workspace first: run avoozl init PATH, then avoozl rebuild --workspace PATH.",
+        503,
+      );
     if (this.cache?.revision === metadata.revision) return this.cache;
     const data = { ...metadata, tasks: [], documents: {}, edges: [] },
       stored = new Map();

@@ -15,8 +15,5 @@
   },
   "expect": {
     "ready": ["ctx/ctx-spec"]
-  },
-  "expectFail": {
-    "ready": "sim-2.5"
   }
 }

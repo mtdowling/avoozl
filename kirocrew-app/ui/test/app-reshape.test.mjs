@@ -35,14 +35,13 @@ test('the nav row has Dashboards, Specs, Needs you, Flow, Retros, Activity and S
   assert.deepEqual(page.errors, [])
 })
 
-test('an empty Home says what to set up, with a button for each, instead of hiding cards', { skip }, async () => {
+test('an empty Home shows its sections and no setup cards', { skip }, async () => {
   await open({ basic: '1' })
   await page.until(`Boolean(document.querySelector('[data-home-section="landing-queue"]'))`)
   const body = await page.evaluate(text)
-  for (const line of ['No epics', 'Start one with New spec on Specs.', 'Landing queue']) assert.ok(body.includes(line), line)
-  // No epics has no button of its own, and Radar's crew cell, its wording and
-  // its graph link are gone.
-  assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-setup-card="epics"] button')].length`), 0, 'no button on No epics')
+  assert.ok(body.includes('Landing queue'))
+  // No setup card, and Radar's crew cell, its wording and its graph link are gone.
+  assert.equal(await page.evaluate(`document.querySelectorAll('[data-setup-card]').length`), 0, 'no setup card')
   for (const gone of ['Plan an epic', 'Radar crew', 'coded by Issue Radar', 'Issue Radar graph', 'driver session']) assert.ok(!body.includes(gone), gone)
   // The driver chat is gone: no driver cell and no Start.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-driver-session], [data-driver-start]').length`), 0)
@@ -55,7 +54,7 @@ test('Settings lists its sections in the nav, shows only the picked one, and lis
   await click(tab('Settings'))
   await page.until(`Boolean(document.querySelector('[data-settings-section]'))`)
   const sections = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="settings"] [data-nav-item]')].map((s) => s.dataset.navItem.replace('settings/', ''))`)
-  assert.deepEqual(sections, ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
+  assert.deepEqual(sections, ['workspaces', 'repositories', 'github', 'plugins', 'context', 'content', 'flow', 'models', 'delivery'])
   // Settings opens alone, and the page shows one section.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 1)

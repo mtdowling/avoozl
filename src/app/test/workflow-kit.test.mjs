@@ -10,6 +10,9 @@ import { fileURLToPath } from "node:url";
 import { judge, readCases } from "../../../workflow-kit/load.mjs";
 import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.mjs";
 import { unblockCounts } from "../specs/release-ranking.mjs";
+import { claimFirst, resumeClaim } from "../workers/claims.mjs";
+import { linkedReader } from "../specs/order.mjs";
+import { catchUp, integrationBase } from "../specs/integration-base.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file) => fs.readFileSync(root + file, "utf8");
@@ -44,10 +47,22 @@ const specsOf = (files) => {
   return specs;
 };
 
+// Every spec of a case, so a spec group reaches into the spec it links.
+const linkedOf = (specs) =>
+  linkedReader(
+    Object.entries(specs).map(([name, files]) => ({
+      name,
+      text: files["tasks.md"] ?? "",
+    })),
+  );
+
 function violations(specs) {
-  const out = {};
+  const out = {},
+    linked = linkedOf(specs);
   for (const [name, files] of Object.entries(specs)) {
-    const { diagnostics } = lintSpec({ spec: { name, exists: true, files } });
+    const { diagnostics } = lintSpec({
+      spec: { name, exists: true, files, linked },
+    });
     out[name] = [
       ...new Set(
         diagnostics
@@ -94,9 +109,15 @@ function ready(testCase, specs) {
     branches = new Set(testCase.origin.branches),
     leaves = [],
     ticked = new Set(),
-    edges = [];
+    edges = [],
+    linked = linkedOf(specs);
   for (const name of Object.keys(specs).sort()) {
-    const parsed = parseSpec({ name, exists: true, files: specs[name] });
+    const parsed = parseSpec({
+      name,
+      exists: true,
+      files: specs[name],
+      linked,
+    });
     for (const item of parsed.items) if (item.mark === "x") ticked.add(item.id);
     for (const task of parsed.proposals) {
       if (task.kind !== "leaf") continue;
@@ -106,9 +127,14 @@ function ready(testCase, specs) {
   }
   const counts = unblockCounts(edges, (id) => !ticked.has(id)),
     isApproved = approved(testCase, specs),
+    // Rule 8.3: the spec's issue and every parent spec's that links it.
     assigned = (name) => {
       const who = testCase.issues?.[name];
-      return who?.length === 1 && who[0] === login;
+      return (
+        who?.length === 1 &&
+        who[0] === login &&
+        linked.parents(name).every((parent) => assigned(parent.name))
+      );
     };
   return leaves
     .map((task, index) => ({ task, index }))
@@ -129,16 +155,101 @@ function ready(testCase, specs) {
     .map(({ task }) => `${task.spec}/${task.id}`);
 }
 
-// Claims, leases, landing and spec issue markers run through operations the
-// simplify spec adds, so the adapter leaves those probes out until each
-// simplify task lands.
-function avoozl(testCase) {
+// An origin whose refs create call refuses a ref it already has, and keeps
+// each one it makes.
+function origin(testCase) {
+  const branches = new Set(testCase.origin.branches),
+    behind = new Set(testCase.origin.behind ?? []);
+  return {
+    merged: [],
+    branch: async (_repository, name) => {
+      if (!branches.has(name))
+        throw Object.assign(Error("Not Found"), { status: 404 });
+      return { commit: { sha: "base" } };
+    },
+    compareCommits: async (_repository, branch) => ({
+      ahead_by: behind.has(branch) ? 1 : 0,
+    }),
+    async mergeBranch(_repository, { base }) {
+      this.merged.push(base);
+      behind.delete(base);
+    },
+    createBranch: async (_repository, name) => {
+      if (branches.has(name))
+        throw Object.assign(Error("exists"), { status: 422 });
+      branches.add(name);
+    },
+  };
+}
+
+// The resume: the runners of one login try Avoozl's lease call in turn.
+async function resume(testCase) {
+  const key = testCase.resume.task,
+    [spec, id] = key.split("/");
+  return resumeClaim(origin(testCase), {
+    repository: "o/r",
+    task: { id, planId: spec },
+    leases: testCase.origin.leases?.[key] ?? [],
+    claimAgeHours: testCase.origin.claimAgeHours?.[key] ?? 0,
+    staleHours: testCase.runner.staleHours ?? 24,
+    runners: testCase.resume.runners,
+    sha: "head",
+  });
+}
+
+// The claim: Avoozl's claim call over the ready list, on the base its
+// integration branch rule picks, caught up first.
+async function claim(testCase, specs, order) {
+  const github = origin(testCase),
+    linked = linkedOf(specs),
+    meta = new Map(),
+    store = {
+      getMeta: (key) => meta.get(key),
+      setMeta: (k, v) => meta.set(k, v),
+    },
+    candidates = order.map((name) => {
+      const [spec, id] = name.split("/");
+      return { task: { id, planId: spec }, repository: { github: "o/r" } };
+    }),
+    fallback = testCase.runner.defaultBranch,
+    claimed = await claimFirst(github, candidates, {
+      baseOf: async ({ task }) => {
+        const base = await integrationBase(task.planId, {
+          linked,
+          exists: (name) => testCase.origin.branches.includes(name),
+          fallback,
+        });
+        if (base === fallback) return base;
+        const done = await catchUp(store, github, {
+          repository: "o/r",
+          branch: base,
+          base: fallback,
+        });
+        return done.conflict ? null : base;
+      },
+    });
+  return claimed
+    ? {
+        branch: claimed.branch,
+        base: claimed.base,
+        mergeBase: github.merged.includes(claimed.base),
+      }
+    : null;
+}
+
+// Landing and spec issue markers run through operations the simplify spec
+// adds, so the adapter leaves those probes out until each simplify task
+// lands.
+async function avoozl(testCase) {
   const specs = specsOf(testCase.files),
     got = {};
   if (testCase.expect.violations) got.violations = violations(specs);
   if (testCase.expect.approved) got.approved = approved(testCase, specs);
   if (testCase.expect.ready || testCase.expect.claim)
     got.ready = ready(testCase, specs);
+  if (testCase.expect.claim)
+    got.claim = await claim(testCase, specs, got.ready);
+  if (testCase.expect.resume) got.resume = await resume(testCase);
   return got;
 }
 
@@ -159,7 +270,7 @@ if (/^# Workflow v1$/m.test(doc))
     rules.add(match[1]);
 
 for (const testCase of readCases()) {
-  test(`workflow kit: ${testCase.name}`, () => {
+  test(`workflow kit: ${testCase.name}`, async () => {
     for (const [probe, task] of Object.entries(testCase.expectFail ?? {})) {
       assert.ok(probe in testCase.expect, `${probe} is not an expected probe`);
       assert.ok(
@@ -171,7 +282,7 @@ for (const testCase of readCases()) {
     if (rules.size)
       for (const rule of testCase.rules)
         assert.ok(rules.has(rule), `rule ${rule} is not in the workflow doc`);
-    const verdicts = judge(testCase, avoozl(testCase));
+    const verdicts = judge(testCase, await avoozl(testCase));
     for (const [probe, verdict] of Object.entries(verdicts))
       assert.ok(
         verdict === "pass" || verdict === "expected-fail",

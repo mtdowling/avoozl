@@ -1,5 +1,5 @@
 // New spec: Category and Epic are themed pickers with a "New …" choice, and
-// Blank, From template and From a goal start unpicked; Submit waits for a pick. In a real
+// Blank and From a goal start unpicked; Submit waits for a pick. In a real
 // Chrome (AVOOZL_CHROME) on the harness's ?modal=new-spec, at 390 and 1280 px,
 // light and dark. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
@@ -38,10 +38,9 @@ for (const width of [390, 1280])
       assert.equal(await page.evaluate(`${submit}.disabled`), true)
       assert.match(await page.evaluate(`${submit}.textContent`), /Pick how to start/)
       assert.match(await page.evaluate(`document.querySelector('[data-radio-section="blank"]').textContent`), /requirements, then design, then tasks/)
-      assert.match(await page.evaluate(`document.querySelector('[data-radio-section="template"]').textContent`), /phases, proofs and manual steps/)
-      // From a goal is the third start: the planner chat writes the spec.
+      // From a goal is the second start: the planner chat writes the spec.
       assert.match(await page.evaluate(`document.querySelector('[data-radio-section="goal"]').textContent`), /From a goal[\s\S]*planner chat writes the draft spec/)
-      assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('input[name="avoozl-new-plan-start"]')].map((i) => i.value)`), ['blank', 'template', 'goal'])
+      assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('input[name="avoozl-new-plan-start"]')].map((i) => i.value)`), ['blank', 'goal'])
       // Category: the existing ones, then New category, which opens a field.
       await page.evaluate(`document.querySelector('#avoozl-new-plan-category').focus()`)
       await settle()

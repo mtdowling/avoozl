@@ -20,8 +20,5 @@
       "base": "client-v2",
       "mergeBase": false
     }
-  },
-  "expectFail": {
-    "claim": "sim-2.6"
   }
 }

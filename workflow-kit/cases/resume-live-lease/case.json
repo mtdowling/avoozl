@@ -34,8 +34,5 @@
       "lease": null,
       "stopped": ["r1", "r2"]
     }
-  },
-  "expectFail": {
-    "resume": "sim-1.1"
   }
 }

@@ -5,7 +5,7 @@ import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
 import Badge from './ui/Badge.tsx'
 import { TaskDrawerContext, useTaskDrawer, type TaskDrawerApi } from './drawer-context.ts'
-import { modelLabel, safeHref, viewsClient, canSupersede, type ConflictItem, type DeliveryItem, type Graph } from './views-api.ts'
+import { modelLabel, safeHref, viewsClient, type ConflictItem, type DeliveryItem, type Graph } from './views-api.ts'
 import {
   attemptAction,
   duration,
@@ -24,9 +24,8 @@ import {
   type TaskTab,
 } from './task-api.ts'
 import { Tabs, TabPanel, useTabParam } from './ui/Tabs.tsx'
-import { TaskSummaryBox } from './TaskSummaryBox.tsx'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, resumeStatus } from './delivery-api.ts'
-import { ItemDetails, RetryForm, SupersedeForm } from './DeliveryDetails.tsx'
+import { ItemDetails, RetryForm } from './DeliveryDetails.tsx'
 import { ConflictActions, ReviewButton } from './ConflictsView.tsx'
 import { DocumentReader } from './DocumentReader.tsx'
 import { SnippetBox } from './SnippetBox.tsx'
@@ -42,14 +41,11 @@ import { IconLabel, SectionBox, ShowMore, TipBtn, useAskChat, usePages } from '.
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
-import { EvidenceFold } from './Evidence.tsx'
-import { TaskFiles } from './TaskFiles.tsx'
 import { FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw } from './icons.ts'
 import { linkHref } from './views-api.ts'
-import { ManualTask, TaskLinks } from './TaskNotes.tsx'
+import { ManualTask } from './ManualTask.tsx'
 import { ReviewTaskContext, SpecLink } from './NeedsYouContext.tsx'
 import { TaskScmLinks } from './TaskScmLinks.tsx'
-import { TaskSteps } from './TaskSteps.tsx'
 import { AttemptLink } from './WorkerLink.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
@@ -335,6 +331,11 @@ function TaskPanel(props: {
           {task.state && <Badge variant={task.state === 'needs-you' ? 'warning' : undefined}>{task.state}</Badge>}
           {detail.locked && <Badge>locked</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
+          {task.epicContext?.chip && (
+            <Box as="span" data-epic-context>
+              <Badge>{task.epicContext.chip.label}</Badge>
+            </Box>
+          )}
         </Hint>
       </div>
       <Box flex flexWrap gap="2">
@@ -454,7 +455,6 @@ function TaskPanel(props: {
       <TabPanel id="task-tabs" current={tab}>
         {tab === 'overview' && (
           <>
-            <TaskSummaryBox workspaceId={workspaceId} id={task.id} summary={detail.summary} />
             <SectionBox id="summary" title="Status">
               <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1.5" size="sm">
                 <Row label="State">{task.state ?? 'unknown'}</Row>
@@ -515,14 +515,8 @@ function TaskPanel(props: {
         {tab === 'timeline' && (
           <>
             <SectionBox id="timeline" title="Timeline">
-              {detail.steps?.length ? <TaskSteps steps={detail.steps} /> : null}
               {detail.timeline.length ? (
                 <>
-                  {detail.steps?.length ? (
-                    <Box as="h4" mt="2" size="sm" weight="semibold">
-                      All records
-                    </Box>
-                  ) : null}
                   <Box as="ol" flex flexCol gap="1" size="sm">
                     {pages.take('timeline', detail.timeline).map((entry, i) => (
                       <Box key={i} as="li" flex gap="2">
@@ -549,17 +543,8 @@ function TaskPanel(props: {
         {tab === 'links' && (
           <>
             <SectionBox id="task-links" title="Links">
-              <Stack gap={3}>
-                <TaskScmLinks links={detail.links} />
-                <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3" data-added-links>
-                  <Box as="h4" size="sm" weight="semibold">
-                    Added links
-                  </Box>
-                  <TaskLinks workspaceId={workspaceId} taskId={task.id} refresh={detail.revision} />
-                </Box>
-              </Stack>
+              <TaskScmLinks links={detail.links} />
             </SectionBox>
-            <TaskFiles workspaceId={workspaceId} taskId={task.id} active box={{ id: 'files', title: 'Files' }} />
           </>
         )}
         {tab === 'work' && delivery && (
@@ -597,24 +582,9 @@ function TaskPanel(props: {
                     }
                   />
                 )}
-                <ItemDetails
-                  item={delivery}
-                  onSupersede={async (from, create) => {
-                    await views.supersede(workspaceId, from, create)
-                    await load()
-                  }}
-                />
+                <ItemDetails item={delivery} />
               </Stack>
             </SectionBox>
-            {canSupersede(delivery) && (
-              <SupersedeForm
-                item={delivery}
-                onSupersede={async (from, create) => {
-                  await views.supersede(workspaceId, from, create)
-                  await load()
-                }}
-              />
-            )}
             {delivery.sessions.length ? (
               <Hint as="p" size="xs">
                 Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.
@@ -704,7 +674,6 @@ function TaskPanel(props: {
                 </Stack>
               </SectionBox>
             )}
-            <EvidenceFold workspaceId={workspaceId} taskId={task.id} box={{ id: 'evidence', title: 'Evidence' }} />
           </>
         )}
       </TabPanel>

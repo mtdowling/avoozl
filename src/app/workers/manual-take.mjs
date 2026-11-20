@@ -66,7 +66,11 @@ export async function manualTake(store, input = {}, { github = null } = {}) {
   let worktree = null,
     worktreeError = null;
   try {
-    worktree = await prepareWorktree(store, { taskId: binding.taskId });
+    worktree = await prepareWorktree(store, {
+      taskId: binding.taskId,
+      claim: input.claim === true,
+      ...(input.start ? { start: input.start } : {}),
+    });
   } catch (error) {
     worktreeError = error.message;
   }

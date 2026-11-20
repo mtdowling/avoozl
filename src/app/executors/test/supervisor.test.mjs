@@ -2,7 +2,6 @@
 // machine; finds its children after a restart and records a lost one `gone`.
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { spawn, spawnSync } from "node:child_process";
@@ -23,6 +22,7 @@ import {
   supervisorPaths,
 } from "../supervisor.mjs";
 import { sandboxKind } from "../sandbox.mjs";
+import { scratchRoot } from "./process-machine.mjs";
 import { startAppBackend } from "../kirocrew/app-backend.mjs";
 import { workspaceConfig } from "../../settings/config.mjs";
 
@@ -45,20 +45,7 @@ if (brief.waitFor) {
 `;
 
 function scratch(t, { approve = true, keepEnv = undefined } = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-supervisor-"));
-  // Windows cannot remove an open database or a live process's folder, so
-  // every test's own cleanup runs first, newest first.
-  const cleanups = [];
-  const defer = (fn) => cleanups.push(fn);
-  t.after(async () => {
-    for (const fn of cleanups.reverse()) await fn();
-    fs.rmSync(root, {
-      recursive: true,
-      force: true,
-      maxRetries: 20,
-      retryDelay: 100,
-    });
-  });
+  const { root, defer } = scratchRoot(t, "avoozl-supervisor-");
   const stateDirectory = path.join(root, "state");
   const configDirectory = path.join(root, "config");
   const worktree = path.join(root, "worktree");

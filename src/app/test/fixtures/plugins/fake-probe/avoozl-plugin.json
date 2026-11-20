@@ -1,0 +1,7 @@
+{
+  "id": "fake-probe",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": ["rules"],
+  "entry": "index.mjs"
+}

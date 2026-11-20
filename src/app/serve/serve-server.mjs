@@ -124,7 +124,6 @@ export async function startServe({
   stateDirectory = machineAvoozlPaths().stateDirectory,
   home = os.homedir(),
   registryOptions = {},
-  demoRoot,
   now = () => Date.now(),
   log = (line) => console.error(line),
   // Print the first owner link (avoozl serve); a supervised server prints none.
@@ -147,7 +146,6 @@ export async function startServe({
       config,
       home,
       registryOptions,
-      ...(demoRoot ? { demoRoot } : {}),
     });
   let auth = null;
 

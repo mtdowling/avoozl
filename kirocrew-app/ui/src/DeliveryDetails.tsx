@@ -3,7 +3,7 @@ import { Btn } from './ui/Btn'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
 import { DangerBtn, TipBtn } from './ui/controls.tsx'
-import { canSupersede, safeHref, scalarFields, supersedeInput, verdictLabel, type DeliveryItem, type ReviewRound } from './views-api.ts'
+import { safeHref, scalarFields, verdictLabel, type DeliveryItem, type ReviewRound } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
@@ -15,7 +15,7 @@ import { Box } from './ui/Box'
 
 // A delivery's record, shared by the Delivery cards and the task drawer:
 // runs, integration, pull requests, reviews, evidence, Project notes, and
-// the Supersede and dismiss-and-retry forms.
+// the dismiss-and-retry form.
 function Link({ text }: { text: string }) {
   const href = safeHref(text)
   return href ? (
@@ -87,69 +87,6 @@ function Rounds({ rounds }: { rounds: ReviewRound[] }) {
   )
 }
 
-export type Supersede = (id: string, create: { id?: string; title?: string }) => Promise<unknown>
-
-// Replace this task with a new one (§5.2). The old task and its history stay;
-// dependents wait on the new task. A running session is left alone.
-export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSupersede: Supersede }) {
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ id: '', title: item.title })
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  if (!open)
-    return (
-      <Box mt="2">
-        <TipBtn tooltip="Replace this task with a new one. Cannot be undone here." onClick={() => setOpen(true)}>
-          Supersede
-        </TipBtn>
-      </Box>
-    )
-  const submit = async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      await onSupersede(item.id, supersedeInput(form))
-      setOpen(false)
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <Box mt="2" flex flexCol gap="1.5" size="sm">
-      <Box htmlFor={`supersede-id-${item.id}`} as="label" flex flexCol gap="1">
-        <span>New task ID (blank picks one)</span>
-        <Input id={`supersede-id-${item.id}`} value={form.id} onChange={(event) => setForm({ ...form, id: event.target.value })} />
-      </Box>
-      <Box htmlFor={`supersede-title-${item.id}`} as="label" flex flexCol gap="1">
-        <span>New task title</span>
-        <Input id={`supersede-title-${item.id}`} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
-      </Box>
-      <Hint as="p" size="xs">
-        {item.id} becomes superseded. Tasks that wait on it wait on the new task. Its history stays, and a running session is left alone.
-      </Hint>
-      {error && <ErrorText role="alert">{error}</ErrorText>}
-      <Row gap={2} wrap={false} align="start">
-        <DangerBtn
-          disabled={busy}
-          confirm={{
-            title: `Supersede ${item.id}?`,
-            body: `${item.id} is marked superseded and a new task replaces it. Everything that waits on ${item.id} waits on the new task instead. This cannot be undone here.`,
-            action: 'Supersede',
-          }}
-          onConfirm={() => void submit()}
-        >
-          Create replacement
-        </DangerBtn>
-        <Btn onClick={() => setOpen(false)} disabled={busy}>
-          Cancel
-        </Btn>
-      </Row>
-    </Box>
-  )
-}
-
 // Open review findings a person may dismiss with a reason, then retry.
 function openFindings(item: DeliveryItem) {
   return (item.rounds ?? []).filter((round) => round.current).flatMap((round) => round.verdicts.flatMap((verdict) => verdict.findings.filter((f) => f.state === 'open')))
@@ -207,19 +144,13 @@ export function RetryForm({ item, busy, onRetry }: { item: DeliveryItem; busy: b
   )
 }
 
-export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSupersede: Supersede }) {
+export function ItemDetails({ item }: { item: DeliveryItem }) {
   return (
     <Box css-border-color="border" mt="2" border="t" pt="2">
       <Box flex flexWrap gap="1.5">
         <Badge variant={item.complete ? 'success' : 'info'}>{item.status ?? 'no status'}</Badge>
         {item.repository && <Badge>{item.repository}</Badge>}
       </Box>
-      {(item.supersedes || item.supersededBy) && (
-        <Hint as="p" mt="1" size="xs">
-          {item.supersedes && `Replaces ${item.supersedes}. `}
-          {item.supersededBy && `Superseded by ${item.supersededBy}.`}
-        </Hint>
-      )}
       {item.integration && (
         <Box as="p" mt="2" size="xs">
           Integrated <code>{item.integration.commit?.slice(0, 12) ?? 'unknown commit'}</code>
@@ -264,7 +195,6 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
       <Rounds rounds={item.rounds ?? []} />
       <Records label="Deliveries" records={item.deliveries} />
       <Records label="Worktrees" records={item.worktrees} />
-      {canSupersede(item) && <SupersedeForm item={item} onSupersede={onSupersede} />}
     </Box>
   )
 }

@@ -9,9 +9,9 @@ import Badge from './ui/Badge.tsx'
 import { CONTRACT_LABEL, canApprove, capabilityLine, runsAs, PLUGIN_PARTS, partsOf, pluginsClient, signInClaims, signInClashes, stateLabel, type PluginRow } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { PluginChecksFacts } from './PluginChecks.tsx'
+import { ContextPartFacts } from './ContextPart.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
-import { PackImportDialog } from './PackImport.tsx'
 import { SkillNoteCard } from './FlowMemory.tsx'
 import { flowClient, type SkillNote } from './flow-api.ts'
 import { BookOpen, MessagesSquare, Trash2 } from './icons.ts'
@@ -56,7 +56,7 @@ export function Facts({ row }: { row: PluginRow }) {
   )
 }
 
-// Each part an installed plugin bundles, and for a pack what was imported.
+// Each part an installed plugin bundles.
 export function Parts({ row }: { row: PluginRow }) {
   const parts = partsOf(row)
   if (!parts.length) return null
@@ -75,13 +75,6 @@ export function Parts({ row }: { row: PluginRow }) {
                 </Hint>
               ))
             : null}
-          {part === 'pack' && row.pack ? (
-            <Hint block>
-              {row.pack.imported
-                ? `Imported version ${row.pack.imported.version}: ${row.pack.imported.settings.length} settings.${row.pack.offer ? ` Version ${row.version} is not imported yet.` : ''}`
-                : 'Not imported yet.'}
-            </Hint>
-          ) : null}
         </li>
       ))}
     </Box>
@@ -94,7 +87,6 @@ function PluginCard(props: {
   act: (fn: () => Promise<unknown>) => void
   client: ReturnType<typeof pluginsClient>
   workspaceId: string
-  onImport: (row: PluginRow) => void
   notes: SkillNote[]
 }) {
   const { row, busy, act, client, workspaceId } = props
@@ -127,6 +119,7 @@ function PluginCard(props: {
       ) : null}
       <Parts row={row} />
       {row.checks && row.id ? <PluginChecksFacts plugin={row.id} part={row.checks} busy={busy} act={act} workspaceId={workspaceId} /> : null}
+      {row.context && row.id ? <ContextPartFacts plugin={row.id} part={row.context} busy={busy} act={act} workspaceId={workspaceId} /> : null}
       <Facts row={row} />
       {props.notes.length > 0 && (
         <Stack gap={2} data-plugin-notes>
@@ -140,16 +133,6 @@ function PluginCard(props: {
       )}
       {row.id ? (
         <Row gap={2} align="start">
-          {row.pack ? (
-            <TipBtn
-              tooltip="See what each pack setting would create, change or keep, then import it"
-              primary={row.pack.offer && row.state === 'approved'}
-              disabled={busy}
-              onClick={() => props.onImport(row)}
-            >
-              {row.pack.imported && row.pack.offer ? `Preview version ${row.version}` : row.pack.imported ? 'Preview pack' : 'Preview and import pack'}
-            </TipBtn>
-          ) : null}
           {canApprove(row) ? (
             <TipBtn tooltip="Trust this exact version so it may run" primary disabled={busy} onClick={() => act(() => client.approve(workspaceId, row))}>
               Approve version {row.version}
@@ -199,7 +182,6 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
   const { value, error, busy, reload } = useRead(workspaceId, load)
   const [acting, setActing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [importing, setImporting] = useState<PluginRow | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [guide, setGuide] = useState(false)
   const { openChat } = useChatLauncher()
@@ -255,18 +237,6 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
           {note}
         </Hint>
       ) : null}
-      {importing ? (
-        <PackImportDialog
-          row={importing}
-          workspaceId={workspaceId}
-          client={client}
-          onChanged={reload}
-          onClose={(text) => {
-            setImporting(null)
-            setNote(text ?? null)
-          }}
-        />
-      ) : null}
       {signInClashes(value?.plugins ?? []).map((clash) => (
         <Box key={clash.host} as="div" flex flexCol gap="1" size="sm" data-signin-clash>
           <p>
@@ -314,7 +284,6 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
                 act={act}
                 client={client}
                 workspaceId={workspaceId}
-                onImport={setImporting}
                 notes={notes.filter((n) => n.plugin === row.id)}
               />
             ))}

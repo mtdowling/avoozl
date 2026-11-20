@@ -29,8 +29,5 @@
       "lease": "avoozl-lease/parser/p-2/1",
       "stopped": ["r2"]
     }
-  },
-  "expectFail": {
-    "resume": "sim-1.1"
   }
 }

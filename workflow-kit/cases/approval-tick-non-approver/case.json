@@ -28,8 +28,5 @@
       "parser": true
     },
     "ready": ["parser/p-2"]
-  },
-  "expectFail": {
-    "ready": "sim-2.1"
   }
 }

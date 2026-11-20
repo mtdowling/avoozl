@@ -20,8 +20,6 @@ const ROLES = new Set([
   "pr-review",
   "plan-review",
   "plan-answer",
-  // The AI summary on a task's Overview tab (task-summary.mjs).
-  "task-summary",
   // Tries to prove a worker's findings wrong (§4.21).
   "falsifier",
   // One plugin check's decide call (check-decide.mjs).
@@ -54,6 +52,25 @@ function text(value, label, max) {
       `Choose ${/^[aeiou]/.test(label) ? "an" : "a"} ${label} of 1–${max} printable characters.`,
     );
   return value.trim();
+}
+
+// The epic context a chat worker's brief carried, from the task's record
+// when the tests passed (epic-context EC8.1).
+function briefContext(store, taskId, role, executor) {
+  const last = store.getMeta("epicContext")?.tasks?.[taskId];
+  return role === "worker" &&
+    executor !== "process" &&
+    last?.briefOnly &&
+    last.given
+    ? {
+        epicContext: {
+          mode: "brief only",
+          sources: last.sources,
+          items: last.items,
+          tests: last.tests,
+        },
+      }
+    : {};
 }
 
 // A `new-plan:<name>` key whose New plan request is still pending; the
@@ -137,9 +154,6 @@ export function bindSession(
         // A code review chat binds to its request (pr-review.mjs).
         (role === "pr-review" &&
           store.get("receipts", named)?.kind === "pr-review") ||
-        // A task summary chat binds to its receipt (task-summary.mjs).
-        (role === "task-summary" &&
-          store.get("receipts", named)?.kind === "task-summary") ||
         // A spec review binds to its revision-bound round, not a task.
         (["plan-review", "plan-answer"].includes(role) &&
           store.get("review_rounds", named)?.spec) ||
@@ -214,6 +228,9 @@ export function bindSession(
         : {}),
       ...(input.worktree ? { worktree: input.worktree } : {}),
       ...(input.context ? { context: structuredClone(input.context) } : {}),
+      // A chat worker's brief named epic context: its skills and reads, and
+      // no MCP server (epic-context EC8).
+      ...briefContext(store, taskId, role, input.executor),
       boundAt: new Date().toISOString(),
     };
     if (input.requestId)

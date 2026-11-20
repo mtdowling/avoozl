@@ -8,7 +8,7 @@ import { sandboxWriteRoots } from "../executors/harness-definitions.mjs";
 import { sandboxAllowCommands } from "../executors/harness-allow.mjs";
 import { sandboxNetwork } from "../executors/sandbox.mjs";
 import { validateLanes } from "../tick/lanes.mjs";
-import { applyLandingModes } from "../landing/landing-config.mjs";
+import { applyLandingModes, PR_MODES } from "../landing/landing-config.mjs";
 import { flowPolicy } from "../flow/flow.mjs";
 import { deliveryPolicy } from "../delivery/delivery.mjs";
 import { refuseTrackedProviders } from "../flow/provider-health.mjs";
@@ -40,10 +40,6 @@ import { fail } from "../store/store.mjs";
 import { checksSetting } from "../workspace/repository-checks.mjs";
 import { isolationSetting } from "../workspace/check-isolation.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
-import {
-  withRoles,
-  withoutDerivedKeys,
-} from "../workspace/repository-roles.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
 const APPLY_KEYS = Object.freeze([
@@ -67,9 +63,7 @@ function same(left, right) {
 function privilegedConfiguration(value) {
   return Object.fromEntries(
     Object.entries(value).filter(
-      // `packs` only records where imported settings came from.
-      ([key]) =>
-        !["$schema", "version", "conversations", "packs"].includes(key),
+      ([key]) => !["$schema", "version", "conversations"].includes(key),
     ),
   );
 }
@@ -808,15 +802,12 @@ export class RepositorySettings {
       filename: this.filename,
       exists: file.exists,
       hash: file.hash,
-      // Every entry carries its role, read from the stored mode when the
-      // file has none yet; nothing is written by reading (R105.7).
       github: policySection(
-        withRoles(
-          Object.fromEntries(
-            POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map(
-              (key) => [key, github[key]],
-            ),
-          ),
+        Object.fromEntries(
+          POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map((key) => [
+            key,
+            github[key],
+          ]),
         ),
       ),
     };
@@ -825,7 +816,7 @@ export class RepositorySettings {
   // Replaces the policy keys of `github` and keeps every other key. The
   // whole block is validated before the file is written.
   updateGitHubSettings({ github, expectedHash } = {}) {
-    const section = withoutDerivedKeys(policySection(github)),
+    const section = policySection(github),
       before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
@@ -949,8 +940,9 @@ export class RepositorySettings {
     return this.readActivitySettings();
   }
 
-  // Settings > Delivery: who merges, investigate first and pull request
-  // feedback (R54.8). Other delivery keys are kept as they are.
+  // Settings > Delivery: the workspace's landing.pr (R119.1), investigate
+  // first and pull request feedback (R54.8). Other delivery keys are kept
+  // as they are.
   readDeliverySettings() {
     const file = this.readFile(),
       delivery = record(file.value.delivery) ? file.value.delivery : {};
@@ -959,6 +951,9 @@ export class RepositorySettings {
       exists: file.exists,
       hash: file.hash,
       on: record(file.value.delivery),
+      landingPr: record(file.value.landing)
+        ? (file.value.landing.pr ?? null)
+        : null,
       delivery: Object.fromEntries(
         DELIVERY_FORM_KEYS.filter((key) => key in delivery).map((key) => [
           key,
@@ -970,10 +965,28 @@ export class RepositorySettings {
 
   // `turnOn: true` writes an empty `delivery` section first (every key at
   // its default), so Settings > Delivery can turn delivery on with one save.
-  updateDeliverySettings({ delivery, expectedHash, turnOn } = {}) {
+  // `landingPr` sets the workspace's landing.pr; null removes it.
+  updateDeliverySettings({ delivery, expectedHash, turnOn, landingPr } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
+    if (landingPr !== undefined) {
+      if (landingPr !== null && !PR_MODES.includes(landingPr))
+        fail("landing.pr must be draft, ready or auto.");
+      const value = this.updateValue(before),
+        landing = { ...(record(value.landing) ? value.landing : {}) };
+      if (landingPr === null) delete landing.pr;
+      else landing.pr = landingPr;
+      if (Object.keys(landing).length) value.landing = landing;
+      else delete value.landing;
+      this.write(value, { expectedHash: before.hash });
+      if (delivery === undefined) return this.readDeliverySettings();
+      return this.updateDeliverySettings({
+        delivery,
+        turnOn,
+        expectedHash: this.readFile().hash,
+      });
+    }
     if (!record(delivery)) fail("Give the delivery settings as an object.");
     for (const key of Object.keys(delivery))
       if (!DELIVERY_FORM_KEYS.includes(key))

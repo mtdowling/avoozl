@@ -57,6 +57,7 @@ import {
   planVerifierDispatches,
   reconcileDeliveries,
   reconcileVerifications,
+  summaryLine,
 } from "../delivery/delivery.mjs";
 import { fail } from "../store/store.mjs";
 import {
@@ -78,7 +79,6 @@ import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { reviewDispatches } from "../reviews/pr-review.mjs";
 import { investigationStep } from "../delivery/investigate.mjs";
 import { revertCorrections } from "../flow/corrections.mjs";
-import { evidenceCommentStep } from "../tasks/evidence.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -86,10 +86,8 @@ import {
   rateLimitNotices,
   withSource,
 } from "../github/github-rate.mjs";
-import { taskSummaryDispatches } from "../tasks/task-summary.mjs";
 import { decideStep } from "../plugins/check-decide.mjs";
 import { queuePhaseChecks } from "../plugins/check-stages.mjs";
-import { summaryLine } from "../tasks/title-repeat.mjs";
 import {
   validateRoles,
   validatePlanReview,
@@ -97,14 +95,8 @@ import {
 } from "../settings/chat-models.mjs";
 import { syncStep, syncTargets } from "../epics/integration-sync.mjs";
 import { headStep } from "../epics/integration-head.mjs";
-import { recordHealth } from "../plugins/plugin-session.mjs";
 import { repositoryPlugins } from "../plugins/plugins.mjs";
-import {
-  pollSources,
-  purgeClosed,
-  sourceMap,
-  validateIntake,
-} from "../intake/intake.mjs";
+import { purgeClosed, validateIntake } from "../intake/intake.mjs";
 import {
   findPlanningLeak,
   settleUnavailable,
@@ -542,41 +534,6 @@ function servedOf(row) {
   };
 }
 
-// Plugin intake sources (§4.12). A failed poll shows on its source and
-// stops nothing else; closed items no task holds go after 30 days.
-async function pollStep(store, plugins, planned, workspaceRoot) {
-  let sources;
-  try {
-    sources = sourceMap(
-      { workspaceRoot, settingsFile: plugins.options?.settingsFile },
-      store,
-    );
-  } catch (error) {
-    planned.notify.push({
-      channel: "failure",
-      title: "Avoozl could not read its intake sources",
-      text: error.message,
-    });
-    return;
-  }
-  if ([...sources.values()].some((source) => source.plugin)) {
-    const session = plugins.open();
-    try {
-      const polled = await pollSources(
-        store,
-        session,
-        sources,
-        readGitHubPolicyOrNull(workspaceRoot),
-      );
-      planned.notify.push(...polled.notify);
-    } finally {
-      await session.close();
-    }
-    recordHealth(store, session.report());
-  }
-  purgeClosed(store);
-}
-
 // The specs of these task IDs.
 function plansOf(store, taskIds) {
   const wanted = new Set(taskIds),
@@ -604,6 +561,9 @@ async function runTick(
     github: client,
     plugins,
     folders = null,
+    // `contextBrief(entry)`: the epic context section for a Kiro Crew
+    // worker's brief, or "" (epic-context EC8).
+    contextBrief = null,
   },
 ) {
   const at = new Date().toISOString();
@@ -682,7 +642,6 @@ async function runTick(
             ),
             readOnly = readOnlyPlanIds(store);
           const integrated = await integrateVerified(store, {
-            policy: delivery,
             skip: new Set(
               store
                 .read()
@@ -812,33 +771,6 @@ async function runTick(
             text: error.message,
           });
         }
-      // The evidence comment on each open pull request (§4.22, R76.4).
-      if (script && github && delivery)
-        try {
-          const policy = readGitHubPolicy(workspaceRoot);
-          planned.notify.push(
-            ...(
-              await under("tick", "evidence", evidenceCommentStep)(
-                store,
-                github,
-                {
-                  leak: (text) =>
-                    policy.mode === "plans-repo" &&
-                    findPlanningLeak(
-                      [["evidence", text]],
-                      policy.planningRepository,
-                    ),
-                },
-              )
-            ).notify,
-          );
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not update evidence comments",
-            text: error.message,
-          });
-        }
       // CI per pull request for the retro (§4.30).
       if (script)
         try {
@@ -863,10 +795,8 @@ async function runTick(
             text: error.message,
           });
         }
-      // Incoming items from plugin sources (§4.12): one poll per source,
-      // before dispatch, so a delivered item's leaf can start this tick.
-      if (script && plugins)
-        await pollStep(store, plugins, planned, workspaceRoot);
+      // Closed intake items no task holds go after 30 days.
+      if (script) purgeClosed(store);
       // After a restart, and on every tick, nothing new is dispatched until
       // every live session this cron opened has been observed in the roster.
       // Without a roster (a stock Kiro Crew), a session counts as observed
@@ -989,7 +919,6 @@ async function runTick(
           script && !unobserved.length
             ? [
                 ...reviewDispatches(store, { config: roleConfig }),
-                ...taskSummaryDispatches(store, { config: roleConfig }),
                 // Plugin checks' decide calls (plugin-checks D5).
                 ...decideStep(store, { config: roleConfig }).dispatch,
               ]
@@ -1017,6 +946,16 @@ async function runTick(
       // Settings › Models: the planner and retro chats open on
       // the saved model.
       dispatch = withChatModels(dispatch, memory.value || {});
+      if (contextBrief)
+        dispatch = await Promise.all(
+          dispatch.map(async (d) => {
+            const section =
+              d.role === "worker" && d.executor === "kirocrew"
+                ? await contextBrief(d).catch(() => "")
+                : "";
+            return section ? { ...d, brief: `${d.brief}\n\n${section}` } : d;
+          }),
+        );
       const pending = cron ? pendingSessionRequests(store) : [],
         lostDispatchPlans = script
           ? await recheckDrivers(

@@ -23,6 +23,7 @@ import { Operations } from "../../api/operations.mjs";
 import { ROLE_TABLE } from "../../agents/role-table.mjs";
 import { sandboxKind } from "../../executors/sandbox.mjs";
 import { Store } from "../../store/store.mjs";
+import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
@@ -94,17 +95,23 @@ function machine() {
   return { root, directory, paths, db, open };
 }
 
-// A task summary the page asked for: the tick queues it for Kiro Crew.
-async function askSummary(m) {
-  const store = new Store(m.db);
-  try {
-    await new Operations(store, {
-      workspaceRoot: m.directory,
-      configDirectory: m.paths.configDirectory,
-    }).execute("task.summary.request", { id: "b" });
-  } finally {
-    store.close();
-  }
+// A worker start for task b, queued for Kiro Crew as the tick queues one.
+function askWorker(m) {
+  m.open((store) =>
+    enqueueSessionRequests(store, {
+      starts: [
+        {
+          id: "b:worker:1",
+          task: "b",
+          role: "worker",
+          attempt: 1,
+          executor: "kirocrew",
+          title: "avoozl:worker b (attempt 1)",
+          brief: "Work on b.",
+        },
+      ],
+    }),
+  );
 }
 
 const items = (store) =>
@@ -112,13 +119,13 @@ const items = (store) =>
 
 test("a kirocrew start on a headless tick opens one item across three ticks and starts nothing", async () => {
   const m = machine();
-  await askSummary(m);
+  askWorker(m);
   for (let i = 0; i < 3; i += 1) await tickWorkspace(m.directory, m.paths);
   const store = new Store(m.db);
   try {
     const open = items(store);
     assert.equal(open.length, 1);
-    assert.equal(open[0].role, "taskSummary");
+    assert.equal(open[0].role, "worker");
     assert.equal(open[0].requests.length, 1);
     assert.equal(store.list("session_bindings").length, 0, "nothing started");
     assert.deepEqual(
@@ -134,7 +141,7 @@ test("a kirocrew start on a headless tick opens one item across three ticks and 
       configDirectory: m.paths.configDirectory,
     }).execute("conflicts.view", {});
     const row = view.items.find((i) => i.kind === "needs-kirocrew");
-    assert.equal(row.role, "taskSummary");
+    assert.equal(row.role, "worker");
     assert.deepEqual(row.choices, ["fake-cli"]);
   } finally {
     store.close();
@@ -149,7 +156,7 @@ test("a kirocrew start on a headless tick opens one item across three ticks and 
   assert.equal(status.kirocrew.reachable, false);
   assert.deepEqual(
     status.kirocrew.waiting.map((w) => [w.role, w.sessions]),
-    [["taskSummary", 1]],
+    [["worker", 1]],
   );
   // With Kiro Crew back, the item goes.
   m.open((store) => {
@@ -159,9 +166,9 @@ test("a kirocrew start on a headless tick opens one item across three ticks and 
   });
 });
 
-test("Run on from a person moves the role, and the next tick starts it on that harness", async () => {
+test("Run on from a person moves the role and cancels its waiting kirocrew start", async () => {
   const m = machine();
-  await askSummary(m);
+  askWorker(m);
   await tickWorkspace(m.directory, m.paths);
   const store = new Store(m.db);
   try {
@@ -172,7 +179,7 @@ test("Run on from a person moves the role, and the next tick starts it on that h
     await assert.rejects(
       ops.execute(
         "needskirocrew.runon",
-        { role: "taskSummary", harness: "fake-cli" },
+        { role: "worker", harness: "fake-cli" },
         undefined,
         { mcp: true },
       ),
@@ -180,30 +187,28 @@ test("Run on from a person moves the role, and the next tick starts it on that h
     );
     await assert.rejects(
       ops.execute("needskirocrew.runon", {
-        role: "taskSummary",
+        role: "worker",
         harness: "not-here",
       }),
       /not an approved harness/,
     );
     await ops.execute("needskirocrew.runon", {
-      role: "taskSummary",
+      role: "worker",
       harness: "fake-cli",
     });
     const saved = JSON.parse(
       fs.readFileSync(path.join(m.directory, ".avoozl.json"), "utf8"),
     );
-    assert.equal(saved.roles.taskSummary.harness, "fake-cli");
+    assert.equal(saved.roles.worker.harness, "fake-cli");
     assert.deepEqual(items(store), []);
+    // Its waiting kirocrew start is canceled, so the next tick plans it anew.
+    assert.notEqual(
+      store.get("session_requests", "b:worker:1").state,
+      "pending",
+    );
   } finally {
     store.close();
   }
-  await tickWorkspace(m.directory, m.paths);
-  m.open((store) => {
-    const [binding] = store.list("session_bindings");
-    assert.equal(binding?.role, "task-summary");
-    assert.equal(binding.executor, "process");
-    assert.deepEqual(items(store), []);
-  });
 });
 
 test("no module calls a Kiro Crew reader for an operation outside the table", () => {

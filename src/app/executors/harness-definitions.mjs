@@ -26,6 +26,8 @@ const HARNESS_PLACEHOLDERS = Object.freeze([
   "tmp",
   "repository_cache_dirs",
   "repository_allow_commands",
+  // The MCP config file of a session's epic context (epic-context EC7.1).
+  "context_mcp",
 ]);
 const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
 export const HARNESS_UNCONFINED = "harness-unconfined.json";
@@ -51,6 +53,9 @@ const KEYS = new Set([
   // such as Claude Code's ~/.claude and ~/.claude.json.
   "reads",
   "resultAllow",
+  // The argv a harness adds to load one MCP config file of epic context:
+  // {"mcp": [..., "{context_mcp}", ...]} (epic-context EC7.1).
+  "context",
   // Where the harness output names the model that served the session
   // (NK5.2): {"from": "output", "field": ...}.
   "servedModel",
@@ -201,6 +206,16 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
   for (const key of ["writeRoots", "allow", "resultAllow"])
     if (value[key] !== undefined)
       definition[key] = argv(value[key], key, source, { command: false });
+  if (value.context !== undefined) {
+    if (!record(value.context) || Object.keys(value.context).join() !== "mcp")
+      fail(`${source}: context must be {"mcp": [argv]}.`);
+    const mcp = argv(value.context.mcp, "context.mcp", source, {
+      command: false,
+    });
+    if (!mcp.some((item) => item.includes("{context_mcp}")))
+      fail(`${source}: context.mcp must name {context_mcp}.`);
+    definition.context = Object.freeze({ mcp });
+  }
   if (value.proved !== undefined) {
     if (
       !Array.isArray(value.proved) ||

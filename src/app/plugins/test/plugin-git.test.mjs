@@ -55,7 +55,7 @@ function setup(t) {
     repo = path.join(root, "repo"),
     workspaceRoot = path.join(root, "workspace"),
     settingsFile = path.join(root, "config", "plugins.json"),
-    stateFile = path.join(root, "intake-state.json");
+    stateFile = path.join(root, "probe-state.json");
   const gitConfig = isolateGit(t, root);
   fs.mkdirSync(workspaceRoot);
   fs.writeFileSync(stateFile, "{}\n");
@@ -67,7 +67,7 @@ function setup(t) {
     ).trim();
   fs.mkdirSync(repo);
   git("init", "-q", "-b", "main");
-  fs.cpSync(path.join(FIXTURE, "fake-intake"), path.join(repo, "plugin"), {
+  fs.cpSync(path.join(FIXTURE, "fake-probe"), path.join(repo, "plugin"), {
     recursive: true,
   });
   fs.writeFileSync(path.join(repo, "README.md"), "A plugin repository.\n");
@@ -78,7 +78,7 @@ function setup(t) {
   const options = { workspaceRoot, settingsFile };
   const url = pathToFileURL(repo).href;
   const entry = (more = {}) => ({
-    id: "fake-intake",
+    id: "fake-probe",
     git: url,
     ref: "main",
     subdir: "plugin",
@@ -86,12 +86,12 @@ function setup(t) {
     config: { stateFile },
     ...more,
   });
-  const gitRoot = path.join(root, "config", "plugins", "git", "fake-intake");
+  const gitRoot = path.join(root, "config", "plugins", "git", "fake-probe");
   return { root, repo, git, options, url, entry, gitRoot, gitConfig };
 }
 
 const approve = (options) => {
-  const plugin = inspectPlugins(options).find((p) => p.id === "fake-intake");
+  const plugin = inspectPlugins(options).find((p) => p.id === "fake-probe");
   return approvePlugin(options, {
     id: plugin.id,
     hash: plugin.hash,
@@ -101,7 +101,7 @@ const approve = (options) => {
 
 test("a git entry names git and ref, never credentials, and a subdir inside", () => {
   const entry = {
-    id: "fake-intake",
+    id: "fake-probe",
     git: "https://git.example.com/team/plugin.git",
     ref: "v1.0.0",
     subdir: "plugin",
@@ -163,36 +163,33 @@ test("Add from git pins the ref to a commit, fetches only it, and needs approval
     [head],
   );
   const settings = readPluginSettings(options.settingsFile);
-  assert.equal(settings.pins["fake-intake"].commit, head);
+  assert.equal(settings.pins["fake-probe"].commit, head);
   assert.equal(settings.plugins[0].ref, "main", "the entry keeps the ref");
 
   const approved = approve(options);
   assert.equal(approved.state, "approved");
   assert.equal(
-    readPluginSettings(options.settingsFile).approvals["fake-intake"].commit,
+    readPluginSettings(options.settingsFile).approvals["fake-probe"].commit,
     head,
   );
   // It runs like any other plugin.
   const session = pluginHost(options).open();
-  const reply = await session.call("fake-intake", "intake", "poll", {
-    cursor: null,
-    limit: 1,
-  });
-  assert.deepEqual(reply.items, []);
+  const reply = await session.call("fake-probe", "rules", "ruleSets", {});
+  assert.deepEqual(reply.sets, []);
   await session.close();
 
   // A stale commit in the approval request is refused.
   assert.throws(
     () =>
       approvePlugin(options, {
-        id: "fake-intake",
+        id: "fake-probe",
         hash: approved.hash,
         commit: "0".repeat(40),
       }),
     /Review it again/,
   );
 
-  removePlugin(options, { id: "fake-intake" });
+  removePlugin(options, { id: "fake-probe" });
   assert.deepEqual(readPluginSettings(options.settingsFile).pins, {});
   assert.ok(!fs.existsSync(path.join(gitRoot, head)));
 });
@@ -204,7 +201,7 @@ test("tags, annotated tags and full commits resolve to their commit", async (t) 
   for (const ref of ["v1", "v1-annotated", first, "refs/tags/v1"]) {
     const added = await addGitPlugin(options, { entry: entry({ ref }) });
     assert.equal(added.commit, first, ref);
-    removePlugin(options, { id: "fake-intake" });
+    removePlugin(options, { id: "fake-probe" });
   }
   await assert.rejects(
     addGitPlugin(options, { entry: entry({ ref: "nope" }) }),
@@ -222,14 +219,14 @@ test("a new commit on the branch needs a new approval, even with the same files"
   const second = git("rev-parse", "HEAD");
   assert.equal(inspectPlugins(options)[0].state, "approved");
 
-  const updated = await updateGitPlugin(options, { id: "fake-intake" });
+  const updated = await updateGitPlugin(options, { id: "fake-probe" });
   assert.equal(updated.commit, second);
   assert.equal(updated.state, "changed");
   assert.match(updated.reason, /approve it again/);
   assert.equal(updated.hash, updated.approval.hash, "same content hash");
   assert.ok(!fs.existsSync(path.join(gitRoot, first)), "old commit pruned");
   const session = pluginHost(options).open();
-  assert.equal((await session.use("fake-intake", "intake")).ok, false);
+  assert.equal((await session.use("fake-probe", "rules")).ok, false);
   await session.close();
   assert.equal(approve(options).state, "approved");
 });
@@ -255,14 +252,9 @@ test("the tick never fetches: it reads only the pinned folder", async (t) => {
   process.env.PATH = bin;
   try {
     const session = pluginHost(options).open();
-    assert.equal(
-      (
-        await session.call("fake-intake", "intake", "poll", {
-          cursor: null,
-          limit: 1,
-        })
-      ).more,
-      false,
+    assert.deepEqual(
+      (await session.call("fake-probe", "rules", "ruleSets", {})).sets,
+      [],
     );
     await session.close();
   } finally {
@@ -277,7 +269,7 @@ test("the tick never fetches: it reads only the pinned folder", async (t) => {
   assert.equal(plugin.state, "missing");
   assert.match(plugin.reason, /Not fetched on this machine. Choose Update/);
   const session = pluginHost(options).open();
-  assert.equal((await session.use("fake-intake", "intake")).ok, false);
+  assert.equal((await session.use("fake-probe", "rules")).ok, false);
   await session.close();
   assert.deepEqual(fs.readdirSync(gitRoot).sort(), before);
 });
@@ -289,7 +281,7 @@ test("refused: a subdir that leaves the repository, no manifest, unshipped depen
   fs.writeFileSync(path.join(repo, "empty", "notes.txt"), "no plugin\n");
   fs.writeFileSync(
     path.join(repo, "plugin", "package.json"),
-    JSON.stringify({ name: "fake-intake", dependencies: { "left-pad": "1" } }),
+    JSON.stringify({ name: "fake-probe", dependencies: { "left-pad": "1" } }),
   );
   git("add", ".");
   git("commit", "-q", "-m", "Refusals");
@@ -356,7 +348,7 @@ test("plugin.add and plugin.update reach git entries through Operations", async 
   assert.equal(added.commit, git("rev-parse", "HEAD"));
   assert.equal(added.manifest, undefined);
   git("commit", "-q", "--allow-empty", "-m", "Next");
-  const updated = await ops.execute("plugin.update", { id: "fake-intake" });
+  const updated = await ops.execute("plugin.update", { id: "fake-probe" });
   assert.equal(updated.commit, git("rev-parse", "HEAD"));
   const listed = await ops.execute("plugins.list", {});
   assert.equal(listed.plugins[0].commit, updated.commit);

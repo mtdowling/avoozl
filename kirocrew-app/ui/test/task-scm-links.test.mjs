@@ -39,9 +39,9 @@ test('every link opens in a new tab and the worktree is never a link', () => {
   for (const a of anchors) assert.match(a, /target="_blank" rel="noopener noreferrer"/)
   assert.doesNotMatch(view, /worktree[^\n]*href/)
   assert.doesNotMatch(view, /#[0-9a-f]{3,6}\b/i, 'theme variables only')
-  // The drawer's Links box holds the stored links, then the added ones.
+  // The drawer's Links box holds the stored links.
   const drawer = readFileSync(new URL('../src/TaskDrawer.tsx', import.meta.url), 'utf8')
   const box = drawer.slice(drawer.indexOf('<SectionBox id="task-links"'), drawer.indexOf('<SectionBox id="delivery"'))
-  assert.ok(box.indexOf('<TaskScmLinks') > 0 && box.indexOf('<TaskScmLinks') < box.indexOf('<TaskLinks'))
+  assert.ok(box.indexOf('<TaskScmLinks') > 0)
   assert.doesNotMatch(drawer, /rel="noreferrer"/)
 })

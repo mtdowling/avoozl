@@ -8,6 +8,7 @@ import { commandContext, dispatchCommand } from "../command-dispatch.mjs";
 import { workspaceConfig } from "../../settings/config.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { Store } from "../../store/store.mjs";
 import { SECRET, sign, isolatedEnv } from "../../test/signed-principal.mjs";
 
 const OWNER = { kind: "owner-session", ownerId: "local" };
@@ -67,15 +68,19 @@ async function both(t) {
 
 test("one write and one observe operation give the same result through both servers", async (t) => {
   const { viaBackend, direct } = await both(t);
-  const observe = { operation: "instance.view" },
-    write = { operation: "instance.rename", input: { name: "Same name" } };
-  const a = await viaBackend(write),
-    b = await direct(write);
+  const observe = { operation: "workspaces.list" },
+    hash = async () =>
+      (await direct({ operation: "activity.settings.get" })).body.result.hash,
+    write = async () => ({
+      operation: "activity.settings.update",
+      input: { retentionDays: 30, expectedHash: await hash() },
+    });
+  const a = await viaBackend(await write()),
+    b = await direct(await write());
   assert.equal(a.status, 200);
   assert.deepEqual(b, a);
   const seen = await viaBackend(observe),
     through = await direct(observe);
-  assert.equal(seen.body.result.name, "Same name");
   assert.equal(seen.body.result.host, "kirocrew");
   assert.equal(through.body.result.host, "standalone");
   assert.deepEqual(
@@ -100,4 +105,42 @@ test("an operation that needs a Kiro Crew reader says so when it is absent", asy
     assert.ok(result.status >= 200 && result.status < 500, request.operation);
     assert.match(JSON.stringify(result.body), /Needs Kiro Crew/);
   }
+});
+
+// A configured workspace whose database was never initialized is not a dead
+// end: a read neither creates nor needs the file, and init then fills it.
+test("a page read refuses an uninitialized workspace and init then fixes it", async (t) => {
+  const root = temporaryDirectory(),
+    served = path.join(root, "served"),
+    home = path.join(root, "home");
+  initializeWorkspace(served, { name: "Kept" });
+  fs.mkdirSync(home);
+  const config = workspaceConfig({ workspace: served, env: isolatedEnv(root) });
+  fs.rmSync(config.dbPath);
+  const context = commandContext({
+    host: "standalone",
+    config,
+    home,
+    registryOptions: {
+      configPath: path.join(root, "machine", "config.json"),
+      catalogPath: path.join(root, "machine", "catalog.sqlite"),
+    },
+  });
+  t.after(() => context.close());
+  const view = () =>
+    dispatchCommand({
+      principal: OWNER,
+      request: { operation: "panel.view" },
+      context,
+    });
+  const refused = await view();
+  assert.equal(refused.status, 503);
+  assert.match(refused.body.error, /avoozl init .*avoozl rebuild/);
+  assert.equal(fs.existsSync(config.dbPath), false);
+  // A schema with no snapshot, as an older read left behind.
+  new Store(config.dbPath).close();
+  assert.equal((await view()).status, 503);
+  assert.equal(initializeWorkspace(served).existingConfiguration, true);
+  assert.equal((await view()).status, 200);
+  assert.throws(() => initializeWorkspace(served), /already exists/);
 });

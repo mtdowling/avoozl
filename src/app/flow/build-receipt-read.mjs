@@ -8,7 +8,6 @@
 import { inflateRawSync } from "node:zlib";
 import { parseReceipts } from "./build-receipt.mjs";
 import { listOr } from "./flow.mjs";
-import { plainInstanceName } from "../workspace/instance.mjs";
 import {
   isReportArtifact,
   reportsFromArtifact,
@@ -500,7 +499,7 @@ export function buildView(rows, { instanceName = () => null } = {}) {
     }),
     byInstance: [...group((row) => row.instance ?? "")].map(([id, list]) => ({
       instance: id || null,
-      name: id ? (instanceName(id) ?? plainInstanceName(id)) : null,
+      name: id ? (instanceName(id) ?? id) : null,
       count: list.length,
       medianMs: median(
         list.map((row) => row.build.totalMs - row.build.failedMs),

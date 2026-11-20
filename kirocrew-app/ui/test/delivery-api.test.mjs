@@ -87,7 +87,6 @@ test('lanes hold delivery records and ready leaves, newest done first', () => {
     item('w', { sessions: [session('worker', 'working', 1), session('worker', 'working', 2)], rounds: [{ commit: 'c', current: true, verdicts: [] }] }),
     item('old', { complete: true, integration: { commit: 'a', branch: 'main', at: '2026-11-10T00:00:00Z' } }),
     item('new', { complete: true, integration: { commit: 'b', branch: 'main', at: '2026-11-12T00:00:00Z' } }),
-    item('gone', { status: 'superseded' }),
   ])
   assert.deepEqual(
     lanes.ready.map((c) => c.id),
@@ -104,7 +103,7 @@ test('lanes hold delivery records and ready leaves, newest done first', () => {
   assert.equal(
     Object.values(lanes)
       .flat()
-      .some((c) => c.id === 'gone' || c.id === 'epic'),
+      .some((c) => c.id === 'epic'),
     false,
   )
   assert.equal(resumeStatus(graph), 'planned')

@@ -52,7 +52,7 @@ test('the drawer shows every section, and a linked task opens in it', () => {
   assert.match(drawer, /props\.onFocus!\(task\.id, task\.title\)/)
   assert.match(drawer, /chat\.ask\(\{ tasks: \[task\.id\] \}\)/)
   assert.match(drawer, /<EdgeList label=\{title\} items=\{items\} onOpen=\{open\} \/>/)
-  for (const action of ['Retry', 'Defer', 'Resume', 'SupersedeForm', 'ConflictActions', 'TaskForm']) assert.match(drawer, new RegExp(action))
+  for (const action of ['Retry', 'Defer', 'Resume', 'ConflictActions', 'TaskForm']) assert.match(drawer, new RegExp(action))
 })
 
 test('In flight rows have Info and a Session link to their chat', () => {

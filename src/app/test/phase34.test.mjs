@@ -1,5 +1,5 @@
 // Phase 34 parts the P45 proof does not reach (tasks 34.2, 34.4–34.6): the
-// other correction sources, the evidence export, fix work from a GitHub
+// other correction sources, fix work from a GitHub
 // Bug, and the manifest's investigate and ship fields. Every value is fake.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -8,9 +8,8 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../api/operations.mjs";
 import { Store } from "../store/store.mjs";
-import { retryDelivery, shipMode } from "../delivery/delivery.mjs";
+import { retryDelivery } from "../delivery/delivery.mjs";
 import { revertCorrections, recordCorrection } from "../flow/corrections.mjs";
-import { taskEvidence } from "../tasks/evidence.mjs";
 import { isFixWork } from "../flow/flow.mjs";
 import { validateProposal } from "../specs/plans.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -111,9 +110,6 @@ test("Send back with a reason, and a revert, are corrections", async (t) => {
     ["a", "reverted", "Pat"],
     ["b", "sent-back", "dashboard"],
   ]);
-  // The decision is in b's evidence bundle.
-  const entries = taskEvidence(w.store, { taskId: "b" }).entries;
-  assert.match(entries[0].text, /Sent back by a person: Keep the old API\./);
   // A summary is cut to 300 characters; a secret is saved redacted.
   const long = recordCorrection(w.store, {
     key: "x1",
@@ -132,17 +128,13 @@ test("Send back with a reason, and a revert, are corrections", async (t) => {
   assert.doesNotMatch(JSON.stringify(w.store.list("corrections")), /ghp_b/);
 });
 
-test("fix work, the investigate fact, and a task's ship mode", () => {
+test("fix work and the investigate fact", () => {
   assert.equal(isFixWork(leaf("x", { github: { issueType: "Bug" } })), true);
   assert.equal(isFixWork(leaf("x", { type: "fix" })), true);
   assert.equal(isFixWork(leaf("x", { flowFix: { stop: "s" } })), true);
   assert.equal(isFixWork(leaf("x", { type: "feature" })), false);
   assert.throws(() => validateProposal({ ...leaf("x"), investigate: "yes" }));
   validateProposal({ ...leaf("x"), investigate: false });
-  // The task's own, then auto-merge; a repository's
-  // landing.autoMerge is landing-block.test.mjs's.
-  assert.equal(shipMode(null, leaf("x", { ship: "manual" })), "manual");
-  assert.equal(shipMode(null, leaf("x")), "auto-merge");
 });
 
 test("a bugfix spec's type reaches each leaf", async () => {

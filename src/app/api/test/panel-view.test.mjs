@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { demoOperations, installDemo } from "../../workspace/demo.mjs";
+import { demoOperations, installDemo } from "../../test/demo-fixture.mjs";
 import { panelView } from "../panel-view.mjs";
 
 test("a part that throws is null and the others still come back", async () => {
@@ -26,19 +26,11 @@ test("panel.view fills every section from the sample workspace", async () => {
   const demo = demoOperations(root);
   try {
     const view = await demo.execute("panel.view", {});
-    for (const part of [
-      "conflicts",
-      "remote",
-      "queue",
-      "flow",
-      "specs",
-      "instance",
-    ])
+    for (const part of ["conflicts", "remote", "queue", "flow", "specs"])
       assert.notEqual(view[part], null, `${part} was read`);
     assert.ok(view.conflicts.length > 0, "something waits on a person");
     // No repository is released by label, so the release queue is empty.
     assert.deepEqual(view.queue.repositories, []);
-    assert.ok(view.instance.name, "the instance has a name");
     assert.equal("driver" in view, false, "no driver session part");
   } finally {
     demo.close();

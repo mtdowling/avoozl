@@ -6,7 +6,7 @@ import { Card } from './ui/Card'
 import Badge from './ui/Badge.tsx'
 import { safeHref, sessionLabel, viewsClient, type ContentReport } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { ItemDetails, type Act, type Supersede } from './DeliveryDetails.tsx'
+import { type Act } from './DeliveryDetails.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { Authority } from './Authority.tsx'
 import { useRead } from './useRead.ts'
@@ -69,7 +69,6 @@ function LaneCardView(props: {
   client: ReturnType<typeof viewsClient>
   workspaceId: string
   revision: number
-  onSupersede: Supersede
   onStart: (id: string) => void
   ready: boolean
   phase?: 'running' | 'reviewing'
@@ -377,17 +376,9 @@ function useNarrow() {
 
 // The Delivery page's filters in the left nav, under Dashboards, drawn as
 // the Specs rail draws its own (NavRail.tsx): search, state rows, Needs me,
-// Show archived and Show superseded, then Epic, Spec and Repository chips.
+// Show archived, then Epic, Spec and Repository chips.
 // The filter is the one Graph shares (useSharedFilter).
-function DeliveryFilters(props: {
-  filter: TaskFilter
-  onChange: (filter: TaskFilter) => void
-  cards: LaneCard[]
-  choices: ReturnType<typeof filterChoices>
-  superseded: number
-  showSuperseded: boolean
-  onSuperseded: (on: boolean) => void
-}) {
+function DeliveryFilters(props: { filter: TaskFilter; onChange: (filter: TaskFilter) => void; cards: LaneCard[]; choices: ReturnType<typeof filterChoices> }) {
   const { filter, cards, choices } = props
   const set = (change: Partial<TaskFilter>) => {
     const next: Record<string, unknown> = { ...filter, ...change }
@@ -449,9 +440,6 @@ function DeliveryFilters(props: {
           <RailDivider />
           <RailRow label="Needs me" active={Boolean(filter.needsYou)} onClick={() => set({ needsYou: !filter.needsYou })} />
           <RailRow label="Show archived" active={Boolean(filter.archived)} onClick={() => set({ archived: !filter.archived })} />
-          {props.superseded > 0 && (
-            <RailRow label={`Show superseded (${props.superseded})`} active={props.showSuperseded} onClick={() => props.onSuperseded(!props.showSuperseded)} />
-          )}
         </RailBlock>
         <RailChips
           id="epics"
@@ -506,7 +494,6 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
   const { value, error, busy, reload } = useRead(workspaceId, load)
   const narrow = useNarrow()
   const [filter, setFilter] = useSharedFilter(workspaceId)
-  const [showSuperseded, setShowSuperseded] = useState(false)
   const [acting, setActing] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -534,15 +521,6 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
       .catch((caught: unknown) => setMessage({ ok: false, text: errorMessage(caught) }))
       .finally(() => setActing(false))
   }
-  const onSupersede = useCallback<Supersede>(
-    async (id, create) => {
-      if (!workspaceId) return
-      await client.supersede(workspaceId, id, create)
-      await reload()
-    },
-    [client, workspaceId, reload],
-  )
-
   const all = useMemo(() => (value ? deliveryLanes(value.graph, value.items) : null), [value])
   const lanes = all ? filterLanes(all, filter) : null
   const choices = useMemo(() => filterChoices(value?.graph ?? null, {}, filter.plan), [value, filter.plan])
@@ -559,7 +537,6 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
   const totalCount = all ? Object.values(all).flat().length : 0
   const shownCount = members?.size ?? 0
   const reports = (value?.reports ?? []).filter((r) => !members || !r.taskId || members.has(r.taskId))
-  const superseded = value?.items.filter((item) => item.status === 'superseded') ?? []
   const canDefer = Boolean(value?.graph?.statuses.some((s) => s.id === 'deferred'))
   const resume = resumeStatus(value?.graph ?? null)
   const revision = value?.graph?.revision ?? 0
@@ -627,15 +604,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
         </Hint>
       ) : (
         <>
-          <DeliveryFilters
-            filter={filter}
-            onChange={setFilter}
-            cards={all ? Object.values(all).flat() : []}
-            choices={choices}
-            superseded={superseded.length}
-            showSuperseded={showSuperseded}
-            onSuperseded={setShowSuperseded}
-          />
+          <DeliveryFilters filter={filter} onChange={setFilter} cards={all ? Object.values(all).flat() : []} choices={choices} />
           <Hint size="xs" role="status" data-filter-status>
             {shownCount} of {totalCount} tasks
           </Hint>
@@ -659,7 +628,6 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
                 client={client}
                 workspaceId={workspaceId}
                 revision={revision}
-                onSupersede={onSupersede}
                 onStart={start}
                 graph={value?.graph ?? null}
                 machines={machines?.hostsOf.get(card.id) ?? [THIS_MAC]}
@@ -667,18 +635,6 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
             )}
           />
           {reports.length > 0 && <ContentReports reports={reports} />}
-          {showSuperseded && (
-            <Stack as="ul" gap={2}>
-              {superseded.map((item) => (
-                <li key={item.id}>
-                  <Card>
-                    <SectionHeading title={item.title} meta={<Hint size="sm">{item.id}</Hint>} mb="2" />
-                    <ItemDetails item={item} onSupersede={onSupersede} />
-                  </Card>
-                </li>
-              ))}
-            </Stack>
-          )}
         </>
       )}
     </Box>

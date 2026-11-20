@@ -7,7 +7,6 @@ export const EDIT_TABS = [
   { key: 'general', label: 'General' },
   { key: 'landing', label: 'Landing' },
   { key: 'github', label: 'GitHub' },
-  { key: 'map', label: 'Workflow map' },
 ] as const
 export type EditTab = (typeof EDIT_TABS)[number]['key']
 
@@ -15,9 +14,8 @@ export type EditTab = (typeof EDIT_TABS)[number]['key']
 // entry.
 export const EDIT_TAB_FIELDS: Record<EditTab, readonly (keyof RepositoryForm)[]> = {
   general: ['name'],
-  landing: ['baseBranch', 'landingMode', 'prMode', 'autoMerge', 'mergeMethod', 'maxAttempts', 'requiredChecks'],
+  landing: ['baseBranch', 'landingMode', 'prMode', 'mergeMethod', 'maxAttempts', 'requiredChecks'],
   github: ['minimumPermission', 'allowedActors', 'priority'],
-  map: [],
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)

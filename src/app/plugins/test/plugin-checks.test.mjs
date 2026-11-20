@@ -100,7 +100,7 @@ test("pk-1.1: the checks part validates, and each bad key is refused naming the 
     }),
     /decideAt goes with decide/,
   );
-  refused((m) => (m.provides = ["pack"]), /provides must list checks/);
+  refused((m) => (m.provides = ["rules"]), /provides must list checks/);
   refused((m) => {
     for (let i = 0; i < 20; i++)
       m.checks[`extra-${i}`] = {

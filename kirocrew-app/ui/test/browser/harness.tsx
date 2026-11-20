@@ -19,19 +19,15 @@ import { Tooltip } from '../../src/ui/Tooltip.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
-import SetupRepository from '../../src/Onboard.tsx'
 import { Modal } from '../../src/ui/Modal.tsx'
 import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
-import { SetupDialog } from '../../src/SetupWizard.tsx'
 import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import WorkspaceView from '../../src/WorkspaceView.tsx'
-import { PackImportDialog } from '../../src/PackImport.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
-import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import FlowBuilds from '../../src/FlowBuilds.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
@@ -40,12 +36,10 @@ import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
-import { AutoMergeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
+import { PrModeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
-import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
-import { toForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
-import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
+import { MarkDoneDialog } from '../../src/ManualTask.tsx'
 import { reviewFixture } from './review-fixture.ts'
 import { needsContextItems } from './needs-context-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
@@ -53,7 +47,6 @@ import NewFixDrawer from '../../src/NewFixDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
-import { TaskFiles } from '../../src/TaskFiles.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -117,24 +110,6 @@ const row = {
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
 // A manual task waiting for a person, with links (R61).
-// The AI summary (?summary=none|working|ready|failed): what task.detail
-// carries, and what task.summary.request answers. A request for a summary that
-// is not written yet answers working, then ready on the next one.
-const SUMMARY_TEXT =
-  'Team review is the last gate before cutover. It is waiting on you: the protocol tests passed, and nothing else blocks it. Cutover starts once you mark it done.'
-const summaryAt = (name: string) => ({
-  state: name,
-  text: name === 'ready' ? SUMMARY_TEXT : null,
-  hash: 'h1',
-  ...(name === 'failed' ? { reason: 'The summary chat ended without sending a summary.' } : {}),
-})
-let summaryAsks = 0
-answer('task.summary.request', (body) => {
-  state.calls.push(body)
-  summaryAsks++
-  if ((body.input as { retry?: boolean }).retry) return summaryAt('working')
-  return summaryAt(query.get('summary') === 'failed' || summaryAsks < 2 ? 'working' : 'ready')
-})
 // The spec file the task came from: 40 lines, the task's own at 20–21.
 const SPEC_LINES = Array.from({ length: 40 }, (_, i) => `Spec line ${i + 1}`)
 answer('document.get', () => ({ id: '.kiro/specs/team/tasks.md', title: 'tasks.md', text: SPEC_LINES.join('\n') }))
@@ -147,7 +122,6 @@ const baseDetail = () => ({
     plan: null,
     sources: [{ document: '.kiro/specs/team/tasks.md', title: null, lineStart: 20, lineEnd: 21, checked: null, readable: true }],
   },
-  summary: summaryAt(query.get('summary') ?? 'none'),
   revision: 1,
   task: {
     id: 'team-review',
@@ -213,111 +187,9 @@ const baseDetail = () => ({
     issue: { kind: 'issue', repository: 'o/sdk', number: 47, url: 'https://github.com/o/sdk/issues/47' },
     source: null,
   },
-  steps: [
-    { key: 'spec', label: 'Spec approved', at: '2026-11-13T08:00:00Z', state: 'done', by: 'owner' },
-    { key: 'ready', label: 'Ready', at: null, state: 'skipped' },
-    { key: 'started-1', label: 'Started (attempt 1)', at: '2026-11-13T08:10:00Z', state: 'done', by: 'model-a', detail: 'worker' },
-    { key: 'failed-1', label: 'Attempt 1 failed', at: '2026-11-13T08:40:00Z', state: 'done', failed: true, detail: 'tests red' },
-    { key: 'started-2', label: 'Started (attempt 2)', at: '2026-11-13T09:00:00Z', state: 'done', detail: 'worker' },
-    { key: 'checks', label: 'Checks', at: '2026-11-13T09:30:00Z', state: 'done', detail: '2 passed' },
-    { key: 'landed', label: 'Landed', at: '2026-11-13T09:35:00Z', state: 'done', detail: 'Commit 0123456789ab' },
-    {
-      key: 'builds',
-      label: 'Builds',
-      at: '2026-11-13T09:32:00Z',
-      state: 'done',
-      detail: '2 builds, 2 min in all · costliest test 1.5 min',
-      builds: [
-        { phase: 'build', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 38000, failed: false }] },
-        { phase: 'test', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 90000, failed: true }] },
-      ],
-    },
-    { key: 'integrated', label: 'Integrated', at: null, state: 'now' },
-  ],
 })
 answer('task.detail', () => baseDetail())
-answer('task.evidence', () => ({
-  taskId: 'team-review',
-  entries: query.get('evidence') === 'none' ? [] : [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
-}))
-answer('task.notes.list', () => ({
-  taskId: 'team-review',
-  entries: [
-    {
-      id: 'note-000000000002',
-      taskId: 'team-review',
-      kind: 'link',
-      label: 'Protocol test results',
-      url: 'https://docs.example.test/results',
-      outcome: false,
-      author: 'session:chat-1',
-      at: '2026-11-13T10:05:00Z',
-      onIssue: false,
-    },
-    {
-      id: 'note-000000000001',
-      taskId: 'team-review',
-      kind: 'link',
-      label: 'Review agenda',
-      url: 'https://docs.example.test/agenda',
-      outcome: false,
-      author: 'person',
-      login: 'alice',
-      at: '2026-11-13T09:00:00Z',
-      onIssue: true,
-    },
-  ],
-}))
-answer('task.notes.add', (body) => {
-  state.calls.push(body)
-  const input = body.input as { taskId: string; url: string; label: string }
-  return {
-    id: 'note-000000000003',
-    taskId: input.taskId,
-    kind: 'link',
-    url: input.url,
-    label: input.label,
-    outcome: false,
-    author: 'person',
-    at: '2026-11-13T11:00:00Z',
-    onIssue: false,
-  }
-})
 answer('repositories.list', () => ({ items: [{ id: 'sdk', name: 'sdk', localCheckout: '/w/sdk', github: 'o/sdk', baseBranch: 'main' }] }))
-answer('template.list', () => ({
-  templates: [
-    {
-      plugin: 'sdk-templates',
-      version: '1.0.0',
-      id: 'sdk-rewrite',
-      title: 'SDK rewrite',
-      description: 'Rewrite one SDK on the new runtime, phase by phase, with a team review before cutover.',
-      inputs: [
-        { id: 'sdk', label: 'Which SDK', type: 'text', required: true },
-        { id: 'repository', label: 'Target repository', type: 'repositories', required: true },
-        { id: 'gaps', label: 'Gap list', type: 'file', required: false },
-      ],
-      phases: ['Inventory', 'Codegen', 'Runtime', 'Protocol tests', 'Review', 'Cutover'].map((title) => ({ id: title.toLowerCase(), title })),
-      proofKinds: ['Protocol tests pass', 'Cutover dry run'],
-      settings: true,
-    },
-  ],
-}))
-answer('plugin.pack.preview', () => ({
-  id: 'sdk-templates',
-  version: '1.0.0',
-  description: 'SDK rewrite settings',
-  repositories: [],
-  warnings: [],
-  previewHash: 'h',
-  imported: null,
-  changes: [
-    { setting: 'flow.retro', action: 'create', to: { everyTasks: 10 } },
-    { setting: 'flow.retro.everyTasks', action: 'change', from: 20, to: 10 },
-    { setting: 'flow.localChecksFirst', action: 'keep', to: true },
-  ],
-}))
-
 function OpenTask() {
   const drawer = useTaskDrawer()
   return (
@@ -386,12 +258,8 @@ const repoEdit = (edited: boolean) =>
 
 export const SCENARIOS: Record<string, Scenario> = {
   'add-plugin': own('Add plugin', <AddPlugin workspaceId="w" client={idle} supported={[1]} onChanged={async () => undefined} />),
-  onboard: shown((close) => <SetupRepository workspaceId="w" folder="/work/avoozl" onChanged={async () => undefined} onClose={close} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
-  'setup-github': shown((close) => (
-    <SetupDialog workspaceId="w" client={idle} form={setupForm({})} set={() => undefined} first={null} onClose={close} onSaved={async () => undefined} />
-  )),
   'archive-plan': shown((close) => <ArchivePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   'delete-plan': shown((close) => <DeletePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   confirm: own(
@@ -402,15 +270,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   ),
   'file-viewer': shown((close) => <DocumentReader workspaceId="w" target={{ document: 'docs/guide.md', lineStart: null, lineEnd: null }} text={text} onClose={close} />),
   'stop-line': own('Stop the line', <StopLineButton workspaceId="w" onPulled={() => undefined} />),
-  'pack-import': shown((close) => (
-    <PackImportDialog row={{ id: 'pack-1', version: '1.0.0' } as never} workspaceId="w" client={idle} onClose={close} onChanged={async () => undefined} />
-  )),
-  // Not a modal: the drawer's Files fold, at a drawer's width.
-  'task-files': shown(() => (
-    <div style={{ maxWidth: 620 }}>
-      <TaskFiles workspaceId="w" taskId="a1" active />
-    </div>
-  )),
   'task-drawer': own('Open the dialog', <OpenTask />),
   'review-info': own('Open the dialog', <OpenReview />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onClose={close} onDone={close} />),
@@ -429,14 +288,6 @@ export const SCENARIOS: Record<string, Scenario> = {
     createPortal(
       <div {...{ [APP_ATTR]: '' }}>
         <NewFixDrawer workspaceId="w" onClose={close} />
-      </div>,
-      document.body,
-    ),
-  ),
-  'new-spec-template': shown((close) =>
-    createPortal(
-      <div {...{ [APP_ATTR]: '' }}>
-        <NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} />
       </div>,
       document.body,
     ),
@@ -527,69 +378,6 @@ if (query.get('app')) {
   answer('flow.view', () => ({ line: query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : [] }))
 }
 
-// The Files fold's reads: a worktree with each kind of change.
-const change = (path: string, status: string, additions: number | null, deletions: number | null, extra = {}) => ({
-  path,
-  from: null,
-  status,
-  additions,
-  deletions,
-  binary: false,
-  ...extra,
-})
-const changed = [
-  change('README.md', 'modified', 3, 1),
-  change('src/app/tasks/task-files.mjs', 'added', 256, 0),
-  change('src/app/api/operations.mjs', 'modified', 3, 0),
-  change('src/app/old-name.mjs', 'deleted', 0, 40),
-  change('src/app/renamed.mjs', 'renamed', 2, 2, { from: 'src/app/before.mjs' }),
-  change('assets/logo.png', 'modified', null, null, { binary: true }),
-  change('notes.md', 'added', null, null, { untracked: true }),
-]
-answer('task.files', (body) => ({
-  taskId: 'a1',
-  mode: 'worktree',
-  branch: 'avoozl/a1',
-  remote: false,
-  github: 'https://github.com/octo/app/tree/avoozl/a1',
-  worktree: '/srv/worktrees/a1',
-  base: 'abc123',
-  head: 'def456',
-  files: changed,
-  totals: { files: changed.length, additions: 264, deletions: 43 },
-  truncated: false,
-  all: (body.input as { all?: boolean })?.all
-    ? { paths: ['README.md', 'package.json', 'src/app/store/store.mjs', 'src/app/api/operations.mjs', 'src/app/tasks/task-files.mjs', 'src/app/renamed.mjs'], truncated: false }
-    : null,
-}))
-answer('task.diff', (body) => ({
-  path: (body.input as { path: string }).path,
-  status: 'modified',
-  from: null,
-  additions: 3,
-  deletions: 1,
-  binary: false,
-  tooLarge: false,
-  diff: [
-    'diff --git a/README.md b/README.md',
-    'index 1a2b3c4..5d6e7f8 100644',
-    '--- a/README.md',
-    '+++ b/README.md',
-    '@@ -1,6 +1,8 @@',
-    ' # Avoozl',
-    ' ',
-    '-Plans and tasks in one place.',
-    '+Plans, tasks, and agents in one local workspace.',
-    '+',
-    '+Review what a worker changed from the task drawer.',
-    ' ',
-    ' ## Install',
-    ' ',
-    ' Run npm install.',
-    '',
-  ].join('\n'),
-}))
-
 function Scenario({ name }: { name: string }) {
   const [open, setOpen] = useState(false)
   const scenario = SCENARIOS[name]
@@ -612,16 +400,6 @@ answer('workspaces.list', () => ({
     ...(query.get('long') === '1' ? [{ id: 'w2', name: 'Avoozl', root: '/w2', enabled: true, state: 'ready', served: false }] : []),
   ],
 }))
-// The install's name: quiet with one instance, shown in more places with &shared=1.
-let instanceName = 'Mira'
-answer('instance.view', () => ({
-  id: 'inst-0123456789ab',
-  name: instanceName,
-  others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [],
-  shared: query.get('shared') === '1',
-}))
-answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: (instanceName = String((body.input as { name?: string }).name)), others: [], shared: false }))
-
 // Settings > Workspaces > Telemetry. &telemetry=STATUS picks what the status
 // operation says (off by default); the switch flips it on and off.
 let telemetryStatus = query.get('telemetry') ?? 'off'
@@ -664,8 +442,7 @@ function DeepLinkPage() {
   )
 }
 
-// ?page=home: the Dashboard alone with nothing in flight (?page=demo uses
-// the same answers for the real workspace, before the sample opens). &ran=1 gives the
+// ?page=home: the Dashboard alone with nothing in flight. &ran=1 gives the
 // workspace one finished task (it has run before); without it, none has.
 if (query.get('page') === 'home' || query.get('page') === 'demo') {
   const ran = query.get('ran') === '1'
@@ -732,14 +509,14 @@ if (query.get('page') === 'app') {
   if (!replyFor('landing.view')) answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
   // &home=empty: Home's CI read answers with no runs (only Home reads it).
   if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [], flaky: [], ciOnly: [], ci: { repositories: [] } }))
-  // &roles=plans|single|local: Repository setup with a role on each row
-  // (R105), the planning repository without a checkout in &roles=plans.
+  // &roles=plans|single|local: Repository setup in each github.mode, the
+  // planning repository without a checkout in &roles=plans.
   const roles = query.get('roles')
   const rolesGithub =
     roles === 'single'
-      ? { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
+      ? { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main' }, 'acme/recipe-api': { baseBranch: 'main' } } }
       : roles === 'local'
-        ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
+        ? { repositories: { 'acme/recipe-box': { baseBranch: 'main' }, 'acme/recipe-api': { baseBranch: 'main' } } }
         : {
             mode: 'plans-repo',
             planningRepository: 'acme/plans',
@@ -747,11 +524,10 @@ if (query.get('page') === 'app') {
             repositories: {
               'acme/recipe-box': {
                 baseBranch: 'main',
-                role: 'code',
                 requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'],
                 landing: { method: 'squash' },
               },
-              'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' },
+              'acme/recipe-api': { baseBranch: 'main', minimumPermission: 'write' },
             },
           }
   if (roles)
@@ -762,7 +538,7 @@ if (query.get('page') === 'app') {
         { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
       ],
     }))
-  // Add repository and Set up GitHub and import specs read a folder the same way.
+  // Add repository reads a folder.
   if (roles) {
     // Save writes are recorded in __harness.calls.
     if (!replyFor('github.settings.update'))
@@ -770,8 +546,6 @@ if (query.get('page') === 'app') {
         state.calls.push(body)
         return replyFor('github.settings.get')!({})
       })
-    // A folder named like a plans repository looks like one; the rest look
-    // like code in this plans-repo workspace.
     answer('repositories.detect', (body) => {
       const folder = (body.input as { folder: string }).folder
       const plans = /plans/.test(folder)
@@ -781,17 +555,6 @@ if (query.get('page') === 'app') {
         baseBranch: 'main',
         remote: 'origin',
         github: plans ? 'acme/team-plans' : 'acme/new-service',
-        kind: plans
-          ? { role: 'planning', source: '', reasons: ['It has spec folders in .kiro/specs and no code.'], upstream: null, code: null, specs: 2, visibility: 'private' }
-          : {
-              role: 'code',
-              source: '',
-              reasons: ["acme/plans is this workspace's planning repository, so its specs live there.", 'It has code (package.json).'],
-              upstream: null,
-              code: 'package.json',
-              specs: 0,
-              visibility: 'public',
-            },
       }
     })
     answer('repositories.configure', (body) => ({
@@ -800,19 +563,6 @@ if (query.get('page') === 'app') {
       localCheckout: (body.input as { localCheckout: string }).localCheckout,
       github: 'acme/new-service',
       baseBranch: 'main',
-    }))
-    answer('onboarding.inspect', (body) => ({
-      root: (body.input as { folder: string }).folder,
-      baseBranch: 'main',
-      currentBranch: 'main',
-      remote: 'git@github.com:acme/new-service.git',
-      github: 'acme/new-service',
-      id: 'new-service',
-      settingsFile: false,
-      specs: ['search-v2'],
-      registered: { id: 'new-service', localCheckout: (body.input as { folder: string }).folder, github: 'acme/new-service', baseBranch: 'main', planning: false },
-      visibility: 'private',
-      githubError: null,
     }))
   }
   answer('github.settings.get', () => ({
@@ -1845,21 +1595,18 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
   answer('flow.retro.decide', () => ({ ok: true }))
   answer('flow.retro.again', () => ({ queued: true }))
 }
-// ?page=demo: the whole page, where Start demo opens the sample. Calls
-// for the sample answer from window.__DEMO (demo-replies.mjs, built from
-// the real sample); other calls answer as ?page=app does.
+// ?page=demo: the whole page on the made-up sample workspace. Its calls
+// answer from window.__DEMO (demo-replies.mjs, built from the sample in
+// src/app/test/demo-fixture.mjs); other calls answer as ?page=app does.
 const demo = (window as unknown as { __DEMO?: { replies: Record<string, unknown>; previews: Record<string, string> } }).__DEMO
 if (query.get('page') === 'demo' && demo) {
-  let open = false
-  answer('demo.start', () => ((open = true), { active: true, workspaceId: '@demo', existing: false, at: null }))
-  answer('demo.exit', () => ((open = false), { active: false }))
-  answer('demo.status', () => ({ active: open, workspaceId: '@demo' }))
-  const names = new Set([...Object.keys(demo.replies), ...Object.keys(demo.previews)].filter((name) => !name.startsWith('demo.')))
+  answer('workspaces.list', () => ({ defaultWorkspace: 'sample', items: [{ id: 'sample', name: 'Recipe Box', served: true }] }))
+  const names = new Set([...Object.keys(demo.replies), ...Object.keys(demo.previews)])
   for (const name of names) {
     const before = replyFor(name)
     answer(name, (body) => {
       const call = body as { workspaceId?: string }
-      if (call.workspaceId === '@demo') {
+      if (call.workspaceId === 'sample') {
         if (name in demo.previews) throw new Refusal(409, { error: demo.previews[name], demo: true })
         return demo.replies[name]
       }
@@ -2788,48 +2535,8 @@ function LandingParts(props: { repository: RepositoryForm; set: (change: Partial
     <>
       <ConflictFields id="t" {...props} />
       <MergeMethodFields id="t" {...props} />
-      <AutoMergeFields id="t" {...props} />
+      <PrModeFields id="t" {...props} />
     </>
-  )
-}
-// ?page=workflow-map&config=single|plans|local: the Workflow map drawn from a
-// real policy through toForm, with the Crews and rules fields beside it so a
-// jump has somewhere to land.
-const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, unknown> }> = {
-  single: {
-    mode: 'single-repo',
-    policy: {
-      mode: 'single-repo',
-      repositories: {
-        'example/code': {
-          baseBranch: 'main',
-          allowedActors: ['sam', 'lee'],
-        },
-      },
-    },
-  },
-  plans: {
-    mode: 'plans-repo',
-    policy: {
-      mode: 'plans-repo',
-      planningRepository: 'example/plans',
-      repositories: { 'example/code': { baseBranch: 'main', minimumPermission: 'maintain' } },
-    },
-  },
-  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk' } } } },
-}
-function WorkflowMapPage() {
-  const config = WORKFLOW_POLICIES[query.get('config') ?? 'single']
-  const form = toForm(config.policy as never)
-  // ?autoMerge=off: the repository's landing.autoMerge is false.
-  const [repository, setRepository] = useState<RepositoryForm>({ ...form.repositories[0], ...(query.get('autoMerge') === 'off' ? { autoMerge: 'off' } : {}) })
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <WorkflowMap workspaceId="w" mode={config.mode} repository={repository} planningRepository={form.planningRepository} onJump={(jump) => focusField('t', jump)} />
-        <LandingParts repository={repository} set={(change) => setRepository((before) => ({ ...before, ...change }))} />
-      </HarnessBoundary>
-    </div>
   )
 }
 function PanelPage() {
@@ -2840,6 +2547,103 @@ function PanelPage() {
       </HarnessBoundary>
     </div>
   )
+}
+// &epiccontext=1: two tasks whose last session got epic context, and Settings ›
+// Epic context with the machine block, a plugin part and the last sessions
+// (epic-context ec-2.7).
+if (query.get('page') === 'app' && query.get('epiccontext') === '1') {
+  const graph = replyFor('graph.view')?.({}) as { tasks: Record<string, unknown>[] }
+  const items = 'skill module-layout, read team-notes, mcp research'
+  answer('graph.view', () => ({
+    ...graph,
+    tasks: graph.tasks.map((entry, at) =>
+      at === 0
+        ? { ...entry, epicContext: { label: 'Epic context', sources: ['team-context'], items } }
+        : at === 1
+          ? { ...entry, epicContext: { label: 'Epic context (brief only)', sources: ['team-context'], items: 'skill module-layout, read team-notes' } }
+          : entry,
+    ),
+  }))
+  const part = {
+    repos: ['acme/*'],
+    skills: [
+      { name: 'error-messages', description: 'How the team words an error: what failed, why, and the next step.', hash: 'a'.repeat(64) },
+      { name: 'module-layout', description: 'How the team lays out a module: one folder, an index file, tests beside the code.', hash: 'b'.repeat(64) },
+    ],
+    reads: [{ id: 'team-notes', about: "The team's design notes", written: '{ask:notesRoot}/widgets', filled: '/srv/acme/team-notes/widgets' }],
+    ask: [{ name: 'notesRoot', question: 'The folder of your clone of acme/team-notes', answer: '/srv/acme/team-notes' }],
+    servers: [
+      {
+        alias: 'research',
+        about: "Answers questions from the team's design archive",
+        command: ['node', '/opt/acme/team-context/mcp/research.mjs'],
+        env: ['RESEARCH_TOKEN'],
+        replaced: false,
+        mapped: true,
+      },
+    ],
+    contentSets: ['acme-terms'],
+    ignored: null,
+    state: 'approved',
+    missing: { questions: [], aliases: [] },
+  }
+  const tests = (why: string | null) => [
+    { name: 'approved', passed: true },
+    { name: 'approver', passed: true },
+    why ? { name: 'you-drive', passed: false, why } : { name: 'you-drive', passed: true },
+  ]
+  answer('context.get', () => ({
+    machine: {
+      repos: ['acme/*'],
+      reads: ['~/notes/acme-widgets'],
+      mcp: { docs: { about: 'The docs host', command: ['docs-mcp'], env: ['DOCS_TOKEN'] } },
+      contentSets: ['acme-terms'],
+    },
+    plugins: [{ id: 'team-context', version: '1.0.0', ...part }],
+    sessions: [
+      {
+        at: '2026-11-20T09:12:00Z',
+        taskId: 'config.1.1',
+        resumed: false,
+        briefOnly: false,
+        given: true,
+        tests: tests(null),
+        sources: ['team-context'],
+        items,
+        left: [{ item: 'read old-notes', why: 'the folder is missing' }],
+      },
+      {
+        at: '2026-11-20T08:40:00Z',
+        taskId: 'config.1.2',
+        resumed: false,
+        briefOnly: false,
+        given: false,
+        tests: tests('Taken by octo-dev: its spec issue is assigned to them.'),
+        sources: [],
+        items: '',
+        left: [],
+      },
+    ],
+  }))
+  answer('plugins.list', () => ({
+    supportedContracts: [1],
+    plugins: [
+      {
+        id: 'team-context',
+        source: 'machine',
+        state: 'approved',
+        version: '1.0.0',
+        contract: 1,
+        provides: ['context'],
+        kinds: [],
+        hash: 'c'.repeat(64),
+        approval: { version: '1.0.0', hash: 'c'.repeat(64), approvedAt: '2026-11-20T08:00:00Z' },
+        config: {},
+        health: null,
+        context: part,
+      },
+    ],
+  }))
 }
 // &signin=1: the GitHub sign-in screens (signin-fixture.ts).
 if (query.get('signin') === '1') answerSignIn(page)
@@ -2852,8 +2656,6 @@ createRoot(document.getElementById('root')!).render(
     <TipPage />
   ) : page === 'panel' ? (
     <PanelPage />
-  ) : page === 'workflow-map' ? (
-    <WorkflowMapPage />
   ) : page === 'crews-rules' ? (
     <CrewsRulesPage />
   ) : intake ? (

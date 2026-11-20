@@ -25,7 +25,6 @@ const READ_ONLY = new Set([
   "avoozl-plan-review",
   "avoozl-responder",
   "avoozl-reviewer",
-  "avoozl-task-summary",
   "avoozl-verifier",
 ]);
 const writes = (name) =>

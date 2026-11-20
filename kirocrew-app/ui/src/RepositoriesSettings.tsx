@@ -23,7 +23,6 @@ import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
 import { Modal } from './ui/Modal.tsx'
 import { FolderField } from './FolderPicker.tsx'
-import { holdsSpecs } from './onboarding-api.ts'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
 export const REPOSITORIES_LINE =
@@ -63,9 +62,6 @@ export function RepositoryList(props: {
   onView: (row: RepositoryRow) => void
   onEdit: (row: RepositoryRow) => void
   onRemove: (row: RepositoryRow) => void
-  onSetup: (row: RepositoryRow) => void
-  // Why Set up GitHub and import specs cannot start now, or null.
-  setupBlocked: string | null
   onAdd: () => void
   // Why Add repository cannot open now, or null.
   addBlocked: string | null
@@ -114,15 +110,6 @@ export function RepositoryList(props: {
           facts={repositoryFacts(row, props.entryOf(row))}
           actions={
             <>
-              {row.checkout && (
-                <IconBtn
-                  icon={Workflow}
-                  label={`Set up GitHub and import specs for ${row.name}`}
-                  tooltip={props.setupBlocked ?? 'Set up GitHub and import specs'}
-                  disabled={Boolean(props.setupBlocked)}
-                  onClick={() => props.onSetup(row)}
-                />
-              )}
               <IconBtn icon={Eye} label={`View ${row.name}`} tooltip="View details" onClick={() => props.onView(row)} />
               <IconBtn
                 icon={Pencil}
@@ -159,10 +146,8 @@ export function removeCopy(row: RepositoryRow): ConfirmCopy {
       }
 }
 
-// Add repository: a guided dialog. Pick the folder; Avoozl reads it and
-// guesses what kind of repository it is (Local only, Code repository,
-// Planning repository, or Code and planning) and why. Yes
-// adds it as that; No opens the full form in the same dialog.
+// Add repository: pick the folder; Avoozl reads its remote and branch, and
+// the person picks its role, ID and landing branch.
 // What the person chose for the new repository's role, handed to the page to save.
 export interface AddedRole {
   // The added checkout's folder, for the set-up that follows.
@@ -174,13 +159,7 @@ export interface AddedRole {
   changed: boolean
 }
 
-type AddStep = 'folder' | 'guess' | 'form'
-
-// The kind's name and its one line, for the guess.
-export function kindCopy(role: string): { label: string; line: string } {
-  const option = ROLE_OPTIONS.find((item) => item.value === role) ?? ROLE_OPTIONS[0]
-  return { label: option.label, line: option.line }
-}
+type AddStep = 'folder' | 'form'
 
 // `planningTaken`: another checkout is already the one specs are read from.
 export function AddRepositoryModal(props: { workspaceId: string; mode: string; planningTaken: boolean; onClose: () => void; onAdded: (id: string, added: AddedRole) => void }) {
@@ -202,8 +181,8 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
       setFound(next)
       setId(next.id ?? '')
       setBranch(next.baseBranch)
-      setRole(next.kind.role)
-      setStep('guess')
+      setRole(roleFromMode(props.mode, next.github, ''))
+      setStep('form')
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
@@ -216,8 +195,8 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
     setError(null)
     try {
       const landing = branch.trim() || found.baseBranch
-      // The checkout specs are read from, as Set up would add it.
-      const planning = holdsSpecs(props.mode, role === 'planning', found.kind.specs, props.planningTaken)
+      // The checkout specs are read from.
+      const planning = role === 'planning' || (props.mode === 'local' && !props.planningTaken)
       const saved = await client.registerRepository(props.workspaceId, { id: id.trim(), localCheckout: found.root, baseBranch: landing, planning })
       const given = roleFromMode(props.mode, found.github, '')
       props.onAdded(saved.id, {
@@ -239,15 +218,6 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
       <Btn type="button" primary disabled={busy || !folder.trim()} onClick={() => void detect()}>
         {busy ? 'Reading the folder…' : 'Check folder'}
       </Btn>
-    ) : step === 'guess' ? (
-      <>
-        <Btn type="button" onClick={() => setStep('form')} data-add-not-right>
-          No, let me choose
-        </Btn>
-        <Btn type="button" primary disabled={blocked} onClick={() => void add()} data-add-confirm>
-          Yes, add it
-        </Btn>
-      </>
     ) : (
       <Btn type="button" primary disabled={blocked} onClick={() => void add()} data-add-confirm>
         Add repository
@@ -274,7 +244,7 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
       {step === 'folder' && (
         <Stack gap={2} data-step="folder">
           <Box as="p" size="sm">
-            Pick a Git checkout on this computer. Avoozl reads it and suggests what kind of repository it is. Nothing is changed until you add it.
+            Pick a Git checkout on this computer. Avoozl reads its remote and branch. Nothing is changed until you add it.
           </Box>
           <FolderField id="avoozl-repo-folder" label="Folder" value={folder} placeholder="~/projects/my-service" client={client} onChange={setFolder} />
         </Stack>
@@ -288,72 +258,22 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; p
             </Box>
             <Hint as="dt">GitHub</Hint>
             <dd>{found.github ?? (found.remote ? `${found.remote} is not on GitHub` : 'No GitHub remote')}</dd>
-            {step === 'guess' && (
-              <>
-                <Hint as="dt">Tasks land on</Hint>
-                <dd>
-                  <code>{branch}</code>
-                </dd>
-              </>
-            )}
           </Box>
-          {step === 'guess' ? <KindGuess found={found} role={role} /> : null}
-          {step === 'form' && (
-            <Box data-step="form">
-              <RoleChoice id="avoozl-repo-add" name={found.root} role={role} fixed={found.github ? null : 'No GitHub remote, so its tasks stay local.'} onChange={setRole} />
+          <Box data-step="form">
+            <RoleChoice id="avoozl-repo-add" name={found.root} role={role} fixed={found.github ? null : 'No GitHub remote, so its tasks stay local.'} onChange={setRole} />
+          </Box>
+          <Row as="span" gap={3} align="end">
+            <Box htmlFor="avoozl-repo-id" as="label" flex flexCol gap="1" size="sm">
+              <span>Short ID</span>
+              <Input id="avoozl-repo-id" value={id} placeholder="my-service" onChange={(event) => setId(event.target.value)} />
             </Box>
-          )}
-          {(step === 'form' || !found.id) && (
-            <Row as="span" gap={3} align="end">
-              <Box htmlFor="avoozl-repo-id" as="label" flex flexCol gap="1" size="sm">
-                <span>Short ID</span>
-                <Input id="avoozl-repo-id" value={id} placeholder="my-service" onChange={(event) => setId(event.target.value)} />
-              </Box>
-              {step === 'form' && (
-                <Box htmlFor="avoozl-repo-branch" as="label" flex flexCol gap="1" size="sm">
-                  <span>Branch tasks land on</span>
-                  <Input id="avoozl-repo-branch" value={branch} onChange={(event) => setBranch(event.target.value)} />
-                </Box>
-              )}
-            </Row>
-          )}
-          {step === 'form' && (
-            <Box as="p" size="xs">
-              <PlainButton type="button" underline onClick={() => setStep('guess')}>
-                Back to the suggestion
-              </PlainButton>
+            <Box htmlFor="avoozl-repo-branch" as="label" flex flexCol gap="1" size="sm">
+              <span>Branch tasks land on</span>
+              <Input id="avoozl-repo-branch" value={branch} onChange={(event) => setBranch(event.target.value)} />
             </Box>
-          )}
+          </Row>
         </Stack>
       )}
     </Modal>
-  )
-}
-
-// What Avoozl thinks the folder is, why, and the question.
-function KindGuess(props: { found: DetectedCheckout; role: string }) {
-  const { label, line } = kindCopy(props.role)
-  return (
-    <Box css-background="bg-elevated-transparent" rounded="md" p="3" flex flexCol gap="2" data-step="guess" data-guess={props.role}>
-      <div>
-        <Hint size="xs">It looks like</Hint>
-        <Box as="p" size="base" weight="semibold" data-guess-label>
-          {label}
-        </Box>
-        <Hint as="p" size="xs">
-          {line}
-        </Hint>
-      </div>
-      {props.found.kind.reasons.length > 0 && (
-        <Box as="ul" css-list-style="disc" flex flexCol gap="0.5" pl="4" size="xs" data-guess-reasons>
-          {props.found.kind.reasons.map((reason) => (
-            <li key={reason}>{reason}</li>
-          ))}
-        </Box>
-      )}
-      <Box as="p" size="sm" weight="medium">
-        Is this right?
-      </Box>
-    </Box>
   )
 }

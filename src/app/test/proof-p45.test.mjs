@@ -1,7 +1,7 @@
 import { nativeDispatch } from "./executor-fixture.mjs";
 // Proof P45 (design §4.21–§4.25, Requirements 75–80): investigate first,
 // the evidence bundle, staying current with the base branch, rules from
-// repeated corrections, the fix-work share, and ship mode. Every value is
+// repeated corrections and the fix-work share. Every value is
 // fake: a temporary workspace with a real Git checkout, fake workers and a
 // fake falsifier that report through Operations, and a fake GitHub that
 // answers only the reads it is given; anything else is recorded.
@@ -308,18 +308,6 @@ test("P45 (1)–(3): findings first, a falsifier, the gate, Needs you, and small
     .map((r) => `${r.role}:${r.stage}`);
   assert.ok(spans.includes("worker:investigate"), spans.join());
   assert.ok(spans.includes("falsifier:falsify"), spans.join());
-
-  // The evidence bundle has the findings, both replies and the decisions.
-  const evidence = await w.ops.execute("task.evidence", { taskId: "a3" });
-  const kinds = evidence.entries.map((e) => e.kind);
-  assert.deepEqual(
-    kinds.filter((k) => k === "findings").length,
-    2,
-    kinds.join(),
-  );
-  assert.equal(kinds.filter((k) => k === "falsifier").length, 2);
-  assert.equal(kinds.filter((k) => k === "decision").length, 2);
-  assert.equal(kinds[0], "decision", "newest first");
 });
 
 test("P45 mode off dispatches exactly as before, and a manifest override wins", async (t) => {
@@ -435,49 +423,4 @@ test("P45 (7): the fix-work share counts the bugfix spec's task", async (t) => {
     reverts: [],
   });
   assert.match(brief, /"fixWork": \{\n\s*"fixes": 1,\n\s*"finished": 3/);
-});
-
-test("P45 (8) local: manual ship waits for a person's Integrate", async (t) => {
-  const w = local(t, { investigate: { mode: "off" } });
-  // A local task has no GitHub landing block: its own pin says manual.
-  w.store.mutate("Pin a1 to manual", (data) => {
-    data.tasks.find((task) => task.id === "a1").ship = "manual";
-  });
-  const tree = await w.ops.execute("worktree.prepare", { taskId: "a1" });
-  fs.writeFileSync(path.join(tree.path, "a1.txt"), "a1\n");
-  git(tree.path, "add", ".");
-  git(tree.path, "commit", "-m", "a1");
-  const commit = git(tree.path, "rev-parse", "HEAD");
-  w.store.put("task_deliveries", {
-    id: "a1",
-    taskId: "a1",
-    state: "verified",
-    commit,
-    attempts: [],
-    verifications: [],
-  });
-  const policy = deliveryPolicy(
-    JSON.parse(fs.readFileSync(path.join(w.root, ".avoozl.json"), "utf8")),
-  );
-  let result = await integrateVerified(w.store, { policy });
-  assert.equal(result.notify.length, 1);
-  assert.equal(w.store.get("task_deliveries", "a1").state, "verified");
-  const item = conflictsView(w.store, w.store.read()).items.find(
-    (i) => i.kind === "ready-to-merge",
-  );
-  assert.equal(item.integrate, true);
-  result = await integrateVerified(w.store, { policy });
-  assert.equal(result.notify.length, 0, "asked once");
-  await assert.rejects(
-    w.ops.execute(
-      "delivery.integrate",
-      { taskId: "a1" },
-      undefined,
-      as("w-a1"),
-    ),
-    (e) => e.status === 403,
-  );
-  await w.ops.execute("delivery.integrate", { taskId: "a1", commit });
-  await integrateVerified(w.store, { policy });
-  assert.notEqual(w.store.get("task_deliveries", "a1").state, "verified");
 });

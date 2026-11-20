@@ -31,20 +31,20 @@ Every task takes the same path from an approved spec to a deleted claim
 branch:
 
 ```mermaid
-flowchart TD
-  approve[Spec approved] --> issue[Spec issue]
-  issue --> assign[Assigned]
-  assign --> ready[Ready]
-  ready --> claim{Claim branch}
-  claim -- exists --> next[Next task]
-  claim -- created --> work[Work and tick]
-  work --> merge[Merge base]
-  merge --> checks{Checks pass}
-  checks -- no --> work
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 25}}}%%
+flowchart TB
+  subgraph pick [" "]
+    direction LR
+    approve[Approved + issue] --> assign[Assigned] --> ready[Ready] --> claim{Claim}
+  end
+  subgraph run [" "]
+    direction LR
+    work[Work + tick] --> merge[Merge base] --> checks{Checks} -- pass --> land[Land, delete branch]
+  end
+  claim -- exists --> ready
+  pick -- created --> run
+  checks -- fail --> work
   checks -- base moved --> merge
-  checks -- yes --> land[Land]
-  land --> ticked[Ticked on base]
-  ticked --> delete[Branch deleted]
 ```
 
 The tick rides in the commit that lands, so the task is done the moment the
@@ -358,20 +358,7 @@ POST /repos/acme/widget/git/refs
 
 GitHub refuses the create when the branch exists (HTTP 422). No comment or
 label is needed to claim. When two runners claim one task, the first create
-wins:
-
-```mermaid
-sequenceDiagram
-  participant A as Runner A
-  participant G as GitHub
-  participant B as Runner B
-  A->>G: Create avoozl/parser/p-2
-  B->>G: Create avoozl/parser/p-2
-  G-->>A: 201 Created
-  G-->>B: 422 Exists
-  A->>G: Create avoozl-lease/parser/p-2/1
-  B->>B: Take the next task
-```
+wins.
 
 The lease says who may push to the claim branch afterward. It is a ref whose
 name ends in a generation number, and GitHub creates each name once. A runner
@@ -387,21 +374,24 @@ POST /repos/acme/widget/git/refs
 }
 ```
 
-When two runners on one login resume one claim, the first create wins:
+When two runners on one login resume one claim, the first lease create wins
+the same way. Here Runner A wins the claim, then hands the spec to Runner B's
+login, which resumes it:
 
 ```mermaid
 sequenceDiagram
   participant A as Runner A
   participant G as GitHub
   participant B as Runner B
-  A->>G: Read leases of p-2: none
-  B->>G: Read leases of p-2: none
-  A->>G: Create avoozl-lease/parser/p-2/1
-  B->>G: Create avoozl-lease/parser/p-2/1
+  A->>G: Create avoozl/parser/p-2
+  B->>G: Create avoozl/parser/p-2
   G-->>A: 201 Created
   G-->>B: 422 Exists
-  A->>A: Resume the claim branch
-  B->>B: Take the next task
+  A->>G: Create avoozl-lease/parser/p-2/1
+  A->>G: Push p-2, delete lease 1
+  Note over A,B: Assignee changed to B's login
+  B->>G: Create avoozl-lease/parser/p-2/1
+  G-->>B: 201 Created, resume p-2
 ```
 
 A runner that also shows work in progress with a label on the spec issue takes
@@ -673,14 +663,20 @@ settings, refs, lint and commands below.
 
 Avoozl does not follow every rule yet. Each item below is not built:
 
-- Order (3), manual tags (4), plain done bullets (2.3, 2.4), front matter (5)
-  and linked specs (6): Avoozl still reads `$` fact bullets and orders tasks
-  by `$after`.
-- Integration branches (11) and the done branch they set (11.6, 15.1): Avoozl
-  still reads an `integrationBranch` key.
-- Claims, leases and resuming (12), and spec issue markers (8.2): Avoozl names
-  a task branch `avoozl/<task>`, takes no lease, and marks spec issues with
-  its own task marker.
+- Order (3): Avoozl orders a spec's tasks by the list, but a spec that still
+  has `$after` facts is ordered by them.
+- Manual tags (4), plain done bullets (2.3, 2.4) and front matter (5): Avoozl
+  still reads `$` fact bullets.
+- Linked specs (6): a parent ticks a spec group's box in the landing commit
+  only when both `tasks.md` files are on one specs branch; otherwise the box
+  waits for a later tick.
+- Integration branches (11): a claim starts on the branch named for its spec
+  and catches it up, but the done branch they set (11.6, 15.1) is not built,
+  and a spec that names an `integrationBranch` key is still read by it.
+- Claims, leases and resuming (12): `avoozl next --claim` and `plans_next`
+  with `claim` claim through the refs API and take lease generation 1, but
+  Avoozl does not renew a lease or read the leases before a push, and the tick
+  still starts a task on its own branch `avoozl/<task>` with no claim branch.
 - Landing (13, 14): Avoozl does not guard a pull request merge by head SHA
   and does not tick landed work whose tick is missing (13.6).
 - Next task (10): Avoozl ranks by the number of tasks unblocked and then file

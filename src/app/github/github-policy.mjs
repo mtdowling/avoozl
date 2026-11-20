@@ -8,11 +8,6 @@ import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { fail } from "../store/store.mjs";
 import { MAX_WRITES_PER_HOUR, MAX_WRITES_PER_MINUTE } from "./github-pacer.mjs";
 import { parseRepository } from "./github.mjs";
-import {
-  ROLES,
-  deriveGitHubKeys,
-  resolveRoles,
-} from "../workspace/repository-roles.mjs";
 
 export const PERMISSIONS = Object.freeze([
   "read",
@@ -21,7 +16,6 @@ export const PERMISSIONS = Object.freeze([
   "maintain",
   "admin",
 ]);
-export { ROLES };
 export const MODES = Object.freeze(["plans-repo", "single-repo"]);
 // `local` names Local only on purpose: no GitHub mode, every task stays in
 // the workspace database. It normalizes to a null mode, and the GitHub
@@ -47,7 +41,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "checkout",
     "folder",
     "baseBranch",
-    "role",
     "allowedActors",
     "minimumPermission",
     "requiredChecks",
@@ -59,7 +52,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "landing",
   ],
   conflicts: ["maxAttempts"],
-  landing: ["mode", "pr", "autoMerge", "method", "mergeBatch", "commitPrefix"],
+  landing: ["mode", "pr", "method", "mergeBatch", "commitPrefix"],
 });
 // Who counts when a repository names nobody.
 export const DEFAULT_PERMISSION = "write";
@@ -198,7 +191,7 @@ export const MERGE_METHOD_SETTING = Object.freeze({
   squash: { key: "allow_squash_merge", name: "Allow squash merging" },
   merge: { key: "allow_merge_commit", name: "Allow merge commits" },
 });
-// `landing` {mode, autoMerge, method, mergeBatch, commitPrefix}, unset values null and
+// `landing` {mode, pr, method, mergeBatch, commitPrefix}, unset values null and
 // the method defaulted. Null reads as unset, so a normalized policy
 // normalizes to itself.
 function landingInput(value, label) {
@@ -207,8 +200,6 @@ function landingInput(value, label) {
     fail(`${label}.mode must be direct, pr or off.`);
   if (block.pr != null && !PR_MODES.includes(block.pr))
     fail(`${label}.pr must be draft, ready or auto.`);
-  if (block.autoMerge != null && typeof block.autoMerge !== "boolean")
-    fail(`${label}.autoMerge must be true or false.`);
   if (
     block.mergeBatch != null &&
     block.mergeBatch !== "auto" &&
@@ -231,7 +222,6 @@ function landingInput(value, label) {
   return {
     mode: block.mode ?? null,
     pr: block.pr ?? null,
-    autoMerge: block.autoMerge ?? null,
     method: block.method ?? MERGE_METHOD_DEFAULT,
     mergeBatch: block.mergeBatch ?? null,
     commitPrefix: block.commitPrefix ?? null,
@@ -262,13 +252,6 @@ export function priorityRank(priority, labels) {
 export function normalizeGitHubPolicy(value) {
   if (value === undefined || value === null) value = {};
   onlyKeys(value, POLICY_KEYS, "github");
-  // Roles decide the mode (R105.2); a block with none is read as written.
-  try {
-    resolveRoles(value);
-  } catch (error) {
-    fail(error.message);
-  }
-  value = deriveGitHubKeys(value);
   const named = value.mode ?? null;
   if (named !== null && !MODE_CHOICES.includes(named))
     fail("github.mode must be local, plans-repo or single-repo.");

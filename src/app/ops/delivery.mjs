@@ -1,9 +1,5 @@
 // Operations of one feature: name, class, MCP policy and handler.
-import {
-  approveIntegration,
-  readyCandidates,
-  retryDelivery,
-} from "../delivery/delivery.mjs";
+import { readyCandidates, retryDelivery } from "../delivery/delivery.mjs";
 import { integrateRun } from "../git/git.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import {
@@ -28,7 +24,7 @@ import {
   updateProviders,
 } from "../flow/provider-health.mjs";
 import { reportDone, runnerStatus } from "../workers/remote-runner.mjs";
-import { nextView } from "../workers/runner.mjs";
+import { claimNext, nextView } from "../workers/runner.mjs";
 import { fail } from "../store/store.mjs";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
@@ -77,17 +73,26 @@ export const entries = [
     },
   },
 
+  // With `claim`, it creates the best ready task's claim branch on origin
+  // (simplify §D3), so it may write.
   {
     name: "runner.next",
-    class: "observe",
-    github: "check-in",
+    class: "execute",
+    github: "worker-grants",
     policy: routed,
-    handler({}) {
-      const store = this.store;
-      return nextView(store, {
+    handler({ input }) {
+      const options = {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
-      });
+      };
+      if (input?.claim === true)
+        return claimNext(this.store, {
+          ...options,
+          client: this.github,
+          workspaceRoot: this.workspaceRoot,
+          linked: this.linkedSpecs(),
+        });
+      return nextView(this.store, options);
     },
   },
   // Taking a task by hand is the person's at this machine's command line
@@ -213,25 +218,6 @@ export const entries = [
     handler({ input }) {
       const store = this.store;
       return updateProviders(store, input);
-    },
-  },
-  // Ship mode manual in Local only (§4.25, R80.4): a person's Integrate.
-  {
-    name: "delivery.integrate",
-    class: "protect",
-    github: "land",
-    policy: person("Only a person presses Integrate on a Ready to merge task."),
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person presses Integrate, in the Avoozl page or the CLI.",
-          403,
-        );
-      return approveIntegration(store, input, {
-        by: context.local ? "cli" : this.operator || "dashboard",
-      });
     },
   },
 

@@ -51,7 +51,6 @@
       "@avoozl:avoozl/plans_workspace",
       "@avoozl:avoozl/plans_query",
       "@avoozl:avoozl/plans_get_task",
-      "@avoozl:avoozl/plans_duplicates",
       "@avoozl:avoozl/plans_documents",
       "@avoozl:avoozl/plans_get_document",
       "@avoozl:avoozl/plans_get_plan",
@@ -175,14 +174,6 @@
       "@avoozl:avoozl/plans_plan_review",
       "@avoozl:avoozl/plans_answer_review"
     ],
-    "includeMcpJson": false
-  },
-  {
-    "name": "avoozl-task-summary",
-    "model": "auto",
-    "description": "Avoozl Task summary: writes a short plain summary of one task for its details page.",
-    "tools": ["@avoozl:avoozl/plans_submit_task_summary"],
-    "allowedTools": ["@avoozl:avoozl/plans_submit_task_summary"],
     "includeMcpJson": false
   },
   {

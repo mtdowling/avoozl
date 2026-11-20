@@ -98,22 +98,6 @@ Work you find mid-task has three dispositions. Normally the first applies:
 
 Do not use capture as a discovery channel. `task.capture` / `plans_intake {action: "capture"}` is a person's own request from the view in front of them; using it for findings manufactures inert inbox tasks with no plan, no approval and no dependencies.
 
-## Avoid duplicate tasks
-
-Search current tasks and use `task.duplicates` / MCP `plans_duplicates`
-before creating work. Reuse an existing task when extraction coverage shows
-that it already describes the same deliverable. This adds document context
-without replacing the canonical task's status or acceptance. Capture can set
-`reuseTaskId`; identical captured prompts reuse their existing task. Similar
-wording is advisory and never requires a justification to proceed.
-
-Consolidation requires reviewing scope and source contexts, choosing the current
-canonical record and supplying task hashes and a reason through `task.merge`
-/ MCP `plans_task {action: "merge"}`. Do not merge an active worker's task. Matching names
-alone do not establish identity. Merges retain old IDs as aliases and keep
-original task/edge records in a receipt; read it with `task.merge.get`. Do not
-promote acceptance or rewrite frozen Markdown checkboxes during cleanup.
-
 ## Draft and approve plans
 
 Write the design as ordinary Markdown. Fenced `task` blocks remain compatible
@@ -183,10 +167,3 @@ approvalMode}`. This changes tool review policy, not task or plan approval.
 Do not change your own approval policy or answer a pending request on the user's
 behalf. Automatic review retains the provider's access restrictions; do not
 replace a denied action with bypass permissions.
-
-Load examples only when the user requests them. `workspace.examples` lists packs
-and names the default; `workspace.seed` installs one once, preserving later
-edits. With no `example` it writes the Recipe Box spec folders to the specs folder
-(`specs.path`, default `.kiro/specs/`) and stores them as drafts; it approves
-nothing. Managed worker connections
-cannot seed examples.

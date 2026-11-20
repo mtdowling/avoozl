@@ -14,7 +14,6 @@ import { sessionRepository } from "../executors/process.mjs";
 import { roleRun } from "../agents/role-table.mjs";
 import { recordPlanReviewWriter } from "../reviews/plan-review-authorship.mjs";
 import { steeringOptions, withSeed } from "../flow/retro-memory.mjs";
-import { checkInputs, templateSeed } from "./templates.mjs";
 import {
   STEERING_FILE,
   STEERING_TEXT,
@@ -143,37 +142,11 @@ function specBuilderDescription(request, steering, rules = STEERING_TEXT) {
 // Check one New plan request and record it. Returns the Spec Builder create
 // body or the chat seed; with `preview`, only checks the fields and says
 // whether the steering file is there, recording and writing nothing.
-// `deps`: {readSpec(name), repositories, specRoot, template(ref)}. With
-// `template` ({plugin, id, version}) and `inputs`, the planner chat is
-// seeded with the template's prompt and filled starter (R61.7).
+// `deps`: {readSpec(name), repositories, specRoot}.
 // `source` ({repository, number}) names the GitHub issue a Radar-coded plan
 // comes from; the plan's issues are projected under it (rc-1.3).
 export function requestNewPlan(store, input = {}, deps, source = null) {
   if (!input || typeof input !== "object") fail("Send the New spec fields.");
-  let template = null,
-    templateText = null;
-  if (input.template !== undefined) {
-    const ref = input.template;
-    if (
-      !ref ||
-      typeof ref !== "object" ||
-      typeof ref.plugin !== "string" ||
-      typeof ref.id !== "string"
-    )
-      fail("template must name {plugin, id, version}.");
-    const found = deps.template({
-      plugin: ref.plugin,
-      template: ref.id,
-      version: ref.version,
-    });
-    template = {
-      ref: { plugin: ref.plugin, id: ref.id, version: found.plugin.version },
-      body: found.template,
-    };
-    templateText = checkInputs(found.template, input.inputs ?? {});
-    if ((input.handoff ?? "planner") !== "planner")
-      fail("A template's seed runs in the planner chat: handoff planner.");
-  } else if (input.inputs !== undefined) fail("inputs go with template.");
   const name = specName(
     typeof input.name === "string" ? input.name.trim() : input.name,
   );
@@ -206,10 +179,9 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
     .map((phase, index) => oneLine(phase, `Phase ${index + 1}`))
     .filter(Boolean);
   if (phases.length > PHASE_LIMIT) fail(`Name at most ${PHASE_LIMIT} phases.`);
-  // A template says what the plan is for; the goal may add to it.
-  const goal =
-    text(input.goal, "What you want", GOAL_LIMIT, { required: !template }) ||
-    (template ? `${template.body.title}: ${template.body.description}` : "");
+  const goal = text(input.goal, "What you want", GOAL_LIMIT, {
+    required: true,
+  });
   const context = text(input.context, "Links and context", CONTEXT_LIMIT);
 
   const registered = deps.repositories;
@@ -218,12 +190,7 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
       "Register a repository in Settings › Repositories first. A spec's tasks each name one.",
       409,
     );
-  // A template's repositories input names them when the field is empty.
-  const fromTemplate = template?.body.inputs
-    .filter((entry) => entry.type === "repositories")
-    .flatMap((entry) => templateText.values[entry.id] || []);
-  const wanted =
-    (input.repositories?.length ? input.repositories : fromTemplate) ?? [];
+  const wanted = input.repositories ?? [];
   if (!Array.isArray(wanted) || !wanted.length)
     fail("Pick at least one repository.");
   const repositories = [...new Set(wanted)].map((id) => {
@@ -275,13 +242,7 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
         input.writeSteering === true ? "written" : steering.state,
         rules.text,
       )
-    : withSeed(
-        store,
-        template
-          ? `${newPlanBrief(request)}\n\n${templateSeed(template.body, templateText.text)}`
-          : newPlanBrief(request),
-        "agent.planner",
-      );
+    : withSeed(store, newPlanBrief(request), "agent.planner");
   // A content rule that blocks the text refuses it: nothing is recorded.
   if (contentBinding(store)?.workspaceRoot)
     enforce(
@@ -314,7 +275,6 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
             attempt: (replaced?.attempt ?? 0) + 1,
           }),
       ...(epic ? { epic } : {}),
-      ...(template ? { template: template.ref } : {}),
       ...(source ? { source } : {}),
     },
   ]);
@@ -325,7 +285,6 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
       agent: PLANNER_AGENT,
       message: handed,
       opener: "tick",
-      ...(template ? { template: template.ref } : {}),
     };
   return {
     name,
@@ -475,8 +434,6 @@ export function importNewPlans(store, deps) {
           context: {
             newPlan: {
               repositories: entry.repositories,
-              // The template the draft came from (R61.8).
-              ...(entry.template ? { template: entry.template } : {}),
               ...(entry.source ? { source: entry.source } : {}),
             },
           },

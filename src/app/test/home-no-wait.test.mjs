@@ -16,7 +16,6 @@ import { temporaryDirectory } from "./temporary.mjs";
 // Every read Home's page sends on first load: the shell, the nav, and each
 // Home card (DashboardView, IntegrationBranches, the setup cards).
 const HOME = [
-  ["instance.view", {}],
   ["conflicts.view", {}],
   ["graph.view", {}],
   ["delivery.view", {}],

@@ -16,14 +16,11 @@ import {
   machineAvoozlPaths,
   WorkspaceRegistry,
 } from "../settings/host-config.mjs";
-import { initializeWorkspace } from "../workspace/workspace.mjs";
-import { expandHome, listFolders } from "../workspace/folder-browse.mjs";
 import {
-  DEMO_WORKSPACE_ID,
-  defaultDemoRoot,
-  demoOperations,
-  installDemo,
-} from "../workspace/demo.mjs";
+  initializeFirst,
+  initializeWorkspace,
+} from "../workspace/workspace.mjs";
+import { expandHome, listFolders } from "../workspace/folder-browse.mjs";
 
 export const NEEDS_KIROCREW = "Needs Kiro Crew";
 import { requiredReader } from "../tick/needs-kirocrew.mjs";
@@ -39,7 +36,6 @@ export const APP_OPERATIONS = new Set([
   "highlight.languages",
   "activity.recent",
   "activity.list",
-  "task.evidence",
   "activity.settings.get",
   "activity.settings.update",
   "chat.context",
@@ -78,9 +74,6 @@ export const APP_OPERATIONS = new Set([
   "fix.spec",
   "github.repository.labels",
   "task.detail",
-  "task.summary.request",
-  "task.files",
-  "task.diff",
   "plan.spec.read",
   "plan.table",
   "epic.list",
@@ -98,10 +91,12 @@ export const APP_OPERATIONS = new Set([
   // high-risk steps, and the Needs you actions that run under one.
   "plugin.credentials.pick",
   "github.job.confirm",
-  "github.labels.create",
   "plugin.update",
-  "plugin.pack.preview",
-  "plugin.pack.import",
+  // Epic context (epic-context EC4, EC9): Settings reads it, and a person
+  // sets the machine block and answers a plugin's questions.
+  "context.get",
+  "context.machine.set",
+  "plugin.answer",
   // Checks from a plugin (plugin-checks D10).
   "plugin.map",
   "plugin.checks.stages",
@@ -127,8 +122,6 @@ export const APP_OPERATIONS = new Set([
   "harness.approve",
   "flow.settings.update",
   "driver.status",
-  "instance.view",
-  "instance.rename",
   "telemetry.status",
   "telemetry.configure",
   "driver.settings.update",
@@ -139,7 +132,6 @@ export const APP_OPERATIONS = new Set([
   "provider.health.clear",
   "providers.settings.update",
   "investigation.decide",
-  "delivery.integrate",
   "delivery.settings.get",
   "delivery.settings.update",
   "delivery.runner.release",
@@ -153,13 +145,6 @@ export const APP_OPERATIONS = new Set([
   "github.settings.get",
   "github.settings.validate",
   "github.settings.update",
-  "github.setup",
-  "github.setup.cancel",
-  // The Onboard flow's reads; its writes are the operations above.
-  "onboarding.inspect",
-  "onboarding.scan",
-  "onboarding.authors",
-  "onboarding.adopt",
   "plan.delete",
   "plan.delete.preview",
   "plan.archive",
@@ -168,15 +153,9 @@ export const APP_OPERATIONS = new Set([
   "session.send",
   "session.open",
   "session.view",
-  // Manual tasks, task links, and workflow templates (§4.16).
+  // Manual tasks.
   "task.manual.complete",
   "task.manual.reopen",
-  "task.notes.list",
-  "task.notes.add",
-  "task.notes.edit",
-  "task.notes.remove",
-  "template.list",
-  "template.preview",
 ]);
 // Machine-catalog operations, served by this backend rather than a workspace.
 const MACHINE_OPERATIONS = new Map([
@@ -194,10 +173,6 @@ const MACHINE_OPERATIONS = new Map([
   // The Add and Edit dialogs' folder picker: folders under home. It changes
   // nothing, but names folders on this computer, so only a person reads it.
   ["workspaces.browse", "person"],
-  // Demo mode (§6.11): install the sample once and open it, or close it.
-  ["demo.start", "write"],
-  ["demo.exit", "write"],
-  ["demo.status", "observe"],
 ]);
 
 // Action-level authorization. The dashboard owner may call any app operation.
@@ -307,33 +282,12 @@ export function commandContext({
   config,
   readers = {},
   registryOptions = {},
-  demoRoot = defaultDemoRoot(),
   home,
   follow = () => {},
 }) {
-  // The open sample, or null. Only demo.start opens it; its requests name
-  // DEMO_WORKSPACE_ID, which no catalog workspace can have.
-  let demo = null,
-    registry = null;
+  let registry = null;
   const opened = new Map(),
     machine = () => (registry ||= new WorkspaceRegistry(registryOptions));
-  const demoOperation = async (operation) => {
-    if (operation === "demo.status")
-      return { active: Boolean(demo), workspaceId: DEMO_WORKSPACE_ID };
-    if (operation === "demo.exit") {
-      demo?.close();
-      demo = null;
-      return { active: false };
-    }
-    const installed = await installDemo(demoRoot);
-    demo ||= demoOperations(installed.root);
-    return {
-      active: true,
-      workspaceId: DEMO_WORKSPACE_ID,
-      existing: installed.existing,
-      at: installed.receipt?.at ?? null,
-    };
-  };
   // A request names a catalog workspace by ID, or uses the served workspace.
   // Only registered roots are opened; the caller never supplies a path here.
   const workspaceFor = (workspaceId) => {
@@ -358,10 +312,14 @@ export function commandContext({
   const operations = (target) => {
     let entry = opened.get(target.dbPath);
     if (!entry) {
+      // A missing database is refused before opening, so a read never
+      // creates the file `avoozl init` then refuses.
+      if (!fs.existsSync(target.dbPath))
+        throw badRequest(initializeFirst(target.workspaceRoot), 503);
       const store = new Store(target.dbPath);
       if (!store.initialized()) {
         store.close();
-        throw badRequest("Initialize this Avoozl workspace first.", 503);
+        throw badRequest(initializeFirst(target.workspaceRoot), 503);
       }
       entry = {
         store,
@@ -392,11 +350,8 @@ export function commandContext({
     machine,
     workspaceFor,
     operations,
-    demoOperation,
-    demoOpen: () => demo,
     close() {
       for (const { store } of opened.values()) store.close();
-      demo?.close();
       registry?.close();
     },
   };
@@ -425,27 +380,6 @@ export async function dispatchCommand({ principal, request, context }) {
       };
     if (!input || typeof input !== "object" || Array.isArray(input))
       return { status: 400, body: { error: "Send input as a JSON object." } };
-    if (operation.startsWith("demo."))
-      return {
-        status: 200,
-        body: { result: await context.demoOperation(operation) },
-      };
-    if (workspaceId === DEMO_WORKSPACE_ID) {
-      const demo = context.demoOpen();
-      if (!demo)
-        return {
-          status: 409,
-          body: {
-            error: "The demo is not open. Start it again from Settings.",
-          },
-        };
-      return {
-        status: 200,
-        body: {
-          result: await demo.execute(operation, input, expectedRevision),
-        },
-      };
-    }
     if (MACHINE_OPERATIONS.has(operation)) {
       const result = machineOperation(
         context.machine(),
@@ -455,7 +389,16 @@ export async function dispatchCommand({ principal, request, context }) {
         context.home,
       );
       if (MACHINE_OPERATIONS.get(operation) === "write") context.follow();
-      return { status: 200, body: { result } };
+      // The page reads which server answered from the workspace list.
+      return {
+        status: 200,
+        body: {
+          result:
+            operation === "workspaces.list"
+              ? { ...result, host: context.host }
+              : result,
+        },
+      };
     }
     const needs = missingReader(context, operation, input);
     if (needs)
@@ -470,12 +413,7 @@ export async function dispatchCommand({ principal, request, context }) {
     );
     return {
       status: 200,
-      body: {
-        result:
-          operation === "instance.view"
-            ? { ...result, host: context.host }
-            : result,
-      },
+      body: { result },
     };
   } catch (error) {
     const status =
@@ -487,8 +425,6 @@ export async function dispatchCommand({ principal, request, context }) {
       status,
       body: {
         error: status === 500 ? "Avoozl backend error." : error.message,
-        // A Demo mode preview: what the change would have done.
-        ...(error.demo ? { demo: true } : {}),
         // A person's save a content rule blocked names its decisions, so the
         // page can offer Allow once inline (R61.18). IDs only.
         ...(status === 422 && Array.isArray(error.decisions)

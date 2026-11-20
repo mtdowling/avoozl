@@ -5,7 +5,6 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { COMPLETIONS, TASK_KINDS } from "../../work-model.mjs";
-import { INSTANCE_ID } from "../workspace/instance.mjs";
 import { fail } from "../store/store.mjs";
 import { secretReason } from "../workspace/workspace-repository.mjs";
 
@@ -129,7 +128,6 @@ export function validateMarker(marker, { planningRepository } = {}) {
       "edges",
       "applied",
       "order",
-      "instance",
     ],
     "",
   );
@@ -148,11 +146,6 @@ export function validateMarker(marker, { planningRepository } = {}) {
   check(NAMESPACE.test(marker.namespace || ""), "namespace");
   // An epic or plan issue (Requirement 59.8) carries kind epic or plan.
   check([...TASK_KINDS, ...PARENT_KINDS].includes(marker.kind), "kind");
-  // The Avoozl that projected and released the issue (its ID, never its name).
-  check(
-    marker.instance === undefined || INSTANCE_ID.test(marker.instance),
-    "instance",
-  );
   check(marker.parent === undefined || TASK_ID.test(marker.parent), "parent");
   // A batch issue: two or more task IDs, the lead first.
   check(

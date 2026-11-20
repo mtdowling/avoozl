@@ -129,10 +129,10 @@ never widen what a worker reaches.
    name the test that now fails.
 7. A comment from a login that does not count under the repository's
    `allowedActors` and `minimumPermission` SHALL NOT be sent into a session
-   that holds epic context. WHEN such text would reach the session (a review
-   comment, a pull request comment) THEN Avoozl SHALL end that session's use
-   of epic context and start the follow-up as a new session with its normal
-   sandbox and no epic context.
+   that holds epic context. A message queued for a session names its author
+   in `from`. WHEN such text would reach the session THEN Avoozl SHALL end
+   that session's use of epic context and start the follow-up as a new
+   session with its normal sandbox and no epic context.
 
 ### Requirement EC2: The machine block
 

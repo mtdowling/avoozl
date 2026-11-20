@@ -29,7 +29,6 @@ test('the repository, workspace and plugin dialogs group fields with FormSection
   }
   const workspace = slice(source('WorkspaceView.tsx'), 'id="avoozl-ws-edit"', 'id="avoozl-ws-remove"')
   assert.match(workspace, /<FieldGroup title="Workspace">[\s\S]*<FieldGroup title="Running">/)
-  assert.match(slice(source('AddPlugin.tsx'), 'data-plugin-review'), /<FieldGroup title="Settings pack"/)
   // One shared part, with the border in the theme's color.
   const part = source('ui/FieldGroup.tsx') + source('ui/PageStyles.tsx')
   assert.match(part, /\[data-form-section\] ~ \[data-form-section\] \{ border-top: 1px solid var\(--border\); padding-top: 16px; \}/)

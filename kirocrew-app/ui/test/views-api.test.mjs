@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-import { canSupersede, graphSummary, linkHref, safeHref, scalarFields, sessionLabel, supersedeInput, verdictLabel, viewsClient } from '../src/views-api.ts'
+import { graphSummary, linkHref, safeHref, scalarFields, sessionLabel, verdictLabel, viewsClient } from '../src/views-api.ts'
 
 function fakeApi(reply) {
   const calls = []
@@ -113,27 +113,6 @@ test('session labels show requested vs served model', () => {
   assert.equal(sessionLabel({ ...session, served: { model: 'm-b', withheld: false, changed: false } }), 'review:a #1 · idle · requested m-b, served m-b')
   const verdict = { role: 'a', attempt: 1, outcome: 'refused', verdict: 'approved', model: 'm-b', served: 'auto', commit: null, stale: false, cause: null }
   assert.equal(verdictLabel(verdict), 'a · approved refused · m-b → served auto')
-})
-
-test('supersede sends the chosen task and only the fields the person filled', async () => {
-  const { api, calls } = fakeApi(() => ({ superseded: { id: 'a' }, task: { id: 'a-r2' } }))
-  await viewsClient(api).supersede('w', 'a', supersedeInput({ id: '  ', title: ' New title ' }))
-  assert.deepEqual(calls[0].body, {
-    operation: 'task.supersede',
-    input: { id: 'a', create: { title: 'New title' } },
-    workspaceId: 'w',
-  })
-  assert.deepEqual(supersedeInput({ id: 'a-new', title: '' }), { id: 'a-new' })
-})
-
-test('only a local task not already replaced offers supersede', () => {
-  const item = (extra) => ({ id: 'a', title: 'A', status: 'planned', authority: 'local', ...extra })
-  assert.equal(canSupersede(item({})), true)
-  assert.equal(canSupersede(item({ authority: undefined })), true)
-  assert.equal(canSupersede(item({ authority: 'github' })), false)
-  assert.equal(canSupersede(item({ authority: 'plugin:tracker' })), false)
-  assert.equal(canSupersede(item({ status: 'superseded' })), false)
-  assert.equal(canSupersede(item({ supersededBy: 'a-r2' })), false)
 })
 
 test('resolution actions call the shared operations, with the revision where they take one', async () => {

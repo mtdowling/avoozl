@@ -1,6 +1,5 @@
-// Incoming items (design §4.12, Requirement 50) and the pack settings that
-// came with them: source settings, the poll cursor, the Intake channel's
-// old name, and waitingLabels and priorityLabels. No rule starts work from
+// Incoming items (design §4.12, Requirement 50): source settings, the
+// Intake channel's old name, and waitingLabels and priorityLabels. No rule starts work from
 // an item; a person does.
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,7 +7,6 @@ import { normalizeGitHubPolicy } from "../../github/github-policy.mjs";
 import {
   confirmSnapshot,
   labelEffects,
-  pollSources,
   sourceCounts,
   startByPerson,
   takeItem,
@@ -19,7 +17,6 @@ import {
 import { Operations } from "../../api/operations.mjs";
 import { notificationPayload } from "../../tick/notifications.mjs";
 import { dispatchOrder } from "../../delivery/delivery.mjs";
-import { validatePack } from "../../plugins/plugin-pack.mjs";
 import { incomingItem } from "../../plugins/plugin-contract.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 
@@ -38,13 +35,12 @@ test("an intake source is checked like a plugins entry", () => {
   };
   assert.deepEqual(
     validateSource("tickets", {
-      via: "plugin:fake-intake",
+      via: "mcp",
       repository: "o/app",
     }),
     {
       id: "tickets",
-      via: "plugin:fake-intake",
-      plugin: "fake-intake",
+      via: "mcp",
       repository: "o/app",
       labelFields: [],
       assigneeField: null,
@@ -54,7 +50,6 @@ test("an intake source is checked like a plugins entry", () => {
   assert.deepEqual(validateSource("github-o-app", GITHUB_ENTRY), {
     id: "github-o-app",
     via: "github",
-    plugin: null,
     repository: "o/app",
     github: "o/app",
     repositoryId: "app",
@@ -69,8 +64,8 @@ test("an intake source is checked like a plugins entry", () => {
     ["local", { via: "mcp", repository: "o/app" }, /built in/],
     [
       "x",
-      { via: "http", repository: "o/app" },
-      /via must be plugin:<id>, mcp or github/,
+      { via: "plugin:fake", repository: "o/app" },
+      /via must be mcp or github/,
     ],
     ["x", { via: "mcp" }, /repository must name/],
     [
@@ -147,48 +142,6 @@ test("an incoming item is refused naming its field, and its trigger is kept", ()
   );
 });
 
-test("a poll stores its cursor only after the page, and reads the next page later", async (t) => {
-  const { store } = fixture(t),
-    pages = [
-      { items: [], cursor: "2", more: true },
-      { items: [], cursor: "4", more: false },
-    ],
-    asked = [],
-    session = {
-      use: async () => ({ ok: true }),
-      describe: () => ({ capabilities: ["actor"] }),
-      async call(_id, _kind, method, params) {
-        assert.equal(method, "poll");
-        asked.push(params.cursor);
-        const page = pages.shift();
-        if (!page) throw new Error("down");
-        return { ...page, refused: [] };
-      },
-    },
-    sources = new Map([
-      [
-        "tickets",
-        {
-          id: "tickets",
-          via: "plugin:fake-intake",
-          plugin: "fake-intake",
-          repository: "o/app",
-        },
-      ],
-    ]);
-  await pollSources(store, session, sources, null);
-  assert.equal(store.get("intake_sources", "source:tickets").cursor, "2");
-  assert.equal(store.get("intake_sources", "source:tickets").more, true);
-  await pollSources(store, session, sources, null);
-  assert.equal(store.get("intake_sources", "source:tickets").cursor, "4");
-  // A failed poll keeps the cursor and shows the error.
-  await pollSources(store, session, sources, null);
-  const row = store.get("intake_sources", "source:tickets");
-  assert.equal(row.cursor, "4");
-  assert.match(row.error, /down/);
-  assert.deepEqual(asked, [null, "2", "4"]);
-});
-
 test("the Intake channel keeps its old id, untriaged, and accepts intake", () => {
   const notice = {
     channel: "intake",
@@ -206,16 +159,7 @@ test("the Intake channel keeps its old id, untriaged, and accepts intake", () =>
   );
 });
 
-test("waitingLabels and priorityLabels are pack settings; absent changes nothing", () => {
-  const pack = (repositories) => validatePack({ settings: { repositories } });
-  pack({
-    waitingLabels: ["response-requested"],
-    priorityLabels: ["p0", "p1", "p2", "p3"],
-  });
-  assert.throws(
-    () => pack({ waitingLabels: "response-requested" }),
-    /waitingLabels/,
-  );
+test("waitingLabels and priorityLabels are repository settings; absent changes nothing", () => {
   assert.throws(
     () => policy({ priority: ["p0"] }),
     /Unknown setting .*priority/,
@@ -252,13 +196,12 @@ test("waitingLabels and priorityLabels are pack settings; absent changes nothing
   );
 });
 
-// T9 from a plugin source, taken and started by a person with Deliver this.
+// T9 from an MCP source, taken and started by a person with Deliver this.
 function startedT9(t) {
   const { store } = fixture(t),
     source = {
       id: "tickets",
-      via: "plugin:fake-intake",
-      plugin: "fake-intake",
+      via: "mcp",
       repository: "o/app",
       executionRepository: "app",
       policy: policy({}),

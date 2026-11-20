@@ -168,11 +168,10 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
       at: newest(item),
     })
   }
-  // Superseded tasks are history; the Delivery tab offers them separately.
-  for (const item of items) if (item.status !== 'superseded') add(tasks.get(item.id) ?? null, item)
+  for (const item of items) add(tasks.get(item.id) ?? null, item)
   // Leaves with no delivery record yet still belong in their lane, so each
   // lane holds every task the Dashboard's state counts name.
-  for (const task of graph?.tasks ?? []) if (!seen.has(task.id) && task.kind === 'leaf' && task.status !== 'superseded') add(task, null)
+  for (const task of graph?.tasks ?? []) if (!seen.has(task.id) && task.kind === 'leaf') add(task, null)
   lanes.done.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   lanes.running.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   return lanes
@@ -245,12 +244,13 @@ export const DELIVERY_DEFAULTS = {
   minConfidence: 'high',
 } as const
 
-export type ShipMode = 'auto-merge' | 'manual'
 export type InvestigateMode = 'all' | 'not-small' | 'off'
 
 export interface DeliverySettings {
   hash: string | null
   on: boolean
+  // The workspace's landing.pr (R119); null when not set.
+  landingPr: 'draft' | 'ready' | 'auto' | null
   delivery: {
     investigate?: { mode?: InvestigateMode; minConfidence?: 'medium' | 'high' }
   }
@@ -279,23 +279,6 @@ export function toDeliverySection(form: DeliveryForm): { delivery?: DeliverySett
   if (Object.keys(investigate).length) delivery.investigate = investigate
   return { delivery }
 }
-
-// Settings > Delivery's ship fold-out (§4.25): one line each, and what the
-// writer, Avoozl and the person do.
-export const SHIP_CHOICES: { key: ShipMode; title: string; line: string; who: [string, string, string] }[] = [
-  {
-    key: 'auto-merge',
-    title: 'Auto-merge',
-    line: 'The writer turns on GitHub auto-merge; the pull request merges when its checks and reviews pass.',
-    who: ['Turns on auto-merge', 'Waits for the merge', 'Nothing'],
-  },
-  {
-    key: 'manual',
-    title: 'I merge',
-    line: 'Auto-merge stays off. Needs you shows Ready to merge with a link when checks and reviews pass.',
-    who: ['Leaves auto-merge off', 'Shows Ready to merge', 'Merges on GitHub, or presses Integrate for a local task'],
-  },
-]
 
 // One chip per value with its card count, in the order `options` gives.
 export function chipCounts(

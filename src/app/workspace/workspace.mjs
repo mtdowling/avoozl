@@ -4,9 +4,9 @@ import { Store, fail } from "../store/store.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
 import { Operations } from "../api/operations.mjs";
 import { generateNamespace } from "../github/github-marker.mjs";
-import { SUPERSEDED_STATUS } from "../tasks/supersede.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "../settings/config-schema.mjs";
 import { specsDirectory } from "../specs/specs-path.mjs";
+import { shellQuote } from "../executors/process-view.mjs";
 
 const portable = (relative) => relative.split(path.sep).join("/");
 
@@ -25,7 +25,6 @@ export function emptySnapshot(name = "My workspace") {
       { id: "blocked", label: "Blocked", complete: false },
       { id: "deferred", label: "Deferred", complete: false },
       { id: "recorded", label: "Historical completion", complete: false },
-      { ...SUPERSEDED_STATUS },
     ],
     // Cross-plan epics only; each comes from an approved epic folder.
     epics: [],
@@ -44,6 +43,24 @@ const DEFAULT_PORT = 9428,
   DEFAULT_DOCUMENTS = "plans",
   DEFAULT_DB = ".avoozl/local/workspace.sqlite";
 
+// Whether a database file exists and holds a snapshot. A missing file is
+// not created.
+export function hasSnapshot(dbPath) {
+  if (!fs.existsSync(dbPath)) return false;
+  const store = new Store(dbPath);
+  try {
+    return store.initialized();
+  } finally {
+    store.close();
+  }
+}
+
+// The refusal for a workspace with no snapshot, naming what to run.
+export function initializeFirst(root) {
+  const where = shellQuote(root);
+  return `Initialize this Avoozl workspace first: run avoozl init ${where}, then avoozl rebuild --workspace ${where}.`;
+}
+
 export function initializeWorkspace(
   root,
   {
@@ -57,14 +74,18 @@ export function initializeWorkspace(
     fail("Choose a workspace name of 1–160 characters.");
   const config = workspaceConfig({ workspace: root, port, documents, db }),
     current = workspaceConfig({ workspace: root });
-  if (fs.existsSync(config.dbPath) || fs.existsSync(current.dbPath))
+  // A configured workspace counts as existing only once its database holds
+  // a snapshot; any other database file is refused as it was.
+  const taken = current.configured ? hasSnapshot : fs.existsSync;
+  if (taken(config.dbPath) || taken(current.dbPath))
     fail(
       "This workspace already exists. Choose a new directory; existing data was preserved.",
       409,
     );
   // A configuration with no database (a new machine, or a deleted SQLite
-  // file) gets an empty database under the same configuration and
-  // namespace, so `avoozl rebuild` can find its GitHub issues (§3.3).
+  // file), or with a database that was never initialized, gets an empty
+  // snapshot under the same configuration and namespace, so `avoozl
+  // rebuild` can find its GitHub issues (§3.3).
   if (current.configured) {
     const store = new Store(current.dbPath);
     try {
