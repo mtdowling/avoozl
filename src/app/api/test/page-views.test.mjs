@@ -218,8 +218,11 @@ test("conflicts view lists decisions, blocked tasks and ended sessions", async (
   await ops.execute("session.bind", { taskId: "c", slot: "slot-c-1" });
   await ops.execute("session.status", { slot: "slot-c-1", status: "lost" });
   const { items } = await ops.execute("conflicts.view", {});
+  // This machine has no loop here; autopilot-settings.test.mjs covers that row.
   assert.deepEqual(
-    items.map((item) => [item.kind, item.taskId]),
+    items
+      .filter((item) => item.reason !== "autopilot-off")
+      .map((item) => [item.kind, item.taskId]),
     [
       ["decision", "d"],
       ["needs-human", "e"],
@@ -290,7 +293,9 @@ test("views read an older read-only database that lacks newer tables", async (t)
   assert.equal((await ops.execute("graph.view", {})).tasks.length, 7);
   assert.deepEqual((await ops.execute("delivery.view", {})).items, []);
   assert.deepEqual(
-    (await ops.execute("conflicts.view", {})).items.map((item) => item.kind),
+    (await ops.execute("conflicts.view", {})).items
+      .filter((item) => item.reason !== "autopilot-off")
+      .map((item) => item.kind),
     ["decision", "needs-human"],
   );
   assert.ok(fs.readFileSync(dbPath).equals(before));

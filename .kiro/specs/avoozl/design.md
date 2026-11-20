@@ -2964,9 +2964,12 @@ delivery policy's worker agent and model and its falsifier agent and model.
 A file that still sets an older key does not load; the error names the file
 and the key. Settings › Models reads and writes the table
 (`models.settings.get` and `models.settings.update`). Settings › Autopilot
-has no Writer section. Its Off and Autopilot picker writes or removes the
-`delivery` block (`delivery.settings.update` with `turnOn` or `turnOff`);
-`turnOff` is refused while the block holds a setting, so nothing is lost.
+has no Writer section. Its Off and Autopilot picker goes through
+`delivery.settings.update`: Autopilot sends `turnOn` and `loop`, which
+writes the `delivery` block and this machine's `loop` (`writeMachineLoop`
+in `tick/loop.mjs`, checked by `validateLoop` first); Off sends
+`loop: null`. `conflicts.view` adds one `needs-human` row with reason
+`autopilot-off` while tasks are ready and `machineLoop` is null.
 
 Not in the table: `delivery.reviewers[]` keep their own `agent` and
 `model`, because each review role is a list entry with its own id and

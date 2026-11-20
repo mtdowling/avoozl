@@ -24,7 +24,23 @@ import { fail } from "../store/store.mjs";
 import { laneWorkspace, readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
 import { machineLinks } from "../tick/crews.mjs";
+import {
+  loopFile,
+  readMachineLoop,
+  validateLoop,
+  writeMachineLoop,
+} from "../tick/loop.mjs";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+
+// This machine's loop for Settings › Autopilot; a file that cannot be read
+// says why instead.
+function machineLoopSettings(operations) {
+  try {
+    return { loop: readMachineLoop(loopFile(operations.configDirectory)) };
+  } catch (error) {
+    return { loop: null, loopError: error.message };
+  }
+}
 
 export const entries = [
   // With `claim`, it creates the best ready task's claim branch on origin
@@ -130,7 +146,10 @@ export const entries = [
     github: "check-in",
     policy: routed,
     handler({}) {
-      return this.settingsFile().readDeliverySettings();
+      return {
+        ...this.settingsFile().readDeliverySettings(),
+        ...machineLoopSettings(this),
+      };
     },
   },
 
@@ -145,9 +164,20 @@ export const entries = [
           "Only a person changes delivery settings, in the Avoozl page.",
           403,
         );
-      const written = this.settingsFile().updateDeliverySettings(input);
+      // `loop`: this machine's loop (an object), or null to remove it.
+      // Checked before anything is written.
+      const { loop, ...workspace } = input ?? {};
+      if (loop !== undefined && loop !== null)
+        validateLoop(loop, "This machine's config");
+      const written = ["delivery", "turnOn", "landingPr"].some(
+        (key) => workspace[key] !== undefined,
+      )
+        ? this.settingsFile().updateDeliverySettings(workspace)
+        : this.settingsFile().readDeliverySettings();
+      if (loop !== undefined)
+        writeMachineLoop(loopFile(this.configDirectory), loop);
       this.configuration?.reload();
-      return written;
+      return { ...written, ...machineLoopSettings(this) };
     },
   },
 

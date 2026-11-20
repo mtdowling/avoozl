@@ -21,18 +21,19 @@ export function installInlineFixture() {
     if (given !== hash()) throw new Error(`Stale: expected ${hash()}, got ${given}`)
   }
 
-  // Autopilot: ?autopilot=off starts it off.
+  // Autopilot: ?autopilot=off starts it off (no delivery block, no loop).
   let landingPr: string | null = null
   let on = new URLSearchParams(location.search).get('autopilot') !== 'off'
-  answer('delivery.settings.get', () => ({ hash: hash(), on, landingPr }))
+  let loop: Record<string, unknown> | null = on ? { run: ['specs'] } : null
+  answer('delivery.settings.get', () => ({ hash: hash(), on, landingPr, loop }))
   answer('delivery.settings.update', (body) => {
     stale(body)
-    const input = body.input as { landingPr?: string | null; turnOn?: boolean; turnOff?: boolean }
+    const input = body.input as { landingPr?: string | null; turnOn?: boolean; loop?: Record<string, unknown> | null }
     if (input.turnOn) on = true
-    else if (input.turnOff) on = false
-    else landingPr = input.landingPr ?? null
+    if (input.landingPr !== undefined) landingPr = input.landingPr
+    if (input.loop !== undefined) loop = input.loop
     write(body)
-    return { hash: hash(), on, landingPr }
+    return { hash: hash(), on, landingPr, loop }
   })
   answer('GET /api/models', () => ({ models: [] }))
 

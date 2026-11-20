@@ -1019,35 +1019,11 @@ export class RepositorySettings {
 
   // `turnOn: true` writes an empty `delivery` section first (every key at
   // its default), so Settings > Autopilot can turn Autopilot on with one
-  // save. `turnOff: true` removes the section; it is refused while the
-  // section holds a setting, so turning off never drops one.
-  // `landingPr` sets the workspace's landing.pr; null removes it.
-  updateDeliverySettings({
-    delivery,
-    expectedHash,
-    turnOn,
-    turnOff,
-    landingPr,
-  } = {}) {
+  // save. `landingPr` sets the workspace's landing.pr; null removes it.
+  updateDeliverySettings({ delivery, expectedHash, turnOn, landingPr } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
-    if (turnOff === true) {
-      const value = this.updateValue(before);
-      if (!record(value.delivery)) return this.readDeliverySettings();
-      // `runner` only holds a workspace for a person (WP1.3).
-      const kept = Object.keys(value.delivery).filter(
-        (key) => key !== "runner",
-      );
-      if (kept.length)
-        fail(
-          `Autopilot stays on: .avoozl.json sets ${kept.map((key) => `delivery.${key}`).join(", ")}. Remove ${kept.length === 1 ? "it" : "them"} there first, or use Stop the line to pause.`,
-          409,
-        );
-      delete value.delivery;
-      this.write(value, { expectedHash: before.hash });
-      return this.readDeliverySettings();
-    }
     if (landingPr !== undefined) {
       if (landingPr !== null && !PR_MODES.includes(landingPr))
         fail("landing.pr must be draft, ready or auto.");

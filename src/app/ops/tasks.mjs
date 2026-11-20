@@ -1,4 +1,5 @@
 // Operations of one feature: name, class, MCP policy and handler.
+import { loopFile, machineLoop } from "../tick/loop.mjs";
 import { applyActivity } from "../../activity.mjs";
 import { captureTask } from "../../capture.mjs";
 import { dispatchMcp } from "../../mcp.mjs";
@@ -150,6 +151,17 @@ function taskArchiveHandler({ name, input, expectedRevision }) {
     },
     expectedRevision,
   );
+}
+
+// Whether any task is ready; an older read-only database that lacks the
+// session tables has none to start.
+function hasReady(store) {
+  try {
+    return readyCandidates(store).length > 0;
+  } catch (error) {
+    if (!store.readOnly) throw error;
+    return false;
+  }
 }
 
 export const entries = [
@@ -345,6 +357,17 @@ export const entries = [
           detail:
             'This workspace\'s .avoozl.json still says "runner": "crew-mode", from before the tick started every task. Avoozl starts nothing here until you let the tick run it.',
           hash: this.settingsFile().readFile().hash,
+        });
+      // Ready tasks wait while this machine has no loop (SM6).
+      if (!machineLoop(loopFile(this.configDirectory)) && hasReady(store))
+        view.items.push({
+          kind: "needs-human",
+          reason: "autopilot-off",
+          id: "autopilot-off",
+          taskId: null,
+          title: "Autopilot is off on this machine, so ready tasks wait.",
+          detail:
+            "Turn it on in Settings › Autopilot, or run avoozl next --claim.",
         });
       view.items.push(...landingNeedsYou(store));
       view.items.push(...pluginCheckNeedsYou(store), ...contextNeedsYou(store));

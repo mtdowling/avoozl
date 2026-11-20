@@ -342,9 +342,11 @@ export interface ConflictItem extends TaskOwner {
   // conductor drove, held until a person lets the tick run it (WP1.3).
   // 'draft-pr': a draft pull request Avoozl opened, waiting for a person
   // to release it; 'pr-merge': one whose checks passed, waiting for a
-  // person to merge it (R119).
+  // person to merge it (R119). 'autopilot-off': ready tasks wait because
+  // this machine has no loop.
   reason?:
     | 'review'
+    | 'autopilot-off'
     | 'blocked'
     | 'crew-mode'
     | 'hand-set-review'

@@ -11,10 +11,14 @@
 //   issues  labeled issues (labeled-issues.mjs)
 //
 // `loop.every` ("30s", "1m", "2h") is the least time between two passes.
-import { machineFile } from "./crews.mjs";
+import path from "node:path";
+import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
+import { machineFile, writeMachineFile } from "./crews.mjs";
 
 export const LOOP_KINDS = Object.freeze(["specs", "epics", "issues"]);
 export const LOOP_KEYS = Object.freeze(["run", "epics", "every"]);
+// What Settings › Autopilot writes when a person turns it on.
+export const DEFAULT_LOOP = Object.freeze({ run: ["specs"] });
 const EVERY = /^([1-9][0-9]{0,4})(s|m|h)$/;
 const UNIT = { s: 1000, m: 60 * 1000, h: 3600 * 1000 };
 const LAST = "loop.lastPass";
@@ -47,6 +51,29 @@ export function validateLoop(value, source = "Avoozl configuration") {
     throw Error(`${source}: loop.run has epics, so loop.epics must name them.`);
   if (every !== undefined && !EVERY.test(String(every)))
     throw Error(`${source}: loop.every must be like 30s, 1m or 2h.`);
+}
+
+// This machine's config file: `configDirectory`'s when the caller has one
+// (tests, a scoped host), else the one the tick reads.
+export const loopFile = (configDirectory = null) =>
+  configDirectory
+    ? path.join(configDirectory, "config.json")
+    : globalAvoozlConfigPath();
+
+// The raw `loop` this machine's file sets, or null.
+export function readMachineLoop(file) {
+  return machineFile(file).value.loop ?? null;
+}
+
+// Write `loop` to this machine's file, or remove it for null. Checked first,
+// so a save never leaves a loop the tick refuses.
+export function writeMachineLoop(file, loop) {
+  if (loop !== null) validateLoop(loop, "This machine's config");
+  writeMachineFile(file, (value) => {
+    if (loop === null) delete value.loop;
+    else value.loop = loop;
+  });
+  return readMachineLoop(file);
 }
 
 // This machine's loop: {run, epics, everyMs}, or null when it sets none or

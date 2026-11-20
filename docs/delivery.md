@@ -31,7 +31,9 @@ for checks, their environment, and the sandbox they run in.
 
 ## Turning Autopilot on
 
-Autopilot starts with a `delivery` block in `.avoozl.json`:
+Autopilot runs on a machine when two things are set: a `delivery` block in
+the workspace's `.avoozl.json`, and a `loop` in this machine's
+`~/.config/avoozl/config.json` (see [The server loop](#the-server-loop)):
 
 ```json
 {
@@ -39,12 +41,19 @@ Autopilot starts with a `delivery` block in `.avoozl.json`:
 }
 ```
 
-**Settings › Autopilot** writes it for you. The page picks **Off** (you take
-and land tasks yourself) or **Autopilot** (the tick starts and lands them),
-and asks once before either change. Only a person changes it. Turning
-Autopilot off removes the block, and is refused while the block holds a
-setting such as `reviewRounds`, so no setting is lost. The page's other
-settings, such as who merges, show and save while Autopilot is off.
+**Settings › Autopilot** sets both. The page picks **Off** (you take and land
+tasks yourself) or **Autopilot** (the tick starts and lands them), and asks
+once before either change. Only a person changes it; agents, MCP and the tick
+cannot. Picking Autopilot writes the `delivery` block when it is missing and
+writes `loop` to this machine's config, `{"run": ["specs"]}` unless you set
+the page's **Run** and **Every** fields first. Picking Off removes `loop` from
+this machine's config and keeps the `delivery` block, so other machines keep
+running. The page's other settings, such as who merges, show and save while
+Autopilot is off.
+
+When tasks are ready and this machine has no `loop`, Home and **Needs you**
+say: "Autopilot is off on this machine, so ready tasks wait. Turn it on in
+Settings › Autopilot, or run avoozl next --claim."
 
 A runner starts a spec's tasks only when the spec issue, and every parent
 spec's issue, is assigned to its own login alone; a spec with no issue runs
@@ -56,8 +65,8 @@ nothing until a person chooses **Let the tick run it** in **Needs you**.
 ### The server loop
 
 The tick starts and lands work only on a machine whose own config turns the
-loop on. Put `loop` in `~/.config/avoozl/config.json`; `.avoozl.json` may not
-set it:
+loop on. Settings › Autopilot writes `loop` in `~/.config/avoozl/config.json`,
+or you can write it by hand; `.avoozl.json` may not set it:
 
 ```json
 {

@@ -78,7 +78,7 @@ for (const width of [1280, 390]) {
     assert.deepEqual(page.errors, [])
   })
 
-  test(`Autopilot off at ${width} px: every setting shows and saves, and turning on asks once`, { skip }, async () => {
+  test(`Autopilot off at ${width} px: every setting shows and saves; on writes the loop, off removes it`, { skip }, async () => {
     await openPage('Autopilot', width, 'light', { autopilot: 'off' })
     const choice = (mode) => `document.querySelector('[data-radio-fold="avoozl-autopilot"] input[value="${mode}"]')`
     const pr = (mode) => `document.querySelector('[data-radio-fold="avoozl-delivery-pr"] input[value="${mode}"]')`
@@ -100,13 +100,28 @@ for (const width of [1280, 390]) {
     await page.until(`!document.querySelector('[data-confirm-dialog]')`)
     assert.equal(await page.evaluate(`window.__writes.length`), 1, 'Cancel writes nothing')
     assert.equal(await page.evaluate(`${choice('off')}.checked`), true, 'Cancel keeps Off')
-    // Yes turns it on with one write.
+    // Yes turns it on with one write, carrying the loop typed while off.
+    await set('#avoozl-loop-every', '2m')
+    assert.equal(await page.evaluate("Boolean(document.querySelector('[data-save-footer] [data-save]'))"), false, 'a loop edit while off is no save')
     await page.evaluate(`${choice('autopilot')}.click()`)
     await page.until(`Boolean(document.querySelector('[data-confirm-dialog]'))`)
     await page.evaluate(`[...document.querySelectorAll('[data-confirm-dialog] button')].find((b) => b.textContent.trim() === 'Turn on Autopilot').click()`)
     await page.until(`window.__writes.length === 2`)
-    assert.deepEqual((await writes())[1].input, { delivery: {}, expectedHash: 'h2', turnOn: true })
+    assert.deepEqual((await writes())[1].input, { delivery: {}, expectedHash: 'h2', turnOn: true, loop: { run: ['specs'], every: '2m' } })
     await page.until(`${choice('autopilot')}.checked && !document.querySelector('[data-autopilot-off-note]')`)
+    // While on, a loop edit saves through the footer.
+    await set('#avoozl-loop-every', '5m')
+    await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
+    await press('Save')
+    await page.until(`window.__writes.length === 3`)
+    assert.deepEqual((await writes())[2].input, { expectedHash: 'h3', loop: { run: ['specs'], every: '5m' } })
+    // Off removes this machine's loop, after asking.
+    await page.evaluate(`${choice('off')}.click()`)
+    await page.until(`Boolean(document.querySelector('[data-confirm-dialog]'))`)
+    await page.evaluate(`[...document.querySelectorAll('[data-confirm-dialog] button')].find((b) => b.textContent.trim() === 'Turn off Autopilot').click()`)
+    await page.until(`window.__writes.length === 4`)
+    assert.deepEqual((await writes())[3].input, { expectedHash: 'h4', loop: null })
+    await page.until(`${choice('off')}.checked`)
     assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'no sideways scroll')
     assert.deepEqual(page.errors, [])
   })

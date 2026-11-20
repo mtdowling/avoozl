@@ -847,6 +847,21 @@ if (query.get('page') === 'app' && query.get('crewmode') === '1') {
   }))
   answer('delivery.runner.release', () => ({ released: true }))
 }
+// &autopilotoff=1: ready tasks wait because this machine has no loop.
+if (query.get('page') === 'app' && query.get('autopilotoff') === '1')
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: [
+      {
+        kind: 'needs-human',
+        reason: 'autopilot-off',
+        id: 'autopilot-off',
+        taskId: null,
+        title: 'Autopilot is off on this machine, so ready tasks wait.',
+        detail: 'Turn it on in Settings › Autopilot, or run avoozl next --claim.',
+      },
+    ],
+  }))
 // &delivery=1: tasks in every Delivery lane across two epics and specs.
 if (query.get('page') === 'app' && query.get('delivery') === '1') {
   const at = '2026-11-16T09:00:00Z'

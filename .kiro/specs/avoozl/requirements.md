@@ -3054,9 +3054,13 @@ the last tick did.
    agent or model. Settings › Autopilot SHALL keep only delivery choices:
    a picker of **Off** (you deliver) and **Autopilot** (Avoozl delivers),
    each with its steps, and below it every Autopilot setting, shown and
-   saved while Autopilot is off. Turning Autopilot on or off SHALL ask once
-   and SHALL be a person's alone. Turning it off SHALL be refused while the
-   `delivery` block holds a setting.
+   saved while Autopilot is off, with this machine's `loop.run` and
+   `loop.every`. Autopilot SHALL show as on only when the `delivery` block
+   and this machine's `loop` are both set. Picking Autopilot SHALL write
+   both; picking Off SHALL remove this machine's `loop` only. Each SHALL ask
+   once and SHALL be a person's alone. While tasks are ready and this
+   machine has no `loop`, Home and Needs you SHALL show one row saying
+   Autopilot is off on this machine and how to turn it on.
 7. A file that sets any other key for a role's harness, agent or model
    SHALL NOT load, and the error SHALL name the file and the key: `models.<role>`,
    `harnesses.<role>`, `delivery.agent`, `delivery.model`,
