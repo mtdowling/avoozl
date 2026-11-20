@@ -12,7 +12,9 @@ import {
   harnessDefinitionHash,
   harnessPermission,
   loadHarnessDefinition,
+  readRoleProblem,
 } from "../harness-definitions.mjs";
+import { confineChild } from "../sandbox.mjs";
 import { harnessAllow } from "../harness-allow.mjs";
 
 const CODEX = fileURLToPath(
@@ -47,16 +49,17 @@ const values = (definition, permissionClass) => ({
 // Codex's own macOS sandbox cannot nest inside Avoozl's (a nested
 // sandbox-exec fails with "sandbox_apply: Operation not permitted"), so its
 // write class turns the inner sandbox off and runs only inside Avoozl's
-// (R94.4d). That one value is the only skip in the file.
+// (R94.4d). Its read class does the same (MS7.1). That value is the only
+// skip in the file.
 test("the Codex definition loads by hash and skips nothing but its inner sandbox", (t) => {
   const text = fs.readFileSync(CODEX, "utf8");
   assert.doesNotMatch(text, /bypass|--dangerously-|--full-auto|--yolo/);
-  assert.equal(text.split("danger-full-access").length, 2);
+  assert.equal(text.split("danger-full-access").length, 3);
   const definition = approved(t);
   assert.equal(definition.promptFrom, "stdin");
   assert.deepEqual(definition.permission, {
     write: "danger-full-access",
-    read: "read-only",
+    read: "danger-full-access",
   });
 });
 
@@ -64,7 +67,7 @@ test("start reads the brief on stdin in the task folder's sandbox", (t) => {
   const definition = approved(t);
   for (const [permissionClass, sandbox] of [
     ["write", "danger-full-access"],
-    ["read", "read-only"],
+    ["read", "danger-full-access"],
   ])
     assert.deepEqual(
       [
@@ -130,6 +133,53 @@ test("writes stay in the write roots; read roles write nowhere", (t) => {
     harnessPermission(definition, { permissionClass: "read" }).writeRoots,
     [],
   );
+});
+
+// MS7.1, MS7.5: the read class's own sandbox is off too, so only Avoozl's
+// holds it: its write roots leave out the task folder, and with no Avoozl
+// sandbox every class is refused, opt-in or not (the Windows leg has none).
+test("a read child writes only its temp and result folders and is refused with no sandbox", (t) => {
+  const definition = approved(t);
+  const worktree = path.join(os.tmpdir(), "avoozl-codex-worktree");
+  const tmp = path.join(os.tmpdir(), "avoozl-codex-tmp");
+  const roots = harnessPermission(definition, {
+    permissionClass: "read",
+    worktree,
+    tmp,
+  }).writeRoots;
+  assert.deepEqual(roots, [
+    path.resolve(tmp),
+    path.join(path.resolve(worktree), ".avoozl"),
+  ]);
+  assert.equal(roots.includes(path.resolve(worktree)), false);
+  assert.equal(readRoleProblem(definition), null);
+  const configDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), "avoozl-codex-optin-"),
+  );
+  t.after(() => fs.rmSync(configDirectory, { recursive: true, force: true }));
+  fs.writeFileSync(
+    path.join(configDirectory, "harness-unconfined.json"),
+    JSON.stringify({ codex: definition.hash }),
+  );
+  for (const permissionClass of ["read", "write"])
+    assert.throws(
+      () =>
+        confineChild(
+          fillHarnessArgv(
+            definition.start,
+            values(definition, permissionClass),
+          ),
+          {
+            definition,
+            configDirectory,
+            writeRoots: roots,
+            secrets: [],
+            kind: null,
+          },
+        ),
+      /runs only inside Avoozl's sandbox/,
+      permissionClass,
+    );
 });
 
 // Codex has no allow-list flag: inside Avoozl's sandbox, with approvals

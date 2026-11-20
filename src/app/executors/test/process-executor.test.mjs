@@ -1067,7 +1067,7 @@ test("a definition with no resultAllow is refused for a read role and runs a wri
 test("each shipped definition says which role classes a proof ran it in", () => {
   for (const [name, proved, readRoles] of [
     ["claude-code", ["read", "write"], null],
-    ["codex", ["write"], /codex names no resultAllow/],
+    ["codex", ["write"], null],
   ]) {
     const definition = parseHarnessDefinition(
       JSON.parse(

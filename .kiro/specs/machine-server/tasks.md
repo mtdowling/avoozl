@@ -83,11 +83,11 @@ they never collide with the IDs of the other specs.
 
 ## Phase 2: Codex
 
-- [ ] ms-2.1 Codex's read class inside Avoozl's sandbox, after ms-1.2 [MS7.1, MS7.2, MS7.5] (§D7)
+- [x] ms-2.1 Codex's read class inside Avoozl's sandbox, after ms-1.2 [MS7.1, MS7.2, MS7.5] (§D7)
   - $done: Tests: `permission.read: "danger-full-access"` loads only with write roots and runs only inside Avoozl's sandbox; with no sandbox it is refused for every role, opt-in or not, on the Windows leg too; a read child's write roots exclude the task folder; `codex.json` uses it and still loads.
   - $after: ms-1.2
   - Codex's own sandbox stays off only inside Avoozl's sandbox (D12).
-- [ ] ms-2.2 The containment probes and their CI test, after ms-1.2, ms-1.7 [MS8.1, MS8.2, MS8.3, MS8.4] (§D7)
+- [x] ms-2.2 The containment probes and their CI test, after ms-1.2, ms-1.7 [MS8.1, MS8.2, MS8.3, MS8.4] (§D7)
   - $done: `src/app/sandbox-probes.mjs` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proofs/proof-ms-roles-live.mjs --probes` runs the same set in a live child.
   - $after: ms-1.2, ms-1.7
   - Fix any probe that gets through in `src/app/executors/sandbox.mjs`, never by changing the probe.
