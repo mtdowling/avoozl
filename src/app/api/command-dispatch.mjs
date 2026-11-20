@@ -45,8 +45,6 @@ export const APP_OPERATIONS = new Set([
   "epics.view",
   "integration.view",
   "landing.view",
-  "gap.preview",
-  "gap.accept",
   "integration.land",
   "landing.ready",
   "landing.merge",

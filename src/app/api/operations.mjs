@@ -31,11 +31,6 @@ import { readSpecIssues } from "../specs/spec-publication.mjs";
 import { linkedReader, storedLinks } from "../specs/order.mjs";
 import { taskEpic } from "../epics/epics.mjs";
 import {
-  formatGapTable,
-  gapProposals,
-  parseGapReport,
-} from "../specs/gap-report.mjs";
-import {
   currentBranchSync,
   originRepositorySync,
   withWorkLock,
@@ -62,7 +57,6 @@ import {
   requirePrivateRepository,
 } from "../github/github.mjs";
 import { sourceMap } from "../intake/intake.mjs";
-import { parseIssueReference } from "../tasks/issue-reference.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { telemetryHandle } from "../telemetry/index.mjs";
 import { mcpRefusal } from "../mcp/mcp-policy.mjs";
@@ -118,7 +112,6 @@ import {
 import { specsBranch, specsBranchSetting } from "../specs/specs-branch.mjs";
 import {
   createSpecPlan,
-  epicMembers,
   findSpecFolder,
   lintSpec,
   listSpecFolders,
@@ -565,61 +558,6 @@ export class Operations {
       if (this.approverLogin) return this.approverLogin;
     }
     return this.operator;
-  }
-  // A gap report (RC17.6): read from a local file a person names, or from an
-  // issue body, parsed into a table, and turned into one proposal per failing
-  // cell for the sub-specs of a parent spec. Reads only.
-  async gapPreview(input = {}, { local = false } = {}) {
-    let text;
-    if (typeof input.path === "string") {
-      if (!local)
-        fail("Name an issue; only the page and the CLI read a path.", 403);
-      const file = path.resolve(input.path);
-      let stat = null;
-      try {
-        stat = fs.statSync(file);
-      } catch {
-        fail("The gap report path cannot be read.", 404);
-      }
-      if (!stat.isFile() || stat.size > 200 * 1024)
-        fail("The gap report must be a file of at most 200 KB.", 422);
-      text = fs.readFileSync(file, "utf8");
-    } else if (typeof input.issue === "string") {
-      if (!this.github?.available?.()) fail("GitHub is not available.", 409);
-      const { owner, repo, number } = parseIssueReference(input.issue),
-        issue = await this.github.issue(
-          { owner, repo, id: `${owner}/${repo}` },
-          number,
-        );
-      text = issue?.body ?? "";
-    } else fail("Name the gap report as a path or an issue.", 422);
-    const parent = this.readSpec(input.parent);
-    if (!parent.exists) fail(`No spec folder ${parent.folder}.`, 404);
-    const members = epicMembers(parent.files).map((name) => {
-      const folder = this.readSpec(name);
-      let repositories = [];
-      try {
-        repositories = [
-          ...new Set(
-            Object.values(specFacts(folder.files).tasks)
-              .map((entry) => entry?.repository)
-              .filter((value) => typeof value === "string"),
-          ),
-        ];
-      } catch {
-        repositories = [];
-      }
-      return { name, repositories };
-    });
-    const report = parseGapReport(text),
-      subSpecOf = (repository) =>
-        members.find(
-          (member) =>
-            member.repositories.includes(repository) ||
-            member.name === repository.split("/").at(-1),
-        )?.name ?? null,
-      proposals = gapProposals(report, subSpecOf);
-    return { report, table: formatGapTable(report), proposals };
   }
   // Every check an approval makes before it writes, shared by plan.approve
   // and the approvals the tick reads from git (adoptApprovals). Throws on

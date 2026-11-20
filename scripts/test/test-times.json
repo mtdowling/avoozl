@@ -210,7 +210,6 @@
     "src/app/test/proof-p45.test.mjs": 2595,
     "src/app/test/proposals.test.mjs": 852,
     "src/app/test/work-split.test.mjs": 268,
-    "src/app/specs/test/spec-changed.test.mjs": 1095,
     "src/app/test/proof-rc-p13.test.mjs": 260,
     "src/app/epics/test/proof-rc-p16.test.mjs": 484,
     "src/app/test/release-scan.test.mjs": 4154,

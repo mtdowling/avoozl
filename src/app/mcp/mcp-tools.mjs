@@ -219,10 +219,6 @@ const tools = {
     summary:
       "GitHub reads. Setup writes and settings are a person's, in the app.",
     actions: {
-      gap_report: [
-        "gap.preview",
-        "read a gap report from an issue: a repository by requirement table and one proposed task per failing cell; accepting is a person's",
-      ],
       landing_queue: [
         "landing.view",
         "what waits to land on each base branch, in order and why, and what landed lately",

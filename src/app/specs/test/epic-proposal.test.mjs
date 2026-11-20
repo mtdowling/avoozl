@@ -1,16 +1,9 @@
 // rc-17.2 and rc-17.3: a cross-repository proposal is a parent spec (an epic
-// folder) with one sub-spec per repository, and an external gap report turns
-// each failing cell into a proposed task that a person accepts. Local files
-// and fake data only.
+// folder) with one sub-spec per repository. Local files and fake data only.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  formatGapTable,
-  gapProposals,
-  parseGapReport,
-} from "../gap-report.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { lintSpec, readSpecFolder, taskToken } from "../spec-plans.mjs";
 import { fixture } from "../../test/fixtures.mjs";
@@ -102,57 +95,5 @@ test("two sub-specs approve separately", async (t) => {
       .map((a) => a.planId)
       .sort(),
     approvals.sort(),
-  );
-});
-
-const REPORT = [
-  "# Gap report",
-  "",
-  "Some prose before the table is ignored.",
-  "",
-  "| Repository | R1   | R2   | R3   |",
-  "| ---------- | ---- | ---- | ---- |",
-  "| repo-a     | pass | fail | pass |",
-  "| repo-b     | fail | pass | pass |",
-  "",
-  "After the table.",
-].join("\n");
-
-test("a report with two failing and three passing cells gives two proposals", () => {
-  const report = parseGapReport(REPORT);
-  assert.deepEqual(report.repositories, ["repo-a", "repo-b"]);
-  assert.equal(report.cells.filter((c) => c.status === "pass").length, 4);
-  const proposals = gapProposals(report, (repository) => `sub-${repository}`);
-  assert.deepEqual(
-    proposals.map((p) => [p.spec, p.id]),
-    [
-      ["sub-repo-a", "close-gap-r2"],
-      ["sub-repo-b", "close-gap-r1"],
-    ],
-  );
-  assert.match(formatGapTable(report), /repo-a\s+pass\s+fail\s+pass/);
-});
-
-test("an unreadable line is refused naming its number, and a repository with no sub-spec is refused", () => {
-  const bad = REPORT.replace(
-    "| repo-b     | fail | pass | pass |",
-    "| repo-b     | maybe | pass | pass |",
-  );
-  assert.throws(() => parseGapReport(bad), /Line 8:/);
-  assert.throws(
-    () =>
-      parseGapReport(
-        REPORT.replace(
-          "| repo-b     | fail | pass | pass |",
-          "| repo-b | fail |",
-        ),
-      ),
-    /Line 8: 2 cells/,
-  );
-  assert.throws(() => parseGapReport("no table here"), /no table/);
-  assert.throws(() => parseGapReport(""), /empty/);
-  assert.throws(
-    () => gapProposals(parseGapReport(REPORT), () => null),
-    /no sub-spec takes that repository/,
   );
 });

@@ -180,63 +180,6 @@ export const entries = [
       return epicsView(this.store, { repositories: [] });
     },
   },
-  // An external gap report becomes proposed tasks in the sub-specs; nothing is
-  // added until a person accepts (RC17.6).
-  {
-    name: "gap.preview",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input, context }) {
-      return this.gapPreview(input, {
-        local: !(context.caller || context.mcp),
-      });
-    },
-  },
-
-  {
-    name: "gap.accept",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person accepts gap report proposals."),
-    async handler({ input, context }) {
-      const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail("Only a person accepts gap report proposals.", 403);
-      const found = await this.gapPreview(input, { local: true }),
-        chosen = Array.isArray(input.ids)
-          ? found.proposals.filter((p) =>
-              input.ids.includes(`${p.spec}:${p.id}`),
-            )
-          : found.proposals,
-        added = [];
-      for (const proposal of chosen) {
-        const plan = store
-          .list("plans")
-          .find((entry) => entry.spec === proposal.spec && !entry.deletedAt);
-        if (!plan) fail(`Sub-spec ${proposal.spec} is not a plan yet.`, 409);
-        const current = store.get("plans", plan.id);
-        proposeSpecWork(
-          store,
-          {
-            id: plan.id,
-            expectedHash: current.hash,
-            proposal: {
-              id: proposal.id,
-              title: proposal.title,
-              kind: "leaf",
-              summary: `Gap report: ${proposal.repository} fails ${proposal.requirement}.`,
-              acceptance: proposal.acceptance,
-            },
-          },
-          (spec) => this.readSpec(spec),
-        );
-        added.push(`${proposal.spec}:${proposal.id}`);
-      }
-      return { added };
-    },
-  },
 
   {
     name: "plan.spec.read",

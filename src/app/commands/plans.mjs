@@ -197,46 +197,6 @@ export const commands = [
     },
   },
   {
-    command: "gap-report",
-    help: [
-      help(
-        "plan",
-        "gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)",
-        "Turn a gap report into proposed tasks in the sub-specs of a parent spec",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      // An external gap report becomes proposed tasks in a parent spec's
-      // sub-specs. `preview` shows the table and the proposals; `accept` adds
-      // them as draft work (a person only).
-      const action = positionals[0];
-      if (!["preview", "accept"].includes(action))
-        throw Error(
-          "Usage: avoozl gap-report preview|accept PARENT_SPEC (--path FILE | --issue OWNER/REPO#N)",
-        );
-      const input = {
-        parent: need(positionals[1], "gap-report " + action + " PARENT_SPEC"),
-        ...(options.path ? { path: options.path } : {}),
-        ...(options.issue ? { issue: options.issue } : {}),
-      };
-      if (action === "preview") {
-        const found = await localOrRequest("gap.preview", input);
-        console.log(found.table);
-        console.log(
-          found.proposals.length
-            ? "\n" +
-                found.proposals
-                  .map((p) => `${p.spec}:${p.id}  ${p.title}`)
-                  .join("\n")
-            : "\nNo failing cell, so no proposed task.",
-        );
-      } else
-        console.log(
-          JSON.stringify(await localOrRequest("gap.accept", input), null, 2),
-        );
-    },
-  },
-  {
     command: "intake",
     help: [
       help(
