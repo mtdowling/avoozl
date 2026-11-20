@@ -4,7 +4,11 @@ import test from "node:test";
 import { select } from "../../../scripts/test/select-tests.mjs";
 
 test("a docs or spec change runs only the tests that read repository docs", () => {
-  const s = select(["docs/overview.md", ".kiro/specs/x/tasks.md"]);
+  const s = select([
+    "docs/overview.md",
+    ".kiro/specs/x/tasks.md",
+    ".kiro/skills/x/SKILL.md",
+  ]);
   assert.equal(s.full, false);
   assert.equal(s.specLint, true);
   assert.ok(s.node.includes("src/app/test/no-sage.test.mjs"));

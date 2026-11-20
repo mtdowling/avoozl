@@ -22,9 +22,13 @@ function* markdown(dir) {
 test("json blocks in the docs are pretty-printed", () => {
   const files = [
     path.join(root, "README.md"),
-    ...["docs", "kirocrew-app/skills", "prompts", ".kiro/specs"].flatMap(
-      (d) => [...markdown(path.join(root, d))],
-    ),
+    ...[
+      "docs",
+      "kirocrew-app/skills",
+      "prompts",
+      ".kiro/specs",
+      ".kiro/skills",
+    ].flatMap((d) => [...markdown(path.join(root, d))]),
   ];
   for (const file of files) {
     const text = fs.readFileSync(file, "utf8");

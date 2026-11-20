@@ -24,10 +24,14 @@ const IN_TEST_DIR = /^src\/app\/(.+\/)?test\//;
 // Tests that read repository files outside src/ while they run.
 const READS = {
   docs: [
+    "docs-json",
+    "docs-links",
     "epic-templates",
     "no-sage",
+    "policy-docs",
     "proof-p32",
     "release-scan",
+    "spec-facts-docs",
     "spec-manifests-on-tree",
   ],
   examples: [
@@ -182,7 +186,7 @@ export function select(
       out.reasons.push(`${f}: example read by tests`);
     } else if (
       /^docs\//.test(f) ||
-      /^\.kiro\/specs\//.test(f) ||
+      /^\.kiro\/(specs|skills)\//.test(f) ||
       /^[A-Za-z_-]+\.md$/.test(f) ||
       /^kirocrew-app\/.*\.md$/.test(f)
     ) {

@@ -25,6 +25,8 @@ Screenshots are never committed: keep them outside git and show them in chat.
 Use a task worktree for changes. Preserve other work and active agent sessions.
 Run `npm run format` (Biome) before committing; CI runs `npm run format:check`.
 Markdown is not auto-formatted.
+Read `.kiro/skills/writing-documentation/SKILL.md` before writing docs, specs,
+prompts or skills.
 Run `npm test` and `git diff --check` before landing. `npm run test:changed`
 runs only the tests a change reaches, as CI does. The built page
 (`kirocrew-app/ui/dist`) is not in git; `npm run build` makes it. Do not add commit attribution
