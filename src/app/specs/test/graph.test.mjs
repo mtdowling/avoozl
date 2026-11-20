@@ -4,11 +4,23 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { graphMermaid, graphOf, graphText } from "../graph.mjs";
+import {
+  GRAPH_END,
+  GRAPH_START,
+  graphMermaid,
+  graphOf,
+  graphText,
+  withGraphBlock,
+} from "../graph.mjs";
 import { linkedReader } from "../order.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { viewResult } from "../../mcp/mcp-views.mjs";
-import { createSpecPlan, readSpecFolder } from "../spec-plans.mjs";
+import {
+  createSpecPlan,
+  lintSpec,
+  parseSpec,
+  readSpecFolder,
+} from "../spec-plans.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { writeSpec } from "../../test/spec-fixture.mjs";
 
@@ -134,4 +146,69 @@ test("graph.view and plans_graph give the CLI's text and Mermaid for one scope",
   assert.equal(tool.text, view.text);
   assert.equal(tool.mermaid, view.mermaid);
   fs.rmSync(path.join(root, ".kiro"), { recursive: true, force: true });
+});
+
+// The graph block (sim-2.4, §D9).
+const graphCodes = (text) =>
+  lintSpec({
+    spec: { name: "parser", exists: true, files: { "tasks.md": text } },
+  })
+    .diagnostics.filter((d) => d.code.startsWith("graph."))
+    .map((d) => d.code);
+
+test("lint checks the graph block: none is clean, a stale one or bad markers are errors", () => {
+  assert.deepEqual(graphCodes(PARSER), []);
+  const written = withGraphBlock("parser", PARSER);
+  assert.ok(written.trimEnd().endsWith(GRAPH_END));
+  assert.deepEqual(graphCodes(written), []);
+  // Writing again replaces the block in place.
+  assert.equal(withGraphBlock("parser", written), written);
+  // A tick changes no line of the block.
+  const ticked = written.replace("- [ ] `p-3`", "- [x] `p-3`");
+  assert.deepEqual(graphCodes(ticked), []);
+  // An edit to the list makes it stale.
+  const edited = written.replace(
+    "Report the recovery count",
+    "Count the recoveries",
+  );
+  assert.deepEqual(graphCodes(edited), ["graph.stale"]);
+  assert.deepEqual(graphCodes(`${PARSER}\n${GRAPH_START}\n`), [
+    "graph.markers",
+  ]);
+  assert.deepEqual(
+    graphCodes(
+      `${written}\n${withGraphBlock("parser", PARSER).slice(PARSER.trimEnd().length)}`,
+    ),
+    ["graph.markers"],
+  );
+  // The task parser skips the block's lines.
+  const ids = (text) =>
+    parseSpec({
+      name: "parser",
+      exists: true,
+      files: { "tasks.md": text },
+    }).proposals.map((p) => p.id);
+  assert.deepEqual(ids(written), ids(PARSER));
+});
+
+test("spec.graph.write writes the block, and spec.lint then passes", async (t) => {
+  const { root, store } = fixture(t),
+    ops = new Operations(store, { workspaceRoot: root });
+  writeSpec(root, "parser", { "tasks.md": PARSER });
+  const file = path.join(root, ".kiro", "specs", "parser", "tasks.md");
+  fs.appendFileSync(file, `\n${GRAPH_START}\nold\n${GRAPH_END}\n`);
+  const stale = await ops.execute("spec.lint", { spec: "parser" });
+  assert.ok(stale.specs[0].diagnostics.some((d) => d.code === "graph.stale"));
+  const wrote = await ops.execute("spec.graph.write", { spec: "parser" });
+  assert.equal(wrote.changed, true);
+  assert.equal(fs.readFileSync(file, "utf8"), withGraphBlock("parser", PARSER));
+  const clean = await ops.execute("spec.lint", { spec: "parser" });
+  assert.deepEqual(
+    clean.specs[0].diagnostics.filter((d) => d.code.startsWith("graph.")),
+    [],
+  );
+  assert.equal(
+    (await ops.execute("spec.graph.write", { spec: "parser" })).changed,
+    false,
+  );
 });

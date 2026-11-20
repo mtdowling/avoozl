@@ -122,11 +122,23 @@ export const commands = [
     help: [
       help(
         "deliver",
-        "graph [SPEC] [--format mermaid]",
+        "graph [SPEC] [--format mermaid] [--write]",
         "The task graph by phase in list order, as text or a Mermaid flowchart",
       ),
     ],
     async run({ options, positionals, localOrRequest }) {
+      if (options.write) {
+        if (!positionals[0])
+          throw Error("Name the spec: avoozl graph SPEC --write.");
+        console.log(
+          JSON.stringify(
+            await localOrRequest("spec.graph.write", { spec: positionals[0] }),
+            null,
+            2,
+          ),
+        );
+        return;
+      }
       const graph = await localOrRequest(
         "graph.view",
         positionals[0] ? { spec: positionals[0] } : {},

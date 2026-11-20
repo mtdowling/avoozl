@@ -66,6 +66,10 @@ export const NARROW_TOOLS = {
     "check.decide.submit",
     "Narrow tool for the decide chat. Send your one answer for the plugin check your session is bound to: {needed: true|false, reason}, reason one line of at most 300 characters. Any other shape counts as needed. It changes nothing else.",
   ],
+  plans_lint: [
+    "spec.lint",
+    "Narrow tool for the avoozl-spec skills. Lint one spec folder on disk, {spec}, or every one with {}: each error and warning with its code, file and line. Reads only.",
+  ],
   plans_next: [
     "runner.next",
     "Narrow tool for the avoozl skill. Every local leaf in one list: ready, running, waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries), and done. With {claim: true} it claims the best ready task by creating its claim branch avoozl/<spec>/<task> on origin, makes its worktree on that branch and returns the task, the worktree and the brief; a task another runner claimed first is skipped.",

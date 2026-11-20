@@ -49,6 +49,7 @@ import {
   waitsOf,
   withoutManual,
 } from "./order.mjs";
+import { graphBlockProblems } from "./graph.mjs";
 import {
   LETTERED,
   NAMED,
@@ -868,7 +869,15 @@ export function parseSpec({
       if (waits.has(proposal.id)) proposal.requires = waits.get(proposal.id);
   }
   diagnostics.push(
-    ...[...orderProblems(items), ...linkProblems(items, linked)].map((found) =>
+    ...[
+      ...orderProblems(items),
+      ...linkProblems(items, linked),
+      // A parent's block holds its linked specs, so it is checked only
+      // when the other specs can be read.
+      ...(linked || !items.some((item) => item.spec)
+        ? graphBlockProblems(name, tasksText, linked)
+        : []),
+    ].map((found) =>
       diagnostic(found.code, tasksFile, found.line, found.message, {
         taskId: found.taskId,
       }),

@@ -226,3 +226,81 @@ export function storeGraph(
     { stateOf, linked, scope },
   );
 }
+
+// The graph block (simplify §D9): the builder's Mermaid, with no state,
+// between two markers at the end of tasks.md. It is optional; when present
+// it must match.
+export const GRAPH_START = "<!-- avoozl:graph start -->";
+export const GRAPH_END = "<!-- avoozl:graph end -->";
+
+// The block text for one spec's tasks.md.
+export function graphBlock(name, text, linked = null) {
+  const mermaid = graphMermaid(
+    graphOf([{ name, text: withoutGraphBlock(text) }], { linked }),
+  );
+  return `${GRAPH_START}\n\`\`\`mermaid\n${mermaid}\`\`\`\n${GRAPH_END}`;
+}
+
+// Where the block is: {start, end} line indexes (0-based, inclusive), or
+// null; `problem` names a second block or an unclosed one.
+function findBlock(text) {
+  const rows = String(text ?? "").split("\n"),
+    starts = [],
+    ends = [];
+  rows.forEach((row, index) => {
+    if (row.trim() === GRAPH_START) starts.push(index);
+    if (row.trim() === GRAPH_END) ends.push(index);
+  });
+  if (!starts.length && !ends.length) return null;
+  if (starts.length > 1 || ends.length > 1)
+    return { problem: "second", line: (starts[1] ?? ends[1]) + 1 };
+  if (starts.length !== 1 || ends.length !== 1 || ends[0] < starts[0])
+    return { problem: "unclosed", line: (starts[0] ?? ends[0]) + 1 };
+  return { start: starts[0], end: ends[0] };
+}
+
+// tasks.md without its graph block (and the blank line before it).
+export function withoutGraphBlock(text) {
+  const found = findBlock(text);
+  if (!found || found.problem) return text;
+  const rows = text.split("\n"),
+    before = rows.slice(0, found.start);
+  while (before.length && !before.at(-1).trim()) before.pop();
+  return [...before, ...rows.slice(found.end + 1)]
+    .join("\n")
+    .replace(/\n*$/, "\n");
+}
+
+// tasks.md with the current block in place of the old one, or at the end.
+export function withGraphBlock(name, text, linked = null) {
+  return `${withoutGraphBlock(text).replace(/\n*$/, "")}\n\n${graphBlock(name, text, linked)}\n`;
+}
+
+// graph.markers and graph.stale, as {code, line, message}.
+export function graphBlockProblems(name, text, linked = null) {
+  const found = findBlock(text);
+  if (!found) return [];
+  if (found.problem)
+    return [
+      {
+        code: "graph.markers",
+        line: found.line,
+        message:
+          found.problem === "second"
+            ? "tasks.md holds a second graph block. Keep one, between one start and one end marker."
+            : "The graph block has no matching start or end marker. Run avoozl graph SPEC --write.",
+      },
+    ];
+  const rows = text.split("\n"),
+    current = rows.slice(found.start, found.end + 1).join("\n");
+  return current === graphBlock(name, text, linked)
+    ? []
+    : [
+        {
+          code: "graph.stale",
+          line: found.start + 1,
+          message:
+            "The graph block differs from the task list. Run avoozl graph SPEC --write to make it again.",
+        },
+      ];
+}
