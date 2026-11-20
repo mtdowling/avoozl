@@ -3878,3 +3878,11 @@ Owner request 2026-11-19 (Requirement 115, design §4.43).
 - [x] 67.1 Checked, linked requirement and design refs, and optional backticked task IDs [R115] (§4.43)
   - $done: A ref the spec does not define is a lint error naming the ref, file and line; a task ID reads the same bare or backticked; refs are left out of the title and shown as chips that open their section; every spec under `.kiro/specs/` lints clean.
   - `spec-refs.mjs`, `specItems` and `parseSpec` in `spec-plans.mjs`, `PhaseTasks` in `PlansView.tsx`.
+
+## Phase FS: Flexible spec folders
+
+Owner decision 2026-11-19 (Requirement FS1, design §FS1).
+
+- [x] `fs-1` specs.path, only tasks.md required, other Markdown as spec text [FS1] (§FS1)
+  - $done: `specs.path` in `.avoozl.json` names the specs folder (default `.kiro/specs`) and is refused when absolute, with `.` or `..`, or through a symlink out of the checkout; only `tasks.md` is required; every other `.md` file in a spec folder is part of the revision hash and named to workers; a requirement or design ref is checked only when its file exists and otherwise names the missing file; Kiro's three-file layout hashes and lints as before.
+  - `specs-path.mjs`, `readSpecFolder` and `revisionFiles` in `spec-plans.mjs`, `resolveRefs` in `spec-refs.mjs`, `git-approvals.mjs`, `src/app/specs/test/flexible-specs.test.mjs`.

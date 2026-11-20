@@ -4991,6 +4991,42 @@ another spec's sections are prose in a summary bullet, so a ref never
 breaks when another spec moves. Ranges check their ends, not every member,
 because a criterion list may skip numbers.
 
+### FS1. Flexible spec folders
+
+**Why.** A spec had to be Kiro's three files at `.kiro/specs/`. A small spec
+is often one task list, a repository may keep specs elsewhere, and a spec may
+need notes beside its prose (Requirement FS1).
+
+**Path.** `specs-path.mjs` reads `specs.path` from the `.avoozl.json` at the
+root of the checkout that holds the specs: `specsPath(root)` gives the
+checked path, `specsDirectory(root)` the folder on disk, `specFolderPath(root,
+name)` a spec's repository path, and `specsPathOf(store, repository)` the
+path of a repository read over GitHub, through its registered checkout. The
+setting belongs to the spec repository, not the workspace, so each code
+repository in single-repo mode keeps its own, and a reader that has only a
+checkout root needs nothing else. `validateSpecs` in `layered-config.mjs`
+checks the text; `specsPath` also checks that the deepest existing folder of
+the path resolves inside the checkout. `specs.path` is not resolved to an
+absolute path when the layer loads. With a `specs.branch` setting (spec/drop-mirror), the branch
+says where the folder is read and the path says which folder.
+
+**Files.** `readSpecFolder` reads every regular `.md` file directly in the
+folder. `revisionFiles(files)` orders them: Kiro's in their old order, then
+the rest by name. `specHash` reads that order, so a Kiro folder hashes as
+before. `parseSpec` refuses only a missing `tasks.md` and a folder with both
+prose kinds; a folder with no `bugfix.md` is a feature spec. Approve writes
+every spec file and removes ones the reviewed revision left out
+(`commitOnMain` `replace`). `approvalCommits` reads, at each approval commit,
+every spec file name the spec's history touched. A worker's brief names the
+spec's files and folder as context (`specTextNotes` in `delivery.mjs`).
+
+**Refs.** `resolveRefs` checks a ref against its file when the spec has it,
+and otherwise reports `task.ref-file-missing` naming the file.
+
+**Limits.** Kiro's Spec Builder and the Kiro Crew planner agents write only
+`.kiro/specs/`; with another path, draft with a process planner. Older task
+source references and the mirror's plans branch read the default path.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.

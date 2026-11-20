@@ -1050,14 +1050,17 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
 1. Every Avoozl plan SHALL be one Kiro spec folder, `.kiro/specs/<name>/`,
    holding `requirements.md` or `bugfix.md` (exactly one), `design.md`, and
    `tasks.md`. (Changed 2026-11-18, Requirement 111: the manifest is gone;
-   each task's facts are `$` fact bullets in `tasks.md`.)
+   each task's facts are `$` fact bullets in `tasks.md`. Changed 2026-11-19,
+   Requirement FS1: the folder is under `specs.path`, and only `tasks.md` is
+   required.)
 2. Bugfix specs SHALL be supported the same way as feature specs.
 3. In plans-repo mode spec folders SHALL live in the planning repository; in
    single-repo mode, in the code repository; with no GitHub mode, in the
    workspace's planning repository.
 4. Deterministic validation SHALL refuse a plan whose folder is missing, that
    lacks any of the three files, or that has both `requirements.md` and
-   `bugfix.md`.
+   `bugfix.md`. (Changed 2026-11-19, Requirement FS1: only a missing
+   `tasks.md` is refused.)
 5. Every checklist item in `tasks.md` SHALL start with a task ID. Validation
    SHALL refuse an item with no ID and any ID used twice in the namespace.
 6. Avoozl SHALL map `tasks.md` items to tasks and issues only by these IDs.
@@ -5961,3 +5964,43 @@ approval and a task opens the text it builds.
 6. Refs and the ID's form SHALL be part of the spec text the revision hash
    reads, as all of `tasks.md` is.
 7. Every spec in this repository SHALL lint clean under the ref rules.
+
+### Requirement FS1: A spec folder needs only tasks.md, at a path the repository names
+
+Added 2026-11-19 (owner decision). Design §FS1. Changes Requirement 30.1 and
+30.4 and Requirement 115.4.
+
+**User story:** As the owner, I want a repository to say where its spec
+folders live and a spec to need only its task list, so that a spec can be one
+`tasks.md`, carry any notes it needs, and still read Kiro's layout as before.
+
+#### Acceptance criteria
+
+1. `.avoozl.json` at the root of the repository that holds the specs SHALL
+   accept `specs.path`, one folder relative to that root. Unset SHALL mean
+   `.kiro/specs`. Avoozl SHALL refuse a value that is absolute, names a `.`
+   or `..` folder, or resolves through a symlink to a place outside the
+   checkout. It SHALL compose with a `specs.branch` setting (spec/drop-mirror): the path
+   names the folder, the branch names where it is read.
+2. Every reader and writer of spec folders SHALL use the resolved path:
+   listing, reading, creating, approving, ticking, reviewing and retiring.
+3. `tasks.md` SHALL be the only required file. `requirements.md` (or
+   `bugfix.md`) and `design.md` SHALL be optional; a folder SHALL still hold
+   at most one of `requirements.md` and `bugfix.md`.
+4. Every other Markdown file directly in the folder SHALL be spec text: part
+   of the revision hash, written by Approve, read from approval commits, and
+   named to workers as context. Files in subfolders, files that are not
+   Markdown, and symlinks SHALL NOT be. The 1 MB per-file limit SHALL stay,
+   and a folder SHALL hold at most 50 spec files.
+5. A requirement ref SHALL be checked only when the spec has
+   `requirements.md` or `bugfix.md`, and a design ref only when it has
+   `design.md`. With no such file, lint SHALL refuse the ref and name the
+   missing file.
+6. Kiro's `requirements.md` (or `bugfix.md`) + `design.md` + `tasks.md`
+   layout SHALL read, hash and lint as before, including a bugfix spec's
+   Unchanged Behavior acceptance and the front-matter category.
+7. The planner prompt, templates, skills and `docs/specs.md` SHALL describe
+   the path setting, the one required file and other files as spec text.
+8. Tests SHALL show: a custom path; a `tasks.md`-only spec; an extra `.md`
+   file changing the hash; refs with and without their files; Kiro's layout
+   unchanged; and path validation.
