@@ -9,38 +9,45 @@ Plan in specs. Land in parallel. You keep the final say.
 
 ## Open workflow
 
-[docs/github-workflow.md](docs/github-workflow.md) is the public workflow. It
-says how a tool lands an epic task by task from spec files on GitHub, and any
-tool can follow it. Avoozl is one way to run it, through its CLI, MCP server,
-web app, Kiro Crew plugin and skills.
+[Workflow v1](docs/github-workflow.md) is the public workflow. Its numbered
+rules say how a tool lands an epic task by task from spec files on GitHub, and
+the [workflow kit](workflow-kit/README.md) holds sample repositories that check
+a runner against them. Any tool can follow it. Avoozl is one way to run it,
+through its CLI, MCP server, web app, Kiro Crew plugin and skills.
 
-- **Parallel work.** Tasks that do not wait on each other start at once, up to
-  a machine's `lanes.local` limit. Avoozl ranks ready tasks by how many tasks
-  they unblock, then by file order. Planned: branch claims, so two runners
-  never take one task, and parallel task groups in list order.
+Avoozl does not follow every rule yet. It still reads `$` fact bullets, and
+the list order, the two tags, linked specs and integration branches by name are
+planned in the `simplify` spec.
+
+- **Parallel work.** A task waits for the task above it, and the children of a
+  group whose title ends with `(**PARALLEL**)` start side by side. Avoozl
+  ranks ready tasks by how many tasks they unblock, then by file order.
+  Planned: claims by creating `avoozl/<spec>/<task>` branches, so two runners
+  never take one task.
 - **Teams.** The spec issue's assignee drives the spec. To hand it off,
   reassign the issue. Specs, approvals and ticks live in git, and issues and
   assignees live on GitHub.
-- **People decide.** An approval is a commit by an approver. A `$manual` task
-  is a gate that holds everything after it until a person ticks it. The
-  repository's `landing` setting is `off`, `direct` or `pr`. Planned:
-  `landing.pr` as `draft`, `ready` or `auto`.
-- **Specs or epics.** An epic lists its member specs with `$plan`, and a
-  member spec may name its epic.
+- **People decide.** An approval is a commit by an approver. A task whose title
+  ends with `(**MANUAL**)` is a gate that holds everything after it until a
+  person ticks it. The repository's `landing` setting is `off`, `direct` or
+  `pr`, and `landing.pr` is `draft`, `ready` or `auto`.
+- **Specs or epics.** A parent spec links its member specs from task titles
+  with normal Markdown links. A branch named exactly like a spec folder is its
+  integration branch.
 
 ## Task list
 
-Each task in a spec says what it waits on and what done means:
+Each task in a spec is an ID, a title and the bullets that say what done means:
 
 ```markdown
-- [ ] 1.2 Validate config
-  - $after: 1.1
-  - $done: An unknown key is reported with its path
-  - Report each key the schema does not name, with its JSON path.
+- [ ] `cfg-1` Read the config file
+  - A file with every key loads
+- [ ] `cfg-2` Validate config
+  - An unknown key is reported with its path
 ```
 
-Avoozl starts task 1.2 once 1.1 has landed. The commit that lands 1.2 ticks
-its box on main, so anyone who reads the branch sees it done.
+Avoozl starts `cfg-2` once `cfg-1` has landed. The commit that lands `cfg-2`
+ticks its box on main, so anyone who reads the branch sees it done.
 
 ## How it works
 
