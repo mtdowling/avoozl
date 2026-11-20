@@ -111,7 +111,7 @@ another spec cannot be a `$after` here, so `ot-2.1` says it in a bullet.
   - $after: ot-4.1, ot-4.2, ot-2.4
   - `docs/telemetry.md` opens with the machine setting and the two environment variables, then lists what Avoozl records locally and for how long, the caps, that a rebuild empties the tables, what OTLP exports, what is never sent, the transport rules, delta metrics with the collector step for Prometheus-style backends, and the limit that a stop or an outage loses unsent items; it names Grafana, Honeycomb, Datadog and CloudWatch only as example backends
   - `docs/README.md` lists the page, `docs/flow.md` links to it from Timing, and `docs/glossary.md` defines OTLP and exporter; the docs link and JSON tests pass
-- [ ] `ot-5.2` Canary and credential tests [OT9.2, OT9.5, OT6.3, OT12.4] (§D8, §D12)
+- [x] `ot-5.2` Canary and credential tests [OT9.2, OT9.5, OT6.3, OT12.4] (§D8, §D12)
   - $after: ot-3.4
   - Tests: a task whose title, done text, branch, worktree path, session text and token-looking string each hold a canary records and exports; no table row, request body, log line, status reply or state file holds one
   - Tests: a canary in a span's `detail` is in the local row and absent from every OTLP body
