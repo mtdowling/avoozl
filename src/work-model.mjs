@@ -36,7 +36,7 @@ export function taskAuthority(task) {
 }
 
 // Every task Avoozl codes is delivered locally and lands through the queue;
-// an old `route: github` means the same (R102.20).
+// an old `route: github` means the same (R102.14).
 export function taskRoute() {
   return "local";
 }
@@ -103,7 +103,7 @@ export function completionReached(task, level, complete) {
   }
   // Packages complete from their children (the tick records it).
   if (task.childrenComplete && taskKind(task) === "package") return true;
-  // `merged-pr` is an old value for landed (R102.20).
+  // `merged-pr` is an old value for landed (R102.14).
   if (["integrated", "merged-pr"].includes(level) && task.integration?.commit)
     return true;
   // An allowed actor's close of the task's incoming item (R50.18): an

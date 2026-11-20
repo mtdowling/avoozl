@@ -102,7 +102,7 @@ comes only from approved specs.
 
 Tasks always live in the workspace database. A task never gets a GitHub
 issue, and it completes when its work lands. **Publish issue** gives a spec
-one issue, its journal.
+one issue. Its assignee drives the spec.
 
 ## Setting up GitHub
 

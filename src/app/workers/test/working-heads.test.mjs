@@ -12,12 +12,9 @@ import { fixture } from "../../test/fixtures.mjs";
 
 import {
   checkpointBranch,
-  fetchExact,
   landingRights,
-  opaqueId,
   pushHead,
   qualifiedRef,
-  retainVerified,
   sourceRegistry,
   verifyRelationship,
   withoutPushCredentials,
@@ -25,7 +22,7 @@ import {
 
 // Made-up names only.
 const MACHINE = { hostname: "made-up-host", username: "madeupuser" };
-const SPEC = opaqueId("example-spec");
+const SPEC = "5f1c0e7a9b2d4c68";
 
 async function scratch(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-heads-"));
@@ -120,71 +117,6 @@ test("relationships: same repository, registered fork, GitHub fork, else refused
     verifyRelationship(github, ref("dave/app", "x", sha), registry),
     /not acme\/app or a fork/,
   );
-});
-
-test("a fork checkpoint is fetched by exact commit; moves, rewrites and deletion hold", async (t) => {
-  const s = await scratch(t),
-    alice = await s.contributor("alice", "alice.git"),
-    first = await s.commit(alice, "a.txt", "a\n");
-  await git(alice, ["push", "-q", "origin", "HEAD:refs/heads/feature"]);
-  const named = ref("alice/app", "feature", first);
-  assert.equal((await fetchExact(s.driver, named, s.registry)).state, "exact");
-  await retainVerified(s.driver, SPEC, named);
-  // The owner adds work: the newer head is only a checkpoint.
-  const second = await s.commit(alice, "a.txt", "a2\n");
-  await git(alice, ["push", "-q", "origin", "HEAD:refs/heads/feature"]);
-  const moved = await fetchExact(s.driver, named, s.registry);
-  assert.equal(moved.state, "advanced");
-  assert.equal(moved.head, second);
-  // The owner rewrites the branch (a person's force push in their own fork).
-  await git(alice, ["reset", "-q", "--hard", s.base]);
-  await s.commit(alice, "other.txt", "x\n");
-  await git(alice, [
-    "push",
-    "-q",
-    "--force",
-    "origin",
-    "HEAD:refs/heads/feature",
-  ]);
-  const rewritten = await fetchExact(s.driver, named, s.registry);
-  assert.equal(rewritten.state, "rewritten");
-  assert.equal(rewritten.retained, true);
-  // The fork is deleted: unavailable, and the verified commit is still here.
-  fs.rmSync(s.at("alice.git"), { recursive: true, force: true });
-  const deleted = await fetchExact(s.driver, named, s.registry);
-  assert.equal(deleted.state, "unavailable");
-  assert.equal(deleted.retained, true);
-  assert.equal(await git(s.driver, ["cat-file", "-t", first]), "commit");
-});
-
-test("two forks with the same branch name stay two results", async (t) => {
-  const s = await scratch(t),
-    alice = await s.contributor("alice", "alice.git"),
-    bob = await s.contributor("bob", "bob.git"),
-    a = await s.commit(alice, "a.txt", "alice\n"),
-    b = await s.commit(bob, "b.txt", "bob\n");
-  await git(alice, ["push", "-q", "origin", "HEAD:refs/heads/feature"]);
-  await git(bob, ["push", "-q", "origin", "HEAD:refs/heads/feature"]);
-  const fromAlice = await fetchExact(
-      s.driver,
-      ref("alice/app", "feature", a),
-      s.registry,
-    ),
-    fromBob = await fetchExact(
-      s.driver,
-      ref("bob/app", "feature", b),
-      s.registry,
-    );
-  assert.equal(fromAlice.state, "exact");
-  assert.equal(fromBob.state, "exact");
-  assert.notEqual(fromAlice.head, fromBob.head);
-  // Bob's commit under Alice's name is not Alice's head.
-  const crossed = await fetchExact(
-    s.driver,
-    ref("alice/app", "feature", b),
-    s.registry,
-  );
-  assert.notEqual(crossed.state, "exact");
 });
 
 test("a fork contributor checkpoints with no upstream copy and no upstream write", async (t) => {

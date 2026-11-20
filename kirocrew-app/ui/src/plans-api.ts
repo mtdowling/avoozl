@@ -104,7 +104,6 @@ export interface CheckState {
 
 export interface SpecLinks {
   issue: ScmLink | null
-  journal: { kind: 'journal'; home: 'github' | 'local' } | null
   workingBranches: ScmLink[]
   pulls: (ScmLink & { task: string; state: string; checks: CheckState | null })[]
   sources: ScmLink[]
@@ -197,21 +196,12 @@ export interface StoredPlanPage {
   total: number
 }
 
-// Stored plans no spec folder on disk stands for: plans written before the
-// spec layout (Nupp's), or whose folder was removed. The view lists them so
-// a workspace with no spec folders still shows its plans.
-export function plansWithoutFolder(specs: SpecList | null, stored: StoredPlanPage | null): StoredPlan[] {
-  const claimed = new Set((specs?.items ?? []).flatMap((spec) => (spec.plan ? [spec.plan.id] : [])))
-  return (stored?.items ?? []).filter((plan) => !claimed.has(plan.id))
-}
-
-// One row of the Plans table (`plan.table`): a spec folder, or a stored
-// plan with no folder. `category` is what the plan's front-matter says, or
+// One row of the Plans table (`plan.table`): a spec folder. `category` is what the plan's front-matter says, or
 // null; Avoozl never guesses one.
 export interface PlanRow {
   key: string
   // An epic folder lists member plans (Requirement 59.1).
-  kind: 'spec' | 'old-style' | 'epic'
+  kind: 'spec' | 'epic'
   name: string
   spec: string | null
   folder: string | null
@@ -219,8 +209,6 @@ export interface PlanRow {
   type: 'feature' | 'bugfix' | null
   category: string | null
   categoryProblem: string | null
-  // An open pull request proposes a change to it (R107.5); the PR chip.
-  pull?: { number: number; draft: boolean }
   errors: number
   status: string
   tasks: { total: number; done: number }
@@ -239,7 +227,7 @@ export interface PlanRow {
   archived?: { at: string; by: string | null } | null
   // The plan's own events (archived, unarchived), newest first.
   timeline?: { action: string; by: string | null; at: string }[]
-  // An approved spec's driver from the cache (R116.11); older backends omit it.
+  // An approved spec's driver from the cache (R116.7); older backends omit it.
   driver?: RowDriver
 }
 
@@ -291,9 +279,7 @@ export function rowActions(row: PlanRow) {
 
 // The chat draft that changes one plan. The user reviews it before sending.
 export function changeMessage(row: PlanRow): string {
-  const target = row.spec
-    ? `the existing spec folder .kiro/specs/${row.spec}/${row.planId ? ` (plan ${row.planId})` : ''}`
-    : `the stored spec ${row.planId}, which has no spec folder yet; move it to .kiro/specs/<name>/ first`
+  const target = `the existing spec folder .kiro/specs/${row.spec}/${row.planId ? ` (plan ${row.planId})` : ''}`
   return `Use the Avoozl skill's "Plan a goal" steps 2 to 4 to change ${target}. Ask me what should change. Edit it in a planner session, critique it in a second isolated session, store the new revision, and show me the result. Do not approve it; I approve the exact revision in the Avoozl Specs view.`
 }
 
@@ -313,7 +299,6 @@ export function plansClient(api: AppApi) {
     // A spec folder's requirements (or bugfix), design and tasks, to read.
     documents: (workspaceId: string, name: string) => run<SpecDocuments>(workspaceId, 'plan.spec.read', { name }),
     // An older stored plan's Markdown body.
-    text: (workspaceId: string, id: string) => run<{ id: string; title: string | null; text: string | null }>(workspaceId, 'plan.get', { id }).then((plan) => plan.text ?? ''),
     // Store the folder on disk as a draft plan named after it.
     store: (workspaceId: string, spec: string) => run<SpecPlan>(workspaceId, 'plan.create', { spec }),
     reload: (workspaceId: string, id: string, expectedHash: string) => run<SpecPlan>(workspaceId, 'plan.save', { id, expectedHash }),
@@ -331,25 +316,11 @@ export function plansClient(api: AppApi) {
     // highlight.languages), as data for highlight.ts.
     languages: (workspaceId: string) =>
       run<{ languages: Record<string, { tokens: { type: string; pattern: string; flags?: string }[] }>; problems: string[] }>(workspaceId, 'highlight.languages'),
-    // Approve exactly the revision the user is looking at. The backend refuses
-    // a changed hash, a changed database, or a folder that moved on disk.
-    // Draft specs in the order they can be approved (plan.approvalBatches).
-    batches: (workspaceId: string) => run<ApprovalBatches>(workspaceId, 'plan.approvalBatches'),
     reviewAnyway: (workspaceId: string, planId: string, revisionHash: string) => run(workspaceId, 'plan.review.decide', { planId, revisionHash, action: 'review', unproven: true }),
     reviewSummary: (workspaceId: string, planId: string) => run<PlanReviewSummary | null>(workspaceId, 'plan.reviewSummary', { planId }),
-    // What approving just these would do. Writes nothing.
-    selection: (workspaceId: string, ids: string[]) =>
-      run<ApprovalBatches & { selection: BatchSelection }>(workspaceId, 'plan.approvalBatches', { ids }).then((value) => value.selection),
-    // Approve exactly these revisions together, all or none (plan.approveMany).
-    // A spec whose stored revision moved since it was shown comes back in
-    // `changed`, and nothing is sent: the dialog shows that spec's update.
-    approveMany: async (workspaceId: string, items: { id: string; expectedHash: string }[]): Promise<ApproveManyResult> => {
-      const shown = await Promise.all(items.map(async (item) => ({ item, preview: await preview(workspaceId, item.id) })))
-      const changed = shown.filter(({ item, preview }) => preview.reviewedHash !== item.expectedHash).map(({ item, preview }) => ({ id: item.id, preview }))
-      if (changed.length) return { ok: false, failures: [], changed }
-      return run<ApproveManyResult>(workspaceId, 'plan.approveMany', { items })
-    },
-    // A revision that moved since it was shown comes back as `changed`
+    // Approve exactly the revision the user is looking at: one commit on main
+    // as the person. The backend refuses a changed hash, a changed database
+    // or a folder that moved on disk. A revision that moved since it was shown comes back as `changed`
     // instead of an error, so the dialog updates in place. plan.approve still
     // refuses a stale hash; a move between this check and that call reads as
     // the same change.
@@ -368,52 +339,19 @@ export function plansClient(api: AppApi) {
         throw caught
       }
     },
+    // Make the GitHub issues (spec.publish, R102.2): the spec's issue and
+    // its epic's. A person's explicit act; approval never does it.
+    publish: (workspaceId: string, planId: string, repository: string | null) =>
+      run<{ home: string; repository?: string; number?: number }>(workspaceId, 'spec.publish', { planId, ...(repository ? { repository } : {}) }),
   }
 }
 
 export type PlansClient = ReturnType<typeof plansClient>
 
-// One draft spec in plan.approvalBatches: the batch it can be approved in.
-export interface BatchEntry {
-  id: string
-  spec: string
-  title: string
-  hash: string
-  batch: number
-  tasks: number
-  errors: number
-  // It shares a loop with other specs in its batch.
-  loop: boolean
-  // Draft specs whose tasks it needs, by name.
-  needs: string[]
-  review?: PlanReviewSummary | null
-}
 export interface ApproveOneResult {
   id: string
   hash: string
-  pending?: boolean
-  approvalPullRequest?: { repository: string; number: number; branch: string; adopted?: boolean }
 }
-export interface ApprovalBatches {
-  batches: { batch: number; specs: BatchEntry[] }[]
-}
-// plan.approvalBatches {ids}: approving just these, tried on a scratch
-// copy.
-export interface BatchSelection {
-  ok: boolean
-  specs: (BatchEntry & { pullRequest?: boolean })[]
-  failures: { id: string; spec: string | null; error: string }[]
-  missing: string[]
-}
-export interface ApproveManyResult {
-  ok: boolean
-  pending?: boolean
-  failures: { id: string; spec: string | null; error: string }[]
-  approvalPullRequests?: { repository: string; number: number; branch: string; specs: string[] }[]
-  // Specs whose revision moved since the dialog showed them; nothing was sent.
-  changed?: { id: string; preview: Preview }[]
-}
-
 // What changed while an Approve dialog was open (R104.13): the two hashes,
 // each changed file with lines added and removed, and findings that became
 // fixed or moved in the new revision.
@@ -453,18 +391,6 @@ export function reviewCounts(review?: PlanReviewSummary | null): string {
     ([, count]) => count > 0,
   )
   return parts.length ? parts.map(([name, count]) => `${count} ${name}`).join(' · ') : 'No findings'
-}
-
-// Each draft plan's batch number, by plan ID. Approved specs have none.
-export function batchNumbers(batches: ApprovalBatches | null): Map<string, number> {
-  return new Map((batches?.batches ?? []).flatMap((batch) => batch.specs.map((entry) => [entry.id, batch.batch] as const)))
-}
-
-// Specs the selected ones need that are not selected: approving fails
-// for them until those are approved too.
-export function missingOwners(selected: BatchEntry[]): string[] {
-  const names = new Set(selected.map((entry) => entry.spec))
-  return [...new Set(selected.flatMap((entry) => entry.needs.filter((need) => !names.has(need))))].sort()
 }
 
 export interface DeletePreview {
@@ -554,19 +480,16 @@ export interface PlanListFilter {
   q?: string
   category?: string
   status?: string
-  kind?: 'spec' | 'old-style'
   has?: 'ready' | 'running' | 'needs-you'
   // Show archived plans; they are hidden otherwise.
   archived?: boolean
-  // Draft specs in this approval batch ("1", "2", ...).
-  batch?: string
   // The epic's id; NO_EPIC for specs in none.
   epic?: string
 }
 
 export const NO_EPIC = 'none'
 
-export function filterRows(rows: PlanRow[], filter: PlanListFilter, batchOf: Map<string, number> = new Map()): PlanRow[] {
+export function filterRows(rows: PlanRow[], filter: PlanListFilter): PlanRow[] {
   const text = filter.q?.trim().toLowerCase() ?? ''
   return rows.filter(
     (row) =>
@@ -574,9 +497,7 @@ export function filterRows(rows: PlanRow[], filter: PlanListFilter, batchOf: Map
       (!text || row.name.toLowerCase().includes(text) || (row.spec ?? '').toLowerCase().includes(text) || (row.planId ?? '').toLowerCase().includes(text)) &&
       (!filter.category || (row.category ?? UNCATEGORIZED) === filter.category) &&
       (!filter.status || row.status === filter.status) &&
-      (!filter.kind || row.kind === filter.kind) &&
       (!filter.epic || (row.epic ?? NO_EPIC) === filter.epic) &&
-      (!filter.batch || (row.planId !== null && batchOf.get(row.planId) === Number(filter.batch))) &&
       (!filter.has || (filter.has === 'ready' ? row.now.ready > 0 : filter.has === 'running' ? row.now.running > 0 : row.now.needsYou > 0)),
   )
 }

@@ -12,11 +12,11 @@
 // - Under the lock the base is read again. If it moved since the candidate
 //   was built, nothing is pushed: the head stays first and the next call
 //   builds and checks a new candidate on the new base. The ref move itself
-//   is guarded too (`guardedFastForward`, driver-generations.mjs), so a move
+//   is guarded too (`guardedFastForward`, guarded-push.mjs), so a move
 //   between the re-read and the push also refuses.
 //
 // - A merge batch (merge-batches spec) takes the head and the members right
-//   behind it, up to the base's size limit, whatever their spec or driver.
+//   behind it, up to the base's size limit, whatever their spec.
 //   A failed batch is rerun once, then bisected to its culprit; the members
 //   before the culprit land and the members after it stay queued.
 //
@@ -67,7 +67,6 @@ export function enqueueLanding(
     commit,
     tasks = [],
     spec = null,
-    driver = null,
     source = null,
     pr = null,
   },
@@ -90,7 +89,6 @@ export function enqueueLanding(
       commit,
       tasks: [...tasks],
       spec,
-      driver,
       ...(source ? { source } : {}),
       ...(pr ? { pr } : {}),
       seq,

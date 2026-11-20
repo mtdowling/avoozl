@@ -310,7 +310,7 @@ test("Local only is a mode: no GitHub mode, and stored GitHub settings are kept 
   const policy = normalizeGitHubPolicy(stored);
   assert.equal(policy.mode, null);
   assert.equal(policy.planningRepository, null);
-  // Task issues and the Project are gone (R102.20): their keys are refused.
+  // Task issues and the Project are gone (R102.14): their keys are refused.
   for (const key of ["repository", "defaultAuthority", "subIssues", "issues"])
     assert.throws(
       () => normalizeGitHubPolicy({ ...stored, [key]: {} }),

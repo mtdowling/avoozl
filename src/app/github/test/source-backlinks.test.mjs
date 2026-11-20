@@ -1,7 +1,6 @@
 // Radar back-links (task 44.6, R92.8, R92.10, design §4.27): the intake
-// status comment names the spec issue and the journal names the source
-// issue, only where visibility permits, and only in writes Avoozl already
-// makes. Fakes and scratch workspaces only.
+// status comment names the spec issue, only where visibility permits, and
+// only in a write Avoozl already makes. Fakes and scratch workspaces only.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -9,9 +8,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { startGitHubItem, statusComment } from "../github-intake.mjs";
-import { intakeSpecIssue, journalSources } from "../source-backlinks.mjs";
-import { replayJournal, validateRecord } from "../../specs/spec-journal.mjs";
-import { takeOverSpec } from "../../specs/spec-takeover.mjs";
+import { intakeSpecIssue } from "../source-backlinks.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { FakeGitHub } from "../../test/fake-github.mjs";
 
@@ -130,79 +127,6 @@ test("intake writes the same one comment and names a public spec only", async (t
   }
 });
 
-test("the journal names a source only when both sides share visibility", (t) => {
-  const store = seed(t, { radar: false, specs: false });
-  store.put("plans", {
-    ...store.get("plans", "s"),
-    context: { newPlan: { source: { repository: RADAR, number: 7 } } },
-  });
-  assert.deepEqual(journalSources(store, "s", { specPrivate: false }), [
-    { repository: RADAR, number: 7 },
-  ]);
-  // A private spec never names a public Radar issue.
-  assert.deepEqual(journalSources(store, "s", { specPrivate: true }), []);
-  // A public journal never names a private repository.
-  const hidden = seed(t, { radar: true, specs: false });
-  assert.deepEqual(journalSources(hidden, "s", { specPrivate: false }), []);
-  assert.deepEqual(journalSources(hidden, "s", { specPrivate: true }), [
-    { repository: RADAR, number: 7 },
-  ]);
-  // Unread visibility names nothing.
-  assert.deepEqual(journalSources(seed(t, { radar: null }), "s", {}), []);
-  // A public record may name only public repositories.
-  const record = {
-    v: 1,
-    op: "generation-1",
-    kind: "generation",
-    spec: "a".repeat(16),
-    generation: 1,
-    prev: null,
-    sources: [{ repository: RADAR, number: 7 }],
-  };
-  assert.throws(
-    () => validateRecord(record, { publicRepositories: [SPECS] }),
-    /invalid repository/,
-  );
-  assert.doesNotThrow(() =>
-    validateRecord(record, { publicRepositories: [SPECS, RADAR] }),
-  );
-});
-
-test("take over's first generation names the source, as its one existing write", async (t) => {
-  const store = seed(t, { radar: true, specs: true }),
-    github = new FakeGitHub();
-  github.login = "maintainer";
-  github.permissions.set("maintainer", "admin");
-  github.created.push({ id: 40, number: 40, state: "open", labels: [] });
-  await github.addAssignees(SPECS, 40, ["maintainer"]);
-  const result = await takeOverSpec(store, { github }, "s");
-  assert.equal(result.generation, 1);
-  const written = github.comments.filter((c) => c.number === 40);
-  assert.equal(written.length, 1, "no write beyond the generation record");
-  assert.match(written[0].body, /^Source: o\/app#7$/m);
-  const replay = await replayJournal(
-    written.map((c, i) => ({ id: i + 1, body: c.body, author: "maintainer" })),
-    { permission: async () => "admin", visibility: "private" },
-  );
-  assert.equal(replay.held, false);
-  assert.deepEqual(replay.records[0].record.sources, [
-    { repository: RADAR, number: 7 },
-  ]);
-});
-
-test("a private spec's take over never names a public Radar issue", async (t) => {
-  const store = seed(t, { radar: false, specs: true }),
-    github = new FakeGitHub();
-  github.login = "maintainer";
-  github.permissions.set("maintainer", "admin");
-  github.created.push({ id: 40, number: 40, state: "open", labels: [] });
-  await github.addAssignees(SPECS, 40, ["maintainer"]);
-  await takeOverSpec(store, { github }, "s");
-  const written = github.comments.filter((c) => c.number === 40);
-  assert.equal(written.length, 1);
-  assert.doesNotMatch(written[0].body, /o\/app|sources/);
-});
-
 test("back-links import no Radar code and call no Radar API", () => {
   const here = path.dirname(fileURLToPath(import.meta.url)),
     source = fs.readFileSync(
@@ -213,6 +137,6 @@ test("back-links import no Radar code and call no Radar API", () => {
     imports = [...code.matchAll(/from "\.{1,2}\/(?:[^"]+\/)?([^"/]+)"/g)].map(
       (m) => m[1],
     );
-  assert.deepEqual(imports.sort(), ["scm-links.mjs", "spec-approval.mjs"]);
+  assert.deepEqual(imports, []);
   assert.doesNotMatch(code, /github\.|graphql|fetch\(|grant|radar-/i);
 });

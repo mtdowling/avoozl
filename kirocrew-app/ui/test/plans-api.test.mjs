@@ -14,7 +14,6 @@ import {
   rowActions,
   location,
   plansClient,
-  plansWithoutFolder,
   reviewCounts,
   revisionChange,
   specStatus,
@@ -86,17 +85,17 @@ test('a move between the check and plan.approve reads as the same change; other 
   await assert.rejects(plansClient(refused.api).approve('ws', 'config', hash), /changed on disk/)
 })
 
-test('approveMany names each moved spec and sends nothing', async () => {
-  const { api, calls } = fakeApi((body) => ({ reviewedHash: body.input.id === 'moved' ? 'b'.repeat(64) : hash }))
-  const result = await plansClient(api).approveMany('ws', [
-    { id: 'same', expectedHash: hash },
-    { id: 'moved', expectedHash: hash },
-  ])
-  assert.deepEqual([result.ok, result.changed.map((entry) => entry.id)], [false, ['moved']])
-  assert.ok(calls.every((call) => call.body.operation === 'plan.preview'))
-  const fresh = fakeApi((body) => (body.operation === 'plan.preview' ? { reviewedHash: hash } : { ok: true, failures: [] }))
-  assert.equal((await plansClient(fresh.api).approveMany('ws', [{ id: 'same', expectedHash: hash }])).ok, true)
-  assert.equal(fresh.calls.at(-1).body.operation, 'plan.approveMany')
+test('Make the GitHub issues sends spec.publish with the home repository, and none without one', async () => {
+  const { api, calls } = fakeApi(() => ({ home: 'github', repository: 'o/plans', number: 4 }))
+  assert.equal((await plansClient(api).publish('ws', 'config', 'o/plans')).number, 4)
+  await plansClient(api).publish('ws', 'config', null)
+  assert.deepEqual(
+    calls.map((call) => call.body),
+    [
+      { operation: 'spec.publish', input: { planId: 'config', repository: 'o/plans' }, workspaceId: 'ws' },
+      { operation: 'spec.publish', input: { planId: 'config' }, workspaceId: 'ws' },
+    ],
+  )
 })
 
 test('the dialog counts severities then states, leaving out zeros', () => {
@@ -147,29 +146,6 @@ test('approve is off until the revision is stored, current, unapproved, and vali
   assert.equal(location({ lineStart: 2 }), 'tasks.md:2')
 })
 
-test('stored plans with no spec folder are listed beside the folders', () => {
-  const specs = {
-    root: '/plans',
-    items: [
-      { name: 'config', plan: { id: 'config' } },
-      { name: 'draft', plan: null },
-    ],
-  }
-  const stored = {
-    total: 2,
-    items: [
-      { id: 'config', state: 'approved' },
-      { id: 'shared-incremental-compiler', state: 'approved' },
-    ],
-  }
-  assert.deepEqual(
-    plansWithoutFolder(specs, stored).map((plan) => plan.id),
-    ['shared-incremental-compiler'],
-  )
-  // A mode that finds no folders still lists every stored plan.
-  assert.equal(plansWithoutFolder(null, stored).length, 2)
-})
-
 const row = (name, extra = {}) => ({
   key: `spec::${name}`,
   kind: 'spec',
@@ -217,14 +193,6 @@ test('row buttons follow the row', () => {
     archivable: true,
     unarchivable: false,
   })
-  assert.deepEqual(rowActions(row('a', { kind: 'old-style', spec: null, planId: 'p', status: 'draft' })), {
-    review: false,
-    scoped: true,
-    importable: false,
-    deletable: true,
-    archivable: true,
-    unarchivable: false,
-  })
   const archived = rowActions(row('a', { status: 'approved', planId: 'a', archived: { at: 't', by: 'Owner' } }))
   assert.deepEqual([archived.archivable, archived.unarchivable, archived.deletable], [false, true, true])
 })
@@ -233,7 +201,6 @@ test('Plan a change drafts a message for that plan and never approves', () => {
   const message = changeMessage(row('config', { planId: 'config' }))
   assert.match(message, /\.kiro\/specs\/config\/ \(plan config\)/)
   assert.match(message, /Do not approve it/)
-  assert.match(changeMessage(row('x', { kind: 'old-style', spec: null, planId: 'old' })), /stored spec old, which has no spec folder/)
 })
 
 test('the table is one plan.table call', async () => {
@@ -242,11 +209,11 @@ test('the table is one plan.table call', async () => {
   assert.deepEqual(calls[0].body, { operation: 'plan.table', input: {}, workspaceId: 'ws' })
 })
 
-test('the Plans list filters by text, category, status, kind and what a plan has', () => {
+test('the Plans list filters by text, category, status and what a plan has', () => {
   const rows = [
     row('alpha', { category: 'Runtime', now: { ready: 2, running: 0, needsYou: 0 } }),
     row('beta', { category: 'Compiler', status: 'approved', planId: 'beta', now: { ready: 0, running: 1, needsYou: 0 } }),
-    row('gamma', { kind: 'old-style', spec: null, planId: 'g', status: 'draft', now: { ready: 0, running: 0, needsYou: 3 } }),
+    row('gamma', { planId: 'g', status: 'draft', now: { ready: 0, running: 0, needsYou: 3 } }),
   ]
   const names = (filter) => filterRows(rows, filter).map((r) => r.name)
   assert.deepEqual(names({}), ['alpha', 'beta', 'gamma'])
@@ -254,7 +221,6 @@ test('the Plans list filters by text, category, status, kind and what a plan has
   assert.deepEqual(names({ category: 'Compiler' }), ['beta'])
   assert.deepEqual(names({ category: UNCATEGORIZED }), ['gamma'])
   assert.deepEqual(names({ status: 'not imported' }), ['alpha'])
-  assert.deepEqual(names({ kind: 'old-style' }), ['gamma'])
   assert.deepEqual(names({ has: 'ready' }), ['alpha'])
   assert.deepEqual(names({ has: 'running' }), ['beta'])
   assert.deepEqual(names({ has: 'needs-you' }), ['gamma'])

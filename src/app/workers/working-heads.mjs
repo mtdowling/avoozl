@@ -1,5 +1,5 @@
 // Qualified working heads, fork checkpoints and verified integration
-// (Requirement 102.6-102.8 and 102.15, design §4.32.3 and §4.32.3a, task
+// (Requirement 102.4-102.8 and 102.15, design §4.32.3 and §4.32.3a, task
 // 56.3).
 //
 // - A reference is never a branch name alone. Every working head and task
@@ -7,9 +7,9 @@
 //   from the target repository and base it lands on. Two forks with the
 //   same branch name are two references.
 // - Sources are registered by trusted repository setup only (`sources`: the
-//   repository identity and where to fetch it). A pull request or a journal
-//   record may name a registered repository; neither can add a fetch URL,
-//   local path or command. A fork needs no upstream copy of its branch.
+//   repository identity and where to fetch it). A pull request may name a
+//   registered repository; it cannot add a fetch URL, local path or
+//   command. A fork needs no upstream copy of its branch.
 // - Avoozl's driver makes every ref move and push. A task's unfinished work
 //   lives on its own checkpoint ref; only a task whose exact commit passed
 //   its checks enters the spec's working branch, one at a time, by a merge
@@ -17,10 +17,6 @@
 // - Content checks run before every push, checkpoint or not; the acceptance
 //   gate applies only to integration. Agents get no push credentials
 //   (`withoutPushCredentials` in git.mjs, used by the supervisor).
-// - A fetched head that moved, was rewritten or vanished holds the work. The
-//   last verified commit is kept under a private local ref so the work can be
-//   recovered after a fork is deleted or the database is lost.
-import { createHash } from "node:crypto";
 import { git, landingJob, remoteGit } from "../git/git.mjs";
 import { currentJob } from "../github/github-jobs.mjs";
 export { withoutPushCredentials } from "../git/git.mjs";
@@ -33,17 +29,9 @@ import { fail } from "../store/store.mjs";
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
-const PRIVATE = "refs/avoozl";
 
 const lower = (value) => String(value).toLowerCase();
 const short = (sha) => sha.slice(0, 12);
-const hash = (value) =>
-  createHash("sha256").update(value).digest("hex").slice(0, 24);
-
-// An opaque identifier for public branch names and records: the same parts
-// always give the same id, and the id names none of them.
-export const opaqueId = (...parts) =>
-  createHash("sha256").update(parts.join("\0")).digest("hex").slice(0, 16);
 
 function repositoryOf(value, label) {
   if (
@@ -156,11 +144,6 @@ export async function verifyRelationship(github, ref, registry) {
 }
 
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
-const fetchedRef = (ref) => `${PRIVATE}/fetched/${hash(refKey(ref))}`;
-const baseRef = (ref) =>
-  `${PRIVATE}/bases/${hash(`${lower(ref.target.repository)}:${ref.target.base}`)}`;
-const verifiedRef = (spec, ref) =>
-  `${PRIVATE}/verified/${segmentOf(spec, "spec id")}/${hash(refKey(ref))}`;
 
 async function revParse(root, name) {
   try {
@@ -184,73 +167,6 @@ async function isAncestor(root, older, newer) {
   } catch {
     return false;
   }
-}
-
-// Fetches one reference from its registered location into Avoozl's private
-// namespace and checks it against the exact commit it names, and that it
-// shares history with the target base. States:
-// - exact: the branch is at the commit.
-// - advanced: the branch moved forward; the newer head is an unverified
-//   checkpoint until the driver verifies it.
-// - rewritten: the branch no longer contains the commit (held).
-// - unavailable: the repository or branch cannot be fetched (held).
-// `retained` says whether the named commit is still here to recover from.
-export async function fetchExact(root, ref, registry, { env } = {}) {
-  const source = registry.get(ref.source.repository),
-    target = registry.get(ref.target.repository),
-    environment = { ...(env ?? process.env), ...NO_PROMPT },
-    into = fetchedRef(ref),
-    // Avoozl's private local refs only; nothing here writes a remote.
-    fetch = (url, branch, local) =>
-      remoteGit(
-        root,
-        [
-          "fetch",
-          "--no-tags",
-          "--quiet",
-          url,
-          `+refs/heads/${branch}:${local}`,
-        ],
-        { env: environment },
-      );
-  try {
-    await fetch(target.url, ref.target.base, baseRef(ref));
-  } catch {
-    return {
-      state: "unavailable",
-      reason: "target-unreadable",
-      retained: await hasCommit(root, ref.source.commit),
-    };
-  }
-  try {
-    await fetch(source.url, ref.source.branch, into);
-  } catch {
-    return {
-      state: "unavailable",
-      reason: "source-unreadable",
-      retained: await hasCommit(root, ref.source.commit),
-    };
-  }
-  const head = await revParse(root, into),
-    base = await revParse(root, baseRef(ref)),
-    retained = await hasCommit(root, ref.source.commit);
-  let related = false;
-  try {
-    related = Boolean(await git(root, ["merge-base", base, head]));
-  } catch {}
-  if (!related) return { state: "unrelated", head, base, retained };
-  if (head === ref.source.commit)
-    return { state: "exact", head, base, retained: true };
-  if (retained && (await isAncestor(root, ref.source.commit, head)))
-    return { state: "advanced", head, base, retained };
-  return { state: "rewritten", head, base, retained };
-}
-
-// Keeps a verified commit under a private local ref, so it survives a
-// deleted fork, a rewritten branch and a lost database.
-export async function retainVerified(root, spec, ref) {
-  await git(root, ["update-ref", verifiedRef(spec, ref), ref.source.commit]);
-  return verifiedRef(spec, ref);
 }
 
 // The acceptance gate for integration: evidence for this exact commit, every
@@ -281,29 +197,6 @@ async function moveRef(root, name, next, old) {
       409,
     );
   }
-}
-
-// The spec's working branch in one repository's local checkout, created at
-// the target base commit when absent. One per spec and affected repository:
-// `repository` is where the branch is pushed (the target or a fork).
-export async function ensureWorkingBranch(
-  root,
-  { spec, repository, target, baseCommit },
-) {
-  const branch = workingBranch(spec),
-    name = `refs/heads/${branch}`,
-    current = await revParse(root, name);
-  if (!current && !SHA.test(baseCommit ?? ""))
-    fail("Name the exact base commit.", 400);
-  if (!current) await moveRef(root, name, baseCommit, null);
-  const commit = current ?? baseCommit;
-  return {
-    created: !current,
-    ref: qualifiedRef({
-      source: { repository, branch, commit },
-      target,
-    }),
-  };
 }
 
 // One integration at a time per checkout and working branch, in this
@@ -416,7 +309,7 @@ export function privacyScan(root, { base, head, refs, machine, configFile }) {
 // checkpoint or working head alike. The content scan runs first over
 // everything the remote does not have; any hit refuses the push before it is
 // made. With `store`, the workspace's content rules at the diff boundary
-// check the same range, commit messages and ref name (R102.12), so a
+// check the same range, commit messages and ref name (R102.7), so a
 // private plan's names never reach a pushed branch. A plain push only: a non-fast-forward is refused by git, never
 // forced. Avoozl's own process pushes; agents have no credentials for it.
 export async function pushHead(
@@ -496,7 +389,7 @@ export async function pushHead(
   return { repository, branch, commit, pushed: true };
 }
 
-// Source push rights and target merge rights are separate (R102.8). A
+// Source push rights and target merge rights are separate (R102.6). A
 // contributor may checkpoint to a fork with no upstream write access; the
 // target's own maintainer lands, and Avoozl observes when it cannot merge.
 const WRITE = ["admin", "maintain", "write"];

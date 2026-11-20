@@ -207,60 +207,6 @@ test("a worker refuses an SSH envelope, then runs a pulled one to a checkpoint p
   assert.equal(git(code.origin, "rev-parse", row.branch), row.commit);
 });
 
-test("worker pull reads offers through the operation and starts nothing", async (t) => {
-  const code = checkout(),
-    root = temporaryDirectory("avoozl-worker-pull-");
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({
-      version: 1,
-      runner: {
-        role: "worker",
-        lanes: 2,
-        pools: [
-          {
-            spec: "demo",
-            repository: "example/code",
-            issue: 7,
-            target: "example/code",
-            base: "main",
-            visibility: "private",
-          },
-        ],
-      },
-    }),
-  );
-  const file = globalAvoozlConfigPath();
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(
-    file,
-    JSON.stringify({
-      version: 1,
-      runner: {
-        repos: { app: { path: code.repo } },
-        sources: { "example/code": { url: code.origin } },
-      },
-    }),
-  );
-  const { dbPath } = workspaceConfig({ workspace: root, env: {} });
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const store = new Store(dbPath);
-  t.after(() => store.close());
-  store.initialize({ ...snapshot(), tasks: [], edges: [] });
-  const github = {
-    available: () => true,
-    currentUser: async () => ({ login: "worker-a" }),
-    listIssueComments: async () => [],
-    permission: async () => ({ permission: "read" }),
-  };
-  const ops = new Operations(store, { workspaceRoot: root, github });
-  const result = await ops.execute("worker.pull", {}, local);
-  assert.deepEqual(result.offers, []);
-  assert.equal(result.login, "worker-a");
-  assert.equal(store.getMeta("worker.offers").login, "worker-a");
-  assert.equal(store.getMeta("runner.tasks") ?? null, null);
-});
-
 test("a process worker dispatches a process request and reports through its runner", async (t) => {
   const code = checkout(),
     ws = setup(t, code.repo, { executor: "process" });
@@ -316,7 +262,7 @@ test("a workspace with no worker settings refuses worker operations", async (t) 
   );
 });
 
-test("a file with runner.role runner or driver is refused, naming the key and worker pull", (t) => {
+test("a file with runner.role runner or driver is refused, naming the key", (t) => {
   for (const role of ["runner", "driver"]) {
     const ws = setup(t, "/nowhere");
     fs.writeFileSync(
@@ -325,7 +271,7 @@ test("a file with runner.role runner or driver is refused, naming the key and wo
     );
     assert.throws(
       () => loadLayeredConfig({ workspaceRoot: ws.root }),
-      new RegExp(`runner\\.role "${role}" was removed.*worker pull`),
+      new RegExp(`runner\\.role "${role}" was removed`),
     );
   }
 });

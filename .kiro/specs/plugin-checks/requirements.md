@@ -256,8 +256,7 @@ private and my files stay mine.
 #### Acceptance criteria
 
 1. No file, setting, prompt, script, path or URL of a plugin check SHALL be
-   written to a repository, a branch, a commit, a pull request, an issue or
-   the issue journal.
+   written to a repository, a branch, a commit, a pull request or an issue.
 2. Pull request text, check summaries and Activity SHALL show a plugin check
    only by its name and its result. The pre-push content rule (Requirement
    40) SHALL scan that name as it scans the rest of the text.

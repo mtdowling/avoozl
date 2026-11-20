@@ -11,7 +11,6 @@ import { integrateVerified } from "../../delivery/delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landDirect } from "../direct-landing.mjs";
 import { graphView } from "../../api/page-views.mjs";
-import { takeOverSpec } from "../../specs/spec-takeover.mjs";
 import { snapshot, verifiedTask } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
@@ -69,13 +68,6 @@ async function workspace(t) {
     worktreeRoot: path.join(root, "wt"),
   });
   store.put("plans", { id: "s", spec: "s", hash: digest("plan s") });
-  store.put("receipts", {
-    id: "spec-journal:s",
-    kind: "spec-journal",
-    planId: "s",
-    home: "local",
-  });
-  await takeOverSpec(store, { workspaceRoot: root, actor: "Operator" }, "s");
   return { root, origin, checkout: fs.realpathSync.native(checkout), store };
 }
 
@@ -176,21 +168,6 @@ test("a chat sent back after landing is told to report done again", async (t) =>
     "working",
     "a chat's own status is left alone",
   );
-});
-
-test("without a take over nothing is queued or pushed", async (t) => {
-  const w = await workspace(t),
-    start = git(w.origin, "rev-parse", "main");
-  w.store.setMeta("specDrivers", {});
-  verified(w, "t2");
-  const { notify } = await integrateVerified(w.store);
-  assert.match(notify[0].text, /spec takeover/);
-  assert.equal(w.store.get("task_deliveries", "t2").state, "decision");
-  assert.equal(
-    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
-    0,
-  );
-  assert.equal(git(w.origin, "rev-parse", "main"), start);
 });
 
 test("the tick lands a merge batch, then each landed member's ref is gone and the remote holds only main", async (t) => {

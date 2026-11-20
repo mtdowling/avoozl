@@ -4,15 +4,12 @@ category: Planning
 
 # Requirements: one way to run a worker
 
-Approved 2026-11-18, with the five defaults of design D10. The owner
-granted approval delegation to Claude, which recorded the approval on the
-owner's behalf against this revision in the workspace that holds this
-repository's specs (Requirement 109).
+Approved 2026-11-18, with the five defaults of design D10.
 
 ## Introduction
 
 A ready task can reach an agent by eight routes today. This spec cuts that to
-one dispatcher, two executors, one remote route and one way to finish per
+one dispatcher, two executors, no remote route and one way to finish per
 executor, and makes every kind of task work on both executors.
 
 Approving it, creating issues and starting agents are separate acts.
@@ -58,15 +55,6 @@ What that costs:
   names the executor and `:538` still passes `workerBrief`). Its result is
   read from the result file (V: `finishProcessSession`,
   `src/app/executors/process.mjs:277`), which that brief never mentions.
-  Requirement 90.8 says a headless `process` worker works without Kiro
-  Crew.
-- Worker pull does not run by itself. On a worker machine the tick runs
-  only the tasks it already holds (V: `runnerTick`,
-  `src/app/workers/remote-runner.mjs:487`, called from `workspace.tick` in
-  `src/app/api/operations.mjs:3369`). Pulling and claiming are reached only by
-  the `worker.pull` and `worker.accept` operations, which the commands of
-  the same names call (V: `src/app/api/operations.mjs:3180` and `:3188`).
-  `src/app/workers/worker-results.mjs` is imported only by its own test (V).
 - Work on another Kiro Crew instance was wired into the tick, delivery, plans
   and settings. Nothing records a crew that can take work.
 - A finished worker's report depends on which route it took: an MCP tool, a
@@ -76,16 +64,14 @@ What that costs:
 ### What this builds on
 
 `.kiro/specs/avoozl/` stays the product spec. This spec keeps Requirement 93
-(one executor seam), Requirement 96.1 to 96.4 (one way to finish) and
-Requirement 90.1 to 90.6, 90.8 and 90.9 (worker machines pull). It changes
-Requirement 96.5 (WP2), retires Requirement 84 and Requirement 90.7 (WP5),
+(one executor seam) and Requirement 96.1 to 96.4 (one way to finish). It
+changes Requirement 96.5 (WP2), retires Requirement 84 (WP5),
 and retires what is left of Requirement 41 (WP6). WP9 lists every edit to
 that spec.
 
 ### Scope
 
-- How a ready task is started, run and reported, on this machine and on a
-  worker machine.
+- How a ready task is started, run and reported on this machine.
 - The settings, commands, hook and modules of the routes that go.
 
 ### Out of scope
@@ -107,7 +93,6 @@ that spec.
 | -------------- | ------------------------------------------------------------------------------------------- |
 | Dispatcher     | The code that decides a ready task starts now and writes its session request                |
 | Executor       | What runs the agent: `kirocrew` (a Kiro Crew chat) or `process` (a child of the supervisor) |
-| Worker machine | A second machine that pulls offers, runs the task and pushes a branch (Requirement 90)      |
 | Manual take   | A person taking a ready task with `avoozl take` and finishing it by hand                   |
 | Crew           | An Issue Radar crew, and nothing else, once this spec is done                               |
 
@@ -226,40 +211,18 @@ extra step.
    for its own role and attempt. The worker's token SHALL NOT count for it. Without MCP sharing, a chat has no caller identity for
    `plans_report` (found by proof wp-p1).
 
-### Requirement WP5: One remote route
+### Requirement WP5: No remote route
 
-**User story:** As the owner, I want one way to add a second machine, so
-that there is one set of rules about what that machine is trusted to do.
+**User story:** As the owner, I want every task to run on the machine that
+drives its spec, so that there is one set of rules about what runs where.
 
 #### Acceptance criteria
 
-1. Worker pull (Requirement 90) SHALL be the only way a task runs on
-   another machine.
-2. On a worker machine the tick SHALL pull offers, request claims and start
-   the acknowledged tasks by itself, within its free lanes. `avoozl worker
-   pull` and `avoozl worker accept` SHALL stay as the same steps run once by
-   hand.
-3. On the driver the tick SHALL fetch a worker machine's pushed result,
-   check its diff and run the repository's checks again before it lands (Requirement
-   90.2), with no command run by hand. `src/app/workers/worker-results.mjs` SHALL be
-   called from the tick or removed.
-4. Runner mode over SSH SHALL be removed: `runner.role` values `runner` and
+1. Every task SHALL run on the driver's own machine, on its own executors.
+2. Runner mode over SSH SHALL be removed: `runner.role` values `runner` and
    `driver`, the SSH transport, `avoozl runner accept`, `avoozl runner
-   handoff` and `avoozl runner pull`. `runner.role: "worker"` and `avoozl
-   runner report` SHALL stay. The envelope SHALL stay as the record of a
-   pulled task and SHALL be taken only from an acknowledged claim (V: worker
-   pull already stores one, `src/app/workers/remote-runner.mjs:340`, and a worker
-   refuses one that was not pulled, `:243`). A file with a removed role
-   SHALL be refused when it loads, naming the key and worker pull.
-5. A machine with no GitHub access SHALL NOT be a worker machine. It can
-   run its own workspace. Requirement 90.7 is retired (WP9).
-6. Proof P53 of the avoozl spec SHALL stay the live proof of worker pull.
-7. With `workers.offerTo` naming worker logins, the driver's tick SHALL
-   offer each ready task of a spec it drives to them once, SHALL NOT start
-   those tasks itself, SHALL answer their claim requests, and SHALL land a
-   checked result's working branch on the base branch. Without it, `spec
-   offer` and `spec grants` stay a person's commands (found by proof
-   wp-p3, where a person was needed at each step).
+   handoff` and `avoozl runner pull`. A file with a removed role SHALL be
+   refused when it loads, naming the key.
 
 ### Requirement WP6: Every session runs on this machine
 
@@ -328,7 +291,7 @@ is built, so that a later reader does not rebuild a retired route.
 1. Requirement 96.5 of the avoozl spec SHALL be changed to: "`avoozl take`,
    `avoozl next` and `avoozl runner report` SHALL stay as the manual path
    for a person."
-2. Requirement 84 and Requirement 90.7 SHALL be marked retired by WP5, and
+2. Requirement 84 SHALL be marked retired by WP5, and
    Requirement 41 retired by WP6, each with the date and this spec's name.
    Their text stays as the record.
 3. Tasks 11.1, 11.10, 16.7 and proof `avoozl-p29` of the avoozl spec SHALL

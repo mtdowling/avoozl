@@ -1,27 +1,14 @@
-import {
-  defaultJob,
-  fixedCredentials,
-} from "../../test/github-credentials.mjs";
 // Task 41.1: the scheduler for spec drivers. Unblock ranking, repository-wide
-// path holds, the branch-only release rule (R102.4), and the journal check
-// before dispatch (§4.32.7). Workspaces and journals are scratch copies.
+// path holds and the branch-only release rule (R102.3). Workspaces are
+// scratch copies.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { digest } from "../../../model.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
-import { GitHubClient } from "../../github/github.mjs";
-import {
-  branchOnly,
-  rememberDriver,
-  revalidateSpecs,
-  scheduleReady,
-} from "../spec-scheduler.mjs";
-import { localJournalFile } from "../spec-publication.mjs";
-import { appendRecord, localJournal } from "../spec-journal.mjs";
+import { branchOnly, scheduleReady } from "../spec-scheduler.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
@@ -193,145 +180,6 @@ test("the tick holds overlapping work behind a task in flight, then releases it"
     data.tasks.find((task) => task.id === "busy").status = "accepted";
   });
   assert.deepEqual((await dispatched(ops)).sort(), ["clash", "free"]);
-});
-
-const REVISION = digest("revision");
-
-async function journalFor(store, root, planId) {
-  store.put("receipts", {
-    id: `spec-journal:${planId}`,
-    kind: "spec-journal",
-    planId,
-    home: "local",
-  });
-  const journal = localJournal(localJournalFile(root, planId), "owner"),
-    options = {
-      visibility: "private",
-      machine: { hostname: "made-up-host", username: "madeupuser" },
-      configFile: path.join(root, "machine.json"),
-    };
-  return {
-    append: (fields) =>
-      appendRecord(journal, { spec: planId, ...fields }, options),
-  };
-}
-
-test("before dispatch the journal holds a displaced, stopped or intent-held spec", async (t) => {
-  const { root, store, ops } = workspace(t, {
-    tasks: [
-      leaf("a1", { planId: "spec-a" }),
-      leaf("a2", { planId: "spec-a" }),
-      leaf("b1", { planId: "spec-b" }),
-    ],
-  });
-  // No journal: the plan-issue driver rule alone applies.
-  assert.deepEqual((await dispatched(ops)).sort(), ["a1", "a2", "b1"]);
-  const a = await journalFor(store, root, "spec-a"),
-    driver = "0123456789abcdef";
-  // A published journal nobody took over yet changes nothing.
-  assert.equal(
-    (await revalidateSpecs(store, { workspaceRoot: root, planIds: ["spec-a"] }))
-      .plans.size,
-    0,
-  );
-  await a.append({
-    op: "generation-1",
-    kind: "generation",
-    generation: 1,
-    driver,
-  });
-  // Another workspace's generation: this one is displaced.
-  assert.deepEqual(await dispatched(ops), ["b1"]);
-  rememberDriver(store, "spec-a", driver);
-  assert.deepEqual((await dispatched(ops)).sort(), ["a1", "a2", "b1"]);
-  // An outstanding landing intent holds only its own tasks.
-  await a.append({
-    op: "intent-1",
-    kind: "intent",
-    generation: 1,
-    driver,
-    revision: REVISION,
-    base: "b".repeat(40),
-    tasks: [{ task: "a1", definition: digest("a1") }],
-    refs: [{ repository: "acme/app", commit: "c".repeat(40) }],
-    checks: [{ name: "npm test", conclusion: "success" }],
-  });
-  assert.deepEqual((await dispatched(ops)).sort(), ["a2", "b1"]);
-  // A stop control holds the spec's new work.
-  await a.append({
-    op: "control-1",
-    kind: "control",
-    generation: 1,
-    driver,
-    controls: [{ flag: "stop", id: "stop-1" }],
-  });
-  assert.deepEqual(await dispatched(ops), ["b1"]);
-  const result = await revalidateSpecs(store, {
-    workspaceRoot: root,
-    planIds: ["spec-a"],
-  });
-  assert.equal(result.reasons.get("spec-a"), "stopped");
-});
-
-test("a GitHub journal that cannot be read holds its spec", async (t) => {
-  const { store } = workspace(t, { tasks: [leaf("a1", { planId: "spec-a" })] });
-  store.put("receipts", {
-    id: "github-parent:plan:spec-a",
-    kind: "github-parent",
-    level: "plan",
-    parentId: "spec-a",
-    repository: "acme/app",
-    number: 7,
-  });
-  const offline = await revalidateSpecs(store, {
-    github: null,
-    planIds: ["spec-a"],
-  });
-  assert.equal(offline.reasons.get("spec-a"), "journal-unreadable");
-  const failing = await revalidateSpecs(store, {
-    github: {
-      listIssueComments: async () => {
-        throw Error("boom");
-      },
-      repository: async () => ({ private: true }),
-    },
-    planIds: ["spec-a"],
-  });
-  assert.equal(failing.reasons.get("spec-a"), "journal-unreadable");
-  const readable = await revalidateSpecs(store, {
-    github: {
-      listIssueComments: async () => [],
-      repository: async () => ({ private: true }),
-    },
-    planIds: ["spec-a"],
-  });
-  assert.equal(readable.plans.size, 0);
-  // With no repository row, the real client still reads the receipt's
-  // repository (it once asked for /repos/undefined/undefined).
-  const paths = [],
-    client = defaultJob(
-      "check-in",
-      new GitHubClient({
-        credentials: fixedCredentials("test"),
-        fetch: async (input) => {
-          const at = new URL(String(input)).pathname;
-          paths.push(at);
-          return new Response(
-            at.endsWith("/comments") ? "[]" : '{"private":true}',
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          );
-        },
-      }),
-    );
-  const real = await revalidateSpecs(store, {
-    github: client,
-    planIds: ["spec-a"],
-  });
-  assert.equal(real.plans.size, 0, JSON.stringify([...real.reasons]));
-  assert.ok(paths.includes("/repos/acme/app/issues/7/comments"), paths.join());
 });
 
 test("the tick dispatches the leaf that unblocks more first, within a rank", async (t) => {

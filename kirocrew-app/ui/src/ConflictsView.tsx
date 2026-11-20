@@ -7,7 +7,6 @@ import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
-import { SpecPullDecision } from './SpecPullDecision.tsx'
 import { CONFLICT_LABELS, safeHref, viewsClient, type ConflictItem, type Graph } from './views-api.ts'
 import { relativeTime, taskClient, type SettleAction, type SettleResult, type TaskDetail } from './task-api.ts'
 import {
@@ -64,7 +63,6 @@ const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter,
 
 const LABELS: Record<string, string> = {
   ...CONFLICT_LABELS,
-  'spec-pull': 'Spec pull request',
 }
 
 // One item's resolve choices, shared by the Conflicts tab and the task
@@ -104,9 +102,6 @@ export function ConflictActions(props: {
           run={run}
           onDecide={(action) => views.decidePlanReview(workspaceId, item.planReview!.planId, item.planReview!.revisionHash, action)}
         />
-      )}
-      {item.kind === 'spec-pull' && item.specPull && (
-        <SpecPullDecision key={item.specPull.id} pull={item.specPull} workspaceId={workspaceId} onChanged={() => props.onReload?.()} />
       )}
       {item.kind === 'investigation' && item.taskId && (
         <InvestigationActions
@@ -558,7 +553,7 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
             align="left"
           >
             <Box as="span" flex minW0 items="center" gap="2">
-              <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable', 'spec-pull'].includes(item.kind) ? 'warning' : 'danger'}>
+              <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable'].includes(item.kind) ? 'warning' : 'danger'}>
                 {LABELS[item.kind] ?? item.kind}
               </Badge>
               <Box as="span" minW0 flex1 truncate size="sm" weight="medium">
@@ -619,7 +614,7 @@ function ConflictDetail(props: {
           {LABELS[item.kind] ?? item.kind}
         </Badge>
         {item.field && <Badge>{item.field}</Badge>}
-        {item.kind !== 'spec-pull' && <Authority owner={item} />}
+        <Authority owner={item} />
         {item.taskId && <Hint size="xs">{item.taskId}</Hint>}
         {time && (
           <Tooltip text={time}>

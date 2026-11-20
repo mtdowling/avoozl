@@ -1,30 +1,8 @@
 // CLI commands of one kind: command, help lines and run.
-import { batchLine } from "./support.mjs";
 import fs from "node:fs";
 import { help } from "../cli/command-help.mjs";
 
 export const commands = [
-  {
-    command: "plan batches",
-    help: [
-      help(
-        "plan",
-        "plan batches [--writes]",
-        "Draft specs in dependency order; any spec may be approved alone, and a task that waits on a draft spec stays held",
-      ),
-    ],
-    async run({ options, localOrRequest }) {
-      // Draft specs in the order they can be approved (plan.approvalBatches).
-      const found = await localOrRequest("plan.approvalBatches", {
-        writes: options.writes === true,
-      });
-      if (!found.batches.length) console.log("No draft specs to approve.");
-      for (const batch of found.batches) {
-        console.log(`Batch ${batch.batch} (${batch.specs.length} specs)`);
-        for (const entry of batch.specs) console.log("  " + batchLine(entry));
-      }
-    },
-  },
   {
     command: "plan review",
     help: [
@@ -102,173 +80,50 @@ export const commands = [
     help: [
       help(
         "plan",
-        "plan approve PLAN... [--batch N] [--yes --expect HASHES] [--delegate NAME]",
-        "Preview approving exactly these specs; --yes approves all or none (a person, or a delegate a person granted)",
+        "plan approve PLAN [--yes --expect HASH]",
+        "Preview approving a draft spec in a checkout here; --yes commits it to main as you (a person only). A spec on GitHub is approved by merging its pull request",
       ),
     ],
     async run({ options, positionals, localOrRequest, need }) {
-      const usage =
-          "plan approve PLAN... [--batch N] [--yes --expect HASHES] [--delegate NAME]",
-        names = positionals.slice(1);
-      if (!names.length && options.batch === undefined) need(undefined, usage);
-      const listed = await localOrRequest("plan.approvalBatches", {}),
-        drafts = listed.batches.flatMap((batch) => batch.specs),
-        ids = [];
-      if (options.batch !== undefined) {
-        const batch = listed.batches[Number(options.batch) - 1];
-        if (!/^[1-9][0-9]*$/.test(String(options.batch)) || !batch)
-          throw Error(
-            `There is no batch ${options.batch}. avoozl plan batches lists ${listed.batches.length}.`,
-          );
-        ids.push(...batch.specs.map((entry) => entry.id));
-      }
-      for (const name of names) {
-        const entry = drafts.find((e) => e.id === name || e.spec === name);
-        if (!entry) throw Error(`${name} is not a draft spec.`);
-        if (!ids.includes(entry.id)) ids.push(entry.id);
-      }
-      const chosen = ids.map((id) => drafts.find((entry) => entry.id === id)),
-        short = (entry) => entry.hash.slice(0, 16);
+      const usage = "plan approve PLAN [--yes --expect HASH]",
+        preview = await localOrRequest("plan.preview", {
+          id: need(positionals[1], usage),
+        }),
+        name = preview.planId,
+        short = String(preview.reviewedHash).slice(0, 16);
       if (!options.yes) {
-        const { selection } = await localOrRequest("plan.approvalBatches", {
-          ids,
-        });
-        console.log("Nothing approved. These specs would be approved:");
-        for (const entry of selection.specs)
-          console.log("  " + batchLine(entry));
-        const tasks = selection.specs.reduce((sum, e) => sum + e.tasks, 0);
-        console.log(`${selection.specs.length} specs, ${tasks} tasks.`);
-        if (selection.pullRequest)
-          console.log(
-            `${selection.pullRequest} of these are approved through one approval pull request: --yes opens it, and running the same command again after it merges approves them.`,
-          );
-        if (selection.missing.length)
-          console.log(
-            `${selection.waiting} ${selection.waiting === 1 ? "task waits" : "tasks wait"} on draft specs left out of the selection, and ${selection.waiting === 1 ? "starts" : "start"} only once they are approved: ${selection.missing.join(", ")}. Approving the selection does not need them.`,
-          );
-        for (const failure of selection.failures)
-          console.log(
-            `Would fail: ${failure.spec || failure.id}: ${failure.error}`,
-          );
         const workspace = options.workspace
           ? ` --workspace ${JSON.stringify(options.workspace)}`
           : "";
-        const delegate =
-          typeof options.delegate === "string"
-            ? ` --delegate ${options.delegate}`
-            : "";
-        console.log("To approve exactly these revisions, run:");
         console.log(
-          `  avoozl plan approve ${options.batch !== undefined ? `--batch ${options.batch} ` : ""}${names.join(" ")}${names.length ? " " : ""}--yes --expect ${chosen.map(short).join(",")}${workspace}${delegate}`,
+          `Nothing approved. Approving ${name} at ${short} makes one commit on main, authored by you. To approve exactly this revision, run:`,
         );
-        if (!selection.ok) process.exitCode = 1;
-      } else {
-        // --expect pins the reviewed revisions: every chosen spec's hash must
-        // start with one listed prefix, and nothing else may be chosen. --yes
-        // without it would approve whatever the specs say now.
-        if (options.expect === undefined || options.expect === true)
-          throw Error(
-            "--yes needs --expect HASHES from a preview. Run the command without --yes to see them.",
-          );
-        const expected = String(options.expect).split(",").filter(Boolean);
-        if (expected.some((prefix) => !/^[0-9a-f]{16,64}$/.test(prefix)))
-          throw Error("--expect takes hash prefixes of 16 or more hex digits.");
-        const changed = chosen.filter(
-          (entry) => !expected.some((prefix) => entry.hash.startsWith(prefix)),
+        console.log(
+          `  avoozl plan approve ${positionals[1]} --yes --expect ${short}${workspace}`,
         );
-        if (changed.length || expected.length !== chosen.length)
-          throw Error(
-            `The specs changed since that preview${changed.length ? `: ${changed.map((e) => e.spec).join(", ")}` : ""}. Nothing approved. Preview again without --yes.`,
-          );
-        const result = await localOrRequest("plan.approveMany", {
-          items: chosen.map((entry) => ({
-            id: entry.id,
-            expectedHash: entry.hash,
-          })),
-          ...(typeof options.delegate === "string"
-            ? { delegate: options.delegate }
-            : {}),
-        });
-        if (result.pending) {
-          console.log(
-            "Nothing approved yet. Merge this approval pull request, then run the same command again:",
-          );
-          for (const pull of result.approvalPullRequests)
-            console.log(
-              `  https://github.com/${pull.repository}/pull/${pull.number}  (${pull.specs.length} specs)`,
-            );
-        } else if (result.ok) {
-          const by = result.approved[0]?.delegation;
-          console.log(
-            `Approved ${result.approved.length} specs${by ? ` as delegate ${by.delegate} on behalf of ${by.onBehalfOf}` : ""}:`,
-          );
-          for (const entry of chosen)
-            console.log(
-              `  ${entry.spec}  ${short(entry)}  ${entry.tasks} tasks`,
-            );
-        } else {
-          console.log("Nothing approved. These specs failed:");
-          for (const failure of result.failures)
-            console.log(`  ${failure.spec || failure.id}: ${failure.error}`);
-          process.exitCode = 1;
-        }
+        return;
       }
-    },
-  },
-  {
-    command: "approval",
-    help: [
-      help(
-        "plan",
-        "approval delegates",
-        "Who may approve on a person's behalf, and every grant and revocation",
-      ),
-      help(
-        "plan",
-        "approval delegate NAME [--on-behalf-of LOGIN] [--note TEXT]",
-        "Let NAME (an agent) approve specs on your behalf (a person only)",
-      ),
-      help(
-        "plan",
-        "approval revoke NAME",
-        "Stop NAME approving on your behalf (a person only)",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      // Approval delegation (R109): who may approve on a person's behalf.
-      const usage =
-        "approval delegates | approval delegate NAME [--on-behalf-of LOGIN] [--note TEXT] | approval revoke NAME";
-      if (positionals[0] === "delegates") {
-        const found = await localOrRequest("approval.delegates", {});
-        if (options.json) console.log(JSON.stringify(found, null, 2));
-        else if (!found.delegates.length)
-          console.log("No approval delegates. Only a person approves.");
-        else
-          for (const entry of found.delegates)
-            console.log(
-              `${entry.identity} approves on behalf of ${entry.onBehalfOf} since ${entry.grantedAt}${entry.note ? ` (${entry.note})` : ""}`,
-            );
-      } else if (positionals[0] === "delegate") {
-        const granted = await localOrRequest("approval.delegate.grant", {
-          identity: need(positionals[1], usage),
-          ...(typeof options["on-behalf-of"] === "string"
-            ? { onBehalfOf: options["on-behalf-of"] }
-            : {}),
-          ...(typeof options.note === "string" ? { note: options.note } : {}),
-        });
-        console.log(
-          `${granted.identity} may approve specs on behalf of ${granted.onBehalfOf}. Revoke with: avoozl approval revoke ${granted.identity}`,
+      // --expect pins the reviewed revision: --yes without it would approve
+      // whatever the spec says now.
+      if (
+        typeof options.expect !== "string" ||
+        !/^[0-9a-f]{16,64}$/.test(options.expect)
+      )
+        throw Error(
+          "--yes needs --expect HASH (16 or more hex digits) from a preview. Run the command without --yes to see it.",
         );
-      } else if (positionals[0] === "revoke") {
-        const revoked = await localOrRequest("approval.delegate.revoke", {
-          identity: need(positionals[1], usage),
-        });
-        console.log(`${revoked.identity} may no longer approve specs.`);
-        for (const pull of revoked.openApprovalPullRequests)
-          console.log(
-            `  Still open, opened by it: https://github.com/${pull.repository}/pull/${pull.number}`,
-          );
-      } else need(undefined, usage);
+      if (!String(preview.reviewedHash).startsWith(options.expect))
+        throw Error(
+          `${name} changed since that preview. Nothing approved. Preview again without --yes.`,
+        );
+      const result = await localOrRequest("plan.approve", {
+        id: preview.planId,
+        expectedHash: preview.reviewedHash,
+        expectedRevision: preview.expectedRevision,
+      });
+      console.log(
+        `Approved ${name} at ${short}${result.evidence ? `. ${result.evidence}` : "."}`,
+      );
     },
   },
   {
@@ -366,85 +221,22 @@ export const commands = [
       help(
         "plan",
         "spec publish SPEC [--repository OWNER/REPO]",
-        "Publish the spec issue, or its local journal without GitHub",
-      ),
-      help(
-        "plan",
-        "spec takeover SPEC",
-        "Take over a published spec: write the next driver generation",
+        "Make the GitHub issues: the spec's issue and its epic's",
       ),
     ],
     async run({ options, positionals, localOrRequest, need }) {
-      const action = positionals[0];
-      if (!["publish", "takeover"].includes(action))
-        throw Error("Choose spec publish or spec takeover.");
+      if (positionals[0] !== "publish") throw Error("Choose spec publish.");
       const planId = need(
         options.plan || positionals[1],
-        action === "takeover"
-          ? "spec takeover SPEC"
-          : `spec ${action} SPEC [--repository OWNER/REPO]`,
+        "spec publish SPEC [--repository OWNER/REPO]",
       );
-      // Publish the spec issue or local journal (R102.2) and take it over
-      // (R102.13): each a person's own act.
+      // Make the GitHub issues (R102.2): a person's own act.
       console.log(
         JSON.stringify(
-          await localOrRequest(
-            `spec.${action}`,
-            action === "takeover"
-              ? { planId }
-              : { planId, repository: options.repository },
-          ),
-          null,
-          2,
-        ),
-      );
-    },
-  },
-  {
-    command: "spec journal",
-    help: [
-      help(
-        "plan",
-        "spec journal reanchor SPEC --held ID,... --tail ID [--yes]",
-        "Preview, then with --yes restore a held journal; the spec stays held",
-      ),
-      help(
-        "plan",
-        "spec journal resume SPEC --tail ID",
-        "Resume a spec after its journal was reanchored",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      // Reanchor a held journal (R102.26): preview, or --yes to write it and
-      // hold the spec; then resume it. Each a person's own act.
-      const action = positionals[1];
-      if (!["reanchor", "resume"].includes(action))
-        throw Error("Choose spec journal reanchor or spec journal resume.");
-      const planId = need(
-          options.plan || positionals[2],
-          action === "reanchor"
-            ? "spec journal reanchor SPEC --held ID,... --tail ID [--yes]"
-            : "spec journal resume SPEC --tail ID",
-        ),
-        tail = Number(
-          need(options.tail, `spec journal ${action} SPEC --tail ID`),
-        );
-      console.log(
-        JSON.stringify(
-          await localOrRequest(
-            `spec.journal.${action}`,
-            action === "reanchor"
-              ? {
-                  planId,
-                  tail,
-                  held: String(need(options.held, "--held ID,..."))
-                    .split(",")
-                    .map((id) => Number(id.trim()))
-                    .filter(Boolean),
-                  apply: options.yes === true,
-                }
-              : { planId, tail },
-          ),
+          await localOrRequest("spec.publish", {
+            planId,
+            repository: options.repository,
+          }),
           null,
           2,
         ),

@@ -84,9 +84,7 @@ branch, so that I do not choose between two systems that do the same thing.
    SHALL NOT load (changed 2026-11-19: it loaded as `direct`).
 3. A file that sets the `landing.trains` block SHALL NOT load, and the error
    SHALL name the file and the key (changed 2026-11-19: it was ignored).
-4. A merge batch MAY hold tasks of several specs and several drivers in this
-   workspace. Each spec's intent SHALL still go through its own driver's
-   journal, as landing does today (Requirement 102).
+4. A merge batch MAY hold tasks of several specs in this workspace.
 5. The words "train" and "integrator" SHALL NOT appear on the page, in the
    CLI help or in `README.md` and `docs/*.md`. A test SHALL check this.
    Dated records under `docs/research/` and `docs/evidence/` are not
@@ -127,7 +125,7 @@ that passed, so that a merge batch never turns the branch red.
    author and message.
 2. The repository's checks SHALL run on the candidate: every check whose
    paths a member's diff touches, and every check that names no paths. Each
-   SHALL be keyed by its name in reruns, bisect steps and the journal. A
+   SHALL be keyed by its name in reruns and bisect steps. A
    check MAY itself run another platform, through a container or a VM, as
    the repository chooses. (Changed 2026-11-18: checks are named and MAY
    name paths.)
@@ -183,8 +181,7 @@ leave no branches on the remote, so that my CI does not run on them.
 
 1. Waiting members SHALL be local refs on the machine that lands. Avoozl
    SHALL push only the base branch.
-2. A member that arrives from a worker machine (Requirement 90) SHALL be
-   fetched and held as a local ref.
+2. A member SHALL be held as a local ref at its verified commit.
 3. No repository SHALL need a CI change for merge batches.
 
 ### Requirement MB7: Visible, and nothing sits silently

@@ -15,17 +15,13 @@
 //   member back. The union result still has to pass every check.
 // - Before the push, the outgoing range is scanned (`privacyScan`); a hit
 //   fails the candidate like a check, so nothing is pushed.
-// - Each spec in the batch gets an intent, read back before the push
-//   (`landIntent`, driver-generations.mjs). The push is a guarded
-//   fast-forward from the recorded base; never forced.
+// - The push is a guarded fast-forward from the recorded base
+//   (guarded-push.mjs); never forced.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { git, remoteGit } from "../git/git.mjs";
-import {
-  guardedFastForward,
-  landIntent,
-} from "../workers/driver-generations.mjs";
+import { guardedFastForward } from "./guarded-push.mjs";
 import { runCheckAt } from "../flow/flow-line.mjs";
 import { runChecksAt } from "../delivery/check-runs.mjs";
 import { runPluginCheck } from "../plugins/plugin-check-run.mjs";
@@ -45,7 +41,7 @@ const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
 // passing evidence for exactly it, and a task without its definition.
 export function queuePortion(
   store,
-  { repositoryId, base, spec, driver, commit, tasks, evidence, key },
+  { repositoryId, base, spec, commit, tasks, evidence, key },
 ) {
   const problem = verifiedEvidence(evidence, commit);
   if (problem)
@@ -58,12 +54,11 @@ export function queuePortion(
     tasks.some((t) => !t?.task || !DIGEST.test(t.definition ?? ""))
   )
     fail("A portion names each task with its definition.", 400);
-  if (!spec || !driver) fail("A portion names its spec and driver.", 400);
+  if (!spec) fail("A portion names its spec.", 400);
   return enqueueLanding(store, {
     repositoryId,
     base,
     spec,
-    driver,
     commit,
     tasks: tasks.map(({ task, definition, metrics }) => ({
       task,
@@ -76,28 +71,6 @@ export function queuePortion(
 }
 
 // Each task's trailer, then what its landing cost (landing-trailers.mjs).
-// The checks a candidate passed, in the journal's check shape
-// ({name, conclusion}), for its landing intent. Without them a landed
-// outcome carries no evidence and never completes its tasks (R102.5).
-export function journalChecks(checks = []) {
-  return checks.map((check) => {
-    const name = String(check.name ?? check.command ?? "check")
-      .split(" ")
-      .map((part, i) => (i === 0 ? path.basename(part) : part))
-      .join(" ")
-      .replace(/[^A-Za-z0-9 ._()-]/g, "_")
-      .replace(/^[^A-Za-z0-9]+/, "")
-      .slice(0, 80);
-    return {
-      name: name || "check",
-      conclusion:
-        check.exitCode === 0 || check.conclusion === "success"
-          ? "success"
-          : "failure",
-    };
-  });
-}
-
 // Both sides of a conflicted path, appended: `git merge-file --union`.
 export async function unionMerge(dir, file) {
   const stage = async (n) => {
@@ -124,8 +97,7 @@ export async function unionMerge(dir, file) {
 
 // A waiting member is a local ref in the checkout that lands, at its
 // verified commit. `refs/avoozl/` is not under `refs/heads/`, so a plain
-// push never sends it and no CI runs on it (MB6). A worker machine's result
-// is fetched into the same ref.
+// push never sends it and no CI runs on it (MB6).
 export const memberRef = (key) =>
   `refs/avoozl/land/${String(key).replace(/[^A-Za-z0-9._-]/g, "_")}`;
 
@@ -220,46 +192,19 @@ export async function stackMembers(
   }
 }
 
-// Lands each spec's intent around one push: the first spec's intent wraps
-// the next, the last wraps the guarded push. Every intent is written and
-// read back before the push; each outcome is written after it. Returns
-// whether the push happened, with each spec's result.
-export async function landWithIntents(intents, push) {
-  let pushed = false;
-  const results = [];
-  const run = async (i) => {
-    if (i === intents.length) {
-      pushed = await push();
-      return pushed;
-    }
-    const { journal, input, options } = intents[i],
-      result = await landIntent(
-        journal,
-        { ...input, land: () => run(i + 1) },
-        options,
-      );
-    results[i] = { spec: input.spec, ...result };
-    return result.state === "landed" || result.state === "landed-unrecorded";
-  };
-  await run(0);
-  return { pushed, results };
-}
-
 // The landing-queue steps for `direct` landing over a registered remote.
 //
 // options:
 //   root        the landing checkout, with every portion's commit fetched
 //   url, branch the registered target remote and its base branch
-//   repository  the target repository identity, for the intents' refs
+//   repository  owner/name, or local/<id> for a remote not on GitHub;
+//               plugin checks are told it
 //   checks      the repository's checks ([{name, argv, paths}]); the ones
 //               the candidate's diff from the base picks run at it
 //   unionPaths  append-only paths merged with union semantics
 //   commitPrefix  the repository's landing.commitPrefix, for each commit subject
 //   tickOf(dir, entry)  ticks the entry's tasks in the candidate worktree
 //               before its merge commit, so the commit carries the tick
-//   intent(spec, entries) -> {journal, input, options}: the spec's driver
-//               journal and landIntent input (driver, owner, login,
-//               revision, op?). Candidate, base, tasks and refs are filled.
 //   run, scan   injectable check runner and content scan (tests)
 export function directSteps({
   root,
@@ -270,7 +215,6 @@ export function directSteps({
   unionPaths = [],
   tickOf = null,
   commitPrefix = "",
-  intent,
   env,
   machine,
   configFile,
@@ -316,10 +260,7 @@ export function directSteps({
       ? { name: check.join(" "), argv: check, paths: null }
       : check,
   );
-  if (typeof intent !== "function")
-    fail("Direct landing writes an intent before every push.", 400);
   const environment = { ...(env ?? process.env), ...NO_PROMPT },
-    log = { results: [] },
     // A bisect step stacks a prefix of members already stacked on the same
     // base. The earlier stack's head after that prefix is the same
     // candidate, so it is used again instead of stacked again.
@@ -327,7 +268,6 @@ export function directSteps({
     stackId = (baseHead, entries) =>
       [baseHead, ...entries.map((e) => `${e.key}@${e.commit}`)].join(" ");
   return {
-    log,
     async readBase() {
       return (
         await remoteGit(
@@ -423,44 +363,14 @@ export function directSteps({
       }
       return { ok: out.every((c) => c.exitCode === 0), checks: out };
     },
-    async land({ entries, candidate, baseHead, checks: passed = [] }) {
-      const specs = [...new Set(entries.map((e) => e.spec))],
-        evidence = journalChecks(passed),
-        intents = specs.map((spec) => {
-          const own = entries.filter((e) => e.spec === spec),
-            given = intent(spec, own);
-          return {
-            journal: given.journal,
-            options: given.options,
-            input: {
-              op: `land.${candidate.slice(0, 16)}`,
-              ...given.input,
-              ...(evidence.length ? { checks: evidence } : {}),
-              refs: [{ repository, branch, commit: candidate }],
-              spec,
-              candidate,
-              base: baseHead,
-              tasks: own.flatMap((e) =>
-                e.tasks.map((t) =>
-                  typeof t === "string"
-                    ? t
-                    : { task: t.task, definition: t.definition },
-                ),
-              ),
-            },
-          };
-        });
-      const { pushed, results } = await landWithIntents(intents, () =>
-        guardedFastForward(root, {
-          url,
-          branch,
-          base: baseHead,
-          candidate,
-          env,
-        }),
-      );
-      log.results.push(results);
-      return pushed;
+    async land({ candidate, baseHead }) {
+      return guardedFastForward(root, {
+        url,
+        branch,
+        base: baseHead,
+        candidate,
+        env,
+      });
     },
     // The landed base comes back into each spec's working branch in `root`
     // as a merge commit; unlanded integrations and checkpoints stay.

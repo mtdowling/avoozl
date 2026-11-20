@@ -915,7 +915,7 @@ function linesOf({ target, text, added }) {
     .map((line, i) => ({ target, line: i + 1, text: line }));
 }
 
-// builtin:privacy (privacy.mjs, R102.25): always on at the boundaries that
+// builtin:privacy (privacy.mjs, R102.18): always on at the boundaries that
 // leave this machine. GitHub text gets every rule; a pushed diff's commit
 // messages and ref names (targets `commit:` and `ref:`) do too, and its
 // added lines get the code scope.
@@ -1878,7 +1878,7 @@ export function patchAdded(file, patch) {
 }
 
 // The lines an outgoing range publishes: added lines, commit messages and
-// ref names (R87.9, R102.12).
+// ref names (R87.9, R102.7).
 export function pushLines(root, base, head, refs) {
   return [
     ...addedLines(root, base, head),
@@ -2081,7 +2081,7 @@ const GITHUB_WRITES = {
     extra: [args[1]?.head, args[1]?.base],
   }),
   // Writes whose only text is a ref name, a commit message or a check
-  // summary (R102.12). The target names a hash, never the text.
+  // summary (R102.7). The target names a hash, never the text.
   createBranch: (args) => ({
     text: [],
     extra: [args[1]],

@@ -1,5 +1,5 @@
-// Plan this and Deliver this for a GitHub issue (Requirement 102.19, design
-// §4.32.11). A person starts it; nothing here runs from a label or a tick.
+// Plan this and Deliver this for a GitHub issue (Requirement 102.13, design
+// §4.32.10). A person starts it; nothing here runs from a label or a tick.
 //
 // - Deliver this: a bounded fix. The task carries a compact, versioned
 //   acceptance definition, and the input issue is its journal home. No
@@ -177,7 +177,7 @@ export async function startGitHubItem(store, github, policy, input = {}) {
     },
     { mode: "refuse", source: { kind: "intake", source: "github", id } },
   );
-  // What goes out (R102.23): the privacy scan and content rules see the
+  // What goes out (R102.16): the privacy scan and content rules see the
   // comment before it is written.
   enforce(
     store,
@@ -251,7 +251,7 @@ const closedByMerge = (node) =>
     (pull) => pull?.merged === true,
   );
 
-// Closing an input issue withdraws its open task (R102.19): it is held,
+// Closing an input issue withdraws its open task (R102.13): it is held,
 // never completed, and nothing waits on it as if it were done. One
 // GraphQL read covers every watched issue. Returns the withdrawn task IDs.
 export async function watchInputs(store, github) {

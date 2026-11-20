@@ -392,8 +392,8 @@ export class Store {
     } catch {}
   }
   transaction(fn) {
-    // A nested call is a savepoint, so an outer transaction (plan.approveMany)
-    // can run several inner ones and still roll all of them back.
+    // A nested call is a savepoint, so an outer transaction can run several
+    // inner ones and still roll all of them back.
     if (this.depth) {
       const name = `nested_${this.depth}`;
       this.db.exec(`SAVEPOINT ${name}`);

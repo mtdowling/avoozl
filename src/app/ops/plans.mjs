@@ -4,14 +4,6 @@ import { digest } from "../../model.mjs";
 import { applyPlanMetadata } from "../../plan-model.mjs";
 import { approvedSpecDependency } from "../../spec-dependencies.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
-import { approvalBatches, approveMany } from "../specs/approval-batches.mjs";
-import {
-  approvalDelegation,
-  delegationEvidence,
-  grantDelegate,
-  listDelegates,
-  revokeDelegate,
-} from "../specs/approval-delegation.mjs";
 import { chatModel, validatePlanReview } from "../settings/chat-models.mjs";
 import {
   enforce as enforceContent,
@@ -67,7 +59,6 @@ import {
 import { pickTemplate } from "../plugins/plugins.mjs";
 import { recordFindingDecision } from "../reviews/review-findings.mjs";
 import { specLinks } from "../tasks/scm-links.mjs";
-import { approvalEvidence } from "../specs/spec-approval.mjs";
 import {
   checkedItems,
   linkSpecPlan,
@@ -745,60 +736,13 @@ export const entries = [
     name: "plan.approve",
     class: "protect",
     github: "spec-branch",
-    policy: person(
-      "Only a person approves a plan.",
-      (input) => !input?.delegate,
-    ),
+    policy: person("Only a person approves a plan."),
     async handler({ input, expectedRevision }) {
       const store = this.store;
-
-      // A named delegate approves as the person who granted it (R109).
-      let delegation = approvalDelegation(store, {
-        delegate: input.delegate,
-        approvedBy: input.approvedBy,
-      });
-      const { plan, extraction, specQuality, proposals, quality } =
+      const { plan, extraction, specQuality, proposals } =
         this.approvalChecks(input);
-      const approvedBy = delegation?.onBehalfOf ?? input.approvedBy;
-      let approver =
-          plan.spec && !extraction
-            ? await this.specApprover(plan, approvedBy)
-            : approvedBy?.trim() || this.operator,
-        evidence = input.evidence,
-        // An approval pull request that merged is already the commit.
-        merged = false;
-      if (plan.spec && !extraction) {
-        const gate = await this.approvalPullRequest(plan, {
-          approvedBy: approver,
-          quality,
-          delegation,
-        });
-        if (gate?.pending)
-          return {
-            id: plan.id,
-            hash: plan.hash,
-            pending: true,
-            approvalPullRequest: {
-              repository: gate.pending.repository,
-              number: gate.pending.number,
-              branch: gate.pending.branch,
-              // The adopted pull request merges itself once checks pass.
-              ...(gate.pending.pull ? { adopted: true } : {}),
-            },
-          };
-        if (gate?.merged) {
-          merged = true;
-          approver = gate.merged.approvedBy;
-          evidence = evidence || approvalEvidence(gate.merged);
-          delegation ??= approvalDelegation(store, { state: gate.merged });
-        }
-      }
-      const { delegate: _delegate, ...rest } = input;
       const args = {
-        ...rest,
-        evidence:
-          evidence || (delegation ? delegationEvidence(delegation) : evidence),
-        delegation,
+        ...input,
         githubPolicy: this.githubPolicy(),
         ...(extraction ? { extraction, proposals } : {}),
         ...(specQuality
@@ -808,94 +752,31 @@ export const entries = [
               declaredDependencies: specQuality.declaredDependencies,
             }
           : {}),
-        approvedBy: approver,
+        approvedBy: input.approvedBy?.trim() || this.operator,
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       };
       // The approval is a commit by the person on main (§4.42); the receipt
       // below is its cache. It is made only once the receipt would be
       // written, tried first on a scratch copy.
-      const commit =
-        extraction || merged
-          ? null
-          : (
-              await this.approveInGit([plan], () => {
-                const scratch = store.scratch();
-                try {
-                  approvePlan(scratch, args);
-                } finally {
-                  scratch.close();
-                }
-              })
-            )?.get(plan.id);
+      const commit = extraction
+        ? null
+        : (
+            await this.approveInGit([plan], () => {
+              const scratch = store.scratch();
+              try {
+                approvePlan(scratch, args);
+              } finally {
+                scratch.close();
+              }
+            })
+          )?.get(plan.id);
       if (commit) {
         args.approvedBy = commit.email;
         args.evidence = input.evidence || commit.evidence;
+        args.approvalCommit = commit.commit;
       }
       return approvePlan(store, args);
-    },
-  },
-  // Several specs at once, all or none (approval-batches.mjs).
-  {
-    name: "plan.approveMany",
-    class: "protect",
-    github: "spec-branch",
-    policy: person(
-      "Only a person approves a plan.",
-      (input) => !input?.delegate,
-    ),
-    handler({ input }) {
-      return approveMany(this, input);
-    },
-  },
-  // Who may approve on a person's behalf (approval-delegation.mjs, R109).
-  {
-    name: "approval.delegates",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({}) {
-      const store = this.store;
-      return listDelegates(store);
-    },
-  },
-
-  {
-    name: "approval.delegate.grant",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person grants approval delegation."),
-    async handler({ input }) {
-      const store = this.store;
-      return grantDelegate(store, {
-        identity: input.identity,
-        onBehalfOf: input.onBehalfOf?.trim() || (await this.personLogin()),
-        note: input.note,
-      });
-    },
-  },
-
-  {
-    name: "approval.delegate.revoke",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person revokes approval delegation."),
-    async handler({ input }) {
-      const store = this.store;
-      return revokeDelegate(store, {
-        identity: input.identity,
-        revokedBy: await this.personLogin(),
-      });
-    },
-  },
-
-  {
-    name: "plan.approvalBatches",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      return approvalBatches(this, input);
     },
   },
 

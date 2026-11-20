@@ -58,9 +58,7 @@ try {
           "delete-spec-folder",
           "write",
           "help",
-        ].includes(key) &&
-        // `driver takeover --force --confirm SPEC` names the spec (R66.15).
-        !(key === "confirm" && command === "driver")
+        ].includes(key)
       )
         options[key] = true;
       else if (
@@ -177,12 +175,7 @@ try {
     const note = agentSessionNote(operation, input, process.env);
     if (note) {
       console.error(note);
-      if (
-        ["plan.approve", "plan.approveMany"].includes(operation) &&
-        input.evidence === undefined &&
-        // A delegated approval already records who approved, and for whom.
-        input.delegate === undefined
-      )
+      if (operation === "plan.approve" && input.evidence === undefined)
         input = { ...input, evidence: note };
     }
     if (useServer()) return request(operation, input, expectedRevision);

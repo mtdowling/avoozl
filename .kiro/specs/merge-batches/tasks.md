@@ -39,9 +39,9 @@ of the other specs.
   - $after: mb-1.2
   - A failing check reruns once; then the halving search runs only the failing checks; the culprit is checked alone; members before it land and members after it go to the front of the queue.
 - [x] mb-1.4 Members as local refs, after mb-1.2 [MB6] (§D5)
-  - $done: Tests: after a merge batch lands, the bare remote holds no ref but the base branch; a worker machine's result lands from its fetched ref; a landed member's ref is removed.
+  - $done: Tests: after a merge batch lands, the bare remote holds no ref but the base branch; a member fetched from another clone lands from its ref; a landed member's ref is removed.
   - $after: mb-1.2
-  - Waiting members live under `refs/avoozl/land/<task>`; a worker machine's result is fetched into the same ref; only the base branch is pushed.
+  - Waiting members live under `refs/avoozl/land/<task>`; a member from another clone is fetched into the same ref; only the base branch is pushed.
 
 - [x] mb-p1 Proof: merge batches on a scratch repository, after mb-1.1, mb-1.2, mb-1.3, mb-1.4 [MB1 to MB6] (§D2, §D3, §D4)
   - $done: Expected: (1) every good task lands, the bad one and the later of the pair go back to their workers, the flaky one lands; (2) the limit starts at 1, grows while batches land, and halves after each culprit; no ref but the base branch appears on the remote.

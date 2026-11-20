@@ -1,67 +1,33 @@
-import { personOf } from "../github/github.mjs";
-import { remoteGitSetup } from "../git/git.mjs";
-// One driver per spec (design §6.10, Requirement 66). In a GitHub mode the
-// driver is named by the spec's issue: its one assignee says which person,
-// and the machine claim in Avoozl's marker says which of that person's
-// machines. In Local only mode it is a `drivers` row in this workspace's
-// SQLite. Every other workspace reads only for the spec (driver-scope.mjs
-// answers that from SQLite). Nothing here moves the role because something
-// is old: only a person's Take over, Hand off, Release or Force take over
-// does. Take over assigns this login when nobody is assigned, Hand off and
-// Release remove it, and Force take over sets it (§4.44, Requirement 116).
-import { execFileSync } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+// One driver per spec (design §6.10, Requirement 66): the spec issue's one
+// assignee. The Avoozl signed in as that GitHub login drives it; every other
+// workspace reads only (driver-scope.mjs answers that from SQLite). Handing
+// a spec to someone else is reassigning its issue on GitHub, and
+// unassigning releases it (§4.44, §4.46); Avoozl never writes the assignee.
+// A spec with no spec issue is not shared and drives here. In Local only
+// mode it is a `drivers` row in this workspace's SQLite.
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { digest, statusComplete } from "../../model.mjs";
+import { statusComplete } from "../../model.mjs";
 import { completionReached, taskKind } from "../../work-model.mjs";
 import { forgetDriverScope } from "./driver-scope.mjs";
 import {
-  assignSpecIssue,
-  assigneesOf as logins,
-  unassignSpecIssue,
-} from "./spec-assignee.mjs";
-import {
-  MACHINE_ID,
   parseMarker,
   planningIdentity,
-  renderMarker,
   requireNamespace,
 } from "../github/github-marker.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { check as contentCheck } from "../content/content-rules.mjs";
-import { declaredPlugins, readPluginSettings } from "../plugins/plugins.mjs";
-import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { epicOfPlan } from "../epics/epics.mjs";
 import { fail } from "../store/store.mjs";
-import { exportEvidence, importEvidence } from "../tasks/evidence.mjs";
+import { personOf } from "../github/github.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 
 const TABLE = "drivers";
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
-const MARKER_BLOCK = /<!--\s*avoozl-task\s*\n[\s\S]*?\n-->/;
-const SHA256 = /^[0-9a-f]{64}$/;
-const COMMIT = /^[0-9a-f]{40}$/;
-const FINAL_STATUSES = new Set(["closed", "lost"]);
-const FINAL_REPORTS = new Set(["done", "blocked"]);
-const HEARTBEAT_MINUTES = 15;
-const TAKEOVER_WAIT_MS = 10_000;
-export const EXPORT_FORMAT = "avoozl-driver-export";
-
-// What a forced take-over without an export does not bring over (§6.10).
-// Shown before it runs.
-export const NO_EXPORT_LOSSES = [
-  "Flow timing and stop history, so lead time and time to fix restart",
-  "Retros and proposals",
-  "Notes and links not shown on GitHub",
-  "The spec's local-authority tasks",
-  "Answered decisions' local records",
-  "Token usage",
-  "The activity log",
-];
-
+const MACHINE_ID = /^mch_[a-z2-7]{16}$/;
 // ---------------------------------------------------------------------------
-// This computer: machine ID, label and heartbeat, in machine-local settings.
+// This computer: machine ID and label, in machine-local settings.
 
 export function driverSettingsPath(options = {}) {
   return path.join(machineAvoozlPaths(options).configDirectory, "driver.json");
@@ -98,7 +64,7 @@ function writeSettingsFile(file, value) {
   fs.renameSync(temporary, file);
 }
 
-// {machine, label, heartbeatMinutes}. The machine ID is made once, on first
+// {machine, label}. The machine ID is made once, on first
 // use, and never filled from the host name.
 function machineSettings(file) {
   let value = readSettingsFile(file);
@@ -106,15 +72,9 @@ function machineSettings(file) {
     value = { ...value, machine: newMachineId() };
     writeSettingsFile(file, value);
   }
-  const minutes = value.heartbeatMinutes;
   return {
     machine: value.machine,
     label: typeof value.label === "string" && value.label ? value.label : null,
-    heartbeatMinutes:
-      Number.isInteger(minutes) && minutes >= 5 && minutes <= 60
-        ? minutes
-        : HEARTBEAT_MINUTES,
-    heartbeatSet: Number.isInteger(minutes),
   };
 }
 
@@ -148,19 +108,12 @@ export function updateMachineSettings(store, file, input = {}) {
       next.label = trimmed;
     } else delete next.label;
   }
-  if ("heartbeatMinutes" in input) {
-    const minutes = input.heartbeatMinutes;
-    if (minutes === null || minutes === "") delete next.heartbeatMinutes;
-    else if (!Number.isInteger(minutes) || minutes < 5 || minutes > 60)
-      fail("Heartbeat minutes must be a whole number from 5 to 60.");
-    else next.heartbeatMinutes = minutes;
-  }
   writeSettingsFile(file, next);
   return machineSettings(file);
 }
 
 // ---------------------------------------------------------------------------
-// The binding: which settings file, clock and wait this store's driver uses.
+// The binding: which settings file and clock this store's driver uses.
 // Operations binds it; a store with no binding keeps the old one-writer rule
 // only (task 3.8), which is how tests that predate §6.10 run.
 
@@ -173,7 +126,6 @@ export function bindDriver(
     workspaceRoot,
     pluginSettingsFile = null,
     now = () => Date.now(),
-    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   },
 ) {
   bound.set(store, {
@@ -181,7 +133,6 @@ export function bindDriver(
     workspaceRoot,
     pluginSettingsFile,
     now,
-    sleep,
   });
 }
 
@@ -198,6 +149,10 @@ export function driverContext(store) {
 const iso = (ms) => new Date(ms).toISOString();
 const same = (a, b) =>
   String(a || "").toLowerCase() === String(b || "").toLowerCase();
+const logins = (issue) =>
+  (issue?.assignees || [])
+    .map((entry) => (typeof entry === "string" ? entry : entry?.login))
+    .filter(Boolean);
 
 function approvedPlans(store) {
   return store
@@ -206,14 +161,6 @@ function approvedPlans(store) {
       (plan) =>
         plan.state === "approved" && !plan.deletedAt && !plan.archivedAt,
     );
-}
-
-function requirePlan(store, planId) {
-  const plan = typeof planId === "string" ? store.get("plans", planId) : null;
-  if (!plan || plan.deletedAt) fail("Spec not found.", 404);
-  if (plan.state !== "approved")
-    fail("Only an approved spec has a driver.", 409);
-  return plan;
 }
 
 export const specName = (plan) =>
@@ -227,25 +174,6 @@ function putRow(store, row) {
 
 const planTasks = (data, planId) =>
   data.tasks.filter((task) => task.planId === planId);
-
-// Live chats for the spec's tasks: not closed or lost, no done or blocked
-// report. Elapsed time never changes this.
-function liveChats(store, planId) {
-  const ids = new Set(planTasks(store.read(), planId).map((task) => task.id));
-  return listSessionBindings(store)
-    .filter((binding) => ids.has(binding.taskId))
-    .filter(
-      (binding) =>
-        !FINAL_STATUSES.has(binding.status) &&
-        !FINAL_REPORTS.has(binding.report?.kind),
-    )
-    .map(({ slot, taskId, role, status }) => ({
-      slot,
-      taskId,
-      role,
-      status: status ?? null,
-    }));
-}
 
 // ---------------------------------------------------------------------------
 // The plan issue (GitHub modes).
@@ -292,58 +220,7 @@ function epicIssue(store, plan) {
     : null;
 }
 
-// The plan issue projection keeps (github-projection.mjs `upsertParent`):
-// marker task ID `plan.<id>`, the managed label, a parent receipt. Made
-// here first so it holds the claim before any task issue exists; a spec
-// plan's projection then writes its own title and section over this one.
-const planTaskId = (plan) => `plan.${plan.id}`;
 const planReceipt = (plan) => `github-parent:plan:${plan.id}`;
-
-function planSection(plan) {
-  return `<!-- avoozl:managed:start -->
-This issue is the plan \`${plan.id}\`. Its one assignee drives it in Avoozl; reassign it to hand the plan to someone else.
-<!-- avoozl:managed:end -->`;
-}
-
-const planTitle = (plan) => String(plan.title || plan.id).slice(0, 200);
-
-function managedLabel(config, identity) {
-  return (
-    identity.repositories?.[config.id]?.managedLabels?.managed ||
-    config.managedLabel ||
-    null
-  );
-}
-
-function planMarker(plan, namespace, claim, label) {
-  return {
-    version: 2,
-    taskId: planTaskId(plan),
-    namespace,
-    kind: "plan",
-    source: {
-      commit: null,
-      manifest: SHA256.test(plan.hash) ? plan.hash : digest(String(plan.hash)),
-    },
-    applied: {
-      title: digest(planTitle(plan)),
-      body: digest(planSection(plan)),
-      labels: label ? [label] : [],
-      blockers: [],
-    },
-    ...(claim ? { claim } : {}),
-  };
-}
-
-function withClaimBody(body, marker, identity) {
-  const rendered = renderMarker(marker, {
-      planningRepository: identity.planningRepository,
-    }),
-    text = String(body || "");
-  return MARKER_BLOCK.test(text)
-    ? text.replace(MARKER_BLOCK, () => rendered)
-    : rendered + "\n" + text;
-}
 
 function planMarkerOf(issue, namespace, planId) {
   const marker = parseMarker(issue?.body);
@@ -365,62 +242,19 @@ async function findPlanIssue(github, config, namespace, planId) {
   );
   if (found.length > 1)
     fail(
-      `Issues ${found.map((issue) => "#" + issue.number).join(", ")} all claim to be the spec issue for ${planId}.`,
+      `Issues ${found.map((issue) => "#" + issue.number).join(", ")} all claim to be the plan issue for ${planId}.`,
       409,
     );
   return found[0] || null;
 }
 
-const claimFrom = (claim) =>
-  claim
-    ? {
-        machine: claim.machine ?? null,
-        label: claim.label ?? null,
-        login: claim.login ?? null,
-      }
-    : null;
-
-function newClaim(ctx, login, { from = null, forced = false } = {}) {
-  const settings = ctx.settings(),
-    at = iso(ctx.now());
-  return {
-    machine: settings.machine,
-    label: settings.label,
-    login,
-    takenAt: at,
-    heartbeatAt: at,
-    from,
-    forced,
-    export: null,
-  };
-}
-
-// The verdict for one read (design §6.10's table, changed by §4.44): no
-// assignee is free to take, two or more hold every machine.
-function verdictOf({ assignees, claim, login, machine, handoff }) {
-  const forcedAway =
-    claim?.forced &&
-    claim.from?.machine === machine &&
-    claim.machine !== machine;
+// The verdict for one read (design §6.10's table, changed by §4.44 and
+// §4.46): the one assignee drives; nobody or several hold every machine.
+function verdictOf({ assignees, login }) {
   if (assignees.length > 1) return { state: "read-only", reason: "several" };
-  if (!assignees.length)
-    return {
-      state: "read-only",
-      reason: handoff?.state === "exported" ? "handed-off" : "no-assignee",
-    };
+  if (!assignees.length) return { state: "read-only", reason: "no-assignee" };
   if (!same(assignees[0], login))
-    return {
-      state: "read-only",
-      reason: forcedAway ? "forced-away" : "other-person",
-    };
-  if (!claim) return { state: "read-only", reason: "no-claim" };
-  if (claim.machine !== machine)
-    return {
-      state: "read-only",
-      reason: forcedAway ? "forced-away" : "other-machine",
-    };
-  if (handoff?.state === "exported")
-    return { state: "read-only", reason: "handed-off" };
+    return { state: "read-only", reason: "other-person" };
   return { state: "driver", reason: "driver" };
 }
 
@@ -438,21 +272,20 @@ async function currentLogin(github, value) {
 
 // One read of the plan issue (and the epic issue when the plan issue has
 // no assignee). Writes this workspace's cache row and returns it with any
-// notices. `heartbeat` lets the sync step refresh the claim's heartbeat.
+// notices.
 async function readGitHubDriver(
   store,
   github,
   ctx,
   plan,
-  { login, heartbeat = false, find = true } = {},
+  { login, find = true } = {},
 ) {
   const identity = ctx.identity(),
     namespace = requireNamespace(identity),
-    settings = ctx.settings(),
     notify = [];
   let row = store.get(TABLE, plan.id) || { id: plan.id };
   const config = row.repository
-    ? configById(store, row.repository, identity) ||
+    ? configById(store, row.repository) ||
       planIssueConfig(store, plan, identity)
     : planIssueConfig(store, plan, identity);
   let issue = null;
@@ -466,7 +299,7 @@ async function readGitHubDriver(
   const now = ctx.now();
   if (!issue) {
     // No spec issue: nothing is shared, so this workspace drives the spec
-    // and says so (R116.8). Avoozl makes no issue for it.
+    // and says so (R116.5). Avoozl makes no issue for it.
     row = {
       ...row,
       id: plan.id,
@@ -476,17 +309,13 @@ async function readGitHubDriver(
       url: null,
       assignees: [],
       decidedBy: null,
-      claim: null,
       login,
-      machine: settings.machine,
       state: "driver",
       reason: "not-shared",
       readAt: iso(now),
     };
     return { row: putRow(store, row), notify, issue: null, config };
   }
-  const marker = planMarkerOf(issue, namespace, plan.id),
-    claim = marker?.claim ?? null;
   let assignees = logins(issue),
     decidedBy = "plan",
     epic = null;
@@ -494,7 +323,7 @@ async function readGitHubDriver(
     // The epic issue: this workspace's own record of it, else the plan
     // issue's parent on GitHub (a workspace that never projected the spec).
     const ref = epicIssue(store, plan),
-      epicConfig = ref && configById(store, ref.repository, ctx.identity()),
+      epicConfig = ref && configById(store, ref.repository),
       epicCurrent = epicConfig
         ? await github.issue(epicConfig, ref.number)
         : await github.parentIssue?.(config, issue.number);
@@ -508,33 +337,10 @@ async function readGitHubDriver(
       };
     }
   }
-  const verdict = verdictOf({
-    assignees,
-    claim,
-    login,
-    machine: settings.machine,
-    handoff: row.handoff,
-  });
-  let nextClaim = claim;
-  // Heartbeat: at most once per interval, by the driver only. The claim is
-  // outside the managed section, so `applied` never sees it (R66.3).
-  if (
-    heartbeat &&
-    verdict.state === "driver" &&
-    now - Date.parse(claim.heartbeatAt) >= settings.heartbeatMinutes * 60_000
-  ) {
-    nextClaim = { ...claim, heartbeatAt: iso(now) };
-    await asJob("spec-issues", github).updateIssue(config, issue.number, {
-      body: withClaimBody(
-        issue.body,
-        { ...marker, claim: nextClaim },
-        identity,
-      ),
-    });
-  }
+  const verdict = verdictOf({ assignees, login });
   // Two or more assignees: one decision naming the issue and every
   // assignee, closed by itself once one is left. None raises nothing: the
-  // spec is free to take (R116.4).
+  // spec waits for someone to be assigned (R116.3).
   let decision = row.decision || null;
   if (assignees.length > 1) {
     const text = `${decidedBy === "epic" ? "The epic issue" : "Spec issue"} #${decidedBy === "epic" ? epic.number : issue.number} for ${specName(plan)} has ${assignees.length} assignees: ${assignees.join(", ")}. Remove all but one on GitHub; until then no machine starts new tasks for this spec.`;
@@ -564,48 +370,31 @@ async function readGitHubDriver(
     assignees,
     decidedBy,
     epic,
-    claim: nextClaim,
     login,
-    machine: settings.machine,
     state: verdict.state,
     reason: verdict.reason,
     decision,
     readAt: iso(now),
   };
-  return { row: putRow(store, row), notify, issue, config, marker };
+  return { row: putRow(store, row), notify, issue, config };
 }
 
-// Local only mode (R66.9): the row is the lock. The first workspace to see
-// an approved spec drives it; a copy opened on another machine reads only
-// until a person presses Take over.
-function readLocalDriver(store, ctx, plan, { heartbeat = false } = {}) {
+// Local only mode (R66.7): there is no spec issue, so this workspace drives
+// every approved spec. The row names this machine for the chip.
+function readLocalDriver(store, ctx, plan) {
   const settings = ctx.settings(),
-    now = ctx.now();
-  let row = store.get(TABLE, plan.id);
-  if (!row || row.mode !== "local")
+    now = ctx.now(),
     row = {
+      ...(store.get(TABLE, plan.id) ?? { takenAt: iso(now) }),
       id: plan.id,
       mode: "local",
       machine: settings.machine,
       label: settings.label,
-      takenAt: iso(now),
-      heartbeatAt: iso(now),
+      state: "driver",
+      reason: "driver",
+      thisMachine: settings.machine,
+      readAt: iso(now),
     };
-  const mine = row.machine === settings.machine,
-    exported = row.handoff?.state === "exported";
-  row = {
-    ...row,
-    state: mine && !exported ? "driver" : "read-only",
-    reason: !mine ? "local-other-machine" : exported ? "handed-off" : "driver",
-    thisMachine: settings.machine,
-    readAt: iso(now),
-  };
-  if (
-    heartbeat &&
-    row.state === "driver" &&
-    now - Date.parse(row.heartbeatAt) >= settings.heartbeatMinutes * 60_000
-  )
-    row.heartbeatAt = iso(now);
   return { row: putRow(store, row), notify: [] };
 }
 
@@ -616,9 +405,9 @@ function githubModeOf(ctx) {
 // ---------------------------------------------------------------------------
 // The tick (§6.10 "Reading it in the tick").
 
-// Step 4: read every approved spec's driver, heartbeat, finish a drained
-// hand-off, and settle away tasks. A read that fails leaves the spec read
-// only for this tick: an unread lock is not a lock this machine holds.
+// Step 4: read every approved spec's driver. A read that fails leaves the
+// spec read only for this tick: an unread lock is not a lock this machine
+// holds.
 export async function driverStep(store, github, { script }) {
   const ctx = driverContext(store),
     notify = [];
@@ -631,24 +420,9 @@ export async function driverStep(store, github, { script }) {
       let result;
       if (githubMode) {
         login = login || (await currentLogin(github));
-        result = await readGitHubDriver(store, github, ctx, plan, {
-          login,
-          heartbeat: true,
-        });
-      } else result = readLocalDriver(store, ctx, plan, { heartbeat: true });
+        result = await readGitHubDriver(store, github, ctx, plan, { login });
+      } else result = readLocalDriver(store, ctx, plan);
       notify.push(...result.notify);
-      if (result.row.state !== "driver") continue;
-      const drained = result.row.handoff;
-      if (
-        drained?.state === "draining" &&
-        drained.folder &&
-        !liveChats(store, plan.id).length
-      )
-        notify.push(
-          ...(await writeExport(store, github, ctx, plan, { auto: true }))
-            .notify,
-        );
-      notify.push(...settleAway(store, ctx, plan));
       if (result.issue?.state === "open" && landedInFull(store, plan.id))
         notify.push(...(await closeLanded(store, github, plan, result)));
     } catch (error) {
@@ -672,7 +446,7 @@ export async function driverStep(store, github, { script }) {
   return { notify };
 }
 
-// Every leaf task of the spec is complete (R116.7).
+// Every leaf task of the spec is complete (R116.4).
 function landedInFull(store, planId) {
   const data = store.read(),
     complete = (status) => statusComplete(data, status),
@@ -745,30 +519,17 @@ export async function recheckDrivers(store, github, planIds) {
 
 // Words for why a spec reads only here, shown in the banner and errors.
 function reasonText(row) {
-  const who = row.claim
-    ? `${row.claim.login}${row.claim.label ? " · " + row.claim.label : ""} (${row.claim.machine})`
-    : null;
   switch (row.reason) {
     case "driver":
       return "This workspace drives it.";
     case "not-shared":
-      return "Not shared: it has no spec issue, so other machines cannot see who drives it. avoozl spec publish makes one.";
+      return "Not shared: it has no spec issue, so other machines cannot see who drives it. Make the GitHub issues to share it.";
     case "other-person":
       return `Taken by ${row.assignees?.[0]}: its spec issue is assigned to them.`;
-    case "other-machine":
-      return `Your other machine drives it: ${who}.`;
-    case "no-claim":
-      return "Its spec issue has no machine claim yet. Press Take over on the machine that should drive it.";
     case "no-assignee":
-      return "Nobody drives it. Take over assigns you on its spec issue.";
+      return "Nobody drives it. Assign someone on its spec issue on GitHub.";
     case "several":
       return `Its spec issue has several assignees: ${(row.assignees || []).join(", ")}. Remove all but one on GitHub.`;
-    case "handed-off":
-      return "You handed it off and Avoozl unassigned you. Take over on the next machine assigns it there.";
-    case "forced-away":
-      return `${row.claim?.login} took it over by force on ${row.claim?.label || row.claim?.machine} at ${row.claim?.takenAt}.`;
-    case "local-other-machine":
-      return `Another machine (${row.label || row.machine}) holds it in this file. Press Take over to drive it here.`;
     case "rate-limited":
       return "GitHub's rate limit held this read back. It reads again once the limit resets.";
     case "unreadable":
@@ -785,9 +546,6 @@ export function driverStatus(store, { planId } = {}) {
   const ctx = driverContext(store);
   if (!ctx) return { enabled: false, specs: [] };
   const settings = ctx.settings(),
-    now = ctx.now(),
-    staleAfter = settings.heartbeatMinutes * 3 * 60_000,
-    data = store.read(),
     plans = approvedPlans(store).filter(
       (plan) => !planId || plan.id === planId,
     );
@@ -802,16 +560,6 @@ export function driverStatus(store, { planId } = {}) {
         you: false,
         text: "Not read yet; the next tick reads it.",
       };
-    const seenAt =
-        row.mode === "local" ? row.heartbeatAt : row.claim?.heartbeatAt,
-      stale = seenAt ? now - Date.parse(seenAt) > staleAfter : false,
-      away = planTasks(data, plan.id)
-        .filter((task) => task.driverAway)
-        .map((task) => ({
-          taskId: task.id,
-          reason: task.driverAway.reason,
-          decision: row.away?.[task.id] ?? null,
-        }));
     return {
       planId: plan.id,
       spec: specName(plan),
@@ -826,915 +574,17 @@ export function driverStatus(store, { planId } = {}) {
             assignees: row.assignees || [],
             decidedBy: row.decidedBy ?? null,
             epic: row.epic ?? null,
-            driver: row.claim
-              ? {
-                  login: row.claim.login,
-                  label: row.claim.label ?? null,
-                  machine: row.claim.machine,
-                  forced: row.claim.forced,
-                  from: row.claim.from,
-                  takenAt: row.claim.takenAt,
-                }
-              : null,
-            offer:
-              row.state === "driver"
-                ? "handoff"
-                : !row.assignees?.length ||
-                    (row.assignees.length === 1 &&
-                      same(row.assignees[0], row.login))
-                  ? "takeover"
-                  : "force",
           }
-        : {
-            driver: { label: row.label ?? null, machine: row.machine },
-            offer: row.state === "driver" ? "handoff" : "takeover",
-          }),
-      seenAt: seenAt ?? null,
-      stale,
+        : { driver: { label: row.label ?? null, machine: row.machine } }),
       decision: row.decision?.state === "open" ? row.decision : null,
-      handoff: row.handoff
-        ? {
-            ...row.handoff,
-            running: liveChats(store, plan.id),
-          }
-        : null,
-      away,
-      setup: row.setup || [],
-      lastTakeover: row.takeover ?? null,
     };
   });
   return {
     enabled: true,
-    machine: {
-      id: settings.machine,
-      label: settings.label,
-      heartbeatMinutes: settings.heartbeatSet
-        ? settings.heartbeatMinutes
-        : null,
-    },
+    machine: { id: settings.machine, label: settings.label },
     readOnly: specs.filter((spec) => spec.state !== "driver").length,
     specs,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Hand off (R66.10): drain, export, reassign.
-
-function exportFolder(ctx, folder) {
-  if (typeof folder !== "string" || !path.isAbsolute(folder))
-    fail("Pick a folder for the export by its full path.");
-  let stat;
-  try {
-    stat = fs.statSync(folder);
-  } catch {
-    fail("That export folder does not exist.", 404);
-  }
-  if (!stat.isDirectory()) fail("Pick a folder, not a file.");
-  const real = fs.realpathSync(folder),
-    root = ctx.workspaceRoot ? fs.realpathSync(ctx.workspaceRoot) : null;
-  // The export may hold private notes: never inside the workspace's own
-  // repository, so it cannot be committed or pushed by accident.
-  if (root && (real === root || real.startsWith(root + path.sep)))
-    fail(
-      "Pick a folder outside the workspace repository, so the export is never committed.",
-      409,
-    );
-  return real;
-}
-
-export async function handOffDriver(store, github, input = {}) {
-  const ctx = driverContext(store);
-  if (!ctx) fail("This workspace has no driver settings.", 409);
-  const plan = requirePlan(store, input.planId),
-    row = store.get(TABLE, plan.id),
-    action = input.action ?? "start";
-  if (action === "cancel") {
-    if (row?.handoff?.state !== "draining")
-      fail("Only a hand-off that has not exported can be cancelled.", 409);
-    const { handoff: _handoff, ...rest } = row;
-    putRow(store, rest);
-    return driverStatus(store, { planId: plan.id });
-  }
-  if (row?.state !== "driver")
-    fail(`This workspace does not drive ${specName(plan)}.`, 409);
-  if (action === "release") return releaseDriver(store, github, ctx, plan, row);
-  if (action === "start") {
-    if (row.handoff) fail("This spec is already being handed off.", 409);
-    putRow(store, {
-      ...row,
-      handoff: {
-        state: "draining",
-        startedAt: iso(ctx.now()),
-        ...(input.folder ? { folder: exportFolder(ctx, input.folder) } : {}),
-      },
-    });
-    return driverStatus(store, { planId: plan.id });
-  }
-  if (action === "export") {
-    if (row.handoff?.state !== "draining")
-      fail("Press Hand off driver first; it stops new work.", 409);
-    const folder = input.folder
-      ? exportFolder(ctx, input.folder)
-      : row.handoff.folder;
-    if (!folder) fail("Pick a folder for the export.");
-    const running = liveChats(store, plan.id);
-    if (running.length && input.unfinished !== true)
-      fail(
-        `${running.length} chat(s) still run for ${specName(plan)}: ${running.map((chat) => chat.taskId).join(", ")}. Wait, or Export with ${running.length} unfinished.`,
-        409,
-      );
-    putRow(store, { ...row, handoff: { ...row.handoff, folder } });
-    const written = await writeExport(store, github, ctx, plan, {
-      unfinished: running.map((chat) => chat.taskId),
-    });
-    return { ...driverStatus(store, { planId: plan.id }), file: written.file };
-  }
-  fail("Choose hand-off action start, export, cancel or release.");
-}
-
-// Release (R116.6): stop driving and remove this login from the spec issue,
-// with no export. Running chats would be left with no driver, so it refuses
-// while any runs; Hand off drains them instead.
-async function releaseDriver(store, github, ctx, plan, row) {
-  if (row.mode !== "github" || !row.number)
-    fail(
-      row.mode === "github"
-        ? `${specName(plan)} has no spec issue, so nothing is shared to release.`
-        : "Local only mode has nothing shared to release. Hand off exports the spec instead.",
-      409,
-    );
-  const running = liveChats(store, plan.id);
-  if (running.length)
-    fail(
-      `${running.length} chat(s) still run for ${specName(plan)}: ${running.map((chat) => chat.taskId).join(", ")}. Wait for them, or Hand off driver, which lets them finish.`,
-      409,
-    );
-  const config = configById(store, row.repository, ctx.identity()),
-    assignees = await unassignSpecIssue(github, config, row.number, row.login);
-  const { handoff: _handoff, ...rest } = row;
-  putRow(store, {
-    ...rest,
-    assignees,
-    state: "read-only",
-    reason: !assignees.length
-      ? "no-assignee"
-      : assignees.length > 1
-        ? "several"
-        : "other-person",
-    readAt: iso(ctx.now()),
-  });
-  return driverStatus(store, { planId: plan.id });
-}
-
-// The machine-local items in use (R66.16), by name only.
-function machineLocalItems(store, ctx) {
-  const items = [];
-  try {
-    const plugins = declaredPlugins({
-      workspaceRoot: ctx.workspaceRoot,
-      settingsFile: ctx.pluginSettingsFile,
-    });
-    const approvals = ctx.pluginSettingsFile
-      ? readPluginSettings(ctx.pluginSettingsFile).approvals || {}
-      : {};
-    for (const { entry, source } of plugins)
-      if (typeof entry?.id === "string")
-        items.push({
-          kind: "plugin",
-          id: entry.id,
-          source,
-          approved: Boolean(approvals[entry.id]),
-        });
-  } catch {
-    // An unreadable plugin list names nothing; the take-over lists the
-    // plugins `.avoozl.json` names instead.
-  }
-  const configured = repositorySets(ctx);
-  for (const id of configured.terms) items.push({ kind: "terms", id });
-  if (store.getMeta("flow.retro.instructions"))
-    items.push({ kind: "retro-instructions" });
-  return items;
-}
-
-// Rule sets whose rules come from a terms file, named in `.avoozl.json`.
-function repositorySets(ctx) {
-  try {
-    const value = JSON.parse(
-      fs.readFileSync(path.join(ctx.workspaceRoot, ".avoozl.json"), "utf8"),
-    );
-    const sets = Array.isArray(value.contentRules?.sets)
-      ? value.contentRules.sets
-      : [];
-    const plugins = Array.isArray(value.plugins)
-      ? value.plugins.map((entry) => entry?.id).filter(Boolean)
-      : [];
-    return {
-      terms: sets.filter((set) => set?.id && !set.plugin).map((set) => set.id),
-      plugins: [
-        ...plugins,
-        ...sets.filter((set) => set?.plugin).map((set) => set.plugin),
-      ],
-    };
-  } catch {
-    return { terms: [], plugins: [] };
-  }
-}
-
-// Tables that move with a spec, filtered to its tasks. Execution state tied
-// to this machine (worktrees, live session bindings and requests,
-// deliveries mid-flight) does not move: those tasks are listed unfinished
-// and read as away on the new driver (R66.11).
-const MOVED_TABLES = [
-  "receipts",
-  "flow_records",
-  "flow_stops",
-  "flow_retros",
-  "content_decisions",
-  "github_linked_branches",
-  "pr_feedback",
-  // Investigate first and corrections (§4.21, §4.24).
-  "task_investigations",
-  "corrections",
-];
-// Column tables: [table, the column naming its task, columns left behind].
-const COLUMN_TABLES = [
-  ["flow_spans", "task_id", []],
-  ["flow_usage", "task_id", []],
-  // The activity log (§4.16): a new machine numbers its own rows.
-  ["activity_log", "target_id", ["seq"]],
-];
-
-function belongs(row, ids, planId) {
-  return (
-    ids.has(row?.taskId) ||
-    ids.has(row?.task) ||
-    ids.has(row?.id) ||
-    row?.planId === planId ||
-    (Array.isArray(row?.tasks) && row.tasks.some((id) => ids.has(id)))
-  );
-}
-
-// Keys that never leave a machine, wherever they sit in a row.
-const SECRET_KEYS = new Set([
-  "token",
-  "host",
-  "hostKey",
-  "knownHosts",
-  "instructions",
-  "path",
-  "worktree",
-  "root",
-  "checkout",
-]);
-function scrub(value) {
-  if (Array.isArray(value)) return value.map(scrub);
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => !SECRET_KEYS.has(key))
-      .map(([key, item]) => [key, scrub(item)]),
-  );
-}
-
-export function buildExport(store, ctx, plan, { unfinished = [] } = {}) {
-  const data = store.read(),
-    tasks = planTasks(data, plan.id),
-    ids = new Set(tasks.map((task) => task.id)),
-    settings = ctx.settings(),
-    identity = ctx.identity(),
-    tables = {};
-  for (const table of MOVED_TABLES) {
-    let rows = [];
-    try {
-      rows = store.list(table);
-    } catch {
-      continue;
-    }
-    tables[table] = scrub(rows.filter((row) => belongs(row, ids, plan.id)));
-  }
-  const columns = {};
-  for (const [table, column, dropped] of COLUMN_TABLES) {
-    try {
-      columns[table] = store.db
-        .prepare(`SELECT * FROM ${table}`)
-        .all()
-        .filter((row) => ids.has(row[column]) || row[column] === plan.id)
-        .map((row) =>
-          Object.fromEntries(
-            Object.entries(row).filter(([key]) => !dropped.includes(key)),
-          ),
-        );
-    } catch {
-      columns[table] = [];
-    }
-  }
-  const bindings = listSessionBindings(store)
-    .filter((binding) => ids.has(binding.taskId))
-    .map(({ slot, taskId, role, attempt, status, report, crew, boundAt }) => ({
-      slot,
-      taskId,
-      role,
-      attempt: attempt ?? null,
-      status: status ?? null,
-      report: report?.kind ? { kind: report.kind } : null,
-      crew: crew ?? null,
-      boundAt: boundAt ?? null,
-      machine: settings.machine,
-    }));
-  const activity = store
-    .events({ latest: true, limit: 1000 })
-    .filter((event) => ids.has(event.taskId) || event.planId === plan.id);
-  return {
-    format: EXPORT_FORMAT,
-    version: 1,
-    namespace: identity.namespace ?? null,
-    spec: specName(plan),
-    planId: plan.id,
-    approved: {
-      commit: plan.sourceCommit || plan.context?.github?.commit || null,
-      hash: plan.hash,
-    },
-    from: { machine: settings.machine, label: settings.label },
-    exportedAt: iso(ctx.now()),
-    plan: scrub(plan),
-    tasks: scrub(tasks),
-    edges: data.edges.filter((edge) => ids.has(edge.from) || ids.has(edge.to)),
-    tables,
-    columns,
-    bindings,
-    activity: scrub(activity),
-    unfinished,
-    machineLocal: machineLocalItems(store, ctx),
-    // Each task's evidence bundle and its files (§4.22, R76.5).
-    evidence: exportEvidence(store, [...ids]),
-  };
-}
-
-async function writeExport(
-  store,
-  github,
-  ctx,
-  plan,
-  { unfinished = [], auto = false } = {},
-) {
-  const row = store.get(TABLE, plan.id),
-    folder = row.handoff.folder,
-    value = buildExport(store, ctx, plan, { unfinished }),
-    text = JSON.stringify(value, null, 2) + "\n",
-    sha256 = createHash("sha256").update(text).digest("hex"),
-    file = path.join(folder, `${specName(plan)}.avoozl-driver.json`);
-  fs.writeFileSync(file, text, { mode: 0o600 });
-  let next = {
-    ...row,
-    handoff: {
-      ...row.handoff,
-      state: "exported",
-      sha256,
-      file,
-      unfinished,
-      exportedAt: value.exportedAt,
-    },
-  };
-  // The claim records the file's hash, so only that file takes over.
-  if (row.mode === "github") {
-    const identity = ctx.identity(),
-      config = configById(store, row.repository, identity),
-      issue = await github.issue(config, row.number),
-      marker = planMarkerOf(issue, identity.namespace, plan.id);
-    if (!marker?.claim) fail("The spec issue lost its claim.", 409);
-    const claim = { ...marker.claim, export: sha256 };
-    await asJob("spec-issues", github).updateIssue(config, row.number, {
-      body: withClaimBody(issue.body, { ...marker, claim }, identity),
-    });
-    next = { ...next, claim, state: "read-only", reason: "handed-off" };
-    putRow(store, next);
-    // The hand-off reassigns: this login leaves, and the next machine's
-    // Take over assigns its own (R116.5). The export already counts if
-    // GitHub refuses this.
-    const assignees = await unassignSpecIssue(
-      github,
-      config,
-      row.number,
-      row.login,
-    );
-    next = { ...next, assignees };
-  } else {
-    next = {
-      ...next,
-      export: sha256,
-      state: "read-only",
-      reason: "handed-off",
-    };
-  }
-  putRow(store, next);
-  return {
-    file,
-    sha256,
-    notify: auto
-      ? [
-          {
-            channel: "decision",
-            title: `${specName(plan)} is ready to hand off`,
-            text: `Every chat finished and the export is written. ${row.url ? "Avoozl unassigned you on the spec issue; Take over on the next machine assigns it there." : "Move the file to the other machine and press Take over there."}`,
-          },
-        ]
-      : [],
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Take over (R66.8, R66.12, R66.13) and Force take over (R66.14).
-
-function readExportFile(file) {
-  if (typeof file !== "string" || !path.isAbsolute(file))
-    fail("Name the export file by its full path.");
-  let text;
-  try {
-    text = fs.readFileSync(file, "utf8");
-  } catch {
-    fail(`Could not read ${path.basename(file)}.`, 404);
-  }
-  const sha256 = createHash("sha256").update(text).digest("hex");
-  let value;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    fail(`${path.basename(file)} is not an Avoozl driver export.`, 422);
-  }
-  if (value?.format !== EXPORT_FORMAT || value.version !== 1)
-    fail(`${path.basename(file)} is not an Avoozl driver export.`, 422);
-  return { value, sha256, name: path.basename(file) };
-}
-
-function commitPresent(root, commit) {
-  const run = ({ args, env }) =>
-    execFileSync("git", ["-C", root, ...args], {
-      stdio: ["ignore", "ignore", "ignore"],
-      env: env ?? process.env,
-    });
-  const has = () => run({ args: ["cat-file", "-e", commit + "^{commit}"] });
-  try {
-    has();
-    return true;
-  } catch {
-    try {
-      // A fetch goes out signed in as Avoozl's own git (§D9).
-      run(
-        remoteGitSetup(root, ["fetch", "--quiet", "origin"], {
-          env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-        }),
-      );
-      has();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
-
-// Every check before anything changes; a mismatch is refused by name.
-function verifyExport(ctx, plan, file, expectedSha) {
-  const { value, sha256, name } = readExportFile(file),
-    identity = ctx.identity();
-  if (value.namespace !== (identity.namespace ?? null))
-    fail(
-      `${name} is for namespace ${value.namespace}, not this workspace's.`,
-      409,
-    );
-  if (value.planId !== plan.id || value.spec !== specName(plan))
-    fail(`${name} is for spec ${value.spec}, not ${specName(plan)}.`, 409);
-  if (expectedSha !== undefined && sha256 !== expectedSha)
-    fail(
-      `${name} does not match the export its driver recorded (sha256 ${String(expectedSha || "none").slice(0, 12)}). Nothing changed.`,
-      409,
-    );
-  const commit = value.approved?.commit;
-  if (commit && COMMIT.test(commit) && ctx.workspaceRoot)
-    if (!commitPresent(ctx.workspaceRoot, commit))
-      fail(
-        `${name} was exported at commit ${commit.slice(0, 12)}, which this workspace's spec checkout does not have.`,
-        409,
-      );
-  if (value.approved?.hash !== plan.hash)
-    fail(
-      `${name} was exported for another revision of ${specName(plan)}. Approve the same revision here first.`,
-      409,
-    );
-  return value;
-}
-
-// One SQLite transaction: rows replace this workspace's for the spec's
-// tasks; session bindings come over as away markers, never as sessions.
-function importExport(store, value, now) {
-  const ids = new Set(value.tasks.map((task) => task.id)),
-    away = new Map();
-  for (const id of value.unfinished || [])
-    away.set(id, { reason: "unfinished", machine: value.from.machine });
-  for (const binding of value.bindings || [])
-    if (
-      !FINAL_STATUSES.has(binding.status) &&
-      !FINAL_REPORTS.has(binding.report?.kind)
-    )
-      away.set(binding.taskId, {
-        reason: "session",
-        machine: binding.machine,
-        slot: binding.slot,
-      });
-  // mutate is the one transaction: the snapshot and every row commit or
-  // none does.
-  store.mutate("Take over spec " + value.spec, (data) => {
-    data.tasks = data.tasks.filter((task) => !ids.has(task.id));
-    for (const task of value.tasks) {
-      const next = { ...task };
-      if (away.has(task.id))
-        next.driverAway = { ...away.get(task.id), since: iso(now) };
-      data.tasks.push(next);
-    }
-    const edgeIds = new Set(value.edges.map((edge) => edge.id));
-    data.edges = [
-      ...data.edges.filter((edge) => !edgeIds.has(edge.id)),
-      ...value.edges,
-    ];
-    for (const [table, rows] of Object.entries(value.tables || {}))
-      if (MOVED_TABLES.includes(table))
-        for (const row of rows) if (row?.id) store.put(table, row);
-    for (const [table, rows] of Object.entries(value.columns || {})) {
-      if (!COLUMN_TABLES.some(([name]) => name === table) || !rows.length)
-        continue;
-      const columns = Object.keys(rows[0]);
-      if (!columns.every((column) => /^[a-z_]+$/.test(column))) continue;
-      const insert = store.db.prepare(
-        `INSERT OR REPLACE INTO ${table}(${columns.join(",")}) VALUES (${columns.map(() => "?").join(",")})`,
-      );
-      for (const row of rows)
-        insert.run(...columns.map((column) => row[column]));
-    }
-  });
-  if (value.evidence) importEvidence(store, value.evidence);
-  return [...away.keys()];
-}
-
-// A task with an open linked branch or pull request and no session here is
-// away too (R66.11): its old chat may still be working on it.
-async function markOpenWork(store, github, plan) {
-  const data = store.read(),
-    complete = (status) => statusComplete(data, status),
-    here = new Set(
-      listSessionBindings(store)
-        .filter(
-          (binding) =>
-            !FINAL_STATUSES.has(binding.status) &&
-            !FINAL_REPORTS.has(binding.report?.kind),
-        )
-        .map((binding) => binding.taskId),
-    ),
-    marked = [];
-  for (const task of planTasks(data, plan.id)) {
-    if (
-      taskKind(task) !== "leaf" ||
-      task.driverAway ||
-      here.has(task.id) ||
-      !task.github?.number ||
-      completionReached(task, null, complete)
-    )
-      continue;
-    let links;
-    try {
-      links = await github.issueLinks?.(
-        task.github.repository,
-        task.github.number,
-      );
-    } catch {
-      links = null;
-    }
-    if (links?.linkedBranches?.length) marked.push(task.id);
-  }
-  if (marked.length)
-    store.mutate("Mark away tasks", (next) => {
-      for (const task of next.tasks)
-        if (marked.includes(task.id))
-          task.driverAway = {
-            reason: "open-work",
-            since: new Date().toISOString(),
-          };
-    });
-  return marked;
-}
-
-// After a take-over: what to set up again on this machine (R66.16).
-function setupList(ctx, value) {
-  if (value?.machineLocal)
-    return value.machineLocal.map(({ kind, id }) => ({
-      kind,
-      ...(id ? { id } : {}),
-    }));
-  const sets = repositorySets(ctx);
-  return [
-    ...sets.plugins.map((id) => ({ kind: "plugin", id })),
-    ...sets.terms.map((id) => ({ kind: "terms", id })),
-  ];
-}
-
-async function writeClaim(store, github, ctx, row, claim) {
-  const identity = ctx.identity(),
-    config = configById(store, row.repository, identity),
-    issue = await github.issue(config, row.number),
-    marker =
-      planMarkerOf(issue, identity.namespace, row.id) ||
-      planMarker(
-        store.get("plans", row.id),
-        identity.namespace,
-        null,
-        managedLabel(config, identity),
-      );
-  await asJob("spec-issues", github).updateIssue(config, row.number, {
-    body: withClaimBody(issue.body, { ...marker, claim }, identity),
-  });
-}
-
-// The loss list and setup list a dialog shows before anything runs.
-export function takeoverPreview(store, input = {}) {
-  const ctx = driverContext(store);
-  if (!ctx) fail("This workspace has no driver settings.", 409);
-  const plan = requirePlan(store, input.planId),
-    row = store.get(TABLE, plan.id) || {};
-  return {
-    planId: plan.id,
-    spec: specName(plan),
-    lost: input.withoutExport ? NO_EXPORT_LOSSES : [],
-    current: {
-      assignees: row.assignees || [],
-      driver: row.claim ? claimFrom(row.claim) : null,
-      seenAt: row.claim?.heartbeatAt ?? row.heartbeatAt ?? null,
-    },
-    setup: setupList(ctx, null),
-  };
-}
-
-export async function takeOver(store, github, input = {}) {
-  const ctx = driverContext(store);
-  if (!ctx) fail("This workspace has no driver settings.", 409);
-  const plan = requirePlan(store, input.planId);
-  if (!githubModeOf(ctx)) return localTakeOver(store, ctx, plan, input);
-  const login = await currentLogin(github);
-  const { row, issue, config } = await readGitHubDriver(
-    store,
-    github,
-    ctx,
-    plan,
-    { login },
-  );
-  if (row.state === "driver")
-    fail(
-      row.reason === "not-shared"
-        ? `${specName(plan)} has no spec issue, so this workspace drives it already. avoozl spec publish makes one to share.`
-        : `You already drive ${specName(plan)}.`,
-      409,
-    );
-  // Nobody assigned is free to take; someone else, or several, is not
-  // (R116.2). Force take over is the way past another person.
-  if (
-    row.assignees.length > 1 ||
-    (row.assignees.length === 1 && !same(row.assignees[0], login))
-  )
-    fail(
-      `${reasonText(row)} Nothing changed.${row.assignees.length === 1 ? " Force take over moves it to you." : ""}`,
-      409,
-    );
-  const value = input.file
-    ? verifyExport(ctx, plan, input.file, row.claim?.export ?? null)
-    : null;
-  // Assign this login on the spec issue itself, also when the epic's
-  // assignee stood in for it, and read it back before anything else moves.
-  if (!logins(issue).some((name) => same(name, login)))
-    await assignSpecIssue(github, config, row.number, login);
-  const away = value ? importExport(store, value, ctx.now()) : [];
-  const claim = newClaim(ctx, login, { from: claimFrom(row.claim) });
-  await writeClaim(store, github, ctx, row, claim);
-  return settleTakeover(store, github, ctx, plan, {
-    login,
-    claim,
-    value,
-    away,
-    kind: value ? "export" : "claim",
-  });
-}
-
-// Wait, read again, and drive only if this claim is still the one GitHub
-// kept (R66.8): two machines of one login that press at once both write,
-// and both then read the same winner.
-async function settleTakeover(
-  store,
-  github,
-  ctx,
-  plan,
-  { login, claim, value, away, kind, forced = false },
-) {
-  await ctx.sleep(TAKEOVER_WAIT_MS);
-  const before = store.get(TABLE, plan.id),
-    { row } = await readGitHubDriver(store, github, ctx, plan, { login });
-  const { handoff: _handoff, ...rest } = row,
-    won =
-      row.claim?.machine === claim.machine &&
-      row.claim?.takenAt === claim.takenAt;
-  const marked = won ? await markOpenWork(store, github, plan) : [];
-  const next = putRow(store, {
-    ...rest,
-    ...(!won && before?.handoff ? { handoff: before.handoff } : {}),
-    setup: won ? setupList(ctx, value) : before?.setup || [],
-    takeover: {
-      kind,
-      forced,
-      at: claim.takenAt,
-      won,
-      away: [...away, ...marked],
-      ...(won ? {} : { winner: claimFrom(row.claim) }),
-    },
-  });
-  return {
-    ...driverStatus(store, { planId: plan.id }),
-    won,
-    ...(won ? {} : { winner: claimFrom(next.claim) }),
-  };
-}
-
-function localTakeOver(store, ctx, plan, input) {
-  const settings = ctx.settings(),
-    row = store.get(TABLE, plan.id);
-  if (
-    row?.mode === "local" &&
-    row.machine === settings.machine &&
-    row.state === "driver"
-  )
-    fail(`You already drive ${specName(plan)}.`, 409);
-  const value = input.file
-    ? verifyExport(ctx, plan, input.file, row?.export ?? undefined)
-    : null;
-  const away = value ? importExport(store, value, ctx.now()) : [];
-  const now = iso(ctx.now());
-  putRow(store, {
-    id: plan.id,
-    mode: "local",
-    machine: settings.machine,
-    label: settings.label,
-    takenAt: now,
-    heartbeatAt: now,
-    from: row
-      ? { machine: row.machine ?? null, label: row.label ?? null }
-      : null,
-    state: "driver",
-    reason: "driver",
-    setup: setupList(ctx, value),
-    takeover: {
-      kind: value ? "export" : "claim",
-      forced: false,
-      at: now,
-      won: true,
-      away,
-    },
-  });
-  return { ...driverStatus(store, { planId: plan.id }), won: true };
-}
-
-export async function forceTakeOver(store, github, input = {}, hooks = {}) {
-  const ctx = driverContext(store);
-  if (!ctx) fail("This workspace has no driver settings.", 409);
-  const plan = requirePlan(store, input.planId);
-  if (!githubModeOf(ctx))
-    fail(
-      "Local only mode has no forced take-over between machines: there is nothing shared to write to. Export on the old machine, or press Take over on a copy.",
-      409,
-    );
-  const login = await currentLogin(github);
-  let { row, issue, config } = await readGitHubDriver(
-    store,
-    github,
-    ctx,
-    plan,
-    { login },
-  );
-  if (row.state === "driver") fail(`You already drive ${specName(plan)}.`, 409);
-  if (!row.number) fail("This spec has no spec issue to take over.", 409);
-  if (input.confirm !== specName(plan))
-    fail(`Type the spec name ${specName(plan)} to confirm.`, 409);
-  const value = input.file ? verifyExport(ctx, plan, input.file) : null;
-  if (!value && input.acknowledgeLoss !== true)
-    return {
-      needs: "acknowledge",
-      ...takeoverPreview(store, { planId: plan.id, withoutExport: true }),
-    };
-  // 1. The plan issue's assignees, exactly this login, read back. GitHub
-  // silently ignores the change for a token without push access.
-  const current = logins(issue);
-  if (!(current.length === 1 && same(current[0], login))) {
-    await asJob("spec-issues", github).updateIssue(config, row.number, {
-      assignees: [login],
-    });
-    const kept = logins(await github.issue(config, row.number));
-    if (!(kept.length === 1 && same(kept[0], login)))
-      fail(
-        `GitHub kept the spec issue's assignees as ${kept.join(", ") || "nobody"}: this token likely has no push access to ${config.id}. Nothing else changed.`,
-        409,
-      );
-  }
-  // 2. Import a matching export, if one was given.
-  const away = value ? importExport(store, value, ctx.now()) : [];
-  // 3. A forced claim naming the old driver.
-  const from = claimFrom(row.claim) || {
-      machine: null,
-      label: null,
-      login: current[0] || null,
-    },
-    claim = newClaim(ctx, login, { from, forced: true });
-  await writeClaim(store, github, ctx, row, claim);
-  const result = await settleTakeover(store, github, ctx, plan, {
-    login,
-    claim,
-    value,
-    away,
-    kind: value ? "export" : "claim",
-    forced: true,
-  });
-  store.event(null, "driver.forced", {
-    planId: plan.id,
-    login,
-    machine: claim.machine,
-    from,
-    at: claim.takenAt,
-  });
-  hooks.notify?.([
-    {
-      channel: "decision",
-      title: `You took over ${specName(plan)} by force`,
-      text: `The old driver ${from.login || "nobody"}${from.label ? " · " + from.label : ""} may still run chats for it; their local results do not come here.`,
-    },
-  ]);
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-// Away tasks (R66.11): never started again because a lease expired. One
-// completes when its work lands; otherwise one decision asks a person
-// whether to start it here.
-
-function settleAway(store, ctx, plan) {
-  const data = store.read(),
-    complete = (status) => statusComplete(data, status),
-    row = store.get(TABLE, plan.id),
-    away = { ...(row.away || {}) },
-    done = [],
-    notify = [];
-  for (const task of planTasks(data, plan.id)) {
-    if (!task.driverAway) continue;
-    if (completionReached(task, null, complete)) {
-      done.push(task.id);
-      delete away[task.id];
-      continue;
-    }
-    if (!away[task.id]) {
-      away[task.id] = { state: "open", openedAt: iso(ctx.now()) };
-      notify.push({
-        channel: "decision",
-        task: task.id,
-        title: `${task.id} was running on the old driver`,
-        text: `Avoozl will not start ${task.id} again because its old chat went quiet. Start it here, or wait for its pull request.`,
-      });
-    }
-  }
-  if (done.length)
-    store.mutate("Away tasks completed", (next) => {
-      for (const task of next.tasks)
-        if (done.includes(task.id)) delete task.driverAway;
-    });
-  if (JSON.stringify(away) !== JSON.stringify(row.away || {}))
-    putRow(store, { ...store.get(TABLE, plan.id), away });
-  return notify;
-}
-
-// A person's answer to an away task's decision: start it here, or wait.
-export function decideAway(store, { taskId, choice } = {}) {
-  const task = store.read().tasks.find((item) => item.id === taskId);
-  if (!task?.driverAway) fail("That task is not away.", 404);
-  if (!["start", "wait"].includes(choice)) fail("Choose start or wait.");
-  const row = store.get(TABLE, task.planId);
-  if (row?.state !== "driver")
-    fail("Only the spec's driver decides its away tasks.", 409);
-  const away = { ...(row.away || {}) };
-  away[taskId] = {
-    ...(away[taskId] || {}),
-    state: choice === "start" ? "closed" : "answered",
-    choice,
-    answeredAt: new Date().toISOString(),
-  };
-  if (choice === "start") {
-    delete away[taskId];
-    store.mutate("Start away task " + taskId + " here", (data) => {
-      for (const item of data.tasks)
-        if (item.id === taskId) delete item.driverAway;
-    });
-  }
-  putRow(store, { ...row, away });
-  return driverStatus(store, { planId: task.planId });
 }
 
 // Open driver decisions for the Decisions view.
@@ -1757,17 +607,6 @@ export function driverDecisions(store) {
         link: row.url ?? null,
         openedAt: row.decision.openedAt,
       });
-    for (const [taskId, decision] of Object.entries(row.away || {}))
-      if (decision.state === "open")
-        items.push({
-          kind: "driver-away",
-          id: "driver-away:" + taskId,
-          planId: row.id,
-          taskId,
-          title: `${taskId} was running on the old driver`,
-          detail: "Start it here, or wait for its pull request.",
-          openedAt: decision.openedAt,
-        });
   }
   return items;
 }

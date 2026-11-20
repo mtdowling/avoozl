@@ -139,7 +139,6 @@ const UNPAIRED = new Map([
   ["#/properties/intake", "sourceDeclarations in intake.mjs reads sources"],
   ["#/properties/activity", "validateActivitySettings in activity-log.mjs"],
   ["#/$defs/agentInstructions", "agent-instructions.mjs accepts only rules"],
-  ["#/properties/workers", "grantStaleMs in worker-release.mjs"],
   ["#/properties/specs", "validateSpecs in layered-config.mjs"],
 ]);
 
@@ -177,7 +176,6 @@ const OPEN = new Map([
       "delivery",
       "flow",
       "contentRules",
-      "workers",
       "packs",
       "machine",
       "notifications",
@@ -190,7 +188,7 @@ const OPEN = new Map([
     "#/properties/packs/additionalProperties",
     ["version", "importedAt", "importedBy", "settings"],
   ],
-  // readRunnerConfig in remote-runner.mjs, and poolsOf in worker-offers.mjs.
+  // readRunnerConfig in remote-runner.mjs.
   [
     "#/$defs/runner",
     [
@@ -203,17 +201,9 @@ const OPEN = new Map([
       "checkTimeoutSeconds",
       "checks",
       "repos",
-      "pools",
-      "sources",
-      "lanes",
     ],
   ],
   ["#/$defs/runner/properties/checks/additionalProperties", ["argv"]],
-  [
-    "#/$defs/runner/properties/pools/items",
-    ["spec", "repository", "target", "grants", "issue", "base", "visibility"],
-  ],
-  ["#/$defs/runner/properties/sources/additionalProperties", ["url", "parent"]],
 ]);
 
 // Keys a validator accepts only so an old file loads, and never reads.

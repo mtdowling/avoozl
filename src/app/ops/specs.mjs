@@ -1,258 +1,19 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import {
-  decideAway,
   driverContext,
   driverStatus,
-  forceTakeOver,
-  handOffDriver,
-  takeOver,
-  takeoverPreview,
   updateMachineSettings,
 } from "../workers/driver.mjs";
 import { planningIdentity } from "../github/github-marker.mjs";
-import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
-import { loadLayeredConfig } from "../settings/layered-config.mjs";
-import { queueNotifications } from "../tick/notifications.mjs";
 import { repositorySetup } from "../workspace/repository-setup.mjs";
 import { publishSpec } from "../specs/spec-publication.mjs";
-import {
-  adoptPull,
-  rejectPull,
-  requestChanges,
-  roleOf,
-  specPullOf,
-  specRoot,
-  specPullView,
-} from "../specs/spec-pull-requests.mjs";
-import { reanchorSpec, resumeSpec } from "../specs/spec-reanchor.mjs";
-import { driverIdOf } from "../specs/spec-scheduler.mjs";
-import { specAuthority, takeOverSpec } from "../specs/spec-takeover.mjs";
 import { fail } from "../store/store.mjs";
-import { confirmStep, withJob } from "../github/github-jobs.mjs";
-import { taskDefinition } from "../specs/task-outcomes.mjs";
-import { readCache } from "../github/github-open-read.mjs";
-import { publishOffer, reserveGrants } from "../workers/worker-grants.mjs";
-import {
-  grantStaleMs,
-  grantStatus,
-  reconcileGrants,
-  releaseGrant,
-} from "../workers/worker-release.mjs";
 import { publishPlanningPullRequest } from "../workspace/workspace-repository.mjs";
-import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
-
-function driverTakeoverHandler({ name, input }) {
-  const store = this.store;
-
-  return name === "driver.takeover"
-    ? takeOver(store, this.github, input)
-    : forceTakeOver(store, this.github, input, {
-        notify: (notices) => queueNotifications(store, notices),
-      });
-}
-async function specprAdoptHandler({ name, input, context }) {
-  const store = this.store;
-
-  if (context.caller || context.mcp)
-    fail("Only a person acts on a spec pull request, from the page.", 403);
-  const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-  if (name === "specpr.adopt") {
-    const repository = String(input.repository ?? ""),
-      entry = (readCache(store).repositories?.[repository]?.items || []).find(
-        (item) => item.number === input.number,
-      ),
-      found =
-        entry &&
-        specPullOf(
-          entry,
-          roleOf(policy, repository),
-          specRoot(store, repository),
-        );
-    if (!found) fail("That pull request is not a spec-only pull request.", 404);
-    const receipt = await adoptPull(store, this.github, {
-      repository,
-      entry,
-      spec: found.spec,
-      link: "person",
-      actor: this.operator,
-    });
-    if (!receipt) fail("The pull request holds no spec files to review.", 409);
-    return { id: receipt.id, spec: receipt.spec };
-  }
-  if (name === "specpr.reject") return rejectPull(store, this.github, input);
-  if (name === "specpr.requestChanges")
-    return requestChanges(store, this.github, input);
-  fail(`Unknown operation ${name}.`, 404);
-}
-// The driver's side of worker accepts (R90.4): offer a task to a worker
-// login, and reserve and acknowledge the requests. A person's own act at
-// this machine; no session or MCP caller.
-async function specOfferHandler({ name, input, context }) {
-  const store = this.store;
-
-  if (context.caller || context.mcp)
-    fail("Only a person drives worker offers and grants.", 403);
-  const authority = await specAuthority(
-      store,
-      {
-        github: this.github,
-        workspaceRoot: this.workspaceRoot,
-        actor: this.operator,
-      },
-      input.planId,
-    ),
-    driver = driverIdOf(store, input.planId);
-  if (!driver) fail("Take over the spec first.", 409);
-  const driving = {
-    driver,
-    owner: authority.owner,
-    login: authority.login,
-    spec: input.planId,
-  };
-  const held = {
-    ...driving,
-    github: this.github,
-    journal: authority.journal,
-    options: authority.options,
-    grants: input.grants,
-  };
-  if (name === "spec.grants.status")
-    return grantStatus(authority.journal, authority.options, {
-      staleAfter: grantStaleMs(
-        loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config?.workers
-          ?.grantStaleAfter,
-      ),
-    });
-  if (name === "spec.grants.release") {
-    const released = await releaseGrant({
-      ...held,
-      task: input.task,
-      by: { kind: "person" },
-    });
-    addLeftBranches(store, released.left);
-    return released;
-  }
-  if (name === "spec.grants") {
-    // Carry or settle what exists first, then answer new requests.
-    const reconciled = await reconcileGrants(held);
-    addLeftBranches(store, reconciled.left);
-    return {
-      reconciled,
-      ...(await reserveGrants({
-        ...held,
-        base: input.base,
-        ...(input.cap ? { cap: input.cap } : {}),
-      })),
-    };
-  }
-  const task = store.read().tasks.find((t) => t.id === input.task);
-  if (!task) fail("Task not found.", 404);
-  return publishOffer(
-    authority.journal,
-    {
-      ...driving,
-      task: task.id,
-      definition: taskDefinition({
-        id: task.id,
-        title: task.title,
-        acceptance: task.acceptance ?? null,
-      }),
-      worker: input.worker,
-      ref: {
-        repository: input.repository,
-        branch: input.branch,
-        commit: input.commit,
-      },
-      base: input.base,
-    },
-    authority.options,
-  );
-}
-// Reanchor a held journal and Resume after it (R102.26, task 56.15):
-// each a person's own act; reanchor previews unless `apply`.
-function specJournalReanchorHandler({ name, input, context }) {
-  const store = this.store;
-
-  if (context.caller || context.mcp)
-    fail("Only a person reanchors or resumes a spec journal.", 403);
-  const authority = {
-    github: this.github,
-    workspaceRoot: this.workspaceRoot,
-    actor: this.operator,
-  };
-  return name === "spec.journal.reanchor"
-    ? reanchorSpec(store, authority, {
-        planId: input.planId,
-        held: input.held,
-        tail: input.tail,
-        apply: input.apply === true,
-      })
-    : resumeSpec(store, authority, {
-        planId: input.planId,
-        tail: input.tail,
-      });
-}
-
-// Grant branches own-branch-delete left (D7), for Needs you.
-const LEFT = "grantBranchesLeft";
-export const leftBranches = (store) => {
-  try {
-    return store.getMeta(LEFT) || [];
-  } catch {
-    return [];
-  }
-};
-const setLeftBranches = (store, rows) => store.setMeta(LEFT, rows);
-function addLeftBranches(store, rows = []) {
-  if (!rows?.length) return;
-  const have = leftBranches(store),
-    key = (row) => `${row.repository}|${row.branch}`,
-    known = new Set(have.map(key));
-  setLeftBranches(store, [
-    ...have,
-    ...rows.filter((row) => !known.has(key(row))),
-  ]);
-}
-export function leftBranchesNeedsYou(store) {
-  const rows = leftBranches(store);
-  if (!rows.length) return [];
-  return [
-    {
-      kind: "needs-human",
-      reason: "crew",
-      id: "grant-branches-left",
-      taskId: null,
-      authority: "github",
-      title: `${rows.length} grant branch${rows.length === 1 ? "" : "es"} Avoozl did not delete`,
-      detail: `Their heads moved since Avoozl made them, so they are not Avoozl's own to delete: ${rows.map((row) => `${row.repository} ${row.branch}`).join(", ")}.`,
-      actions: [...new Set(rows.map((row) => row.repository))].map(
-        (repository) => ({
-          label: "Delete branches",
-          operation: "spec.grants.branches.delete",
-          input: {
-            repository,
-            branches: rows
-              .filter((row) => row.repository === repository)
-              .map((row) => row.branch),
-          },
-          confirm: rows
-            .filter((row) => row.repository === repository)
-            .map((row) =>
-              confirmStep({
-                job: "branch-delete",
-                target: repository,
-                action: `Delete the branch ${row.branch}`,
-              }),
-            ),
-        }),
-      ),
-    },
-  ];
-}
+import { person, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
-  // The spec driver (§6.10). Status reads everywhere; moving the role or
-  // changing this computer's settings is a person's, on the page or CLI.
+  // The spec driver (§6.10): the spec issue's assignee. Status reads
+  // everywhere; changing this computer's settings is a person's.
   {
     name: "driver.status",
     class: "observe",
@@ -261,17 +22,6 @@ export const entries = [
     handler({ input }) {
       const store = this.store;
       return driverStatus(store, input);
-    },
-  },
-
-  {
-    name: "driver.takeover.preview",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return takeoverPreview(store, input);
     },
   },
 
@@ -290,73 +40,6 @@ export const entries = [
     },
   },
 
-  {
-    name: "driver.handoff",
-    class: "protect",
-    github: "spec-issues",
-    policy: person("Only a person hands off a spec's driver."),
-    handler({ input }) {
-      const store = this.store;
-      return handOffDriver(store, this.github, input);
-    },
-  },
-
-  {
-    name: "driver.away.decide",
-    class: "protect",
-    github: "spec-issues",
-    policy: person("Only a person decides an away task."),
-    handler({ input }) {
-      const store = this.store;
-      return decideAway(store, input);
-    },
-  },
-  {
-    name: "driver.takeover",
-    class: "protect",
-    github: "spec-issues",
-    policy: person("Only a person takes over a spec's driver."),
-    handler: driverTakeoverHandler,
-  },
-  {
-    name: "driver.forceTakeover",
-    class: "protect",
-    github: "spec-issues",
-    policy: person("Only a person takes over a spec's driver by force."),
-    handler: driverTakeoverHandler,
-  },
-  // Spec pull requests (R107): the view reads the store only.
-  {
-    name: "specpr.view",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp("App page rendering only."),
-    handler({}) {
-      const store = this.store;
-      return { items: specPullView(store) };
-    },
-  },
-  {
-    name: "specpr.adopt",
-    class: "protect",
-    github: "spec-branch",
-    policy: person("Only a person presses Review as spec."),
-    handler: specprAdoptHandler,
-  },
-  {
-    name: "specpr.reject",
-    class: "protect",
-    github: "spec-branch",
-    policy: person("Only a person rejects a spec pull request."),
-    handler: specprAdoptHandler,
-  },
-  {
-    name: "specpr.requestChanges",
-    class: "protect",
-    github: "spec-branch",
-    policy: person("Only a person requests changes on a spec pull request."),
-    handler: specprAdoptHandler,
-  },
   // Publish issue (R102.2): a person's explicit act, never part of approval.
   {
     name: "spec.publish",
@@ -368,19 +51,14 @@ export const entries = [
 
       if (context.caller || context.mcp)
         fail("Only a person publishes a spec issue.", 403);
-      const { journal: _journal, ...published } = await publishSpec(store, {
+      return publishSpec(store, {
         github: this.github,
-        workspaceRoot: this.workspaceRoot,
         identity: planningIdentity(this.workspaceRoot),
         planId: input.planId,
         repository: input.repository,
-        actor: this.operator,
       });
-      return published;
     },
   },
-  // Take over a published spec's journal (R102.13, task 42.5): a person's
-  // own act; it writes the next generation and keeps the driver id here.
   // Set up a repository for landing (R89, task 42.7): a preview, applied
   // only with `confirm` (`--yes`) by a person.
   {
@@ -432,110 +110,6 @@ export const entries = [
       );
     },
   },
-  {
-    name: "spec.offer",
-    class: "execute",
-    github: "spec-issues",
-    policy: person("Only a person offers a task to a worker."),
-    handler: specOfferHandler,
-  },
-  {
-    name: "spec.grants",
-    class: "execute",
-    github: "worker-grants",
-    policy: person("Only a person reserves worker accepts."),
-    handler: specOfferHandler,
-  },
-  {
-    name: "spec.grants.release",
-    class: "execute",
-    github: "own-branch-delete",
-    policy: person("Only a person releases a worker accept."),
-    handler: specOfferHandler,
-  },
-  // Needs you's **Delete branches** (plugin-credentials §D7): grant
-  // branches own-branch-delete left, deleted as the high-risk branch-delete
-  // job after a person's Allow.
-  {
-    name: "spec.grants.branches.delete",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person deletes branches."),
-    async handler({ input }) {
-      const left = leftBranches(this.store),
-        wanted = left.filter(
-          (row) =>
-            row.repository === input.repository &&
-            (input.branches ?? []).includes(row.branch),
-        ),
-        deleted = [],
-        skipped = [];
-      for (const row of wanted)
-        try {
-          await withJob("branch-delete", () =>
-            this.github.deleteBranch(row.repository, row.branch),
-          );
-          deleted.push(row.branch);
-        } catch (error) {
-          skipped.push({ branch: row.branch, reason: error.message });
-        }
-      setLeftBranches(
-        this.store,
-        left.filter(
-          (row) =>
-            !(
-              row.repository === input.repository &&
-              deleted.includes(row.branch)
-            ),
-        ),
-      );
-      return { deleted, skipped };
-    },
-  },
-  {
-    name: "spec.grants.status",
-    class: "execute",
-    github: "worker-grants",
-    policy: person("Only a person reads worker accepts."),
-    handler: specOfferHandler,
-  },
-
-  {
-    name: "spec.takeover",
-    class: "execute",
-    github: "spec-issues",
-    policy: person("Only a person takes over a spec."),
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (context.caller || context.mcp)
-        fail("Only a person takes over a spec.", 403);
-      return takeOverSpec(
-        store,
-        {
-          github: this.github,
-          workspaceRoot: this.workspaceRoot,
-          actor: this.operator,
-        },
-        input.planId,
-      );
-    },
-  },
-  {
-    name: "spec.journal.reanchor",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person reanchors a spec journal."),
-    handler: specJournalReanchorHandler,
-  },
-  {
-    name: "spec.journal.resume",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person resumes a spec journal."),
-    handler: specJournalReanchorHandler,
-  },
-
   {
     name: "planning.publish",
     class: "protect",

@@ -2,13 +2,9 @@
 
 Person-only operations, such as approving a plan, changing plugins or reading
 content-rule terms, are refused for MCP calls and for app tokens. They do not
-stop code that runs as your user, so Avoozl adds a delegation grant and a
-sandbox around unattended sessions.
-
-```sh
-avoozl approval delegate claude
-avoozl plan approve NAME --delegate claude
-```
+stop code that runs as your user, so Avoozl adds a sandbox around unattended
+sessions. Approving a spec on GitHub is merging its pull request, which no
+Avoozl permission covers.
 
 ## Code running as you
 
@@ -16,7 +12,7 @@ Code that runs as your user can read the gateway's signing secret from another
 process, or call the CLI. The command line is a person's tool, so the CLI runs a
 person-only operation wherever it is typed, inside a Kiro Crew agent session
 too. There it prints that it ran in an agent session, and an approval made
-without a delegate records that in its receipt.
+there records that in its receipt.
 
 The CLI tells a session by `KIROCREW_SPAWNED=1` (set on every process Kiro Crew
 starts for an agent) or `KIRO_SESSION_ID` (set in an agent's shell). The one

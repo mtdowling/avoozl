@@ -509,11 +509,9 @@ test("seed with no name installs draft spec folders the CLI then lists", async (
     [...seeded.specs].sort(),
   );
   assert.equal((await cli(["seed"])).existing, true);
-  // Nothing is approved, so the graph holds no task; the drafts wait in
-  // approval order and the epic lists its member specs.
+  // Nothing is approved, so the graph holds no task, and the epic lists its
+  // draft member specs.
   assert.deepEqual(await cli(["query"]), []);
-  const batches = (await run(["plan", "batches"])).stdout;
-  for (const spec of seeded.specs) assert.match(batches, new RegExp(spec));
   const epics = await cli(["epics"]);
   assert.deepEqual(
     epics.items.map((epic) => [epic.id, epic.approved]),

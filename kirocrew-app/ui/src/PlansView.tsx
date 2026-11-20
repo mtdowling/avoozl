@@ -13,7 +13,7 @@ import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
 import NewFixDrawer from './NewFixDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
-import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
+import { DriverBanner, DriverChip, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
 import { rowDriverText } from './driver-api.ts'
 import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
@@ -83,8 +83,6 @@ import {
 import { SeverityBadges } from './ui/SeverityBadges.tsx'
 import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
-import { SpecPullBox } from './SpecPullBox.tsx'
-import { specPullClient, type SpecPull } from './spec-pr-api.ts'
 import {
   UNCATEGORIZED,
   approveBlocker,
@@ -103,12 +101,6 @@ import {
   planEventLine,
   type DeletePreview,
   type PlansClient,
-  batchNumbers,
-  missingOwners,
-  type ApprovalBatches,
-  type ApproveManyResult,
-  type BatchEntry,
-  type BatchSelection,
   progressPercent,
   specChip,
   SPEC_CHIP_LABEL,
@@ -483,6 +475,10 @@ function SpecDetail(props: {
   docsError: string | null
   spec: SpecSummary
   plan: SpecPlan | null
+  // The stored plan's ID, null for a folder never imported, and why reading
+  // it failed.
+  planId: string | null
+  planError: string | null
   preview: Preview | null
   graph: Graph | null
   busy: boolean
@@ -490,11 +486,6 @@ function SpecDetail(props: {
   // A ref chip on a task: its file's tab at its line.
   onOpenRef?: (ref: TaskRef) => void
   onReview?: () => void
-  // The spec's open pull request, adopted into it (R107.4).
-  pull?: SpecPull | null
-  workspaceId?: string | null
-  onApprovePull?: () => void
-  onPullChanged?: () => void
   // Retry for a summary that is not there: the page reads the plan again, and
   // runs a review when one can run.
   onRetrySummary?: () => void
@@ -517,11 +508,6 @@ function SpecDetail(props: {
     <Box css-gap="20" flex minW0 flexCol role="tabpanel" id="spec-tab-panel">
       {overview && (
         <>
-          {props.pull && props.workspaceId && (
-            <SpecCard title="Proposed change" id="avoozl-spec-pull">
-              <SpecPullBox pull={props.pull} workspaceId={props.workspaceId} onApprove={() => props.onApprovePull?.()} onChanged={() => props.onPullChanged?.()} />
-            </SpecCard>
-          )}
           <SpecCard
             title="Summary"
             actions={
@@ -534,6 +520,14 @@ function SpecDetail(props: {
           >
             {plan ? (
               <SpecAiSummary plan={plan} spec={spec} onRetry={props.onRetrySummary} />
+            ) : props.planId ? (
+              props.planError ? (
+                <ErrorText size="sm">{props.planError}</ErrorText>
+              ) : (
+                <Hint as="p" size="sm">
+                  Loading…
+                </Hint>
+              )
             ) : (
               <>
                 <Box as="p" size="sm">
@@ -854,7 +848,7 @@ function Now({ now }: { now: PlanRow['now'] }) {
 }
 
 // The Specs list's sort and filters: search, sort, status, what a spec
-// has, kind, batch, archived, epic and category. They sit in the left nav
+// has, kind, archived, epic and category. They sit in the left nav
 // under the open Specs section as Radar's Issues rail draws its own
 // (NavRail.tsx); the count stays on the page.
 const SORTS: RailSort<SpecSort>[] = [
@@ -872,7 +866,6 @@ const statusRank = (status: string) => STATUS_ORDER.indexOf(status) + 1 || STATU
 function PlanFilters(props: {
   filter: PlanListFilter
   rows: PlanRow[]
-  batches: number
   order: SpecOrder
   onOrder: (order: SpecOrder) => void
   onChange: (filter: PlanListFilter) => void
@@ -888,7 +881,6 @@ function PlanFilters(props: {
   // A row in a group of one choice: picking the one that is on clears it.
   const pick = <K extends keyof PlanListFilter>(key: K, value: PlanListFilter[K]) => set({ [key]: filter[key] === value ? undefined : value } as Partial<PlanListFilter>)
   const active = Object.keys(filter).length > 0
-  const kinds = new Set(props.rows.map((row) => row.kind))
   const categories = choices.categories.map((value) => ({ value, label: value, count: choices.categoryCounts.get(value) ?? 0 }))
   return (
     <>
@@ -948,17 +940,6 @@ function PlanFilters(props: {
             <RailRow label="Ready tasks" active={filter.has === 'ready'} onClick={() => pick('has', 'ready')} />
             <RailRow label="Running tasks" active={filter.has === 'running'} onClick={() => pick('has', 'running')} />
             <RailRow label="Tasks that need you" active={filter.has === 'needs-you'} onClick={() => pick('has', 'needs-you')} />
-            {kinds.has('old-style') && (
-              <>
-                <RailDivider />
-                <RailRow label="Spec folders" active={filter.kind === 'spec'} onClick={() => pick('kind', 'spec')} />
-                <RailRow label="Old-style specs" active={filter.kind === 'old-style'} onClick={() => pick('kind', 'old-style')} />
-              </>
-            )}
-            {props.batches > 0 && <RailDivider />}
-            {Array.from({ length: props.batches }, (_, at) => String(at + 1)).map((batch) => (
-              <RailRow key={batch} label={`Batch ${batch}`} active={filter.batch === batch} onClick={() => pick('batch', batch)} attrs={{ 'data-rail-batch': batch }} />
-            ))}
             <RailDivider />
             <RailRow label="Show archived" active={Boolean(filter.archived)} onClick={() => set({ archived: !filter.archived })} />
           </RailBlock>
@@ -1056,22 +1037,9 @@ function RowButtons(props: {
 // Every spec in one list (follows Kiro Crew's list-detail pattern): the
 // name, one status chip, the task count, the epic and where it lives.
 // Picking a row opens it in the detail column.
-// A draft spec in an approval batch shows its Batch chip and a checkbox to
-// pick it for Approve N specs.
-export function SpecList(props: {
-  rows: PlanRow[]
-  order?: SpecOrder
-  selected: string | null
-  onOpen: (row: PlanRow) => void
-  reset: string
-  batchOf?: Map<string, number>
-  checked?: Set<string>
-  onCheck?: (planId: string, on: boolean) => void
-}) {
+export function SpecList(props: { rows: PlanRow[]; order?: SpecOrder; selected: string | null; onOpen: (row: PlanRow) => void; reset: string }) {
   const sorted = sortRows(props.rows, props.order?.sort, props.order?.dir)
   const pages = usePages(props.reset)
-  const batchOf = props.batchOf ?? new Map<string, number>()
-  const picking = Boolean(props.onCheck) && props.rows.some((row) => row.planId && batchOf.has(row.planId))
   return (
     <>
       {sorted.some((row) => specChip(row) === 'draft') && (
@@ -1083,7 +1051,6 @@ export function SpecList(props: {
         {pages.take('specs', sorted).map((row) => {
           const chip = specChip(row)
           const selected = row.key === props.selected
-          const batch = row.planId ? batchOf.get(row.planId) : undefined
           const button = (
             <PlainButton
               type="button"
@@ -1142,32 +1109,12 @@ export function SpecList(props: {
                     </Box>
                   </>
                 )}
-                {row.pull && (
-                  <Tooltip text={`A pull request proposes a change to this spec: #${row.pull.number}${row.pull.draft ? ' (draft)' : ''}`}>
-                    <span data-spec-pr-chip="">
-                      <Badge variant="info">PR</Badge>
-                    </span>
-                  </Tooltip>
-                )}
-                {batch !== undefined && <Badge>Batch {batch}</Badge>}
                 {row.archived && <Badge>Archived</Badge>}
               </Hint>
             </PlainButton>
           )
           return (
             <Box key={row.key} as="li" css-border-color="border" flex items="center" gap="1" border="t" firstBorderT0>
-              {picking && (
-                <Box as="span" flex w6 shrink0 justify="center">
-                  {batch !== undefined && row.planId && (
-                    <Switch
-                      data-spec-check={row.planId}
-                      label={`Select ${row.name} to approve`}
-                      checked={props.checked?.has(row.planId) ?? false}
-                      onChange={(on) => props.onCheck?.(row.planId!, on)}
-                    />
-                  )}
-                </Box>
-              )}
               {chip === 'draft' ? (
                 <Box css-flex="1-1-0%" css-min-width="0">
                   <Tooltip text={SPEC_CHIP_LABEL.draft} display="block">
@@ -1207,16 +1154,23 @@ interface SpecActions {
   onDelete?: () => void
   onArchive?: () => void
   onUnarchive?: () => void
+  onPublish?: () => void
 }
 
 // The primary action: Import a folder Avoozl has not stored; Approve a draft
 // that can be approved; Open in Spec Builder for a draft that cannot yet;
-// Edit spec otherwise.
-export function primaryAction(row: Pick<PlanRow, 'status' | 'spec'>, plan: { state: string } | null, blocker: string | null): 'import' | 'approve' | 'spec-builder' | 'edit' {
+// Make the GitHub issues for an approved spec that has none; Edit spec
+// otherwise.
+export function primaryAction(
+  row: Pick<PlanRow, 'status' | 'spec'>,
+  plan: { state: string } | null,
+  blocker: string | null,
+  publish = false,
+): 'import' | 'approve' | 'spec-builder' | 'publish' | 'edit' {
   if (row.status === 'not imported') return 'import'
   if (plan && (plan.state === 'draft' || row.status === 'changed')) return blocker === null ? 'approve' : row.spec ? 'spec-builder' : 'edit'
   if (row.status === 'draft') return row.spec ? 'spec-builder' : 'edit'
-  return 'edit'
+  return publish ? 'publish' : 'edit'
 }
 
 function specMeta(row: PlanRow, plan: (SpecPlan & { createdAt?: string; updatedAt?: string }) | null): ReactNode[] {
@@ -1252,9 +1206,9 @@ function specMeta(row: PlanRow, plan: (SpecPlan & { createdAt?: string; updatedA
   return parts
 }
 
-function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecActions; busy: boolean; driver: ReactNode; handOff: ReactNode; flush: boolean }) {
+function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecActions; busy: boolean; driver: ReactNode; flush: boolean }) {
   const { row, plan, actions } = props
-  const primary = primaryAction(row, plan, actions.approveBlocker ?? null)
+  const primary = primaryAction(row, plan, actions.approveBlocker ?? null, Boolean(actions.onPublish))
   const id = row.planId ?? row.spec ?? row.key
   const primaryButton = {
     import: { label: 'Import', icon: Download, tooltip: 'Store this folder as a draft spec. Approves and starts nothing.', onClick: actions.onImport },
@@ -1264,6 +1218,12 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
       icon: FileText,
       tooltip: actions.approveBlocker ? `Not ready to approve: ${actions.approveBlocker}` : "Open this draft in Kiro Crew's Spec Builder",
       onClick: actions.onSpecBuilder,
+    },
+    publish: {
+      label: 'Make the GitHub issues',
+      icon: CirclePlus,
+      tooltip: "Make this spec's issue and its epic's issue on GitHub. Approving never does this.",
+      onClick: actions.onPublish,
     },
     edit: { label: 'Edit spec', icon: Pencil, tooltip: 'Start a planner chat that drafts a change to the spec files', onClick: actions.onEdit },
   }[primary]
@@ -1365,11 +1325,6 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
                 onClick={actions.onFolder}
               />
               <MenuItem icon={ExternalLink} label="Open on GitHub" tooltip={actions.github ? undefined : 'No GitHub repository holds this spec'} link={actions.github} />
-              {props.handOff && (
-                <Box data-keep-menu as="span" contents>
-                  {props.handOff}
-                </Box>
-              )}
               {actions.onArchive && <MenuItem icon={Archive} label="Archive" tooltip={ARCHIVE_TIP} onClick={actions.onArchive} />}
               {actions.onUnarchive && <MenuItem icon={ArchiveRestore} label="Unarchive" tooltip={UNARCHIVE_TIP} onClick={actions.onUnarchive} />}
               {actions.onDelete && <MenuItem icon={Trash2} label="Delete" danger tooltip="Delete this spec. You confirm first; it stays in history." onClick={actions.onDelete} />}
@@ -1424,18 +1379,7 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
   return (
     <RailSection title="Links" attrs={{ 'data-spec-links': '' }}>
       <Box as="dl" css-margin="0" flex flexCol gap="2">
-        {row(
-          'Spec issue',
-          links?.issue ? (
-            <GithubLink link={links.issue}>{scmLinkText(links.issue)}</GithubLink>
-          ) : links?.journal?.home === 'local' ? (
-            <Box as="span" css-color={muted}>
-              None; the journal is kept locally
-            </Box>
-          ) : (
-            none
-          ),
-        )}
+        {row('Spec issue', links?.issue ? <GithubLink link={links.issue}>{scmLinkText(links.issue)}</GithubLink> : none)}
         {row(
           'Working branch',
           list(
@@ -1520,6 +1464,8 @@ function SpecRail(props: {
   onRepositories?: () => void
   onDrill: (drill: Drill) => void
   onOpenTask: (id: string) => void
+  // The stored plan is still being read: Links waits for it.
+  planLoading: boolean
 }) {
   const { row, graph, docs, plan } = props
   const leaves = (graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
@@ -1599,7 +1545,7 @@ function SpecRail(props: {
           </Box>
         )}
       </RailSection>
-      {row.planId && <LinksSection links={plan?.links} loading={!plan} />}
+      {row.planId && <LinksSection links={plan?.links} loading={props.planLoading} />}
       <RailSection title="Phases" edit={edit('phases')}>
         {phaseList.length === 0 ? (
           <Box as="span" css-color={muted}>
@@ -1928,91 +1874,6 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   )
 }
 
-function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection | null; phone: boolean }) {
-  const columns = props.phone ? ['auto'] : ['auto', '8.5rem', '5rem']
-  return (
-    <Box data-approve-list css-border-color="border" overflow="x-auto" rounded="base" border="all">
-      <Box as="table" css-table-layout="fixed" css-border-collapse="collapse" css-min-width={props.phone ? undefined : '30rem'} wFull size="sm">
-        <colgroup>
-          {columns.map((width, at) => (
-            <Box key={at} as="col" css-width={width} />
-          ))}
-        </colgroup>
-        <thead>
-          <tr>
-            <Hint
-              as="th"
-              css-padding="6px-10px"
-              css-font-weight="600"
-              css-white-space="nowrap"
-              css-background="bg-elevated"
-              css-border-bottom="1px-solid-border"
-              css-text-align="left"
-            >
-              Spec
-            </Hint>
-            {!props.phone && (
-              <Hint
-                as="th"
-                css-padding="6px-10px"
-                css-font-weight="600"
-                css-white-space="nowrap"
-                css-background="bg-elevated"
-                css-border-bottom="1px-solid-border"
-                css-text-align="left"
-              >
-                Revision
-              </Hint>
-            )}
-            {!props.phone && (
-              <Hint
-                as="th"
-                css-padding="6px-10px"
-                css-font-weight="600"
-                css-white-space="nowrap"
-                css-background="bg-elevated"
-                css-border-bottom="1px-solid-border"
-                css-text-align="right"
-                css-font-variant-numeric="tabular-nums"
-              >
-                Tasks
-              </Hint>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {props.entries.map((entry) => {
-            const tip = props.phone ? `${entry.spec} · revision ${shortHash(entry.hash)} · ${entry.tasks} ${entry.tasks === 1 ? 'task' : 'tasks'}` : entry.spec
-            return (
-              <tr key={entry.id} data-approve-row={entry.id}>
-                <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-overflow="hidden">
-                  <Tooltip text={tip} display="block">
-                    <Box as="span" block truncate weight="medium">
-                      {entry.spec}
-                    </Box>
-                  </Tooltip>
-                </Box>
-                {!props.phone && (
-                  <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap">
-                    <Hint as="code" size="xs">
-                      {shortHash(entry.hash)}
-                    </Hint>
-                  </Box>
-                )}
-                {!props.phone && (
-                  <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-text-align="right" css-font-variant-numeric="tabular-nums">
-                    {entry.tasks}
-                  </Box>
-                )}
-              </tr>
-            )
-          })}
-        </tbody>
-      </Box>
-    </Box>
-  )
-}
-
 // While an Approve dialog is open, run `read` now and every REVIEW_POLL_MS.
 // It reads Avoozl's own database only, never GitHub. A read still running
 // skips the next tick.
@@ -2057,7 +1918,6 @@ export function ApproveSpecDialog(props: {
   const diffs = showDiff && base ? revisionDiff(base.files, plan.files) : []
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState<{ repository: string; number: number; adopted?: boolean } | null>(null)
   const shown = useRef({ plan, review })
   shown.current = { plan, review }
   // Swap to the stored revision when it moved from the one on screen. The
@@ -2084,7 +1944,6 @@ export function ApproveSpecDialog(props: {
     try {
       const result = await client.approve(workspaceId, plan.id, plan.hash)
       if ('changed' in result) await update()
-      else if (result.pending && result.approvalPullRequest) setPending(result.approvalPullRequest)
       else props.onDone(`Approved ${plan.spec || plan.title}.`)
     } catch (caught) {
       setError(errorMessage(caught))
@@ -2099,18 +1958,14 @@ export function ApproveSpecDialog(props: {
       width="36rem"
       height="34rem"
       backLabel="Cancel"
-      dismissLabel={pending ? 'Close' : 'Cancel'}
+      dismissLabel="Cancel"
       focusClose
       attrs={{ 'data-approve-spec': true }}
       onDismiss={() => props.onDone(null)}
       footer={
-        <>
-          {!pending && (
-            <SmallBtn primary disabled={busy} onClick={() => void run()} attrs={{ 'data-approve-spec-go': true }}>
-              Approve spec
-            </SmallBtn>
-          )}
-        </>
+        <SmallBtn primary disabled={busy} onClick={() => void run()} attrs={{ 'data-approve-spec-go': true }}>
+          Approve spec
+        </SmallBtn>
       }
     >
       <Box flex flexCol gap="3" size="sm">
@@ -2138,7 +1993,7 @@ export function ApproveSpecDialog(props: {
               <code>{shortHash(plan.hash)}</code>
             </Tooltip>
           )}
-          . Review findings are evidence for your decision; they do not block approval.
+          . Approving commits it to main as you. Review findings are evidence for your decision; they do not block approval.
         </Hint>
         {change && <RevisionChanged change={change} />}
         {showDiff && base && (
@@ -2174,224 +2029,6 @@ export function ApproveSpecDialog(props: {
             {error}
           </ErrorText>
         )}
-        {pending?.adopted && (
-          <Box role="status" as="p" m0 data-spec-pull-approved>
-            Approved for merge. Avoozl merges{' '}
-            <TextLink href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">
-              {pending.repository}#{pending.number}
-            </TextLink>{' '}
-            when its checks pass, then records the approval.
-          </Box>
-        )}
-        {pending && !pending.adopted && (
-          <Box role="status" as="p" m0>
-            Nothing approved yet. Merge{' '}
-            <TextLink href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">
-              {pending.repository}#{pending.number}
-            </TextLink>
-            , then approve again.
-          </Box>
-        )}
-      </Box>
-    </Modal>
-  )
-}
-
-// Approve N specs: the exact revisions listed, together, all or none.
-export function ApproveSpecsDialog(props: {
-  workspaceId: string
-  entries: BatchEntry[]
-  client: PlansClient
-  onDone: (text: string | null) => void
-  onOpenReview?: (planId: string, rev: string) => void
-}) {
-  // Each spec can move while the dialog is open; that entry updates in place
-  // and Approve sends the revisions on screen (R104.13).
-  const [entries, setEntries] = useState(props.entries)
-  const [reviews, setReviews] = useState<Record<string, ReviewSummary | null>>({})
-  const [changes, setChanges] = useState<Record<string, RevisionChange>>({})
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<ApproveManyResult | null>(null)
-  // Each spec's issue writes, from a scratch approval. Writes nothing.
-  const [selection, setSelection] = useState<BatchSelection | null>(null)
-  const phone = usePhone()
-  const shown = useRef({ entries, reviews, selection })
-  shown.current = { entries, reviews, selection }
-  const reviewOf = (entry: BatchEntry) => reviews[entry.id] ?? selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review
-  useEffect(() => {
-    let live = true
-    props.client
-      .selection(
-        props.workspaceId,
-        entries.map((entry) => entry.id),
-      )
-      .then(
-        (value) => live && setSelection(value),
-        () => undefined,
-      )
-    return () => {
-      live = false
-    }
-    // Read once on open; a moved spec reads it again in update().
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  // Swap each moved spec to its stored revision, with what changed. The
-  // Approve button resets, so approving takes a new click.
-  const update = async (ids: string[], next: Record<string, ReviewSummary | null>) => {
-    const was = shown.current
-    const [picked, ...fresh] = await Promise.all([
-      props.client
-        .selection(
-          props.workspaceId,
-          was.entries.map((entry) => entry.id),
-        )
-        .catch(() => null),
-      ...ids.map((id) => props.client.get(props.workspaceId, id)),
-    ])
-    const moved: Record<string, RevisionChange> = {}
-    const byId = new Map(fresh.map((plan) => [plan.id, plan]))
-    for (const entry of was.entries) {
-      const plan = byId.get(entry.id)
-      if (!plan || plan.hash === entry.hash) continue
-      const before = plan.history?.find((revision) => revision.hash === entry.hash)?.files
-      moved[entry.id] = revisionChange(
-        { hash: entry.hash, files: before, review: was.reviews[entry.id] ?? entry.review },
-        { hash: plan.hash, files: plan.files, review: next[entry.id] },
-      )
-    }
-    if (picked) setSelection(picked)
-    setEntries((list) =>
-      list.map((entry) => {
-        const plan = byId.get(entry.id)
-        if (!plan || !moved[entry.id]) return entry
-        const listed = picked?.specs.find((spec) => spec.id === entry.id)
-        return { ...entry, ...(listed ?? {}), hash: plan.hash }
-      }),
-    )
-    setChanges((all) => ({ ...all, ...moved }))
-    if (Object.keys(moved).length) {
-      setResult(null)
-      setError(null)
-    }
-  }
-  // Re-read each spec's stored review; returns the specs whose revision moved.
-  const read = async () => {
-    const was = shown.current.entries
-    const next = Object.fromEntries(
-      await Promise.all(was.map(async (entry) => [entry.id, await props.client.reviewSummary(props.workspaceId, entry.id).catch(() => null)] as const)),
-    )
-    const ids = was.filter((entry) => next[entry.id]?.planHash && next[entry.id]!.planHash !== entry.hash).map((entry) => entry.id)
-    if (ids.length) await update(ids, next)
-    setReviews((all) => ({ ...all, ...Object.fromEntries(Object.entries(next).filter(([, value]) => value)) }))
-    return ids
-  }
-  useOpenDialogReads(read)
-  const missing = missingOwners(entries)
-  const tasks = entries.reduce((sum, entry) => sum + entry.tasks, 0)
-  const label = `Approve ${entries.length} ${entries.length === 1 ? 'spec' : 'specs'}`
-  const run = async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      const done = await props.client.approveMany(
-        props.workspaceId,
-        entries.map((entry) => ({ id: entry.id, expectedHash: entry.hash })),
-      )
-      if (done.ok) props.onDone(`Approved ${entries.length} ${entries.length === 1 ? 'spec' : 'specs'}.`)
-      // A spec that moved shows its update instead of an error. A move
-      // between that check and the call reads the same way; any other
-      // refusal fails the batch as before.
-      else if (done.changed?.length) await read()
-      else if (done.pending || !(await read()).length) setResult(done)
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(false)
-    }
-  }
-  const finished = Boolean(result?.pending)
-  return (
-    <Modal
-      id="avoozl-approve-specs"
-      width="36rem"
-      height="34rem"
-      title={label}
-      backLabel="Cancel"
-      dismissLabel={finished ? 'Close' : 'Cancel'}
-      focusClose
-      attrs={{ 'data-approve-specs': result ? (result.pending ? 'pending' : 'failed') : 'confirm' }}
-      onDismiss={() => props.onDone(finished ? 'Nothing approved yet. Merge the approval pull request, then approve again.' : null)}
-      footer={
-        <>
-          {!finished && (
-            <SmallBtn primary disabled={busy || entries.length === 0} onClick={() => void run()} attrs={{ 'data-approve-specs-go': true }}>
-              {label}
-            </SmallBtn>
-          )}
-        </>
-      }
-    >
-      <Box flex flexCol gap="3" size="sm">
-        <Hint as="p" flush>
-          {entries.length} {entries.length === 1 ? 'spec' : 'specs'}, {tasks} {tasks === 1 ? 'task' : 'tasks'}. Each revision below is approved exactly as shown, or none are.
-        </Hint>
-        {missing.length > 0 && (
-          <Box role="note" data-approve-missing as="p" css-color="warning-text" m0>
-            These need specs from an earlier batch that are still drafts: {missing.join(', ')}.
-          </Box>
-        )}
-        {error && (
-          <ErrorText role="alert" flush>
-            {error}
-          </ErrorText>
-        )}
-        {result?.pending && (
-          <Stack role="status" gap={1}>
-            <Box as="p" m0>
-              Nothing approved yet. These specs are approved through a pull request. Merge it, then approve again:
-            </Box>
-            {result.approvalPullRequests?.map((pull) => (
-              <TextLink key={pull.number} href={safeHref(`https://github.com/${pull.repository}/pull/${pull.number}`) ?? undefined} target="_blank" rel="noreferrer">
-                {pull.repository}#{pull.number} ({pull.specs.length} specs)
-              </TextLink>
-            ))}
-          </Stack>
-        )}
-        {result && !result.pending && (
-          <Stack role="alert" gap={1}>
-            <ErrorText flush>Nothing approved. These specs failed:</ErrorText>
-            <Box as="ul" css-list-style="disc" m0 flex flexCol gap="1" pl="5">
-              {result.failures.map((failure) => (
-                <li key={failure.id}>
-                  <Box as="span" weight="medium">
-                    {failure.spec ?? failure.id}
-                  </Box>
-                  : {failure.error}
-                </li>
-              ))}
-            </Box>
-          </Stack>
-        )}
-        <ApproveTable entries={entries} selection={selection} phone={phone} />
-        <Hint as="p" flush>
-          Review findings are evidence for your decision; they do not block approval.
-        </Hint>
-        {entries.map((entry) => (
-          <Box key={entry.id} data-approve-review={entry.id} as="section" css-border-color="border" flex minW0 flexCol gap="2" border="t" pt="2">
-            <Box as="h3" m0 size="sm" weight="medium">
-              {entry.spec}
-            </Box>
-            {changes[entry.id] && <RevisionChanged change={changes[entry.id]} />}
-            <PlanReviewSummary
-              key={`${props.workspaceId}:${entry.id}:${entry.hash}`}
-              onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)}
-              review={reviewOf(entry)}
-              reviewHref={reviewHref(window.location.pathname, entry.id, entry.hash)}
-              onOpenReview={props.onOpenReview && (() => props.onOpenReview!(entry.id, entry.hash))}
-            />
-          </Box>
-        ))}
       </Box>
     </Modal>
   )
@@ -2443,54 +2080,19 @@ export default function PlansView(props: {
   }, [props.newPlanRequest])
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
-  // Draft specs' approval batches, read again whenever the table loads.
-  const [batches, setBatches] = useState<ApprovalBatches | null>(null)
-  const [checked, setChecked] = useState<Set<string>>(new Set())
-  const [approving, setApproving] = useState<{ workspaceId: string; entries: BatchEntry[] } | null>(null)
-  // Adopted spec pull requests, read again whenever the table loads (R107.4).
-  const [pulls, setPulls] = useState<SpecPull[]>([])
-  useEffect(() => {
-    if (!workspace || !table) return
-    let live = true
-    specPullClient(api)
-      .view(workspace)
-      .then(
-        (items) => live && setPulls(items),
-        () => live && setPulls([]),
-      )
-    return () => {
-      live = false
-    }
-  }, [workspace, table, api])
-  useEffect(() => {
-    if (!workspace || !table) return
-    let live = true
-    plans.batches(workspace).then(
-      (value) => {
-        if (!live) return
-        setBatches(value)
-        // A spec that left the drafts can't stay picked.
-        const ids = batchNumbers(value)
-        setChecked((previous) => new Set([...previous].filter((id) => ids.has(id))))
-      },
-      () => live && setBatches(null),
-    )
-    return () => {
-      live = false
-    }
-  }, [workspace, table, plans])
   // Opening a plan is a Back step; Back from another tab reopens it.
   const [selected, openPlan, setSelected] = useSteppedState<string | null>('plans-selected', 'select', (previous) => (previous ? 'Back to the spec' : 'Back to all specs'), null)
   const shownWorkspace = useRef(workspace)
   const [filter, setFilter] = useState<PlanListFilter>({})
   const [order, setOrder] = useState<SpecOrder>({ sort: 'name', dir: 'asc' })
   const [plan, setPlan] = useState<SpecPlan | null>(null)
+  // Why the open spec's stored plan could not be read, so nothing waits on it.
+  const [planError, setPlanError] = useState<string | null>(null)
   const [singleApproval, setSingleApproval] = useState<{ workspaceId: string; plan: SpecPlan } | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [docs, setDocs] = useState<SpecDocuments | null>(null)
   const [docsError, setDocsError] = useState<string | null>(null)
   const [planGraph, setPlanGraph] = useState<Graph | null>(null)
-  const [text, setText] = useState<{ text: string | null; error: string | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // Bumped once the workspace's extra grammars load, so code redraws.
@@ -2519,8 +2121,6 @@ export default function PlansView(props: {
       shownWorkspace.current = workspace
       setSelected(null)
       setSingleApproval(null)
-      setApproving(null)
-      setChecked(new Set())
     }
     if (!workspace) return
     void load(workspace)
@@ -2625,7 +2225,7 @@ export default function PlansView(props: {
     if (found) setSelected(found.key)
     placeReview(reviewPlace(planId, { rev }))
   }
-  // Who drives the open spec (§6.10): the chip, banner and Hand off.
+  // Who drives the open spec (§6.10): the chip and the read-only banner.
   const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
   // The open spec's review, shared by the Overview and its document tabs. A
@@ -2645,8 +2245,15 @@ export default function PlansView(props: {
     async (workspaceId: string, planId: string | null) => {
       setPlan(null)
       setPreview(null)
+      setPlanError(null)
       if (!planId) return
-      const [stored, shown] = await Promise.all([plans.get(workspaceId, planId), plans.preview(workspaceId, planId).catch(() => null)])
+      const [stored, shown] = await Promise.all([
+        plans.get(workspaceId, planId).catch((caught: unknown) => {
+          setPlanError(errorMessage(caught))
+          return null
+        }),
+        plans.preview(workspaceId, planId).catch(() => null),
+      ])
       setPlan(stored)
       setPreview(shown)
     },
@@ -2680,7 +2287,6 @@ export default function PlansView(props: {
   useEffect(() => {
     setDocs(null)
     setDocsError(null)
-    setText(null)
     setPlanGraph(null)
     if (!workspace || !row) return
     let live = true
@@ -2693,11 +2299,6 @@ export default function PlansView(props: {
       plans.documents(workspace, row.spec).then(
         (value) => live && setDocs(value),
         (caught: unknown) => live && setDocsError(errorMessage(caught)),
-      )
-    else if (row.planId)
-      plans.text(workspace, row.planId).then(
-        (value) => live && setText({ text: value, error: null }),
-        (caught: unknown) => live && setText({ text: null, error: errorMessage(caught) }),
       )
     return () => {
       live = false
@@ -2737,11 +2338,16 @@ export default function PlansView(props: {
       setNotice(`Unarchived ${next.name}. ${done.released} tasks may start again; ${done.decisions} decisions closed.`)
       return { id: next.planId! }
     })
-  const batchOf = batchNumbers(batches)
-  const rows = table ? filterRows(table.items, filter, batchOf) : []
-  const pickable = rows.flatMap((item) => (item.planId && batchOf.has(item.planId) ? [item.planId] : []))
-  const allPicked = pickable.length > 0 && pickable.every((id) => checked.has(id))
-  const entries = (batches?.batches ?? []).flatMap((batch) => batch.specs).filter((entry) => checked.has(entry.id))
+  const rows = table ? filterRows(table.items, filter) : []
+  // Make the GitHub issues (R102.2): an approved spec with no spec issue yet,
+  // in a workspace that uses GitHub. Never automatic.
+  const publish = (next: PlanRow, repository: string | null) =>
+    next.planId &&
+    act(async (workspaceId) => {
+      const done = await plans.publish(workspaceId, next.planId!, repository)
+      setNotice(done.number ? `Made the GitHub issues for ${next.name}: ${done.repository}#${done.number}.` : `${next.name} has its issues already.`)
+      return { id: next.planId! }
+    })
   const specActions = (row: PlanRow): SpecActions => {
     const actions = rowActions(row)
     const blocker = approveBlocker(plan)
@@ -2763,6 +2369,7 @@ export default function PlansView(props: {
       onDelete: actions.deletable ? () => setDeleting(row) : undefined,
       onArchive: actions.archivable ? () => setArchiving(row) : undefined,
       onUnarchive: actions.unarchivable ? () => unarchive(row) : undefined,
+      onPublish: specHome && specHome.mode !== 'local' && plan?.state === 'approved' && !plan.links?.issue && workspace ? () => publish(row, home) : undefined,
     }
   }
 
@@ -2776,17 +2383,7 @@ export default function PlansView(props: {
     plan && row?.planId
       ? { review: specReview, place: reviewing ? { ...reviewing, file: shownTab } : reviewPlace(row.planId, { file: shownTab }), onPlace: placeReview }
       : undefined
-  const specHeader = row ? (
-    <SpecHeader
-      row={row}
-      plan={plan}
-      busy={busy}
-      flush={phone}
-      driver={<DriverChip spec={driver.spec} />}
-      handOff={workspace ? <HandOffButton workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} /> : null}
-      actions={specActions(row)}
-    />
-  ) : null
+  const specHeader = row ? <SpecHeader row={row} plan={plan} busy={busy} flush={phone} driver={<DriverChip spec={driver.spec} />} actions={specActions(row)} /> : null
   // The specs list column.
   const specList = (
     <Stack gap={3} data-plans-list-pane>
@@ -2799,46 +2396,11 @@ export default function PlansView(props: {
         Specs
       </ViewHeading>
       {table && table.items.length > 0 && (
-        <PlanFilters filter={filter} rows={table.items} batches={batches?.batches.length ?? 0} order={order} onOrder={setOrder} onChange={setFilter}>
+        <PlanFilters filter={filter} rows={table.items} order={order} onOrder={setOrder} onChange={setFilter}>
           <Hint size="xs" role="status">
             {rows.length} of {table.items.length} specs
           </Hint>
         </PlanFilters>
-      )}
-      {pickable.length > 0 && (
-        <Box flex flexWrap items="center" gap="2" px="1" data-approve-bar>
-          <Box as="label" flex items="center" gap="2" size="sm">
-            <Checkbox
-              data-select-shown
-              checked={allPicked}
-              ref={(el) => {
-                if (el) el.indeterminate = !allPicked && pickable.some((id) => checked.has(id))
-              }}
-              onChange={(event) =>
-                setChecked((previous) => {
-                  const next = new Set(previous)
-                  for (const id of pickable) {
-                    if (event.target.checked) next.add(id)
-                    else next.delete(id)
-                  }
-                  return next
-                })
-              }
-            />
-            Select all shown
-          </Box>
-          <Box as="span" flex1 />
-          <SmallBtn
-            primary
-            disabled={entries.length === 0 || busy}
-            onClick={() => {
-              if (workspace) setApproving({ workspaceId: workspace, entries })
-            }}
-            attrs={{ 'data-approve-specs-open': true }}
-          >
-            Approve {entries.length} {entries.length === 1 ? 'spec' : 'specs'}
-          </SmallBtn>
-        </Box>
       )}
       <Stack gap={2} data-plans-list>
         {table === null ? (
@@ -2850,23 +2412,7 @@ export default function PlansView(props: {
             No specs yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New spec to start one.
           </Hint>
         ) : rows.length ? (
-          <SpecList
-            rows={rows}
-            selected={row?.key ?? null}
-            onOpen={open}
-            order={order}
-            reset={JSON.stringify(filter)}
-            batchOf={batchOf}
-            checked={checked}
-            onCheck={(id, on) =>
-              setChecked((previous) => {
-                const next = new Set(previous)
-                if (on) next.add(id)
-                else next.delete(id)
-                return next
-              })
-            }
-          />
+          <SpecList rows={rows} selected={row?.key ?? null} onOpen={open} order={order} reset={JSON.stringify(filter)} />
         ) : (
           <Hint as="p" size="sm">
             No spec matches these filters.
@@ -2884,6 +2430,7 @@ export default function PlansView(props: {
     <SpecRail
       row={row}
       plan={plan}
+      planLoading={!plan && !planError}
       graph={planGraph}
       docs={docs}
       onEdit={() => change(row)}
@@ -2906,8 +2453,7 @@ export default function PlansView(props: {
       >
         <Box id="avoozl-plan-main" css-gap="20" css-scroll-margin-top="48" flex minW0 flexCol>
           <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
-          {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
-          <SetupList spec={driver.spec} />
+          <DriverBanner spec={driver.spec} />
           {row.categoryProblem && (
             <Hint as="p" size="sm">
               <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
@@ -2919,6 +2465,8 @@ export default function PlansView(props: {
               docsError={docsError}
               spec={spec}
               plan={plan}
+              planId={row.planId}
+              planError={planError}
               preview={preview}
               graph={planGraph}
               busy={busy}
@@ -2926,10 +2474,6 @@ export default function PlansView(props: {
               onOpenRef={openRef}
               onRetrySummary={retrySummary}
               onReview={row.planId ? () => placeReview(reviewPlace(row.planId!)) : undefined}
-              pull={pulls.find((pull) => pull.spec === row.spec) ?? null}
-              workspaceId={workspace}
-              onApprovePull={() => workspace && plan && setSingleApproval({ workspaceId: workspace, plan })}
-              onPullChanged={() => workspace && void load(workspace)}
               tab={shownTab}
               details={<SpecDetailsBox>{specRail}</SpecDetailsBox>}
               onTasks={() => pickTab('tasks')}
@@ -2937,32 +2481,7 @@ export default function PlansView(props: {
               onCurrentReview={() => pickTab('overview')}
               onOpenFinding={(finding) => row.planId && placeReview({ ...(reviewing ?? reviewPlace(row.planId)), file: finding.anchor.file, finding: finding.id })}
             />
-          ) : (
-            <>
-              <SpecCard title="Summary">
-                <Hint as="p" size="xs">
-                  <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
-                </Hint>
-                <Box mt="2">
-                  {!text ? (
-                    <Hint as="p" size="sm">
-                      Loading…
-                    </Hint>
-                  ) : text.error ? (
-                    <ErrorText size="sm">{text.error}</ErrorText>
-                  ) : text.text ? (
-                    <Markdown text={text.text} measure={PROSE_MEASURE} />
-                  ) : (
-                    <Hint as="p" size="sm">
-                      This spec has no text.
-                    </Hint>
-                  )}
-                </Box>
-              </SpecCard>
-              <SpecDetailsBox>{specRail}</SpecDetailsBox>
-              <PhaseTasks graph={planGraph} onOpenTask={(id) => drawer.openTask(id)} />
-            </>
-          )}
+          ) : null}
         </Box>
       </Box>
     </>
@@ -3011,26 +2530,6 @@ export default function PlansView(props: {
             setArchiving(null)
             if (text === null) return
             setNotice(text)
-            void load(workspace)
-          }}
-        />
-      )}
-      {approving && approving.workspaceId === workspace && (
-        <ApproveSpecsDialog
-          key={approving.workspaceId}
-          workspaceId={approving.workspaceId}
-          entries={approving.entries}
-          client={plans}
-          onOpenReview={(planId, rev) => {
-            setApproving(null)
-            openReview(planId, rev)
-          }}
-          onDone={(text) => {
-            if (shownWorkspace.current !== approving.workspaceId) return
-            setApproving(null)
-            if (text === null) return
-            setNotice(text)
-            setChecked(new Set())
             void load(workspace)
           }}
         />

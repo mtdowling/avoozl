@@ -93,7 +93,6 @@ export function noActionReason(item: ConflictItem): string | null {
   // Findings and Ready to merge carry their own actions (ConflictsView.tsx).
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'branch-landing') return null
   if (item.kind === 'tick-failed') return 'Fix the error shown. Avoozl runs the tick again by itself, and this row clears after the first tick that works.'
-  if (item.kind === 'spec-pull') return null
   // The Crew Mode hold carries its own button (ConflictsView.tsx).
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return 'Discuss it, mark it done, or move it back to planned from the task.'

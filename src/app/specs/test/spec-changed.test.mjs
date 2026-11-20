@@ -8,7 +8,6 @@ import test from "node:test";
 import { diffSpec as diffFolded } from "../spec-changed.mjs";
 import {
   BATCH_SPEC,
-  COMMIT,
   approvedSpec,
   workspace,
 } from "../../test/projection-fixture.mjs";
@@ -85,11 +84,6 @@ async function reapprove(context, overrides) {
     id: plan.id,
     expectedHash: saved.hash,
     expectedRevision: store.read().revision,
-  });
-  store.setMeta(`spec-approval:${plan.id}:${saved.hash}`, {
-    state: "merged",
-    commit: COMMIT,
-    approvedBy: "octocat",
   });
   return saved;
 }

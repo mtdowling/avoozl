@@ -1,11 +1,11 @@
 import { PlanningFlow } from '../../src/PlanningFlow.tsx'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import PlansView, { ApproveSpecDialog, ApproveSpecsDialog } from '../../src/PlansView.tsx'
+import PlansView, { ApproveSpecDialog } from '../../src/PlansView.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import { answer } from './stubs.tsx'
-import type { BatchEntry, PlanReviewSummary, PlansClient, SpecPlan } from '../../src/plans-api.ts'
+import type { PlanReviewSummary, PlansClient, SpecPlan } from '../../src/plans-api.ts'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') ?? 'light'
@@ -73,19 +73,7 @@ const summary = (state: string, at = hash): PlanReviewSummary => {
   }
 }
 const states = ['done', 'older', 'running', 'skipped', 'not-reviewed']
-const entries: BatchEntry[] = states.map((state) => ({
-  id: state,
-  spec: `fixture-${state}`,
-  title: `Fixture ${state}`,
-  hash,
-  batch: 1,
-  tasks: 1,
-  errors: 0,
-  loop: false,
-  needs: [],
-  review: summary(state),
-}))
-const reviews = new Map(entries.map((entry) => [entry.id, entry.review!]))
+const reviews = new Map(states.map((state) => [state, summary(state)]))
 // A pass at its rounds cap: the round reviewed an older revision (R104.14).
 reviews.set('capped', { ...summary('older'), canReviewAnyway: true, capped: true })
 ;(window as unknown as { __summaryReads: string[] }).__summaryReads = []
@@ -119,13 +107,6 @@ const client = {
     ;(window as unknown as { __summaryReads: string[] }).__summaryReads.push(id)
     return { ...reviews.get(id)!, planHash: hashOf(id) }
   },
-  selection: async () => ({
-    ok: true,
-    specs: entries.map((entry) => ({ ...entry, hash: hashOf(entry.id), tasks: hashOf(entry.id) === movedHash ? 2 : 1 })),
-    writes: 0,
-    failures: [],
-    missing: [],
-  }),
   approve: async (_workspace: string, id: string, expectedHash: string) => {
     if (hashOf(id) !== expectedHash) {
       calls.push({ operation: 'plan.preview', id })
@@ -133,15 +114,6 @@ const client = {
     }
     calls.push({ operation: 'plan.approve', id, expectedHash })
     return { id, hash: expectedHash }
-  },
-  approveMany: async (_workspace: string, items: { id: string; expectedHash: string }[]) => {
-    const changed = items.filter((item) => hashOf(item.id) !== item.expectedHash)
-    if (changed.length) {
-      calls.push({ operation: 'plan.preview', ids: changed.map((item) => item.id) })
-      return { ok: false, failures: [], changed: changed.map((item) => ({ id: item.id, preview: { reviewedHash: hashOf(item.id) } })) }
-    }
-    calls.push({ operation: 'plan.approveMany', items })
-    return { ok: true, failures: [] }
   },
 } as unknown as PlansClient
 // Both workspaces deliberately have the same IDs and hash: an approval must
@@ -181,18 +153,11 @@ answer('plan.table', () => ({
 }))
 answer('plan.get', () => sharedPlan)
 answer('plan.preview', () => ({ reviewedHash: hash, expectedRevision: 1, tasks: [], dependencies: [] }))
-const sharedEntry = { id: sharedPlan.id, spec: sharedPlan.spec, title: sharedPlan.title, hash, batch: 1, tasks: 1, errors: 0, loop: false, needs: [], review: summary('skipped') }
-answer('plan.approvalBatches', () =>
-  query.get('mode') === 'workspace-batch'
-    ? { batches: [{ batch: 1, specs: [sharedEntry] }], selection: { ok: true, specs: [sharedEntry], writes: 0, failures: [], missing: [] } }
-    : { batches: [] },
-)
 answer('plan.review.decide', (body) => {
   calls.push(body)
   return {}
 })
-// The same review the batch entry carries, as the backend would read it.
-answer('plan.reviewSummary', () => summary(query.get('mode') === 'workspace-batch' ? 'skipped' : 'done'))
+answer('plan.reviewSummary', () => summary('done'))
 answer('plan.approve', (body) => {
   calls.push(body)
   return { id: sharedPlan.id, hash }
@@ -234,15 +199,7 @@ function Harness() {
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <NavHistoryProvider>
-        {open ? (
-          query.get('mode') === 'batch' ? (
-            <ApproveSpecsDialog workspaceId="w" entries={entries} client={client} onDone={done} onOpenReview={openReview} />
-          ) : (
-            <ApproveSpecDialog workspaceId="w" plan={plan} client={client} onDone={done} onOpenReview={openReview} />
-          )
-        ) : (
-          <p data-dialog-closed>Closed</p>
-        )}
+        {open ? <ApproveSpecDialog workspaceId="w" plan={plan} client={client} onDone={done} onOpenReview={openReview} /> : <p data-dialog-closed>Closed</p>}
       </NavHistoryProvider>
     </div>
   )

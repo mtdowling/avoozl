@@ -10,7 +10,6 @@ import { Store } from "../../store/store.mjs";
 import { integrateVerified } from "../../delivery/delivery.mjs";
 import { landDirect } from "../../landing/direct-landing.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { takeOverSpec } from "../spec-takeover.mjs";
 import { tickedText } from "../spec-ticks.mjs";
 import { checkedItems, specHash } from "../spec-plans.mjs";
 import { observationsForTask } from "../../flow/build-receipt-read.mjs";
@@ -133,13 +132,6 @@ async function workspace(t, { specInCode = true } = {}) {
     approvalId: "a",
     mapping: MAPPING,
   });
-  store.put("receipts", {
-    id: "spec-journal:s",
-    kind: "spec-journal",
-    planId: "s",
-    home: "local",
-  });
-  await takeOverSpec(store, { workspaceRoot: root, actor: "Operator" }, "s");
   return { root, store, ...app };
 }
 

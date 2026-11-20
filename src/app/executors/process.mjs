@@ -599,7 +599,7 @@ export async function finishProcessSession(ops, binding, result, store = null) {
     );
   }
   // A plan-less worker's task is not in a plan: its own runner reads HEAD,
-  // runs the checks and pushes (R90.2).
+  // runs the checks and pushes.
   if (store && hasRemoteTask(store, binding.taskId))
     return ops.execute(
       "remote.report",

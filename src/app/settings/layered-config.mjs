@@ -331,11 +331,11 @@ export function globalAvoozlConfigPath({
 }
 
 // Runner mode over SSH was removed; a file that still names its roles is
-// refused, naming the key and the replacement (worker-paths WP5.4).
+// refused, naming the key (worker-paths WP5.2).
 function validateRunnerRole(runner) {
   if (["runner", "driver"].includes(runner?.role))
     throw Error(
-      `runner.role "${runner.role}" was removed. Set runner.role to "worker": the machine's tick pulls its work (avoozl worker pull).`,
+      `runner.role "${runner.role}" was removed. Remove runner.role; the only role left is "worker".`,
     );
 }
 

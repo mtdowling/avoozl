@@ -1,10 +1,9 @@
 // The instance name on the page: the header always shows it, every other
-// surface only once a second instance exists, and the handoff line reads the
-// way the owner wrote it.
+// surface only once a second instance exists.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { handoffLine, instanceClient, nameFor, validName } from '../src/instance-api.ts'
+import { instanceClient, nameFor, validName } from '../src/instance-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const one = { id: 'inst-0123456789ab', name: 'Mira', others: [], shared: false }
@@ -15,12 +14,6 @@ test('one instance is quiet: header only; two show the name elsewhere', () => {
   assert.equal(nameFor(one, 'other'), null)
   assert.equal(nameFor(two, 'other'), 'Mira')
   assert.equal(nameFor(null, 'header'), null)
-})
-
-test('the handoff line names the instance, and only when it is not quiet', () => {
-  assert.equal(handoffLine(two, 'Juno'), 'Mira hands the driver role to Juno.')
-  assert.equal(handoffLine(two), 'Mira hands the driver role over.')
-  assert.equal(handoffLine(one, 'Juno'), null)
 })
 
 test('a name is short, plain, and never an ID', () => {
@@ -43,5 +36,4 @@ test('the brand card, Home and the side panel use the shared helper', () => {
   assert.match(source('Driver.tsx'), /<InstanceNickname workspaceId=/)
   assert.match(source('DashboardView.tsx'), /nameFor\(instance, 'other'\)/)
   assert.match(source('Panel.tsx'), /nameFor\(instance, 'header'\)/)
-  assert.match(source('Driver.tsx'), /handoffLine\(/)
 })

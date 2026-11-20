@@ -6,8 +6,7 @@
 //   for its base (`enqueueLanding`). Nothing lands locally.
 // - Each tick takes the head of each queue one step (`landNext` with
 //   `pullSteps`): open or reuse the pull request, wait for its required
-//   checks and reviews on that exact head, write the intent in the spec's
-//   journal, and merge guarded by the head.
+//   checks and reviews on that exact head, and merge guarded by the head.
 // - Landed: the task is integrated at the merge commit, and the local base
 //   is fast-forwarded from the remote. Failed checks: the task goes back to
 //   its worker chat with the failed names, as a conflict does
@@ -38,9 +37,8 @@ import {
   sendConflictBack,
 } from "./landing-conflicts.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
-import { driverIdOf, publicTaskName } from "../specs/spec-scheduler.mjs";
-import { specAuthority } from "../specs/spec-takeover.mjs";
-import { landingSpecOf, specRevision } from "../intake/fix.mjs";
+import { publicTaskName } from "../specs/spec-scheduler.mjs";
+import { landingSpecOf } from "../intake/fix.mjs";
 import { taskDefinition } from "../specs/task-outcomes.mjs";
 import { pushHead, sourceRegistry } from "../workers/working-heads.mjs";
 import { fail } from "../store/store.mjs";
@@ -142,13 +140,8 @@ export async function queuePullRequest(
     workspaceRoot,
   },
 ) {
-  const planId = landingSpecOf(task),
-    driver = planId ? driverIdOf(store, planId) : null;
-  if (!driver)
-    fail(
-      `Take over ${planId ?? "the spec"} before it lands: avoozl spec takeover ${planId ?? "SPEC"}.`,
-      409,
-    );
+  const planId = landingSpecOf(task);
+  if (!planId) fail("Only a spec's task lands.", 409);
   const registry = await registryOf(repository),
     base = repository.baseBranch || "main",
     since = await git(repository.root, ["rev-parse", `refs/heads/${base}`]),
@@ -176,7 +169,6 @@ export async function queuePullRequest(
     key: delivery.taskId,
     commit: delivery.commit,
     spec: planId,
-    driver,
     tasks: [
       {
         task: delivery.taskId,
@@ -339,18 +331,9 @@ export async function landPullRequests(
     if (!queue.length) continue;
     const head = queue[0];
     try {
-      const authority = await specAuthority(
-          store,
-          { github, workspaceRoot },
-          head.spec,
-        ),
-        revision = specRevision(store, head.spec),
-        registry = await registryOf(repository),
-        // GitHub rights are the signed-in login's; a local journal's login
-        // is this workspace's operator, which GitHub does not know.
-        githubLogin = authority.journal.local
-          ? String((await personOf(github, repository.github)) ?? "")
-          : authority.login,
+      const registry = await registryOf(repository),
+        // GitHub rights are the signed-in login's.
+        githubLogin = String((await personOf(github, repository.github)) ?? ""),
         required =
           readGitHubPolicyOrNull(workspaceRoot)?.repositories?.[
             repository.github
@@ -372,16 +355,6 @@ export async function landPullRequests(
           configFile,
           store,
           commitPrefix: repository.commitPrefix,
-          intent: () => ({
-            journal: authority.journal,
-            options: { ...authority.options, machine, configFile },
-            input: {
-              driver: head.driver,
-              owner: authority.owner,
-              login: authority.login,
-              revision,
-            },
-          }),
         });
       const result = await landNext(
         store,

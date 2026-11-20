@@ -4,42 +4,25 @@ import fs from "node:fs";
 import path from "node:path";
 import { fixture } from "../../test/fixtures.mjs";
 import { git, withWorkLock } from "../../git/git.mjs";
-import { guardedFastForward } from "../../workers/driver-generations.mjs";
+import { guardedFastForward } from "../guarded-push.mjs";
 import {
   enqueueLanding,
   landNext,
   landingQueue,
   pausedBy,
 } from "../landing-queue.mjs";
+import { scratchUpstream } from "./scratch-upstream.mjs";
 
 const Q = { repositoryId: "fixture", base: "main" };
 
 // A bare upstream, the landing checkout and a second clone that can move
 // the base behind the queue's back.
 async function repos(root) {
-  const seed = path.join(root, "seed"),
-    upstream = path.join(root, "upstream.git"),
-    landing = path.join(root, "landing"),
-    other = path.join(root, "other");
-  fs.mkdirSync(seed);
-  const identity = async (dir) => {
-    await git(dir, ["config", "user.name", "Fixture"]);
-    await git(dir, ["config", "user.email", "fixture@example.invalid"]);
-  };
-  await git(seed, ["init", "-q", "-b", "main"]);
-  await identity(seed);
-  fs.writeFileSync(path.join(seed, "a.txt"), "a\n");
-  await git(seed, ["add", "."]);
-  await git(seed, ["commit", "-q", "-m", "Start"]);
-  await git(root, ["clone", "-q", "--bare", seed, upstream]);
-  for (const dir of [landing, other]) {
-    await git(root, ["clone", "-q", upstream, dir]);
-    await identity(dir);
-  }
-  const head = async () =>
-    (
-      await git(root, ["ls-remote", "--heads", upstream, "refs/heads/main"])
-    ).split(/\s+/)[0];
+  const {
+    upstream,
+    dirs: { landing, other },
+    head,
+  } = await scratchUpstream(root, ["landing", "other"]);
   const base = await head();
   // A task portion: one commit on its own branch from `from`.
   const portion = async (name, file, text, from = base) => {

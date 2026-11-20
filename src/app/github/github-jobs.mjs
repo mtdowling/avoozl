@@ -114,11 +114,6 @@ export const JOBS = Object.freeze({
     risk: "low",
     permissions: repo({ contents: w, pull_requests: w }),
   },
-  "own-branch-delete": {
-    description: "Delete a worker branch Avoozl pushed",
-    risk: "low",
-    permissions: repo({ contents: w }),
-  },
   "repo-setup": {
     description: "Create labels and set up repository checks",
     risk: "high",
@@ -134,11 +129,6 @@ export const JOBS = Object.freeze({
     description: "Set rulesets, repository settings and variables",
     risk: "high",
     permissions: repo({ administration: w, statuses: w, variables: w }),
-  },
-  "branch-delete": {
-    description: "Delete a branch",
-    risk: "high",
-    permissions: repo({ contents: w }),
   },
 });
 

@@ -69,7 +69,7 @@ test('at 1280x800 the page does not scroll, and the list and the spec view each 
 })
 
 test('a short window keeps the page still and the list scrolls', { skip }, async () => {
-  await openApp(420)
+  await openApp(360)
   const fit = await pageFits()
   assert.equal(fit.doc, 0, JSON.stringify(fit))
   assert.ok(fit.pane <= 1, `the app pane does not scroll (${fit.pane})`)
@@ -79,7 +79,7 @@ test('a short window keeps the page still and the list scrolls', { skip }, async
 })
 
 test('with no spec open the list fills the height and scrolls', { skip }, async () => {
-  await openApp(420, false)
+  await openApp(360, false)
   const fit = await pageFits()
   assert.equal(fit.doc, 0, JSON.stringify(fit))
   assert.ok(fit.pane <= 1, `the app pane does not scroll (${fit.pane})`)
@@ -120,3 +120,27 @@ test('a phone keeps the normal page scroll', { skip }, async () => {
   assert.equal(await page.evaluate(`(() => { const p = document.querySelector('[data-avoozl-pane]'); return p.scrollHeight > p.clientHeight + 100 })()`), true, 'the pane scrolls')
   assert.equal(await page.evaluate(`document.querySelector('[data-spec-body]') ? getComputedStyle(document.querySelector('[data-spec-body]')).overflowY : 'visible'`), 'visible')
 })
+
+// Make the GitHub issues (Requirement 118.7): an approved spec with no spec
+// issue offers it as the header's primary action, and a click sends
+// spec.publish with the spec's home repository once.
+for (const [width, dark] of [
+  [1280, false],
+  [390, true],
+])
+  test(`an approved spec without issues offers Make the GitHub issues at ${width} px`, { skip }, async () => {
+    await page.open(harness.url({ page: 'specs', publish: '1', theme: dark ? 'dark' : 'light' }), { width, height: 900, dark })
+    await page.until(`Boolean(document.querySelector('[data-plan-row="spec:load-config"]'))`, 30000)
+    await page.evaluate(`document.querySelector('[data-plan-row="spec:load-config"]').click()`)
+    await page.until(`Boolean(document.querySelector('[data-spec-primary="publish"]'))`, 30000)
+    assert.equal(await page.evaluate(`document.querySelector('[data-spec-primary="publish"]').textContent.trim()`), 'Make the GitHub issues')
+    assert.deepEqual(await page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'spec.publish')`), [], 'nothing is published without a click')
+    await page.evaluate(`document.querySelector('[data-spec-primary="publish"]').click()`)
+    await page.until(`document.body.textContent.includes('Made the GitHub issues for load-config: acme/plans#41.')`, 30000)
+    const sent = await page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'spec.publish').map((c) => c.input)`)
+    assert.deepEqual(sent, [{ planId: 'load-config', repository: 'acme/plans' }])
+    // With its issue made, the header goes back to Edit spec.
+    await page.until(`document.querySelector('[data-spec-primary]')?.dataset.specPrimary === 'edit'`, 30000)
+    assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
+    assert.deepEqual(page.errors, [])
+  })

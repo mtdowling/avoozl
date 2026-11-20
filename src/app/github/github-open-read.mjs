@@ -1,6 +1,6 @@
 // The open items read: one read-only search per GitHub-mode repository per
-// interval, kept in SQLite (design §4.12, R50.4). Spec pull requests
-// (spec-pull-requests.mjs) and the code review chat (pr-review.mjs) read it,
+// interval, kept in SQLite (design §4.12, R50.4).
+// The code review chat (pr-review.mjs) reads it,
 // and closed input issues withdraw their tasks at the same pace
 // (github-intake.mjs watchInputs).
 //
@@ -81,7 +81,7 @@ function item(node) {
           branch: node.headRefName ?? null,
           base: node.baseRefName ?? null,
           // The changed files, so a spec-only pull request is seen with no
-          // further call (R107.8).
+          // further call.
           files: {
             total: node.files?.totalCount ?? 0,
             paths: (node.files?.nodes || []).map((file) => file.path),
@@ -128,12 +128,7 @@ const key = (repository, number) => `${lower(repository)}#${number}`;
 
 export function readCache(store) {
   const cache = structuredClone(EMPTY);
-  // Adopted spec pull requests (spec-pull-requests.mjs).
-  cache.specPulls = new Set();
   try {
-    for (const receipt of store.list("receipts"))
-      if (receipt.kind === "spec-pr" && receipt.state === "open")
-        cache.specPulls.add(key(receipt.repository, receipt.number));
     const rows = new Map(itemRows(store).map((row) => [row.id, row]));
     for (const row of store.list("intake_sources")) {
       if (row.source !== "github" || !row.repository) continue;

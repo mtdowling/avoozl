@@ -1,4 +1,4 @@
-// The privacy scan (Requirement 102.23-102.25, design §4.32.4, task 56.11).
+// The privacy scan (Requirement 102.16-102.25, design §4.32.4, task 56.11).
 // No public Avoozl write names the machine it ran on: no hostname or IP
 // literal, no internal domain, no home path, and not this machine's own
 // hostname or username. It runs inside content rules (`check` in

@@ -457,10 +457,7 @@ so that no setup or delete happens on a token I did not see asked for.
    repository settings, variables, webhooks or issue types, needs
    `administration: write`, or deletes anything on GitHub (a branch, a
    comment, an issue, a label, a ruleset, a repository). Removing a label
-   from an issue or an assignee is an edit, not a delete. One delete is
-   `low`: `own-branch-delete`, which may delete only a branch under
-   Avoozl's own grant prefix whose head is a commit Avoozl pushed, and
-   SHALL refuse any other branch. Every other job,
+   from an issue or an assignee is an edit, not a delete. Every other job,
    such as reads, check-in, CI receipts, landing approved work, publishing
    a spec issue and assignee changes, SHALL be `low`.
 2. Before Avoozl asks any provider for a token for a `high` job, the page

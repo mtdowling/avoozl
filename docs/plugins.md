@@ -492,11 +492,9 @@ these permissions:
 | `integration` | low | checks: read, contents: write, metadata: read, statuses: read | Move an epic's integration branch |
 | `worker-grants` | low | contents: write, issues: write, metadata: read | Open and checkpoint worker branches |
 | `workspace-publish` | low | contents: write, metadata: read, pull_requests: write | Publish a workspace repository |
-| `own-branch-delete` | low | contents: write, metadata: read | Delete a worker branch Avoozl pushed |
 | `repo-setup` | high | administration: write, issues: write, metadata: read | Create labels and set up repository checks |
 | `issue-types-setup` | high | organization_administration: write | Create an organization's issue types |
 | `landing-setup` | high | administration: write, metadata: read, statuses: write, variables: write | Set rulesets, repository settings and variables |
-| `branch-delete` | high | contents: write, metadata: read | Delete a branch |
 
 A `high` job asks first. Before any provider is asked for its token, the
 page shows one confirm naming the repository (or owner), the action and these

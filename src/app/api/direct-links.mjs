@@ -134,8 +134,6 @@ export function validateLinks(value, source = "Avoozl configuration") {
   return out;
 }
 
-// --- Worker attempts --------------------------------------------------------
-
 const chatKey = (slot) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
 

@@ -28,7 +28,7 @@ import {
 } from "../specs/design-extraction.mjs";
 import { bindDriver } from "../workers/driver.mjs";
 import { taskEpic } from "../epics/epics.mjs";
-import { putSpan, readFlowPolicy } from "../flow/flow.mjs";
+import { putSpan } from "../flow/flow.mjs";
 import {
   formatGapTable,
   gapProposals,
@@ -113,13 +113,6 @@ import { localRequired, taskPluginChecks } from "../plugins/check-stages.mjs";
 import { RepositorySettings } from "../settings/repository-settings.mjs";
 import { bindRetroMemory } from "../flow/retro-memory.mjs";
 import {
-  approvalChangedAtMerge,
-  mayLinkSpecIssue,
-  openApproval,
-  reconcileApproval,
-  reconcileOpenApprovals,
-} from "../specs/spec-approval.mjs";
-import {
   approvalBase,
   approvalCommits,
   approverCheck,
@@ -151,15 +144,6 @@ import {
   specRoots,
   specTitle,
 } from "../specs/spec-plans.mjs";
-import {
-  mergeApprovedPulls,
-  pullFor,
-  pullSpecs,
-  recordPullApproval,
-  syncSpecPulls,
-} from "../specs/spec-pull-requests.mjs";
-import { driverIdOf } from "../specs/spec-scheduler.mjs";
-import { specAuthority } from "../specs/spec-takeover.mjs";
 import { sameFolder } from "../workspace/onboarding.mjs";
 import {
   applyTicks,
@@ -175,12 +159,6 @@ import {
   templateSummary,
 } from "../specs/templates.mjs";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
-import { readCache } from "../github/github-open-read.mjs";
-import {
-  offerLogins,
-  workerOffersStep,
-} from "../workers/worker-offer-step.mjs";
-import { workerResultsStep } from "../workers/worker-result-step.mjs";
 import { syncWorkspaceRepository } from "../workspace/workspace-repository.mjs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
@@ -552,7 +530,6 @@ export class Operations {
       )
         continue;
       try {
-        if (pullFor(this.store, plan.spec)) continue;
         const spec = this.readSpec(plan.spec);
         if (!spec.exists || !spec.root) continue;
         const branch = specsBranch(this.store, this.workspaceRoot, spec.root),
@@ -589,22 +566,16 @@ export class Operations {
           `Specs live on ${wanted}, but ${root} has ${branch} checked out. Check out ${wanted} there.`,
         );
     }
-    const adopted = pullSpecs(this.store, roots[0] ?? null);
     return {
       roots,
       errors,
       homes: [
         ...roots.flatMap((root) =>
-          listSpecFolders(root)
-            .filter((name) => !adopted.some((pull) => pull.name === name))
-            .map((name) => ({
-              root,
-              spec: { ...readSpecFolder(root, name), root },
-            })),
+          listSpecFolders(root).map((name) => ({
+            root,
+            spec: { ...readSpecFolder(root, name), root },
+          })),
         ),
-        // An adopted spec pull request replaces the checkout's folder, or
-        // adds the folder it proposes (R107.3).
-        ...adopted.map((spec) => ({ spec, root: spec.root })),
       ].sort((a, b) => a.spec.name.localeCompare(b.spec.name)),
     };
   }
@@ -714,23 +685,7 @@ export class Operations {
   }
   // A folder on disk by name.
   readSpec(name) {
-    // An adopted spec pull request's files stand for the folder (R107.3).
-    const adopted = pullFor(this.store, name);
-    if (adopted) return this.pullSpec(adopted);
     return findSpecFolder(this.specRoots(), specName(name));
-  }
-  // The folder an adopted spec pull request holds. Its root is the planning
-  // checkout when there is one, which the review chat reads beside it.
-  pullSpec(receipt) {
-    let root = null;
-    try {
-      root = this.specRoots()[0] ?? null;
-    } catch {
-      root = null;
-    }
-    return pullSpecs(this.store, root).find(
-      (spec) => spec.name === receipt.spec,
-    );
   }
   // One folder of the mode's spec roots by name, for the checks that read
   // another folder: an epic's members, a plan's epic (Requirement 59.3).
@@ -762,52 +717,8 @@ export class Operations {
       wanted && origin && origin.toLowerCase() === wanted.toLowerCase(),
     );
   }
-  // Approve ends in a commit a crew can read: open the approval pull request,
-  // and approve in Avoozl only once it has merged. Returns null when no pull
-  // request applies, `{ pending }` while it is open, `{ merged }` after.
-  // The approval pull request target when approving this plan needs one,
-  // else null.
-  approvalGateTarget(plan) {
-    // An adopted spec pull request is the approval's commit (R107.6).
-    if (
-      !this.planApproved(plan) &&
-      pullFor(this.store, plan.spec)?.hash === plan.hash
-    )
-      return { pull: true };
-    return null;
-  }
-  // Who approves a spec. GitHub records the approver as a login (the approval
-  // pull request checks it, and the issue write-back names it), so with
-  // GitHub in play it is the caller's login, else the signed-in GitHub login,
-  // cached for this workspace. git user.name is display provenance and may
-  // hold spaces. Only an approval pull request requires the login; without
-  // one a missing login keeps the operator, as before.
-  async specApprover(plan, approvedBy) {
-    const given = approvedBy?.trim();
-    if (given) return given;
-    const gated = Boolean(this.approvalGateTarget(plan));
-    if (
-      !gated &&
-      !(
-        readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
-        this.github?.available?.()
-      )
-    )
-      return this.operator;
-    if (!this.approverLogin)
-      try {
-        this.approverLogin =
-          (this.github?.available?.() && (await personOf(this.github))) || null;
-      } catch {}
-    if (this.approverLogin) return this.approverLogin;
-    if (!gated) return this.operator;
-    fail(
-      "Approving a spec needs your GitHub login, and Avoozl could not find one. Run `gh auth login`, then approve again.",
-      401,
-    );
-  }
-  // The person a grant names: the signed-in GitHub login when GitHub is in
-  // play, since a gated approval records a login, else the operator.
+  // The person a commit names: the signed-in GitHub login when GitHub is in
+  // play, cached for this workspace, else the operator.
   async personLogin() {
     if (
       readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
@@ -820,131 +731,6 @@ export class Operations {
       if (this.approverLogin) return this.approverLogin;
     }
     return this.operator;
-  }
-  async approvalPullRequest(plan, { approvedBy, quality, delegation = null }) {
-    const target = this.approvalGateTarget(plan);
-    if (!target) return null;
-    if (target.pull) {
-      const state = recordPullApproval(this.store, plan, approvedBy);
-      if (!state) return null;
-      const merged = await reconcileApproval(this.store, {
-        github: this.github,
-        repository: state.repository,
-        planId: plan.id,
-        hash: plan.hash,
-        mayApprove: this.approverFor(state.repository),
-      });
-      if (merged?.state === "merged") return { merged };
-      approvalChangedAtMerge(merged);
-      return { pending: { ...merged, repository: state.repository } };
-    }
-    const ids = {
-        github: this.github,
-        repository: target.repository,
-        ...(target.ref ? { ref: target.ref } : {}),
-      },
-      key = { planId: plan.id, hash: plan.hash };
-    let state = await reconcileApproval(this.store, {
-      ...ids,
-      ...key,
-      mayApprove: this.approverFor(target.repository),
-    });
-    if (state?.state === "merged") return { merged: state };
-    approvalChangedAtMerge(state);
-    if (state?.state !== "open")
-      state = await openApproval(this.store, {
-        ...ids,
-        ...key,
-        spec: plan.spec,
-        files: plan.files || {},
-        diagnostics: quality.diagnostics,
-        approvedBy,
-        ...(target.ref ? { ref: target.ref } : {}),
-        reviewers: this.specReviewers(plan),
-        specIssue: await this.linkableSpecIssue(plan, target.repository),
-        delegation,
-      });
-    return { pending: state };
-  }
-  // The logins `github.specReviewers` names for a spec (R102.18).
-  specReviewers(plan) {
-    return (
-      readGitHubPolicyOrNull(this.workspaceRoot)?.specReviewers?.[plan.spec] ??
-      []
-    );
-  }
-  // The spec issue a pull request in `repository` may name, or null: only
-  // when the issue is published and visibility permits (R102.18).
-  async linkableSpecIssue(plan, repository) {
-    const issue = this.store.get("receipts", `github-parent:plan:${plan.id}`);
-    if (!issue?.number || !issue.repository) return null;
-    try {
-      const [owner, repo] = issue.repository.split("/"),
-        [pull, home] = await Promise.all([
-          this.github.repository(repository),
-          this.github.repository({ owner, repo }),
-        ]);
-      return mayLinkSpecIssue({
-        pullPrivate: pull?.private,
-        issuePrivate: home?.private,
-      })
-        ? `${issue.repository}#${issue.number}`
-        : null;
-    } catch {
-      return null;
-    }
-  }
-  // An approval pull request that merged is the person's approval (they
-  // merged it): record it under the login that asked for it, with no second
-  // command. One read per open approval pull request.
-  // shortcut: a merged spec that fails its checks is tried again each tick
-  // and says nothing; surface it in Needs you if that turns out to happen.
-  async recordMergedApprovals() {
-    const merged = await reconcileOpenApprovals(this.store, {
-      github: this.github,
-      approverFor: (repository) => this.approverFor(repository),
-    });
-    for (const pull of merged)
-      await this.perform("plan.approveMany", {
-        items: pull.specs.map(({ planId, hash }) => ({
-          id: planId,
-          expectedHash: hash,
-        })),
-        approvedBy: pull.approvedBy,
-      }).then(
-        (r) => console.error("AM", JSON.stringify(r)),
-        (e) => console.error("AMERR", e.message),
-      );
-  }
-  // The tick's pass over spec pull requests (design §4.36): adopt, refresh,
-  // and merge the ones a person approved once their checks pass. It reads the
-  // Cache and calls GitHub only as spec-pull-requests.mjs says.
-  async specPullTick(policy) {
-    const owners = [];
-    try {
-      const login = (await this.github.currentUser())?.login;
-      if (login) owners.push(login);
-    } catch {
-      // Without a login only the working branch counts as own.
-    }
-    await syncSpecPulls(
-      this.store,
-      this.github,
-      policy,
-      readCache(this.store),
-      {
-        owners,
-      },
-    );
-    await mergeApprovedPulls(this.store, this.github, policy);
-  }
-  // The tick's pass over spec pull requests and merged approval pull
-  // requests.
-  async approvalTick() {
-    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-    if (!policy?.mode || !this.github?.available?.()) return;
-    await this.specPullTick(policy).catch(() => {});
-    await this.recordMergedApprovals().catch(() => {});
   }
   // A gap report (RC17.6): read from a local file a person names, or from an
   // issue body, parsed into a table, and turned into one proposal per failing
@@ -1001,9 +787,9 @@ export class Operations {
       proposals = gapProposals(report, subSpecOf);
     return { report, table: formatGapTable(report), proposals };
   }
-  // Whether a plan's current text is the one last approved.
-  // Every check plan.approve makes before it writes, shared with
-  // plan.approveMany so a batch keeps each one. Throws on the first failure.
+  // Every check an approval makes before it writes, shared by plan.approve
+  // and the approvals the tick reads from git (adoptApprovals). Throws on
+  // the first failure.
   approvalChecks(input) {
     const plan = this.store.get("plans", input.id);
     if (!plan) fail("Plan not found.", 404);
@@ -1076,51 +862,6 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
-  // The driver's offers and claim answers for worker machines (WP5).
-  async workerOffers(store, driving) {
-    const config = loadLayeredConfig({
-        workspaceRoot: this.workspaceRoot,
-      }).config,
-      logins = offerLogins(config.workers?.offerTo);
-    if (!logins.length) return null;
-    return workerOffersStep(store, {
-      driving,
-      logins,
-      authorityFor: async (spec) => {
-        const driver = driverIdOf(store, spec);
-        if (!driver) return null;
-        const authority = await specAuthority(
-          store,
-          {
-            github: this.github,
-            workspaceRoot: this.workspaceRoot,
-            actor: this.operator,
-          },
-          spec,
-        );
-        return { ...authority, driver, github: this.github };
-      },
-    });
-  }
-
-  // The driver's step for worker machines' pushed results (WP5.3).
-  async workerResults(store, driving, journalFor) {
-    const config = loadLayeredConfig({
-        workspaceRoot: this.workspaceRoot,
-      }).config,
-      result = await workerResultsStep(store, {
-        driving,
-        journalFor,
-        github: this.github,
-        sources: config.runner?.sources ?? {},
-        protectedPaths:
-          readFlowPolicy(this.workspaceRoot).workspace.verify?.protectedPaths ??
-          [],
-      });
-    queueNotifications(store, result.notify);
-    return result;
-  }
-
   // This workspace's saved config, which names each role's executor
   // (Settings › Models); none when there is no file or it does not load.
   savedConfig() {
@@ -1138,12 +879,11 @@ export class Operations {
       .some((a) => a.planId === plan.id && a.hash === plan.hash);
   }
   // The git checkout a spec's approval commit goes in (§4.42): the top of
-  // the work tree that holds its folder. Null for an adopted pull request,
-  // which approves through its pull request, and for a folder outside git.
+  // the work tree that holds its folder. Null for a folder outside git.
   // shortcut: a spec folder outside git keeps only the database receipt and
   // is not rebuilt; require git once every workspace is a checkout.
   async approvalCheckout(plan) {
-    if (!plan?.spec || pullFor(this.store, plan.spec)) return null;
+    if (!plan?.spec) return null;
     let spec;
     try {
       spec = this.readSpec(plan.spec);
@@ -1319,6 +1059,7 @@ export class Operations {
           approvePlan(store, {
             ...input,
             approvedBy: match.email,
+            approvalCommit: match.commit,
             evidence: `Approval commit ${match.commit} by ${match.email}.`,
             operator: this.operator,
             githubPolicy: this.githubPolicy(),
@@ -1338,33 +1079,74 @@ export class Operations {
     }
     return approved;
   }
+  // Approve each spec of `group` ({plan, disk}) that an approver committed
+  // with exactly its current text: `commits` are approvalCommits entries.
+  // One commit may approve any number of specs (an epic's pull request);
+  // their order comes from their $after links (adoptApprovals). Each one
+  // approved gets an Activity row naming the commit and `branch`.
+  adoptCommitted(group, commits, branch) {
+    const store = this.store,
+      found = new Map();
+    for (const { plan, disk } of group) {
+      const match = commits.find(
+        (entry) => entry.spec === plan.spec && entry.hash === disk,
+      );
+      if (!match) continue;
+      // The approved text is on disk as a newer revision: read it in.
+      if (plan.hash !== disk)
+        saveSpecPlan(
+          store,
+          { id: plan.id, expectedHash: plan.hash },
+          this.readSpec(plan.spec),
+        );
+      found.set(plan.id, match);
+    }
+    for (const id of this.adoptApprovals(found)) {
+      const match = found.get(id);
+      recordActivity(store, {
+        source: "tick",
+        actor: match.email,
+        kind: "plan.approved",
+        summary: `${match.spec} approved by ${match.email} in commit ${match.commit.slice(0, 12)} on ${branch}`,
+        targetId: id,
+        key: `approved:${id}:${match.commit}`,
+      });
+    }
+  }
+  // Each live spec plan whose text has no approval, as {plan, disk}, grouped
+  // by `homeOf(plan)` (a key, or null to skip the plan).
+  async unapprovedSpecs(homeOf) {
+    const approved = new Set(
+        this.store.list("approvals").map((a) => `${a.planId}:${a.hash}`),
+      ),
+      groups = new Map();
+    for (const plan of this.store.list("plans")) {
+      if (!plan.spec || plan.deletedAt || plan.archivedAt) continue;
+      try {
+        const disk = this.readSpec(plan.spec).hash;
+        if (disk === plan.hash && approved.has(`${plan.id}:${disk}`)) continue;
+        const home = await homeOf(plan);
+        if (!home) continue;
+        if (!groups.has(home)) groups.set(home, []);
+        groups.get(home).push({ plan, disk });
+      } catch {}
+    }
+    return groups;
+  }
   // Approvals that reach main with no click (§4.42): a spec pull request an
   // approver authored, merged on GitHub, or a push. On a tick, each checkout's
   // base branch is read as `applyBaseTicks` fetched it; when it moved, or a
   // spec's text did, the rebuild reader runs over the specs whose text on
   // disk has no approval. A spec an approver committed with exactly that
   // text is approved as that commit's author. Writes nothing to git.
-  // shortcut: adopted pull requests keep their approval pull request; a
-  // spec folder with no plan waits for import.
+  // shortcut: a spec folder with no plan waits for import.
   async applyMainApprovals() {
     this.approvalsSeen ??= new Map();
     this.mainApprovers ??= new Map();
-    const store = this.store,
-      approved = new Set(
-        store.list("approvals").map((a) => `${a.planId}:${a.hash}`),
+    const roots = await this.unapprovedSpecs((plan) =>
+        this.approvalCheckout(plan),
       ),
-      roots = new Map();
-    for (const plan of store.list("plans")) {
-      if (!plan.spec || plan.deletedAt || plan.archivedAt) continue;
-      try {
-        const disk = this.readSpec(plan.spec).hash;
-        if (disk === plan.hash && approved.has(`${plan.id}:${disk}`)) continue;
-        const root = await this.approvalCheckout(plan);
-        if (!root) continue;
-        if (!roots.has(root)) roots.set(root, []);
-        roots.get(root).push({ plan, disk });
-      } catch {}
-    }
+      store = this.store;
     for (const [root, group] of roots)
       try {
         const branch = specsBranch(store, this.workspaceRoot, root),
@@ -1382,36 +1164,11 @@ export class Operations {
         if (!this.mainApprovers.has(list))
           this.mainApprovers.set(list, await this.approverOf(root));
         const commits = await approvalCommits(root, {
-            allowed: this.mainApprovers.get(list),
-            ref: head,
-            specs: group.map(({ plan }) => plan.spec),
-          }),
-          found = new Map();
-        for (const { plan, disk } of group) {
-          const match = commits.find(
-            (entry) => entry.spec === plan.spec && entry.hash === disk,
-          );
-          if (!match) continue;
-          // The approved text is on disk as a newer revision: read it in.
-          if (plan.hash !== disk)
-            saveSpecPlan(
-              store,
-              { id: plan.id, expectedHash: plan.hash },
-              this.readSpec(plan.spec),
-            );
-          found.set(plan.id, match);
-        }
-        for (const id of this.adoptApprovals(found)) {
-          const match = found.get(id);
-          recordActivity(store, {
-            source: "tick",
-            actor: match.email,
-            kind: "plan.approved",
-            summary: `${match.spec} approved by ${match.email} in commit ${match.commit.slice(0, 12)} on ${branch}`,
-            targetId: id,
-            key: `approved:${id}:${match.commit}`,
-          });
-        }
+          allowed: this.mainApprovers.get(list),
+          ref: head,
+          specs: group.map(({ plan }) => plan.spec),
+        });
+        this.adoptCommitted(group, commits, branch);
         this.approvalsSeen.set(root, seen);
       } catch {
         // Read again on the next tick.
@@ -2074,13 +1831,7 @@ export class Operations {
       );
 
     if (
-      [
-        "driver.settings.update",
-        "driver.handoff",
-        "driver.takeover",
-        "driver.forceTakeover",
-        "driver.away.decide",
-      ].includes(name) &&
+      ["driver.settings.update"].includes(name) &&
       (context.caller || context.mcp || context.plugin)
     )
       fail(

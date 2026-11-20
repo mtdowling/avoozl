@@ -17,7 +17,6 @@ import { landingQueue } from "../landing-queue.mjs";
 import { landPullRequests } from "../pr-landing.mjs";
 import { addItemContext } from "../../api/needs-you-context.mjs";
 import { taskLinks } from "../../tasks/scm-links.mjs";
-import { takeOverSpec } from "../../specs/spec-takeover.mjs";
 import { snapshot, verifiedTask } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
@@ -69,13 +68,6 @@ async function workspace(t) {
     worktreeRoot: path.join(root, "wt"),
   });
   store.put("plans", { id: "s", spec: "s", hash: digest("plan s") });
-  store.put("receipts", {
-    id: "spec-journal:s",
-    kind: "spec-journal",
-    planId: "s",
-    home: "local",
-  });
-  await takeOverSpec(store, { workspaceRoot: root, actor: "Operator" }, "s");
   return { root, origin, checkout: fs.realpathSync.native(checkout), store };
 }
 
@@ -363,14 +355,4 @@ test("a queued task whose base moved is withdrawn, merged with the base and veri
     landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     0,
   );
-});
-
-test("without a take over nothing is pushed", async (t) => {
-  const w = await workspace(t);
-  w.store.setMeta("specDrivers", {});
-  verified(w, "t2");
-  const { notify } = await integrateVerified(w.store);
-  assert.match(notify[0].text, /spec takeover/);
-  assert.equal(w.store.get("task_deliveries", "t2").state, "decision");
-  assert.throws(() => git(w.origin, "rev-parse", "--verify", "avoozl/t2"));
 });

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { guardGitHub } from "../../content/content-rules.mjs";
-import { Operations, postingActor } from "../../api/operations.mjs";
+import { postingActor } from "../../api/operations.mjs";
 import {
   asActor,
   defuseMentions,
@@ -89,58 +89,46 @@ test("every comment, review and pull request write goes out defused and marked",
   assert.equal(issue[1][1].body, "Issue @octocat");
 });
 
-// A spec pull request a person rejects, with a fake GitHub that records the
-// comment.
-function rejecting(t) {
+// A comment through the guard every write passes, with a fake GitHub that
+// records it, posted as `actor`.
+function commenting(t) {
   const { store } = fixture(t),
     comments = [];
-  const ops = new Operations(store, {
-    github: {
+  const github = guardGitHub(
+    {
       async createIssueComment(_repository, number, body) {
         comments.push({ number, body });
         return { id: comments.length };
       },
-      async updateIssue() {
-        return {};
-      },
     },
-  });
-  const reject = (context) => {
-    const id = `spec-pr:${comments.length + 1}`;
-    store.put("receipts", {
-      id,
-      kind: "spec-pr",
-      state: "open",
-      repository: "o/r",
-      number: 7,
-      planId: "feature",
-    });
-    return ops.execute(
-      "specpr.reject",
-      { id, reason: "Not now, @octocat." },
-      undefined,
-      context,
+    store,
+  );
+  const post = (actor) =>
+    asActor(actor, () =>
+      github.createIssueComment(
+        "o/r",
+        7,
+        "Rejected in Avoozl: Not now, @octocat.",
+      ),
     );
-  };
-  return { comments, reject };
+  return { comments, post };
 }
 
-test("a person's comment through an operation goes out as written", async (t) => {
-  const { comments, reject } = rejecting(t);
-  await reject({ person: true });
+test("a person's comment goes out as written", async (t) => {
+  const { comments, post } = commenting(t);
+  await post("person");
   assert.equal(comments[0].body, "Rejected in Avoozl: Not now, @octocat.");
   assert.equal(isPosted(comments[0].body), false);
 });
 
-test("a caller nobody named is marked", async (t) => {
-  const { comments, reject } = rejecting(t);
-  await reject({});
+test("a comment nobody named is marked, and so is an agent's", async (t) => {
+  const { comments, post } = commenting(t);
+  await post(null);
   assert.equal(
     comments[0].body,
     `Rejected in Avoozl: Not now, @${ZWSP}octocat.\n\n${POSTED}`,
   );
-  // A nested operation with no word of its own keeps the enclosing actor.
-  await asActor("agent", () => reject({}));
+  await post("agent");
   assert.equal(isPosted(comments[1].body), true);
 });
 

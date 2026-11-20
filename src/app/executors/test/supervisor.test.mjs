@@ -225,7 +225,7 @@ test("a resumed child never reads as exited while its message starts it", async 
   assert.deepEqual([...new Set(seen)], ["working"]);
 });
 
-test("a supervised agent gets no push credentials but the child marker (R102.6, R95.5)", async (t) => {
+test("a supervised agent gets no push credentials but the child marker (R102.4, R95.5)", async (t) => {
   const { stateDirectory, configDirectory, worktree, defer } = scratch(t);
   // This agent writes the names of its environment into the worktree.
   fs.writeFileSync(

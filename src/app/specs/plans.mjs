@@ -300,25 +300,12 @@ function baselineAcceptance(item, hash, { at, approver }) {
 const plansById = (store) =>
   new Map(store.list("plans").map((plan) => [plan.id, plan]));
 
-// How a spec revision was approved (§4.32.6): the merged approval pull
-// request's evidence, or an explicit local approval. Written after the
-// merge into the receipt, never into the approval commit.
-function approvalRecord(store, planId, hash, approver) {
-  const state = store.getMeta(`spec-approval:${planId}:${hash}`);
-  if (state?.state === "merged")
-    return {
-      kind: "pull-request",
-      repository: state.repository ?? null,
-      number: state.number ?? null,
-      requestedBy: state.requestedBy ?? null,
-      reviewers: state.reviewers ?? [],
-      mergedBy: state.mergedBy ?? null,
-      commit: state.commit ?? null,
-      mergedAt: state.mergedAt ?? null,
-      verified: state.verified === true,
-    };
-  return { kind: "local", approvedBy: approver || null };
-}
+// How a spec revision was approved (§4.32.6, §4.42): the approver's commit
+// that holds it, or an approval with no commit (a folder outside git).
+const approvalRecord = (approver, commit) =>
+  commit
+    ? { kind: "commit", commit, approvedBy: approver || null }
+    : { kind: "local", approvedBy: approver || null };
 
 // An epic folder's approval stores its member list and prose. It never
 // approves a member plan or a task (Requirement 59.4).
@@ -326,7 +313,7 @@ function approveEpic(
   store,
   data,
   plan,
-  { expectedRevision, approver, evidence, delegation },
+  { expectedRevision, approver, evidence, approvalCommit },
 ) {
   const now = new Date().toISOString(),
     plans = store.list("plans").filter((entry) => !entry.deletedAt),
@@ -345,9 +332,8 @@ function approveEpic(
       taskIds: [],
       spec: plan.spec,
       files: plan.files,
-      approval: approvalRecord(store, plan.id, plan.hash, approver),
+      approval: approvalRecord(approver, approvalCommit),
       epic: { members: listed },
-      ...(delegation ? { delegation } : {}),
     };
   store.put("approvals", receipt);
   plan.state = "approved";
@@ -397,13 +383,8 @@ export function approvePlan(
     githubPolicy,
     baseline = false,
     declaredDependencies = [],
-    // Plan IDs approved in the same plan.approveMany transaction. Their
-    // tasks count as approved owners for a checked task; approveMany checks
-    // after the last approval that every one resolved.
-    coApproved = new Set(),
-    // A delegate's approval on a person's behalf (R109): {delegate,
-    // onBehalfOf, grantedAt}, recorded on the receipt.
-    delegation = null,
+    // The approver's commit that holds this revision (§4.42), if any.
+    approvalCommit = null,
   },
 ) {
   // Authorization is the reviewed hash and database revision below. Who
@@ -432,7 +413,7 @@ export function approvePlan(
         expectedRevision,
         approver: approvedBy?.trim() || operator?.trim() || "",
         evidence,
-        delegation,
+        approvalCommit,
       });
     // A spec plan's tasks keep their tasks.md IDs; its tasks.md is plan.text.
     const extracted = Boolean(extraction),
@@ -626,7 +607,6 @@ export function approvePlan(
       if (
         checked.has(proposal.id) &&
         specDependencies.some((ref) => {
-          if (coApproved.has(ref.planId)) return false;
           const owner = store.get("plans", ref.planId),
             receipt =
               owner?.approvalId && store.get("approvals", owner.approvalId);
@@ -863,7 +843,6 @@ export function approvePlan(
       approvedBy: approver,
       evidence: evidence?.trim() || "",
       ...(baselined.length ? { baseline: baselined } : {}),
-      ...(delegation ? { delegation } : {}),
       at: now,
       mapping,
       taskIds: Object.values(mapping),
@@ -871,7 +850,7 @@ export function approvePlan(
         ? {
             spec,
             files: plan.files,
-            approval: approvalRecord(store, id, plan.hash, approver),
+            approval: approvalRecord(approver, approvalCommit),
           }
         : {}),
       ...(extracted

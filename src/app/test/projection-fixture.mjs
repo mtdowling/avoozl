@@ -64,11 +64,10 @@ export async function workspace(t, { mode, coder, blockTerm, radar }) {
   return { store, github, ops, root };
 }
 
-// An approved spec plan. `approval` records the merged approval pull request
-// the way `reconcileApproval` does; null leaves it unrecorded.
+// An approved spec plan.
 export async function approvedSpec(
   { store, ops, root },
-  { approval = { commit: COMMIT, approvedBy: "octocat" }, overrides = {} } = {},
+  { overrides = {} } = {},
 ) {
   writeSpec(root, "config", overrides);
   const plan = await ops.execute("plan.create", {
@@ -81,11 +80,6 @@ export async function approvedSpec(
     expectedHash: plan.hash,
     expectedRevision: store.read().revision,
   });
-  if (approval)
-    store.setMeta(`spec-approval:${plan.id}:${plan.hash}`, {
-      state: "merged",
-      ...approval,
-    });
   return { plan, approved };
 }
 

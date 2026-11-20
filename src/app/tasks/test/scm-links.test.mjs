@@ -193,7 +193,6 @@ test("link sets come from stored records with URLs built from validated fields",
 
   const spec = specs.s;
   assert.equal(spec.issue.url, "https://github.com/example/specs/issues/40");
-  assert.equal(spec.journal.home, "github");
   assert.deepEqual(
     spec.workingBranches.map((b) => b.url),
     ["https://github.com/example/code/tree/avoozl/s/work"],
@@ -224,24 +223,6 @@ test("check state for a head that is no longer current shows as stale", (t) => {
   assert.equal(checks.head, sha("a"));
   assert.equal(checks.current, false);
   assert.equal(checks.dot, "stale");
-});
-
-test("a spec without a published issue shows its local journal or none", (t) => {
-  const { store } = seed(t);
-  store.remove("receipts", "github-parent:plan:s");
-  assert.equal(specLinks(store, "s").issue, null);
-  assert.equal(specLinks(store, "s").journal, null);
-  store.put("receipts", {
-    id: "spec-journal:s",
-    kind: "spec-journal",
-    planId: "s",
-    home: "local",
-  });
-  assert.deepEqual(specLinks(store, "s").journal, {
-    kind: "journal",
-    home: "local",
-    local: true,
-  });
 });
 
 test("link sets add no GitHub call: the count is the same with them on", async (t) => {

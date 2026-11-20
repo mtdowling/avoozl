@@ -227,27 +227,25 @@ for GitHub Apps" page; names marked **A** were not checked here.
 
 | Job               | Risk | Permissions | Used by (today's modules) |
 | ----------------- | ---- | ----------- | ------------------------- |
-| `check-in`        | low  | metadata, contents, issues, pull_requests: read | tick reads, `github-open-read`, `github-items`, `pull-request-snapshot`, `github-intake` reads, `repo-files`, `scm-links`, `git-approvals` reads, `spec-scheduler`, `integration-head`, `driver` reads, page views |
+| `check-in`        | low  | metadata, contents, issues, pull_requests: read | tick reads, `github-open-read`, `github-items`, `pull-request-snapshot`, `github-intake` reads, `scm-links`, `git-approvals` reads, `spec-scheduler`, `integration-head`, `driver` reads, page views |
 | `ci-receipts`     | low  | metadata, actions, checks, statuses: read | `check-reads`, `flow-ci`, `build-receipt-read` |
 | `rules-read`      | low  | metadata, administration: read | `github-branch-rules`, `merge-path`, `github.repository.inspect` |
-| `land`            | low  | metadata: read; contents, pull_requests: write; checks, statuses: read | `landing-pulls`, `pr-landing`, direct landing (`driver-generations`), `merge-batch`, `working-heads.pushHead` |
+| `land`            | low  | metadata: read; contents, pull_requests: write; checks, statuses: read | `landing-pulls`, `pr-landing`, direct landing (`direct-landing`, `guarded-push`), `merge-batch`, `working-heads.pushHead` |
 | `land-workflows`  | low  | `land` plus workflows: write | the same, when the range touches `.github/workflows/` (PC4.7) |
-| `spec-branch`     | low  | metadata: read; contents, pull_requests, issues: write | `spec-approval`, `spec-ticks`, `git-approvals` push, `spec-pull-requests` |
-| `spec-issues`     | low  | metadata: read; issues: write | `spec-publication`, `spec-journal`, `intake.createIssue`, `driver` claims and assignees, sub-issues, blockers, setting an issue's type |
+| `spec-branch`     | low  | metadata: read; contents, pull_requests, issues: write | `spec-ticks`, `git-approvals` push |
+| `spec-issues`     | low  | metadata: read; issues: write | `spec-publication`, `intake.createIssue`, `driver` claims and assignees, sub-issues, blockers, setting an issue's type |
 | `evidence`        | low  | metadata, pull_requests: read; issues: write | `tasks/evidence` |
 | `triage`          | low  | metadata, contents: read; issues, pull_requests: write | `triage`, `triage-reproduce` |
 | `respond`         | low  | metadata: read; discussions, issues: write | `github-respond` |
 | `page-actions`    | low  | metadata: read; issues, pull_requests: write | `github-pages` (a person's comment, label, assignee, review) |
 | `integration`     | low  | metadata: read; contents: write | `integration-sync`, `integration-branch` |
-| `worker-grants`   | low  | metadata: read; contents, issues: write | `worker-grants`, `remote-runner`, `working-heads` checkpoints |
+| `worker-grants`   | low  | metadata: read; contents, issues: write | `remote-runner`, `working-heads` checkpoints |
 | `workspace-publish` | low | metadata: read; contents, pull_requests: write | `workspace-repository` |
 | `board-sync`      | low  | organization_projects: write (**A**), owner-level | Projects reads and writes in `github.mjs` |
 | `repo-setup`      | high | metadata: read; administration, issues: write | `github-setup` (labels, repository checks) |
 | `issue-types-setup` | high | organization_administration: write (**A**), owner-level | `github-setup` `create-issue-type` |
 | `landing-setup`   | high | metadata: read; administration, statuses, variables (**A**): write | `setup-landing` (rulesets, repository settings, variables, the status probe) |
 | `triage-setup`    | high | metadata: read; issues: write | the triage setup flow (creating its labels) |
-| `own-branch-delete` | low | metadata: read; contents: write | `worker-release`: only a branch under Avoozl's grant prefix whose head is a commit Avoozl pushed (PC13.1) |
-| `branch-delete`   | high | metadata: read; contents: write | any other branch delete |
 | `comment-delete`  | high | metadata: read; issues: write | `deleteIssueComment` callers |
 
 Rules the table follows:
@@ -256,11 +254,7 @@ Rules the table follows:
   a permission does not list its read too.
 - `metadata: read` is in every repository job, because GitHub gives every
   installation token it.
-- Risk follows PC13.1 alone. `own-branch-delete` is its one low delete:
-  the job's method checks, before the call, that the branch name has the
-  grant prefix (V: `grantBranch` in `src/app/workers/worker-grants.mjs`)
-  and that its head on GitHub is the commit Avoozl's journal says it
-  pushed there; any other branch is refused and needs `branch-delete`.
+- Risk follows PC13.1 alone.
 - Handing a spec off is reassigning its issue, which is `spec-issues`.
 
 **Binding a job.** `withJob(job, fn)` runs `fn` with the job in an
@@ -332,8 +326,7 @@ page                     app backend
   Each write description gains `job` and `permissions`, and the existing
   confirm becomes the modal of PC13.2 listing them. There is no second
   popup (PC13.3).
-- A high job outside a setup flow (deleting a grant branch, creating a
-  missing label) opens the same modal from its Needs you action.
+- A high job outside a setup flow (creating a missing label) opens the same modal from its Needs you action.
 - The CLI prints the same lines and asks `Allow? [y/N]` on a terminal, or
   takes `--yes`; without a terminal and without `--yes` it refuses
   (PC13.6). `--yes` is a person's flag: the CLI refuses it when the agent
@@ -349,12 +342,6 @@ page                     app backend
   requiring Linux, macOS and Windows" or "Grant acme-github
   `administration: write` on acme/api". Setup goes on with its other
   steps (PC13.8).
-
-`worker-release` deletes a grant branch when the driver settles a task
-(V: `src/app/workers/worker-release.mjs:101`, in the tick). It runs as
-`own-branch-delete` (D6), which is `low`, so it needs no confirm and the
-tick keeps doing it; a branch that fails the job's own check is left and
-listed in Needs you with **Delete branches** under `branch-delete`.
 
 **Tests (PC13.9).** Every job with `risk: "high"` called without a grant
 fails before a token call, for every provider; every `low` job runs with no
@@ -610,10 +597,7 @@ The owner settled the questions the first draft left open (2026-11-19):
    machine's `plugins.json`; a repository's `.avoozl.json` must not choose
    who Avoozl signs in as, and an entry there is refused naming the file
    and key (PC2.2, D3).
-5. **`own-branch-delete` is `low`**, limited to branches under Avoozl's
-   grant prefix at a commit it pushed; every other delete stays `high`
-   (PC13.1, D6, D7).
-6. **`owners` now.** A plugin may list the owners it serves; every other
+5. **`owners` now.** A plugin may list the owners it serves; every other
    owner on the host uses `env` or `gh`. No-fallback holds per owner: an
    owner the plugin claims never falls back to `gh` (PC1.2, PC2.1, PC7.2,
    D3).

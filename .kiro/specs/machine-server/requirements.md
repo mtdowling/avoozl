@@ -90,8 +90,6 @@ nk-p2 overlaps MS6 and MS7 (design D12, question 3).
   or a local socket only (MS9).
 - Kiro CLI or any other CLI as a `process` harness. Kiro CLI is a front end
   only here.
-- Worker machines (worker-paths WP5). A worker machine runs its own machine
-  server and nothing about the pull route changes.
 - How many tasks run at once.
 
 ### Words
@@ -356,7 +354,7 @@ my agents.
 4. The interface SHALL serve MCP `tools/list` and `tools/call` only. Each
    call SHALL run as an agent principal: person-only operations SHALL be
    refused through it as through MCP today (R56, `mcpRefusal`). Spec
-   approval, approval delegation, harness approval and the person-only
+   approval, harness approval and the person-only
    Needs you answers SHALL never run through it.
 5. Stop and manual tick SHALL stay database requests (MS1.5, MS3.3), not
    calls on this interface.

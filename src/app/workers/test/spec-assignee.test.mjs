@@ -1,5 +1,6 @@
 // The spec issue's assignee says who works on a spec (Requirement 116,
-// design §4.44). Two workspaces, alice's and bob's, share one fake GitHub;
+// design §4.44, changed by Requirement 118 and §4.46: Avoozl never writes
+// the assignee). Two workspaces, alice's and bob's, share one fake GitHub;
 // each has its own SQLite and machine ID. No network.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -114,65 +115,45 @@ async function pair(t) {
   return { ...w, a, b, number: published.number, issue, assignees };
 }
 
-test("no assignee is free: Take over assigns this login and drives", async (t) => {
+test("the spec issue's one assignee drives; reassigning moves it and unassigning releases it", async (t) => {
   const p = await pair(t);
-  const before = await p.a.tick();
-  assert.equal((await p.a.status()).reason, "no-assignee");
-  assert.equal((await p.a.status()).offer, "takeover");
-  // Nobody assigned raises no Needs you item (R116.4).
-  assert.deepEqual(driverDecisions(p.a.store), []);
-  assert.deepEqual(before.notify, []);
-  await p.a.ops.execute("driver.takeover", { planId: p.a.planId });
-  assert.deepEqual(p.assignees(), ["alice"]);
+  await p.alice.addAssignees(REPOSITORY, p.number, ["alice"]);
   await p.a.tick();
-  assert.equal((await p.a.status()).state, "driver");
-  assert.equal(readOnlyPlanIds(p.a.store).has(p.a.planId), false);
-});
-
-test("someone else assigned: Take over refuses, writes nothing, and says who", async (t) => {
-  const p = await pair(t);
-  await p.a.ops.execute("driver.takeover", { planId: p.a.planId });
   await p.b.tick();
-  const seen = await p.b.status();
-  assert.equal(seen.reason, "other-person");
-  assert.match(seen.text, /Taken by alice/);
-  assert.equal(seen.offer, "force");
-  // The Specs list row says the same, from the cache (R116.11).
-  const rowOf = async (w) =>
-    (await w.ops.execute("plan.table", {})).items.find(
-      (item) => item.planId === w.planId,
-    ).driver;
-  assert.deepEqual(await rowOf(p.b), {
-    mode: "github",
-    state: "read-only",
-    reason: "other-person",
-    assignees: ["alice"],
-  });
-  assert.equal((await rowOf(p.a)).state, "driver");
-  const body = p.issue().body,
-    from = p.calls.length;
-  await assert.rejects(
-    p.b.ops.execute("driver.takeover", { planId: p.b.planId }),
-    /Taken by alice.*Nothing changed/,
-  );
-  assert.deepEqual(p.assignees(), ["alice"]);
-  assert.equal(p.issue().body, body);
+  assert.equal((await p.a.status()).state, "driver");
+  const other = await p.b.status();
+  assert.equal(other.reason, "other-person");
+  assert.match(other.text, /Taken by alice/);
+  assert.equal(readOnlyPlanIds(p.b.store).has(p.b.planId), true);
+  // Handing off is reassigning the issue on GitHub; Avoozl writes nothing.
+  const from = p.calls.length;
+  await p.alice.removeAssignees(REPOSITORY, p.number, ["alice"]);
+  await p.bob.addAssignees(REPOSITORY, p.number, ["bob"]);
+  await p.a.tick();
+  await p.b.tick();
+  assert.equal((await p.a.status()).reason, "other-person");
+  assert.equal((await p.b.status()).state, "driver");
   assert.deepEqual(
-    p.calls.slice(from).filter((call) => call.name !== "issue"),
+    p.calls
+      .slice(from + 2)
+      .filter((call) => call.name !== "issue")
+      .map((call) => call.name),
     [],
+    "the ticks only read",
   );
-  // The journal's take over refuses the same way.
-  await assert.rejects(
-    p.b.ops.execute("spec.takeover", { planId: p.b.planId }),
-    /Only alice/,
-  );
-  assert.deepEqual(p.assignees(), ["alice"]);
+  // Unassigning releases it: nobody drives, and no Needs you item opens.
+  await p.bob.removeAssignees(REPOSITORY, p.number, ["bob"]);
+  for (const w of [p.a, p.b]) {
+    await w.tick();
+    assert.equal((await w.status()).reason, "no-assignee");
+    assert.deepEqual(driverDecisions(w.store), []);
+  }
 });
 
 test("two assignees hold both machines and raise one Needs you item naming both", async (t) => {
   const p = await pair(t);
-  await p.a.ops.execute("driver.takeover", { planId: p.a.planId });
-  // A person adds bob on GitHub (or both pressed Take over at once).
+  await p.alice.addAssignees(REPOSITORY, p.number, ["alice"]);
+  // A person adds bob on GitHub too.
   await p.bob.addAssignees(REPOSITORY, p.number, ["bob"]);
   for (const w of [p.a, p.b]) {
     const first = await w.tick(),
@@ -185,10 +166,6 @@ test("two assignees hold both machines and raise one Needs you item naming both"
     assert.equal(first.notify.length, 1, "one notice, the first time");
     assert.deepEqual(again.notify, []);
   }
-  await assert.rejects(
-    p.b.ops.execute("driver.takeover", { planId: p.b.planId }),
-    /several assignees/,
-  );
   // Removing one closes it by itself.
   await p.bob.removeAssignees(REPOSITORY, p.number, ["bob"]);
   await p.a.tick();
@@ -196,68 +173,9 @@ test("two assignees hold both machines and raise one Needs you item naming both"
   assert.equal((await p.a.status()).state, "driver");
 });
 
-test("Hand off unassigns, and the other machine's Take over assigns it there", async (t) => {
-  const p = await pair(t);
-  await p.a.ops.execute("driver.takeover", { planId: p.a.planId });
-  const folder = temporaryDirectory("avoozl-handoff-");
-  await p.a.ops.execute("driver.handoff", {
-    planId: p.a.planId,
-    action: "start",
-  });
-  const exported = await p.a.ops.execute("driver.handoff", {
-    planId: p.a.planId,
-    action: "export",
-    folder,
-  });
-  assert.ok(fs.existsSync(exported.file));
-  assert.deepEqual(p.assignees(), []);
-  await p.a.tick();
-  assert.equal((await p.a.status()).reason, "handed-off");
-  await p.b.ops.execute("driver.takeover", { planId: p.b.planId });
-  assert.deepEqual(p.assignees(), ["bob"]);
-  await p.b.tick();
-  assert.equal((await p.b.status()).state, "driver");
-  await p.a.tick();
-  assert.equal((await p.a.status()).reason, "other-person");
-});
-
-test("Release unassigns with no export, and refuses while a chat runs", async (t) => {
-  const p = await pair(t);
-  await p.a.ops.execute("driver.takeover", { planId: p.a.planId });
-  await p.a.tick();
-  const task = p.a.store
-    .read()
-    .tasks.find((item) => item.planId === p.a.planId);
-  bindSession(p.a.store, { slot: "chat-1", taskId: task.id });
-  await assert.rejects(
-    p.a.ops.execute("driver.handoff", {
-      planId: p.a.planId,
-      action: "release",
-    }),
-    new RegExp(`still run for config: ${task.id}`),
-  );
-  assert.deepEqual(p.assignees(), ["alice"]);
-  p.a.store.transaction(() =>
-    p.a.store.put("session_bindings", {
-      ...p.a.store.get("session_bindings", "chat-1"),
-      status: "closed",
-    }),
-  );
-  const released = await p.a.ops.execute("driver.handoff", {
-    planId: p.a.planId,
-    action: "release",
-  });
-  assert.deepEqual(p.assignees(), []);
-  assert.equal(released.specs[0].reason, "no-assignee");
-  assert.equal(readOnlyPlanIds(p.a.store).has(p.a.planId), true);
-  // Free again: bob may take it.
-  await p.b.ops.execute("driver.takeover", { planId: p.b.planId });
-  assert.deepEqual(p.assignees(), ["bob"]);
-});
-
 test("a fully landed spec closes its issue once, and the tick reads it once", async (t) => {
   const p = await pair(t);
-  await p.a.ops.execute("driver.takeover", { planId: p.a.planId });
+  await p.alice.addAssignees(REPOSITORY, p.number, ["alice"]);
   let from = p.calls.length;
   await p.a.tick();
   assert.deepEqual(
@@ -290,12 +208,10 @@ test("a spec with no spec issue drives here as Not shared, and no issue is made"
   assert.equal(seen.reason, "not-shared");
   assert.match(seen.text, /Not shared/);
   assert.equal(w.alice.created.length, 0);
-  await assert.rejects(
-    a.ops.execute("driver.takeover", { planId: a.planId }),
-    /no spec issue, so this workspace drives it already/,
-  );
-  await assert.rejects(
-    a.ops.execute("driver.handoff", { planId: a.planId, action: "release" }),
-    /nothing is shared to release/,
-  );
+  // There is no Take over, Hand off or Release to press (R118.4).
+  for (const name of ["driver.takeover", "driver.handoff"])
+    await assert.rejects(
+      a.ops.execute(name, { planId: a.planId }),
+      /Unknown operation/,
+    );
 });

@@ -10,14 +10,7 @@ details. Opening a link leaves the source task available when you return.
 
 ## D2. Worker chat or log
 
-For local work, use the existing session binding or process log. For
-worker-pull work, use the driver's grant for the claim to find the exact
-attempt on the worker. Keep the grant-to-attempt mapping on the worker
-and consult it through an owner-authorized, read-only lookup on the
-configured worker host. Match the exact grant before returning machine
-and target information. The worker's existing status read already has
-the local slot once the session binds. Avoozl's worker protocol still
-carries the same claims, grants and results.
+Use the existing session binding or process log.
 
 On Kiro Crew 0.13, use the existing local chat route or the Remote Crew
 route with the configured Crew ID and slot. In standalone Avoozl, use an
@@ -30,8 +23,8 @@ If no supported destination is known, show the worker name and last
 known state. For process workers use the existing log view where available.
 
 Amend WP6.1 of the worker-paths spec to allow read-only links to an
-existing chat on another Crew. WP5's worker-pull protocol and WP6's
-local-only session creation still apply.
+existing chat on another Crew. WP6's local-only session creation still
+applies.
 
 ## D3. Decision alerts
 

@@ -29,8 +29,7 @@ import { landingMessage } from "./landing-trailers.mjs";
 import { commitSubject } from "./landing-config.mjs";
 import { branchReviewRule } from "../github/github-branch-rules.mjs";
 import { reviewVerdict } from "../github/github-reviews.mjs";
-import { headGuardedMerge } from "../workers/driver-generations.mjs";
-import { journalChecks, landWithIntents } from "./merge-batch.mjs";
+import { headGuardedMerge } from "./guarded-push.mjs";
 import {
   landingRights,
   pushHead,
@@ -108,7 +107,6 @@ async function requiredChecks(github, target, base, declared) {
 //               plugin check on this machine provides, read from its local
 //               result and never from GitHub (plugin-checks D8)
 //   method      merge method (default "merge")
-//   intent(spec, entries) -> {journal, input, options} as in directSteps
 //   store       the workspace, whose content rules check every push
 //   commitPrefix  the repository's landing.commitPrefix, for pull request titles
 export function pullSteps({
@@ -121,55 +119,20 @@ export function pullSteps({
   checks: declared = [],
   local = { names: [], result: () => ({ conclusion: "pending" }) },
   method = "merge",
-  intent,
   env,
   machine,
   configFile,
   store,
   commitPrefix = "",
 }) {
-  if (typeof intent !== "function")
-    fail("Pull request landing writes an intent before every merge.", 400);
-  const log = { results: [] },
-    refOf = (entry, base, commit = entry.commit) => {
-      if (!entry.source?.repository || !entry.source?.branch)
-        fail(`${entry.key} has no source repository and branch.`, 400);
-      return qualifiedRef({
-        source: { ...entry.source, commit },
-        target: { repository: target, base },
-      });
-    },
-    intents = (entry, candidate, base, ref, passed = []) => {
-      const given = intent(entry.spec, [entry]),
-        evidence = journalChecks(passed);
-      return [
-        {
-          journal: given.journal,
-          options: given.options,
-          input: {
-            op: `land.${candidate.slice(0, 16)}`,
-            // The required checks that passed on this head, unless given.
-            ...(current?.passed ? { checks: current.passed } : {}),
-            ...given.input,
-            ...(evidence.length ? { checks: evidence } : {}),
-            refs: [
-              {
-                ...ref.source,
-                commit: candidate,
-                ...(ref.pr ? { pr: ref.pr } : {}),
-              },
-            ],
-            spec: entry.spec,
-            candidate,
-            base,
-            tasks: entry.tasks.map(({ task, definition }) => ({
-              task,
-              definition,
-            })),
-          },
-        },
-      ];
-    };
+  const refOf = (entry, base, commit = entry.commit) => {
+    if (!entry.source?.repository || !entry.source?.branch)
+      fail(`${entry.key} has no source repository and branch.`, 400);
+    return qualifiedRef({
+      source: { ...entry.source, commit },
+      target: { repository: target, base },
+    });
+  };
   let current = null; // the pull request the last prepare settled on
   // Every required check at `candidate`: its result, whether it is still
   // pending, and whether it failed.
@@ -235,37 +198,13 @@ export function pullSteps({
   const passing = (r) =>
     !r.pending && (PASS.has(r.conclusion) || r.conclusion === "success");
   return {
-    log,
     async readBase() {
       return (await github.branchHead(target, base)).oid;
     },
     // Someone else merged exactly this head: record their landing once.
-    // The evidence is the required checks GitHub shows on that head, read
-    // here, so a later tick with fresh steps records it too. A head whose
-    // required checks did not all pass is recorded without evidence.
     async observe(entry) {
       const pull = await findPull(github, target, entry, entry.base);
       if (!pull?.merged_at || pull.head?.sha !== entry.commit) return null;
-      const { results } = await headChecks(entry.commit, entry.base),
-        passed =
-          results.length && results.every(passing)
-            ? results.map((r) => ({
-                name: r.command,
-                conclusion: r.conclusion,
-              }))
-            : [],
-        ref = { ...refOf(entry, entry.base), pr: pull.number },
-        { pushed } = await landWithIntents(
-          intents(
-            entry,
-            entry.commit,
-            pull.base?.sha ?? entry.commit,
-            ref,
-            passed,
-          ),
-          async () => true,
-        );
-      if (!pushed) return null;
       return {
         merged: true,
         candidate: entry.commit,
@@ -401,30 +340,24 @@ export function pullSteps({
     },
     // Merges only with merge rights; otherwise the next observe() records
     // the maintainer's merge and nothing is written here.
-    async land({ entry, candidate, baseHead, checks = [] }) {
+    async land({ entry, candidate }) {
       const { pull, ref } = current,
         rights = await landingRights(github, ref, login);
       if (rights.land !== "merge") return false;
-      const { pushed, results } = await landWithIntents(
-        intents(entry, candidate, baseHead, ref, checks),
-        // Avoozl writes the merge commit's message: the same trailers a
-        // direct landing carries, so its metrics live in git (§4.42). A
-        // private task keeps its public name and no metrics.
-        () =>
-          headGuardedMerge(github, target, pull.number, candidate, method, {
-            title: `${pull.title ?? commitSubject(commitPrefix, `Land ${entry.key}`)} (#${pull.number})`,
-            message: landingMessage(
-              "",
-              entry.tasks
-                .filter((t) => typeof t !== "string")
-                .map((t) =>
-                  t.public ? { task: t.public, definition: t.definition } : t,
-                ),
+      // Avoozl writes the merge commit's message: the same trailers a
+      // direct landing carries, so its metrics live in git (§4.42). A
+      // private task keeps its public name and no metrics.
+      return headGuardedMerge(github, target, pull.number, candidate, method, {
+        title: `${pull.title ?? commitSubject(commitPrefix, `Land ${entry.key}`)} (#${pull.number})`,
+        message: landingMessage(
+          "",
+          entry.tasks
+            .filter((t) => typeof t !== "string")
+            .map((t) =>
+              t.public ? { task: t.public, definition: t.definition } : t,
             ),
-          }),
-      );
-      log.results.push(results);
-      return pushed;
+        ),
+      });
     },
   };
 }

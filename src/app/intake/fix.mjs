@@ -4,7 +4,7 @@
 // lines. Starting it is the approval, so a fix is a ready leaf at once. It
 // runs, is checked and lands like any other task.
 //
-// - From an issue (Fix on the Issues page, Deliver this): the journal is
+// - From an issue (Fix on the Issues page, Deliver this): the record is
 //   that issue, as for every GitHub intake task (github-intake.mjs).
 // - From text (New fix, `avoozl fix "TEXT" --repo ID`): the record is the
 //   task in the workspace database; nothing goes to GitHub.
@@ -15,7 +15,6 @@ import path from "node:path";
 import { digest } from "../../model.mjs";
 import { canonical, fail } from "../store/store.mjs";
 import { ensureInbox, patchTask } from "./intake.mjs";
-import { takeOverSpec } from "../specs/spec-takeover.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { lintSpec, readSpecFolder, taskToken } from "../specs/spec-plans.mjs";
 import { specsDirectory, specsPath } from "../specs/specs-path.mjs";
@@ -68,9 +67,7 @@ export function loadFix(fix) {
 // The issue a fix came from, or null for a fix from text.
 export const fixIssue = (task) => loadFix(task?.fix)?.source?.issue ?? null;
 
-// A fix lands like a spec's task: through a driver journal, so a landing
-// intent is written before every push (merge-batch.mjs). A fix has no spec,
-// so its journal is its own, local and named by the task: the "spec" a
+// A fix lands like a spec's task. A fix has no spec, so the "spec" a
 // landing entry names is the task's plan, or the fix itself.
 export const landingSpecOf = (task) =>
   task?.planId ?? (loadFix(task?.fix) ? task.id : null);
@@ -81,32 +78,6 @@ const fixTask = (store, id) =>
       (task) => task.id === id && !task.planId && loadFix(task.fix),
     ) ?? null;
 export const isFixSpec = (store, id) => Boolean(fixTask(store, id));
-// The revision a landing intent records: the plan's hash, or the fix's
-// definition.
-export const specRevision = (store, spec) =>
-  store.get("plans", spec)?.hash ??
-  loadFix(fixTask(store, spec)?.fix)?.definition ??
-  null;
-
-// The fix's local journal, taken over here so this workspace drives it.
-// `actor` is the person who started it; a retry writes nothing.
-export async function openFixJournal(store, { workspaceRoot, actor }, taskId) {
-  if (!workspaceRoot) fail("A fix needs a workspace root to land from.", 409);
-  const id = `spec-journal:${taskId}`;
-  if (!store.get("receipts", id))
-    store.put("receipts", {
-      id,
-      kind: "spec-journal",
-      planId: taskId,
-      home: "local",
-    });
-  return takeOverSpec(
-    store,
-    { workspaceRoot, actor: actor || "owner" },
-    taskId,
-  );
-}
-
 function oneTitle(text) {
   const line = text.split(/\r?\n/).find((entry) => entry.trim()) || "";
   const title = line.trim().replace(/\s+/g, " ");
@@ -120,8 +91,7 @@ const nextFixNumber = (tasks) =>
   Math.max(0, ...tasks.map((task) => Number(FIX_ID.exec(task.id)?.[1] ?? 0)));
 
 // `fix.start`: a fix from what a person typed. `repository` is a registered
-// repository's id (or its GitHub name) with a local checkout. `context` is
-// {workspaceRoot, actor}, for the fix's journal.
+// repository's id (or its GitHub name) with a local checkout.
 export async function startFix(store, input = {}, context = {}) {
   const text = typeof input.text === "string" ? input.text.trim() : "";
   if (!text) fail("Say what the fix should do.");
@@ -189,7 +159,6 @@ export async function startFix(store, input = {}, context = {}) {
       updatedAt: now,
     });
   });
-  await openFixJournal(store, context, id);
   return { taskId: id, fix };
 }
 

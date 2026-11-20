@@ -10,12 +10,7 @@ import { Operations } from "../api/operations.mjs";
 import { Store } from "../store/store.mjs";
 import { retryDelivery, shipMode } from "../delivery/delivery.mjs";
 import { revertCorrections, recordCorrection } from "../flow/corrections.mjs";
-import {
-  addEvidence,
-  exportEvidence,
-  importEvidence,
-  taskEvidence,
-} from "../tasks/evidence.mjs";
+import { taskEvidence } from "../tasks/evidence.mjs";
 import { isFixWork } from "../flow/flow.mjs";
 import { validateProposal } from "../specs/plans.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -135,23 +130,6 @@ test("Send back with a reason, and a revert, are corrections", async (t) => {
   });
   assert.equal(secret.redacted, true);
   assert.doesNotMatch(JSON.stringify(w.store.list("corrections")), /ghp_b/);
-});
-
-test("the driver export carries the bundles and a take-over restores them", (t) => {
-  const w = workspace(t);
-  addEvidence(w.store, "a", {
-    kind: "check",
-    source: "t",
-    text: "npm test: exit 1",
-  });
-  const exported = exportEvidence(w.store, ["a", "b"]);
-  assert.deepEqual(Object.keys(exported), ["a"]);
-  const other = workspace(t);
-  importEvidence(other.store, exported);
-  assert.equal(
-    taskEvidence(other.store, { taskId: "a" }).entries[0].text,
-    "npm test: exit 1",
-  );
 });
 
 test("fix work, the investigate fact, and a task's ship mode", () => {

@@ -22,11 +22,10 @@ A new workspace has no tasks and no repositories.
 
 ```sh
 avoozl seed --workspace ~/plans
-avoozl plan batches --workspace ~/plans
 avoozl epics --workspace ~/plans
 ```
 
-`plan batches` lists the specs in approval order, and `epics` shows the epic.
+`epics` shows the epic and its draft specs.
 Loading examples never approves a plan, starts a session, or configures a
 repository.
 

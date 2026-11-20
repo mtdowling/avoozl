@@ -444,74 +444,18 @@ export const commands = [
     },
   },
   {
-    command: "worker",
-    help: [
-      help(
-        "machine",
-        "worker pull",
-        "Worker mode: read this worker's offers from spec journals",
-      ),
-      help(
-        "machine",
-        "worker accept",
-        "Worker mode: ask for pulled offers, start the acknowledged ones",
-      ),
-      help(
-        "machine",
-        "worker setup",
-        "Worker mode: preview login, access, grants and executor",
-      ),
-    ],
-    async run({ positionals, localOrRequest }) {
-      // Worker mode (R90): this machine pulls offers from spec journals.
-      if (!["pull", "accept", "setup"].includes(positionals[0]))
-        throw Error("Use worker pull|accept|setup.");
-      console.log(
-        JSON.stringify(
-          await localOrRequest(`worker.${positionals[0]}`),
-          null,
-          2,
-        ),
-      );
-    },
-  },
-  {
     command: "driver",
     help: [
       help(
         "machine",
         "driver status [SPEC]",
-        "Which machine drives each spec, and why one reads only here",
+        "Who drives each spec (its issue's assignee), and why one reads only here",
       ),
-      help(
-        "machine",
-        "driver handoff SPEC [--folder DIR [--unfinished]] [--cancel]",
-        "Stop new work for SPEC; with --folder write the export (a person only)",
-      ),
-      help(
-        "machine",
-        "driver takeover SPEC [--file EXPORT.json]",
-        "Drive SPEC here; assigns you on its spec issue when nobody is (a person only)",
-      ),
-      help(
-        "machine",
-        "driver release SPEC",
-        "Stop driving SPEC and unassign you on its spec issue (a person only)",
-      ),
-      help(
-        "machine",
-        "driver takeover SPEC --force --confirm SPEC [--file EXPORT.json | --yes]",
-        "Assign the spec issue to you and take over by force (a person only)",
-      ),
-      help(
-        "machine",
-        "driver set [--label LABEL] [--heartbeat MINUTES]",
-        "This computer's machine label and heartbeat",
-      ),
+      help("machine", "driver set [--label LABEL]", "This computer's label"),
     ],
     async run({ options, positionals, localOrRequest }) {
-      // The spec driver (§6.10). Hand off, take over and force take over are
-      // a person's: the CLI is the person at this machine's command line.
+      // The spec driver (§6.10) is the spec issue's assignee: hand a spec
+      // to someone by reassigning its issue on GitHub.
       const action = positionals[0] || "status",
         planId = options.spec || positionals[1];
       let result;
@@ -520,55 +464,11 @@ export const commands = [
           "driver.status",
           planId ? { planId } : {},
         );
-      else if (action === "handoff") {
-        // Draining already: --folder writes the export now. Otherwise this
-        // starts the drain, and a --folder export is written once it drains.
-        const draining = options.cancel
-          ? false
-          : (await localOrRequest("driver.status", { planId })).specs?.[0]
-              ?.handoff?.state === "draining";
-        result = await localOrRequest("driver.handoff", {
-          planId,
-          action: options.cancel ? "cancel" : draining ? "export" : "start",
-          ...(options.folder ? { folder: path.resolve(options.folder) } : {}),
-          ...(options.unfinished ? { unfinished: true } : {}),
-        });
-      } else if (action === "release")
-        result = await localOrRequest("driver.handoff", {
-          planId,
-          action: "release",
-        });
-      else if (action === "takeover") {
-        const file = options.file ? path.resolve(options.file) : undefined;
-        if (options.force) {
-          if (typeof options.confirm !== "string")
-            throw Error(
-              "Force take over needs --confirm SPEC, the spec's name.",
-            );
-          result = await localOrRequest("driver.forceTakeover", {
-            planId,
-            confirm: options.confirm,
-            ...(file ? { file } : { acknowledgeLoss: options.yes === true }),
-          });
-        } else
-          result = await localOrRequest("driver.takeover", {
-            planId,
-            ...(file ? { file } : {}),
-          });
-        // Without an export it shows what is lost first; --yes runs it.
-        if (result?.needs === "acknowledge")
-          result =
-            "A take-over without an export loses:\n" +
-            result.lost.map((line) => "  - " + line).join("\n") +
-            "\nRun again with --yes to go on.";
-      } else if (action === "set")
+      else if (action === "set")
         result = await localOrRequest("driver.settings.update", {
           ...(options.label !== undefined ? { label: options.label } : {}),
-          ...(options.heartbeat !== undefined
-            ? { heartbeatMinutes: Number(options.heartbeat) }
-            : {}),
         });
-      else throw Error("Use driver status|handoff|release|takeover|set.");
+      else throw Error("Use driver status|set.");
       console.log(
         typeof result === "string" ? result : JSON.stringify(result, null, 2),
       );

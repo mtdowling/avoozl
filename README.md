@@ -123,13 +123,8 @@ avoozl repository configure code --workspace ~/plans \
 ```
 
 Each check is a name and a command, run without a shell. Turn delivery on by
-adding `{ "delivery": {} }` to `.avoozl.json`. With no GitHub, also make this
-workspace the one that drives the spec:
-
-```sh
-avoozl spec publish NAME --workspace ~/plans
-avoozl spec takeover NAME --workspace ~/plans
-```
+adding `{ "delivery": {} }` to `.avoozl.json`. With no GitHub, this
+workspace drives every spec.
 
 The repository's `landing` setting decides what happens to work that passes:
 

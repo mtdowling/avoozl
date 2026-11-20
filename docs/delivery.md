@@ -39,15 +39,9 @@ Delivery starts with a `delivery` block in `.avoozl.json`:
 }
 ```
 
-A task lands only from the workspace that drives its spec. With no GitHub,
-make this workspace the driver once per approved spec:
-
-```sh
-avoozl spec publish NAME --workspace ~/plans
-avoozl spec takeover NAME --workspace ~/plans
-```
-
-See [Drivers](drivers.md) for how a spec's driver is chosen.
+A task lands only from the workspace that drives its spec: the spec issue's
+assignee, or this workspace when the spec has no issue. See
+[Drivers](drivers.md) for how a spec's driver is chosen.
 
 A workspace whose `.avoozl.json` still says `"runner": "crew-mode"` starts
 nothing until a person chooses **Let the tick run it** in **Needs you**.
@@ -89,9 +83,7 @@ other chats need two steps in Kiro Crew, each done once:
 Each minute the tick starts a worker session for each ready task, in its own
 worktree. The worker runs as a Kiro Crew chat or as a process harness such as
 Claude Code or Codex. See [Agents and the CLI](agents.md#roles-and-models) for
-choosing one. Sessions run on this machine unless a worker machine pulls the
-work with `avoozl worker setup`. See
-[People and machines](scale-out.md#worker-machines) for worker machines.
+choosing one. Sessions run on this machine.
 
 When a session reports done, Avoozl runs the checks itself on the exact commit
 in a clean worktree, with no model call. It then integrates the commit and

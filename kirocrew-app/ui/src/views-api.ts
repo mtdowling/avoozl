@@ -2,7 +2,6 @@
 // are read-only operations on the app backend. Keep this module free of JSX and
 // runtime imports so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
-import type { SpecPull } from './spec-pr-api.ts'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { HighRiskStep } from './settings-api.ts'
 
@@ -324,11 +323,11 @@ export interface ReviewTask extends TaskOwner {
 }
 
 // A Needs you row's own action (plugin-credentials §D7, §D10): Use this
-// one, Create labels or Delete branches. `confirm` lists the high-risk
+// one or Create labels. `confirm` lists the high-risk
 // steps the shared confirm shows before the operation runs.
 export interface NeedsYouAction {
   label: string
-  operation: 'plugin.credentials.pick' | 'github.labels.create' | 'spec.grants.branches.delete'
+  operation: 'plugin.credentials.pick' | 'github.labels.create'
   input: Record<string, unknown>
   confirm?: HighRiskStep[]
 }
@@ -339,8 +338,6 @@ export interface ConflictItem extends TaskOwner {
   // The item a notice's link opened (direct-links D3).
   linked?: boolean
   planReview?: { planId: string; revisionHash: string }
-  // A spec pull request adopted into its spec (R107.5).
-  specPull?: SpecPull
   kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | string
   // Null for a review group, which stands for many tasks.
   taskId: string | null
@@ -355,16 +352,7 @@ export interface ConflictItem extends TaskOwner {
   // status running or review with no live session behind it. 'disk': a
   // volume too full for a worktree. 'crew-mode': a workspace a Crew Mode
   // conductor drove, held until a person lets the tick run it (WP1.3).
-  reason?:
-    | 'review'
-    | 'blocked'
-    | 'crew-mode'
-    | 'hand-set-review'
-    | 'approval'
-    | 'disk'
-    | 'phase-check'
-    | 'required-check'
-    | 'plugin-check-clash'
+  reason?: 'review' | 'blocked' | 'crew-mode' | 'hand-set-review' | 'approval' | 'disk' | 'phase-check' | 'required-check' | 'plugin-check-clash'
   // A failed phase plugin check (plugin-checks D7): the proposed fix, whose
   // text holds the check's output as untrusted data, and the run it is for.
   phaseFix?: { run: string; plan: string; phase: string; repository: string; text: string }

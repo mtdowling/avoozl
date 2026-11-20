@@ -53,9 +53,9 @@ they never collide with the IDs of the other specs.
   - $after: pc-1.4
   - `github.job.confirm` in `src/app/ops/github.mjs` with `person` policy; grants in `github-jobs.mjs`; the confirm modal on the shared `Modal`; the CLI prompt shared by setup commands.
 - [x] pc-2.2 Setup flows name their jobs; refusals list the manual steps, after pc-2.1 [PC4.1, PC13.3, PC13.8, PC13.9] (§D6, §D7)
-  - $done: Tests: every write in a Set up GitHub, landing setup and triage setup preview names a `high` job and its permissions, and the existing confirm lists them with no second popup; a provider refusing `landing-setup` skips that write, shows the reason and a manual list (the ruleset to add, or the permission to grant), and setup still applies its other writes; `createIssue` in a `low` job creates no label and a missing label opens one Needs you item whose **Create labels** runs `repo-setup` through the confirm; a settled grant's branch is deleted from the tick as `own-branch-delete` with no confirm; that job refuses a branch outside the grant prefix and one whose head is not the commit Avoozl pushed, and such a branch is listed in Needs you with **Delete branches**, which deletes it as `branch-delete` after one confirm.
+  - $done: Tests: every write in a Set up GitHub, landing setup and triage setup preview names a `high` job and its permissions, and the existing confirm lists them with no second popup; a provider refusing `landing-setup` skips that write, shows the reason and a manual list (the ruleset to add, or the permission to grant), and setup still applies its other writes; `createIssue` in a `low` job creates no label and a missing label opens one Needs you item whose **Create labels** runs `repo-setup` through the confirm.
   - $after: pc-2.1
-  - Write descriptions in `github-setup.mjs`, `setup-landing.mjs` and the triage setup flow gain `job` and `permissions`; `ensureLabel` leaves `createIssue`; `worker-release.mjs` deletes through `own-branch-delete`.
+  - Write descriptions in `github-setup.mjs`, `setup-landing.mjs` and the triage setup flow gain `job` and `permissions`; `ensureLabel` leaves `createIssue`.
 
 ## Phase 3: Git
 

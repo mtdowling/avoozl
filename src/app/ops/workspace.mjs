@@ -35,7 +35,7 @@ import {
 } from "../workspace/onboarding.mjs";
 import { archiveEnded } from "../specs/plan-retire.mjs";
 import { planReviewStep } from "../reviews/plan-review-step.mjs";
-import { runnerTick, workerTick } from "../workers/remote-runner.mjs";
+import { runnerTick } from "../workers/remote-runner.mjs";
 import { cliCommand } from "../workers/report-command.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
@@ -44,11 +44,9 @@ import {
   lintSpec,
   saveSpecPlan,
 } from "../specs/spec-plans.mjs";
-import { journalOf } from "../specs/spec-scheduler.mjs";
 import { fail } from "../store/store.mjs";
 import { WORKSPACE_LOCK, tick, tickHealth, tickLog } from "../tick/tick.mjs";
 import { planPage, recentIntegrations } from "../api/views.mjs";
-import { checkStaleGrants } from "../workers/worker-release.mjs";
 import {
   assertRepositoryRemovable,
   removeWorkspaceRepositoryRecords,
@@ -136,8 +134,6 @@ export const entries = [
     async handler({ input }) {
       const store = this.store;
 
-      // A worker machine pulls and accepts before it runs what it was given.
-      await workerTick(store, this.workspaceRoot, this.github);
       // A runner holds no plans, so its tick only runs handed tasks.
       const remote = await runnerTick(store, this.workspaceRoot, {
         roster: Array.isArray(input.sessions) ? input.sessions : null,
@@ -148,44 +144,6 @@ export const entries = [
       await this.applyBaseTicks();
       // An approver's spec commit that reached main approves it (§4.42).
       await this.applyMainApprovals();
-      if (input.cron === true) {
-        const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
-          journalFor = async (planId) => {
-            const journal = journalOf(
-              store,
-              { github: this.github, workspaceRoot: this.workspaceRoot },
-              planId,
-            );
-            return journal && !journal.unreadable
-              ? {
-                  journal,
-                  options: {
-                    visibility: await journal.visibility(),
-                    publicRepositories: journal.publicRepositories ?? [],
-                    names: journal.names,
-                  },
-                }
-              : null;
-          };
-        // Stale worker accepts reach Needs you; nothing releases them (R90.6).
-        await checkStaleGrants(store, {
-          workspaceRoot: this.workspaceRoot,
-          driving,
-          journalFor,
-        }).catch(() => 0);
-        // Worker machines get the driven specs' ready tasks, and their
-        // grants are answered, when workers.offerTo names them (WP5).
-        if (driving.length)
-          await this.workerOffers(store, driving).catch((error) =>
-            store.event(null, "worker.offers", { error: error.message }),
-          );
-        // What worker machines pushed is fetched, checked and landed here
-        // (R90.2, worker-paths WP5.3); a result that fails is a failed attempt.
-        if (driving.length)
-          await this.workerResults(store, driving, journalFor).catch(
-            () => null,
-          );
-      }
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
@@ -197,7 +155,6 @@ export const entries = [
       });
       if (result.skipped) return result;
       if (Array.isArray(input.sessions) || input.cron === true) {
-        await this.approvalTick().catch(() => {});
         // Finished retros become committed files (§4.42).
         await this.writeRetroFiles().catch(() => {});
       }

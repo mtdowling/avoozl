@@ -1,4 +1,4 @@
-// GitHub intake (Requirement 102.19, design §4.32.11): a person's Plan this
+// GitHub intake (Requirement 102.13, design §4.32.10): a person's Plan this
 // and Deliver this on a GitHub issue, against a fake GitHub only.
 import assert from "node:assert/strict";
 import test from "node:test";

@@ -8,10 +8,10 @@ opens its worker attempt. An alert opens its decision in Needs you.
 ### Requirement DL1: Open the exact worker attempt
 
 **User story:** As an owner looking at a task, I want to open its worker
-chat or log, even when the worker runs on another machine.
+chat or log.
 
-1. In flight and the task detail SHALL show the worker machine and an
-   action for the displayed attempt when a destination is available:
+1. In flight and the task detail SHALL show an action for the displayed
+   attempt when a destination is available:
    **Open worker chat** or **View worker log**.
 2. In Kiro Crew, the chat action SHALL open the existing local chat or,
    for a connected Remote Crew, the exact chat on that Crew. In standalone
@@ -43,8 +43,7 @@ decision it refers to so I can answer it in Needs you.
 
 1. Opening a link SHALL use the destination's existing sign-in and access
    checks. Approvals and decisions use their existing actions in Avoozl.
-2. Worker discovery SHALL be an owner-authorized read. GitHub journals
-   SHALL retain their current IDs-only format. Chat IDs, hostnames,
-   authentication data and private URLs stay out of those journals.
+2. Chat IDs, hostnames, authentication data and private URLs SHALL stay
+   out of every GitHub write.
 3. Dispatch, claims, reports, checks and landing SHALL keep their current
    rules. Opening a task or alert SHALL never start or replace a worker.

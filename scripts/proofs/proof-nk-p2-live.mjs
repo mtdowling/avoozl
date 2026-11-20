@@ -592,7 +592,7 @@ async function prove() {
         now.plan.hash.slice(0, 16),
       );
       // This machine drives the spec: publish its journal here, then take it
-      // over, each a person's act on the command line (R102.2, R102.13).
+      // over, each a person's act on the command line (R102.2, R102.8).
       cli("spec", "publish", SPEC, "--workspace", P.ws);
       cli("spec", "takeover", SPEC, "--workspace", P.ws);
       event("step3.approved");

@@ -19,22 +19,13 @@ import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { remoteGit, remoteGitSetup } from "../git/git.mjs";
-import { personOf } from "../github/github.mjs";
 import { enforce, pushLines } from "../content/content-rules.mjs";
 import { taskGit } from "../git/task-git.mjs";
 import { fail } from "../store/store.mjs";
 import { briefCell } from "./worker-briefs.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
-import { checkpointBranch, sourceRegistry } from "./working-heads.mjs";
-import { lanesOf, poolsOf, pullOffers } from "./worker-offers.mjs";
-import {
-  acknowledged,
-  envelopeFor,
-  forgetRequest,
-  requestGrants,
-} from "./worker-grants.mjs";
-
+import { checkpointBranch } from "./working-heads.mjs";
 const run = promisify(execFile);
 const TASKS = "runner.tasks";
 const NAME = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/;
@@ -54,6 +45,7 @@ const ENVELOPE_KEYS = [
   "spec",
 ];
 const SPEC = /^[a-z0-9][a-z0-9-]{0,79}$/;
+
 // A worker (R90.1) holds no plans: it takes tasks only from its own pull and
 // runs them on the task tick.
 export const HOLDS_TASKS = (config) => config?.role === "worker";
@@ -123,11 +115,6 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
       workerMode: ["trust", "trust_reads"].includes(block.workerMode)
         ? block.workerMode
         : null,
-      // A worker's own pull: where the journals are, which source
-      // repositories it may fetch, and how many tasks it runs at once.
-      pools: poolsOf(block.pools),
-      sources: (sourceRegistry(block.sources), block.sources ?? {}),
-      lanes: lanesOf(block.lanes),
     };
   }
   fail('runner.role is "worker".');
@@ -204,7 +191,7 @@ function update(store, id, patch) {
   });
 }
 
-// `avoozl runner accept`: record the task once. The same envelope again is
+// Record the task once. The same envelope again is
 // a no-op; a different one under the same task ID is refused, so a task is
 // never claimed twice and never changed after it started.
 export function acceptEnvelope(store, workspaceRoot, text, { pulled } = {}) {
@@ -243,105 +230,6 @@ export function acceptEnvelope(store, workspaceRoot, text, { pulled } = {}) {
     store.setMeta(TASKS, all);
     return { taskId: envelope.taskId, state: "accepted", duplicate: false };
   });
-}
-
-// `avoozl worker pull`: read this worker's offers from the spec journals,
-// at most one per free lane. It starts nothing; the offers wait for the
-// driver's acknowledgment (R90.4). The last pull is kept for the next steps.
-export async function pullWork(store, workspaceRoot, github) {
-  const config = readRunnerConfig(workspaceRoot);
-  if (config?.role !== "worker")
-    fail('This workspace is not a worker (.avoozl.json runner.role "worker").');
-  if (!github?.available?.())
-    fail("A worker needs GitHub to pull offers.", 409);
-  const login = await personOf(github);
-  if (!login) fail("GitHub did not name this worker's login.", 409);
-  const running = Object.values(tasksOf(store)).filter(
-      (record) => !TERMINAL.has(record.state),
-    ).length,
-    result = await pullOffers({
-      github,
-      pools: config.pools,
-      sources: config.sources,
-      login,
-      free: config.lanes - running,
-    });
-  store.setMeta("worker.offers", { at: now(), ...result });
-  return result;
-}
-
-// `avoozl worker accept`: ask for each pulled offer, and start only those the
-// driver acknowledged for this worker, within the free lanes (R90.4). A task
-// no acknowledgment names starts nothing.
-export async function acceptWork(store, workspaceRoot, github) {
-  const config = readRunnerConfig(workspaceRoot);
-  if (config?.role !== "worker")
-    fail('This workspace is not a worker (.avoozl.json runner.role "worker").');
-  if (!github?.available?.()) fail("A worker needs GitHub to claim.", 409);
-  const login = await personOf(github);
-  if (!login) fail("GitHub did not name this worker's login.", 409);
-  const requested = await requestGrants(store, {
-      pools: config.pools,
-      github,
-    }),
-    { ready, waiting } = await acknowledged(store, {
-      pools: config.pools,
-      github,
-      login,
-    }),
-    result = {
-      requested,
-      started: [],
-      held: [],
-      waiting: waiting.map(({ spec, task }) => ({ spec, task })),
-    };
-  let free =
-    config.lanes -
-    Object.values(tasksOf(store)).filter((r) => !TERMINAL.has(r.state)).length;
-  for (const offer of ready) {
-    if (hasRemoteTask(store, offer.task)) {
-      forgetRequest(store, offer);
-      continue;
-    }
-    if (free < 1) break;
-    const { envelope, held } = await envelopeFor(offer, { config });
-    if (held) {
-      result.held.push({ spec: offer.spec, task: offer.task, reason: held });
-      continue;
-    }
-    acceptEnvelope(store, workspaceRoot, JSON.stringify(envelope), {
-      pulled: true,
-    });
-    forgetRequest(store, offer);
-    free -= 1;
-    result.started.push({ spec: offer.spec, task: offer.task });
-  }
-  return result;
-}
-
-// A worker machine's own tick (worker-paths WP5.2): pull offers within the
-// free lanes, ask for them, and start the ones the driver acknowledged, with
-// the same functions `avoozl worker pull` and `avoozl worker accept` run once
-// by hand. With no GitHub, or a GitHub that fails, the tick records one line
-// and starts nothing; the next tick tries again. Returns what it did, or null
-// on a workspace that is not a worker.
-export async function workerTick(store, workspaceRoot, github) {
-  const config = readRunnerConfig(workspaceRoot);
-  if (config?.role !== "worker") return null;
-  const skipped = (reason) => {
-    store.event(null, "worker.tick", { skipped: reason });
-    return { pulled: null, claimed: null, skipped: reason };
-  };
-  if (!github?.available?.()) return skipped("no GitHub access");
-  try {
-    const pulled = await pullWork(store, workspaceRoot, github);
-    return {
-      pulled: pulled.offers.length,
-      claimed: await acceptWork(store, workspaceRoot, github),
-    };
-  } catch (error) {
-    return skipped(error.message);
-  }
 }
 
 const chatKey = (slot) =>
@@ -389,7 +277,6 @@ const git = (cwd, ...args) =>
 
 async function startWorktree(store, config, id, record) {
   const repo = config.repos[record.envelope.repo].path,
-    // A worker pushes to the task's checkpoint ref (R90.2, §4.32.8).
     branch = record.envelope.spec
       ? checkpointBranch(record.envelope.spec, id)
       : `avoozl/remote/${id}`.replace(/[^A-Za-z0-9._/-]/g, "-"),

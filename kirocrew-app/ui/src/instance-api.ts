@@ -33,10 +33,3 @@ export function nameFor(view: InstanceView | null | undefined, surface: 'header'
   if (!view) return null
   return surface === 'header' || view.shared ? view.name : null
 }
-
-// "Mira hands the driver role to Juno"; without a target, "Mira hands the
-// driver role over". Null when the name stays quiet.
-export function handoffLine(view: InstanceView | null | undefined, to?: string | null): string | null {
-  const name = nameFor(view, 'other')
-  return name ? `${name} hands the driver role ${to ? `to ${to}` : 'over'}.` : null
-}

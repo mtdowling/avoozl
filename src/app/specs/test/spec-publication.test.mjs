@@ -3,8 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../../api/operations.mjs";
-import { appendRecord, replayJournal } from "../spec-journal.mjs";
-import { localJournalFile, publishSpec } from "../spec-publication.mjs";
+import { publishSpec } from "../spec-publication.mjs";
 import { planningIdentity } from "../../github/github-marker.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { FakeGitHub } from "../../test/fake-github.mjs";
@@ -67,11 +66,6 @@ const writes = (github) => ({
 test("approval makes no GitHub write; Publish issue makes one labeled issue once", async (t) => {
   const w = await workspace(t, { mode: "single-repo" });
   const before = writes(w.github);
-  w.store.setMeta(`spec-approval:${w.plan.id}:${w.plan.hash}`, {
-    state: "merged",
-    commit: "0123456789abcdef0123456789abcdef01234567",
-    approvedBy: "octocat",
-  });
   await w.ops.execute("plan.approve", {
     id: w.plan.id,
     expectedHash: w.plan.hash,
@@ -148,35 +142,12 @@ test("a spec in an epic gets the epic issue and is made under it, both labeled",
   );
 });
 
-test("a workspace without GitHub keeps the journal in a local file", async (t) => {
+test("a workspace without GitHub cannot make the issues", async (t) => {
   const w = await workspace(t);
-  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
-  assert.equal(published.home, "local");
-  const { journal } = await publishSpec(w.store, {
-    github: null,
-    workspaceRoot: w.root,
-    identity: planningIdentity(w.root),
-    planId: w.plan.id,
-    actor: "Operator",
-  });
-  await appendRecord(
-    journal,
-    {
-      op: "op-1",
-      kind: "approval",
-      spec: "config",
-      revision: "c".repeat(64),
-    },
-    { visibility: "private" },
+  await assert.rejects(
+    w.ops.execute("spec.publish", { planId: w.plan.id }),
+    /needs GitHub; run gh auth login/,
   );
-  const file = localJournalFile(w.root, w.plan.id);
-  assert.equal(fs.existsSync(file), true);
-  const result = await replayJournal(await journal.list(), {
-    visibility: "private",
-    permission: journal.permission,
-  });
-  assert.equal(result.records.length, 1);
-  assert.equal(result.held, false);
 });
 
 test("a plan's input issue in the spec's home becomes its spec issue", async (t) => {

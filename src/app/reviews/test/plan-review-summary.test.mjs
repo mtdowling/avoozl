@@ -199,7 +199,7 @@ test("open findings count by severity, and the reviewer's summary is read per re
   });
 });
 
-test("summary, approval checks and batch entries expose the same evidence without a GitHub write", async (t) => {
+test("summary, approval checks and preview expose the same evidence without a GitHub write", async (t) => {
   const env = setup(t);
   round(env, "review");
   finding(env, "open", "review");
@@ -219,51 +219,39 @@ test("summary, approval checks and batch entries expose the same evidence withou
     (await env.ops.execute("plan.preview", { id: env.plan.id })).review,
     summary,
   );
-  const batches = await env.ops.execute("plan.approvalBatches", {
-    ids: [env.plan.id],
-  });
-  assert.deepEqual(batches.batches[0].specs[0].review, summary);
-  assert.deepEqual(batches.selection.specs[0].review, summary);
   assert.deepEqual(env.writes, []);
 });
 
-for (const batch of [false, true])
-  test(`${batch ? "batch" : "single"} approval has the same result without review, with open findings, skipped or running`, async (t) => {
-    let baseline;
-    for (const state of ["none", "open", "skipped", "running"]) {
-      const env = setup(t);
-      if (state !== "none")
-        round(env, "review", {
-          state: state === "open" ? "done" : state,
-          note: state === "skipped" ? "The writer model is unknown." : null,
-        });
-      if (state === "open") finding(env, "open", "review");
-      const result = await env.ops.execute(
-        batch ? "plan.approveMany" : "plan.approve",
-        batch
-          ? { items: [{ id: env.plan.id, expectedHash: env.plan.hash }] }
-          : {
-              id: env.plan.id,
-              expectedHash: env.plan.hash,
-              expectedRevision: env.store.read().revision,
-            },
-      );
-      if (batch) assert.equal(result.ok, true);
-      const snapshot = {
-        tasks: env.store
-          .read()
-          .tasks.map((task) => ({ id: task.id, status: task.status })),
-        approvals: env.store
-          .list("approvals")
-          .map((a) => ({ planId: a.planId, hash: a.hash })),
-      };
-      if (!baseline) baseline = snapshot;
-      else assert.deepEqual(snapshot, baseline, state);
-      assert.deepEqual(env.writes, []);
-      if (state === "open")
-        assert.equal(env.store.get("review_threads", "open").state, "open");
-    }
-  });
+test("approval has the same result without review, with open findings, skipped or running", async (t) => {
+  let baseline;
+  for (const state of ["none", "open", "skipped", "running"]) {
+    const env = setup(t);
+    if (state !== "none")
+      round(env, "review", {
+        state: state === "open" ? "done" : state,
+        note: state === "skipped" ? "The writer model is unknown." : null,
+      });
+    if (state === "open") finding(env, "open", "review");
+    await env.ops.execute("plan.approve", {
+      id: env.plan.id,
+      expectedHash: env.plan.hash,
+      expectedRevision: env.store.read().revision,
+    });
+    const snapshot = {
+      tasks: env.store
+        .read()
+        .tasks.map((task) => ({ id: task.id, status: task.status })),
+      approvals: env.store
+        .list("approvals")
+        .map((a) => ({ planId: a.planId, hash: a.hash })),
+    };
+    if (!baseline) baseline = snapshot;
+    else assert.deepEqual(snapshot, baseline, state);
+    assert.deepEqual(env.writes, []);
+    if (state === "open")
+      assert.equal(env.store.get("review_threads", "open").state, "open");
+  }
+});
 
 test("only a person closes a spec finding or a text-plan comment", async (t) => {
   const env = setup(t);

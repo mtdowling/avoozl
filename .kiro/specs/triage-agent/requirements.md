@@ -289,8 +289,8 @@ act on it without leaving Avoozl for the common decisions.
    post), **Approve**, **Request changes**, **Comment**, **Close**, **Edit
    labels**, **Open on GitHub**. Approve, Request changes and Close SHALL
    be a person's.
-6. A pull request that only adds a spec SHALL keep **Review as spec**
-   (Requirement 107).
+6. A pull request that changes a spec SHALL get the same review, which
+   also runs spec lint and checks its requirement and design references.
 7. These pages replace Requirement 92's rule that Avoozl has no Issues or
    Pull requests pages, and replace the Triage list (the Untriaged list of
    Requirement 49, inside the one intake list of Requirement 110).

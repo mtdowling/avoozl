@@ -1,22 +1,13 @@
 // Epic lifecycle rows and approval evidence (Requirement 59.1, 102.18,
 // design §4.32.6). Temporary workspaces and fakes only.
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
 import test from "node:test";
 import { Operations } from "../../api/operations.mjs";
-import { normalizeGitHubPolicy } from "../../github/github-policy.mjs";
-import {
-  approvalState,
-  mayLinkSpecIssue,
-  openApproval,
-  reconcileApproval,
-} from "../../specs/spec-approval.mjs";
+import { mayLinkSpecIssue } from "../../github/source-backlinks.mjs";
 import {
   epicMembers,
   lintSpec,
   readSpecFolder,
-  specHash,
 } from "../../specs/spec-plans.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { writeSpec } from "../../test/spec-fixture.mjs";
@@ -133,7 +124,7 @@ test("rows derive from member state and never from checkmarks", async (t) => {
     expectedHash: created.hash,
     expectedRevision: preview.expectedRevision,
   });
-  // No approval pull request: an explicit local approval.
+  // A folder outside git: an explicit local approval.
   assert.equal(receipt.approval.kind, "local");
   assert.deepEqual(await rows(), [
     ["design", true],
@@ -162,117 +153,6 @@ test("rows derive from member state and never from checkmarks", async (t) => {
 });
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
-class FakePulls {
-  constructor() {
-    this.pulls = [];
-    this.requested = [];
-    this.reviews = [];
-  }
-  async repository() {
-    return { default_branch: "main" };
-  }
-  async branchHead() {
-    return { oid: SHA };
-  }
-  async createBranch() {}
-  async commitFiles() {
-    return "c".repeat(40);
-  }
-  async blobTexts(_r, _ref, paths) {
-    return new Map(
-      paths.map((name) => [name, this.files[name.split("/").pop()] ?? null]),
-    );
-  }
-  async createPullRequest(_r, input) {
-    this.pulls.push({ number: this.pulls.length + 1, state: "open", ...input });
-    return { number: this.pulls.length };
-  }
-  async pullRequest(_r, number) {
-    return this.pulls[number - 1];
-  }
-  async requestReviewers(_r, number, reviewers) {
-    this.requested.push([number, reviewers]);
-  }
-  async pullRequestReviews() {
-    return this.reviews;
-  }
-}
-
-test("a merged approval keeps requester, real reviewers, merger and time apart", async () => {
-  const meta = new Map(),
-    store = {
-      getMeta: (k) => meta.get(k) ?? null,
-      setMeta: (k, v) => meta.set(k, structuredClone(v)),
-    },
-    github = new FakePulls(),
-    files = {
-      "requirements.md": "# R\n\nStatus: Draft\n",
-      "design.md": "# D\n\nStatus: Draft\n",
-      "tasks.md": "# T\n\nStatus: Draft\n\n- [ ] 1 Do it\n",
-    },
-    hash = specHash(files),
-    args = {
-      github,
-      repository: { owner: "octo", repo: "plans" },
-      planId: "p1",
-      hash,
-      spec: "demo",
-      files,
-      approvedBy: "requester",
-    };
-  github.files = files;
-  await openApproval(store, {
-    ...args,
-    reviewers: ["alice"],
-    specIssue: "octo/plans#4",
-  });
-  assert.deepEqual(github.requested, [[1, ["alice"]]]);
-  assert.match(github.pulls[0].body, /Spec issue: octo\/plans#4/);
-  // No configured reviewers: nothing requested, GitHub's CODEOWNERS decide.
-  const other = new FakePulls();
-  other.files = files;
-  await openApproval(
-    { getMeta: () => null, setMeta: () => {} },
-    { ...args, github: other },
-  );
-  assert.deepEqual(other.requested, []);
-  assert.doesNotMatch(other.pulls[0].body, /Spec issue/);
-
-  github.reviews = [
-    { user: { login: "alice" }, state: "CHANGES_REQUESTED" },
-    { user: { login: "bob" }, state: "APPROVED" },
-    { user: { login: "alice" }, state: "APPROVED" },
-    { user: { login: "bob" }, state: "DISMISSED" },
-    { user: { login: "carol" }, state: "COMMENTED" },
-  ];
-  Object.assign(github.pulls[0], {
-    state: "closed",
-    merged: true,
-    merge_commit_sha: SHA,
-    merged_by: { login: "merger" },
-    merged_at: "2026-11-16T20:00:00Z",
-  });
-  const state = await reconcileApproval(store, args);
-  assert.deepEqual(
-    {
-      requestedBy: state.requestedBy,
-      reviewers: state.reviewers,
-      mergedBy: state.mergedBy,
-      mergedAt: state.mergedAt,
-      commit: state.commit,
-      verified: state.verified,
-    },
-    {
-      requestedBy: "requester",
-      reviewers: ["alice"],
-      mergedBy: "merger",
-      mergedAt: "2026-11-16T20:00:00Z",
-      commit: SHA,
-      verified: true,
-    },
-  );
-  assert.equal(approvalState(store, "p1", hash).reviewers[0], "alice");
-});
 
 test("a public pull request never names a private spec issue", () => {
   assert.equal(
@@ -297,66 +177,33 @@ test("a public pull request never names a private spec issue", () => {
   );
 });
 
-test("github.specReviewers names logins per spec and nothing else", () => {
-  assert.deepEqual(
-    normalizeGitHubPolicy({ specReviewers: { demo: ["alice", "bob"] } })
-      .specReviewers,
-    { demo: ["alice", "bob"] },
-  );
-  assert.equal(normalizeGitHubPolicy({}).specReviewers, undefined);
-  for (const bad of [
-    { demo: "alice" },
-    { demo: ["not a login"] },
-    { demo: ["alice", "ALICE"] },
-    { "Not A Spec": ["alice"] },
-  ])
-    assert.throws(() => normalizeGitHubPolicy({ specReviewers: bad }));
-  // The approval pull request asks the configured logins.
-  const root = temporaryDirectory();
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({
-      version: 1,
-      github: { specReviewers: { demo: ["alice"] } },
-    }),
-  );
-  const ops = new Operations(fixture({ after() {} }).store, {
-    workspaceRoot: root,
-  });
-  assert.deepEqual(ops.specReviewers({ spec: "demo" }), ["alice"]);
-  assert.deepEqual(ops.specReviewers({ spec: "other" }), []);
-});
-
-test("an approval receipt carries the merged pull request's evidence", async (t) => {
+test("an approval read from git names the approver's commit, and review is done", async (t) => {
   const { root, store, ops } = workspace(t);
   plan(root, "alpha");
+  epic(root, [["alpha", "review"]]);
   const created = await ops.execute("plan.create", { spec: "alpha" });
-  store.setMeta(`spec-approval:${created.id}:${created.hash}`, {
-    state: "merged",
-    repository: "octo/plans",
-    number: 3,
-    requestedBy: "requester",
-    reviewers: ["alice"],
-    mergedBy: "merger",
-    commit: SHA,
-    mergedAt: "2026-11-16T20:00:00Z",
-    verified: true,
-  });
-  const preview = await ops.execute("plan.preview", { id: created.id });
-  const receipt = await ops.execute("plan.approve", {
-    id: created.id,
-    expectedHash: created.hash,
-    expectedRevision: preview.expectedRevision,
-  });
+  assert.deepEqual(
+    ops.adoptApprovals(
+      new Map([
+        [
+          created.id,
+          { spec: "alpha", commit: SHA, email: "owner@example.test" },
+        ],
+      ]),
+    ),
+    [created.id],
+  );
+  const receipt = store
+    .list("approvals")
+    .find((entry) => entry.planId === created.id);
   assert.deepEqual(receipt.approval, {
-    kind: "pull-request",
-    repository: "octo/plans",
-    number: 3,
-    requestedBy: "requester",
-    reviewers: ["alice"],
-    mergedBy: "merger",
+    kind: "commit",
     commit: SHA,
-    mergedAt: "2026-11-16T20:00:00Z",
-    verified: true,
+    approvedBy: "owner@example.test",
   });
+  const rows = (await ops.execute("epic.get", { id: "launch" })).rows;
+  assert.deepEqual(
+    rows.map((row) => [row.step, row.done]),
+    [["review", true]],
+  );
 });

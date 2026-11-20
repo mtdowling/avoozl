@@ -1,5 +1,4 @@
 // Operations of one feature: name, class, MCP policy and handler.
-import { openFixJournal } from "../intake/fix.mjs";
 import { withWorkLock } from "../git/git.mjs";
 import { startGitHubItem } from "../github/github-intake.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
@@ -25,20 +24,13 @@ async function intakeDeliverHandler({ name, input }) {
 
   const action = name === "intake.deliver" ? "deliver" : "plan",
     policy = readGitHubPolicyOrNull(this.workspaceRoot);
-  // A GitHub item (R102.19): its two writes need the GitHub client.
-  // Deliver this is a fix, which lands through its own journal.
+  // A GitHub item (R102.13): its two writes need the GitHub client.
   if (input.source === "github")
     return withWorkLock(store, WORKSPACE_LOCK, async () => {
       const started = await startGitHubItem(store, this.github, policy, {
         ...input,
         action,
       });
-      if (action === "deliver")
-        await openFixJournal(
-          store,
-          { workspaceRoot: this.workspaceRoot, actor: this.operator },
-          started.taskId,
-        );
       return started;
     });
   return withWorkLock(store, WORKSPACE_LOCK, async () =>

@@ -41,7 +41,6 @@ const HIGH_CALL = {
     github.createIssueType("acme", { name: "Epic" }),
   "landing-setup": (github) =>
     github.updateRepository("acme/api", { allow_squash_merge: false }),
-  "branch-delete": (github) => github.deleteBranch("acme/api", "topic"),
 };
 
 const APP = path.join(import.meta.dirname, "..", "..");

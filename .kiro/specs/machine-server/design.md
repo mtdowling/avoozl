@@ -335,7 +335,7 @@ token in a temporary state folder.
 
 **Authorization.** The interface is for agents. Every call is an agent
 principal, so person-only operations are refused (MS9.4). Spec approval,
-approval delegation, harness approval and person-only Needs you answers stay
+harness approval and person-only Needs you answers stay
 with the person: the CLI at their own prompt, or the page with its owner
 link. The host guard (MS11.3) is a speed bump, as R95.7 says of Kiro Crew
 chats, and the docs say so.

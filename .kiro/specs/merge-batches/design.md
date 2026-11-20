@@ -91,9 +91,7 @@ checks, plus one for the confirmation.
 ## D5. Local refs (MB6)
 
 A member is a ref under `refs/avoozl/land/<task>` in the checkout that
-lands, pointing at the verified commit. A worker machine's result is fetched
-into the same ref (R90.2 already fetches it to check it). Avoozl pushes only
-the base branch. `refs/avoozl/` is not under `refs/heads/`, so a plain `git
+lands, pointing at the verified commit. Avoozl pushes only the base branch. `refs/avoozl/` is not under `refs/heads/`, so a plain `git
 push` from that checkout never sends it, and it never reaches CI.
 
 ## D6. What the page shows (MB7)

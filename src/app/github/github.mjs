@@ -1616,16 +1616,6 @@ export class GitHubClient {
     );
   }
 
-  requestReviewers(value, number, reviewers) {
-    const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request(
-      "POST",
-      `/repos/${owner}/${repo}/pulls/${number}/requested_reviewers`,
-      { body: { reviewers } },
-    );
-  }
-
   createPullRequest(value, input) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
@@ -1634,8 +1624,6 @@ export class GitHubClient {
     });
   }
 
-  // A branch at `oid`, then one file written on it. Used by the approval
-  // pull request (spec-approval.mjs). `content` is base64.
   // The public crew audit's reads (R85.6): issue and pull request comments,
   // issues and pull requests updated since `since`, the most recently
   // updated pull requests, and the branches under `prefix`.
@@ -1690,18 +1678,6 @@ export class GitHubClient {
     });
   }
 
-  deleteBranch(value, name) {
-    const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request(
-      "DELETE",
-      `/repos/${owner}/${repo}/git/refs/heads/${name.split("/").map(encodeURIComponent).join("/")}`,
-    ).catch((error) => {
-      if (error.status !== 404 && error.status !== 422) throw error;
-      return null;
-    });
-  }
-
   createBranch(value, name, oid) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
@@ -1719,36 +1695,6 @@ export class GitHubClient {
       `/repos/${owner}/${repo}/contents/${pathname.split("/").map(encodeURIComponent).join("/")}`,
       { query: { ref } },
     );
-  }
-
-  // Every file in one commit on `branch` (GraphQL createCommitOnBranch).
-  // `files` maps path -> base64 contents. GitHub refuses the commit when the
-  // branch head is no longer `expectedHeadOid`. Returns the new commit oid.
-  async commitFiles(value, { branch, message, files, expectedHeadOid }) {
-    const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    const data = await this.graphql(
-      `mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}`,
-      {
-        input: {
-          branch: {
-            repositoryNameWithOwner: `${owner}/${repo}`,
-            branchName: branch,
-          },
-          message: { headline: message },
-          expectedHeadOid,
-          fileChanges: {
-            additions: Object.entries(files).map(([path, contents]) => ({
-              path,
-              contents,
-            })),
-          },
-        },
-      },
-      "commit files",
-      { repository: { owner, repo } },
-    );
-    return data?.createCommitOnBranch?.commit?.oid ?? null;
   }
 
   // GitHub refuses an update to an existing file unless the request names the
@@ -1777,7 +1723,7 @@ export class GitHubClient {
 
   // Merges one pull request only while its head is still `sha`: GitHub
   // refuses (409) when the head moved, so a landing never takes a commit
-  // nobody checked (R102.13). No admin bypass.
+  // nobody checked (R102.8). No admin bypass.
   // `title` and `message`, when given, are the merge or squash commit's
   // (landing trailers, landing-trailers.mjs).
   mergePullRequest(value, number, { sha, method = "merge", title, message }) {
@@ -2074,12 +2020,13 @@ export class GitHubClient {
     });
   }
 
-  // Recent commits on a branch, newest first.
-  listCommits(value, branch, { limit = 5 } = {}) {
+  // Recent commits on a branch (or from a commit), newest first; with
+  // `path`, only those that change it.
+  listCommits(value, branch, { limit = 5, path = null } = {}) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
     return this.request("GET", `/repos/${owner}/${repo}/commits`, {
-      query: { sha: branch, per_page: limit },
+      query: { sha: branch, per_page: limit, ...(path ? { path } : {}) },
     }).then((result) => {
       if (!Array.isArray(result))
         fail("GitHub returned invalid commit data.", 502);

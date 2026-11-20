@@ -10,10 +10,10 @@ requirements: **V** read in the file cited at `deca253`, **A** assumed.
 | ---------- | ------------------------------------------------------------------- | ---------------------------------------- |
 | Dispatcher | Tick; Crew Mode conductor; a person (under Crew Mode); SSH driver   | Tick. A person may claim one task (WP2)  |
 | Executor   | `kirocrew`, `process`, a remote Kiro Crew                           | `kirocrew`, `process`                    |
-| Remote     | Runner over SSH; worker pull by hand; remote Kiro Crew              | Worker pull, on the tick                 |
+| Remote     | Runner over SSH; worker pull by hand; remote Kiro Crew              | None                                     |
 | Finish     | MCP tool; CLI with token; CLI without; conductor relay; result file | CLI with token (chat); result file (child); CLI without token (a person) |
 
-A task then runs one of two ways, on this machine or on a worker machine:
+A task then runs one of two ways, on this machine:
 
 1. The tick starts a Kiro Crew chat. The chat edits and commits in its
    worktree and runs `avoozl runner report` with its token.
@@ -34,7 +34,7 @@ that worked before the phase without a route after it.
 | ----- | --------------------------------------------------- | ---------------------------------------- |
 | 1     | The pair table; findings on both executors; briefs by executor | Nothing                       |
 | 2     | Manual take under the tick                         | Crew Mode dispatch and relay             |
-| 3     | Worker pull on the tick; results on the driver      | Runner mode over SSH                     |
+| 3     | Nothing                                             | Runner mode over SSH                     |
 | 4     | Sessions run on this machine                        | Remote crews, hand-back                  |
 | 5     | The word test; spec edits                           | Dead commands; old words in docs         |
 
@@ -145,36 +145,14 @@ Mode as a way to drive a task by hand in a test; they move to the manual
 claim or to the tick with a fake executor, and keep what they assert about
 delivery, landing and stacking.
 
-## D8. Worker pull on the tick (WP5)
-
-The worker side reuses the plan-less runner role, which stays (V:
-`src/app/workers/remote-runner.mjs` is imported by `executors/process.mjs`,
-`session-bindings.mjs` and `session-request-eligibility.mjs`). On a machine
-whose `runner.role` is `worker`, the tick runs, in order: pull offers,
-request claims for free lanes, start acknowledged tasks, report finished
-ones. These are the bodies of `avoozl worker pull` and `avoozl worker accept`
-today; the commands call the same functions.
-
-On the driver, the tick calls `worker-results.mjs` for each task whose claim
-is acknowledged: fetch the pushed ref, check the diff against declared and
-protected paths, run the checks on that head, and hand it to the landing
-queue (R90.2). A fetched result that fails is a failed attempt on the
-driver, not on the worker machine.
-
-With `workers.offerTo` set (WP5.7), the driver's tick first offers
-(`src/app/workers/worker-offer-step.mjs`): each ready task of a driven spec goes to
-each named login once, at the base branch's head, and is held from local
-dispatch. The same step answers claim requests as `spec grants` does. After
-a result is checked into the working branch, the tick lands that branch on
-the base branch in the driver's checkout: a fast-forward, after merging a
-moved base in, never a rebase.
+## D8. No remote route (WP5)
 
 Removed: the driver half of `remote-runner.mjs` (V: `commandFor`,
 `transportFor`, `handoff`, `pullStatus`, `remoteView` and `driverTick`,
 about 210 lines from `:619`), the `remote.accept`, `remote.handoff` and
-`remote.pull` operations, and
-`src/app/test/remote-runner.test.mjs` apart from the cases that cover the
-worker role, which move to `worker-mode.test.mjs`.
+`remote.pull` operations, and `src/app/test/remote-runner.test.mjs` apart
+from the cases that cover the runner role, which move to
+`worker-mode.test.mjs`.
 
 ## D9. Sessions run on this machine (WP6)
 
@@ -197,7 +175,7 @@ with them; `requirements.md` records the approval.
 
 | #   | Decision                                             | Default                                                                 | The other choice                                                              |
 | --- | ---------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 1   | A machine with no GitHub access (R90.7)              | Not a worker machine. Runner mode over SSH goes                         | Keep the SSH transport and its three commands, which is one more route        |
+| 1   | Runner mode over SSH                                 | It goes                                                                 | Keep the SSH transport and its three commands, which is one more route        |
 | 2   | The manual path (R96.5)                              | Keep `take`, `next` and the report, without Crew Mode                  | Drop the manual path too; a person edits in any checkout and Avoozl never sees it |
 | 3   | A workspace with `runner: "crew-mode"`               | Held until a person chooses Let the tick run it                         | Switch to the tick at once, which may start chats the same minute             |
 | 4   | Investigate first on a harness with no `resume`      | Skip that step for the task and say why                                 | Refuse to start the task until the definition has `resume`                    |
@@ -221,6 +199,5 @@ with them; `requirements.md` records the approval.
 | A test that used Crew Mode loses what it covered                       | D7: each moved file keeps its assertions; the task lists them before deleting anything |
 | A chat cannot run the report command                                   | D5 and the empty-`PATH` test; the token still matches the report to the attempt        |
 | A resumed child is not the same session                                | The proof checks the session ID across Go ahead, as P57 did for a landing round        |
-| A worker machine's tick claims more than its lanes                     | R90.3's one task per free lane, tested with a fake driver                              |
 | Old files stop loading                                                 | WP1.2, WP6.6 and WP7.1: every removed key loads or is refused with its replacement     |
 | The avoozl spec's task 45.4 has not landed when the last proof runs    | WP4.4 is checked by that proof; it fails with the reason until 45.4 lands              |

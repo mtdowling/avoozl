@@ -1,6 +1,5 @@
-// Direct landing in merge batches (tasks 41.3, mb-1.2 to mb-1.4). Journals
-// are in memory; repositories are local scratch repositories with a bare
-// remote.
+// Direct landing in merge batches (tasks 41.3, mb-1.2 to mb-1.4).
+// Repositories are local scratch repositories with a bare remote.
 import { parseLanding } from "../landing-trailers.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,41 +10,13 @@ import { digest } from "../../../model.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { gitTemplate } from "../../test/git-template.mjs";
 import { git } from "../../git/git.mjs";
-import { journalOutcomes, replayJournal } from "../../specs/spec-journal.mjs";
-import { taskOutcome } from "../../specs/task-outcomes.mjs";
-import { driverState, takeOver } from "../../workers/driver-generations.mjs";
 import { batchOf, landNext, landingQueue } from "../landing-queue.mjs";
 import { directSteps, memberRef, queuePortion } from "../merge-batch.mjs";
 import { workingBranch } from "../../workers/working-heads.mjs";
 
 const Q = { repositoryId: "fixture", base: "main" };
 const BATCH = { limit: 4, bisect: true };
-const owner = { login: "owner", from: "spec" };
-const person = { kind: "person", login: "owner" };
-const REVISION = digest("revision");
 const def = (task) => digest("definition " + task);
-
-function memory() {
-  const entries = [];
-  return {
-    entries,
-    list: async () => structuredClone(entries),
-    create: async (body) => {
-      const id = 1000 + entries.length * 7;
-      entries.push({ id, body, author: "owner" });
-      return { id };
-    },
-    permission: async (login) => (login === "owner" ? "admin" : "none"),
-  };
-}
-
-const state = async (journal) =>
-  driverState(
-    await replayJournal(journal.entries, {
-      permission: journal.permission,
-      visibility: "private",
-    }),
-  );
 
 // The base commit's files, which a portion appends to.
 const BASE_FILES = {
@@ -85,30 +56,10 @@ async function setup(t) {
     (
       await git(root, ["ls-remote", "--heads", upstream, "refs/heads/main"])
     ).split(/\s+/)[0];
-  const options = {
-    visibility: "private",
-    machine: { hostname: "made-up-host", username: "madeupuser" },
-    configFile: path.join(root, "machine.json"),
-  };
-  const journals = new Map(),
-    drivers = new Map();
-  const journalOf = async (spec) => {
-    if (!journals.has(spec)) {
-      const journal = memory();
-      journals.set(spec, journal);
-      const { driver } = await takeOver(
-        journal,
-        { by: person, owner, spec },
-        options,
-      );
-      drivers.set(spec, driver);
-    }
-    return journals.get(spec);
-  };
   // One verified portion: a commit with `files` on its own branch, made by
   // one `git fast-import` from the base's files (no checkout, add or commit).
   const marks = path.join(root, "portion-marks");
-  const portion = async (spec, task, files, { driver = "d1" } = {}) => {
+  const portion = async (spec, task, files) => {
     const data = (text) => `data ${Buffer.byteLength(text)}\n${text}`;
     execFileSync("git", ["fast-import", "--quiet", `--export-marks=${marks}`], {
       cwd: landing,
@@ -126,11 +77,9 @@ async function setup(t) {
       ].join("\n"),
     });
     const commit = fs.readFileSync(marks, "utf8").trim().split(" ")[1];
-    await journalOf(spec);
     return queuePortion(store, {
       ...Q,
       spec,
-      driver,
       commit,
       tasks: [
         {
@@ -148,19 +97,8 @@ async function setup(t) {
       root: landing,
       url: upstream,
       branch: "main",
-      repository: "acme/app",
       checks: [[process.execPath, "check.mjs"]],
       scan: async () => [],
-      intent: (spec) => ({
-        journal: journals.get(spec),
-        options,
-        input: {
-          driver: drivers.get(spec),
-          owner,
-          login: "owner",
-          revision: REVISION,
-        },
-      }),
       ...extra,
     });
   const tree = async (file) => {
@@ -175,11 +113,8 @@ async function setup(t) {
     head,
     base,
     portion,
-    journalOf,
     steps,
-    journals,
     tree,
-    options,
   };
 }
 
@@ -189,7 +124,6 @@ test("only verified portions with task definitions are queued", async (t) => {
   const input = {
     ...Q,
     spec: "s",
-    driver: "d1",
     commit,
     tasks: [{ task: "t1", definition: def("t1") }],
   };
@@ -214,16 +148,6 @@ test("only verified portions with task definitions are queued", async (t) => {
       }),
     /definition/,
   );
-  assert.throws(
-    () =>
-      directSteps({
-        root: x.landing,
-        url: x.upstream,
-        branch: "main",
-        checks: [["true"]],
-      }),
-    /intent/,
-  );
 });
 
 test("a merge batch across specs lands in one guarded push, up to the limit", async (t) => {
@@ -246,39 +170,6 @@ test("a merge batch across specs lands in one guarded push, up to the limit", as
     landingQueue(x.store, Q).map((e) => e.key),
     ["spec-a.t5"],
   );
-  // Each spec's journal has an intent and a landed outcome for its tasks.
-  for (const [spec, tasks] of [
-    ["spec-a", ["t1", "t3"]],
-    ["spec-b", ["t2", "t4"]],
-  ]) {
-    const st = await state(x.journals.get(spec));
-    assert.deepEqual(st.outcomes.map((o) => o.task).sort(), tasks, spec);
-    assert.ok(
-      st.outcomes.every(
-        (o) => o.kind === "landed" && o.commit === result.candidate,
-      ),
-    );
-    // The intent carries the checks that passed at the candidate, so each
-    // landed outcome has evidence and completes its task (R102.5).
-    const replay = await replayJournal(x.journals.get(spec).entries, {
-      permission: x.journals.get(spec).permission,
-      visibility: "private",
-    });
-    for (const task of tasks)
-      assert.equal(
-        taskOutcome(journalOutcomes(replay), {
-          spec,
-          task,
-          revision: REVISION,
-          definition: def(task),
-        }).state,
-        "complete",
-        `${spec} ${task}`,
-      );
-    const [evidence] = [...st.intents.values()][0].checks;
-    assert.match(evidence.name, /^node(\.exe)? check\.mjs$/);
-    assert.equal(evidence.conclusion, "success");
-  }
   // Every merge commit carries its tasks' trailers.
   const log = await git(x.landing, [
     "log",
@@ -297,23 +188,6 @@ test("a merge batch across specs lands in one guarded push, up to the limit", as
       ["t1", 2, "process"],
     ],
   );
-});
-
-test("members of two drivers land in one fast-forward, each intent read back first", async (t) => {
-  const x = await setup(t);
-  await x.portion("spec-a", "t1", { "one.txt": "1\n" });
-  await x.portion("spec-b", "t2", { "two.txt": "2\n" }, { driver: "d2" });
-  await x.portion("spec-b", "t3", { "three.txt": "3\n" }, { driver: "d2" });
-  const s = x.steps(),
-    result = await landNext(x.store, Q, s, { ...BATCH, limit: 3 });
-  assert.equal(result.state, "landed");
-  assert.deepEqual(
-    result.entries.map((e) => e.key),
-    ["spec-a.t1", "spec-b.t2", "spec-b.t3"],
-  );
-  assert.equal(await x.head(), result.candidate);
-  assert.equal(s.log.results[0].length, 2);
-  for (const r of s.log.results[0]) assert.equal(r.state, "landed");
 });
 
 test("a batch of one lands as direct landing did, and a base that moved gets new checks", async (t) => {
@@ -533,7 +407,7 @@ test("a member marked alone lands alone", async (t) => {
   );
 });
 
-test("a worker machine's result lands from its fetched ref, and the remote holds only the base", async (t) => {
+test("a member fetched from another clone lands from its ref, and the remote holds only the base", async (t) => {
   const x = await setup(t);
   // The result's commit exists only in another clone and arrives by fetch
   // into the member's ref.
@@ -551,11 +425,9 @@ test("a worker machine's result lands from its fetched ref, and the remote holds
     worker,
     `${commit}:${memberRef("spec-a.t1")}`,
   ]);
-  await x.journalOf("spec-a");
   queuePortion(x.store, {
     ...Q,
     spec: "spec-a",
-    driver: "d1",
     commit,
     tasks: [{ task: "t1", definition: def("t1") }],
     evidence: { commit, checks: [{ command: "npm test", exitCode: 0 }] },
@@ -616,23 +488,6 @@ test("a content scan hit pushes nothing", async (t) => {
   assert.equal(result.entry.checks[0].command, "content scan");
   assert.equal(seen[0].base, x.base);
   assert.equal(await x.head(), x.base);
-});
-
-test("a displaced driver's intent stops before the push", async (t) => {
-  const x = await setup(t);
-  await x.portion("spec-a", "t1", { "one.txt": "1\n" });
-  // The owner takes over on another machine: d1 is no longer the driver.
-  await takeOver(
-    x.journals.get("spec-a"),
-    { by: person, owner, spec: "spec-a" },
-    x.options,
-  );
-  const s = x.steps(),
-    result = await landNext(x.store, Q, s, BATCH);
-  assert.equal(result.state, "not-landed");
-  assert.equal(s.log.results[0][0].state, "refused");
-  assert.equal(await x.head(), x.base);
-  assert.equal(landingQueue(x.store, Q)[0].key, "spec-a.t1");
 });
 
 test("after a landing the new base merges back into the spec's working branch, keeping unlanded work", async (t) => {

@@ -548,7 +548,7 @@ export function epicView(store, data, { id, spec = null, members = null }) {
     requirements: files["requirements.md"] ?? null,
     design: files["design.md"] ?? null,
     members: list,
-    // Lifecycle rows, derived from member state (R102.18).
+    // Lifecycle rows, derived from member state (R102.12).
     rows: epicRows(store, data, files),
     progress: { done, total },
     complete: list.length > 0 && list.every((item) => item.status === "done"),
@@ -1417,21 +1417,14 @@ const archiveFields = (plan) => ({
     .sort((a, b) => b.at.localeCompare(a.at)),
 });
 
-// The Plans table (§8): one row per plan, a spec folder on disk or a stored
-// plan with no folder, with its category from front-matter only, task
+// The Plans table (§8): one row per spec folder on disk, with its category
+// from front-matter only, task
 // counts, what is ready, running or needs a person, and its last change.
 // `specs` is plan.specs's items, each with `modifiedAt` and `category`;
 // `stored` is every live stored plan. Writes nothing.
-export function plansTableView(
-  store,
-  data,
-  { specs = [], stored = [], categoryOf },
-) {
+export function plansTableView(store, data, { specs = [], stored = [] }) {
   const graph = graphView(store, data, {}),
-    state = new Map(graph.tasks.map((task) => [task.id, task.state])),
-    claimed = new Set(
-      specs.flatMap((spec) => (spec.plan ? [spec.plan.id] : [])),
-    );
+    state = new Map(graph.tasks.map((task) => [task.id, task.state]));
   const counts = (scope) => {
     const tasks = data.tasks.filter(
         (task) => inPlan(task, scope) && task.status !== "superseded",
@@ -1485,9 +1478,6 @@ export function plansTableView(
       name: spec.title || spec.name,
       spec: spec.name,
       folder: spec.folder,
-      ...(spec.pull
-        ? { pull: { number: spec.pull.number, draft: spec.pull.draft } }
-        : {}),
       planId: spec.plan?.id ?? null,
       type: spec.type,
       category: spec.category ?? null,
@@ -1506,32 +1496,8 @@ export function plansTableView(
       ...archiveFields(plan),
     });
   }
-  for (const plan of stored) {
-    if (claimed.has(plan.id)) continue;
-    const summary = counts({ plan: plan.id });
-    rows.push({
-      key: `plan:${plan.id}`,
-      kind: plan.spec ? "spec" : "old-style",
-      ...epicFields(plan.id),
-      name: plan.title || plan.id,
-      spec: null,
-      folder: null,
-      planId: plan.id,
-      type: null,
-      category: categoryOf(plan),
-      categoryProblem: null,
-      errors: 0,
-      status: status(
-        { plan, approved: plan.state === "approved", changed: false },
-        summary.tasks.total > 0 && summary.tasks.done === summary.tasks.total,
-      ),
-      ...summary,
-      lastChange: newest(plan.updatedAt, summary.changedAt),
-      ...archiveFields(plan),
-    });
-  }
   // Each approved spec's driver, from the cache the tick's driver step
-  // writes (R116.11): no GitHub call.
+  // writes (R116.7): no GitHub call.
   const drivers = new Map(store.list("drivers").map((row) => [row.id, row]));
   for (const row of rows) {
     delete row.changedAt;

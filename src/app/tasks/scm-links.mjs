@@ -336,18 +336,11 @@ function specSet(rows, links, plan, tasks) {
   const receipt = rows.receipts.find(
       (r) => r.id === `github-parent:plan:${plan.id}`,
     ),
-    local = rows.receipts.find((r) => r.id === `spec-journal:${plan.id}`),
     issue = issueLink(links, receipt, rows.resolve);
   return {
     planId: plan.id,
     spec: plan.spec ?? null,
     issue,
-    // The journal lives in the spec issue, or in a local file.
-    journal: issue
-      ? { kind: "journal", home: "github", ...issue }
-      : local?.home === "local"
-        ? { kind: "journal", home: "local", local: true }
-        : null,
     workingBranches: unique(
       tasks
         .map((t) => t.base)

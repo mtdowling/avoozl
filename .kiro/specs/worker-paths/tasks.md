@@ -74,30 +74,11 @@ of the other specs.
   - Failure means: the manual path still needs a setting, or a claim and the tick can both start one task.
   - Next decision: none.
 
-## Phase 3: One remote route
+## Phase 3: No remote route
 
-- [x] wp-3.1 A worker machine pulls and claims on its own tick, after wp-1.1 [WP5.2] (§D8)
-  - $done: Tests with a fake GitHub and a fake driver: a worker with two free lanes and three offers claims two and starts two with no command run by hand; a request with no acknowledgment starts nothing; a tick with no GitHub records one line and starts nothing; the hand-run commands give the same result as one tick.
-  - $after: wp-1.1
-  - On `runner.role: "worker"` the tick pulls offers, requests claims for its free lanes and starts acknowledged tasks, before `runnerTick`; `avoozl worker pull` and `avoozl worker accept` call the same functions.
-- [x] wp-3.2 The driver checks a pulled result on its tick, after wp-3.1 [WP5.3] (§D8)
-  - $done: Tests: a pushed result lands with no command run by hand; a result that touches a protected path, and one whose checks fail on the driver, each become a failed attempt on the driver with the reason; a result for a claim the driver did not acknowledge is ignored; `worker-results.mjs` has an importer that is not a test.
-  - $after: wp-3.1
-  - The tick calls `worker-results.mjs` for each acknowledged claim: fetch the ref, check the diff against declared and protected paths, run the checks on that head, queue it to land.
-- [x] wp-3.3 Remove runner mode over SSH, after wp-3.2 [WP5.1, WP5.4, WP5.5] (§D8)
-  - $done: Tests: a file with `runner.role: "runner"` or `"driver"` is refused naming the key and worker pull; an envelope is taken only from an acknowledged claim; a search of `src/` finds no `ssh` argv outside the plugin and mirror code; the pull request lists what the deleted tests covered and where it is covered now.
-  - $after: wp-3.2
+- [x] wp-3.3 Remove runner mode over SSH [WP5.1, WP5.2] (§D8)
+  - $done: Tests: a file with `runner.role: "runner"` or `"driver"` is refused naming the key; a search of `src/` finds no `ssh` argv outside the plugin and mirror code; the pull request lists what the deleted tests covered and where it is covered now.
   - The roles `runner` and `driver`, the SSH transport and `driverTick` go; `remote.accept`, `remote.handoff` and `remote.pull` are deleted and refused as unknown; the worker cases of `remote-runner.test.mjs` move to `worker-mode.test.mjs`.
-
-- [x] wp-p3 Proof: two workspaces, one driver and one worker, with only ticks, after wp-3.3 [WP5] (§D8)
-  - $done: Expected: (1) and (2) both tasks land on the driver's base branch and no `worker` command was run by hand; (3) the driver refuses it as a failed attempt and nothing lands.
-  - $done: Expected result observed; receipt under `docs/evidence/`.
-  - $after: wp-3.3
-  - Setup: two isolated workspaces on one machine with separate config and state homes, one fake GitHub between them, a scratch repository with a bare remote; the worker runs `process` with a fake harness.
-  - Action: (1) approve a two-task spec on the driver; (2) run ticks on both until nothing changes; (3) make the worker push a result that touches a protected path.
-  - Expected: (1) and (2) both tasks land on the driver's base branch and no `worker` command was run by hand; (3) the driver refuses it as a failed attempt and nothing lands.
-  - Failure means: worker pull still needs a person at each step, or the driver trusts a worker machine's result.
-  - Next decision: when to run `avoozl-p53`, the live two-machine proof in the avoozl spec.
 
 ## Phase 4: Sessions run on this machine
 
@@ -121,12 +102,12 @@ of the other specs.
 - [x] wp-5.2 One meaning for each word, and the product spec says the same, after wp-5.1 [WP8, WP9] (§D1)
   - $done: The word test passes and fails on a planted "Crew Mode"; `node scripts/spec-lint.mjs` reports 0 errors; each retired requirement keeps its text under a dated line naming this spec.
   - $after: wp-5.1
-  - The word test over the page's strings, the help table, `README.md` and `docs/*.md`; the edits to Requirements 41, 84, 90.7 and 96.5, to design §4.10, §5.1 and §6.13, and to tasks 11.1, 11.10, 16.7 and `avoozl-p29` of the avoozl spec.
+  - The word test over the page's strings, the help table, `README.md` and `docs/*.md`; the edits to Requirements 41, 84 and 96.5, to design §4.10, §5.1 and §6.13, and to tasks 11.1, 11.10, 16.7 and `avoozl-p29` of the avoozl spec.
 
-- [x] wp-p4 Proof: one dispatcher, two executors, one remote route, after wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2 [WP1 to WP9] (§D1)
+- [x] wp-p4 Proof: one dispatcher, two executors, no remote route, after wp-p1, wp-p2, wp-4.2, wp-5.2 [WP1 to WP9] (§D1)
   - $done: Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
   - $done: Expected result observed; receipt under `docs/evidence/`.
-  - $after: wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2
+  - $after: wp-p1, wp-p2, wp-4.2, wp-5.2
   - Setup: the repository at the commit that lands wp-5.2.
   - Action: (1) run the source test of WP1.4 and the pair table's test; (2) list every operation that writes a session request with role `worker`; (3) search every worker brief the pair table builds for "push", "pull request" and "auto-merge"; (4) count the lines of `src/app` before Phase 2 and now.
   - Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.

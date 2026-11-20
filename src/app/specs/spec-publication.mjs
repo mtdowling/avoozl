@@ -1,26 +1,18 @@
-// Publish issue (Requirement 102.1-102.2, design §4.32.4): an explicit,
-// per-spec act that gives a spec its journal home. Approval never calls it.
-//
-// - GitHub: one issue for the spec and one for its epic. The spec issue is
-//   made under its epic's issue when GitHub allows the link. An issue the
-//   workspace already holds for the spec or epic (a plan or epic issue from
-//   projection) is reused, so ownership read from its assignee stays.
-// - No GitHub: the same journal protocol in a local file.
-// Publishing again writes nothing.
+// Make the GitHub issues (Requirement 102.1-102.2, 115.7): an explicit,
+// per-spec act. Approval never calls it. One issue for the spec and one for
+// its epic; the spec issue is made under its epic's issue when GitHub allows
+// the link. An issue the workspace already holds for the spec or epic (a
+// plan or epic issue from projection) is reused, so the driver read from its
+// assignee stays. Publishing again writes nothing.
 //
 // shortcut: the home is the named or only configured repository.
-import path from "node:path";
 import { fail } from "../store/store.mjs";
 import { epicOfPlan } from "../epics/epics.mjs";
-import { githubJournal, localJournal } from "./spec-journal.mjs";
 import { reusableInput } from "../github/github-intake.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 
 const receiptId = (level, id) => `github-parent:${level}:${id}`;
 const lower = (value) => String(value ?? "").toLowerCase();
-
-export const localJournalFile = (workspaceRoot, planId) =>
-  path.join(workspaceRoot, ".avoozl", "local", "journal", `${planId}.jsonl`);
 
 function homeRepository(store, repository) {
   const configured = store.list("github_repositories");
@@ -59,33 +51,21 @@ function remember(store, level, id, config, issue, extra = {}) {
 
 const issueBody = (kind) =>
   [
-    `Avoozl keeps this ${kind}'s journal here: compact records of outcomes, approvals, controls and handoffs, one comment each.`,
+    `This ${kind}'s one assignee drives it in Avoozl. Reassign it to hand the ${kind} to someone else.`,
     "",
     "The design and the tasks stay in the spec's files.",
   ].join("\n");
 
-// Publishes one spec plan. `github` is null for a workspace without GitHub.
+// Publishes one spec plan.
 export async function publishSpec(
   store,
-  { github, workspaceRoot, identity, planId, repository, actor },
+  { github, identity, planId, repository },
 ) {
   const plan = store.get("plans", planId);
   if (!plan) fail("Plan not found.", 404);
   if (!plan.spec) fail("Only a spec plan has a spec issue.", 409);
-  if (!identity?.mode || !github?.available?.()) {
-    const file = localJournalFile(workspaceRoot, plan.id),
-      journal = localJournal(file, actor);
-    const existing = store.get("receipts", `spec-journal:${plan.id}`);
-    if (!existing)
-      store.put("receipts", {
-        id: `spec-journal:${plan.id}`,
-        kind: "spec-journal",
-        planId: plan.id,
-        home: "local",
-        updatedAt: new Date().toISOString(),
-      });
-    return { home: "local", existing: Boolean(existing), journal };
-  }
+  if (!identity?.mode || identity.mode === "local" || !github?.available?.())
+    fail("Making the GitHub issues needs GitHub; run gh auth login.", 409);
   const config = homeRepository(store, repository),
     held = store.get("receipts", receiptId("plan", plan.id));
   if (held?.number) {
@@ -95,12 +75,11 @@ export async function publishSpec(
       existing: true,
       repository: home.id,
       number: held.number,
-      journal: githubJournal(github, home, held.number),
     };
   }
   const epic = epicOfPlan(store.read(), plan.id);
   // The issue a plan came from becomes its spec issue when it lives in the
-  // spec's home (R102.19). shortcut: only a plan with no epic reuses it;
+  // spec's home (R102.13). shortcut: only a plan with no epic reuses it;
   // under an epic a new issue is made, so the sub-issue link comes from the
   // create call. Lift this if an epic plan should reuse its input too.
   const input = plan.context?.newPlan?.source;
@@ -118,7 +97,6 @@ export async function publishSpec(
         reused: true,
         repository: config.id,
         number: issue.number,
-        journal: githubJournal(github, config, issue.number),
       };
     }
   }
@@ -169,6 +147,5 @@ export async function publishSpec(
     repository: config.id,
     number: issue.number,
     ...(epicIssue ? { epicNumber: epicIssue.number } : {}),
-    journal: githubJournal(github, config, issue.number),
   };
 }

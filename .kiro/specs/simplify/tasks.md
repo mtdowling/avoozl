@@ -27,7 +27,7 @@ merge, shown in chat and never committed.
 
 ## Phase 0: Gate
 
-- [ ] `sim-0` Gate: the approval cut-down, mirror removal and triage removal are on main
+- [x] `sim-0` Gate: the approval cut-down, mirror removal and triage removal are on main
   - $manual: true
   - A person has checked that the approval cut-down, the mirror removal and the triage removal are on main, whichever branch each landed from
 

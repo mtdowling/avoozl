@@ -21,8 +21,7 @@ if (!names.length) {
 }
 // A `Status:` line repeats approval, which lives in Avoozl's workspace
 // database, and goes stale (shortcut: checked here, not in lintSpec, so
-// specs in other repositories and approval pull requests on protected
-// branches still work).
+// specs in other repositories still work).
 const STATUS =
   "A `Status:` line is not allowed: approval lives in Avoozl, not in the spec files. Delete this line.";
 function statusErrors(spec) {

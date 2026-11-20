@@ -27,19 +27,18 @@ for (const [width, dark] of [
   [1280, false],
   [390, true],
 ])
-  test(`single and batch approval show model, revision, counts, evidence and planner answers at ${width}`, { skip }, async () => {
-    for (const mode of ['single', 'batch']) {
+  test(`approval shows model, revision, counts, evidence and planner answers at ${width}`, { skip }, async () => {
+    for (const mode of ['single']) {
       await open(mode, 'done', width, dark)
       assert.equal(await page.evaluate(`document.activeElement?.textContent`), 'Cancel', 'focus starts on Cancel')
       assert.equal(await page.evaluate(`document.querySelector('[data-modal-body]').scrollTop`), 0, 'the review overview starts in view')
-      const text = await page.evaluate(`document.querySelector('[data-approve-spec], [data-approve-specs]').textContent`)
+      const text = await page.evaluate(`document.querySelector('[data-approve-spec]').textContent`)
       assert.match(text, /fake-reviewer/)
       assert.match(text, /aaaaaaaa/)
       assert.match(text, /1 warn · 1 info · 2 for you/)
       assert.doesNotMatch(text, /The referenced helper does not exist/, 'findings are read in the Review view, not listed here')
       assert.equal(await page.evaluate(`document.querySelectorAll('[data-modal-body] select, [data-close-review]').length`), 0, 'no close controls')
       assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-open-review]'))`), 'Open review')
-      if (mode === 'batch') for (const label of ['Reviewed at an older revision', 'Review running', 'Review skipped', 'Not reviewed']) assert.ok(text.includes(label), label)
       assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no page overflow')
       assert.deepEqual(page.errors, [])
     }
@@ -57,7 +56,7 @@ test('single Approve stays enabled for all review states and sends the shown exa
 })
 
 test('Open review opens the Review view at the shown revision, apart from approving', { skip }, async () => {
-  for (const mode of ['single', 'batch']) {
+  for (const mode of ['single']) {
     await open(mode)
     assert.equal(await page.evaluate(`document.querySelector('[data-review-counts]').textContent`), '1 warn · 1 info · 2 for you')
     await click('[data-open-review]')
@@ -119,35 +118,7 @@ test('an approve sent for the old hash shows the update instead of a changed err
   )
 })
 
-test('the batch dialog updates only the spec that moved and sends each shown revision', { skip }, async () => {
-  await open('batch')
-  await page.evaluate(`window.__moveRevision('done')`)
-  await click('[data-approve-specs-go]')
-  await page.until(`Boolean(document.querySelector('[data-approve-review="done"] [data-revision-moved]'))`, 10000)
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-revision-moved]').length`), 1, 'the other specs are unchanged')
-  assert.match(await page.evaluate(`document.querySelector('[data-approve-review="done"] [data-revision-moved]').textContent`), /aaaaaaaaaaaa → cccccccccccc/)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[role="alert"]'))`), false)
-  assert.equal(await page.evaluate(`document.querySelector('[data-approve-row="done"]').textContent.includes('cccccccc')`), true, 'the table shows the new revision')
-  assert.equal(
-    (await page.evaluate('window.__reviewCalls')).some((call) => call.operation === 'plan.approveMany'),
-    false,
-  )
-  await click('[data-approve-specs-go]')
-  await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
-  const sent = (await page.evaluate('window.__reviewCalls')).find((call) => call.operation === 'plan.approveMany').items
-  assert.deepEqual(Object.fromEntries(sent.map((item) => [item.id, item.expectedHash[0]])), { done: 'c', older: 'a', running: 'a', skipped: 'a', 'not-reviewed': 'a' })
-  assert.deepEqual(page.errors, [])
-})
-
-test('batch Approve ignores open and skipped reviews, while Cancel approves nothing', { skip }, async () => {
-  await open('batch')
-  assert.equal(await page.evaluate(`document.querySelector('[data-approve-specs-go]').disabled`), false)
-  await click('[data-approve-specs-go]')
-  await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
-  const calls = await page.evaluate('window.__reviewCalls')
-  assert.equal(calls[0].operation, 'plan.approveMany')
-  assert.equal(calls[0].items.length, 5)
-  assert.ok(calls[0].items.every((item) => item.expectedHash === 'a'.repeat(64)))
+test('Cancel approves nothing', { skip }, async () => {
   await open('single')
   await page.evaluate(`[...document.querySelectorAll('[data-modal-footer] button')].find((button) => button.textContent === 'Cancel').click()`)
   await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
@@ -191,22 +162,6 @@ test('Planning groups show spec, role, model, time and usage on a phone', { skip
   assert.deepEqual(page.errors, [])
 })
 
-test('batch Review anyway stays pinned to its opening workspace with identical IDs and hashes', { skip }, async () => {
-  await page.open(harness.url({ mode: 'workspace-batch' }), { width: 1280, height: 900 })
-  await page.until(`Boolean(document.querySelector('[data-plans-list] [data-spec-check] [role="switch"]'))`)
-  await click('[data-plans-list] [data-spec-check] [role="switch"]')
-  await page.until(`!document.querySelector('[data-approve-specs-open]').disabled`)
-  await click('[data-approve-specs-open]')
-  await page.until(`Boolean(document.querySelector('[data-review-anyway]'))`)
-  await page.evaluate(`window.__setReviewWorkspace('second')`)
-  await page.until(`!document.querySelector('[data-approve-specs]')`)
-  assert.deepEqual(await page.evaluate('window.__reviewCalls'), [])
-  await page.evaluate(`window.__setReviewWorkspace('first')`)
-  await page.until(`Boolean(document.querySelector('[data-plans-list]'))`)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-approve-specs]'))`), false)
-  assert.deepEqual(await page.evaluate('window.__reviewCalls'), [])
-})
-
 test('a running review shows the purple working box, announced politely and still under reduced motion', { skip }, async () => {
   for (const [width, dark] of [
     [1280, false],
@@ -235,12 +190,12 @@ test('a running review shows the purple working box, announced politely and stil
 })
 
 test('an open dialog re-reads the stored review and swaps the working box for findings when it settles', { skip }, async () => {
-  for (const mode of ['single', 'batch']) {
+  for (const mode of ['single']) {
     await open(mode, 'running')
     await page.until(`Boolean(document.querySelector('[data-review-working]'))`)
     await page.evaluate('window.__settleRunning()')
     await page.until(`!document.querySelector('[data-review-working]')`, 10000)
-    const text = await page.evaluate(`document.querySelector('[data-approve-spec], [data-approve-specs]').textContent`)
+    const text = await page.evaluate(`document.querySelector('[data-approve-spec]').textContent`)
     assert.match(text, /1 warn · 1 info · 2 for you/)
     assert.ok((await page.evaluate('window.__summaryReads')).includes('running'), "reads Avoozl's stored summary")
     assert.deepEqual(page.errors, [])

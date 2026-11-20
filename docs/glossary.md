@@ -1,22 +1,13 @@
 # Glossary
 
 Each word here has one meaning, and a word that is not listed has its ordinary
-meaning. Words that look alike are set apart below, such as `take` and `accept`
-in these commands:
+meaning. Words that look alike are set apart below.
 
-```sh
-avoozl take TASK
-avoozl worker accept
-```
-
-## Claim, take, grant, accept
+## Take, statement, principal
 
 | Word | Means | Where you see it |
 | ---- | ----- | ---------------- |
-| claim | The record that says which machine drives a spec: a marker on the spec's issue, or a row in the workspace database in Local only mode. | Take over, Hand off, "no claim yet" |
 | take | Hold one item so nothing else works on it: a person takes a ready task by hand, or an executor takes a queued request. | `avoozl take TASK`, `executor.*.take` |
-| grant | The driver's permission for one worker to run one task of a shared spec. | `spec grants`, `workers.grantStaleAfter`, Release grant |
-| accept | A worker machine starts the tasks it was granted. | `avoozl worker accept` |
 | statement | The one-sentence point of a review finding. | A finding's `statement` |
 | principal | The signed identity a request carries to the app backend. | `principalAllows`, `verifyPrincipal` |
 
@@ -29,7 +20,6 @@ avoozl worker accept
 | plan review | A second model reads a draft spec and files findings. | `planReview` |
 | plan review finding | One problem a plan review found: kind, severity, file, quote, statement, evidence. | |
 | code review | Reviewer chats that read a task's commit before it merges, and the pull request's own approval count on GitHub. | `delivery.reviewers`, `pullRequestReviews` |
-| spec approval reviewers | The GitHub logins asked to review a spec's approval pull request. | `github.specReviewers` |
 | changed tasks | Tasks whose design text changed since they were approved. Needs you lists them as "N tasks in SPEC changed: check them". | |
 
 ## Other terms

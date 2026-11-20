@@ -6,6 +6,7 @@ import test from "node:test";
 import { Operations } from "../../api/operations.mjs";
 import { queryTasks } from "../../../model.mjs";
 import { fixture } from "../../test/fixtures.mjs";
+import { writeSpec } from "../../test/spec-fixture.mjs";
 
 const task = (id, extra = {}) => ({
   id,
@@ -22,6 +23,7 @@ const task = (id, extra = {}) => ({
 
 function setup(t) {
   const { root, store } = fixture(t);
+  writeSpec(root, "a1");
   store.mutate("seed", (data) => {
     data.tasks.push(
       task("p.1", { planId: "a1" }),
@@ -38,6 +40,7 @@ function setup(t) {
   store.transaction(() =>
     store.put("plans", {
       id: "a1",
+      spec: "a1",
       title: "Shared",
       state: "approved",
       mapping: { x: "p.1" },

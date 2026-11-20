@@ -6,8 +6,8 @@
 //   member for its base (`enqueueLanding`). Nothing is pushed yet.
 // - Each tick takes up to the base's size limit of members one step
 //   (`landNext` with `directSteps`, merge-batch.mjs): stack them on origin's
-//   current base, run the repository's checks on that exact candidate, write
-//   each spec's intent in its journal, and push a guarded fast-forward.
+//   current base, run the repository's checks on that exact candidate, and
+//   push a guarded fast-forward.
 //   Never forced. A failed batch is narrowed to its culprit, which goes back
 //   to its worker; the members before it land.
 // - Landed: the task is integrated at the candidate, the local base is
@@ -31,12 +31,10 @@ import {
 import { tickEntry, tickPlansRepo } from "../specs/spec-ticks.mjs";
 import { sendConflictBack } from "./landing-conflicts.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
-import { driverIdOf } from "../specs/spec-scheduler.mjs";
-import { specAuthority } from "../specs/spec-takeover.mjs";
 import { taskDefinition } from "../specs/task-outcomes.mjs";
 import { landingMetrics } from "./landing-trailers.mjs";
 import { fail } from "../store/store.mjs";
-import { landingSpecOf, specRevision } from "../intake/fix.mjs";
+import { landingSpecOf } from "../intake/fix.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
 import { pluginChecksOf } from "../plugins/plugin-checks.mjs";
 
@@ -53,13 +51,8 @@ export const isDirectLanding = (repository) => repository?.landing === "direct";
 
 // Queues one verified task. Returns the delivery with the queued commit.
 export function queueDirect(store, { delivery, repository, task, at }) {
-  const planId = landingSpecOf(task),
-    driver = planId ? driverIdOf(store, planId) : null;
-  if (!driver)
-    fail(
-      `Take over ${planId ?? "the spec"} before it lands: avoozl spec takeover ${planId ?? "SPEC"}.`,
-      409,
-    );
+  const planId = landingSpecOf(task);
+  if (!planId) fail("Only a spec's task lands.", 409);
   if (!landingChecks(store, repository).length)
     fail(
       `Repository ${repository.id} has no checks to land directly with.`,
@@ -71,7 +64,6 @@ export function queueDirect(store, { delivery, repository, task, at }) {
     key: delivery.taskId,
     commit: delivery.commit,
     spec: planId,
-    driver,
     tasks: [
       {
         task: delivery.taskId,
@@ -122,29 +114,12 @@ export async function landDirect(
     try {
       const setting = landingSettings(config, repository.github, repository),
         record = sizeRecord(store, { repositoryId: repository.id, base }),
-        limit = sizeLimit(record, setting.mergeBatch),
-        // Each spec's driver journal, for the specs this batch may hold.
-        // A member whose spec cannot be read waits; the head's error stops
-        // the step as it always did.
-        authorities = new Map();
-      for (const entry of queue.slice(0, limit)) {
-        if (authorities.has(entry.spec)) continue;
-        try {
-          authorities.set(
-            entry.spec,
-            await specAuthority(store, { github, workspaceRoot }, entry.spec),
-          );
-        } catch (error) {
-          if (entry === head) throw error;
-        }
-      }
+        limit = sizeLimit(record, setting.mergeBatch);
       const url = await git(repository.root, ["remote", "get-url", "origin"]),
         steps = directSteps({
           root: repository.root,
           url,
           branch: base,
-          // A journal reference names owner/name; a remote that is not on
-          // GitHub (a bare folder) is named by its repository.
           repository: repository.github || `local/${repository.id}`,
           checks: landingChecks(store, repository),
           store,
@@ -158,19 +133,6 @@ export async function landDirect(
           machine,
           configFile,
           ...(run ? { run } : {}),
-          intent: (spec, own) => {
-            const authority = authorities.get(spec);
-            return {
-              journal: authority.journal,
-              options: { ...authority.options, machine, configFile },
-              input: {
-                driver: own[0].driver,
-                owner: authority.owner,
-                login: authority.login,
-                revision: specRevision(store, spec),
-              },
-            };
-          },
         });
       const startedAt = new Date().toISOString(),
         result = await landNext(
@@ -197,7 +159,6 @@ export async function landDirect(
                 },
               ),
             isAlone: (entry) => record.alone.includes(entry.key),
-            accept: (entry) => authorities.has(entry.spec),
           },
         );
       setTesting(store, { repositoryId: repository.id, base }, null);

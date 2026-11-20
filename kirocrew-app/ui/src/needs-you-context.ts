@@ -31,8 +31,7 @@ export function askLine(item: ConflictItem): string {
     case 'tick-failed':
       return 'Fix the error shown. Avoozl runs the tick again by itself.'
     case 'driver':
-    case 'driver-away':
-      return 'Choose who drives this work: start it here, or wait for its pull request.'
+      return 'Assign the spec issue to exactly one person on GitHub; that person drives it.'
     case 'needs-human':
       if (item.reason === 'blocked') return 'Unblock the task, or leave it blocked.'
       if (item.reason === 'crew-mode') return "Choose Let the tick run it. Avoozl then starts this workspace's ready tasks; until then it starts none."

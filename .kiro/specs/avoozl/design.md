@@ -172,7 +172,7 @@ a coder. It still hosts no UI outside Kiro Crew.
 | Activity and evidence                             | Append-only event log in SQLite, pointing at real sources                                                                                                                         | Authoritative for local; receipt for GitHub            | Evidence links, not copies                                                                                                    |
 | Human decisions                                   | SQLite for local tasks; GitHub labels and comments for GitHub tasks                                                                                                               | Authoritative / cache                                  |                                                                                                                               |
 | Plugin approvals                                  | Machine-local Avoozl settings: id, version, content hash                                                                                                                          | Receipt                                                | Never in Git; never set by the tick (§4.8)                                                                                    |
-| Spec driver (which machine may write for a spec)  | GitHub: the plan issue's single assignee (else its epic issue's) plus the machine claim in its marker; Local only: a SQLite row                                                   | **Cache** in GitHub modes; authoritative in Local only | Moves only by a person: a reassignment then Take over, or Force take over (§6.10)                                             |
+| Spec driver (which machine may write for a spec)  | GitHub: the spec issue's single assignee (else its epic issue's); Local only: this workspace                                                   | **Cache** in GitHub modes | Moves only by a person reassigning the spec issue (§6.10)                                             |
 
 ### 3.2 When SQLite is authoritative
 
@@ -2923,7 +2923,7 @@ runner tick). This section makes that the only shape.
 | 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.repository`, and `plans_report` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
 | 5   | Kiro Crew's push-to-main policy checks chat shell commands. The tick is not a chat. Phase 40's proof shows a tick push goes through                                                                               |
 | 6   | Nupp lands `direct` on public `core-dev` from the start, with `scripts/worktree` and `scripts/test-changed`. Plans stay in a private planning workspace. No private mirror, forwarding or leak scan for this setup; the pre-push content rule is the one leak guard. The freeze on public `core-dev` is lifted |
-| 7   | Phase order and exits as in the table at the end of this section. Added the same day: worker machines pull work through GitHub (Phase 43), and the landing queue panel comes before remaining shared Radar removal (Phase 44; revised by §4.32)                                                                                                                                                 |
+| 7   | Phase order and exits as in the table at the end of this section. Added the same day: the landing queue panel comes before remaining shared Radar removal (Phase 44; revised by §4.32)                                                                                                                                                 |
 
 **The loop.**
 
@@ -3005,12 +3005,9 @@ shortcut: each workspace counts only its own live chats against the lanes,
 so two workspaces on one machine can run up to twice the lanes; count across
 the catalog once a machine serves several busy workspaces.
 Each spec has an issue-assigned driver, with an epic-assignee fallback only
-when unambiguous. Plan-less worker machines pull minimal offers, wait for a
-canonical claim reservation and generation acknowledgment, then publish task
-checkpoints. Fork-local refs are not global claims. Driver verification is
-repeated before integration/landing. Quiet and expired leases release nothing;
-claim release is person-only. Headless process workers need no Kiro Crew page.
-See §4.32.7–§4.32.10 and Requirement 90.
+when unambiguous. The driver's check is repeated before integration and
+landing. Quiet and expired leases release nothing. Headless process workers
+need no Kiro Crew page. See §4.32.7 and §6.10.
 
 **Setup.** Preview registered roots, target/base, checks, protected paths,
 approved helper, source/fork access and landing policy. Under `pr`, preview
@@ -3018,8 +3015,8 @@ required rules, merge methods and statuses without duplicating rules. Do not
 create task labels, Project or issue types. Publish issue is a separate
 per-spec action. Real settings changes still need owner authorization.
 
-**Approval.** The local hash receipt is the approval. The approval pull
-request (RC3.6) stays only for a spec whose home branch is protected.
+**Approval.** An approver's commit on the specs branch is the approval; the
+hash receipt caches it (§4.42).
 
 **Removed, kept, restored.**
 
@@ -3036,10 +3033,10 @@ role (§4.28), so a per-repository coder has nothing left to choose.
 | `CODERS` and the `coder` default by mode (`github-policy.mjs`), the schema's `coder` property, `choices.coders` | A stored `coder` key: accepted and dropped by the loader, with no warning and no migration |
 | The Who codes picker (`CoderPicker.tsx`) and its "How does this work?" coding tour, `CODER_CARDS`, `coderSource` and `defaultCoder` (`settings-api.ts`), the Who codes field and summary (`SettingsView.tsx`, `RepositoryModals.tsx`), the Workflow map's Who codes step | Settings › Issue Radar: Labels Radar uses, Handoff to Avoozl, crew review rules, conflicts, merge method |
 | Settings › Issue Radar's Radar crew card (crew scope to the ready label, release mode) and `issueRadarCrews` | GitHub intake (56.8) and its ownership label |
-| Every `coder === "issue-radar"` branch: the Radar-coded Untriaged read and its Intake rows, the planning label read, the coder adapter and coder split, ready-label release and the Release queue, the crew merge path and conflict fixes, the crew claim reconcile, the Radar source issue and its approval label, Radar flow rows, the approval pull request for a spec in a Radar repository (it stays only for a protected plans-branch home, Requirement 86.8), the plans-repo marker for a Radar repository | Radar escalations (needs-human, the plan-me trust check) sorted first in Untriaged with Plan this and Deliver this (56.14), their Needs you row, With Issue Radar, Send to Issue Radar |
-| | Radar back-links through intake and the journal (44.6) |
+| Every `coder === "issue-radar"` branch: the Radar-coded Untriaged read and its Intake rows, the planning label read, the coder adapter and coder split, ready-label release and the Release queue, the crew merge path and conflict fixes, the crew claim reconcile, the Radar source issue and its approval label, Radar flow rows, the approval pull request for a spec in a Radar repository, the plans-repo marker for a Radar repository | Radar escalations (needs-human, the plan-me trust check) sorted first in Untriaged with Plan this and Deliver this (56.14), their Needs you row, With Issue Radar, Send to Issue Radar |
+| | Radar back-links through intake (44.6) |
 
-Every repository reads Untriaged the same way (§4.32.11 escalations still
+Every repository reads Untriaged the same way (§4.32.10 escalations still
 sort first). Modules that only served Radar coding go with their last
 caller. The shared projection and Project sync callers stay for 45.4, less
 their coder handling.
@@ -3059,7 +3056,6 @@ plans sit on the planning repository's `avoozl-plans` branch (`specs.branch`,
 | 40. Unattended basics                   | A three-task chain survives a gateway restart with no one at the machine                     |
 | 41. Scheduler and direct landing        | The 13 pilot tasks on Nupp land, with owner minutes, credits and wall-clock per task recorded |
 | 42. PR landing and the setup command    | Ten tasks land on a repository with a required check                                          |
-| 43. Worker machines pull work           | A second machine with a second GitHub login pulls, claims and completes tasks from a shared pool on real GitHub; a race between two workers shows exactly one claim wins |
 | 44. Links and the landing queue | Specs, tasks and In flight link to their issue, branch, PR, checks and landed commit; the Landing queue shows hold reasons at 390 and 1280 px, light and dark; 0 new GitHub calls |
 | 45. Remove the Issue Radar path         | Leaf audit any time; 45.2 after P52; 45.2/45.3 have exclusive shared-file access; remaining shared edits last; compatibility names still resolve                   |
 
@@ -3076,7 +3072,7 @@ It adds no GitHub read, and its only input is the local store:
 
 | Link | Stored source |
 |---|---|
-| Spec issue | Spec publication and journal (56.2) |
+| Spec issue | Spec publication (56.2) |
 | Spec working branch | Qualified working heads (56.3) |
 | Task branch and worktree | Worktree preparation (40.4) |
 | Task PR and check state | Landing queue and the shared PR/check read (41.x, 42.x) |
@@ -3113,10 +3109,9 @@ full width. It makes no GitHub call; Refresh redraws from the store.
 
 **Radar back-links.** A spec lists the Radar issues it came from in its Links
 box. The Radar issue reaches its spec only through writes Avoozl already
-makes: the `crew:avoozl` intake status comment (§4.32.11), which names the spec
-issue where visibility permits, and the spec's journal, which records the
-source issue as `owner/repo#N` under the privacy scan (56.11), so GitHub shows
-its own cross-reference on the Radar issue. A public Radar issue never names a
+makes: the `crew:avoozl` intake status comment (§4.32.10), which names the spec
+issue where visibility permits, so GitHub shows its own cross-reference on the
+Radar issue. A public Radar issue never names a
 private spec. No Radar API, grant or shared module ties the two.
 
 Phase 44 is no longer paused. Phase 45 (Radar removal) is no longer paused: 45.2 landed in #509.
@@ -3380,8 +3375,7 @@ reviews that hash. A person closes an open finding with
 every `fixed` answer whose hash was stored; for you is the rest that no
 person has closed. `plan.reviewSummary` returns `{state, reviewerModel,
 revisionHash, current, found, fixed, forYou, open: [...], note}`.
-`approvalChecks` and the `approvalBatches` entries carry it as `review`;
-`approveSet` never reads it.
+`approvalChecks` carries it as `review`; approving never reads it.
 
 **Flow.** Planning spans are keyed by spec, not task: stages `plan-review`
 and `plan-answer` in their own table, and usage rows from those sessions are
@@ -3402,8 +3396,7 @@ Tests, with fake chats and fake model names:
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Different-model rule          | Same model, unset reviewer, unknown writer: skipped with a note and no chat; submit from a same-model session refused                     |
 | Findings keyed by hash        | A new revision gets a new round; old findings stay, marked older; the planner's fix revision is reviewed only while rounds remain         |
-| Review never changes approval | `plan.approve` and `plan.approveMany` give the same result with no review, open findings, a skipped and a running review; no GitHub write |
-| Batch dialog shows counts     | `approvalBatches` entries carry found, fixed and for you per spec, and the dialog lists open findings                                     |
+| Review never changes approval | `plan.approve` gives the same result with no review, open findings, a skipped and a running review; no GitHub write                       |
 
 shortcut: the writer model comes from what Kiro Crew reports for a session;
 a Spec Builder draft is skipped until Spec Builder reports its chat's model.
@@ -3754,105 +3747,60 @@ shortcut: one page of 100 artifacts per list; a repository that writes more
 than 100 between two checks misses the oldest. Read a second page if Flow
 shows the cap hit.
 
-### 4.32 Working branches and a spec journal
+### 4.32 Working branches and spec issues
 
-Added 2026-11-16 (Requirement 102, owner pivot). This section governs the
-revised loop and supersedes conflicting task-issue projection/completion,
-epic-only integration and snapshot recovery rules in earlier sections and
-`radar-coder`. It is a plan, not a claim that these behaviors already ship.
-No separate record branch is created.
+Added 2026-11-16 (Requirement 102, owner pivot).
 
-Git holds design and implementation. One issue per spec/epic holds ownership
-and minimal durable outcomes; SQLite caches local execution. Tasks stay in
-the spec. Public PRs reference their public slice issue; private slice links
-stay private. Forks are source locations, not workflow modes. Existing
-executor, sandbox, ranking, build-receipt and review capabilities remain.
+Git holds design, approvals, ticks and implementation. One issue per
+spec/epic holds ownership (its assignee) and discussion; SQLite caches local
+execution. Tasks stay in the spec. Public pull requests reference their public
+slice issue; private slice links stay private. Forks are source locations, not
+workflow modes.
 
-#### 4.32.1 Progress and acceptance are different things
+#### 4.32.1 Progress and completion are different things
 
 | State | Meaning | May release |
 |---|---|---|
 | In progress | Work exists on a task's checkpoint ref | Nothing |
-| Verified on branch | The task passed its acceptance checks at an exact commit on the spec's working branch | Successors in the same spec with those exact prerequisite heads available |
-| Landed | Its change reached the declared landing branch with the required evidence | Successors in any spec |
-| Person outcome | An authorized person recorded `done`, `skipped`, `refused` or `reopened` | Per the table below |
+| Verified on branch | The task passed its acceptance checks at an exact commit on the spec's working branch | Nothing yet |
+| Landed | Its tick reached the spec's base branch (§4.41) | Successors in any spec |
 
-**Outcomes.** Each durable outcome is bound to the spec, the task, the approved
-revision hash and the **definition** (a digest of that task's facts at that
-revision), plus the exact commit and the evidence.
+A checkbox on a working branch shows branch progress, and the page labels it so.
+Marks are outside the approved hash (`withoutMarks`, `src/app/specs/spec-plans.mjs`).
+A tick on the base branch completes the task; a tick on any other branch does not.
+Packages complete from their children.
 
-| Kind | Completes the task | Successors |
-|---|---|---|
-| `landed` | Yes | Released |
-| `landed-unverified` | No | Held |
-| `done`, `skipped` | Yes | Released |
-| `refused` | No (settled) | Held |
-| `reopened` | No | Held again |
+#### 4.32.2 A trailer identifies work
 
-A task is complete only when its **latest** outcome is a completing kind **and** that
-outcome's definition equals the task's definition in the currently approved revision.
-An outcome on an older approved revision is reusable only after the new approval
-explicitly carries forward its unchanged definition and valid evidence. A changed
-definition or missing carry-forward is stale: not complete, one Needs you row.
-Packages complete from their children, as now.
-
-**Marks.** A checkbox on a working branch may show verified-on-branch progress, and the
-page labels that view as branch progress. Canonical progress and every cross-spec
-release use accepted outcomes only. A checked box on an unmerged branch never releases
-work in another spec, which does not have that code. Marks are already outside the
-approved hash (`withoutMarks`, `src/app/specs/spec-plans.mjs`). Changed 2026-11-19 (§4.41):
-a tick on the base branch completes the task; a tick on any other branch still does not.
-
-#### 4.32.2 A trailer identifies work; evidence accepts it
-
-Every landing commit Avoozl makes carries `Avoozl-Task: <id>@<definition>` (opaque where
-the plan is private). A trailer is only a pointer. Reconcile writes `landed` only when:
-
-1. The task exists in the currently approved revision and the definition matches.
-2. No completing outcome already exists for that definition.
-3. Acceptance evidence exists: an authorized landing intent carrying verified check,
-   path and review evidence for the exact candidate and its actual landing (4.32.7),
-   or re-verification at that commit — the diff stays inside declared paths, no
-   protected path is touched, the repository's checks pass (`runCheckAt`,
-   `src/app/flow/flow-line.mjs:38`), and the repository's review rule was satisfied
-   (`reviewVerdict`, `src/app/github/github-reviews.mjs:26`).
-
-Otherwise it writes `landed-unverified` and opens Needs you. Accepting that is
-person-only and writes `done`; it never manufactures a `landed`. A revert of a landing
-commit opens Needs you. Branch verification alone can never become `landed`.
+Every landing commit Avoozl makes carries `Avoozl-Task: <id>@<definition>`
+(opaque where the plan is private), where the definition is a digest of the
+task's facts (`taskDefinition`, `src/app/specs/task-outcomes.mjs`). The trailer
+names the task a landing completed; the tick on the base branch completes it.
 
 #### 4.32.3 Working branches
 
 Each spec has one active working branch per repository it changes. The branch may
-live in the target repository or an authorized fork. Avoozl records fully qualified
-references on the spec issue: repository identity, branch and exact commit, separately
-from the target repository and landing branch. Branch names alone are never identities. Code and plans stay separate where the plan is
-private: code goes to the code repository; the spec and its checkmarks stay in the
-planning repository.
+live in the target repository or an authorized fork. References are fully
+qualified: repository identity, branch and exact commit, separately from the
+target repository and landing branch. Branch names alone are never identities.
+Code and plans stay separate where the plan is private: code goes to the code
+repository; the spec and its checkmarks stay in the planning repository.
 
 - **The spec's driver owns integration** into the working branch. Workers run in
   isolated task worktrees and never push to it. Avoozl makes every commit and push, so
   a sandboxed worker needs no GitHub credentials.
-- **Checkpoints.** Avoozl pushes useful checkpoints as work progresses. A checkpoint may
-  hold unfinished work and is never acceptance evidence.
-- **Where unfinished work goes (my resolution of an open point).** Unfinished work is
-  checkpointed on the task's own ref under the spec's namespace. The driver integrates
-  a task into the spec's working branch at the commit where it passed its checks. This
-  keeps the working branch a sequence of verified integrations, so a portion can be
-  landed by naming a commit, with no cherry-pick. If unfinished work were pushed onto
-  the spec branch itself, landing a portion would drag it along.
+- **Checkpoints.** Unfinished work is checkpointed on the task's own ref under the
+  spec's namespace and is never acceptance evidence. The driver integrates a task
+  into the spec's working branch at the commit where it passed its checks, so the
+  working branch is a sequence of verified integrations and a portion lands by
+  naming a commit, with no cherry-pick.
 - **Portions.** A working branch need not become one large pull request. Reviewable
-  portions land while the spec continues (4.32.5).
-- **Exact commits.** A landing intent names an exact commit or range and its tasks. It
-  never means "the current head".
-- Builds on the per-epic integration branch that exists today, which the existing module reads but
-  does not create (`src/app/epics/integration-branch.mjs:1-4`, `src/app/git/git.mjs:230-295`).
-  Generalize it to one per spec and have Avoozl create it.
+  portions land while the spec continues (4.32.5). A portion names an exact commit
+  or range and its tasks, never "the current head".
 - An externally pushed unverified head is only a checkpoint until the driver
-  verifies its exact commit; retain the last verified head for portion selection.
-  Branch deletion never means completion. Checkpoint pushes do not claim checks passed;
-  local acceptance gates apply to verified integrations and landing, while content and
-  sandbox controls apply to every checkpoint. CI trigger changes require owner review.
+  verifies its exact commit. Branch deletion never means completion. Content and
+  sandbox controls apply to every checkpoint; acceptance gates apply to verified
+  integrations and landing.
 
 #### 4.32.3a Forks are ordinary working-branch locations
 
@@ -3862,8 +3810,7 @@ registered upstream repository. No upstream copy of the source branch and no sep
 fork workflow mode is required.
 
 - **Discovery.** An existing pull request supplies its head repository, ref and SHA.
-  Before a pull request exists, the driver publishes the authorized working-head
-  reference on the spec issue. Listing only the target repository's refs is insufficient.
+  Listing only the target repository's refs is insufficient.
 - **Registration.** Fetch only from a repository allowed by trusted repository setup or an
   authorized owner action. Issue prose and branch contents cannot register a clone URL,
   local path, build command or remote. Verify the source repository's relationship to
@@ -3875,123 +3822,46 @@ fork workflow mode is required.
 - **Local storage.** Reuse a registered checkout with isolated task worktrees, or a
   dedicated clone where required. The repository mapping and exact refs determine
   what is fetched, not a requirement to clone once per branch.
-- **Journal home.** The spec issue remains in its registered canonical home; a fork checkout does
+- **Issue home.** The spec issue remains in its registered canonical home; a fork checkout does
   not relocate that home or require issues to be enabled on the fork. A private planning
   repository does not become public because its code branch lives in a public fork.
-- **Claims.** Fork-local branch creation cannot elect a global winner. Each spec names
-  one canonical claim namespace in a repository writable by its driver. The driver
-  reserves a task's claim ref there before acknowledging it, even when checkpoints
-  live elsewhere. A worker without write access requests the reservation; it waits
-  for the current generation's acknowledgment before starting. Two forks with the same
-  branch name are distinct results competing for the same canonical reservation.
 - Fork deletion, an inaccessible fork, or a source branch rewritten by its owner holds
   affected work and offers recovery from a retained verified commit; none means done.
   Avoozl itself never force pushes.
 
-#### 4.32.4 The spec journal
+#### 4.32.4 Public writes carry no internal information
 
-Durable records are structured comments on the spec's issue. The client calls exist
-(`listIssueComments`, `createIssueComment`, `src/app/github/github.mjs:768,962`).
+Requirement 102.16 to 102.18 cover spec and epic issue bodies, status and intake
+comments, pull request bodies and check summaries. Refused: host, server and machine
+names, usernames, local and home paths, internal URLs and hostnames, IP addresses,
+crew, instance and session IDs, gateway ports and session keys.
 
-**Recorded:** accepted outcomes, reopenings and manual decisions; verified branch
-checkpoints needed for handoff; approval evidence; holds, stops and decisions with their release;
-driver-generation changes, claim acknowledgments and landing intents.
-
-**Never recorded:** polling results, unchanged frontiers, rankings, routine checkpoint
-notices.
-
-- One compact record per significant transition, batching related outcomes.
-- Each record has a stable **operation id**; a retried write yields one effective
-  transition.
-- **Order** is the GitHub-assigned comment id; records are fully paginated before
-  replay. Duplicate operation ids must have identical payloads or the affected state holds.
-  Conflicting chain children or ambiguous actor/generation ordering also hold the
-  affected state; a later comment cannot silently overwrite that conflict.
-- **Replay validates** the actor, the revision, the definition digest and the driver
-  generation. The actor is the comment's authenticated author and their permission,
-  never a name inside the record.
-- **Edits and deletions.** Each record links to the previous one (id and digest). A
-  changed or missing record makes the affected state unresolved and held. It never
-  grants approval or completion. A missing tail record cannot be detected from the
-  journal alone; a `landed` record is recoverable from git by re-verification, and a
-  rebuilt spec comes back held (4.32.10).
-- **Reanchor (restore after a hold).** A person reviews the held journal, then writes
-  one `reanchor` record with `held` (the record IDs replay held on) and `prev` set to
-  the reviewed tail (its comment ID and current digest). Replay accepts it only from an
-  authenticated writer with write access, and only when its tail is the last record
-  replay knows with that exact digest, so the person saw the journal as it is now.
-  From there replay ignores the named records' contents, clears their holds, and goes
-  on from the reanchor. A hold on a record it does not name, or any later problem,
-  holds again. Avoozl never edits or deletes a comment. A reanchor grants no approval
-  or completion, keeps the generation, and the spec stays held until Resume
-  (4.32.10). `avoozl spec journal reanchor SPEC --held ID,... --tail ID` previews the
-  record; `--yes` writes it. The CLI, MCP and agent sessions refuse it for anyone but
-  a person (`spec.journal.reanchor`).
-- **Not a lock.** A comment is not compare-and-swap storage. Safety comes from guarded
-  branch updates and the takeover protocol (4.32.7).
-- **Publication:** Publish issue is an explicit per-spec action, independent of approval,
-  not a workspace mode. A GitHub-backed run needs a published spec issue for its journal;
-  approval alone makes no GitHub write. A workspace without GitHub uses the same journal
-  protocol in a local file; cross-machine handoff then needs an explicit export.
-
-**Data minimization is a requirement.** A hidden HTML comment only affects rendering;
-its content has the issue's visibility. The record schema is explicit and holds only:
-
-- protocol version, opaque operation, spec, task and driver identifiers;
-- the acting machine's public alias, never its hostname;
-- event kind, generation, previous record id and digest, and required control flags;
-- revision and definition digests;
-- authorized repository identities, branch and exact commit or pull request references;
-- the outcome and minimal check-result references.
-
-Excluded: transcripts, raw output, command arguments, environment variables, absolute
-paths, machine names, workspace or database identifiers, and private execution timing or spending. Actor identity comes from authenticated GitHub metadata.
-
-**No internal information on any public write** (Requirement 102.23–25). This covers
-journal records, spec and epic issue bodies, status and intake comments, pull request
-bodies and check summaries. Refused: host, server and machine names, usernames, local
-and home paths, internal URLs and hostnames, IP addresses, crew, instance and session
-IDs, gateway ports and session keys.
-
-- **Machine alias.** Where a record names the machine or driver that acted, it uses a
-  public alias the owner picks per machine (for example "Draco"), kept in machine
-  config. Only the private handoff export maps alias to machine. With no alias set,
-  Avoozl generates a neutral two-word name once and stores it; it never derives one
-  from the hostname or username. Settings refuses an alias that contains either.
+- **Machine label.** Where a public surface names a machine, it uses the label the
+  owner picks per machine (for example "Draco"), kept in machine config, never one
+  derived from the hostname or username.
 - **Scan.** The 56.11 scan runs before the first write and refuses hostname and IP
   literals, `*.corp`, `*.internal`, `*.local` and `*.lan` names, any domain on the
   owner's private machine-local list of internal domains, home paths (`/Users/<name>`,
   `/home/<name>`, `C:\Users\<name>`, `~/`), and this machine's own hostname and
   username, read at scan time. The private domain list never enters the repository.
   A false hit uses the existing allow-once path with a reason.
-Public records contain no private spec names, task titles, repository names or URLs.
-Private names and control details remain on private surfaces; public control events
-carry only the allowlisted flag and opaque id needed to enforce them.
-
-- Private-plan records go on the private spec issue. Public branches and commit messages
-  use opaque identifiers. A private issue may reference a public pull request; the
-  public pull request never names the private issue, repository or tasks. When both
-  are public, the pull request references the spec issue so GitHub supplies its timeline.
-  The rule covers record bodies, refs, commit messages, pull request titles and bodies,
-  check summaries and application-authored logs or artifacts published externally.
-- Sensitive controls, including private spending, travel in a private handoff record.
-  The driver handoff export already exists (`src/app/workers/driver.mjs`, `REBUILD_LOSSES:47`).
-  A public reconstruction reports those values as unavailable and stays held. It never
-  resets them to zero.
+- Public branches and commit messages use opaque identifiers. A private issue may
+  reference a public pull request; the public pull request never names the private
+  issue, repository or tasks. When both are public, the pull request references the
+  spec issue so GitHub supplies its timeline.
 
 #### 4.32.5 Landing
 
 Builds on phases 40–42, revised by Requirement 102.
 
-- **Content rule in process.** Before every externally visible write, with an explicit
-  visibility-aware allowlist for journal data. Before every checkpoint or landing push,
+- **Content rule in process.** Before every externally visible write, and before every checkpoint or landing push,
   validate the outgoing range, added lines, commit messages and ref names in process.
   Reuse the existing push scanner and `enforceDiff` rather than relying on a shell hook.
 - **Hold the lock briefly.** `withWorkLock` kind `integration` blocks every validation
   (`src/app/git/git.mjs:36-52`). Hold it for the ref move and push only.
 - **`direct`: a portion is an exact commit on the working branch.** The landing worktree
   merges it with the current base, checks that head once, fast-forwards, pushes. A
-  merge batch may combine portions of several specs and drivers, up to the size limit
+  merge batch may combine portions of several specs, up to the size limit
   (`merge-batches` D2). On failure, rerun once, then bisect to the culprit (`merge-batches` D4).
 - **`pr`: a portion is one pull request** from a ref at that exact commit. Its head has
   its own passing required checks and its own standing approval, so several tasks can
@@ -3999,6 +3869,9 @@ Builds on phases 40–42, revised by Requirement 102.
   and only for the pull request at the head of the queue. Read-only upstream access
   permits proposing and observing a landing, never authorizing it. If the repository dismisses stale approvals, an update after
   approval means a new review request, not a merge.
+- **Guarded.** A `direct` push is a fast-forward from the recorded base head
+  (`guardedFastForward`); a `pr` merge is guarded by the pull request's head
+  (`headGuardedMerge`), both in `src/app/landing/guarded-push.mjs`.
 - After a portion lands, the base is merged back into the working branch with a merge
   commit. Never a force push.
 - **Union paths (direct only).** `landing.unionPaths` names append-only registry files
@@ -4011,8 +3884,8 @@ A slice is a spec.
 | Role | Recorded | Used for |
 |---|---|---|
 | Owner | Assignee on the spec's issue | Drafts the spec; their Avoozl is its driver |
-| Spec approver | Approval evidence in the journal | The design review |
-| Code reviewers | Per spec in `.avoozl.json`, else CODEOWNERS | Approving the slice's pull requests |
+| Spec approver | The approval commit's author | The design review |
+| Code reviewers | CODEOWNERS and the repository's rules | Approving the slice's pull requests |
 
 - At pull request open, call `requestReviewers` (`src/app/github/github.mjs:1490`); before
   landing apply `reviewVerdict` and `branchReviewRule`
@@ -4021,11 +3894,8 @@ A slice is a spec.
   requires approval, GitHub will not let the author approve, so that slice needs a
   second person. With no rule (solo, `direct`), the owner may approve the spec locally.
   Approval is still an explicit act on the exact revision.
-- **Approval evidence** is written after the merge, never inside the approval commit:
-  `requestedBy`, the approving reviewers, `mergedBy`, the merge commit, and `verified`
-  only when the spec re-hashed at that commit equals the approved hash. The code keeps
-  `requestedBy` and `mergedBy` today (`src/app/specs/spec-approval.mjs:443-461`). A local
-  approval records `kind: local`.
+- **Approval evidence** is the approval commit: its author, the commit, and the spec
+  re-hashed at that commit equal to the approved hash (§4.42).
 
 **Epics.** One epic spec whose rows are the lifecycle of each member spec, with an epic
 issue and one sub-issue per member (`addSubIssue`, `src/app/github/github.mjs:1002`). Today an
@@ -4037,82 +3907,33 @@ no duplicate plan/step pair. Rows are derived, never hand-ticked:
 | Row | Done when |
 |---|---|
 | Design X | X exists as a draft and its owner has asked for approval |
-| Review X with team | Verified approval evidence exists for X's current revision |
-| Implement X | Every leaf and person task of X is complete under 4.32.1; none refused or stale |
+| Review X with team | An approval commit exists for X's current revision |
+| Implement X | Every leaf and person task of X is complete under 4.32.1 |
 
-#### 4.32.7 One driver per spec, with a generation
+#### 4.32.7 One driver per spec
 
-The driver's generation is a journal record. Take over is person-only for the effective owner: the single spec assignee,
-else the single epic assignee. Ambiguous ownership holds work. It writes the next
-generation with a new opaque driver id.
+The driver is the spec issue's single assignee (§6.10, §4.44). Before every
+dispatch and every landing the driver reads the issue again (4.32.8); a spec this
+workspace no longer drives stops there.
 
-**Landing protocol.**
-1. **Intent.** Write an intent record: the exact commit or range, the base head it must
-   advance from, the tasks with their definitions and evidence, and the generation.
-2. **Read back.** Read the journal again. If a newer generation exists, or authority/controls changed,
-   the old driver stops. A takeover after the intent keeps it outstanding for
-   reconciliation; it does not erase that authorization.
-3. **Land** with a guarded update: a fast-forward from that exact base head, or a merge
-   call guarded by the pull request's head.
-4. **Outcome.** Before writing, read the journal again. A displaced driver writes
-   nothing further.
-
-**After take over** the new driver:
-- holds every task named in an outstanding intent of the old generation;
-- if that commit is on the base, writes its outcome once, from the intent's evidence;
-- otherwise shows Wait or Void. Void is allowed when the base has moved past the
-  intent's base head, or when the person confirms the old driver is stopped.
-
-Stale-generation records can never authorize new work. Duplicated work is possible. A takeover cannot retract an already authorized
-intent on an unchanged base. Guarded ref updates and operation-id replay ensure one
-effective acceptance of that landing; they do not promise exactly-once execution or
-atomic journal writes across machines. Concurrent or ambiguous takeover requests hold
-dispatch until the authorized owner resolves the generation; comments are not a mutex. Before every dispatch and
-every landing, the driver revalidates current authority and controls (4.32.9).
-
-#### 4.32.8 Worker machines
-
-Only when one is configured. They are plan-less and never push to the working branch.
-
-1. The driver computes the ready set from the approved graph and validated journal,
-   and publishes minimal offers for authorized worker logins. A journal is not a second
-   copy of the task graph; an offer contains only opaque IDs, digests and authorized refs.
-2. The driver atomically creates a canonical claim ref for the selected worker (4.32.3a).
-   A competing creator loses; a reservation in another fork has no authority.
-3. The worker starts only after the driver's acknowledgment with the current generation,
-   within the lane cap. A claim held during a takeover is reconciled, not reissued.
-4. Its Avoozl, outside the agent sandbox, pushes checkpoints to the task ref in its
-   authorized source repository. The driver fetches, verifies and integrates them.
-
-A claim never expires because a machine went quiet. Release is person-only. Tasks that
-unblock more than a threshold stay on the driver's own lanes.
-
-#### 4.32.9 Refresh git and GitHub independently
+#### 4.32.8 Refresh git and GitHub independently
 
 | Cached | Invalidated by |
 |---|---|
 | Repository contents | The branch head and the relevant file hashes (`src/app/git/repo-files.mjs`) |
-| Journal records | Conditional requests, or a webhook where the host provides one (`issueActivity`, `src/app/github/github.mjs:657`) |
+| The spec issue's assignees | Conditional requests (`src/app/github/github.mjs`) |
 | Pull request reviews, checks and merge results | Their own reads, independent of branch commits |
 
-Reparse a spec only when its definition changes. Refresh progress when marks or journal
-records change. Ownership, approval, holds and CI change without a commit, so a branch
-change is never the only refresh signal.
+Reparse a spec only when its definition changes. Ownership, approval and CI change
+without a commit, so a branch change is never the only refresh signal.
 
-#### 4.32.10 Handoff through branches and the issue
+#### 4.32.9 A new driver
 
-A new owner:
-1. Fetches the recorded working branches.
-2. Reads the spec and the validated journal.
-3. Reconciles exact landing commits and outstanding pull requests.
-4. Reconstructs progress, claims, decisions and outstanding intents.
-5. Reviews the reconstruction and resumes.
+A new driver (the person now assigned) fetches the recorded working branches, reads
+the spec and its ticks from git, and observes open pull requests. Attempt logs,
+transcripts, Flow spans and queue order are disposable.
 
-The spec comes back **held after rebuild**: nothing dispatches until a person presses
-Resume. Previously authorized landings that finish after take over are handled as in
-4.32.7. Disposable: attempt logs, transcripts, Flow spans, queue order.
-
-#### 4.32.11 Intake, Issue Radar beside it, and offboarding
+#### 4.32.10 Intake, Issue Radar beside it, and offboarding
 
 - A single bounded fix may run directly from its input issue, with a compact acceptance
   definition, exact-head checks and a pull request. It need not become a full spec.
@@ -4124,8 +3945,7 @@ Resume. Previously authorized landings that finish after take over are handled a
 - **Initial intake** makes at most two idempotent writes on the filed issue: a `crew:avoozl` label
   and one status comment. The comment names the spec only where visibility permits;
   a public input never names a private plan or its repository. Radar crews drop any issue carrying a `crew:` label
-  (`crew_brief.md:104-106`). Later journal writes on the spec issue are separate and
-  legitimate. The comment carries no Radar claim marker.
+  (`crew_brief.md:104-106`). The comment carries no Radar claim marker.
 - `Fixes #N` is allowed in a pull request body for Deliver this only, in the same
   repository. A close of an input issue is read as withdrawal.
 - Radar runs beside Avoozl with no code tie (Requirement 103). It keeps maintenance
@@ -4178,53 +3998,17 @@ stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
 - **Offboarding:** none in code (changed 2026-11-18). The issue export was deleted
   with per-task issues; no Avoozl code writes task issues.
 
-#### 4.32.12 Smaller rules
+#### 4.32.11 Smaller rules
 
-- **Person tasks.** `completeManual` (`src/app/tasks/manual-tasks.mjs:101`) writes a journal
-  record instead of closing an issue.
-- **Spec edits.** A changed definition makes earlier outcomes stale. A changed or
-  removed task with a live ref goes to Needs you.
+- **Spec edits.** A changed or removed task with a live ref goes to Needs you.
 
-
-#### 4.32.13 Repository layouts and migration
+#### 4.32.12 Repository layouts
 
 The same loop supports code and plans together, and public code with
 private plans on their own specs branch (§4.45). Repository layout
 determines visibility; fork location never chooses a different loop.
 Working heads and checkpoints may live in authorized forks in each layout.
-
-Task-issue bindings are gone (changed 2026-11-18, 45.4). Task projection,
-close reconciliation, Project sync, rebuild from GitHub and the binding
-migration were deleted together. A tick reads and writes no task issue and
-ignores an old binding row, so closing an obsolete task issue by hand changes
-nothing in Avoozl. Existing spec issues remain journals.
-
-#### 4.32.14 Module changes and implementation order
-
-- Replace task projection/sync/rebuild/close/completion and Project state
-  with journal validation, outcome reduction and spec issue publication.
-  Keep epic issue links. Task rendering to issues is deleted (45.4).
-- Generalize integration and spec homes to qualified working heads. Keep
-  checkpoint push plumbing; stop publishing task snapshots as GitHub state.
-- Replace the old issue-marker driver claim with generations/intents; keep
-  private handoff export. Keep pure release ranking and build observations.
-- Add head-guarded PR merge and qualified-ref discovery to the GitHub client;
-  do not interpret arbitrary remote URLs in issue content.
-- Phase 44 becomes links from specs and in-flight work plus a Landing queue
-  page (§4.27), not a GitHub browser.
-- Phase 56 supplies outcomes, journal, migration, qualified branches, driver
-  safety, refresh, recovery and epic/intake changes.
-  Direct and PR landing remain Phases 41–42; worker grants remain Phase 43.
-  Phase 45 deleted the shared projection callers (45.4) after the
-  replacement landing and UI proofs. Phase 55's receipts remain.
-
-Build Phase 56's foundation while the live executor proof waits; branch
-integration still depends on verified worker preparation. Scratch proofs
-need live receipts. Private pilots, protected-file settings changes, extra
-machines and screenshot approval remain owner work, not reasons to stop
-unrelated implementation. See Phase 56's explicit dependency graph. Direct landing precedes P50
-(which exercises it); the private P51 pilot and real-repository settings
-review do not gate generic PR-landing implementation or scratch proofs.
+A tick reads and writes no task issue and ignores an old binding row.
 
 ### 4.33 Review findings the owner can read and decide
 
@@ -4500,132 +4284,6 @@ cases for the redirects, the nav, and the box; `trace.test.mjs`,
 shortcut: a task made before the pivot with no plan approval receipt shows
 Spec approved without a time; upgrade only if such tasks matter.
 
-### 4.36 Spec pull requests are adopted into their spec
-
-Added 2026-11-18 (Requirement 107). Extends §4.5 (Triage), §4.32 (approval
-as a commit) and §4.33 (review findings).
-
-**Detect (`src/app/specs/spec-pull-requests.mjs`, pure).** The Triage search
-(`untriaged.mjs`) already returns each pull request. Its GraphQL node gains
-`headRefName`, `baseRefName` and `files(first: 20) { totalCount nodes
-{ path } }`. `specPullOf(entry, repo)` returns `{ spec }` only for an open
-pull request in a `planning` or `both` repository whose file list is complete
-(`nodes.length === totalCount`) and whose paths all start with
-`.kiro/specs/<name>/` for one `<name>`. No extra call, no polling.
-
-**Link.** `specPullLink(entry, repo, owners, permission)` answers `own`
-(head branch equals `workingBranch(spec)`, or the author is in `owners`, the
-login of `github.currentUser()` read once per tick), `allowed` (`actorAllowed`
-with the author's permission, read once per author and kept) or `person`
-(needs **Review as spec**). `untriagedView` drops an item whose pull request
-is adopted and adds `specPull: { spec }` to an item that is a spec pull
-request but not adopted, so the row shows **Review as spec** and no other
-spec button.
-
-**Adopt.** The tick, after `refreshUntriaged`, runs `adoptSpecPulls` for each
-`own` or `allowed` spec pull request, and the operation `specpr.adopt` runs
-it for one pull request a person chose. For a head commit not yet imported it
-reads the revision files and the critique of the spec folder at that commit
-with `blobTexts` (one GraphQL call), checks the hash (`specHash`), and then:
-
-| Step                | What it writes                                                                                  |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| Receipt             | `receipts` row `spec-pr:<repo>#<n>`: spec, head, hash, files, author, draft, branch, base, link |
-| Draft revision      | `createSpecPlan` for a new folder, else `saveSpecPlan`; both leave the plan a draft            |
-| Review choice       | `decidePlanReview` with `review`, so ask mode does not wait; mode `off` is respected           |
-
-`Operations.readSpec` and `specHomes` overlay an adopted spec's stored files
-over the folder on disk (or add the folder when none exists), so every reader,
-including the review step's settle check, sees the revision the pull request
-holds. `planReviewStep` marks that revision read-only for a planner answer:
-its answers become findings, never edits to a local folder. The overlay
-drops when the pull request is no longer open.
-
-**Show.** `specpr.view` returns, per adopted pull request, the facts of
-criterion 4 from the receipt, the cached search item (checks, draft) and
-`planReviewSummary`; the diff is `diffSpec` of the approved files against the
-receipt's files. `specList` adds `pull` to the item for the **PR** chip.
-`conflicts.view` adds one `spec-pull` item per adopted pull request with the
-same fields, so Decisions renders the evidence inline. The Overview's
-**Proposed change** box and that item share one component.
-
-**Act (person only).**
-
-```text
-Approve:         draft? refuse ─▶ head == receipt.head and hash == plan.hash? else refuse
-                 ─▶ record spec-approval:<plan>:<hash> as open on this pull request
-                 ─▶ when checks on that head pass: mergePullRequest(sha, repository's method)
-                 ─▶ reconcileApproval re-hashes the merge commit; equal ─▶ approve (approvePlan)
-Reject:          confirm + reason ─▶ comment naming the reason ─▶ close the pull request
-Request changes: one comment with the open findings of the current round
-```
-
-Approve reuses `spec-approval.mjs` state (`open`, then `merged` or
-`changed`) instead of opening an approval pull request: the author's pull
-request is the commit that approves. `Status:` lines are outside the hash, so
-the merged files may still say Draft; Avoozl's approval receipt is the record.
-The merge waits for a passing rollup on the exact head, read from the cached
-search item, so it adds no poll; the tick merges the next time it sees green.
-
-**Tests.** `src/app/specs/test/spec-pull-requests.test.mjs` (detect, link, adopt,
-Triage exclusion, approve then merge, reject, request changes, zero extra
-GitHub calls on a read) with a fake GitHub that records every call;
-`kirocrew-app/ui/test` cases for the chip, the box and the Decisions item.
-
-shortcut: one spec folder per pull request and at most 20 changed files; a
-larger or two-folder pull request stays in Triage. Upgrade if such pull
-requests are common.
-
-### 4.38 Approval delegation and exact-set approval
-
-Added 2026-11-18 (Requirement 109).
-
-**Why.** The owner delegated plan approval to his agents. Avoozl had no way
-to record that: approval was person-only (`PERSON_ONLY` in
-`mcp-policy.mjs`), and the only way past the CLI's agent-session refusal was
-`--as-person`, a claim to be the person (removed 2026-11-18; see
-Requirement 83.1). An agent also read the preview's
-"needs specs left out of the selection" as a requirement and concluded that
-approving 9 specs meant approving about two dozen.
-
-**What was already true.** `plan approve NAME...` sends exactly the named
-specs to `plan.approveMany`. A dependency on a draft spec's task becomes a
-`pendingSpecDependencies` entry (`spec-dependencies.mjs`): the task is
-approved, never ready, and projection holds until the owner is approved.
-The one deliberate closure is the `[x]` baseline: a task created as done
-must not depend on a task that does not exist yet, so its owners must be
-approved in the same set (`plans.mjs`, `approval-batches.mjs` approveSet).
-
-**Preview.** `plan.approvalBatches {ids}` adds `selection.waiting`, the
-tasks the selection creates that wait on a draft spec it leaves out. The CLI
-prints that count, the specs, and that approval does not need them.
-
-**Delegation.** `approval-delegation.mjs` keeps grants under the workspace
-meta key `approvalDelegates`: `{identity, onBehalfOf, grantedAt, note?,
-revokedAt?, revokedBy?}`. The database, not `.avoozl.json`, so a commit
-cannot grant one. The policy entries for `plan.approve` and
-`plan.approveMany` refuse only an input with no `delegate`; the operation
-then calls `approvalDelegation`, which refuses an identity with no active
-grant (403) and an `approvedBy` other than the grant's person. The approval
-runs as that person (`approvedBy = onBehalfOf`), so a gated spec's approval
-pull request still names a GitHub login. `approvePlan` writes
-`delegation` on the receipt; `openApproval` and `openBatchApproval` keep it
-on the pull request state and add one line to the body, and the merged
-state carries it to the receipt. Revoking lists the delegate's open approval
-pull requests; merging one stays the merger's act on GitHub.
-
-| Surface | Grant, revoke              | Approve with `delegate`      | Approve without            |
-| ------- | -------------------------- | ---------------------------- | -------------------------- |
-| App     | person                     | not offered                  | person                     |
-| CLI     | runs; an agent session is noted | allowed with an active grant | runs; an agent session is noted |
-| MCP     | refused                    | allowed with an active grant | refused                    |
-
-**Limits.** The delegate's identity is what it names. It
-is a speed bump against code running as the owner, not a wall; what it adds
-is a grant to check, a record of who acted, and a revocation.
-
-**Tests.** `src/app/specs/test/approval-delegation.test.mjs`.
-
 ### 4.39 One intake list
 
 Added 2026-11-18 (Requirement 110; `docs/research/simplification-audit.md` item 6,
@@ -4764,7 +4422,7 @@ Every task runs its repository's checks (§5.2).
 
 **Reader.** `spec-facts.mjs` turns `tasks.md` into the object `parseSpec`
 reads, `{tasks, integrationBranch, ...}`, plus the line of each bullet. `parseSpec`, `lintSpec`, `proposeSpecWork`, the
-spec page, review tabs, graph, spec pull request adoption, import and the
+spec page, review tabs, graph, import and the
 plan-review view take the facts from it. The default fills a leaf's missing
 `repo`; a package takes none. Diagnostics name
 `tasks.md` and the bullet's line. A leftover `avoozl/manifest.json` is one
@@ -4913,8 +4571,7 @@ the commit's GitHub author), else `minimumPermission`; locally, the
 checkout's `user.email`. The committer is not read. Each counted commit's spec files are read with `git cat-file --batch`
 and hashed with `specHash`.
 
-Approve (`approveInGit` in `operations.mjs`, used by `plan.approve` and
-`plan.approveMany`) first runs the database approval on a scratch copy, then
+Approve (`approveInGit` in `operations.mjs`, used by `plan.approve`) first runs the database approval on a scratch copy, then
 `commitApproval` builds one commit on origin's default branch (fetched) or
 local main with a temporary index: the spec's reviewed files, authored by
 the person git names, parented on the branch head. It pushes that commit
@@ -4922,10 +4579,8 @@ without force and moves the local branch forward; a checked-out branch has
 only the spec paths of its index reset. An unchanged tree refuses ("edit it
 through a spec branch"). The receipt names the commit and the author email.
 
-An adopted spec pull request (§4.36) keeps its approval pull request, now
-one commit of the spec's own files. On merge, `reconcileApproval` reads the
-merge commit's author (`github.commit`, else the pull request's author) and
-records `refused` for a non-approver.
+An approver's commit on the specs branch, read on the tick, approves a spec
+whose folder Avoozl did not commit itself (§4.46).
 
 **Commit identity.** Every commit Avoozl makes (`commitWorkerChanges`,
 ticks, landing commits, merge-forward commits) and every supervised child's
@@ -4970,7 +4625,7 @@ puts back each trailer's Flow spans, and reads every retro file on main.
 
 **Approvals on the tick.** A spec pull request an approver authored and
 GitHub merged, or an approver's push, approves with no click
-(Requirement 114.13). `Operations.applyMainApprovals` runs on each
+(Requirement 114.12). `Operations.applyMainApprovals` runs on each
 `workspace.tick` after `applyBaseTicks`. It takes the plans whose text on
 disk has no approval, groups them by checkout (`approvalCheckout`), and
 reads each checkout's base branch with `baseHead` (`spec-ticks.mjs`), using
@@ -5059,66 +4714,48 @@ source references and the mirror's plans branch read the default path.
 ### 4.44 The spec issue's assignee says who works on a spec
 
 **Why.** Two people on one repository could not see who was working on
-what. §6.10 already read the spec issue's assignee as the driver, but Avoozl
-never set it, so a person had to assign themselves on GitHub before Take over
-worked, and Hand off ended with "reassign it on GitHub". The owner wants
-Avoozl to set it (Requirement 116). The record is per spec: a spec has one
-driver, and that driver's own Avoozl already knows its running tasks.
+what. The record is per spec (Requirement 116): a spec has one driver, and
+that driver's own Avoozl already knows its running tasks. GitHub's assignee
+is the one field everyone already sees.
 
 **Who may drive.** `verdictOf` in `driver.mjs` reads the spec issue's
-assignees (the epic issue's when the spec issue has none) and the claim:
+assignees (the epic issue's when the spec issue has none):
 
-| Assignees            | Here                                                        |
-| -------------------- | ----------------------------------------------------------- |
-| None                 | Read only; **Take over** offered; no Needs you item          |
-| This login           | Driver when the claim names this machine (§6.10)             |
-| Another login        | Read only, "Taken by <login>"; **Force take over** offered   |
-| Two or more          | Read only on every machine; one Needs you item names them   |
-| No spec issue at all | Driver, "Not shared"                                         |
+| Assignees            | Here                                                   |
+| -------------------- | ------------------------------------------------------ |
+| None                 | Read only, "Nobody drives"; no Needs you item           |
+| This login           | Driver                                                 |
+| Another login        | Read only, "Taken by <login>"                          |
+| Two or more          | Read only on every machine; one Needs you item names them |
+| No spec issue at all | Driver, "Not shared"                                   |
 
-**Writes.** `spec-assignee.mjs` holds the two writes, and each reads the
-issue back because GitHub ignores an assignee change from a token without
-push access:
-
-- `assignSpecIssue` adds this login (`POST .../assignees`) only when nobody
-  is assigned. It refuses, writing nothing, when someone else is. `takeOver`
-  calls it after the export check and before the import and the claim, and
-  `takeOverSpec` (the journal's take over) calls it before it reads the
-  owner. Adding, not setting, means two people who press at once both end up
-  assigned: each take over's read 10 seconds later then sees two assignees,
-  and both machines read only until a person removes one.
-- `unassignSpecIssue` removes this login (`DELETE .../assignees`). Hand off
-  calls it once the export is written. **Release** (`driver.handoff` action
-  `release`) calls it when no chat runs for the spec, and refuses otherwise.
-  Force take over keeps its own write, the assignees set to exactly this
-  login.
+A person sets the assignee on GitHub; Avoozl never writes it. Reassigning
+hands a spec off, and unassigning releases it.
 
 **Closing.** In the tick's driver step, a spec this workspace drives whose
 leaf tasks are all complete has its open spec issue closed as completed,
-with one `PATCH`. The read already in hand says whether it is open, so the
-step adds no read.
+with one `PATCH` (`closeLanded`). The read already in hand says whether it is
+open, so the step adds no read.
 
 **Calls.** No new read. The driver step's `github.issue` is the conditional
-read it already made; the rechecks before dispatch and integrate hit the
+read it already makes; the rechecks before dispatch and integrate hit the
 client's cache (`github.cacheSeconds`, default 60), and an unchanged issue
 answers 304, which does not count against the rate limit. Every write goes
 through the write pacer (`github-pacer.mjs`).
 
 **No spec issue.** A spec nobody published has no shared record, so it
 drives on the workspace that has it and the page says "Not shared". Avoozl
-makes no issue for it: `avoozl spec publish` stays the person's act, and
-landing still needs a journal (§4.32.7). The limit, in the docs: two
-machines that both hold an unpublished spec both drive it.
+makes no issue for it: **Make the GitHub issues** or `avoozl spec publish`
+stays the person's act. The limit, in the docs: two machines that both hold
+an unpublished spec both drive it.
 
 **Privacy.** An assignee is a login on an issue the reader can already see,
-and it names no other item, so `source-backlinks.mjs` and the journal's
-opaque names are unchanged.
+and it names no other item, so `source-backlinks.mjs` is unchanged.
 
 **Page.** `plansTableView` adds each spec's `driver` (state, reason,
 assignees) from the `drivers` table. The Specs list shows it under the
 title, and the spec's chip uses the same words (`rowDriverText` and
-`chipText` in `driver-api.ts`). Hand off's last step says Avoozl unassigned
-you, and the dialog's first step has **Release**.
+`chipText` in `driver-api.ts`).
 
 ### 4.45 The specs branch
 
@@ -5143,6 +4780,55 @@ targets each code repository's base.
 **Plans-repo mode.** The planning checkout holds `.avoozl.json` and is on
 the specs branch; code repositories land on their own base. This is Nupp's
 shape (`nupp-planning` on `avoozl-plans`, code in `nupp-lang/nupp`).
+
+### 4.46 Avoozl reads git and GitHub
+
+Added 2026-11-19 (Requirement 118).
+
+**Why.** The owner wants Avoozl to start from a GitHub repository, with
+GitHub for identity and permission and SQLite rebuilt from git and GitHub.
+Every record Avoozl reads is a commit, a tick, a pull request or an issue.
+
+| What | Where it lives |
+| --- | --- |
+| Approval | An approver's commit on the specs branch (`git-approvals.mjs`) |
+| Several specs approved at once | One commit holding them, ordered by `$after` |
+| A spec pull request | A pull request, reviewed by the triage agent and merged on GitHub |
+| Driver | The spec issue's assignee (§4.44) |
+| Landing | A guarded push or head-guarded merge (`guarded-push.mjs`) |
+| Task done | Its tick on the base branch (§4.41) |
+
+**Approval.** `applyMainApprovals` reads approver commits on the specs
+branch (§4.45, `specsBranch`); `adoptCommitted(group, commits, branch)` approves every spec a commit
+holds with its current text, in `adoptApprovals` passes so a ticked task's
+spec waits for its owner. The receipt's `approval` is `{kind: "commit",
+commit, approvedBy}`. **Approve** (`approveInGit`) and chat approval write
+the same commit as the person; `plan.approve` is person-only.
+
+**Driver.** `driver.mjs` reads the spec issue: one assignee who is this
+login drives here (`verdictOf`); several open one decision; none drives
+nowhere; no spec issue drives here as Not shared. A fully landed spec's
+issue is closed once (`closeLanded`). Status, the Specs list row, the
+read-only banner with its spec issue link and Settings › General › This
+computer (its label) are what the page shows.
+
+**Landing.** `merge-batch.mjs` and `landing-pulls.mjs` push or merge
+through `guarded-push.mjs`; `queueDirect` and `queuePullRequest` need only
+the task's spec.
+
+**Machines.** Work runs on the driver's own machine, with its own
+executors. In Local only mode this workspace drives every approved spec;
+the machine row only names this machine.
+
+**Make the GitHub issues.** The spec header's primary action for an
+approved spec with no `links.issue` in a workspace whose GitHub mode is not
+`local`; it calls `spec.publish` with the home repository.
+
+**Tests.** `src/app/git/test/git-approvals.test.mjs`,
+`src/app/landing/test/guarded-push.test.mjs`,
+`src/app/workers/test/spec-assignee.test.mjs`,
+`kirocrew-app/ui/test/plans-api.test.mjs` and
+`kirocrew-app/ui/test/spec-header.test.mjs`.
 
 ## 5. Local workflow
 
@@ -5337,7 +5023,7 @@ touches a match; every other check always runs. Tasks never name checks:
 there is no `checks` fact or default (§4.40), and a stored task's list is
 ignored. The older form, a list of argv arrays, still loads, each check
 named by its argv joined with spaces and with no paths. Records, reruns,
-bisect steps and journal entries are keyed by check name; each still keeps
+bisect steps are keyed by check name; each still keeps
 `command` for display. A check runs with only the environment a process
 needs to start plus the names in `checksEnv`, whether or not it lists any;
 push and GitHub credentials never reach a check, even when listed.
@@ -6210,271 +5896,53 @@ headings).
 
 ### 6.10 Driver: one machine drives each spec
 
-**Status 2026-11-18.** The driver chat was removed (#382). The driver lock (the plan issue's assignee plus a machine claim) and the header driver chip stay.
+Requirement 66 and §4.44. `src/app/workers/driver.mjs` decides;
+`driver-scope.mjs` answers from SQLite for every write loop.
 
-**Changed 2026-11-19** by §4.44 (Requirement 116): Avoozl now sets the assignee. Take over assigns this login when nobody is assigned, Hand off and Release remove it, no assignee raises no decision, and a spec with no spec issue drives here as "Not shared". Where this section says Avoozl never reassigns, §4.44 wins.
+#### The lock: who is assigned
 
-**Proposed** 2026-11-13 (Requirement 66; the lock was changed the same day
-to the plan issue's assignee). Avoozl runs on one person's machine, the
-**driver**. Run state is in that machine's SQLite. GitHub holds the spec
-(in Git), issues, links, the Project, branches, pull requests and markers
-keyed by the namespace (§3.4). The namespace check of §6.3 asks only
-whether `.avoozl.json` names the namespace, and every clone of the
-planning repository does. So two machines can both tick one spec today,
-and the role cannot be moved.
+In a GitHub mode the spec issue's single assignee drives the spec: the Avoozl
+whose `gh` login is that assignee. With no assignee on the spec issue, the epic
+issue's assignee stands in; a spec issue with several assignees never falls
+back to the epic. Several assignees read only everywhere and open one
+decision. Task-issue assignees keep their own meaning. In Local only mode this
+workspace drives every approved spec.
 
-#### The lock: who is assigned, and which of their machines
-
-Every spec already has a plan issue under its epic issue (§6.9). The
-driver is read from it:
-
-- **Assignee: which person.** The plan issue's assignee is the spec's
-  driver. A plan issue with no assignee takes its epic issue's assignee,
-  so one assignment can name the driver for every member spec. Task-issue
-  assignees keep their meaning (intake rules, Issue Radar) and say nothing
-  about the driver.
-- **Claim: which machine.** One person may run Avoozl on two machines with
-  one `gh` login, which an assignee cannot tell apart. The plan issue's
-  marker (§3.4, `kind: "plan"`) gets a `claim`:
-
-```json
-"claim": {
-  "machine": "mch_7hw2c4n6r8t1y3pq",
-  "label": "laptop",
-  "login": "octocat",
-  "takenAt": "<ISO-8601>",
-  "heartbeatAt": "<ISO-8601>",
-  "from": null,
-  "forced": false,
-  "export": null
-}
-```
-
-A workspace drives a spec only when the issue that decides has **exactly
-one** assignee, that assignee is this machine's `gh` login, and the claim
-names this machine. Every other case reads only:
-
-| Plan issue (or epic issue, when the plan issue has none) | Claim                    | Here                                     |
-| -------------------------------------------------------- | ------------------------ | ---------------------------------------- |
-| One assignee, this login                                 | This machine             | **Driver**                               |
-| One assignee, this login                                 | Another machine, or none | Read only; **Take over** offered         |
-| One assignee, someone else                               | Any                      | Read only; **Force take over** offered   |
-| No assignee, or several                                  | Any                      | Read only on every machine; one decision |
-
-The decision for zero or several names the issue and the assignees found,
-and closes by itself once the issue has one. A plan issue with several
-assignees never falls back to the epic: several names is a conflict, not a
-blank.
-
-**Why the assignee.** It is GitHub's own answer to "who owns this", it
-shows in every issue list and Project view, it is searchable
-(`assignee:octocat`) and its changes are in the issue's timeline with who
-made them. Hand-off is then a normal GitHub action. Rejected: a new
-Project field (fields are per item, a person's Project edit is an order,
-§6.7, and a field has no history of who set it), a pinned issue (one more
-issue per spec, and a repository pins at most 3), and a comment lock (a
-second place to look for what the assignee already says).
-
-**GitHub's limits, checked 2026-11-13** in GitHub's docs: an issue takes
-up to 10 assignees. Who can be assigned: yourself, anyone who has
-commented on the issue, anyone with write access, and organization
-members with read access. In the web page, triage access and up can
-assign. Through the REST API only users with push access can add or
-remove assignees, and GitHub **silently ignores** the change otherwise
-([REST: assignees](https://docs.github.com/en/rest/issues/assignees);
-[Assigning issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/assigning-issues-and-pull-requests-to-other-github-users);
-[Repository roles](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/repository-roles-for-an-organization)).
-So Avoozl reads assignees back after every change it makes and never
-trusts a 2xx alone.
-
-**Heartbeat.** The driver edits the claim's `heartbeatAt` at most once per
-`driver.heartbeatMinutes` (machine-local, default 15): 96 marker edits a
-day per spec at the default. Editing an issue body sends no notification
-(**Inferred** from GitHub community answers). The claim is left out of the
-`applied` hashes, so it never reads as a conflict. Three missed intervals
-show "not seen since". Age never moves the role: the heartbeat is for
-people to read, and Avoozl never replaces a disconnected worker or driver
-because a lease expired.
+The machine ID (`mch_` plus 16 base32 characters) and an optional label live
+in machine-local settings (`driver.json`). The label passes the `github`
+content-rule boundary and is never filled from the host name.
 
 #### Reading it in the tick
 
-Step 4 of §4.5 already reads each plan issue (§6.9); it now also keeps its
-assignees and claim. The tick reads them **again** right before each
-dispatch intent for the spec (step 11), before projection (step 10), and
-before each integrate (step 8). A spec that is not driven here is
-read-only: its steps run only as far as they change this machine's cache
-and views, the script gets no intents for it, and nothing is written to
-GitHub or the spec folder for it. Other specs keep ticking.
-
-**The overlap, and its bound.** Assignment is not atomic: a person can
-reassign the plan issue while the old driver is mid-tick. The old driver
-then keeps going only until its next check, and every write step checks
-first, so it can start at most what that one tick does after its last
-read, inside one tick's time budget (45 seconds, §4.5). The new driver
-cannot start before its own Take over, which waits 10 seconds and reads
-again. A session the old driver started in that window shows as **away**
-on the new driver (below), so it is never started twice by Avoozl.
-**Limit**, stated in the docs.
-
-**First driver.** Approval in a GitHub mode projects the plan issue first
-(§6.3). It is created assigned to the approving person, unless the epic
-issue's assignee already decides, with this machine's claim, and no task
-issue is created until both read back. A plan issue made before this
-section has no claim: every workspace reads only for that spec and shows
-**Take over**. One click on the machine that should drive restores
-delivery. This pauses delivery once after the upgrade, on purpose:
-guessing the driver is the bug this section fixes.
-
-**Take over** (person-only) is offered when the assignee rule names this
-login but the claim does not name this machine: a hand-off was reassigned
-to this person, or this is the person's other machine. It writes this
-machine's claim (`from` names the old one), reads the issue again at least
-10 seconds later, and drives only if its claim is still there. Two
-machines with one login pressing it at once both write; the body that
-GitHub keeps decides, both read the same one, and the other reads only and
-names the winner.
-
-#### Hand off
-
-**Hand off driver** (person-only) runs on the driver:
-
-1. Dispatch stops for the spec. Running chats keep running and are never
-   ended; their reports, verification, integration and GitHub completion
-   still apply.
-2. The page lists the running chats with their tasks. When none is left,
-   Avoozl writes the export. **Export with N unfinished** writes it sooner
-   and records those tasks as unfinished. **Cancel** before the export
-   resumes dispatch.
-3. The export is one JSON file, `<spec>.avoozl-driver.json`, saved to a
-   folder the person picks. It holds the namespace, spec, approved commit
-   and hash, task rows and receipts, local-authority tasks, decisions open
-   and answered, Flow spans and stops, retros and proposals, task links and
-   notes, the activity log, token usage, session bindings marked with the
-   old machine ID, the raw lessons store (`lessons.export {raw: true}`,
-   §4.18), and the list of machine-local items in use (below). It
-   never holds a terms file, router or retro instructions, a token, a crew
-   host or a host key. Avoozl never uploads, commits or pushes it; the
-   person moves it, and the dialog says it may hold private notes.
-4. The claim records the file's sha256, the spec is read-only here, and
-   the page links the plan issue: **Reassign it on GitHub**. Avoozl does
-   not reassign it.
-
-On the new machine, once the assignee rule names its login, **Take over**
-offers **From an export** or **Rebuild from GitHub**. From an export it
-checks the namespace and spec, the file's sha256 against the claim, and
-that the approved commit is in this workspace's spec checkout (fetching
-the planning repository if needed). A mismatch is refused by name and
-changes nothing. Then it imports in one SQLite transaction and writes the
-claim. A same-person hand-off (one login, two machines) needs no
-reassignment: Take over on the other machine is enough.
-
-Tasks the export marks unfinished, bound to a session on another machine,
-or with an open linked branch or pull request and no session here are
-**away**. They are never started again because a lease expired. The tick
-completes an away task from GitHub facts when they show it done (a merged
-closing pull request, or an allowed close, §6.5). In plans-repo mode a
-running worker pushes its own branch and opens its own pull request
-(§6.6), so finished work reaches the new driver through GitHub. An away
-task with no such fact gets one decision: **Start it here** or **Wait**.
-
-#### Rebuild from GitHub
-
-When the old machine is gone, Take over runs `avoozl rebuild` (§3.3) for
-the spec, then writes the claim.
-
-| Kept (read back from GitHub and the spec)                                                                                                        | Lost (only in the old machine's SQLite)                                                 |
-| ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| Tasks, edges, completion levels, status, verdicts, orders, managed baselines, Release, Wave, Iteration, Deferred, linked branches, pull requests | Flow spans and stop history, so lead time and time to fix restart                       |
-| The approved spec at its commit                                                                                                                  | Retros and PDCA proposals                                                               |
-| Notes and links shown on GitHub (§4.16)                                                                                                          | Notes and links not shown on GitHub (the default)                                       |
-|                                                                                                                                                  | The spec's local-authority tasks, unless the workspace repository published them (§3.2) |
-|                                                                                                                                                  | Answered decisions' local records, the activity log, token usage                        |
-
-Open decisions are not copied. The next tick raises again every decision
-whose cause is still in GitHub or the spec: conflicts, disallowed closes,
-leak hits, quarantined snapshots, and a zero-or-several assignee decision.
-The dialog shows this list before anything runs.
-
-#### Force take over
-
-The one assignee change Avoozl makes, and only from a person's confirm box.
-It is offered on a read-only spec. The dialog names the current assignee,
-the claim's machine label and ID and its last heartbeat, says that machine
-may still be running chats for this spec and that their local results will
-not come here, and needs the spec name typed. Then Avoozl:
-
-1. sets the plan issue's assignees to exactly this login, when they are
-   not already (one login, two machines needs no change), and reads them
-   back; when GitHub kept the old ones (no push access), it says so and
-   stops;
-2. rebuilds from GitHub, or imports a matching export if the person gives
-   one;
-3. writes a claim with `"forced": true` and `from` set, waits and reads it
-   back, records the event, and notifies the owner once.
-
-When the old driver ticks again it reads only. Its banner says who took
-over, when, and that it was forced. It never takes the role back by
-itself. Chats still running on it finish; what they push reaches GitHub,
-and the new driver judges it.
-
-#### What never moves
-
-Machine-local settings (F74) stay on each machine: plugin approvals
-(§4.8), the private terms file (§4.9), retro
-instructions (§4.11), the crew registry and SSH host keys. After any
-take-over the page lists what to set up again: from the export's list, or
-after a rebuild from the plugins and rule sets `.avoozl.json` names. Until
-then today's fail-closed rules hold: an unapproved plugin's tasks park and
-a missing terms file blocks its boundary, so a new driver cannot write
-GitHub through an unchecked boundary.
-
-#### Local only mode
-
-There is no GitHub, so the lock is a `driver` row per spec in the
-workspace's SQLite: machine ID, label, state and heartbeat. Hand-off is
-the export and Take over from the file. Its limits, stated in the docs and
-in Settings: it guards only instances that open this file or a copy of it,
-it cannot see another machine, and there is no forced take-over between
-machines because there is nothing shared to write to. A copy opened on
-another machine sees a row naming a different machine and reads only until
-a person presses Take over.
-
-#### Who may do it
-
-`driver.handoff`, `driver.takeover` and `driver.forceTakeover` are
-person-only operations on the page and CLI. Agent sessions, MCP, the app
-token and plugins get 403 (F108). `driver.status` is readable everywhere,
-including the workspace status MCP reply. CLI: `avoozl driver status`,
-`avoozl driver handoff`, `avoozl driver takeover --file <path>`,
-`avoozl driver takeover --rebuild`, and `avoozl driver takeover --force
---confirm <spec>`.
+The tick's driver step reads each approved spec's issue and writes the
+`drivers` row (state, reason, assignees). It reads the issue **again** right
+before each dispatch for the spec, before projection, and before each
+integrate or merge (`recheckDrivers`). A spec this workspace does not drive is
+read-only here: the tick refreshes its own cache and views, and nothing is
+dispatched, messaged, written to GitHub, integrated or merged for it
+(`driverGuard` refuses any GitHub write keyed to it). An unread issue reads
+only for that tick. Assignment is not atomic, so work started before the next
+read can overlap, at most one tick's worth.
 
 #### Page and Settings
 
 - The spec's own page and row show its driver (the app header shows no
-  driver or read-only count; owner decision 2026-11-14): "Driver: you", or
-  "Driver: octocat · laptop · seen 4 min ago", with "not seen since"
-  after three missed heartbeats.
-- A read-only spec shows a banner on its pages saying why: assigned to
-  someone else, your other machine, or no assignee or several (with a link
-  to the issue). It offers **Take over** when this login is the assignee
-  and **Force take over** otherwise. The Dashboard counts read-only specs.
-- Hand off driver sits in the spec view's left column actions. Its dialog
-  is stepped: drain (running chats listed), export (folder picker),
-  reassign (the issue link).
-- Settings › Workspaces › **This computer**: Machine label (optional),
-  Heartbeat minutes (optional, placeholder 15), and the machine ID shown
-  small. The group's blurb says these stay on this machine.
+  driver or read-only count; owner decision 2026-11-14): "Driver: you",
+  "Taken by octocat", "Driver: nobody" or "Driver: you · not shared".
+- A read-only spec shows a banner on its pages saying why, with a link to
+  the spec issue, where reassigning it moves the spec.
+- Settings › General › **This computer**: Machine label (optional) and the
+  machine ID shown small. These stay on this machine.
+- `driver.status` is readable on the page, in the CLI (`avoozl driver
+  status`) and over MCP; `driver.settings.update` is person-only.
 
 | Decision                                                    | Reason                                                                                             |
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Plan issue assignee names the driver, the epic's as default | GitHub's own owner field, visible in every list and view, with history                             |
-| A machine claim beside it                                   | One login on two machines is the owner's own case                                                  |
-| Exactly one assignee                                        | Zero or several is not an answer; guessing is the bug                                              |
-| Avoozl never reassigns, except Force take over              | Hand-off is a person's GitHub action                                                               |
+| Spec issue assignee names the driver, the epic's as default | GitHub's own owner field, visible in every list and view, with history                             |
+| Exactly one assignee                                        | Several is not an answer; guessing is the bug                                                      |
+| Avoozl never reassigns                                      | Hand-off is a person's GitHub action                                                               |
 | Check again before each dispatch                            | Assignment is not atomic; this bounds the overlap to one tick                                      |
 | Age never moves the role                                    | A slow or asleep machine is not a gone one; the repository rule for workers applies to drivers too |
-| Export is a file the person moves                           | It may hold private notes; GitHub is not a place for them                                          |
 
 ### 6.11 Demo mode
 
@@ -6563,7 +6031,7 @@ the child's read; upgrade S4 with the upstream request, S7 by copying first.
 
 ### 6.13 Runner mode over SSH
 
-Replaced 2026-11-18 by the worker-paths spec (D8): worker pull on the tick is the one remote route.
+Replaced 2026-11-18 by the worker-paths spec (D8): tasks run on the machine that drives their spec.
 
 Requirement 84. Prototype in `src/app/workers/remote-runner.mjs`; research in
 `docs/research/runner-mode-ssh.md`.
@@ -7431,7 +6899,6 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P36   | Epics across plans and phases inside plans, in a temporary workspace with one epic and two member plans: membership needs both sides, phases come from `phase` facts or headings, no `doc:` group appears, three levels of sub-issues project and a second preview writes nothing, and the old forms are errors (Phase 21; the owner's data is rewritten once in task 21.7)                                                                                                                                                                                                                                                                              |
 | P37   | Workflow templates, manual leaves, and links and notes, in a temporary single-repo workspace with a fake GitHub and the sample SDK rewrite template: the template makes a draft that joins an epic and imports no setting unless ticked, the manual review leaf is never dispatched and gates cutover, only a person or an allowed GitHub closer completes it, and links and notes pass content rules, reach briefs, and reach the issue only when shown (Phase 22)                                                                                                                                                                                     |
 | P38   | The Specs name and ideas, in a temporary workspace with a fake chat and a fake New spec entry point: no user-facing plan word outside the allowlist, the compat names unchanged, an idea captured by a person, by MCP and by a session, refused fields and blocked text, an idea that never matches a rule or counts as untriaged, a riff that only appends, Make it a spec that prefills New spec and graduates the idea, and archive kept past the purge (Phase 23)                                                                                                                                                                                   |
-| P40   | Driver handoff with temporary workspaces on one fake GitHub: the plan issue's single assignee and the machine claim pick one driver, the epic's assignee stands in, zero or several assignees read only with one decision, one login on two machines, the check before dispatch, age never moves the role, drain then export then reassign and take over, a tampered file refused, rebuild and forced take-over with the loss list, a silently ignored reassignment, the old driver going read-only on return, away tasks never restarted by lease, the re-approve list, person-only 403s, and the Local only row (Phase 26)                            |
 | P41   | Retired. |
 | P42   | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28)                                                                                       |
 | P43   | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29)                                                                                                                                                                                                                                                                                                                          |
@@ -7441,7 +6908,6 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P50   | Unattended basics: a three-task chain on a scratch repository survives a gateway restart with no one at the machine, and a tick push goes through Kiro Crew's push policy (Phase 40) |
 | P51   | Direct landing: the 13 Nupp pilot tasks land on public `core-dev`, with owner minutes, credits and wall-clock per task (Phase 41) |
 | P52   | PR landing: ten tasks land through pull requests on a repository with a required check, one at a time, none force pushed (Phase 42) |
-| P53   | Worker machines: a second machine and a second GitHub login pull, claim and complete tasks from a shared pool on real GitHub; of two racing workers exactly one claim wins (Phase 43) |
 | P54   | Links and the landing queue at 390 and 1280 px, light and dark: every link reaches its GitHub item, zero new GitHub calls, owner screenshot approval (Phase 44) |
 | P55   | After removal: one delivery path, the compatibility names resolve, no Radar module remains (Phase 45) |
 | P56   | The executor seam: today's calls behind it, the existing suite unchanged (Phase 46) |
@@ -7453,7 +6919,6 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P62   | The manual next, claim and report path (Phase 52) |
 | P64   | Steady CI waste caught on a real repository with no Avoozl tasks (Phase 54) |
 | P65   | Every receipt kept, failed attempts included, and a build breakdown compared by key in a retro (Phase 55) |
-| P66   | Live journal/checkpoint recovery, privacy, ordered migration and pause-before-push takeover on isolated scratch repositories (Phase 56) |
 | P67   | Fork PR source without upstream branch copies, separate contributor/maintainer permissions, idempotent export (Phase 56; the mirror import went with the mirror, Requirement 117) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
@@ -7485,7 +6950,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 21. Epics and phases                                                          | Epic folders across plans, phases from `tasks.md` headings, no invented groups, epic and plan issues on GitHub, the sub-issue cap setting, the views, and a one-time rewrite of the owner's plans (§6.9)                                                                                                                                                            | Starts after Phase 3's proofs and 19.1; P36                                                                         |
 | 22. Templates, manual tasks, links and notes                                  | The `template` plugin part and From template in New plan; `manual` leaves in Needs you and on GitHub; Links and notes on every task (§4.16)                                                                                                                                                                                                                         | Starts after 21.1, 16.3, 17.1 and P28; P37 runs after P36                                                           |
 | 23. Specs and ideas                                                           | The page says spec (§8.7); ideas as `local` incoming items with notes and links, Riff on this, Make it a spec through the New spec entry point, and archive (§8.8)                                                                                                                                                                                                  | Starts after 14.10, 17.1 and 19.1; P38                                                                              |
-| 26. Driver handoff                                                            | One driver per spec: the plan issue's assignee plus a machine claim, read-only ticks elsewhere, the check before dispatch, hand off with drain, export and reassign, take over from the file or a rebuild, force take over, what never moves, the header and banner (§6.10)                                                                                         | Starts after 3.8, 3.10 and 21.4; P40                                                                                |
+| 26. One driver per spec                                                       | One driver per spec: the spec issue's assignee, read-only ticks elsewhere, the check before dispatch, the banner and This computer (§6.10) | Starts after 3.8, 3.10 and 21.4 |
 | 27. Retired (budgets and receipts) | Retired. |
 | 28. Retro prompt and skill proposals, and lessons                             | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18)                                                           | Starts after 12.9 and 12.10; P42                                                                                    |
 | 29. Activity log                                                              | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19)                                                                                                                                          | Starts after 10.4, 12.11 and 14.10; P43                                                                             |
@@ -7496,7 +6961,6 @@ Detailed in `tasks.md`. **Proposed** order:
 | 40. Unattended basics | Trust re-applied each tick, report by CLI, `project: false`, the worktree helper and cleanup, warm checks off the tick, one resume for a vanished chat (§4.26) |
 | 41. Scheduler and direct landing | One scheduler, path holds, the per-base landing queue, `direct` landing, conflicts back to the same chat, epic branches (§4.26) |
 | 42. PR landing and setup | `pr` landing from the renamed arming code, `avoozl setup` with ruleset, merge methods, CI variable and commit status (§4.26) |
-| 43. Worker machines pull work | Qualified task refs, canonical reservations and generation acknowledgments across forks; executor-aware setup (§4.26, §4.32) |
 | 44. Links and the landing queue | One stored link set per spec and task; Links boxes, In flight chips, a Landing queue page under Dashboards and Radar back-links (§4.27) |
 | 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery and Files restored (§4.26) |
 | 46. Executor seam | The executor interface, the `kirocrew` executor, session requests by executor, prompts as files; runs before Phase 40 (§4.28) |
@@ -7508,7 +6972,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 52. Manual path | `next`, `take`, `runner report` kept (§4.28) |
 | 54. Steady CI waste | File classes per pull request, repeat runs, fixed CI limits over every pull request, CI plan proposals with PDCA by class, the Flow CI card (§4.30) |
 | 55. Every build receipt | Every line of every receipt artifact, failed attempts kept, costliest phase in Flow, the build report format and breakdowns in the retro brief (§4.31) |
-| 56. Working branches and a spec journal | Qualified working heads and forks, durable minimal outcomes, guarded intents, held rebuild, epic lifecycle, intake/export and mirror imports; explicit dependencies in tasks.md (§4.32) |
+| 56. Working branches and spec issues | Qualified working heads and forks, spec issue publication, epic lifecycle and intake; explicit dependencies in tasks.md (§4.32) |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

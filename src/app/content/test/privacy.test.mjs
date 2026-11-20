@@ -1,4 +1,4 @@
-// The privacy scan (task 56.11, Requirement 102.23-102.25, design §4.32.4):
+// The privacy scan (task 56.11, Requirement 102.16-102.25, design §4.32.4):
 // no public write or outgoing push names this machine, a host, an internal
 // domain or a home path, and a refusal comes before the first write. Every
 // machine name, username, domain and term here is made up.

@@ -472,3 +472,80 @@ test("with specs.branch, approvals and ticks are read and written on that branch
     /Specs live on plans, but .+ has main checked out\./,
   );
 });
+
+// One leaf spec of epic launch whose task 1.1 needs `after` (another
+// spec's task) and is ticked when `done`.
+const leafSpec = (title, { after = null, done = false } = {}) => ({
+  "requirements.md": `---\nepic: launch\n---\n# ${title}\n\nThe goal.\n`,
+  "design.md": "# Design\n\nOne step.\n",
+  "tasks.md": `# Tasks\n\n- [ ] 1 ${title}\n  - [${done ? "x" : " "}] 1.1 Do ${title}\n`,
+  "avoozl/manifest.json": JSON.stringify({
+    tasks: {
+      1: {
+        kind: "package",
+        summary: "The goal.",
+        requires: ["1.1"],
+        acceptance: ["Done."],
+      },
+      1.1: {
+        kind: "leaf",
+        summary: `Do ${title}.`,
+        ...(after ? { requires: [after] } : {}),
+        acceptance: ["It works."],
+        checks: ["npm test"],
+        completion: "integrated",
+      },
+    },
+  }),
+});
+
+test("one epic pull request approves every spec it touches, in $after order", async (t) => {
+  const r = workspace(),
+    { store, ops } = open(r.root, "workspace.sqlite");
+  t.after(() => store.close());
+  const specs = {
+    alpha: leafSpec("alpha"),
+    // A ticked task needs alpha's: beta is approved only after alpha.
+    beta: leafSpec("beta", { after: "alpha.1.1", done: true }),
+    gamma: leafSpec("gamma", { after: "beta.1.1" }),
+    launch: {
+      "requirements.md": "# Epic launch\n\nShip it.\n",
+      "design.md": "# Design\n",
+      "tasks.md": "# Plans\n\n- [ ] 1 Row 1\n- [ ] 2 Row 2\n- [ ] 3 Row 3\n",
+      "avoozl/manifest.json": JSON.stringify({
+        kind: "epic",
+        tasks: {
+          1: { plan: "gamma" },
+          2: { plan: "beta" },
+          3: { plan: "alpha" },
+        },
+      }),
+    },
+  };
+  for (const [name, files] of Object.entries(specs)) {
+    writeSpec(r.root, name, files);
+    await ops.execute("plan.create", { spec: name });
+  }
+  // The owner's epic pull request, squash-merged by GitHub: one commit.
+  r.run(["add", "--", ".kiro/specs"]);
+  r.run(["commit", "-q", "-m", "Epic launch"], {
+    GIT_AUTHOR_NAME: "Owner",
+    GIT_AUTHOR_EMAIL: OWNER,
+    GIT_COMMITTER_NAME: "GitHub",
+    GIT_COMMITTER_EMAIL: "noreply@github.com",
+  });
+  const commit = r.run(["rev-parse", "HEAD"]);
+  await ops.execute("workspace.tick", {});
+  for (const name of Object.keys(specs)) {
+    assert.equal(store.get("plans", name).state, "approved", name);
+    const receipt = store.list("approvals").find((a) => a.planId === name);
+    assert.equal(receipt.approvedBy, OWNER, name);
+    assert.equal(receipt.approval.commit, commit, name);
+  }
+  assert.equal(tickApprovals(store).length, 4);
+  // beta's ticked task came out done once alpha was approved.
+  assert.deepEqual(
+    taskStates(store, "beta").find(([id]) => id === ".1.1"),
+    [".1.1", "accepted"],
+  );
+});

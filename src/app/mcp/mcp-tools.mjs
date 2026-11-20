@@ -22,11 +22,7 @@ const tools = {
       ],
       driver: [
         "driver.status",
-        "which machine drives each spec, and why a spec reads only here",
-      ],
-      driver_takeover_preview: [
-        "driver.takeover.preview",
-        "what a take-over would lose and what to set up again",
+        "who drives each spec (its issue's assignee), and why a spec reads only here",
       ],
       delivery_settings: [
         "delivery.settings.get",
@@ -98,7 +94,7 @@ const tools = {
   },
   plans_plan: {
     summary:
-      "Plans and their Kiro spec folders. Approval and delete are a person's, in the app; delegates lists who a person let approve for them.",
+      "Plans and their Kiro spec folders. Approval and delete are a person's: an approver's commit on main, or Approve in the app.",
     actions: {
       list: ["plan.list", "stored plans"],
       table: ["plan.table", "plans grouped with progress"],
@@ -112,14 +108,6 @@ const tools = {
       read_spec: ["plan.spec.read", "a spec folder's documents"],
       lint: ["plan.lint", "deterministic checks on a stored revision"],
       preview: ["plan.preview", "the tasks approval would publish"],
-      batches: [
-        "plan.approvalBatches",
-        "draft specs in the order they can be approved: {writes?, ids?}",
-      ],
-      delegates: [
-        "approval.delegates",
-        "who may approve on a person's behalf, and every grant",
-      ],
       delete_preview: ["plan.delete.preview", "what deleting would remove"],
       create: ["plan.create", "store a spec folder as a draft: {spec}"],
       save: [

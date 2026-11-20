@@ -222,18 +222,19 @@ avoozl plan.create --json '{"spec":"NAME"}' --workspace ~/plans
 
 ## Approving a spec
 
-Select the spec, review the lint results and the graph, then choose **Approve
-revision**. Approval records the exact revision hash, so a later edit reads as
-unapproved until you approve again. `avoozl plan approve NAME` previews
-the approval from the CLI.
+Approve a spec by merging its pull request on GitHub. An approver's commit
+on main is the approval, and Avoozl reads it on its next tick. One pull
+request may carry several specs and their epic; it approves each of them.
+For a draft in a checkout here, select the spec, review the lint results
+and the graph, then choose **Approve**: it commits the draft to main as you.
+`avoozl plan approve NAME` previews that from the CLI. Approval records the
+exact revision hash, so a later edit reads as unapproved until it is
+approved again. After approval, **Make the GitHub issues** makes the spec's
+issue and its epic's.
 
 A spec can be as small as one task. With the repository's `landing` set to
 `pr`, a one-task spec becomes one pull request, checked and merged like any
 other task. See [Delivery](delivery.md#landing) for the landing settings.
-
-To let an agent approve for you, grant it once from your own terminal. See
-[Person-only operations](person-only.md#approval-delegation) for approval
-delegation.
 
 ### Approval commits
 

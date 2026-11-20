@@ -37,7 +37,6 @@ export const POLICY_KEYS = Object.freeze([
   "cacheSeconds",
   "writesPerMinute",
   "writesPerHour",
-  "specReviewers",
   "repositories",
 ]);
 // The keys each block under `github` accepts, by place. The validators below
@@ -105,34 +104,6 @@ function permission(value, label) {
   if (!PERMISSIONS.includes(value))
     fail(`${label} must be one of ${PERMISSIONS.join(", ")}.`);
   return value;
-}
-
-// `github.specReviewers` (R102.18): the GitHub logins asked to review each
-// spec's approval pull request, by spec folder name. With none for a spec,
-// the repository's own CODEOWNERS and rules decide; Avoozl adds no rule.
-const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
-const SPEC_FOLDER = /^[a-z0-9][a-z0-9-]{0,79}$/;
-function specReviewersInput(value) {
-  if (!record(value)) fail("github.specReviewers must be a JSON object.");
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([spec, logins]) => {
-        const where = `github.specReviewers.${spec}`;
-        if (!SPEC_FOLDER.test(spec))
-          fail("Each github.specReviewers key must be a spec folder name.");
-        if (
-          !Array.isArray(logins) ||
-          logins.length > 10 ||
-          !logins.every(
-            (login) => typeof login === "string" && LOGIN.test(login),
-          ) ||
-          new Set(logins.map(lower)).size !== logins.length
-        )
-          fail(`${where} must be a list of at most 10 distinct GitHub logins.`);
-        return [spec, [...logins]];
-      }),
-  );
 }
 
 // Discussions answering (task 8.2, R27.13): off unless present. Only
@@ -328,9 +299,6 @@ export function normalizeGitHubPolicy(value) {
       "github.writesPerHour",
       MAX_WRITES_PER_HOUR,
     ),
-    ...(value.specReviewers === undefined || value.specReviewers === null
-      ? {}
-      : { specReviewers: specReviewersInput(value.specReviewers) }),
     repositories: Object.fromEntries(
       Object.entries(repositories)
         .sort(([left], [right]) => left.localeCompare(right))

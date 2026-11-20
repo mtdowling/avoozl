@@ -1,4 +1,3 @@
-import { offeredTaskIds } from "../workers/worker-offer-step.mjs";
 import { withGitHubReadSnapshots } from "../github/github-read-snapshot.mjs";
 import {
   enqueueSessionRequests,
@@ -117,7 +116,7 @@ import {
   driverHeldTaskIds,
   readOnlyPlanIds,
 } from "../workers/driver-scope.mjs";
-import { revalidateSpecs, scheduleHolds } from "../specs/spec-scheduler.mjs";
+import { scheduleHolds } from "../specs/spec-scheduler.mjs";
 import { landPullRequests } from "../landing/pr-landing.mjs";
 import { landDirect } from "../landing/direct-landing.mjs";
 import {
@@ -636,7 +635,7 @@ async function runTick(
         // Integration moves branches and may raise a decision, so only the
         // cron, which carries out notifications, runs it.
         if (script) {
-          // Read the plan issue again before each integrate (R66.6).
+          // Read the plan issue again before each integrate (R66.5).
           const verified = store
               .list("task_deliveries")
               .filter((d) => d.state === "verified")
@@ -877,13 +876,8 @@ async function runTick(
             text: error.message,
           });
         }
-      // No new work for a spec driven elsewhere or being handed off, and
-      // none for an away task (R66.6, R66.10, R66.11).
-      // A task offered to worker machines runs there, not here (WP5).
-      const held = new Set([
-          ...driverHeldTaskIds(store),
-          ...offeredTaskIds(store),
-        ]),
+      // No new work for a spec driven elsewhere (R66.5).
+      const held = driverHeldTaskIds(store),
         readOnly = readOnlyPlanIds(store);
       const requested = unobserved.length
           ? []
@@ -965,7 +959,7 @@ async function runTick(
               ]
             : [];
       // Read each spec's plan issue again right before its dispatches; a
-      // spec reassigned since the sync read dispatches nothing (R66.6).
+      // spec reassigned since the sync read dispatches nothing (R66.5).
       const taskPlan = new Map(
           store
             .read()
@@ -998,28 +992,11 @@ async function runTick(
                   .filter(Boolean),
               ),
             )
-          : new Set(),
-        // Each spec's journal again right before its worker dispatches: a
-        // displaced generation, a stop or a held journal holds the spec's
-        // new work, and an outstanding landing intent holds its tasks
-        // (§4.32.7). Verifiers and messages to running chats go on.
-        generations = await revalidateSpecs(store, {
-          github: live,
-          workspaceRoot,
-          planIds: [...ready, ...pending]
-            .filter((d) => d.role === "worker" && d.operation !== "send")
-            .map((d) => taskPlan.get(d.task))
-            .filter(Boolean),
-        }),
-        generationHeld = (d) =>
-          d.role === "worker" &&
-          (generations.tasks.has(d.task) ||
-            generations.plans.has(taskPlan.get(d.task)));
+          : new Set();
       if (lostDispatchPlans.size)
         dispatch = dispatch.filter(
           (d) => !lostDispatchPlans.has(taskPlan.get(d.task)),
         );
-      dispatch = dispatch.filter((d) => !generationHeld(d));
       // No message reaches a session of a read-only spec.
       planned.messages = planned.messages.filter(
         (m) => !readOnly.has(taskPlan.get(m.task)),
@@ -1085,7 +1062,6 @@ async function runTick(
                       request.operation === "start" &&
                       !readOnlyTask(request.task) &&
                       !lostDispatchPlans.has(taskPlan.get(request.task)) &&
-                      !generationHeld(request) &&
                       (request.role === "verifier" ||
                         !heldTask(request.task)) &&
                       !asksForcePush(request.brief),

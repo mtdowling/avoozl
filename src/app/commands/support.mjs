@@ -39,20 +39,3 @@ export const landingStatusLine = (b) =>
     ? `, testing ${b.testing.members.length} (${b.testing.step})`
     : "") +
   (b.size ? `, size limit ${b.size.limit}` : "");
-
-// One spec in `plan batches` and the approve preview.
-export function batchLine(entry) {
-  return [
-    entry.spec,
-    entry.hash.slice(0, 16),
-    `${entry.tasks} tasks`,
-    ...(entry.writes !== undefined && entry.writes !== null
-      ? [`${entry.writes} writes`]
-      : []),
-    ...(entry.writesError ? [`writes unknown: ${entry.writesError}`] : []),
-    ...(entry.loop ? ["loop"] : []),
-    ...(entry.errors ? [`${entry.errors} lint errors`] : []),
-    ...(entry.waitsOn ? [`waits on ${entry.waitsOn.join(", ")}`] : []),
-    ...(entry.failure ? [`fails: ${entry.failure}`] : []),
-  ].join("  ");
-}

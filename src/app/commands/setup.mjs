@@ -10,62 +10,6 @@ import { confirmHighRisk, refuseAgentYes } from "../cli/confirm-high-risk.mjs";
 
 const CANCELLED = "Cancelled: nothing was written.";
 
-async function runSpecOffer({ options, positionals, localOrRequest, need }) {
-  // The driver offers a task to a worker login and reserves the grants its
-  // workers ask for (R90.4): each a person's own act at this machine.
-  // `spec grants release SPEC TASK` and `spec grants status SPEC`.
-  const sub =
-      positionals[0] === "grants" &&
-      ["release", "status"].includes(positionals[1])
-        ? positionals.splice(1, 1)[0]
-        : null,
-    planId = need(positionals[1], `spec ${positionals[0]} SPEC ...`);
-  console.log(
-    JSON.stringify(
-      await localOrRequest(
-        sub ? `spec.grants.${sub}` : `spec.${positionals[0]}`,
-        sub === "status"
-          ? { planId }
-          : sub === "release"
-            ? {
-                planId,
-                task: need(
-                  positionals[2],
-                  "spec grants release SPEC TASK --grants OWNER/REPO",
-                ),
-                grants: need(options.grants, "--grants OWNER/REPO"),
-              }
-            : positionals[0] === "offer"
-              ? {
-                  planId,
-                  task: need(
-                    positionals[2],
-                    "spec offer SPEC TASK --worker LOGIN --repository OWNER/REPO --branch B --commit SHA --base SHA",
-                  ),
-                  worker: need(options.worker, "--worker LOGIN"),
-                  repository: need(
-                    options.repository,
-                    "--repository OWNER/REPO",
-                  ),
-                  branch: need(options.branch, "--branch B"),
-                  commit: need(options.commit, "--commit SHA"),
-                  base: need(options.base, "--base SHA"),
-                }
-              : {
-                  planId,
-                  grants: need(
-                    options.grants,
-                    "spec grants SPEC --grants OWNER/REPO --base BRANCH [--cap N]",
-                  ),
-                  base: need(options.base, "--base BRANCH"),
-                  ...(options.cap ? { cap: Number(options.cap) } : {}),
-                },
-      ),
-      null,
-      2,
-    ),
-  );
-}
 export async function runWorkspace({
   options,
   positionals,
@@ -296,8 +240,6 @@ export const commands = [
       );
     },
   },
-  { command: "spec offer", help: [], run: runSpecOffer },
-  { command: "spec grants", help: [], run: runSpecOffer },
   {
     command: "workspace",
     help: [

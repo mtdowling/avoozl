@@ -26,18 +26,11 @@ import {
   switchPreview,
   updateProviders,
 } from "../flow/provider-health.mjs";
-import {
-  acceptWork,
-  pullWork,
-  readRunnerConfig,
-  reportDone,
-  runnerStatus,
-} from "../workers/remote-runner.mjs";
+import { reportDone, runnerStatus } from "../workers/remote-runner.mjs";
 import { nextView } from "../workers/runner.mjs";
 import { fail } from "../store/store.mjs";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
-import { previewWorker } from "../workers/worker-setup.mjs";
 import { machineLinks } from "../tick/crews.mjs";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
@@ -45,8 +38,7 @@ export const entries = [
   // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
   // shortcut: no machine reports remote workers to a driver now, so the
   // list is always empty. The page's In flight and Delivery still read it;
-  // remove it with their remote rows, which need new screenshots. A task a
-  // worker machine holds the grant for is on its delivery item instead.
+  // remove it with their remote rows, which need new screenshots.
   {
     name: "remote.view",
     class: "observe",
@@ -58,7 +50,6 @@ export const entries = [
       return { workers: [] };
     },
   },
-
   {
     name: "remote.status",
     class: "observe",
@@ -82,47 +73,6 @@ export const entries = [
     handler({ input }) {
       const store = this.store;
       return reportDone(store, this.workspaceRoot, input);
-    },
-  },
-
-  {
-    name: "worker.accept",
-    class: "execute",
-    github: "worker-grants",
-    policy: notOnMcp(
-      "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
-    ),
-    handler({}) {
-      const store = this.store;
-      return acceptWork(store, this.workspaceRoot, this.github);
-    },
-  },
-
-  {
-    name: "worker.setup",
-    class: "execute",
-    github: "check-in",
-    policy: notOnMcp(
-      "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
-    ),
-    handler({}) {
-      const config = readRunnerConfig(this.workspaceRoot);
-      if (config?.role !== "worker")
-        fail('This workspace is not a worker (runner.role "worker").');
-      return previewWorker({ config, github: this.github });
-    },
-  },
-
-  {
-    name: "worker.pull",
-    class: "execute",
-    github: "worker-grants",
-    policy: notOnMcp(
-      "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
-    ),
-    handler({}) {
-      const store = this.store;
-      return pullWork(store, this.workspaceRoot, this.github);
     },
   },
 

@@ -3,11 +3,10 @@
 // `drivers` table; every write loop asks here before it touches a task.
 // Reads SQLite only: no GitHub call, so any loop can ask cheaply.
 //
-// - read-only: another machine, person or nobody drives the spec. Nothing
-//   is dispatched, messaged, written to GitHub, integrated or merged for it.
-// - held: no new work starts. Read-only specs, a spec being handed off
-//   (drain: running chats still report, verify and integrate), and away
-//   tasks (R66.11), which wait for GitHub facts or a person.
+// - read-only: another person, or nobody, is the spec issue's assignee.
+//   Nothing is dispatched, messaged, written to GitHub, integrated or merged
+//   for it.
+// - driver: this workspace drives it; its tasks start here.
 
 const memo = new WeakMap();
 
@@ -44,21 +43,13 @@ export function readOnlyTask(store, task) {
   return Boolean(row && row.state !== "driver");
 }
 
-// Task IDs that may not start new work here.
+// Task IDs that may not start new work here: those of read-only specs.
 export function driverHeldTaskIds(store, data = store.read()) {
   const all = rows(store),
     held = new Set();
-  if (!all.size) {
-    for (const task of data.tasks) if (task.driverAway) held.add(task.id);
-    return held;
-  }
   for (const task of data.tasks) {
     const row = task.planId ? all.get(task.planId) : null;
-    if (
-      task.driverAway ||
-      (row && (row.state !== "driver" || row.handoff?.state))
-    )
-      held.add(task.id);
+    if (row && row.state !== "driver") held.add(task.id);
   }
   return held;
 }
@@ -85,7 +76,7 @@ const repositoryOf = (value) =>
           (value?.owner && value?.repo ? `${value.owner}/${value.repo}` : ""),
   ).toLowerCase();
 
-// The backstop for every tick step (R66.6): a GitHub write for a task of a
+// The backstop for every tick step (R66.5): a GitHub write for a task of a
 // spec this workspace does not drive is refused, whichever step makes it.
 // Steps skip read-only specs first; this catches one that does not.
 // shortcut: Project item writes (`updateProjectItem`) name an item ID, not

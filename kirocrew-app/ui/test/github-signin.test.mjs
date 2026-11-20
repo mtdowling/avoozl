@@ -84,6 +84,6 @@ test('the confirm lists the repository, the action and the exact permissions, an
       return { result: body.operation === 'github.job.confirm' ? { grants: ['g1'] } : {} }
     },
   }
-  await viewsClient(api).needsYouAction('w1', { label: 'Delete branches', operation: 'spec.grants.branches.delete', input: { repository: 'acme/api' }, confirm: [step] })
-  assert.deepEqual(sent, ['github.job.confirm', 'spec.grants.branches.delete'])
+  await viewsClient(api).needsYouAction('w1', { label: 'Create labels', operation: 'github.labels.create', input: { repository: 'acme/api' }, confirm: [step] })
+  assert.deepEqual(sent, ['github.job.confirm', 'github.labels.create'])
 })
