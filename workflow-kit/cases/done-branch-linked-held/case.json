@@ -1,0 +1,35 @@
+{
+  "title": "A linked spec held by its parent's integration branch is ticked there",
+  "rules": ["14.6", "16.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "client-v2", "avoozl/client-parser/client-parser-1"],
+    "behind": [],
+    "taskFiles": {
+      "client-v2": ["client-v2", "client-parser", "client-formatter"]
+    }
+  },
+  "issues": {
+    "client-v2": ["acme-alice"],
+    "client-parser": ["acme-alice"],
+    "client-formatter": ["acme-alice"]
+  },
+  "land": {
+    "task": "client-parser/client-parser-1",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "direct"
+  },
+  "expect": {
+    "landing": {
+      "action": "fast-forward-base",
+      "base": "client-v2",
+      "tick": "same-commit",
+      "mergeBase": false,
+      "deleteClaimBranch": true
+    }
+  }
+}

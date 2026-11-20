@@ -35,9 +35,14 @@ export function landingAction({
       deleteClaimBranch: true,
     };
   if (!checks) return { action: "none" };
-  // The tick is in the work commit or on the claim branch before the
-  // checks (13.2), so it lands with the work.
-  const step = { base, tick: "same-commit", mergeBase: Boolean(baseMoved) };
+  // The tick is in the work commit or on the claim branch before the checks
+  // (16.2), so it lands with the work. A done branch other than the base
+  // gets the tick in its own commit once the work lands.
+  const step = {
+    base,
+    tick: done && done !== base ? "own-commit" : "same-commit",
+    mergeBase: Boolean(baseMoved),
+  };
   if (mode === "direct")
     return { action: "fast-forward-base", ...step, deleteClaimBranch: true };
   if (mode === "off")

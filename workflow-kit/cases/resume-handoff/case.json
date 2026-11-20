@@ -1,19 +1,25 @@
 {
   "title": "Two runners resume one handed-off claim, and the first lease create wins",
-  "rules": ["8.4", "15.3", "15.5", "15.7"],
+  "rules": ["8.4", "15.3", "15.5", "15.6", "15.7"],
   "runner": {
     "login": "acme-bob",
     "defaultBranch": "main",
     "staleHours": 24
   },
   "origin": {
-    "branches": ["main", "avoozl/parser/p-2"],
+    "branches": ["main", "avoozl/parser/p-2", "avoozl-lease/parser/p-2/1"],
     "behind": [],
     "claimAgeHours": {
       "parser/p-2": 2
     },
     "leases": {
-      "parser/p-2": []
+      "parser/p-2": [
+        {
+          "generation": 1,
+          "ageHours": 2,
+          "released": true
+        }
+      ]
     }
   },
   "issues": {
@@ -26,7 +32,7 @@
   "expect": {
     "resume": {
       "holder": "r1",
-      "lease": "avoozl-lease/parser/p-2/1",
+      "lease": "avoozl-lease/parser/p-2/2",
       "stopped": ["r2"]
     }
   }

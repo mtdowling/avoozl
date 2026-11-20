@@ -56,7 +56,11 @@ export function runnerLimit(action, { login }) {
     case "rebase":
       return action.kind === "rebase" && !action.shared ? null : "20.4";
     case "delete-branch":
-      return action.createdByRunner && action.afterLanding ? null : "20.5";
+      return action.own && (action.landed || action.released) ? null : "20.5";
+    case "delete-lease":
+      return action.withOwnClaimBranch || action.createdByRunner
+        ? null
+        : "20.5";
     case "push-specs-text":
     case "change-approvers":
       return "20.6";
