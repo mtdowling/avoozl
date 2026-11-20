@@ -256,8 +256,7 @@ export async function publishApproved(
   }
   const left = { ...pending },
     errors = [],
-    held = (planId) =>
-      store.get("receipts", receiptId("plan", planId))?.number;
+    held = (planId) => store.get("receipts", receiptId("plan", planId))?.number;
   let login;
   try {
     login = await personOf(github);
@@ -293,7 +292,9 @@ export async function publishApproved(
         continue;
       }
       const assignees = proof.pull
-        ? loginsOf((await github.pullRequest(repository, proof.pull))?.assignees)
+        ? loginsOf(
+            (await github.pullRequest(repository, proof.pull))?.assignees,
+          )
         : [];
       await publishSpec(store, {
         github,

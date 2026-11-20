@@ -112,7 +112,7 @@ work. Avoozl turns an approved spec into landed code between them:
 | Worktrees and branches | Git in the target repository | Receipt: path, branch, base |
 | Pull requests and their checks | GitHub | Cache |
 | Avoozl's own check runs | SQLite: command, exit code, output tail, commit | **Authoritative** |
-| Landing record | Git: the landing commit and its trailers (§4.42) | Cache |
+| Landing record | Git: the tick commit (§4.42) | Cache |
 | Activity | SQLite append-only log, pointing at real sources | **Authoritative** |
 | Human decisions | SQLite | **Authoritative** |
 | Plugin approvals | Machine-local settings: id, version, content hash | Receipt |
@@ -1839,8 +1839,7 @@ checks that the folder is an added repository, then calls
 repository's own list. A spec that has a plan is skipped. The reader makes a
 plan per spec, approves it again as the author of the approver's commit,
 runs `applyBaseTicks` with `land`, which sets each done ticked task's
-`integration.commit` to its tick commit when it has no landing, then records
-landing trailers, Flow spans and retros. In a GitHub mode the dialog first
+`integration.commit` to its tick commit when it has no landing. In a GitHub mode the dialog first
 adds the confirmed emails to that repository's `allowedActors` with
 `github.settings.update`, so later approvals check the same list. The flow
 makes no per-task issues and no per-task issue text. It starts no agent and
@@ -3458,12 +3457,10 @@ Marks are outside the approved hash (`withoutMarks`, `src/app/specs/spec-plans.m
 A tick on the base branch completes the task; a tick on any other branch does not.
 Packages complete from their children.
 
-#### 4.32.2 A trailer identifies work
+#### 4.32.2 The tick identifies work
 
-Every landing commit Avoozl makes carries `Avoozl-Task: <id>@<definition>`
-(opaque where the plan is private), where the definition is a digest of the
-task's facts (`taskDefinition`, `src/app/specs/task-outcomes.mjs`). The trailer
-names the task a landing completed; the tick on the base branch completes it.
+A landing commit carries no trailer. The tick on the base branch names the
+task a landing completed and completes it.
 
 #### 4.32.3 Working branches
 
@@ -4176,22 +4173,6 @@ changes only marks, which `specHash` ignores, so it approves nothing new.
 The worker and planner prompts say to commit as the repository's identity,
 add no attribution, and never push spec edits to main.
 
-**Landing trailers.** `landing-trailers.mjs` `landingMetrics` reads a task's
-worker bindings, attempts, usage and Flow spans (at most 200) when it is
-queued to land, directly or by pull request. `landingMessage` writes them
-under its `Avoozl-Task:` line, one `Avoozl-Span: ID STAGE START END ROLE
-ATTEMPT SOURCE` line per span. A direct landing's merge commit carries
-it (`merge-batch.mjs`); a pull request landing passes it as the merge's
-`commit_message` (`landing-pulls.mjs`, `mergePullRequest`), so GitHub's
-squash commit on main carries the same block. A private task's public name
-gets no metrics. `landingsFromGit` reads them back.
-
-**Retros.** `retro-files.mjs` `writeRetroFiles`, on each tick, commits every
-finished retro not yet in git as `.kiro/retros/<id>.md` (a summary and the
-record as a `json avoozl-retro` block), authored by the agent, in one commit
-on main (`commitOnMain`, which `commitApproval` also uses). A retro a content
-rule matches at the `proposal` boundary stays out.
-
 **Intake.** The `source:` fact is stored as `intakeSource`; `startTask` ties
 an item whose link a task names to that task. `intake.submit` creates one
 issue per item in the source's GitHub repository with no labels
@@ -4204,8 +4185,8 @@ Onboard flow's adopt step (§4.15) runs the same function over one added
 repository's specs. It creates a plan per spec folder, approves each one whose current
 text matches an approver's commit (exact hash, or `sameSpecContent`) in
 dependency passes with `baseline` so ticked tasks start done (each at its
-tick commit as its landing commit), records one `task.landed` Activity row per landing trailer,
-puts back each trailer's Flow spans, and reads every retro file on main.
+tick commit as its landing commit). Start times, tries, models and Flow
+spans stay only in the database that recorded them.
 
 **Approvals on the tick.** A spec pull request an approver authored and
 GitHub merged, or an approver's push, approves with no click
@@ -4333,11 +4314,13 @@ client's cache (`github.cacheSeconds`, default 60), and an unchanged issue
 answers 304, which does not count against the rate limit. Every write goes
 through the write pacer (`github-pacer.mjs`).
 
-**No spec issue.** A spec nobody published has no shared record, so it
-drives on the workspace that has it and the page says "Not shared". Avoozl
-makes no issue for it: **Make the GitHub issues** or `avoozl spec publish`
-stays the person's act. The limit, in the docs: two machines that both hold
-an unpublished spec both drive it.
+**No spec issue.** A spec with no issue yet has no shared record, so it
+drives on the workspace that has it and the page says "Not shared". The tick
+publishes the issue of each approval this workspace adopts or makes, when
+this runner acts as the approver (`publishApproved`,
+`spec-publication.mjs`); **Make the GitHub issues** and `avoozl spec
+publish` retry it. The limit, in the docs: two machines that both hold an
+unpublished spec both drive it.
 
 **Privacy.** An assignee is a login on an issue the reader can already see,
 and it names no other item, so `source-backlinks.mjs` is unchanged.

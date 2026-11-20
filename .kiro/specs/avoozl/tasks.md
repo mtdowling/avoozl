@@ -1357,13 +1357,10 @@ Requirement 114, design §4.42.
 - [x] `66.1` Approvals are approvers' authored commits on main, after 65.2 [R114.1, R114.2, R114.3, R114.4, R114.5] (§4.42)
   - A commit on main whose author email is an approver approves the spec as its tree holds it, whatever its committer; Avoozl's and its agents' commits use the checkout's git identity with no Co-authored-by, and spec drafts reach main only through Approve; Approve writes and pushes the person's commit; no Status line, marker or decision record is written.
   - `git-approvals.mjs`, `approveInGit` in `operations.mjs`, `spec-approval.mjs`.
-- [x] `66.2` Landing trailers, recoverable intake and `avoozl rebuild`, after 66.1 [R114.6, R114.7, R114.8, R114.9] (§4.42)
-  - Landing commits carry each task's metrics as trailers; intake tasks name their item with `source:`; dismissed items carry `avoozl:dismissed`; MCP pushes become GitHub issues; a deleted database rebuilds to the same plans, approvals and tasks.
-  - `landing-trailers.mjs`, `intake.mjs` `submitItems`, `workspace.rebuild`, `src/app/git/test/git-approvals.test.mjs`.
-- [x] `66.3` Flow spans and retros in git, trailers on pull request landings, and Triage's Dismiss button, after 66.2 [R114.9, R114.11] (§4.42)
-  - Landing commits carry each task's Flow spans; a pull request landing's merge commit carries the same trailers; finished retros are committed files; a deleted database rebuilds to the same Flow spans and retros; Triage has a Dismiss button that adds avoozl:dismissed.
-  - `landing-trailers.mjs` `landingMessage`, `retro-files.mjs`, `landing-pulls.mjs`, `UntriagedView.tsx`.
-- [x] `66.4` The tick adopts approvals that reach main with no click, after 66.3 [R114.12] (§4.42)
+- [x] `66.2` Recoverable intake and `avoozl rebuild`, after 66.1 [R114.7, R114.8] (§4.42)
+  - Intake tasks name their item with `source:`; dismissed items carry `avoozl:dismissed`; MCP pushes become GitHub issues; a deleted database rebuilds to the same plans, approvals and tasks.
+  - `intake.mjs` `submitItems`, `workspace.rebuild`, `src/app/git/test/git-approvals.test.mjs`.
+- [x] `66.4` The tick adopts approvals that reach main with no click, after 66.2 [R114.12] (§4.42)
   - An approver-authored spec commit on main, such as a GitHub squash merge, approves the spec on the next tick as rebuild would; a non-approver's commit approves nothing; a later non-approver edit needs approval again; a click adds no second Activity row.
   - `applyMainApprovals` and `adoptApprovals` in `operations.mjs`, `baseHead` in `spec-ticks.mjs`, `src/app/git/test/git-approvals.test.mjs`.
 
@@ -1390,7 +1387,7 @@ Requirement FS1, design §FS1.
 
 Requirement 116, design §4.44.
 
-- [x] `68.1` The spec issue's assignee drives; a landed spec closes its issue, after 66.3 [R116.1, R116.2, R116.3, R116.4, R116.5, R116.6, R116.8] (§4.44)
+- [x] `68.1` The spec issue's assignee drives; a landed spec closes its issue, after 66.4 [R116.1, R116.2, R116.3, R116.4, R116.5, R116.6, R116.8] (§4.44)
   - Tests with a fake GitHub of two logins: the one assignee drives and the other workspace reads only; reassigning moves the driver and unassigning releases it, with no assignee write; two assignees leave both machines read only with one Needs you item; a fully landed spec's issue closes once; a spec with no issue drives as Not shared; the tick adds no read.
   - `verdictOf` and `closeLanded` in `driver.mjs`, `src/app/workers/test/spec-assignee.test.mjs`.
 - [x] `68.2` The Specs list and the spec's chip show the driver from the assignee, after 68.1 [R116.7] (§4.44)
