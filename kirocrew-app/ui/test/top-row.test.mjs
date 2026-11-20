@@ -8,36 +8,23 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.mjs'
-import { findChrome, launch } from './browser/chrome.mjs'
+import { test } from 'node:test'
+import { harnessPage } from './browser/harness-page.mjs'
 
-const chrome = findChrome()
-const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the top row tests'
+const state = harnessPage('top row')
+const skip = state.skip
 // AVOOZL_SHOTS=<dir> keeps a screenshot of each top row size and theme.
 const shots = process.env.AVOOZL_SHOTS || null
 
-let harness, browser, page
-before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
-})
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
-
-const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
+const settle = () => state.page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
 
 // The shell's own controls: the top line on a desktop, the menu on a phone
 // (open it first). Neither has Plan a goal or Stop the line.
 const SHELL = '[data-main-top], [data-left-nav], [data-top-rail-list], [data-phone-header]'
 const openMenu = async (width) => {
   if (width >= 768) return
-  await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
+  await state.page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+  await state.page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
   await settle()
 }
 
@@ -51,12 +38,12 @@ for (const [width, height] of [
       skip,
     }, async () => {
       for (const stopped of [false, true]) {
-        await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
-        await page.until(
+        await state.page.open(state.harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
+        await state.page.until(
           `Boolean(document.querySelector('[data-main-top]') && document.querySelector('[data-workspace-pill]:not([disabled])') || (${width} < 768 && document.querySelector('[data-top-rail-bar]')))`,
         )
         await settle()
-        const closed = await page.evaluate(`(() => {
+        const closed = await state.page.evaluate(`(() => {
           const pane = document.querySelector('[data-host-pane]')
           const main = document.querySelector('[data-shell-main]')
           return {
@@ -74,11 +61,11 @@ for (const [width, height] of [
         assert.equal(closed.selectorFirst, true, 'the workspace pill starts the nav, not the main column')
         assert.equal(closed.sideways, false, 'no sideways scroll')
         if (width < 768) {
-          const header = await page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
+          const header = await state.page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
           assert.ok(header <= 56, `the phone header is one row (${header})`)
         }
         await openMenu(width)
-        const top = await page.evaluate(`(() => {
+        const top = await state.page.evaluate(`(() => {
           const shell = [...document.querySelectorAll('${SHELL}')]
           const visible = []
           const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
@@ -98,15 +85,15 @@ for (const [width, height] of [
         assert.deepEqual(top.texts, [], 'no visible text reads Stop the line')
         if (shots) {
           fs.mkdirSync(shots, { recursive: true })
-          await page.screenshot(path.join(shots, `top-row-${width}-${dark ? 'dark' : 'light'}${stopped ? '-stopped' : ''}.png`))
+          await state.page.screenshot(path.join(shots, `top-row-${width}-${dark ? 'dark' : 'light'}${stopped ? '-stopped' : ''}.png`))
         }
       }
     })
 
 test('the brand line sits under the nav: one line, no box, the logo left and the version right', { skip }, async () => {
-  await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-brand-card] [data-avoozl-version]'))`)
-  const got = await page.evaluate(`(() => {
+  await state.page.open(state.harness.url({ app: '1' }), { width: 1280, height: 800 })
+  await state.page.until(`Boolean(document.querySelector('[data-brand-card] [data-avoozl-version]'))`)
+  const got = await state.page.evaluate(`(() => {
     const nav = document.querySelector('[data-nav-card]'), brand = document.querySelector('[data-brand-card]'), main = document.querySelector('[data-shell-main]')
     const box = (el) => el.getBoundingClientRect()
     const logo = brand.querySelector('svg'), version = brand.querySelector('[data-avoozl-version]')
@@ -131,13 +118,13 @@ test('the brand line sits under the nav: one line, no box, the logo left and the
   assert.match(got.version, /^v\S+$/)
   assert.equal(got.tagline, false, 'no always-visible tag line')
   // A phone: the menu button, and the brand card at the bottom of the menu.
-  await page.open(harness.url({ app: '1' }), { width: 390, height: 844 })
-  await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-brand-card]'))`), false, 'closed menu: no brand card')
-  await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-top-rail-footer] [data-brand-card]'))`)
+  await state.page.open(state.harness.url({ app: '1' }), { width: 390, height: 844 })
+  await state.page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
+  assert.equal(await state.page.evaluate(`Boolean(document.querySelector('[data-brand-card]'))`), false, 'closed menu: no brand card')
+  await state.page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+  await state.page.until(`Boolean(document.querySelector('[data-top-rail-footer] [data-brand-card]'))`)
   assert.equal(
-    await page.evaluate(
+    await state.page.evaluate(
       `(() => { const f = document.querySelector('[data-top-rail-footer]').getBoundingClientRect(), l = document.querySelector('[data-top-rail-list]').getBoundingClientRect(); return Math.abs(f.bottom - l.bottom) < 2 })()`,
     ),
     true,
@@ -146,33 +133,35 @@ test('the brand line sits under the nav: one line, no box, the logo left and the
 })
 
 test('an In flight title opens the task drawer, and Back closes it and returns focus', { skip }, async () => {
-  await page.open(harness.url({ modal: 'in-flight' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-task-title="a1"]'))`)
-  const link = await page.evaluate(`(() => {
+  await state.page.open(state.harness.url({ modal: 'in-flight' }), { width: 1280, height: 800 })
+  await state.page.until(`Boolean(document.querySelector('[data-task-title="a1"]'))`)
+  const link = await state.page.evaluate(`(() => {
     const b = document.querySelector('[data-task-title="a1"]')
     return { tag: b.tagName, text: b.textContent, underline: getComputedStyle(b).textDecorationLine }
   })()`)
   assert.deepEqual(link, { tag: 'BUTTON', text: 'Task a1', underline: 'underline' })
   // The chat link and Info stay on the row.
   assert.ok(
-    await page.evaluate(
+    await state.page.evaluate(
       `Boolean(document.querySelector('a[aria-label^="Open worker chat: the worker for Task a1"]') && document.querySelector('button[aria-label="Details for Task a1"]'))`,
     ),
   )
-  await page.evaluate(`(() => { const b = document.querySelector('[data-task-title="a1"]'); b.focus(); b.click(); return true })()`)
-  await page.until(`Boolean(document.querySelector('[role="dialog"][aria-labelledby="avoozl-drawer-title"]'))`)
+  await state.page.evaluate(`(() => { const b = document.querySelector('[data-task-title="a1"]'); b.focus(); b.click(); return true })()`)
+  await state.page.until(`Boolean(document.querySelector('[role="dialog"][aria-labelledby="avoozl-drawer-title"]'))`)
   await settle()
   // Back (Alt+Left) is the drawer's step: it closes, focus goes back to the title.
-  await page.evaluate(`(document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', altKey: true, bubbles: true }))`)
-  await page.until(`!document.querySelector('[role="dialog"][aria-labelledby="avoozl-drawer-title"]')`)
-  assert.equal(await page.evaluate(`document.activeElement?.dataset?.taskTitle ?? null`), 'a1')
+  await state.page.evaluate(
+    `(document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', altKey: true, bubbles: true }))`,
+  )
+  await state.page.until(`!document.querySelector('[role="dialog"][aria-labelledby="avoozl-drawer-title"]')`)
+  assert.equal(await state.page.evaluate(`document.activeElement?.dataset?.taskTitle ?? null`), 'a1')
 })
 
 test('In flight rows line up: titles, and Details, start at the same x in every row', { skip }, async () => {
   for (const width of [1280, 768]) {
-    await page.open(harness.url({ modal: 'in-flight-pair' }), { width, height: 800 })
-    await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 2`)
-    const cols = await page.evaluate(`(() => {
+    await state.page.open(state.harness.url({ modal: 'in-flight-pair' }), { width, height: 800 })
+    await state.page.until(`document.querySelectorAll('[data-in-flight-row]').length === 2`)
+    const cols = await state.page.evaluate(`(() => {
       const rows = [...document.querySelectorAll('[data-in-flight-row]')]
       const x = (el) => Math.round(el.getBoundingClientRect().left)
       return {
@@ -190,16 +179,16 @@ test('In flight rows line up: titles, and Details, start at the same x in every 
 
 test('Keep activity sits with the Activity filters in the nav, under the open Activity section', { skip }, async () => {
   for (const width of [1280, 375]) {
-    await page.open(harness.url({ page: 'app', activity: '1' }), { width, height: 900 })
+    await state.page.open(state.harness.url({ page: 'app', activity: '1' }), { width, height: 900 })
     const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
     if (width < 768) {
-      await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
-      await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      await state.page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
+      await state.page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
     }
-    await page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
-    await page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
-    await page.until(`Boolean(document.querySelector('${scope} [data-section="Keep activity"]'))`)
-    const keep = await page.evaluate(`(() => {
+    await state.page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
+    await state.page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
+    await state.page.until(`Boolean(document.querySelector('${scope} [data-section="Keep activity"]'))`)
+    const keep = await state.page.evaluate(`(() => {
       const section = document.querySelector('${scope} [data-section="Keep activity"]')
       const panel = document.querySelector('${scope} [data-nav-section="activity"] [data-filter-panel="avoozl-activity"]')
       return {
@@ -218,61 +207,61 @@ test('Keep activity sits with the Activity filters in the nav, under the open Ac
 
 test('Activity rail: a source row and a kind chip filter the rows, and a second click clears the chip', { skip }, async () => {
   // 24 sample rows and the three tick health rows.
-  await page.open(harness.url({ page: 'app', activity: '1' }), { width: 1280, height: 900 })
+  await state.page.open(state.harness.url({ page: 'app', activity: '1' }), { width: 1280, height: 900 })
   const scope = '[data-left-nav]'
-  await page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
-  await page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
-  await page.until(`document.querySelectorAll('[data-activity-row]').length === 27 && Boolean(document.querySelector('${scope} [data-rail-chip="settings"]'))`)
-  await page.evaluate(`document.querySelector('${scope} [data-rail-source="github"]').click()`)
-  await page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
+  await state.page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
+  await state.page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 27 && Boolean(document.querySelector('${scope} [data-rail-chip="settings"]'))`)
+  await state.page.evaluate(`document.querySelector('${scope} [data-rail-source="github"]').click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
   const chip = `document.querySelector('${scope} [data-rail-chip="settings"]')`
-  await page.evaluate(`${chip}.click()`)
-  await page.until(`document.querySelectorAll('[data-activity-row]').length === 2`)
-  assert.equal(await page.evaluate(`${chip}.getAttribute('aria-pressed')`), 'true')
-  assert.equal(await page.evaluate(`${chip}.getAttribute('aria-label')`), 'settings, 3', 'the chip names its count')
-  await page.evaluate(`${chip}.click()`)
-  await page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
+  await state.page.evaluate(`${chip}.click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 2`)
+  assert.equal(await state.page.evaluate(`${chip}.getAttribute('aria-pressed')`), 'true')
+  assert.equal(await state.page.evaluate(`${chip}.getAttribute('aria-label')`), 'settings, 3', 'the chip names its count')
+  await state.page.evaluate(`${chip}.click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
   // Clear in the Source header drops every filter.
-  await page.evaluate(`[...document.querySelectorAll('${scope} [data-rail-section="source"] [data-rail-icon]')].find((b) => b.textContent.includes('Clear')).click()`)
-  await page.until(`document.querySelectorAll('[data-activity-row]').length === 27`)
-  assert.equal(await page.evaluate(`document.querySelector('${scope} [data-rail-source=""]').getAttribute('aria-pressed')`), 'true')
+  await state.page.evaluate(`[...document.querySelectorAll('${scope} [data-rail-section="source"] [data-rail-icon]')].find((b) => b.textContent.includes('Clear')).click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 27`)
+  assert.equal(await state.page.evaluate(`document.querySelector('${scope} [data-rail-source=""]').getAttribute('aria-pressed')`), 'true')
 })
 
 test('a hovered nav item changes color, the selected one stays different, and keyboard focus shows a ring', { skip }, async () => {
   for (const dark of [false, true]) {
-    await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light' }), { width: 1280, height: 800, dark })
-    await page.until(`Boolean(document.querySelector('[data-nav-group="plans"]'))`)
+    await state.page.open(state.harness.url({ app: '1', theme: dark ? 'dark' : 'light' }), { width: 1280, height: 800, dark })
+    await state.page.until(`Boolean(document.querySelector('[data-nav-group="plans"]'))`)
     // Settings opens in the nav, so its pages are items to hover and focus.
-    await page.evaluate(`document.querySelector('[data-nav-group="settings"]').click()`)
-    await page.until(`Boolean(document.querySelector('[data-nav-item="settings/models"]'))`)
+    await state.page.evaluate(`document.querySelector('[data-nav-group="settings"]').click()`)
+    await state.page.until(`Boolean(document.querySelector('[data-nav-item="settings/models"]'))`)
     await settle()
     const read = (key) =>
-      page.evaluate(
+      state.page.evaluate(
         `(() => { const el = document.querySelector('[data-nav-item="${key}"]'), s = getComputedStyle(el); return { bg: s.backgroundColor, color: s.color, weight: s.fontWeight, outline: s.outlineStyle } })()`,
       )
     const before = await read('settings/models')
     const selected = await read('settings/workspaces')
-    const box = await page.evaluate(
+    const box = await state.page.evaluate(
       `(() => { document.querySelector('[data-nav-item="settings/models"]').scrollIntoView({ block: 'center' }); const r = document.querySelector('[data-nav-item="settings/models"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`,
     )
-    await page.hover(box[0], box[1])
+    await state.page.hover(box[0], box[1])
     // The colors fade in over 120 ms.
-    await page.evaluate('new Promise((r) => setTimeout(r, 200))')
+    await state.page.evaluate('new Promise((r) => setTimeout(r, 200))')
     const hover = await read('settings/models')
     assert.notEqual(hover.bg, before.bg, 'hover changes the background')
     assert.notEqual(hover.color, before.color, 'hover changes the text color')
     assert.notDeepEqual([hover.bg, hover.color, hover.weight], [selected.bg, selected.color, selected.weight], 'hover differs from the selected item')
-    await page.hover(5, 5)
-    await page.key('Tab', 'Tab', 9)
-    await page.evaluate(`document.querySelector('[data-nav-item="settings/plugins"]').focus()`)
+    await state.page.hover(5, 5)
+    await state.page.key('Tab', 'Tab', 9)
+    await state.page.evaluate(`document.querySelector('[data-nav-item="settings/plugins"]').focus()`)
     assert.equal((await read('settings/plugins')).outline, 'solid', 'keyboard focus shows a ring')
     // A section header changes color on hover too.
-    const head = await page.evaluate(
+    const head = await state.page.evaluate(
       `(() => { const r = document.querySelector('[data-nav-group="flow"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`,
     )
-    const headBefore = await page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`)
-    await page.hover(head[0], head[1])
-    await page.evaluate('new Promise((r) => setTimeout(r, 200))')
-    assert.notEqual(await page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`), headBefore, 'a header changes color on hover')
+    const headBefore = await state.page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`)
+    await state.page.hover(head[0], head[1])
+    await state.page.evaluate('new Promise((r) => setTimeout(r, 200))')
+    assert.notEqual(await state.page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`), headBefore, 'a header changes color on hover')
   }
 })

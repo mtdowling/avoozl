@@ -6,14 +6,10 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { workspaceConfig } from "../../settings/config.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
-import { temporaryDirectory } from "../../test/temporary.mjs";
-
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+import { specCheckout } from "../../test/spec-checkout.mjs";
 
 const leaf = (id) => ({
   id,
@@ -61,18 +57,14 @@ function fakeGitHub(head, existing = []) {
 }
 
 function setup(t, { tasks, existing = [], lanes = 20 } = {}) {
-  const root = temporaryDirectory("avoozl-claims-"),
-    checkout = path.join(root, "app");
-  fs.mkdirSync(checkout);
-  git(checkout, "init", "-q", "-b", "main");
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-q", "-m", "Start");
-  const head = git(checkout, "rev-parse", "HEAD"),
-    { dbPath } = workspaceConfig({ workspace: root, env: {} });
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  // The workspace is the checkout, as `avoozl init` in a repository makes it.
+  const { root, run } = specCheckout("avoozl-claims-"),
+    checkout = root,
+    dbPath = path.join(root, "workspace.sqlite");
+  fs.writeFileSync(path.join(root, ".gitignore"), "*.sqlite*\n.avoozl/\n");
+  run(["add", "."]);
+  run(["commit", "-q", "-m", "Start"]);
+  const head = run(["rev-parse", "HEAD"]);
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({ version: 1, lanes: { local: lanes }, delivery: {} }),
@@ -112,7 +104,11 @@ test("runner.next with claim creates avoozl/<spec>/<task> at the base head", asy
   );
   assert.equal(result.worktree.branch, "avoozl/parser/a");
   assert.equal(
-    git(result.worktree.path, "branch", "--show-current"),
+    execFileSync(
+      "git",
+      ["-C", result.worktree.path, "branch", "--show-current"],
+      { encoding: "utf8" },
+    ).trim(),
     "avoozl/parser/a",
   );
   assert.match(result.brief, /a/);
