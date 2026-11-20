@@ -282,13 +282,14 @@ something I asked for needs it, so that nothing waits forever in a queue.
 ### Requirement NK9: Proof of the whole
 
 **User story:** As the owner, I want one run that uses every part with no
-Kiro Crew on the machine, so that "works without Kiro Crew" is a recorded
+Kiro Crew in the run, so that "works without Kiro Crew" is a recorded
 fact.
 
 #### Acceptance criteria
 
-1. One proof SHALL run, on a machine user with no Kiro Crew installed: a
-   spec from a goal, a plan review, approval, a task with investigate
+1. One proof SHALL run with no Kiro Crew in the run: its isolated home
+   has none, and a Kiro Crew kept for other work may stay installed and
+   open. It covers a spec from a goal, a plan review, approval, a task with investigate
    first, verification, a review role, landing, a task summary, a retro, a
    review draft on a labeled pull request, a reply to an issue, and one
    notification through a `command` sink.
