@@ -75,12 +75,22 @@ export function lockIsHeld(lock) {
     return false;
   } catch (error) {
     if (isBusy(error)) return true;
-    throw error;
+    // Caught while a holder sets the file up: not a holder yet.
+    return false;
   } finally {
     try {
       db?.close();
     } catch {}
   }
+}
+
+// Write a holder's record; only the holder calls this, after it holds the lock.
+export function writeRecord(record, info) {
+  const temporary = `${record}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(info, null, 2) + "\n", {
+    mode: 0o600,
+  });
+  fs.renameSync(temporary, record);
 }
 
 // Take the lock, then write the record. A probe by another process can refuse
@@ -94,9 +104,7 @@ export function takeLock(
   for (let attempt = 0; attempt < tries; attempt++) {
     const taken = tryLock(lock);
     if (taken.held) {
-      fs.writeFileSync(record, JSON.stringify(info, null, 2) + "\n", {
-        mode: 0o600,
-      });
+      writeRecord(record, info);
       return taken;
     }
     if (attempt + 1 < tries)
@@ -105,7 +113,21 @@ export function takeLock(
   return { held: false, holder: readRecord(record) };
 }
 
-// The holder named by the record when the lock is held now, else null.
+const alive = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+};
+
+// The holder named by the record when the lock is held now, else null. Just
+// after a holder ends, the next one holds the lock before it rewrites the
+// record; a record whose process is gone names nobody yet ({}).
 export function lockHolder({ lock, record }) {
-  return lockIsHeld(lock) ? (readRecord(record) ?? {}) : null;
+  if (!lockIsHeld(lock)) return null;
+  const found = readRecord(record) ?? {};
+  return found.pid === undefined || alive(found.pid) ? found : {};
 }

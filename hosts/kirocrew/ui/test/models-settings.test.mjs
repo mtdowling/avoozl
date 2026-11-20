@@ -119,3 +119,10 @@ test('an unapproved harness has an Approve button that calls harness.approve', (
   assert.match(models, /changed since approval/)
   assert.match(source('models-api.ts'), /'harness\.approve', \{ name \}/)
 })
+
+test('a harness that cannot start on this machine says why, in the list and on the role row (MS5.3)', () => {
+  const models = source('ModelsSettings.tsx')
+  assert.match(models, /d\.startProblem &&[\s\S]*data-harness-start-problem/)
+  assert.match(models, /picked\?\.startProblem &&[\s\S]*data-role-start-problem/)
+  assert.match(source('models-api.ts'), /startProblem\?: string \| null/)
+})

@@ -12,8 +12,9 @@ const cli = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url)),
 
 // The one command the help's table does not hold: help itself.
 const UNLISTED = new Set(["help"]);
-// Processes that never exit; their own tests start and drive them.
-const LONG_RUNNING = new Set(["app-backend", "start"]);
+// Processes that never exit, or start this machine's server (mcp); their own
+// tests start and drive them.
+const LONG_RUNNING = new Set(["app-backend", "start", "mcp"]);
 // Command paths of the same kind; none now.
 const LONG_RUNNING_PATHS = new Set();
 // What a crash looks like, as opposed to a refusal a person can act on.

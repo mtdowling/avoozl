@@ -33,16 +33,16 @@ they never collide with the IDs of the other specs.
 - [x] ms-1.3 The Kiro Crew backend and cron on a server-owned loop, after ms-1.2 [MS1.3, MS12.1, MS12.3, MS12.4] (§D5)
   - Tests with a fake gateway: the backend starts a machine server when none runs and never a second; it calls neither drain; its notices still reach Kiro Crew's channels; the cron's `plans_maintain tick` call records its observations, returns the pending `kirocrew` dispatch, messages and re-trust for its own job, and never reaches the planner; with no server it starts one and returns no intents; a `kirocrew` task goes from ready to an opened chat in two passes; the design's F129 reason is in the code comment of the cron call.
   - Delete `machineSupervisor` and the drain block in `src/app/executors/kirocrew/app-backend.mjs`, keeping the channel push and the readers; the cron call in `src/app/executors/kirocrew/app-mcp.mjs` reads pending intents from the database.
-- [ ] ms-1.4 Login install on macOS and Linux, after ms-1.2 [MS4] (§D4)
+- [x] ms-1.4 Login install on macOS and Linux, after ms-1.2 [MS4] (§D4)
   - Tests with a fake `launchctl` and `systemctl`: `avoozl start --at-login` writes the unit with absolute paths, argv lists, the captured `PATH` and no secret, and runs the load commands it prints; `avoozl stop --at-login` unloads and deletes it; `--at-login` replaces its own unit and refuses a file without its marker; a Linux without a user systemd is refused with the `--foreground` line; both are refused with `AVOOZL_CHILD` and have no MCP tool.
-  - `avoozl start --at-login` and `avoozl stop --at-login`; `src/app/executors/supervisor-unit.mjs` is replaced by the new unit module.
-- [ ] ms-1.5 Login install on Windows, after ms-1.2 [MS4] (§D4)
+  - `avoozl start --at-login` and `avoozl stop --at-login`. The code is `src/app/executors/login-unit.mjs`; the Windows task is part of it (ms-1.5).
+- [x] ms-1.5 Login install on Windows, after ms-1.2 [MS4] (§D4)
   - Tests on the Windows CI leg with a fake `schtasks`: `avoozl start --at-login` writes the XML with a logon trigger for the current user, least privilege, restart on failure and the marker description, and runs `/Create` and `/Run`; `avoozl stop --at-login` runs `/Delete`; a task without the marker is refused.
-- [ ] ms-1.6 Model access and harness readiness for unattended children, after ms-1.2 [MS5] (§D6)
+- [x] ms-1.6 Model access and harness readiness for unattended children, after ms-1.2 [MS5] (§D6)
   - Tests: a `keepEnv` value from `machine.env` reaches the child and no other name does; a group-readable file is refused on macOS and Linux; no value appears in logs, status or receipts; the sandbox test shows the file outside a child's read roots; a harness whose program is missing, or whose keys are all unset with no proxy, shows per role in `avoozl status` and Settings › Models and a request for it opens one Needs you item; screenshots of Settings › Models go to the owner; the pull request says whether Claude Code's plan sign-in on macOS is keychain-only, with how it was checked.
-- [ ] ms-1.7 The role proof script for any harness, after ms-1.2 [MS6.3] (§D6)
-  - `scripts/proof-ms-roles-live.mjs --harness NAME` runs the D6 scenario table on a scratch repository and prints one line per row; a test fails when a `ROLE_TABLE` row with `process: true` is not in its list; a dry run with a fake harness passes every row.
-  - It also runs nk-p2's command sink step (D12, question 3). Task ms-2.2 adds `--probes`.
+- [x] ms-1.7 The role proof script for any harness, after ms-1.2 [MS6.3] (§D6)
+  - `scripts/proofs/proof-ms-roles-live.mjs --harness NAME` runs the D6 rows on a scratch repository and prints one line per row; a test fails when a `ROLE_TABLE` row with `process: true` is not in its list; a dry run with `--harness fake-cli --offline` passes every row it can drive offline.
+  - It replaces nk-p2's script and runs its command sink step (D12, question 3). Task ms-2.2 fills `--probes`.
 
 - [ ] ms-p1 Proof: one server per machine through races, restarts and closed front ends, after ms-1.3, ms-1.4, ms-1.6 (**MANUAL**) [MS1, MS2, MS3, MS4] (§D3, §D5)
   - Expected: (1) one machine server holds the lock and `avoozl status` names the login unit as its starter; (2) every start but one names the holder, and one tick pass runs per interval; (3) a new holder within 5 seconds and the tasks land; (4) the backend starts no second server and no second tick; a `kirocrew` task opens a chat through the cron; (5) the process task lands with Kiro Crew closed; (6) the listener check shows no new TCP listener.
@@ -64,37 +64,37 @@ they never collide with the IDs of the other specs.
   - Expected: (1) every row reaches its result kind and every session has executor `process`; (2) no watch session request exists and the line stops on the red head; (3) the sink file holds one line per decision; (4) the receipt lists each row with its harness version.
   - Expected result observed; receipt under `docs/evidence/`.
   - Setup: as ms-p1, with the server started by the login unit, model access from `machine.env` or a model proxy, every role's harness set to `claude-code`, investigate first on, and a `command` sink to a file. No Kiro Crew, Claude Code or other front end runs during the run. The owner runs it from his own terminal, because Kiro Crew's sandbox refuses a nested `sandbox-exec`.
-  - Action: (1) `scripts/proof-ms-roles-live.mjs --harness claude-code`; (2) push a failing commit to the scratch main; (3) read the sink file; (4) write the receipt.
+  - Action: (1) `scripts/proofs/proof-ms-roles-live.mjs --harness claude-code`; (2) push a failing commit to the scratch main; (3) read the sink file; (4) write the receipt.
   - Expected: (1) every row reaches its result kind and every session has executor `process`; (2) no watch session request exists and the line stops on the red head; (3) the sink file holds one line per decision; (4) the receipt lists each row with its harness version.
   - Failure means: some role still needs a front end open.
   - Next decision: whether `claude-code` becomes the default harness for new workspaces.
 
 ## Phase 2: Codex
 
-- [ ] ms-2.1 Codex's read class inside Avoozl's sandbox, after ms-1.2 [MS7.1, MS7.2, MS7.5] (§D7)
+- [x] ms-2.1 Codex's read class inside Avoozl's sandbox, after ms-1.2 [MS7.1, MS7.2, MS7.5] (§D7)
   - Tests: `permission.read: "danger-full-access"` loads only with write roots and runs only inside Avoozl's sandbox; with no sandbox it is refused for every role, opt-in or not, on the Windows leg too; a read child's write roots exclude the task folder; `codex.json` uses it and still loads.
   - Codex's own sandbox stays off only inside Avoozl's sandbox (D12).
-- [ ] ms-2.2 The containment probes and their CI test, after ms-1.2, ms-1.7 [MS8.1, MS8.2, MS8.3, MS8.4] (§D7)
-  - `src/app/sandbox-probes.mjs` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proof-ms-roles-live.mjs --probes` runs the same set in a live child.
+- [x] ms-2.2 The containment probes and their CI test, after ms-1.2, ms-1.7 [MS8.1, MS8.2, MS8.3, MS8.4] (§D7)
+  - `src/app/sandbox-probes.mjs` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proofs/proof-ms-roles-live.mjs --probes` runs the same set in a live child.
   - Fix any probe that gets through in `src/app/executors/sandbox.mjs`, never by changing the probe.
 
 - [ ] ms-p3 Proof: every role on Codex, and the sandbox contains it, after ms-2.1, ms-2.2, ms-p2 (**MANUAL**) [MS7, MS8] (§D7)
   - Expected: (1) every row reaches its result kind or the receipt names why it cannot; (2) every probe is refused on both systems, each with its error text; (3) `codex.json`'s `proved` matches the receipt.
   - Expected result observed; receipt under `docs/evidence/`.
   - Setup: as ms-p2 with every role on `codex`, its own `CODEX_HOME`, and the model reached through the repository's model proxy. On macOS and on Linux. The owner runs it from his own terminal.
-  - Action: (1) `scripts/proof-ms-roles-live.mjs --harness codex --probes`; (2) read Codex's transcript and the probe log; (3) update `proved` in `codex.json` in the receipt's pull request.
+  - Action: (1) `scripts/proofs/proof-ms-roles-live.mjs --harness codex --probes`; (2) read Codex's transcript and the probe log; (3) update `proved` in `codex.json` in the receipt's pull request.
   - Expected: (1) every row reaches its result kind or the receipt names why it cannot; (2) every probe is refused on both systems, each with its error text; (3) `codex.json`'s `proved` matches the receipt.
   - Failure means: Codex cannot run unattended here; it stays off the failing roles.
   - Next decision: none.
 
 ## Phase 3: The shim
 
-- [ ] ms-3.1 The control interface, after ms-1.2 [MS9] (§D8, §D10)
+- [x] ms-3.1 The control interface, after ms-1.2 [MS9] (§D8, §D10)
   - Tests on Linux, macOS and Windows: the socket is `0600` in a `0700` folder, or the listener is `127.0.0.1`; no option or variable changes the address; a missing or wrong token, a missing `hello`, and an HTTP request line each close the connection with nothing run; with no token file every call is refused; a person-only operation is refused through it; a confined child cannot connect or read the token; a long state path falls back to the short socket folder; a search of logs, status and receipts after a run finds no token.
-  - The listener in the machine server, the token written after the lock, the address in `lock.json`, and the `app-mcp.mjs` workspace rules moved into the server.
-- [ ] ms-3.2 `avoozl mcp` is the shim, after ms-3.1, ms-1.3 [MS10] (§D8)
+  - The listener is `src/app/executors/control-server.mjs`, started by the machine server after it takes the lock; `src/app/executors/machine-control.mjs` runs each claim's calls through the `app-mcp.mjs` workspace rules inside the server, and writes the address into `lock.json`.
+- [x] ms-3.2 `avoozl mcp` is the shim, after ms-3.1, ms-1.3 [MS10] (§D8)
   - Tests: the shim forwards calls and replies and imports no `Store`; `--kirocrew` passes the gateway caller block and a bound session reaches its workspace; with no server it starts one and the call succeeds within 20 seconds; a server of another build fails the call naming `avoozl start`; `tools/list` matches today's for each caller kind; `mcp --url`, `--url` and `AVOOZL_URL` are refused naming what replaces them; the cron's call works through the shim.
-  - Delete the in-process MCP modes in `src/app/commands/machine.mjs` and the CLI's server request path in `src/app/cli/cli.mjs`.
+  - The shim is `src/app/mcp/mcp-shim.mjs`. The in-process MCP modes in `src/app/commands/machine.mjs` and the CLI's server request path in `src/app/cli/cli.mjs` are gone. The Kiro Crew bundle includes the programs the machine server starts by path, so the app's own copy can start it.
 
 - [ ] ms-p4 Proof: two front ends through the shim, after ms-3.2 (**MANUAL**) [MS9, MS10] (§D8, §D10)
   - Expected: (1) the call starts the server and returns; (2) both sessions see the same task state; (3) both approvals are refused through MCP and work from the person's own prompt; (4) the child's attempts are refused; (5) only the socket shows.

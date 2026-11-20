@@ -83,11 +83,21 @@ function withCronCaller(message, env) {
   };
 }
 
+function withoutCaller(message) {
+  if (!message.params?._meta?.["kirocrew.caller"]) return message;
+  const { "kirocrew.caller": _dropped, ...meta } = message.params._meta;
+  return { ...message, params: { ...message.params, _meta: meta } };
+}
+
 export function createAppMcp({
   fallback = null,
   env = process.env,
   // Starts the machine server when none runs (MS12.3); returns { started }.
   ensureServer = () => ensureMachineServer({ env }),
+  // Whether a caller block in a message is the gateway's (`avoozl mcp
+  // --kirocrew`). Any other front end's block is dropped: a claim routes a
+  // call and never grants one (MS10.2).
+  attested = true,
 } = {}) {
   // One Store and Operations per database, opened on first use and kept, so
   // tick memory and caches stay per workspace.
@@ -180,7 +190,7 @@ export function createAppMcp({
       return rpcError(null, "Send one JSON-RPC request object.", -32600);
     // Notifications get no reply.
     if (!Object.hasOwn(message, "id")) return null;
-    message = withCronCaller(message, env);
+    message = attested ? withCronCaller(message, env) : withoutCaller(message);
     // Refused as Kiro Crew's own servers refuse it (mcp_shared_dispatch.py).
     // A client that gets an answer speaks the 2026-07-28 revision and never
     // sends initialize, so the gateway never sees CALLER_CAPABILITY and
@@ -264,7 +274,7 @@ export function createAppMcp({
       };
     }
     return (
-      await handleMcp(message, target.entry.ops, { attestedCaller: true })
+      await handleMcp(message, target.entry.ops, { attestedCaller: attested })
     ).body;
   }
 

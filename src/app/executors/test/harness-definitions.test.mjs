@@ -12,6 +12,7 @@ import {
   harnessReads,
   loadHarnessDefinition,
   parseHarnessDefinition,
+  readRoleProblem,
 } from "../harness-definitions.mjs";
 
 const example = () => ({
@@ -159,18 +160,29 @@ test("loading refuses permission-skipping values", () => {
     );
 });
 
-// R94.4d: the one exception, permission.write exactly danger-full-access.
-test("permission.write may turn the inner sandbox off; nothing else may", () => {
+// R94.4d, MS7.1: the one exception, a class exactly danger-full-access.
+test("a permission class may turn the inner sandbox off; nothing else may", () => {
   const off = parseHarnessDefinition({
     ...example(),
     permission: { write: "danger-full-access", read: "read-only" },
   });
   assert.equal(off.permission.write, "danger-full-access");
+  const read = parseHarnessDefinition({
+    ...example(),
+    permission: { write: "workspace-write", read: "danger-full-access" },
+  });
+  assert.equal(read.permission.read, "danger-full-access");
+  assert.equal(readRoleProblem(read), null);
+  assert.throws(
+    () =>
+      parseHarnessDefinition({
+        ...example(),
+        permission: { write: "workspace-write", read: "danger-full-access" },
+        writeRoots: undefined,
+      }),
+    /permission\.read is danger-full-access, so writeRoots must name/,
+  );
   for (const [patch, value] of [
-    [
-      { permission: { write: "workspace-write", read: "danger-full-access" } },
-      "danger-full-access",
-    ],
     [
       { permission: { write: "--sandbox=danger-full-access", read: "x" } },
       "danger-full-access",

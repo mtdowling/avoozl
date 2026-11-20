@@ -9,6 +9,8 @@ import { createHash } from "node:crypto";
 import os from "node:os";
 import { fail } from "../store/store.mjs";
 import { EXECUTOR_CONTRACT } from "./executors.mjs";
+import { readMachineEnv } from "./machine-env.mjs";
+import { harnessStartProblem } from "./harness-ready.mjs";
 
 const HARNESS_DIRECTORY = "harnesses";
 const HARNESS_APPROVALS = "harness-approvals.json";
@@ -168,21 +170,29 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
     fail(
       `${source}: name must start with a lowercase letter and use only lowercase letters, numbers and hyphens.`,
     );
-  const innerSandboxOff =
-    record(value.permission) && value.permission.write === INNER_SANDBOX_OFF;
-  const permission = innerSandboxOff
+  // R94.4d, MS7.1: a class may turn the harness's own sandbox off, which
+  // confineChild then runs only inside Avoozl's sandbox, with write roots.
+  const innerOff = record(value.permission)
+    ? Object.keys(value.permission).filter(
+        (key) => value.permission[key] === INNER_SANDBOX_OFF,
+      )
+    : [];
+  const permission = innerOff.length
     ? Object.freeze({
         ...words(
-          { ...value.permission, write: "placeholder" },
+          {
+            ...value.permission,
+            ...Object.fromEntries(innerOff.map((key) => [key, "placeholder"])),
+          },
           "permission",
           source,
         ),
-        write: INNER_SANDBOX_OFF,
+        ...Object.fromEntries(innerOff.map((key) => [key, INNER_SANDBOX_OFF])),
       })
     : words(value.permission, "permission", source);
-  if (innerSandboxOff && value.writeRoots === undefined)
+  if (innerOff.length && value.writeRoots === undefined)
     fail(
-      `${source}: permission.write is ${INNER_SANDBOX_OFF}, so writeRoots must name where Avoozl's sandbox lets it write.`,
+      `${source}: permission.${innerOff[0]} is ${INNER_SANDBOX_OFF}, so writeRoots must name where Avoozl's sandbox lets it write.`,
     );
   for (const key of Object.keys(permission))
     if (!PERMISSION_CLASSES.includes(key))
@@ -403,10 +413,23 @@ export function loadHarnessDefinition({ configDirectory, name }) {
 // child writes its result file, and an output file, only where the
 // definition's `resultAllow` lets its harness; one with none would fail on
 // its first run.
+// A read class with the harness's own sandbox off needs none: only Avoozl's
+// sandbox limits it, and its write roots hold the result folder (MS7.1).
 export function readRoleProblem(definition) {
-  return definition?.resultAllow
+  return definition?.resultAllow ||
+    definition?.permission?.read === INNER_SANDBOX_OFF
     ? null
     : `${definition?.name ?? "This harness"} names no resultAllow, so a read-only session cannot write its result file.`;
+}
+
+function startProblemOf(value, configDirectory) {
+  let machineEnv = {};
+  try {
+    machineEnv = readMachineEnv(configDirectory);
+  } catch (error) {
+    return error.message;
+  }
+  return harnessStartProblem(value, { machineEnv });
 }
 
 export function listHarnessDefinitions(configDirectory) {
@@ -437,6 +460,8 @@ export function listHarnessDefinitions(configDirectory) {
         changed: Boolean(approvals[name]) && approvals[name] !== hash,
         model: value?.model !== undefined,
         readRoles: readRoleProblem({ name, resultAllow: value?.resultAllow }),
+        // Why it cannot start on this machine's server, or null (MS5.3).
+        startProblem: startProblemOf(value, configDirectory),
         proved: Array.isArray(value?.proved)
           ? value.proved.filter((item) => ROLE_CLASSES.includes(item))
           : [],

@@ -1,9 +1,8 @@
 // CLI commands of one kind: command, help lines and run.
 import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
-import { createAppMcp } from "../executors/kirocrew/app-mcp.mjs";
+import { runShim, shimClaim } from "../mcp/mcp-shim.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { machineStatus, serveStatus } from "../workspace/machine-status.mjs";
-import { handleMcp } from "../mcp/mcp.mjs";
 import { HOLDS_TASKS, readRunnerConfig } from "../workers/remote-runner.mjs";
 import { reportByToken } from "../workers/report-match.mjs";
 import { LinkStore } from "../serve/serve-auth.mjs";
@@ -12,8 +11,14 @@ import {
   startMachineServer,
   stopMachineServer,
 } from "../executors/machine-server.mjs";
+import {
+  installLoginUnit,
+  loginUnit,
+  removeLoginUnit,
+} from "../executors/login-unit.mjs";
+import fs from "node:fs";
+import path from "node:path";
 import { runSupervisor } from "../executors/supervisor.mjs";
-import readline from "node:readline";
 import { help } from "../cli/command-help.mjs";
 import {
   approveHarnessByName,
@@ -30,39 +35,13 @@ function refuseChild(name) {
     );
 }
 
-const send = (body) => process.stdout.write(JSON.stringify(body) + "\n");
-
-// One JSON-RPC message per line on stdin: `answer` returns the reply, or null
-// for none. A line that does not parse, or an answer that throws, gets an
-// error reply.
-async function eachMessage(answer) {
-  const lines = readline.createInterface({ input: process.stdin });
-  for await (const line of lines) {
-    if (!line.trim()) continue;
-    let message;
-    try {
-      message = JSON.parse(line);
-    } catch {
-      send({
-        jsonrpc: "2.0",
-        id: null,
-        error: { code: -32700, message: "Parse error" },
-      });
-      continue;
-    }
-    let reply;
-    try {
-      reply = await answer(message);
-    } catch (error) {
-      reply = {
-        jsonrpc: "2.0",
-        id: message?.id ?? null,
-        error: { code: -32603, message: error.message },
-      };
-    }
-    if (reply !== null) send(reply);
-  }
-}
+// The login unit for this machine, naming this CLI by absolute path.
+const unitFor = (machine) =>
+  loginUnit({
+    cli: fs.realpathSync(process.argv[1]),
+    stateDirectory: path.resolve(machine.stateDirectory),
+    configDirectory: path.resolve(machine.configDirectory),
+  });
 
 export const commands = [
   {
@@ -70,82 +49,28 @@ export const commands = [
     help: [
       help(
         "machine",
-        "mcp --workspace PATH",
-        "Stdio MCP server for the workspace database",
+        "mcp [--workspace PATH]",
+        "Stdio MCP for agents: forwards to this machine's server, starting it if needed",
         { usage: "mcp --workspace PATH", about: "Stdio MCP server for agents" },
       ),
-      help("machine", "mcp --url URL", "Stdio bridge to a running server"),
       help(
         "machine",
         "mcp --kirocrew",
-        "Kiro Crew app server: workspace per caller",
+        "The same, for the Kiro Crew app: workspace per caller",
       ),
     ],
-    async run({
-      options,
-      env,
-      requestedWorkspace,
-      config,
-      dbPath,
-      endpoint,
-      requireDatabase,
-      useServer,
-      localOperations,
-    }) {
-      if (options.kirocrew) {
-        // The Kiro Crew app's stdio MCP server. Kiro Crew may share this process
-        // between sessions, so each request picks its own workspace (app-mcp.mjs);
-        // the working directory is never used.
-        const server = createAppMcp({
-          fallback: requestedWorkspace ? config : null,
+    async run({ options, env, requestedWorkspace, config }) {
+      const machine = machineAvoozlPaths();
+      await runShim({
+        stateDirectory: machine.stateDirectory,
+        configDirectory: machine.configDirectory,
+        claim: shimClaim({
+          kirocrew: Boolean(options.kirocrew),
+          workspace: requestedWorkspace ? config.workspaceRoot : null,
           env,
-        });
-        try {
-          await eachMessage((message) => server.handle(message));
-        } finally {
-          server.close();
-        }
-      } else if (!useServer()) {
-        // A stdio MCP server for one workspace: the same plans_* tools, served in
-        // process from the workspace database with no web server running.
-        requireDatabase();
-        const store = new Store(dbPath),
-          ops = localOperations(store);
-        try {
-          // No gateway fronts this server, so a caller block here could come
-          // from any client and is not read; `--kirocrew` is the attested form.
-          await eachMessage(
-            async (message) =>
-              (await handleMcp(message, ops, { base: endpoint })).body,
-          );
-        } finally {
-          store.close();
-        }
-      } else {
-        const mcpEndpoint = endpoint + "/mcp";
-        const lines = readline.createInterface({ input: process.stdin });
-        for await (const line of lines) {
-          let message;
-          try {
-            message = JSON.parse(line);
-            const response = await fetch(mcpEndpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(message),
-            });
-            const text = await response.text();
-            if (text) process.stdout.write(text + "\n");
-          } catch (error) {
-            process.stdout.write(
-              JSON.stringify({
-                jsonrpc: "2.0",
-                id: message?.id ?? null,
-                error: { code: -32603, message: error.message },
-              }) + "\n",
-            );
-          }
-        }
-      }
+        }),
+        env,
+      });
     },
   },
   {
@@ -180,14 +105,25 @@ export const commands = [
     help: [
       help(
         "machine",
-        "start [--foreground]",
-        "Start this machine's server (the loop and the process children); a second start names the holder, and one of another build is replaced",
+        "start [--foreground | --at-login]",
+        "Start this machine's server (the loop and the process children); a second start names the holder, and one of another build is replaced. --at-login also starts it at each login",
       ),
     ],
     async run({ options, positionals }) {
       refuseChild("start");
-      if (positionals.length) throw Error("Usage: avoozl start [--foreground]");
+      if (positionals.length || (options["at-login"] && options.foreground))
+        throw Error("Usage: avoozl start [--foreground | --at-login]");
       const machine = machineAvoozlPaths();
+      if (options["at-login"]) {
+        const done = installLoginUnit(unitFor(machine));
+        console.log(
+          [
+            ...done.ran.map((line) => `ran: ${line}`),
+            `${done.replaced ? "Replaced" : "Wrote"} ${done.file}. The machine server now starts at each login.`,
+          ].join("\n"),
+        );
+        return;
+      }
       const starter = options.starter ?? "terminal";
       if (options.foreground) {
         await runSupervisor({
@@ -212,13 +148,25 @@ export const commands = [
     help: [
       help(
         "machine",
-        "stop",
-        "Stop this machine's server; its process children keep running",
+        "stop [--at-login]",
+        "Stop this machine's server; its process children keep running. --at-login removes the login unit too",
       ),
     ],
-    async run({ positionals }) {
+    async run({ options, positionals }) {
       refuseChild("stop");
-      if (positionals.length) throw Error("Usage: avoozl stop");
+      if (positionals.length) throw Error("Usage: avoozl stop [--at-login]");
+      if (options["at-login"]) {
+        const done = removeLoginUnit(unitFor(machineAvoozlPaths()));
+        console.log(
+          [
+            ...done.ran.map((line) => `ran: ${line}`),
+            done.removed
+              ? "Removed the login unit; the machine server it ran has stopped."
+              : "No login unit is installed.",
+          ].join("\n"),
+        );
+        return;
+      }
       console.log(
         await stopMachineServer({
           stateDirectory: machineAvoozlPaths().stateDirectory,

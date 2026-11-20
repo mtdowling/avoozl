@@ -126,13 +126,19 @@ imports `./lib/cli.mjs`), so its build can differ from the person's global
 (MS3.4). Replacing is safe because children are detached and found again by
 pid and start time (R95.4).
 
-**Login unit.** One module replaces `src/app/executors/supervisor-unit.mjs`:
+**Login unit.** `src/app/executors/login-unit.mjs` holds all three:
 
 | System | File | Load | Unload |
 | --- | --- | --- | --- |
 | macOS | `~/Library/LaunchAgents/dev.avoozl.machine.plist`, `RunAtLoad`, `KeepAlive` | `launchctl bootstrap gui/<uid> <file>` | `launchctl bootout gui/<uid>/dev.avoozl.machine` |
 | Linux | `~/.config/systemd/user/avoozl-machine.service`, `Restart=on-failure` | `systemctl --user daemon-reload`, `systemctl --user enable --now avoozl-machine.service` | `systemctl --user disable --now avoozl-machine.service` |
 | Windows | Task `Avoozl machine` from an XML definition: logon trigger for the current user, `LeastPrivilege`, restart on failure | `schtasks /Create /TN "Avoozl machine" /XML <file>`, then `schtasks /Run` | `schtasks /Delete /TN "Avoozl machine" /F` |
+
+The Windows task runs `conhost.exe --headless` with `node` and the CLI, so
+no console window opens. Its XML is UTF-16 and lives at
+`machine/login-task.xml` in the state folder; the task, not the file, is the
+unit. Each unit starts the server with `--starter login-unit`, which
+`avoozl status` shows.
 
 Each command runs with an argv list, never a shell. The unit holds the
 marker comment `Written by avoozl start --at-login` so install can tell its
@@ -183,8 +189,8 @@ Crew backend does not have the person's shell environment. Two things then
 fail quietly: the harness program is not on `PATH`, and the model key is
 not set.
 
-- `PATH` is captured into the unit at install (MS4.4), as the supervisor
-  unit does today (V: `pathEnv`, `src/app/executors/supervisor-unit.mjs:58`).
+- `PATH` is captured into the unit at install (MS4.4) (V: `pathEnv`,
+  `src/app/executors/login-unit.mjs`).
 - Model access: `machine.env` in the machine config folder, `KEY=value`
   lines, read by the server at start. Only names in a definition's
   `keepEnv` are passed to that child, as today (V: `sandboxEnv`,
@@ -196,8 +202,11 @@ not set.
 The role proof (ms-p2) runs with the server started by the login unit and no
 front end open, which is the case that breaks.
 
-**Roles.** The proof script reads `ROLE_TABLE`, picks every row with
-`process: true`, and drives one scenario per row on a scratch repository.
+**Roles.** `scripts/proofs/proof-ms-roles-live.mjs --harness NAME` drives
+the rows of `scripts/proofs/ms-roles-rows.mjs` on a scratch repository and
+prints one line per row; a test fails when a `ROLE_TABLE` row with
+`process: true` has no row there. The machine server runs with
+`machine.tickSeconds` 10, started by `avoozl start` with no front end open.
 P59 and nk-p1 proved most rows already on Claude Code, but with the server
 started from the owner's terminal and the app backend draining. This proof
 is the first with neither.
@@ -205,15 +214,17 @@ is the first with neither.
 | Row | Scenario | Result kind |
 | --- | --- | --- |
 | worker | one-file task | commit by Avoozl, landed |
-| verifier, reviewer | the worker's task, `verify: "agent"`, one review role | verdict |
+| verifier | a task in a repository with no checks | verdict (not driven: the scratch repository has checks, which Avoozl runs itself) |
+| reviewer | a review role a spec adds | verdict (not driven: the scratch spec adds none) |
 | falsifier | investigate first on | verdict on findings |
 | planner, plan answer | New plan request; one plan review finding | spec folder; answers |
 | plan reviewer | plan review on that spec, second model | findings |
-| retro | after the task lands | reply |
+| retro | after the task lands (`flow.retro.everyTasks` 1) | reply |
 | responder | a reply request on an issue | posted reply |
-| task summary | the landed task | stored summary |
+| task summary | a person asks for the landed task's summary | stored summary |
 | pull request review | a labeled pull request | stored review |
 | assist | Ask for help on the page | answer, no file |
+| check decide | a plugin check that needs a decision | answer (not driven: no plugin check is installed) |
 | (line watch) | a red head on main | the line stops; no session request |
 
 ## D7. Codex inside Avoozl's sandbox (MS7, MS8)

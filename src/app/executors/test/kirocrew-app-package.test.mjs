@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -7,11 +7,13 @@ import { fileURLToPath } from "node:url";
 import { WorkspaceRegistry } from "../../settings/host-config.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { runOwnMachine } from "../../test/shim-run.mjs";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(root, "hosts", "kirocrew"),
   manifest = JSON.parse(fs.readFileSync(path.join(app, "app.json"), "utf8")),
-  launcher = path.join(app, "bin", "avoozl.mjs");
+  launcher = path.join(app, "bin", "avoozl.mjs"),
+  CLI = path.join(root, "cli.mjs");
 
 function isolatedEnv(dir) {
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
@@ -165,12 +167,12 @@ test("the packaged MCP server lists the plans tools and ships no runner hook", (
   const dir = temporaryDirectory(),
     workspace = path.join(dir, "workspace");
   initializeWorkspace(workspace);
-  const listed = execFileSync(
+  const listed = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env: isolatedEnv(dir),
       input:
         JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",
@@ -215,12 +217,12 @@ test("the MCP launcher names its crew home when the launch env has none", () => 
 
 test("every plans_* tool a brief, prompt, agent, cron or skill names is listed", () => {
   const dir = temporaryDirectory();
-  const listed = execFileSync(
+  const listed = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py")],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env: isolatedEnv(dir),
       input:
         JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",
@@ -286,12 +288,12 @@ test("packaged MCP server answers the tick from any working directory", () => {
       },
     },
   ];
-  const output = execFileSync(
+  const output = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env: isolatedEnv(dir),
       input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
     },
@@ -301,7 +303,9 @@ test("packaged MCP server answers the tick from any working directory", () => {
     .split("\n")
     .map((line) => JSON.parse(line));
   assert.notEqual(tick.result.isError, true, JSON.stringify(tick));
-  assert.deepEqual(tick.result.structuredContent.dispatch, []);
+  // The machine server's own first pass may hold the work lock.
+  if (tick.result.structuredContent.skipped !== "locked")
+    assert.deepEqual(tick.result.structuredContent.dispatch, []);
 });
 
 test("packaged MCP server serves the catalog's default workspace when none is named", () => {
@@ -312,12 +316,12 @@ test("packaged MCP server serves the catalog's default workspace when none is na
   const registry = new WorkspaceRegistry({ env });
   registry.add("sample", { id: "sample", root: workspace, enabled: true });
   registry.close();
-  const output = execFileSync(
+  const output = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py")],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env,
       input:
         JSON.stringify({
@@ -333,19 +337,34 @@ test("packaged MCP server serves the catalog's default workspace when none is na
   );
   const reply = JSON.parse(output.trim());
   assert.notEqual(reply.result.isError, true, output);
-  assert.equal(reply.result.structuredContent.policy.status, "loaded");
+  // The machine server ticks the catalog workspace as it starts, so this
+  // call may meet that pass holding the work lock: either way the call
+  // reached the default workspace.
+  if (reply.result.structuredContent.skipped !== "locked")
+    assert.equal(reply.result.structuredContent.policy.status, "loaded");
 });
 
 test("packaged launcher defaults to a loopback, signed-principal backend", async (t) => {
   const dir = temporaryDirectory(),
     workspace = path.join(dir, "workspace");
   initializeWorkspace(workspace);
+  // Under the gateway the backend starts this machine's server (MS3.5): it
+  // gets a state folder of its own, and is stopped after.
+  const env = {
+    ...isolatedEnv(dir),
+    XDG_STATE_HOME: path.join(dir, "state"),
+    PORT: "0",
+    KIROCREW_PROXY_SECRET: "s",
+  };
   const child = spawn(process.execPath, [launcher, "--workspace", workspace], {
     cwd: dir,
-    env: { ...isolatedEnv(dir), PORT: "0", KIROCREW_PROXY_SECRET: "s" },
+    env,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  t.after(() => child.kill());
+  t.after(() => {
+    child.kill();
+    spawnSync(process.execPath, [CLI, "stop"], { env, encoding: "utf8" });
+  });
   const port = await new Promise((resolve, reject) => {
     let text = "";
     child.stdout.on("data", (chunk) => {

@@ -93,11 +93,15 @@ test("the holder is named from the record only while the lock is held", (t) => {
   const { root } = scratch(t);
   const paths = machineLockPaths(root);
   assert.equal(lockHolder(paths), null);
-  const taken = takeLock(paths, { pid: 4242 });
-  assert.equal(lockHolder(paths).pid, 4242);
+  const taken = takeLock(paths, { pid: process.pid });
+  assert.equal(lockHolder(paths).pid, process.pid);
   const second = takeLock(paths, { pid: 1 }, { tries: 1 });
   assert.equal(second.held, false);
-  assert.equal(second.holder.pid, 4242);
+  assert.equal(second.holder.pid, process.pid);
+  // A record left by a holder that is gone names nobody while the next one
+  // sets up.
+  fs.writeFileSync(paths.record, JSON.stringify({ pid: 2 ** 22 + 7 }));
+  assert.deepEqual(lockHolder(paths), {});
   taken.close();
   assert.equal(lockHolder(paths), null);
   assert.ok(fs.existsSync(paths.lock), "the lock file is never deleted");

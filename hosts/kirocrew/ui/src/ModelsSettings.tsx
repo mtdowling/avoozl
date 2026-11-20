@@ -121,7 +121,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
             Kiro Crew chat <Badge variant="success">built in</Badge>
           </Box>
           {definitions.map((d) => (
-            <Box key={d.name} as="li" flex items="center" gap="2" data-harness-definition={d.name}>
+            <Box key={d.name} as="li" flex flexWrap items="center" gap="2" minW0 data-harness-definition={d.name}>
               {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{d.approved ? 'hash approved' : d.changed ? 'changed since approval' : 'not approved'}</Badge>
               {!d.approved && (
                 <SmallBtn onClick={() => approve(d.name)} attrs={{ 'data-approve-harness': d.name }}>
@@ -131,6 +131,11 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
               <Hint size="xs" data-harness-proved>
                 {provedLine(d)}
               </Hint>
+              {d.startProblem && (
+                <ErrorText as="span" size="xs" data-harness-start-problem>
+                  Cannot start on this machine: {d.startProblem}
+                </ErrorText>
+              )}
               {d.readRoles && (
                 <Hint size="xs" data-harness-read-roles>
                   Not offered for read-only roles: {d.readRoles}
@@ -180,6 +185,11 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   {picked && !picked.approved && (
                     <ErrorText as="span" size="xs">
                       Not approved: it will not start until its hash is approved.
+                    </ErrorText>
+                  )}
+                  {picked?.startProblem && (
+                    <ErrorText as="span" size="xs" data-role-start-problem>
+                      Cannot start on this machine: {picked.startProblem}
                     </ErrorText>
                   )}
                 </Field>

@@ -727,24 +727,3 @@ test("stopping the server ends open keep-alive connections, so an old session ca
   );
   agent.destroy();
 });
-
-test("the CLI pointed at avoozl serve is refused, and the error says why (SW5.4)", async (t) => {
-  const s = await serve(t);
-  const workspace = path.join(s.root, "ws");
-  const result = await new Promise((resolve) => {
-    const child = spawn(
-      process.execPath,
-      [cli, "review", "drafts", "--workspace", workspace, "--url", s.origin],
-      { env: { ...process.env, XDG_CONFIG_HOME: path.join(s.root, "xdg") } },
-    );
-    let stderr = "";
-    child.stderr.on("data", (chunk) => (stderr += chunk));
-    child.on("close", (code) => resolve({ code, stderr }));
-  });
-  assert.notEqual(result.code, 0);
-  assert.match(
-    result.stderr,
-    /accepts \/api\/command only with a valid browser session cookie/,
-  );
-  assert.match(result.stderr, /Drop --url/);
-});

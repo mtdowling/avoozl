@@ -59,6 +59,7 @@ import { decideInvestigation } from "../delivery/investigate.mjs";
 import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
 import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
 import { needsKirocrewItems } from "../tick/needs-kirocrew.mjs";
+import { needsHarnessItems } from "../tick/needs-harness.mjs";
 import { addItemContext } from "../api/needs-you-context.mjs";
 import {
   claimedOrNone,
@@ -396,6 +397,7 @@ export const entries = [
             .map((d) => d.name),
         ),
       );
+      view.items.push(...needsHarnessItems(store));
       addItemContext(store, data, view.items);
       // A notice's link (direct-links D3): which item it names, marked so the
       // page opens it even when filters would hide it. Reads only.

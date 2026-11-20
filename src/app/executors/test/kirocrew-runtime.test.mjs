@@ -19,6 +19,7 @@ import {
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { runOwnMachine } from "../../test/shim-run.mjs";
 
 const cli = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url));
 const SECRET = "test-proxy-secret";
@@ -250,11 +251,11 @@ test("avoozl mcp serves plans_* tools over stdio without a web server", () => {
       },
     },
   ];
-  const output = execFileSync(
+  const output = runOwnMachine(
     process.execPath,
     [cli, "mcp", "--workspace", path.join(root, "workspace")],
     {
-      encoding: "utf8",
+      dir: root,
       env: isolatedEnv(root),
       input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
     },

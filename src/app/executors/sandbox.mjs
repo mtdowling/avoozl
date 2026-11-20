@@ -18,6 +18,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { fail } from "../store/store.mjs";
+import { shortSocketFolder } from "./control-server.mjs";
 import {
   HARNESS_UNCONFINED,
   INNER_SANDBOX_OFF,
@@ -113,6 +114,9 @@ export function sandboxSecretPaths({
     // supervisor's database, the catalog).
     configDirectory,
     stateDirectory,
+    // Where the control socket goes when the state path is too long for one
+    // (control-server.mjs).
+    shortSocketFolder(),
     // The Kiro Crew home: its gateway secret, chats and memory.
     env.KIROCREW_HOME || path.join(home, ".kiro", "crew"),
     ...workspaceRoots.map((root) => path.join(root, ".avoozl")),

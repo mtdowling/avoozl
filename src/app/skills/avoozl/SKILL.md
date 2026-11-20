@@ -47,7 +47,7 @@ material risk, an unresolved blocker, or a decision the user must make.
 
 ## Find and pick up work
 
-The workspace is `{{PLANS_ROOT}}`; the site is {{BASE}}/ and MCP is {{BASE}}/mcp. Commands below work from any directory. MCP is optional; the CLI reaches the same operations.
+The workspace is `{{PLANS_ROOT}}`. MCP is `avoozl mcp --workspace {{PLANS_ROOT}}`, which reaches this machine's server and starts it if needed. Commands below work from any directory. MCP is optional; the CLI reaches the same operations.
 
 ```sh
 {{CLI}} query --scope all --q 'ready:true'

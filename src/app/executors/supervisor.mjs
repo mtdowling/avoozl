@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { readServeConfig } from "../settings/serve-config.mjs";
@@ -36,6 +36,7 @@ import { lockHolder, machineLockPaths, takeLock } from "./machine-lock.mjs";
 import { createBroker } from "./context-broker.mjs";
 import { markPluginBroken } from "../plugins/plugin-checks.mjs";
 import { buildId } from "./machine-build.mjs";
+import { readMachineEnv, withKeptValues } from "./machine-env.mjs";
 import {
   ensureRequestTables,
   pendingRequests,
@@ -94,8 +95,8 @@ export function openSupervisorDatabase(stateDirectory) {
   fs.mkdirSync(paths.root, { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(paths.database);
   db.exec(`
-    PRAGMA journal_mode = WAL;
     PRAGMA busy_timeout = 5000;
+    PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS children (
       session_id TEXT PRIMARY KEY,
       role TEXT NOT NULL,
@@ -1017,7 +1018,13 @@ export function startSupervisor({
         // A name a context server's mapping reads never reaches the worker.
         env: withoutNames(
           withoutPushCredentials({
-            ...env,
+            // Model access the server's own environment lacks comes from
+            // machine.env, for the definition's keepEnv names only (MS5.2).
+            ...withKeptValues(
+              env,
+              definition.keepEnv ?? [],
+              readMachineEnv(configDirectory),
+            ),
             ...(values.tmp
               ? Object.fromEntries(
                   ["TMPDIR", ...(definition.tmpEnv ?? [])].map((name) => [
@@ -1217,28 +1224,53 @@ export function launchSupervisor({
   if (running) return { pid: running.pid, started: false };
   const { root, log } = supervisorPaths(stateDirectory);
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
+  const args = [
+    SUPERVISOR_MAIN,
+    "--state-directory",
+    path.resolve(stateDirectory),
+    "--config-directory",
+    path.resolve(configDirectory),
+    "--starter",
+    starter,
+  ];
+  if (process.platform === "win32")
+    return launchWindows([...args, "--log", log], env);
   const out = fs.openSync(log, "a", 0o600);
   let child;
   try {
-    child = spawn(
-      process.execPath,
-      [
-        SUPERVISOR_MAIN,
-        "--state-directory",
-        path.resolve(stateDirectory),
-        "--config-directory",
-        path.resolve(configDirectory),
-        "--starter",
-        starter,
-      ],
-      { detached: true, stdio: ["ignore", out, out], env, windowsHide: true },
-    );
+    child = spawn(process.execPath, args, {
+      detached: true,
+      stdio: ["ignore", out, out],
+      env,
+      windowsHide: true,
+    });
   } finally {
     fs.closeSync(out);
   }
   child.on("error", () => {});
   child.unref();
   return { pid: child.pid, started: true };
+}
+
+// On Windows a child process inherits every inheritable handle of its
+// parent, so a server started directly would hold the starter's stdout open
+// and its caller would wait on it forever. Start-Process starts it through
+// the shell, which passes no handle; the server writes its own log (--log).
+function launchWindows(args, env) {
+  const quote = (value) => `"${value.replaceAll('"', '\\"')}"`;
+  const literal = (value) => `'${value.replaceAll("'", "''")}'`;
+  const command = [
+    "Start-Process -WindowStyle Hidden -PassThru",
+    `-FilePath ${literal(process.execPath)}`,
+    `-ArgumentList ${literal(args.map(quote).join(" "))}`,
+    "| ForEach-Object { $_.Id }",
+  ].join(" ");
+  const started = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", command],
+    { env, encoding: "utf8", windowsHide: true, timeout: 60_000 },
+  );
+  return { pid: Number(started.stdout?.trim()) || null, started: true };
 }
 
 // Run as this process's job until a signal or a stop request, with the
@@ -1257,6 +1289,7 @@ export async function runSupervisor({
   configDirectory ??= machine.configDirectory;
   let supervisor = null;
   let said = false;
+  let stopped = () => {};
   while (!supervisor) {
     try {
       supervisor = startSupervisor({
@@ -1264,7 +1297,10 @@ export async function runSupervisor({
         configDirectory,
         starter,
         tickIntervalMs: readTickSeconds(configDirectory) * 1000,
-        onStop: () => process.exit(0),
+        onStop: () => {
+          stopped();
+          process.exit(0);
+        },
       });
     } catch (error) {
       if (!foreground || error.status !== 409) {
@@ -1277,9 +1313,20 @@ export async function runSupervisor({
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
+  // The control interface for `avoozl mcp` (MS9). Loaded here, so the
+  // supervisor module itself pulls in no MCP code.
+  let control = null;
+  try {
+    const { serveControl } = await import("./machine-control.mjs");
+    control = await serveControl({ stateDirectory });
+  } catch (error) {
+    console.error(`The control interface did not start: ${error.message}`);
+  }
+  stopped = () => control?.close();
   console.log(`Avoozl machine server running as pid ${process.pid}.`);
   for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"])
     process.on(signal, () => {
+      control?.close();
       supervisor.close();
       process.exit(0);
     });

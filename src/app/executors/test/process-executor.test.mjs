@@ -34,7 +34,14 @@ import {
   NOTHING_COMMITTED,
   writeSnapshot,
 } from "../process.mjs";
-import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
+import {
+  enqueueSessionRequests,
+  pendingSessionRequests,
+} from "../../sessions/session-requests.mjs";
+import {
+  needsHarnessItems,
+  needsHarnessStep,
+} from "../../tick/needs-harness.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { Store } from "../../store/store.mjs";
 import { appStore, gitIn, machine, until } from "./process-machine.mjs";
@@ -923,7 +930,7 @@ test("a definition with no resultAllow is refused for a read role and runs a wri
 test("each shipped definition says which role classes a proof ran it in", () => {
   for (const [name, proved, readRoles] of [
     ["claude-code", ["read", "write"], null],
-    ["codex", ["write"], /codex names no resultAllow/],
+    ["codex", ["write"], null],
   ]) {
     const definition = parseHarnessDefinition(
       JSON.parse(
@@ -1006,4 +1013,51 @@ test("a session's own folder is named by its real path", async (t) => {
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   assert.equal(folder, fs.realpathSync.native(folder));
   assert.ok(path.basename(folder).startsWith("avoozl-real-"));
+});
+
+test("a start for a harness that cannot start stays queued and opens one Needs you item (MS5.3)", async (t) => {
+  const { root, stateDirectory, worktree, checkout, supervisor, defer } =
+    machine(t);
+  const store = appStore(
+    { root, defer },
+    { root: checkout, executor: "process", harness: "fake-cli" },
+  );
+  enqueueSessionRequests(store, {
+    starts: [
+      {
+        executor: "process",
+        role: "worker",
+        task: "sample-task",
+        title: "avoozl:sample-task work",
+        brief: 'Do the work.\nRESULT:{"state": "blocked", "text": "x"}',
+        worktree,
+        permissionClass: "write",
+      },
+    ],
+  });
+  const blocked = new Map([["fake-cli", "No sign-in variable is set."]]);
+  for (let pass = 0; pass < 2; pass++) {
+    const { errors } = await drainProcessRequests(store, {
+      stateDirectory,
+      prepareWorktree: async () => ({ path: worktree }),
+      blocked,
+    });
+    assert.deepEqual(errors, []);
+    needsHarnessStep(store, blocked);
+  }
+  assert.equal(store.list("session_bindings").length, 0);
+  assert.equal(pendingSessionRequests(store, "process").length, 1);
+  const items = needsHarnessItems(store);
+  assert.equal(items.length, 1, "one item, not one per pass");
+  assert.match(items[0].title, /worker cannot start on fake-cli/);
+  assert.match(items[0].detail, /No sign-in variable is set/);
+  // With the problem gone the start runs and the item goes.
+  needsHarnessStep(store, new Map());
+  assert.deepEqual(needsHarnessItems(store), []);
+  await drainProcessRequests(store, {
+    stateDirectory,
+    prepareWorktree: async () => ({ path: worktree }),
+  });
+  supervisor.pass();
+  assert.equal(store.list("session_bindings").length, 1);
 });

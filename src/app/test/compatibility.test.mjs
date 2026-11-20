@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../settings/config.mjs";
 import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { runOwnMachine } from "./shim-run.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url)),
   cli = path.join(root, "cli.mjs");
@@ -49,12 +50,12 @@ test("the stdio MCP server lists no old plan-file tool", () => {
     },
     { jsonrpc: "2.0", id: 2, method: "tools/list" },
   ];
-  const output = execFileSync(
+  const output = runOwnMachine(
     process.execPath,
     [cli, "mcp", "--workspace", workspace],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env: cleanEnv(dir),
       input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
     },

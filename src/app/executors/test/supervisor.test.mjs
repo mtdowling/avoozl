@@ -44,7 +44,7 @@ if (brief.waitFor) {
 } else finish();
 `;
 
-function scratch(t, { approve = true } = {}) {
+function scratch(t, { approve = true, keepEnv = undefined } = {}) {
   const { root, defer } = scratchRoot(t, "avoozl-supervisor-");
   const stateDirectory = path.join(root, "state");
   const configDirectory = path.join(root, "config");
@@ -58,6 +58,7 @@ function scratch(t, { approve = true } = {}) {
     resume: ["node", "{worktree}/agent.mjs", "{message_file}"],
     permission: { write: "workspace-write", read: "read-only" },
     writeRoots: ["{worktree}", "{tmp}"],
+    ...(keepEnv ? { keepEnv } : {}),
   });
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),
@@ -250,6 +251,46 @@ fs.writeFileSync("marker.json", JSON.stringify([process.env.AVOOZL_CHILD, proces
   assert.deepEqual(
     JSON.parse(fs.readFileSync(path.join(worktree, "marker.json"), "utf8")),
     ["1", id],
+  );
+});
+
+test("a keepEnv value from machine.env reaches the child and no other name does (MS5.2)", async (t) => {
+  const { stateDirectory, configDirectory, worktree, defer } = scratch(t, {
+    keepEnv: ["MODEL_KEY"],
+  });
+  fs.writeFileSync(
+    path.join(configDirectory, "machine.env"),
+    "MODEL_KEY=from-the-file\nOTHER_NAME=not-passed\n",
+    { mode: 0o600 },
+  );
+  fs.writeFileSync(
+    path.join(worktree, "agent.mjs"),
+    `import fs from "node:fs";
+fs.writeFileSync("seen.json", JSON.stringify([process.env.MODEL_KEY, process.env.OTHER_NAME ?? null]));`,
+  );
+  const db = openSupervisorDatabase(stateDirectory);
+  defer(() => db.close());
+  const id = requestChild(db, request(worktree));
+  const supervisor = startSupervisor({
+    stateDirectory,
+    configDirectory,
+    intervalMs: 60_000,
+  });
+  defer(() => supervisor.close());
+  await until(() => {
+    supervisor.pass();
+    return childStatus(db, id) !== "working";
+  });
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(path.join(worktree, "seen.json"), "utf8")),
+    ["from-the-file", null],
+    childLog(db, id),
+  );
+  // Nothing the server wrote down holds the value.
+  assert.doesNotMatch(
+    JSON.stringify(childRecord(db, id)) +
+      fs.readFileSync(childRecord(db, id).log_file, "utf8"),
+    /from-the-file/,
   );
 });
 

@@ -70,8 +70,10 @@ export async function startMachineServer({
   env = process.env,
 }) {
   let holder = runningSupervisor(stateDirectory);
-  let note = "";
+  let note = "",
+    stoppedPid = null;
   if (holder && replace && holder.build !== buildId()) {
+    stoppedPid = holder.pid;
     note = `${await stopMachineServer({ stateDirectory })} `;
     holder = null;
   }
@@ -83,10 +85,12 @@ export async function startMachineServer({
     starter,
     env,
   });
-  const found = await waitUntil(
-    () => runningSupervisor(stateDirectory),
-    20_000,
-  );
+  // Returned once a holder has written its own record with its control
+  // address; a record left by the server just stopped does not count.
+  const found = await waitUntil(() => {
+    const holder = runningSupervisor(stateDirectory);
+    return holder?.control && holder.pid !== stoppedPid ? holder : null;
+  }, 20_000).then((holder) => holder ?? runningSupervisor(stateDirectory));
   if (!found)
     throw Error(
       "The machine server did not take its lock within 20 seconds. See supervisor.log in the machine state folder.",

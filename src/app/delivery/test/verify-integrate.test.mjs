@@ -20,6 +20,7 @@ import {
   leaf,
   workerDone,
 } from "../../test/delivery-fixture.mjs";
+import { runOwnMachine } from "../../test/shim-run.mjs";
 
 const repo = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(repo, "hosts", "kirocrew");
@@ -83,12 +84,12 @@ test("the verifier agent ships with tool refs on the server key Kiro Crew regist
   for (const name of Object.keys(env))
     if (/^AVOOZL_/.test(name)) delete env[name];
   const served = JSON.parse(
-    execFileSync(
+    runOwnMachine(
       "python3",
       [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
       {
         cwd: dir,
-        encoding: "utf8",
+        dir,
         env,
         input:
           JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) +

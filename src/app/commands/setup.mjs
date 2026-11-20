@@ -1,7 +1,7 @@
 // CLI commands of one kind: command, help lines and run.
 import { workspaceConfig } from "../settings/config.mjs";
 import { WorkspaceRegistry } from "../settings/host-config.mjs";
-import { machineStatus } from "../workspace/machine-status.mjs";
+import { machineStatus, roleProblems } from "../workspace/machine-status.mjs";
 import { workflowSkill } from "../cli/skill.mjs";
 import { workspaceStatus } from "../workspace/workspace-status.mjs";
 import { initializeWorkspace } from "../workspace/workspace.mjs";
@@ -67,6 +67,9 @@ export async function runWorkspace({
         const named =
             typeof requestedWorkspace === "string" ? requestedWorkspace : null,
           registered = named ? registry.config.workspaces[named] : null;
+        const machine = machineStatus({
+          stateDirectory: machineStateDirectory(),
+        });
         result = {
           ...(named
             ? {
@@ -84,9 +87,10 @@ export async function runWorkspace({
               }
             : {}),
           ...result,
-          machine: machineStatus({
-            stateDirectory: machineStateDirectory(),
-          }),
+          machine,
+          ...(named
+            ? { roleProblems: roleProblems(config, machine.harnesses) }
+            : {}),
         };
       }
     } else if (action === "add") {

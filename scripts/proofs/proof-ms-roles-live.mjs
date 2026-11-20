@@ -1,35 +1,38 @@
 #!/usr/bin/env node
-// Proof nk-p2 (without-kirocrew NK1 to NK9, design D8): all of Avoozl on a
-// machine with no Kiro Crew. Every role runs as a `process` child under this
-// machine's supervisor and its headless tick, and a `command` sink is the
-// only notification channel.
+// Proof ms-p2 and ms-p3 (machine-server D6, D7), and ms-roles (without-kirocrew
+// D8): every role of Avoozl on one harness, with no front end open. The
+// machine server (`avoozl start`) runs the tick, the drain and every `process`
+// child, and a `command` sink is the only notification channel. One line per
+// row of ms-roles-rows.mjs says whether it reached its result.
 //
-//   (1) start a spec from a goal; (2) the plan review runs on a second model
-//   and one finding is answered; (3) approve from the command line; (4) tick
-//   until the tasks land, with investigate first on; (5) label a pull request
-//   for a review draft and ask for a reply on an issue; (6) read the sink's
-//   file and `avoozl status`. Run once with --agent claude, then again on a
-//   fresh root with --agent codex, which records each role Codex ran and each
-//   it could not, with the reason.
+//   1 start a spec from a goal; 2 the plan review runs on a second model and
+//   one finding is answered; 3 approve from the command line; 4 the tasks
+//   land with investigate first on; 5 label a pull request for a review draft
+//   and ask for a reply on an issue; 6 ask the assistant a question; 7 push a
+//   failing commit to main and see the line stop; 8 read the sink's file and
+//   `avoozl status`.
 //
 // Everything Avoozl keeps lives under --root, with its own Avoozl config and
 // state home (XDG_CONFIG_HOME, XDG_STATE_HOME). The only thing outside it is
 // --github: a scratch GitHub repository the owner made for this, empty, which
 // the run pushes to and opens one pull request and one issue in. Run it from
-// a terminal outside Kiro Crew, on a machine user with no Kiro Crew, as P59:
+// a terminal outside Kiro Crew, on a machine user with no Kiro Crew:
 //
-//   node scripts/proofs/proof-nk-p2-live.mjs --root DIR --github OWNER/SCRATCH [--agent claude|codex]
-//   node scripts/proofs/proof-nk-p2-live.mjs --root DIR --agent fake --offline
+//   node scripts/proofs/proof-ms-roles-live.mjs --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes]
+//   node scripts/proofs/proof-ms-roles-live.mjs --root DIR --harness fake-cli --offline
 //
-// `--agent fake --offline` checks this script's plumbing for steps 1 to 4
-// and 6 with no GitHub, and never counts as the proof.
+// `--harness fake-cli --offline` checks this script's plumbing with no GitHub
+// and a fake agent, and never counts as the proof. `--probes` also runs the
+// containment probes (ms-2.2) in a live child.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { installHarness, isolatedMachine, stopMachine } from "./machine.mjs";
+import { installHarness, isolatedMachine } from "./machine.mjs";
+import { ROWS } from "./ms-roles-rows.mjs";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -37,7 +40,7 @@ const REPO_ROOT = path.resolve(
   "..",
 );
 const CLI = path.join(REPO_ROOT, "cli.mjs");
-const PROXY_PORT = Number(process.env.NKP2_PROXY_PORT || 18462);
+const PROXY_PORT = Number(process.env.MSR_PROXY_PORT || 18462);
 const which = (name) =>
   spawnSync(`command -v ${name}`, {
     shell: true,
@@ -48,45 +51,45 @@ const { values } = parseArgs({
   options: {
     root: { type: "string" },
     github: { type: "string" },
-    agent: { type: "string", default: "claude" },
+    harness: { type: "string", default: "claude-code" },
     offline: { type: "boolean", default: false },
-    backend: { type: "boolean", default: false },
+    probes: { type: "boolean", default: false },
   },
 });
-const AGENT = values.agent;
-if (!values.root || !["claude", "codex", "fake"].includes(AGENT)) {
+const AGENT = { "claude-code": "claude", codex: "codex", "fake-cli": "fake" }[
+  values.harness
+];
+if (!values.root || !AGENT) {
   console.error(
-    "Usage: node scripts/proofs/proof-nk-p2-live.mjs --root DIR --github OWNER/SCRATCH [--agent claude|codex] | --root DIR --agent fake --offline",
+    "Usage: node scripts/proofs/proof-ms-roles-live.mjs --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes] | --root DIR --harness fake-cli --offline",
   );
   process.exit(64);
 }
 const OFFLINE = values.offline;
 if (OFFLINE && AGENT !== "fake")
-  throw Error("--offline is for --agent fake only.");
+  throw Error("--offline is for --harness fake-cli only.");
 if (!OFFLINE && !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(values.github ?? ""))
   throw Error("--github names the scratch repository as OWNER/NAME.");
 const GITHUB = values.github ?? null;
 const ROOT = path.resolve(values.root);
-const HARNESS = { claude: "claude-code", codex: "codex", fake: "fake-cli" }[
-  AGENT
-];
-const TAG = "nkp2";
+const HARNESS = values.harness;
+const TAG = "msr";
 const SPEC = `${TAG}-notes`;
 const LABELS = {
-  review: "nkp2:review",
-  drafted: "nkp2:drafted",
-  ask: "nkp2-ask",
-  answering: "nkp2:answering",
+  review: "msr:review",
+  drafted: "msr:drafted",
+  ask: "msr-ask",
+  answering: "msr:answering",
 };
 // Two different models: the plan review counts only on a second one.
 const MODELS = {
   claude: [
-    process.env.NKP2_MODEL || "global.anthropic.claude-sonnet-5",
-    process.env.NKP2_REVIEW_MODEL || "global.anthropic.claude-opus-5",
+    process.env.MSR_MODEL || "global.anthropic.claude-sonnet-5",
+    process.env.MSR_REVIEW_MODEL || "global.anthropic.claude-opus-5",
   ],
   codex: [
-    process.env.NKP2_MODEL || "openai.gpt-5.6-luna",
-    process.env.NKP2_REVIEW_MODEL || "openai.gpt-5.6",
+    process.env.MSR_MODEL || "openai.gpt-5.6-luna",
+    process.env.MSR_REVIEW_MODEL || "openai.gpt-5.6",
   ],
   fake: ["fake-writer", "fake-reviewer"],
 }[AGENT];
@@ -119,7 +122,7 @@ const event = (kind, data = {}) => {
     P.events,
     JSON.stringify({ at: new Date().toISOString(), kind, ...data }) + "\n",
   );
-  console.log(`[nk-p2] ${kind} ${JSON.stringify(data)}`);
+  console.log(`[ms-roles] ${kind} ${JSON.stringify(data)}`);
 };
 const git = (cwd, ...args) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -147,7 +150,7 @@ const operations = async (store) => {
   });
 };
 
-const CHECK = `// nk-p2 scratch check: each notes/*.txt holds one lowercase word and a newline.
+const CHECK = `// ms-roles scratch check: each notes/*.txt holds one lowercase word and a newline.
 import fs from "node:fs";
 import path from "node:path";
 const notes = fs.existsSync("notes") ? fs.readdirSync("notes").filter((n) => n.endsWith(".txt")) : [];
@@ -164,13 +167,15 @@ const SINK = `import fs from "node:fs";\nfs.appendFileSync(${JSON.stringify(P.si
 
 // The fake agent (plumbing only): each role's result, by its brief.
 const FAKE_AGENT = `import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 const text = fs.readFileSync(0, "utf8");
 // Name the model that served this run, as Claude Code's modelUsage does.
 const model = process.argv[process.argv.indexOf("--model") + 1];
 if (process.argv.includes("--model")) console.log(JSON.stringify({ modelUsage: { [model]: {} } }));
 const write = (value) => { fs.mkdirSync(".avoozl", { recursive: true }); fs.writeFileSync(".avoozl/result.json", JSON.stringify(value)); };
 const out = (name, body) => { fs.mkdirSync(".avoozl/output", { recursive: true }); fs.writeFileSync(".avoozl/output/" + name, body); write({ state: "done", output: name }); };
-if (/You are an Avoozl Falsifier/.test(text)) write({ state: "done", report: { verdict: "stands", evidence: "check.mjs reads notes/.", confidence: "medium" } });
+if (text.includes("probes/run.cjs")) { const m = /(\\S+) probes\\/run\\.cjs (\\S+)/.exec(text); console.log(execFileSync(m[1], ["probes/run.cjs", m[2]], { encoding: "utf8" })); }
+else if (/You are an Avoozl Falsifier/.test(text)) write({ state: "done", report: { verdict: "stands", evidence: "check.mjs reads notes/.", confidence: "medium" } });
 else if (/^You are the Avoozl Verifier/.test(text)) write({ state: "done", report: { checks: [{ command: "node check.mjs", exitCode: 0 }] } });
 else if (/review\\.json/.test(text) && /plans_submit_review/.test(text)) {
   out("review.json", JSON.stringify({ findings: [], summary: "The plan adds one note." }));
@@ -178,7 +183,7 @@ else if (/review\\.json/.test(text) && /plans_submit_review/.test(text)) {
 else if (/skip plans_create_plan/.test(text)) {
   fs.writeFileSync("requirements.md", "# Notes\\n\\nThe repository holds a note.\\n");
   fs.writeFileSync("design.md", "# Design\\n\\nOne file under notes/.\\n");
-  fs.writeFileSync("tasks.md", "# Tasks\\n\\n- [ ] 1.1 Write notes/beta.txt\\n  - $repo: app\\n  - $done: notes/beta.txt holds beta and a newline, and node check.mjs prints ok.\\n  - $checks: node check.mjs\\n");
+  fs.writeFileSync("tasks.md", "# Tasks\\n\\n- [ ] 1.1 Write notes/beta.txt\\n  - $repo: app\\n  - $done: notes/beta.txt holds beta and a newline, and node check.mjs prints ok.\\n");
 } else if (/"state": "findings"/.test(text)) write({ state: "findings", report: { read: "notes/", cause: "no note yet", plan: "add it", check: "node check.mjs", confidence: "high" } });
 else if (/^Go ahead/.test(text) || /Avoozl task/.test(text)) { fs.mkdirSync("notes", { recursive: true }); fs.writeFileSync("notes/beta.txt", "beta\\n"); write({ state: "done", text: "Wrote it." }); }
 `;
@@ -215,8 +220,8 @@ function definitionBytes() {
   ];
   const binary =
     AGENT === "claude"
-      ? process.env.NKP2_CLAUDE || which("claude")
-      : process.env.NKP2_CODEX || which("codex");
+      ? process.env.MSR_CLAUDE || which("claude")
+      : process.env.MSR_CODEX || which("codex");
   definition.start[0] = binary;
   definition.resume[0] = binary;
   return JSON.stringify(definition, null, 2) + "\n";
@@ -224,7 +229,7 @@ function definitionBytes() {
 
 async function setup() {
   if (fs.existsSync(ROOT) && fs.readdirSync(ROOT).length)
-    throw Error(`${ROOT} is not empty; nk-p2 runs once on a fresh root.`);
+    throw Error(`${ROOT} is not empty; ms-roles runs once on a fresh root.`);
   for (const dir of [ROOT, P.wt, P.agentHome])
     fs.mkdirSync(dir, { recursive: true });
   event("setup.start", {
@@ -240,20 +245,26 @@ async function setup() {
     git(ROOT, "init", "-q", "--bare", "-b", "main", P.origin);
     git(ROOT, "clone", "-q", P.origin, P.checkout);
   }
-  git(P.checkout, "config", "user.name", "nk-p2 Scratch");
+  git(P.checkout, "config", "user.name", "ms-roles Scratch");
   git(P.checkout, "config", "user.email", "nkp2@example.invalid");
   if (!fs.existsSync(path.join(P.checkout, "check.mjs"))) {
     git(P.checkout, "checkout", "-q", "-B", "main");
     fs.writeFileSync(
       path.join(P.checkout, "README.md"),
-      "nk-p2 scratch repository.\n",
+      "ms-roles scratch repository.\n",
     );
     fs.writeFileSync(path.join(P.checkout, "check.mjs"), CHECK);
     git(P.checkout, "add", ".");
-    git(P.checkout, "commit", "-q", "-m", "Start the nk-p2 scratch repository");
+    git(
+      P.checkout,
+      "commit",
+      "-q",
+      "-m",
+      "Start the ms-roles scratch repository",
+    );
     git(P.checkout, "push", "-q", "origin", "main");
   }
-  cli("init", P.ws, "--name", "nk-p2");
+  cli("init", P.ws, "--name", "ms-roles");
   cli("workspace", "add", TAG, "--root", P.ws);
   const login = GITHUB ? JSON.parse(gh("api", "user")).login : null;
   const configFile = path.join(P.ws, ".avoozl.json");
@@ -266,6 +277,8 @@ async function setup() {
   };
   config.lanes = { local: 2 };
   config.planReview = { mode: "auto", rounds: 1 };
+  // A retro after every landed task.
+  config.flow = { ...(config.flow || {}), retro: { everyTasks: 1 } };
   config.roles = Object.fromEntries(
     ROLES.map((role) => [role, { harness: HARNESS }]),
   );
@@ -299,6 +312,8 @@ async function setup() {
   const machine = fs.existsSync(machineFile)
     ? JSON.parse(fs.readFileSync(machineFile, "utf8"))
     : { version: 1 };
+  // A short pass, so the run takes minutes, not hours.
+  machine.machine = { ...(machine.machine || {}), tickSeconds: 10 };
   machine.notifications = {
     sinks: [
       {
@@ -355,7 +370,7 @@ async function setup() {
 function agentEnv() {
   const env = { ...process.env };
   if (AGENT === "fake") return env;
-  const claude = process.env.NKP2_CLAUDE || which("claude");
+  const claude = process.env.MSR_CLAUDE || which("claude");
   const settings = JSON.parse(
     fs.readFileSync(
       path.join(os.homedir(), ".claude", "settings.json"),
@@ -381,43 +396,6 @@ function agentEnv() {
     https_proxy: `http://localhost:${PROXY_PORT}`,
     NO_PROXY: "",
   };
-}
-
-// This machine's headless tick (R95.3): the supervisor, then one pass of
-// avoozl's own `tickCatalog` (tick, drain, checks, notifications to the
-// machine's sinks, and the Needs you items for anything that waits on Kiro
-// Crew), every few seconds.
-async function backend() {
-  const { tickCatalog } = await import("../../src/app/tick/headless-tick.mjs");
-  const { launchSupervisor } = await import(
-    "../../src/app/executors/supervisor.mjs"
-  );
-  const env = agentEnv();
-  const log = (line) =>
-    fs.appendFileSync(P.backendLog, `${new Date().toISOString()} ${line}\n`);
-  while (!fs.existsSync(path.join(ROOT, "stop-backend"))) {
-    const sup = launchSupervisor({
-      stateDirectory: MACHINE.stateDirectory,
-      configDirectory: MACHINE.configDirectory,
-      env,
-    });
-    if (sup.started) log(`supervisor started pid ${sup.pid}`);
-    try {
-      for (const result of await tickCatalog({
-        stateDirectory: MACHINE.stateDirectory,
-        configDirectory: MACHINE.configDirectory,
-      }))
-        if (
-          result.errors?.length ||
-          result.error ||
-          result.notifications?.sinks?.some((s) => s.error)
-        )
-          log(JSON.stringify(result));
-    } catch (error) {
-      log(`tick failure ${error.message}`);
-    }
-    await sleep(3000);
-  }
 }
 
 async function state() {
@@ -493,6 +471,104 @@ async function until(what, check, minutes) {
   }
 }
 
+async function liveProbes(minutes) {
+  const { probeArgv, RUN_PROBES } = await import(
+    "../../src/app/sandbox-probes.mjs"
+  );
+  const listener = net.createServer((socket) => socket.end());
+  await new Promise((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  const folder = path.join(P.ws, "probes");
+  fs.mkdirSync(folder, { recursive: true });
+  const probes = probeArgv({
+    node: process.execPath,
+    home: os.homedir(),
+    git_common_dir: path.join(P.checkout, ".git"),
+    other_worktree: P.wt,
+    config_directory: MACHINE.configDirectory,
+    state_directory: MACHINE.stateDirectory,
+    other_temp: path.join(os.tmpdir(), "avoozl-probe-other"),
+    public_host: "example.com",
+    closed_port: listener.address().port,
+    workspace_database: DB,
+    keychain_service: "Claude Code-credentials",
+    keep_env: "",
+  });
+  fs.writeFileSync(
+    path.join(folder, "probes.json"),
+    JSON.stringify(probes, null, 2),
+  );
+  fs.writeFileSync(path.join(folder, "run.cjs"), RUN_PROBES);
+  await withStore(async (store) => {
+    await (await operations(store)).execute(
+      "session.open",
+      {
+        message: `Run this one command in a shell, exactly, and reply with its output: ${process.execPath} probes/run.cjs probes/probes.json`,
+      },
+      undefined,
+      { local: true },
+    );
+  });
+  const before = Date.now();
+  let results = null;
+  while (!results && Date.now() - before < minutes * 60_000) {
+    for (const log of childLogs("assist"))
+      for (const line of log.split("\n"))
+        if (line.includes('"write-home"'))
+          try {
+            results = JSON.parse(
+              line.slice(line.indexOf("{"), line.lastIndexOf("}") + 1),
+            );
+          } catch {}
+    if (!results) await sleep(3000);
+  }
+  listener.close();
+  // A probe that got through leaves its file; take it away again.
+  for (const probe of probes)
+    if (probe.class === "write") fs.rmSync(probe.argv.at(-1), { force: true });
+  event("probes", { results });
+  return Boolean(results) && Object.values(results).every((code) => code !== 0);
+}
+
+// The logs of every child of this role.
+function childLogs(role) {
+  const children = path.join(MACHINE.stateDirectory, "supervisor", "children");
+  if (!fs.existsSync(children)) return [];
+  return fs
+    .readdirSync(children)
+    .map((id) => path.join(children, id, "log"))
+    .filter((file) => fs.existsSync(file))
+    .map((file) => fs.readFileSync(file, "utf8"))
+    .filter((text) => role === "assist" || text.includes(role));
+}
+
+async function untilTrue(what, check, minutes) {
+  const end = Date.now() + minutes * 60_000;
+  while (Date.now() < end) {
+    if (await check()) return event(`${what}.done`);
+    await sleep(3000);
+  }
+  event(`${what}.timeout`);
+}
+
+// Whether a child of this role has exited, on the machine's supervisor.
+async function childExited(role) {
+  const { openSupervisorDatabase } = await import(
+    "../../src/app/executors/supervisor.mjs"
+  );
+  const db = openSupervisorDatabase(MACHINE.stateDirectory);
+  try {
+    return Boolean(
+      db
+        .prepare(
+          "SELECT 1 FROM children WHERE role = ? AND state = 'exited' LIMIT 1",
+        )
+        .get(role),
+    );
+  } finally {
+    db.close();
+  }
+}
+
 // What each role did on this harness, for the receipt (step 7): ran, or
 // could not, with the supervisor's reason.
 async function rolesOnHarness() {
@@ -516,18 +592,71 @@ async function rolesOnHarness() {
   }
 }
 
+// The harness's own version line, for the receipt (ms-p2 item 4).
+function harnessVersion() {
+  if (AGENT === "fake") return "fake";
+  const binary = AGENT === "claude" ? "claude" : "codex";
+  try {
+    return execFileSync(
+      process.env.MSR_BINARY || which(binary),
+      ["--version"],
+      {
+        encoding: "utf8",
+      },
+    ).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+// One result per row: ok when every role it drives ran on `process`, FAIL when
+// one did not, skipped when the row cannot run offline or is not driven.
+async function rowResults(roles, now, { lineStopped }) {
+  const { rowFor } = await import("../../src/app/agents/role-table.mjs");
+  const ran = new Set(
+    Object.entries(roles)
+      .filter(([, entry]) => entry.ran > 0)
+      .map(([role]) => rowFor(role)?.setting)
+      .filter(Boolean),
+  );
+  const needsGithub = new Set(["responder", "pull-request-review"]);
+  return ROWS.map((row) => {
+    const base = { id: row.id, scenario: row.scenario, result: row.result };
+    if (row.driven === false)
+      return { ...base, state: "skipped", note: row.why };
+    if (row.id === "line-watch")
+      return { ...base, state: lineStopped ? "ok" : "FAIL", note: "step 7" };
+    const missing = row.drives.filter(
+      // A spec review with no findings has nothing to answer.
+      (role) =>
+        !ran.has(role) && !(role === "planAnswer" && now.findings === 0),
+    );
+    if (!missing.length) return { ...base, state: "ok" };
+    if (OFFLINE && needsGithub.has(row.id))
+      return { ...base, state: "skipped", note: "needs GitHub" };
+    return {
+      ...base,
+      state: "FAIL",
+      note: `${missing.join(", ")} did not run`,
+    };
+  });
+}
+
 async function prove() {
   const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
+  const { startMachineServer, stopMachineServer } = await import(
+    "../../src/app/executors/machine-server.mjs"
+  );
   if (AGENT !== "fake" && !sandboxKind())
     throw Error(
-      "No sandbox here (inside another sandbox?). Run nk-p2 from a terminal outside Kiro Crew.",
+      "No sandbox here (inside another sandbox?). Run ms-roles from a terminal outside Kiro Crew.",
     );
   if (
     AGENT !== "fake" &&
     fs.existsSync(path.join(os.homedir(), ".kiro", "crew"))
   )
     event("warning", {
-      text: "~/.kiro/crew exists: run nk-p2 as a machine user with no Kiro Crew for the proof to count.",
+      text: "~/.kiro/crew exists: run ms-roles as a machine user with no Kiro Crew for the proof to count.",
     });
   await setup();
   let proxy = null;
@@ -543,22 +672,16 @@ async function prove() {
     );
     await sleep(1000);
   }
-  const out = fs.openSync(P.backendLog, "a");
-  const backendProcess = spawn(
-    process.execPath,
-    [
-      fileURLToPath(import.meta.url),
-      "--root",
-      ROOT,
-      "--agent",
-      AGENT,
-      ...(GITHUB ? ["--github", GITHUB] : ["--offline"]),
-      "--backend",
-    ],
-    { stdio: ["ignore", out, out], env: process.env },
-  );
-  fs.closeSync(out);
-  const minutes = AGENT === "fake" ? 4 : 60;
+  // The machine server, started as a person starts it: `avoozl start`. It
+  // gets the agent's credentials in its own environment and no front end runs.
+  const started = await startMachineServer({
+    stateDirectory: MACHINE.stateDirectory,
+    configDirectory: MACHINE.configDirectory,
+    starter: "terminal",
+    env: agentEnv(),
+  });
+  event("server.start", { message: started.message });
+  const minutes = AGENT === "fake" ? 8 : 60;
   const expected = {};
   try {
     // (2) The plan is drafted, reviewed on the second model, and answered.
@@ -591,10 +714,8 @@ async function prove() {
         "--expect",
         now.plan.hash.slice(0, 16),
       );
-      // This machine drives the spec: publish its journal here, then take it
-      // over, each a person's act on the command line (R102.2, R102.8).
-      cli("spec", "publish", SPEC, "--workspace", P.ws);
-      cli("spec", "takeover", SPEC, "--workspace", P.ws);
+      // With GitHub, the spec's issues are made here, a person's act.
+      if (GITHUB) cli("spec", "publish", SPEC, "--workspace", P.ws);
       event("step3.approved");
     }
     // (4) The tasks land, with investigate first on.
@@ -607,15 +728,31 @@ async function prove() {
     expected["4 every task landed after investigate first"] =
       now.tasks.length > 0 &&
       now.tasks.every((t) => t.delivery === "integrated");
+    // A person asks for the landed task's summary; the retro is due too.
+    for (const task of now.tasks)
+      await withStore(async (store) => {
+        await (await operations(store)).execute(
+          "task.summary.request",
+          { id: task.id },
+          undefined,
+          { local: true },
+        );
+      });
+    await untilTrue(
+      "step4.summary-retro",
+      async () =>
+        (await childExited("task-summary")) && (await childExited("retro")),
+      minutes,
+    );
     // (5) A review draft on a labeled pull request, and a reply to an issue.
     if (GITHUB) {
       git(P.checkout, "fetch", "-q", "origin");
-      git(P.checkout, "checkout", "-q", "-B", "nkp2-change", "origin/main");
+      git(P.checkout, "checkout", "-q", "-B", "msr-change", "origin/main");
       fs.mkdirSync(path.join(P.checkout, "notes"), { recursive: true });
       fs.writeFileSync(path.join(P.checkout, "notes", "gamma.txt"), "gamma\n");
       git(P.checkout, "add", ".");
       git(P.checkout, "commit", "-q", "-m", "Add notes/gamma.txt");
-      git(P.checkout, "push", "-q", "-u", "origin", "nkp2-change");
+      git(P.checkout, "push", "-q", "-u", "origin", "msr-change");
       git(P.checkout, "checkout", "-q", "main");
       for (const label of Object.values(LABELS))
         spawnSync("gh", [
@@ -632,7 +769,7 @@ async function prove() {
         "--repo",
         GITHUB,
         "--head",
-        "nkp2-change",
+        "msr-change",
         "--base",
         "main",
         "--title",
@@ -674,6 +811,44 @@ async function prove() {
         ) &&
         now.responses.some((r) => r.state === "replied");
     }
+    // (6) The assistant answers a question from the page's Open chat.
+    await withStore(async (store) => {
+      await (await operations(store)).execute(
+        "session.open",
+        { message: "What does check.mjs check?" },
+        undefined,
+        { local: true },
+      );
+    });
+    event("step6.asked");
+    await untilTrue("step6.assist", () => childExited("assist"), minutes);
+    // The containment probes (ms-2.2, MS8.2) in a live child: the harness
+    // itself runs them by the one command its brief names.
+    if (values.probes)
+      expected["probes every probe was refused"] = await liveProbes(minutes);
+    // (7) A red head on main: the line stops, and no session is requested.
+    // On the landed main, pushed as a person would.
+    git(P.checkout, "checkout", "-q", "main");
+    git(P.checkout, "pull", "-q", "--ff-only", "origin", "main");
+    fs.mkdirSync(path.join(P.checkout, "notes"), { recursive: true });
+    fs.writeFileSync(path.join(P.checkout, "notes", "beta.txt"), "BAD\n");
+    git(P.checkout, "add", ".");
+    git(P.checkout, "commit", "-q", "-m", "Break the notes check");
+    git(P.checkout, "push", "-q", "origin", "HEAD");
+    event("step7.red-head");
+    const { openStops } = await import("../../src/app/flow/flow.mjs");
+    await untilTrue(
+      "step7.line",
+      () => withStore(async (store) => openStops(store).length > 0),
+      minutes,
+    );
+    now = await state();
+    const stopped = await withStore(async (store) => openStops(store).length);
+    expected[
+      "7 the line stopped on the red head and no watch session was requested"
+    ] =
+      stopped > 0 &&
+      !now.requests.some((r) => /watch|line/i.test(r.role ?? ""));
     expected[
       "1-5 every session ran on process, and no kirocrew request was written"
     ] =
@@ -706,7 +881,21 @@ async function prove() {
       status.kirocrew.waiting.length === 0 &&
       status.notifications.waiting === 0;
     const roles = await rolesOnHarness();
+    const rows = await rowResults(roles, now, {
+      lineStopped:
+        expected[
+          "7 the line stopped on the red head and no watch session was requested"
+        ],
+    });
+    for (const row of rows)
+      console.log(
+        `${row.state.padEnd(7)} ${row.id}: ${row.scenario} -> ${row.result}${row.note ? ` (${row.note})` : ""}`,
+      );
+    for (const row of rows) expected[`row ${row.id}`] = row.state !== "FAIL";
     const report = {
+      rows,
+      harness: HARNESS,
+      version: harnessVersion(),
       agent: AGENT,
       repo: GITHUB,
       avoozl: git(REPO_ROOT, "rev-parse", "HEAD"),
@@ -723,17 +912,16 @@ async function prove() {
     fs.writeFileSync(P.report, JSON.stringify(report, null, 2));
     event("report", { file: P.report, pass: report.pass, expected, roles });
     console.log(
-      `nk-p2 ${report.pass ? "PASS" : "FAIL"} on ${AGENT}${AGENT === "fake" ? " (fake agent: plumbing only, not the proof)" : ""}`,
+      `ms-roles ${report.pass ? "PASS" : "FAIL"} on ${AGENT}${AGENT === "fake" ? " (fake agent: plumbing only, not the proof)" : ""}`,
     );
   } finally {
-    await stopMachine({
-      root: ROOT,
-      backend: backendProcess,
-      proxy,
+    if (proxy) proxy.kill("SIGTERM");
+    // Children are detached and outlive the server; the run is over.
+    await stopMachineServer({
       stateDirectory: MACHINE.stateDirectory,
-    });
+      waitMs: 30_000,
+    }).catch((error) => event("server.stop-failed", { error: error.message }));
   }
 }
 
-if (values.backend) await backend();
-else await prove();
+await prove();

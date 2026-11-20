@@ -235,11 +235,7 @@ export const commands = [
   {
     command: "health",
     help: [
-      help(
-        "inspect",
-        "health [--url URL]",
-        "Ask a running app backend whether it is up",
-      ),
+      help("inspect", "health", "Ask a running app backend whether it is up"),
     ],
     async run({ endpoint }) {
       // The app backend answers /health; an older server answers /api/health.
@@ -250,7 +246,7 @@ export const commands = [
           response = await fetch(endpoint + "/api/health");
       } catch {
         throw Error(
-          `No Avoozl server answered at ${endpoint}. Pass --url URL for a running app backend, or run avoozl check --workspace PATH to validate the database.`,
+          `No Avoozl server answered at ${endpoint}. Run avoozl check --workspace PATH to validate the database.`,
         );
       }
       console.log(JSON.stringify(await response.json(), null, 2));
