@@ -1,0 +1,18 @@
+{
+  "title": "A phase opens once every task above it is ticked",
+  "rules": ["3.6"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "config": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["config/c-3"]
+  }
+}

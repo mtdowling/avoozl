@@ -1,0 +1,23 @@
+{
+  "title": "A spec linked twice, or a spec group with sub-items, is refused",
+  "rules": ["6.4"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "expect": {
+    "violations": {
+      "a": ["6.4"],
+      "b": ["6.4"],
+      "leaf": [],
+      "missing": ["6.4"]
+    }
+  },
+  "expectFail": {
+    "violations": "sim-2.5"
+  }
+}

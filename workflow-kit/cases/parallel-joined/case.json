@@ -1,0 +1,18 @@
+{
+  "title": "The task below a parallel group is ready once every child is ticked",
+  "rules": ["3.2", "3.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "epic-context": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["epic-context/ec-2.7"]
+  }
+}
