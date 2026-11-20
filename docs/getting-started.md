@@ -123,7 +123,7 @@ bullets that give its dependencies and what done means:
 Choose **New spec** on the Specs page. Review the lint results and the graph,
 then choose **Approve revision**. An approval is a commit on main authored by
 an approver, so a later edit reads as unapproved until you approve again. See
-[Specs](specs.md) for the full task format and for approvals.
+[Specs](avoozl-specs.md) for the full task format and for approvals.
 
 ## Deliver
 

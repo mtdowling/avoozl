@@ -71,5 +71,5 @@ Manual tasks and links are tested with a fake GitHub and have not run live.
 
 ## See also
 
-- [Specs](specs.md) for the `$` fact bullets
+- [Specs](avoozl-specs.md) for the `$` fact bullets
 - [Content rules](content-rules.md) for the check on each link

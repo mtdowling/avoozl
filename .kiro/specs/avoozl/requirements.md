@@ -5835,7 +5835,7 @@ folders live and a spec to need only its task list, so that a spec can be one
 6. Kiro's `requirements.md` (or `bugfix.md`) + `design.md` + `tasks.md`
    layout SHALL read, hash and lint as before, including a bugfix spec's
    Unchanged Behavior acceptance and the front-matter category.
-7. The planner prompt, templates, skills and `docs/specs.md` SHALL describe
+7. The planner prompt, templates, skills and `docs/avoozl-specs.md` SHALL describe
    the path setting, the one required file and other files as spec text.
 8. Tests SHALL show: a custom path; a `tasks.md`-only spec; an extra `.md`
    file changing the hash; refs with and without their files; Kiro's layout
