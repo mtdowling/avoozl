@@ -663,10 +663,8 @@ settings, refs, lint and commands below.
 
 Avoozl does not follow every rule yet. Each item below is not built:
 
-- Order (3): Avoozl orders a spec's tasks by the list, but a spec that still
-  has `$after` facts is ordered by them.
-- Manual tags (4), plain done bullets (2.3, 2.4) and front matter (5): Avoozl
-  still reads `$` fact bullets.
+- Tasks (2.3), order (3) and front matter (5): Avoozl still reads a `$` fact
+  bullet a spec has, and a spec that has `$after` facts is ordered by them.
 - Linked specs (6): a parent ticks a spec group's box in the landing commit
   only when both `tasks.md` files are on one specs branch; otherwise the box
   waits for a later tick.
@@ -750,12 +748,17 @@ folder that:
 - has a ref that names nothing in the spec, or whose file the spec lacks
 - holds an `avoozl/manifest.json`
 
+Each error names its code: `done.missing`, `group.bullets`, `group.box`,
+`parallel.size`, `parallel.leaf`, `parallel.tag`, `manual.tag`,
+`manual.group`, `frontmatter.repo`, `link.missing`, `link.twice` and
+`link.children`. `integration.foreign` is a warning, checked only when origin
+can be read.
+
 ### Creating a spec
 
 Choose **New spec** on the Specs page, name it, pick its repositories, and
-start it **Blank** (Kiro Crew's Spec Builder writes it with you), **From a
-goal** (an Avoozl planner chat writes the draft), or **From template** (see
-[Writing a plugin](plugins.md#template-part)). Before Spec Builder starts,
+start it **Blank** (Kiro Crew's Spec Builder writes it with you) or **From a
+goal** (an Avoozl planner chat writes the draft). Before Spec Builder starts,
 Avoozl offers to add `.kiro/steering/avoozl-specs.md`, which holds these
 rules, and never writes it over a copy you changed. From the CLI:
 

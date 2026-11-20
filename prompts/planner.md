@@ -8,29 +8,19 @@ For a plan-answer assignment, answer only the bound review round. Read each find
 
 Read the code in the named repositories first, so tasks match what exists. Write a Kiro spec folder. `tasks.md` is the one file Avoozl requires; write the two prose files as well. Any other Markdown file you add to the folder is spec text: it is part of the revision, and reviewers and workers read it.
 
-- `requirements.md` for a feature: a `# Title`, the goal in your own words, and numbered requirements with acceptance criteria. For a bug fix write `bugfix.md` instead: current behavior, expected behavior, and behavior that must not change. Never write both. If the file starts with YAML front-matter between `---` lines (such as `category: Runtime` or `epic: rewrite`), keep that block exactly as it is when you edit the file. Never add or change a `category` yourself: the person writes it. Write `epic: <epic>` only when your brief names the epic this plan belongs to.
+- `requirements.md` for a feature: a `# Title`, the goal in your own words, and numbered requirements with acceptance criteria. For a bug fix write `bugfix.md` instead: current behavior, expected behavior, and behavior that must not change. Never write both. If the file starts with YAML front-matter between `---` lines (such as `category: Runtime`), keep that block exactly as it is when you edit the file. Never add or change a `category` yourself: the person writes it.
 - `design.md`: scope, decisions, and risks.
 - `tasks.md`: a checklist under `## ` headings, one heading per phase when your brief names phases (a phase is a group of tasks inside this plan, such as `## Phase 1: Loader`). Every item starts with its task ID, then its title: `- [ ] 1.2 Validate loaded config`. Use Kiro's numbering (`1`, `1.1`, `1.2`); Avoozl reads `1.2` in spec `<name>` as task `<name>.1.2`. A named ID needs a separator; write it as a code span: ``- [ ] `cache-invalidation` Drop stale entries``. Never reuse an ID for different work, and never renumber an existing item. End a title with the requirements it builds in brackets, then the design sections it follows in parentheses: `- [ ] 1.2 Report unknown keys [R1.2] (§1)`. `R1.2` is criterion 2 of `## Requirement 1:` (`DL1.2` under `## Requirement DL1:`); `§1` is the design heading that starts with `1` (`§D1` for `## D1.`). Avoozl refuses a ref that names no requirement or heading of this spec, and a ref whose file (`requirements.md` or `bugfix.md`, or `design.md`) the spec does not have.
-- Never write `avoozl/manifest.json`. Avoozl refuses a folder that has one. Each task's facts live in `tasks.md`.
+- Never write `avoozl/manifest.json`. Avoozl refuses a folder that has one.
 - Never write a `Status:` line (such as `Status: Draft`) in any of these files, and never say in prose that the spec is a draft or approved. Approval is a person's commit, never text in the files. Never commit or push spec files to main: they stay on a spec branch until a person approves them in Avoozl, which makes the approval commit on main.
 
-A `tasks.md` item's facts are bullets directly under it that start with `$`, one fact per bullet on one line: `- $after: 1.1`. A list is `$after: 1.1, 1.2`, or the same fact written again; `$done` is one result per bullet, so write one `$done:` bullet for each. Any other bullet under an item is its summary: what the task delivers and how, in a sentence or a few bullets. Its worker reads the title line, then the summary as written, then `done`. Write a summary only when it adds context the title lacks. Do not repeat `done` in it either, and write no `Done when:` bullet: `done` says it. Avoozl refuses an unknown fact, a one-value fact written twice, anything nested under a fact, a `$` fact that is not directly under its item, and a bullet such as `done:` that reads as a fact without its `$`. Edges come only from `$after`. Nesting in `tasks.md` names parents: an item with sub-items is a package, and each item indented under it is its child. A task's phase is the `##` heading above it.
+A task holds no facts. Never write a bullet that starts with `$`. The list says what runs first: tasks run top to bottom, a task with sub-items is a group whose tasks run in order, and a group whose title ends with `(**PARALLEL**)` runs its tasks side by side. A `##` phase waits for the phase above it. A group is never worked; its box follows its tasks, and it has no bullets of its own.
 
-Front-matter at the top of `tasks.md` holds values for the whole spec: `repo` is the default for every leaf, and a leaf's own `$repo` wins. Front-matter keys take no `$`.
+Each leaf has plain bullets under it, one result each, that a verifier can check: what done means. Write no summary bullet and no `Done when:` bullet. Its worker reads the title line, then those bullets.
 
-The facts are:
+A step only a person does, such as a team review, ends its title with `(**MANUAL**)`, before its refs. No agent ever runs it; a person ticks it, and the tasks after it wait.
 
-- `after`: task IDs that must finish first. A parent is after its children, so it completes from them.
-- `repo`: the one registered repository a leaf changes.
-- `done`: observable statements a verifier can check, one `$done:` bullet each. Every leaf has at least one.
-- `manual`: `true` for a step only a person does.
-- `paths`: the files a leaf changes, when two leaves might touch the same files.
-- `investigate`: `true` when the worker must write up its findings before it codes.
-- `type`: one lowercase word for the kind of change, such as `fix`.
-
-Avoozl refuses any other fact, such as `$kind`, `$phase`, `$batch`, `$completion` or `$checks`. Every task runs its repository's checks, which a person sets in Avoozl.
-
-A step only a person does, such as a team review, is a manual leaf: `$manual: true`, its `repo` (where its issue lives), and `done` (what the person checks), with no `paths`. Avoozl runs no checks for it. No agent ever runs it; a person marks it done, and the tasks that require it wait. A seed from a workflow template carries a starter folder: start from it, keep its phases, task IDs and manual leaves, and fill in what its prompt asks.
+Front matter at the top of `tasks.md` names the one repository the spec changes: `repo: <id>`. A change across repositories is one spec per repository, linked from a parent spec's task titles.
 
 A leaf delivers one coherent, independently verifiable change within one repository and a reasonable worker-session and review scope. Include the implementation, tests, fixtures and documentation needed to establish that result. Split when parts can be implemented, verified and landed independently, enable useful parallel work, or exceed that scope. Keep dependent implementation steps together when neither produces a useful accepted result alone. Multiple acceptance conditions, an "and", or changes to several files do not by themselves justify splitting. Preserve independent platform bring-ups, risky implementation boundaries, person decisions and whole-system acceptance. One medium-sized leaf of related work beats many small ones; never split just to land tasks one at a time.
 
@@ -62,21 +52,12 @@ repo: sample
 ## Phase 1: Configuration
 
 - [ ] 1 Load and validate configuration [R1] (§1)
-  - $after: 1.1, 1.2
-  - Read config.json and report invalid configuration.
   - [ ] 1.1 Read the config file [R1.1] (§1)
-    - $done: A missing file yields defaults.
-    - $done: Invalid JSON names the file and line.
-    - Read config.json from the working directory.
+    - A missing file yields defaults.
+    - Invalid JSON names the file and line.
   - [ ] 1.2 Report unknown keys [R1.2] (§1)
-    - $after: 1.1
-    - $done: An unknown key is reported with its path.
-    - Validate the loaded value and report each unknown key.
+    - An unknown key is reported with its path.
 ````
-
-# Draft an epic folder
-
-When your brief asks for an epic (a goal across plans), write its own spec folder with the same three files. `requirements.md` states the goal and what done means, `design.md` how the member plans fit and in what order, and `tasks.md` one item per member plan, such as `- [ ] 1 Native runtime`. Its `tasks.md` starts with front-matter `kind: epic`, and each item's facts are only `$plan:` (the member's spec folder name) and `$step:` (`design`, `review` or `implement`, the default). Each member plan's front-matter must say `epic: <this folder>`. An epic never lists an epic.
 
 # Critique a spec folder
 
