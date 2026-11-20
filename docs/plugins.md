@@ -324,7 +324,7 @@ these permissions:
 | `land-workflows` | low | checks: read, contents: write, issues: read, metadata: read, pull_requests: write, statuses: write, workflows: write | Land approved work that changes .github/workflows |
 | `spec-branch` | low | contents: write, issues: write, metadata: read, pull_requests: write | Push spec branches and their pull requests |
 | `spec-issues` | low | contents: read, issues: write, metadata: read, pull_requests: read | Publish spec and task issues, claims and assignees |
-| `evidence` | low | contents: read, issues: write, metadata: read, pull_requests: read | Post the evidence comment on a pull request |
+| `review-output` | low | contents: read, issues: write, metadata: read, pull_requests: read | Post review output on a pull request or spec issue |
 | `respond` | low | discussions: write, issues: write, metadata: read | Answer discussions and issues |
 | `integration` | low | checks: read, contents: write, metadata: read, statuses: read | Move an epic's integration branch |
 | `worker-grants` | low | contents: write, issues: write, metadata: read | Open and checkpoint worker branches |

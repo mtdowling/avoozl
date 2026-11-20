@@ -74,6 +74,7 @@ import { claimsDue, refreshClaims } from "../workers/claims.mjs";
 import { readLabelFilters } from "../specs/label-filters.mjs";
 import { readSpecAssignees } from "../specs/spec-assignee.mjs";
 import { readLabeledIssues } from "../specs/labeled-issues.mjs";
+import { postReviewOutput } from "../delivery/review-output.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -793,6 +794,18 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: `Avoozl could not read the spec issues in ${failed.repository}`,
+            text: failed.error,
+          });
+      // Review rounds and failing checks as comments (workflow v1 rule 19).
+      if (script && github)
+        for (const failed of await under(
+          "tick",
+          "review-output",
+          postReviewOutput,
+        )(store, github))
+          planned.notify.push({
+            channel: "failure",
+            title: `Avoozl could not post review output in ${failed.repository}`,
             text: failed.error,
           });
       // Closed intake items no task holds go after 30 days.
