@@ -53,19 +53,52 @@ export function buildAgents({ root = repositoryRoot, check = false } = {}) {
   for (const file of fs.readdirSync(directory))
     if (file.endsWith(".json") && !expected.has(file))
       throw Error(`Agent has no prompt metadata: ${file}.`);
+  const drift = [
+    ...writeGenerated(directory, expected, check),
+    ...buildSkills(root, manifest, check),
+  ];
+  if (drift.length)
+    throw Error(
+      `Generated agents or skills differ from their prompts or metadata: ${drift.join(", ")}. Run npm run build:agents.`,
+    );
+  return [...expected.keys()];
+}
+
+function writeGenerated(directory, expected, check) {
   const drift = [];
   for (const [file, text] of expected) {
     const target = path.join(directory, file),
       current = fs.existsSync(target) ? fs.readFileSync(target, "utf8") : null;
     if (current === text) continue;
     if (check) drift.push(file);
-    else fs.writeFileSync(target, text);
+    else {
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, text);
+    }
   }
-  if (drift.length)
-    throw Error(
-      `Generated agents differ from role prompts or metadata: ${drift.join(", ")}. Run npm run build:agents.`,
-    );
-  return [...expected.keys()];
+  return drift;
+}
+
+// Each prompts/skills/<name>.md is the whole skill any agent runner reads;
+// kirocrew-app/skills/<name>/SKILL.md is its installed copy.
+function buildSkills(root, manifest, check) {
+  const source = path.join(root, "prompts", "skills"),
+    expected = new Map();
+  for (const file of fs.existsSync(source) ? fs.readdirSync(source) : []) {
+    if (!file.endsWith(".md")) continue;
+    const name = file.slice(0, -3),
+      text = fs.readFileSync(path.join(source, file), "utf8");
+    if (!text.startsWith(`---\nname: ${name}\n`))
+      throw Error(`Skill prompt ${file} must start with name: ${name}.`);
+    if (!manifest.skills?.includes(`skills/${name}`))
+      throw Error(`app.json must list skills/${name}.`);
+    expected.set(path.join(name, "SKILL.md"), text);
+  }
+  return writeGenerated(
+    path.join(root, "kirocrew-app", "skills"),
+    expected,
+    check,
+  );
 }
 
 if (

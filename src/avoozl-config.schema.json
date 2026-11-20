@@ -157,9 +157,6 @@
         },
         "prReview": {
           "$ref": "#/$defs/harnessRole"
-        },
-        "triage": {
-          "$ref": "#/$defs/harnessRole"
         }
       }
     },
@@ -885,7 +882,6 @@
               "task.complete",
               "github",
               "github.issue",
-              "github.issue.triage",
               "github.issue.implement",
               "github.pr",
               "github.pr.review"
@@ -1374,43 +1370,6 @@
                 "type": "string",
                 "minLength": 1
               }
-            }
-          }
-        },
-        "triage": {
-          "type": "object",
-          "description": "The triage agent for this repository: it answers, reproduces, fixes and reviews new issues and pull requests.",
-          "additionalProperties": false,
-          "properties": {
-            "agent": {
-              "enum": ["on", "off"],
-              "default": "off",
-              "description": "Set by Set up triage on the Triage agent page (avoozl triage setup) and by Turn off; repository onboarding never sets it."
-            },
-            "existing": {
-              "enum": ["take", "skip"],
-              "default": "skip",
-              "description": "Whether the agent takes the open items already there when it is turned on, or only new ones."
-            },
-            "dailyRuns": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 1000,
-              "default": 50
-            },
-            "fullReviewMaxLines": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100000,
-              "default": 300
-            },
-            "labels": {
-              "enum": ["suggest", "add"],
-              "default": "suggest"
-            },
-            "reviews": {
-              "enum": ["post", "draft"],
-              "default": "post"
             }
           }
         },

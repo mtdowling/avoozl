@@ -205,7 +205,6 @@ const ROLE_AGENTS = {
   responder: "avoozl-responder",
   retro: "avoozl-retro",
   "pr-review": "avoozl-code-review",
-  triage: "avoozl-triage",
   falsifier: "avoozl-falsifier",
   "plan-review": "avoozl-plan-review",
   "plan-answer": "avoozl-planner",

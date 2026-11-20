@@ -429,66 +429,6 @@ export const commands = [
       );
     },
   },
-  // The triage agent (triage-agent TA12): Set up triage is its one way on.
-  {
-    command: "triage",
-    help: [
-      help(
-        "setup",
-        "triage setup OWNER/REPO [--existing take|skip] [--daily-runs N]\n[--review-lines N] [--harness NAME] [--labels bug,question] [--confirm]",
-        "Preview turning the triage agent on; add --confirm to make the labels and turn it on (a person only)",
-      ),
-      help(
-        "setup",
-        "triage off OWNER/REPO",
-        "Turn the triage agent off; labels stay (a person only)",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      const action = positionals[0],
-        repository = need(positionals[1], `triage ${action} OWNER/REPO`),
-        number = (value) => (value === undefined ? undefined : Number(value));
-      if (action !== "setup" && action !== "off")
-        throw Error("Choose triage setup or triage off.");
-      const value =
-        action === "off"
-          ? { repository }
-          : {
-              repository,
-              confirm: Boolean(options.confirm),
-              existing: options.existing,
-              dailyRuns: number(options["daily-runs"]),
-              fullReviewMaxLines: number(options["review-lines"]),
-              harness: options.harness,
-              createLabels: options.labels
-                ?.split(",")
-                .map((name) => name.trim())
-                .filter(Boolean),
-            };
-      // Making labels is high risk: shown and asked first (PC13.6).
-      if (action === "setup" && value.confirm) {
-        refuseAgentYes(options.yes === true);
-        const preview = await localOrRequest("triage.setup", {
-          repository,
-        });
-        const grants = await confirmHighRisk(
-          (preview.writes || []).filter((write) =>
-            (value.createLabels || []).includes(write.label),
-          ),
-          { yes: options.yes === true, localOrRequest },
-        );
-        if (grants === null) return console.log(CANCELLED);
-        value.allow = grants;
-      }
-      console.log(
-        JSON.stringify(
-          await localOrRequest(`triage.${action}`, value),
-          null,
-          2,
-        ),
-      );
-    },
-  },
   {
     command: "mirror",
     help: [

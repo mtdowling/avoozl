@@ -18,8 +18,7 @@ import { kirocrewSession, kirocrewDispatches } from "../executors/kirocrew.mjs";
 // children, and plans dispatches: one per open session request, ready local
 // leaves when `.avoozl.json` turns delivery on, and one verifier per worker
 // done report. On the cron it also reads and writes GitHub: completion,
-// the triage agent, broad-issue publishing, re-projection and the Project
-// board.
+// broad-issue publishing, re-projection and the Project board.
 import { recordActivity, recordTickActivity } from "../store/activity-log.mjs";
 import fs from "node:fs";
 import { refuseTrackedProviders } from "../flow/provider-health.mjs";
@@ -81,7 +80,6 @@ import { reviewDispatches } from "../reviews/pr-review.mjs";
 import { investigationStep } from "../delivery/investigate.mjs";
 import { revertCorrections } from "../flow/corrections.mjs";
 import { evidenceCommentStep } from "../tasks/evidence.mjs";
-import { triageStep } from "../intake/triage.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -113,7 +111,7 @@ import {
 import { mirrorPublicPollStep } from "../mirror/mirror-forward-poll.mjs";
 import { headStep } from "../epics/integration-head.mjs";
 import { recordHealth } from "../plugins/plugin-session.mjs";
-import { repositoryPlugins, triageBlock } from "../plugins/plugins.mjs";
+import { repositoryPlugins } from "../plugins/plugins.mjs";
 import {
   pollSources,
   purgeClosed,
@@ -861,25 +859,6 @@ async function runTick(
             text: error.message,
           });
         }
-      // The triage agent (triage-agent §D2): read what changed, queue one
-      // run per new item, and carry out finished runs' writes.
-      let triage = { dispatch: [], notify: [] };
-      if (script && github)
-        try {
-          triage = await under("triage", "triage", triageStep)(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-            config: memory.value || {},
-            workspaceRoot,
-            block: triageBlock(plugins?.options),
-          });
-          planned.notify.push(...triage.notify);
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not run the triage agent",
-            text: error.message,
-          });
-        }
       // The evidence comment on each open pull request (§4.22, R76.4).
       if (script && github && delivery)
         try {
@@ -1086,7 +1065,6 @@ async function runTick(
         ...responders.filter((d) => !heldTask(d.task)),
         ...retro.dispatch,
         ...reviews.filter((d) => !heldTask(d.task)),
-        ...triage.dispatch,
       ];
       // Settings › Models: the planner and retro chats open on
       // the saved model.

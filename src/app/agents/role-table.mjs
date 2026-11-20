@@ -5,7 +5,6 @@
 // executor every dispatch uses: the task's `session.harness` pin, then the
 // role's saved harness, then the repository's executor.
 import { harnessExecutor, roleHarness } from "../settings/chat-models.mjs";
-import { TRIAGE_OUTPUT_LIMIT, triageOutput } from "../intake/triage-result.mjs";
 import { decideOutput } from "../plugins/decide-output.mjs";
 
 // The executor a repository's sessions run on: its `executor` setting, else
@@ -267,32 +266,6 @@ export const ROLE_TABLE = Object.freeze({
     finish: () => [
       "You run without Avoozl's tools or network. The pull request is in pull-request/ in the current folder: read pull-request/README.md first. Do not run gh.",
       'Write your whole review, each comment with its file and line, to .avoozl/output/review.md, then write .avoozl/result.json as {"state": "done", "output": "review.md"}. Avoozl keeps it with this session and posts nothing.',
-      "Write no other file, then exit.",
-    ],
-  },
-  // The triage agent (triage-agent §D2): one item's snapshot, read only and
-  // offline; its one result goes in an output file, and Avoozl makes every
-  // GitHub write after the content rules pass.
-  triage: {
-    setting: "triage",
-    roles: ["triage"],
-    prompt: "triage",
-    process: true,
-    access: "read",
-    folder: "snapshot",
-    scratch: "avoozl-triage-",
-    offline: true,
-    snapshot: async (store, request, options) =>
-      (await import("../intake/triage.mjs")).triageSnapshot(
-        store,
-        request,
-        options,
-      ),
-    hands: "triage",
-    output: { limit: TRIAGE_OUTPUT_LIMIT, validate: triageOutput },
-    finish: () => [
-      "You run without Avoozl's tools or network. Read README.md in the current folder first: the item is in item/, a pull request's diff in pull-request/, and the repository's files in repo/. Do not run gh or any command.",
-      'Write your one result to .avoozl/output/triage.json as the JSON object your instructions describe, then write .avoozl/result.json as {"state": "done", "output": "triage.json"}. Cite repository files by their path under repo/, without the repo/ prefix.',
       "Write no other file, then exit.",
     ],
   },

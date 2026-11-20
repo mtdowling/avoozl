@@ -1,12 +1,8 @@
 // Needs you: everything that stops until a person acts. Decisions and
-// conflicts come from Conflicts; the items the triage agent handed over
-// come from the GitHub pages' owner queue.
-// Two pages (Decisions, From the agent), picked in the left nav; each change
-// is a Back step.
+// conflicts come from Conflicts.
 // Decisions follow Kiro Crew's list-detail pattern: a dense list in the
 // middle column, one item's details and actions on the right.
 import ConflictsView from './ConflictsView.tsx'
-import GitHubItemsView from './GitHubItemsView.tsx'
 import { ViewHeading } from './ui/controls.tsx'
 import { WAITING_SECTIONS, type WaitingSection } from './nav-api.ts'
 import { Hint } from './ui/Hint'
@@ -35,11 +31,7 @@ export default function WaitingView(props: {
         {section.line}
       </Hint>
       <Box minH0 flex1 data-waiting-section={section.key} data-open="true">
-        {open === 'agent' ? (
-          <GitHubItemsView workspaceId={props.workspaceId} kind="all" ownerOnly embedded />
-        ) : (
-          <ConflictsView workspaceId={props.workspaceId} embedded decision={props.decision ?? null} onLeaveDecision={props.onLeaveDecision} />
-        )}
+        <ConflictsView workspaceId={props.workspaceId} embedded decision={props.decision ?? null} onLeaveDecision={props.onLeaveDecision} />
       </Box>
     </Box>
   )

@@ -1,4 +1,4 @@
-// Phase 5 of triage-agent (TA11): label commands, the Issue Radar
+// Label commands, the Issue Radar
 // integration, public crews and review drafts are gone, with no backward
 // compatibility. Their operations and commands answer as unknown ones, their
 // modules are deleted and nothing imports them, and the app asks for no

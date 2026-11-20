@@ -161,7 +161,7 @@ test("fix work, the investigate fact, and a task's ship mode", () => {
   assert.equal(isFixWork(leaf("x", { type: "feature" })), false);
   assert.throws(() => validateProposal({ ...leaf("x"), investigate: "yes" }));
   validateProposal({ ...leaf("x"), investigate: false });
-  // The task's own (triage sets one), then auto-merge; a repository's
+  // The task's own, then auto-merge; a repository's
   // landing.autoMerge is landing-block.test.mjs's.
   assert.equal(shipMode(null, leaf("x", { ship: "manual" })), "manual");
   assert.equal(shipMode(null, leaf("x")), "auto-merge");

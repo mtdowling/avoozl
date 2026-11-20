@@ -365,7 +365,6 @@ export interface ConflictItem extends TaskOwner {
     | 'forward-audit'
     | 'public-branch'
     | 'disk'
-    | 'triage-blocked'
     | 'phase-check'
     | 'required-check'
     | 'plugin-check-clash'

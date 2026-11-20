@@ -43,12 +43,12 @@ test('Settings opens in the nav; the page shows one section; Needs you does the 
   await click('[data-nav-item="settings/models"]')
   await page.until(`document.querySelector('[data-settings-section]').dataset.settingsSection === 'models'`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
-  // Opening Needs you shuts Settings; its two sections are nav pages.
+  // Opening Needs you shuts Settings; its section is a nav page.
   await click('[data-nav-group="waiting"]')
   await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
   assert.equal(await has('[data-nav-children="settings"]'), false, 'Settings shuts')
-  await click('[data-nav-item="waiting/agent"]')
-  await page.until(`document.querySelector('[data-waiting-section][data-open="true"]')?.dataset.waitingSection === 'agent'`)
+  await click('[data-nav-item="waiting/decisions"]')
+  await page.until(`document.querySelector('[data-waiting-section][data-open="true"]')?.dataset.waitingSection === 'decisions'`)
   assert.equal(await has('[data-waiting-tabs]'), false, 'no section tabs in the page')
   // A header click on an open section shuts it.
   await click('[data-nav-group="waiting"]')

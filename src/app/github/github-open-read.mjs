@@ -2,9 +2,7 @@
 // interval, kept in SQLite (design §4.12, R50.4). Spec pull requests
 // (spec-pull-requests.mjs) and the code review chat (pr-review.mjs) read it,
 // and closed input issues withdraw their tasks at the same pace
-// (github-intake.mjs watchInputs). It lists nothing on a page: the Issues
-// and Pull requests pages read the triage agent's item table instead
-// (triage-agent TA8.7).
+// (github-intake.mjs watchInputs).
 //
 // Each item the search returned is a `github` incoming item, and each
 // repository's read state is its `intake_sources` row `github:<repository>`

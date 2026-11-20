@@ -10,7 +10,7 @@ import { GitHubClient } from "../github.mjs";
 test("GitHub comment clients use the issue and pull-request review endpoints", async () => {
   const requests = [],
     github = defaultJob(
-      "page-actions",
+      "spec-branch",
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",
@@ -44,7 +44,7 @@ test("GitHub comment clients use the issue and pull-request review endpoints", a
 test("GitHub pull-request files stop at the requested safe bound", async () => {
   const requests = [],
     github = defaultJob(
-      "page-actions",
+      "spec-branch",
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",
@@ -85,7 +85,7 @@ test("GitHub pull-request files stop at the requested safe bound", async () => {
 test("GitHub Queue list clients consume every page", async () => {
   const requests = [],
     github = defaultJob(
-      "page-actions",
+      "spec-branch",
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",
@@ -128,7 +128,7 @@ test("GitHub Queue list clients consume every page", async () => {
 test("GitHub pagination fails instead of silently truncating at its safe cap", async () => {
   let requests = 0;
   const github = defaultJob(
-    "page-actions",
+    "spec-branch",
     new GitHubClient({
       credentials: fixedCredentials("test-token"),
       apiUrl: "https://api.example.test",
@@ -156,7 +156,7 @@ test("GitHub pagination fails instead of silently truncating at its safe cap", a
 test("GitHub dependency clients use issue database IDs", async () => {
   const requests = [],
     github = defaultJob(
-      "page-actions",
+      "spec-branch",
       new GitHubClient({
         credentials: fixedCredentials("test-token"),
         apiUrl: "https://api.example.test",

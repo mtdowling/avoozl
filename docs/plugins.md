@@ -35,7 +35,6 @@ lists the parts the plugin provides:
 | `rules`    | Content rule sets supplied while Avoozl runs                      | Yes       |
 | `intake`   | An intake source: its `poll` brings outside work in               | Yes       |
 | `template` | A workflow template that starts a new spec from a reusable folder | No        |
-| `policy`   | A limit this machine holds Avoozl to, such as no triage agent     | No        |
 | `credentials` | GitHub tokens, per job, from the organization's own provider | Yes, in its own process |
 | `checks`   | Checks Avoozl runs on the repositories they name                  | As checks |
 
@@ -61,7 +60,7 @@ These keys appear in the manifest:
   Settings shows it as **Contract version**. This Avoozl supports contract
   version `1`.
 - `provides` lists the parts: `pack`, `rules`, `intake`, `template`,
-  `policy`, `credentials` and `checks`.
+  `credentials` and `checks`.
 - `checks` maps a check name to its definition, and `servers` names the MCP
   servers its MCP steps use. See [Checks part](#checks-part).
 - `capabilities` lists optional features per kind. An intake part may list
@@ -69,7 +68,7 @@ These keys appear in the manifest:
 - `pack` names the pack file inside the folder; it defaults to
   `avoozl-pack.json`.
 - `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides
-  only data parts (`pack`, `template`, `policy`) or `checks` starts no plugin
+  only data parts (`pack`, `template`) or `checks` starts no plugin
   process, so it has no
   `entry`; Avoozl refuses one that names an entry, and never starts a
   process for it.
@@ -363,36 +362,6 @@ yet.
 A starter may hold manual tasks (`"manual": true`): steps only a person
 does. See [Manual tasks and task links](manual-tasks.md).
 
-## Policy part
-
-A policy part is a limit a machine holds Avoozl to. It is data only, so a
-plugin that provides only `policy` has no `entry` and runs no code. The one
-limit so far blocks the [triage agent](triage.md):
-
-```json [avoozl-plugin.json]
-{
-  "id": "team-policy",
-  "version": "1.0.0",
-  "contract": 1,
-  "provides": [
-    "policy"
-  ],
-  "policy": {
-    "triage": "blocked",
-    "reason": "Our team triages issues by hand."
-  }
-}
-```
-
-`triage` must be `"blocked"` and `reason` 1 to 300 characters. Avoozl
-reads the policy only from a plugin declared in this machine's `plugins.json`
-and approved here, so the block stays on this machine: a plugin that
-`.avoozl.json` declares sets no policy, and the block never writes the
-repository. While it holds, **Set up triage** shows the reason instead of
-its button, `avoozl triage setup` and `triage.setup` refuse with it, and a
-repository whose agent is on runs no triage and shows one Needs you row.
-Disable or remove the plugin to lift the block.
-
 ## Credentials part
 
 A credentials part signs Avoozl in to GitHub through the organization's own
@@ -455,10 +424,10 @@ for one makes it invalid, with a reason that names the file and the key
 
 ```js [token.mjs]
 // A fake provider: asks the organization's token service for a token
-// scoped to one repository and the job's permissions, and refuses triage.
+// scoped to one repository and the job's permissions, and refuses replies.
 export const credentials = {
   async token({ repository, owner, permissions, purpose }, { config }) {
-    if (purpose === "triage") throw Error("acme does not allow triage comments.");
+    if (purpose === "respond") throw Error("acme does not allow agent replies.");
     const reply = await fetch(config.serviceUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -519,9 +488,7 @@ these permissions:
 | `spec-branch` | low | contents: write, issues: write, metadata: read, pull_requests: write | Push spec branches and their pull requests |
 | `spec-issues` | low | contents: read, issues: write, metadata: read, pull_requests: read | Publish spec and task issues, claims and assignees |
 | `evidence` | low | contents: read, issues: write, metadata: read, pull_requests: read | Post the evidence comment on a pull request |
-| `triage` | low | contents: read, issues: write, metadata: read, pull_requests: write | Comment on and label new issues (triage agent) |
 | `respond` | low | discussions: write, issues: write, metadata: read | Answer discussions and issues |
-| `page-actions` | low | contents: read, issues: write, metadata: read, pull_requests: write | A person's comment, label, assignee or review |
 | `integration` | low | checks: read, contents: write, metadata: read, statuses: read | Move an epic's integration branch |
 | `worker-grants` | low | contents: write, issues: write, metadata: read | Open and checkpoint worker branches |
 | `workspace-publish` | low | contents: write, metadata: read, pull_requests: write | Publish a workspace repository |
@@ -529,14 +496,13 @@ these permissions:
 | `repo-setup` | high | administration: write, issues: write, metadata: read | Create labels and set up repository checks |
 | `issue-types-setup` | high | organization_administration: write | Create an organization's issue types |
 | `landing-setup` | high | administration: write, metadata: read, statuses: write, variables: write | Set rulesets, repository settings and variables |
-| `triage-setup` | high | issues: write, metadata: read | Create the triage agent's labels |
 | `branch-delete` | high | contents: write, metadata: read | Delete a branch |
 
 A `high` job asks first. Before any provider is asked for its token, the
 page shows one confirm naming the repository (or owner), the action and these
 exact permissions, with **Allow** and **Cancel**; `gh` and `env` too. Set
-up GitHub, landing setup and triage setup list each write's job and
-permissions in their own confirm. **Allow** lets that one step ask once,
+up GitHub and landing setup list each write's job and permissions in
+their own confirm. **Allow** lets that one step ask once,
 within 10 minutes; **Cancel** writes nothing and the rest of setup goes on.
 The CLI shows the same lines and asks `Allow? [y/N]`, or takes `--yes`.
 The tick, agents and MCP cannot allow a high job, so there it fails as

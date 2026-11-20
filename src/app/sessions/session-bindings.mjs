@@ -24,8 +24,6 @@ const ROLES = new Set([
   "task-summary",
   // Tries to prove a worker's findings wrong (§4.21).
   "falsifier",
-  // One issue or pull request's triage run (triage.mjs).
-  "triage",
   // One plugin check's decide call (check-decide.mjs).
   "check-decide",
 ]);
@@ -148,8 +146,6 @@ export function bindSession(
         // A page-opened assistant binds to its record (session-open.mjs).
         (role === "assist" &&
           store.get("receipts", named)?.kind === "assist-session") ||
-        // A triage session binds to its run (triage.mjs).
-        (role === "triage" && store.get("triage_runs", named)) ||
         // A decide session binds to its call (check-decide.mjs).
         (role === "check-decide" &&
           store.get("flow_records", named)?.kind === "check-decide") ||

@@ -1,6 +1,6 @@
 // The Workflow map: the model from saved settings, and the page drawn in a
-// real Chrome (skipped when none is found) for three configs. GitHub work
-// comes in through the triage agent; no label is an order (triage-agent).
+// real Chrome (skipped when none is found) for three configs. No label is
+// an order.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { toForm, toPolicy } from '../src/settings-api.ts'
@@ -20,31 +20,15 @@ const map = (policy, mode = policy.mode) => {
 const cards = (built, lane) => built.lanes.find((item) => item.key === lane).cards
 const valueOf = (card, label) => card.values.find((value) => value.label === label)
 
-test('a GitHub repository: the triage lane and the spec lane, and no labels', () => {
-  const built = map(SINGLE)
-  assert.deepEqual(
-    built.lanes.map((lane) => lane.key),
-    ['triage', 'spec'],
-  )
-  assert.deepEqual(built.labels, [])
-  const fix = cards(built, 'triage').find((card) => card.key === 'triage-fix')
-  assert.equal(valueOf(fix, 'Allowed people').text, 'sam, lee')
-  assert.equal(valueOf(fix, 'Allowed people').source, 'set')
-  assert.equal(cards(built, 'triage').find((card) => card.key === 'triage-close').who, 'github')
-})
-
-test('an unset value shows the default and says so', () => {
-  const policy = structuredClone(SINGLE)
-  delete policy.repositories['example/code'].allowedActors
-  const fix = cards(map(policy), 'triage').find((card) => card.key === 'triage-fix')
-  assert.equal(valueOf(fix, 'Allowed people').text, 'anyone with write access')
-  assert.equal(valueOf(fix, 'Allowed people').source, 'default')
-})
-
-test('plans-repo mode: the plans repository closes the issue', () => {
-  const close = cards(map(PLANS), 'triage').find((card) => card.key === 'triage-close')
-  assert.equal(close.who, 'avoozl')
-  assert.match(close.text, /example\/plans/)
+test('a GitHub repository: the spec lane, and no labels', () => {
+  for (const policy of [SINGLE, PLANS]) {
+    const built = map(policy)
+    assert.deepEqual(
+      built.lanes.map((lane) => lane.key),
+      ['spec'],
+    )
+    assert.deepEqual(built.labels, [])
+  }
 })
 
 test('Local only shows one local-worker lane, no labels, and says why', () => {
@@ -93,7 +77,7 @@ test('the conflict count round-trips', () => {
 })
 
 test('every who has its own theme-variable color', () => {
-  assert.equal(new Set(Object.values(WHO_COLOR)).size, 4)
+  assert.equal(new Set(Object.values(WHO_COLOR)).size, 3)
   for (const color of Object.values(WHO_COLOR)) assert.match(color, /^var\(--/)
   assert.equal(fieldSelector('x', 'actors'), '#x-actors')
 })
@@ -122,20 +106,17 @@ async function draw(config, width = 1280, extra = {}) {
 }
 const shown = (page, selector) => page.evaluate(`[...document.querySelectorAll(${JSON.stringify(selector)})].map((el) => el.textContent)`)
 
-test('page: a single repository draws two lanes, and no horizontal scroll at 320 px', { skip }, async () => {
+test('page: a single repository draws one lane, and no horizontal scroll at 320 px', { skip }, async () => {
   const page = await draw('single', 320)
-  const text = await page.evaluate(`document.querySelector('[data-workflow-map]').innerText`)
-  assert.ok(text.includes('sam, lee'))
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-lane]').length`), 2)
+  assert.equal(await page.evaluate(`document.querySelectorAll('[data-lane]').length`), 1)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-label-row]').length`), 0)
   assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no sideways scroll: ${(await page.overflow()).join('; ')}`)
-  assert.ok((await shown(page, '[data-who-tag]')).every((tag) => ['You', 'Triage agent', 'Avoozl', 'GitHub'].includes(tag)))
+  assert.ok((await shown(page, '[data-who-tag]')).every((tag) => ['You', 'Avoozl', 'GitHub'].includes(tag)))
 })
 
-test('page: plans-repo mode shows the worker lanes and the plans repository', { skip }, async () => {
+test('page: plans-repo mode shows the worker lane', { skip }, async () => {
   const page = await draw('plans')
   const text = await page.evaluate(`document.querySelector('[data-workflow-map]').innerText`)
-  assert.match(text, /example\/plans/)
   // Step titles are drawn in capitals where the host stylesheet is loaded.
   assert.match(text, /worker chats build/i)
 })

@@ -1,5 +1,5 @@
 // A registered GitHub repository: its record, and this machine's identity.
-// No label is read as an order (triage-agent TA11.1), so nothing here reads
+// No label is read as an order, so nothing here reads
 // issues.
 import { randomUUID } from "node:crypto";
 import os from "node:os";

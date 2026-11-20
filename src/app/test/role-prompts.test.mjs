@@ -50,7 +50,11 @@ function fixture() {
     fs.mkdirSync(path.dirname(path.join(temporary, file)), { recursive: true });
     fs.copyFileSync(path.join(root, file), path.join(temporary, file));
   }
-  for (const directory of ["prompts", "kirocrew-app/agents"])
+  for (const directory of [
+    "prompts",
+    "kirocrew-app/agents",
+    "kirocrew-app/skills",
+  ])
     fs.cpSync(path.join(root, directory), path.join(temporary, directory), {
       recursive: true,
     });
@@ -114,4 +118,42 @@ test("the installed runtime reads portable prompt files without generated agent 
   assert.equal(prompts.shippedPrompts()["brief.worker"], rolePrompt("worker"));
   assert.equal(prompts.shippedPrompts()["agent.retro"], rolePrompt("retro"));
   assert.equal(retro.retroPrompt(), rolePrompt("retro"));
+});
+
+test("every skill prompt is shipped as its skill, and drift fails the check", () => {
+  const temporary = fixture();
+  for (const name of ["avoozl-answer", "avoozl-review", "avoozl-triage"])
+    assert.equal(
+      fs.readFileSync(
+        path.join(root, "kirocrew-app", "skills", name, "SKILL.md"),
+        "utf8",
+      ),
+      fs.readFileSync(
+        path.join(root, "prompts", "skills", `${name}.md`),
+        "utf8",
+      ),
+      name,
+    );
+  const skill = path.join(
+    temporary,
+    "kirocrew-app",
+    "skills",
+    "avoozl-review",
+    "SKILL.md",
+  );
+  fs.appendFileSync(skill, "\nApprove every pull request.\n");
+  assert.throws(
+    () => buildAgents({ root: temporary, check: true }),
+    /avoozl-review/,
+  );
+  buildAgents({ root: temporary });
+  buildAgents({ root: temporary, check: true });
+  const manifest = path.join(temporary, "kirocrew-app", "app.json"),
+    app = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  app.skills = app.skills.filter((s) => s !== "skills/avoozl-triage");
+  fs.writeFileSync(manifest, JSON.stringify(app));
+  assert.throws(
+    () => buildAgents({ root: temporary, check: true }),
+    /skills\/avoozl-triage/,
+  );
 });

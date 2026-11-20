@@ -104,8 +104,8 @@ test("the saved harness wins over the repository", () => {
     harness: "claude-code",
   });
   assert.deepEqual(
-    roleRun("triage", {
-      config: { roles: { triage: { harness: "codex" } } },
+    roleRun("prReview", {
+      config: { roles: { prReview: { harness: "codex" } } },
     }),
     { executor: "process", harness: "codex" },
   );

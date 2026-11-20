@@ -119,7 +119,6 @@ const PAIRS = [
   ["#/$defs/githubMirror", MIRROR_KEYS],
   ["#/$defs/githubRepositoryPolicy", GITHUB_BLOCK_KEYS.repository],
   [`${REPOSITORY}/discussions`, GITHUB_BLOCK_KEYS.discussions],
-  [`${REPOSITORY}/triage`, GITHUB_BLOCK_KEYS.triage],
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],
   [`${REPOSITORY}/landing`, GITHUB_BLOCK_KEYS.landing],
   // validateLandingConfig in landing-config.mjs.

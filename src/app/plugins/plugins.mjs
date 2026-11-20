@@ -47,8 +47,6 @@ export const CAPABILITIES = {
 // template (design §4.16): folders under templates/, data only too.
 // `credentials` hands Avoozl GitHub tokens (plugin-credentials §D1) from its
 // own entry, in a child apart from the plugin's other code.
-// `policy` is data only as well: a limit this machine holds Avoozl to, so
-// far only `{"triage": "blocked", "reason": "..."}` (triage-agent TA12).
 // `checks` are check definitions and their files (plugin-checks D1): they
 // run as checks, never as a plugin child.
 export const PARTS = [
@@ -56,7 +54,6 @@ export const PARTS = [
   "rules",
   "intake",
   "template",
-  "policy",
   "credentials",
   "checks",
 ];
@@ -413,9 +410,6 @@ export function validateManifest(manifest, entry, folder = null) {
   if (provides.includes("credentials")) checkCredentials(manifest.credentials);
   else if (manifest.credentials !== undefined)
     fail(`${PLUGIN_MANIFEST} credentials goes with provides credentials.`);
-  if (provides.includes("policy")) checkPolicy(manifest.policy);
-  else if (manifest.policy !== undefined)
-    fail(`${PLUGIN_MANIFEST} policy goes with provides policy.`);
   if (
     provides.includes("checks") ||
     manifest.checks !== undefined ||
@@ -489,41 +483,6 @@ function checkCredentials(value) {
 // A repository may not choose who Avoozl signs in as (PC2.2).
 const repositoryCredentials = (key, id) =>
   `.avoozl.json ${key}: plugin ${id} provides credentials; only this machine's plugins.json may declare who Avoozl signs in as.`;
-
-// A policy part: `triage` is "blocked" (the one limit so far), with the
-// reason a person reads where the limit applies.
-function checkPolicy(policy) {
-  const where = `${PLUGIN_MANIFEST} policy`;
-  if (!record(policy)) fail(`${where} must be an object.`);
-  for (const key of Object.keys(policy))
-    if (!["triage", "reason"].includes(key))
-      fail(`${where}.${key} is not a policy; use triage and reason.`);
-  if (policy.triage !== "blocked") fail(`${where}.triage must be "blocked".`);
-  if (
-    typeof policy.reason !== "string" ||
-    !policy.reason.trim() ||
-    policy.reason.length > 300
-  )
-    fail(`${where}.reason must be 1-300 characters.`);
-}
-
-// Whether a plugin blocks triage here (TA12): the first plugin approved on
-// this machine and declared in this machine's plugins.json whose policy
-// part says so. A plugin `.avoozl.json` declares sets no machine policy.
-// This only reads; it never writes the repository.
-export function triageBlock(options) {
-  if (!options?.settingsFile) return null;
-  const found = inspectPlugins(options).find(
-    (plugin) =>
-      plugin.state === "approved" &&
-      plugin.source === "machine" &&
-      plugin.provides.includes("policy") &&
-      plugin.manifest.policy?.triage === "blocked",
-  );
-  return found
-    ? { plugin: found.id, reason: found.manifest.policy.reason }
-    : null;
-}
 
 // SHA-256 over every file's relative path and bytes, sorted; a symbolic link
 // counts by its target text and is never followed.

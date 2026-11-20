@@ -16,7 +16,7 @@ Create one on the Avoozl page under **Add or initialize a workspace** with
 
 ## Example data
 
-A new workspace has no tasks and no repositories, and the triage agent is off.
+A new workspace has no tasks and no repositories.
 `seed` writes the made-up Recipe Box epic and its three specs to
 `.kiro/specs/` as drafts:
 

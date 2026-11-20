@@ -41,8 +41,6 @@ const HIGH_CALL = {
     github.createIssueType("acme", { name: "Epic" }),
   "landing-setup": (github) =>
     github.updateRepository("acme/api", { allow_squash_merge: false }),
-  "triage-setup": (github) =>
-    github.request("POST", "/repos/acme/api/labels", { body: { name: "x" } }),
   "branch-delete": (github) => github.deleteBranch("acme/api", "topic"),
 };
 
@@ -186,7 +184,6 @@ test("the client asks per job and repository, and the cache shares by permission
     await github.issue("acme/api", 1);
     await github.issue("acme/api", 2);
   });
-  // spec-issues and page-actions differ; triage and page-actions too.
   await withJob("evidence", () => github.issue("acme/api", 3));
   await withJob("check-in", () => github.issue("acme/web", 1));
   const asked = m.calls().map((c) => [c.repository, c.purpose]);
@@ -269,7 +266,7 @@ test("a refusal, a timeout and a bad reply fail with 503, raise one Needs you ro
   t.after(() => store.close());
   store.initialize({ ...snapshot(), tasks: [], edges: [] });
   for (const [config, pattern] of [
-    [{ refuse: ["triage"] }, /acme does not allow triage/],
+    [{ refuse: ["respond"] }, /acme does not allow respond/],
     [{ mode: "bad" }, /bad reply/],
     [{ mode: "slow" }, /timed out/],
   ]) {
@@ -285,7 +282,7 @@ test("a refusal, a timeout and a bad reply fail with 503, raise one Needs you ro
       credentials.token({
         repository: "acme/api",
         owner: "acme",
-        job: "triage",
+        job: "respond",
       }),
       (error) => {
         assert.equal(error.status, 503);
@@ -297,7 +294,7 @@ test("a refusal, a timeout and a bad reply fail with 503, raise one Needs you ro
   }
   const rows = credentialsNeedsYou(store);
   assert.equal(rows.length, 1, "one row per provider, host, owner and job");
-  assert.match(rows[0].title, /acme-github refused triage for acme/);
+  assert.match(rows[0].title, /acme-github refused respond for acme/);
   // The next success for that key clears it.
   const m = credentialsMachine({ plugins: [{}] });
   m.approve();
@@ -307,7 +304,7 @@ test("a refusal, a timeout and a bad reply fail with 503, raise one Needs you ro
   await credentials.token({
     repository: "acme/api",
     owner: "acme",
-    job: "triage",
+    job: "respond",
   });
   assert.equal(credentialsNeedsYou(store).length, 0);
 });

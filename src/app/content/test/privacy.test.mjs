@@ -77,7 +77,6 @@ function fakeGitHub(store) {
       "createBranch",
       "createLinkedBranch",
       "mergeBranch",
-      "submitReview",
     ].map((name) => [name, record(name)]),
   );
   return { github: guardGitHub(client, store), writes };
@@ -132,13 +131,6 @@ const PUBLIC_FIELDS = {
       base: "spec/a",
       head: "main",
       message: `Merge on ${v}`,
-    }),
-  "review comment": (g, v) =>
-    g.submitReview(REPO, 4, {
-      event: "COMMENT",
-      commit_id: "abc1234",
-      body: "",
-      comments: [{ path: "a", line: 1, body: `See ${v}` }],
     }),
 };
 

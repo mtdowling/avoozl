@@ -2120,28 +2120,6 @@ export class GitHubClient {
     return this.paginate(`/repos/${owner}/${repo}/pulls/${number}/reviews`);
   }
 
-  // A submitted review (triage-agent TA4.3, TA8.5): `event` COMMENT for the
-  // triage agent's review; APPROVE and REQUEST_CHANGES only for a person's
-  // press on the Pull requests page (the operation refuses anyone else).
-  submitReview(value, number, { event, commit_id, body, comments = [] }) {
-    if (!["COMMENT", "APPROVE", "REQUEST_CHANGES"].includes(event))
-      fail("A review event is COMMENT, APPROVE or REQUEST_CHANGES.");
-    const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request(
-      "POST",
-      `/repos/${owner}/${repo}/pulls/${number}/reviews`,
-      {
-        body: {
-          event,
-          body,
-          ...(commit_id ? { commit_id } : {}),
-          ...(comments.length ? { comments } : {}),
-        },
-      },
-    );
-  }
-
   // The issues a pull request closes: [{repository, number, title, url}].
   async pullRequestClosingIssues(value, number) {
     const { owner, repo } =

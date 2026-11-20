@@ -2,8 +2,7 @@ import { kirocrewSessionSettings } from "../executors/kirocrew.mjs";
 import { LANDING_MODES } from "../landing/landing-config.mjs";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
 // authority, the Project, and per-repository settings. No label is an
-// order: the triage agent (triage-agent) is the one way an issue becomes
-// work. Validation is deterministic; the one check that needs GitHub (base
+// order. Validation is deterministic; the one check that needs GitHub (base
 // branch) is `requireDefaultBranch`.
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { fail } from "../store/store.mjs";
@@ -61,18 +60,9 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "mirror",
     "conflicts",
     "landing",
-    "triage",
   ],
   conflicts: ["maxAttempts"],
   landing: ["mode", "autoMerge", "method", "mergeBatch", "commitPrefix"],
-  triage: [
-    "agent",
-    "existing",
-    "dailyRuns",
-    "fullReviewMaxLines",
-    "labels",
-    "reviews",
-  ],
 });
 // Who counts when a repository names nobody.
 export const DEFAULT_PERMISSION = "write";
@@ -210,9 +200,6 @@ function repositoryInput(value, id, mode) {
     // Deferred features (task 8.2), each off by default.
     discussions: discussionsInput(value.discussions, `${label}.discussions`),
     conflicts: conflictsInput(value.conflicts, `${label}.conflicts`),
-    ...(value.triage === undefined || value.triage === null
-      ? {}
-      : { triage: triageInput(value.triage, `${label}.triage`) }),
     // One landing block (design §4.25).
     landing: landingInput(value.landing, `${label}.landing`),
     ...(value.mirror === undefined || value.mirror === null
@@ -284,40 +271,6 @@ function landingInput(value, label) {
 // The method a repository's settings merge a pull request with.
 export const mergeMethod = (settings) =>
   settings?.landing?.method ?? MERGE_METHOD_DEFAULT;
-
-// The triage agent's settings (triage-agent TA1.1, TA4.2, TA7.4, design
-// §D3, §D6). Only the keys a repository sets are kept; triage.mjs fills in
-// the defaults.
-const TRIAGE_CHOICES = {
-  agent: ["on", "off"],
-  existing: ["take", "skip"],
-  labels: ["suggest", "add"],
-  reviews: ["post", "draft"],
-};
-function triageInput(value, label) {
-  const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.triage, label),
-    out = {};
-  for (const [key, choices] of Object.entries(TRIAGE_CHOICES))
-    if (input[key] !== undefined) {
-      if (!choices.includes(input[key]))
-        fail(`${label}.${key} must be ${choices.join(" or ")}.`);
-      out[key] = input[key];
-    }
-  for (const [key, max] of [
-    ["dailyRuns", 1000],
-    ["fullReviewMaxLines", 100000],
-  ])
-    if (input[key] !== undefined) {
-      if (
-        !Number.isSafeInteger(input[key]) ||
-        input[key] < 1 ||
-        input[key] > max
-      )
-        fail(`${label}.${key} must be a whole number from 1 to ${max}.`);
-      out[key] = input[key];
-    }
-  return out;
-}
 
 // A leaf's place in the repository's priority list: the best (lowest) index
 // of any priority label it carries, compared without case; a leaf with none

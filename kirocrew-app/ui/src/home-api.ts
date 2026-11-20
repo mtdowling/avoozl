@@ -21,11 +21,9 @@ export interface Tile {
   warm: boolean
 }
 
-// `agent` is the triage agent's owner queue (triage-agent TA5.2), counted
-// once with the rest of Needs you.
-export function homeTiles(summary: DashboardSummary | null, landing: LandingView | null, agent = 0): Tile[] {
+export function homeTiles(summary: DashboardSummary | null, landing: LandingView | null): Tile[] {
   const counts = summary?.counts,
-    needs = summary ? summary.attention.length + agent : null
+    needs = summary ? summary.attention.length : null
   return [
     { key: 'ready', label: 'Ready', value: counts ? counts.ready : null, sub: 'can start now', target: 'graph', tip: 'Open the Graph', warm: false },
     {

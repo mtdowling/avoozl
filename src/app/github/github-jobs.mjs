@@ -94,20 +94,10 @@ export const JOBS = Object.freeze({
     risk: "low",
     permissions: repo({ pull_requests: r, issues: w, contents: r }),
   },
-  triage: {
-    description: "Comment on and label new issues (triage agent)",
-    risk: "low",
-    permissions: repo({ contents: r, issues: w, pull_requests: w }),
-  },
   respond: {
     description: "Answer discussions and issues",
     risk: "low",
     permissions: repo({ discussions: w, issues: w }),
-  },
-  "page-actions": {
-    description: "A person's comment, label, assignee or review",
-    risk: "low",
-    permissions: repo({ issues: w, pull_requests: w, contents: r }),
   },
   integration: {
     description: "Move an epic's integration branch",
@@ -144,11 +134,6 @@ export const JOBS = Object.freeze({
     description: "Set rulesets, repository settings and variables",
     risk: "high",
     permissions: repo({ administration: w, statuses: w, variables: w }),
-  },
-  "triage-setup": {
-    description: "Create the triage agent's labels",
-    risk: "high",
-    permissions: repo({ issues: w }),
   },
   "branch-delete": {
     description: "Delete a branch",

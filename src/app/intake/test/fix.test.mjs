@@ -1,10 +1,9 @@
-// Fixes without spec files (triage-agent ta-1.1, TA9, design §D5): one from
+// Fixes without spec files (design §4.12): one from
 // text and one from an issue each become a ready leaf, verify and land with
 // the two acceptance lines; a version 1 record loads; Make this a spec
 // writes a folder that lints clean. Real git with a bare "origin"; nothing
 // live.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 
@@ -21,30 +20,48 @@ import {
 } from "../fix.mjs";
 import { lintSpec, readSpecFolder } from "../../specs/spec-plans.mjs";
 import { verifiedTask } from "../../test/fixtures.mjs";
-import { REPO, triageWorkspace } from "../../test/triage-fixture.mjs";
+import { deliveryWorkspace, git } from "../../test/delivery-fixture.mjs";
 
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
 
-const REPOSITORY = REPO;
+const REPOSITORY = "o/app";
+// The repository's one check: every file in tests/ is loaded, and one that
+// throws fails it.
+const CHECK = [
+  process.execPath,
+  "-e",
+  "const fs=require('fs');for(const f of fs.existsSync('tests')?fs.readdirSync('tests'):[])require(require('path').resolve('tests',f))",
+];
 
-// The triage fixture's workspace (a checkout, a bare origin, a `direct`
-// repository), with the agent off and a fix's journal context.
+// A checkout with a bare "origin", a `direct` repository, and a fix's
+// journal context.
 function workspace(t) {
-  const w = triageWorkspace(t, { triage: { agent: "off" } }),
-    context = { workspaceRoot: w.root, actor: "Operator" };
+  const w = deliveryWorkspace(t, {
+      prefix: "avoozl-fix-",
+      tasks: [],
+      files: { "greet.js": "module.exports = () => 'hi ';\n" },
+      repository: { github: REPOSITORY, landing: "direct", checks: [CHECK] },
+    }),
+    origin = path.join(w.root, "origin.git");
+  git(w.root, "init", "-q", "--bare", "-b", "main", origin);
+  git(w.checkout, "remote", "add", "origin", origin);
+  git(w.checkout, "push", "-q", "-u", "origin", "main");
+  w.store.put("repositories", {
+    ...w.store.get("repositories", "app"),
+    worktreeRoot: path.join(w.root, "wt"),
+  });
+  const context = { workspaceRoot: w.root, actor: "Operator" };
   return {
     ...w,
-    origin: path.join(w.root, "origin.git"),
+    origin,
     context,
     start: (input) => startFix(w.store, input, context),
   };
 }
 
 const task = (store, id) => store.read().tasks.find((entry) => entry.id === id);
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 async function lands(w, taskId) {
   const ready = queryTasks(w.store.read(), { scope: "all", q: "ready:true" });

@@ -21,7 +21,6 @@ const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
   "task.complete",
   "github",
   "github.issue",
-  "github.issue.triage",
   "github.issue.implement",
   "github.pr",
   "github.pr.review",
@@ -317,8 +316,6 @@ export function workflowCategory(run) {
     return run.context?.scoped === false ? "task.create" : "task.create.scoped";
   if (run.context?.conversationPurpose === "repository-chat")
     return run.context?.scoped === false ? "chat.repository" : "chat.scoped";
-  if (run.context?.conversationPurpose === "issue-triage")
-    return "github.issue.triage";
   if (run.context?.conversationPurpose === "issue-implement")
     return "github.issue.implement";
   if (run.context?.conversationPurpose === "pull-request-review")

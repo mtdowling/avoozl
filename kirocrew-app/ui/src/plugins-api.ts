@@ -151,7 +151,6 @@ export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
   pack: { title: 'Settings pack', line: 'Settings you preview and copy into .avoozl.json once. Runs no code.' },
   rules: { title: 'Content rules', line: 'Rule sets supplied while Avoozl runs. The terms never go into Git.' },
   intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
-  policy: { title: 'Machine policy', line: 'A limit this machine holds Avoozl to, such as no triage agent. Runs no code.' },
   credentials: { title: 'GitHub sign-in', line: 'Hands Avoozl short-lived GitHub tokens, one per job, from a process of its own.' },
   checks: { title: 'Checks', line: 'Checks Avoozl runs on the repositories they name, kept on this machine. Results never go to GitHub.' },
   // Still listed by older plugins; Avoozl reads nothing from it (RC30.4).
@@ -491,10 +490,8 @@ export function sourceStatus(row: IntakeSourceRow, plugins: PluginRow[], now = D
 }
 
 // What a source's items can set off (design §4.12): nothing on their own.
-// No rule starts work (triage-agent TA11.1); a GitHub source is read by the
-// triage agent, and a person starts any other item.
+// No rule starts work; a person starts every item.
 export function sourceTriggers(row: IntakeSourceRow, _plugins: PluginRow[]): { level: string; line: string } {
-  if (String(row.entry?.via ?? '') === 'github') return { level: 'Triage agent', line: 'The triage agent reads its issues and pull requests when it is on for the repository.' }
   return { level: 'You start it', line: 'Its items wait for you. You start work with Plan this or Deliver this.' }
 }
 

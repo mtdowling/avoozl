@@ -2,7 +2,7 @@
 // §D1). Every token is made up here, or minted by a fake GitHub on
 // 127.0.0.1 when `config.mintUrl` names one. `config`:
 //   logFile    a file each call appends one JSON line to
-//   refuse     purposes to refuse, such as ["triage"]
+//   refuse     purposes to refuse, such as ["respond"]
 //   mode       ok | crash | bad | narrow | broad | slow | leak
 //   login      the token's login (default acme-bot[bot])
 //   person     the person's login (default acme-dev; "" for none)

@@ -222,13 +222,13 @@ test("with no sandbox a child is refused unless the person opted this machine in
   assert.deepEqual(confined.argv, ["agent", "--x"]);
   assert.equal(confined.sandbox, null);
   assert.equal(confined.env.GIT_CONFIG_VALUE_0, "");
-  // A child with no approved hash (a triage reproduction) is never opted
-  // in by another harness's opt-in.
+  // A child with no approved hash is never opted in by another harness's
+  // opt-in.
   assert.throws(
     () =>
       confineChild(["check"], {
         ...options,
-        definition: { name: "triage reproduction" },
+        definition: { name: "unapproved child" },
       }),
     /no sandbox/,
   );

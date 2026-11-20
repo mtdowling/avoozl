@@ -1,7 +1,7 @@
 // Settings > Plugins > Intake sources (design §4.12, §4.39, R50.6, R110):
 // where work comes in from, one list. A GitHub source is a repository whose
 // issues may start work; it is set in Repository setup and shows here with
-// a link there. The GitHub box is the Triage reader: what no source covers.
+// a link there. The GitHub box is the open items read: what no source covers.
 // Any other source is a plugin that provides intake, or `mcp` for a script or
 // cron job that sends items. Each source is one box with
 // its status (on or off, last poll, items, last error), what it can set

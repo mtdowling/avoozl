@@ -2,8 +2,8 @@
 // an intake plugin's `poll` or an MCP caller, kept as one record in SQLite
 // and run through one pipeline: check, dedup, content rules (the `intake`
 // boundary), then the Intake list. No label or rule starts work: a person
-// does, with Plan this or Deliver this (triage-agent TA11.1). GitHub items
-// come in through the triage agent (triage.mjs) instead.
+// does, with Plan this or Deliver this. GitHub items come in through the
+// open items read (github-open-read.mjs).
 //
 // Who counts for a close: a plugin states the actor and that actor's
 // standing, and `actorAllowed` checks it against the repository's settings.
@@ -743,8 +743,8 @@ export function withPolicy(source, githubPolicy) {
 
 // intake.submit (R50.8, design §4.42): 1-100 items to a source whose `via`
 // is `mcp`. Each becomes a GitHub issue in the source's repository at once,
-// so no item lives only in this database; the triage agent reads it like
-// any other issue. A source whose repository is not a GitHub
+// so no item lives only in this database; the open items read picks it up
+// like any other issue. A source whose repository is not a GitHub
 // repository under the policy is refused. The issue carries no labels and
 // is opened by Avoozl's sign-in.
 export async function submitItems(sources, githubPolicy, github, input = {}) {

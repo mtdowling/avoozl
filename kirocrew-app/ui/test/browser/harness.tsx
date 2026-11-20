@@ -40,7 +40,6 @@ import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
-import { detailFor, listFor, triageOff, triageSetupPreview, triageView } from './triage-fixture.ts'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
 import { AutoMergeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
@@ -427,7 +426,7 @@ export const SCENARIOS: Record<string, Scenario> = {
       document.body,
     ),
   ),
-  // New fix beside New spec (triage-agent TA9.2).
+  // New fix beside New spec (design §4.12).
   'new-fix': shown((close) =>
     createPortal(
       <div {...{ [APP_ATTR]: '' }}>
@@ -630,21 +629,6 @@ if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 // &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).
 if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
 
-// GitHub › Issues, Pull requests and Triage agent (triage-agent-shots.mjs):
-// &agent=1 fills them; without it every list is empty.
-answer('items.list', (body) => {
-  const input = (body.input ?? {}) as { kind?: string; owner?: boolean }
-  return query.get('agent') === '1' ? listFor(input) : { kind: input.kind ?? 'issue', total: 0, items: [], labels: [], repositories: [], ownerQueue: 0 }
-})
-answer('items.detail', (body) => detailFor((body.input ?? {}) as { number?: number }))
-answer('triage.view', () =>
-  query.get('agent') === '1'
-    ? triageView
-    : query.get('agent')
-      ? triageOff(query.get('agent') === 'blocked')
-      : { ...triageView, repositories: [], inProgress: [], runs: [], days: [], ownerQueue: 0 },
-)
-answer('triage.setup', () => triageSetupPreview)
 answer('fix.start', () => ({ taskId: 'fix-1' }))
 
 // Dashboards › Landing queue: empty by default; &landing=1 has two bases

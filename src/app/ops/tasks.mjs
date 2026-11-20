@@ -30,8 +30,6 @@ import { describeWorkspace } from "../api/client.mjs";
 import { settleConflicts } from "../delivery/conflict-actions.mjs";
 import { startNow } from "../delivery/delivery.mjs";
 import { diskNeedsYou } from "../workspace/disk-space.mjs";
-import { triageBlockedNeedsYou } from "../intake/triage.mjs";
-import { triageBlock } from "../plugins/plugins.mjs";
 import { resolveDecision } from "../api/direct-links.mjs";
 import { machineLinks } from "../tick/crews.mjs";
 import { taskEvidence } from "../tasks/evidence.mjs";
@@ -150,7 +148,7 @@ function taskNotesListHandler({ name, input, context }) {
   if (name === "task.notes.edit") return editNote(store, task, input);
   if (name === "task.notes.remove") return removeNote(store, task, input);
 }
-// A fix (triage-agent TA9): one change with no spec files. Starting it
+// A fix (design §4.12): one change with no spec files. Starting it
 // is the approval, so only a person starts one or makes it a spec.
 function fixStartHandler({ name, input, context }) {
   const store = this.store;
@@ -482,9 +480,6 @@ export const entries = [
       view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...diskNeedsYou(store));
-      view.items.push(
-        ...triageBlockedNeedsYou(policy, triageBlock(this.pluginOptions)),
-      );
       view.items.push(...rateNeedsYou(store));
       view.items.push(...credentialsNeedsYou(store));
       view.items.push(...leftBranchesNeedsYou(store));

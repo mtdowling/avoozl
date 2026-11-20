@@ -47,13 +47,10 @@ Ask what the team needs, then list only those parts in `provides`:
 | Outside work brought in on each tick                                                                            | `intake`   |
 | A repeated kind of work started the same way each time, as folders under `templates/`                           | `template` |
 | GitHub sign-in through the organization's own short-lived tokens, per job                                        | `credentials` |
-| A limit on the machines that approve it: `"policy": {"triage": "blocked", "reason": "..."}` blocks the triage agent | `policy`   |
 | Checks every engineer's machine runs on certain repositories, kept out of those repositories                    | `checks`   |
 
-A plugin with only `pack`, `template`, `policy` or `checks` has no `entry` and
-runs no plugin process. A `policy` part counts only when the plugin is
-declared in the machine's `plugins.json`, never in `.avoozl.json`. A `checks`
-part's scripts run as checks, and an MCP step calls a local MCP server this
+A plugin with only `pack`, `template` or `checks` has no `entry` and runs no
+plugin process. A `checks` part's scripts run as checks, and an MCP step calls a local MCP server this
 machine maps by alias; see the Checks part in `docs/plugins.md`. Its results
 never go to GitHub.
 

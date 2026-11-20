@@ -11,7 +11,10 @@
     "skills/avoozl",
     "skills/avoozl-plugin",
     "skills/avoozl-rules",
-    "skills/avoozl-costs"
+    "skills/avoozl-costs",
+    "skills/avoozl-answer",
+    "skills/avoozl-review",
+    "skills/avoozl-triage"
   ],
   "agents": [
     "agents/avoozl-planner.json",
@@ -24,7 +27,6 @@
     "agents/avoozl-plan-review.json",
     "agents/avoozl-plan-answer-read.json",
     "agents/avoozl-task-summary.json",
-    "agents/avoozl-triage.json",
     "agents/avoozl-check-decide.json"
   ],
   "mcpServers": {

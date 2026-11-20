@@ -101,7 +101,7 @@ my-plans/
   .kiro/specs/<name>/              specs
 ```
 
-A new workspace has no tasks and no repositories, and the triage agent is off.
+A new workspace has no tasks and no repositories.
 `avoozl seed --workspace ~/plans` adds a made-up example epic as draft
 specs. Loading examples never approves a plan, starts a session, or configures
 a repository. See [Workspaces](workspaces.md) for settings files, demo mode and

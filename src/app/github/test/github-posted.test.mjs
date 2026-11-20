@@ -64,7 +64,6 @@ test("every comment, review and pull request write goes out defused and marked",
       updateIssueComment: record("update"),
       addDiscussionComment: record("discussion"),
       createPullRequest: record("pull"),
-      submitReview: record("review"),
       createIssue: record("issue"),
     },
     store,
@@ -78,23 +77,14 @@ test("every comment, review and pull request write goes out defused and marked",
     base: "main",
     body: "For @octocat",
   });
-  await github.submitReview("o/r", 3, {
-    event: "COMMENT",
-    commit_id: "abc",
-    body: "Look @octocat",
-    comments: [{ path: "a.js", line: 1, body: "Here @octocat" }],
-  });
   await github.createIssue("o/r", { title: "T", body: "Issue @octocat" });
   const defused = `@${ZWSP}octocat`;
-  const [comment, update, discussion, pull, review, issue] = sent;
+  const [comment, update, discussion, pull, issue] = sent;
   assert.equal(comment[1][2], `Hi ${defused}\n\n${POSTED}`);
   assert.equal(update[1][2], `Hi ${defused}\n\n${POSTED}`);
   assert.equal(discussion[1][1], `Hi ${defused}\n\n${POSTED}`);
   assert.equal(pull[1][1].body, `For ${defused}\n\n${POSTED}`);
   assert.equal(pull[1][1].title, "T");
-  assert.equal(review[1][2].body, `Look ${defused}\n\n${POSTED}`);
-  assert.equal(review[1][2].comments[0].body, `Here ${defused}\n\n${POSTED}`);
-  assert.equal(review[1][2].comments[0].path, "a.js");
   // An issue body is not a post.
   assert.equal(issue[1][1].body, "Issue @octocat");
 });

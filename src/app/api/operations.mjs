@@ -1119,7 +1119,7 @@ export class Operations {
   }
   // The tick's pass over spec pull requests (design §4.36): adopt, refresh,
   // and merge the ones a person approved once their checks pass. It reads the
-  // Triage cache and calls GitHub only as spec-pull-requests.mjs says.
+  // Cache and calls GitHub only as spec-pull-requests.mjs says.
   async specPullTick(policy) {
     const owners = [];
     try {

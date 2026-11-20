@@ -451,8 +451,6 @@ const SAYS = [
   ["review.chat", "open a review chat"],
   ["fix.start", "start this fix as a ready task"],
   ["fix.spec", "make this fix a draft spec folder"],
-  ["items.act", "write this to GitHub"],
-  ["triage.", "change the triage agent"],
   ["conflicts.", "settle this conflict"],
   ["activity.settings", "change Activity settings"],
   ["onboarding.", "look at folders on this machine"],

@@ -22,13 +22,22 @@ roles are the keys of the `roles` setting, and each file serves these roles:
 - `task-summary.md` is the `taskSummary` role.
 - `plan-review.md` is the `planReviewer` role.
 - `code-review.md` is the `prReview` role.
-- `triage.md` is the `triage` role.
 - `assist.md` is the `assist` role, the page's chat when Kiro Crew is absent. It
   runs only as a process session.
 - `worker.md` and `review.md` are not a role's prompt. They are the "Steps"
   section of every worker brief and the "Review" section of every review brief.
 
 `src/app/agents/role-table.mjs` is the source for which role reads which file.
+
+## Skills for any agent runner
+
+`skills/<name>.md` is a whole skill (front matter and text) that any agent
+runner can read, such as an Issue Radar crew or glorp: `avoozl-answer`,
+`avoozl-review` and `avoozl-triage` (see `docs/agent-skills.md`). They
+call no Avoozl tool. `npm run build:agents` copies each one to
+`kirocrew-app/skills/<name>/SKILL.md`, which the app installs like its other
+skills, and `npm run check:agents` fails when a copy differs or `app.json`
+does not list it. Do not edit the copies.
 
 ## Kiro Crew agents
 

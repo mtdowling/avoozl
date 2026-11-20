@@ -153,7 +153,7 @@ const INVALID = [
     { ...POLICY, planningRepository: null },
     /plans-repo needs github.planningRepository/,
   ],
-  // Label commands are gone (triage-agent TA11.1): their keys are unknown.
+  // Label commands are gone: their keys are unknown.
   [
     "a trigger rule",
     repository({

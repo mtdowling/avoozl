@@ -126,8 +126,6 @@ export const VIEW_ICONS = {
   untriaged: Inbox,
   // Needs you reuses the Conflicts icon.
   waiting: CircleAlert,
-  // The GitHub pages: Issues, Pull requests and the Triage agent.
-  github: GitPullRequestDraft,
   // History is in the list above: the log of what happened.
   activity: History,
   settings: Settings,

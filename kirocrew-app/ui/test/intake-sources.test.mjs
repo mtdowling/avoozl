@@ -40,7 +40,7 @@ test('a source is on, off, in error or waiting, with its poll and items', () => 
 })
 
 test('what a source can set off, who counts, and where it comes from', () => {
-  // No source routes work by itself: a person starts it, or the triage agent reads GitHub.
+  // No source routes work by itself: a person starts it.
   assert.equal(sourceTriggers(row('plugin:tracker'), PLUGINS).level, 'You start it')
   assert.equal(sourceTriggers(row('mcp'), PLUGINS).level, 'You start it')
   // Who counts is the repository's setting, carried on the row.
@@ -51,7 +51,7 @@ test('what a source can set off, who counts, and where it comes from', () => {
   assert.match(who('mcp', null), /Not used/)
   assert.equal(viaLabel('plugin:tracker'), 'Plugin tracker')
   assert.match(viaLabel('mcp'), /^MCP/)
-  assert.equal(sourceTriggers(row('github'), PLUGINS).level, 'Triage agent')
+  assert.equal(sourceTriggers(row('github'), PLUGINS).level, 'You start it')
   assert.match(viaLabel('github'), /^GitHub/)
 })
 

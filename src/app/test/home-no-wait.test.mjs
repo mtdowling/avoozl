@@ -18,7 +18,6 @@ import { temporaryDirectory } from "./temporary.mjs";
 const HOME = [
   ["instance.view", {}],
   ["conflicts.view", {}],
-  ["triage.view", {}],
   ["graph.view", {}],
   ["delivery.view", {}],
   ["plan.list", { limit: 100 }],

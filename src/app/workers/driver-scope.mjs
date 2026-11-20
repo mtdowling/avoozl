@@ -112,7 +112,7 @@ export function driverGuard(store, github) {
     error.driverReadOnly = true;
     return Promise.reject(error);
   };
-  // A client derived from the proxy (triage's countingClient) keeps its own
+  // A client derived from the proxy (a counting client) keeps its own
   // `this`, so its request override still sees the call.
   const self = (that, target) =>
     that === proxy || that === undefined ? target : that;

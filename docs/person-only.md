@@ -65,7 +65,7 @@ sandbox the supervisor wraps it in:
   (`localhost:PORT`, for a proxy): `sandbox.network` for roles that may use
   the network, and `sandbox.modelProxy` for the proxy the agent reaches its
   model through. Every role gets `modelProxy`, even one that reads only its
-  folder, such as the triage agent; only `network` is withheld from those.
+  folder, such as the code review; only `network` is withheld from those.
 - Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
   `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git
   gets no credential helper.

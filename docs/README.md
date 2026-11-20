@@ -31,8 +31,8 @@ itself, and lands it. These pages say how to set it up and how each part works.
 - [GitHub workflow](github-workflow.md): the landing protocol of specs,
   approvals, assignees, claims and ticks on GitHub, for any tool that runs
   specs.
-- [Triage agent](triage.md): answering, reviewing and handing off new issues
-  and pull requests.
+- [Agent skills](agent-skills.md): the answer, review and triage skills any
+  agent runner can use on issues and pull requests.
 - [Intake sources](intake.md): bringing in work from trackers and scripts.
 - [GitHub rate limit](rate-limit.md): the cache and write pacing.
 

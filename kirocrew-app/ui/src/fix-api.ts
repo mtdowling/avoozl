@@ -1,4 +1,4 @@
-// A fix (triage-agent TA9): one change with no spec files. The drawer's
+// A fix (design §4.12): one change with no spec files. The drawer's
 // checks and the fix.start / fix.spec calls. Kept free of JSX so node can
 // test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'

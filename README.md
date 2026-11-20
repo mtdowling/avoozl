@@ -189,7 +189,8 @@ The [docs](docs/README.md) cover the rest:
 - [Flow](docs/flow.md) for Stop the line, retros, and rules from corrections
 - [Agents and the CLI](docs/agents.md) for roles and models, MCP tools, and
   person-only actions
-- [Triage agent](docs/triage.md) for issue and pull request triage on GitHub
+- [Agent skills](docs/agent-skills.md) for the answer, review and triage skills
+  any agent runner can use on GitHub issues and pull requests
 - [Content rules](docs/content-rules.md) for keeping private terms out of
   everything Avoozl writes
 - [Repository checks and isolation](docs/checks.md) for check commands and the

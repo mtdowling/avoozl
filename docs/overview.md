@@ -22,12 +22,13 @@ Avoozl does these:
 - Plans specs of any size: spec, tasks and order.
 - Runs, checks and lands each task, and releases what waited on it.
 - Works with no GitHub, in Local only mode.
-- Triages new issues and pull requests, with Issues and Pull requests pages.
 
 Avoozl does not do these:
 
 - Treat a label as an order.
-- Change code on its own outside a spec, a fix or a triage run.
+- Change code on its own outside a spec or a fix.
+- Triage issues or review other people's pull requests. Any agent runner can,
+  with the [agent skills](agent-skills.md) Avoozl ships.
 - Approve, request changes or close for a person.
 - Replace GitHub: it has no diff viewer, milestones or Projects.
 
@@ -53,12 +54,9 @@ machines share this state.
 
 ## Workflows
 
-Work starts in one of four ways.
+Work starts in one of three ways.
 
-- **Triage.** The triage agent answers questions, reproduces bugs, starts fixes,
-  and reviews other people's pull requests. What it cannot settle goes to
-  Needs you › From the agent. See [Triage agent](triage.md).
-- **Fix.** Fix on an issue, New fix, or `avoozl fix` creates one task with no
+- **Fix.** Deliver this on an incoming issue, New fix, or `avoozl fix` creates one task with no
   spec files. Starting it is the approval.
 - **Light spec.** New spec, Blank or From a goal, with one task. Approve records
   the revision. With `landing: pr` Avoozl opens the pull request, waits for its
@@ -76,16 +74,14 @@ No label is an order. The labels Avoozl reads are per-repository settings:
 | ------------------------------------------ | ---------------- | ----------------------------------------- |
 | Priority (ready tasks with it start first) | `priorityLabels` | A person                                  |
 | Waiting on the author (holds a task)       | `waitingLabels`  | A person                                  |
-| The triage agent's labels                  | `triage.labels`  | The agent, from labels the repository has |
 
 ## Screens
 
-The nav has eight entries, defined in `kirocrew-app/ui/src/nav-api.ts`:
+The nav has seven entries, defined in `kirocrew-app/ui/src/nav-api.ts`:
 
 - **Dashboards:** Home, Graph, Delivery, Landing queue.
 - **Specs:** one list with status chips, and spec details with tabs.
-- **Needs you:** Decisions, From the agent.
-- **GitHub:** Issues, Pull requests, Triage agent.
+- **Needs you:** Decisions.
 - **Flow:** one page.
 - **Retros:** Retros, Proposals.
 - **Activity:** one page.

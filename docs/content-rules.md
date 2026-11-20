@@ -88,4 +88,3 @@ Avoozl cannot tell is marked.
 
 - [Content hook](content-hook.md) for the same rules on an agent's own GitHub
   writes
-- [Triage agent](triage.md) for the agent whose writes pass these rules

@@ -1,6 +1,6 @@
 // The responder's one reply (R27.13): plans_post_reply screens the reply,
 // posts at most one comment, and only for the bound responder session. No
-// label starts a responder (triage-agent TA11.1); discussions answering
+// label starts a responder; discussions answering
 // opens one (proof-discussions.test.mjs).
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";

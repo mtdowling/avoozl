@@ -546,26 +546,6 @@ export async function finishProcessSession(ops, binding, result, store = null) {
           asSession(),
         )
       : null;
-  // A triage run's result is kept on its run; the tick makes its writes.
-  if (hands === "triage") {
-    if (result.state !== "done") {
-      if (store) {
-        const { failTriage } = await import("../intake/triage.mjs");
-        failTriage(
-          store,
-          binding.taskId,
-          result.text || "The run was blocked.",
-        );
-      }
-      return null;
-    }
-    return ops.execute(
-      "triage.submit",
-      result.outputValue,
-      undefined,
-      asSession(),
-    );
-  }
   // A decide call's answer; a blocked or bad one counts as needed.
   if (hands === "decide") {
     if (result.state !== "done") {

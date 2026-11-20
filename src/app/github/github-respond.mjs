@@ -5,7 +5,7 @@ import { kirocrewSession } from "../executors/kirocrew.mjs";
 // each snapshot of a discussion the policy names, the tick opens one
 // read-only responder session. Its only way to GitHub is plans_post_reply,
 // which screens the reply for secrets and machine paths and posts at most
-// one comment. No label starts a responder (triage-agent TA11.1).
+// one comment. No label starts a responder.
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import fs from "node:fs";

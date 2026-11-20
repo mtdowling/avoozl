@@ -1,4 +1,4 @@
-// New fix (triage-agent TA9.2): one change with no spec files, beside New
+// New fix (design §4.12): one change with no spec files, beside New
 // spec. A sentence and a repository; starting it approves it, and a worker
 // picks it up on the next tick like any ready task.
 import { useEffect, useMemo, useState } from 'react'

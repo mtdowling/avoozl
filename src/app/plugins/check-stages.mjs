@@ -208,7 +208,7 @@ function fixText(run) {
 }
 
 // Start on a phase's Needs you row: a person's act, which is the fix's
-// approval (triage-agent TA9). Its text is the proposed one.
+// approval (design §4.12). Its text is the proposed one.
 export async function startPhaseFix(store, input = {}, context = {}) {
   const row = phaseNeedsYou(store).find(
     (item) => item.phaseFix.run === input.run,

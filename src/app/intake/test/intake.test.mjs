@@ -1,7 +1,7 @@
 // Incoming items (design §4.12, Requirement 50) and the pack settings that
 // came with them: source settings, the poll cursor, the Intake channel's
 // old name, and waitingLabels and priorityLabels. No rule starts work from
-// an item (triage-agent TA11.1); a person does.
+// an item; a person does.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeGitHubPolicy } from "../../github/github-policy.mjs";

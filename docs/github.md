@@ -113,25 +113,15 @@ import specs**. Both read GitHub first and preview every write, such as the
 epic issue type, and nothing is written until you confirm. Public and private
 repositories both work.
 
-## Triage and fixes
+## Fixes
 
-No label is an order. With the triage agent on for a repository
-(`triage.agent`, off by default), each new issue and pull request gets one
-short run with no network. Setting up GitHub never turns it on or makes its
-labels; **Set up triage** on **GitHub › Triage agent** does. The agent
-answers a question from the docs,
-reproduces a bug and starts a fix, reviews someone else's pull request, or
-hands the item to you with a reason. It never closes, approves, or requests
-changes.
+No label is an order. A fix is one task with no spec files. Start one with
+**Deliver this** on an incoming issue, **New fix**, or
+`avoozl fix "TEXT" --repo ID`; starting it is the approval.
 
-**GitHub › Issues** and **GitHub › Pull requests** show each item, what the
-agent did, and the actions left. **GitHub › Triage agent** shows every run and
-has **Pause** and **Stop all**. **Needs you › From the agent** is your queue.
-
-A fix is one task with no spec files. Start one with **Fix** on an issue,
-**New fix**, or `avoozl fix "TEXT" --repo ID`; starting it is the approval.
-
-See [Triage agent](triage.md) for the runs, the settings and fixes.
+Avoozl does not triage issues or review other people's pull requests. Any
+agent runner, such as Issue Radar or glorp, can do that with the skills
+Avoozl ships; see [Agent skills](agent-skills.md).
 
 ## Pull-request reviews
 

@@ -189,7 +189,6 @@ test('GitHub: every group is its own tab and bordered section, and no Issue Rada
   assert.doesNotMatch(github, /CrewScopes|RadarValuesScreen|level="sub"/)
   // GitHub calls is a bordered section of its own.
   assert.match(settings, /<Card>\s*<Section title="GitHub calls"/)
-  // Issue Radar went with the triage agent (triage-agent TA11.2).
   assert.doesNotMatch(settings, /RadarSettings|crewLabels|Issue Radar|tab === 'radar'/)
 })
 

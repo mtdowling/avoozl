@@ -29,7 +29,6 @@ avoozl worker accept
 | plan review | A second model reads a draft spec and files findings. | `planReview` |
 | plan review finding | One problem a plan review found: kind, severity, file, quote, statement, evidence. | |
 | code review | Reviewer chats that read a task's commit before it merges, and the pull request's own approval count on GitHub. | `delivery.reviewers`, `pullRequestReviews` |
-| triage review | The triage agent's comment review of someone else's pull request: full, or partial past the size limit, and it says which. | `triage.fullReviewMaxLines`, `triage.reviews` |
 | spec approval reviewers | The GitHub logins asked to review a spec's approval pull request. | `github.specReviewers` |
 | changed tasks | Tasks whose design text changed since they were approved. Needs you lists them as "N tasks in SPEC changed: check them". | |
 

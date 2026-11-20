@@ -42,7 +42,6 @@ test('a row has the folder, landing, merge method and checks, and no labels', ()
   // Who codes was removed (R91.6).
   assert.equal(facts['Who codes'], undefined)
   assert.equal(facts['Trigger labels'], undefined)
-  assert.equal(facts['Triage labels'], undefined)
   assert.equal(facts.Merge, 'squash')
   assert.equal(facts.Checks, 'ci')
 })

@@ -2036,20 +2036,6 @@ export function allowWrite(
   return result.ok;
 }
 
-// A review's text for the content rules: its body and line comments.
-function reviewWrite(args) {
-  return {
-    text: [],
-    extra: [
-      args[2]?.body,
-      ...(Array.isArray(args[2]?.comments)
-        ? args[2].comments.map((c) => c?.body)
-        : []),
-    ],
-    target: `review:${repositoryOf(args[0])}:${args[1]}`,
-  };
-}
-
 // A GitHub client whose text writes pass content rules first (§4.9
 // `github`): every issue, comment and discussion write Avoozl makes. A
 // block throws 422 with `contentBlocked`, after opening a decision; the
@@ -2116,28 +2102,7 @@ const GITHUB_WRITES = {
     extra: [args[2]?.description, args[2]?.context, args[2]?.target_url],
     target: `status:${repositoryOf(args[0])}:${args[1]}`,
   }),
-  submitReview: (args) => reviewWrite(args),
 };
-
-// A review's text: its body and each line comment.
-function postedReview(args) {
-  return [
-    args[0],
-    args[1],
-    {
-      ...args[2],
-      body: postedText(args[2]?.body),
-      ...(Array.isArray(args[2]?.comments)
-        ? {
-            comments: args[2].comments.map((comment) => ({
-              ...comment,
-              body: postedText(comment?.body),
-            })),
-          }
-        : {}),
-    },
-  ];
-}
 
 // The writes whose text is a post: each gets broken mentions and the
 // posted marker (github-posted.mjs) before content rules read it, unless a
@@ -2152,7 +2117,6 @@ const POSTS = {
     args[0],
     { ...args[1], body: postedText(args[1]?.body) },
   ],
-  submitReview: (args) => postedReview(args),
 };
 
 const repositoryOf = (value) =>
@@ -2207,7 +2171,7 @@ export function guardGitHub(github, store) {
           error.contentBlocked = true;
           return Promise.reject(error);
         }
-        // A client derived from the proxy (triage's countingClient) keeps
+        // A client derived from the proxy (a counting client) keeps
         // its own `this`, so its request override still counts the write.
         return value.apply(this === proxy ? target : this, args);
       };

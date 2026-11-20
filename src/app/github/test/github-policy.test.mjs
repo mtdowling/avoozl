@@ -41,7 +41,7 @@ test("the design example validates and keeps every value", () => {
 });
 
 // Removed keys are refused by name: `concurrency` and `coder`, and the label
-// commands and Issue Radar settings (triage-agent TA11.1, TA11.2).
+// commands and Issue Radar settings.
 test("a repository's removed key is refused by name", () => {
   for (const extra of [
     { concurrency: 2 },

@@ -232,7 +232,7 @@ export const entries = [
   {
     name: "reply.post",
     class: "execute",
-    github: "page-actions",
+    github: "respond",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;

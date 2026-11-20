@@ -61,7 +61,7 @@ export async function stopMachine({ root, backend, proxy, stateDirectory }) {
   } catch {}
 }
 
-// ---- A headless proof run (nk-p1, ta-p1) ----------------------------------------
+// ---- A headless proof run (nk-p1) ----------------------------------------------
 
 // The command line every headless proof takes, and the paths under --root.
 // `prefix` names its environment overrides (NKP1_CLAUDE, NKP1_MODEL, ...).
@@ -409,8 +409,8 @@ export async function startMachine(run, script, seconds, preflight = null) {
 // and drained by drainProcessRequests to the supervisor. So the child gets
 // what that role's children get: the repository found from the request,
 // its sandbox, and the role's network (the model proxy for an offline one).
-// A session binds to its role's record (session-bindings.mjs), so a triage
-// preflight has a run row of its own, removed with the rest.
+// A session binds to its role's record (session-bindings.mjs), so a
+// preflight for such a role has a record of its own, removed with the rest.
 // It must exit 0 with a call through the proxy; else the proof stops in
 // seconds with the child's log. Its binding and request are removed after.
 export async function preflightModel(

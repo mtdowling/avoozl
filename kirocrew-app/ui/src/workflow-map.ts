@@ -1,17 +1,14 @@
 // The Workflow map: how work flows through one repository, as lanes of step
 // cards built from its settings. Pure: the page draws what this returns, and
-// no card holds text the settings do not give. GitHub issues and pull
-// requests come in through the triage agent (triage-agent TA1 to TA9); no
-// label is an order (TA11.1).
-import { isGitHubMode, modeKey, type RepositoryForm } from './settings-api.ts'
+// no card holds text the settings do not give. No label is an order.
+import { isGitHubMode, type RepositoryForm } from './settings-api.ts'
 import { TONE } from './ui/tones.ts'
 
-export type Who = 'you' | 'agent' | 'avoozl' | 'github'
-export const WHO_TEXT: Record<Who, string> = { you: 'You', agent: 'Triage agent', avoozl: 'Avoozl', github: 'GitHub' }
+export type Who = 'you' | 'avoozl' | 'github'
+export const WHO_TEXT: Record<Who, string> = { you: 'You', avoozl: 'Avoozl', github: 'GitHub' }
 // Theme variables only, each with another existing variable as fallback.
 export const WHO_COLOR: Record<Who, string> = {
   you: TONE.infoOrAccent,
-  agent: TONE.purpleOrAim,
   avoozl: TONE.ok,
   github: TONE.orangeOrWarning,
 }
@@ -57,7 +54,7 @@ export interface Card {
   muted?: string
 }
 export interface Lane {
-  key: 'triage' | 'spec' | 'local'
+  key: 'spec' | 'local'
   title: string
   cards: Card[]
   // The whole lane is off: why. Its cards are still drawn, muted.
@@ -96,14 +93,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     source: repository.mergeMethod.trim() ? 'set' : 'default',
     jump: jump('mergeMethod'),
   }
-  const actors: Value = repository.allowedActors.trim()
-    ? { label: 'Allowed people', text: repository.allowedActors.trim(), source: 'set', jump: jump('actors') }
-    : {
-        label: 'Allowed people',
-        text: `anyone with ${repository.minimumPermission.trim() || 'write'} access`,
-        source: repository.minimumPermission.trim() ? 'set' : 'default',
-        jump: jump('permission'),
-      }
   // Who merges: the landing block's autoMerge, else auto-merge.
   const shipMode = repository.autoMerge === 'off' ? 'manual' : 'auto-merge'
   const ship: Value = {
@@ -134,11 +123,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     }
   }
 
-  const planningRepo = input.planningRepository?.trim()
-  const plansRepo = modeKey(mode) === 'plans-repo'
-  const closer: Card = plansRepo
-    ? { key: 'triage-close', who: 'avoozl', title: 'Merge closes the issue', text: `Avoozl closes the issue in ${planningRepo || 'the plans repository'}.`, values: [] }
-    : { key: 'triage-close', who: 'github', title: 'Merge closes the issue', text: 'The pull request says Fixes #N, so GitHub closes it.', values: [] }
   const mergeCard: Card = {
     key: 'spec-merge',
     who: shipMode === 'manual' ? 'you' : 'avoozl',
@@ -148,28 +132,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     ...tag('spec-merge'),
   }
 
-  const triage: Lane = {
-    key: 'triage',
-    title: 'Issues and pull requests',
-    cards: [
-      { key: 'triage-item', who: 'github', title: 'An issue or pull request comes in', text: 'The triage agent reads it once, when it is on for this repository.', values: [] },
-      {
-        key: 'triage-run',
-        who: 'agent',
-        title: 'The triage agent sorts it',
-        text: 'It answers a question, reproduces a bug, reviews a pull request, or hands it to you.',
-        values: [],
-      },
-      {
-        key: 'triage-fix',
-        who: 'avoozl',
-        title: 'A bounded bug becomes a fix',
-        text: "Only a collaborator's issue lands without you; anyone else's waits as Fix ready.",
-        values: [actors],
-      },
-      { ...closer, key: 'triage-close' },
-    ],
-  }
   const spec: Lane = {
     key: 'spec',
     title: 'Spec',
@@ -181,7 +143,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     ],
   }
 
-  return { lanes: [triage, spec], labels: [] }
+  return { lanes: [spec], labels: [] }
 }
 
 // The CSS selector of the input a jump lands on, inside the dialog whose ids

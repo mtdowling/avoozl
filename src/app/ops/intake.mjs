@@ -126,7 +126,7 @@ export const entries = [
                     minimumPermission: configured.minimumPermission,
                   }
                 : null;
-            // A GitHub source (§4.39): the triage agent reads it.
+            // A GitHub source (§4.39): the open items read fills it.
             if (source?.via === "github")
               return { id, scope, entry, error, who, state: null, items: null };
             return {

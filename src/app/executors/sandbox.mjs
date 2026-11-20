@@ -367,7 +367,7 @@ function bwrapArgs({
 }
 
 function optedIn(configDirectory, definition) {
-  // A child with no approved hash (a triage reproduction) is never opted in.
+  // A child with no approved hash is never opted in.
   if (!configDirectory || !definition?.hash) return false;
   const file = path.join(path.resolve(configDirectory), HARNESS_UNCONFINED);
   if (!fs.existsSync(file)) return false;

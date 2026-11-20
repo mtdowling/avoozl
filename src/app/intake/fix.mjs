@@ -1,4 +1,4 @@
-// A fix: one change with no spec files (triage-agent TA9, design §D5). Its
+// A fix: one change with no spec files (design §4.12). Its
 // definition is its text (an issue's title and body as they read when it
 // started, or what a person typed), its repository and two acceptance
 // lines. Starting it is the approval, so a fix is a ready leaf at once. It
