@@ -1,19 +1,18 @@
-// Task facts in tasks.md (Requirement 111, design §4.40). A task's facts are
-// `$key: value` bullets directly under its item; spec-wide values are
-// front-matter at the top of the file. This turns both into the object the
-// manifest used to hold, `{tasks, ...}`, plus the line of every bullet, so
-// parseSpec checks them as it always did.
+// Tasks hold no facts (simplify §D20). A task is its title and the plain
+// bullets under it; the list orders it (order.mjs), `(**MANUAL**)` in its
+// title marks a person's task, and the front matter's `repo` names the one
+// repository the spec changes. Every `$key:` bullet is the lint error
+// `facts.removed-key` with its fix, and nothing reads it. This turns the
+// front matter and the items into the object parseSpec checks, `{tasks}`.
 //
 //   ---
 //   repo: avoozl
 //   ---
-//   - [ ] 1.2 Queue table
-//     - $after: 1.1
-//     - $done: The migration runs twice with no change
-//     - Add the queue table and its migration.
+//   - [ ] `q-1.2` Queue table
+//     - The migration runs twice with no change
 //
-// A task's kind is not a fact: an item with sub-items is a package, and the
-// rest are leaves. Its phase is the `##` heading above it (spec-plans.mjs).
+// A task's kind: an item with sub-items, or one that links a spec, is a
+// package, and the rest are leaves. Its phase is the `##` heading above it.
 //
 // This module imports nothing from spec-plans.mjs: callers pass the checklist
 // items, so the two files do not import each other.
@@ -30,25 +29,26 @@ const STATUS = /^Status:/;
 const ONE_LINE = (key) =>
   `A fact is one bullet on one line. Write another "$${key}:" bullet for each value, and nothing under it.`;
 
-// Fact key -> {as: the manifest key it is stored under, type}.
-const KEYS = {
-  repo: { as: "repository", type: "text" },
-  done: { as: "acceptance", type: "list" },
-  after: { as: "requires", type: "list" },
-  manual: { as: "manual", type: "bool" },
-  paths: { as: "paths", type: "list", item: (text) => pathOf(text) },
-  investigate: { as: "investigate", type: "bool" },
-  type: { as: "type", type: "text" },
-  // An epic folder's rows (Requirement 59.1).
-  plan: { as: "plan", type: "text" },
-  step: { as: "step", type: "text" },
-};
+// No fact is read: every `$key:` bullet is gone (REMOVED_FACTS).
+const KEYS = {};
 export const FACT_KEYS = Object.keys(KEYS);
 
 const GONE = "Avoozl no longer reads it; delete this line.";
 // Facts that are gone, and what to do with a line that still has one. Each
 // is the lint error `facts.removed-key` at its line.
 export const REMOVED_FACTS = {
+  done: "Write the result as a plain bullet under the task: delete `$done:` and keep the text.",
+  after:
+    "Order tasks by the list; tag a group `(**PARALLEL**)` for tasks that run side by side. Delete this line.",
+  manual:
+    "End the task's title with `(**MANUAL**)`, before its refs, and delete this line.",
+  repo: "A spec changes one repository, its front matter's `repo`. Split a spec that changes two into one spec per repository, linked from a parent, and delete this line.",
+  paths: GONE,
+  investigate:
+    "Split the task: an investigation task whose bullets name `findings/<id>.md`, then the task whose bullets name that file. Delete this line.",
+  type: GONE,
+  plan: "Link the member spec's tasks.md from the task's title, which makes it a spec group, and delete this line.",
+  step: "Write the spec in a task of its own above the spec group, or add a `(**MANUAL**)` review task, and delete this line.",
   summary:
     "A task's summary is its own bullets under the item. Delete this line.",
   checks: "Every task runs the repository's checks; delete this line.",
@@ -58,9 +58,11 @@ export const REMOVED_FACTS = {
   batch:
     "Batches are gone: the agent groups its own work. Delete this line and the batch-<id> front-matter.",
   completion:
-    "A task completes when it lands, and a person's task is `$manual: true`; delete this line.",
-  sequence: "Name the task in `$after`, and delete this line.",
-  repositoryId: "Write `$repo`, and delete this line.",
+    "A task completes when it lands, and a person's task ends its title with `(**MANUAL**)`; delete this line.",
+  sequence:
+    "Order tasks by the list; tag a group `(**PARALLEL**)` for tasks that run side by side. Delete this line.",
+  repositoryId:
+    "A spec changes one repository, its front matter's `repo`. Delete this line.",
   built:
     "The commit that ticks a task records its landing; delete this line, or write a plain `Built:` note.",
   session:
@@ -91,13 +93,23 @@ export const REMOVED_FACTS = {
 const DEFAULTS = {
   repo: { as: "repository", type: "text" },
 };
-const SPEC_KEYS = ["integrationBranch", "integrationSync", "kind"];
+const SPEC_KEYS = [];
 export const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
+// Front-matter keys the list form removed (simplify §D20): the lint error
+// `frontmatter.removed-key`.
+export const REMOVED_SPEC_FRONT = {
+  kind: "A spec is a list of tasks; a parent links its member specs from task titles. Delete this line.",
+  epic: "A parent spec links its member specs from task titles. Delete this line.",
+  integrationBranch:
+    "An integration branch is the branch named for the spec's folder. Rename the branch or the folder, and delete this line.",
+  integrationSync:
+    "Avoozl merges the default branch into an integration branch before each claim on it. Delete this line.",
+};
 // Front-matter keys that are gone. `phase-<id>` and `batch-<id>` are matched
 // by their prefix.
 export const REMOVED_FRONT = {
   completion:
-    "A task completes when it lands, and a person's task is `$manual: true`; delete this line.",
+    "A task completes when it lands, and a person's task ends its title with `(**MANUAL**)`; delete this line.",
   ship: "The repository's landing setting says how work ships; delete this line.",
   forwardTarget: "Delete this line; the spec names no mirror target.",
   publicBranch: "Delete this line; the spec names no mirror branch.",
@@ -233,6 +245,17 @@ function readFront(rows) {
       continue;
     }
     out.at[key] = line;
+    if (Object.hasOwn(REMOVED_SPEC_FRONT, key)) {
+      out.problems.push(
+        problem(
+          "frontmatter.removed-key",
+          line,
+          `Front-matter key "${key}" is gone. ${REMOVED_SPEC_FRONT[key]}`,
+          { key },
+        ),
+      );
+      continue;
+    }
     const gone = removedFront(key);
     if (gone) {
       out.problems.push(
@@ -282,15 +305,9 @@ export function readFacts(text, items) {
     byLine = new Map(items.map((item) => [item.line, item])),
     skip = new Set();
   for (let at = 0; at < front.lines; at++) skip.add(at + 1);
-  const isEpic = front.values.kind === "epic";
-  if (front.values.kind !== undefined && front.values.kind !== "epic")
-    problems.push(
-      problem(
-        "facts.value",
-        front.at.kind,
-        'Front-matter kind is "epic" for an epic folder, and is left out otherwise.',
-      ),
-    );
+  // shortcut: epic folders are gone with the `kind` key; the epic paths
+  // below are unreachable until they are deleted with the epic code.
+  const isEpic = false;
 
   // Each item's facts: its direct child bullets that read `$key: value`. A
   // sub-item's bullets are its own, and a fenced block holds none.

@@ -220,12 +220,37 @@ export const commands = [
     help: [
       help(
         "plan",
+        "spec lint [SPEC]",
+        "Lint one spec, or every spec, as approval does",
+      ),
+      help(
+        "plan",
         "spec publish SPEC [--repository OWNER/REPO]",
         "Make the GitHub issues: the spec's issue and its epic's",
       ),
     ],
     async run({ options, positionals, localOrRequest, need }) {
-      if (positionals[0] !== "publish") throw Error("Choose spec publish.");
+      if (positionals[0] === "lint") {
+        const { specs } = await localOrRequest(
+          "spec.lint",
+          positionals[1] ? { spec: positionals[1] } : {},
+        );
+        let failed = false;
+        for (const spec of specs) {
+          console.log(
+            `${spec.name}: ${spec.counts.error} errors, ${spec.counts.warning} warnings`,
+          );
+          for (const d of spec.diagnostics)
+            console.log(
+              `  ${d.severity} ${d.code} ${d.file}:${d.lineStart} ${d.message}`,
+            );
+          if (spec.counts.error) failed = true;
+        }
+        if (failed) process.exitCode = 1;
+        return;
+      }
+      if (positionals[0] !== "publish")
+        throw Error("Choose spec lint or spec publish.");
       const planId = need(
         options.plan || positionals[1],
         "spec publish SPEC [--repository OWNER/REPO]",

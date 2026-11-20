@@ -23,10 +23,8 @@ import { lintPlan } from "./plan-quality.mjs";
 import { specFolderPath, specsDirectory } from "./specs-path.mjs";
 import {
   factName,
-  factsLines,
   factsText,
   itemBullets,
-  summaryLines,
   readFacts,
   withoutFacts,
 } from "./spec-facts.mjs";
@@ -51,6 +49,7 @@ import {
   waitsOf,
   withoutManual,
 } from "./order.mjs";
+import { graphBlockProblems } from "./graph.mjs";
 import {
   LETTERED,
   NAMED,
@@ -762,20 +761,35 @@ export function parseSpec({
       let own = bullets.get(item.line) ?? [];
       const rest = structuredClone(entry);
       // A leaf's plain bullets are its results, one each (§D20).
-      if (rest.kind === "leaf" && rest.acceptance === undefined) {
+      if (rest.kind === "leaf") {
         if (!own.length) {
-          diagnostics.push(
-            diagnostic(
-              "done.missing",
-              tasksFile,
-              item.line,
-              `Task "${item.key}" has no done bullet. Add a plain bullet under it for each result someone can check.`,
-              { taskId: item.id },
-            ),
-          );
+          // A leaf whose only bullets are removed `$` facts is reported
+          // once, as those facts.
+          if (
+            !facts.problems.some(
+              (p) => p.code === "facts.removed-key" && p.key === item.key,
+            )
+          )
+            diagnostics.push(
+              diagnostic(
+                "done.missing",
+                tasksFile,
+                item.line,
+                `Task "${item.key}" has no done bullet. Add a plain bullet under it for each result someone can check.`,
+                { taskId: item.id },
+              ),
+            );
           continue;
         }
-        rest.acceptance = own.map((bullet) => bullet.text);
+        // Each bullet's text, without its list marker or the indent of its
+        // following lines.
+        rest.acceptance = own.map((bullet) =>
+          bullet.text
+            .replace(/^[-*+]\s+/, "")
+            .split("\n")
+            .map((row) => row.trim())
+            .join(" "),
+        );
         own = [];
       } else if (rest.kind !== "leaf" && own.length)
         diagnostics.push(
@@ -789,7 +803,9 @@ export function parseSpec({
         );
       // A person's task ends its title with the tag (§D20).
       const manual = isManual(item.title);
-      if (manual) rest.manual = true;
+      // A group with the tag is manual.group (order.mjs); only a leaf is a
+      // person's task.
+      if (manual && rest.kind === "leaf") rest.manual = true;
       const summary = own.map((bullet) => bullet.text).join("\n"),
         title = (manual ? withoutManual(item.title) : item.title).slice(
           0,
@@ -843,10 +859,9 @@ export function parseSpec({
       );
     }
   }
-  // Order from the list (simplify §D19): a spec with no `$after` fact takes
-  // its waits from waitsOf. shortcut: a spec that still has `$after` facts
-  // is read by them, until every spec is rewritten (sim-2.2).
-  if (!proposals.some((proposal) => proposal.requires?.length)) {
+  // Order from the list (simplify §D19): waitsOf gives every wait. A
+  // repeated ID is refused above, and would only wait on itself here.
+  if (!diagnostics.some((d) => d.code === "task.duplicate-id")) {
     const waits = new Map();
     for (const { from, to } of waitsOf(name, tasksText, linked))
       waits.set(to, [...(waits.get(to) ?? []), from]);
@@ -854,7 +869,15 @@ export function parseSpec({
       if (waits.has(proposal.id)) proposal.requires = waits.get(proposal.id);
   }
   diagnostics.push(
-    ...[...orderProblems(items), ...linkProblems(items, linked)].map((found) =>
+    ...[
+      ...orderProblems(items),
+      ...linkProblems(items, linked),
+      // A parent's block holds its linked specs, so it is checked only
+      // when the other specs can be read.
+      ...(linked || !items.some((item) => item.spec)
+        ? graphBlockProblems(name, tasksText, linked)
+        : []),
+    ].map((found) =>
       diagnostic(found.code, tasksFile, found.line, found.message, {
         taskId: found.taskId,
       }),
@@ -917,6 +940,10 @@ export function lintSpec({
         "This workspace has more than one repository: name the one this spec changes with `repo:` in the front matter of tasks.md.",
       ),
     );
+  // That one error stands for each leaf's missing repository.
+  if (diagnostics.some((d) => d.code === "frontmatter.repo"))
+    for (let at = diagnostics.length - 1; at >= 0; at--)
+      if (diagnostics[at].code === "leaf.repository") diagnostics.splice(at, 1);
   // An ID is unique across the workspace, not only inside one tasks.md.
   for (const proposal of parsed.proposals) {
     const owner = (data.tasks || []).find(
@@ -1341,18 +1368,19 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
       fail("Repeated local task ID " + key);
     const directory = path.join(specsDirectory(spec.root), plan.spec),
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
-    let facts;
-    try {
-      facts = [...factsLines(entry), ...summaryLines(summary)];
-    } catch (error) {
-      fail(error.message);
-    }
+    // A leaf's results are its plain bullets (simplify §D20); a summary has
+    // no place in the list form.
+    const facts = (entry.acceptance ?? []).map((result) => `  - ${result}`);
+    if (!facts.length) fail("A proposed task needs at least one result.");
     writeAtomically(
       path.join(directory, file),
       addTaskLines(
         file,
         tasks,
-        [`- [ ] ${taskToken(key)} ${title}`, ...facts],
+        [
+          `- [ ] ${taskToken(key)} ${title}${entry.manual ? " (**MANUAL**)" : ""}`,
+          ...facts,
+        ],
         eol,
       ),
     );

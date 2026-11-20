@@ -74,22 +74,6 @@ const errors = async (ops) =>
     .filter((d) => d.severity === "error")
     .map((d) => [d.code, d.message]);
 
-test("lint refuses paths on a manual leaf, by name", async (t) => {
-  const { ops } = workspace(t);
-  await ops.execute("plan.create", { spec: "sdk" });
-  assert.deepEqual(await errors(ops), []);
-  const { ops: other } = workspace(t, { ...REVIEW, paths: ["src/**"] });
-  await other.execute("plan.create", { spec: "sdk" });
-  const found = await errors(other);
-  assert.ok(
-    found.some(
-      ([code, message]) =>
-        code === "spec.manual-field" && message.includes('"paths"'),
-    ),
-    JSON.stringify(found),
-  );
-});
-
 test("a manual leaf is never ready; once its blockers hold it waits in Needs you tagged Manual", async (t) => {
   const { store, ops } = workspace(t);
   await approve(ops);

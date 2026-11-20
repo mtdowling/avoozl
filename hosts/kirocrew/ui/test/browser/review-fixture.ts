@@ -57,15 +57,7 @@ export function reviewFixture(): { data: ReviewViewData; decide: (input: { id: s
         'Text SHALL convert to and from UTF-8 byte strings.',
       ].join('\n'),
       'design.md': ['# Design', '', 'The loader reads `bytes.toml` once at start.', '', '## D1. Layout', '', 'Bytes pack into words of eight.'].join('\n'),
-      'tasks.md': [
-        '# Tasks',
-        '',
-        '- [ ] 1.1 Add the byte type [R1.1] (§D1)',
-        '  - $done: A byte holds 0 to 255',
-        '- [ ] 1.2 Wrap on overflow',
-        '  - $after: 1.1',
-        '  - $done: 256 wraps to 0',
-      ].join('\n'),
+      'tasks.md': ['# Tasks', '', '- [ ] 1.1 Add the byte type [R1.1] (§D1)', '  - A byte holds 0 to 255', '- [ ] 1.2 Wrap on overflow', '  - 256 wraps to 0'].join('\n'),
     },
     rounds: [
       {

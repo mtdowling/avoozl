@@ -41,7 +41,7 @@ test("diffSpec names edited, added and removed tasks", () => {
   const after = edit(BATCH_SPEC, "1.4", { acceptance: ["Changed."] }),
     rows = diffSpec("config", BATCH_SPEC, {
       ...after,
-      "tasks.md": after["tasks.md"] + "  - [ ] 1.5 Fifth\n",
+      "tasks.md": after["tasks.md"] + "  - [ ] 1.5 Fifth\n    - Fifth works.\n",
     });
   assert.deepEqual(
     rows.map((row) => [row.taskId, row.change]),
@@ -53,8 +53,9 @@ test("diffSpec names edited, added and removed tasks", () => {
   const removed = diffSpec("config", BATCH_SPEC, without(BATCH_SPEC, "1.3"));
   assert.deepEqual(
     removed.map((row) => [row.taskId, row.change]),
+    // The task below the removed one now waits on the one above it.
     [
-      ["config.1", "edited"],
+      ["config.1.4", "edited"],
       ["config.1.3", "removed"],
     ],
   );

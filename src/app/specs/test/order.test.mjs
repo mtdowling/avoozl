@@ -147,23 +147,20 @@ test("lint reports group.box, parallel.size, parallel.leaf and parallel.tag", ()
   ]);
 });
 
-test("a spec that still has $after facts is read by them", () => {
+test("a $after fact is refused with its fix, and the list still orders the tasks", () => {
   const text = [
     "- [ ] `x-a` One",
-    "  - $done: Done",
+    "  - Done",
     "- [ ] `x-b` Two",
-    "  - $done: Done",
-    "- [ ] `x-c` Three",
     "  - $after: x-a",
-    "  - $done: Done",
+    "  - Done",
     "",
   ].join("\n");
-  const byId = new Map(
-    parseSpec(spec(text)).proposals.map((p) => [p.id, p.requires ?? []]),
+  const parsed = parseSpec(spec(text));
+  assert.deepEqual(
+    parsed.diagnostics.map((d) => d.code),
+    ["facts.removed-key"],
   );
-  assert.deepEqual(Object.fromEntries(byId), {
-    "x-a": [],
-    "x-b": [],
-    "x-c": ["x-a"],
-  });
+  assert.match(parsed.diagnostics[0].message, /Order tasks by the list/);
+  assert.deepEqual(parsed.proposals[1].requires, ["x-a"]);
 });

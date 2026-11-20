@@ -55,29 +55,19 @@ wants other rules. Avoozl never overwrites a changed copy.
 
 ## Tasks
 
-- A task's facts are bullets directly under its item that start with \`$\`:
-  \`- $after: 1.1\`. One fact per bullet, on one line. A list is
-  \`$after: 1.1, 2\`, or the same fact written again. \`$done:\` is one
-  result per bullet: write one \`$done:\` bullet for each.
-- Other bullets under an item are its summary: what it delivers and how. Its
-  worker reads the title, then the summary as written, then \`$done:\`. Write
-  one only when it adds to the title: lint refuses one that repeats it. Do
-  not repeat \`$done:\` either, and write no \`Done when:\` bullet.
-- An item with sub-items is a group. It is done when its sub-items are.
-- Every other item is one task for one agent session in one repository.
-  Its facts:
-  - \`$repo: <id>\`: the one repository it changes.
-  - \`$after: 1.1, 2\`: task IDs that must finish first.
-  - \`$done: <result>\`: one bullet per result someone can check.
-- A task's phase is the \`##\` heading above it.
-- Put values most tasks share in front-matter at the top of \`tasks.md\`,
-  such as \`repo: app\` (no \`$\` there). A task's own fact wins.
+- A task holds no facts: never write a bullet that starts with \`$\`.
+- Tasks run in list order, top to bottom. An item with sub-items is a group:
+  its tasks run in order, or side by side when its title ends with
+  \`(**PARALLEL**)\`. A group has no bullets of its own; its box follows its
+  tasks. A \`##\` phase waits for the phase above it.
+- Every other item is one task for one agent session. Its plain bullets say
+  what is done, one result each that someone can check.
+- Front matter at the top of \`tasks.md\` names the one repository the spec
+  changes: \`repo: app\`.
 - Never write \`checks\`: every task runs its repository's checks, which a
   person sets in Avoozl.
-- A step only a person does is a manual task: \`$manual: true\`, what the
-  person checks as \`$done:\`. It completes by a person.
-- Avoozl refuses any other fact, such as \`$kind\`, \`$phase\`, \`$batch\`
-  or \`$completion\`.
+- A step only a person does ends its title with \`(**MANUAL**)\`, before its
+  refs. A person ticks it.
 - Kiro's \`_Requirements: 1.2_\` line is a note. Keep it.
 
   \`\`\`markdown
@@ -85,9 +75,7 @@ wants other rules. Avoozl never overwrites a changed copy.
   repo: app
   ---
   - [ ] 1.2 Validate config
-    - $after: 1.1
-    - $done: An unknown key is reported with its path
-    - _Requirements: 1.2_
+    - An unknown key is reported with its path
   \`\`\`
 
 ## Stop after tasks
@@ -101,6 +89,7 @@ Avoozl.
 // unchanged copy is offered the current one (older texts taught marker
 // bullets, then `Facts:` blocks, Requirement 111).
 const OLDER_STEERING_HASHES = new Set([
+  "b16a9f6d252b380c74033fc553296724710fc104c4435b020f205606afab2e07",
   "85d87bd6870f8ac9721ba42f30c6d0713d2149c39f6ed27f8dff74a3c4b6d122",
   "6d4a6d30b8bd0f88cb71c476e01e26f6a392b18ea63a42f65eeffaf7a6639d88",
   "39a7d455120e65b3dc35b097c9b7f70eebe413c098d26945f63bf8ffd34b3fdf",

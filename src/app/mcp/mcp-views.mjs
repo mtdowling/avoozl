@@ -101,7 +101,13 @@ export function viewResult(name, result, given = {}) {
           ),
         });
     }
-    return { revision: result.revision, total: result.total, groups };
+    return {
+      revision: result.revision,
+      total: result.total,
+      groups,
+      text: result.text,
+      mermaid: result.mermaid,
+    };
   }
   if (name === "plans_decision") {
     const items = result.items.filter(

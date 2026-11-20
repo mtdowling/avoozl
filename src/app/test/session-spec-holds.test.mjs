@@ -50,8 +50,19 @@ async function pending(t) {
   const w = workspace(t);
   draft(w, "source", { "source-step": leaf("Build source foundation") });
   draft(w, "consumer", {
-    "consumer-step": leaf("Build dependent feature", ["source-step"]),
+    "consumer-step": leaf("Build dependent feature"),
   });
+  // A parent spec links source, then consumer, so consumer's task waits for
+  // source's (simplify §D19.2).
+  writeSpec(w.root, "pair", {
+    "tasks.md":
+      "---\nrepo: app\n---\n- [ ] `pair-1` Build [source](../source/tasks.md)\n- [ ] `pair-2` Build [consumer](../consumer/tasks.md)\n- [ ] `pair-3` Build [last](../last/tasks.md)\n",
+  });
+  createSpecPlan(
+    w.store,
+    { id: "pair", context: { repositoryId: "app" } },
+    readSpecFolder(w.root, "pair"),
+  );
   await approve(w, "consumer");
   return w;
 }
@@ -81,7 +92,7 @@ test("session.request and legacy run.start cannot execute a pending consumer", a
 test("an explicit session cannot bypass a pending prerequisite through another task", async (t) => {
   const w = await pending(t);
   draft(w, "last", {
-    "last-step": leaf("Finish dependent delivery", ["consumer-step"]),
+    "last-step": leaf("Finish dependent delivery"),
   });
   await approve(w, "last");
   assert.equal(

@@ -220,65 +220,6 @@ const leaf = (repository) => ({
   ...(repository ? { repository } : {}),
 });
 
-test("targets come from approved plans whose manifest names a branch", (t) => {
-  const { store } = fixture(t);
-  plan(store, "old", { tasks: { 1: leaf(REPO) } });
-  plan(store, "rewrite", {
-    integrationBranch: BRANCH,
-    tasks: { 1: leaf(REPO), 2: leaf(REPO) },
-  });
-  plan(store, "daily", {
-    integrationBranch: "rewrite/d",
-    integrationSync: "daily",
-    tasks: { 1: leaf() },
-  });
-  plan(
-    store,
-    "gone",
-    { integrationBranch: "rewrite/g", tasks: { 1: leaf(REPO) } },
-    { deletedAt: "2026-01-01" },
-  );
-  store.put("plans", { id: "draft", spec: "draft" });
-  const { targets, problems } = syncTargets(store, policy);
-  assert.deepEqual(
-    targets.map((entry) => [
-      entry.spec,
-      entry.repository,
-      entry.branch,
-      entry.sync,
-    ]),
-    [
-      ["daily", REPO, "rewrite/d", "daily"],
-      ["rewrite", REPO, BRANCH, "weekly"],
-    ],
-  );
-  assert.deepEqual(problems, []);
-});
-
-test("targets: two repositories, or none to pick, are named as problems, not guessed", (t) => {
-  const { store } = fixture(t);
-  plan(store, "two", {
-    integrationBranch: BRANCH,
-    tasks: { 1: leaf(REPO), 2: leaf("example/other") },
-  });
-  const { targets, problems } = syncTargets(store, policy);
-  assert.deepEqual(targets, []);
-  assert.equal(problems.length, 1);
-  assert.match(problems[0], /two/);
-  const none = fixture(t).store;
-  plan(none, "nothing", { integrationBranch: BRANCH, tasks: { 1: leaf() } });
-  assert.equal(
-    syncTargets(none, {
-      ...policy,
-      repositories: {
-        a: {},
-        b: {},
-      },
-    }).problems.length,
-    1,
-  );
-});
-
 test("the real client merges with POST /merges and compares with a slash in the branch", async () => {
   const seen = [];
   const client = defaultJob(
@@ -330,19 +271,4 @@ test("the sync code has no way to rewrite history", () => {
     "commitFiles",
   ])
     assert.ok(!text.includes(method), method);
-});
-
-test("targets: a leaf that names a repository ID syncs the repository of that repository", (t) => {
-  const { store } = fixture(t);
-  store.put("repositories", { id: "code", root: "/tmp/code", github: REPO });
-  plan(store, "byid", {
-    integrationBranch: BRANCH,
-    tasks: { 1: leaf("code") },
-  });
-  const { targets, problems } = syncTargets(store, policy);
-  assert.deepEqual(problems, []);
-  assert.deepEqual(
-    targets.map((entry) => [entry.spec, entry.repository]),
-    [["byid", REPO]],
-  );
 });
