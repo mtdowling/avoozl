@@ -338,7 +338,8 @@ export async function prepareWorktree(store, input = {}) {
   const prepared = await prepareTaskWorktree(store, repository, {
     branch,
     name: "avoozl-" + task.id,
-    start: base?.branch ?? null,
+    // A claim on an integration branch starts from that branch.
+    start: (input.claim === true && input.start) || base?.branch || null,
   });
   const record = {
     id: task.id,

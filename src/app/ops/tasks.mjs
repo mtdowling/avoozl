@@ -49,6 +49,7 @@ import {
   requiredCheckNeedsYou,
 } from "../plugins/check-stages.mjs";
 import { syncNeedsYou } from "../epics/integration-sync.mjs";
+import { integrationNeedsYou } from "../specs/integration-base.mjs";
 import { decideInvestigation } from "../delivery/investigate.mjs";
 import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
 import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
@@ -356,7 +357,7 @@ export const entries = [
       view.items.push(...phaseNeedsYou(store));
       view.items.push(...requiredCheckNeedsYou(store));
       view.items.push(...landingWaitNeedsYou(store, this.read()));
-      view.items.push(...syncNeedsYou(store));
+      view.items.push(...syncNeedsYou(store), ...integrationNeedsYou(store));
       view.items.push(...diskNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...credentialsNeedsYou(store));

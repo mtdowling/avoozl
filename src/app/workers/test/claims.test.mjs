@@ -11,6 +11,7 @@ import { Store } from "../../store/store.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { specCheckout } from "../../test/spec-checkout.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { integrationNeedsYou } from "../../specs/integration-base.mjs";
 
 const leaf = (id) => ({
   id,
@@ -41,9 +42,28 @@ function fakeGitHub(head, existing = []) {
         .filter(([name]) => name.startsWith(prefix))
         .map(([name, sha]) => ({ ref: `refs/heads/${name}`, object: { sha } }));
     },
+    // Origin's branches: main, the refs made here, and `branches` given.
+    branches: new Map([["main", head]]),
     async branch(repository, name) {
       calls.push(["branch", repository, name]);
-      return { name, commit: { sha: head } };
+      const sha = this.branches.get(name) ?? refs.get(name);
+      if (!sha) throw Object.assign(Error("Branch not found"), { status: 404 });
+      return { name, commit: { sha } };
+    },
+    // How far `head` is ahead of `base`, and a merge that may conflict.
+    ahead: 0,
+    conflict: false,
+    async compareCommits(repository, base, other) {
+      calls.push(["compare", repository, base, other]);
+      return { ahead_by: this.ahead, files: [{ filename: "src/a.js" }] };
+    },
+    async mergeBranch(repository, { base, head: from }) {
+      calls.push(["merge", repository, base, from]);
+      if (this.conflict)
+        throw Object.assign(Error("Merge conflict"), { status: 409 });
+      this.ahead = 0;
+      this.branches.set(base, "m".repeat(40));
+      return { sha: "m".repeat(40) };
     },
     async createBranch(repository, name, sha) {
       calls.push(["create", repository, name, sha]);
@@ -200,4 +220,64 @@ test("a rebuilt cache finds every claimed task from the claim branches alone", a
     next.running.map((item) => item.id),
     ["a", "c"],
   );
+});
+
+// Integration branches by name (sim-2.6, §D21).
+test("a branch named for the spec, or for the outermost spec that links it, is the base", async (t) => {
+  const s = setup(t, { tasks: [leaf("a")] });
+  s.github.branches.set("parser", "p".repeat(40));
+  let result = await claim(s.ops);
+  assert.deepEqual(
+    [result.claimed.base, result.claimed.head],
+    ["parser", "p".repeat(40)],
+  );
+  // A spec that links parser has a branch of its own: the outermost wins.
+  const t2 = setup(t, { tasks: [leaf("a")] });
+  t2.store.put("plans", {
+    id: "client",
+    spec: "client",
+    files: { "tasks.md": "- [ ] `c-1` Build [parser](../parser/tasks.md)\n" },
+  });
+  t2.github.branches.set("parser", "p".repeat(40));
+  t2.github.branches.set("client", "c".repeat(40));
+  result = await claim(t2.ops);
+  assert.equal(result.claimed.base, "client");
+  // Avoozl made no integration branch.
+  assert.ok(
+    !t2.github.calls.some(
+      (call) => call[0] === "create" && !/^avoozl/.test(call[2]),
+    ),
+  );
+});
+
+test("a moved default branch is merged into the integration branch before a claim, and only then", async (t) => {
+  const s = setup(t, { tasks: [leaf("a"), leaf("b")], lanes: 20 });
+  s.github.branches.set("parser", "p".repeat(40));
+  s.github.ahead = 2;
+  const first = await claim(s.ops);
+  // Parallel tasks claimed one after the other start on one merged head.
+  const second = await claim(s.ops);
+  assert.deepEqual(
+    s.github.calls.filter((call) => call[0] === "merge"),
+    [["merge", "acme/app", "parser", "main"]],
+  );
+  assert.equal(first.claimed.head, "m".repeat(40));
+  assert.equal(second.claimed.head, first.claimed.head);
+});
+
+test("a conflict holds every claim on the branch and gives one Needs you item", async (t) => {
+  const s = setup(t, { tasks: [leaf("a"), leaf("b")] });
+  s.github.branches.set("parser", "p".repeat(40));
+  s.github.ahead = 1;
+  s.github.conflict = true;
+  await assert.rejects(claim(s.ops), /integration branch could not take/);
+  assert.ok(!s.github.calls.some((call) => call[0] === "create"));
+  const rows = integrationNeedsYou(s.store);
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].title, /parser has a conflict with main/);
+  assert.match(rows[0].detail, /src\/a\.js/);
+  // Once the merge goes in, claims go on and the row clears.
+  s.github.conflict = false;
+  assert.equal((await claim(s.ops)).claimed.base, "parser");
+  assert.deepEqual(integrationNeedsYou(s.store), []);
 });

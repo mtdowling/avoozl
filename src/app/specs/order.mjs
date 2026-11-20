@@ -186,8 +186,8 @@ function treeWaits(name, text, linked) {
     walk = (list, parallel) => {
       if (!parallel)
         for (let i = 1; i < list.length; i++)
+          // A spec linked twice in one list would wait on itself.
           for (const from of last(list[i - 1]))
-            // A spec linked twice in one list would wait on itself.
             for (const to of first(list[i]))
               if (from !== to) edges.set(`${from}\0${to}`, { from, to });
       for (const node of list)

@@ -18,6 +18,16 @@ import {
   taskSpec,
 } from "./claims.mjs";
 import { manualTake } from "./manual-take.mjs";
+import { catchUp, integrationBase } from "../specs/integration-base.mjs";
+import { remoteGit } from "../git/git.mjs";
+
+// `origin/<branch>` once fetched, else null so the worktree starts from the
+// local base.
+const fetchedBase = (repository, branch) =>
+  remoteGit(repository.root, ["fetch", "--quiet", "origin", branch]).then(
+    () => `origin/${branch}`,
+    () => null,
+  );
 import { sessionUrl } from "../tick/notifications.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { scheduleHolds } from "../specs/spec-scheduler.mjs";
@@ -218,7 +228,7 @@ export function nextView(store, { policy, github = null }) {
 // repository has no GitHub name is not claimable this way.
 export async function claimNext(
   store,
-  { policy, github = null, client, workspaceRoot },
+  { policy, github = null, client, workspaceRoot, linked = null },
 ) {
   const errors = await refreshClaims(store, client),
     view = nextView(store, { policy, github }),
@@ -231,17 +241,55 @@ export async function claimNext(
         repository: repositories.get(taskRepository(task)),
       }))
       .filter(({ repository }) => repository?.github);
-  // shortcut: the base is the repository's base branch; integration
-  // branches named for a spec (simplify §D21) change it.
+  // The base: a branch on origin named for the spec or a spec that links
+  // it, caught up with the default branch first (simplify §D21), else the
+  // default branch. Each branch is read and merged once per call.
+  const seen = new Map(),
+    once = (key, read) => {
+      if (!seen.has(key)) seen.set(key, read());
+      return seen.get(key);
+    },
+    exists = (repository) => (name) =>
+      once(`branch:${repository}:${name}`, () =>
+        client.branch(repository, name).then(Boolean, (error) => {
+          if (error.status === 404) return false;
+          throw error;
+        }),
+      );
   const claim = await claimFirst(client, candidates, {
-    baseOf: ({ repository }) => repository.baseBranch || "main",
+    baseOf: async ({ task, repository }) => {
+      const fallback = repository.baseBranch || "main",
+        base = await integrationBase(taskSpec(task), {
+          linked,
+          exists: exists(repository.github),
+          fallback,
+        });
+      if (base === fallback) return base;
+      const done = await once(`catch-up:${repository.github}:${base}`, () =>
+        catchUp(store, client, {
+          repository: repository.github,
+          branch: base,
+          base: fallback,
+          prefix: repository.commitPrefix,
+        }),
+      );
+      return done.conflict ? null : base;
+    },
   });
   if (!claim) return { ...view, claimed: null, errors };
   // The take binds this caller's session before the claim is cached, so its
   // guard still sees the task as ready.
   const take = await manualTake(
     store,
-    { taskId: claim.task.id, claim: true, workspaceRoot },
+    {
+      taskId: claim.task.id,
+      claim: true,
+      workspaceRoot,
+      // An integration branch is fetched so the worktree starts on it.
+      ...(claim.base !== (claim.repository.baseBranch || "main")
+        ? { start: await fetchedBase(claim.repository, claim.base) }
+        : {}),
+    },
     { github },
   );
   cacheClaim(store, claim.repository.github, {

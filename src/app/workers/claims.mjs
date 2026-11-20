@@ -87,16 +87,23 @@ export async function refreshClaims(store, github) {
 // Claim the first of `candidates` ({task, repository}) whose branch GitHub
 // creates at its base head. A 422 means another runner holds it: take the
 // next. Ten refusals in one call, or none left, end the call. With no
-// candidate at all it returns null.
+// candidate at all it returns null. `baseOf` may be async, and a null base
+// skips the candidate (its integration branch could not take the default
+// branch).
 export async function claimFirst(github, candidates, { baseOf }) {
   if (!candidates.length) return null;
-  let refusals = 0;
+  let refusals = 0,
+    held = 0;
   for (const candidate of candidates) {
     if (refusals >= CLAIM_REFUSALS) break;
     const { task, repository } = candidate,
       branch = claimBranch(task),
-      base = baseOf(candidate),
-      head = (await github.branch(repository.github, base))?.commit?.sha;
+      base = await baseOf(candidate);
+    if (!base) {
+      held += 1;
+      continue;
+    }
+    const head = (await github.branch(repository.github, base))?.commit?.sha;
     if (!head) fail(`Cannot read the head of ${repository.github} ${base}.`);
     try {
       await github.createBranch(repository.github, branch, head);
@@ -111,6 +118,11 @@ export async function claimFirst(github, candidates, { baseOf }) {
     if (!lease) fail(`Another runner took the lease on ${branch} first.`, 409);
     return { ...candidate, branch, base, head, lease, refusals };
   }
+  if (held && !refusals)
+    fail(
+      "No task claimed: its integration branch could not take the default branch. See Needs you.",
+      409,
+    );
   fail(`No task claimed: ${ALL_CLAIMED}.`, 409);
 }
 

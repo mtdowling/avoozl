@@ -6,8 +6,11 @@ import { fileURLToPath } from "node:url";
 import {
   listSpecFolders,
   lintSpec,
+  parseSpec,
   readSpecFolder,
 } from "../../src/app/specs/spec-plans.mjs";
+import { git } from "../../src/app/git/git.mjs";
+import { foreignCommits } from "../../src/app/specs/integration-lint.mjs";
 import { linkedReader } from "../../src/app/specs/order.mjs";
 
 // The repository root, or the folder named as the first argument.
@@ -72,6 +75,27 @@ const linked = linkedReader(
     text: spec.files?.["tasks.md"] ?? "",
   })),
 );
+// The default branch origin names, for integration.foreign.
+const defaultBranch = await git(root, [
+  "symbolic-ref",
+  "--short",
+  "refs/remotes/origin/HEAD",
+]).then(
+  (name) => name.replace(/^origin\//, ""),
+  () => "main",
+);
+// A spec's task IDs and those of every spec it links, for the landings an
+// integration branch may hold.
+const taskIdsOf = (name, seen = new Set()) => {
+  if (seen.has(name) || !folders.has(name)) return [];
+  seen.add(name);
+  const spec = { ...folders.get(name), linked },
+    ids = parseSpec(spec).proposals.map((p) => p.id),
+    children = [...folders.keys()].filter((other) =>
+      linked.parents(other).some((parent) => parent.name === name),
+    );
+  return [...ids, ...children.flatMap((child) => taskIdsOf(child, seen))];
+};
 for (const name of names) {
   const spec = { ...folders.get(name), linked },
     result = lintSpec({ spec }),
@@ -79,11 +103,21 @@ for (const name of names) {
     errors = [
       ...(result.diagnostics || []).filter((d) => d.severity === "error"),
       ...status,
-    ];
+    ],
+    foreign = await foreignCommits(root, {
+      spec: name,
+      taskIds: taskIdsOf(name),
+      defaultBranch,
+    }).catch(() => []);
   result.counts.error += status.length;
+  result.counts.warning += foreign.length;
   console.log(
     `${name}: ${result.counts.error} errors, ${result.counts.warning} warnings, ${result.taskCount} tasks`,
   );
+  for (const { commit, subject } of foreign)
+    console.log(
+      `  warning integration.foreign: origin/${name} holds ${commit.slice(0, 12)} "${subject}", which is not this spec's work. Rename the branch or move the commit.`,
+    );
   for (const d of errors)
     console.log(
       `  ${d.file ?? ""}:${d.line ?? d.lineStart ?? ""} ${d.message ?? d.text ?? JSON.stringify(d)}`,

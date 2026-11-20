@@ -90,6 +90,7 @@ export const entries = [
           ...options,
           client: this.github,
           workspaceRoot: this.workspaceRoot,
+          linked: this.linkedSpecs(),
         });
       return nextView(this.store, options);
     },

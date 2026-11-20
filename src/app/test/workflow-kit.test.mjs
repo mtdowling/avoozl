@@ -12,6 +12,7 @@ import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.mjs";
 import { unblockCounts } from "../specs/release-ranking.mjs";
 import { claimFirst, resumeClaim } from "../workers/claims.mjs";
 import { linkedReader } from "../specs/order.mjs";
+import { catchUp, integrationBase } from "../specs/integration-base.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file) => fs.readFileSync(root + file, "utf8");
@@ -157,9 +158,22 @@ function ready(testCase, specs) {
 // An origin whose refs create call refuses a ref it already has, and keeps
 // each one it makes.
 function origin(testCase) {
-  const branches = new Set(testCase.origin.branches);
+  const branches = new Set(testCase.origin.branches),
+    behind = new Set(testCase.origin.behind ?? []);
   return {
-    branch: async () => ({ commit: { sha: "base" } }),
+    merged: [],
+    branch: async (_repository, name) => {
+      if (!branches.has(name))
+        throw Object.assign(Error("Not Found"), { status: 404 });
+      return { commit: { sha: "base" } };
+    },
+    compareCommits: async (_repository, branch) => ({
+      ahead_by: behind.has(branch) ? 1 : 0,
+    }),
+    async mergeBranch(_repository, { base }) {
+      this.merged.push(base);
+      behind.delete(base);
+    },
     createBranch: async (_repository, name) => {
       if (branches.has(name))
         throw Object.assign(Error("exists"), { status: 422 });
@@ -183,18 +197,43 @@ async function resume(testCase) {
   });
 }
 
-// The claim: Avoozl's claim call over the ready list.
-async function claim(testCase, order) {
+// The claim: Avoozl's claim call over the ready list, on the base its
+// integration branch rule picks, caught up first.
+async function claim(testCase, specs, order) {
   const github = origin(testCase),
+    linked = linkedOf(specs),
+    meta = new Map(),
+    store = {
+      getMeta: (key) => meta.get(key),
+      setMeta: (k, v) => meta.set(k, v),
+    },
     candidates = order.map((name) => {
       const [spec, id] = name.split("/");
       return { task: { id, planId: spec }, repository: { github: "o/r" } };
     }),
+    fallback = testCase.runner.defaultBranch,
     claimed = await claimFirst(github, candidates, {
-      baseOf: () => testCase.runner.defaultBranch,
+      baseOf: async ({ task }) => {
+        const base = await integrationBase(task.planId, {
+          linked,
+          exists: (name) => testCase.origin.branches.includes(name),
+          fallback,
+        });
+        if (base === fallback) return base;
+        const done = await catchUp(store, github, {
+          repository: "o/r",
+          branch: base,
+          base: fallback,
+        });
+        return done.conflict ? null : base;
+      },
     });
   return claimed
-    ? { branch: claimed.branch, base: claimed.base, mergeBase: false }
+    ? {
+        branch: claimed.branch,
+        base: claimed.base,
+        mergeBase: github.merged.includes(claimed.base),
+      }
     : null;
 }
 
@@ -208,7 +247,8 @@ async function avoozl(testCase) {
   if (testCase.expect.approved) got.approved = approved(testCase, specs);
   if (testCase.expect.ready || testCase.expect.claim)
     got.ready = ready(testCase, specs);
-  if (testCase.expect.claim) got.claim = await claim(testCase, got.ready);
+  if (testCase.expect.claim)
+    got.claim = await claim(testCase, specs, got.ready);
   if (testCase.expect.resume) got.resume = await resume(testCase);
   return got;
 }
