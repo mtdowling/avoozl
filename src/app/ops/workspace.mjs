@@ -8,10 +8,8 @@ import {
   isolationSetting,
 } from "../workspace/check-isolation.mjs";
 import { driverStatus } from "../workers/driver.mjs";
-import { listExamples, seedExample } from "../workspace/examples.mjs";
-import { repositoryConfig, withWorkLock } from "../git/git.mjs";
+import { detectCheckout, repositoryConfig, withWorkLock } from "../git/git.mjs";
 import { expandHome } from "../workspace/folder-browse.mjs";
-import { detectRepository } from "../workspace/repository-kind.mjs";
 import {
   machineIdentity,
   prepareGitHubRepository,
@@ -19,7 +17,6 @@ import {
 import { requirePrivateRepository } from "../github/github.mjs";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
-import { instanceView, renameInstance } from "../workspace/instance.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import {
   ensureGlobalLocalIgnore,
@@ -27,12 +24,6 @@ import {
 } from "../workspace/local-ignore.mjs";
 import { importNewPlans, newPlanStarts } from "../specs/new-plan.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
-import {
-  adoptRepository,
-  commitAuthors,
-  inspectFolder,
-  scanSpecs,
-} from "../workspace/onboarding.mjs";
 import { archiveEnded } from "../specs/plan-retire.mjs";
 import { planReviewStep } from "../reviews/plan-review-step.mjs";
 import { runnerTick } from "../workers/remote-runner.mjs";
@@ -61,58 +52,6 @@ import {
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
-  {
-    name: "workspace.examples",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({}) {
-      return listExamples();
-    },
-  },
-
-  {
-    name: "workspace.seed",
-    class: "protect",
-    github: "check-in",
-    policy: routed,
-    handler({ input, expectedRevision, context }) {
-      const store = this.store;
-      return seedExample(store, input, expectedRevision, {
-        specRoot: () => this.exampleSpecRoot(),
-        createDraft: (spec) => this.createSpecDraft({ spec }, context),
-      });
-    },
-  },
-
-  {
-    name: "instance.view",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp(
-      "The app page shows and renames this install's display name; a chat has no use for it.",
-    ),
-    handler({}) {
-      const store = this.store;
-      return instanceView(store);
-    },
-  },
-
-  {
-    name: "instance.rename",
-    class: "execute",
-    github: "check-in",
-    policy: notOnMcp(
-      "The app page shows and renames this install's display name; a chat has no use for it.",
-    ),
-    handler({ input }) {
-      const store = this.store;
-
-      renameInstance(store, input.name);
-      return instanceView(store);
-    },
-  },
-
   // Rebuild the database from git and GitHub (design §4.42).
   {
     name: "workspace.rebuild",
@@ -365,74 +304,17 @@ export const entries = [
       return { items: workspaceRepositories(store) };
     },
   },
-  // Read only: what Add repository would register for a folder, and the
-  // kind of repository it looks like.
+  // Read only: what Add repository would register for a folder: its root,
+  // remote, GitHub repository and branch.
   {
     name: "repositories.detect",
     class: "observe",
     github: "check-in",
     policy: routed,
     handler({ input }) {
-      return detectRepository({
-        store: this.store,
-        github: this.github,
-        settings: () => this.settingsFile().readGitHubSettings().github,
-        folder: input.folder,
-      });
+      return detectCheckout(input.folder);
     },
   },
-  // Onboard flow reads (onboarding.mjs): the folder as a whole, and the
-  // leak scan of the specs a public repository's issues would show.
-  {
-    name: "onboarding.inspect",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp("App page rendering only."),
-    handler({ input }) {
-      const store = this.store;
-      return inspectFolder({
-        store,
-        github: this.github,
-        folder: input.folder,
-      });
-    },
-  },
-
-  {
-    name: "onboarding.scan",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp("App page rendering only."),
-    handler({ input }) {
-      const store = this.store;
-      return scanSpecs(store, (spec) => this.readSpec(spec), input.specs);
-    },
-  },
-
-  {
-    name: "onboarding.authors",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp("App page rendering only."),
-    handler({ input }) {
-      return commitAuthors(input.folder);
-    },
-  },
-
-  // Adopt from git (design §4.42): the reader `workspace.rebuild` uses, over
-  // one added repository's specs, with the approvers the person confirmed.
-  {
-    name: "onboarding.adopt",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person adopts a repository from git."),
-    handler({ input, context }) {
-      if (context.caller || context.mcp)
-        fail("Only a person adopts a repository from git.", 403);
-      return adoptRepository(this, input);
-    },
-  },
-
   {
     name: "repositories.configure",
     class: "protect",

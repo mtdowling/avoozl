@@ -45,7 +45,6 @@ try {
     ['general', [tab('general')]],
     ['landing', [tab('landing')]],
     ['github', [tab('github')]],
-    ['map', [tab('map')]],
     // The Isolation panel under Landing, scrolled into view.
     ['isolation', [tab('landing')]],
   ].filter(([name]) => (only.length ? only.includes(name) : name !== 'before'))

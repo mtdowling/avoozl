@@ -19,18 +19,15 @@ import { Tooltip } from '../../src/ui/Tooltip.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
-import SetupRepository from '../../src/Onboard.tsx'
 import { Modal } from '../../src/ui/Modal.tsx'
 import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
-import { SetupDialog } from '../../src/SetupWizard.tsx'
 import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import WorkspaceView from '../../src/WorkspaceView.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
-import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import FlowBuilds from '../../src/FlowBuilds.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
@@ -263,13 +260,9 @@ const repoEdit = (edited: boolean) =>
 
 export const SCENARIOS: Record<string, Scenario> = {
   'add-plugin': own('Add plugin', <AddPlugin workspaceId="w" client={idle} supported={[1]} onChanged={async () => undefined} />),
-  onboard: shown((close) => <SetupRepository workspaceId="w" folder="/work/avoozl" onChanged={async () => undefined} onClose={close} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
-  'setup-github': shown((close) => (
-    <SetupDialog workspaceId="w" client={idle} form={setupForm({})} set={() => undefined} first={null} onClose={close} onSaved={async () => undefined} />
-  )),
-  'archive-plan': shown((close) => <ArchivePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
+    'archive-plan': shown((close) => <ArchivePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   'delete-plan': shown((close) => <DeletePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   confirm: own(
     'Remove',
@@ -409,16 +402,6 @@ answer('workspaces.list', () => ({
     ...(query.get('long') === '1' ? [{ id: 'w2', name: 'Avoozl', root: '/w2', enabled: true, state: 'ready', served: false }] : []),
   ],
 }))
-// The install's name: quiet with one instance, shown in more places with &shared=1.
-let instanceName = 'Mira'
-answer('instance.view', () => ({
-  id: 'inst-0123456789ab',
-  name: instanceName,
-  others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [],
-  shared: query.get('shared') === '1',
-}))
-answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: (instanceName = String((body.input as { name?: string }).name)), others: [], shared: false }))
-
 // &graph=chains: the Graph on three specs with real chains (graph-chains.ts).
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 // &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).
@@ -439,8 +422,7 @@ function DeepLinkPage() {
   )
 }
 
-// ?page=home: the Dashboard alone with nothing in flight (?page=demo uses
-// the same answers for the real workspace, before the sample opens). &ran=1 gives the
+// ?page=home: the Dashboard alone with nothing in flight. &ran=1 gives the
 // workspace one finished task (it has run before); without it, none has.
 if (query.get('page') === 'home' || query.get('page') === 'demo') {
   const ran = query.get('ran') === '1'
@@ -1620,21 +1602,18 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
   answer('flow.retro.decide', () => ({ ok: true }))
   answer('flow.retro.again', () => ({ queued: true }))
 }
-// ?page=demo: the whole page, where Start demo opens the sample. Calls
-// for the sample answer from window.__DEMO (demo-replies.mjs, built from
-// the real sample); other calls answer as ?page=app does.
+// ?page=demo: the whole page on the made-up sample workspace. Its calls
+// answer from window.__DEMO (demo-replies.mjs, built from the sample in
+// src/app/test/demo-fixture.mjs); other calls answer as ?page=app does.
 const demo = (window as unknown as { __DEMO?: { replies: Record<string, unknown>; previews: Record<string, string> } }).__DEMO
 if (query.get('page') === 'demo' && demo) {
-  let open = false
-  answer('demo.start', () => ((open = true), { active: true, workspaceId: '@demo', existing: false, at: null }))
-  answer('demo.exit', () => ((open = false), { active: false }))
-  answer('demo.status', () => ({ active: open, workspaceId: '@demo' }))
-  const names = new Set([...Object.keys(demo.replies), ...Object.keys(demo.previews)].filter((name) => !name.startsWith('demo.')))
+  answer('workspaces.list', () => ({ defaultWorkspace: 'sample', items: [{ id: 'sample', name: 'Recipe Box', served: true }] }))
+  const names = new Set([...Object.keys(demo.replies), ...Object.keys(demo.previews)])
   for (const name of names) {
     const before = replyFor(name)
     answer(name, (body) => {
       const call = body as { workspaceId?: string }
-      if (call.workspaceId === '@demo') {
+      if (call.workspaceId === 'sample') {
         if (name in demo.previews) throw new Refusal(409, { error: demo.previews[name], demo: true })
         return demo.replies[name]
       }

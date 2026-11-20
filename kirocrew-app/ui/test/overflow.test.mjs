@@ -1,5 +1,5 @@
 // At 390 px no element is wider than its container, and nothing passes the
-// screen's right edge. In a real Chrome (AVOOZL_CHROME) on the Demo sample,
+// screen's right edge. In a real Chrome (AVOOZL_CHROME) on the sample workspace,
 // light and dark, on Home and Needs you. An element inside a box that clips
 // or scrolls sideways on purpose (a cut-short line, a wide table's scroller)
 // is judged by that box instead. Skipped when no Chrome is found.
@@ -51,10 +51,7 @@ const OVERFLOWS = `(() => {
 
 async function start(dark) {
   await page.open(harness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width: 390, height: 844, dark })
-  const startButton = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Start demo')`
-  await page.until(`Boolean(${startButton})`)
-  await page.evaluate(`${startButton}.click()`)
-  await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
+  await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   await wait(800)
 }
 async function goto(name) {

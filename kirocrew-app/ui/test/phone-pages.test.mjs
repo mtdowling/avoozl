@@ -1,6 +1,6 @@
 // Pages with a list and a detail follow Kiro Crew's list-detail pattern on a
 // phone. In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium)
-// on the harness page with the Demo mode sample, at 390 and 1280 px, light and
+// on the harness page with the sample workspace, at 390 and 1280 px, light and
 // dark: one pane shows at a time, the detail has a Back control in a sticky
 // row, Back returns to the list, and a desktop is unchanged. Skipped when no
 // Chrome is found.
@@ -31,9 +31,7 @@ const button = (text, scope = 'document') => `[...${scope}.querySelectorAll('but
 
 async function start(width, dark) {
   await page.open(harness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height: 800, dark })
-  await page.until(`Boolean(${button('Start demo')})`)
-  await click(button('Start demo'))
-  await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
+  await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   await wait(500)
 }
 // A phone picks a page in the top rail; a desktop clicks its tab.

@@ -1,6 +1,5 @@
-// The made-up Recipe Box specs: three specs under one epic, and one draft.
-// Demo mode (demo.mjs) builds its sample from them, and the recipe-box
-// example (examples.mjs) installs them as draft spec folders.
+// The Recipe Box sample specs the page tests' sample workspace drafts
+// (demo-fixture.mjs). Every name in them is made up. Test only.
 import { factsLines } from "../specs/spec-facts.mjs";
 import { taskToken } from "../specs/spec-refs.mjs";
 

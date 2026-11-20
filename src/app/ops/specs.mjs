@@ -5,7 +5,6 @@ import {
   updateMachineSettings,
 } from "../workers/driver.mjs";
 import { planningIdentity } from "../github/github-marker.mjs";
-import { repositorySetup } from "../workspace/repository-setup.mjs";
 import { publishSpec } from "../specs/spec-publication.mjs";
 import { fail } from "../store/store.mjs";
 import { publishPlanningPullRequest } from "../workspace/workspace-repository.mjs";
@@ -57,57 +56,6 @@ export const entries = [
         planId: input.planId,
         repository: input.repository,
       });
-    },
-  },
-  // Set up a repository for landing (R89, task 42.7): a preview, applied
-  // only with `confirm` (`--yes`) by a person.
-  {
-    name: "repository.setup",
-    class: "execute",
-    github: "check-in",
-    policy: person("Only a person applies repository setup.", (input) =>
-      Boolean(input?.confirm),
-    ),
-    handler({ input, context }) {
-      const store = this.store;
-
-      if (input.confirm && (context.caller || context.mcp))
-        fail("Only a person applies repository setup.", 403);
-      if (!this.github?.available?.())
-        fail("Repository setup needs GitHub; run gh auth login.", 503);
-      // The checks and the base branch are the repository's own settings.
-      const wanted = this.githubPolicy().repositories?.[input.repository];
-      return repositorySetup(
-        store,
-        this.github,
-        {
-          ...input,
-          checks: wanted?.requiredChecks,
-          base: wanted?.baseBranch ?? undefined,
-        },
-        {
-          writeRepository: (repository) => {
-            this.configuration?.assertWritable();
-            this.configuration?.updateExecutionRepository(repository);
-          },
-          // The repository's landing block holds the mode (§4.25).
-          writeLanding: (repository, mode) => {
-            const file = this.settingsFile(),
-              current = file.readGitHubSettings(),
-              github = structuredClone(current.github),
-              entry = github.repositories?.[repository] ?? {};
-            github.repositories = {
-              ...github.repositories,
-              [repository]: {
-                ...entry,
-                landing: { ...(entry.landing ?? {}), mode },
-              },
-            };
-            file.updateGitHubSettings({ github, expectedHash: current.hash });
-            this.configuration?.reload();
-          },
-        },
-      );
     },
   },
   {

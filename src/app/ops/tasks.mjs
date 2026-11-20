@@ -42,7 +42,6 @@ import { credentialsNeedsYou } from "../github/github-credentials.mjs";
 import { missingLabelsNeedsYou } from "../github/github-setup.mjs";
 import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { highlightLanguages } from "../settings/highlight-languages.mjs";
-import { instanceView } from "../workspace/instance.mjs";
 import { landingNeedsYou } from "../epics/integration-head.mjs";
 import { pluginCheckNeedsYou } from "../plugins/plugin-checks.mjs";
 import {
@@ -411,7 +410,6 @@ export const entries = [
           line: lineBanner(store, data),
         }),
         specs: async () => (await sub("plan.specs")).items,
-        instance: () => instanceView(store),
       });
     },
   },

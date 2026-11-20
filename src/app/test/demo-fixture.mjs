@@ -1,9 +1,7 @@
-// Demo mode (design §6.11): a made-up sample workspace, a fake GitHub, and a
-// gate that turns every change into a sentence saying what would happen.
-// The sample lives in its own temporary folder. It is built once, in a
-// staging folder beside it, and appears only when a rename moves the whole
-// folder into place, so a failed build leaves nothing behind. Nothing here
-// opens, reads or writes the person's own workspaces or machine settings.
+// A made-up sample workspace for page tests: the Recipe Box specs, a fake
+// GitHub, and a gate that turns every change into a sentence saying what
+// would happen. Built once in a temporary folder; it never opens the
+// person's own workspaces or machine settings. Test only.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -14,7 +12,7 @@ import { Operations } from "../api/operations.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
 import { classifyOperation } from "../api/operation-table.mjs";
 import { recordActivity } from "../store/activity-log.mjs";
-import { emptySnapshot } from "./workspace.mjs";
+import { emptySnapshot } from "../workspace/workspace.mjs";
 import { sampleSpecs } from "./sample-specs.mjs";
 import { specsDirectory } from "../specs/specs-path.mjs";
 
@@ -411,8 +409,6 @@ export function demoGitHub(sample = demoGitHubData()) {
 // Reads that still reach outside the sample (a folder picker, a scan of the
 // disk) are previews too, even though they change nothing.
 const OUTSIDE_READS = new Set([
-  "onboarding.scan",
-  "onboarding.inspect",
   "repositories.detect",
 ]);
 
@@ -447,7 +443,6 @@ const SAYS = [
   ["fix.spec", "make this fix a draft spec folder"],
   ["conflicts.", "settle this conflict"],
   ["activity.settings", "change Activity settings"],
-  ["onboarding.", "look at folders on this machine"],
 ];
 
 function demoPreview(operation) {

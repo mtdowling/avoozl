@@ -1,7 +1,6 @@
 // The brand line under the left nav (and at the bottom of the phone's menu):
-// the logo, the instance name and the Avoozl version.
+// the logo and the Avoozl version.
 import Logo from './Logo'
-import { InstanceBadge } from './InstanceName.tsx'
 import { Box } from './ui/Box'
 import { Hint } from './ui/Hint'
 
@@ -29,9 +28,6 @@ export function BrandCard(props: { workspaceId: string | null; boxed?: boolean }
     >
       <Logo size={16} />
       <Box as="span" css-margin-left="auto" css-white-space="nowrap" css-overflow="hidden" css-line-height="16px" flex minW0 items="baseline" gap="1.5">
-        <Box as="span" css-font-size="12" minW0 truncate>
-          <InstanceBadge workspaceId={props.workspaceId} plain />
-        </Box>
         {AVOOZL_VERSION && (
           <Hint data-avoozl-version as="span" size="11" shrink0>
             v{AVOOZL_VERSION}

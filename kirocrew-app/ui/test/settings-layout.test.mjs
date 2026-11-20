@@ -26,8 +26,8 @@ const settings = source('SettingsView.tsx')
 test('every Settings group and repository tab renders its blurb', () => {
   for (const tab of ['workspaces', 'repositories', 'github', 'plugins', 'content']) assert.match(settings, new RegExp(`\\n  ${tab}:\\s*\\n?\\s*['"]`), tab)
   assert.match(settings, /data-blurb=\{section\.key\}>\s*\{SETTINGS_BLURBS\[section\.key\]\}/)
-  for (const tab of ['general', 'landing', 'github', 'checks', 'reviews', 'map']) assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
-  for (const title of ['Who counts', 'Priority', 'Set up GitHub']) assert.match(settings, new RegExp(`title="${title}"\\s+blurb=`), title)
+  for (const tab of ['general', 'landing', 'github', 'checks', 'reviews']) assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
+  for (const title of ['Who counts', 'Priority']) assert.match(settings, new RegExp(`title="${title}"\\s+blurb=`), title)
 })
 
 test('a required field shows the shared Required marker', () => {
@@ -78,10 +78,7 @@ test('the radio fold-out is real radios with motion off under reduced motion, an
   assert.equal(existsSync(new URL('../src/RoleHelp.tsx', import.meta.url)), false)
   assert.doesNotMatch(settings, /RoleHelp|What the roles make/)
   assert.doesNotMatch(settings, /[^e]ModePicker\.tsx|<ModePicker/)
-  const wizard = source('SetupWizard.tsx')
-  assert.doesNotMatch(wizard, /<RoleHelp/)
-  assert.doesNotMatch(wizard, /id="avoozl-setup-owner"|id="avoozl-setup-number"|id="avoozl-setup-planning"/)
-  assert.match(settings, /shared=\{sharedSetup\(form\)\}/)
+  assert.equal(existsSync(new URL('../src/SetupWizard.tsx', import.meta.url)), false)
 })
 
 test('no mode is Local only', () => {
@@ -152,7 +149,7 @@ test('markers read (required) or (optional) in plain muted text, never red or bo
 
 test('who counts is one row on the GitHub tab, with write as the default; no separate tab', () => {
   assert.doesNotMatch(settings, /key: 'people'/)
-  const triggers = settings.slice(settings.indexOf("{tab === 'github' && ("), settings.indexOf("{tab === 'map' && ("))
+  const triggers = settings.slice(settings.indexOf("{tab === 'github' && ("), settings.indexOf('export const EDITOR_TABS'))
   assert.match(triggers, /title="Who counts"/)
   assert.match(triggers, /raw="minimumPermission"/)
   assert.match(triggers, /raw="allowedActors"/)
@@ -162,7 +159,6 @@ test('who counts is one row on the GitHub tab, with write as the default; no sep
 test('Settings has a GitHub page; Workspaces keeps only workspace things', () => {
   assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
   assert.doesNotMatch(settings, /Where tasks live' \}/)
-  assert.match(settings, /setup=\{<SetupWizard/)
   const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf('if (!workspaceId)'))
   assert.match(workspaces, /<WorkspaceView[\s\S]*<ThisComputer/)
   assert.doesNotMatch(workspaces, /PolicyEditor|WorkspaceGitHub|RateBlock|SetupWizard/)

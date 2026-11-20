@@ -200,47 +200,6 @@ export const commands = [
     },
   },
   {
-    command: "seed",
-    help: [
-      help(
-        "setup",
-        "seed --workspace PATH [--example ID]",
-        "Install an example once; with no ID, draft Recipe Box spec folders",
-        {
-          usage: "seed --workspace PATH",
-          about: "Install the example pack (optional)",
-        },
-      ),
-    ],
-    async run({ options, positionals, localOrRequest }) {
-      console.log(
-        JSON.stringify(
-          // No name installs the default pack (`examples` says which).
-          await localOrRequest("workspace.seed", {
-            example: options.example || positionals[0],
-          }),
-          null,
-          2,
-        ),
-      );
-    },
-  },
-  {
-    command: "examples",
-    help: [
-      help(
-        "setup",
-        "examples --workspace PATH",
-        "List available example packs",
-      ),
-    ],
-    async run({ localOrRequest }) {
-      console.log(
-        JSON.stringify(await localOrRequest("workspace.examples"), null, 2),
-      );
-    },
-  },
-  {
     command: "workspace",
     help: [
       help(
@@ -368,54 +327,6 @@ export const commands = [
       }
       console.log(
         JSON.stringify(await localOrRequest(operation, value), null, 2),
-      );
-    },
-  },
-  {
-    command: "setup",
-    help: [
-      help(
-        "setup",
-        "setup OWNER/REPO --repo ID\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
-        "Preview repository setup for landing; the required checks and base branch come from the repository's settings; --yes applies it",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      // Preview by default; --yes applies (R89.1). Not `github setup`.
-      const list = (value) =>
-        value
-          ?.split(",")
-          .map((entry) => entry.trim())
-          .filter(Boolean);
-      const value = {
-        repository: need(
-          positionals[0],
-          "setup OWNER/REPO --repo ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
-        ),
-        repositoryId: options.repo,
-        methods: list(options.methods),
-        landing: options.landing,
-        confirm: Boolean(options.yes),
-      };
-      // --yes applies: it shows each GitHub write with its permissions and
-      // counts as the person's yes to them (PC13.6).
-      if (value.confirm) {
-        refuseAgentYes(true);
-        const preview = await localOrRequest("repository.setup", {
-          ...value,
-          confirm: false,
-        });
-        value.allow = await confirmHighRisk(
-          (preview.github || []).filter((step) => step.status === "change"),
-          { yes: true, localOrRequest },
-        );
-      }
-      console.log(
-        JSON.stringify(
-          await localOrRequest("repository.setup", value),
-          null,
-          2,
-        ),
       );
     },
   },

@@ -139,7 +139,6 @@ import {
   specRoots,
   specTitle,
 } from "../specs/spec-plans.mjs";
-import { sameFolder } from "../workspace/onboarding.mjs";
 import {
   applyTicks,
   baseHead,
@@ -164,6 +163,15 @@ export function postingActor(name, context) {
   if (AUTOMATION.has(name)) return "avoozl";
   return context.person === true ? "person" : null;
 }
+
+const realpath = (value) => {
+  try {
+    return fs.realpathSync.native(value);
+  } catch {
+    return value;
+  }
+};
+const sameFolder = (a, b) => realpath(a) === realpath(b);
 
 export class Operations {
   constructor(
@@ -543,8 +551,8 @@ export class Operations {
       ...(homeErrors.length ? { homeErrors } : {}),
     };
   }
-  // Store a spec folder as a draft plan: `plan.create` with a spec, and
-  // each folder of a spec-folder example. It approves nothing.
+  // Store a spec folder as a draft plan: `plan.create` with a spec. It
+  // approves nothing.
   createSpecDraft(input, context = {}) {
     const store = this.store,
       spec = this.readSpec(input.spec);
@@ -557,22 +565,6 @@ export class Operations {
       caller: context.caller,
     });
     return created;
-  }
-  // Where a spec-folder example is written: the workspace's own folder, and
-  // only when that is where this workspace reads its specs. An example never
-  // writes into a code repository or a separate planning checkout.
-  exampleSpecRoot() {
-    const roots = this.specRoots();
-    if (
-      !this.workspaceRoot ||
-      roots.length !== 1 ||
-      path.resolve(roots[0]) !== path.resolve(this.workspaceRoot)
-    )
-      fail(
-        "This example installs spec folders in the workspace's own specs folder, and this workspace reads its specs from a repository. Nothing was installed.",
-        409,
-      );
-    return roots[0];
   }
   // A folder on disk by name.
   readSpec(name) {

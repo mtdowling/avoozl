@@ -121,10 +121,8 @@ review. Each repository's `landing` setting picks how:
   required checks and reviews on that head, and merges. Without merge
   permission it waits for an authorized person to merge.
 
-`avoozl setup OWNER/REPO --repo ID --landing pr|direct|off` previews the
-repository setup, and `--yes` applies it. Setup requires the GitHub checks
-named in the repository's **Required checks** setting (**Edit repository ›
-Landing**), which are separate from the repository's own checks.
+The GitHub checks named in the repository's **Required checks** setting
+(**Edit repository › Landing**) are separate from the repository's own checks.
 
 ### Merge batches
 

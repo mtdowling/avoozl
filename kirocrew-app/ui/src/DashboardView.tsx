@@ -12,12 +12,6 @@ import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem, type LandingView } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
-import { StartDemoButton } from './Demo.tsx'
-import SetupCard from './SetupCard.tsx'
-import { useInstance } from './InstanceName.tsx'
-import { nameFor } from './instance-api.ts'
-import { setupCards } from './setup-api.ts'
-import { useSetupFacts } from './setup-facts.ts'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import StageChecks from './PluginChecks.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
@@ -544,8 +538,6 @@ export default function DashboardView(props: {
     await Promise.all([reloadCore(), landing.reload(), flow.reload()])
   }, [reloadCore, landing.reload, flow.reload]) // eslint-disable-line react-hooks/exhaustive-deps
   const summary = value?.summary
-  const instance = useInstance(workspaceId)
-  const facts = useSetupFacts(workspaceId)
   // A stop pulled or resumed anywhere on the page (the top row's Stop the
   // line, a banner) reads the banner again.
   useEffect(() => {
@@ -576,13 +568,6 @@ export default function DashboardView(props: {
     else if (item.tab === 'waiting') onNavigate('waiting', item.taskId ?? undefined)
     else if (item.taskId) drawer.openTask(item.taskId)
   }
-  // What the repository empty state's button does. No epics has no button:
-  // New spec on Specs starts one.
-  const openRepositories = () => props.onOpenSettings?.('repositories')
-  const cards = setupCards({
-    repositories: facts.repositories,
-    plans: summary ? summary.plans.total : 1,
-  })
   const attention = summary?.attention ?? []
   const ci = ciHealth(flow.value ?? null)
   const ciDays = flow.value?.ci?.repositories[0]?.windowDays
@@ -605,25 +590,6 @@ export default function DashboardView(props: {
           {error ?? chat.error}
         </ErrorText>
       )}
-      {cards.map((card) => (
-        <SetupCard
-          key={card.id}
-          id={card.id}
-          title={card.title}
-          line={card.line}
-          action={
-            card.id === 'repository' ? (
-              <>
-                {/* Short words on the button; its name is the whole action. */}
-                <SmallBtn primary onClick={openRepositories} attrs={{ 'aria-label': card.action }}>
-                  {card.action}
-                </SmallBtn>
-                <StartDemoButton label="Try the demo" />
-              </>
-            ) : undefined
-          }
-        />
-      ))}
       {/* The layout shows at once; each part fills when its read lands. */}
       <Tiles tiles={homeTiles(summary ?? null, landing.value ?? null)} onOpen={(tile) => onNavigate(tile.target)} />
       <HomeSection
@@ -695,20 +661,12 @@ export default function DashboardView(props: {
         </HomeSection>
       </HomePair>
       <HomePair id="flight-progress">
-        <HomeSection id="in-flight" title={`In flight (${summary ? summary.inFlight.length : 0})${nameFor(instance, 'other') ? ` · ${nameFor(instance, 'other')}` : ''}`}>
+        <HomeSection id="in-flight" title={`In flight (${summary ? summary.inFlight.length : 0})`}>
           <HomeBox>
             {!summary ? (
               <Empty>Loading…</Empty>
             ) : summary.inFlight.length === 0 ? (
-              <>
-                <Empty>No chat is working right now.</Empty>
-                {/* Only while nothing has ever run. */}
-                {summary.neverRan && (
-                  <Box mb="2">
-                    <StartDemoButton label="Start demo" />
-                  </Box>
-                )}
-              </>
+              <Empty>No chat is working right now.</Empty>
             ) : (
               <>
                 <Box as="ul" m0 listNone p="0">

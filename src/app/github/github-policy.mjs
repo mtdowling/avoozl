@@ -8,11 +8,6 @@ import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { fail } from "../store/store.mjs";
 import { MAX_WRITES_PER_HOUR, MAX_WRITES_PER_MINUTE } from "./github-pacer.mjs";
 import { parseRepository } from "./github.mjs";
-import {
-  ROLES,
-  deriveGitHubKeys,
-  resolveRoles,
-} from "../workspace/repository-roles.mjs";
 
 export const PERMISSIONS = Object.freeze([
   "read",
@@ -21,7 +16,6 @@ export const PERMISSIONS = Object.freeze([
   "maintain",
   "admin",
 ]);
-export { ROLES };
 export const MODES = Object.freeze(["plans-repo", "single-repo"]);
 // `local` names Local only on purpose: no GitHub mode, every task stays in
 // the workspace database. It normalizes to a null mode, and the GitHub
@@ -47,7 +41,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "checkout",
     "folder",
     "baseBranch",
-    "role",
     "allowedActors",
     "minimumPermission",
     "requiredChecks",
@@ -259,13 +252,6 @@ export function priorityRank(priority, labels) {
 export function normalizeGitHubPolicy(value) {
   if (value === undefined || value === null) value = {};
   onlyKeys(value, POLICY_KEYS, "github");
-  // Roles decide the mode (R105.2); a block with none is read as written.
-  try {
-    resolveRoles(value);
-  } catch (error) {
-    fail(error.message);
-  }
-  value = deriveGitHubKeys(value);
   const named = value.mode ?? null;
   if (named !== null && !MODE_CHOICES.includes(named))
     fail("github.mode must be local, plans-repo or single-repo.");

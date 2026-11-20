@@ -35,8 +35,6 @@ import { plansClient } from './plans-api.ts'
 import { releaseClient } from './release-api.ts'
 import { SPEC_BUILDER_SPECS } from './spec-builder-api.ts'
 import { StopLineButton } from './StopLine.tsx'
-import { nameFor } from './instance-api.ts'
-import { useInstance } from './InstanceName.tsx'
 import { relativeTime } from './task-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref } from './views-api.ts'
@@ -187,7 +185,6 @@ export default function AvoozlPanel() {
   const [busy, setBusy] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const [away, setAway] = useState<Away | null>(() => takeAway(storage()))
-  const instance = useInstance(workspaceId)
   const chat = useMemo(() => currentChat(window.location), [])
   const plans = useMemo(() => plansClient(api), [api])
   const releases = useMemo(() => releaseClient(api), [api])
@@ -371,7 +368,7 @@ export default function AvoozlPanel() {
   const unread = (section: SectionName) => model.unread.includes(section)
   const loading = reads === null
   const stopped = model.stops.length > 0
-  const headerName = nameFor(instance, 'header') ?? reads?.instance?.name ?? null
+  const headerName = reads?.instance?.name ?? null
 
   // One section: its rows, or why it has none.
   const unreadOr = (section: SectionName, empty: string, rows: number, render: () => ReactNode) =>

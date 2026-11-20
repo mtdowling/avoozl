@@ -48,7 +48,6 @@ import { WORKSPACE_LOCK, tickHealth } from "../../tick/tick.mjs";
 import { withWorkLock } from "../../git/git.mjs";
 import { launchSupervisor } from "../supervisor.mjs";
 import { uiBundleProblem } from "../../serve/ui-bundle.mjs";
-import { defaultDemoRoot } from "../../workspace/demo.mjs";
 
 const PRINCIPAL_HEADER = "x-kirocrew-principal";
 const HOST = "127.0.0.1";
@@ -209,8 +208,6 @@ export function startAppBackend({
   modelReader = gatewayModelList(gatewayClient(process.env)),
   // Stops a session for Stop all agents (session-observer.mjs).
   sessionStopper = gatewaySessionStopper(process.env),
-  // Where Demo mode keeps its sample workspace (demo.mjs).
-  demoRoot = defaultDemoRoot(),
   // Starts this machine's supervisor for process children (R95.3). Only
   // under Kiro Crew's gateway, so tests and bare runs start none.
   supervisor = gatewayClient(process.env) ? machineSupervisor : null,
@@ -228,7 +225,6 @@ export function startAppBackend({
     config,
     home,
     registryOptions,
-    demoRoot,
     readers: {
       notifier,
       slotReader,

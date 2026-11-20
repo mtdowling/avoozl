@@ -11,7 +11,6 @@
 import { digest } from "../../model.mjs";
 import { normalizeGitHubPolicy } from "./github-policy.mjs";
 import { parseRepository } from "./github.mjs";
-import { withoutDerivedKeys } from "../workspace/repository-roles.mjs";
 import { fail } from "../store/store.mjs";
 import { confirmStep, withJob } from "./github-jobs.mjs";
 
@@ -416,7 +415,7 @@ function lineDiff(before, after) {
 
 // Step 6: the `.avoozl.json` change, written only through Settings.
 function settingsProposal(request, settings, ctx) {
-  const before = withoutDerivedKeys(settings.github || {}),
+  const before = settings.github || {},
     next = structuredClone(before);
   delete next.mode;
   delete next.planningRepository;

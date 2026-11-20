@@ -109,7 +109,6 @@ test('a section with no data yet says so in one line', () => {
 })
 
 test('an empty Home explains what to set up with a button, instead of hiding cards', () => {
-  assert.match(dashboard, /<SetupCard/)
   assert.match(dashboard, /setupCards\(/)
   assert.doesNotMatch(dashboard, /DriverCell/)
   assert.doesNotMatch(dashboard, /No tasks yet/)

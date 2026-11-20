@@ -15,10 +15,6 @@ import {
   buildView,
   observationsForTask,
 } from "../build-receipt-read.mjs";
-import {
-  INSTANCE_NAMES,
-  plainInstanceName,
-} from "../../workspace/instance.mjs";
 import { ciStep } from "../flow-ci.mjs";
 // Flow's Builds, as the builds.view operation shows them.
 const flowView = (store) => ({ builds: buildView(buildRows(store)) });
@@ -450,8 +446,7 @@ test("an instance with no known name gets a plain name, never its ID", () => {
   );
   const names = view.byInstance.map((row) => row.name);
   assert.equal(names[0], "Draco");
-  assert.equal(names[1], plainInstanceName(INSTANCE("b")));
-  assert.ok(INSTANCE_NAMES.includes(names[1]));
+  assert.equal(names[1], INSTANCE("b"));
   assert.doesNotMatch(names.join(" "), /inst-/);
 });
 

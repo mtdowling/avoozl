@@ -184,7 +184,6 @@ for (const [width, height] of [
 // (landing-view.test.mjs checks it makes no GitHub call).
 const HOME_READS = new Set([
   'workspaces.list',
-  'instance.view',
   'flow.view',
   'graph.view',
   'delivery.view',

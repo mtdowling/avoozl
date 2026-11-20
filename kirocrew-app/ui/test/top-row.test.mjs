@@ -11,25 +11,22 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
-import { demoReplies, demoScript } from './browser/demo-replies.mjs'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the top row tests'
 // AVOOZL_SHOTS=<dir> keeps a screenshot of each top row size and theme.
 const shots = process.env.AVOOZL_SHOTS || null
 
-let harness, demoHarness, browser, page
+let harness, browser, page
 before(async () => {
   if (skip) return
   harness = await buildHarness()
-  demoHarness = await buildHarness({ scripts: { 'demo.js': demoScript(await demoReplies()) } })
   browser = await launch(chrome)
   page = await browser.page()
 })
 after(async () => {
   await browser?.close()
   harness?.remove()
-  demoHarness?.remove()
 })
 
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
@@ -106,81 +103,27 @@ for (const [width, height] of [
       }
     })
 
-// The same no-visible-text rule in Demo mode, demo bar included: its Stop
-// the line example is an icon whose words are only its tooltip and name. The
-// workspace pill still starts the nav, naming the sample.
-const VISIBLE_STOP = `(() => {
-  const out = []
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    const el = n.parentElement, box = el.getBoundingClientRect(), style = getComputedStyle(el)
-    if (box.width > 1 && box.height > 1 && style.visibility !== 'hidden' && !el.closest('.sr-only') && /stop the line|resume the line/i.test(n.nodeValue)) out.push(n.nodeValue.trim())
-  }
-  return out
-})()`
-for (const [width, height] of [
-  [390, 844],
-  [1280, 800],
-])
-  for (const dark of [false, true])
-    test(`Demo mode at ${width} px ${dark ? 'dark' : 'light'}: no visible Stop the line text, the demo bar's example is an icon, the workspace pill starts the nav`, {
-      skip,
-    }, async () => {
-      await page.open(demoHarness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height, dark })
-      const start = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Start demo')`
-      await page.until(`Boolean(${start})`)
-      await page.evaluate(`${start}.click()`)
-      await page.until(`Boolean(document.querySelector('[data-demo-bar] [data-demo-stop-example]'))`)
-      for (const example of ['running', 'stopped']) {
-        const got = await page.evaluate(`(() => {
-          const b = document.querySelector('[data-demo-bar] [data-demo-stop-example]')
-          return { example: b.dataset.demoStopExample, text: b.textContent.trim(), label: b.getAttribute('aria-label'), icon: Boolean(b.querySelector('svg')), bar: document.querySelector('[data-demo-bar]').textContent }
-        })()`)
-        assert.equal(got.example, example)
-        assert.equal(got.text, '', 'the example has no words')
-        assert.equal(got.icon, true, 'it is an icon')
-        assert.match(got.label, /^Stop the line example: /)
-        assert.doesNotMatch(got.bar, /Issue Radar/, 'the demo bar names no Radar')
-        assert.match(got.bar, /Avoozl runs it with coding agents, checks each commit itself/)
-        assert.deepEqual(await page.evaluate(VISIBLE_STOP), [], `no visible Stop the line text (${example})`)
-        await page.evaluate(`document.querySelector('[data-demo-bar] [data-demo-stop-example]').click()`)
-        await settle()
-      }
-      if (width < 768) {
-        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-        await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
-        assert.deepEqual(await page.evaluate(VISIBLE_STOP), [], 'no visible Stop the line text in the menu')
-      }
-      const nav = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
-      const pill = await page.evaluate(
-        `(() => { const first = document.querySelector('${nav} [data-workspace-pill], ${nav} [data-nav-section]'); return { first: Boolean(first?.matches('[data-workspace-pill]')), text: first?.textContent ?? '' } })()`,
-      )
-      assert.equal(pill.first, true, 'the workspace pill starts the nav in the demo')
-      assert.match(pill.text, /Demo: Recipe Box/)
-      assert.deepEqual(page.errors, [])
-    })
-
-test('the brand line sits under the nav: one line, no box, the logo left and the name and version right', { skip }, async () => {
+test('the brand line sits under the nav: one line, no box, the logo left and the version right', { skip }, async () => {
   await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-brand-card] [data-instance-name]'))`)
+  await page.until(`Boolean(document.querySelector('[data-brand-card] [data-avoozl-version]'))`)
   const got = await page.evaluate(`(() => {
     const nav = document.querySelector('[data-nav-card]'), brand = document.querySelector('[data-brand-card]'), main = document.querySelector('[data-shell-main]')
     const box = (el) => el.getBoundingClientRect()
-    const logo = brand.querySelector('svg'), name = brand.querySelector('[data-instance-name]'), version = brand.querySelector('[data-avoozl-version]')
+    const logo = brand.querySelector('svg'), version = brand.querySelector('[data-avoozl-version]')
     const mid = (el) => { const r = box(el); return r.top + r.height / 2 }
     const cs = getComputedStyle(brand)
     return {
-      oneLine: Math.abs(mid(logo) - mid(name)) < 4 && Math.abs(mid(name) - mid(version)) < 4,
-      order: box(logo).right <= box(name).left && box(name).right <= box(version).left,
+      oneLine: Math.abs(mid(logo) - mid(version)) < 4,
+      order: box(logo).right <= box(version).left,
       logoLeft: box(logo).left - box(brand).left < 12,
       versionRight: box(brand).right - box(version).right < 8,
       noBox: cs.borderTopWidth === '0px' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent'),
       apart: !nav.contains(brand), below: box(brand).top >= box(nav).bottom, leftOfMain: box(brand).right <= box(main).left + 1, version: brand.querySelector('[data-avoozl-version]')?.textContent, tagline: document.body.textContent.includes('Specs and epics as a graph') }
   })()`)
   assert.equal(got.oneLine, true, 'one line')
-  assert.equal(got.order, true, 'logo, name, version')
+  assert.equal(got.order, true, 'logo, then version')
   assert.equal(got.logoLeft, true, 'the logo at the left')
-  assert.equal(got.versionRight, true, 'the name and version at the right')
+  assert.equal(got.versionRight, true, 'the version at the right')
   assert.equal(got.noBox, true, 'no border, no background')
   assert.equal(got.apart, true, 'not inside the nav card')
   assert.equal(got.below, true)
@@ -242,31 +185,6 @@ test('In flight rows line up: titles, and Details, start at the same x in every 
     })()`)
     for (const key of ['role', 'title', 'actions', 'right']) assert.equal(cols[key][0], cols[key][1], `${key} lines up at ${width}px`)
     assert.equal(cols.sideways, false, `no sideways scroll at ${width}px`)
-  }
-})
-
-const startDemo = `Boolean([...document.querySelectorAll('[data-demo-start]')].find((b) => b.textContent.trim() === 'Start demo'))`
-
-test('Start demo shows in the empty In flight box only while nothing has ever run', { skip }, async () => {
-  await page.open(harness.url({ page: 'home' }), { width: 1280, height: 800 })
-  await page.until(`document.body.textContent.includes('No chat is working right now.')`)
-  assert.equal(await page.evaluate(startDemo), true, 'empty and never run: shown')
-  assert.equal(
-    await page.evaluate(`Boolean(document.querySelector('[data-demo-start]')?.closest('[data-home-section="in-flight"] [data-home-box]'))`),
-    true,
-    'inside the In flight card',
-  )
-  await page.open(harness.url({ page: 'home', ran: '1' }), { width: 1280, height: 800 })
-  await page.until(`document.body.textContent.includes('No chat is working right now.')`)
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-start]').length`), 0, 'empty but has run: hidden')
-})
-
-test('the top of the main column never has Start demo or Try the demo', { skip }, async () => {
-  {
-    await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
-    await page.until(`Boolean(document.querySelector('[data-main-top]'))`)
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-main-top] [data-demo-start]'))`), false)
-    assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-main-top] button')].some((b) => /demo/i.test(b.textContent))`), false)
   }
 })
 
