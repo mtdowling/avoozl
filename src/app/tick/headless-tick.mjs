@@ -51,10 +51,11 @@ export async function tickWorkspace(
   if (!fs.existsSync(target.dbPath))
     return { root, skipped: "The workspace is not initialized." };
   const store = new Store(target.dbPath);
+  let ops = null;
   try {
     if (!store.initialized())
       return { root, skipped: "The workspace is not initialized." };
-    const ops = new Operations(store, {
+    ops = new Operations(store, {
       operator: target.operator,
       workspaceRoot: target.workspaceRoot,
       plansRoot: target.plansRoot,
@@ -86,6 +87,9 @@ export async function tickWorkspace(
       ...(notifications ? { notifications } : {}),
     };
   } finally {
+    // This process ends with the store, so send what is queued first. The
+    // tick's result is already decided and does not wait on the outcome.
+    await ops?.flushTelemetry();
     store.close();
   }
 }

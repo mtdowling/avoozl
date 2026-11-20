@@ -1,7 +1,9 @@
 // ot-2.4: retention and size cap (OT2.3, OT2.4, OT2.5, OT2.7).
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 import { Store } from "../../store/store.mjs";
+import { temporaryDirectory } from "../../test/temporary.mjs";
 import { finishTask, openTelemetry, point, span } from "../record.mjs";
 import { LIMITS, pruneTelemetry } from "../sqlite-exporter.mjs";
 
@@ -136,5 +138,35 @@ test("pruning runs after the write count and gap, and never inside a transaction
       .all()
       .map((row) => row.id),
     ["e"],
+  );
+});
+
+test("opening the database prunes what is past 90 days", (t) => {
+  const directory = temporaryDirectory("avoozl-retention-");
+  const file = path.join(directory, "workspace.sqlite");
+  const first = new Store(file);
+  point(first, {
+    id: "old",
+    name: "avoozl.tokens",
+    kind: "sum",
+    value: 1,
+    at: new Date(Date.now() - 100 * DAY).toISOString(),
+  });
+  point(first, {
+    id: "new",
+    name: "avoozl.tokens",
+    kind: "sum",
+    value: 1,
+    at: new Date().toISOString(),
+  });
+  first.close();
+  const second = new Store(file);
+  t.after(() => second.close());
+  assert.deepEqual(
+    second.db
+      .prepare("SELECT id FROM telemetry_points")
+      .all()
+      .map((row) => row.id),
+    ["new"],
   );
 });

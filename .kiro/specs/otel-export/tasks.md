@@ -84,7 +84,7 @@ another spec cannot be a `$after` here, so `ot-2.1` says it in a bullet.
   - Tests: `503`, `429` with `Retry-After`, a reset connection and a timeout retry with backoff and fake timers; the fifth failure drops the batch and adds to `dropped`; a `400` adds to `rejected` and is not retried; a `302` is a failure of kind `http 302` and is not followed
   - Tests: with 501 items queued, the oldest is dropped and `dropped` counts it; only one request is in flight at a time; a stop of the exporter loses the queue and sends nothing from the tables
   - Tests: the log holds the endpoint's host and port at start, and holds no header value, body or full URL, checked with a canary header value
-- [ ] `ot-3.4` Register the exporter beside the tick [OT4.2, OT4.4, OT6.6, OT7.2, OT10.1, OT10.7] (§D6)
+- [x] `ot-3.4` Register the exporter beside the tick [OT4.2, OT4.4, OT6.6, OT7.2, OT10.1, OT10.7] (§D6)
   - $after: ot-3.3, ot-2.2
   - `startTelemetry` registers the SQLite exporter when the database opens; in the process that runs the tick it also starts the 5-second `unref`'d timer that registers or unregisters the OTLP exporter from machine config and sends; no other process registers it
   - The code that builds an agent process's environment drops every `OTEL_` variable, and a test starts a fake harness and reads its environment
@@ -94,7 +94,7 @@ another spec cannot be a `$after` here, so `ot-2.1` says it in a bullet.
 ## Phase 4: Surfaces
 
 - [ ] `ot-4` Surfaces (**PARALLEL**)
-  - [ ] `ot-4.1` Operations and CLI [OT5.3, OT5.5, OT11.5, OT11.6] (§D6, §D11)
+  - [x] `ot-4.1` Operations and CLI [OT5.3, OT5.5, OT11.5, OT11.6] (§D6, §D11)
     - $after: ot-3.4
     - Two entries in `src/app/ops/telemetry.mjs`: `telemetry.status` (`observe`, not on MCP) and `telemetry.configure` (person-only); and the CLI entries `avoozl telemetry status`, `enable` and `disable` in `src/app/commands/`
     - Tests: `telemetry.configure` called over MCP or with an app token is refused as person-only; an MCP tool list holds no telemetry tool; `enable` writes only `telemetry.enabled` to machine config and keeps its other keys; `status` prints the status, the counts and the local row counts and never a header value or a URL's path

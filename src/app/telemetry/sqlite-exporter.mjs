@@ -167,6 +167,39 @@ function prunePoints(db, limits, now) {
   return removed;
 }
 
+// Whether a table has a row to prune, read without taking the write lock.
+function due(db, limits, now) {
+  const cutoff = new Date(now - limits.days * DAY).toISOString();
+  const count = (table) =>
+    db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
+  return (
+    count("telemetry_spans") > limits.spanCap ||
+    count("telemetry_points") > limits.pointCap ||
+    Boolean(
+      db
+        .prepare("SELECT 1 FROM telemetry_points WHERE at < ? LIMIT 1")
+        .get(cutoff),
+    ) ||
+    Boolean(
+      db
+        .prepare(
+          "SELECT 1 FROM telemetry_spans WHERE COALESCE(ended_at, started_at) < ? LIMIT 1",
+        )
+        .get(cutoff),
+    )
+  );
+}
+
+// Prune when the database opens: a database with nothing old is not written,
+// so opening beside another connection's writer still reads. A busy database
+// waits for the next write's pruning.
+export function pruneOnOpen(db, options = {}) {
+  const { limits = LIMITS, now = Date.now() } = options;
+  try {
+    if (due(db, limits, now)) pruneTelemetry(db, { limits, now });
+  } catch {}
+}
+
 // Prune both tables as one transaction of their own. Returns the rows deleted.
 export function pruneTelemetry(db, { limits = LIMITS, now = Date.now() } = {}) {
   db.exec("BEGIN IMMEDIATE");

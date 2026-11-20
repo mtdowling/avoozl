@@ -6,7 +6,7 @@ import path from "node:path";
 import { summarizeErrors, validate } from "../../model.mjs";
 import {
   TELEMETRY_SCHEMA,
-  pruneTelemetry,
+  pruneOnOpen,
 } from "../telemetry/sqlite-exporter.mjs";
 import { keepNamedEpics, ownLegacyEpics } from "../epics/epics.mjs";
 
@@ -328,7 +328,7 @@ export class Store {
    ${TELEMETRY_SCHEMA}
     `);
       this.db.exec("COMMIT");
-      pruneTelemetry(this.db);
+      pruneOnOpen(this.db);
       if (!activityLog && this.initialized())
         this.setMeta("activity.upgrade", true);
       // Tables nothing writes to any more (past runs, teams, the safety gate,
@@ -673,6 +673,8 @@ export class Store {
     return copy;
   }
   close() {
+    // Set by startTelemetry: ends the timer that holds this store.
+    this.telemetryStop?.();
     this.db.close();
   }
 }
