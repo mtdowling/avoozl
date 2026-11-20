@@ -246,19 +246,13 @@ test("GitHub completion clients read closing pull requests and exact checks", as
     (await github.commitStatus("example/code", "a".repeat(40))).statuses,
     [],
   );
-  await granted("landing-setup", "example/code", () =>
-    github.createCommitStatus("example/code", "a".repeat(40), {
-      state: "success",
-      context: "proof",
-    }),
-  );
+
   assert.deepEqual(
     requests.map(({ pathname, method }) => [method, pathname]),
     [
       ["POST", "/graphql"],
       ["GET", `/repos/example/code/commits/${"a".repeat(40)}/check-runs`],
       ["GET", `/repos/example/code/commits/${"a".repeat(40)}/status`],
-      ["POST", `/repos/example/code/statuses/${"a".repeat(40)}`],
     ],
   );
   assert.equal(requests[0].body.variables.number, 7);

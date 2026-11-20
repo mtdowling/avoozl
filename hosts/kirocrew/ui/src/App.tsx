@@ -22,7 +22,6 @@ import FlowView, { LineBanner } from './FlowView.tsx'
 import { DASHBOARD_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, tabLabel, type Tab, type WaitingSection } from './nav-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
-import LandingQueueView from './LandingQueueView.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
 import ActivityView from './ActivityView.tsx'
@@ -414,8 +413,6 @@ function AvoozlPage() {
                       />
                     ) : tab === 'delivery' ? (
                       <DeliveryView workspaceId={active} />
-                    ) : tab === 'landing' ? (
-                      <LandingQueueView workspaceId={active} />
                     ) : tab === 'activity' ? (
                       <ActivityView workspaceId={active} />
                     ) : (

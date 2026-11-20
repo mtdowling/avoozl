@@ -42,7 +42,6 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 - **Approvals** and **task completion** are commits on the specs branch. See
   [Approval](github-workflow.md#7-approval) and
   [Done tasks](github-workflow.md#18-done-tasks).
-- **Landings** are the trailers on the landing commits.
 - **Execution state** is the workspace database, rebuilt from the items above.
 
 A task never gets a GitHub issue. A spec can have one issue, whose assignee
@@ -77,7 +76,7 @@ No label is an order. The labels Avoozl reads are per-repository settings:
 
 The nav has six entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
 
-- **Dashboards:** Home, Graph, Delivery, Landing queue.
+- **Dashboards:** Home, Graph, Delivery.
 - **Specs:** one list with status chips, and spec details with tabs.
 - **Needs you:** Decisions.
 - **Flow:** one page.

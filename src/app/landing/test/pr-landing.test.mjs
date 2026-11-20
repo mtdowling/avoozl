@@ -224,7 +224,7 @@ test("a verified task is pushed as a draft, waits for its release and check on t
   approveMerge(w.store, at, { commit, by: "dashboard" });
   await step(w, github);
   assert.deepEqual(github.calls.merged, [{ number: 1, sha: commit }]);
-  assert.equal(github.calls.statuses[0].context, "avoozl/verify");
+  assert.deepEqual(github.calls.statuses, [], "no commit status is posted");
   const delivery = w.store.get("task_deliveries", "t1");
   assert.equal(delivery.state, "integrated");
   assert.equal(delivery.integratedCommit, commit);
@@ -270,7 +270,7 @@ test("a private plan's task goes by an opaque name on a public repository", asyn
   assert.equal(created[0].head, `avoozl/${named}`);
   for (const text of [created[0].title, created[0].body])
     assert.ok(!/\bt1\b|\bs\b/.test(text.replace(named, "")), text);
-  assert.match(created[0].body, new RegExp(`^Avoozl-Task: ${named}@`));
+  assert.equal(created[0].body, "", "no trailer in the body");
   // The task's branch link is the branch that was pushed.
   assert.equal(
     taskLinks(w.store, "t1").branch.url,

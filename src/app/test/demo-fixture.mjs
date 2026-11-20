@@ -291,10 +291,8 @@ export const GITHUB_WRITE_METHODS = Object.freeze([
   "removeAssignees",
   "createPullRequest",
   "markPullRequestReadyForReview",
-  "createCommitStatus",
   "createRuleset",
   "updateRuleset",
-  "updateRepository",
   // Raw calls could carry a write, so they are refused too.
   "request",
   "graphql",

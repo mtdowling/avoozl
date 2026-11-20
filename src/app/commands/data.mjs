@@ -1,6 +1,6 @@
 // CLI commands of one kind: command, help lines and run.
 import { Store, privateFile } from "../store/store.mjs";
-import { RETIRED_LANDING, generate } from "./support.mjs";
+import { generate } from "./support.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { help } from "../cli/command-help.mjs";
@@ -38,13 +38,6 @@ export const commands = [
       ),
     ],
     run: runBackup,
-  },
-  {
-    command: "integrator",
-    help: [],
-    run({}) {
-      console.log(RETIRED_LANDING);
-    },
   },
   {
     command: "generate",

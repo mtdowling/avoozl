@@ -1,12 +1,12 @@
 // integration.foreign (simplify §D21.1): a branch on origin named for a spec
 // is that spec's integration branch, so its own commits must be the spec's
 // work. Each first-parent commit past the default branch must be a merge of
-// the default branch or a landing that names one of the spec's tasks, or a
+// the default branch or a landing that ticks one of the spec's tasks, or a
 // task of a spec it links. Reads the checkout's remote-tracking refs; with
 // no origin, or no such branch, it finds nothing.
 import { git } from "../git/git.mjs";
 
-const TRAILER = /^Avoozl-Task:\s*([^@\s]+)@/gm;
+const TICK = /^\+\s*- \[x\] `([^`]+)`/gm;
 
 const ref = (root, name) =>
   git(root, [
@@ -48,8 +48,11 @@ export async function foreignCommits(root, { spec, taskIds, defaultBranch }) {
       );
       if (fromDefault) continue;
     }
-    if ([...body.matchAll(TRAILER)].some((match) => ids.has(match[1])))
-      continue;
+    // A landing ticks its task in the same commit (workflow v1 rule 16.1).
+    const diff = await git(root, ["show", "--format=", "-U0", commit]).catch(
+      () => "",
+    );
+    if ([...diff.matchAll(TICK)].some((match) => ids.has(match[1]))) continue;
     foreign.push({ commit, subject: body.split("\n")[0] });
   }
   return foreign;

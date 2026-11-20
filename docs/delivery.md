@@ -250,8 +250,7 @@ who merges.
 
 With `draft`:
 
-1. **Draft.** The **Landing queue** shows **Draft, waiting for you**, and
-   **Needs you** has one row for it. A person releases it: click **Ready for
+1. **Draft.** **Needs you** has one row for it. A person releases it: click **Ready for
    review** on GitHub, or press **Approve** on the row. Avoozl sees a GitHub
    click on its next read of the pull request, which it makes anyway, so it
    costs no extra GitHub call. **Approve** calls
@@ -299,8 +298,8 @@ pushed. A moved base means a new candidate and new checks.
 When the checks fail, Avoozl runs them again, finds the task that broke the
 batch, lands the tasks before it, and sends it back. The batch size starts at
 1, grows while batches land, and halves after a failure. `landing.mergeBatch`
-caps it, from 1 to 16. The **Landing queue** page shows the waiting tasks, the
-batch under test, recent batches, and the current size.
+caps it, from 1 to 16. Avoozl adds no trailer or attribution to a landing
+commit; its subject is `Land <task>`.
 
 A repository whose checks enforce a commit-message format can set
 `landing.commitPrefix`, such as `"chore: "`. Every subject Avoozl writes there

@@ -22,8 +22,8 @@ test("lint flags a same-name branch holding work that is not the spec's, and pas
   const origin = temporaryDirectory("avoozl-foreign-origin-");
   execFileSync("git", ["init", "-q", "--bare", "-b", "main", origin]);
   const { root, run } = specCheckout("avoozl-foreign-");
-  const commit = (file, message) => {
-    fs.writeFileSync(path.join(root, file), message);
+  const commit = (file, message, text = message) => {
+    fs.writeFileSync(path.join(root, file), text);
     run(["add", file]);
     run(["commit", "-q", "-m", message]);
   };
@@ -37,8 +37,8 @@ test("lint flags a same-name branch holding work that is not the spec's, and pas
   run(["push", "-q", "origin", "parser"]);
   run(["fetch", "-q", "origin"]);
   assert.deepEqual(await lint(root), [], "no commit beyond main");
-  // A landing of the spec's task, then a merge of main: both the spec's.
-  commit("b.txt", "Land p-1\n\nAvoozl-Task: p-1@" + "a".repeat(64));
+  // A landing ticks the spec's task, then a merge of main: both the spec's.
+  commit("tasks.md", "Land p-1", "- [x] `p-1` Parse\n");
   run(["checkout", "-q", "main"]);
   commit("c.txt", "Main moves");
   run(["push", "-q", "origin", "main"]);

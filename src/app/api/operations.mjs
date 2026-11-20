@@ -30,14 +30,12 @@ import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
 import { readSpecIssues } from "../specs/spec-publication.mjs";
 import { linkedReader, storedLinks } from "../specs/order.mjs";
 import { taskEpic } from "../epics/epics.mjs";
-import { recordSpan } from "../flow/flow.mjs";
 import {
   formatGapTable,
   gapProposals,
   parseGapReport,
 } from "../specs/gap-report.mjs";
 import {
-  branchTip,
   currentBranchSync,
   originRepositorySync,
   withWorkLock,
@@ -117,7 +115,6 @@ import {
   gitAuthor,
   gitTop,
 } from "../git/git-approvals.mjs";
-import { landingsFromGit } from "../landing/landing-trailers.mjs";
 import { specsBranch, specsBranchSetting } from "../specs/specs-branch.mjs";
 import {
   createSpecPlan,
@@ -161,15 +158,6 @@ export function postingActor(name, context) {
   if (AUTOMATION.has(name)) return "avoozl";
   return context.person === true ? "person" : null;
 }
-
-const realpath = (value) => {
-  try {
-    return fs.realpathSync.native(value);
-  } catch {
-    return value;
-  }
-};
-const sameFolder = (a, b) => realpath(a) === realpath(b);
 
 export class Operations {
   constructor(
@@ -1026,11 +1014,7 @@ export class Operations {
   // named specs, with `allowed` (an approverCheck) in place of the
   // repository's own approvers list and `root` limiting landings and retros
   // to one checkout. A spec that already has a plan is left alone.
-  async readFromGit({
-    names: only = null,
-    allowed: given = null,
-    root: only_root = null,
-  } = {}) {
+  async readFromGit({ names: only = null, allowed: given = null } = {}) {
     const store = this.store,
       names = (only ?? this.specList().items.map((item) => item.name)).filter(
         (name) => !store.get("plans", name),
@@ -1060,33 +1044,6 @@ export class Operations {
     const approved = this.adoptApprovals(found);
     // Ticked tasks keep their tick commit as the landing commit.
     await this.applyBaseTicks({ land: true });
-    const landed = [];
-    for (const project of store
-      .list("repositories")
-      .filter((p) => p.root && (!only_root || sameFolder(p.root, only_root))))
-      for (const landing of await landingsFromGit(
-        project.root,
-        project.baseBranch
-          ? ((await branchTip(project.root, project.baseBranch))?.ref ??
-              project.baseBranch)
-          : "HEAD",
-      ).catch(() => []))
-        for (const { spans = [], ...task } of landing.tasks) {
-          landed.push({ ...task, commit: landing.commit });
-          // Flow's spans for the task, as its landing commit carried them.
-          for (const span of spans)
-            try {
-              recordSpan(store, { ...span, taskId: task.task });
-            } catch {}
-          recordActivity(store, {
-            source: "tick",
-            kind: "task.landed",
-            summary: `${task.task} landed at ${landing.commit.slice(0, 12)}${task.tries ? ` after ${task.tries} tries` : ""}${task.cost ? `, ${task.cost} credits` : ""}`,
-            targetId: task.task,
-            at: landing.at,
-            key: `landed:${task.task}:${landing.commit}`,
-          });
-        }
     return {
       plans: names.length,
       approved,
@@ -1099,7 +1056,6 @@ export class Operations {
               names.includes(task.planId) && statusComplete(data, task.status),
           )
           .map((task) => task.id))(store.read()),
-      landed,
     };
   }
   // One spec folder's documents for the Plans tab to read. readSpecFolder

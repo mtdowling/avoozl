@@ -14,8 +14,7 @@
 //   queued ("waiting", with reason "checks" or "review"); a failed check
 //   fails it. An approval counts while GitHub still shows it: GitHub
 //   dismisses stale ones itself when the rule says so, and keeps them
-//   across a base merge or when the rule does not (`reviewVerdict`
-//   `standing`). A rule that requires the last push to be approved needs
+//   across a base merge or when the rule does not (`standingApprovals`). A rule that requires the last push to be approved needs
 //   an approval on the exact head.
 // - Source push rights are not merge rights. With merge rights the merge is
 //   guarded by the head (`headGuardedMerge`). Without them Avoozl keeps the
@@ -37,10 +36,8 @@
 // shortcut: required checks are read from rulesets and classic protection
 // only; a repository that requires none needs `checks` names passed in.
 // Upgrade when setup (42.2) records a repository's check names.
-import { landingMessage } from "./landing-trailers.mjs";
 import { commitSubject } from "./landing-config.mjs";
 import { branchReviewRule } from "../github/github-branch-rules.mjs";
-import { reviewVerdict } from "../github/github-reviews.mjs";
 import { headGuardedMerge } from "./guarded-push.mjs";
 import {
   landingRights,
@@ -48,7 +45,6 @@ import {
   qualifiedRef,
   verifyRelationship,
 } from "../landing/push-head.mjs";
-import { postVerified } from "../github/setup-landing.mjs";
 import { fail } from "../store/store.mjs";
 import { firstErrorLine } from "../delivery/verify.mjs";
 import { asJob } from "../github/github-jobs.mjs";
@@ -279,10 +275,7 @@ export function pullSteps({
           // landing.pr draft opens a draft a person releases (R119.1).
           draft: pr === "draft",
           body: entry.tasks
-            .flatMap((t) => [
-              `Avoozl-Task: ${t.public ?? t.task}@${t.definition}`,
-              ...(t.closes ? [`Closes #${t.closes}`] : []),
-            ])
+            .flatMap((t) => (t.closes ? [`Closes #${t.closes}`] : []))
             .join("\n"),
         });
       }
@@ -291,11 +284,6 @@ export function pullSteps({
           `Pull request #${pull.number} does not carry the exact commit.`,
           409,
         );
-      // The exact verified head says so on GitHub. A login that may not
-      // write statuses on the target skips it; landing does not depend on it.
-      await postVerified(github, target, entry.commit).catch((error) => {
-        if (error?.status !== 403 && error?.status !== 404) throw error;
-      });
       current = { pull, ref: { ...ref, pr: pull.number } };
       if (pull.mergeable === false)
         return {
@@ -344,19 +332,13 @@ export function pullSteps({
       if (rule.hidden) return { wait: true, reason: "review", checks: shown };
       let approvers = [];
       if (rule.approvals) {
-        const reviews = await github.pullRequestReviews(target, pull.number),
-          verdict = await reviewVerdict(
-            { minimumPermission: "write" },
-            { number: pull.number, url: pull.html_url, headRefOid: candidate },
-            reviews,
-            async (who) => (await github.permission(target, who))?.permission,
-            { standing: !rule.lastPushApproval, approvals: rule.approvals },
-          );
-        if (verdict.state !== "approved")
+        approvers = standingApprovals(
+          await github.pullRequestReviews(target, pull.number),
+          candidate,
+          { standing: !rule.lastPushApproval },
+        );
+        if (approvers.length < rule.approvals)
           return { wait: true, reason: "review", checks: shown };
-        approvers = verdict.reviews
-          .filter((r) => r.allowed && !r.stale && r.state === "approved")
-          .map((r) => r.reviewer);
       }
       // Unless landing.pr is auto, a person merges (R119.4): Merge in
       // Avoozl for this exact head, else it waits, and a merge on GitHub is
@@ -376,22 +358,34 @@ export function pullSteps({
       if (pull.draft) return false; // never a draft (R119.2)
       const rights = await landingRights(github, ref, login);
       if (rights.land !== "merge") return false;
-      // Avoozl writes the merge commit's message: the same trailers a
-      // direct landing carries, so its metrics live in git (§4.42). A
-      // private task keeps its public name and no metrics.
+      // Avoozl adds no trailer or attribution to the merge commit (SM4.4).
       return headGuardedMerge(github, target, pull.number, candidate, method, {
         title: `${pull.title ?? commitSubject(commitPrefix, `Land ${entry.key}`)} (#${pull.number})`,
-        message: landingMessage(
-          "",
-          entry.tasks
-            .filter((t) => typeof t !== "string")
-            .map((t) =>
-              t.public ? { task: t.public, definition: t.definition } : t,
-            ),
-        ),
+        message: "",
       });
     },
   };
+}
+
+// The logins whose latest review approves: each reviewer's newest APPROVED
+// or CHANGES_REQUESTED review counts, on `head` unless the rule keeps
+// approvals across pushes (`standing`). GitHub's own rule decides who may
+// approve when the merge is made.
+export function standingApprovals(reviews, head, { standing = false } = {}) {
+  const latest = new Map();
+  for (const review of reviews ?? []) {
+    const state = String(review?.state ?? "").toUpperCase(),
+      login = review?.user?.login;
+    if (
+      !login ||
+      !["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(state)
+    )
+      continue;
+    latest.set(login.toLowerCase(), { login, state, commit: review.commit_id });
+  }
+  return [...latest.values()]
+    .filter((r) => r.state === "APPROVED" && (standing || r.commit === head))
+    .map((r) => r.login);
 }
 
 // The queued portion of `key`, in a `pr` repository, or a refusal.

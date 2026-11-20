@@ -109,11 +109,6 @@ export const JOBS = Object.freeze({
     risk: "low",
     permissions: repo({ contents: w, pull_requests: w }),
   },
-  "landing-setup": {
-    description: "Set rulesets, repository settings and variables",
-    risk: "high",
-    permissions: repo({ administration: w, statuses: w, variables: w }),
-  },
   // Deleting a claim branch frees a task another runner holds (simplify
   // §D3), so only a person does it, after the confirm.
   "claim-delete": {

@@ -7,7 +7,6 @@ import {
   requireIntegrationBranch,
 } from "../epics/integration-branch.mjs";
 import { integrationView, landBranch } from "../epics/integration-head.mjs";
-import { landingQueueView } from "../landing/landing-queue-view.mjs";
 import { landingView } from "../landing/landing-view.mjs";
 import { approveMerge, releaseDraft } from "../landing/landing-pulls.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
@@ -245,22 +244,6 @@ export const entries = [
     policy: person("Only a person resumes a closed lane."),
     handler({ input }) {
       return resumeLane(this.store, input ?? {});
-    },
-  },
-  // Dashboards › Landing queue: per base, in order, with hold reasons;
-  // from the store only, so Refresh never calls GitHub (44.5).
-  {
-    name: "landing.queue",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({}) {
-      const store = this.store;
-      return landingQueueView(store, this.read(), {
-        config: this.workspaceRoot
-          ? loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
-          : null,
-      });
     },
   },
   // The Release queue: empty since labels stopped releasing work (TA11.1).

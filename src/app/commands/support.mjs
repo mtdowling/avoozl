@@ -26,16 +26,3 @@ export function generate(config) {
     store.close();
   }
 }
-
-// `avoozl integrator ...` and `avoozl landing submit` were retired by the
-// merge batches spec; they print this line and change nothing.
-export const RETIRED_LANDING =
-  "This command is retired. Verified work lands in merge batches with landing mode direct; see landing status.";
-
-// One line per base for `landing status`.
-export const landingStatusLine = (b) =>
-  `${b.repository ?? b.repositoryId} ${b.base}: ${b.items.length} waiting` +
-  (b.testing
-    ? `, testing ${b.testing.members.length} (${b.testing.step})`
-    : "") +
-  (b.size ? `, size limit ${b.size.limit}` : "");

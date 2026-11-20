@@ -7,7 +7,7 @@ import type { FlowViewModel } from './flow-api.ts'
 import { safeHref, type DeliveryItem, type LandingView } from './views-api.ts'
 
 // The views a tile opens.
-export type HomeTarget = 'graph' | 'delivery' | 'waiting' | 'landing' | 'flow'
+export type HomeTarget = 'graph' | 'delivery' | 'waiting' | 'flow'
 
 export interface Tile {
   key: string
@@ -42,8 +42,8 @@ export function homeTiles(summary: DashboardSummary | null, landing: LandingView
       label: 'Landing queue',
       value: landing ? landing.queue.length : null,
       sub: 'checked, not landed',
-      target: 'landing',
-      tip: 'Open the Landing queue',
+      target: 'delivery',
+      tip: 'Open Delivery',
       warm: false,
     },
     { key: 'landed', label: 'Landed this week', value: landing ? landing.landedThisWeek : null, sub: 'last 7 days', target: 'flow', tip: 'Open Flow', warm: false },

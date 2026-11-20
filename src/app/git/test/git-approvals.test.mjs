@@ -13,12 +13,7 @@ import {
   evidenceCache,
   commitApproval,
 } from "../git-approvals.mjs";
-import {
-  landingMessage,
-  landingMetrics,
-  parseLanding,
-} from "../../landing/landing-trailers.mjs";
-import { listSpans, recordSpan } from "../../flow/flow.mjs";
+import { listSpans } from "../../flow/flow.mjs";
 import { listActivity } from "../../store/activity-log.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
@@ -106,26 +101,6 @@ test("the author decides an approval; the committer neither grants nor blocks it
   assert.equal(await byLogin("someone@example.com"), false);
 });
 
-test("landing trailers name each task and what it cost", () => {
-  const def = "a".repeat(64);
-  assert.deepEqual(
-    parseLanding(
-      `Land x\n\nAvoozl-Task: s.1@${def}\nAvoozl-Tries: 2\nAvoozl-Harness: process\nAvoozl-Model: m-1\nAvoozl-Cost: 1.20\nAvoozl-Task: s.2@${def}\n`,
-    ),
-    [
-      {
-        task: "s.1",
-        definition: def,
-        tries: 2,
-        harness: "process",
-        model: "m-1",
-        cost: "1.20",
-      },
-      { task: "s.2", definition: def },
-    ],
-  );
-});
-
 function workspace(settings = {}) {
   const r = repo();
   fs.writeFileSync(
@@ -195,37 +170,14 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   writeSpec(r.root, "intake", files);
   await first.ops.execute("plan.create", { spec: "intake" });
   await approve(first.ops, "intake");
-  // A task lands: Avoozl commits the tick with its trailers.
+  // A task lands: its tick, with no trailer (SM4.4).
   const tasks = path.join(r.root, ".kiro/specs/feature/tasks.md");
   fs.writeFileSync(
     tasks,
     fs.readFileSync(tasks, "utf8").replace("- [ ] 1.1 ", "- [x] 1.1 "),
   );
-  // Its Flow spans ride on the landing commit with its other metrics.
-  for (const [stage, from, to] of [
-    ["coding", "2026-11-19T01:00:00.000Z", "2026-11-19T01:20:00.000Z"],
-    ["review", "2026-11-19T01:20:00.000Z", "2026-11-19T01:25:00.000Z"],
-  ])
-    recordSpan(first.store, {
-      id: `events:feature.1.1:1:${stage}:${from}`,
-      taskId: "feature.1.1",
-      attempt: 1,
-      role: stage === "review" ? "review:design" : "worker",
-      stage,
-      startedAt: from,
-      endedAt: to,
-      source: "events",
-    });
-  const metrics = landingMetrics(first.store, {
-      taskId: "feature.1.1",
-      attempts: [{}, {}],
-    }),
-    message = landingMessage("Land feature.1.1", [
-      { task: "feature.1.1", definition: "b".repeat(64), metrics },
-    ]);
-  assert.equal(parseLanding(message)[0].spans.length, 2);
   r.run(["add", ".kiro"]);
-  r.run(["commit", "-q", "-m", message]);
+  r.run(["commit", "-q", "-m", "Land feature.1.1"]);
   await first.ops.applyBaseTicks();
   // A non-approver's spec on main is no approval, and Approve refuses it.
   commitSpec(r, "other", { author: OTHER, committer: OWNER });
@@ -254,10 +206,6 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   const rebuilt = await second.ops.execute("workspace.rebuild", {});
   assert.deepEqual(rebuilt.approved.sort(), ["feature", "intake"]);
   assert.deepEqual(rebuilt.drafts, ["other"]);
-  assert.deepEqual(
-    rebuilt.landed.map((entry) => entry.task),
-    ["feature.1.1"],
-  );
   assert.deepEqual(state(second.store), before);
   // A second rebuild over a full database is refused.
   await assert.rejects(

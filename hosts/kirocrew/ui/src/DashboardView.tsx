@@ -31,7 +31,7 @@ import { Box } from './ui/Box'
 import { PlainButton, PlainLink, PlainTextarea } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
 
-export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
+export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'flow'
 
 const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Delivery', manual: 'Manual' }
 

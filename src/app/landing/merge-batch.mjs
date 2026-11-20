@@ -3,8 +3,7 @@
 // per-base landing queue (landing-queue.mjs).
 //
 // - A member is an exact commit on a spec's working branch that passed its
-//   checks (`verifiedEvidence`, push-head.mjs), with each task's
-//   definition. Nothing else enters the queue. Waiting members are local
+//   checks (`verifiedEvidence`, push-head.mjs). Nothing else enters the queue. Waiting members are local
 //   refs under refs/avoozl/land/ (`holdMember`); only the base is pushed.
 // - A merge batch is up to the base's size limit of members, possibly from
 //   several specs. A landing worktree stacks them, in queue
@@ -31,14 +30,12 @@ import { privacyScan, verifiedEvidence } from "../landing/push-head.mjs";
 import { mergeBaseBack } from "../specs/spec-base.mjs";
 import { fail } from "../store/store.mjs";
 import { checkApplies } from "../workspace/repository-checks.mjs";
-import { landingMessage } from "./landing-trailers.mjs";
 import { commitSubject } from "./landing-config.mjs";
 
-const DIGEST = /^[0-9a-f]{64}$/;
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
 
 // Queues one verified portion for direct landing. Refuses a commit without
-// passing evidence for exactly it, and a task without its definition.
+// passing evidence for exactly it, and a portion that names no task.
 export function queuePortion(
   store,
   { repositoryId, base, spec, commit, tasks, evidence, key },
@@ -49,28 +46,19 @@ export function queuePortion(
       `This portion cannot land: ${problem}. Only verified work is queued.`,
       409,
     );
-  if (
-    !tasks?.length ||
-    tasks.some((t) => !t?.task || !DIGEST.test(t.definition ?? ""))
-  )
-    fail("A portion names each task with its definition.", 400);
+  if (!tasks?.length || tasks.some((t) => !t?.task))
+    fail("A portion names each task.", 400);
   if (!spec) fail("A portion names its spec.", 400);
   return enqueueLanding(store, {
     repositoryId,
     base,
     spec,
     commit,
-    tasks: tasks.map(({ task, definition, metrics }) => ({
-      task,
-      definition,
-      // What its landing cost, for the landing commit (landing-trailers.mjs).
-      ...(metrics ? { metrics } : {}),
-    })),
+    tasks: tasks.map(({ task }) => ({ task })),
     key: key ?? `${spec}.${commit.slice(0, 12)}`,
   });
 }
 
-// Each task's trailer, then what its landing cost (landing-trailers.mjs).
 // Both sides of a conflicted path, appended: `git merge-file --union`.
 export async function unionMerge(dir, file) {
   const stage = async (n) => {
@@ -127,10 +115,8 @@ export async function stackMembers(
     await git(root, ["worktree", "add", "--detach", "--quiet", dir, baseHead]);
     for (const entry of entries) {
       made.push(made.at(-1) ?? 0);
-      const message = landingMessage(
-        commitSubject(commitPrefix, `Land ${entry.key}`),
-        entry.tasks,
-      );
+      // No trailer or attribution (SM4.4): the subject alone.
+      const message = commitSubject(commitPrefix, `Land ${entry.key}`);
       let conflicted = false;
       try {
         await git(dir, [

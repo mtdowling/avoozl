@@ -14,13 +14,9 @@
 // - A queued task whose base moved is withdrawn; integrateVerified then
 //   merges the base into it and it is verified again before it re-queues.
 //
-// shortcut: a task's definition digest is taken from its title and
-// acceptance in the store, not the manifest entry; upgrade when tasks keep
-// their manifest entry.
 // shortcut: a landed task's worktree is kept and batches do not land by
 // pull request; upgrade with the worktree cleanup after landing (40.4).
 import { personOf } from "../github/github.mjs";
-import { landingMetrics } from "./landing-trailers.mjs";
 import { baseRef, branchTip, git, remoteGit } from "../git/git.mjs";
 import {
   enqueueLanding,
@@ -40,7 +36,6 @@ import {
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { publicTaskName } from "../specs/spec-scheduler.mjs";
 import { landingSpecOf } from "../intake/fix.mjs";
-import { taskDefinition } from "../specs/task-outcomes.mjs";
 import { pushHead, sourceRegistry } from "../landing/push-head.mjs";
 import { fail } from "../store/store.mjs";
 import { firstErrorLine } from "../delivery/verify.mjs";
@@ -197,14 +192,7 @@ export async function queuePullRequest(
     tasks: [
       {
         task: delivery.taskId,
-        definition: taskDefinition({
-          id: task.id,
-          title: task.title,
-          acceptance: task.acceptance ?? null,
-        }),
-        ...(named
-          ? { public: named }
-          : { metrics: landingMetrics(store, delivery) }),
+        ...(named ? { public: named } : {}),
         // A labeled issue closes when its pull request merges (rule 11.3).
         ...(task.labeledIssue ? { closes: task.labeledIssue.number } : {}),
       },

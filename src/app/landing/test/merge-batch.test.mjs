@@ -1,6 +1,5 @@
 // Direct landing in merge batches (tasks 41.3, mb-1.2 to mb-1.4).
 // Repositories are local scratch repositories with a bare remote.
-import { parseLanding } from "../landing-trailers.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -118,7 +117,7 @@ async function setup(t) {
   };
 }
 
-test("only verified portions with task definitions are queued", async (t) => {
+test("only verified portions that name their tasks are queued", async (t) => {
   const x = await setup(t);
   const commit = x.base;
   const input = {
@@ -143,10 +142,10 @@ test("only verified portions with task definitions are queued", async (t) => {
     () =>
       queuePortion(x.store, {
         ...input,
-        tasks: [{ task: "t1" }],
+        tasks: [{}],
         evidence: { commit, checks: [{ exitCode: 0 }] },
       }),
-    /definition/,
+    /names each task/,
   );
 });
 
@@ -170,24 +169,15 @@ test("a merge batch across specs lands in one guarded push, up to the limit", as
     landingQueue(x.store, Q).map((e) => e.key),
     ["spec-a.t5"],
   );
-  // Every merge commit carries its tasks' trailers.
+  // Each merge commit is its subject alone: no trailer (SM4.4).
   const log = await git(x.landing, [
     "log",
     "--format=%B",
     `${x.base}..${result.candidate}`,
   ]);
+  assert.doesNotMatch(log, /Avoozl-/);
   for (const task of ["t1", "t2", "t3", "t4"])
-    assert.match(log, new RegExp(`Avoozl-Task: ${task}@${def(task)}`));
-  // And what each landing cost, under its task (landing-trailers.mjs).
-  assert.deepEqual(
-    parseLanding(log).map((t) => [t.task, t.tries, t.harness]),
-    [
-      ["t4", 2, "process"],
-      ["t3", 2, "process"],
-      ["t2", 2, "process"],
-      ["t1", 2, "process"],
-    ],
-  );
+    assert.match(log, new RegExp(`Land spec-.\\.${task}`));
 });
 
 test("a batch of one lands as direct landing did, and a base that moved gets new checks", async (t) => {

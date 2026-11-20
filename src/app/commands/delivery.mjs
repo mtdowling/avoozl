@@ -2,7 +2,6 @@
 import { runPass } from "../tick/tick-pass.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { contentHook } from "../content/content-hook.mjs";
-import { RETIRED_LANDING, landingStatusLine } from "./support.mjs";
 import { help } from "../cli/command-help.mjs";
 import { confirmHighRisk } from "../cli/confirm-high-risk.mjs";
 import { confirmStep } from "../github/github-jobs.mjs";
@@ -410,31 +409,6 @@ export const commands = [
           2,
         ),
       );
-    },
-  },
-  {
-    command: "landing",
-    help: [
-      help(
-        "land",
-        "landing status [--json]",
-        "Per base: who waits, the batch being tested, the last batches and the size limit, from stored records",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest }) {
-      const action = positionals[0];
-      if (action === "status") {
-        // The same read as the Landing queue page and the MCP read: store only.
-        const view = await localOrRequest("landing.queue");
-        console.log(
-          options.json
-            ? JSON.stringify(view, null, 2)
-            : view.bases.map(landingStatusLine).join("\n") ||
-                "Nothing waits to land.",
-        );
-      } else if (action === "submit" || action === "review")
-        console.log(RETIRED_LANDING);
-      else throw Error("Choose landing status.");
     },
   },
   {

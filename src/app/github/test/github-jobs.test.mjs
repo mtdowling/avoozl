@@ -35,8 +35,6 @@ import { snapshot } from "../../test/fixtures.mjs";
 
 // One call each high-risk job may make, for the person-only checks.
 const HIGH_CALL = {
-  "landing-setup": (github) =>
-    github.updateRepository("acme/api", { allow_squash_merge: false }),
   "claim-delete": (github) => github.deleteBranch("acme/api", "avoozl/s/t"),
 };
 
@@ -432,13 +430,13 @@ test("every low-risk job runs without a grant", async () => {
 test("github.job.confirm is refused over MCP and a grant serves one step once, for 10 minutes", async () => {
   assert.ok(mcpRefusal("github.job.confirm", {}));
   const grants = new Grants(),
-    step = confirmStep({ job: "landing-setup", target: "acme/api" }),
+    step = confirmStep({ job: "claim-delete", target: "acme/api" }),
     [grant] = grants.allow([step]),
     { github, seen } = client(counting());
   const write = () =>
     withJob(
-      "landing-setup",
-      () => github.updateRepository("acme/api", { allow_squash_merge: false }),
+      "claim-delete",
+      () => github.deleteBranch("acme/api", "avoozl/s/t"),
       [grant],
     );
   await write();
@@ -446,9 +444,11 @@ test("github.job.confirm is refused over MCP and a grant serves one step once, f
   const [late] = grants.allow([step]);
   late.at = Date.now() - GRANT_MS - 1;
   await assert.rejects(
-    withJob("landing-setup", () => github.updateRepository("acme/api", {}), [
-      late,
-    ]),
+    withJob(
+      "claim-delete",
+      () => github.deleteBranch("acme/api", "avoozl/s/t"),
+      [late],
+    ),
     /high risk/,
   );
   assert.equal(seen.length, 1);
@@ -466,7 +466,7 @@ test("github.job.confirm is refused over MCP and a grant serves one step once, f
 });
 
 test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either or with --yes in an agent", async () => {
-  const steps = [confirmStep({ job: "landing-setup", target: "acme/api" })],
+  const steps = [confirmStep({ job: "claim-delete", target: "acme/api" })],
     calls = [],
     localOrRequest = async (name, input) => {
       calls.push(name);
@@ -487,10 +487,7 @@ test("the CLI asks Allow? on a terminal, takes --yes, and refuses without either
     }),
     ["g1"],
   );
-  assert.match(
-    output.text,
-    /landing-setup asks GitHub for administration: write/,
-  );
+  assert.match(output.text, /claim-delete asks GitHub for contents: write/);
   await assert.rejects(
     confirmHighRisk(steps, {
       env: {},
@@ -539,8 +536,8 @@ test("the tick's path to every high-risk job fails as person-only", async () => 
 
 test("a granted high-risk job runs once its Allow is given", async () => {
   const { github, seen } = client(counting());
-  await granted("landing-setup", "acme/api", () =>
-    github.updateRepository("acme/api", { allow_squash_merge: false }),
+  await granted("claim-delete", "acme/api", () =>
+    github.deleteBranch("acme/api", "avoozl/s/t"),
   );
   assert.equal(seen.length, 1);
 });

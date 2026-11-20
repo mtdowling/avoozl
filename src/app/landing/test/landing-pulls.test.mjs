@@ -1,6 +1,5 @@
 // Pull request portions from a target repository or a fork (task 42.1).
 // GitHub is a fake.
-import { parseLanding } from "../landing-trailers.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { digest } from "../../../model.mjs";
@@ -140,20 +139,15 @@ test("a fork head opens a pull request, passes checks and review, and merges gua
   assert.deepEqual(github.calls.created[0].input.head, "me:avoozl/s/work");
   assert.equal(github.calls.created[0].input.base, "main");
   assert.deepEqual(github.calls.merged, [{ number: 7, sha: COMMIT }]);
-  // Avoozl writes the squash commit's message: the direct landing's
-  // trailers, so the commit on main carries the task and its metrics.
+  // The squash commit carries no trailer or attribution (SM4.4).
   const [squash] = github.calls.messages;
   assert.match(squash.title, /\(#7\)$/);
-  assert.deepEqual(parseLanding(squash.message), [
-    { task: "t1", definition: DEF, tries: 2, model: "m-1" },
-  ]);
+  assert.equal(squash.message, "");
+  assert.doesNotMatch(github.calls.created[0].input.body, /Avoozl-Task/);
   assert.equal(result.entry.pr, 7);
   assert.deepEqual(result.entry.approvers, ["r1"]);
   assert.equal(result.entry.mergedBy, "ci-bot");
-  assert.deepEqual(
-    github.calls.statuses.map((s) => [s.repo, s.sha, s.context, s.state]),
-    [["acme/app", COMMIT, "avoozl/verify", "success"]],
-  );
+  assert.equal(github.calls.statuses, undefined, "no commit status is posted");
 });
 
 test("without merge rights Avoozl waits, then records the maintainer's merge", async (t) => {

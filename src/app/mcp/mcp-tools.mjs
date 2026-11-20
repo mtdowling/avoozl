@@ -50,10 +50,6 @@ const tools = {
     actions: {
       graph: ["graph.view", "the dependency graph, optionally one plan"],
       delivery: ["delivery.view", "delivery columns"],
-      landing_holds: [
-        "landing.queue",
-        "what waits to land on each base, in landing order, and why each one is held; from stored records, no GitHub call",
-      ],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
       log: ["workspace.tick.log", "recent tick log"],
       health: ["workspace.tick.health", "tick health"],

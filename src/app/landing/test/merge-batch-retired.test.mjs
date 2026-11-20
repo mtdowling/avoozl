@@ -2,7 +2,7 @@
 // landing mode and keys are refused, the old commands answer with one line,
 // and nothing imports a removed module.
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -16,8 +16,7 @@ import {
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url)),
-  repo = path.join(here, "..", "..", "..", ".."),
-  CLI = path.join(repo, "cli.mjs");
+  repo = path.join(here, "..", "..", "..", "..");
 
 function writeJson(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -98,33 +97,6 @@ test("the retired keys are refused, naming the file and the key", () => {
     { version: 1, landing: { trains: { targets: {} } } },
     "landing.trains",
   );
-});
-
-test("each retired command prints one line and changes nothing", () => {
-  const home = temporaryDirectory("avoozl-retired-cli-"),
-    env = {
-      ...process.env,
-      HOME: home,
-      XDG_CONFIG_HOME: path.join(home, "xdg"),
-      XDG_STATE_HOME: path.join(home, "state"),
-    };
-  for (const key of Object.keys(env))
-    if (/^AVOOZL(_|$)/.test(key)) delete env[key];
-  for (const args of [
-    ["integrator", "status"],
-    ["integrator", "run"],
-    ["landing", "submit", "t1", "--branch", "avoozl-batch/t1"],
-  ]) {
-    const result = spawnSync(process.execPath, [CLI, ...args], {
-      env,
-      cwd: home,
-      encoding: "utf8",
-    });
-    assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`);
-    assert.equal(result.stdout.trim().split("\n").length, 1);
-    assert.match(result.stdout, /merge batches/);
-  }
-  assert.deepEqual(fs.readdirSync(home), [], "nothing was created");
 });
 
 test("no source file imports a removed module", () => {

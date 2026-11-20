@@ -57,7 +57,6 @@ import { graphMermaid, graphText, storeGraph } from "../specs/graph.mjs";
 import { integrationNeedsYou } from "../specs/integration-base.mjs";
 import { claimsNeedsYou, closedPullNeedsYou } from "../workers/claims.mjs";
 import { lanesNeedsYou } from "../sessions/lane-sessions.mjs";
-import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
 import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
 import { needsKirocrewItems } from "../tick/needs-kirocrew.mjs";
 import { needsHarnessItems } from "../tick/needs-harness.mjs";
@@ -351,7 +350,6 @@ export const entries = [
       view.items.push(...pluginCheckNeedsYou(store), ...contextNeedsYou(store));
       view.items.push(...phaseNeedsYou(store));
       view.items.push(...requiredCheckNeedsYou(store));
-      view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store), ...integrationNeedsYou(store));
       view.items.push(...claimsNeedsYou(store), ...closedPullNeedsYou(store));
       view.items.push(...lanesNeedsYou(store));

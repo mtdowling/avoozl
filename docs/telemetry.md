@@ -82,10 +82,8 @@ minutes. The limits are fixed in code.
 A stage span holds the check or command name the stage ran, as Flow shows it.
 That name stays here and is never exported.
 
-`avoozl rebuild` makes a fresh database from git. The points table starts
-empty. The spans table gets the stage spans each landing commit carries in
-its `Avoozl-Span` trailers, and Flow's next pass records those tasks' roots
-and task points again.
+`avoozl rebuild` makes a fresh database from git. The spans and points
+tables start empty, and fill again as new work runs.
 
 ## Export
 

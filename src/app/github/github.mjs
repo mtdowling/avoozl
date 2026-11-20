@@ -1751,8 +1751,7 @@ export class GitHubClient {
   // Merges one pull request only while its head is still `sha`: GitHub
   // refuses (409) when the head moved, so a landing never takes a commit
   // nobody checked (R102.8). No admin bypass.
-  // `title` and `message`, when given, are the merge or squash commit's
-  // (landing trailers, landing-trailers.mjs).
+  // `title` and `message`, when given, are the merge or squash commit's.
   mergePullRequest(value, number, { sha, method = "merge", title, message }) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
@@ -1909,16 +1908,6 @@ export class GitHubClient {
     });
   }
 
-  createCommitStatus(value, ref, input) {
-    const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request(
-      "POST",
-      `/repos/${owner}/${repo}/statuses/${encodeURIComponent(ref)}`,
-      { body: input },
-    );
-  }
-
   // The ruleset rules in force on a branch (read-only). Each has a `type`
   // such as `pull_request` or `required_status_checks` and its `parameters`.
   branchRules(value, branch) {
@@ -1970,12 +1959,6 @@ export class GitHubClient {
       `/repos/${owner}/${repo}/rulesets/${Number(id)}`,
       { body },
     );
-  }
-
-  updateRepository(value, body) {
-    const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request("PATCH", `/repos/${owner}/${repo}`, { body });
   }
 
   // A branch as anyone who can read the repository sees it: `protected`,

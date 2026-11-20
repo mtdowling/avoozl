@@ -14,22 +14,19 @@ test('the nav has no Issues or Pull requests pill', () => {
   assert.ok(!TABS.some((t) => ['issues', 'pulls'].includes(t.key) || /^(Issues|Pull requests)$/.test(t.label)))
 })
 
-test('Dashboards holds Home, Graph, Delivery and Landing queue', () => {
+test('Dashboards holds Home, Graph and Delivery', () => {
   assert.deepEqual(
     DASHBOARD_PAGES.map((p) => p.label),
-    ['Home', 'Graph', 'Delivery', 'Landing queue'],
+    ['Home', 'Graph', 'Delivery'],
   )
   assert.equal(dashboardPage('dashboard'), 'home')
-  for (const page of ['graph', 'delivery', 'landing']) {
+  for (const page of ['graph', 'delivery']) {
     assert.equal(navTab(page), 'dashboard')
     assert.equal(dashboardPage(page), page)
     assert.equal(dashboardTab(page), page)
   }
   assert.equal(dashboardTab('home'), 'dashboard')
   assert.equal(tabLabel('graph'), 'Graph')
-  assert.equal(tabLabel('landing'), 'Landing queue')
-  // A Dashboards page, not its own nav pill.
-  assert.ok(!TABS.some((t) => t.key === 'landing'))
   assert.equal(tabLabel('dashboard'), 'Home')
 })
 

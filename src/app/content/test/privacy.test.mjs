@@ -73,7 +73,6 @@ function fakeGitHub(store) {
       "updateIssue",
       "createIssueComment",
       "createPullRequest",
-      "createCommitStatus",
       "createBranch",
       "createLinkedBranch",
       "mergeBranch",
@@ -111,12 +110,6 @@ const PUBLIC_FIELDS = {
       body: "",
       head: v,
       base: "main",
-    }),
-  "check summary": (g, v) =>
-    g.createCommitStatus(REPO, "abc1234", {
-      state: "success",
-      context: "avoozl",
-      description: `Passed on ${v}`,
     }),
   "branch name": (g, v) => g.createBranch(REPO, v, "abc1234"),
   "linked branch": (g, v) =>

@@ -34,7 +34,6 @@ import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsVie
 import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
-import { landingFixture } from './landing-fixture.ts'
 import { PrModeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
@@ -446,10 +445,6 @@ if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
 
 answer('fix.start', () => ({ taskId: 'fix-1' }))
-
-// Dashboards › Landing queue: empty by default; &landing=1 has two bases
-// with every hold reason (landing-queue-shots.mjs).
-answer('landing.queue', () => (query.get('landing') === '1' ? landingFixture : { bases: [], readAt: '2026-11-17T12:00:00Z' }))
 
 function DeepLinkPage() {
   return (

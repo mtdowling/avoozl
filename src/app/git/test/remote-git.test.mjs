@@ -212,7 +212,7 @@ test("the helper answers only its host, repository and https, never in an agent,
   await assert.rejects(ask({}, { KIRO_SESSION_ID: "s1" }), /agent session/);
   await assert.rejects(ask({}, { AVOOZL_CHILD: "1" }), /agent session/);
   await assert.rejects(
-    ask({}, { AVOOZL_CREDENTIAL_JOB: "landing-setup" }),
+    ask({}, { AVOOZL_CREDENTIAL_JOB: "claim-delete" }),
     /high risk/,
   );
   for (const action of ["store", "erase"])

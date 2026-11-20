@@ -32,8 +32,6 @@ import { tickEntry } from "../specs/spec-ticks.mjs";
 import { sendConflictBack } from "./landing-conflicts.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
 import { finishLanded } from "./landed-work.mjs";
-import { taskDefinition } from "../specs/task-outcomes.mjs";
-import { landingMetrics } from "./landing-trailers.mjs";
 import { fail } from "../store/store.mjs";
 import { landingSpecOf } from "../intake/fix.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
@@ -65,17 +63,7 @@ export function queueDirect(store, { delivery, repository, task, at }) {
     key: delivery.taskId,
     commit: delivery.commit,
     spec: planId,
-    tasks: [
-      {
-        task: delivery.taskId,
-        definition: taskDefinition({
-          id: task.id,
-          title: task.title,
-          acceptance: task.acceptance ?? null,
-        }),
-        metrics: landingMetrics(store, delivery),
-      },
-    ],
+    tasks: [{ task: delivery.taskId }],
   });
   return { ...delivery, landing: { commit: delivery.commit, queuedAt: at } };
 }
