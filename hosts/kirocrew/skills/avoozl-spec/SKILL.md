@@ -32,27 +32,31 @@ repo: app
 
 ## Phase 1: Configuration
 
-- [ ] 1 Load and validate configuration [R1] (§1)
-  - [ ] 1.1 Read the config file [R1.1] (§1)
+- [ ] `cfg-1` Load and validate configuration [R1] (§1)
+  - [ ] `cfg-1.1` Read the config file [R1.1] (§1)
     - A missing file yields defaults.
-  - [ ] 1.2 Report unknown keys [R1.2] (§1)
+  - [ ] `cfg-1.2` Report unknown keys [R1.2] (§1)
     - An unknown key is reported with its path.
-- [ ] 2 Check the loader on every platform (**PARALLEL**)
-  - [ ] 2.1 Linux
+- [ ] `cfg-2` Check the loader on every platform (**PARALLEL**)
+  - [ ] `cfg-2.1` Linux
     - The loader test passes on Linux.
-  - [ ] 2.2 Windows
+  - [ ] `cfg-2.2` Windows
     - The loader test passes on Windows.
-- [ ] 3 Team review of the loader (**MANUAL**)
+- [ ] `cfg-3` Team review of the loader (**MANUAL**)
+  - The team has read the loader and its tests.
 ```
 
-- Every item starts with its task ID and title. A named ID is a code span:
-  ``- [ ] `cache-drop` Drop stale entries``. Never reuse or renumber an ID.
+- Every item starts with its task ID in a code span, then its title:
+  ``- [ ] `cfg-1.2` Report unknown keys``. An ID is unique across the
+  repository's specs, so start each with a short prefix for the spec. Never
+  reuse or renumber an ID.
 - Each leaf has plain bullets under it, one checkable result each. Write no
   bullet that starts with `$`, no summary bullet and no `Done when:` bullet.
 - Order is the list: tasks run top to bottom, a group's tasks run in order,
   and a group whose title ends with `(**PARALLEL**)` runs its tasks side by
   side. A `##` phase waits for the phase above. A group has no bullets.
-- A step only a person does ends its title with `(**MANUAL**)`.
+- A step only a person does ends its title with `(**MANUAL**)`, after any
+  refs.
 - End a title with the requirements it builds in brackets and the design
   sections in parentheses: `[R1.2] (§1)`. Each ref must name a heading or
   criterion the spec has.

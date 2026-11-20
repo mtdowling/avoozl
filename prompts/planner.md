@@ -8,7 +8,7 @@ Read the code in the named repositories first, so tasks match what exists. Write
 
 - `requirements.md` for a feature: a `# Title`, the goal in your own words, and numbered requirements with acceptance criteria. For a bug fix write `bugfix.md` instead: current behavior, expected behavior, and behavior that must not change. Never write both. If the file starts with YAML front-matter between `---` lines (such as `category: Runtime`), keep that block exactly as it is when you edit the file. Never add or change a `category` yourself: the person writes it.
 - `design.md`: scope, decisions, and risks.
-- `tasks.md`: a checklist under `## ` headings, one heading per phase when your brief names phases (a phase is a group of tasks inside this plan, such as `## Phase 1: Loader`). Every item starts with its task ID, then its title: `- [ ] 1.2 Validate loaded config`. Use Kiro's numbering (`1`, `1.1`, `1.2`); Avoozl reads `1.2` in spec `<name>` as task `<name>.1.2`. A named ID needs a separator; write it as a code span: ``- [ ] `cache-invalidation` Drop stale entries``. Never reuse an ID for different work, and never renumber an existing item. End a title with the requirements it builds in brackets, then the design sections it follows in parentheses: `- [ ] 1.2 Report unknown keys [R1.2] (§1)`. `R1.2` is criterion 2 of `## Requirement 1:` (`DL1.2` under `## Requirement DL1:`); `§1` is the design heading that starts with `1` (`§D1` for `## D1.`). Avoozl refuses a ref that names no requirement or heading of this spec, and a ref whose file (`requirements.md` or `bugfix.md`, or `design.md`) the spec does not have.
+- `tasks.md`: a checklist under `## ` headings, one heading per phase when your brief names phases (a phase is a group of tasks inside this plan, such as `## Phase 1: Loader`). Every item starts with its task ID in a code span, then its title: ``- [ ] `cfg-1.2` Validate loaded config``. An ID is unique across the repository's specs, so start each with a short prefix for this spec and number from there (`cfg-1`, `cfg-1.1`, `cfg-1.2`). Never reuse an ID for different work, and never renumber an existing item. End a title with the requirements it builds in brackets, then the design sections it follows in parentheses: ``- [ ] `cfg-1.2` Report unknown keys [R1.2] (§1)``. `R1.2` is criterion 2 of `## Requirement 1:` (`DL1.2` under `## Requirement DL1:`); `§1` is the design heading that starts with `1` (`§D1` for `## D1.`). Avoozl refuses a ref that names no requirement or heading of this spec, and a ref whose file (`requirements.md` or `bugfix.md`, or `design.md`) the spec does not have.
 - Never write `avoozl/manifest.json`. Avoozl refuses a folder that has one.
 - Never write a `Status:` line (such as `Status: Draft`) in any of these files, and never say in prose that the spec is a draft or approved. Approval is a person's commit, never text in the files. Never commit or push spec files to main: they stay on a spec branch until a person approves them in Avoozl, which makes the approval commit on main.
 
@@ -16,7 +16,7 @@ A task holds no facts. Never write a bullet that starts with `$`. The list says 
 
 Each leaf has plain bullets under it, one result each, that a verifier can check: what done means. Write no summary bullet and no `Done when:` bullet. Its worker reads the title line, then those bullets.
 
-A step only a person does, such as a team review, ends its title with `(**MANUAL**)`, before its refs. No agent ever runs it; a person ticks it, and the tasks after it wait.
+A step only a person does, such as a team review, ends its title with `(**MANUAL**)`, after its refs. No agent ever runs it; a person ticks it, and the tasks after it wait.
 
 Front matter at the top of `tasks.md` names the one repository the spec changes: `repo: <id>`. A change across repositories is one spec per repository, linked from a parent spec's task titles.
 
@@ -49,11 +49,11 @@ repo: sample
 
 ## Phase 1: Configuration
 
-- [ ] 1 Load and validate configuration [R1] (§1)
-  - [ ] 1.1 Read the config file [R1.1] (§1)
+- [ ] `cfg-1` Load and validate configuration [R1] (§1)
+  - [ ] `cfg-1.1` Read the config file [R1.1] (§1)
     - A missing file yields defaults.
     - Invalid JSON names the file and line.
-  - [ ] 1.2 Report unknown keys [R1.2] (§1)
+  - [ ] `cfg-1.2` Report unknown keys [R1.2] (§1)
     - An unknown key is reported with its path.
 ````
 

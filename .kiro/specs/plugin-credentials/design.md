@@ -279,9 +279,8 @@ throws a 500 naming the method, job and permission before any token call
 (PC4.3, PC4.4). The guard runs in production too: a missing binding is a
 bug and must show, not fall to full access.
 
-`createIssue` creates missing labels today (V: `ensureLabel` in
-`src/app/github/github.mjs:860-866`). Creating a label is high risk
-(PC13.1), so `createIssue` in a low job no longer creates labels: a
+Creating a label is high risk (PC13.1), so `createIssue` in a low job
+creates no label: a
 missing label refuses the publish with a Needs you item whose **Create
 labels** action runs `repo-setup` through the confirm. Set up creates the
 labels Avoozl uses, so this shows only after someone deletes one.
@@ -506,7 +505,7 @@ token (PC10.3).
 and its author and committer, come from the person's git config
 (`user.name`, `user.email`) exactly as today. No provider, token, `login`
 or `person` touches them; a token only signs the push in. A commit pushed
-with `acme-bot[bot]`'s token still shows Michael Dowling as author and
+with `acme-bot[bot]`'s token still shows the person as author and
 committer, and still counts as an approval by that author email.
 
 **`person` is the API-side identity only (PC10.4).** It is the GitHub login

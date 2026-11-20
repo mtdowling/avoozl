@@ -111,7 +111,7 @@ test("the planner prompt's example spec folder passes the spec reader", () => {
   assert.deepEqual(result.diagnostics, []);
   assert.deepEqual(
     result.proposals.map((t) => t.id),
-    ["config.1", "config.1.1", "config.1.2"],
+    ["cfg-1", "cfg-1.1", "cfg-1.2"],
   );
   assert.equal(result.proposals[1].acceptance.length, 2);
   assert.equal(result.proposals[1].repository, "sample", "a default fills it");

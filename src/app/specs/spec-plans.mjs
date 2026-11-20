@@ -359,23 +359,28 @@ export function specItems(name, text) {
     if (!match) return;
     const mark = match[1].toLowerCase(),
       text = match[2].trim(),
-      // An ID may be a code span, `dl-1`, or bare; Avoozl writes a named
-      // one as a code span (taskToken).
+      // An ID may be a code span, `dl-1`, or bare; Avoozl writes it as a
+      // code span (taskToken), and this repository's spec lint refuses a
+      // bare one (Workflow v1 2.1).
       quoted = /^`([^`\s]+)`(?:\s+|$)(.*)$/.exec(text),
       [token = "", ...rest] = quoted
         ? [quoted[1], quoted[2]]
         : text.split(/\s+/),
       line = index + 1,
-      { title, ...refs } = splitRefs(rest.join(" ")),
+      { title, tagBeforeRefs, ...refs } = splitRefs(rest.join(" ")),
       indent = /^\s*/.exec(raw)[0].length;
     while (open.length && open.at(-1).indent >= indent) open.pop();
-    const parent = open.at(-1)?.item ?? null;
+    const parent = open.at(-1)?.item ?? null,
+      marks = {
+        ...(quoted ? {} : { bareId: true }),
+        ...(tagBeforeRefs ? { tagBeforeRefs } : {}),
+      };
     let item;
     if (NUMBERED.test(token) || LETTERED.test(token)) {
       const key = token.replace(/\.$/, "");
-      item = { key, id: `${name}.${key}`, title, refs, line };
+      item = { key, id: `${name}.${key}`, title, refs, line, ...marks };
     } else if (NAMED.test(token))
-      item = { key: token, id: token, title, refs, line };
+      item = { key: token, id: token, title, refs, line, ...marks };
     else item = { key: null, id: null, title: text, line };
     items.push({ ...item, mark, parent });
     open.push({ indent, item });

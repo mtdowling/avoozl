@@ -273,14 +273,22 @@ export function orderProblems(items) {
       add(
         "parallel.tag",
         item,
-        `Write the tag as exactly ${PARALLEL_TAG} at the end of the title of task "${item.key}", before any refs.`,
+        `Write the tag as exactly ${PARALLEL_TAG} at the end of the title of task "${item.key}", after any refs.`,
       );
     const manual = isManual(title);
+    // Refs are part of the title, so a tag before them is not at its end
+    // (Workflow v1 3.5, 4.2).
+    if (item.tagBeforeRefs)
+      add(
+        manual ? "manual.tag" : "parallel.tag",
+        item,
+        `Move ${manual ? MANUAL_TAG : PARALLEL_TAG} to the very end of the title of task "${item.key}", after its refs.`,
+      );
     if (STRAY_MANUAL.test(manual ? withoutManual(title) : title))
       add(
         "manual.tag",
         item,
-        `Write the tag as exactly ${MANUAL_TAG} at the end of the title of task "${item.key}", before any refs.`,
+        `Write the tag as exactly ${MANUAL_TAG} at the end of the title of task "${item.key}", after any refs.`,
       );
     if (manual && kids.length)
       add(

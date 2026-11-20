@@ -102,13 +102,18 @@ test("lint reports done.missing, group.bullets, manual.tag, manual.group and fro
     "- [ ] `t-2` Plain (MANUAL)",
     "  - Done",
     "- [ ] `n-1` No result",
+    "- [ ] `t-3` Before its refs (**MANUAL**) (§D1)",
+    "  - Done",
   );
   assert.deepEqual(codes(parse(text)).sort(), [
     "done.missing tasks.md:12",
     "group.bullets tasks.md:2",
     "manual.group tasks.md:5",
     "manual.tag tasks.md:10",
+    "manual.tag tasks.md:13",
     "manual.tag tasks.md:8",
+    // No design.md here, so its ref is refused too.
+    "task.ref-file-missing tasks.md:13",
   ]);
   // With two repositories a spec names its own.
   const two = { repositories: [{ id: "app" }, { id: "web" }] },

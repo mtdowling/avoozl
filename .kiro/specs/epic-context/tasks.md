@@ -3,10 +3,10 @@ repo: avoozl
 ---
 # Tasks: epic context for the owner's own work
 
-Explicit `after` lists and each task's `after` fact govern execution; phase
-numbers alone do not impose a dependency. Requirement numbers are in
-brackets (`EC1` to `EC11`, in `requirements.md`); `D` sections refer to this
-spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
+Tasks run in list order, and each phase waits for the one above it. Requirement
+numbers are in brackets (`EC1` to `EC11`, in `requirements.md`); `D` sections
+refer to this spec's `design.md`, `R` numbers to
+`.kiro/specs/avoozl/requirements.md`.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders, a fake GitHub, fake executors and fake MCP
@@ -55,7 +55,7 @@ they never collide with the IDs of the other specs.
 
 ## Phase 3: Proof and docs
 
-- [x] `ec-p1` Proof: context reaches the owner's own spec task and nothing else, after `ec-2.3`, `ec-2.6`, `ec-2.7` (**MANUAL**) [EC1, EC7, EC9, EC11.2] (§D2, §D6, §D8)
+- [x] `ec-p1` Proof: context reaches the owner's own spec task and nothing else, after `ec-2.3`, `ec-2.6`, `ec-2.7` [EC1, EC7, EC9, EC11.2] (§D2, §D6, §D8) (**MANUAL**)
   - Expected: (1) the approval view lists both skills, the read, and the `research` alias with its command and env name; (2) the spec task's session reads the note file, quotes the marker skill's phrase and calls `research` once; Activity shows three passed tests and the given items, and the task row shows **Epic context**; (3) the fake server's environment holds the marker variable and the worker's does not; (4) the intake task, the coworker-driven spec and the repository that names `epicContext` or declares the plugin in `.avoozl.json` each get none, and Activity names the failing test or the refusal; (5) a message from a login without write access to the context task's session starts a new session without context; (6) a diff with an `acme-terms` term is blocked; (7) editing `servers.json` turns the plugin `changed` and the next session gets nothing; (8) a listing of TCP listeners (`lsof -nP -iTCP -sTCP:LISTEN`, or `ss -ltnp`) shows no new listener of the sessions.
   - Expected result observed; receipt under `docs/evidence/`, with no image committed.
   - Setup: an isolated Avoozl home and workspace; scratch repositories `acme/widgets` (public) and `acme/tools` with bare remotes and a fake GitHub, or scratch repositories on a test account; a local `team-context` plugin with two skills (one with a marker phrase), a read `{ask:notesRoot}/widgets` holding one note file, and a fake stdio MCP server `research` whose one tool echoes a marker and records its environment names; an `acme-terms` content set; a second test login for the coworker; Claude Code as the harness with the `context` key.

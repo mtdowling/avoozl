@@ -10,19 +10,22 @@ const script = fileURLToPath(
   new URL("../../../scripts/check/spec-lint.mjs", import.meta.url),
 );
 
-// Lint one spec folder `name` holding `files` in a temporary repository.
-function lintFolder(name, files) {
+// Lint spec folders `{name: {file: text}}` in a temporary repository.
+function lintSpecs(specs) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "spec-lint-"));
   try {
-    const folder = path.join(root, ".kiro", "specs", name);
-    fs.mkdirSync(folder, { recursive: true });
-    for (const [file, text] of Object.entries(files))
-      fs.writeFileSync(path.join(folder, file), text);
+    for (const [name, files] of Object.entries(specs)) {
+      const folder = path.join(root, ".kiro", "specs", name);
+      fs.mkdirSync(folder, { recursive: true });
+      for (const [file, text] of Object.entries(files))
+        fs.writeFileSync(path.join(folder, file), text);
+    }
     return spawnSync(process.execPath, [script, root], { encoding: "utf8" });
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 }
+const lintFolder = (name, files) => lintSpecs({ [name]: files });
 
 test("spec lint passes on this repository's specs", () => {
   const run = spawnSync(process.execPath, [script], { encoding: "utf8" });
@@ -44,7 +47,7 @@ test("spec lint refuses a Status line and says approval lives in Avoozl", () => 
   const run = lintFolder("stale", {
     "requirements.md": "# Stale\n\nStatus: Draft\n",
     "design.md": "# Stale\n",
-    "tasks.md": "- [ ] 1 One\n  - it works\n",
+    "tasks.md": "- [ ] `1` One\n  - it works\n",
   });
   assert.equal(run.status, 1, run.stdout + run.stderr);
   assert.match(run.stdout, /stale: 1 errors/);
@@ -67,9 +70,9 @@ test("spec lint refuses tasks and requirements marked superseded or retired", ()
       "",
     ].join("\n"),
     "tasks.md": [
-      "- [x] 1 Retired 2026-11-18",
+      "- [x] `1` Retired 2026-11-18",
       "  - nothing",
-      "- [ ] 2 Two",
+      "- [ ] `2` Two",
       "  - it works",
       "  - Superseded: proves a removed feature; not run.",
       "",
@@ -89,4 +92,47 @@ test("spec lint refuses tasks and requirements marked superseded or retired", ()
       new RegExp(`${at} .*marked superseded or retired`),
     );
   assert.doesNotMatch(run.stdout, /requirements\.md:5 /);
+});
+
+test("spec lint refuses a bare ID, an ID another spec holds, a task naming another spec's task, and other front-matter keys", () => {
+  const run = lintSpecs({
+    parser: {
+      "tasks.md": [
+        "- [ ] `p-1` Read tokens",
+        "  - Each row is one token",
+        "- [ ] p-2 Report unknown tokens",
+        "  - Each unknown token has a line",
+        "",
+      ].join("\n"),
+      "design.md": "---\nkind: epic\nrepo: app\n---\n# Parser\n",
+    },
+    report: {
+      "tasks.md": [
+        "- [ ] `p-1` Reuse an ID",
+        "  - It is refused",
+        "- [ ] `r-1` Write the report",
+        "  - It waits for `p-2`",
+        "- [ ] `r-2` Read the parser spec",
+        "  - The parser spec's tokens appear in the report",
+        "",
+      ].join("\n"),
+    },
+  });
+  assert.equal(run.status, 1, run.stdout + run.stderr);
+  assert.match(run.stdout, /parser: 2 errors/);
+  assert.match(run.stdout, /tasks\.md:3 Write task ID "p-2" as a code span/);
+  assert.match(
+    run.stdout,
+    /design\.md:2 Front-matter key "kind" is not allowed/,
+  );
+  assert.doesNotMatch(run.stdout, /design\.md:3 /);
+  assert.match(run.stdout, /report: 2 errors/);
+  assert.match(
+    run.stdout,
+    /tasks\.md:1 Task ID "p-1" is already used by spec parser/,
+  );
+  assert.match(
+    run.stdout,
+    /tasks\.md:3 Task "r-1" names task p-2 of spec parser/,
+  );
 });

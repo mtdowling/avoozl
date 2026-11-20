@@ -366,7 +366,7 @@ bullets that say when it is done, so that a spec reads as plain Markdown.
    sub-bullets under a leaf, one result each.
 2. A task only a person does SHALL end its title with `(**MANUAL**)`, in
    capitals, by the rules of the `(**PARALLEL**)` tag: it ends the title and
-   comes before any refs. It SHALL never be given to an agent, and a person
+   comes after any refs. It SHALL never be given to an agent, and a person
    SHALL tick it.
 3. A spec SHALL change one repository: its front matter's `repo`. A change
    across repositories SHALL be one spec per repository, linked from a
