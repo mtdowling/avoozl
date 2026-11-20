@@ -139,8 +139,40 @@ private repositories work. Git hooks are off, submodules are skipped, and
 Avoozl runs no `npm install`: commit the plugin ready to run, bundled or with
 `node_modules`. The approval names the commit, so a new commit needs a new
 approval. **Update** (or `avoozl plugins update ID`) resolves `ref` again.
-The tick never fetches. Avoozl refuses a URL with a password or token in it,
-a `subdir` outside the repository, and a commit with no `avoozl-plugin.json`.
+Only Add and Update fetch plugin files; the tick reads the pinned folder, and
+the daily [update check](#update-checks) reads ref names only. Avoozl refuses
+a URL with a password or token in it, a `subdir` outside the repository, and
+a commit with no `avoozl-plugin.json`.
+
+### Update checks
+
+Once a day per plugin, and when you choose **Check now** on its card, Avoozl
+asks whether something newer exists:
+
+| Source  | Asks                                                   | Newer when                                         |
+| ------- | ------------------------------------------------------ | -------------------------------------------------- |
+| Git     | `git ls-remote` on the plugin's URL, ref names only    | The branch has a new commit, a higher release tag exists with the same `v` prefix, or the tag moved |
+| Package | The registry's `dist-tags` for the package, no sign-in | `latest` is a higher version than the installed one |
+| Folder  | Nothing on the network                                 | The files' content hash differs from the approved one |
+
+A git ref that is a full commit is never newer. Something newer shows on the
+plugin's card as a badge, such as **Update available: v1.2.0 (was v1.0.0)**
+or **Update available: new commit abc1234**, and as one Needs you row per
+plugin. The check fetches, unpacks and installs nothing: you choose
+**Update** (or install the package), review, and approve, and nothing new
+loads until you do. A check that fails, such as an unreachable remote, says
+**Couldn't check for updates** on the card and raises no Needs you row.
+
+The check runs on its own timer in the process that runs the tick, never
+inside a tick, with a 15-second limit per plugin. It skips disabled plugins,
+git plugins not yet fetched, and folders not yet approved. A `ls-remote` to
+the GitHub git host counts under git in Settings › GitHub. The package check
+asks the registry npm is set to (`npm_config_registry`, or the public
+registry) and refuses one whose URL carries a user name or password.
+
+**Check for plugin updates daily** in Settings › Plugins turns it off on
+this machine, which writes `"updateChecks": false` into `plugins.json`. Only
+a person changes it.
 
 Nothing loads until a person approves the plugin in **Settings** (or with
 `avoozl plugins approve ID --hash HASH`). Settings shows the id, version,

@@ -295,6 +295,10 @@ that landed the task.
   - A public guide to writing a route or tracker plugin that uses only the fake plugins as examples; the fake route and fake tracker live under `test/fixtures/plugins/`; extend the 7.4 scan to plugin docs and fixtures so no company-internal tool name lands in the public tree.
   - A public guide to writing a route or tracker plugin that uses only the fake plugins as examples; the fake route and fake tracker live under `test/fixtures/plugins/`; extend the 7.4 scan to plugin docs and fixtures so no company-internal tool name lands in the public tree.
   - Built: `e13890b`.
+- [x] 8.9 Plugin update checks, after 8.6 [R34.17] (§4.8)
+  - Plugin update checks, after 8.6
+  - A daily check per plugin and Check now: git `ls-remote`, package dist-tags, folder hash; an update badge and one Needs you row per plugin; a quiet "couldn't check"; `updateChecks` in `plugins.json`; tests cover a moved branch, a newer tag, nothing newer, a failure, the setting off, and that nothing is fetched.
+  - `plugin-updates.mjs`, `plugin-git.mjs` `remoteRefs`, `PluginsSettings.tsx`, `plugin-updates.test.mjs`, `plugin-git.test.mjs`.
 - [x] 8.2 Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering.
   - Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering.
   - Built: `51622d0` (receipt `docs/evidence/phase8-deferred-github.md`, `13301d4`).

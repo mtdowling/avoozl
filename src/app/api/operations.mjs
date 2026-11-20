@@ -103,6 +103,13 @@ import {
   removePlugin,
   updateGitPlugin,
 } from "../plugins/plugins.mjs";
+import {
+  checkPluginUpdates,
+  remoteHost,
+  setUpdateChecks,
+  updateChecksOn,
+  updateFor,
+} from "../plugins/plugin-updates.mjs";
 import { pluginChecksView } from "../plugins/plugin-checks.mjs";
 import { contextView } from "../context/plugin-context.mjs";
 import { contextChip, taskContext } from "../context/context-record.mjs";
@@ -283,6 +290,8 @@ export class Operations {
               }
             : {}),
           health: health.get(p.id) ?? null,
+          // The newest update check's result (R34.17), or null.
+          update: entry ? updateFor(this.store, { ...p, entry }) : null,
           // A checks plugin's checks, prompts and servers (plugin-checks
           // PK7.2), shown before approval too.
           ...(manifest?.checks
@@ -311,6 +320,7 @@ export class Operations {
         // Which credentials plugin serves a host where two claim one owner.
         credentialsPick:
           readPluginSettings(options.settingsFile).credentialsPick ?? {},
+        updateChecks: { enabled: updateChecksOn(options.settingsFile) },
       };
     }
     if (context.caller)
@@ -337,7 +347,28 @@ export class Operations {
     if (name === "plugin.remove") return removePlugin(options, input);
     if (name === "plugin.credentials.pick")
       return pickCredentials(options, input);
+    // Check now (R34.17): the check itself, for one plugin or all. It
+    // fetches nothing; Update stays the person's next step.
+    if (name === "plugin.updates.check")
+      return checkPluginUpdates(this.store, options, {
+        ids: input?.id ? [String(input.id)] : null,
+        force: true,
+        countGit: this.countPluginGit(),
+      });
+    if (name === "plugin.updates.configure")
+      return setUpdateChecks(options.settingsFile, input?.enabled);
     fail("Unknown operation " + name, 404);
+  }
+  // A plugin update check's ls-remote to the GitHub git host counts under
+  // git in Settings › GitHub, like Avoozl's own fetches.
+  countPluginGit() {
+    const client = this.githubClient,
+      host = client?.gitUrl ? remoteHost(client.gitUrl) : null;
+    return (remote) => {
+      if (!host || remoteHost(remote) !== host) return;
+      client.countGit();
+      client.rate?.flush();
+    };
   }
   // The mode Settings > Content rules shows, or null when it can't be read.
   contentMode() {

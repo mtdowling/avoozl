@@ -98,6 +98,8 @@ export const APP_OPERATIONS = new Set([
   // Checks from a plugin (plugin-checks D10).
   "plugin.map",
   "plugin.checks.stages",
+  "plugin.updates.check",
+  "plugin.updates.configure",
   "check.decide.flip",
   "check.phase.fix",
   // Owner actions the Conflicts and Delivery views offer.
