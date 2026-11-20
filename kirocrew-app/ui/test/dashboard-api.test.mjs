@@ -284,12 +284,3 @@ test('a queued worker start is one Waiting for worker chat row until it binds (d
     ['s1'],
   )
 })
-
-test('a task a worker machine holds the grant for is an In flight row naming its machine, with no link', () => {
-  const worker = { taskId: 'a', spec: 's', worker: 'alice', grant: '4021', at: '2026-11-14T03:00:00.000Z', machine: 'dev-desktop' }
-  const rows = summarize({ graph: null, delivery: [delivery('a', { worker })], conflicts: [], plans: null }).inFlight
-  assert.deepEqual(
-    rows.map((row) => [row.slot, row.granted?.machine, row.session.link]),
-    [['grant:4021', 'dev-desktop', null]],
-  )
-})

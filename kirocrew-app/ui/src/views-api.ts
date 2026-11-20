@@ -161,18 +161,6 @@ export interface RemoteWorker {
   lastOkAt: string | null
 }
 
-// The worker machine holding a task's grant (worker pull, R90), on its
-// delivery item. `machine` is the worker's Remote Crew ID when this machine
-// names one (links.workers), else its login (direct-links D2).
-export interface GrantedWorker {
-  taskId: string
-  spec: string | null
-  worker: string
-  grant: string
-  at: string | null
-  machine: string
-}
-
 // Where one attempt opens (direct-links D2): a chat, its log, a crew to
 // connect, or nothing, with the label and the machine it runs on.
 export interface AttemptDestination {
@@ -286,8 +274,6 @@ export interface DeliveryItem extends TaskOwner {
   sessions: DeliverySession[]
   // A worker start queued and not bound yet (direct-links DL1.3).
   starting?: boolean
-  // The worker machine holding this task's grant (worker pull).
-  worker?: GrantedWorker | null
   evidence: {
     id?: string
     kind?: string | null

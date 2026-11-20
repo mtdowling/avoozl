@@ -16,8 +16,6 @@ const WORKSPACE_ID = /^[a-z][a-z0-9-]{0,60}$/;
 // Kiro Crew's own slot key and Crew ID grammars (kirocrew open, MC-10).
 const SLOT_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const CREW_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
-const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
-const GRANT_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 // An alert is created just after the row it names; a row opened later than
 // this after the alert is a newer occurrence.
 const SLACK_MS = 2000;
@@ -117,13 +115,13 @@ function webAddress(value, where) {
 }
 
 // `links` in the machine file (never .avoozl.json): where this machine opens
-// a worker chat. {dashboard?, desktop?, workers?: {login: {crew?}}}.
+// a worker chat. {dashboard?, desktop?}.
 // Returns the checked value; throws naming the key.
 export function validateLinks(value, source = "Avoozl configuration") {
   if (value === undefined) return {};
   if (!record(value)) fail(`${source}: links must be an object.`);
   for (const key of Object.keys(value))
-    if (!["dashboard", "desktop", "workers"].includes(key))
+    if (!["dashboard", "desktop"].includes(key))
       fail(`${source}: links.${key} is not a setting.`);
   const out = {};
   if (value.dashboard !== undefined)
@@ -133,45 +131,10 @@ export function validateLinks(value, source = "Avoozl configuration") {
       fail(`${source}: links.desktop must be true or false.`);
     out.desktop = value.desktop;
   }
-  if (value.workers !== undefined) {
-    if (!record(value.workers))
-      fail(`${source}: links.workers must be an object.`);
-    out.workers = {};
-    for (const [login, host] of Object.entries(value.workers)) {
-      const at = `${source}: links.workers.${login}`;
-      if (!LOGIN.test(login)) fail(`${at} is not a GitHub login.`);
-      if (!record(host)) fail(`${at} must be an object.`);
-      for (const key of Object.keys(host))
-        if (key !== "crew") fail(`${at}.${key} is not a setting.`);
-      if (host.crew !== undefined && !CREW_ID.test(String(host.crew)))
-        fail(`${at}.crew is not a Kiro Crew ID.`);
-      out.workers[login.toLowerCase()] = { ...host };
-    }
-  }
   return out;
 }
 
 // --- Worker attempts --------------------------------------------------------
-
-// The driver's offered tasks (worker-offer-step.mjs), each with the grant a
-// worker holds for it once one does.
-export const OFFERED = "worker.offered";
-export const grantedTasks = (store) =>
-  Object.entries(store.getMeta(OFFERED) ?? {})
-    .filter(([, row]) => row?.grant?.id)
-    .map(([taskId, row]) => ({ taskId, spec: row.spec, grant: row.grant }));
-
-// What the page shows of a granted task's worker: its login, the grant, the
-// and the machine it runs on: its Remote Crew ID when this machine names
-// one, else its login.
-export const grantView = ({ taskId, spec, grant }, links = {}) => ({
-  taskId,
-  spec,
-  worker: grant.worker,
-  grant: grant.id,
-  at: grant.at ?? null,
-  machine: links.workers?.[grant.worker]?.crew ?? grant.worker,
-});
 
 const chatKey = (slot) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
@@ -243,25 +206,5 @@ export function attemptDestination(
     href: null,
     machine,
     note: "Set links.dashboard or links.desktop in this machine's Avoozl file to open Kiro Crew chats here.",
-  };
-}
-
-// Worker side: the attempt this machine runs for one exact grant, from the
-// runner records (remote-runner.mjs). Reads only. Null when no record holds
-// that grant, so a released or newer grant never answers for an old one.
-export function grantAttempt(tasks, crewId, grant) {
-  if (!GRANT_ID.test(grant ?? "")) fail("Give a grant ID.");
-  const found = Object.entries(tasks ?? {}).find(
-    ([, row]) => row.grant?.id === grant,
-  );
-  if (!found) return null;
-  const [taskId, row] = found;
-  return {
-    grant,
-    taskId,
-    state: row.state,
-    crew: crewId ?? null,
-    slot: row.worker?.slot ? chatKey(row.worker.slot) : null,
-    status: row.worker?.status ?? null,
   };
 }

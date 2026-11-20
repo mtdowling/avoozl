@@ -8,7 +8,7 @@ completion: integrated
   - $done: A notice opens its exact decision in the right workspace in both views. Sign-in and reload preserve the target. Filters cannot silently hide it. A closed decision or a new decision for the same task does not redirect the old link to the new decision.
   - Wire the Needs you route and the existing Avoozl app and standalone notification payloads to the same stable decision target.
 
-- [ ] dl-2 Open existing worker attempts [DL1, DL3] (§D1, §D2)
+- [x] dl-2 Open existing worker attempts [DL1, DL3] (§D1, §D2)
   - $done: In flight and task detail open the exact local or remote attempt when configured. Verify live output in a real Remote Crew chat and steer the same running turn on a supported harness. Cover starting and superseded attempts. Cover disconnected and missing destinations as well as process logs. Reads leave GitHub and both task and worker state untouched.
   - Add the private grant lookup and host-specific chat actions. Update WP6.1 for read-only links.
 

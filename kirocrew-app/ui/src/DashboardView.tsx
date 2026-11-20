@@ -7,7 +7,7 @@ import Badge from './ui/Badge.tsx'
 import { attentionTarget, checkDot, processLine, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
 import { answerLabel, ciHealth, homeTiles, landedRows, stuckRows, QUIET_MS, type CiHealth, type LandedRow, type StuckRow } from './home-api.ts'
 import { attemptAction, duration, relativeTime, sessionHref } from './task-api.ts'
-import { AttemptLink, GrantedWorker } from './WorkerLink.tsx'
+import { AttemptLink } from './WorkerLink.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem, type LandingView } from './views-api.ts'
@@ -416,7 +416,7 @@ export function InFlightRow({
   const logRef = useRef<HTMLElement | null>(null)
   const child = row.session.executor === 'process' ? (row.session.process ?? null) : null,
     processRow = row.session.executor === 'process',
-    machine = row.granted ? row.granted.machine : attemptAction(row.session).machine
+    machine = attemptAction(row.session).machine
   return (
     <Box data-in-flight-row as="li" css-border-color="border" flex flexWrap items="start" gap="2" border="t" py="2" firstBorderT0>
       {/* Fixed columns, so every row's title and actions start at the same x. */}
@@ -443,8 +443,7 @@ export function InFlightRow({
             {row.session.agent ? `${row.session.agent} / ` : ''}
             {row.model ?? 'model not named'} · on {machine}
             {row.starting ? '' : ` · running ${duration(row.startedAt, now)}`} ·{' '}
-            {row.session.crewUnreachable ? 'crew unreachable' : row.starting ? 'waiting for worker chat' : row.granted ? 'granted' : (row.status ?? 'not observed')}{' '}
-            {relativeTime(row.lastAt, now)}
+            {row.session.crewUnreachable ? 'crew unreachable' : row.starting ? 'waiting for worker chat' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
           </Hint>
         )}
         {row.links && <FlightChips links={row.links} title={row.title} />}
@@ -492,8 +491,6 @@ export function InFlightRow({
           <Hint size="xs" data-attempt-waiting>
             Waiting for worker chat
           </Hint>
-        ) : row.granted ? (
-          <GrantedWorker worker={row.granted} />
         ) : (
           <AttemptLink session={row.session} title={row.title} />
         )}

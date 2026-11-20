@@ -91,8 +91,8 @@ export function stuckRows(summary: DashboardSummary | null, now: number, session
   if (!summary) return []
   const rows: (StuckRow & { quiet: number })[] = []
   for (const row of summary.inFlight) {
-    // A start not bound yet, or a chat on a worker machine, has no chat here to go quiet.
-    if (row.starting || row.granted) continue
+    // A start not bound yet has no chat to go quiet.
+    if (row.starting) continue
     const last = Date.parse(row.lastAt ?? '')
     const quiet = Number.isFinite(last) ? now - last : Infinity
     const why = row.session.crewUnreachable ? 'Its crew does not answer.' : quiet >= QUIET_MS ? (Number.isFinite(quiet) ? `No word for ${ago(quiet)}.` : 'No status yet.') : null

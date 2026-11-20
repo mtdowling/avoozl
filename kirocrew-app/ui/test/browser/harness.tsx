@@ -1468,8 +1468,7 @@ if (query.get('page') === 'app' && query.get('links') === '1') {
 }
 // ?page=app&direct=1: direct links (spec direct-links). In flight holds a
 // local chat, a Remote Crew chat, a crew that does not answer, a `process`
-// worker's log, a start not bound yet and a task a worker machine holds the
-// grant for. Needs you answers a notice's link: &decision=LinkedDecision01
+// worker's log and a start not bound yet. Needs you answers a notice's link: &decision=LinkedDecision01
 // opens task m3's decision; any other ID is closed. &hide=1 saves a filter
 // that hides it. Names and numbers are made up.
 if (query.get('page') === 'app' && query.get('direct') === '1') {
@@ -1480,7 +1479,6 @@ if (query.get('page') === 'app' && query.get('direct') === '1') {
     ['s3', 'Show prep time on each card'],
     ['s4', 'Keep the shopping list in sync'],
     ['s5', 'Add a print view for one recipe'],
-    ['s6', 'Cache the pantry index'],
   ]
   answer('graph.view', () => mealPlannerGraph(rows.map(([id, title]) => meal(id, title))))
   const chat = (slot: string, extra = {}) => ({
@@ -1552,7 +1550,6 @@ if (query.get('page') === 'app' && query.get('direct') === '1') {
         }),
       ]),
       item('s5', [], { starting: true }),
-      item('s6', [], { worker: { taskId: 's6', spec: 'meal-planner', worker: 'alice', grant: '4021', at, machine: 'dev-desktop' } }),
     ],
     contentReports: [],
   }))

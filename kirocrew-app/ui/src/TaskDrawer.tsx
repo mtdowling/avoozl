@@ -632,11 +632,6 @@ function TaskPanel(props: {
                     Waiting for worker chat
                   </Hint>
                 )}
-                {delivery.worker && (
-                  <Box as="p" flex flexWrap items="center" gap="1.5" size="sm" data-granted-worker>
-                    Worker {delivery.worker.worker} holds the grant · on {delivery.worker.machine}. Its chat is on that machine.
-                  </Box>
-                )}
                 {deliveryState === 'decision' && (
                   <RetryForm
                     item={delivery}

@@ -59,20 +59,6 @@
         "desktop": {
           "type": "boolean",
           "description": "On the standalone page, offer Open in Kiro Crew, which opens a local chat in the Kiro Crew desktop app (kirocrew://)."
-        },
-        "workers": {
-          "type": "object",
-          "description": "Worker machines by GitHub login, so In flight names the machine a granted task runs on.",
-          "additionalProperties": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "crew": {
-                "type": "string",
-                "description": "The worker's Remote Crew ID in this Kiro Crew."
-              }
-            }
-          }
         }
       }
     },

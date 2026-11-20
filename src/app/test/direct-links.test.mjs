@@ -8,10 +8,6 @@ import {
   attemptDestination,
   chatRoute,
   decisionPath,
-  grantAttempt,
-  grantedTasks,
-  grantView,
-  OFFERED,
   pageTarget,
   resolveDecision,
   validateLinks,
@@ -268,12 +264,10 @@ test("links settings are checked, and hold no sign-in", () => {
     validateLinks({
       dashboard: "https://crew.example/some/path",
       desktop: true,
-      workers: { Alice: { crew: "devbox" } },
     }),
     {
       dashboard: "https://crew.example",
       desktop: true,
-      workers: { alice: { crew: "devbox" } },
     },
   );
   for (const [value, message] of [
@@ -281,67 +275,13 @@ test("links settings are checked, and hold no sign-in", () => {
     [{ dashboard: "https://user:pw@crew.example" }, /no sign-in/],
     [{ dashboard: "https://crew.example/?token=x" }, /no sign-in/],
     [{ desktop: "yes" }, /true or false/],
-    [{ workers: { "bad login!": {} } }, /not a GitHub login/],
-    [{ workers: { alice: { ssh: "host" } } }, /ssh is not a setting/],
-    [{ workers: { alice: { crew: "-x" } } }, /not a Kiro Crew ID/],
+    [
+      { workers: { alice: { crew: "devbox" } } },
+      /links\.workers is not a setting/,
+    ],
     [{ other: 1 }, /links\.other is not a setting/],
   ])
     assert.throws(() => validateLinks(value), message);
-});
-
-test("a granted task names its worker; the worker answers only for the exact grant", (t) => {
-  const { store } = workspace(t, [task("a", { status: "partial" }), task("b")]);
-  store.setMeta(OFFERED, {
-    a: {
-      spec: "s",
-      at: "t",
-      grant: { id: "12345", worker: "alice", at: "t1" },
-    },
-    b: { spec: "s", at: "t" },
-  });
-  assert.deepEqual(
-    grantedTasks(store).map((row) => row.taskId),
-    ["a"],
-  );
-  const view = deliveryView(store, store.read(), {
-    destinations: { links: { workers: { alice: { crew: "devbox" } } } },
-  });
-  const item = view.items.find((row) => row.id === "a");
-  assert.deepEqual(
-    item.worker,
-    grantView(grantedTasks(store)[0], {
-      workers: { alice: { crew: "devbox" } },
-    }),
-  );
-  assert.equal(item.worker.machine, "devbox");
-  // Worker side: the runner record keeps the grant beside the envelope.
-  const tasks = {
-    a: {
-      state: "working",
-      grant: { id: "12345", spec: "s" },
-      worker: { slot: "dashboard:avoozl_r1", status: "running" },
-    },
-    b: { state: "accepted", grant: { id: "999", spec: "s" } },
-  };
-  assert.deepEqual(grantAttempt(tasks, "devbox", "12345"), {
-    grant: "12345",
-    taskId: "a",
-    state: "working",
-    crew: "devbox",
-    slot: "avoozl_r1",
-    status: "running",
-  });
-  assert.equal(
-    grantAttempt(tasks, "devbox", "999").slot,
-    null,
-    "starting: no chat yet",
-  );
-  assert.equal(
-    grantAttempt(tasks, "devbox", "12346"),
-    null,
-    "a newer or other grant never answers",
-  );
-  assert.throws(() => grantAttempt(tasks, null, "a b"), /grant ID/);
 });
 
 test("a queued worker start shows as starting until its session binds", (t) => {

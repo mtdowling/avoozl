@@ -34,14 +34,12 @@ import {
   readRunnerConfig,
   reportDone,
   runnerStatus,
-  runnerTasks,
 } from "../workers/remote-runner.mjs";
 import { nextView } from "../workers/runner.mjs";
 import { fail } from "../store/store.mjs";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
 import { previewWorker } from "../workers/worker-setup.mjs";
-import { grantAttempt } from "../api/direct-links.mjs";
 import { machineLinks } from "../tick/crews.mjs";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
@@ -59,25 +57,6 @@ export const entries = [
     ),
     handler({}) {
       return { workers: [] };
-    },
-  },
-  // Worker side (direct-links D2): which attempt holds one exact grant. Read
-  // by the owner at the worker machine's command line, so only a person's
-  // local command may ask.
-  {
-    name: "worker.attempt",
-    class: "observe",
-    policy: person("Only a person reads a worker's attempts."),
-    handler({ input, context }) {
-      if (context.local !== true || context.caller || context.mcp)
-        fail("Run avoozl worker attempt on the worker machine.", 403);
-      return {
-        attempt: grantAttempt(
-          runnerTasks(this.store),
-          readRunnerConfig(this.workspaceRoot)?.crewId ?? null,
-          input.grant,
-        ),
-      };
     },
   },
 

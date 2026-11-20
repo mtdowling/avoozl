@@ -28,11 +28,7 @@ import {
 } from "../delivery/delivery.mjs";
 import { sessionUrl } from "../tick/notifications.mjs";
 import { processSessionDetails } from "../executors/process-view.mjs";
-import {
-  attemptDestination,
-  grantedTasks,
-  grantView,
-} from "./direct-links.mjs";
+import { attemptDestination } from "./direct-links.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { taskSourceRefs } from "../../task-identity.mjs";
 import { listSpans, taskFlow } from "../flow/flow.mjs";
@@ -731,12 +727,6 @@ export function deliveryView(store, data, { config, destinations = {} } = {}) {
     machineAvoozlPaths(),
   );
   const bindings = byTask(bindingRows),
-    granted = new Map(
-      grantedTasks(store).map((row) => [
-        row.taskId,
-        grantView(row, destinations.links),
-      ]),
-    ),
     // Worker starts queued but not bound yet.
     starting = new Set(
       optionalList(store, "session_requests")
@@ -830,8 +820,6 @@ export function deliveryView(store, data, { config, destinations = {} } = {}) {
       !pullRequests.length &&
       !links.length &&
       !task.github?.unlinked &&
-      // A task a worker machine holds the grant for (worker pull).
-      !granted.has(id) &&
       !starting.has(id) &&
       // A planner-grouped task shows its batch or why it runs alone.
       !task.batch
@@ -901,8 +889,6 @@ export function deliveryView(store, data, { config, destinations = {} } = {}) {
         .sort((a, b) => a.attempt - b.attempt || a.role.localeCompare(b.role)),
       // A worker start queued and not bound yet: Waiting for worker chat.
       starting: starting.has(id),
-      // The worker machine holding this task's grant (worker pull).
-      worker: granted.get(id) ?? null,
       evidence: [
         ...links.map((text) => ({ text: String(text) })),
         ...(evidence.get(id) || []).map((record) => ({

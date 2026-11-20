@@ -17,7 +17,7 @@ try {
     for (const theme of ['light', 'dark']) {
       const size = { width, height: width > 400 ? 900 : 844, dark: theme === 'dark' }
       await page.open(harness.url({ page: 'app', direct: '1', theme }), size)
-      await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 6`, 30000)
+      await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 5`, 30000)
       await page.evaluate(`[...document.querySelectorAll('h2, h3, [data-section-title]')].find((h) => h.textContent.startsWith('In flight ('))?.scrollIntoView({ block: 'start' })`)
       await settle(page)
       let file = path.join(out, `in-flight-${width}-${theme}.png`)
