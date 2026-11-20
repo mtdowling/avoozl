@@ -103,43 +103,19 @@ test('preview is its own read-only call', async () => {
   assert.deepEqual(posts, [{ operation: 'plugin.preview', input: { path: '/p' }, workspaceId: 'ws' }])
 })
 
-test('a bundle plugin lists its parts, and Import waits for approval and acceptance', async () => {
-  const { importBlocked, importInput, packCounts, partTitles, shortValue } = await import('../src/plugins-api.ts')
-  assert.deepEqual(partTitles({ provides: ['pack', 'rules', 'intake'] }), ['Settings pack', 'Content rules', 'Intake source'])
+test('a bundle plugin lists its parts', async () => {
+  const { partTitles } = await import('../src/plugins-api.ts')
+  assert.deepEqual(partTitles({ provides: ['rules', 'credentials', 'context'] }), ['Content rules', 'GitHub sign-in', 'Context'])
   // A plugin from before `provides` has one part per kind.
   assert.deepEqual(partTitles({ kinds: ['rules'] }), ['Content rules'])
-  const preview = {
-    id: 'sdk-team',
-    version: '1.1.0',
-    description: null,
-    repositories: ['o/sdk'],
-    changes: [
-      { setting: 'github.repositories.o/sdk.rules', action: 'keep', from: [], to: [] },
-      { setting: 'github.repositories.o/sdk.minimumPermission', action: 'change', from: 'write', to: 'triage', warning: 'Lowers who counts' },
-      { setting: 'github.project.fields.status', action: 'skip', reason: 'No GitHub Project is set.' },
-    ],
-    warnings: ['Lowers who counts on o/sdk: write access becomes triage access.'],
-    previewHash: 'h',
-    imported: null,
-  }
-  assert.deepEqual(packCounts(preview.changes), { create: 0, change: 1, keep: 1, skip: 1 })
-  const row = { id: 'sdk-team', version: '1.1.0', source: 'repository', state: 'changed', reason: null, health: null }
-  assert.match(importBlocked(row, preview, true, false), /Approve version 1.1.0 first/)
-  const approved = { ...row, state: 'approved' }
-  assert.match(importBlocked(approved, preview, false, false), /Accept the who-counts change/)
-  assert.equal(importBlocked(approved, preview, true, false), null)
-  assert.match(importBlocked({ ...approved, source: 'machine' }, preview, true, false), /Confirm/)
-  assert.match(importBlocked(approved, { ...preview, warnings: [], changes: [preview.changes[0]] }, false, false), /Nothing to import/)
-  assert.deepEqual(importInput(preview, true, false), { id: 'sdk-team', repositories: ['o/sdk'], previewHash: 'h', acceptLowered: true, confirmPublic: false })
-  assert.equal(shortValue('x'.repeat(100)).length, 80)
 })
 
 test('a card says a code plugin runs on node and lists each kind with its features', async () => {
   const { capabilityLine, runsAs } = await import('../src/plugins-api.ts')
-  assert.equal(runsAs(['intake', 'rules']), 'node')
+  assert.equal(runsAs(['rules']), 'node')
   assert.equal(runsAs([]), 'nothing: settings only')
   assert.equal(runsAs(undefined), undefined)
-  assert.equal(capabilityLine({ intake: [] }), 'intake')
-  assert.equal(capabilityLine({ intake: ['actor'], rules: [] }), 'intake, actor; rules')
+  assert.equal(capabilityLine({ rules: [] }), 'rules')
+  assert.equal(capabilityLine({ rules: ['x'], credentials: [] }), 'rules, x; credentials')
   assert.equal(capabilityLine({}), undefined)
 })

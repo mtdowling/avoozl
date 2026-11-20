@@ -1,5 +1,4 @@
-// Links on a task, Mark done for a manual task, and workflow
-// templates for New spec (design §4.16, Requirement 61). Kept free of JSX
+// Links on a task and Mark done for a manual task (design §4.16). Kept free of JSX
 // so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
@@ -27,31 +26,8 @@ export interface ManualDone {
   via: 'avoozl' | 'github'
 }
 
-export interface TemplateInput {
-  id: string
-  label: string
-  type: 'text' | 'choice' | 'file' | 'repositories' | 'epic'
-  required: boolean
-  options?: string[]
-}
-
-export interface TemplateSummary {
-  plugin: string
-  version: string
-  id: string
-  title: string
-  description: string
-  inputs: TemplateInput[]
-  phases: { id: string; title: string }[]
-  proofKinds: string[]
-  // It has a pack or flow defaults to offer.
-  settings: boolean
-}
-
 // The limits the backend applies (task-notes.mjs NOTE_LIMITS).
 export const NOTE_LIMITS = { url: 2000, label: 200 }
-// A file input is read here, at most this much text (templates.mjs).
-export const FILE_INPUT_BYTES = 200 * 1024
 
 // Who wrote an entry, in words.
 export function authorLabel(entry: Pick<NoteEntry, 'author' | 'login'>): string {
@@ -92,23 +68,6 @@ export function blockedDecisions(error: unknown): string[] {
   }
 }
 
-// The fields a template asks for that are missing, by label.
-export function missingInputs(template: TemplateSummary, values: Record<string, string | string[]>): string[] {
-  return template.inputs
-    .filter((input) => input.required)
-    .filter((input) => {
-      const value = values[input.id]
-      return Array.isArray(value) ? !value.length : !String(value ?? '').trim()
-    })
-    .map((input) => input.label)
-}
-
-// A file read in the page: its text, refused above the limit.
-export async function readInputFile(file: { size: number; text: () => Promise<string> }): Promise<string> {
-  if (file.size > FILE_INPUT_BYTES) throw new Error('That file is larger than 200 KB. Pick a smaller one.')
-  return file.text()
-}
-
 export function notesClient(api: AppApi) {
   const run = async <T>(operation: string, workspaceId: string, input: Record<string, unknown>) =>
     (
@@ -144,6 +103,5 @@ export function notesClient(api: AppApi) {
       },
     ) => run<{ taskId: string; manualDone: ManualDone }>('task.manual.complete', workspaceId, { taskId, ...input }),
     reopen: (workspaceId: string, taskId: string) => run<unknown>('task.manual.reopen', workspaceId, { taskId }),
-    templates: (workspaceId: string) => run<{ templates: TemplateSummary[] }>('template.list', workspaceId, {}),
   }
 }

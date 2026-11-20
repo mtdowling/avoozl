@@ -67,9 +67,7 @@ function same(left, right) {
 function privilegedConfiguration(value) {
   return Object.fromEntries(
     Object.entries(value).filter(
-      // `packs` only records where imported settings came from.
-      ([key]) =>
-        !["$schema", "version", "conversations", "packs"].includes(key),
+      ([key]) => !["$schema", "version", "conversations"].includes(key),
     ),
   );
 }

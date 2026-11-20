@@ -57,7 +57,7 @@ export const BOUNDARY_HINTS: Record<string, string> = {
   github: 'Issue, comment and pull request text Avoozl writes.',
   brief: 'The brief a worker session starts with.',
   diff: 'Lines a worker adds, checked before a push.',
-  intake: 'Items that come in from a plugin source or MCP. Only checked when you tick it.',
+  intake: 'Items that come in through MCP. Only checked when you tick it.',
   proposal: "A retro's proposals, their diffs and evidence.",
   notes: 'Each link on a task, when it is saved.',
 }

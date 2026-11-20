@@ -205,8 +205,6 @@ scope, and pick how to start:
   first, then design, then tasks, each for you to review.
 - **From a goal**: you type the goal, and an Avoozl planner chat writes the
   draft.
-- **From template**: you start from a workflow template in an approved
-  plugin. See [Writing a plugin](plugins.md#template-part) for writing one.
 
 Before Spec Builder starts, Avoozl offers to add
 `.kiro/steering/avoozl-specs.md` to the repository and shows its text. The

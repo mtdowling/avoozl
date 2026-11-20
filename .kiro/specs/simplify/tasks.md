@@ -135,7 +135,7 @@ merge, shown in chat and never committed.
 - [ ] `sim-4.6` Cut task extras [SM4.5, SM14.1] (§D14)
   - $after: sim-0
   - Evidence bundles, supersede, dedup, title repeat, task notes, task steps, task files and task summaries are gone from `src/app/tasks/`, with their operations, commands and MCP tools; lint's summary-repeats-title check goes, since a task has no summary
-- [ ] `sim-4.7` Refuse the cut plugin parts [SM11] (§D11)
+- [x] `sim-4.7` Refuse the cut plugin parts [SM11] (§D11)
   - $after: sim-0
   - `PARTS` is `rules`, `credentials`, `checks` and `context`; a manifest listing `pack`, `intake`, `template` or `policy` is refused with "<part> is not a plugin part"; `plugin-pack.mjs` is gone
 - [ ] `sim-4.9` Cut GitHub extras [SM12.3, SM14.1] (§D14)

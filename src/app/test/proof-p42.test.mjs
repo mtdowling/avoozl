@@ -49,15 +49,14 @@ const leaf = (id, repository) => ({
   repository,
 });
 
-// The plugin p1: a skill file. It still lists the removed lessons part,
-// which loads and does nothing.
+// The plugin p1: a skill file and a context part, which runs no code.
 const p1 = path.join(temporaryDirectory("avoozl-p42-p1-"), "p1");
 function writePlugin(version) {
   json(path.join(p1, "avoozl-plugin.json"), {
     id: "p1",
     version,
     contract: 1,
-    provides: ["lessons"],
+    provides: ["context"],
   });
   fs.mkdirSync(path.join(p1, "skills", "review"), { recursive: true });
   fs.writeFileSync(

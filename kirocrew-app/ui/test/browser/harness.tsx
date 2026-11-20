@@ -28,7 +28,6 @@ import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansV
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import WorkspaceView from '../../src/WorkspaceView.tsx'
-import { PackImportDialog } from '../../src/PackImport.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
@@ -284,40 +283,6 @@ answer('task.notes.add', (body) => {
   }
 })
 answer('repositories.list', () => ({ items: [{ id: 'sdk', name: 'sdk', localCheckout: '/w/sdk', github: 'o/sdk', baseBranch: 'main' }] }))
-answer('template.list', () => ({
-  templates: [
-    {
-      plugin: 'sdk-templates',
-      version: '1.0.0',
-      id: 'sdk-rewrite',
-      title: 'SDK rewrite',
-      description: 'Rewrite one SDK on the new runtime, phase by phase, with a team review before cutover.',
-      inputs: [
-        { id: 'sdk', label: 'Which SDK', type: 'text', required: true },
-        { id: 'repository', label: 'Target repository', type: 'repositories', required: true },
-        { id: 'gaps', label: 'Gap list', type: 'file', required: false },
-      ],
-      phases: ['Inventory', 'Codegen', 'Runtime', 'Protocol tests', 'Review', 'Cutover'].map((title) => ({ id: title.toLowerCase(), title })),
-      proofKinds: ['Protocol tests pass', 'Cutover dry run'],
-      settings: true,
-    },
-  ],
-}))
-answer('plugin.pack.preview', () => ({
-  id: 'sdk-templates',
-  version: '1.0.0',
-  description: 'SDK rewrite settings',
-  repositories: [],
-  warnings: [],
-  previewHash: 'h',
-  imported: null,
-  changes: [
-    { setting: 'flow.retro', action: 'create', to: { everyTasks: 10 } },
-    { setting: 'flow.retro.everyTasks', action: 'change', from: 20, to: 10 },
-    { setting: 'flow.localChecksFirst', action: 'keep', to: true },
-  ],
-}))
-
 function OpenTask() {
   const drawer = useTaskDrawer()
   return (
@@ -402,9 +367,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   ),
   'file-viewer': shown((close) => <DocumentReader workspaceId="w" target={{ document: 'docs/guide.md', lineStart: null, lineEnd: null }} text={text} onClose={close} />),
   'stop-line': own('Stop the line', <StopLineButton workspaceId="w" onPulled={() => undefined} />),
-  'pack-import': shown((close) => (
-    <PackImportDialog row={{ id: 'pack-1', version: '1.0.0' } as never} workspaceId="w" client={idle} onClose={close} onChanged={async () => undefined} />
-  )),
   // Not a modal: the drawer's Files fold, at a drawer's width.
   'task-files': shown(() => (
     <div style={{ maxWidth: 620 }}>
@@ -429,14 +391,6 @@ export const SCENARIOS: Record<string, Scenario> = {
     createPortal(
       <div {...{ [APP_ATTR]: '' }}>
         <NewFixDrawer workspaceId="w" onClose={close} />
-      </div>,
-      document.body,
-    ),
-  ),
-  'new-spec-template': shown((close) =>
-    createPortal(
-      <div {...{ [APP_ATTR]: '' }}>
-        <NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} />
       </div>,
       document.body,
     ),

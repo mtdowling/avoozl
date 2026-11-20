@@ -98,8 +98,6 @@ export const APP_OPERATIONS = new Set([
   "github.job.confirm",
   "github.labels.create",
   "plugin.update",
-  "plugin.pack.preview",
-  "plugin.pack.import",
   // Checks from a plugin (plugin-checks D10).
   "plugin.map",
   "plugin.checks.stages",
@@ -164,15 +162,13 @@ export const APP_OPERATIONS = new Set([
   "session.send",
   "session.open",
   "session.view",
-  // Manual tasks, task links, and workflow templates (§4.16).
+  // Manual tasks and task links.
   "task.manual.complete",
   "task.manual.reopen",
   "task.notes.list",
   "task.notes.add",
   "task.notes.edit",
   "task.notes.remove",
-  "template.list",
-  "template.preview",
 ]);
 // Machine-catalog operations, served by this backend rather than a workspace.
 const MACHINE_OPERATIONS = new Map([

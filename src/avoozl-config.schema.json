@@ -482,30 +482,6 @@
         }
       }
     },
-    "packs": {
-      "type": "object",
-      "description": "Written by a pack import (design \u00a74.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "version": {
-            "type": "string"
-          },
-          "importedAt": {
-            "type": "string"
-          },
-          "importedBy": {
-            "type": "string"
-          },
-          "settings": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
     "notifications": {
       "type": "object",
       "description": "Where this machine sends notifications when no Kiro Crew does. Machine file only (~/.config/avoozl/config.json): .avoozl.json refuses it, since a webhook URL may hold a secret.",

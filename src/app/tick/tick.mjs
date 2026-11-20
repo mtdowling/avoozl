@@ -97,14 +97,8 @@ import {
 } from "../settings/chat-models.mjs";
 import { syncStep, syncTargets } from "../epics/integration-sync.mjs";
 import { headStep } from "../epics/integration-head.mjs";
-import { recordHealth } from "../plugins/plugin-session.mjs";
 import { repositoryPlugins } from "../plugins/plugins.mjs";
-import {
-  pollSources,
-  purgeClosed,
-  sourceMap,
-  validateIntake,
-} from "../intake/intake.mjs";
+import { purgeClosed, validateIntake } from "../intake/intake.mjs";
 import {
   findPlanningLeak,
   settleUnavailable,
@@ -498,41 +492,6 @@ function servedOf(row) {
   };
 }
 
-// Plugin intake sources (§4.12). A failed poll shows on its source and
-// stops nothing else; closed items no task holds go after 30 days.
-async function pollStep(store, plugins, planned, workspaceRoot) {
-  let sources;
-  try {
-    sources = sourceMap(
-      { workspaceRoot, settingsFile: plugins.options?.settingsFile },
-      store,
-    );
-  } catch (error) {
-    planned.notify.push({
-      channel: "failure",
-      title: "Avoozl could not read its intake sources",
-      text: error.message,
-    });
-    return;
-  }
-  if ([...sources.values()].some((source) => source.plugin)) {
-    const session = plugins.open();
-    try {
-      const polled = await pollSources(
-        store,
-        session,
-        sources,
-        readGitHubPolicyOrNull(workspaceRoot),
-      );
-      planned.notify.push(...polled.notify);
-    } finally {
-      await session.close();
-    }
-    recordHealth(store, session.report());
-  }
-  purgeClosed(store);
-}
-
 // The specs of these task IDs.
 function plansOf(store, taskIds) {
   const wanted = new Set(taskIds),
@@ -827,10 +786,8 @@ async function runTick(
             text: error.message,
           });
         }
-      // Incoming items from plugin sources (§4.12): one poll per source,
-      // before dispatch, so a delivered item's leaf can start this tick.
-      if (script && plugins)
-        await pollStep(store, plugins, planned, workspaceRoot);
+      // Closed intake items no task holds go after 30 days.
+      if (script) purgeClosed(store);
       // After a restart, and on every tick, nothing new is dispatched until
       // every live session this cron opened has been observed in the roster.
       // Without a roster (a stock Kiro Crew), a session counts as observed

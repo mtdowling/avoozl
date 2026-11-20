@@ -40,12 +40,8 @@ local or GitHub work.
 
 Use `avoozl help` to inspect the installed CLI surface before choosing commands.
 
-## Templates, manual tasks and task links
+## Manual tasks and task links
 
-- A workflow template is a folder in an approved plugin. List them with
-  `plans_plugins` action `templates`. Starting a spec from one is the
-  user's, in **New spec**, **From template**; its planner chat starts from
-  the template's starter folder. Keep its phases, task IDs and manual tasks.
 - A manual task (`"manual": true`) is a step only a
   person does, such as a team review. Never start or mark one done:
   `plans_next` lists it under `needsYou` with reason `manual`. Tell the user

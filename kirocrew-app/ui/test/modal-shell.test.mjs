@@ -111,7 +111,6 @@ const SCENARIOS = {
   confirm: ['Remove', 'Remove avoozl?', 'Cancel'],
   'file-viewer': ['Open the dialog', 'docs/guide.md', 'Close'],
   'stop-line': ['Stop the line', 'Stop the line', 'Cancel'],
-  'pack-import': ['Open the dialog', 'Import pack-1 version 1.0.0', 'Cancel'],
   'mark-done': ['Open the dialog', 'Mark done: Review with team', 'Cancel'],
   'new-spec': ['Open the dialog', 'New spec', 'Cancel'],
   'review-info': ['Open the dialog', 'Meal planner: sections changed', 'Close'],

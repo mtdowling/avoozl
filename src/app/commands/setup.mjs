@@ -505,16 +505,6 @@ export const commands = [
       ),
       help(
         "setup",
-        "plugins pack-preview ID [--github OWNER/REPO]",
-        "What importing a plugin's pack would create, change, or keep",
-      ),
-      help(
-        "setup",
-        "plugins pack-import ID --preview HASH [--github OWNER/REPO] [--accept-lowered] [--confirm-public]",
-        "Import the exact preview",
-      ),
-      help(
-        "setup",
         "plugins map ID ALIAS --command JSON [--env NAME]... | --remove",
         "Map a checks plugin's MCP server alias to a local stdio server command; the plugin needs approving again",
       ),
@@ -538,29 +528,6 @@ export const commands = [
           disable: () => ["plugin.disable", { id, disabled: true }],
           enable: () => ["plugin.disable", { id, disabled: false }],
           remove: () => ["plugin.remove", { id }],
-          // A pack: what importing it would change, then the import of that
-          // exact preview (design §4.14).
-          "pack-preview": () => [
-            "plugin.pack.preview",
-            {
-              id,
-              ...(options.github
-                ? { repositories: [options.github].flat() }
-                : {}),
-            },
-          ],
-          "pack-import": () => [
-            "plugin.pack.import",
-            {
-              id,
-              previewHash: options.preview,
-              ...(options.github
-                ? { repositories: [options.github].flat() }
-                : {}),
-              acceptLowered: Boolean(options["accept-lowered"]),
-              confirmPublic: Boolean(options["confirm-public"]),
-            },
-          ],
           // A checks plugin's server alias on this machine (plugin-checks
           // PK10.2): an argv list, and the variable names it may read.
           map: () => [
@@ -597,7 +564,7 @@ export const commands = [
         };
       if (!calls[action])
         throw Error(
-          "Choose plugins list, add, update, approve, disable, enable, remove, map, pack-preview, or pack-import.",
+          "Choose plugins list, add, update, approve, disable, enable, remove, or map.",
         );
       if (action !== "list") need(id, `plugins ${action} ID ...`);
       console.log(

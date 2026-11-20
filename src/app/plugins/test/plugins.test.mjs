@@ -1,5 +1,5 @@
 // Task 8.6: plugin loading and trust (design §4.8, Requirement 34). The fake
-// intake plugin from the test tree, copied into a temporary folder, declared
+// probe plugin from the test tree, copied into a temporary folder, declared
 // in temporary machine settings, and run as its own child process.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -36,11 +36,11 @@ const FIXTURE = path.join(
 function setup({ entry = {}, manifest } = {}) {
   const root = temporaryDirectory("avoozl-plugins-"),
     workspaceRoot = path.join(root, "workspace"),
-    folder = path.join(root, "fake-intake"),
-    stateFile = path.join(root, "intake-state.json"),
+    folder = path.join(root, "fake-probe"),
+    stateFile = path.join(root, "probe-state.json"),
     settingsFile = path.join(root, "config", "plugins.json");
   fs.mkdirSync(workspaceRoot);
-  fs.cpSync(path.join(FIXTURE, "fake-intake"), folder, { recursive: true });
+  fs.cpSync(path.join(FIXTURE, "fake-probe"), folder, { recursive: true });
   if (manifest)
     fs.writeFileSync(
       path.join(folder, "avoozl-plugin.json"),
@@ -55,7 +55,7 @@ function setup({ entry = {}, manifest } = {}) {
   writePluginSettings(settingsFile, {
     plugins: [
       {
-        id: "fake-intake",
+        id: "fake-probe",
         path: folder,
         contract: 1,
         config: { stateFile },
@@ -90,7 +90,7 @@ const alive = (pid) => {
 };
 
 test("an entry names one of package or path, no reserved id, no credential", () => {
-  const entry = { id: "fake-intake", path: "../x", contract: 1 };
+  const entry = { id: "fake-probe", path: "../x", contract: 1 };
   assert.equal(validateEntry(entry), entry);
   for (const [change, pattern] of [
     [{ id: "local" }, /reserved/],
@@ -117,20 +117,20 @@ test("an entry names one of package or path, no reserved id, no credential", () 
 
 test("a manifest names its id, version, contract, kinds, capabilities and entry", () => {
   const manifest = {
-      id: "fake-intake",
+      id: "fake-probe",
       version: "1.0.0",
       contract: 1,
-      kinds: ["intake"],
-      capabilities: { intake: [] },
+      kinds: ["rules"],
+      capabilities: { rules: [] },
       entry: "index.mjs",
     },
-    entry = { id: "fake-intake" };
+    entry = { id: "fake-probe" };
   assert.equal(validateManifest(manifest, entry), manifest);
   for (const [change, pattern] of [
     [{ id: "other" }, /does not match/],
     [{ kinds: [] }, /kinds/],
     [{ kinds: ["queue"] }, /kinds/],
-    [{ capabilities: { intake: ["teleport"] } }, /may list only/],
+    [{ capabilities: { rules: ["teleport"] } }, /may list only/],
     [{ kinds: ["route"] }, /kinds/],
     [{ kinds: ["tracker"] }, /kinds/],
     [{ kinds: ["gate"] }, /kinds/],
@@ -144,21 +144,46 @@ test("a manifest names its id, version, contract, kinds, capabilities and entry"
     );
 });
 
+test("a manifest that lists a part other than rules, credentials, checks or context is refused naming it", () => {
+  const manifest = {
+    id: "fake-probe",
+    version: "1.0.0",
+    contract: 1,
+    provides: ["rules"],
+    entry: "index.mjs",
+  };
+  for (const part of ["pack", "intake", "template", "policy"])
+    assert.throws(
+      () =>
+        validateManifest(
+          { ...manifest, provides: ["rules", part] },
+          { id: "fake-probe" },
+        ),
+      (error) => error.message === `${part} is not a plugin part.`,
+    );
+  assert.ok(
+    validateManifest(
+      { ...manifest, provides: ["rules", "context"] },
+      { id: "fake-probe" },
+    ),
+  );
+});
+
 test("approval is per id, version and content hash, on this machine only", () => {
   const { folder, options } = setup();
   let [plugin] = inspectPlugins(options);
   assert.equal(plugin.state, "unapproved");
   assert.equal(plugin.hash, contentHash(folder));
-  assert.deepEqual(plugin.kinds, ["intake"]);
+  assert.deepEqual(plugin.kinds, ["rules"]);
   // A stale hash is refused: the person approves what they were shown.
   assert.throws(
-    () => approvePlugin(options, { id: "fake-intake", hash: "0".repeat(64) }),
+    () => approvePlugin(options, { id: "fake-probe", hash: "0".repeat(64) }),
     (error) => error.status === 409 && /Review it again/.test(error.message),
   );
   plugin = approve(options);
   assert.equal(plugin.state, "approved");
   assert.equal(
-    readPluginSettings(options.settingsFile).approvals["fake-intake"].hash,
+    readPluginSettings(options.settingsFile).approvals["fake-probe"].hash,
     plugin.hash,
   );
   assert.ok(!fs.existsSync(path.join(options.workspaceRoot, ".avoozl.json")));
@@ -176,9 +201,9 @@ test("approval is per id, version and content hash, on this machine only", () =>
   assert.equal(inspectPlugins(options)[0].state, "changed");
   approve(options);
 
-  assert.equal(disablePlugin(options, { id: "fake-intake" }).state, "disabled");
+  assert.equal(disablePlugin(options, { id: "fake-probe" }).state, "disabled");
   assert.equal(
-    disablePlugin(options, { id: "fake-intake", disabled: false }).state,
+    disablePlugin(options, { id: "fake-probe", disabled: false }).state,
     "approved",
   );
 });
@@ -199,7 +224,7 @@ test("an unsupported contract, a wrong entry contract, and a duplicate id never 
       version: 1,
       plugins: [
         {
-          id: "fake-intake",
+          id: "fake-probe",
           path: path.relative(options.workspaceRoot, folder),
           contract: 1,
         },
@@ -219,7 +244,7 @@ test("an approved plugin runs as a child process over stdio and answers checked 
   const { options, state } = setup();
   const host = pluginHost(options);
   let session = host.open();
-  assert.deepEqual(await session.use("fake-intake", "intake"), {
+  assert.deepEqual(await session.use("fake-probe", "rules"), {
     ok: false,
     reason: "Not approved on this machine.",
   });
@@ -227,22 +252,14 @@ test("an approved plugin runs as a child process over stdio and answers checked 
 
   approve(options);
   session = host.open();
-  const reply = await session.call("fake-intake", "intake", "poll", {
-    cursor: null,
-    limit: 10,
-  });
-  assert.deepEqual(reply, {
-    items: [],
-    refused: [],
-    cursor: null,
-    more: false,
-  });
+  const reply = await session.call("fake-probe", "rules", "ruleSets", {});
+  assert.deepEqual(reply, { sets: [] });
   assert.equal(
-    await session.use("fake-intake", "rules").then((s) => s.ok),
+    await session.use("fake-probe", "credentials").then((s) => s.ok),
     false,
   );
   await session.close();
-  assert.deepEqual(state.read().calls, [["poll", null]]);
+  assert.deepEqual(state.read().calls, [["ruleSets"]]);
 });
 
 test("a local plugin changed after it was inspected is refused before it starts", async () => {
@@ -250,7 +267,7 @@ test("a local plugin changed after it was inspected is refused before it starts"
   approve(options);
   const session = pluginHost(options).open();
   fs.appendFileSync(path.join(folder, "avoozl-plugin.json"), "\n");
-  const refused = await session.use("fake-intake", "intake");
+  const refused = await session.use("fake-probe", "rules");
   assert.equal(refused.ok, false);
   assert.match(refused.reason, /changed after it was approved/);
   await session.close();
@@ -259,23 +276,20 @@ test("a local plugin changed after it was inspected is refused before it starts"
 
 for (const [mode, pattern] of [
   ["crash", /crashed \(exit 3\)/],
-  ["invalid", /poll reply items must be a list/],
+  ["invalid", /ruleSets reply must be/],
   ["listen", /opened a network listener \(listen\)/],
 ]) {
   test(`a plugin that ${mode === "listen" ? "listens" : mode === "crash" ? "crashes" : "replies with an invalid shape"} is marked unavailable for this tick`, async () => {
     const { options, state } = setup();
     approve(options);
     const session = pluginHost(options).open();
-    await session.call("fake-intake", "intake", "poll", {
-      cursor: null,
-      limit: 1,
-    });
+    await session.call("fake-probe", "rules", "ruleSets", {});
     state.mode(mode);
     await assert.rejects(
-      session.call("fake-intake", "intake", "poll", { cursor: null, limit: 1 }),
+      session.call("fake-probe", "rules", "ruleSets", {}),
       (error) => pattern.test(error.reason),
     );
-    assert.match(session.unavailable("fake-intake"), pattern);
+    assert.match(session.unavailable("fake-probe"), pattern);
     assert.deepEqual(
       session.report().map((r) => r.state),
       ["unavailable"],
@@ -288,13 +302,10 @@ test("a call that does not answer in its time limit stops the plugin", async () 
   const { options, state } = setup();
   approve(options);
   const session = pluginHost({ ...options, timeoutMs: 3000 }).open();
-  await session.call("fake-intake", "intake", "poll", {
-    cursor: null,
-    limit: 1,
-  });
+  await session.call("fake-probe", "rules", "ruleSets", {});
   state.mode("hang");
   await assert.rejects(
-    session.call("fake-intake", "intake", "poll", { cursor: null, limit: 1 }),
+    session.call("fake-probe", "rules", "ruleSets", {}),
     (error) => /timed out/.test(error.reason),
   );
   await session.close();
@@ -345,14 +356,11 @@ test("the socket check stops a plugin that listens past the guard", async () => 
       return listeningSockets(pid);
     },
   }).open();
-  await session.call("fake-intake", "intake", "poll", {
-    cursor: null,
-    limit: 1,
-  });
+  await session.call("fake-probe", "rules", "ruleSets", {});
   assert.deepEqual(await listeningSockets(pids[0]), [], "nothing listens yet");
   state.mode("listen");
   await assert.rejects(
-    session.call("fake-intake", "intake", "poll", { cursor: null, limit: 1 }),
+    session.call("fake-probe", "rules", "ruleSets", {}),
     (error) =>
       /opened a network listener \(127\.0\.0\.1:\d+\)/.test(error.reason),
   );
@@ -398,7 +406,7 @@ test("Add plugin warns before writing a plugins entry into .avoozl.json; remove 
     undefined,
   );
   approve(options);
-  removePlugin(options, { id: "fake-intake" });
+  removePlugin(options, { id: "fake-probe" });
   assert.deepEqual(readPluginSettings(options.settingsFile), {
     plugins: [],
     approvals: {},

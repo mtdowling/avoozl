@@ -55,7 +55,7 @@ test("a bad credentials key is refused, naming it", () => {
       pattern,
     );
   const part = (credentials) => ({ credentials });
-  check({ provides: ["pack"] }, /credentials goes with provides credentials/);
+  check({ provides: ["rules"] }, /credentials goes with provides credentials/);
   check(
     part({ entry: "../token.mjs", hosts: ["github.com"] }),
     /credentials\.entry/,
@@ -167,7 +167,10 @@ test("the credentials child loads the credentials entry only, and serves nothing
     kind: "credentials",
   });
   assert.deepEqual(hello.kinds, ["credentials"]);
-  await assert.rejects(child.request("intake.poll", {}), /has no intake\.poll/);
+  await assert.rejects(
+    child.request("rules.ruleSets", {}),
+    /has no rules\.ruleSets/,
+  );
 });
 
 const LATER = (ms) => new Date(Date.now() + ms).toISOString();
