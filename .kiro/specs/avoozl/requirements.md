@@ -2426,46 +2426,52 @@ fixes, so that I can tell whether delivery is getting cleaner.
    other metrics.
 3. The retro payload SHALL carry the share and its count.
 
-### Requirement 80: Ship mode
+### Requirement 80: Who merges a pull request
 
 Design §4.25.
 
-**User story:** As the owner, I want to choose whether finished pull
-requests merge by themselves or wait for me, so that I can keep the last
-step by hand when I want it.
+**User story:** As the owner, I want to choose whether Avoozl's pull
+requests open as drafts and who merges them, so that nothing lands before I
+want it to.
 
 #### Acceptance criteria
 
-1. For `direct` landing and Local only, who merges SHALL be `autoMerge` in
-   the repository's landing block (Requirement 87.1): `true` (default) or
-   `false`. A spec's `tasks.md` front-matter MAY set `ship` and a task's
-   facts its own `ship`, `auto-merge` or `manual`, as a pin. The task's pin
-   wins, then the spec's, then the repository's `autoMerge`. A task that
-   came from a GitHub issue follows it like any other. A file that still
-   sets `delivery.ship` or `delivery.repositories.<id>.ship` SHALL NOT
-   load, and the error SHALL name the file and the key.
-2. With auto-merge on, Avoozl SHALL merge as Requirement 87 says.
-4. With auto-merge off in Local only mode, integration SHALL wait for a
-   person's **Integrate** on the Ready to merge item. A Local only
-   workspace has no GitHub repository entries, so a spec or task pin turns
-   auto-merge off there, and each project's `landing` sets its mode.
-6. WHEN a writer's pull request closes without merging THEN Avoozl SHALL
+1. `landing.pr` SHALL be the one setting for who merges a `pr` landing's
+   pull requests: `draft` (the default), `ready` or `auto`. It MAY be set
+   for the workspace at the top level of `.avoozl.json`, shown in
+   Settings › Delivery, and for one repository in its landing block, shown
+   on its Landing tab, which wins. A repository that sets none SHALL say it
+   uses the workspace's setting. Only a person SHALL change it. Settings
+   SHALL show one line per choice.
+2. Each pull request Avoozl opens SHALL be a draft exactly when `landing.pr`
+   is `draft`, and every `createPullRequest` call SHALL say whether it is a
+   draft; a test SHALL check every call site.
+3. A draft SHALL wait as **Draft, waiting for you** with one Needs you row.
+   It SHALL NOT be merged, auto-merged or put in a merge batch while it is a
+   draft, and a required check that fails on it SHALL still go back to the
+   worker. A person SHALL release it by clicking Ready for review on GitHub,
+   which Avoozl SHALL see on its next read of the pull request with no
+   extra GitHub call, or by pressing **Approve** in Avoozl, which SHALL call
+   GraphQL `markPullRequestReadyForReview` and only mark it ready. A push to
+   a released pull request SHALL NOT make it a draft again. Ready for review
+   is the signal because GitHub forbids approving one's own pull request and
+   Avoozl opens pull requests as the owner.
+4. With `draft` or `ready`, once checks and reviews pass on the exact head
+   the pull request SHALL wait as **Ready to merge, waiting for you** with
+   one Needs you row. A person SHALL merge it on GitHub, which Avoozl SHALL
+   record, or press **Merge** in Avoozl for that exact head; the next tick
+   SHALL check that head again and merge it guarded by the head.
+5. With `auto`, Avoozl SHALL merge the pull request from the tick once checks
+   and reviews pass on the exact head. Avoozl SHALL NOT arm GitHub
+   auto-merge.
+6. **Approve** and **Merge** SHALL be a person's only: refused for agents,
+   MCP and the tick. **Approve** SHALL use the primary button style, since
+   it destroys nothing.
+7. WHEN a writer's pull request closes without merging THEN Avoozl SHALL
    send the writer one message, as one feedback round, to read why, fix it
-   and reopen it, or report blocked. Settings › Repository setup › Edit ›
-   Landing SHALL choose it; Settings › Delivery SHALL NOT.
-7. For `pr` landing, `landing.pr` SHALL say how pull requests open and who
-   merges them, set for the workspace with a per-repository override that
-   wins, and changed only by a person: `draft` (the default) opens a draft
-   that waits as **Draft, waiting for you** with one Needs you row until a
-   person marks it ready on GitHub or presses **Approve**; `ready` opens it
-   ready for review; `auto` opens it ready and Avoozl merges once checks and
-   reviews pass on the exact head. With `draft` and `ready`, once checks
-   and reviews pass on the exact head it waits for a person: a merge on
-   GitHub, or **Merge** in Avoozl, which the next tick checks again on that
-   head and merges. A draft SHALL never be merged or batched, a failed
-   check on a draft SHALL still go back to the worker, and `autoMerge`
-   SHALL NOT apply to these pull requests. **Approve** and **Merge** SHALL
-   be person only.
+   and reopen it, or report blocked.
+8. `direct` landing and Local only SHALL have no merge setting: Avoozl lands
+   the verified commit itself after its checks pass (Requirement 87).
 
 ### Requirement 81: Review a task's changes in the drawer
 
@@ -2563,7 +2569,7 @@ chatty agent cannot reach my secrets or my approvals.
    the database opens. Backups and `export --output` files SHALL be 0600. An
    existing workspace SHALL be tightened on open. The docs SHALL say what
    happens on Windows.
-4. `docs/policies.md` SHALL name the repository-owned code that runs on its
+4. `docs/checks.md` SHALL name the repository-owned code that runs on its
    own. `scripts/worktree` SHALL run only when the repository's `worktreeHelper`
    equals its SHA-256 hash; otherwise the refusal SHALL show the hash.
 5. A repository MAY set `checksEnv`, a list of variable names. Check processes
@@ -2673,7 +2679,7 @@ pressing merge.
 
 1. Each repository SHALL have one landing block,
    `github.repositories.<owner/name>.landing`, edited in one place,
-   Settings › Repository setup › Edit › Landing: `mode`, `autoMerge` (Requirement 80, default `true`) and
+   Settings › Repository setup › Edit › Landing: `mode`, `pr` (Requirement 80) and
    `method` (`squash` or `merge`, default `squash`). The default
    mode SHALL be `off` until Set up (Requirement 89) writes another. Under
    `off` Avoozl SHALL push nothing and SHALL list the verified commit in
@@ -3947,7 +3953,7 @@ folders live and a spec to need only its task list, so that a spec can be one
 6. Kiro's `requirements.md` (or `bugfix.md`) + `design.md` + `tasks.md`
    layout SHALL read, hash and lint as before, including a bugfix spec's
    Unchanged Behavior acceptance and the front-matter category.
-7. The planner prompt, templates, skills and `docs/avoozl-specs.md` SHALL describe
+7. The planner prompt, templates, skills and `docs/github-workflow.md` SHALL describe
    the path setting, the one required file and other files as spec text.
 8. Tests SHALL show: a custom path; a `tasks.md`-only spec; an extra `.md`
    file changing the hash; refs with and without their files; Kiro's layout

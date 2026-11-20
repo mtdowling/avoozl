@@ -579,6 +579,13 @@ tick.py:run(ctx)
 - Whether a script cron may call the `kirocrew-dashboard` server's
   `session_status` is **Inferred**; proof P2 checks it. If it cannot, MC-2
   becomes blocking.
+- **Why the tick stays a Python script cron (F129).** Moving it
+  into the Node backend on a timer works only if `app.json` adds a
+  `/api/chat` grant and `permissions.sessionApproval`, the second for the
+  worker chats' trust mode (Requirement 88.1). Together they let Avoozl list
+  every chat the person opened and send turns to it or trust it. The script
+  cron's own credential reaches only the sessions that job opened. The tick
+  stays in `crons/tick.py` unless the owner accepts that wider reach.
 
 New MCP tools (**Proposed**, `plans_` prefix kept for consistency):
 `plans_maintain {action: "tick"}`, `plans_session {action: "bind"}`, `plans_session {action: "status"}`, `plans_report`
@@ -2361,6 +2368,7 @@ GET /api/chat/slots/<slot> rows ─▶ error kind (usage_limit, 429 …)    │
 | F126 | **Verified from source, not called live.** `POST /api/chat/slots/{slot}/model` with `{model}` changes one chat's model in place (`session/set_model`) and answers `{ok, model}`; while a turn runs it answers `deferred: true` and applies the pick when that turn ends. An app may call it on a slot it owns: the slot checkpoint admits the owner app, and an app grant is a prefix match, so `/api/chat/slots/avoozl_*` already covers it. | Kiro Crew `dashboard/chat_api/slot_model.py` `api_chat_slot_model`, `dashboard/slot_ownership.py`, `dashboard/token_auth_app_scope.py` `_api_pattern_matches` |
 | F127 | **Verified from source.** A failed turn leaves a row with role `error` and `meta.kind`, among them `usage_limit` (a spent plan allowance), `model_unavailable` (capacity or rollout refusal after the retry ladder) and `transient_retry`. Plain error rows have no kind, so Avoozl also reads a few words of the text, and stores only the kind.                                                                                             | Kiro Crew `dashboard/chat_utils_injected_rows.py`, `dashboard/chat_turn/recovery.py` `_terminal_error_meta`                                                   |
 | F128 | **Verified from source.** `GET /api/models` lists `model_name`, `display_name` and `description`, with no provider. Providers therefore come from the model ID's first word.                                                                                                                                                                                                                                                                  | Kiro Crew `dashboard/handlers/agents.py` `api_models`                                                                                                         |
+| F129 | **Verified live (Kiro Crew 0.12.2.4 test crew, port 5698, 2026-11-19).** The app backend can do the tick's Kiro Crew calls only with wider grants than `app.json` holds. With today's grants the app token gets 403 `{"code": "forbidden"}` ("app token not permitted for this endpoint") on `GET /api/chat/slots`, `GET /api/chat/folders`, `POST /api/chat/slots` and `POST /api/chat`. With `/api/chat` granted, it lists folders, creates a folder, opens a slot bound to an agent in a folder with a project directory, and sends with `POST /api/chat?ws=1` (`{ok, slot, mid}`, or `{ok, queued, queue_id}` when busy). `POST /api/chat/mode` `{mode: "trust"}` still answers 403 `session_approval_not_granted` until the manifest declares `permissions.sessionApproval` and the owner consents. That grant also lets the app send turns to, and set the mode of, every local chat the person opened. The token scope check is path-only: any grant that reaches `POST /api/chat` reaches the whole `/api/chat/*` tree, including `GET /api/chat/slots`, which lists the person's own chats with their titles. No Node cron exists: an app cron is a Python `script` or a `sh -c` `command`, which never runs on Windows. App backends start with the gateway and are restarted when they exit. App MCP `args` are not anchored to the install root except a relative `.py` launcher, so `bin/avoozl_mcp.py` stays. | Probe `node-tick-probe.mjs` against the test crew; Kiro Crew `dashboard/token_auth_app_scope.py` `_api_pattern_matches`, `chat_api/slot_approval.py` `deny_session_approval_caller`, `slot_ownership.py` `app_may_control_session`, `apps/permissions.py` `app_can_manage_session_approvals`, `cron_script_context.py`, `apps/bridges_mcp.py` `_resolve_app_launcher_arg`, `docs/cron-and-scheduling.md` |
 
 #### Settings
 
@@ -2544,32 +2552,66 @@ tasks per group to propose a rule. Approval makes one leaf, source `retro`,
 that edits `.kiro/steering/avoozl-rules.md`; it reaches the repository by
 the usual review and checks. PDCA watches the group after the rule lands.
 
-### 4.25 Ship mode
+### 4.25 Who merges a pull request
 
-Requirement 80. Who merges is `autoMerge` in the repository's one landing block.
+Requirement 80. `landing.pr` is the one setting for who merges a `pr`
+landing's pull requests. A review approval cannot be the release signal:
+GitHub refuses an approving review of one's own pull request, and Avoozl
+opens pull requests as the owner. Ready for review can be, and GitHub
+already shows it.
 
-| `landing.autoMerge` | Writer                     | Avoozl                                                  | Person                                               |
-| ------------------- | -------------------------- | ------------------------------------------------------- | ---------------------------------------------------- |
-| `true` (default)    | enables auto-merge         | waits for the merge                                     | nothing                                              |
-| `false`             | does not enable auto-merge | Needs you: Ready to merge, when checks and reviews pass | merges on GitHub, or presses Integrate in Local only |
+| `landing.pr`      | Opens as         | Who merges                                   |
+| ----------------- | ---------------- | -------------------------------------------- |
+| `draft` (default) | Draft            | A person, after Ready for review or Approve  |
+| `ready`           | Ready for review | A person                                     |
+| `auto`            | Ready for review | Avoozl, once checks pass on the exact head   |
 
-The task's `ship` fact (`auto-merge` or `manual`) wins, then the spec's
-`ship` in `tasks.md` front-matter, then the repository's `landing.autoMerge`.
-With auto-merge off, a writer that turned auto-merge on is asked to turn it
-off, and a pull request closed without merging goes back to its writer once
-as one feedback round. A local task's Integrate approves one commit; a new
-commit needs a new press.
+**Setting.** `landingSettings` (`landing-config.mjs`) reads `pr` from the
+repository's landing block, then the workspace's top-level `landing.pr`,
+then `draft`. `validateLandingConfig` and the landing block validator in
+`github-policy.mjs` refuse any other value. Settings › Delivery shows the
+workspace's value (`delivery.settings.update` with `landingPr`); a
+repository's Landing tab shows its own (`PrModeFields`), whose first
+choice is **The workspace's setting**. Both saves are person only.
 
-**One landing block per repository.** Each GitHub repository entry holds
-who merges and how, and how many times a conflict is fixed:
+**Open.** `pullSteps.prepare` sends `draft: pr === "draft"`.
+`publishPlanningPullRequest` (`workspace-repository.mjs`) sends
+`draft: true`. `draft-pulls.test.mjs` reads every `.createPullRequest(`
+call in `src/` and fails on one that leaves it to GitHub's default.
+
+**Wait.** `pullSteps.check` reads the required checks. A failed check fails
+the portion, so the worker gets it back even on a draft. Otherwise a draft
+returns `{wait, reason: "draft"}` before any review read. Once checks and
+reviews pass, `draft` and `ready` return `{wait, reason: "merge"}` unless
+the queue entry's `mergeApproved.commit` is that exact head; `auto` goes on
+to merge. `land` refuses a draft. `queuedHold` shows "Draft, waiting for
+you." or "Ready to merge, waiting for you."; `landingWaitNeedsYou` gives
+one `needs-human` row (`draft-pr` or `pr-merge`) at once, titled by the
+pull request alone, since the row already names its task.
+
+**Release and merge.** Ready for review on GitHub is seen by the next
+tick's `prepare`, which reads the pull request anyway. **Approve** is
+`landing.ready` (person policy), which calls `releaseDraft` and then
+`markPullRequestReadyForReview`, or writes nothing when it is already
+ready. **Merge** is `landing.merge` (person policy), which calls
+`approveMerge`; it accepts only the head the last check saw pass. The next
+tick checks that head again and merges it with `headGuardedMerge`; a moved
+head merges nothing. A merge on GitHub is recorded by `observe`. Nothing
+converts a pull request back to a draft. Avoozl never arms GitHub
+auto-merge, so every merge it makes follows a check it read itself. A
+pull request closed without merging goes back to its writer once, as one
+feedback round.
+
+**One landing block per repository.**
 
 ```json
+"landing": { "pr": "draft" },
 "github": {
   "repositories": {
     "owner/name": {
       "landing": {
         "mode": "pr",
-        "autoMerge": true,
+        "pr": "ready",
         "method": "squash"
       },
       "conflicts": {
@@ -2581,35 +2623,28 @@ who merges and how, and how many times a conflict is fixed:
 }
 ```
 
-| Key                    | Values                       | Default | When the block sets none                                       |
-| ---------------------- | ---------------------------- | ------- | -------------------------------------------------------------- |
-| `landing.mode`         | `direct`, `pr`, `off`          | `off`   | `projects.<id>.landing` of the checkout of that repository    |
-| `landing.autoMerge`    | `true`, `false`              | `true`  | the default                                                    |
-| `landing.method`       | `squash`, `merge`            | `squash`| the default                                                    |
-| `conflicts.maxAttempts`| 0–10                         | 2       | the default                                                    |
+| Key                    | Values                  | Default  | When the block sets none                                    |
+| ---------------------- | ----------------------- | -------- | ----------------------------------------------------------- |
+| `landing.mode`         | `direct`, `pr`, `off`   | `off`    | `projects.<id>.landing` of the checkout of that repository |
+| `landing.pr`           | `draft`, `ready`, `auto`| `draft`  | the workspace's top-level `landing.pr`                      |
+| `landing.method`       | `squash`, `merge`       | `squash` | the default                                                 |
+| `conflicts.maxAttempts`| 0–10                    | 2        | the default                                                 |
 
-The older keys `delivery.ship`, `delivery.repositories.<id>.ship`,
-`merge.method` and `landing.conflictRounds` are refused when a file loads,
-naming the file and the key.
-`landingSettings` in `src/app/landing/landing-config.mjs` is the one reader of the
-block. The landing code reads the mode from the project
-row, so the tick (and the app on each load of `.avoozl.json`) copies
-`landing.mode` onto the row of each registered checkout whose GitHub
-`owner/name` sets it. `conflicts.maxAttempts` bounds both the rounds a landing
-conflict goes back to its worker chat (Requirement 87.6). `avoozl setup REPO` writes
-`landing.mode` and leaves `repositories.<id>.landing` as it was.
+`landingSettings` is the one reader of the block. The landing code reads
+the mode from the project row, so the tick (and the app on each load of
+`.avoozl.json`) copies `landing.mode` onto the row of each registered
+checkout whose GitHub `owner/name` sets it. `conflicts.maxAttempts` bounds
+the rounds a landing conflict goes back to its worker chat (Requirement
+87.6). `avoozl setup REPO` writes `landing.mode` and leaves
+`repositories.<id>.landing` as it was.
 
 Settings › Repository setup › Edit › Landing has one **Who merges** section
-(mode, auto-merge, merge method) and one **Conflicts** section (fix or ask,
-tries per conflict). Settings › Delivery has no Who merges. A Local only workspace has no
-GitHub entries; a spec or task `ship` pin turns auto-merge off there, and
-each project's `landing` sets its mode.
+(mode and `landing.pr`), **Merge method** and **Conflicts**. `direct`
+landing and Local only have no merge setting: Avoozl lands the verified
+commit after its checks pass.
 
-Today's two workspaces keep their behavior. Avoozl's own repository sets
-none of these keys: it keeps `pr` from its project, auto-merge, squash and 2
-landing rounds. Nupp sets none either, so `nupp-lang/nupp-planning` keeps
-the default `autoMerge: true`. Crew pull
-requests that set no `maxAttempts` get 2 tries instead of 1.
+Avoozl's own repository sets none of these keys: it keeps `pr` from its
+project, draft pull requests, squash and 2 landing rounds.
 
 ### 4.26 Avoozl owns the coding loop
 

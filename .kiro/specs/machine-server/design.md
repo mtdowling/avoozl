@@ -148,7 +148,7 @@ machine server if none runs.
 
 The cron cannot move. Kiro Crew lets only the cron job that opened a chat
 send to it or set its mode, and the app backend's token gets 403 on the chat
-routes with today's grants (F129, branch `spec/node-tick`, `ce63eb27`).
+routes with today's grants (avoozl design F129).
 Widening the grants would let Avoozl reach every chat the person opened,
 which the owner did not accept.
 

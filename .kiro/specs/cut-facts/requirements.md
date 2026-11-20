@@ -32,5 +32,6 @@ other fact and front-matter key, naming it and saying what to do.
 
 ## Requirement CF5: Docs match the code
 
-1. `docs/avoozl-specs.md` has one row per fact and front-matter key the reader
-   takes. A test checks the rows against the reader.
+1. `docs/github-workflow.md` ("Tasks", "Front matter") names every task
+   form and front-matter key the reader takes. A test checks its rules
+   against lint.
