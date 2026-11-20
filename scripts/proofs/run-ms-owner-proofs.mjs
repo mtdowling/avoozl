@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 // The owner's run of the open machine-server proofs (machine-server
 // tasks.md): ms-p2 and ms-p3, which also cover nk-p2, from the owner's own
-// terminal, outside Kiro Crew. It runs what a script can run, stops with
+// terminal, not from a Kiro Crew chat. It runs what a script can run, stops with
 // numbered steps where only a person can act, checks the expected result
-// itself where it can, and writes one draft receipt per proof under
-// docs/evidence/.
+// itself where it can, and writes one draft receipt per proof.
 //
-//   node scripts/proofs/run-ms-owner-proofs.mjs --github-claude OWNER/SCRATCH1 --github-codex OWNER/SCRATCH2
+//   node scripts/proofs/run-ms-owner-proofs.mjs
 //   node scripts/proofs/run-ms-owner-proofs.mjs --only ms-p3
 //   node scripts/proofs/run-ms-owner-proofs.mjs --dry-run
 //
 // Everything lives under one root it prints (--root, else a new temporary
 // folder). Run it again with the same --root to go on where it stopped. The
-// only GitHub writes go to the two empty scratch repositories the flags name.
-// --dry-run prints the plan without calling a model.
+// only GitHub writes go to two empty scratch repositories: the ones
+// --github-claude and --github-codex name, else private ones it makes with
+// the gh login and prints a delete command for. Only a PASS drafts its
+// receipt under docs/evidence/; any other stays under the root. --dry-run
+// prints the plan without calling a model.
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -48,6 +50,11 @@ export function scratchRepoProblem(repo) {
   if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo ?? ""))
     return `${repo} is not OWNER/NAME.`;
   const [owner, name] = repo.split("/");
+  if (
+    /^(owner|user|me)$/i.test(owner) ||
+    /^(name|repo|scratch\d*)$/i.test(name)
+  )
+    return `${repo} is a placeholder. Leave the flag out and the run makes a private scratch repository itself.`;
   if (owner.toLowerCase() === "nupp-lang")
     return `${repo} belongs to nupp-lang. Use a scratch repository of your own.`;
   if (!SCRATCH_WORD.test(name))
@@ -90,20 +97,10 @@ export function parseOptions(argv) {
   const proofs = only.length
     ? PROOF_IDS.filter((id) => only.includes(id))
     : [...PROOF_IDS];
-  const dryRun = values["dry-run"];
-  if (!dryRun && !values.help)
-    for (const [id, flag] of [
-      ["ms-p2", "claude"],
-      ["ms-p3", "codex"],
-    ])
-      if (proofs.includes(id) && !github[flag])
-        throw Error(
-          `${id} needs --github-${flag} OWNER/NAME: an empty scratch repository for its pull request and issue. Make one with: gh repo create OWNER/avoozl-${id}-scratch --private`,
-        );
   return {
     root: values.root ? path.resolve(values.root) : null,
     proofs,
-    dryRun,
+    dryRun: values["dry-run"],
     github,
     help: values.help,
   };
@@ -179,6 +176,50 @@ function emptyRepoProblem(repo) {
   return `gh could not read ${repo}: ${run.stderr.trim()}`;
 }
 
+// The name of a scratch repository the run makes for proof `id`, next to
+// the owner's other avoozl-scratch-* repositories.
+export function scratchRepoName(login, id, now = new Date()) {
+  const stamp = now
+    .toISOString()
+    .slice(0, 16)
+    .replace(/[-:]/g, "")
+    .replace("T", "-");
+  return `${login}/avoozl-scratch-${id}-${stamp}`;
+}
+
+// The proof's scratch repository: the flag's, else the one this root made
+// earlier, else a new private one on the gh login. One the run made goes on
+// run.made, for the delete command at the end.
+function scratchRepo(proof, named) {
+  if (named) return named;
+  const file = path.join(proof.dir, "scratch-repo.json");
+  let repo = fs.existsSync(file)
+    ? JSON.parse(fs.readFileSync(file, "utf8")).repo
+    : null;
+  if (!repo) {
+    const login = execFileSync("gh", ["api", "user", "--jq", ".login"], {
+      encoding: "utf8",
+    }).trim();
+    repo = scratchRepoName(login, proof.id);
+    execFileSync(
+      "gh",
+      [
+        "repo",
+        "create",
+        repo,
+        "--private",
+        "--description",
+        `Avoozl proof ${proof.id} scratch. Delete it after the run.`,
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+    fs.writeFileSync(file, JSON.stringify({ repo }, null, 2));
+    say(`  Made the private scratch repository ${repo}.`);
+  }
+  proof.run.made.push(repo);
+  return repo;
+}
+
 // ---- One proof's record -----------------------------------------------------
 
 class Proof {
@@ -199,16 +240,24 @@ class Proof {
 
   // One step: say what it is, let a person act, run the script's part, and
   // record the result. A step done in an earlier run is not run again.
-  async step(id, title, { person = [], run, pause = true } = {}) {
+  // A `skip` reason records the step as not run, with that reason.
+  async step(id, title, { person = [], run, pause = true, skip } = {}) {
     const done = this.progress.steps.find((step) => step.id === id);
     if (done) {
       say(
-        `[${this.id}] ${id} done earlier: ${done.ok ? "ok" : "FAIL"} ${done.detail ?? ""}`,
+        `[${this.id}] ${id} done earlier: ${done.ok === null ? "not run" : done.ok ? "ok" : "FAIL"} ${done.detail ?? ""}`,
       );
       return done;
     }
     say();
     say(`[${this.id}] ${id}: ${title}`);
+    if (skip && !this.run.dryRun) {
+      const entry = { id, title, ok: null, detail: skip };
+      say(`  -> ${skip}`);
+      this.progress.steps.push(entry);
+      this.save();
+      return entry;
+    }
     if (this.run.dryRun) {
       person.forEach((line, index) => say(`  ${index + 1}. ${line}`));
       const entry = { id, title, ok: null, detail: "dry run: not run" };
@@ -239,58 +288,34 @@ class Proof {
 async function rolesProof(proof, { harness, github, probes }) {
   const runRoot = path.join(proof.dir, "run");
   const report = path.join(runRoot, "report.json");
-  const args = [
-    ROLES_SCRIPT,
-    "--root",
-    runRoot,
-    "--github",
-    github ?? "OWNER/SCRATCH",
-    "--harness",
-    harness,
-    ...(probes ? ["--probes"] : []),
-  ];
   await proof.step(
     "front-end",
-    "No Kiro Crew, Claude Code or other front end runs",
-    {
-      person: [
-        "Quit Kiro Crew and close every Claude Code and Codex session. The run starts its own agents; nothing else may run.",
-      ],
-      run: () => {
-        const ps = spawnSync("ps", ["-axo", "command="], {
-          encoding: "utf8",
-        }).stdout.split("\n");
-        const open = ps.filter(
-          (line) =>
-            /kirocrew[^/]*\s+gateway|Kiro Crew\.app\/Contents\/MacOS/.test(
-              line,
-            ) ||
-            /(^|\/)(claude|codex)(\s|$)(?!.*\s-p(\s|$))(?!.*\s(exec|--version))/.test(
-              line,
-            ),
-        );
-        return {
-          ok: !open.length,
-          detail: open.length
-            ? `still running: ${open.slice(0, 3).join("; ").slice(0, 300)}`
-            : "none running",
-        };
-      },
-    },
+    "No Claude Code or Codex session drives the run",
+    { run: () => frontEndCheck(proof.run) },
   );
-  await proof.step(
+  const roles = await proof.step(
     "roles",
     `node ${path.relative(REPO, ROLES_SCRIPT)} --harness ${harness}${probes ? " --probes" : ""}`,
     {
       run: () => {
         if (!fs.existsSync(report)) {
-          const problem = emptyRepoProblem(github);
+          const repo = scratchRepo(proof, github);
+          const problem = emptyRepoProblem(repo);
           if (problem) return { ok: false, detail: problem };
-          spawnSync(process.execPath, args, {
-            stdio: "inherit",
-            env: isolationFreeEnv(),
-            cwd: REPO,
-          });
+          spawnSync(
+            process.execPath,
+            [
+              ROLES_SCRIPT,
+              "--root",
+              runRoot,
+              "--github",
+              repo,
+              "--harness",
+              harness,
+              ...(probes ? ["--probes"] : []),
+            ],
+            { stdio: "inherit", env: isolationFreeEnv(), cwd: REPO },
+          );
         }
         if (!fs.existsSync(report))
           return {
@@ -321,8 +346,20 @@ async function rolesProof(proof, { harness, github, probes }) {
       },
     },
   );
+  // The later steps read what the roles run left; with no good run there is
+  // nothing to read.
+  const skip =
+    roles.ok === false &&
+    "skipped: the roles step failed, so there is no run to check";
+  await proof.step("no-kirocrew", "The run used no Kiro Crew", {
+    skip,
+    run: () => noKiroCrewCheck(runRoot, report),
+  });
   if (probes)
     await proof.step("probe-log", "Read Codex's transcript and the probe log", {
+      skip:
+        skip &&
+        "skipped: the roles step failed, so no child log or probe line was written",
       person: [
         `Read the child logs under ${path.join(runRoot, "home", "state", "avoozl", "supervisor", "children")} and the "probes" line in ${path.join(runRoot, "events.jsonl")}.`,
       ],
@@ -332,6 +369,7 @@ async function rolesProof(proof, { harness, github, probes }) {
     });
   if (harness === "codex")
     await proof.step("proved", "codex.json's proved matches the receipt", {
+      skip,
       run: () => {
         const proved = JSON.parse(
           fs.readFileSync(
@@ -345,6 +383,114 @@ async function rolesProof(proof, { harness, github, probes }) {
         };
       },
     });
+}
+
+// The interactive Claude Code and Codex sessions in `psLines` (`ps -axo
+// pid=,ppid=,tty=,command=`): one on a terminal that is not a child of
+// `selfPid`. A headless child (`-p`, `exec`) or one with no terminal is
+// not a session. A Kiro Crew gateway or app is listed apart: it may run for
+// other work, since the run's own home has no Kiro Crew in it.
+export function frontEnds(psLines, selfPid) {
+  const rows = psLines
+    .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/))
+    .filter(Boolean)
+    .map(([, pid, ppid, tty, command]) => ({
+      pid: Number(pid),
+      ppid: Number(ppid),
+      tty,
+      command,
+    }));
+  const parent = new Map(rows.map((row) => [row.pid, row.ppid]));
+  const ours = (pid) => {
+    for (let at = pid; at > 1; at = parent.get(at) ?? 0)
+      if (at === selfPid) return true;
+    return false;
+  };
+  return {
+    sessions: rows
+      .filter(
+        (row) =>
+          !/^(\?+|-)$/.test(row.tty) &&
+          /(^|\/)(claude|codex)(\s|$)/.test(row.command) &&
+          !/\s(-p|--print|exec|--version)(\s|$)/.test(row.command) &&
+          !ours(row.pid),
+      )
+      .map((row) => row.command),
+    kirocrew: rows
+      .filter((row) =>
+        /kirocrew[^/]*\s+gateway|Kiro ?Crew\.app\/Contents\/MacOS/.test(
+          row.command,
+        ),
+      )
+      .map((row) => row.command),
+  };
+}
+
+async function frontEndCheck(run) {
+  const look = () => {
+    const ps = spawnSync("ps", ["-axo", "pid=,ppid=,tty=,command="], {
+      encoding: "utf8",
+    });
+    if (ps.error || ps.status !== 0)
+      throw Error(
+        `ps could not list processes: ${ps.error?.message ?? ps.stderr}`,
+      );
+    return frontEnds(ps.stdout.split("\n"), process.pid);
+  };
+  let found = look();
+  if (found.sessions.length && !run.dryRun) {
+    say("  These Claude Code or Codex sessions are open:");
+    for (const command of found.sessions) say(`    ${command.slice(0, 200)}`);
+    await prompt("  Close them, then press Enter. ");
+    found = look();
+  }
+  const note = found.kirocrew.length
+    ? " Note: Kiro Crew runs for other work; the run's home has no Kiro Crew, so it does not drive the run."
+    : "";
+  return {
+    ok: !found.sessions.length,
+    detail: found.sessions.length
+      ? `still open: ${found.sessions.slice(0, 3).join("; ").slice(0, 300)}.${note}`
+      : `no Claude Code or Codex session open.${note}`,
+  };
+}
+
+// The run's isolated home holds only the proof's harness, and every session
+// ran on `process`, so no Kiro Crew took part.
+async function noKiroCrewCheck(runRoot, report) {
+  const { machineAvoozlPaths } = await import(
+    "../../src/app/settings/host-config.mjs"
+  );
+  const home = path.join(runRoot, "home");
+  const { configDirectory } = machineAvoozlPaths({
+    env: {
+      XDG_CONFIG_HOME: path.join(home, "config"),
+      XDG_STATE_HOME: path.join(home, "state"),
+    },
+    home,
+  });
+  const dir = path.join(configDirectory, "harnesses");
+  const harnesses = fs.existsSync(dir)
+    ? fs.readdirSync(dir).filter((name) => name.endsWith(".json"))
+    : [];
+  const state = fs.existsSync(report)
+    ? (JSON.parse(fs.readFileSync(report, "utf8")).state ?? {})
+    : {};
+  const kirocrew = [
+    ...harnesses.filter((name) => /kiro/i.test(name)),
+    ...(state.bindings ?? [])
+      .filter((b) => b.executor === "kirocrew")
+      .map((b) => `binding ${b.id ?? "?"}`),
+    ...(state.requests ?? [])
+      .filter((r) => r.executor === "kirocrew")
+      .map((r) => `request ${r.id ?? "?"}`),
+  ];
+  return {
+    ok: !kirocrew.length,
+    detail: kirocrew.length
+      ? `Kiro Crew in the run: ${kirocrew.join(", ")}`
+      : `harnesses in the run's home: ${harnesses.join(", ") || "none"}; every session on process`,
+  };
 }
 
 // The owner's environment for the roles script, which makes its own home.
@@ -390,9 +536,12 @@ function writeReceipt(proof, run) {
     : steps.length && steps.every((step) => step.ok)
       ? "PASS"
       : "FAIL";
-  const dir = run.dryRun
-    ? path.join(run.root, "evidence-dry-run")
-    : path.join(REPO, "docs", "evidence");
+  // Only a passing run drafts its receipt in the checkout; any other stays
+  // under the run's root.
+  const dir =
+    verdict === "PASS"
+      ? path.join(REPO, "docs", "evidence")
+      : path.join(run.root, run.dryRun ? "evidence-dry-run" : "evidence");
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${proof.receipt}.md`);
   const text = [
@@ -427,14 +576,18 @@ async function main() {
   }
   if (run.help) {
     say(
-      `Usage: node ${SELF} [--root DIR] [--only ID[,ID]] [--dry-run] --github-claude OWNER/SCRATCH --github-codex OWNER/SCRATCH`,
+      `Usage: node ${SELF} [--root DIR] [--only ID[,ID]] [--dry-run] [--github-claude OWNER/NAME] [--github-codex OWNER/NAME]`,
     );
     say(`Proofs, in order: ${PROOF_IDS.join(", ")}.`);
+    say(
+      "With no --github-* flag, the run makes a private scratch repository with your gh login.",
+    );
     return;
   }
   run.root ??= fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-ms-proofs-"));
   fs.mkdirSync(run.root, { recursive: true });
   run.root = fs.realpathSync.native(run.root);
+  run.made = [];
   const home = os.homedir();
   const onPath = { claude: findOnPath("claude"), codex: findOnPath("codex") };
   const claude = claudeBinaries({
@@ -464,7 +617,7 @@ async function main() {
     const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
     const problems = [
       !sandboxKind() &&
-        "No sandbox here (inside another sandbox?). Run this from your own Terminal, outside Kiro Crew.",
+        "No sandbox here (inside another sandbox?). Run this from your own Terminal, not from a Kiro Crew chat.",
       !run.tools.claudeChild &&
         "No real Claude Code binary found. Name it with MSR_CLAUDE.",
       run.proofs.includes("ms-p3") &&
@@ -485,7 +638,7 @@ async function main() {
     say(`==== ${id}: ${title} (${proof.dir})`);
     if (run.dryRun)
       say(
-        `  would run: node ${path.relative(REPO, ROLES_SCRIPT)} --root ${path.join(proof.dir, "run")} --github ${id === "ms-p2" ? (run.github.claude ?? "OWNER/SCRATCH") : (run.github.codex ?? "OWNER/SCRATCH")} --harness ${id === "ms-p2" ? "claude-code" : "codex --probes"}`,
+        `  would run: node ${path.relative(REPO, ROLES_SCRIPT)} --root ${path.join(proof.dir, "run")} --github ${(id === "ms-p2" ? run.github.claude : run.github.codex) ?? `(a new private ${scratchRepoName("LOGIN", id)})`} --harness ${id === "ms-p2" ? "claude-code" : "codex --probes"}`,
       );
     try {
       await go(proof, run);
@@ -504,6 +657,11 @@ async function main() {
   say();
   for (const result of results)
     say(`${result.id} ${result.verdict} ${result.file}`);
+  if (run.made.length) {
+    say();
+    say("Delete the scratch repositories this run made when you are done:");
+    for (const repo of new Set(run.made)) say(`  gh repo delete ${repo} --yes`);
+  }
   if (!run.dryRun && run.proofs.includes("ms-p3"))
     say(
       `ms-p3 also needs a run on ${process.platform === "linux" ? "macOS" : "Linux"}: run this script there.`,
