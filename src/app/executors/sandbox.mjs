@@ -314,7 +314,17 @@ export const SECURITY_TOOL = "/usr/bin/security";
 // folder (D-Bus, keyring, agents) and the container runtimes' sockets. A
 // read-only mount does not stop a connect, so each is covered.
 function hiddenSockets(env) {
-  const args = [];
+  const args = [],
+    hidden = [];
+  // Real paths, once each: /var/run is often a link to /run, and bubblewrap
+  // cannot make a mount point through a link.
+  const real = (file) => {
+    try {
+      return fs.realpathSync.native(file);
+    } catch {
+      return null;
+    }
+  };
   const folders = [
     env.XDG_RUNTIME_DIR,
     typeof process.getuid === "function"
@@ -323,14 +333,18 @@ function hiddenSockets(env) {
     "/run/podman",
     "/var/run/podman",
   ];
-  for (const folder of [...new Set(folders.filter(Boolean))])
-    if (fs.existsSync(folder)) args.push("--tmpfs", folder);
-  for (const file of [
-    "/run/docker.sock",
-    "/var/run/docker.sock",
-    env.SSH_AUTH_SOCK,
-  ])
-    if (file && fs.existsSync(file) && !fs.statSync(file).isDirectory())
+  for (const folder of new Set(folders.filter(Boolean).map(real)))
+    if (folder && fs.statSync(folder).isDirectory()) {
+      hidden.push(folder);
+      args.push("--tmpfs", folder);
+    }
+  const files = ["/run/docker.sock", "/var/run/docker.sock", env.SSH_AUTH_SOCK];
+  for (const file of new Set(files.filter(Boolean).map(real)))
+    if (
+      file &&
+      !fs.statSync(file).isDirectory() &&
+      !hidden.some((folder) => inside(file, folder))
+    )
       args.push("--ro-bind", "/dev/null", file);
   return args;
 }

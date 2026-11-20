@@ -120,7 +120,10 @@ test("a plain request is refused, and only its method is logged", async (t) => {
   assert.doesNotMatch(JSON.stringify(entries), /abc/);
 });
 
-test("on Linux the proxy listens on a 0600 socket, and the forwarder carries the CLI's loopback port to it", async (t) => {
+test("on Linux the proxy listens on a 0600 socket, and the forwarder carries the CLI's loopback port to it", {
+  skip:
+    process.platform === "win32" ? "Windows runs no contained session" : false,
+}, async (t) => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-egress-")),
     socket = path.join(folder, "box", "proxy.sock");
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));

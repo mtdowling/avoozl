@@ -81,7 +81,10 @@ const plan = (stateDirectory) => ({
   platform: "darwin",
 });
 
-test("every step passes when the box works and the CLI's commands reach it", async () => {
+test("every step passes when the box works and the CLI's commands reach it", {
+  skip:
+    process.platform === "win32" ? "Windows runs no contained session" : false,
+}, async () => {
   const runtime = fakeRuntime();
   const result = await runBoxPreflight(plan(state()), {
     exec: runtime.exec,
@@ -141,7 +144,10 @@ test("every step passes when the box works and the CLI's commands reach it", asy
   assert.ok(runtime2.ran.some((argv) => argv.includes("rm")));
 });
 
-test("each failing step is recorded with its output, and later steps do not run", async () => {
+test("each failing step is recorded with its output, and later steps do not run", {
+  skip:
+    process.platform === "win32" ? "Windows runs no contained session" : false,
+}, async () => {
   for (const [answers, name, output] of [
     [
       { run: { status: 125, stdout: "", stderr: "no such image" } },

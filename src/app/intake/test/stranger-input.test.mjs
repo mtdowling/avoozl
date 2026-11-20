@@ -201,7 +201,10 @@ test("strangers hold waits, host runs in the sandbox and says so, and strangerRo
   assert.equal(strangerRule(store, noChecks, stranger, "checks"), null);
 });
 
-test("a stranger's checks run in a container with the network off and no writable, or wait, or say they ran on the host", (t) => {
+test("a stranger's checks run in a container with the network off and no writable, or wait, or say they ran on the host", {
+  skip:
+    process.platform === "win32" ? "Windows runs no contained session" : false,
+}, (t) => {
   const { store, repository } = workspace(t, {
     run: "sandbox",
     network: "on",

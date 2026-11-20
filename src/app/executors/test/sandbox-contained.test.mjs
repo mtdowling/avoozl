@@ -18,6 +18,11 @@ import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const definition = { name: "cli", hash: "h" };
 
+// Windows has no host sandbox and no box (vm-harness scope), and no Unix
+// socket paths or POSIX modes; these tests run on macOS and Linux.
+const posix =
+  process.platform === "win32" ? "Windows runs no contained session" : false;
+
 test("without contained, the macOS profile is as before, byte for byte", () => {
   assert.equal(
     sandboxProfile({
@@ -66,7 +71,9 @@ function containedProfile(home, extra = {}) {
   return { confined, profile: confined.argv[2] };
 }
 
-test("a contained macOS profile opens the keychain, starts only its programs and never security", () => {
+test("a contained macOS profile opens the keychain, starts only its programs and never security", {
+  skip: posix,
+}, () => {
   const home = fs.realpathSync.native(temporaryDirectory("avoozl-contained-"));
   const { confined, profile } = containedProfile(home);
   const keychains = path.join(home, "Library", "Keychains");
@@ -124,7 +131,9 @@ test("a contained macOS profile opens the keychain, starts only its programs and
   });
 });
 
-test("a contained session with no keychain sign-in keeps the keychain shut", () => {
+test("a contained session with no keychain sign-in keeps the keychain shut", {
+  skip: posix,
+}, () => {
   const home = fs.realpathSync.native(temporaryDirectory("avoozl-contained-"));
   const { profile } = containedProfile(home, {
     contained: {
@@ -140,10 +149,17 @@ test("a contained session with no keychain sign-in keeps the keychain shut", () 
   );
 });
 
-test("a Linux session hides the runtime folder and container sockets; a contained one binds its sign-in file", () => {
+test("a Linux session hides the runtime folder and container sockets; a contained one binds its sign-in file", {
+  skip: posix,
+}, () => {
   const home = fs.realpathSync.native(temporaryDirectory("avoozl-bwrap-home-")),
-    runtime = temporaryDirectory("avoozl-bwrap-run-"),
-    agent = path.join(runtime, "agent.sock"),
+    runtime = fs.realpathSync.native(temporaryDirectory("avoozl-bwrap-run-")),
+    // The agent socket sits outside the runtime folder, as an SSH agent in
+    // the temp folder does; one inside it goes with the folder.
+    agent = path.join(
+      fs.realpathSync.native(temporaryDirectory("avoozl-bwrap-agent-")),
+      "agent.sock",
+    ),
     credentials = path.join(home, ".cli", ".credentials.json"),
     work = path.join(home, "work");
   fs.writeFileSync(agent, "");
@@ -160,10 +176,7 @@ test("a Linux session hides the runtime folder and container sockets; a containe
     readRoots: [],
   }).argv;
   const joined = plain.join(" ");
-  assert.ok(
-    joined.includes(`--tmpfs ${fs.realpathSync.native(runtime)}`) ||
-      joined.includes(`--tmpfs ${runtime}`),
-  );
+  assert.ok(joined.includes(`--tmpfs ${runtime}`));
   assert.ok(joined.includes(`--ro-bind /dev/null ${agent}`));
   assert.ok(
     !joined.includes(credentials),

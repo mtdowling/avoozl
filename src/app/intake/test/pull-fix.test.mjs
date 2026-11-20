@@ -76,7 +76,9 @@ test("a stranger's pull request starts a fix at its head, as stranger input that
   });
   assert.equal(git(worktree, "rev-parse", "HEAD"), w.head);
   assert.equal(
-    fs.readFileSync(path.join(worktree, "fix.txt"), "utf8"),
+    fs
+      .readFileSync(path.join(worktree, "fix.txt"), "utf8")
+      .replace(/\r\n/g, "\n"),
     "half a fix\n",
   );
 });

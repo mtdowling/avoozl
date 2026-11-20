@@ -25,6 +25,11 @@ import {
 
 const SESSION = "process-00000000-0000-4000-8000-0000000000b1";
 
+// Windows has no host sandbox and no box (vm-harness scope), and no Unix
+// socket paths or POSIX modes; these tests run on macOS and Linux.
+const posix =
+  process.platform === "win32" ? "Windows runs no contained session" : false;
+
 function folders(t) {
   const root = fs.realpathSync.native(
     fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-box-")),
@@ -74,7 +79,9 @@ async function fakeBroker(t, where) {
   return { broker, named, socketPath };
 }
 
-test("box exec passes its command and folder, relays its streams and returns its code", async (t) => {
+test("box exec passes its command and folder, relays its streams and returns its code", {
+  skip: posix,
+}, async (t) => {
   const where = folders(t),
     { socketPath, named } = await fakeBroker(t, where);
   const ran = await boxExec(
@@ -97,7 +104,9 @@ test("box exec passes its command and folder, relays its streams and returns its
   assert.equal(fs.statSync(path.dirname(socketPath)).mode & 0o777, 0o700);
 });
 
-test("box exec passes SIGTERM on to the command", async (t) => {
+test("box exec passes SIGTERM on to the command", {
+  skip: posix,
+}, async (t) => {
   const where = folders(t),
     { socketPath } = await fakeBroker(t, where);
   const ran = await boxExec(
@@ -109,7 +118,9 @@ test("box exec passes SIGTERM on to the command", async (t) => {
   assert.match(ran.stdout, /ready\nstopped/);
 });
 
-test("the broker refuses a folder outside the task and temp folders", async (t) => {
+test("the broker refuses a folder outside the task and temp folders", {
+  skip: posix,
+}, async (t) => {
   const where = folders(t),
     { socketPath, named } = await fakeBroker(t, where);
   const ran = await boxExec(socketPath, "true", { cwd: os.homedir() });
@@ -131,7 +142,9 @@ test("the broker refuses a folder outside the task and temp folders", async (t) 
   assert.equal(fs.existsSync(path.join(where.worktree, "ran")), false);
 });
 
-test("the box environment copies nothing from the host", () => {
+test("the box environment copies nothing from the host", {
+  skip: posix,
+}, () => {
   const env = boxEnvironment({ tmp: "/t", tmpEnv: ["CLAUDE_CODE_TMPDIR"] });
   assert.deepEqual(Object.keys(env).sort(), [
     "CLAUDE_CODE_TMPDIR",

@@ -28,7 +28,14 @@ function checkoutWithTask() {
   return { root, checkout, folder };
 }
 
-test("a .git file moved to a planted git directory is refused, and its fsmonitor never runs", async () => {
+// Git for Windows keeps a worktree's .git file read-only, so a worker there
+// cannot plant one the same way; the helper's check is the same code.
+test("a .git file moved to a planted git directory is refused, and its fsmonitor never runs", {
+  skip:
+    process.platform === "win32"
+      ? "the .git file is read-only on Windows"
+      : false,
+}, async () => {
   const { root, checkout, folder } = checkoutWithTask(),
     marker = path.join(root, "fsmonitor-ran"),
     planted = path.join(folder, "planted");

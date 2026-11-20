@@ -26,6 +26,11 @@ import { temporaryDirectory } from "../../test/temporary.mjs";
 const SESSION = "process-00000000-0000-4000-8000-000000000001";
 const OTHER = "process-00000000-0000-4000-8000-000000000002";
 
+// Windows has no host sandbox and no box (vm-harness scope), and no Unix
+// socket paths or POSIX modes; these tests run on macOS and Linux.
+const posix =
+  process.platform === "win32" ? "Windows runs no contained session" : false;
+
 test("worker and runtime load, and a bad value is refused naming its key", () => {
   assert.deepEqual(
     isolationSetting({
@@ -136,7 +141,7 @@ test("a named runtime whose probe fails is refused with its output, and nothing 
   );
 });
 
-test("a check record names container with its runtime", () => {
+test("a check record names container with its runtime", { skip: posix }, () => {
   const dir = temporaryDirectory("avoozl-builder-check-");
   const check = isolatedCheck(
     { id: "app", isolation: { run: "container", image: "node:22" } },
@@ -301,7 +306,9 @@ test("box exec's exec and stop argv for each runtime", () => {
   ]);
 });
 
-test("a mount that is, holds or is inside a secret path is refused naming it", () => {
+test("a mount that is, holds or is inside a secret path is refused naming it", {
+  skip: posix,
+}, () => {
   const home = temporaryDirectory("avoozl-builder-home-"),
     ssh = path.join(home, ".ssh");
   fs.mkdirSync(ssh);
@@ -379,7 +386,9 @@ test("the image is pinned to its digest, pulled first when missing", async () =>
   );
 });
 
-test("an env file is written 0600 and leaves out values it cannot hold", () => {
+test("an env file is written 0600 and leaves out values it cannot hold", {
+  skip: posix,
+}, () => {
   const file = path.join(temporaryDirectory("avoozl-builder-env-"), "e.env");
   writeEnvFile(file, { A: "1", B: "two\nlines", C: "x=y" });
   assert.equal(fs.readFileSync(file, "utf8"), "A=1\nC=x=y\n");

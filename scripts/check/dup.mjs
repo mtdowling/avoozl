@@ -63,12 +63,16 @@ const detectFiles = (files) =>
     : { clones: [], statistic: null };
 
 // Lines a clone covers, counted as jscpd counts them. The shorter side is
-// used: jscpd 4 sometimes reports an end line far past the copy on one side.
-const linesOf = (c) =>
-  Math.min(
-    c.duplicationA.end.line - c.duplicationA.start.line,
-    c.duplicationB.end.line - c.duplicationB.start.line,
+// used: jscpd 4 sometimes reports an end line far past the copy on one side,
+// and sometimes an end line before the start on one side (a negative span),
+// which is no size at all and is left out rather than subtracted.
+const span = (d) => d.end.line - d.start.line;
+const linesOf = (c) => {
+  const sides = [span(c.duplicationA), span(c.duplicationB)].filter(
+    (lines) => lines >= 0,
   );
+  return sides.length ? Math.min(...sides) : 0;
+};
 const site = (d) => `${d.sourceId}:${d.start.line}-${d.end.line}`;
 const describe = (c) =>
   `${linesOf(c)} lines  ${site(c.duplicationA)}  ${site(c.duplicationB)}`;
