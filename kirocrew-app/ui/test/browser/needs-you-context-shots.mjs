@@ -27,7 +27,16 @@ const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
 const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 // Item kinds, in the order the fixture lists them.
-const PICKS = { decision: 'decision:', review: 'review:', ready: 'ready-to-merge:', draft: 'plan-review:', failed: 'stale-session:', bare: 'needs-human:' }
+const PICKS = {
+  decision: 'decision:',
+  review: 'review:',
+  ready: 'ready-to-merge:',
+  'draft-pr': 'needs-human:search.4:',
+  'pr-merge': 'needs-human:search.5:',
+  draft: 'plan-review:',
+  failed: 'stale-session:',
+  bare: 'needs-human:search.8:',
+}
 try {
   const page = await browser.page()
   for (const width of [1280, 390])

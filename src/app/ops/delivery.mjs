@@ -13,6 +13,7 @@ import {
 import { integrationView, landBranch } from "../epics/integration-head.mjs";
 import { landingQueueView } from "../landing/landing-queue-view.mjs";
 import { landingView } from "../landing/landing-view.mjs";
+import { approveMerge, releaseDraft } from "../landing/landing-pulls.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { manualTake } from "../workers/manual-take.mjs";
 import { deliverNotifications } from "../tick/notifications.mjs";
@@ -372,6 +373,48 @@ export const entries = [
     handler({}) {
       const store = this.store;
       return landingView(store, this.read());
+    },
+  },
+
+  // Approve on a draft pull request Avoozl opened (R119.3): marks it ready
+  // for review on GitHub, and nothing more. GitHub refuses an approving
+  // review of one's own pull request, and Avoozl opens them as the owner, so
+  // Ready for review is the release. A person's only, never an agent's,
+  // MCP's or the tick's.
+  {
+    name: "landing.ready",
+    class: "execute",
+    github: "land",
+    policy: person("Only a person releases a draft pull request."),
+    async handler({ input, context }) {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person releases a draft pull request, in the Avoozl page or on GitHub.",
+          403,
+        );
+      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+      return releaseDraft(this.store, this.github, input ?? {});
+    },
+  },
+  // Merge on a released pull request whose checks passed on the exact head
+  // (R119.3). Avoozl never merges one on its own; the next tick checks that
+  // head again and merges it. A person's only.
+  {
+    name: "landing.merge",
+    class: "protect",
+    github: null,
+    policy: person("Only a person merges a pull request Avoozl opened."),
+    handler({ input, context }) {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person merges a pull request Avoozl opened, in the Avoozl page or on GitHub.",
+          403,
+        );
+      const { commit, ...at } = input ?? {};
+      return approveMerge(this.store, at, {
+        commit,
+        by: context.local ? "cli" : this.operator || "dashboard",
+      });
     },
   },
 

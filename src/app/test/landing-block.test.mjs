@@ -20,7 +20,7 @@ function repositoryStore(...repositories) {
   };
 }
 
-test("Avoozl's own repository keeps pr, auto-merge, squash and 2 rounds", () => {
+test("Avoozl's own repository keeps pr, draft pull requests, auto-merge, squash and 2 rounds", () => {
   // Its .avoozl.json sets none of these keys; the repository row holds `pr`.
   const config = {
       version: 1,
@@ -34,6 +34,7 @@ test("Avoozl's own repository keeps pr, auto-merge, squash and 2 rounds", () => 
     store = repositoryStore(repository);
   assert.deepEqual(landingSettings(config, "mtdowling/avoozl", repository), {
     mode: "pr",
+    pr: "draft",
     autoMerge: true,
     method: "squash",
     mergeBatch: "auto",

@@ -352,10 +352,18 @@ export interface ConflictItem extends TaskOwner {
   // status running or review with no live session behind it. 'disk': a
   // volume too full for a worktree. 'crew-mode': a workspace a Crew Mode
   // conductor drove, held until a person lets the tick run it (WP1.3).
-  reason?: 'review' | 'blocked' | 'crew-mode' | 'hand-set-review' | 'approval' | 'disk' | 'phase-check' | 'required-check' | 'plugin-check-clash'
+  // 'draft-pr': a draft pull request Avoozl opened, waiting for a person
+  // to release it; 'pr-merge': one whose checks passed, waiting for a
+  // person to merge it (R119).
+  reason?: 'review' | 'blocked' | 'crew-mode' | 'hand-set-review' | 'approval' | 'disk' | 'phase-check' | 'required-check' | 'plugin-check-clash' | 'draft-pr' | 'pr-merge'
   // A failed phase plugin check (plugin-checks D7): the proposed fix, whose
   // text holds the check's output as untrusted data, and the run it is for.
   phaseFix?: { run: string; plan: string; phase: string; repository: string; text: string }
+  // A draft-pr or pr-merge item (R119): its landing queue, by repository ID and base,
+  // and its key there; `repository` and `pullRequest` name it on GitHub.
+  repositoryId?: string
+  base?: string
+  key?: string
   // A branch-landing item (RC16.6): the branch and the head a person may approve.
   repository?: string
   branch?: string
@@ -485,6 +493,11 @@ export function viewsClient(api: AppApi) {
       return run<unknown>(action.operation, { ...action.input, ...(steps.length ? { allow } : {}) }, workspaceId)
     },
     integrate: (workspaceId: string, taskId: string, commit?: string) => run<unknown>('delivery.integrate', { taskId, ...(commit ? { commit } : {}) }, workspaceId),
+    // Approve on a draft pull request Avoozl opened: mark it ready for review (R119.3).
+    releaseDraft: (workspaceId: string, at: { repositoryId: string; base: string; key: string }) => run<{ pr: number; released: boolean }>('landing.ready', at, workspaceId),
+    // Merge a released pull request at the exact head whose checks passed (R119.3).
+    mergePull: (workspaceId: string, at: { repositoryId: string; base: string; key: string; commit: string }) =>
+      run<{ pr: number; commit: string }>('landing.merge', at, workspaceId),
     // Retry a delivery waiting on a decision, dismissing the named findings.
     retry: (workspaceId: string, taskId: string, dismiss: { finding: string; reason: string }[] = []) => run<unknown>('delivery.retry', { taskId, dismiss }, workspaceId),
     // Content rules (design §4.9): read the matched line again from its

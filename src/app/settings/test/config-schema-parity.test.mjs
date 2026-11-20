@@ -120,7 +120,7 @@ const PAIRS = [
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],
   [`${REPOSITORY}/landing`, GITHUB_BLOCK_KEYS.landing],
   // validateLandingConfig in landing-config.mjs.
-  ["#/properties/landing", ["unionPaths"]],
+  ["#/properties/landing", ["pr", "unionPaths"]],
   ["#/properties/machine", ["alias"]],
 ];
 

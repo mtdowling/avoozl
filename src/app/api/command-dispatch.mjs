@@ -58,6 +58,8 @@ export const APP_OPERATIONS = new Set([
   "gap.preview",
   "gap.accept",
   "integration.land",
+  "landing.ready",
+  "landing.merge",
   "radar.integrationbranch",
   "intake.list",
   "intake.view",

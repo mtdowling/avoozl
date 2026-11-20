@@ -2886,11 +2886,15 @@ export async function integrateVerified(
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "verified" || skip.has(delivery.taskId)) continue;
     // Ship mode manual (§4.25, R80.4): a local task waits for a person's
-    // Integrate on its Ready to merge item, for this exact commit.
+    // Integrate on its Ready to merge item, for this exact commit. A `pr`
+    // repository skips it: a person merges each pull request (R119.3).
     {
       const task = store.read().tasks.find((t) => t.id === delivery.taskId);
       if (
         task &&
+        !isPullRequestLanding(
+          store.get("repositories", taskRepository(task) || ""),
+        ) &&
         shipMode(policy, task, store) === "manual" &&
         delivery.integrateApproved?.commit !== delivery.commit
       ) {

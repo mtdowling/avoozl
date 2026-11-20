@@ -49,7 +49,7 @@ import {
   settingsTitle,
 } from './settings-api.ts'
 import SetupWizard from './SetupWizard.tsx'
-import { AutoMergeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
+import { AutoMergeFields, PrModeFields, LANDING_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields } from './LandingFields.tsx'
 import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
@@ -472,6 +472,9 @@ export function RepositoryEditor(props: {
               />
             </Box>
             <AutoMergeFields id={id} repository={repository} set={set} />
+          </FieldGroup>
+          <FieldGroup title="Pull requests" blurb="For pr landing: how Avoozl opens its pull requests and who merges them.">
+            <PrModeFields id={id} repository={repository} set={set} />
           </FieldGroup>
           <FieldGroup title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
             <MergeMethodFields id={id} repository={repository} set={set} />

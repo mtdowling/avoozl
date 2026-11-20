@@ -1624,6 +1624,17 @@ export class GitHubClient {
     });
   }
 
+  // A draft pull request, by its node id, made ready for review: a person's
+  // release of a pull request Avoozl opened as a draft (R119.3).
+  async markPullRequestReadyForReview(nodeId) {
+    const data = await this.graphql(
+      `mutation($input:MarkPullRequestReadyForReviewInput!){markPullRequestReadyForReview(input:$input){pullRequest{number isDraft}}}`,
+      { input: { pullRequestId: nodeId } },
+      "mark the pull request ready for review",
+    );
+    return data?.markPullRequestReadyForReview?.pullRequest ?? null;
+  }
+
   // The public crew audit's reads (R85.6): issue and pull request comments,
   // issues and pull requests updated since `since`, the most recently
   // updated pull requests, and the branches under `prefix`.

@@ -127,6 +127,23 @@ export function ConflictActions(props: {
           }
         />
       )}
+      {item.kind === 'needs-human' && (item.reason === 'draft-pr' || item.reason === 'pr-merge') && item.repositoryId && item.base && item.key && (
+        <PullAction
+          item={item}
+          busy={busy}
+          onConfirm={() =>
+            run(async () => {
+              const at = { repositoryId: item.repositoryId!, base: item.base!, key: item.key! }
+              if (item.reason === 'draft-pr') {
+                await views.releaseDraft(workspaceId, at)
+                return { ok: true, text: `Pull request #${item.pullRequest} is ready for review. Avoozl does not merge it; merge it once its checks pass.` }
+              }
+              await views.mergePull(workspaceId, { ...at, commit: item.commit ?? '' })
+              return { ok: true, text: `Pull request #${item.pullRequest} merges on the next tick, after its checks pass again on this head.` }
+            })
+          }
+        />
+      )}
       {item.kind === 'needs-human' && item.reason === 'crew-mode' && (
         <Row gap={2}>
           <DangerBtn
@@ -390,6 +407,52 @@ export function ReadyToMerge(props: { item: ConflictItem; busy: boolean; onInteg
           Integrate
         </DangerBtn>
       )}
+    </Row>
+  )
+}
+
+// A pull request Avoozl opened (R119): a link to read it, and the one
+// person-only step it waits for. Approve marks a draft ready for review on
+// GitHub (GitHub refuses an approving review of one's own pull request, so
+// this is the release). Merge lets the next tick merge this exact head once
+// its checks pass again. Avoozl never merges one on its own.
+const PULL_ACTION = {
+  'draft-pr': {
+    open: 'Open draft pull request',
+    label: 'Approve',
+    tooltip: 'Mark this pull request ready for review on GitHub. Avoozl does not merge it.',
+    body: 'Avoozl marks it ready for review on GitHub. It does not merge it: once its checks pass on the exact head, you merge it here or on GitHub.',
+  },
+  'pr-merge': {
+    open: 'Open pull request',
+    label: 'Merge',
+    tooltip: 'Merge this exact head on the next tick, after its checks pass again.',
+    body: 'The next tick checks this exact head again and merges it. If the head moves first, nothing merges and this row comes back.',
+  },
+}
+export function PullAction(props: { item: ConflictItem; busy: boolean; onConfirm: () => void }) {
+  const { item, busy } = props
+  const link = safeHref(item.link ?? null)
+  const shape = PULL_ACTION[item.reason === 'pr-merge' ? 'pr-merge' : 'draft-pr']
+  const number = item.pullRequest ? ` #${item.pullRequest}` : ''
+  return (
+    <Row gap={2} data-pull-action={item.reason}>
+      {link && (
+        <PlainLink href={linkHref(link)} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" size="sm" underline>
+          <ExternalLink size={14} aria-hidden="true" />
+          {shape.open}
+          {number}
+        </PlainLink>
+      )}
+      <DangerBtn
+        icon={Check}
+        tooltip={shape.tooltip}
+        disabled={busy}
+        confirm={{ title: `${shape.label} pull request${number}?`, body: shape.body, action: shape.label }}
+        onConfirm={props.onConfirm}
+      >
+        {shape.label}
+      </DangerBtn>
     </Row>
   )
 }

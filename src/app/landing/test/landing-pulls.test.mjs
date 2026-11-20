@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { digest } from "../../../model.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { landNext, landingQueue, enqueueLanding } from "../landing-queue.mjs";
-import { pullSteps } from "../landing-pulls.mjs";
+import { approveMerge, pullSteps, releaseDraft } from "../landing-pulls.mjs";
+import { landingSettings, validateLandingConfig } from "../landing-config.mjs";
 import { sourceRegistry } from "../../workers/working-heads.mjs";
 
 const Q = { repositoryId: "fixture", base: "main" };
@@ -14,7 +15,9 @@ const DEF = digest("definition t1");
 const COMMIT = "a".repeat(40);
 const BASE = "b".repeat(40);
 // A fake GitHub with one pull request from the fork `me/app` to `acme/app`.
+// `released`: a person marked the draft ready for review at once.
 function fakeGithub({
+  released = false,
   pull = {},
   runs = [{ name: "build", status: "completed", conclusion: "success" }],
   reviews = [],
@@ -41,7 +44,13 @@ function fakeGithub({
     pullRequest: async () => pr,
     createPullRequest: async (repo, input) => {
       calls.created.push({ repo, input });
+      // GitHub opens it as the request says: a draft when asked.
+      pr.draft = Boolean(input.draft) && !released;
       return pr;
+    },
+    markPullRequestReadyForReview: async (id) => {
+      calls.ready = [...(calls.ready ?? []), id];
+      pr.draft = false;
     },
     repository: async () => ({ fork: true, parent: { full_name: "acme/app" } }),
     permission: async (repo, login) => ({
@@ -110,6 +119,8 @@ const steps = (github, extra = {}) =>
     target: "acme/app",
     base: "main",
     login: "ci-bot",
+    // These tests merge; the landing.pr tests below pass their own.
+    pr: "auto",
     ...extra,
   });
 
@@ -408,5 +419,121 @@ test("pk-1.5: a required name no plugin here provides and GitHub lacks waits as 
     requiredCheckNeedsYou(x.store).map((r) => r.id),
     rows.map((r) => r.id),
     "a second tick opens no second row",
+  );
+});
+
+test("a pull request opens as a draft; release only marks it ready, and a person's Merge for the exact head merges it", async (t) => {
+  const github = fakeGithub({ released: false, reviews: [approval("r1")] }),
+    x = await setup(t, github, { pr: "draft" });
+  const at = { ...Q, key: "s.t1" },
+    first = await landNext(x.store, Q, x.steps);
+  assert.equal(github.calls.created[0].input.draft, true);
+  assert.equal(first.state, "waiting");
+  assert.equal(first.entry.waiting.reason, "draft");
+  assert.equal(first.entry.pr, 7);
+  // Merge is refused while it is a draft: no check passed on its head.
+  x.store.transaction(() =>
+    x.store.put("repositories", { id: Q.repositoryId, github: "acme/app" }),
+  );
+  assert.throws(
+    () => approveMerge(x.store, at, { commit: COMMIT, by: "dashboard" }),
+    /not ready to merge/,
+  );
+  // Ready for review on GitHub: the next read sees it, the checks pass,
+  // and it still waits for a person to merge.
+  github.pr.draft = false;
+  const ready = await landNext(x.store, Q, x.steps);
+  assert.equal(ready.state, "waiting");
+  assert.equal(ready.entry.waiting.reason, "merge");
+  assert.equal((await landNext(x.store, Q, x.steps)).state, "waiting");
+  assert.equal(github.calls.merged.length, 0, "Avoozl never merges alone");
+  assert.throws(
+    () => approveMerge(x.store, at, { commit: "f".repeat(40), by: "x" }),
+    /not ready to merge/,
+  );
+  approveMerge(x.store, at, { commit: COMMIT, by: "dashboard" });
+  const landed = await landNext(x.store, Q, x.steps);
+  assert.equal(landed.state, "landed");
+  assert.deepEqual(github.calls.merged, [{ number: 7, sha: COMMIT }]);
+});
+
+test("Approve in Avoozl marks the queued draft ready for review and nothing more", async (t) => {
+  const github = fakeGithub({
+      released: false,
+      reviews: [approval("r1")],
+      pull: { node_id: "PR_node7" },
+    }),
+    x = await setup(t, github, { pr: "draft" });
+  assert.equal((await landNext(x.store, Q, x.steps)).state, "waiting");
+  const at = { ...Q, key: "s.t1" };
+  x.store.transaction(() =>
+    x.store.put("repositories", { id: Q.repositoryId, github: "acme/app" }),
+  );
+  assert.deepEqual(await releaseDraft(x.store, github, at), {
+    pr: 7,
+    released: true,
+  });
+  assert.deepEqual(github.calls.ready, ["PR_node7"]);
+  // Already ready: nothing more is written.
+  assert.deepEqual(await releaseDraft(x.store, github, at), {
+    pr: 7,
+    released: false,
+  });
+  assert.deepEqual(github.calls.ready, ["PR_node7"]);
+  // Released, it waits for a person's merge; it is never made a draft again.
+  const next = await landNext(x.store, Q, x.steps);
+  assert.equal(next.entry.waiting.reason, "merge");
+  assert.equal(github.calls.merged.length, 0);
+  assert.equal(github.pr.draft, false);
+  await assert.rejects(
+    () => releaseDraft(x.store, github, { ...Q, key: "nope" }),
+    /not waiting to land/,
+  );
+});
+
+test("a failed check on a draft still goes back to the worker", async (t) => {
+  const github = fakeGithub({
+      released: false,
+      runs: [{ name: "build", status: "completed", conclusion: "failure" }],
+    }),
+    x = await setup(t, github, { pr: "draft" });
+  assert.equal((await landNext(x.store, Q, x.steps)).state, "failed");
+  assert.equal(github.calls.merged.length, 0);
+});
+
+test("landing.pr ready opens ready for review and waits for a person's merge; auto merges once checks pass", async (t) => {
+  const ready = fakeGithub({ released: false, reviews: [approval("r1")] }),
+    x = await setup(t, ready, { pr: "ready" }),
+    first = await landNext(x.store, Q, x.steps);
+  assert.equal(ready.calls.created[0].input.draft, false);
+  assert.equal(first.state, "waiting");
+  assert.equal(first.entry.waiting.reason, "merge");
+  assert.equal(ready.calls.merged.length, 0);
+
+  const auto = fakeGithub({ released: false, reviews: [approval("r1")] }),
+    y = await setup(t, auto, { pr: "auto" });
+  assert.equal((await landNext(y.store, Q, y.steps)).state, "landed");
+  assert.equal(auto.calls.created[0].input.draft, false);
+  assert.deepEqual(auto.calls.merged, [{ number: 7, sha: COMMIT }]);
+});
+
+test("landing.pr reads the repository's block, then the workspace's, then draft", () => {
+  const config = (workspace, repository) => ({
+    ...(workspace ? { landing: { pr: workspace } } : {}),
+    github: {
+      repositories: {
+        "acme/app": { landing: repository ? { pr: repository } : {} },
+      },
+    },
+  });
+  assert.equal(landingSettings(config(null, null), "acme/app").pr, "draft");
+  assert.equal(landingSettings(config("auto", null), "acme/app").pr, "auto");
+  assert.equal(
+    landingSettings(config("auto", "ready"), "acme/app").pr,
+    "ready",
+  );
+  assert.throws(
+    () => validateLandingConfig({ landing: { pr: "always" } }),
+    /landing.pr must be draft, ready or auto/,
   );
 });

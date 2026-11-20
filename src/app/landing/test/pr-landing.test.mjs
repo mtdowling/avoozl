@@ -15,6 +15,7 @@ import {
 } from "../../delivery/delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landPullRequests } from "../pr-landing.mjs";
+import { approveMerge } from "../landing-pulls.mjs";
 import { addItemContext } from "../../api/needs-you-context.mjs";
 import { taskLinks } from "../../tasks/scm-links.mjs";
 import { snapshot, verifiedTask } from "../../test/fixtures.mjs";
@@ -119,6 +120,7 @@ function fakeGithub(w) {
         },
         base: { sha: git(w.origin, "rev-parse", "main") },
         mergeable: true,
+        draft: Boolean(input.draft),
       };
       pulls.push(pull);
       return structuredClone(pull);
@@ -174,7 +176,7 @@ function fakeGithub(w) {
 const step = (w, github) =>
   landPullRequests(w.store, { github, workspaceRoot: w.root, rounds: 2 });
 
-test("a verified task is pushed, waits for its check on the exact head, then merges", async (t) => {
+test("a verified task is pushed as a draft, waits for its release and check on the exact head, and merges on a person's Merge", async (t) => {
   const w = await workspace(t),
     github = fakeGithub(w),
     commit = verified(w, "t1");
@@ -192,6 +194,18 @@ test("a verified task is pushed, waits for its check on the exact head, then mer
   await integrateVerified(w.store);
   assert.equal(git(w.origin, "rev-parse", "avoozl/t1"), commit);
   github.setChecks("success");
+  const at = { repositoryId: "app", base: "main", key: "t1" },
+    waiting = () => landingQueue(w.store, at)[0].waiting?.reason;
+  // A draft until a person releases it: no check is read, nothing merges.
+  assert.equal(github.pulls[0].draft, true);
+  await step(w, github);
+  assert.equal(waiting(), "draft");
+  github.pulls[0].draft = false; // Ready for review on GitHub
+  await step(w, github);
+  // Released and passing: it waits for a person to merge.
+  assert.equal(waiting(), "merge");
+  assert.deepEqual(github.calls.merged, []);
+  approveMerge(w.store, at, { commit, by: "dashboard" });
   await step(w, github);
   assert.deepEqual(github.calls.merged, [{ number: 1, sha: commit }]);
   assert.equal(github.calls.statuses[0].context, "avoozl/verify");

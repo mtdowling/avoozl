@@ -304,13 +304,27 @@ Landing turns a claim branch into a tick on the specs branch.
 | Mode | Step 4 |
 | --- | --- |
 | `direct` | Push the checked head to the base, as a fast-forward. |
-| `pr` | Open a draft pull request from the claim branch to the base. A person marks it ready and merges it. |
+| `pr` | Open a pull request from the claim branch to the base, as `landing.pr` says. |
 | `off` | Push the claim branch only. A person lands it. |
 
 In `pr` mode a runner MUST NOT merge a draft, mark it ready, or arm
-auto-merge on it. While the pull request is open, the claim branch exists, so
+auto-merge on it, and MUST NOT merge at all unless `landing.pr` is `auto`. While the pull request is open, the claim branch exists, so
 no other runner takes the task. When the base moves under an open pull
 request, the runner SHOULD merge it in and run the checks again.
+
+`landing.pr`, set for the workspace or per repository, says how a pull
+request opens and who merges it:
+
+| `landing.pr` | Opens as | Who merges |
+| --- | --- | --- |
+| `draft` (default) | Draft | A person, after marking it ready |
+| `ready` | Ready for review | A person |
+| `auto` | Ready for review | The runner, once checks pass on the exact head |
+
+A person releases a draft with **Ready for review** on GitHub, or
+**Approve** in Avoozl. A review approval cannot be the signal: GitHub does
+not let you approve your own pull request, and Avoozl opens them as the
+owner. See [Delivery](delivery.md#how-pull-requests-land).
 
 ### Integration branches
 

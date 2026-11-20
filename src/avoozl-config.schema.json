@@ -194,6 +194,11 @@
       "type": "object",
       "description": "How Avoozl lands finished work. Who merges and how is each GitHub repository's own landing block.",
       "properties": {
+        "pr": {
+          "enum": ["draft", "ready", "auto"],
+          "default": "draft",
+          "description": "The workspace default for pr landing. draft: open as a draft; a person marks it ready and merges. ready: open ready for review; a person merges. auto: open ready; Avoozl merges once checks pass on the exact head. A repository's landing.pr wins."
+        },
         "unionPaths": {
           "type": "array",
           "items": {
@@ -1208,6 +1213,10 @@
             "mode": {
               "enum": ["direct", "pr", "off"],
               "description": "How Avoozl lands verified work. Unset reads the checkout's repositories.<id>.landing, else off."
+            },
+            "pr": {
+              "enum": ["draft", "ready", "auto"],
+              "description": "pr landing: draft (open as a draft; a person marks it ready and merges), ready (open ready for review; a person merges) or auto (open ready; Avoozl merges once checks pass on the exact head). Unset reads the workspace's landing.pr, else draft."
             },
             "autoMerge": {
               "type": "boolean",

@@ -293,6 +293,7 @@ export const GITHUB_WRITE_METHODS = Object.freeze([
   "addAssignees",
   "removeAssignees",
   "createPullRequest",
+  "markPullRequestReadyForReview",
   "createCommitStatus",
   "createRuleset",
   "updateRuleset",

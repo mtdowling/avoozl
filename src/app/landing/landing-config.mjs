@@ -3,16 +3,22 @@
 export const DEFAULT_CONFLICT_ROUNDS = 2;
 const MAX_ROUNDS = 10;
 export const LANDING_MODES = Object.freeze(["direct", "pr", "off"]);
+// How a `pr` repository's pull requests open and merge (R119):
+// draft (a person releases and merges), ready (a person merges), auto
+// (Avoozl merges once checks pass on the exact head).
+export const PR_MODES = Object.freeze(["draft", "ready", "auto"]);
 
 // The one landing block of a GitHub repository (design §4.25, R87.1): a key
 // in the block wins, then the default. `github` is the owner/name, and
 // `repository` the checkout's repository row, for its `landing`.
-// {mode, autoMerge, method, mergeBatch, commitPrefix, maxAttempts}; `mode` is null when nothing sets it.
+// {mode, pr, autoMerge, method, mergeBatch, commitPrefix, maxAttempts}; `mode` is null when nothing sets it.
+// `pr` is the repository's landing.pr, then the workspace's, then draft.
 export function landingSettings(config, github, repository = null) {
   const entry = config?.github?.repositories?.[github],
     block = isRecord(entry?.landing) ? entry.landing : {};
   return {
     mode: block.mode ?? repository?.landing ?? null,
+    pr: block.pr ?? config?.landing?.pr ?? "draft",
     autoMerge: block.autoMerge ?? true,
     method: block.method ?? "squash",
     mergeBatch: block.mergeBatch ?? "auto",
@@ -68,6 +74,9 @@ export function validateLandingConfig(config, files = {}) {
     (!Array.isArray(union) || union.some((p) => typeof p !== "string" || !p))
   )
     throw Error(`landing.unionPaths must be a list of file paths (${repo})`);
+  const pr = config?.landing?.pr;
+  if (pr !== undefined && !PR_MODES.includes(pr))
+    throw Error(`landing.pr must be draft, ready or auto (${repo})`);
   const machine = config?.machine;
   if (machine !== undefined && !isRecord(machine))
     throw Error(`machine must be an object (${glob})`);

@@ -37,6 +37,8 @@ export function askLine(item: ConflictItem): string {
       if (item.reason === 'crew-mode') return "Choose Let the tick run it. Avoozl then starts this workspace's ready tasks; until then it starts none."
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
       if (item.reason === 'disk') return 'Free space on that volume. The work resumes by itself on the next tick.'
+      if (item.reason === 'draft-pr') return 'Read the pull request, then press Approve or mark it ready for review on GitHub.'
+      if (item.reason === 'pr-merge') return 'Merge the pull request on GitHub, or press Merge. Avoozl never merges it on its own.'
       return 'Read the reason and act where the row says.'
     default:
       return 'Read the reason and act where the row says.'
