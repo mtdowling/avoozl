@@ -33,7 +33,7 @@ export async function integrationBase(spec, { linked, exists, fallback }) {
 }
 
 // Files both sides changed, which is where a conflict can be.
-async function sharedFiles(github, repository, branch, base) {
+export async function sharedFiles(github, repository, branch, base) {
   const [theirs, ours] = await Promise.all([
     github.compareCommits(repository, branch, base),
     github.compareCommits(repository, base, branch),
@@ -89,25 +89,35 @@ export async function catchUp(
   return { merged: true };
 }
 
+// The Needs you row for a `repository@branch` key whose merge of
+// `entry.base` conflicts; `then` says what waits on it.
+export function conflictRow(key, entry, then) {
+  const at = key.indexOf("@"),
+    repository = key.slice(0, at),
+    branch = key.slice(at + 1),
+    files = entry.files?.length
+      ? entry.files.join(", ")
+      : "none could be listed";
+  return {
+    kind: "needs-human",
+    reason: "crew",
+    id: `integration-conflict:${key}`,
+    taskId: null,
+    authority: "github",
+    link: `https://github.com/${repository}/compare/${branch}...${entry.base}`,
+    title: `${branch} has a conflict with ${entry.base}`,
+    detail: `Merging ${entry.base} into ${branch} in ${repository} conflicts. Files changed on both sides: ${files}. Merge ${entry.base} into the branch yourself and push; ${then(branch)}`,
+    openedAt: entry.at ?? new Date(entry.lastAt).toISOString(),
+  };
+}
+
 // One Needs you row per integration branch whose catch-up conflicts.
 export function integrationNeedsYou(store) {
-  return Object.entries(store.getMeta(META) ?? {}).map(([key, entry]) => {
-    const at = key.indexOf("@"),
-      repository = key.slice(0, at),
-      branch = key.slice(at + 1),
-      files = entry.files?.length
-        ? entry.files.join(", ")
-        : "none could be listed";
-    return {
-      kind: "needs-human",
-      reason: "crew",
-      id: `integration-conflict:${key}`,
-      taskId: null,
-      authority: "github",
-      link: `https://github.com/${repository}/compare/${branch}...${entry.base}`,
-      title: `${branch} has a conflict with ${entry.base}`,
-      detail: `Merging ${entry.base} into ${branch} in ${repository} conflicts. Files changed on both sides: ${files}. Merge ${entry.base} into the branch yourself and push; no task on ${branch} is claimed until it is in.`,
-      openedAt: entry.at,
-    };
-  });
+  return Object.entries(store.getMeta(META) ?? {}).map(([key, entry]) =>
+    conflictRow(
+      key,
+      entry,
+      (branch) => `no task on ${branch} is claimed until it is in.`,
+    ),
+  );
 }
