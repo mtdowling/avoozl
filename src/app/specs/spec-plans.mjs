@@ -924,6 +924,10 @@ export function lintSpec({
         "This workspace has more than one repository: name the one this spec changes with `repo:` in the front matter of tasks.md.",
       ),
     );
+  // That one error stands for each leaf's missing repository.
+  if (diagnostics.some((d) => d.code === "frontmatter.repo"))
+    for (let at = diagnostics.length - 1; at >= 0; at--)
+      if (diagnostics[at].code === "leaf.repository") diagnostics.splice(at, 1);
   // An ID is unique across the workspace, not only inside one tasks.md.
   for (const proposal of parsed.proposals) {
     const owner = (data.tasks || []).find(
