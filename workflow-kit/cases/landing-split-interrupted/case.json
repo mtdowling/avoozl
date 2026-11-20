@@ -1,0 +1,35 @@
+{
+  "title": "Landed work with no tick is ticked on the specs branch, then the claim branch goes",
+  "rules": ["13.1", "13.2", "13.6"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main",
+    "specsBranch": "plans"
+  },
+  "origin": {
+    "branches": ["main", "plans", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": false,
+    "mode": "direct",
+    "state": "landed-unticked"
+  },
+  "expect": {
+    "landing": {
+      "action": "tick-landed-work",
+      "base": "plans",
+      "tick": "own-commit",
+      "mergeBase": false,
+      "deleteClaimBranch": true
+    }
+  },
+  "expectFail": {
+    "landing": "sim-1.4"
+  }
+}

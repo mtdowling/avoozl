@@ -7,17 +7,12 @@ import { handleMcp } from "../mcp/mcp.mjs";
 import { HOLDS_TASKS, readRunnerConfig } from "../workers/remote-runner.mjs";
 import { reportByToken } from "../workers/report-match.mjs";
 import { LinkStore } from "../serve/serve-auth.mjs";
-import { startServe } from "../serve/serve-server.mjs";
 import { Store } from "../store/store.mjs";
 import {
-  supervisorUnit,
-  unitKindFor,
-  writeSupervisorUnit,
-} from "../executors/supervisor-unit.mjs";
+  startMachineServer,
+  stopMachineServer,
+} from "../executors/machine-server.mjs";
 import { runSupervisor } from "../executors/supervisor.mjs";
-import { standaloneUiDirectory } from "../serve/ui-bundle.mjs";
-import fs from "node:fs";
-import path from "node:path";
 import readline from "node:readline";
 import { help } from "../cli/command-help.mjs";
 import {
@@ -26,6 +21,14 @@ import {
 } from "../executors/harness-definitions.mjs";
 import { agentSessionNote, cliRefusal } from "../mcp/mcp-policy.mjs";
 import { runCredentialHelper } from "../github/credential-helper.mjs";
+
+// A `process` child never starts, stops or links the server (MS3.9).
+function refuseChild(name) {
+  if (process.env.AVOOZL_CHILD)
+    throw Error(
+      `A supervisor child may not run avoozl ${name}. Do it at this machine's command line.`,
+    );
+}
 
 const send = (body) => process.stdout.write(JSON.stringify(body) + "\n");
 
@@ -173,155 +176,79 @@ export const commands = [
     },
   },
   {
-    command: "serve",
+    command: "start",
     help: [
       help(
         "machine",
-        "serve [--workspace PATH] [--port N]",
-        "The standalone page on 127.0.0.1 only; prints a one-time owner link",
-      ),
-      help(
-        "machine",
-        "serve link",
-        "A new owner link for the running standalone page",
+        "start [--foreground]",
+        "Start this machine's server (the loop and the process children); a second start names the holder, and one of another build is replaced",
       ),
     ],
-    async run({ options, positionals, config }) {
-      // The standalone page, on 127.0.0.1 only (spec standalone-web, SW3).
-      if (process.env.AVOOZL_CHILD)
-        throw Error(
-          "A supervisor child may not run avoozl serve. Do it at this machine's command line.",
-        );
-      for (const name of ["host", "bind"])
-        if (options[name] !== undefined)
-          throw Error(
-            `avoozl serve has no --${name} option: it listens on 127.0.0.1 only.`,
-          );
-      if (process.env.AVOOZL_HOST !== undefined)
-        throw Error(
-          "avoozl serve does not read AVOOZL_HOST: it listens on 127.0.0.1 only.",
-        );
+    async run({ options, positionals }) {
+      refuseChild("start");
+      if (positionals.length) throw Error("Usage: avoozl start [--foreground]");
       const machine = machineAvoozlPaths();
-      if (positionals[0] === "link") {
-        // A new owner link for the server already running on this machine.
-        const running = serveStatus(machine.stateDirectory);
-        if (!running.running || !running.origin)
-          throw Error(
-            "No avoozl serve is running on this machine. Start it with: avoozl serve",
-          );
-        const origin = running.origin;
-        const links = new LinkStore(machine.stateDirectory);
-        try {
-          console.log(`${origin}/login?token=${links.make()}`);
-        } finally {
-          links.close();
-        }
-      } else {
-        if (positionals.length)
-          throw Error(
-            "Usage: avoozl serve [--workspace PATH] [--port N] | avoozl serve link",
-          );
-        const port = options.port === undefined ? 0 : Number(options.port);
-        let server = null;
-        try {
-          server = await startServe({
-            config,
-            port,
-            uiDir: standaloneUiDirectory(),
-          });
-        } catch (error) {
-          console.error(error.message);
-          process.exitCode = 1;
-        }
-        if (server) {
-          console.log(`Avoozl is at ${server.origin}`);
-          console.log(
-            `Open this link once, within 10 minutes: ${server.ownerLink}`,
-          );
-          for (const signal of ["SIGINT", "SIGTERM"])
-            process.once(signal, () => server.close(() => process.exit(0)));
-        }
+      const starter = options.starter ?? "terminal";
+      if (options.foreground) {
+        await runSupervisor({
+          stateDirectory: machine.stateDirectory,
+          configDirectory: machine.configDirectory,
+          starter,
+          foreground: true,
+        });
+        return;
       }
-    },
-  },
-  {
-    command: "supervisor",
-    help: [
-      help(
-        "machine",
-        "supervisor [--tick-seconds N]",
-        "This machine's owner of process children (one per machine); --tick-seconds runs the tick too (headless)",
-      ),
-    ],
-    run({ options, positionals }) {
-      // One per machine (R95.1); a second one exits 1 and names the first.
-      // --tick-seconds runs the tick too, on a headless machine (R95.3).
-      if (positionals.length)
-        throw Error(
-          "Choose supervisor unit, or run avoozl supervisor with no subcommand.",
-        );
-      const tickSeconds =
-        options["tick-seconds"] === undefined
-          ? null
-          : Number(options["tick-seconds"]);
-      if (
-        tickSeconds !== null &&
-        !(
-          Number.isInteger(tickSeconds) &&
-          tickSeconds >= 1 &&
-          tickSeconds <= 86400
-        )
-      )
-        throw Error("--tick-seconds must be 1 to 86400.");
-      runSupervisor({
-        stateDirectory: options["state-directory"],
-        configDirectory: options["config-directory"],
-        tickSeconds,
+      const result = await startMachineServer({
+        stateDirectory: machine.stateDirectory,
+        configDirectory: machine.configDirectory,
+        starter,
+        replace: true,
       });
+      console.log(result.message);
     },
   },
   {
-    command: "supervisor unit",
+    command: "stop",
     help: [
       help(
         "machine",
-        "supervisor unit [launchd|systemd] [--write [--force]]",
-        "Print or write the unit that runs the supervisor and tick at login",
+        "stop",
+        "Stop this machine's server; its process children keep running",
       ),
     ],
-    run({ options, positionals }) {
-      // A launchd or systemd unit for a headless machine (R95.3). It only
-      // writes the file; loading it is the person's command, printed here.
-      if (process.env.AVOOZL_CHILD)
-        throw Error(
-          "A supervisor child may not write a service unit. Do it at this machine's command line.",
-        );
-      if (positionals.length > 2)
-        throw Error(
-          "Usage: avoozl supervisor unit [launchd|systemd] [--tick-seconds N] [--write [--force]]",
-        );
+    async run({ positionals }) {
+      refuseChild("stop");
+      if (positionals.length) throw Error("Usage: avoozl stop");
+      console.log(
+        await stopMachineServer({
+          stateDirectory: machineAvoozlPaths().stateDirectory,
+        }),
+      );
+    },
+  },
+  {
+    command: "link",
+    help: [
+      help(
+        "machine",
+        "link",
+        "A new one-time owner link for the standalone page the machine server hosts",
+      ),
+    ],
+    run({ positionals }) {
+      refuseChild("link");
+      if (positionals.length) throw Error("Usage: avoozl link");
       const machine = machineAvoozlPaths();
-      const unit = supervisorUnit({
-        kind: positionals[1] ?? unitKindFor(),
-        cli: fs.realpathSync(process.argv[1]),
-        stateDirectory: path.resolve(
-          options["state-directory"] ?? machine.stateDirectory,
-        ),
-        configDirectory: path.resolve(
-          options["config-directory"] ?? machine.configDirectory,
-        ),
-        ...(options["tick-seconds"] !== undefined
-          ? { tickSeconds: Number(options["tick-seconds"]) }
-          : {}),
-      });
-      if (!options.write) process.stdout.write(unit.text);
-      else {
-        const written = writeSupervisorUnit(unit, { force: options.force });
-        console.log(
-          `${written.unchanged ? "Unchanged" : written.replaced ? "Replaced" : "Wrote"} ${unit.file}. To start it now and at each login, run:\n` +
-            unit.load.map((line) => `  ${line}`).join("\n") +
-            `\nTo stop it: ${unit.unload.join("; ")}`,
+      const running = serveStatus(machine.stateDirectory);
+      if (!running.running || !running.origin)
+        throw Error(
+          "The standalone page is not running. Set serve.enabled in this machine's config.json and run: avoozl start",
         );
+      const links = new LinkStore(machine.stateDirectory);
+      try {
+        console.log(`${running.origin}/login?token=${links.make()}`);
+      } finally {
+        links.close();
       }
     },
   },

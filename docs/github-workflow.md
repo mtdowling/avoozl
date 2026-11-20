@@ -27,12 +27,36 @@ the task above it, so it is ready. A runner claims it by creating the branch
 `avoozl/parser/p-2`, does the work there, ticks the box in the same commit,
 and lands it. Tasks `p-4` and `p-5` run side by side once `p-2` is ticked.
 
+Every task takes the same path from an approved spec to a deleted claim
+branch:
+
+```mermaid
+flowchart TD
+  approve[Spec approved] --> issue[Spec issue]
+  issue --> assign[Assigned]
+  assign --> ready[Ready]
+  ready --> claim{Claim branch}
+  claim -- exists --> next[Next task]
+  claim -- created --> work[Work and tick]
+  work --> merge[Merge base]
+  merge --> checks{Checks pass}
+  checks -- no --> work
+  checks -- base moved --> merge
+  checks -- yes --> land[Land]
+  land --> ticked[Ticked on base]
+  ticked --> delete[Branch deleted]
+```
+
+The tick rides in the commit that lands, so the task is done the moment the
+work reaches its base. Approval (7), assignment (8), the ready rule (9),
+claims (12) and landing (13) give each step's rules.
+
 The words MUST, MUST NOT, SHOULD and MAY are used as in
 [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119). Each rule has a number,
 and each rule can be checked: the [workflow kit](../workflow-kit/README.md)
 holds sample repositories with the answer a runner gives for each. A runner
-that follows rule `3.1` is one the kit's `3.1` cases accept. Avoozl's own tool
-details are in [avoozl-specs.md](avoozl-specs.md).
+that follows rule `3.1` is one the kit's `3.1` cases accept. See
+[Avoozl](#avoozl) for what Avoozl adds and the rules it does not follow yet.
 
 ## Terms
 
@@ -47,7 +71,10 @@ details are in [avoozl-specs.md](avoozl-specs.md).
 | Spec group | A task whose title links another spec's `tasks.md`. |
 | Parent spec | A spec with a spec group. |
 | Base | The branch a task lands on: the branch named for its spec when one exists on origin, else the default branch. |
+| Done branch | The branch whose `tasks.md` says whether a task is done: its base when the base is an integration branch that holds the spec's `tasks.md` (11.1), else the specs branch. |
+| Spec text | A spec's files (1.2) with every task checkbox set to open, so a tick changes no spec text. |
 | Claim branch | `avoozl/<spec>/<task>`, the branch a task is worked and checked on. |
+| Lease | A ref named `avoozl-lease/<spec>/<task>/<generation>`, created at most once, that says which runner may push to a claim branch (12.5). |
 
 ## 1. Spec folders
 
@@ -184,7 +211,7 @@ A parent spec links each member spec with a Markdown link in a task title,
 inline or reference-style:
 
 ```markdown
-- [ ] `ctx-spec` Write the spec for [epic context]
+- [ ] `ctx-spec` Write the spec for epic context
   - `epic-context` lints clean on `spec/epic-context`
 - [ ] `ctx-build` Implement [epic context]
 
@@ -192,7 +219,8 @@ inline or reference-style:
 ```
 
 - **6.1** A task whose title links `<specs folder>/<name>/tasks.md` is a spec
-  group. Its children are that spec's tasks. A link to anything else, such as a
+  group. The first task above writes the spec and links nothing, so it is a
+  leaf. Its children are that spec's tasks. A link to anything else, such as a
   doc page, leaves the task as it is.
 - **6.2** A linked spec's tasks MUST be ready only when the spec group's own
   wait is met, the linked spec is approved, and the linked spec's own order
@@ -210,18 +238,33 @@ inline or reference-style:
 
 ## 7. Approval
 
-An approval is a commit on the specs branch that changes a spec's files and
-whose author is an approver. It approves those files exactly as they are in
-that commit. One commit that touches several spec folders approves each of
-them.
+An approval is a commit on the specs branch, authored by an approver, that adds
+a spec or changes its spec text. It approves the spec text exactly as the commit
+leaves it. One commit that changes several specs approves each of them. A
+commit's changes are its diff against its first parent.
+
+```markdown [acme/widget: .kiro/specs/parser/tasks.md after a tick]
+- [x] `p-1` Read the token table
+  - Every row of `tokens.csv` becomes one token kind
+```
+
+A tick changes one checkbox, so it changes no spec text. It keeps the approval
+whoever authors it, and it approves nothing, even when an approver authors it.
 
 - **7.1** An approver merges a pull request that changes the spec, or pushes a
   commit to the specs branch. Anyone MAY open the pull request. The commit
   message carries nothing, and the committer does not matter, so a squash
   merge made by GitHub counts.
 - **7.2** A commit whose author is not an approver approves nothing.
-- **7.3** A runner MUST NOT run a task whose spec text changed since its
-  approval until an approver approves the new text.
+- **7.3** A spec is approved when its current spec text equals the text the
+  latest approval left. The current text is read on the task's done branch.
+  A runner MUST NOT run a task of a spec that is not approved. A change that
+  returns the text to the approved text approves the spec again.
+- **7.4** A commit that changes only task checkboxes is not an approval and
+  does not end one.
+- **7.5** A runner's commit to the specs branch MAY change only task checkboxes
+  in spec files. A task that writes spec text lands by a pull request that an
+  approver merges (7.1).
 
 ## 8. Spec issues and assignment
 
@@ -229,17 +272,20 @@ them.
   one in the spec's repository, and a runner acting as the approving commit's
   author SHOULD be the one to do it, so runners do not race. A new issue
   copies the assignees of the pull request that approved the spec.
-- **8.2** A spec issue carries a hidden HTML comment that names the spec. A
-  runner MUST look for an existing issue before it creates one. When two open
-  issues name one spec, the newer one is closed as a duplicate.
+- **8.2** A spec issue is an open issue in the spec's repository whose body
+  holds a line that is exactly `<!-- avoozl-spec:NAME -->`, where `NAME` is the
+  spec's folder name and matches `[A-Za-z0-9._-]+`. A runner MUST read the
+  marker only from an issue body whose author is a writer. It MUST look for an
+  existing issue before it creates one. When two open issues name one spec,
+  the newer one is the duplicate and the runner SHOULD close it.
 - **8.3** A runner MUST run a spec only when the spec issue, and the issue of
   every parent spec that links it, is assigned to the runner's own login and
   to no one else.
 - **8.4** A person takes a spec by assigning themselves and releases it by
   removing themselves. To give a spec to another login, the current runner
-  stops claiming new tasks and pushes every claim branch it holds, and a person
-  changes the assignee. The new login's runner continues each pushed claim
-  branch as its own.
+  stops claiming new tasks, pushes every claim branch it holds and releases
+  each lease (12.6), and a person changes the assignee. The new login's runner
+  resumes each pushed claim branch (12.7).
 
 | Spec issue | Parent spec issue | Runner acting as `acme-alice` |
 | --- | --- | --- |
@@ -251,15 +297,18 @@ them.
 
 ## 9. Ready tasks
 
-- **9.1** A task is ready when all of these hold:
-  - it is a leaf and is not ticked on the specs branch;
-  - its spec's current text is approved;
-  - every task it waits for is ticked on the specs branch;
+- **9.1** A task is ready, and a runner may create its claim, when all of
+  these hold:
+  - it is a leaf and is not done (15.1);
+  - its spec is approved (7.3);
+  - every task it waits for is done (15.1);
   - it is not a manual task;
   - no claim branch for it exists;
   - its spec passes the assignment rule (8.3) and this runner's label filters
     (16.1).
-- **9.2** A runner MUST work only on ready tasks.
+- **9.2** A runner MUST create a claim only for a ready task. Once it holds
+  the claim, it MAY work and land the task while the claim exists, although
+  the task is no longer ready.
 
 ## 10. Next task
 
@@ -287,11 +336,17 @@ setting names it.
 - **11.4** Tasks claimed together SHOULD start from one merged head.
 - **11.5** When the merge conflicts, a runner MUST NOT claim a task on that
   branch until a person resolves it.
+- **11.6** A task whose base is an integration branch that holds its spec is
+  done when its box is ticked on that branch (15.1), and a task that waits for
+  it is ready once the tick is there. The tick reaches the default branch when
+  a person merges the integration branch. A spec group's box (6.3) is ticked
+  on the parent spec's done branch once every task of the linked spec is done
+  on its own done branch.
 
 ## 12. Claims
 
 A runner claims a task by creating its claim branch at the base's current head
-through the GitHub refs API:
+through the GitHub refs API, then takes the claim's lease:
 
 ```http
 POST /repos/acme/widget/git/refs
@@ -302,37 +357,112 @@ POST /repos/acme/widget/git/refs
 ```
 
 GitHub refuses the create when the branch exists (HTTP 422). No comment or
-label is needed to claim.
+label is needed to claim. When two runners claim one task, the first create
+wins:
 
-- **12.1** A runner MUST claim a task by creating `avoozl/<spec>/<task>` at the
-  base's head, and MUST claim before an agent starts.
+```mermaid
+sequenceDiagram
+  participant A as Runner A
+  participant G as GitHub
+  participant B as Runner B
+  A->>G: Create avoozl/parser/p-2
+  B->>G: Create avoozl/parser/p-2
+  G-->>A: 201 Created
+  G-->>B: 422 Exists
+  A->>G: Create avoozl-lease/parser/p-2/1
+  B->>B: Take the next task
+```
+
+The lease says who may push to the claim branch afterward. It is a ref whose
+name ends in a generation number, and GitHub creates each name once. A runner
+takes a lease by creating the name with the next generation. The create
+points at a lease commit, a child of the claim branch's head that changes no
+file, so the ref has a date:
+
+```http
+POST /repos/acme/widget/git/refs
+{
+  "ref": "refs/heads/avoozl-lease/parser/p-2/2",
+  "sha": "<lease commit>"
+}
+```
+
+When two runners on one login resume one claim, the first create wins:
+
+```mermaid
+sequenceDiagram
+  participant A as Runner A
+  participant G as GitHub
+  participant B as Runner B
+  A->>G: Read leases of p-2: none
+  B->>G: Read leases of p-2: none
+  A->>G: Create avoozl-lease/parser/p-2/1
+  B->>G: Create avoozl-lease/parser/p-2/1
+  G-->>A: 201 Created
+  G-->>B: 422 Exists
+  A->>A: Resume the claim branch
+  B->>B: Take the next task
+```
+
+A runner that also shows work in progress with a label on the spec issue takes
+that label's name from its settings (16.2).
+
+- **12.1** A runner MUST claim a ready task by creating `avoozl/<spec>/<task>`
+  at the base's head and then taking a lease (12.5), and MUST do both before
+  an agent starts.
 - **12.2** A runner whose create fails MUST NOT work on that task and SHOULD
   take the next one.
-- **12.3** A runner MUST NOT push to a claim branch it did not create, except
-  after a hand-off (8.4).
+- **12.3** A runner MUST push to a claim branch only while it holds the
+  newest lease of that claim, and MUST read the claim's leases before each
+  push and before it lands the task. A runner that finds a newer lease it did
+  not create MUST stop work on that task.
 - **12.4** A claim branch with no new commit for a number of hours, a runner
   setting, SHOULD show as stale to the spec's assignee. A runner MUST NOT
   delete another runner's claim branch on its own. A person deletes it, which
   frees the task.
+- **12.5** A runner takes a lease by creating generation `n + 1`, where `n` is
+  the highest generation that exists for the task, or `0` when none does. A
+  runner whose create fails MUST NOT work on the task.
+- **12.6** A runner that stops a task MUST release its lease by deleting the
+  lease ref. A holder MUST renew its lease at least every half of the stale
+  hours (12.4) by moving the lease ref to a new lease commit. A lease is stale
+  when its lease commit and the claim branch's newest commit are both older
+  than the stale hours. A stale lease needs no cleanup: the next generation
+  replaces it, and a runner MUST NOT delete another runner's lease. A runner
+  deletes every lease of a task with the claim branch it deletes.
+- **12.7** A runner MAY resume an existing claim branch of a spec assigned to
+  its own login, after a handoff (8.4) or a restart, when the claim has no
+  lease or its newest lease is stale (12.6). It resumes by taking a lease
+  (12.5), so one runner resumes it, even when several share the login.
 
 ## 13. Landing
 
-Landing turns a claim branch into a tick on the specs branch.
+Landing turns a claim branch into a tick on the task's done branch.
 
-- **13.1** A runner MUST land in this order: merge the base's current head into
-  the claim branch, tick the task, run the checks, land by mode, and delete the
-  claim branch once the work is on the base. When the base moves before the
-  last step, the runner goes back to the merge.
-- **13.2** The tick MUST be in the same commit as the work, or in a commit on
-  the claim branch before the checks run. When the spec lives in another
-  repository, the runner ticks it there in its own commit once the code has
-  landed.
+- **13.1** A runner MUST land in this order: merge the base's current head
+  into the claim branch, tick the task, run the checks, land by mode, and
+  delete the claim branch and its leases once the work is on the base and the
+  tick is on the done branch. When the base moves before the last step, the
+  runner goes back to the merge.
+- **13.2** The tick MUST be on the task's done branch (15.1). When the done
+  branch is the base, the tick MUST be in the same commit as the work, or in a
+  commit on the claim branch before the checks run. When the done branch is
+  another branch, such as the specs branch of another repository, the runner
+  ticks the task there in its own commit once the work has landed.
 - **13.3** A runner MUST run the repository's checks on the exact head that will
-  land, and MUST land nothing when they fail.
+  land, and MUST land nothing when they fail. In `direct` mode that head is
+  the commit pushed to the base. In `pr` mode it is the pull request's head,
+  which MUST contain the base head the runner read when it ran the checks. The
+  merge commit that GitHub makes is not checked.
 - **13.4** A runner MUST NOT rebase a branch someone else may hold, and MUST NOT
   force push.
 - **13.5** A runner MUST NOT add a trailer, a `Co-authored-by` line or any other
   attribution to a commit message.
+- **13.6** A claim branch whose head is in the base, or whose pull request
+  merged, holds landed work. The runner that holds its lease MUST then
+  tick the task on its done branch, if the tick is missing, in its own
+  commit, and delete the claim branch and its leases after. A task whose work
+  landed and whose tick did not stays claimed, so no runner takes it again.
 
 ## 14. Landing modes
 
@@ -351,20 +481,32 @@ opens and who merges it:
 | --- | --- | --- |
 | `draft` (default) | Draft | A person, after marking it ready |
 | `ready` | Ready for review | A person |
-| `auto` | Ready for review | The runner, once checks pass on the exact head |
+| `auto` | Ready for review | The runner, once checks pass on the pull request's head |
 
 - **14.1** In `direct` mode a runner MUST push the checked head to the base as a
-  fast-forward and then delete the claim branch.
+  fast-forward and then delete the claim branch (13.1).
 - **14.2** With `landing.pr` `draft`, a runner MUST open a draft pull request,
   and MUST NOT merge it, mark it ready or arm auto-merge on it.
 - **14.3** With `landing.pr` `ready`, a runner MUST open the pull request ready
   for review and MUST NOT merge it.
 - **14.4** With `landing.pr` `auto`, a runner opens the pull request ready for
-  review and merges it once the checks pass on the exact head.
+  review and merges it once the checks pass on the pull request's head (13.3).
+  It merges through the merge API with `sha` set to that head, and goes back
+  to the merge step of 13.1 when GitHub refuses the merge because the head
+  moved (HTTP 409). It reads the base head again just before the merge, and
+  when the base moved, merges the base in and runs the checks again.
 - **14.5** In `off` mode a runner MUST push the claim branch only.
 - **14.6** While a pull request is open, its claim branch exists, so no other
   runner takes the task. When the base moves under an open pull request, a
   runner SHOULD merge the base in and run the checks again.
+- **14.7** A runner MUST NOT arm GitHub auto-merge unless the base's branch
+  protection requires branches to be up to date and requires the repository's
+  checks. Auto-merge waits for required checks only, so on any other base it
+  can merge a head that does not contain the base's head.
+
+The merge API guards the pull request's head only. A push to the base between
+the runner's last read and the merge is the one race left, and a base that
+requires up-to-date branches closes it.
 
 A review approval cannot release a draft, because GitHub does not let a person
 approve their own pull request. A person releases a draft with **Ready for
@@ -372,15 +514,18 @@ review**.
 
 ## 15. Done tasks
 
-- **15.1** A task is done when its box is ticked on the specs branch. The
-  commit that changes `- [ ]` to `- [x]` is the landing record: its time is
-  when the task landed and its author is who landed it. A box ticked by hand
-  counts the same. Ticks on other branches count for nothing.
+- **15.1** A task is done when its box is ticked on its done branch: the
+  integration branch for a task whose base is one that holds its spec (11.1),
+  else the specs branch. The commit that changes `- [ ]` to `- [x]` is the
+  landing record: its time is when the task landed and its author is who
+  landed it. A box ticked by hand counts the same. Ticks on other branches
+  count for nothing, and a claim branch's tick counts once it reaches the
+  done branch.
 
-## 16. Label filters
+## 16. Labels
 
 An optional part. A runner MAY narrow what it picks up with two lists per
-repository in its own settings:
+repository in its own settings, and MAY name the stop label (18) there:
 
 ```json
 {
@@ -390,7 +535,8 @@ repository in its own settings:
     ],
     "exclude": [
       "needs-design"
-    ]
+    ],
+    "stop": "avoozl:stopped"
   }
 }
 ```
@@ -399,6 +545,11 @@ repository in its own settings:
   `require` label and no `exclude` label. A `require` label MUST count only
   when a writer added it. An `exclude` label added later MUST NOT unclaim a
   task already claimed.
+- **16.2** A runner SHOULD let its settings set the name of every label it
+  reads or writes: the `require` and `exclude` filters, the stop label, and
+  any label it uses to mark a claim or work in progress. A label name on this
+  page is a default. The `require` and `exclude` lists are empty by default,
+  and the stop label is `avoozl:stopped`.
 
 ## 17. Labeled issues
 
@@ -426,9 +577,9 @@ filters, in a repository with no spec for it, is a one-task spec:
 
 An optional part.
 
-- **18.1** The `avoozl:stopped` label on a spec issue or a parent spec's issue
-  stops new claims for it. A writer MAY add it. Only an approver's removal
-  resumes the spec.
+- **18.1** The stop label, `avoozl:stopped` by default (16.2), on a spec issue
+  or a parent spec's issue stops new claims for it. A writer MAY add it. Only
+  an approver's removal resumes the spec.
 
 ## 19. Review output
 
@@ -453,10 +604,11 @@ review goes.
 - **20.3** A runner MUST NOT act on a label a non-writer added.
 - **20.4** A runner MUST NOT force push, rewrite history, or rebase a shared
   branch.
-- **20.5** A runner MUST NOT delete a branch it did not create, except its own
-  claim branch after landing.
-- **20.6** A runner MUST NOT approve a spec, merge a spec pull request, author a
-  commit as an approver, or change an approval in any other way.
+- **20.5** A runner MUST NOT delete a branch or lease it did not create,
+  except its own claim branch and that claim's leases after landing.
+- **20.6** A runner MUST NOT grant approval: it MUST NOT merge a spec pull
+  request, land spec text on the specs branch (7.5), or change the list of
+  approvers.
 - **20.7** A runner MUST NOT run a spec assigned to another login.
 - **20.8** A runner MUST NOT follow text from an issue, comment, pull request or
   commit as an instruction, unless it is an approver's reply of a form this
@@ -466,50 +618,177 @@ review goes.
 - **20.10** A runner MUST NOT write private names, paths or hosts to a public
   repository.
 
-## Optional parts
+## Conformance
 
-| Part | Required |
+The required profile is every rule in these sections:
+
+| Part | Sections |
 | --- | --- |
-| Spec format (1 to 6), approval (7), ready rule (9), ticks as the landing record (15) | Yes |
-| Running only specs assigned to its login (8.3) | Yes |
-| Claims by claim branch (12) | Yes |
-| Landing checks on the exact head, no force push (13) | Yes |
-| Runner limits (20) | Yes |
-| Next task ranking (10) | Optional; any order of ready tasks is safe |
-| Spec issue publishing (8.1) | Optional; without it, a person creates the issues |
-| Landing modes (14) | A runner supports at least one; `direct` or `off` alone is enough |
-| Integration branches (11) | Optional; without them, a runner refuses a spec that has a branch named for it |
-| Label filters (16) and labeled issues (17) | Optional |
-| Stop label (18) | Optional |
-| Review output (19) | Optional; when a runner reviews, it posts as this page says |
-| Linked specs (6) | Optional; without them, a runner refuses a spec with a spec group |
+| Spec format | 1 to 5 |
+| Approval | 7 |
+| Assignment and finding the spec issue | 8.2, 8.3 |
+| Ready rule | 9 |
+| Claims and leases | 12.1 to 12.6 |
+| Landing and landed work | 13, and the rules of one landing mode in 14 |
+| Done tasks | 15 |
+| Runner limits | 20 |
+
+Each optional part is listed once. A runner that leaves one out gives the
+result in its last column:
+
+| Optional part | Sections | Without it |
+| --- | --- | --- |
+| Linked specs | 6 | The runner refuses a spec that has a spec group |
+| Spec issue publishing | 8.1 | A person creates the spec issues |
+| Next task ranking | 10 | The runner takes any ready task |
+| Integration branches | 11 | The runner refuses a spec that has a branch named for it |
+| Resuming a claim | 8.4, 12.7 | The runner never takes a lease on an existing claim branch |
+| Direct landing | 14.1 | The runner does not run in `direct` mode |
+| Pull request landing | 14.2 to 14.4, 14.6, 14.7 | The runner does not run in `pr` mode |
+| Off landing | 14.5 | The runner does not run in `off` mode |
+| Label filters | 16.1 | The runner reads no labels |
+| Label names in settings | 16.2 | The runner uses this page's default names |
+| Labeled issues | 17 | The runner makes no spec from an issue |
+| Stop label | 18 | The runner has no stop label |
+| Review output | 19 | The runner posts no review |
+
+A runner supports at least one landing mode.
 
 ## Workflow kit
 
 The [workflow kit](../workflow-kit/README.md) holds one case for each of these
-checks. A case is a sample repository, the state of origin and its issues, and
-the answers a runner gives: the rule numbers a spec breaks, the ready tasks in
-order, the claim, and the landing result. A runner passes workflow v1 when it
-gives every answer in every case for the parts it supports.
+checks. A case is a sample repository, the state of origin and its issues, the
+history of the specs branch when approval matters, and the answers a runner
+gives: the rule numbers a spec breaks, whether a spec is approved, the ready
+tasks in order, the claim, the lease, the landing result and the spec issues it
+finds. A runner passes workflow v1 when it gives every answer in every case
+that checks the required profile or a part it supports.
 
-## Avoozl status
+## Avoozl
 
-Avoozl is the reference runner, and it does not follow every rule yet:
+Avoozl is the reference runner. It reads specs as this page says, and adds the
+settings, refs, lint and commands below.
 
-- Order (3), manual tags (4), plain done bullets (2.3, 2.4), front matter (5),
-  linked specs (6) and integration branches (11): Avoozl still reads `$` fact
-  bullets and an `integrationBranch` key, and orders tasks by `$after`.
-- Claims (12): Avoozl names a task branch `avoozl/<task>` and does not claim by
-  creating it through the refs API.
+### Avoozl status
+
+Avoozl does not follow every rule yet. Each item below is not built:
+
+- Order (3), manual tags (4), plain done bullets (2.3, 2.4), front matter (5)
+  and linked specs (6): Avoozl still reads `$` fact bullets and orders tasks
+  by `$after`.
+- Integration branches (11) and the done branch they set (11.6, 15.1): Avoozl
+  still reads an `integrationBranch` key.
+- Claims, leases and resuming (12), and spec issue markers (8.2): Avoozl names
+  a task branch `avoozl/<task>`, takes no lease, and marks spec issues with
+  its own task marker.
+- Landing (13, 14): Avoozl does not guard a pull request merge by head SHA
+  and does not tick landed work whose tick is missing (13.6).
 - Next task (10): Avoozl ranks by the number of tasks unblocked and then file
   order.
-- Label filters (16) and labeled issues (17): not built.
+- Label filters (16.1), label names set in settings (16.2), labeled issues
+  (17) and the stop label (18).
 
-The kit marks each probe Avoozl fails with the task that fixes it.
+The kit marks each probe Avoozl fails with the task that fixes it. Approval
+(7) reads the revision hash, which sets every checkbox to open, so a tick never
+ends an approval. Avoozl counts every approver commit that touches a spec's
+files, so an approver's checkbox-only commit approves the text it leaves (7.4).
+The kit does not probe that case.
+
+### Spec files
+
+A spec folder may hold `bugfix.md` in place of `requirements.md`, but not
+both. A spec file may be at most 1 MB, and a folder may hold at most 50 of
+them. Inside Avoozl a spec is stored as a plan, so the `plan.*` operations,
+the `plans_*` MCP tools and the `plan` CLI commands keep that name. Avoozl
+also reads older plan files written with fenced `task` blocks.
+
+### Specs path and branch
+
+The `.avoozl.json` at the root of the repository that holds the specs may
+move the specs folder and name the specs branch:
+
+```json
+{
+  "version": 1,
+  "specs": {
+    "path": "docs/specs",
+    "branch": "avoozl-plans"
+  }
+}
+```
+
+`specs.path` is relative to the repository root. Avoozl refuses one that is
+absolute, names a `.` or `..` folder, or is a symlink that leads out of the
+checkout. Kiro's Spec Builder and Kiro Crew planner chats write in
+`.kiro/specs/`, so with another path, draft with a planner that runs as a
+process. Keep the spec checkout on `specs.branch`: the Specs page names the
+problem when another branch is checked out.
+
+### Refs
+
+A task title may end in refs. `[R1.2]` names the requirements the task builds
+and `(§2.1)` the design sections it follows:
+
+```markdown
+- [ ] `cfg-1` Validate config [R1.2, DL2.3] (§2.1)
+  - An unknown key is reported with its path
+```
+
+- A requirement ref is `R<n>` for a `Requirement <n>:` heading, or the
+  heading's own ID, such as `DL2` for `Requirement DL2:`. `.<m>` adds its
+  numbered criterion.
+- A design ref is `§` and the number a `design.md` heading starts with, such
+  as `§2.1` for `### 2.1 Loader` or `§D1` for `## D1. Shape`.
+- A range such as `R4.1–R4.3` or `NK1 to NK3` names both ends.
+
+The page shows refs as chips that open the requirement or section. A task
+never names checks: every task runs its repository's checks. See
+[Repository checks and isolation](checks.md) for how checks are set.
+
+### Lint
+
+Spec lint checks a folder against sections 1 to 6. Avoozl also refuses a
+folder that:
+
+- has both `requirements.md` and `bugfix.md`
+- has a ref that names nothing in the spec, or whose file the spec lacks
+- holds an `avoozl/manifest.json`
+
+### Creating a spec
+
+Choose **New spec** on the Specs page, name it, pick its repositories, and
+start it **Blank** (Kiro Crew's Spec Builder writes it with you), **From a
+goal** (an Avoozl planner chat writes the draft), or **From template** (see
+[Writing a plugin](plugins.md#template-part)). Before Spec Builder starts,
+Avoozl offers to add `.kiro/steering/avoozl-specs.md`, which holds these
+rules, and never writes it over a copy you changed. From the CLI:
+
+```sh
+avoozl plan.create --json '{"spec":"NAME"}' --workspace ~/plans
+```
+
+### Approving in Avoozl
+
+For a draft in a checkout, select the spec, review the lint results and the
+graph, and choose **Approve**. It writes one commit on the specs branch,
+authored by you, and pushes it without force. `avoozl plan approve NAME...`
+previews that from the CLI and approves only the specs it names. Avoozl
+refuses when the specs branch already holds that exact text from someone who
+is not an approver, because the commit would change nothing.
+
+The approvers are `github.repositories.<repo>.allowedActors`, or the people
+with write access when it names nobody. In Local only mode the approver is
+the checkout's `user.email`. After approval, **Make the GitHub issues** makes
+the spec issue.
+
+### Ticks in Avoozl
+
+On its next tick, Avoozl marks a task done when its box is ticked, and closes
+any worker session it had on it. `[~]` and `[-]` marks do nothing. When a tick
+is taken out of a done task, the task stays done, and **Needs you** offers
+**Reopen** or **Keep done**.
 
 ## Related pages
 
-- See [avoozl-specs.md](avoozl-specs.md) for Avoozl's spec pages, lint and
-  commands.
 - See [delivery.md](delivery.md) for how Avoozl checks and lands a task.
 - See [drivers.md](drivers.md) for which Avoozl workspace runs a spec.

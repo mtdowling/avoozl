@@ -1,21 +1,15 @@
 # Manual tasks and task links
 
 A manual task is a step only a person does, such as a team review before a
-cutover. End its title with `(**MANUAL**)` in `tasks.md`:
+cutover:
 
 ```markdown [tasks.md]
 - [ ] `team-review` Review with the team (**MANUAL**)
   - The team agreed the results are good enough to cut over
 ```
 
-A manual task has at least one done bullet. The tag is the one way to say a
-person does a task. It completes by a person. The task below it waits for it.
-
-## Lint rules
-
-Lint refuses a title that holds the word `manual` in any form but exactly
-`(**MANUAL**)` at its end, and a group that carries the tag. See
-[Manual tasks](github-workflow.md#4-manual-tasks) in workflow v1.
+See [Manual tasks](github-workflow.md#4-manual-tasks) for the tag and what
+lint refuses.
 
 ## Running a manual task
 

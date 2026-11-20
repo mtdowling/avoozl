@@ -296,21 +296,6 @@ test("a second supervisor on the machine exits and names the first", async (t) =
   );
   assert.equal(second.status, 1);
   assert.match(second.stderr, new RegExp(`pid ${process.pid}`));
-  // `avoozl supervisor` is the same entry.
-  const viaCli = spawnSync(
-    process.execPath,
-    [
-      CLI,
-      "supervisor",
-      "--state-directory",
-      stateDirectory,
-      "--config-directory",
-      configDirectory,
-    ],
-    { encoding: "utf8", timeout: 30_000 },
-  );
-  assert.equal(viaCli.status, 1, viaCli.stderr);
-  assert.match(viaCli.stderr, new RegExp(`pid ${process.pid}`));
 });
 
 test("after a restart the supervisor finds its children again; a missing one is gone", async (t) => {

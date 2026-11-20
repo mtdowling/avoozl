@@ -1,0 +1,35 @@
+{
+  "title": "A merge of an auto pull request is guarded by the checked head, and a moved base is merged in first",
+  "rules": ["13.3", "14.4"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "land": {
+    "task": "parser/p-2",
+    "checks": "pass",
+    "baseMoved": true,
+    "mode": "pr",
+    "pr": "auto"
+  },
+  "expect": {
+    "landing": {
+      "action": "open-and-merge-pull-request",
+      "base": "main",
+      "tick": "same-commit",
+      "mergeBase": true,
+      "mergeGuard": "head-sha",
+      "deleteClaimBranch": true
+    }
+  },
+  "expectFail": {
+    "landing": "sim-1.4"
+  }
+}

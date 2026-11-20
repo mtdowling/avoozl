@@ -53,7 +53,7 @@ take a role other than `local`.
 
 The planning repository's specs may live on a branch other than its base
 branch, such as `avoozl-plans`. Name it with `specs.branch`; see
-[The specs branch](avoozl-specs.md#the-specs-branch).
+[Specs path and branch](github-workflow.md#specs-path-and-branch).
 
 ## GitHub modes
 

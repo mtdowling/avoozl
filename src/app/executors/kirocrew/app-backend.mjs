@@ -8,7 +8,6 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { machineAvoozlPaths } from "../../settings/host-config.mjs";
 import {
   commandContext,
   dispatchCommand,
@@ -28,10 +27,8 @@ import {
   observeRetroReplies,
   observeToolRows,
 } from "./session-observer.mjs";
-import { declaredChecks, prepareWorktree } from "../../delivery/delivery.mjs";
+import { declaredChecks } from "../../delivery/delivery.mjs";
 import { checkCommand } from "../../workspace/repository-checks.mjs";
-import { drainProcessRequests } from "../process.mjs";
-import { drainCheckRuns } from "../../delivery/check-runs.mjs";
 import { observeUsage } from "../../flow/flow-usage.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import {
@@ -46,7 +43,7 @@ import {
 import { taskRepository } from "../../../work-model.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "../../tick/tick.mjs";
 import { withWorkLock } from "../../git/git.mjs";
-import { launchSupervisor } from "../supervisor.mjs";
+import { ensureMachineServer } from "./ensure-server.mjs";
 import { uiBundleProblem } from "../../serve/ui-bundle.mjs";
 import { defaultDemoRoot } from "../../workspace/demo.mjs";
 
@@ -177,15 +174,6 @@ async function readBody(req) {
   return Buffer.concat(chunks);
 }
 
-// The supervisor gets no gateway secret, so its children never inherit one.
-function machineSupervisor() {
-  const { stateDirectory, configDirectory } = machineAvoozlPaths();
-  const env = { ...process.env };
-  delete env.KIROCREW_PROXY_SECRET;
-  delete env.KIROCREW_GATEWAY_ORIGIN_PROOF;
-  return launchSupervisor({ stateDirectory, configDirectory, env });
-}
-
 // Start the backend on 127.0.0.1. There is no host option: the gateway is the
 // only intended caller, and it reaches the backend over loopback.
 export function startAppBackend({
@@ -211,9 +199,9 @@ export function startAppBackend({
   sessionStopper = gatewaySessionStopper(process.env),
   // Where Demo mode keeps its sample workspace (demo.mjs).
   demoRoot = defaultDemoRoot(),
-  // Starts this machine's supervisor for process children (R95.3). Only
-  // under Kiro Crew's gateway, so tests and bare runs start none.
-  supervisor = gatewayClient(process.env) ? machineSupervisor : null,
+  // Starts the machine server when none runs (MS3.5). Only under Kiro
+  // Crew's gateway, so tests and bare runs start none.
+  supervisor = gatewayClient(process.env) ? ensureMachineServer : null,
   // Where a typed `~` and the folder picker start.
   home = os.homedir(),
   // The installed app's ui folder (bin/avoozl.mjs passes it). A page built
@@ -308,19 +296,6 @@ export function startAppBackend({
         try {
           const { ops, store } = operations(drained);
           await ops.execute("notifications.deliver", {});
-          // Checks in code (§5.2 Checks): the runs the tick queued, off the
-          // tick's path and not awaited here; the next tick judges them.
-          drainCheckRuns(store);
-          // `process` sessions (R93.3): this machine's supervisor runs the
-          // children; the requests the tick queued are handed to it here.
-          if (supervisor) {
-            const { errors } = await drainProcessRequests(store, {
-              stateDirectory: machineAvoozlPaths().stateDirectory,
-              prepareWorktree,
-              ops,
-            });
-            if (errors.length) console.error(errors[0].error);
-          }
           // A stock Kiro Crew hands the cron no roster; the tick's receipt
           // says so, and the backend reads the sessions for the next tick.
           if (slotReader && tickHealth(store).lastRun?.observer === "app") {
@@ -420,7 +395,7 @@ export function startAppBackend({
     try {
       supervisor?.();
     } catch (error) {
-      console.error(`The supervisor did not start: ${error.message}`);
+      console.error(`The machine server did not start: ${error.message}`);
     }
   });
   server.on("close", () => {
