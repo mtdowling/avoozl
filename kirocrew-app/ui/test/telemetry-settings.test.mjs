@@ -2,30 +2,18 @@
 // shows its words, the switch calls telemetry.configure, and the box never
 // holds a header value or a URL path. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.mjs'
-import { findChrome, launch } from './browser/chrome.mjs'
+import { test } from 'node:test'
+import { harnessPage } from './browser/harness-page.mjs'
 
-const chrome = findChrome()
-const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Telemetry settings tests'
+const state = harnessPage('Telemetry settings')
+const skip = state.skip
 
-let harness, browser, page
-before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
-})
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
-
-const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const wait = (ms) => state.page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 const click = (selector, text) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 
 async function openBox(status, width = 1280) {
+  const { page, harness } = state
   await page.open(harness.url({ page: 'app', basic: '1', inline: '1', telemetry: status }), { width, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
@@ -35,7 +23,7 @@ async function openBox(status, width = 1280) {
   await wait(300)
   await page.until(`Boolean(document.querySelector('[data-telemetry]'))`)
 }
-const text = (name) => page.evaluate(`document.querySelector('[data-telemetry-value="${name}"]')?.textContent ?? null`)
+const text = (name) => state.page.evaluate(`document.querySelector('[data-telemetry-value="${name}"]')?.textContent ?? null`)
 
 for (const [status, words] of [
   ['off', 'Off'],
@@ -46,6 +34,7 @@ for (const [status, words] of [
   ['backing-off', 'Backing off (http 503)'],
 ])
   test(`the Telemetry box shows ${status} as "${words}"`, { skip }, async () => {
+    const { page } = state
     await openBox(status)
     assert.equal(await text('status'), words)
     const box = await page.evaluate(`document.querySelector('[data-field-box="Telemetry"]').textContent`)
@@ -60,6 +49,7 @@ for (const [status, words] of [
   })
 
 test('the switch calls telemetry.configure and the box follows', { skip }, async () => {
+  const { page } = state
   await openBox('off')
   assert.ok(await page.evaluate(`(() => { const t = document.querySelector('[data-telemetry-switch] [role="switch"]'); if (t) t.click(); return Boolean(t) })()`))
   await page.until(`document.querySelector('[data-telemetry-value="status"]')?.textContent === 'Waiting for an endpoint'`)
@@ -67,6 +57,7 @@ test('the switch calls telemetry.configure and the box follows', { skip }, async
 })
 
 test('the box fits a phone', { skip }, async () => {
+  const { page } = state
   await openBox('backing-off', 390)
   const wide = await page.evaluate(`document.documentElement.scrollWidth > document.documentElement.clientWidth`)
   assert.equal(wide, false, 'no sideways scroll at 390 px')
