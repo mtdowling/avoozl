@@ -1,6 +1,5 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { withWorkLock } from "../git/git.mjs";
-import { startGitHubItem } from "../github/github-intake.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import { parseIssueReference } from "../tasks/issue-reference.mjs";
 import {
@@ -24,15 +23,12 @@ async function intakeDeliverHandler({ name, input }) {
 
   const action = name === "intake.deliver" ? "deliver" : "plan",
     policy = readGitHubPolicyOrNull(this.workspaceRoot);
-  // A GitHub item (R102.13): its two writes need the GitHub client.
+  // A GitHub issue becomes a task by its labels (labeled-issues.mjs).
   if (input.source === "github")
-    return withWorkLock(store, WORKSPACE_LOCK, async () => {
-      const started = await startGitHubItem(store, this.github, policy, {
-        ...input,
-        action,
-      });
-      return started;
-    });
+    fail(
+      "A GitHub issue starts as a task when a writer labels it for this runner (labels.require) and assigns it; Avoozl reads it on the next pass.",
+      409,
+    );
   return withWorkLock(store, WORKSPACE_LOCK, async () =>
     startByPerson(store, sourceMap(this.pluginOptions, store), policy, {
       ...input,

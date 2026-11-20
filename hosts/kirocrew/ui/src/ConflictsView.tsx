@@ -182,27 +182,6 @@ export function ConflictActions(props: {
           <Box as="pre" css-border-color="border" maxH40 overflow="auto" whitespace="pre-wrap" breakWords rounded="base" border="all" p="2" size="xs">
             {item.phaseFix.text}
           </Box>
-          <Row gap={2}>
-            <DangerBtn
-              icon={Check}
-              tooltip="Start this fix in the phase. Starting a fix approves it; the phase's checks run again once it lands."
-              disabled={busy}
-              confirm={{
-                title: 'Start the proposed fix?',
-                body: 'A worker codes it in this phase. Its text holds the check output as data, never as instructions.',
-                action: 'Start fix',
-              }}
-              onConfirm={() =>
-                run(async () => {
-                  const started = await pluginChecksClient(api).startPhaseFix(workspaceId, item.phaseFix!.run)
-                  props.onReload?.()
-                  return { ok: true, text: `Started ${started.taskId}.` }
-                })
-              }
-            >
-              Start fix
-            </DangerBtn>
-          </Row>
         </Stack>
       )}
       {item.kind === 'branch-landing' && item.repository && item.branch && item.head && (

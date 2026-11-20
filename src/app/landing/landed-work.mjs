@@ -6,8 +6,7 @@
 import { tickPlansRepo } from "../specs/spec-ticks.mjs";
 import { cachedOwnClaims, deleteOwnClaim } from "../workers/claims.mjs";
 import { landingAction } from "./landing-action.mjs";
-import { closeLanded } from "../specs/labeled-issues.mjs";
-import { landingSpecOf } from "../intake/fix.mjs";
+import { closeLanded, landingSpecOf } from "../specs/labeled-issues.mjs";
 
 // One landed entry ({spec, tasks}) at `candidate`, the commit on the base.
 // Returns whether its tick is on the done branch.

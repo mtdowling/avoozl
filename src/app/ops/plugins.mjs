@@ -5,9 +5,7 @@ import { contentBinding } from "../content/content-rules.mjs";
 import { person, routed } from "../api/operation-policy.mjs";
 import { setMapping } from "../plugins/plugin-checks.mjs";
 import { flipDecide, submitDecide } from "../plugins/check-decide.mjs";
-import { stageResults, startPhaseFix } from "../plugins/check-stages.mjs";
-import { withWorkLock } from "../git/git.mjs";
-import { WORKSPACE_LOCK } from "../tick/tick.mjs";
+import { stageResults } from "../plugins/check-stages.mjs";
 import { fail } from "../store/store.mjs";
 
 async function pluginHandler({ name, input, context }) {
@@ -100,24 +98,6 @@ export const entries = [
     policy: routed,
     handler() {
       return stageResults(this.store);
-    },
-  },
-  // Start on a failed phase check's Needs you row (plugin-checks D7): a
-  // person's act, which is the fix's approval.
-  {
-    name: "check.phase.fix",
-    github: null,
-    class: "protect",
-    policy: person("Only a person starts a phase's fix."),
-    handler({ input, context }) {
-      if (context.caller || context.mcp)
-        fail("Only a person starts a phase's fix.", 403);
-      return withWorkLock(this.store, WORKSPACE_LOCK, () =>
-        startPhaseFix(this.store, input, {
-          workspaceRoot: this.workspaceRoot,
-          actor: this.operator,
-        }),
-      );
     },
   },
 ];

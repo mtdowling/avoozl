@@ -99,7 +99,7 @@ these in the Avoozl app:
 - adding or removing repositories or intake sources
 - workspace, flow, and delivery settings
 - **Run anyway**, and resuming a pulled stop
-- **Deliver this** and **Plan this** on an incoming item
+- **Plan this** on an incoming item
 - acting on an issue or pull request from the GitHub pages
 
 An agent may pull the Andon cord with `plans_session`, action `stop_line`, but

@@ -45,7 +45,7 @@ resume:
 
 | Test | Passes when |
 | --- | --- |
-| `approved` | The task is in the approved revision of a spec, and that revision is on the specs branch. An `intake-` task and a fix fail. |
+| `approved` | The task is in the approved revision of a spec, and that revision is on the specs branch. An `intake-` task and a labeled issue fail. |
 | `approver` | The commit that approved that revision is by an allowed approver. |
 
 The tests read only Avoozl's records and git. A test that cannot be read

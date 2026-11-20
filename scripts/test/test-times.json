@@ -138,7 +138,6 @@
     "src/app/github/test/github-client-graph.test.mjs": 348,
     "src/app/github/test/github-client-put-file.test.mjs": 339,
     "src/app/github/test/github-client-survey.test.mjs": 333,
-    "src/app/github/test/github-intake.test.mjs": 834,
     "src/app/github/test/github-marker.test.mjs": 320,
     "src/app/github/test/github-pacer.test.mjs": 4125,
     "src/app/github/test/github-policy.test.mjs": 1543,

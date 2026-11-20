@@ -1,13 +1,10 @@
 // The open items read: one read-only search per GitHub-mode repository per
 // interval, kept in SQLite (design §4.12, R50.4).
-// Closed input issues withdraw their tasks at the same pace
-// (github-intake.mjs watchInputs).
 //
 // Each item the search returned is a `github` incoming item, and each
 // repository's read state is its `intake_sources` row `github:<repository>`
 // with the item keys the search returned.
 import { itemKey, itemRows } from "../intake/intake.mjs";
-import { watchInputs } from "./github-intake.mjs";
 
 export const OPEN_READ_INTERVAL_MS = 10 * 60 * 1000;
 const PAGE_SIZE = 100;
@@ -274,12 +271,5 @@ export async function refreshOpenItems(
     }
   }
   writeCache(store, next);
-  // Closed input issues withdraw their tasks, read at the same pace.
-  if (read > 0)
-    try {
-      await watchInputs(store, github);
-    } catch {
-      // The next read tries again.
-    }
   return { read };
 }

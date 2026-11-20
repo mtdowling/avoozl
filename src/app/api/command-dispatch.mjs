@@ -62,8 +62,6 @@ export const APP_OPERATIONS = new Set([
   "flow.view",
   // Make the GitHub issues on an approved spec (R118.7).
   "spec.publish",
-  "fix.start",
-  "fix.spec",
   "github.repository.labels",
   "task.detail",
   "plan.spec.read",
@@ -97,7 +95,6 @@ export const APP_OPERATIONS = new Set([
   "plugin.map",
   "plugin.checks.stages",
   "check.decide.flip",
-  "check.phase.fix",
   // Owner actions the Conflicts and Delivery views offer.
   "content.rules",
   "content.allow",

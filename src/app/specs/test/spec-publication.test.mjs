@@ -196,32 +196,3 @@ test("an input issue in another repository is not reused", async (t) => {
   assert.equal(w.github.created.length, 1);
   assert.notEqual(published.number, 7);
 });
-
-test("intake.deliver takes a GitHub issue for a person and refuses MCP", async (t) => {
-  const w = await workspace(t, { mode: "single-repo" });
-  w.github.created.push({
-    id: 21,
-    node_id: "issue-21",
-    number: 21,
-    state: "open",
-    title: "Fix 21",
-    body: "Broken.",
-    labels: [],
-    html_url: "https://example.test/issues/21",
-  });
-  const id = `${REPOSITORY}#21`;
-  await assert.rejects(
-    w.ops.execute("intake.deliver", { source: "github", id }, undefined, {
-      mcp: true,
-    }),
-    /Only a person/,
-  );
-  const result = await w.ops.execute("intake.deliver", {
-    source: "github",
-    id,
-  });
-  // One write: the status comment. No label marks the issue as taken.
-  assert.deepEqual(result.writes, ["comment"]);
-  const task = w.store.read().tasks.find((entry) => entry.id === result.taskId);
-  assert.equal(task.fix.v, 2);
-});

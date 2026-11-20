@@ -36,7 +36,6 @@ import {
 import { diskNeedsYou } from "../workspace/disk-space.mjs";
 import { resolveDecision } from "../api/direct-links.mjs";
 import { machineLinks } from "../tick/crews.mjs";
-import { fixToSpec, startFix } from "../intake/fix.mjs";
 import { withWorkLock } from "../git/git.mjs";
 import { paceNeedsYou } from "../github/github-pacer.mjs";
 import { rateNeedsYou } from "../github/github-rate.mjs";
@@ -99,23 +98,6 @@ function taskManualCompleteHandler({ name, input, context }) {
   return name === "task.manual.complete"
     ? completeManual(store, { ...input, taskId }, { by })
     : reopenManual(store, { taskId }, { by });
-}
-
-// A fix (design §4.12): one change with no spec files. Starting it
-// is the approval, so only a person starts one or makes it a spec.
-function fixStartHandler({ name, input, context }) {
-  const store = this.store;
-
-  if (context.caller || context.mcp)
-    fail("Only a person starts a fix or makes it a spec.", 403);
-  return withWorkLock(store, WORKSPACE_LOCK, async () =>
-    name === "fix.start"
-      ? startFix(store, input, {
-          workspaceRoot: this.workspaceRoot,
-          actor: this.operator,
-        })
-      : fixToSpec(store, this.workspaceRoot, input),
-  );
 }
 
 function taskArchiveHandler({ name, input, expectedRevision }) {
@@ -394,21 +376,6 @@ export const entries = [
     policy: person("Only a person reopens a manual task."),
     handler: taskManualCompleteHandler,
   },
-  {
-    name: "fix.start",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person starts a fix; starting it approves it."),
-    handler: fixStartHandler,
-  },
-  {
-    name: "fix.spec",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person makes a fix a spec."),
-    handler: fixStartHandler,
-  },
-
   {
     name: "task.detail",
     class: "observe",

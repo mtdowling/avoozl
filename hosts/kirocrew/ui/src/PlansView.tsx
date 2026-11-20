@@ -11,7 +11,6 @@ import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
-import NewFixDrawer from './NewFixDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
@@ -874,14 +873,11 @@ const UNARCHIVE_TIP = 'Unarchive this spec: its tasks may start again and it sho
 // last. New task lives in a spec's detail only (RC30.2). Refresh re-reads plan.table (the spec folders on disk and
 // the stored plans); it imports nothing.
 export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
-function PlansActions(props: { onNewPlan: () => void; onNewFix: () => void; onRefresh: () => void; busy: boolean }) {
+function PlansActions(props: { onNewPlan: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
       <IconLabel look={COMPACT} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
         New spec
-      </IconLabel>
-      <IconLabel look={COMPACT} icon={CirclePlus} tooltip="One change with no spec files. Starting it approves it; it lands like any task." onClick={props.onNewFix}>
-        New fix
       </IconLabel>
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
     </>
@@ -2008,7 +2004,6 @@ export default function PlansView(props: {
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
   const [creating, setCreating] = useState<{ seed?: Partial<NewPlanForm> } | null>(null)
-  const [fixing, setFixing] = useState(false)
   useEffect(() => {
     if (props.newPlanRequest?.n) setCreating({ seed: props.newPlanRequest.seed })
   }, [props.newPlanRequest])
@@ -2252,7 +2247,7 @@ export default function PlansView(props: {
         id="avoozl-plans-title"
         view="plans"
         phoneMenu
-        actions={<PlansActions onNewPlan={() => setCreating({})} onNewFix={() => setFixing(true)} onRefresh={() => workspace && void load(workspace)} busy={busy} />}
+        actions={<PlansActions onNewPlan={() => setCreating({})} onRefresh={() => workspace && void load(workspace)} busy={busy} />}
       >
         Specs
       </ViewHeading>
@@ -2394,15 +2389,6 @@ export default function PlansView(props: {
           epics={(table?.items ?? []).filter((item) => item.kind === 'epic' && item.spec).map((item) => ({ id: item.spec!, title: item.name }))}
           onClose={(text) => {
             setCreating(null)
-            if (text) setNotice(text)
-          }}
-        />
-      )}
-      {fixing && workspace && (
-        <NewFixDrawer
-          workspaceId={workspace}
-          onClose={(text) => {
-            setFixing(false)
             if (text) setNotice(text)
           }}
         />

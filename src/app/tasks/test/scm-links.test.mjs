@@ -22,7 +22,7 @@ const task = (id, extra = {}) => ({
 
 // A seeded workspace with every stored record a link set reads: a spec
 // issue, a working branch, an open pull request with checks, a landed task,
-// a task with no records, and the intake issue the spec came from.
+// a task with no records, and the labeled issue it came from.
 function seed(t) {
   const { root, store } = fixture(t),
     data = store.read();
@@ -32,13 +32,13 @@ function seed(t) {
       task("open", { github: { repository: "example/code", number: 7 } }),
       task("landed", {
         integration: { commit: sha("c"), pr: 12, into: "main" },
-        intake: { issue: { repository: "example/radar", number: 3 } },
+        labeledIssue: { repository: "example/radar", number: 3 },
       }),
       task("bare"),
       task("hostile", {
         repository: "code",
         github: { repository: "https://evil.example/x", number: 1 },
-        intake: { link: "https://evil.example/phish" },
+        labeledIssue: { link: "https://evil.example/phish" },
       }),
     ],
   });

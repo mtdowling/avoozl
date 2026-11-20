@@ -141,7 +141,6 @@ export function pluginChecksClient(api: AppApi) {
     // Run it (needed) or Skip it, for the task's current commit.
     flip: (workspaceId: string, taskId: string, check: string, plugin: string, needed: boolean, commit: string | null) =>
       run<unknown>('check.decide.flip', { taskId, check, plugin, needed, ...(commit ? { commit } : {}) }, workspaceId),
-    startPhaseFix: (workspaceId: string, runId: string) => run<{ taskId: string }>('check.phase.fix', { run: runId }, workspaceId),
     stages: (workspaceId: string) => run<{ phases: Record<string, StageRun>; branches: Record<string, StageRun> }>('plugin.checks.stages', {}, workspaceId),
   }
 }

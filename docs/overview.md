@@ -26,7 +26,7 @@ Avoozl does these:
 Avoozl does not do these:
 
 - Treat a label as an order.
-- Change code on its own outside a spec or a fix.
+- Change code on its own outside a spec or a labeled issue.
 - Triage issues or review other people's pull requests. Any agent runner can,
   with the [agent skills](agent-skills.md) Avoozl ships.
 - Approve, request changes or close for a person.
@@ -45,7 +45,7 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 - **Execution state** is the workspace database, rebuilt from the items above.
 
 A task never gets a GitHub issue. A spec can have one issue, whose assignee
-drives it, and a fix started from an issue keeps its record there. See
+drives it, and a labeled issue is its own one-task spec. See
 [workflow v1](github-workflow.md#2-tasks) for the task format and
 [Workspaces](workspaces.md#rebuilding-the-database) for rebuilding. See [People and machines](scale-out.md) for how several people's
 machines share this state.
@@ -54,8 +54,8 @@ machines share this state.
 
 Work starts in one of three ways.
 
-- **Fix.** Deliver this on an incoming issue, New fix, or `avoozl fix` creates one task with no
-  spec files. Starting it is the approval.
+- **Labeled issue.** A writer labels and assigns an issue, and it becomes one
+  task with no spec files. The label is the approval.
 - **Light spec.** New spec, Blank or From a goal, with one task. Approve records
   the revision. With `landing: pr` Avoozl opens the pull request, waits for its
   checks and reviews, and merges it.

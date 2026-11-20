@@ -8,7 +8,7 @@
 //   branch a task was prepared from (56.3, 41.5), the task branch and
 //   worktree (40.4), the task pull request and its check state from the
 //   landing queue (41.2, 42.6), the landed commit from delivery records,
-//   and the intake and escalation issues a spec or task came from (56.8,
+//   and the labeled and escalation issues a spec or task came from (56.8,
 //   56.14).
 // - A URL is built only from a validated owner/name, number, branch name
 //   or 40-character SHA, never from a URL stored from issue or comment
@@ -17,7 +17,6 @@
 // - Check state carries the head SHA it was read for and its read time. It
 //   is `current` only when that head is the task's current commit; any
 //   other head shows as "stale", never as its old state.
-import { fixIssue } from "../intake/fix.mjs";
 import { branchNameProblem } from "../epics/integration-branch.mjs";
 
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
@@ -247,14 +246,8 @@ function taskSet(rows, links, task, now) {
       landedSha && (repository || pull?.repository)
         ? links.commit(repository || pull.repository, landedSha)
         : null,
-    issue:
-      issueLink(links, task.github, rows.resolve) ??
-      issueLink(links, task.fix?.journal, rows.resolve) ??
-      null,
-    source:
-      issueLink(links, task.intake?.issue, rows.resolve) ??
-      issueLink(links, fixIssue(task), rows.resolve) ??
-      null,
+    issue: issueLink(links, task.github, rows.resolve) ?? null,
+    source: issueLink(links, task.labeledIssue, rows.resolve) ?? null,
   };
 }
 

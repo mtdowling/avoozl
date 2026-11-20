@@ -8,11 +8,17 @@
 // shortcut: the home is the named or only configured repository.
 import { fail } from "../store/store.mjs";
 import { epicOfPlan } from "../epics/epics.mjs";
-import { reusableInput } from "../github/github-intake.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 
 const receiptId = (level, id) => `github-parent:${level}:${id}`;
 const lower = (value) => String(value ?? "").toLowerCase();
+
+// An input issue may become a spec's journal home only in that home's own
+// repository. The same repository has the same visibility.
+const reusableInput = (input, home) =>
+  Boolean(input?.repository && home) &&
+  Number.isInteger(input.number) &&
+  lower(input.repository) === lower(home);
 
 function homeRepository(store, repository) {
   const configured = store.list("github_repositories");

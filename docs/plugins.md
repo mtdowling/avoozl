@@ -543,12 +543,12 @@ runs the check again. The cache keeps at most 5,000 entries for 30 days.
 | Stage    | Runs at                                         | A failure holds                    |
 | -------- | ----------------------------------------------- | ---------------------------------- |
 | `task`   | The task's commit, and each merge batch         | That task's landing                |
-| `phase`  | Once every task of a phase has landed           | Nothing; one fix is proposed       |
+| `phase`  | Once every task of a phase has landed           | Nothing; a fix is proposed         |
 | `branch` | Each new head of an epic's integration branch   | That head's acceptance only        |
 
-A failed `phase` check opens one Needs you item holding the proposed fix;
-**Start** makes the fix in that phase, and the check runs again once it
-lands. A `phase` or `branch` check never delays a task's landing.
+A failed `phase` check opens one Needs you item holding the proposed fix as
+text. Make the fix in a task of that phase, and the check runs again once
+that task lands. A `phase` or `branch` check never delays a task's landing.
 
 ### MCP steps
 

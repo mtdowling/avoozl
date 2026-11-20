@@ -35,7 +35,7 @@ import {
 } from "./landing-conflicts.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { publicTaskName } from "../specs/spec-scheduler.mjs";
-import { landingSpecOf } from "../intake/fix.mjs";
+import { landingSpecOf } from "../specs/labeled-issues.mjs";
 import { pushHead, sourceRegistry } from "../landing/push-head.mjs";
 import { fail } from "../store/store.mjs";
 import { firstErrorLine } from "../delivery/verify.mjs";

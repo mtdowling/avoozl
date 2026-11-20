@@ -98,18 +98,14 @@ test("pk-2.1: a two-task phase runs its phase check once, after both landed, fro
     stageResults(store).phases["plan:p1"].checks[0].result,
     "failed",
   );
-  // Start makes the fix in that phase; its landing runs the check again.
-  const started = await workspace.ops.execute("check.phase.fix", {
-    run: rows[0].phaseFix.run,
+  // A later task in that phase lands the fix; its landing runs the check again.
+  store.mutate("add c", (data) => {
+    data.tasks.push(leaf("c", { planId: "plan", phase }));
   });
-  const fix = store.read().tasks.find((task) => task.id === started.taskId);
-  assert.deepEqual(fix.fixFor.plan, "plan");
-  assert.deepEqual(fix.phase.id, "p1");
-  assert.deepEqual(phaseNeedsYou(store), [], "started once");
   fs.rmSync(path.join(workspace.checkout, "schema"), { recursive: true });
-  land(workspace, fix.id, {}, "2026-11-19T03:00:00Z");
+  land(workspace, "c", {}, "2026-11-19T03:00:00Z");
   const [again] = queuePhaseChecks(store);
-  assert.equal(again.scope.tasks.at(-1), fix.id);
+  assert.equal(again.scope.tasks.at(-1), "c");
   await drainCheckRuns(store);
   const rerun = checkRuns(store).find((r) => r.id === again.id);
   assert.equal(rerun.checks[0].exitCode, 0, rerun.checks[0].tail);

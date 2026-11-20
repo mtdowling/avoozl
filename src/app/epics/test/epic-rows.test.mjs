@@ -3,7 +3,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Operations } from "../../api/operations.mjs";
-import { mayLinkSpecIssue } from "../../github/source-backlinks.mjs";
 import {
   epicMembers,
   lintSpec,
@@ -63,26 +62,3 @@ const lint = (ops, name) =>
   });
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
-
-test("a public pull request never names a private spec issue", () => {
-  assert.equal(
-    mayLinkSpecIssue({ pullPrivate: false, issuePrivate: false }),
-    true,
-  );
-  assert.equal(
-    mayLinkSpecIssue({ pullPrivate: true, issuePrivate: true }),
-    true,
-  );
-  assert.equal(
-    mayLinkSpecIssue({ pullPrivate: true, issuePrivate: false }),
-    true,
-  );
-  assert.equal(
-    mayLinkSpecIssue({ pullPrivate: false, issuePrivate: true }),
-    false,
-  );
-  assert.equal(
-    mayLinkSpecIssue({ pullPrivate: undefined, issuePrivate: false }),
-    false,
-  );
-});

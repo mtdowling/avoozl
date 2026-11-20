@@ -1,11 +1,9 @@
 // The `phase` and `branch` stages of plugin checks (plugin-checks D7,
 // PK4.2 to PK4.6). Each run is a `check-run` record with a `scope`, run by
 // the same check runner as a task's; neither stage blocks or delays a
-// task's landing. A failed phase check proposes one fix a person starts; a
+// task's landing. A failed phase check shows in Needs you with its output; a
 // branch check counts in its integration head's state.
 import { taskRepository } from "../../work-model.mjs";
-import { fail } from "../store/store.mjs";
-import { startFix } from "../intake/fix.mjs";
 import { outputTail } from "../delivery/verify.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
 import { pluginChecksOf } from "./plugin-checks.mjs";
@@ -29,14 +27,13 @@ const failedChecks = (run) =>
   );
 
 // Each phase (one plan's phase, in one repository) with every task landed,
-// with its tasks oldest landing first. A fix started for the phase counts
-// as one of its tasks.
+// with its tasks oldest landing first.
 function landedPhases(store) {
   const data = store.read(),
     groups = new Map();
   for (const task of data.tasks) {
-    const plan = task.planId ?? task.fixFor?.plan,
-      phase = task.planId ? task.phase?.id : task.fixFor?.phase,
+    const plan = task.planId,
+      phase = task.phase?.id,
       repository = taskRepository(task);
     if (!plan || !phase || !repository) continue;
     const key = `${plan}\0${phase}\0${repository}`;
@@ -151,7 +148,7 @@ export function branchChecks(
 
 // Each finished phase run whose plugin checks failed, newest per phase,
 // unless a later run of that phase passed: one Needs you row holding the
-// proposed fix as untrusted text, with Start (PK4.3).
+// proposed fix as untrusted text (PK4.3).
 export function phaseNeedsYou(store) {
   const newest = new Map();
   for (const run of runs(store)) {
@@ -160,14 +157,8 @@ export function phaseNeedsYou(store) {
     if ((newest.get(key)?.endedAt ?? "") < (run.endedAt ?? ""))
       newest.set(key, run);
   }
-  const started = new Set(
-    store
-      .read()
-      .tasks.filter((task) => task.fixFor?.run)
-      .map((task) => task.fixFor.run),
-  );
   return [...newest.values()]
-    .filter((run) => failedChecks(run).length && !started.has(run.id))
+    .filter((run) => failedChecks(run).length)
     .map((run) => {
       const names = failedChecks(run).map((check) => check.name);
       return {
@@ -177,7 +168,7 @@ export function phaseNeedsYou(store) {
         taskId: null,
         authority: "avoozl",
         title: `Phase ${run.scope.title} failed plugin check ${names.join(", ")}`,
-        detail: `Its tasks landed; nothing waited on the check. Start the proposed fix to change it in this phase, and the check runs again once the fix lands.`,
+        detail: `Its tasks landed; nothing waited on the check. Make the proposed fix in a chat; the check runs again when the phase's next task lands.`,
         phaseFix: {
           run: run.id,
           plan: run.scope.plan,
@@ -205,33 +196,6 @@ function fixText(run) {
     "",
     ...lines,
   ].join("\n");
-}
-
-// Start on a phase's Needs you row: a person's act, which is the fix's
-// approval (design §4.12). Its text is the proposed one.
-export async function startPhaseFix(store, input = {}, context = {}) {
-  const row = phaseNeedsYou(store).find(
-    (item) => item.phaseFix.run === input.run,
-  );
-  if (!row) fail("That phase has no failed check waiting for a fix.", 404);
-  const fix = row.phaseFix,
-    started = await startFix(
-      store,
-      {
-        text: fix.text,
-        repository: fix.repository,
-        plan: fix.plan,
-        phase: fix.phase,
-        phaseTitle: row.title.replace(/^Phase (.*) failed .*$/, "$1"),
-        by: input.by || "person",
-      },
-      context,
-    );
-  store.mutate("Mark the phase fix", (data) => {
-    const task = data.tasks.find((t) => t.id === started.taskId);
-    if (task) task.fixFor = { ...task.fixFor, run: fix.run };
-  });
-  return started;
 }
 
 // What the Epics page shows beside a phase or a branch head (PK4.6): the

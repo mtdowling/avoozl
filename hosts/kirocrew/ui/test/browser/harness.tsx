@@ -40,7 +40,6 @@ import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/ManualTask.tsx'
 import { needsContextItems } from './needs-context-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
-import NewFixDrawer from '../../src/NewFixDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
 
@@ -279,15 +278,6 @@ export const SCENARIOS: Record<string, Scenario> = {
       document.body,
     ),
   ),
-  // New fix beside New spec (design §4.12).
-  'new-fix': shown((close) =>
-    createPortal(
-      <div {...{ [APP_ATTR]: '' }}>
-        <NewFixDrawer workspaceId="w" onClose={close} />
-      </div>,
-      document.body,
-    ),
-  ),
 }
 
 // One In flight row, for the title link test.
@@ -442,8 +432,6 @@ answer('telemetry.configure', (body) => {
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 // &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).
 if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
-
-answer('fix.start', () => ({ taskId: 'fix-1' }))
 
 function DeepLinkPage() {
   return (

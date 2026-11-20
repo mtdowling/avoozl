@@ -432,8 +432,6 @@ const SAYS = [
   ["delivery.", "change delivery"],
   ["plugin", "change plugins"],
   ["content.", "change content rules"],
-  ["fix.start", "start this fix as a ready task"],
-  ["fix.spec", "make this fix a draft spec folder"],
   ["conflicts.", "settle this conflict"],
   ["activity.settings", "change Activity settings"],
 ];
