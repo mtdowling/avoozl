@@ -1,4 +1,4 @@
-// Flow metric tiles in the app shell (harness ?page=app&flow=1): all six sit
+// Flow metric tiles in the app shell (harness ?page=app&flow=1): all four sit
 // on one row that spans the content width at 1280 px, wrap two per row with no
 // overflow at 375 px, and share one title size and one value size.
 // Skipped when no Chrome is found.
@@ -55,10 +55,10 @@ const READ = `(() => {
   }
 })()`
 
-test('six tiles share one full-width row at 1280 px, with one title and one value size', { skip }, async () => {
+test('four tiles share one full-width row at 1280 px, with one title and one value size', { skip }, async () => {
   await openFlow(1280)
   const m = await page.evaluate(READ)
-  assert.equal(m.count, 6)
+  assert.equal(m.count, 4)
   assert.equal(m.tops, 1, 'one row')
   assert.ok(Math.abs(m.first - m.box.left) <= 1 && Math.abs(m.last - m.box.right) <= 1, 'spans the content width')
   assert.ok(Math.max(...m.widths) - Math.min(...m.widths) <= 1, `equal widths ${m.widths}`)
@@ -71,7 +71,7 @@ test('six tiles share one full-width row at 1280 px, with one title and one valu
 test('tiles wrap two per row with no overflow at 375 px', { skip }, async () => {
   await openFlow(375)
   const m = await page.evaluate(READ)
-  assert.equal(m.tops, 3, 'three rows of two')
+  assert.equal(m.tops, 2, 'two rows of two')
   assert.ok(Math.min(...m.widths) >= 100, `min width ${m.widths}`)
   assert.equal(m.overflow, false)
 })

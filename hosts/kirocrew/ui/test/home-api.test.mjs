@@ -64,27 +64,11 @@ test('Recently landed merges the landing record with integrated tasks, each once
   assert.deepEqual(landedRows(null, null), [])
 })
 
-test('CI health reads flow.view CI facts and flags a wait share over its limit', () => {
-  const repo = (repository, waitShare) => ({
-    repository,
-    windowDays: 14,
-    byClass: {},
-    waitShare,
-    waitLimit: 0.25,
-    closedPullRequests: 4,
-    repeats: [{ workflow: 'ci', commits: 1, extraRuns: 2, extraMinutes: 3 }],
-  })
-  const ci = ciHealth({ ci: { repositories: [repo('a', 0.1), repo('b', 0.4), repo('c', null)] }, flaky: [{}], ciOnly: [] })
-  assert.deepEqual(
-    ci.repositories.map((r) => [r.repository, r.over, r.repeats]),
-    [
-      ['a', false, 2],
-      ['b', true, 2],
-      ['c', false, 2],
-    ],
-  )
+test('CI health counts flow.view check records', () => {
+  const ci = ciHealth({ flaky: [{}], ciOnly: [] })
   assert.equal(ci.flaky, 1)
-  assert.equal(ciHealth({ flaky: [], ciOnly: [] }).available, false)
+  assert.equal(ci.ciOnly, 0)
+  assert.equal(ci.available, true)
   assert.equal(ciHealth(null).available, false)
 })
 

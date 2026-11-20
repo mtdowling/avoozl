@@ -101,7 +101,6 @@ test("the design skills pass the release scan", () => {
   for (const name of [
     "avoozl-plugin",
     "avoozl-rules",
-    "avoozl-costs",
     "avoozl-answer",
     "avoozl-review",
     "avoozl-triage",

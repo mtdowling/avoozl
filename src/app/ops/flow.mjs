@@ -2,12 +2,6 @@
 import { taskRepository } from "../../work-model.mjs";
 import { runLocalChecks } from "../flow/flow-checks.mjs";
 import {
-  ciFlowView,
-  ciRepositoryPickerIds,
-  ciSettingsView,
-} from "../flow/flow-ci-view.mjs";
-import { readEffectiveCIConfig } from "../flow/flow-ci.mjs";
-import {
   lineBanner,
   pullCord,
   pullFullStop,
@@ -22,21 +16,14 @@ import {
   runRetroAgain,
   setRetroInstructions,
 } from "../flow/flow-retro.mjs";
-import { usageView } from "../flow/flow-usage.mjs";
 import { flowView, readFlowConfig } from "../flow/flow.mjs";
-import { buildRows, buildView } from "../flow/build-receipt-read.mjs";
-import { withWorkLock } from "../git/git.mjs";
-import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import {
   approveHarnessByName,
   listHarnessDefinitions,
 } from "../executors/harness-definitions.mjs";
-import { deliverRetroRule, deliverRetroSkill } from "../intake/intake.mjs";
 import { runOn } from "../tick/needs-kirocrew.mjs";
 import { createPlan } from "../specs/plans.mjs";
-import { withRetroChats } from "../flow/retro-chat.mjs";
 import { fail } from "../store/store.mjs";
-import { WORKSPACE_LOCK } from "../tick/tick.mjs";
 import path from "node:path";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
@@ -67,17 +54,6 @@ export const entries = [
     },
   },
 
-  // Flow's Builds: every stored build observation of the base branch
-  // (R101.4), from the store only.
-  {
-    name: "builds.view",
-    class: "observe",
-    github: "ci-receipts",
-    policy: routed,
-    handler() {
-      return buildView(buildRows(this.store));
-    },
-  },
   {
     name: "flow.view",
     class: "observe",
@@ -87,31 +63,8 @@ export const entries = [
       const store = this.store;
 
       const data = this.read(),
-        config = readEffectiveCIConfig(store, {
-          workspaceRoot: this.workspaceRoot,
-          persist: false,
-        }),
-        policy = this.workspaceRoot
-          ? readGitHubPolicyOrNull(this.workspaceRoot)
-          : null,
-        view = flowView(store, data, input),
-        filtered = input.repository || input.epic || input.plan || input.phase;
-      return {
-        ...view,
-        retros: withRetroChats(store, view.retros),
-        repositories: [
-          ...new Set([
-            ...view.repositories,
-            ...ciRepositoryPickerIds(store, policy, view.repositories),
-          ]),
-        ].sort(),
-        ci: ciFlowView(store, config, policy, input),
-        line: lineBanner(store, data),
-        // Tokens and credits per task, plan, stage and model (§4.11).
-        usage: usageView(store, data, {
-          tasks: filtered ? view.tasks.map((t) => t.taskId) : null,
-        }),
-      };
+        view = flowView(store, data, input);
+      return { ...view, line: lineBanner(store, data) };
     },
   },
   // Settings > Flow (§8.4) and the retros (§4.11).
@@ -203,12 +156,6 @@ export const entries = [
       const store = this.store;
       return {
         ...this.settingsFile().readFlowSettings(),
-        ...ciSettingsView(
-          readEffectiveCIConfig(store, {
-            workspaceRoot: this.workspaceRoot,
-            persist: false,
-          }),
-        ),
         // The built-in retro prompt, shown read-only above the owner's own.
         retroPrompt: retroPrompt(),
         instructions:
@@ -293,31 +240,7 @@ export const entries = [
         config = readFlowConfig(this.workspaceRoot);
       return decideProposal(store, input, {
         config,
-        ciConfig: readEffectiveCIConfig(store, {
-          workspaceRoot: this.workspaceRoot,
-          fallback: config,
-          persist: false,
-        }),
         by: context.local ? "cli" : this.operator || "dashboard",
-        // A repository skill change is one leaf through Deliver this
-        // (R68.10, R50.15).
-        skill: async (change) =>
-          withWorkLock(store, WORKSPACE_LOCK, async () =>
-            deliverRetroSkill(
-              store,
-              readGitHubPolicyOrNull(this.workspaceRoot),
-              change,
-            ),
-          ),
-        // A rule from repeated corrections is one leaf too (R78.3).
-        rule: async (change) =>
-          withWorkLock(store, WORKSPACE_LOCK, async () =>
-            deliverRetroRule(
-              store,
-              readGitHubPolicyOrNull(this.workspaceRoot),
-              change,
-            ),
-          ),
         apply: async (proposal, expectedHash) => {
           if (proposal.key.startsWith("delivery."))
             return settings.updateDeliveryKey({
@@ -337,18 +260,8 @@ export const entries = [
         },
         draft: async (proposal) =>
           createPlan(store, {
-            // A CI change names its workflow file (§4.30): one new task.
-            prompt: `Retro ${input.retroId} proposal for spec ${proposal.spec}: ${proposal.change}${proposal.workflow ? `\n\nOne new task in ${proposal.repository} that changes ${proposal.workflow}.` : ""}\n\nWhy: ${proposal.evidence}`,
-            context: {
-              retro: input.retroId,
-              spec: proposal.spec,
-              ...(proposal.workflow
-                ? {
-                    repository: proposal.repository,
-                    workflow: proposal.workflow,
-                  }
-                : {}),
-            },
+            prompt: `Retro ${input.retroId} proposal for spec ${proposal.spec}: ${proposal.change}\n\nWhy: ${proposal.evidence}`,
+            context: { retro: input.retroId, spec: proposal.spec },
           }).id,
       });
     },

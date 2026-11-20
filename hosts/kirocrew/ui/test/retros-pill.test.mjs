@@ -1,5 +1,5 @@
-// The Retros pill (Retros and Proposals pages, linked both ways) and Flow's
-// nav filters, in the real app shell in a real Chrome; the sort and chip
+// The Retros pill (one page, each retro with its proposals) and Flow's nav
+// filters, in the real app shell in a real Chrome; the sort and chip
 // logic is checked without one. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -72,10 +72,10 @@ test('Flow keeps its charts and draws its filters as nav rows and chips, with no
   assert.match(source('App.tsx'), /t\.key === 'flow'/)
 })
 
-test('the Retros pill sits after Flow, lists two pages', () => {
+test('the Retros pill sits after Flow and is one page', () => {
   const app = source('App.tsx')
-  assert.match(app, /retros: RETROS_PAGES/)
-  assert.match(app, /<RetrosView\s+workspaceId=\{active\}/)
+  assert.doesNotMatch(app, /RETROS_PAGES|retrosPage/)
+  assert.match(app, /<RetrosView workspaceId=\{active\} \/>/)
   assert.doesNotMatch(source('FlowView.tsx'), /Retros\b.*SectionHeading|tab: FlowTab/)
 })
 
@@ -101,35 +101,26 @@ const open = async () => {
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
 }
 
-test('Retros is a nav pill after Flow with Retros and Proposals pages, linked both ways', { skip }, async () => {
+test('Retros is a nav pill after Flow, one page with each retro and its proposals', { skip }, async () => {
   await open()
   const order = await page.evaluate(`[...document.querySelectorAll('[data-left-nav] [data-nav-section]')].map((s) => s.dataset.navSection)`)
   assert.equal(order.indexOf('retros'), order.indexOf('flow') + 1, order.join())
-  await click('[data-left-nav] [data-nav-group="retros"]')
-  await page.until(`Boolean(document.querySelector('[data-nav-item="retros/proposals"]'))`)
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-nav-children="retros"] [data-nav-item]')].map((b) => b.textContent)`), ['Retros', 'Proposals'])
+  await click('[data-left-nav] [data-nav-item="retros"]')
   // Retros: newest first, each with its scope, time and model and its proposals.
   await page.until(`document.querySelectorAll('[data-retro]').length === 4`)
+  assert.equal(await count('[data-nav-children="retros"] [data-nav-item]'), 0)
   assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-retro]')].map((r) => r.dataset.retro)`), ['retro-4', 'retro-3', 'retro-2', 'retro-1'])
   const facts = await text('[data-retro="retro-2"] [data-retro-facts]')
   assert.match(facts, /Scope\s*acme\/recipe-box/)
   assert.match(facts, /Model\s*claude-sonnet/)
   assert.match(await text('[data-retro="retro-1"] [data-retro-facts]'), /Model\s*not recorded/)
-  assert.equal(await count('[data-retro="retro-2"] [data-retro-proposal]'), 2)
-  // A proposal link opens that proposal on the Proposals page, marked.
-  await click('[data-retro-proposal="retro-2:p2"] button')
-  await page.until(`Boolean(document.querySelector('[data-proposal="retro-2:p2"][data-linked]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-nav-item="retros/proposals"]').dataset.selected !== undefined`), true)
-  assert.ok((await count('[data-proposal-retro]')) >= 3)
-  assert.match(await text('[data-proposal="retro-2:p2"]'), /Reject[\s\S]*Approve/)
-  // And back: the proposal's retro link opens its retro, marked.
-  await click('[data-proposal="retro-1:p1"] [data-proposal-retro]')
-  await page.until(`Boolean(document.querySelector('[data-retro="retro-1"][data-linked]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-nav-item="retros/retros"]').dataset.selected !== undefined`), true)
+  assert.equal(await count('[data-retro="retro-2"] [data-proposal]'), 2)
+  assert.match(await text('[data-retro="retro-2"] [data-proposal="p2"]'), /Split search\.4[\s\S]*Reject[\s\S]*Approve/)
+  assert.match(await text('[data-retro="retro-1"] [data-proposal="p1"]'), /Approved/)
   // Flow no longer has them.
   await click('[data-left-nav] [data-nav-group="flow"]')
   await page.until(`Boolean(document.querySelector('[data-flow-cards]'))`)
-  assert.equal(await count('[data-retro], [data-flow-proposals]'), 0)
+  assert.equal(await count('[data-retro], [data-proposal]'), 0)
 })
 
 test('Flow nav filters change the charts, and By week still works', { skip }, async () => {
@@ -172,18 +163,12 @@ test('Flow nav filters change the charts, and By week still works', { skip }, as
   assert.equal(await page.evaluate(`document.querySelector('[role="radiogroup"] [aria-checked="true"]').textContent`), 'By week')
 })
 
-test('Retros show why a retro failed, link its chat, and offer Run again; an old retro says none was recorded', { skip }, async () => {
+test('Retros show why a retro failed and offer Run again', { skip }, async () => {
   await open()
-  await click('[data-left-nav] [data-nav-group="retros"]')
+  await click('[data-left-nav] [data-nav-item="retros"]')
   await page.until(`document.querySelectorAll('[data-retro]').length === 4`)
   assert.equal(await page.evaluate(`document.querySelector('[data-retro="retro-3"] [data-retro-failed]').dataset.retroFailed`), 'lost')
   assert.match(await text('[data-retro="retro-3"] [data-retro-failed]'), /the chat was lost: Kiro Crew no longer lists it \(waited 11 minutes\)[\s\S]*Run again/)
-  assert.equal(await page.evaluate(`document.querySelector('[data-retro="retro-3"] [data-retro-chat] a').getAttribute('href')`), '/chat?sid=avoozl_retro_3')
-  assert.match(await text('[data-retro="retro-2"] [data-retro-chat]'), /Open chat/)
-  // A process retro shows its log tail and the attach command.
-  assert.match(await text('[data-retro="retro-4"] [data-retro-log]'), /the model call was cut off/)
-  assert.ok(await count('[data-retro="retro-4"] [data-copy-attach]'))
-  assert.equal((await text('[data-retro="retro-1"] [data-retro-chat]')).trim(), 'No chat was recorded for this retro.')
   assert.equal(await count('[data-retro="retro-2"] [data-retro-failed]'), 0)
 })
 

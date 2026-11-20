@@ -54,18 +54,3 @@ A role that runs as a process harness (Claude Code, Codex, or another
 harness chosen in Settings > Models) has no agent file. Its brief starts with
 the same prompt file (`processBrief` in `src/app/executors/process.mjs`),
 then the task's brief, then how to finish.
-
-## Changing a prompt from a retro
-
-A retro can propose a change to one section of `worker.md`, `review.md`,
-`planner.md` or `retro.md`, or to the spec steering text. The proposal is a diff
-against the shipped section. A person approves or rejects it on the Retros page.
-Approval does not touch these files: it writes an override version to a file in
-this machine's Avoozl config folder (`prompts/<workspace id>.json`), and
-sessions use the active override for that section. Sections that guard the owner
-(`untrusted-data`, `content-rules`, `who-counts`, `acceptance`, `person-only`)
-are locked and always use the shipped text. A person can revert an override in
-one step. When an update changes a section that has an override, Avoozl shows a
-three-way diff and a rebased proposal, and keeps the override until a person
-approves the rebase. To change the shipped text for everyone, edit the file here
-and run `npm run build:hosts`.

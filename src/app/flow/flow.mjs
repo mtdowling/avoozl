@@ -1,4 +1,3 @@
-import { syncPlanningSpans, planningFlowView } from "./planning-flow.mjs";
 // Flow (design §4.11, Requirements 43–48): where each task's time goes, and
 // the settings the flow rules read. Timing is always on; there is no setting
 // for it. A span is one stretch of one attempt in one stage, and names the
@@ -56,13 +55,6 @@ export const FLOW_DEFAULTS = Object.freeze({
   stopTheLine: Object.freeze({ scope: "dependents" }),
   localChecksFirst: true,
   retro: Object.freeze({ everyTasks: 10, slowFactor: 3 }),
-  // Steady CI waste (§4.30, R100.3). `ci.classes` is checked on its own.
-  ci: Object.freeze({
-    windowDays: 7,
-    docsOnlyMinutes: 60,
-    waitShare: 0.4,
-    minPullRequests: 5,
-  }),
   // Verify (§4.26, R86.6, R86.7): protected paths beyond the built-in ones,
   // and each check's timeout.
   verify: Object.freeze({
@@ -71,15 +63,6 @@ export const FLOW_DEFAULTS = Object.freeze({
     checkTimeouts: Object.freeze({}),
   }),
 });
-// The file classes of a pull request's changed paths (§4.30, R100.1).
-export const CI_CLASSES = Object.freeze([
-  "code",
-  "tests",
-  "spec",
-  "docs",
-  "ci",
-  "other",
-]);
 export const SCOPES = Object.freeze(["dependents", "repo", "all"]);
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -95,15 +78,6 @@ export const FLOW_KEYS = Object.freeze({
   "retro.slowFactor": (v) =>
     (typeof v === "number" && Number.isFinite(v) && v >= 1.1 && v <= 20) ||
     "a number 1.1–20",
-  "ci.windowDays": (v) =>
-    (Number.isInteger(v) && v >= 1 && v <= 90) || "a whole number 1–90",
-  "ci.docsOnlyMinutes": (v) =>
-    (Number.isInteger(v) && v >= 1 && v <= 100000) || "a whole number 1–100000",
-  "ci.waitShare": (v) =>
-    (typeof v === "number" && Number.isFinite(v) && v >= 0.05 && v <= 1) ||
-    "a number 0.05–1",
-  "ci.minPullRequests": (v) =>
-    (Number.isInteger(v) && v >= 1 && v <= 1000) || "a whole number 1–1000",
   "verify.checkTimeoutSeconds": (v) =>
     (Number.isInteger(v) && v >= 1 && v <= 86400) || "a whole number 1–86400",
 });
@@ -133,25 +107,8 @@ const VERIFY_LISTS = new Set(["protectedPaths", "checkTimeouts"]);
 // checked on their own. A test holds src/avoozl-config.schema.json to this list.
 export const FLOW_PATHS = Object.freeze([
   ...Object.keys(FLOW_KEYS),
-  "ci.classes",
   ...[...VERIFY_LISTS].map((key) => `verify.${key}`),
 ]);
-
-// `ci.classes`: a class name to at most 50 globs (§4.30).
-function classesProblem(value) {
-  if (!record(value)) return "an object of class names to lists of globs";
-  for (const [name, globs] of Object.entries(value)) {
-    if (!CI_CLASSES.includes(name) || name === "code")
-      return `keyed by ${CI_CLASSES.filter((c) => c !== "code").join(", ")}`;
-    if (
-      !Array.isArray(globs) ||
-      globs.length > 50 ||
-      !globs.every((g) => typeof g === "string" && g && g.length <= 200)
-    )
-      return "lists of at most 50 globs";
-  }
-  return null;
-}
 
 // Check one `flow` object (the workspace's or one repository's) and return
 // it with only the keys it sets. Throws naming the key, so the tick keeps its
@@ -159,7 +116,7 @@ function classesProblem(value) {
 export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
-  const groups = { stopTheLine: 1, retro: 1, ci: 1, verify: 1 };
+  const groups = { stopTheLine: 1, retro: 1, verify: 1 };
   for (const key of Object.keys(value)) {
     if (key === "localChecksFirst") continue;
     if (!(key in groups)) throw Error(`${where}.${key} is not a flow setting.`);
@@ -169,11 +126,6 @@ export function flowSection(value, where = "flow") {
         throw Error(
           `${where}.retro.instructions is saved on this machine only; remove it from .avoozl.json and set it in Settings > Flow.`,
         );
-      if (key === "ci" && inner === "classes") {
-        const problem = classesProblem(value.ci.classes);
-        if (problem) throw Error(`${where}.ci.classes must be ${problem}.`);
-        continue;
-      }
       if (key === "verify" && VERIFY_LISTS.has(inner)) {
         const problem = verifyProblem(inner, value.verify[inner]);
         if (problem)
@@ -209,11 +161,7 @@ function merged(...layers) {
       if (inner) out[group] = { ...out[group], [inner]: v };
       else out[group] = v;
     }
-  // A class's list replaces the default's; a repository's wins (R100.1).
   for (const layer of layers) {
-    const classes = readKey(layer, "ci.classes");
-    if (record(classes))
-      out.ci = { ...out.ci, classes: { ...out.ci.classes, ...classes } };
     // A repository adds protected paths; it never removes the workspace's.
     const guarded = readKey(layer, "verify.protectedPaths"),
       timeouts = readKey(layer, "verify.checkTimeouts");
@@ -537,7 +485,6 @@ export function readyAt(store, data, task, attempt, memo = {}) {
 // that ends them. Writes only what changed; an open span stays open across a
 // restart and closes here at its ending event (R43.8).
 export function syncSpans(store, { now = Date.now() } = {}) {
-  syncPlanningSpans(store);
   const at = new Date(now).toISOString(),
     bindings = listSessionBindings(store),
     spans = listSpans(store),
@@ -806,18 +753,6 @@ export function finishedAt(task) {
   );
 }
 
-// Fix work (§4.11, R79.1): a bugfix spec's task, a manifest `type: fix`, a
-// stop-the-line fix task, or a GitHub issue of type Bug.
-export function isFixWork(task) {
-  return Boolean(
-    task &&
-      (task.specType === "bugfix" ||
-        task.type === "fix" ||
-        task.flowFix ||
-        String(task.github?.issueType || "").toLowerCase() === "bug"),
-  );
-}
-
 // One task's timing: lead time, time per stage, sources, and whether any of
 // it is coarse (not from tool calls or GitHub timestamps).
 export function taskTiming(
@@ -856,7 +791,6 @@ export function taskTiming(
     stages,
     coarse: workerSpans.some((s) => s.source !== "tool-calls"),
     sources: [...new Set(own.map((s) => s.source))],
-    fix: isFixWork(task),
     // A manual leaf's time is a person's: first-pass rate skips it.
     manual: task.manual === true,
     firstPass:
@@ -885,7 +819,6 @@ function windowMetrics(timings, stops, culprits, size) {
       firstPassRate: null,
       changeFailureRate: null,
       integrationsPerDay: null,
-      fixWork: { fixes: 0, finished: 0, share: null },
     };
   const lead = timings.reduce((s, t) => s + t.leadMs, 0),
     active = timings.reduce((s, t) => s + t.activeMs, 0),
@@ -900,12 +833,6 @@ function windowMetrics(timings, stops, culprits, size) {
     changeFailureRate:
       timings.filter((t) => culprits.has(t.taskId)).length / finished,
     integrationsPerDay: finished / days,
-    // Fix tasks over finished tasks (R79.2).
-    fixWork: {
-      fixes: timings.filter((t) => t.fix).length,
-      finished,
-      share: timings.filter((t) => t.fix).length / finished,
-    },
   };
 }
 
@@ -1017,11 +944,6 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
       );
     },
     metrics = windowMetrics(current, stops, culprits, size),
-    taskIds = new Set(tasks.map((t) => t.id)),
-    filtered = input.repository || input.epic || input.plan || input.phase,
-    corrections = listOr(store, "corrections").filter(
-      (c) => !filtered || taskIds.has(c.taskId),
-    ),
     before = windowMetrics(previous, stops, culprits, size),
     records = listOr(store, "flow_records");
   // Time to fix skips a stop a manual leaf caused (R61.15).
@@ -1036,7 +958,6 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     input.stage ? timings.filter((t) => t.stages[input.stage] > 0) : timings
   ).sort((a, b) => ((b.startedAt || "") < (a.startedAt || "") ? -1 : 1));
   return {
-    planning: planningFlowView(store, input, { now }),
     window: { size, since },
     metrics,
     previous: before,
@@ -1046,15 +967,8 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     flaky: records.filter((r) => r.kind === "flaky"),
     ciOnly: records.filter((r) => r.kind === "ci-only"),
     series: {
-      day: flowSeries(timings, stops, "day", corrections),
-      week: flowSeries(timings, stops, "week", corrections),
-    },
-    // Corrections (§4.24, R78.5), with the same filters.
-    corrections: {
-      lastWeek: corrections.filter(
-        (c) => now - Date.parse(c.at) <= 7 * 86_400_000,
-      ).length,
-      total: corrections.length,
+      day: flowSeries(timings, stops, "day"),
+      week: flowSeries(timings, stops, "week"),
     },
     retros: listOr(store, "flow_retros").sort((a, b) =>
       a.startedAt < b.startedAt ? 1 : -1,
@@ -1097,7 +1011,7 @@ export function bucketOf(iso, unit) {
   return d.toISOString().slice(0, 10);
 }
 
-function flowSeries(timings, stops, unit = "day", corrections = []) {
+function flowSeries(timings, stops, unit = "day") {
   const buckets = new Map(),
     get = (key) => {
       if (!buckets.has(key))
@@ -1106,13 +1020,9 @@ function flowSeries(timings, stops, unit = "day", corrections = []) {
           tasks: [],
           fixes: [],
           opened: 0,
-          corrected: 0,
         });
       return buckets.get(key);
     };
-  // Corrections people made, by when (R78.5).
-  for (const c of corrections)
-    if (c.at) get(bucketOf(c.at, unit)).corrected += 1;
   for (const t of timings)
     if (t.finishedAt) get(bucketOf(t.finishedAt, unit)).tasks.push(t);
   for (const s of stops) {
@@ -1122,7 +1032,7 @@ function flowSeries(timings, stops, unit = "day", corrections = []) {
   }
   return [...buckets.values()]
     .sort((a, b) => (a.key < b.key ? -1 : 1))
-    .map(({ key, tasks, fixes, opened, corrected }) => {
+    .map(({ key, tasks, fixes, opened }) => {
       const lead = tasks.reduce((sum, t) => sum + t.leadMs, 0),
         active = tasks.reduce((sum, t) => sum + t.activeMs, 0),
         stages = Object.fromEntries(
@@ -1140,12 +1050,6 @@ function flowSeries(timings, stops, unit = "day", corrections = []) {
         timeToFixMs: median(fixes),
         // Line stops opened in the bucket, automatic and pulled (R64.11).
         stops: opened,
-        // The share of finished tasks that were fix work (R79.2).
-        fixShare: tasks.length
-          ? tasks.filter((t) => t.fix).length / tasks.length
-          : null,
-        fixes: tasks.filter((t) => t.fix).length,
-        corrections: corrected,
         stages,
       };
     });

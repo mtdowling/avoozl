@@ -152,15 +152,6 @@ test('unknown-writer Review anyway queues a person choice without blocking appro
   assert.equal(await page.evaluate(`document.querySelector('[data-approve-spec-go]').disabled`), false)
   assert.match(await page.evaluate('document.body.textContent'), /Review queued for this revision/)
 })
-test('Planning groups show spec, role, model, time and usage on a phone', { skip }, async () => {
-  await page.open(harness.url({ mode: 'planning' }), { width: 390, height: 900 })
-  await page.until(`Boolean(document.querySelector('[data-planning-flow]'))`)
-  const text = await page.evaluate('document.body.textContent')
-  for (const value of ['Planning', 'synthetic-spec', 'Reviewer', 'Planner answer', 'fake-reviewer', 'fake-writer', '10 input / 5 output tokens', '2 credits'])
-    assert.ok(text.includes(value), value)
-  assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
-  assert.deepEqual(page.errors, [])
-})
 
 test('a running review shows the purple working box, announced politely and still under reduced motion', { skip }, async () => {
   for (const [width, dark] of [

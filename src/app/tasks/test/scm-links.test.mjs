@@ -103,30 +103,19 @@ function seed(t) {
     checks: [{ command: "test", exitCode: 0 }],
     finishedAt: iso(30),
   });
-  store.put("pr_ci", {
-    id: "example/code#11",
-    repository: "example/code",
-    number: 11,
-    taskId: "open",
-    branch: "avoozl/open",
-    headSha: sha("a"),
-    lastSeen: iso(5),
-    closedAt: null,
+  store.put("landing_queue", {
+    id: "code\0main\0open",
+    repositoryId: "code",
+    base: "main",
+    key: "open",
+    commit: sha("a"),
+    tasks: [{ task: "open" }],
+    pr: 11,
+    seq: 2,
+    state: "queued",
+    checks: [{ command: "test", exitCode: 0 }],
+    finishedAt: iso(5),
   });
-  for (const [runId, workflow, attempt, conclusion] of [
-    [1, "ci", 1, "failure"],
-    [2, "ci", 2, "success"],
-    [3, "lint", 1, "success"],
-  ])
-    store.put("ci_runs", {
-      id: `example/code:${runId}`,
-      repository: "example/code",
-      runId,
-      workflow,
-      attempt,
-      headSha: sha("a"),
-      conclusion,
-    });
   return { root, store };
 }
 
@@ -147,7 +136,7 @@ test("link sets come from stored records with URLs built from validated fields",
   });
   assert.equal(open.pr.url, "https://github.com/example/code/pull/11");
   assert.equal(open.pr.state, "open");
-  // The retried ci attempt passed; check state carries its head and age.
+  // Check state carries its head and age.
   assert.equal(open.checks.state, "pass");
   assert.equal(open.checks.head, sha("a"));
   assert.equal(open.checks.ageMs, 5 * 60000);

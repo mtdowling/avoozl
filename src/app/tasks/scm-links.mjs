@@ -7,9 +7,9 @@
 // - Sources: the spec issue and journal receipts (56.2), the spec working
 //   branch a task was prepared from (56.3, 41.5), the task branch and
 //   worktree (40.4), the task pull request and its check state from the
-//   landing queue (41.2, 42.6) and the stored pull request read (pr_ci and
-//   ci_runs), the landed commit from delivery records, and the intake and
-//   escalation issues a spec or task came from (56.8, 56.14).
+//   landing queue (41.2, 42.6), the landed commit from delivery records,
+//   and the intake and escalation issues a spec or task came from (56.8,
+//   56.14).
 // - A URL is built only from a validated owner/name, number, branch name
 //   or 40-character SHA, never from a URL stored from issue or comment
 //   content. A field that fails validation counts as missing.
@@ -23,7 +23,6 @@ import { branchNameProblem } from "../epics/integration-branch.mjs";
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const HOST = /^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/;
-const PASS = new Set(["success", "neutral", "skipped"]);
 const DEFAULT_HOST = "https://github.com";
 
 const lower = (value) => String(value ?? "").toLowerCase();
@@ -125,8 +124,6 @@ function records(store, data = store.read()) {
       ]),
     ),
     landing: listOr(store, "landing_queue"),
-    pulls: listOr(store, "pr_ci"),
-    runs: listOr(store, "ci_runs"),
   };
 }
 
@@ -149,39 +146,6 @@ function verdict(conclusions) {
   return "pass";
 }
 
-// Check state from the stored pull request read: the newest attempt of each
-// workflow on the row's head commit, read at the row's last sighting.
-function ciChecks(rows, pull) {
-  const head = shaOf(pull?.headSha);
-  if (!head) return null;
-  const latest = new Map();
-  for (const run of rows.runs) {
-    if (lower(run.repository) !== lower(pull.repository)) continue;
-    if (run.headSha !== head) continue;
-    const key = run.workflow ?? run.runId,
-      before = latest.get(key);
-    if (
-      !before ||
-      (run.attempt ?? 1) > (before.attempt ?? 1) ||
-      ((run.attempt ?? 1) === (before.attempt ?? 1) &&
-        (run.runId ?? 0) > (before.runId ?? 0))
-    )
-      latest.set(key, run);
-  }
-  const state = verdict(
-    [...latest.values()].map((run) =>
-      run.conclusion == null
-        ? "pending"
-        : PASS.has(run.conclusion)
-          ? "pass"
-          : "fail",
-    ),
-  );
-  return state
-    ? { state, head, readAt: pull.lastSeen ?? null, source: "pull-request" }
-    : null;
-}
-
 // Check state the landing queue recorded when a portion finished.
 function landingChecks(entry) {
   const head = shaOf(entry?.commit);
@@ -194,12 +158,9 @@ function landingChecks(entry) {
     : null;
 }
 
-// The newer of the two check reads, with its age and whether it is for the
+// The landing queue's check read, with its age and whether it is for the
 // task's current commit.
-function checkState(candidates, currentHead, now) {
-  const found = candidates
-    .filter(Boolean)
-    .sort((a, b) => (ms(b.readAt) ?? 0) - (ms(a.readAt) ?? 0))[0];
+function checkState(found, currentHead, now) {
   if (!found) return null;
   const read = ms(found.readAt),
     current = Boolean(currentHead) && found.head === currentHead;
@@ -212,41 +173,22 @@ function checkState(candidates, currentHead, now) {
   };
 }
 
-// The pull request a task has: by number from delivery, integration or the
-// landing queue, else the newest stored pull request read owned by it.
-function pullOf(rows, task, delivery, entry, repository) {
-  const number =
-      numberOf(delivery?.pr) ??
-      numberOf(task.integration?.pr) ??
-      numberOf(entry?.pr) ??
-      null,
-    owned = rows.pulls
-      .filter(
-        (row) =>
-          (number ? row.number === number : row.taskId === task.id) &&
-          (!repository || lower(row.repository) === lower(repository)),
-      )
-      .sort((a, b) => b.number - a.number)[0];
-  const n = number ?? numberOf(owned?.number),
-    where = repository ?? repositoryOf(owned?.repository);
-  if (!n || !where) return null;
+// The pull request a task has, by number from delivery, integration or the
+// landing queue.
+function pullOf(task, delivery, entry, repository) {
+  const n =
+    numberOf(delivery?.pr) ??
+    numberOf(task.integration?.pr) ??
+    numberOf(entry?.pr) ??
+    null;
+  if (!n || !repository) return null;
   const merged =
-    owned?.mergedAt ||
     entry?.state === "landed" ||
     (delivery?.state === "integrated" && numberOf(delivery?.pr) === n);
   return {
     number: n,
-    repository: where,
-    row: owned ?? null,
-    state: merged
-      ? "merged"
-      : owned
-        ? owned.closedAt
-          ? "closed"
-          : "open"
-        : entry?.state === "queued"
-          ? "open"
-          : "unknown",
+    repository,
+    state: merged ? "merged" : entry?.state === "queued" ? "open" : "unknown",
   };
 }
 
@@ -261,16 +203,12 @@ function taskSet(rows, links, task, now) {
       null,
     branchRef = refOf(worktree?.branch),
     currentHead = shaOf(delivery?.commit),
-    pull = pullOf(rows, task, delivery, entry, repository),
+    pull = pullOf(task, delivery, entry, repository),
     landedSha =
       (delivery?.state === "integrated" && shaOf(delivery.integratedCommit)) ||
       shaOf(task.integration?.commit) ||
       null,
-    checks = checkState(
-      [pull?.row ? ciChecks(rows, pull.row) : null, landingChecks(entry)],
-      currentHead,
-      now,
-    );
+    checks = checkState(landingChecks(entry), currentHead, now);
   return {
     task: task.id,
     planId: task.planId ?? null,

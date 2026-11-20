@@ -203,8 +203,7 @@ export function recordChange<T>(nav: Nav, kind: StepKind, key: string, label: st
 export interface Place<Tab extends string = string, Section extends string = string, Drill = unknown> {
   tab: Tab
   settingsTab: Section
-  // The sub-pages the nav shows for Retros and Needs you.
-  retrosPage?: string
+  // The sub-page the nav shows for Needs you.
   waitingSection?: string
   focus: string | null
   drill: Drill | null
@@ -224,7 +223,7 @@ export function changePage<P extends Place>(
   open: Record<string, unknown> = {},
 ): void {
   const newTab = next.tab !== undefined && next.tab !== here.tab
-  const newSection = (['settingsTab', 'retrosPage', 'waitingSection'] as const).some((key) => next[key] !== undefined && next[key] !== here[key])
+  const newSection = (['settingsTab', 'waitingSection'] as const).some((key) => next[key] !== undefined && next[key] !== here[key])
   if (newTab || newSection) {
     const top = nav.scrollTop()
     const saved = newTab ? nav.takeMemory() : null

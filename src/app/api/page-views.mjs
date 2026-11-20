@@ -3,7 +3,6 @@
 // `observe`. Old or read-only workspaces may lack newer tables; those read as
 // empty rather than failing the view.
 import { tickFailedItems } from "../tick/tick-activity.mjs";
-import { providerOutItems } from "../flow/provider-health.mjs";
 import { investigationItems } from "../delivery/investigate.mjs";
 import { queryTasks, reviewSettled, statusComplete } from "../../model.mjs";
 import {
@@ -1009,8 +1008,6 @@ export function conflictsView(store, data) {
     const task = item.taskId ? byId.get(item.taskId) : null;
     items.push({ ...item, ...(task ? ownership(task) : {}) });
   }
-  // A provider or model that is out (§4.20, R72.16): one item per mark.
-  items.push(...providerOutItems(store));
   // The tick failed three times in a row.
   items.push(...tickFailedItems(store));
   // Findings the gate did not pass (§4.21, R75.4).

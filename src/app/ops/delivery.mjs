@@ -1,5 +1,5 @@
 // Operations of one feature: name, class, MCP policy and handler.
-import { readyCandidates, retryDelivery } from "../delivery/delivery.mjs";
+import { retryDelivery } from "../delivery/delivery.mjs";
 import { integrateRun } from "../git/git.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import {
@@ -15,14 +15,6 @@ import { manualTake } from "../workers/manual-take.mjs";
 import { deliverNotifications } from "../tick/notifications.mjs";
 import { stampPrompts } from "../api/operation-support.mjs";
 import { deliveryView } from "../api/page-views.mjs";
-import {
-  clearMark,
-  providersView,
-  queueSwitch,
-  switchDryRun,
-  switchPreview,
-  updateProviders,
-} from "../flow/provider-health.mjs";
 import { reportDone, runnerStatus } from "../workers/remote-runner.mjs";
 import { claimNext, nextView } from "../workers/runner.mjs";
 import { fail } from "../store/store.mjs";
@@ -137,90 +129,6 @@ export const entries = [
       return { released: true };
     },
   },
-  // Provider health and model switches (§4.20, R72). The writes are a
-  // person's: mcp-policy.mjs refuses them for MCP, the backend for tokens.
-  {
-    name: "providers.view",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({}) {
-      const store = this.store;
-      return providersView(store, this.providerOptions());
-    },
-  },
-
-  {
-    name: "provider.switch.preview",
-    class: "observe",
-    github: "check-in",
-    policy: routed,
-    handler({ input }) {
-      const store = this.store;
-      return switchPreview(store, input, this.providerOptions());
-    },
-  },
-  // Switch model's step 2 (R72.12): what Switch would do, with the ready
-  // tasks Also new tasks moves. Person-only; writes nothing.
-  {
-    name: "provider.switch.dryRun",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person runs a model switch's dry run."),
-    handler({ input }) {
-      const store = this.store;
-
-      const github = readGitHubPolicyOrNull(this.workspaceRoot);
-      let ready = [];
-      // Each ready task with the model its worker would open on.
-      if (input.alsoNewTasks === true)
-        try {
-          const model = readDeliveryPolicy(this.workspaceRoot).delivery?.model;
-          ready = readyCandidates(store, { github }).map((task) => ({
-            taskId: task.id,
-            model: model ?? null,
-          }));
-        } catch {
-          // The dry run still answers; the page says the list is unread.
-          ready = null;
-        }
-      return switchDryRun(store, input, { ...this.providerOptions(), ready });
-    },
-  },
-
-  {
-    name: "provider.switch",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person switches models."),
-    handler({ input }) {
-      const store = this.store;
-      return queueSwitch(store, input, this.providerOptions());
-    },
-  },
-
-  {
-    name: "provider.health.clear",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person undoes a provider mark."),
-    handler({ input }) {
-      const store = this.store;
-      return clearMark(store, input);
-    },
-  },
-
-  {
-    name: "providers.settings.update",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person changes provider settings."),
-    handler({ input }) {
-      const store = this.store;
-      return updateProviders(store, input);
-    },
-  },
-
   {
     name: "delivery.settings.get",
     class: "observe",

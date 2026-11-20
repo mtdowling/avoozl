@@ -67,8 +67,6 @@ export interface Metrics {
   changeFailureRate: number | null
   integrationsPerDay: number | null
   timeToFixMs: number | null
-  // Fix tasks over finished tasks (§4.11, R79). Older backends omit it.
-  fixWork?: { fixes: number; finished: number; share: number | null }
 }
 
 export interface LineStop {
@@ -102,16 +100,9 @@ export interface LineStop {
   sessions?: { slot: string; taskId: string; role: string; attempt: number; stopped: boolean; error?: string; finished?: boolean }[]
 }
 
-// Structured evidence a prompt or skill proposal carries (R68.4).
-export interface ChangeEvidence {
-  runs: string[]
-  value: string | number
-  effect: string
-}
-
 export interface Proposal {
   id: string
-  type: 'settings' | 'plan' | 'prompt' | 'skill' | 'rule'
+  type: 'settings' | 'plan'
   file?: 'workspace' | 'repository'
   repository?: string
   key?: string
@@ -119,73 +110,14 @@ export interface Proposal {
   to?: unknown
   spec?: string
   change?: string
-  // prompt and skill proposals (design §4.18)
-  target?: string
-  section?: string
-  base?: string
-  diff?: string
-  revert?: boolean
-  override?: { n: number; from: string; to: string }
-  leaf?: string
-  note?: SkillNote
-  // a rule from repeated corrections (design §4.24)
-  text?: string
   metric: string
   direction: 'up' | 'down'
-  evidence: string | ChangeEvidence
+  evidence: string
   status: 'open' | 'approved' | 'rejected'
   removesCheck?: boolean
   revertOf?: string
   reason?: string | null
-  pdca?: { before: number | null; after?: number | null; result?: 'helped' | 'no change' | 'worse'; window: number; mixed?: boolean; pendingReason?: string }
-}
-
-export interface SkillNote {
-  plugin: string | null
-  file: string
-  diff: string
-  summary: string
-  at: string
-  sent: false
-}
-
-export interface PromptDrift {
-  section: string
-  old: string
-  new: string
-  override: string
-  rebased: string | null
-  conflict: boolean
-  hash: string | null
-  diffs: { builtIn: string; override: string }
-}
-
-export interface PromptRow {
-  target: string
-  version: string
-  shipped: string
-  active: number
-  versions: { n: number; kind: 'approve' | 'revert' | 'rebase'; section?: string; by: string; at: string }[]
-  sections: { name: string; locked: string | null; override: boolean; sha256: string }[]
-  drift: PromptDrift[]
-}
-
-export interface ProposalsModel {
-  proposals: (Proposal & { retro: string })[]
-  dropped: { retro: string; index: number | string; key: string | null; type?: string; reason: string }[]
-  prompts: PromptRow[]
-  notes: (SkillNote & { retro: string; proposal: string; target: string })[]
-  available: boolean
-}
-
-export interface RetroChat {
-  slot: string
-  executor: string
-  harness: string | null
-  status: string | null
-  // The Kiro Crew chat; null for a `process` session.
-  link: string | null
-  process?: { state: string; logTail: string | null; attach: string | null }
+  pdca?: { before: number | null; after?: number | null; result?: 'helped' | 'no change' | 'worse'; window: number }
 }
 
 export interface Retro {
@@ -202,24 +134,12 @@ export interface Retro {
   // timed out; and how long it waited.
   failure?: 'never-started' | 'lost' | 'no-reply' | 'timeout'
   waitedMs?: number
-  // The chat the retro ran in; null when none was recorded (older retros).
-  chat?: RetroChat | null
   bottleneck: { stage: string; repository: string | null; evidence: string } | null
   proposals: Proposal[]
   dropped: { index: number; key: string | null; reason: string }[]
 }
 
-export interface PlanningTiming {
-  spec: string
-  planId: string
-  durationMs: number
-  usage: { input: number; output: number; credits: number; turns: number }
-  roles: { role: 'plan-review' | 'plan-answer'; model: string | null; durationMs: number; input: number; output: number; credits: number; turns: number }[]
-}
-
 export interface FlowViewModel {
-  ci?: { repositories: RepositoryCi[] }
-  planning?: PlanningTiming[]
   window: { size: number; since: string | null }
   metrics: Metrics
   previous: Metrics
@@ -237,9 +157,6 @@ export interface FlowViewModel {
   plans?: { id: string; title: string }[]
   phases?: { id: string; title: string }[]
   series: { day: SeriesPoint[]; week: SeriesPoint[] }
-  // Corrections people made (§4.24); older backends omit them.
-  corrections?: { lastWeek: number; total: number }
-  usage: UsageView
 }
 
 export interface SeriesPoint {
@@ -249,55 +166,7 @@ export interface SeriesPoint {
   flowEfficiency: number | null
   firstPassRate: number | null
   timeToFixMs: number | null
-  // Fix work and corrections in the bucket (R79.2, R78.5).
-  fixShare?: number | null
-  fixes?: number
-  corrections?: number
   stages: Record<Stage, number>
-}
-
-export interface UsageRow {
-  key: string
-  input: number
-  output: number
-  credits: number
-  turns: number
-}
-
-export interface UsageView {
-  available: boolean
-  total: Omit<UsageRow, 'key'>
-  byTask: UsageRow[]
-  byPlan: UsageRow[]
-  byStage: UsageRow[]
-  byModel: UsageRow[]
-  byDay: UsageRow[]
-  byWeek: UsageRow[]
-}
-
-// "12.3k", "1.2M"; credits keep two decimals.
-export function compact(n: number): string {
-  if (!Number.isFinite(n)) return '–'
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e4) return `${Math.round(n / 1e3)}k`
-  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`
-  return String(Math.round(n))
-}
-export const credits = (n: number) => (n ? n.toFixed(2) : '0')
-
-// The usage card's one message when it has nothing to show, or null.
-export function usageMessage(usage: FlowViewModel['usage']): string | null {
-  if (!usage?.available) return "Not available: Kiro Crew has not reported usage for this workspace's chats yet."
-  if (!usage.total.turns) return 'No turns recorded for these tasks yet.'
-  return null
-}
-
-// One usage row in words: tokens, credits, or both.
-export function usageText(row: Omit<UsageRow, 'key'>): string {
-  const parts = []
-  if (row.input || row.output) parts.push(`${compact(row.input)} in · ${compact(row.output)} out`)
-  if (row.credits) parts.push(`${credits(row.credits)} credits`)
-  return parts.join(' · ') || 'none'
 }
 
 // Kiro Crew's /api/models answer, in any of the shapes its backends give:
@@ -402,10 +271,6 @@ export function flowClient(api: AppApi) {
       run<FlowSettings>(workspaceId, 'flow.settings.update', input),
     models: () => api.get<unknown>('/api/models').then(parseModels),
     saveInstructions: (workspaceId: string, instructions: string) => run<{ instructions: string }>(workspaceId, 'flow.instructions.update', { instructions }),
-    // Proposals and prompt overrides (design §4.18).
-    proposals: (workspaceId: string) => run<ProposalsModel>(workspaceId, 'flow.proposals'),
-    revertPrompt: (workspaceId: string, target: string) => run(workspaceId, 'prompt.override.revert', { target }),
-    rebasePrompt: (workspaceId: string, input: { target: string; section: string; hash: string }) => run(workspaceId, 'prompt.override.rebase', input),
   }
 }
 
@@ -423,10 +288,7 @@ export function duration(ms: number | null | undefined): string {
 
 export const percent = (value: number | null | undefined) => (value === null || value === undefined ? '–' : `${Math.round(value * 100)}%`)
 
-// "33% (1 of 3)", or a dash before any task finished.
-export const fixText = (fix: Metrics['fixWork']) => (fix && fix.share !== null && fix.finished ? `${percent(fix.share)} (${fix.fixes} of ${fix.finished})` : '–')
-
-// The four metric cards (R48.2): value, the previous window's value, and
+// The metric cards (R48.2): value, the previous window's value, and
 // what produces a value when there is none yet.
 export function metricCards(view: FlowViewModel) {
   const m = view.metrics,
@@ -464,22 +326,6 @@ export function metricCards(view: FlowViewModel) {
       empty: m.timeToFixMs === null ? 'No line stop yet.' : null,
       tip: 'From the line stopping to the check passing on the branch again.',
     },
-    {
-      key: 'fix-work',
-      title: 'Fix work',
-      value: fixText(m.fixWork),
-      was: p.tasks ? fixText(p.fixWork) : null,
-      empty: m.fixWork?.share == null ? 'Finish a task to see how much was bug fixes.' : null,
-      tip: 'Finished tasks that were fixes: a bugfix spec, type fix, a stop-the-line fix, or a GitHub Bug.',
-    },
-    {
-      key: 'corrections',
-      title: 'Corrections',
-      value: view.corrections ? `${view.corrections.lastWeek} this week` : '–',
-      was: null,
-      empty: view.corrections ? null : 'No corrections yet.',
-      tip: 'How many times this week a person told an agent it got something wrong: a pull request got changes requested, or a task was sent back or reverted.',
-    },
   ]
 }
 
@@ -505,22 +351,11 @@ export const SOURCE_TEXT = {
 // "flow.retro.everyTasks 10 → 5" or the plan change in words.
 export function proposalText(p: Proposal): string {
   if (p.type === 'plan') return `${p.change} (spec ${p.spec})`
-  if (p.type === 'prompt') return `${p.revert ? 'Revert ' : ''}${p.target}${p.section ? ` § ${p.section}` : ''}`
-  if (p.type === 'skill') return `${p.revert ? 'Revert ' : ''}skill ${p.target}`
-  if (p.type === 'rule') return `rule: ${p.text ?? ''}`
   const where = p.file === 'repository' ? ` in ${p.repository}` : ''
   return `${p.key} ${JSON.stringify(p.from)} → ${JSON.stringify(p.to)}${where}`
 }
 
-export const directionText = (p: Proposal) => (p.type === 'rule' ? 'corrections' : `${p.metric} ${p.direction === 'down' ? '↓' : '↑'}`)
-
-// A proposal's evidence in one line: plain text, or runs, value and effect.
-export function evidenceText(p: Pick<Proposal, 'evidence'>): string {
-  const e = p.evidence
-  if (typeof e === 'string') return e
-  if (!e) return ''
-  return `${e.runs.join(', ')} · now ${e.value} · ${e.effect}`
-}
+export const directionText = (p: Proposal) => `${p.metric} ${p.direction === 'down' ? '↓' : '↑'}`
 
 // A unified diff as lines to color: added, removed, hunk header or context.
 export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hunk' | 'same'; text: string }[] {
@@ -533,18 +368,9 @@ export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hu
 
 export function pdcaText(p: Proposal): string | null {
   if (p.status !== 'approved' || !p.pdca) return null
-  if (!p.pdca.result && p.pdca.pendingReason) return `PDCA: ${p.pdca.pendingReason}`
-  if (!p.pdca.result)
-    return `PDCA: measuring over the next ${p.pdca.window} ${p.metric === 'CI minutes per pull request' || p.metric === 'Build minutes per pull request' ? 'closed pull requests' : 'tasks'}.`
+  if (!p.pdca.result) return `PDCA: measuring over the next ${p.pdca.window} tasks.`
   const verdict = p.pdca.result === 'helped' ? 'helped' : p.pdca.result === 'worse' ? 'worse' : 'did not help'
-  const fmt = (v: number | null | undefined) =>
-    v === null || v === undefined
-      ? '–'
-      : p.metric === 'CI minutes per pull request' || p.metric === 'Build minutes per pull request'
-        ? `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} min`
-        : /rate|efficiency/.test(p.metric)
-          ? percent(v)
-          : duration(v)
+  const fmt = (v: number | null | undefined) => (v === null || v === undefined ? '–' : /rate|efficiency/.test(p.metric) ? percent(v) : duration(v))
   return `PDCA: ${p.metric} ${fmt(p.pdca.before)} → ${fmt(p.pdca.after)}, ${verdict}.`
 }
 
@@ -730,17 +556,6 @@ export interface FlowSection {
   stopTheLine?: { scope?: 'dependents' | 'repo' | 'all' }
   localChecksFirst?: boolean
   retro?: { everyTasks?: number; slowFactor?: number }
-  ci?: { windowDays?: number; docsOnlyMinutes?: number; waitShare?: number; minPullRequests?: number; classes?: Record<string, string[]> }
-}
-
-export interface RepositoryCi {
-  repository: string
-  windowDays: number
-  byClass: Record<string, { task: { minutes: number; pullRequests: number }; other: { minutes: number; pullRequests: number } }>
-  waitShare: number | null
-  waitLimit: number
-  closedPullRequests: number
-  repeats: { workflow: string; commits: number; extraRuns: number; extraMinutes: number }[]
 }
 
 export interface FlowSettings {
@@ -751,8 +566,6 @@ export interface FlowSettings {
   repositories: Record<string, FlowSection>
   instructions: string | null
   retroPrompt: string | null
-  ciClassGlobs?: Record<string, string[]>
-  ciEffective?: { windowDays: number; docsOnlyMinutes: number; waitShare: number; minPullRequests: number }
 }
 
 export const FLOW_DEFAULTS = {
@@ -760,10 +573,6 @@ export const FLOW_DEFAULTS = {
   localChecksFirst: true,
   everyTasks: 10,
   slowFactor: 3,
-  windowDays: 7,
-  docsOnlyMinutes: 60,
-  waitShare: 0.4,
-  minPullRequests: 5,
 } as const
 
 export interface FlowForm {
@@ -771,11 +580,6 @@ export interface FlowForm {
   localChecksFirst: '' | 'on' | 'off'
   everyTasks: string
   slowFactor: string
-  windowDays: string
-  docsOnlyMinutes: string
-  waitShare: string
-  minPullRequests: string
-  ciClasses?: Record<string, string[]>
 }
 
 export function toFlowForm(section: FlowSection = {}): FlowForm {
@@ -784,11 +588,6 @@ export function toFlowForm(section: FlowSection = {}): FlowForm {
     localChecksFirst: section.localChecksFirst === undefined ? '' : section.localChecksFirst ? 'on' : 'off',
     everyTasks: section.retro?.everyTasks === undefined ? '' : String(section.retro.everyTasks),
     slowFactor: section.retro?.slowFactor === undefined ? '' : String(section.retro.slowFactor),
-    windowDays: section.ci?.windowDays === undefined ? '' : String(section.ci.windowDays),
-    docsOnlyMinutes: section.ci?.docsOnlyMinutes === undefined ? '' : String(section.ci.docsOnlyMinutes),
-    waitShare: section.ci?.waitShare === undefined ? '' : String(section.ci.waitShare),
-    minPullRequests: section.ci?.minPullRequests === undefined ? '' : String(section.ci.minPullRequests),
-    ciClasses: section.ci?.classes,
   }
 }
 
@@ -810,19 +609,5 @@ export function toFlowSection(form: FlowForm): { flow?: FlowSection; error?: str
     retro.slowFactor = n
   }
   if (Object.keys(retro).length) flow.retro = retro
-  const ci: NonNullable<FlowSection['ci']> = {}
-  for (const [key, label, min, max, whole] of [
-    ['windowDays', 'CI window days', 1, 90, true],
-    ['docsOnlyMinutes', 'Docs-only CI minutes', 1, 100000, true],
-    ['waitShare', 'CI wait share', 0.05, 1, false],
-    ['minPullRequests', 'Closed pull requests', 1, 1000, true],
-  ] as const) {
-    if (!form[key].trim()) continue
-    const n = Number(form[key])
-    if (!Number.isFinite(n) || (whole && !Number.isInteger(n)) || n < min || n > max) return { error: `${label} must be ${whole ? 'a whole number' : 'a number'} ${min}–${max}.` }
-    ci[key] = n
-  }
-  if (form.ciClasses) ci.classes = form.ciClasses
-  if (Object.keys(ci).length) flow.ci = ci
   return { flow }
 }

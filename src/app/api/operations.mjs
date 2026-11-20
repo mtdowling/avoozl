@@ -298,22 +298,6 @@ export class Operations {
   read() {
     return this.store.read();
   }
-  // What the provider operations need: the clock and each session's review
-  // roles, so a switch never breaks review distinctness (R72.9).
-  providerOptions() {
-    const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
-      tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
-    return {
-      tasks,
-      reviewRoles: (binding) =>
-        policy
-          ? deliveryReviewRoles(
-              policy,
-              taskRepository(tasks.get(binding.taskId)),
-            )
-          : [],
-    };
-  }
   // Settings' plugin list and actions (§4.8, R34.9). Approval is a person's
   // act in Settings or the CLI: an agent session cannot approve a plugin,
   // and no MCP tool offers it.

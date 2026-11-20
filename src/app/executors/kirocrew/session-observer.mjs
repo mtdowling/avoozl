@@ -14,7 +14,6 @@
 // decision (delivery.mjs).
 import { liveAttempt } from "../../delivery/delivery.mjs";
 import { ingestToolRows, toolCallsReadable } from "../../flow/flow.mjs";
-import { ingestProviderErrors } from "../../flow/provider-health.mjs";
 import { recordRetroReply } from "../../flow/flow-retro.mjs";
 import {
   listSessionBindings,
@@ -74,8 +73,6 @@ export async function observeToolRows(store, readRows, { checksFor } = {}) {
       rows += ingestToolRows(store, binding, read.rows, {
         checks: checksFor ? checksFor(binding) : [],
       });
-      // Provider errors (§4.20, R72.3) ride on the same read: no new request.
-      ingestProviderErrors(store, binding, read.rows);
       if (
         read.cursor &&
         JSON.stringify(read.cursor) !== JSON.stringify(store.getMeta(key))
@@ -116,5 +113,4 @@ export {
   gatewaySlotReader,
   gatewaySessionStopper,
   gatewaySlotRows,
-  gatewayUsageTurns,
 } from "../kirocrew.mjs";

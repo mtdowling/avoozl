@@ -12,7 +12,6 @@ import { landDirect } from "../../landing/direct-landing.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { tickedText } from "../spec-ticks.mjs";
 import { checkedItems, specHash } from "../spec-plans.mjs";
-import { observationsForTask } from "../../flow/build-receipt-read.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
@@ -260,18 +259,9 @@ test("a second machine reading origin marks the task done; the landing machine r
   const other = await machine(t, w, "second"),
     done = other.task("t1");
   assert.equal(done.status, "accepted");
-  // The tick commit is the landing commit, and its CI is found by it.
+  // The tick commit is the landing commit.
   assert.equal(done.tickCommit, landing);
   assert.equal(done.built, undefined, "Avoozl writes no Built line");
-  other.store.db
-    .prepare(
-      "INSERT INTO build_observations(repository,head_sha,run_id,attempt,command,target,seq,ms) VALUES ('o/r',?,7,1,'npm test','linux',0,5000)",
-    )
-    .run(landing);
-  assert.deepEqual(
-    observationsForTask(other.store, done).map((o) => o.ms),
-    [5000],
-  );
   assert.equal(other.task("t2").status, "planned");
   assert.ok(
     other.store.db

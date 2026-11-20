@@ -84,7 +84,7 @@ for (const [width, height] of [
         )
         if (left !== null) lefts[section] = left
       }
-      assert.ok(Object.keys(lefts).length >= 4, JSON.stringify(lefts))
+      assert.ok(Object.keys(lefts).length >= 3, JSON.stringify(lefts))
       assert.equal(new Set(Object.values(lefts)).size, 1, `rows start at one x in every section: ${JSON.stringify(lefts)}`)
       // The Needs you count is whole and inside its pill's header.
       const count = await page.evaluate(

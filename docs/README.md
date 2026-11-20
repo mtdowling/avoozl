@@ -49,8 +49,6 @@ itself, and lands it. These pages say how to set it up and how each part works.
   templates.
 - [Epic context](epic-context.md): skills, read folders and MCP servers a
   worker gets on your own approved spec tasks.
-- [Build report format](build-report.md): how a repository says where a build's
-  time went.
 
 ## Maintainers
 

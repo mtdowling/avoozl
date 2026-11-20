@@ -1,37 +1,23 @@
-// The Retros pill (design §4.11, §4.18; moved out of Flow 2026-11-17): two
-// pages the left nav lists. Retros shows every retro, newest first, with its
-// scope, time, model and the proposals it made. Proposals shows every
-// proposal with its diff and evidence, and Approve, Reject, Revert and
-// rebase (FlowMemory.tsx). Each retro links to each of its proposals, and
-// each proposal links back. Writes are the same ones Flow had: Run a retro
-// now, and the decisions. The retro's settings stay in Settings > Flow.
+// The Retros pill (design §4.11, §4.18; moved out of Flow 2026-11-17): every
+// retro, newest first, with its scope, time, model and the settings and plan
+// changes it proposed, each with Approve and Reject (FlowMemory.tsx). Writes
+// are Run a retro now, Run again, and the decisions. The retro's settings
+// stay in Settings > Flow.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { Card } from './ui/Card'
 import { useAppApi } from './host.ts'
 import Badge from './ui/Badge.tsx'
-import { IconLabel, SectionHeading, ViewHeading } from './ui/controls.tsx'
-import { CirclePlus, Play } from './icons.ts'
-import { CopyAttach } from './DashboardView.tsx'
-import { ProposalsView, useScrollTo } from './FlowMemory.tsx'
+import { IconLabel, SectionHeading, ViewHeading, useConfirm } from './ui/controls.tsx'
+import { Play } from './icons.ts'
+import { ProposalCard } from './FlowMemory.tsx'
 import { STAGE_LABELS, flowClient, proposalText, type Proposal, type Retro } from './flow-api.ts'
-import type { RetrosPage } from './nav-api.ts'
 import { relativeTime } from './task-api.ts'
-import { linkHref } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
-import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
-import { PlainButton, PlainLink } from './ui/Plain'
-
-// A retro or proposal another page linked to.
-export interface RetroTarget {
-  page: RetrosPage
-  retro: string
-  proposal?: string
-}
 
 // "retro-3" reads as "Retro 3".
 export const retroName = (retro: Retro) => `Retro ${retro.n}`
@@ -41,78 +27,10 @@ export const retroScope = (retro: Retro) => retro.bottleneck?.repository ?? 'All
 
 const STATE_BADGE = { running: 'info', done: undefined, failed: 'danger' } as const
 
-// The retro's chat: a Kiro Crew link, or for a `process` session the log tail
-// and the attach command (50.1). A retro with no recorded chat says so.
-function RetroChat({ retro }: { retro: Retro }) {
-  const chat = retro.chat
-  if (!chat)
-    return (
-      <Hint size="xs" data-retro-chat="none">
-        No chat was recorded for this retro.
-      </Hint>
-    )
-  const name = retroName(retro)
-  return (
-    <Box as="span" flex flexCol gap="1" size="xs" data-retro-chat={chat.executor}>
-      <Row as="span" gap={3}>
-        {chat.link ? (
-          <PlainLink href={linkHref(chat.link)} css-display="inline-flex" css-align-items="center" css-gap="4" underline aria-label={`Open the chat for ${name}`}>
-            <CirclePlus size={14} aria-hidden="true" />
-            Open chat
-          </PlainLink>
-        ) : chat.process?.attach ? (
-          <CopyAttach command={chat.process.attach} title={name} />
-        ) : (
-          <Hint>No attach command</Hint>
-        )}
-        <Hint>
-          {chat.executor === 'process' ? `process${chat.harness ? ` · ${chat.harness}` : ''}` : 'Kiro Crew chat'}
-          {chat.status ? ` · ${chat.status}` : ''}
-        </Hint>
-      </Row>
-      {chat.executor === 'process' && (
-        <Box
-          data-retro-log
-          as="pre"
-          css-border-color="border"
-          css-max-height="7.5em"
-          css-overflow="auto"
-          css-white-space="pre-wrap"
-          css-overflow-wrap="anywhere"
-          css-font-family="font-mono-ui-monospace-monospace"
-          m0
-          rounded="base"
-          border="all"
-          p="1.5"
-          tabIndex={0}
-          aria-label={`Log tail for ${name}`}
-        >
-          {chat.process?.logTail || 'No output yet.'}
-        </Box>
-      )}
-    </Box>
-  )
-}
-
-function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boolean; onOpen: (proposal: string) => void; again: ReactNode }) {
+function RetroCard({ retro, busy, onDecide, again }: { retro: Retro; busy: boolean; onDecide: (p: Proposal, d: 'approve' | 'reject') => void; again: ReactNode }) {
   const bottleneck = retro.bottleneck ? (STAGE_LABELS[retro.bottleneck.stage as keyof typeof STAGE_LABELS] ?? retro.bottleneck.stage) : null
   return (
-    <Box
-      as="li"
-      css-border-color="border"
-      css-box-shadow={linked ? 'inset-0-0-0-2px-accent' : undefined}
-      css-border-radius={linked ? '6' : undefined}
-      css-padding={linked ? '8' : undefined}
-      flex
-      flexCol
-      gap="1.5"
-      border="t"
-      pt="3"
-      firstBorderT0
-      firstPt0
-      data-retro={retro.id}
-      data-linked={linked || undefined}
-    >
+    <Box as="li" css-border-color="border" flex flexCol gap="1.5" border="t" pt="3" firstBorderT0 firstPt0 data-retro={retro.id}>
       <Box as="span" flex flexWrap items="center" gap="2" size="sm" weight="semibold">
         {retroName(retro)}
         {retro.state !== 'done' && <Badge variant={STATE_BADGE[retro.state]}>{retro.state}</Badge>}
@@ -150,17 +68,11 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
           {again}
         </Box>
       )}
-      <RetroChat retro={retro} />
       {retro.bottleneck && <Hint size="xs">{retro.bottleneck.evidence}</Hint>}
       {retro.proposals.length > 0 ? (
-        <Stack as="ul" gap={1} aria-label={`Proposals from ${retroName(retro)}`}>
-          {retro.proposals.map((p: Proposal) => (
-            <Box key={p.id} as="li" flex flexWrap items="center" gap="2" size="sm" data-retro-proposal={`${retro.id}:${p.id}`}>
-              <PlainButton type="button" css-overflow-wrap="anywhere" minW0 align="left" underline onClick={() => onOpen(p.id)}>
-                {proposalText(p)}
-              </PlainButton>
-              <Badge variant={p.status === 'open' ? 'warning' : undefined}>{p.status}</Badge>
-            </Box>
+        <Stack as="ul" gap={2} aria-label={`Proposals from ${retroName(retro)}`}>
+          {retro.proposals.map((p) => (
+            <ProposalCard key={p.id} proposal={p} busy={busy} onDecide={onDecide} />
           ))}
         </Stack>
       ) : (
@@ -171,124 +83,110 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
   )
 }
 
-function RetrosList({
-  workspaceId,
-  target,
-  onOpen,
-  onSeen,
-}: {
-  workspaceId: string | null
-  target: RetroTarget | null
-  onOpen: (target: RetroTarget) => void
-  onSeen: () => void
-}) {
+export function RetrosView({ workspaceId }: { workspaceId: string | null }) {
   const api = useAppApi()
   const client = useMemo(() => flowClient(api), [api])
+  const confirm = useConfirm()
   const load = useCallback((id: string) => client.view(id, {}), [client])
   const { value: view, error, busy, reload } = useRead(workspaceId, load)
   const [queued, setQueued] = useState(false)
-  const [startError, setStartError] = useState<string | null>(null)
-  useScrollTo(target ? `[data-retro="${target.retro}"]` : null, Boolean(view), onSeen)
-  const start = async () => {
+  const [acting, setActing] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const act = async (run: () => Promise<unknown>, queue = false) => {
     if (!workspaceId) return
+    setActing(true)
+    setMessage(null)
     try {
-      await client.startRetro(workspaceId)
-      setQueued(true)
-      void reload()
+      await run()
+      if (queue) setQueued(true)
+      await reload()
     } catch (caught) {
-      setStartError(errorMessage(caught))
+      setMessage(errorMessage(caught))
+    } finally {
+      setActing(false)
     }
   }
-  const again = async (id: string) => {
-    if (!workspaceId) return
-    try {
-      await client.runRetroAgain(workspaceId, id)
-      setQueued(true)
-      void reload()
-    } catch (caught) {
-      setStartError(errorMessage(caught))
-    }
-  }
+  const decide = (retro: Retro, p: Proposal, decision: 'approve' | 'reject') =>
+    act(async () => {
+      let confirmRemoval = false
+      if (decision === 'approve' && p.removesCheck) {
+        confirmRemoval = await confirm({
+          title: 'Approve removing a check?',
+          body: `${proposalText(p)} removes a review role or a declared check, so fewer things are checked before work lands.`,
+          action: 'Remove the check',
+        })
+        if (!confirmRemoval) return
+      }
+      // Only a settings change is checked against the file's hash.
+      const expectedHash = p.type === 'settings' ? (await client.settings(workspaceId!)).hash : undefined
+      await client.decide(workspaceId!, {
+        retroId: retro.id,
+        proposalId: p.id,
+        decision,
+        ...(expectedHash ? { expectedHash } : {}),
+        ...(confirmRemoval ? { confirmRemoval: true } : {}),
+      })
+    })
   const retros = view?.retros ?? []
   const running = retros.some((r) => r.state === 'running')
   return (
-    <Card flex flexCol gap="3" data-retros-list>
-      <SectionHeading
-        title="All retros"
-        actions={
-          <IconLabel icon={Play} disabled={running || queued} tooltip="Start a retro at the next tick instead of waiting for its trigger" onClick={() => void start()}>
-            {queued ? 'Starts at the next tick' : 'Run a retro now'}
-          </IconLabel>
-        }
-      />
-      {(error || startError) && (
-        <ErrorText role="alert" size="sm">
-          {error ?? startError}
-        </ErrorText>
-      )}
-      {!view ? (
-        <Hint as="p" size="sm">
-          {busy ? 'Loading…' : 'Not loaded'}
-        </Hint>
-      ) : !retros.length ? (
-        <Hint as="p" size="sm">
-          A retro runs after 10 finished tasks.
-        </Hint>
-      ) : (
-        <Stack as="ul" gap={3}>
-          {retros.map((retro) => (
-            <RetroCard
-              key={retro.id}
-              retro={retro}
-              linked={target?.retro === retro.id}
-              onOpen={(proposal) => onOpen({ page: 'proposals', retro: retro.id, proposal })}
-              again={
-                <IconLabel
-                  icon={Play}
-                  disabled={running || queued}
-                  tooltip="Queue the same triggers again; a new retro starts at the next tick"
-                  onClick={() => void again(retro.id)}
-                >
-                  Run again
-                </IconLabel>
-              }
-            />
-          ))}
-        </Stack>
-      )}
-    </Card>
-  )
-}
-
-// `page` is picked in the left nav; this shows only that one. `target` is a
-// retro or proposal a link named: the page scrolls to it and marks it.
-export function RetrosView({
-  workspaceId,
-  page,
-  target,
-  onOpen,
-}: {
-  workspaceId: string | null
-  page: RetrosPage
-  target: RetroTarget | null
-  onOpen: (target: RetroTarget | null) => void
-}) {
-  const here = target?.page === page ? target : null
-  return (
     <Box aria-labelledby="avoozl-retros-title" as="section" flex flexCol gap="3.5">
       <ViewHeading id="avoozl-retros-title" view="retros">
-        {page === 'proposals' ? 'Proposals' : 'Retros'}
+        Retros
       </ViewHeading>
       <Hint as="p" size="sm">
-        {page === 'proposals'
-          ? 'What retros proposed to change. Nothing changes until you approve it.'
-          : 'A review that finds the biggest slowdown and proposes changes. Newest first.'}
+        A review that finds the biggest slowdown and proposes settings or spec changes. Nothing changes until you approve it. Newest first.
       </Hint>
-      {page === 'proposals' ? (
-        <ProposalsView workspaceId={workspaceId} target={here} onOpenRetro={(retro) => onOpen({ page: 'retros', retro })} onSeen={() => onOpen(null)} />
-      ) : (
-        <RetrosList workspaceId={workspaceId} target={here} onOpen={(next) => onOpen(next)} onSeen={() => onOpen(null)} />
-      )}
+      <Card flex flexCol gap="3" data-retros-list>
+        <SectionHeading
+          title="All retros"
+          actions={
+            <IconLabel
+              icon={Play}
+              disabled={running || queued}
+              tooltip="Start a retro at the next tick instead of waiting for its trigger"
+              onClick={() => void act(() => client.startRetro(workspaceId!), true)}
+            >
+              {queued ? 'Starts at the next tick' : 'Run a retro now'}
+            </IconLabel>
+          }
+        />
+        {(error || message) && (
+          <ErrorText role="alert" size="sm">
+            {error ?? message}
+          </ErrorText>
+        )}
+        {!view ? (
+          <Hint as="p" size="sm">
+            {busy ? 'Loading…' : 'Not loaded'}
+          </Hint>
+        ) : !retros.length ? (
+          <Hint as="p" size="sm">
+            A retro runs after 10 finished tasks.
+          </Hint>
+        ) : (
+          <Stack as="ul" gap={3}>
+            {retros.map((retro) => (
+              <RetroCard
+                key={retro.id}
+                retro={retro}
+                busy={acting}
+                onDecide={(p, decision) => void decide(retro, p, decision)}
+                again={
+                  <IconLabel
+                    icon={Play}
+                    disabled={running || queued}
+                    tooltip="Queue the same triggers again; a new retro starts at the next tick"
+                    onClick={() => void act(() => client.runRetroAgain(workspaceId!, retro.id), true)}
+                  >
+                    Run again
+                  </IconLabel>
+                }
+              />
+            ))}
+          </Stack>
+        )}
+      </Card>
     </Box>
   )
 }

@@ -59,18 +59,6 @@ const tools = {
         "what waits to land on each base, in landing order, and why each one is held; from stored records, no GitHub call",
       ],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
-      builds: [
-        "builds.view",
-        "build receipts by repository and agent instance, from the store",
-      ],
-      providers: [
-        "providers.view",
-        "provider health marks, switches, and live chats' models",
-      ],
-      switch_preview: [
-        "provider.switch.preview",
-        "the chats a model switch would move; switches nothing",
-      ],
       log: ["workspace.tick.log", "recent tick log"],
       health: ["workspace.tick.health", "tick health"],
       activity: [

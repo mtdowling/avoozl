@@ -143,8 +143,6 @@ function LandingQueueList({ landing }: { landing: { value: LandingView | null; e
   )
 }
 
-const percent = (value: number) => `${Math.round(value * 100)}%`
-
 function CiHealthList({ ci, loading }: { ci: CiHealth; loading: boolean }) {
   if (loading) return <Empty>Loading…</Empty>
   if (!ci.available) return <Empty>CI data is not available from this backend yet.</Empty>
@@ -157,23 +155,6 @@ function CiHealthList({ ci, loading }: { ci: CiHealth; loading: boolean }) {
             : `${ci.flaky} flaky ${ci.flaky === 1 ? 'check' : 'checks'} · ${ci.ciOnly} CI-only ${ci.ciOnly === 1 ? 'failure' : 'failures'}`}
         </span>
       </li>
-      {ci.repositories.length === 0 && (
-        <li data-home-row>
-          <Hint data-home-row-main>No CI runs recorded yet. They fill in as pull requests close.</Hint>
-        </li>
-      )}
-      {ci.repositories.map((row) => (
-        <li key={row.repository} data-home-row data-ci-health={row.repository}>
-          <span data-home-row-main>
-            {row.repository}
-            <span data-home-sub>
-              {row.waitShare === null ? 'CI wait not measured yet' : `CI wait ${percent(row.waitShare)} of lead time`} · limit {percent(row.waitLimit)} · {row.closed} closed ·{' '}
-              {row.repeats} repeat {row.repeats === 1 ? 'run' : 'runs'}
-            </span>
-          </span>
-          <Badge variant={row.waitShare === null ? undefined : row.over ? 'danger' : 'success'}>{row.waitShare === null ? 'No data' : row.over ? 'Over limit' : 'OK'}</Badge>
-        </li>
-      ))}
     </ul>
   )
 }
@@ -570,7 +551,6 @@ export default function DashboardView(props: {
   }
   const attention = summary?.attention ?? []
   const ci = ciHealth(flow.value ?? null)
-  const ciDays = flow.value?.ci?.repositories[0]?.windowDays
   const landed = landedRows(landing.value ?? null, core?.delivery ?? null)
   const stuck = stuckRows(summary ?? null, now, (row) => attemptAction(row.session).href)
 
@@ -642,7 +622,7 @@ export default function DashboardView(props: {
             <LandingQueueList landing={landing} />
           </HomeBox>
         </HomeSection>
-        <HomeSection id="ci-health" title="CI health" hint={ciDays ? `Recorded runs, last ${ciDays} days` : 'Recorded runs'}>
+        <HomeSection id="ci-health" title="CI health" hint="Recorded checks">
           <HomeBox>
             <CiHealthList ci={ci} loading={!flow.value && !flow.error} />
           </HomeBox>

@@ -1,7 +1,6 @@
 import { nativeDispatch } from "./executor-fixture.mjs";
 // Proof P45 (design §4.21–§4.25, Requirements 75–80): investigate first,
-// the evidence bundle, staying current with the base branch, rules from
-// repeated corrections and the fix-work share. Every value is
+// the evidence bundle and staying current with the base branch. Every value is
 // fake: a temporary workspace with a real Git checkout, fake workers and a
 // fake falsifier that report through Operations, and a fake GitHub that
 // answers only the reads it is given; anything else is recorded.
@@ -18,7 +17,6 @@ import {
   rebaseForIntegration,
 } from "../delivery/delivery.mjs";
 import { conflictsView } from "../api/page-views.mjs";
-import { flowView } from "../flow/flow.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -394,33 +392,4 @@ test("P45 (5) local: a conflict when merging the base forward goes back to the w
   assert.equal(delivery.state, "running");
   assert.equal(delivery.landingConflicts.length, 1);
   assert.equal(git(tree.path, "rev-parse", "HEAD"), commit, "nothing merged");
-});
-
-test("P45 (7): the fix-work share counts the bugfix spec's task", async (t) => {
-  const w = local(t, { investigate: { mode: "off" } });
-  await w.tick();
-  for (const id of ["a1", "a2", "f1"])
-    await w.bind(id, "w-" + id, { attempt: 1 });
-  await w.tick();
-  const at = new Date().toISOString();
-  w.store.mutate("Finish three", (data) => {
-    for (const task of data.tasks)
-      if (["a1", "a2", "f1"].includes(task.id))
-        task.integration = { at, commit: "e".repeat(40) };
-  });
-  const view = flowView(w.store, w.store.read());
-  assert.deepEqual(view.metrics.fixWork, {
-    fixes: 1,
-    finished: 3,
-    share: 1 / 3,
-  });
-  assert.equal(view.series.week.at(-1).fixes, 1);
-  // The retro payload carries it (R79.3).
-  const { retroBrief } = await import("../flow/flow-retro.mjs");
-  const brief = retroBrief(w.store, w.store.read(), {
-    id: "retro-x",
-    triggers: [],
-    reverts: [],
-  });
-  assert.match(brief, /"fixWork": \{\n\s*"fixes": 1,\n\s*"finished": 3/);
 });

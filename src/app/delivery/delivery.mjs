@@ -67,7 +67,6 @@ import {
 import { queryTasks, statusComplete } from "../../query.mjs";
 import { rankKeys } from "../specs/ranking.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
-import { recordCorrection } from "../flow/corrections.mjs";
 import {
   falsifierInput,
   findingsInput,
@@ -80,7 +79,6 @@ import {
   TABLE as INVESTIGATIONS,
 } from "./investigate.mjs";
 import { currentPrompts } from "../flow/retro-memory.mjs";
-import { healthContext, modelsOf } from "../flow/provider-health.mjs";
 import {
   blockerNotes,
   completionReached,
@@ -1107,15 +1105,6 @@ export function retryDelivery(
         updatedAt: new Date().toISOString(),
       };
     store.put("task_deliveries", next);
-    if (input.reason)
-      recordCorrection(store, {
-        key: `sent-back:${task.id}:${next.retryFrom}`,
-        taskId: task.id,
-        by: local ? "cli" : "dashboard",
-        kind: "sent-back",
-        summary: input.reason,
-        at,
-      });
     // A session a stock Kiro Crew no longer lists ends here, on the person's
     // word, so the next tick records its attempt and starts a new one.
     for (const binding of listSessionBindings(store))
@@ -1879,7 +1868,6 @@ export function planReadyDispatches(store, policy, options = {}) {
   const resumable = options.resumable ?? (() => true);
   const data = store.read(),
     leaves = readyLeaves(store, policy, options);
-  let health = null;
   return leaves.flatMap((leaf) => {
     const run = workerExecutor(leaf.task, leaf.repository, options.config);
     // Investigate first (R75.5): never where the pair table declines it.
@@ -1905,18 +1893,8 @@ export function planReadyDispatches(store, policy, options = {}) {
       })
     )
       return [];
-    // The kept or delivery model. An out model is never offered (R72.5): a
-    // person's replacement for it is taken, else the task waits and Needs
-    // you says the provider is out.
-    let model = keptModel(store, leaf.task.id, policy);
-    if (model) {
-      health ??= healthContext(store);
-      if (health.level(model) === "out") {
-        const to = health.replacement(model);
-        if (!to || health.level(to) === "out") return [];
-        model = to;
-      }
-    }
+    // The kept or delivery model.
+    const model = keptModel(store, leaf.task.id, policy);
     const agent = keptAgent(store, leaf.task.id, policy);
     return [
       kirocrewRequest(store, {
@@ -2153,11 +2131,8 @@ function servedRefusal(store, delivery, role, reviewer) {
   if (unknownModel(w.model))
     return `the writer's model is ${w.model || "unknown"}, so review ${role.id} cannot be shown to run on a different model`;
   if (unknownModel(r.model)) return `review ${role.id} ran on no named model`;
-  // A chat Avoozl switched is judged by every model it ran on (R72.11).
-  const shared = modelsOf({ ...reviewer, model: r.model }).find((m) =>
-    modelsOf({ ...writer, model: w.model }).includes(m),
-  );
-  if (shared) return `review ${role.id} ran on the writer's model ${shared}`;
+  if (r.model === w.model)
+    return `review ${role.id} ran on the writer's model ${r.model}`;
   return null;
 }
 

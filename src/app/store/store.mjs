@@ -98,6 +98,17 @@ const DROPPED_TABLES = [
   "github_queue_items",
   "github_queue_associations",
   "baseline",
+  "pr_ci",
+  "ci_runs",
+  "provider_health",
+  "provider_switches",
+  "corrections",
+  "receipt_artifacts",
+  "build_observations",
+  "build_breakdowns",
+  "planning_spans",
+  "planning_usage",
+  "flow_usage",
 ];
 
 // The tables of {id, body} rows; the read tables add the three with
@@ -128,15 +139,10 @@ const BODY_TABLES = new Set([
   "flow_stops",
   "flow_retros",
   "pr_feedback",
-  "pr_ci",
-  "ci_runs",
   "incoming_items",
   "intake_sources",
-  "provider_health",
-  "provider_switches",
   "drivers",
   "task_investigations",
-  "corrections",
   "task_notes",
   "landing_queue",
   "github_items",
@@ -303,26 +309,13 @@ export class Store {
    CREATE TABLE IF NOT EXISTS flow_stops(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_retros(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS pr_feedback(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS pr_ci(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS ci_runs(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS receipt_artifacts(repository TEXT NOT NULL,artifact_id INTEGER NOT NULL,head_sha TEXT NOT NULL,run_id INTEGER,name TEXT,kind TEXT NOT NULL,read_at TEXT NOT NULL,lines INTEGER NOT NULL DEFAULT 0,skipped INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(repository,artifact_id,head_sha));
-   CREATE TABLE IF NOT EXISTS build_observations(repository TEXT NOT NULL,pr_number INTEGER,head_sha TEXT NOT NULL,run_id INTEGER NOT NULL,task TEXT NOT NULL DEFAULT '',attempt INTEGER NOT NULL,command TEXT NOT NULL,target TEXT NOT NULL,seq INTEGER NOT NULL,phase TEXT,start TEXT,ms REAL NOT NULL,exit INTEGER,failed INTEGER NOT NULL DEFAULT 0,counters TEXT,issue INTEGER,at TEXT,PRIMARY KEY(repository,head_sha,run_id,task,attempt,command,target,seq));
-   CREATE INDEX IF NOT EXISTS build_observations_pr ON build_observations(repository,pr_number);
-   CREATE TABLE IF NOT EXISTS build_breakdowns(repository TEXT NOT NULL,pr_number INTEGER,head_sha TEXT NOT NULL,run_id INTEGER NOT NULL,artifact_id INTEGER NOT NULL,seq INTEGER NOT NULL,task TEXT,attempt INTEGER,workload TEXT NOT NULL,engine TEXT NOT NULL,target TEXT NOT NULL,toolchain TEXT NOT NULL,cache TEXT NOT NULL,costs TEXT NOT NULL,parts TEXT NOT NULL,counters TEXT,at TEXT NOT NULL,PRIMARY KEY(repository,head_sha,run_id,artifact_id,seq));
-   CREATE INDEX IF NOT EXISTS build_breakdowns_repo ON build_breakdowns(repository,at);
    CREATE TABLE IF NOT EXISTS incoming_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS intake_sources(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS provider_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS provider_switches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS drivers(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS task_investigations(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS corrections(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS task_notes(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS landing_queue(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS planning_spans(id TEXT PRIMARY KEY,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,slot TEXT NOT NULL,role TEXT NOT NULL,model TEXT,started_at TEXT NOT NULL,ended_at TEXT);
-   CREATE TABLE IF NOT EXISTS planning_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,role TEXT NOT NULL,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
-   CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS activity_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,source TEXT NOT NULL,actor TEXT,kind TEXT NOT NULL,summary TEXT NOT NULL,target_id TEXT,link TEXT,redacted INTEGER NOT NULL DEFAULT 0,key TEXT UNIQUE);
    CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log(at);
    ${TELEMETRY_SCHEMA}

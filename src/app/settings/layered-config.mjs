@@ -4,7 +4,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateReportSetting } from "../flow/build-report.mjs";
 import { validateRoles, validatePlanReview } from "./chat-models.mjs";
 import { validateLanes } from "../tick/lanes.mjs";
 import {
@@ -22,10 +21,9 @@ export const avoozlConfigSchemaPath = fileURLToPath(
 // each object the schema closes (additionalProperties false). The machine
 // file is also the host config (host-config.mjs), so it may set the host
 // schema's top-level keys too; host-config.mjs checks what is under them.
-// It also holds two settings only a machine has: Settings > Routing's
-// `providers` (provider-health.mjs) and each content rule set's terms file
-// (`contentRules.terms`, content-rules.mjs); each checks its own value.
-const MACHINE_ONLY = new Set(["providers", "contentRules.terms"]);
+// It also holds a setting only a machine has: each content rule set's terms
+// file (`contentRules.terms`, content-rules.mjs), which checks its own value.
+const MACHINE_ONLY = new Set(["contentRules.terms"]);
 const readSchema = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const SCHEMA = readSchema(avoozlConfigSchemaPath);
 const HOST_KEYS = new Set(
@@ -408,7 +406,6 @@ export function loadLayeredConfig({
     repository: files.repository,
     global: files.global,
   });
-  validateReportSetting(config.receipts?.report);
   return {
     config,
     configWithoutRepository: mergeLayers(

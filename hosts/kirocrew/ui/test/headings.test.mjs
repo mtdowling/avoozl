@@ -62,16 +62,8 @@ test('Specs heading: New spec, then an icon-only Refresh last; New task only in 
   for (const name of views) assert.doesNotMatch(source(name), />\s*Add task\s*</, name)
 })
 
-test('Flow shows Tokens and credits once, with one message when there is nothing', async () => {
-  const charts = source('FlowCharts.tsx')
-  assert.equal(charts.match(/Tokens and credits"/g).length, 1)
-  assert.doesNotMatch(source('FlowView.tsx'), /Tokens and credits/)
-  const { usageMessage } = await import('../src/flow-api.ts')
-  assert.match(usageMessage({ available: false }), /^Not available:/)
-  assert.match(usageMessage(undefined), /^Not available:/)
-  assert.equal(usageMessage({ available: true, total: { turns: 0 } }), 'No turns recorded for these tasks yet.')
-  assert.equal(usageMessage({ available: true, total: { turns: 3 } }), null)
-  assert.match(charts, /\{message \|\| !usage \? \(\s*<Hint as="p" size="sm">\s*\{message\}\s*<\/Hint>/)
+test('Flow shows no Tokens and credits card', () => {
+  assert.doesNotMatch(source('FlowCharts.tsx') + source('FlowView.tsx'), /Tokens and credits/)
 })
 
 test('a Needs you title opens what it is about', () => {
@@ -97,7 +89,7 @@ test('Settings > Flow puts each sub-section in its own titled box', () => {
   const flow = source('FlowSettings.tsx')
   assert.match(flow, /function FlowBox\(\{ children \}[\s\S]*?<Card flex flexCol gap="4" data-flow-box>/)
   const titles = [...flow.matchAll(/<FlowBox>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
-  assert.deepEqual(titles, ['Timing', 'Pause on a broken check', 'Local checks first', 'CI', 'Retro'])
+  assert.deepEqual(titles, ['Timing', 'Pause on a broken check', 'Local checks first', 'Retro'])
   assert.equal(flow.match(/<FlowBox>/g).length, titles.length)
   // Retro: when it runs, then the built-in prompt and your instructions.
   // Its model is under Settings › Models.

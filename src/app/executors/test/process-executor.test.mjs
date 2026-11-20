@@ -27,7 +27,6 @@ import {
   bindingStatus,
   drainProcessRequests,
   finishProcessSession,
-  planQuotaHold,
   processExecutor,
   repositoryExecutor,
   withChildOutput,
@@ -405,83 +404,6 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
   assert.match(errors[0].error, /not a task worktree/);
   assert.equal(run(checkout, "rev-list", "--count", "main"), "1");
   assert.equal(reports.length, 1, "no done at the old HEAD");
-});
-
-// R94.6a: no new session on a harness whose plan quota reads low.
-test("a low plan quota holds new sessions and leaves running ones", async (t) => {
-  const health = (levels) => ({ level: (name) => levels[name] ?? "ok" });
-  assert.equal(
-    planQuotaHold(health({}), { model: null, harness: "claude-code" }),
-    null,
-  );
-  assert.match(
-    planQuotaHold(health({ "claude-code": "low" }), {
-      model: null,
-      harness: "claude-code",
-    }),
-    /claude plan quota reads low/,
-  );
-  assert.match(
-    planQuotaHold(health({ "claude-sonnet": "out" }), {
-      model: "claude-sonnet",
-      harness: "claude-code",
-    }),
-    /reads out/,
-  );
-
-  const { root, stateDirectory, worktree, checkout, supervisor, defer } =
-    machine(t);
-  const store = appStore(
-    { root, defer },
-    {
-      root: checkout,
-      executor: "process",
-      harness: "fake-cli",
-    },
-  );
-  const start = {
-    executor: "process",
-    role: "worker",
-    task: "sample-task",
-    brief: "Do the work.",
-    worktree,
-    permissionClass: "write",
-  };
-  // A running session first, then the quota reads low.
-  enqueueSessionRequests(store, { starts: [start] });
-  await drainProcessRequests(store, {
-    stateDirectory,
-    prepareWorktree: async () => ({ path: worktree }),
-  });
-  const [running] = store.list("session_bindings");
-  assert.ok(running);
-  store.put("provider_health", {
-    id: "usage:key:fake",
-    scope: "key",
-    name: "fake",
-    level: "low",
-    source: "usage",
-    kind: "usage",
-    percent: 85,
-    since: new Date().toISOString(),
-  });
-  enqueueSessionRequests(store, {
-    starts: [{ ...start, role: "verifier", permissionClass: "read" }],
-  });
-  const { errors } = await drainProcessRequests(store, { stateDirectory });
-  assert.deepEqual(errors, []);
-  assert.equal(store.list("session_bindings").length, 1);
-  const held = store
-    .list("session_requests")
-    .find((r) => r.request.role === "verifier");
-  assert.equal(held.state, "canceled");
-  assert.match(held.reason, /fake plan quota reads low/);
-  // The running session goes on and finishes.
-  await until(async () => {
-    supervisor.pass();
-    await drainProcessRequests(store, { stateDirectory });
-    return store.get("session_bindings", running.slot).status === "closed";
-  });
 });
 
 test("the result file: done, blocked, and each bad shape", (t) => {

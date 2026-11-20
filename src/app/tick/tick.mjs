@@ -20,7 +20,6 @@ import { kirocrewSession, kirocrewDispatches } from "../executors/kirocrew.mjs";
 // broad-issue publishing, re-projection and the Project board.
 import { recordActivity, recordTickActivity } from "../store/activity-log.mjs";
 import fs from "node:fs";
-import { refuseTrackedProviders } from "../flow/provider-health.mjs";
 import { crewSnapshot, machineFile } from "./crews.mjs";
 import { validateLanes } from "./lanes.mjs";
 import path from "node:path";
@@ -38,11 +37,6 @@ import {
   watchLine,
 } from "../flow/flow-line.mjs";
 import { retroStep } from "../flow/flow-retro.mjs";
-import {
-  ciRepositories,
-  ciStep,
-  readEffectiveCIConfig,
-} from "../flow/flow-ci.mjs";
 import { queueCheckRuns } from "../delivery/check-runs.mjs";
 import {
   completeParents,
@@ -78,7 +72,6 @@ import { respondStep } from "../github/github-respond.mjs";
 import { refreshOpenItems } from "../github/github-open-read.mjs";
 import { reviewDispatches } from "../reviews/pr-review.mjs";
 import { investigationStep } from "../delivery/investigate.mjs";
-import { revertCorrections } from "../flow/corrections.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -144,7 +137,6 @@ function parsePolicy(text) {
   deliveryPolicy(value);
   flowPolicy(value);
   repositoryPlugins(value);
-  refuseTrackedProviders(value);
   validateContentRules(value.contentRules);
   validateRoles(value);
   validatePlanReview(value.planReview);
@@ -584,11 +576,6 @@ async function runTick(
   try {
     const result = await withWorkLock(store, WORKSPACE_LOCK, async () => {
       const { policy, notify } = await loadPolicy(workspaceRoot, memory);
-      const ciConfig = readEffectiveCIConfig(store, {
-        workspaceRoot,
-        fallback: memory.value || {},
-        persist: cron === true,
-      });
       // A content rule set that is available again settles its decision.
       settleUnavailable(store);
       // Who drives each spec (§6.10): read before anything plans or writes,
@@ -693,9 +680,6 @@ async function runTick(
             ...(await watchLine(store, config)).notify,
           );
         }
-        // A person reverting an integrated agent commit is a correction
-        // (§4.24, R78.1); a repository that cannot be read waits a tick.
-        if (script) await revertCorrections(store).catch(() => []);
         // Dependents are released by readiness below, in this same tick.
         completeParents(store);
       }
@@ -768,30 +752,6 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not read open GitHub items",
-            text: error.message,
-          });
-        }
-      // CI per pull request for the retro (§4.30).
-      if (script)
-        try {
-          const step = await under("tick", "ci-receipts", ciStep)(
-            store,
-            github,
-            {
-              policy: readGitHubPolicyOrNull(workspaceRoot),
-              config: ciConfig,
-            },
-          );
-          for (const { repository, error } of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: `Avoozl could not read CI runs for ${repository}`,
-              text: error,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not count CI time",
             text: error.message,
           });
         }
@@ -907,10 +867,6 @@ async function runTick(
           script && !unobserved.length
             ? retroStep(store, memory.value || {}, {
                 repository: home?.id ?? null,
-                ciConfig,
-                ciRepositories: ciRepositories(
-                  readGitHubPolicyOrNull(workspaceRoot),
-                ),
               })
             : { dispatch: [] };
       // Code review chats a person asked for (pr-review.mjs), cron only.

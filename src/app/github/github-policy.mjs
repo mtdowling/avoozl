@@ -46,7 +46,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "requiredChecks",
     "priorityLabels",
     "waitingLabels",
-    "buildReceipts",
     "discussions",
     "conflicts",
     "landing",
@@ -155,8 +154,6 @@ function repositoryInput(value, id, mode) {
     allowedActors,
     minimumPermission,
     requiredChecks: names(value.requiredChecks, `${label}.requiredChecks`),
-    // The code repository has bin/build-receipt (RC32.8).
-    buildReceipts: value.buildReceipts === true,
     priorityLabels: priority,
     waitingLabels,
     // Deferred features (task 8.2), each off by default.

@@ -72,45 +72,6 @@
         "$ref": "#/$defs/repository"
       }
     },
-    "receipts": {
-      "description": "Read by bin/build-receipt in the code repository: `parser` is a command that reads the build output on standard input and prints a JSON object of numbers; `warmCheck` exits 0 when caches are warm. `report` names where build reports (docs/build-report.md) are: a field of each receipt line, or an artifact name prefix.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "parser": {
-          "type": "string"
-        },
-        "warmCheck": {
-          "type": "string"
-        },
-        "report": {
-          "oneOf": [
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["field"],
-              "properties": {
-                "field": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
-                }
-              }
-            },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["artifact"],
-              "properties": {
-                "artifact": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
-                }
-              }
-            }
-          ]
-        }
-      }
-    },
     "github": {
       "$ref": "#/$defs/github"
     },
@@ -1232,11 +1193,6 @@
             }
           }
         },
-        "buildReceipts": {
-          "description": "The code repository has bin/build-receipt. Each issue brief then tells crews to run build and test commands through it.",
-          "type": "boolean",
-          "default": false
-        },
         "priorityLabels": {
           "type": "array",
           "description": "Labels in priority order. They order tasks inside Ready and Up next, never the lane. The newer name for priority; set only one of the two.",
@@ -1335,53 +1291,6 @@
               "minimum": 1.1,
               "maximum": 20,
               "default": 3
-            }
-          }
-        },
-        "ci": {
-          "type": "object",
-          "description": "What counts as steady CI waste.",
-          "additionalProperties": false,
-          "properties": {
-            "windowDays": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 90,
-              "default": 7
-            },
-            "docsOnlyMinutes": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100000,
-              "default": 60
-            },
-            "waitShare": {
-              "type": "number",
-              "minimum": 0.05,
-              "maximum": 1,
-              "default": 0.4
-            },
-            "minPullRequests": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 1000,
-              "default": 5
-            },
-            "classes": {
-              "type": "object",
-              "description": "Path globs for each file class of a pull request's changed paths. A class's list replaces the built-in one.",
-              "propertyNames": {
-                "enum": ["tests", "spec", "docs", "ci", "other"]
-              },
-              "additionalProperties": {
-                "type": "array",
-                "maxItems": 50,
-                "items": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200
-                }
-              }
             }
           }
         },

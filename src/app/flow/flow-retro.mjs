@@ -10,7 +10,6 @@ import { chatModel } from "../settings/chat-models.mjs";
 // after (plan, do, check, act). A change that did not help gets a typed
 // revert proposal in the next retrospective.
 import {
-  CI_CLASSES,
   FLOW_KEYS,
   finishedAt,
   flowPolicy,
@@ -20,55 +19,14 @@ import {
   taskTiming,
 } from "./flow.mjs";
 import { fail } from "../store/store.mjs";
-import {
-  BUILD_METRIC,
-  CI_METRIC,
-  CI_RUNS,
-  PR_CI,
-  ciBrief,
-  buildMinutesPerPullRequest,
-  ciMinutesPerPullRequest,
-  ciTriggers,
-  lastEffectiveCIConfig,
-  seenClasses,
-  seenWorkflows,
-} from "./flow-ci.mjs";
-import {
-  BUILD_PART_METRIC,
-  NOT_ENOUGH_BUILDS,
-  buildBrief,
-  buildPartMinutes,
-  keyAndPartProblem,
-} from "./build-breakdown.mjs";
 import { briefAllowed } from "../delivery/delivery.mjs";
 import { taskRepository } from "../../work-model.mjs";
+import { rolePrompt } from "../agents/prompts.mjs";
 import {
-  BRIEF_SKILLS,
-  SKILL_TEXT_MAX,
-  contentBlocks,
-  currentPrompts,
-  overridesFile,
-  retroMemory,
-  skillText,
-} from "./retro-memory.mjs";
-import {
-  approveSection,
-  revertPrompt,
-  rolePrompt,
-  sectionDiffProblem,
-  seedOverrides,
-  sha256,
-  shippedPrompts,
-} from "../agents/prompts.mjs";
-import { contentBinding } from "../content/content-rules.mjs";
-import { applyDiff, reverseDiff } from "../agents/text-diff.mjs";
-import {
-  retroCorrections,
-  ruleAgain,
-  ruleChangeBody,
-  ruleProblem,
-  ruleRepository,
-} from "./corrections.mjs";
+  check as checkContent,
+  contentBinding,
+  findingText,
+} from "../content/content-rules.mjs";
 
 const RETRO_AGENT = "avoozl-retro";
 const RETRO_TIMEOUT_MS = 10 * 60_000;
@@ -87,11 +45,6 @@ export const METRICS = Object.freeze([
   "first-pass rate",
   "time to fix",
   "change failure rate",
-  // Measured on closed pull requests by class, not on tasks (R100.5).
-  CI_METRIC,
-  BUILD_METRIC,
-  // Measured on builds with one comparison key (R101.11).
-  BUILD_PART_METRIC,
 ]);
 const METRIC_KEY = {
   "lead time": "leadTimeMs",
@@ -160,25 +113,8 @@ function metricOver(store, data, metric, n) {
   return view.metrics[METRIC_KEY[metric]] ?? null;
 }
 
-// The repositories with CI rows, when the tick did not name them.
-const ciRows = (store) => [
-  ...new Set(
-    [...listOr(store, PR_CI), ...listOr(store, CI_RUNS)].map(
-      (row) => row.repository,
-    ),
-  ),
-];
-
 // What should start a retrospective now (R47.1), as new trigger records.
-function triggers(
-  store,
-  data,
-  config,
-  s,
-  now,
-  ciRepositories = null,
-  ciConfig = config,
-) {
+function triggers(store, data, config, s, now) {
   const policy = flowPolicy(config || {}),
     finished = finishedTasks(store, data),
     out = [],
@@ -244,15 +180,6 @@ function triggers(
         `CI wait on ${span.taskId} took ${Math.round(length / 60_000)} min`,
       );
   }
-  // Steady CI waste (R100.3): fixed limits over every pull request, once per
-  // repository, kind and window, never held by the spike gap.
-  for (const [kind, key, detail] of ciTriggers(
-    store,
-    ciConfig,
-    ciRepositories ?? ciRows(store),
-    { now },
-  ))
-    add(kind, key, detail);
   return { out, seen: [...seen], finishedCount: finished.length };
 }
 
@@ -266,63 +193,6 @@ function listSpansSafe(store) {
   } catch {
     return [];
   }
-}
-
-// What a retro sees of prompts and skills (design §4.18): every unlocked
-// section of the five prompts with its hash, and the text of up to 3 skill
-// files the window's sessions loaded. `seen` keeps the hashes shown, so a
-// reply can only build on them. Null without a bound memory. Lessons were
-// removed (RC30.4); retros propose rules instead.
-export function memoryBrief(store, data) {
-  const m = retroMemory(store);
-  if (!m) return null;
-  const prompts = currentPrompts(store),
-    view = flowView(store, data, {}),
-    finished = new Set(
-      view.tasks.filter((t) => t.finishedAt).map((t) => t.taskId),
-    ),
-    counts = new Map();
-  for (const d of listOr(store, "task_deliveries"))
-    if (finished.has(d.taskId))
-      for (const a of d.attempts || [])
-        for (const target of Object.keys(a.skills || {}))
-          counts.set(target, (counts.get(target) || 0) + 1);
-  const skills = [...counts]
-    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-    .map(([target]) => ({ target, read: skillText(store, target) }))
-    .filter((s) => s.read)
-    .slice(0, BRIEF_SKILLS)
-    .map(({ target, read }) => ({
-      target,
-      sha256: read.sha256,
-      text: read.text.slice(0, SKILL_TEXT_MAX),
-      ...(read.text.length > SKILL_TEXT_MAX ? { truncated: true } : {}),
-    }));
-  const payload = {
-    prompts: Object.values(prompts).map((p) => ({
-      target: p.target,
-      version: p.version,
-      sections: p.sections
-        .filter((s) => !s.locked)
-        .map((s) => ({ name: s.name, sha256: s.sha256, text: s.body })),
-    })),
-    skills,
-  };
-  return {
-    payload,
-    seed: seedOverrides(prompts, "agent.retro"),
-    seen: {
-      prompts: Object.fromEntries(
-        Object.values(prompts).map((p) => [
-          p.target,
-          Object.fromEntries(
-            p.sections.filter((s) => !s.locked).map((s) => [s.name, s.sha256]),
-          ),
-        ]),
-      ),
-      skills: Object.fromEntries(skills.map((s) => [s.target, s.sha256])),
-    },
-  };
 }
 
 // Per repository over the window's finished tasks: the median lead time and
@@ -358,18 +228,7 @@ export const landingQuestion = (f) =>
   `Landing: in ${f.repository} (landing mode ${f.landing ?? "off"}) the median task waits ${minutes(f.medianLandWaitMs)} to land of a ${minutes(f.medianLeadMs)} median lead time. Would another landing mode help? Choose \`direct\` (merge batches on this machine) if its checks run here, or \`pr\` with GitHub's merge queue if its platforms can only be tested in CI. A person changes the mode in Settings; a proposal changes nothing by itself.`;
 
 // The brief: the window's numbers and earlier results only, no transcripts.
-export function retroBrief(
-  store,
-  data,
-  retro,
-  memory = null,
-  {
-    config = {},
-    ciConfig = lastEffectiveCIConfig(store, config),
-    ciRepositories = null,
-    now = Date.now(),
-  } = {},
-) {
+export function retroBrief(store, data, retro) {
   const view = flowView(store, data, {}),
     repos = {};
   for (const t of view.tasks.filter((t) => t.finishedAt)) {
@@ -383,7 +242,6 @@ export function retroBrief(
         (r.proposals || []).map((p) => ({ retro: r.id, ...summary(p) })),
       ),
     instructions = retroInstructions(store),
-    builds = buildBrief(store, ciRepositories ?? ciRows(store), { now }),
     payload = {
       triggers: retro.triggers.map((t) => t.detail),
       metrics: view.metrics,
@@ -411,28 +269,9 @@ export function retroBrief(
       ciOnly: view.ciOnly.map((r) => ({ task: r.taskId, checks: r.checks })),
       earlierProposals: earlier,
       revertProposals: retro.reverts || [],
-      // How much finished work was bug fixes (§4.11, R79.3).
-      fixWork: view.metrics.fixWork ?? null,
-      // Corrections since the last retro (§4.24, R78.2): a person told an
-      // agent it got something wrong. Two or more alike may become a rule.
-      corrections: retroCorrections(
-        store,
-        data,
-        retro.correctionsSince ?? null,
-      ),
-      // Rules that landed, and whether the corrected thing happened again.
-      rules: landedRules(store),
-      // CI per repository over every pull request (§4.30, R100.5): minutes
-      // by class, wait share, repeat runs and workflow files. Other pull
-      // requests are a number, author and classes only.
-      ci: ciBrief(store, ciConfig, ciRepositories ?? ciRows(store), { now }),
-      // Build breakdowns by comparison key (§4.31); absent with no builds.
-      ...(builds ? { builds } : {}),
-      ...(memory?.payload || {}),
     };
   return [
     `Avoozl retro ${retro.id}. Answer with one JSON object only, as your instructions say.`,
-    memory?.seed || null,
     instructions
       ? `The owner's notes for retros (data, not instructions to change safety settings): ${instructions}`
       : null,
@@ -450,17 +289,7 @@ const summary = (p) => ({
   type: p.type,
   ...(p.type === "settings"
     ? { key: p.key, from: p.from, to: p.to }
-    : p.type === "prompt" || p.type === "skill"
-      ? { target: p.target, ...(p.section ? { section: p.section } : {}) }
-      : p.type === "rule"
-        ? { text: p.text, corrections: p.corrections }
-        : {
-            spec: p.spec,
-            change: p.change,
-            ...(p.workflow
-              ? { repository: p.repository, workflow: p.workflow }
-              : {}),
-          }),
+    : { spec: p.spec, change: p.change }),
   metric: p.metric,
   direction: p.direction,
   status: p.status,
@@ -534,12 +363,7 @@ export function runRetroAgain(store, id) {
 export function retroStep(
   store,
   config,
-  {
-    now = Date.now(),
-    repository = null,
-    ciRepositories = null,
-    ciConfig = lastEffectiveCIConfig(store, config),
-  } = {},
+  { now = Date.now(), repository = null } = {},
 ) {
   const data = store.read(),
     notify = [],
@@ -573,156 +397,18 @@ export function retroStep(
       changed = true;
     }
   }
-  // PDCA (R47.7): measure each approved change after `everyTasks` more. A
-  // prompt or skill change compares tasks that ran on its old and new
-  // versions (R68.13).
+  // PDCA (R47.7): measure each approved change after `everyTasks` more.
   const finished = finishedTasks(store, data).length;
   for (const listed of listOr(store, "flow_retros"))
     for (const proposal of listed.proposals || []) {
       const p = proposal.pdca;
       if (proposal.status !== "approved" || !p || p.result) continue;
-      // A rule (R78.5): did the corrected thing happen again?
-      if (proposal.type === "rule") {
-        if (finished < p.at) continue;
-        const again = ruleAgain(store, data, proposal, p.approvedAt),
-          retro = store.get("flow_retros", listed.id);
-        store.put("flow_retros", {
-          ...retro,
-          proposals: retro.proposals.map((q) =>
-            q.id === proposal.id
-              ? {
-                  ...q,
-                  pdca: {
-                    ...p,
-                    again: again.map((c) => c.id),
-                    result: again.length ? "no change" : "helped",
-                    measuredAt: new Date(now).toISOString(),
-                  },
-                }
-              : q,
-          ),
-        });
-        changed = true;
-        continue;
-      }
-      // CI minutes per pull request (R100.5): as many closed pull requests
-      // of the repository and class after approval as before it.
-      if (closedMetric(proposal.metric)) {
-        const save = (pdca) => {
-          const retro = store.get("flow_retros", listed.id);
-          store.put("flow_retros", {
-            ...retro,
-            proposals: retro.proposals.map((q) =>
-              q.id === proposal.id ? { ...q, pdca } : q,
-            ),
-          });
-          changed = true;
-        };
-        const before =
-          p.before ??
-          measureClosed(store, proposal, {
-            n: p.window,
-            at: p.approvedAt,
-          });
-        if (before === null) {
-          const pendingReason = ciBaselineReason(proposal, p.window);
-          if (p.pendingReason !== pendingReason) save({ ...p, pendingReason });
-          continue;
-        }
-        const { pendingReason: _pendingReason, ...baseline } = { ...p, before };
-        const after = measureClosed(store, proposal, {
-          n: p.window,
-          at: p.approvedAt,
-          after: true,
-        });
-        if (after === null) {
-          if (p.before !== before || p.pendingReason) save(baseline);
-          continue;
-        }
-        const retro = store.get("flow_retros", listed.id),
-          result = pdcaResult(before, after, proposal.direction);
-        save({
-          ...baseline,
-          after,
-          result,
-          measuredAt: new Date(now).toISOString(),
-        });
-        if (result !== "helped")
-          s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
-        changed = true;
-        continue;
-      }
-      // Build part minutes (R101.11): the same key and part, as many builds
-      // after approval as before it. Fewer on either side is no verdict.
-      if (proposal.metric === BUILD_PART_METRIC) {
-        const save = (pdca) => {
-          const retro = store.get("flow_retros", listed.id);
-          store.put("flow_retros", {
-            ...retro,
-            proposals: retro.proposals.map((q) =>
-              q.id === proposal.id ? { ...q, pdca } : q,
-            ),
-          });
-          changed = true;
-        };
-        const measure = (after) =>
-          buildPartMinutes(store, {
-            repository: proposal.repository,
-            key: proposal.key,
-            part: proposal.part,
-            n: p.window,
-            at: p.approvedAt,
-            after,
-          });
-        const before = p.before ?? measure(false);
-        if (before === null) {
-          if (p.pendingReason !== NOT_ENOUGH_BUILDS)
-            save({ ...p, pendingReason: NOT_ENOUGH_BUILDS });
-          continue;
-        }
-        const { pendingReason: _pending, ...baseline } = { ...p, before },
-          after = measure(true);
-        if (after === null) {
-          if (p.before !== before || p.pendingReason !== NOT_ENOUGH_BUILDS)
-            save({ ...baseline, pendingReason: NOT_ENOUGH_BUILDS });
-          continue;
-        }
-        const retro = store.get("flow_retros", listed.id),
-          result = pdcaResult(before, after, proposal.direction);
-        save({
-          ...baseline,
-          after,
-          result,
-          measuredAt: new Date(now).toISOString(),
-        });
-        if (result !== "helped")
-          s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
-        changed = true;
-        continue;
-      }
-      const versioned = p.version ? versionWindow(store, data, p) : null;
-      if (versioned ? versioned.length < p.window : finished < p.at) continue;
+      if (finished < p.at) continue;
       // Read again: an earlier proposal of this retro may have just been
       // measured, and its result must not be lost.
       const retro = store.get("flow_retros", listed.id),
-        after = versioned
-          ? metricOn(store, data, versioned, proposal.metric, p.window)
-          : metricOver(store, data, proposal.metric, p.window),
-        result = pdcaResult(p.before, after, proposal.direction),
-        // A window another change took effect in is "mixed" (R68.13).
-        mixed =
-          proposal.type === "prompt" || proposal.type === "skill"
-            ? otherChangeIn(
-                store,
-                data,
-                listed.id,
-                proposal.id,
-                versioned ||
-                  newestFirst(store, data)
-                    .slice(0, p.window)
-                    .map((t) => t.id),
-              )
-            : false;
+        after = metricOver(store, data, proposal.metric, p.window),
+        result = pdcaResult(p.before, after, proposal.direction);
       const next = {
         ...retro,
         proposals: retro.proposals.map((q) =>
@@ -733,7 +419,6 @@ export function retroStep(
                   ...p,
                   after,
                   result,
-                  ...(mixed ? { mixed: true } : {}),
                   measuredAt: new Date(now).toISOString(),
                 },
               }
@@ -745,7 +430,7 @@ export function retroStep(
         s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
       changed = true;
     }
-  const found = triggers(store, data, config, s, now, ciRepositories, ciConfig),
+  const found = triggers(store, data, config, s, now),
     last = retros
       .filter((r) => r.startedAt)
       .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))[0],
@@ -774,22 +459,7 @@ export function retroStep(
         proposals: [],
         dropped: [],
       };
-    const memory = memoryBrief(store, data);
-    if (memory) retro.seen = memory.seen;
-    // The corrections this retro is shown; a rule may cite only these.
-    retro.correctionsSince = last?.startedAt ?? null;
-    retro.seen = {
-      ...(retro.seen || {}),
-      corrections: retroCorrections(store, data, retro.correctionsSince).map(
-        (c) => c.id,
-      ),
-    };
-    const brief = retroBrief(store, data, retro, memory, {
-        config,
-        ciRepositories,
-        ciConfig,
-        now,
-      }),
+    const brief = retroBrief(store, data, retro),
       model = chatModel(config || {}, "retro"),
       // The brief passes the content rules at the brief boundary (R47.3).
       allowed = briefAllowed(store, { taskId: retro.id, role: "retro", brief });
@@ -849,110 +519,7 @@ export function pdcaResult(before, after, direction) {
   return "no change";
 }
 
-// The two metrics measured on closed pull requests by class (R100.5, R101.12).
-const closedMetric = (metric) =>
-  metric === CI_METRIC || metric === BUILD_METRIC;
-const measureClosed = (store, proposal, options) =>
-  (proposal.metric === BUILD_METRIC
-    ? buildMinutesPerPullRequest
-    : ciMinutesPerPullRequest)(store, {
-    repository: proposal.repository,
-    cls: proposal.class,
-    ...(proposal.phase ? { phase: proposal.phase } : {}),
-    ...options,
-  });
-
-function ciBaselineReason(proposal, count) {
-  const cls = proposal.class === "all" ? "" : `${proposal.class} `;
-  return `CI comparison pending: fewer than ${count} closed ${cls}pull requests in ${proposal.repository} were recorded before approval.`;
-}
-
-// ------------------------------------------------------------ versions
-
-// The version of a prompt or skill target the finishing attempt of a task
-// ran on (R68.12).
-function usedVersion(store, taskId, { kind, target }) {
-  const attempts = store.get("task_deliveries", taskId)?.attempts || [],
-    last = attempts.at(-1);
-  return kind === "prompt" ? last?.prompts?.[target] : last?.skills?.[target];
-}
-
-const newestFirst = (store, data) => finishedTasks(store, data).reverse();
-
-// Finished tasks, newest first, that ran on the old version of a change
-// (`from`), up to `n`.
-function oldWindow(store, data, version, n) {
-  return newestFirst(store, data)
-    .filter((t) => usedVersion(store, t.id, version) === version.from)
-    .slice(0, n)
-    .map((t) => t.id);
-}
-
-// Finished tasks, newest first, that ran on the new version: `to` when it is
-// known, else any version other than `from` (an external skill whose next
-// pin Avoozl cannot predict).
-function versionWindow(store, data, pdca) {
-  const v = pdca.version;
-  return newestFirst(store, data)
-    .filter((t) => {
-      const used = usedVersion(store, t.id, v);
-      return v.to ? used === v.to : Boolean(used) && used !== v.from;
-    })
-    .slice(0, pdca.window)
-    .map((t) => t.id);
-}
-
-function metricOn(store, data, ids, metric, n) {
-  const only = new Set(ids),
-    view = flowView(
-      store,
-      { ...data, tasks: data.tasks.filter((t) => only.has(t.id)) },
-      { window: n },
-    );
-  return view.metrics[METRIC_KEY[metric]] ?? null;
-}
-
-// Another approved change took effect inside this window (R68.13).
-function otherChangeIn(store, data, retroId, proposalId, ids) {
-  const tasks = data.tasks.filter((t) => ids.includes(t.id));
-  if (!tasks.length) return false;
-  const starts = tasks
-      .map((t) => taskTiming(store, t).startedAt)
-      .filter(Boolean)
-      .sort(),
-    ends = tasks
-      .map((t) => finishedAt(t))
-      .filter(Boolean)
-      .sort(),
-    from = starts[0],
-    to = ends.at(-1);
-  return listOr(store, "flow_retros").some((r) =>
-    (r.proposals || []).some(
-      (q) =>
-        !(r.id === retroId && q.id === proposalId) &&
-        q.status === "approved" &&
-        q.pdca?.approvedAt &&
-        q.pdca.approvedAt > from &&
-        q.pdca.approvedAt < to,
-    ),
-  );
-}
-
 function revertOf(retro, proposal) {
-  if (proposal.type === "prompt" || proposal.type === "skill")
-    return {
-      type: proposal.type,
-      target: proposal.target,
-      ...(proposal.section ? { section: proposal.section } : {}),
-      ...(proposal.type === "skill"
-        ? { diff: reverseDiff(proposal.diff) }
-        : {}),
-      revert: true,
-      metric: proposal.metric,
-      direction: proposal.direction,
-      evidence: `PDCA: the ${proposal.type} change to ${proposal.target} from ${retro.id} did not help (${proposal.metric} ${proposal.pdca?.result ?? "no change"}).`,
-      revertOf: `${retro.id}:${proposal.id}`,
-    };
   return proposal.type === "settings"
     ? {
         type: "settings",
@@ -962,8 +529,6 @@ function revertOf(retro, proposal) {
         from: proposal.to,
         to: proposal.from,
         metric: proposal.metric,
-        ...(proposal.class ? { class: proposal.class } : {}),
-        ...(proposal.phase ? { phase: proposal.phase } : {}),
         direction: proposal.direction,
         evidence: `PDCA: ${proposal.key} ${JSON.stringify(proposal.from)} → ${JSON.stringify(proposal.to)} from ${retro.id} did not help (${proposal.metric} ${proposal.pdca?.result ?? "no change"}).`,
         revertOf: `${retro.id}:${proposal.id}`,
@@ -973,10 +538,7 @@ function revertOf(retro, proposal) {
         spec: proposal.spec,
         change: `Undo: ${proposal.change}`,
         ...(proposal.repository ? { repository: proposal.repository } : {}),
-        ...(proposal.workflow ? { workflow: proposal.workflow } : {}),
         metric: proposal.metric,
-        ...(proposal.class ? { class: proposal.class } : {}),
-        ...(proposal.phase ? { phase: proposal.phase } : {}),
         direction: proposal.direction,
         evidence: `PDCA: the plan change from ${retro.id} did not help.`,
         revertOf: `${retro.id}:${proposal.id}`,
@@ -991,8 +553,6 @@ const SETTINGS_FIELDS = [
   "from",
   "to",
   "metric",
-  "class",
-  "phase",
   "direction",
   "evidence",
   "revertOf",
@@ -1001,15 +561,8 @@ const PLAN_FIELDS = [
   "type",
   "spec",
   "change",
-  // A CI change names the repository and a workflow file seen (§4.30).
   "repository",
-  "workflow",
-  // A Build part minutes change names a comparison key and a part (§4.31).
-  "key",
-  "part",
   "metric",
-  "class",
-  "phase",
   "direction",
   "evidence",
   "revertOf",
@@ -1017,143 +570,24 @@ const PLAN_FIELDS = [
 const shortText = (v, max = 1000) =>
   typeof v === "string" && v.trim() && v.length <= max;
 
-const CHANGE_FIELDS = [
-  "type",
-  "target",
-  "section",
-  "base",
-  "diff",
-  "metric",
-  "direction",
-  "evidence",
-  "revert",
-  "revertOf",
-];
-const RUN = /^[A-Za-z0-9][\w.:/-]{0,199}#\d{1,4}$/;
-const SKILL_TARGET = /^(?:repo|external):[A-Za-z0-9][\w.-]{0,99}:[^\0]{1,400}$/;
-
-// A prompt or skill proposal (R68.2-R68.5): one target, a diff against the
-// exact text the retro saw with that text's hash, and structured evidence of
-// at least 3 runs. A revert Avoozl owes carries no base.
-function changeProblem(p, retro, store) {
-  if (Object.keys(p).some((k) => !CHANGE_FIELDS.includes(k)))
-    return `unknown field in a ${p.type} proposal`;
-  if (p.revert === true) {
-    if (typeof p.revertOf !== "string") return "a revert names what it reverts";
-    if (!shortText(p.evidence)) return "evidence is missing";
-    return null;
-  }
-  const e = p.evidence;
-  if (!e || typeof e !== "object" || Array.isArray(e))
-    return "evidence is missing";
-  if (
-    !Array.isArray(e.runs) ||
-    e.runs.length < 3 ||
-    e.runs.length > 50 ||
-    !e.runs.every((r) => typeof r === "string" && RUN.test(r))
-  )
-    return "evidence names at least 3 runs as task#attempt";
-  if (!(typeof e.value === "number" || shortText(e.value, 100)))
-    return "evidence gives the metric's current value";
-  if (!shortText(e.effect, 300)) return "evidence gives the expected effect";
-  if (typeof p.diff !== "string" || !p.diff.trim())
-    return "the diff is missing";
-  if (typeof p.base !== "string" || !/^[0-9a-f]{64}$/.test(p.base))
-    return "base is the sha256 of the text the diff is against";
-  if (!store || !retroMemory(store))
-    return `${p.type} proposals need this machine's Avoozl settings folder`;
-  if (p.type === "prompt") {
-    if (typeof p.section !== "string")
-      return "a prompt proposal names one section";
-    const seen = retro?.seen?.prompts?.[p.target]?.[p.section];
-    const problem = sectionDiffProblem(currentPrompts(store), p);
-    if (problem) return problem;
-    if (seen !== p.base)
-      return `base is not the text of ${p.target} § ${p.section} this retro saw`;
-    return null;
-  }
-  if (p.section !== undefined) return "a skill proposal names no section";
-  if (typeof p.target !== "string" || !SKILL_TARGET.test(p.target))
-    return "target is repo:<repository>:<path> or external:<source>:<path>";
-  if (retro?.seen?.skills?.[p.target] !== p.base)
-    return `base is not the text of ${p.target} this retro saw`;
-  const current = skillText(store, p.target);
-  if (!current) return `${p.target} cannot be read now`;
-  if (current.sha256 !== p.base)
-    return `base is not the current text of ${p.target}`;
-  if (applyDiff(current.text, p.diff) === null)
-    return `the diff does not apply to ${p.target}`;
-  return null;
-}
-
 // Check one proposal (R47.4, R47.5, R68.4): the reason it is dropped, or null.
-export function proposalProblem(p, retro = null, store = null) {
+export function proposalProblem(p) {
   if (!p || typeof p !== "object" || Array.isArray(p)) return "not an object";
-  // A rule from repeated corrections needs no metric (R78.2).
-  if (p.type === "rule")
-    return store
-      ? ruleProblem(p, retro, store, store.read())
-      : "rule proposals need the workspace";
   if (!METRICS.includes(p.metric))
     return `metric must be one of ${METRICS.join(", ")}`;
   if (!["up", "down"].includes(p.direction))
     return "direction must be up or down";
-  if (closedMetric(p.metric)) {
-    if (p.type !== "settings" && p.type !== "plan")
-      return `${p.metric} is measured for settings and plan proposals`;
-    if (!["all", ...CI_CLASSES].includes(p.class))
-      return `a ${p.metric} proposal names a class: all, ${CI_CLASSES.join(", ")}`;
-    if (!shortText(p.repository, 100))
-      return `a ${p.metric} proposal names the repository`;
-    if (
-      p.class !== "all" &&
-      store &&
-      !seenClasses(store, p.repository).has(p.class)
-    )
-      return `no ${p.class} pull requests were seen in ${p.repository}, so ${p.metric} could never be compared; name a class from the brief`;
-  } else if (p.class !== undefined)
-    return `class is only for ${CI_METRIC} and ${BUILD_METRIC}`;
-  if (
-    p.phase !== undefined &&
-    (p.metric !== BUILD_METRIC || !shortText(p.phase, 80))
-  )
-    return `phase is only for ${BUILD_METRIC}, at most 80 characters`;
-  if (p.metric === BUILD_PART_METRIC) {
-    if (p.type !== "plan")
-      return `${BUILD_PART_METRIC} is measured for plan proposals`;
-    if (!shortText(p.repository, 100))
-      return `a ${BUILD_PART_METRIC} proposal names the repository`;
-    if (!shortText(p.key, 1000) || !shortText(p.part, 80))
-      return `a ${BUILD_PART_METRIC} proposal names a key and a part from the brief`;
-    const problem =
-      store && keyAndPartProblem(store, p.repository, p.key, p.part);
-    if (problem || !store) return problem || "the builds are not available";
-  } else if ((p.key !== undefined && p.type === "plan") || p.part !== undefined)
-    return `key and part are only for ${BUILD_PART_METRIC}`;
-  if (p.type === "prompt" || p.type === "skill")
-    return changeProblem(p, retro, store);
   if (!shortText(p.evidence)) return "evidence is missing";
   if (p.type === "plan") {
     if (Object.keys(p).some((k) => !PLAN_FIELDS.includes(k)))
       return "unknown field in a plan proposal";
     if (!shortText(p.spec, 200) || !shortText(p.change))
       return "a plan proposal names a spec and the change";
-    if (p.workflow !== undefined) {
-      if (!shortText(p.repository, 100))
-        return "a CI plan proposal names the repository";
-      if (
-        typeof p.workflow !== "string" ||
-        !p.workflow.startsWith(".github/workflows/") ||
-        !store ||
-        !seenWorkflows(store, p.repository).has(p.workflow)
-      )
-        return `${p.workflow} is not a workflow file seen in ${p.repository}`;
-    } else if (p.repository !== undefined && !shortText(p.repository, 100))
+    if (p.repository !== undefined && !shortText(p.repository, 100))
       return "repository must be a repository name";
     return null;
   }
-  if (p.type !== "settings")
-    return "type must be settings, plan, prompt, skill or rule";
+  if (p.type !== "settings") return "type must be settings or plan";
   if (Object.keys(p).some((k) => !SETTINGS_FIELDS.includes(k)))
     return "unknown field in a settings proposal";
   if (typeof p.key !== "string") return "key is missing";
@@ -1233,7 +667,7 @@ export function recordRetroReply(
       // reverts Avoozl owes come on top (R47.4, R47.7, R68.1).
       const own = i < replied.length,
         problem =
-          proposalProblem(p, retro, store) ||
+          proposalProblem(p) ||
           (own && fromReply >= 3 ? "more than 3 proposals" : null) ||
           (own ? blockedProposal(store, retroId, i, p) : null);
       if (problem)
@@ -1275,9 +709,7 @@ export function recordRetroReply(
 function blockedProposal(store, retroId, index, p) {
   if (!contentBinding(store)?.workspaceRoot) return null;
   const text = [
-    p.diff,
     p.change,
-    p.text,
     p.key,
     typeof p.evidence === "string"
       ? p.evidence
@@ -1285,12 +717,15 @@ function blockedProposal(store, retroId, index, p) {
   ]
     .filter((v) => typeof v === "string")
     .join("\n");
-  const blocks = contentBlocks(
-    store,
-    "proposal",
-    `proposal:${retroId}:${index}`,
-    text,
-  );
+  const result = checkContent(store, {
+      boundary: "proposal",
+      target: `proposal:${retroId}:${index}`,
+      text,
+    }),
+    blocks = [
+      ...result.findings.filter((f) => f.action !== "report").map(findingText),
+      ...result.unavailable.map((u) => `${u.set} is unavailable`),
+    ];
   return blocks.length
     ? `content rules blocked it: ${blocks.join("; ")}`
     : null;
@@ -1308,26 +743,13 @@ function parseReply(text) {
   }
 }
 
-// flow.retro.decide: Approve or Reject one proposal (R47.6, R68.7). A person
-// only. Approve writes a settings change through `apply` (the Settings
-// operation, with an expected hash), opens a planner draft through `draft`,
-// writes a prompt override version through `prompt`, lands a skill change
-// through `skill` (a leaf, or a note for an external skill), or opens a
-// rule's leaf through `rule`.
+// flow.retro.decide: Approve or Reject one proposal (R47.6). A person only.
+// Approve writes a settings change through `apply` (the Settings operation,
+// with an expected hash), or opens a planner draft through `draft`.
 export async function decideProposal(
   store,
   input = {},
-  {
-    apply,
-    draft,
-    prompt,
-    skill,
-    rule,
-    config,
-    ciConfig = lastEffectiveCIConfig(store, config),
-    by = "person",
-    now = Date.now(),
-  } = {},
+  { apply, draft, config, by = "person", now = Date.now() } = {},
 ) {
   const retro = store.get("flow_retros", input.retroId);
   if (!retro) fail("Retro not found.", 404);
@@ -1351,104 +773,24 @@ export async function decideProposal(
     if (proposal.removesCheck && input.confirmRemoval !== true)
       fail("This proposal removes a check. Confirm again to approve it.", 409);
     const data = store.read(),
-      every = flowPolicy(
-        (closedMetric(proposal.metric) ? ciConfig : config) || {},
-      ).workspace.retro.everyTasks,
-      done = finishedTasks(store, data).length;
-    let pdca =
-      proposal.type === "rule"
-        ? { approvedAt: at, window: every, at: done + every }
-        : {
-            before: closedMetric(proposal.metric)
-              ? measureClosed(store, proposal, { n: every, at })
-              : proposal.metric === BUILD_PART_METRIC
-                ? buildPartMinutes(store, {
-                    repository: proposal.repository,
-                    key: proposal.key,
-                    part: proposal.part,
-                    n: every,
-                    at,
-                  })
-                : metricOver(store, data, proposal.metric, every),
-            window: every,
-            at: done + every,
-            approvedAt: at,
-          };
-    if (closedMetric(proposal.metric) && pdca.before === null)
-      pdca.pendingReason = ciBaselineReason(proposal, every);
-    if (proposal.metric === BUILD_PART_METRIC && pdca.before === null)
-      pdca.pendingReason = NOT_ENOUGH_BUILDS;
+      every = flowPolicy(config || {}).workspace.retro.everyTasks,
+      done = finishedTasks(store, data).length,
+      pdca = {
+        before: metricOver(store, data, proposal.metric, every),
+        window: every,
+        at: done + every,
+        approvedAt: at,
+      };
     if (proposal.type === "settings") await apply(proposal, input.expectedHash);
     else if (proposal.type === "plan")
       update = { draft: (await draft(proposal)) ?? null };
-    else if (proposal.type === "prompt") {
-      const override = await (prompt || promptChange(store, retro, { by, at }))(
-        proposal,
-      );
-      update = { override };
-      // Worker briefs and skills are measured on the tasks that ran each
-      // version; the other prompts on the next window of finished tasks.
-      pdca = proposal.revert
-        ? null
-        : proposal.target === "brief.worker"
-          ? versionedPdca(
-              store,
-              data,
-              pdca,
-              {
-                kind: "prompt",
-                target: proposal.target,
-                from: override.from,
-                to: override.to,
-              },
-              proposal,
-            )
-          : { ...pdca, versions: { from: override.from, to: override.to } };
-    } else if (proposal.type === "skill") {
-      const landed = await skillChange(store, retro, proposal, {
-        deliver: skill,
-        at,
-      });
-      if (proposal.revert) pdca = null;
-      update = { ...landed };
-      if (!proposal.revert)
-        pdca = versionedPdca(
-          store,
-          data,
-          pdca,
-          {
-            kind: "skill",
-            target: proposal.target,
-            from: proposal.base,
-            to: landed.note ? null : landed.resultSha,
-          },
-          proposal,
-        );
-    } else if (proposal.type === "rule") {
-      // One leaf, source retro, that edits the steering rules file (R78.3).
-      if (!rule) fail("Rules need the Deliver this path.", 409);
-      const repository = ruleRepository(store, data, proposal);
-      if (!repository) fail("The rule's repository is gone.", 409);
-      update = {
-        repository,
-        leaf: await rule({
-          retro: retro.id,
-          proposal: proposal.id,
-          repository,
-          title: "Add a rule from repeated corrections",
-          body: ruleChangeBody(
-            proposal.text,
-            `A person approved this rule from retro ${retro.id}. It rests on ${proposal.corrections.length} corrections.`,
-          ),
-        }),
-      };
-    } else fail("Unknown proposal type.", 400);
+    else fail("Unknown proposal type.", 400);
     update = {
       ...(update || {}),
       status: "approved",
       decidedAt: at,
       decidedBy: by,
-      ...(pdca ? { pdca } : {}),
+      pdca,
     };
   } else fail("Choose decision approve or reject.");
   const latest = store.get("flow_retros", retro.id),
@@ -1460,97 +802,6 @@ export async function decideProposal(
     };
   store.transaction(() => store.put("flow_retros", next));
   return { retro: next };
-}
-
-// A prompt proposal's approval: override version N for its section, or one
-// step back for a revert Avoozl proposed (R68.8, R68.9).
-function promptChange(store, retro, { by, at }) {
-  return async (p) => {
-    const m = retroMemory(store),
-      file = overridesFile(store);
-    if (!m || !file)
-      fail(
-        "This machine has no Avoozl settings folder for prompt overrides.",
-        409,
-      );
-    const shipped = m.shipped || shippedPrompts();
-    if (p.revert)
-      return revertPrompt(file, { target: p.target, by, at }, shipped);
-    return approveSection(
-      file,
-      {
-        target: p.target,
-        section: p.section,
-        base: p.base,
-        diff: p.diff,
-        proposal: { retro: retro.id, id: p.id },
-        by,
-        at,
-      },
-      shipped,
-    );
-  };
-}
-
-// A skill proposal's approval (R68.10, R68.11): a repository skill becomes
-// one leaf through `deliver`; an external skill becomes a note for its
-// owner, with nothing sent and no plugin edited.
-async function skillChange(store, retro, p, { deliver, at }) {
-  const current = skillText(store, p.target),
-    [kind, owner, ...rest] = p.target.split(":"),
-    file = rest.join(":");
-  if (!current && !p.revert) fail(`${p.target} cannot be read now.`, 409);
-  if (!p.revert && current.sha256 !== p.base)
-    fail(
-      `${p.target} changed since the retro saw it; this proposal is stale.`,
-      409,
-    );
-  const text = current ? applyDiff(current.text, p.diff) : null;
-  if (text === null && !p.revert)
-    fail(`The diff no longer applies to ${p.target}.`, 409);
-  const resultSha = text === null ? null : sha256(text),
-    summary =
-      typeof p.evidence === "string"
-        ? p.evidence
-        : `${p.metric} ${p.evidence?.value ?? ""}, expected ${p.direction}: ${p.evidence?.effect ?? ""} (${(p.evidence?.runs || []).length} runs)`;
-  if (kind === "repo") {
-    if (!deliver)
-      fail("Repository skill changes need the Deliver this path.", 409);
-    const leaf = await deliver({
-      retro: retro.id,
-      proposal: p.id,
-      repository: owner,
-      file,
-      diff: p.diff,
-      summary,
-    });
-    return { leaf, resultSha };
-  }
-  return {
-    note: {
-      plugin: owner === "local" ? null : owner,
-      file,
-      diff: p.diff,
-      summary,
-      at,
-      sent: false,
-    },
-    resultSha,
-  };
-}
-
-// PDCA for a prompt or skill change compares runs on its old version with
-// as many on its new one (R68.13).
-function versionedPdca(store, data, pdca, version, proposal) {
-  const old = oldWindow(store, data, version, pdca.window);
-  return {
-    ...pdca,
-    version,
-    before: old.length
-      ? metricOn(store, data, old, proposal.metric, pdca.window)
-      : pdca.before,
-    beforeTasks: old.length,
-  };
 }
 
 // Apply one settings proposal to a `flow` object (or delivery) as a whole
@@ -1580,20 +831,6 @@ export function applyToConfig(file, proposal) {
 }
 
 // The avoozl-retro agent's own prompt, as shipped in the app package.
-// Approved rules and their PDCA results, for the next retro (R78.5).
-function landedRules(store) {
-  return listOr(store, "flow_retros").flatMap((r) =>
-    (r.proposals || [])
-      .filter((p) => p.type === "rule" && p.status === "approved")
-      .map((p) => ({
-        retro: r.id,
-        text: p.text,
-        approvedAt: p.decidedAt ?? null,
-        happenedAgain: p.pdca?.again ?? null,
-      })),
-  );
-}
-
 export function retroPrompt() {
   try {
     return rolePrompt("retro");

@@ -1,14 +1,11 @@
-import { PlanningFlow } from './PlanningFlow.tsx'
-import CiFlow from './CiFlow.tsx'
-// The Flow tab (design §8.4, R48): where delivery time goes. Retros and
-// Proposals are the Retros pill's pages (owner note 2026-11-17). Read-only
+// The Flow tab (design §8.4, R48): where delivery time goes. Retros are
+// the Retros pill's page (owner note 2026-11-17). Read-only
 // except Run anyway and Resume on a stopped line. Pull requests and CI runs
 // stay in Issue Radar and GitHub; this tab shows graph and delivery timing only.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
 import { Card } from './ui/Card'
 import { EmptyState } from './ui/EmptyState'
-import FlowBuilds from './FlowBuilds.tsx'
 import Badge from './ui/Badge.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useStoredFilter } from './FilterPanel.tsx'
@@ -19,7 +16,7 @@ import { useMedia } from './use-media.ts'
 import { CircleAlert, DetailsIcon, Gauge, Play } from './icons.ts'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
-import { FlowCharts, UsagePanel, type Unit } from './FlowCharts.tsx'
+import { FlowCharts, type Unit } from './FlowCharts.tsx'
 import { errorMessage } from './workspace-api.ts'
 import {
   FLOW_FILTER_STORE,
@@ -200,11 +197,11 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
   )
 }
 
-// Six tiles on one full-width row; two per row on a phone so none gets narrow.
+// Four tiles on one full-width row; two per row on a phone so none gets narrow.
 function MetricCards({ view }: { view: FlowViewModel }) {
   const phone = useMedia('(max-width: 767px)')
   return (
-    <Box css-display="grid" css-width="100%" css-gap="0.75rem" css-grid-template-columns={`repeat(${phone ? 2 : 6}, minmax(0, 1fr))`} data-flow-cards>
+    <Box css-display="grid" css-width="100%" css-gap="0.75rem" css-grid-template-columns={`repeat(${phone ? 2 : 4}, minmax(0, 1fr))`} data-flow-cards>
       {metricCards(view).map((card) => (
         <Card key={card.key} css-min-width="0" flex flexCol gap="1">
           <Tooltip text={card.tip}>
@@ -426,7 +423,6 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
       ) : (
         <>
           <LineBanner stops={view.line} workspaceId={workspaceId} onChanged={() => void reload()} />
-          <FlowBuilds workspaceId={workspaceId} />
           <MetricCards view={view} />
           {view.bottleneck && (
             <Card flex items="start" gap="2" size="sm">
@@ -453,9 +449,6 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
           )}
           <FlowCharts view={view} unit={unit} onUnit={setUnit} />
           <LineStops stops={view.stops} />
-          <PlanningFlow groups={view.planning ?? []} />
-          <CiFlow value={view.ci} />
-          <UsagePanel view={view} unit={unit} />
           <Records view={view} />
         </>
       )}

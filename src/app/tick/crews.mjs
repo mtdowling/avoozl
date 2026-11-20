@@ -1,6 +1,5 @@
 // The crew snapshot: `local` plus the Kiro Crew instances the app backend last
-// read, so a binding on a crew that stopped answering is not waited on. The
-// machine file helpers serve provider settings (provider-health.mjs).
+// read, so a binding on a crew that stopped answering is not waited on.
 import { randomUUID, createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";

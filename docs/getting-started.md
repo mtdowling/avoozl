@@ -35,8 +35,7 @@ grants:
 - `/apps/avoozl/api/*` reaches the app's own backend.
 - `/api/chat/slots/avoozl_*` reads the status of the sessions the tick opened,
   and no others.
-- `/api/usage/turns` reads token and credit counts per flow stage for those
-  sessions.
+- `/api/usage/turns` reads the model each of those sessions last ran on.
 - `/api/models` fills the model lists in Settings.
 - `/api/apps/spec-builder/specs` hands a new spec to Spec Builder.
 - `/api/reveal` shows a spec file in the file browser.

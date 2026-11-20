@@ -1,7 +1,7 @@
 // The nav row and its pages.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DASHBOARD_PAGES, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, WAITING_SECTIONS, tabLabel } from '../src/nav-api.ts'
+import { DASHBOARD_PAGES, TABS, dashboardPage, dashboardTab, navTab, WAITING_SECTIONS, tabLabel } from '../src/nav-api.ts'
 
 test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Settings', () => {
   assert.deepEqual(
@@ -10,11 +10,7 @@ test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Setti
   )
 })
 
-test('Retros lists two pages', () => {
-  assert.deepEqual(
-    RETROS_PAGES.map((p) => p.label),
-    ['Retros', 'Proposals'],
-  )
+test('Retros is one page', () => {
   assert.equal(tabLabel('retros'), 'Retros')
 })
 

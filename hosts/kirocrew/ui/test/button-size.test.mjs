@@ -30,7 +30,9 @@ const MAX = 28
 // pills (section heads, their rows, the workspace pill) are 32 px rows, at the
 // owner's ask; nav-overflow.test.mjs checks that size. Home's status tiles
 // are big number cards, not buttons in a row (dashboard-layout.test.mjs).
-const BUTTONS = `button:not([data-pp-section-head]):not(summary):not([data-nav-head]):not([data-nav-item]):not([data-workspace-pill]):not([data-home-tile]), [role="button"], a[data-sc-act], a[data-pp-act]`
+// The nav's filter rows are 32 px nav rows too, and a tab bar's tabs are
+// Kiro Crew's own 34 px tabs (TABS_CSS in ui/Tabs.tsx).
+const BUTTONS = `button:not([data-pp-section-head]):not(summary):not([data-nav-head]):not([data-nav-item]):not([data-workspace-pill]):not([data-home-tile]):not([data-rail-row]):not([data-tabs] > [role="tab"]), [role="button"], a[data-sc-act], a[data-pp-act]`
 const tall = `[...document.querySelectorAll(${JSON.stringify(BUTTONS)})].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > ${MAX} + 0.5 }).map((el) => (el.getAttribute('aria-label') || el.textContent).trim().slice(0, 30) + ' ' + Math.round(el.getBoundingClientRect().height) + 'px')`
 
 const SIZES = [

@@ -84,7 +84,7 @@ for (const width of [390, 1280])
   test(`Settings › Flow keeps gaps, aligned fields and a Save footer at ${width} px`, { skip }, async () => {
     await openFlowSettings(width)
     const before = await page.evaluate(READ)
-    assert.ok(before.gaps.length >= 6, `found ${before.gaps.length} labels`)
+    assert.ok(before.gaps.length >= 2, `found ${before.gaps.length} labels`)
     for (const { label, gap } of before.gaps) if (gap !== null) assert.ok(gap >= 4, `"${label}" runs into (optional): ${gap}px`)
     for (const { group, rows } of before.rows)
       for (const row of rows) {

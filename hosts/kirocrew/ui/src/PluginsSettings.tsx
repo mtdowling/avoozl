@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
 import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
@@ -12,8 +12,6 @@ import { PluginChecksFacts } from './PluginChecks.tsx'
 import { ContextPartFacts } from './ContextPart.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
-import { SkillNoteCard } from './FlowMemory.tsx'
-import { flowClient, type SkillNote } from './flow-api.ts'
 import { BookOpen, MessagesSquare, Trash2 } from './icons.ts'
 import { useMedia } from './use-media.ts'
 import { DocumentReader } from './DocumentReader.tsx'
@@ -81,14 +79,7 @@ export function Parts({ row }: { row: PluginRow }) {
   )
 }
 
-function PluginCard(props: {
-  row: PluginRow
-  busy: boolean
-  act: (fn: () => Promise<unknown>) => void
-  client: ReturnType<typeof pluginsClient>
-  workspaceId: string
-  notes: SkillNote[]
-}) {
+function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Promise<unknown>) => void; client: ReturnType<typeof pluginsClient>; workspaceId: string }) {
   const { row, busy, act, client, workspaceId } = props
   const status = stateLabel(row)
   const id = row.id ?? ''
@@ -121,16 +112,6 @@ function PluginCard(props: {
       {row.checks && row.id ? <PluginChecksFacts plugin={row.id} part={row.checks} busy={busy} act={act} workspaceId={workspaceId} /> : null}
       {row.context && row.id ? <ContextPartFacts plugin={row.id} part={row.context} busy={busy} act={act} workspaceId={workspaceId} /> : null}
       <Facts row={row} />
-      {props.notes.length > 0 && (
-        <Stack gap={2} data-plugin-notes>
-          <Box as="span" size="xs" weight="semibold">
-            Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.
-          </Box>
-          {props.notes.map((n, i) => (
-            <SkillNoteCard key={i} note={n} />
-          ))}
-        </Stack>
-      )}
       {row.id ? (
         <Row gap={2} align="start">
           {canApprove(row) ? (
@@ -204,19 +185,6 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
   // Add plugin on the left, the installed list on the right; stacked when
   // the page is narrow.
   const wide = useMedia('(min-width: 1024px)')
-  // Suggested skill changes approved from retros, by plugin (R68.11).
-  const api2 = useMemo(() => flowClient(api), [api])
-  const [notes, setNotes] = useState<SkillNote[]>([])
-  useEffect(() => {
-    let live = true
-    api2.proposals(workspaceId).then(
-      (p) => live && setNotes(p.notes),
-      () => live && setNotes([]),
-    )
-    return () => {
-      live = false
-    }
-  }, [api2, workspaceId])
   return (
     <Stack gap={3}>
       <Row gap={2} align="start" data-plugin-help>
@@ -277,15 +245,7 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
           ) : null}
           <Stack gap={4}>
             {value?.plugins.map((row, i) => (
-              <PluginCard
-                key={`${row.id}-${row.source}-${i}`}
-                row={row}
-                busy={acting || busy}
-                act={act}
-                client={client}
-                workspaceId={workspaceId}
-                notes={notes.filter((n) => n.plugin === row.id)}
-              />
+              <PluginCard key={`${row.id}-${row.source}-${i}`} row={row} busy={acting || busy} act={act} client={client} workspaceId={workspaceId} />
             ))}
           </Stack>
         </PairedCard>

@@ -11,7 +11,6 @@ import { validateLanes } from "../tick/lanes.mjs";
 import { applyLandingModes, PR_MODES } from "../landing/landing-config.mjs";
 import { flowPolicy } from "../flow/flow.mjs";
 import { deliveryPolicy } from "../delivery/delivery.mjs";
-import { refuseTrackedProviders } from "../flow/provider-health.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -757,7 +756,6 @@ export class RepositorySettings {
       validateActivitySettings(value.activity);
       flowPolicy(value);
       deliveryPolicy(value);
-      refuseTrackedProviders(value);
     } catch (error) {
       fail(error.message);
     }

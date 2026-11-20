@@ -23,8 +23,6 @@ test('durations and metric cards read like the sketch, with empty text that says
       ['Flow efficiency', '34%', '28%'],
       ['First-pass rate', '70%', '60%'],
       ['Time to fix', '–', null],
-      ['Fix work', '–', '–'],
-      ['Corrections', '–', null],
     ],
   )
   assert.equal(cards[3].empty, 'No line stop yet.')
@@ -152,8 +150,8 @@ test('the retro instructions use the shared built-in prompt part', () => {
   assert.match(part, /navigator\.clipboard\.writeText/)
 })
 
-test('charts and usage use theme colors and no yellow', async () => {
-  const { STAGE_COLORS, usageText } = await import('../src/flow-api.ts')
+test('charts use theme colors and no yellow', async () => {
+  const { STAGE_COLORS } = await import('../src/flow-api.ts')
   const yellowish = (hex) => {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
     return r > 180 && g > 140 && b < 90
@@ -163,9 +161,6 @@ test('charts and usage use theme colors and no yellow', async () => {
   assert.doesNotMatch(charts, /#[0-9a-f]{6}/i, 'chart lines use theme variables')
   assert.match(charts, /css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr"/, 'one column at 320px')
   assert.match(source('ui/box.json'), /"repeat-auto-fill-minmax-min-100%-16rem-1fr": "repeat\(auto-fill, minmax\(min\(100%, 16rem\), 1fr\)\)"/)
-  assert.equal(usageText({ input: 12000, output: 800, credits: 0, turns: 3 }), '12k in · 800 out')
-  assert.equal(usageText({ input: 0, output: 0, credits: 1.5, turns: 1 }), '1.50 credits')
-  assert.match(source('flow-api.ts'), /Not available:/)
 })
 
 test('Flow lists every line stop, pulled and automatic, newest first, with its time to fix (R64.11)', () => {

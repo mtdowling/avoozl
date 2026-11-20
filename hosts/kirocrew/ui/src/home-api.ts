@@ -140,35 +140,18 @@ export function landedRows(landing: LandingView | null, delivery: DeliveryItem[]
   return rows.sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit)
 }
 
-export interface CiRepository {
-  repository: string
-  waitShare: number | null
-  waitLimit: number
-  over: boolean
-  closed: number
-  repeats: number
-}
 export interface CiHealth {
-  // False when this backend sends no CI facts.
+  // False until flow.view answers.
   available: boolean
-  repositories: CiRepository[]
   flaky: number
   ciOnly: number
 }
 
-// CI health from flow.view's own CI facts (recorded runs, no new read).
-export function ciHealth(flow: Pick<FlowViewModel, 'ci' | 'flaky' | 'ciOnly'> | null): CiHealth {
-  const repositories = (flow?.ci?.repositories ?? []).map((row) => ({
-    repository: row.repository,
-    waitShare: row.waitShare,
-    waitLimit: row.waitLimit,
-    over: row.waitShare !== null && row.waitShare > row.waitLimit,
-    closed: row.closedPullRequests,
-    repeats: row.repeats.reduce((sum, r) => sum + r.extraRuns, 0),
-  }))
+// CI health from flow.view's check records (no new read): checks that
+// failed then passed, and checks that failed only in CI.
+export function ciHealth(flow: Pick<FlowViewModel, 'flaky' | 'ciOnly'> | null): CiHealth {
   return {
-    available: Boolean(flow?.ci),
-    repositories,
+    available: Boolean(flow),
     flaky: flow?.flaky?.length ?? 0,
     ciOnly: flow?.ciOnly?.length ?? 0,
   }

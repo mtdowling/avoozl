@@ -20,13 +20,12 @@ it checks, and when Avoozl stops to look back. They live under `flow` in
 ```
 
 **Settings › Flow** edits the same settings. The **Flow** page shows where the
-time went, the share of finished tasks that were bug fixes, and corrections
-per week.
+time went.
 
 ## Timing
 
-Timing is always on. It records each task's time per stage, and token and
-credit counts per stage. It keeps no prompts or text.
+Timing is always on. It records each task's time per stage. It keeps no
+prompts or text.
 
 ## Stop the line
 
@@ -56,14 +55,6 @@ A retro starts after every `retro.everyTasks` finished tasks (default 10). It
 also starts when a task or a CI wait takes more than `retro.slowFactor` times
 its repository's usual time (default 3), or when a worker starts its third
 attempt. A tool-less `avoozl-retro` session names the biggest slowdown and
-proposes up to three changes. You approve or reject each one, and Avoozl
-measures an approved change afterward. **Retros** in the nav holds the Retros
-and Proposals pages.
-
-## Rules from corrections
-
-Avoozl records changes requested, work sent back with a reason, and a revert
-of an agent's commit. When the retro sees the same correction on two tasks, it
-may propose a rule. Once you approve it, the rule lands as one task that edits
-`.kiro/steering/avoozl-rules.md` in that repository and points `AGENTS.md` at
-it, so every chat reads the rules. Avoozl keeps no lessons store of its own.
+proposes up to three changes, each a settings change or a spec change. You
+approve or reject each one under its retro on the **Retros** page, and Avoozl
+measures an approved change afterward.

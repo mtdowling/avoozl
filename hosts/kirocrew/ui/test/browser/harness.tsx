@@ -29,7 +29,6 @@ import WorkspaceView from '../../src/WorkspaceView.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { LAYER } from '../../src/layers.ts'
-import FlowBuilds from '../../src/FlowBuilds.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import type { EditTab } from '../../src/repo-edit-tabs.ts'
@@ -461,6 +460,7 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
   // Home reads these too; an unanswered call never settles.
+  answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [] }))
   answer('radar.releasequeue', () => ({ repositories: [] }))
   answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
 }
@@ -508,7 +508,7 @@ if (query.get('page') === 'app') {
   if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
   if (!replyFor('landing.view')) answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
   // &home=empty: Home's CI read answers with no runs (only Home reads it).
-  if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [], flaky: [], ciOnly: [], ci: { repositories: [] } }))
+  if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [], flaky: [], ciOnly: [] }))
   // &roles=plans|single|local: Repository setup in each github.mode, the
   // planning repository without a checkout in &roles=plans.
   const roles = query.get('roles')
@@ -797,7 +797,6 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
     landedThisWeek: 3,
   }))
   const metrics = { tasks: 4, leadTimeMs: 52 * 60000, flowEfficiency: 0.62, firstPassRate: 0.75, changeFailureRate: 0, integrationsPerDay: 1.2, timeToFixMs: null }
-  const byClass = { code: { task: { minutes: 64, pullRequests: 6 }, other: { minutes: 12, pullRequests: 2 } } }
   answer('flow.view', () => ({
     window: { size: 10, since: null },
     metrics,
@@ -813,21 +812,6 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
     repositories: ['acme/recipe-box', 'acme/docs'],
     epics: [],
     series: { day: [], week: [] },
-    usage: { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] },
-    ci: {
-      repositories: [
-        {
-          repository: 'acme/recipe-box',
-          windowDays: 14,
-          byClass,
-          waitShare: 0.18,
-          waitLimit: 0.25,
-          closedPullRequests: 14,
-          repeats: [{ workflow: 'ci', commits: 2, extraRuns: 2, extraMinutes: 9 }],
-        },
-        { repository: 'acme/docs', windowDays: 14, byClass, waitShare: 0.34, waitLimit: 0.25, closedPullRequests: 5, repeats: [] },
-      ],
-    },
   }))
 }
 // &inline=1: a stateful backend for the Settings pages that edit in place.
@@ -1293,35 +1277,12 @@ if (query.get('basic') === '1') {
   answer('plan.list', () => ({ items: [] }))
   answer('remote.view', () => ({ workers: [] }))
   const noMetrics = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
-  const noUsage = { input: 0, output: 0, credits: 0, turns: 0 }
-  answer('flow.view', () =>
-    query.get('receipt')
-      ? {
-          window: { size: 20, since: null },
-          metrics: noMetrics,
-          previous: noMetrics,
-          bottleneck: null,
-          tasks: [],
-          stops: [],
-          line: [],
-          flaky: [],
-          ciOnly: [],
-          retros: [],
-          stages: [],
-          repositories: ['acme/recipe-box'],
-          epics: [],
-          series: { day: [], week: [] },
-          usage: { available: false, total: noUsage, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] },
-        }
-      : { line: [], stages: [], tasks: [], retros: [] },
-  )
   answer('radar.releasequeue', () => ({ repositories: [] }))
 }
 // ?page=app&flow=1: Flow and Settings ›
 // Flow, for the owner-rule screenshots (flow-rules-shots.mjs).
 if (query.get('page') === 'app' && query.get('flow') === '1') {
   const metrics = { tasks: 1, leadTimeMs: 52 * 60000, flowEfficiency: 0.62, firstPassRate: 1, changeFailureRate: 0, integrationsPerDay: null, timeToFixMs: null }
-  const usage = { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] }
   const stages = { queued: 4 * 60000, coding: 30 * 60000, tests: 8 * 60000, 'ci-wait': 10 * 60000 }
   const task = {
     taskId: 'search.3',
@@ -1397,9 +1358,7 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     plans: [],
     phases: [],
     series: { day: [], week: [] },
-    usage,
   }))
-  answer('flow.proposals', () => ({ proposals: [], dropped: [], prompts: [], notes: [], available: false }))
   answer('flow.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,
@@ -1408,13 +1367,6 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     repositories: {},
     instructions: '',
     retroPrompt: null,
-    ciClassGlobs: {
-      ci: ['.github/', '.gitlab-ci.yml', '.circleci/'],
-      spec: ['.kiro/specs/'],
-      tests: ['test/', 'tests/', '**/test/**', '**/*.test.*'],
-      docs: ['docs/', '*.md', '**/*.md'],
-      other: ['package-lock.json', '*.lock'],
-    },
   }))
 }
 // ?page=app&retros=1: Flow with three tasks in two repositories and two
@@ -1422,7 +1374,6 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
 // and Retros with two retros and the proposals they made (the Retros pill
 // and Flow nav filters shots and test).
 if (query.get('page') === 'app' && query.get('retros') === '1') {
-  const noUsage = { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] }
   const min = 60000
   const mk = (taskId: string, title: string, repository: string, plan: string, at: string, stages: Record<string, number>) => {
     const leadMs = Object.values(stages).reduce((a, b) => a + b, 0)
@@ -1457,7 +1408,6 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       startedAt: '2026-11-16T12:00:00Z',
       finishedAt: '2026-11-16T12:09:00Z',
       model: 'claude-sonnet',
-      chat: { slot: 'avoozl_retro_2', executor: 'kirocrew', harness: null, status: 'idle', link: '/chat?sid=avoozl_retro_2' },
       bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' },
       dropped: [],
       proposals: [
@@ -1475,13 +1425,12 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
         },
         {
           id: 'p2',
-          type: 'prompt',
-          target: 'worker',
-          section: 'Checks',
-          diff: '@@ -1,2 +1,2 @@\n Run the checks.\n-Run all tests.\n+Run the tests you touched first.',
-          metric: 'first-pass rate',
-          direction: 'up',
-          evidence: 'Two reviews asked for narrower runs.',
+          type: 'plan',
+          spec: 'search',
+          change: 'Split search.4 so ranking and its index land apart',
+          metric: 'lead time',
+          direction: 'down',
+          evidence: 'search.4 waited 40 minutes on CI.',
           status: 'open',
         },
       ],
@@ -1499,14 +1448,6 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       bottleneck: null,
       dropped: [],
       proposals: [],
-      chat: {
-        slot: 'avoozl_retro_4',
-        executor: 'process',
-        harness: 'claude-code',
-        status: 'closed',
-        link: null,
-        process: { state: 'exited', logTail: 'reading the window\nwriting the reply\nerror: the model call was cut off', attach: 'tail -n 20 -f /tmp/avoozl/retro-4.log' },
-      },
     },
     {
       id: 'retro-3',
@@ -1521,7 +1462,6 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       bottleneck: null,
       dropped: [],
       proposals: [],
-      chat: { slot: 'avoozl_retro_3', executor: 'kirocrew', harness: null, status: 'gone', link: '/chat?sid=avoozl_retro_3' },
     },
     {
       id: 'retro-1',
@@ -1535,11 +1475,14 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       proposals: [
         {
           id: 'p1',
-          type: 'rule',
-          text: 'Name the spec in every commit message.',
-          metric: 'corrections',
+          type: 'settings',
+          file: 'workspace',
+          key: 'flow.retro.everyTasks',
+          from: 10,
+          to: 5,
+          metric: 'lead time',
           direction: 'down',
-          evidence: { runs: ['search.1', 'search.2'], value: 2, effect: 'corrections' },
+          evidence: 'Slow tasks went unreviewed for 10 tasks.',
           status: 'approved',
         },
       ],
@@ -1581,17 +1524,9 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       ],
       phases: [],
       series: { day: tasks.map(point), week: tasks.map(point) },
-      usage: noUsage,
     }
   })
-  answer('flow.proposals', () => ({
-    proposals: retros.flatMap((r) => r.proposals.map((p) => ({ retro: r.id, ...p }))),
-    dropped: [],
-    prompts: [{ target: 'worker', version: 'built-in', shipped: 'abc', active: 0, versions: [], sections: [], drift: [] }],
-    notes: [],
-    available: true,
-  }))
-  answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null, ciClassGlobs: {} }))
+  answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null }))
   answer('flow.retro.decide', () => ({ ok: true }))
   answer('flow.retro.again', () => ({ queued: true }))
 }
@@ -1710,27 +1645,6 @@ function Page() {
   )
 }
 
-// ?page=github-flow: Flow's Builds on twelve build records.
-if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query.get('receipt')))
-  answer('builds.view', () => ({
-    count: 12,
-    totalMs: 2280000,
-    failedMs: 420000,
-    medianMs: 160000,
-    byPhase: [
-      { phase: 'build', target: 'linux-x64/node26', start: 'warm', count: 8, medianMs: 38000 },
-      { phase: 'test', target: 'linux-x64/node26', start: 'warm', count: 8, medianMs: 96000 },
-      { phase: 'test', target: 'win32-x64/node26', start: 'cold', count: 2, medianMs: 174000 },
-    ],
-    byInstance: [
-      { instance: 'inst-0a1b2c3d4e5f', name: 'Draco', count: 9, medianMs: 150000, totalMs: 1700000 },
-      { instance: 'inst-f5e4d3c2b1a0', name: 'Cedar', count: 3, medianMs: 190000, totalMs: 580000 },
-    ],
-    recent: [
-      { repository: 'acme/recipe-box', pr: 57, totalMs: 310000, failedMs: 120000, phases: [], costliest: { phase: 'test', ms: 180000 } },
-      { repository: 'acme/recipe-box', pr: 55, totalMs: 140000, failedMs: 0, phases: [], costliest: { phase: 'build', ms: 80000 } },
-    ],
-  }))
 // ?page=repo-mode: one repository's Edit body on its Landing tab.
 function RepoModePage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('acme/recipe-box'))
@@ -1872,7 +1786,6 @@ const PAGES: Record<string, () => ReactNode> = {
     />
   ),
   'repo-mode': () => <RepoModePage />,
-  'github-flow': () => <FlowBuilds workspaceId="w" />,
 }
 function SettingsPage({ name }: { name: string }) {
   const render = PAGES[name]

@@ -99,7 +99,7 @@ const PAIRS = [
     DELIVERY_REPOSITORY_KEYS,
   ],
   ["#/$defs/flow", [...new Set(FLOW_PATHS.map((path) => path.split(".")[0]))]],
-  ...["stopTheLine", "retro", "ci", "verify"].map((group) => [
+  ...["stopTheLine", "retro", "verify"].map((group) => [
     `#/$defs/flow/properties/${group}`,
     flowGroup(group),
   ]),
@@ -129,15 +129,6 @@ const PAIRS = [
 // Closed schema objects whose validator keeps its few keys inline, so there
 // is no list to compare. Each was read against the code named beside it.
 const UNPAIRED = new Map([
-  ["#/properties/receipts", "build-receipt.mjs reads parser and warmCheck"],
-  [
-    "#/properties/receipts/properties/report/oneOf/0",
-    "validateReportSetting in build-report.mjs",
-  ],
-  [
-    "#/properties/receipts/properties/report/oneOf/1",
-    "validateReportSetting in build-report.mjs",
-  ],
   ["#/properties/intake", "sourceDeclarations in intake.mjs reads sources"],
   ["#/properties/activity", "validateActivitySettings in activity-log.mjs"],
   ["#/$defs/agentInstructions", "agent-instructions.mjs accepts only rules"],
@@ -164,7 +155,6 @@ const OPEN = new Map([
       "agentInstructions",
       "conversations",
       "repositories",
-      "receipts",
       "github",
       "roles",
       "planReview",

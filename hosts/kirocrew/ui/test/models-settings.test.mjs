@@ -46,7 +46,7 @@ test('Settings > Models says person-only refusal in a Kiro Crew chat is only a s
 
 test('Switch model, its dialog and the bulk switch calls are gone from the page', () => {
   assert.equal(existsSync(new URL('../src/SwitchModel.tsx', import.meta.url)), false)
-  for (const name of ['App.tsx', 'providers-api.ts']) assert.doesNotMatch(source(name), /SwitchModel|provider\.switch/, name)
+  assert.doesNotMatch(source('App.tsx'), /SwitchModel|provider\.switch/)
 })
 
 // R98.3: a harness per role: auto, the Kiro Crew chat, or this machine's files.

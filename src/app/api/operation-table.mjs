@@ -22,7 +22,6 @@ import { entries as specs } from "../ops/specs.mjs";
 import { entries as tasks } from "../ops/tasks.mjs";
 import { entries as telemetry } from "../ops/telemetry.mjs";
 import { entries as workspace } from "../ops/workspace.mjs";
-import { entries as retro } from "../flow/retro-operations.mjs";
 
 export const TABLES = {
   content,
@@ -33,7 +32,6 @@ export const TABLES = {
   intake,
   plans,
   plugins,
-  retro,
   sessions,
   specs,
   tasks,

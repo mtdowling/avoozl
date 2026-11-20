@@ -38,7 +38,6 @@ import {
 } from "../sessions/session-bindings.mjs";
 import { branchTip, commitWorkerChanges, git, taskGit } from "../git/git.mjs";
 import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
-import { healthContext, providerOf } from "../flow/provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { hasRemoteTask } from "../workers/remote-runner.mjs";
 import { processRow } from "../agents/role-table.mjs";
@@ -159,7 +158,6 @@ export function bindingStatus(status) {
 }
 
 const FINISHED = new Set(["closed", "lost", "gone"]);
-const LOW = new Set(["low", "out"]);
 
 // R97.3: every role runs on `process`. A Kiro Crew chat gets its role's
 // prompt from its agent file; a child gets the same prompt file at the top
@@ -266,21 +264,6 @@ async function removeDetached(checkout, worktree) {
     () => {},
   );
   await git(checkout, ["worktree", "prune"]).catch(() => {});
-}
-
-// The plan-quota stop (R94.6a): no new session on a harness whose quota
-// reads low or out (R72), judged by the session's model and by the
-// harness's name, whose provider is its name up to the first `-` (so
-// `claude-code` reads the `claude` provider). Running sessions and their
-// messages go on. Returns the hold, or null.
-// shortcut: Avoozl cannot tell a plan login from an API login, so a low
-// mark stops new `process` sessions on either; add a login field to the
-// definition if API logins should keep starting.
-export function planQuotaHold(health, { model, harness }) {
-  for (const name of [model, harness])
-    if (name && LOW.has(health.level(name)))
-      return `The ${providerOf(name)} plan quota reads ${health.level(name)}; no new session starts on ${harness}.`;
-  return null;
 }
 
 // R94.4a: a write worker's worktree has its git directory in the main
@@ -792,17 +775,6 @@ export async function drainProcessRequests(
   const executor = processExecutor({ stateDirectory });
   const owner = { executor: PROCESS_EXECUTOR, consumer: CONSUMER };
   const errors = [];
-  let health = null;
-  // Checked when a start is taken, so a mark set after the tick queued it
-  // still holds it.
-  const startHold = (request) => {
-    if (request.operation === "send") return null;
-    health ??= healthContext(store);
-    return planQuotaHold(health, {
-      model: request.model,
-      harness: requestHarness(store, request),
-    });
-  };
   for (const pending of pendingSessionRequests(store, PROCESS_EXECUTOR)) {
     if (
       pending.operation === "start" &&
@@ -811,8 +783,7 @@ export async function drainProcessRequests(
       continue;
     const taken = takeSessionRequest(store, pending, {
       ...owner,
-      eligible: (request, queued) =>
-        sessionStartHold(store, request, queued) ?? startHold(request),
+      eligible: (request, queued) => sessionStartHold(store, request, queued),
     });
     if (!taken) continue;
     const { request, claimToken } = taken;

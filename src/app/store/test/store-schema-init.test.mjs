@@ -36,7 +36,6 @@ test("fresh schema and reopened workspace keep the same schema, data and durabil
     healthy(store.db);
     expected = schema(store.db);
     assert(expected.some((row) => row.name === "activity_log_at"));
-    assert(expected.some((row) => row.name === "planning_usage"));
     store.setMeta("preserved", { value: "fake" });
     store.put("plans", { id: "fake-plan", state: "draft", hash: "fake-hash" });
   } finally {
@@ -63,7 +62,7 @@ test("legacy schema gains missing tables and retains activity and idea migration
     store.put("plans", { id: "fake-plan", state: "draft", hash: "fake-hash" });
     store.put("incoming_items", { id: "idea", record: { kind: "idea" } });
     store.put("incoming_items", { id: "ticket", record: { kind: "ticket" } });
-    for (const table of ["activity_log", "pr_ci", "ci_runs", "planning_usage"])
+    for (const table of ["activity_log", "flow_spans"])
       store.db.exec(`DROP TABLE ${table}`);
   } finally {
     store.close();

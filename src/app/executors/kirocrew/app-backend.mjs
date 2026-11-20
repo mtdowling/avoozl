@@ -22,24 +22,13 @@ import {
   gatewaySessionStopper,
   gatewaySlotReader,
   gatewaySlotRows,
-  gatewayUsageTurns,
   observeSessions,
   observeRetroReplies,
   observeToolRows,
 } from "./session-observer.mjs";
 import { declaredChecks } from "../../delivery/delivery.mjs";
 import { checkCommand } from "../../workspace/repository-checks.mjs";
-import { observeUsage } from "../../flow/flow-usage.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
-import {
-  applySwitches,
-  gatewayModelList,
-  gatewayModelSwitcher,
-  healthContext,
-  recordModelList,
-  refreshHealth,
-  switchModels,
-} from "../../flow/provider-health.mjs";
 import { taskRepository } from "../../../work-model.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "../../tick/tick.mjs";
 import { withWorkLock } from "../../git/git.mjs";
@@ -187,13 +176,6 @@ export function startAppBackend({
   slotReader = gatewaySlotReader(process.env),
   // Reads worker sessions' tool rows for timing (session-observer.mjs).
   rowReader = gatewaySlotRows(process.env),
-  // Reads per-turn tokens and credits for timing (flow-usage.mjs).
-  usageReader = gatewayUsageTurns(process.env),
-  // Changes a running chat's model (provider-health.mjs, F126).
-  modelSwitcher = gatewayModelSwitcher(gatewayClient(process.env)),
-  // Lists the models Kiro Crew offers (GET /api/models, F128), read on each
-  // pass so a model list is never stale.
-  modelReader = gatewayModelList(gatewayClient(process.env)),
   // Stops a session for Stop all agents (session-observer.mjs).
   sessionStopper = gatewaySessionStopper(process.env),
   // Starts the machine server when none runs (MS3.5). Only under Kiro
@@ -217,9 +199,6 @@ export function startAppBackend({
       notifier,
       slotReader,
       rowReader,
-      usageReader,
-      modelSwitcher,
-      modelReader,
       sessionStopper,
     },
     follow: () => follow(),
@@ -317,25 +296,6 @@ export function startAppBackend({
             const { errors } = await observeRetroReplies(store, rowReader);
             if (errors.length) console.error(errors[0].error);
           }
-          if (usageReader) {
-            const { errors } = await observeUsage(store, usageReader);
-            if (errors.length) console.error(errors[0].error);
-          }
-          // Provider health (§4.20): marks from the reads above, then move
-          // live chats off an out model, and apply a person's switches.
-          refreshHealth(store);
-          if (modelReader)
-            try {
-              recordModelList(store, await modelReader());
-            } catch (error) {
-              console.error(error.message);
-            }
-          if (modelSwitcher)
-            await applySwitches(store, modelSwitcher, {
-              ...ops.providerOptions(),
-              health: healthContext(store),
-              choicesFor: () => switchModels(store),
-            });
         } catch (error) {
           if (error.status !== 503) console.error(error);
         }
@@ -349,17 +309,7 @@ export function startAppBackend({
     target.dbPath !== ":memory:" &&
     fs.existsSync(target.dbPath);
   const follow = () => {
-    if (
-      !(
-        notifier ||
-        slotReader ||
-        rowReader ||
-        usageReader ||
-        modelSwitcher ||
-        modelReader
-      )
-    )
-      return;
+    if (!(notifier || slotReader || rowReader)) return;
     let target = drainable(config) ? config : null;
     if (!target)
       try {

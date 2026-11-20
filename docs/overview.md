@@ -82,7 +82,7 @@ The nav has seven entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
 - **Specs:** one list with status chips, and spec details with tabs.
 - **Needs you:** Decisions.
 - **Flow:** one page.
-- **Retros:** Retros, Proposals.
+- **Retros:** one page.
 - **Activity:** one page.
 - **Settings:** Workspaces, Repository setup, GitHub, Plugins, Content rules,
   Flow, Models, Delivery.

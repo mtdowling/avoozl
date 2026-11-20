@@ -1,4 +1,3 @@
-import { PlanningFlow } from '../../src/PlanningFlow.tsx'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import PlansView, { ApproveSpecDialog } from '../../src/PlansView.tsx'
@@ -204,27 +203,4 @@ function Harness() {
     </div>
   )
 }
-createRoot(document.getElementById('root')!).render(
-  query.get('mode') === 'planning' ? (
-    <div {...{ [APP_ATTR]: '' }}>
-      <PlanningFlow
-        groups={[
-          {
-            spec: 'synthetic-spec',
-            planId: 'p',
-            durationMs: 180000,
-            usage: { input: 20, output: 10, credits: 4, turns: 2 },
-            roles: [
-              { role: 'plan-review', model: 'fake-reviewer', durationMs: 60000, input: 10, output: 5, credits: 2, turns: 1 },
-              { role: 'plan-answer', model: 'fake-writer', durationMs: 120000, input: 10, output: 5, credits: 2, turns: 1 },
-            ],
-          },
-        ]}
-      />
-    </div>
-  ) : query.get('mode')?.startsWith('workspace') ? (
-    <WorkspaceHarness />
-  ) : (
-    <Harness />
-  ),
-)
+createRoot(document.getElementById('root')!).render(query.get('mode')?.startsWith('workspace') ? <WorkspaceHarness /> : <Harness />)

@@ -1,5 +1,5 @@
 // Settings > Flow (design §8.4, R48.6–R48.8): stop the line, local checks
-// first, CI and retros for this workspace. Saves write `flow` in
+// first and retros for this workspace. Saves write `flow` in
 // .avoozl.json through flow.settings.update with the file's hash; the retro
 // instructions are saved on this machine only (flow.instructions.update).
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -80,18 +80,6 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
   }
   const built = toFlowSection(form)
   const dirty = Boolean(value) && (JSON.stringify(form) !== JSON.stringify(toFlowForm(value?.flow)) || instructions !== (value?.instructions ?? ''))
-  // Overrides an Avoozl update changed under them (R70.5).
-  const [drifted, setDrifted] = useState(0)
-  useEffect(() => {
-    let live = true
-    client.proposals(workspaceId).then(
-      (p) => live && setDrifted(p.prompts.reduce((n, row) => n + row.drift.length, 0)),
-      () => live && setDrifted(0),
-    )
-    return () => {
-      live = false
-    }
-  }, [client, workspaceId])
   const save = async () => {
     if (!value) return
     if (built.error) return
@@ -122,7 +110,6 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
     )
   const scope = form.scope || FLOW_DEFAULTS.scope
   const local = form.localChecksFirst ? form.localChecksFirst === 'on' : FLOW_DEFAULTS.localChecksFirst
-  const ciDefaults = value.ciEffective ?? FLOW_DEFAULTS
   return (
     <Stack gap={3} data-flow-settings>
       <FlowBox>
@@ -148,76 +135,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
         </Section>
       </FlowBox>
       <FlowBox>
-        <Section title="CI" blurb="Review steady CI costs across every pull request. These limits trigger a retrospective proposal; you decide what changes.">
-          <Stack data-ci-settings gap={4}>
-            <FieldGrid group="ci">
-              <Labeled id="avoozl-flow-ci-window" label="Window (days)" raw="flow.ci.windowDays" note="Whole number 1–90.">
-                <Input
-                  id="avoozl-flow-ci-window"
-                  inputMode="numeric"
-                  value={form.windowDays}
-                  placeholder={String(ciDefaults.windowDays)}
-                  onChange={(event) => set({ windowDays: event.target.value })}
-                />
-              </Labeled>
-              <Labeled id="avoozl-flow-ci-docs" label="Docs-only CI limit (minutes)" raw="flow.ci.docsOnlyMinutes" note="Whole number 1–100,000. Includes spec-only changes.">
-                <Input
-                  id="avoozl-flow-ci-docs"
-                  inputMode="numeric"
-                  value={form.docsOnlyMinutes}
-                  placeholder={String(ciDefaults.docsOnlyMinutes)}
-                  onChange={(event) => set({ docsOnlyMinutes: event.target.value })}
-                />
-              </Labeled>
-              <Labeled id="avoozl-flow-ci-wait" label="CI wait share limit" raw="flow.ci.waitShare" note="0.05–1 of lead time. 0.4 means 40%.">
-                <Input
-                  id="avoozl-flow-ci-wait"
-                  inputMode="decimal"
-                  value={form.waitShare}
-                  placeholder={String(ciDefaults.waitShare)}
-                  onChange={(event) => set({ waitShare: event.target.value })}
-                />
-              </Labeled>
-              <Labeled id="avoozl-flow-ci-min" label="Closed pull requests before wait check" raw="flow.ci.minPullRequests" note="Whole number 1–1,000.">
-                <Input
-                  id="avoozl-flow-ci-min"
-                  inputMode="numeric"
-                  value={form.minPullRequests}
-                  placeholder={String(ciDefaults.minPullRequests)}
-                  onChange={(event) => set({ minPullRequests: event.target.value })}
-                />
-              </Labeled>
-            </FieldGrid>
-            <Stack gap={2} data-ci-globs>
-              <Box as="h4" m0 size="sm" weight="semibold">
-                File classes (read-only)
-              </Box>
-              <Hint as="p" size="xs" flush>
-                First matching class wins in the order below. A repository can override these lists in its configuration.
-              </Hint>
-              {Object.entries(value.ciClassGlobs ?? {}).map(([name, globs]) => (
-                <Box key={name} css-border-color="border" flex minW0 flexCol gap="1" border="t" pt="2">
-                  <Box as="span" size="sm" weight="medium">
-                    {name}
-                  </Box>
-                  <Hint as="code" css-overflow-wrap="anywhere" size="xs">
-                    {globs.join(', ') || 'No matching paths'}
-                  </Hint>
-                </Box>
-              ))}
-              <Box css-border-color="border" flex flexCol gap="1" border="t" pt="2">
-                <Box as="span" size="sm" weight="medium">
-                  code
-                </Box>
-                <Hint size="xs">Anything that does not match a class above.</Hint>
-              </Box>
-              <RawKey name="flow.ci.classes" />
-            </Stack>
-          </Stack>
-        </Section>
-      </FlowBox>
-      <FlowBox>
-        <Section title="Retro" blurb="A review that finds the biggest slowdown and proposes one change. You approve or reject each proposal.">
+        <Section title="Retro" blurb="A review that finds the biggest slowdown and proposes a settings or spec change. You approve or reject each proposal.">
           <SectionHeading level={4} title="When it runs" />
           <FieldGrid group="when">
             <Labeled id="avoozl-flow-every" label="After this many tasks" raw="flow.retro.everyTasks">
@@ -251,11 +169,6 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
             placeholder="What the retro should weigh, for example: fewer review rounds matter more than CI time."
             note="Saved on this machine only."
           />
-          {drifted > 0 && (
-            <Box role="status" as="p" css-color="warning-text" size="sm" data-override-warning>
-              {drifted === 1 ? 'A prompt override is' : `${drifted} prompt overrides are`} based on an older built-in text. Review the rebase in Retros › Proposals.
-            </Box>
-          )}
         </Section>
       </FlowBox>
       <SaveFooter

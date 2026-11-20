@@ -15,7 +15,6 @@
 import { git } from "../git/git.mjs";
 import { listSpans } from "../flow/flow.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
-import { listUsage } from "../flow/flow-usage.mjs";
 
 const NAMES = {
   started: "Avoozl-Started",
@@ -49,15 +48,11 @@ export function landingMetrics(store, delivery) {
         String(a.boundAt ?? "").localeCompare(String(b.boundAt ?? "")),
       ),
     last = workers.at(-1),
-    credits = listUsage(store)
-      .filter((row) => row.task_id === taskId)
-      .reduce((sum, row) => sum + (row.credits || 0), 0),
     metrics = {
       started: workers[0]?.boundAt ?? null,
       tries: delivery.attempts?.length || workers.length || null,
       harness: last?.executor ?? (last ? "kirocrew" : null),
       model: last?.model ?? delivery.model ?? null,
-      cost: credits ? credits.toFixed(2) : null,
     };
   const kept = Object.fromEntries(
       Object.entries(metrics)

@@ -43,7 +43,6 @@ export function installInlineFixture() {
     repositories: {},
     instructions,
     retroPrompt: 'Review saved timings and propose one change.',
-    ciClassGlobs: { docs: ['docs/', '**/*.md'], other: ['*.lock'] },
   })
   answer('flow.settings.get', () => flowSettings())
   answer('flow.settings.update', (body) => {
@@ -57,7 +56,6 @@ export function installInlineFixture() {
     writes.push(body)
     return {}
   })
-  answer('flow.proposals', () => ({ proposals: [], dropped: [], prompts: [], notes: [], available: false }))
 
   // Repository setup
   let github: Record<string, unknown> = { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main' } } }
