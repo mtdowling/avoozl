@@ -128,7 +128,7 @@ merge, shown in chat and never committed.
   - Build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chats, retro memory and retro operations are gone from `src/app/flow/`, with `bin/build-receipt` and the `avoozl-costs` skill; `flow-retro.mjs` and `retro-files.mjs` are gone once `avoozl-retro` ships
   - Flow keeps no fix-work share: `isFixWork`, the task `fix` flag, `metrics.fixWork`, `fixShare` and the retro brief's `fixWork` are gone (SM17.3)
   - Stop the line and the worker's own check run still pass their tests
-- [ ] `sim-4.5` Cut the setup tower [SM12] (§D12)
+- [x] `sim-4.5` Cut the setup tower [SM12] (§D12)
   - $after: sim-0
   - Demo mode, example installs, sample specs, instance names, onboarding, repository kinds and roles, setup access and `avoozl setup` are gone, with `seed`, `examples` and `setup` commands
   - A test adds a repository with `avoozl repository configure ID --root PATH`, runs `avoozl rebuild`, and finds its specs, ticks, claims and spec issues, with no GitHub write

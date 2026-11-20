@@ -27,7 +27,8 @@ import {
   proposalsFromFacts,
 } from "../specs/design-extraction.mjs";
 import { bindDriver } from "../workers/driver.mjs";
-import { refreshClaims } from "../workers/claims.mjs";
+import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
+import { readSpecIssues } from "../specs/spec-publication.mjs";
 import { taskEpic } from "../epics/epics.mjs";
 import { putSpan } from "../flow/flow.mjs";
 import {
@@ -933,8 +934,16 @@ export class Operations {
       );
     const result = await this.readFromGit();
     // Claims come back from the claim branches on origin (simplify §D3).
-    const claimErrors = await refreshClaims(this.store, this.github);
-    return claimErrors.length ? { ...result, claimErrors } : result;
+    const claimErrors = await refreshClaims(this.store, this.github),
+      issues = await readSpecIssues(this.store, this.github);
+    return {
+      ...result,
+      claims: [...claimedTaskIds(this.store)],
+      specIssues: issues.found,
+      ...(claimErrors.length || issues.errors.length
+        ? { githubErrors: [...claimErrors, ...issues.errors] }
+        : {}),
+    };
   }
   // Approve each plan as its approval commit names it: `found` is plan ID
   // -> an approvalCommits entry whose hash is the plan's. Owners first: a
