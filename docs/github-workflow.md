@@ -715,8 +715,6 @@ Avoozl does not follow every rule yet. Each item below is not built:
   still starts a task on its own branch `avoozl/<task>` with no claim branch.
 - Landing (13, 14): Avoozl does not guard a pull request merge by head SHA
   and does not tick landed work whose tick is missing (13.6).
-- Next task (10): Avoozl ranks by the number of tasks unblocked and then file
-  order.
 - Label filters (16.1), label names set in settings (16.2), labeled issues
   (17) and the stop label (18).
 

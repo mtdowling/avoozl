@@ -9,7 +9,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { judge, readCases } from "../../../workflow-kit/load.mjs";
 import { lintSpec, parseSpec, specHash } from "../specs/spec-plans.mjs";
-import { unblockCounts } from "../specs/release-ranking.mjs";
+import { unblockCounts } from "../specs/ranking.mjs";
 import { claimFirst, resumeClaim } from "../workers/claims.mjs";
 import { linkedReader } from "../specs/order.mjs";
 import { catchUp, integrationBase } from "../specs/integration-base.mjs";

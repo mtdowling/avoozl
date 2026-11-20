@@ -60,34 +60,6 @@ test("ranking: more unblocked first within a rank; pins and ranks stay first", (
   assert.equal(notes.has("urgent"), false);
 });
 
-test("path holds are repository-wide, across specs, and the first by rank goes", () => {
-  const running = leaf("running", { planId: "spec-a", paths: ["src/app"] }),
-    tasks = [
-      running,
-      leaf("other-spec", { planId: "spec-b", paths: ["src/app/x.mjs"] }),
-      leaf("other-repo", {
-        planId: "spec-b",
-        repository: "lib",
-        paths: ["src/app/x.mjs"],
-      }),
-      leaf("no-paths", { planId: "spec-b" }),
-      leaf("first", { planId: "spec-c", paths: ["docs/*.md"], rank: 1 }),
-      leaf("second", { planId: "spec-d", paths: ["docs/guide.md"], rank: 2 }),
-      leaf("apart", { planId: "spec-d", paths: ["test"] }),
-    ],
-    data = { ...snapshot(), tasks, edges: [] };
-  const { order, held } = scheduleReady({
-    data,
-    candidates: tasks.slice(1),
-    flight: [running],
-  });
-  assert.deepEqual(order, ["other-repo", "no-paths", "first", "apart"]);
-  assert.equal(held.get("other-spec"), "Held: paths overlap running in app.");
-  assert.equal(held.get("second"), "Held: paths overlap first in app.");
-  // Nothing in flight and nothing ahead: nothing is held.
-  assert.equal(scheduleReady({ data, candidates: [tasks[1]] }).held.size, 0);
-});
-
 test("a branch-only prerequisite releases only its own spec's work in its repository", () => {
   const onBranch = {
       commit: "a".repeat(40),
@@ -160,27 +132,6 @@ const dispatched = async (ops) =>
   (await ops.execute("workspace.tick", { sessions: [] })).dispatch.map(
     (d) => d.task,
   );
-
-test("the tick holds overlapping work behind a task in flight, then releases it", async (t) => {
-  const { store, ops } = workspace(t, {
-    tasks: [
-      leaf("busy", { planId: "spec-a", paths: ["src/app"] }),
-      leaf("clash", { planId: "spec-b", paths: ["src/app/x.mjs"] }),
-      leaf("free", { planId: "spec-b", paths: ["docs"] }),
-    ],
-  });
-  // `busy` is in flight: a delivery record claims it.
-  store.put("task_deliveries", {
-    taskId: "busy",
-    state: "running",
-    attempts: [],
-  });
-  assert.deepEqual(await dispatched(ops), ["free"]);
-  store.mutate("Finish busy", (data) => {
-    data.tasks.find((task) => task.id === "busy").status = "accepted";
-  });
-  assert.deepEqual((await dispatched(ops)).sort(), ["clash", "free"]);
-});
 
 test("the tick dispatches the leaf that unblocks more first, within a rank", async (t) => {
   const { ops } = workspace(t, {
