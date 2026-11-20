@@ -1,0 +1,80 @@
+// One item of a list: a title line with its icon actions on the right, then
+// compact muted facts under it as `label: value` pairs that wrap in a grid
+// (one column on a phone, two or three on a wide page). Items are separated
+// by a top border only, no boxes. A fact with no value is not rendered.
+// Used by Repository setup and Settings > Workspaces.
+import type { ReactNode } from 'react'
+import { Tooltip } from './ui/Tooltip.tsx'
+import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
+
+export interface ListFact {
+  label: string
+  // Text, or chips for a set of labels.
+  value?: string | null
+  chips?: string[]
+  // Paths and branches: monospace.
+  mono?: boolean
+  // A long value is cut with an ellipsis and shown whole in a tooltip.
+  truncate?: boolean
+}
+
+const hasValue = (fact: ListFact) => Boolean(fact.value?.trim()) || Boolean(fact.chips?.length)
+
+function Value({ fact }: { fact: ListFact }) {
+  if (fact.chips?.length)
+    return (
+      <Box as="span" flex minW0 flexWrap gap="1" data-chips>
+        {fact.chips.map((chip) => (
+          <Box key={chip} as="span" css-border-color="border" css-color="text" rounded="base" border="all" px="1.5" size="xs" data-chip>
+            {chip}
+          </Box>
+        ))}
+      </Box>
+    )
+  const text = fact.value ?? ''
+  const cell = (
+    <Box as="span" css-color="text" css-overflow-wrap={fact.truncate ? undefined : 'anywhere'} block minW0 fontMono={fact.mono} truncate={fact.truncate}>
+      {text}
+    </Box>
+  )
+  return fact.truncate ? (
+    <Tooltip text={text} display="block">
+      {cell}
+    </Tooltip>
+  ) : (
+    cell
+  )
+}
+
+export default function ListItem(props: { title: ReactNode; actions?: ReactNode; facts: ListFact[]; highlighted?: boolean; attrs?: Record<string, string | boolean> }) {
+  const facts = props.facts.filter(hasValue)
+  return (
+    <Box as="li" flex minW0 flexCol gap="1" border="t" py="2.5" firstBorderT0 bgAccent10={props.highlighted} css-border-color="border" data-list-item {...props.attrs}>
+      <Box flex flexWrap items="center" gapX="3" gapY="1">
+        <Box as="span" css-flex="1-1-12rem" flex minW0 flexWrap items="center" gapX="2" gapY="1" data-list-title>
+          {props.title}
+        </Box>
+        {props.actions && (
+          <Box as="span" flex items="center" gap="1.5">
+            {props.actions}
+          </Box>
+        )}
+      </Box>
+      {facts.length > 0 && (
+        <Hint as="dl" css-grid-template-columns="repeat-auto-fill-minmax-min-100%-15rem-1fr" m0 grid gapX="4" gapY="0.5" size="xs" data-list-facts>
+          {facts.map((fact) => (
+            <Box key={fact.label} flex minW0 items="baseline" gap="1.5" data-fact={fact.label}>
+              <Box as="dt" shrink0>
+                {fact.label}:
+              </Box>
+              <Box as="dd" m0 minW0 flex1>
+                <Value fact={fact} />
+              </Box>
+            </Box>
+          ))}
+        </Hint>
+      )}
+    </Box>
+  )
+}

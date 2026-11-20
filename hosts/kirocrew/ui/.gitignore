@@ -1,0 +1,5 @@
+node_modules/
+# dist/ is written by `npm run build:kirocrew-app`, like bin/lib. Install and update
+# already need that build, and CI runs it before the tests, so a committed copy
+# only made every UI pull request conflict with main.
+dist/

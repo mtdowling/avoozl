@@ -17,7 +17,7 @@ does. It skips CI and `AVOOZL_NO_GLOBAL_LINK=1`, and a failed link only prints
 how to run `npm link` yourself.
 
 `npm run build` writes the page bundle and copies the CLI into
-`kirocrew-app/bin/lib`. The built page is not committed. `npm run test:changed`
+`hosts/kirocrew/bin/lib`. The built page is not committed. `npm run test:changed`
 runs only the tests a change reaches, as CI does. Tests use disposable
 workspaces and make no network or paid agent calls.
 
@@ -25,7 +25,7 @@ workspaces and make no network or paid agent calls.
 
 ```sh
 npm run build:kirocrew-app
-kirocrew app install "$PWD/kirocrew-app"
+kirocrew app install "$PWD/hosts/kirocrew"
 ```
 
 Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The

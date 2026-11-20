@@ -1,0 +1,233 @@
+// The desktop's left nav, Issue Radar's sidebar model (NavAccordion): a card
+// per section that opens like an accordion, then a small card of line
+// controls, then the brand card. Drag its edge to make it wider or narrower; drag it well
+// past its minimum, or press Collapse, and it becomes a thin tall bar whose
+// entries read as vertical text. Width and collapse are remembered.
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useNavSlotHost } from './nav-slot.tsx'
+import { NavAccordion, type NavGroup } from './NavAccordion.tsx'
+import { NAV_ROW } from './nav-style.ts'
+import { NAV, NAV_COLLAPSE_AT, NAV_COLLAPSED_KEY, NAV_COLLAPSED_WIDTH, clampWidth, pageStorage, readFlag, readWidth, writeFlag, writeWidth } from './columns.ts'
+import { ChevronRight } from './icons.ts'
+import { ResizeHandle } from './ResizeHandle.tsx'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
+import type { LookProps } from './ui/Box'
+
+// Issue Radar's sidebar cards, measured on the host: 12px corners, the
+// elevated surface, a hairline border and a small shadow. The top card's
+// border is the stronger one. Buttons in them keep Kiro Crew's compact size
+// (28px at most) on every screen: there is no tall tap size.
+export const NAV_CARD = {
+  'css-border': '1px-solid-border',
+  'css-border-radius': '12',
+  'css-background': 'bg-elevated',
+  'css-box-shadow': '0-1px-2px-rgba-0-0-0-0.05',
+} as const satisfies LookProps
+export const TOP_CARD = { ...NAV_CARD, 'css-border': '1px-solid-border-strong-border' } as const satisfies LookProps
+export { NAV_ROW }
+// The nav's small icon buttons (Stop the line, Refresh): 28px, icon only.
+export const NAV_ICON = {
+  'css-display': 'inline-flex',
+  'css-align-items': 'center',
+  'css-justify-content': 'center',
+  'css-width': '28',
+  'css-height': '28',
+  'css-padding': '0',
+  'css-border-radius': '6',
+  'css-border': '1px-solid-border',
+  'css-background': 'transparent',
+  'css-cursor': 'pointer',
+} as const satisfies LookProps
+// The same icons on the page's top line: square, as tall as the row (the
+// Plan a goal button beside them), never over 28px.
+export const SQUARE = {
+  'css-display': 'inline-flex',
+  'css-align-items': 'center',
+  'css-justify-content': 'center',
+  'css-align-self': 'stretch',
+  'css-aspect-ratio': '1-1',
+  'css-min-width': '24',
+  'css-max-height': '28',
+  'css-padding': '0',
+  'css-box-sizing': 'border-box',
+  'css-border-radius': '6',
+  'css-border': '1px-solid-border',
+  'css-background': 'transparent',
+  'css-cursor': 'pointer',
+} as const satisfies LookProps
+// The small section under the nav card that holds those icons, drawn only
+// when there is something to put in it.
+export function NavLine(props: { children: ReactNode }) {
+  return (
+    <Box
+      data-nav-line
+      css-border="1px-solid-border"
+      css-border-radius="12"
+      css-background="bg-elevated"
+      css-box-shadow="0-1px-2px-rgba-0-0-0-0.05"
+      css-display="flex"
+      css-align-items="center"
+      css-gap="6"
+      css-padding="4"
+    >
+      {props.children}
+    </Box>
+  )
+}
+
+// `top` is the workspace pill, first in the nav as Radar's repo switcher is.
+export function LeftNav(props: {
+  groups: NavGroup[]
+  value: string
+  child?: string | null
+  onPick: (key: string, child?: string) => void
+  line?: ReactNode
+  brand?: ReactNode
+  top?: ReactNode
+}) {
+  const [width, setWidthState] = useState(() => readWidth(pageStorage(), NAV))
+  const [collapsed, setCollapsedState] = useState(() => readFlag(pageStorage(), NAV_COLLAPSED_KEY))
+  const root = useRef<HTMLElement>(null)
+  // The thin bar has no room for a page's nav controls: they go in the page.
+  const slots = useNavSlotHost()
+  useEffect(() => {
+    slots?.setInline(collapsed)
+    return () => slots?.setInline(false)
+  }, [collapsed, slots?.setInline]) // eslint-disable-line react-hooks/exhaustive-deps
+  const setCollapsed = (on: boolean) => {
+    setCollapsedState(on)
+    writeFlag(pageStorage(), NAV_COLLAPSED_KEY, on)
+  }
+  const resize = useCallback((next: number) => {
+    if (next < NAV_COLLAPSE_AT) {
+      setCollapsedState(true)
+      writeFlag(pageStorage(), NAV_COLLAPSED_KEY, true)
+      return
+    }
+    const value = clampWidth(NAV, next)
+    setWidthState(value)
+    writeWidth(pageStorage(), NAV, value)
+  }, [])
+  if (collapsed)
+    return (
+      <Box
+        ref={root}
+        aria-label="Avoozl pages"
+        data-left-nav="collapsed"
+        data-top-row
+        as="nav"
+        css-flex={`0 0 ${NAV_COLLAPSED_WIDTH}px`}
+        css-width={NAV_COLLAPSED_WIDTH}
+        css-box-sizing="border-box"
+        css-display="flex"
+        css-flex-direction="column"
+        css-align-items="stretch"
+        css-gap="4"
+        css-padding="4px-2px"
+        css-border-right="1px-solid-border"
+        css-min-height="0"
+        css-overflow-y="auto"
+      >
+        <PlainButton
+          type="button"
+          aria-label="Expand the nav"
+          data-nav-expand
+          onClick={() => setCollapsed(false)}
+          css-display="flex"
+          css-justify-content="center"
+          css-padding="6px-0"
+          css-background="none"
+          css-border="0"
+          css-color="muted"
+          css-cursor="pointer"
+        >
+          <ChevronRight size={16} aria-hidden="true" />
+        </PlainButton>
+        <Box role="group" aria-label="Avoozl views" css-display="flex" css-flex-direction="column" css-gap="4">
+          {props.groups.map((group) => {
+            const selected = group.key === props.value
+            return (
+              <PlainButton
+                key={group.key}
+                type="button"
+                data-nav-collapsed-item={group.key}
+                aria-current={selected ? 'page' : undefined}
+                aria-label={group.aria ?? group.text}
+                onClick={() => props.onPick(group.key)}
+                css-writing-mode="vertical-rl"
+                css-transform="rotate-180deg"
+                css-padding="10px-0"
+                css-width="100%"
+                css-background={selected ? 'accent-subtle-bg-hover-bg-elevated' : 'none'}
+                css-border="0"
+                css-border-radius="6"
+                css-color={selected ? 'accent' : 'muted'}
+                css-cursor="pointer"
+                css-font-size="12.5"
+                css-font-weight={selected ? '600' : '500'}
+                css-white-space="nowrap"
+              >
+                {group.text}
+              </PlainButton>
+            )
+          })}
+        </Box>
+      </Box>
+    )
+  return (
+    <>
+      <Box
+        ref={root}
+        aria-label="Avoozl pages"
+        data-left-nav="open"
+        data-top-row
+        as="nav"
+        css-flex={`0 0 ${width}px`}
+        css-width={width}
+        css-box-sizing="border-box"
+        css-display="flex"
+        css-flex-direction="column"
+        css-gap="8"
+        css-padding="8px-8px-4px-0"
+        css-min-height="0"
+        css-overflow-y="auto"
+      >
+        {props.top}
+        <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} />
+        {props.line}
+        <PlainButton
+          type="button"
+          aria-label="Collapse the nav"
+          data-nav-collapse
+          onClick={() => setCollapsed(true)}
+          css-display="flex"
+          css-align-items="center"
+          css-gap="6"
+          css-height="28"
+          css-padding="0-10px"
+          css-background="none"
+          css-border="0"
+          css-color="muted"
+          css-cursor="pointer"
+          css-font-size="12"
+        >
+          <Box aria-hidden="true" as="span" css-display="inline-flex" css-transform="rotate-180deg">
+            <ChevronRight size={14} />
+          </Box>
+          Collapse
+        </PlainButton>
+        {props.brand}
+      </Box>
+      <ResizeHandle
+        label="Resize the nav"
+        width={width}
+        min={NAV.min}
+        max={NAV.max}
+        left={() => root.current?.getBoundingClientRect().left ?? 0}
+        onResize={resize}
+        onReset={() => resize(NAV.initial)}
+      />
+    </>
+  )
+}

@@ -1,0 +1,6 @@
+{
+  "release": "v0.12.2",
+  "package": "https://github.com/kirodotdev/KiroCrew/releases/download/v0.12.2/kirocrew-0.12.2-py3-none-any.whl",
+  "member": "^kiro_crew/static/dist/assets/src-[^/]+\\.css$",
+  "sha256": "5d85426fe5e5d641d06836cc6574f6932003acbd8213c55bc1579ccf66de6ae0"
+}

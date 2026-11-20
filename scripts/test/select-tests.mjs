@@ -80,7 +80,7 @@ export const uiTestFiles = () =>
     "ls-files",
     "-co",
     "--exclude-standard",
-    "kirocrew-app/ui/test/*.test.mjs",
+    "hosts/kirocrew/ui/test/*.test.mjs",
   ]).sort();
 
 // The local files a module imports, by static import, re-export, or a
@@ -114,7 +114,7 @@ function closure(entry, cache = new Map()) {
 
 // A test that starts a node process may run any file the command line loads.
 const STARTS_PROCESS = /process\.execPath|cli\.mjs|avoozl\.mjs|\bfork\s*\(/;
-const SPAWN_ENTRIES = ["cli.mjs", "kirocrew-app/bin/avoozl.mjs"];
+const SPAWN_ENTRIES = ["cli.mjs", "hosts/kirocrew/bin/avoozl.mjs"];
 
 const directImports = (file) => {
   const text = fs.readFileSync(path.join(root, file), "utf8");
@@ -162,7 +162,7 @@ export function select(
     else if (isTest && all.includes(f)) {
       out.node.add(f);
       out.reasons.push(`${f}: changed test`);
-    } else if (/^kirocrew-app\/ui\/test\//.test(f)) {
+    } else if (/^hosts\/kirocrew\/ui\/test\//.test(f)) {
       // Page tests and their browser helpers; only the repository scanners read them.
       out.ui = true;
       for (const t of pick(SCANNERS, all)) out.node.add(t);
@@ -170,11 +170,11 @@ export function select(
     } else if (/^scripts\/proofs\//.test(f)) {
       for (const t of pick(SCANNERS, all)) out.node.add(t);
       out.reasons.push(`${f}: live proof script, read only by the scanners`);
-    } else if (/^kirocrew-app\/ui\/(src|assets)\//.test(f)) {
+    } else if (/^hosts\/kirocrew\/ui\/(src|assets)\//.test(f)) {
       out.ui = true;
       for (const t of pick(READS.ui, all)) out.node.add(t);
       out.reasons.push(`${f}: UI source`);
-    } else if (f.startsWith("kirocrew-app/") && !/\.md$/.test(f))
+    } else if (f.startsWith("hosts/kirocrew/") && !/\.md$/.test(f))
       full(`${f}: app file`);
     else if (f.startsWith("prompts/")) full(`${f}: prompt read at run time`);
     else if (/^src\/.+\.mjs$/.test(f)) srcChanged.push(f);
@@ -187,7 +187,7 @@ export function select(
       /^docs\//.test(f) ||
       /^\.kiro\/(specs|skills)\//.test(f) ||
       /^[A-Za-z_-]+\.md$/.test(f) ||
-      /^kirocrew-app\/.*\.md$/.test(f)
+      /^hosts\/kirocrew\/.*\.md$/.test(f)
     ) {
       for (const t of pick(READS.docs, all)) out.node.add(t);
       out.specLint = true;

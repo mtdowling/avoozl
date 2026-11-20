@@ -70,14 +70,14 @@ export const EXCLUDED = [
 
 // Kiro Crew copies the whole app directory, so the page's own unit tests ship
 // in the app package. They are scanned like every other file.
-const APP_SHIPS = /^kirocrew-app\/ui\/test\//;
+const APP_SHIPS = /^hosts\/kirocrew\/ui\/test\//;
 
 // Findings a package may hold, each with its reason.
 export const ALLOWED = [
   ...["macos-home", "linux-home"].map((rule) => ({
     rule,
     filePattern:
-      /^kirocrew-app\/ui\/dist\/standalone\/assets\/index-[^/]+\.js$/,
+      /^hosts\/kirocrew\/ui\/dist\/standalone\/assets\/index-[^/]+\.js$/,
     reason:
       "Kiro Crew's own placeholder text (example folders such as /Users/you/code), bundled unedited. The standalone test checks that no build machine path is in the bundle.",
   })),
@@ -118,7 +118,7 @@ export function npmFiles() {
 // Kiro Crew copies the whole app directory except these names.
 const APP_COPY_SKIP = new Set(["node_modules", ".git", "__pycache__", ".venv"]);
 function appFiles() {
-  const app = path.join(root, "kirocrew-app");
+  const app = path.join(root, "hosts", "kirocrew");
   if (!fs.existsSync(path.join(app, "bin", "lib", "cli.mjs")))
     throw Error("Build the app package first: npm run build:kirocrew-app");
   const files = [];
@@ -138,7 +138,7 @@ function appFiles() {
 // A package that ships the standalone page ships Kiro Crew's notices with it
 // (SW12.6): its LICENSE and NOTICE, its third-party notices, the licenses of
 // its fonts, and this repository's list of what is bundled.
-const STANDALONE = "kirocrew-app/ui/dist/standalone/";
+const STANDALONE = "hosts/kirocrew/ui/dist/standalone/";
 export const STANDALONE_NOTICES = [
   "LICENSE",
   "NOTICE",
@@ -174,7 +174,8 @@ const allowed = (finding) =>
       entry.rule === finding.rule &&
       (entry.filePattern?.test(finding.file) ||
         entry.file === finding.file ||
-        entry.file === finding.file.replace(/^kirocrew-app\/bin\/lib\//, "")),
+        entry.file ===
+          finding.file.replace(/^hosts\/kirocrew\/bin\/lib\//, "")),
   );
 
 export function scanPackages() {

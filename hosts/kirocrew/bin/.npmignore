@@ -1,0 +1,2 @@
+# Overrides .gitignore for npm: the npm package ships the built lib/, which
+# `npm pack` writes through the prepack build. Without it bin/avoozl.mjs fails.
