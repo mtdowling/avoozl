@@ -4,6 +4,10 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { summarizeErrors, validate } from "../../model.mjs";
+import {
+  TELEMETRY_SCHEMA,
+  pruneTelemetry,
+} from "../telemetry/sqlite-exporter.mjs";
 import { keepNamedEpics, ownLegacyEpics } from "../epics/epics.mjs";
 
 export const canonical = (value) => JSON.stringify(normalize(value));
@@ -321,8 +325,10 @@ export class Store {
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS activity_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,source TEXT NOT NULL,actor TEXT,kind TEXT NOT NULL,summary TEXT NOT NULL,target_id TEXT,link TEXT,redacted INTEGER NOT NULL DEFAULT 0,key TEXT UNIQUE);
    CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log(at);
+   ${TELEMETRY_SCHEMA}
     `);
       this.db.exec("COMMIT");
+      pruneTelemetry(this.db);
       if (!activityLog && this.initialized())
         this.setMeta("activity.upgrade", true);
       // Tables nothing writes to any more (past runs, teams, the safety gate,

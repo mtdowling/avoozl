@@ -89,6 +89,10 @@ export function assertNoMachineKeys(value, file, globalFile) {
     throw Error(`serve.${key} is set in ${file}. Put it in ${globalFile}.`);
   if (value?.serve !== undefined && typeof value.serve !== "object")
     throw Error(`serve is set in ${file}. Put it in ${globalFile}.`);
+  // The OTLP exporter sends data off the machine, so only this machine's
+  // owner turns it on.
+  if (value?.telemetry !== undefined)
+    throw Error(`telemetry is set in ${file}. Put it in ${globalFile}.`);
   // A sink's URL may hold a secret, so sinks live only on the machine.
   if (value?.notifications !== undefined)
     throw Error(`notifications is set in ${file}. Put it in ${globalFile}.`);

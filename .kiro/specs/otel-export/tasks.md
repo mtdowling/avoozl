@@ -23,16 +23,16 @@ another spec cannot be a `$after` here, so `ot-2.1` says it in a bullet.
 
 ## Phase 1: Recording API and local store
 
-- [ ] `ot-1` Store and setting (**PARALLEL**)
-  - [ ] `ot-1.1` Local tables and the SQLite exporter [OT2.1, OT2.2, OT2.6] (§D3)
+- [x] `ot-1` Store and setting (**PARALLEL**)
+  - [x] `ot-1.1` Local tables and the SQLite exporter [OT2.1, OT2.2, OT2.6] (§D3)
     - `src/app/telemetry/sqlite-exporter.mjs` creates `telemetry_spans` and `telemetry_points` with the columns and indexes of §D3 when the database opens, and writes and reads them
     - Tests: a span upserts by key and is `false` the second time with equal values; a point inserts by ID and ignores a repeat; a stage span's `parent_span_id` is set before its root exists
     - Tests: a database made by `avoozl rebuild` holds both tables empty
-  - [ ] `ot-1.2` The machine setting [OT4.1, OT4.3, OT5.1, OT5.2, OT5.4] (§D6)
+  - [x] `ot-1.2` The machine setting [OT4.1, OT4.3, OT5.1, OT5.2, OT5.4] (§D6)
     - Tests: `validateTelemetry` accepts `{"enabled": true}` and `{}` and refuses another key, a non-boolean `enabled` and a non-object, each with a message that names the key
     - Tests: a `telemetry` key in a workspace or repository `.avoozl.json` fails with the file and the machine config path, as `serve` does; a plugin manifest with a `telemetry` key fails plugin lint
     - Tests: with no `telemetry` key, `readTelemetryConfig` returns status `off`
-- [ ] `ot-1.3` The recording API and allowlist [OT1.1, OT1.2, OT1.3, OT1.4, OT1.5, OT1.6, OT9.1, OT9.3, OT9.4, OT13.1, OT13.2, OT13.4] (§D2, §D8)
+- [x] `ot-1.3` The recording API and allowlist [OT1.1, OT1.2, OT1.3, OT1.4, OT1.5, OT1.6, OT9.1, OT9.3, OT9.4, OT13.1, OT13.2, OT13.4] (§D2, §D8)
   - $after: ot-1.1
   - `src/app/telemetry/record.mjs` holds `span`, `dropSpan`, `point`, `finishTask` and the exporter list, with the SQLite exporter registered first and no way to unregister it; `stages.mjs` holds `STAGES`
   - Tests: an unknown field, a stage outside `STAGES`, a spec name with a space or a slash, a string over 128 characters, a control character and a non-scalar are each refused; an equal repeat reaches no other exporter
@@ -58,7 +58,7 @@ another spec cannot be a `$after` here, so `ot-2.1` says it in a bullet.
   - $after: ot-2.2
   - `listSpans`, `taskTiming`, the usage totals and the first-pass rate read `telemetry_spans` and `telemetry_points`; the Flow numbers MCP call and the CLI return what they returned
   - Tests: Flow's existing tests for lead time, time per stage, first-pass rate, tokens and credits pass on the tables, with the seeding changed and no assertion changed
-- [ ] `ot-2.4` Retention and size cap [OT2.3, OT2.4, OT2.5, OT2.7] (§D5)
+- [x] `ot-2.4` Retention and size cap [OT2.3, OT2.4, OT2.5, OT2.7] (§D5)
   - $after: ot-1.1
   - `sqlite-exporter.mjs` prunes at open and after every 500 writes, at most once in 10 minutes, outside the write's transaction, by the rules and numbers of §D5
   - Tests with small caps passed in: a finished trace older than 90 days goes with its root and children; over the cap the oldest finished traces go until the table is at 90 percent; a trace with an open span active in the last 7 days stays; points go by age and then oldest first; pruning does not run inside a write
