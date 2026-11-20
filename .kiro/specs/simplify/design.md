@@ -40,7 +40,7 @@ call one set of operations (`src/app/ops/`).
 | Sessions | `executors/process.mjs`, `executors/kirocrew.mjs`, `executors/harness-*.mjs`, `executors/sandbox.mjs`, `sessions/` |
 | Plugins | `plugins/` with `checks`, `credentials`, `context` and `rules` |
 | GitHub access | `github/github-credentials.mjs`, `github/github-jobs.mjs`, `github/github-pacer.mjs`, `github/github-rate.mjs`, `cli/confirm-high-risk.mjs` |
-| Safety | `content/`, `intake/stranger-input.mjs`, `executors/harness-allow.mjs`, `mcp/mcp-policy.mjs` |
+| Safety | `content/`, `executors/harness-allow.mjs`, `mcp/mcp-policy.mjs` |
 | Page server | `serve/`, `executors/kirocrew/app-backend.mjs` |
 
 ## D3. Claims and the next task
@@ -134,11 +134,8 @@ per actor, cached for the pass).
 
 A labeled issue becomes a one-task spec in memory with the landing spec's
 mapping; the issue's body is its one done bullet. Its graph has one node, its claim branch is
-`avoozl/issue-<n>/issue-<n>`, and it lands like any task. When the issue's
-title or body was written by a non-writer, `intake/stranger-input.mjs` marks
-the task stranger input, and the worker runs in the process sandbox with
-network off and no plugin context. Avoozl writes nothing to an issue except
-the closing comment in `direct` mode.
+`avoozl/issue-<n>/issue-<n>`, and it lands like any task. Avoozl writes
+nothing to an issue except the closing comment in `direct` mode.
 
 ## D6. The server loop
 
@@ -387,11 +384,11 @@ mirror removal or triage removal before this spec starts).
 | `content/` | 2825 | 2825 | | | | content rules, hook, privacy scan |
 | `delivery/` | 4644 | 3953 | | 691 | | `investigate.mjs` becomes `avoozl-investigate` |
 | `epics/` | 932 | 932 | | | | `integration-branch.mjs` reads whether the spec's branch exists; `integration-sync.mjs` becomes the merge before a claim (§D21) |
-| `executors/` | 6936 | 6021 | 915 | | | cut `box-*.mjs` and `egress-proxy.mjs` (contained sessions) |
+| `executors/` | 6021 | 6021 | | | | |
 | `flow/` | 8186 | 2311 | 4151 | 1724 | | keep `flow-line.mjs` (stop the line), `flow-checks.mjs`, `flow.mjs` (shrinks to stop-the-line settings); `flow-retro.mjs`, `retro-files.mjs` become `avoozl-retro`; cut build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chat, memory and operations |
 | `git/` | 1971 | 1698 | | | 273 | `repo-files.mjs` in flight |
 | `github/` | 8834 | 5816 | 2003 | 148 | 867 | cut `github-intake`, `github-respond`, `github-reviews`, `github-setup`, `github-sources`, `setup-landing`, `source-backlinks`; `pull-request-snapshot` becomes `avoozl-review`; `github-items`, `github-pages` in flight |
-| `intake/` | 3930 | 148 | 546 | | 3236 | keep `stranger-input.mjs`; cut `fix.mjs`, `stranger-holds.mjs`; intake and triage in flight |
+| `intake/` | 3586 | | 350 | | 3236 | cut `fix.mjs`; intake and triage in flight |
 | `landing/` | 3106 | 2526 | 580 | | | cut `landing-queue-view`, `landing-trailers`, `merge-path`; merge batches stay for `direct` |
 | `mcp/` | 950 | 733 | 217 | | | cut `mcp-views.mjs` (in-chat views) |
 | `mirror/` | 3091 | 47 | | | 3044 | `release-ranking.mjs` moves to `specs/ranking.mjs` |
@@ -406,8 +403,8 @@ mirror removal or triage removal before this spec starts).
 | `tasks/` | 2605 | 550 | 2055 | | | keep `manual-tasks`, `scm-links`, `issue-reference`; cut `evidence`, `supersede`, `task-dedup`, `task-files`, `task-notes`, `task-steps`, `task-summary`, `title-repeat` |
 | `tick/` | 2280 | 2280 | | | | the tick plans the loop pass (§D6) |
 | `workers/` | 5453 | 633 | 3027 | | 1793 | keep `runner`, `report-match`, `report-command`, `manual-take`, `worker-briefs`; cut `driver`, `driver-scope`, `working-heads`, `remote-runner`; grants, offers, results and driver generations in flight |
-| `workspace/` | 4545 | 2337 | 2156 | | 52 | cut `demo`, `examples`, `sample-specs`, `instance`, `onboarding`, `repository-kind`, `repository-roles`, `repository-setup`, `setup-access`; `check-isolation.mjs` keeps `run: sandbox` and `unconfined` and drops `container`, `worker`, `strangers` and `strangerRoles` |
-| **Total** | 98983 | 61163 | 20927 | 4733 | 12160 | |
+| `workspace/` | 4545 | 2337 | 2156 | | 52 | cut `demo`, `examples`, `sample-specs`, `instance`, `onboarding`, `repository-kind`, `repository-roles`, `repository-setup`, `setup-access`; `check-isolation.mjs` keeps `run: sandbox` and `unconfined` |
+| **Total** | 97724 | 61015 | 19816 | 4733 | 12160 | |
 
 `src/app/test/` (22571 lines of shared test helpers) loses each fixture its
 feature took with it. `src/app/skills/avoozl/SKILL.md` becomes generated.
@@ -512,21 +509,17 @@ operations have settled. Docs and the live proof close the spec.
 1. **Graph block required?** Recommendation: optional (SM9.5). Specs written
    by hand or by other runners still lint, and `avoozl-spec` always writes
    one.
-2. **The box for stranger text in labeled issues.** Recommendation: cut the
-   box and run stranger-input tasks in the process sandbox with network off
-   (SM5.4). A writer's label is the person's choice to run it, and the box is
-   915 lines kept for one case.
-3. **Plugin `phase` checks propose a fix through triage.** `plugin-checks`
+2. **Plugin `phase` checks propose a fix through triage.** `plugin-checks`
    PK5.3 proposes a triage fix when a `phase` check fails, and triage is
    being removed. Recommendation: a failing `phase` or `branch` check is a
    Needs you item with "Run in a chat"; change PK5.3 in its own spec PR.
-4. **Epic context's "you drive" test.** `epic-context` EC1 tests the driver
+3. **Epic context's "you drive" test.** `epic-context` EC1 tests the driver
    table, which this spec removes. Recommendation: the test becomes "the
    spec issue is assigned to this runner's login and the task's claim branch
    was created by this machine".
-5. **The side panel.** Recommendation: cut it (1200 lines); Needs you and In
+4. **The side panel.** Recommendation: cut it (1200 lines); Needs you and In
    flight cover it, and a chat gets the same reads through `plans_query`.
-6. **Activity page.** Recommendation: cut the page and keep `avoozl activity`
+5. **Activity page.** Recommendation: cut the page and keep `avoozl activity`
    and the activity log, since GitHub history covers most of it.
 
 ## D19. Order from the list
@@ -539,14 +532,13 @@ example:
 - [ ] `ec-2.2` Reads, skills and the brief
 - [ ] `ec-2.3` Ways out (**PARALLEL**)
   - [ ] `ec-2.4` The MCP relay
-  - [ ] `ec-2.5` Hosts through the egress proxy
-  - [ ] `ec-2.6` Kiro Crew chat workers
-  - [ ] `ec-2.7` Stranger text never reaches it
-- [ ] `ec-2.8` The chip, Activity and Settings
+  - [ ] `ec-2.5` Kiro Crew chat workers
+  - [ ] `ec-2.6` Comments that do not count never reach it
+- [ ] `ec-2.7` The chip, Activity and Settings
 ```
 
-`ec-2.1` runs first, then `ec-2.2`. `ec-2.4` to `ec-2.7` wait for `ec-2.2`
-and run side by side. `ec-2.8` waits for all four. `ec-2.3` is a group: no
+`ec-2.1` runs first, then `ec-2.2`. `ec-2.4` to `ec-2.6` wait for `ec-2.2`
+and run side by side. `ec-2.7` waits for all three. `ec-2.3` is a group: no
 one claims it, and its box follows its children.
 
 A serial run inside a parallel group is an untagged child group:

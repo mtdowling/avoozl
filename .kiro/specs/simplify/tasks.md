@@ -55,10 +55,9 @@ merge, shown in chat and never committed.
 - [ ] `sim-1.6` Label filters [SM5.1, SM5.3] (§D5)
   - $after: sim-1.1
   - Tests: `labels.require` and `labels.exclude` load from repository settings; a spec runs only when its spec issue carries every require label and no exclude label; a require label added by a non-writer does not count; an exclude label added later does not unclaim a claimed task
-- [ ] `sim-1.7` Labeled issues as one-task specs [SM5.2, SM5.4, SM5.5] (§D5)
+- [ ] `sim-1.7` Labeled issues as one-task specs [SM5.2, SM5.4] (§D5)
   - $after: sim-1.6
   - Tests: an open issue with a writer's require label and no spec becomes task `issue-<n>` with the issue's title, and its body as its one done bullet, claims `avoozl/issue-<n>/issue-<n>` and lands like any task; `pr` mode writes `Closes #<n>`; `direct` mode closes the issue with a comment naming the landed commit
-  - A labeled issue whose title or body a non-writer wrote runs with network off and no plugin context, and its session record says why
 - [ ] `sim-1.8` The server loop setting [SM6] (§D6)
   - $after: sim-1.2, sim-1.5, sim-1.7
   - Tests: with no `loop` in machine config the tick reads and starts nothing; `loop` in `.avoozl.json` is refused naming the file; `loop.run` with `specs`, `epics` and `issues` each claims, starts and lands only that kind of work, through the same operations the CLI calls
@@ -139,9 +138,6 @@ merge, shown in chat and never committed.
 - [ ] `sim-4.7` Refuse the cut plugin parts [SM11] (§D11)
   - $after: sim-0
   - `PARTS` is `rules`, `credentials`, `checks` and `context`; a manifest listing `pack`, `intake`, `template` or `policy` is refused with "<part> is not a plugin part"; `plugin-pack.mjs` is gone
-- [ ] `sim-4.8` Cut contained sessions and isolation leftovers [SM14.1, SM15.1] (§D14)
-  - $after: sim-1.7
-  - `executors/box-*.mjs` and `egress-proxy.mjs` are gone; `isolation` accepts `run` (`sandbox` or `unconfined`), `network`, `readable`, `writable` and `prepare`, and refuses `container`, `worker`, `runtime`, `image`, `strangers` and `strangerRoles` naming the key; `intake/stranger-holds.mjs` is gone
 - [ ] `sim-4.9` Cut GitHub extras [SM12.3, SM14.1] (§D14)
   - $after: sim-1.7
   - `github-intake`, `github-respond`, `github-reviews`, `github-setup`, `github-sources`, `setup-landing`, `source-backlinks`, `landing-trailers`, `merge-path`, `landing-queue-view`, `intake/fix.mjs`, `mcp-views.mjs`, `panel-view.mjs`, `session-open.mjs` and `chat-models.mjs` are gone; the specs files §D14 marks cut are gone
@@ -161,7 +157,7 @@ merge, shown in chat and never committed.
 ## Phase 6: Docs and proof
 
 - [ ] `sim-6.1` Docs match the runner [SM1] (§D1)
-  - $after: sim-5.2, sim-1.8, sim-4.2, sim-4.7, sim-4.8
+  - $after: sim-5.2, sim-1.8, sim-4.2, sim-4.7
   - `docs/github-workflow.md`'s "Avoozl status" section lists nothing; `README.md` and `docs/` describe only kept parts, in the landing spec's terms; docs for cut features are gone
 - [ ] `sim-6.2` Live proof: two machines, one spec [SM1.1, SM2, SM4] (§D16)
   - $after: sim-6.1
@@ -203,7 +199,6 @@ flowchart TD
     sim_4_5["sim-4.5 Cut the setup tower"]
     sim_4_6["sim-4.6 Cut task extras"]
     sim_4_7["sim-4.7 Refuse the cut plugin parts"]
-    sim_4_8["sim-4.8 Cut contained sessions and isolation leftovers"]
     sim_4_9["sim-4.9 Cut GitHub extras"]
   end
   subgraph s6["Phase 5: The page"]
@@ -241,7 +236,6 @@ flowchart TD
   sim_0 --> sim_4_5
   sim_0 --> sim_4_6
   sim_0 --> sim_4_7
-  sim_1_7 --> sim_4_8
   sim_1_7 --> sim_4_9
   sim_4_1 --> sim_5_1
   sim_4_3 --> sim_5_1
@@ -254,7 +248,6 @@ flowchart TD
   sim_1_8 --> sim_6_1
   sim_4_2 --> sim_6_1
   sim_4_7 --> sim_6_1
-  sim_4_8 --> sim_6_1
   sim_5_2 --> sim_6_1
   sim_6_1 --> sim_6_2
 ```

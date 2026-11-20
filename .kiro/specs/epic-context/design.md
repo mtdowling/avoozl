@@ -30,7 +30,7 @@ the file cited at `a8a22391`; **A** assumed.
 
 One function decides (`epicContextGate`), one function gathers
 (`sessionContext`), and the existing start path adds the result. A session
-that fails the gate goes through today's path with nothing added (EC11.3).
+that fails the gate goes through today's path with nothing added (EC10.3).
 
 ## D2. The three tests (EC1)
 
@@ -314,13 +314,7 @@ The harness `context` key passes the same argv checks as `start` (V:
 `argv`, `harness-definitions.mjs:124`, and the `SKIP_VALUES` refusal), and
 `{context_mcp}` joins the placeholders only the supervisor fills.
 
-## D7. No network hosts (EC8)
-
-Epic context names no host. A session's network is what its repository's
-`sandbox.network` and `sandbox.modelProxy` make it, with or without
-context, so the byte-for-byte rule of EC11.3 covers it.
-
-## D8. Kiro Crew chat workers (EC9)
+## D7. Kiro Crew chat workers (EC8)
 
 | Item | Given to a chat | Enforced |
 | --- | --- | --- |
@@ -334,7 +328,7 @@ with no context section. That limits what Avoozl points the chat at, not
 what it can reach. The chip says "Epic context (brief only)". The docs say
 it plainly: a chat is a speed bump, not a sandbox.
 
-## D9. Security review (EC11)
+## D8. Security review (EC10)
 
 | Threat | What stops it | Test |
 | --- | --- | --- |
@@ -351,9 +345,9 @@ it plainly: a chat is a speed bump, not a sandbox.
 | An MCP server hands the worker its sign-in | the server runs outside the sandbox; the worker gets only its replies | the child's environment holds no mapped name |
 | An MCP server listens on the network | listener check stops it and marks the plugin broken | PK7.5's test, on a relay server |
 | Context leaks out in a commit or a GitHub write | content rules at `diff` and `github`, plus the source's `contentSets`, and the `pre-push` hook (Requirement 40, `docs/content-rules.md`) | a diff with a set's term is blocked |
-| Context leaks out through an MCP call | the worker can send any text it read to a mapped server. The person chose the server; the evidence records each call's size | none: accepted (question 5) |
+| Context leaks out through an MCP call | the worker can send any text it read to a mapped server. The person chose the server; the evidence records each call's size | none: accepted (question 4) |
 | A context session's diff smuggles a hook or `.git` change | `taskGit` (`src/app/git/task-git.mjs`) for every git call on a task folder | its tests |
-| A Kiro Crew chat ignores the list | not stoppable; documented (EC9.2) | docs |
+| A Kiro Crew chat ignores the list | not stoppable; documented (EC8.2) | docs |
 
 What stays reachable to an epic-context worker: everything a normal
 session reaches, the listed reads and skills read-only, and the listed MCP
@@ -362,7 +356,7 @@ person's own approved task can move what it reads into its diff; the diff
 reaches GitHub only through content rules and the landing rules of its
 repository.
 
-## D10. Visible (EC10)
+## D9. Visible (EC9)
 
 - The task row and drawer read `binding.epicContext = {sources, given,
   tests}`, set when the session starts. The chip is **Epic context**, or
@@ -378,44 +372,42 @@ repository.
 - `avoozl show TASK --json` and the MCP task read return
   `epicContext` from the binding.
 
-## D11. What does not change
+## D10. What does not change
 
 - A session with no context source for its repository, or one that fails
   the gate: its argv, sandbox, brief and environment are byte for byte as
-  today (EC11.3).
+  today (EC10.3).
 - Checks: context is for the session only; checks run as today.
 - GitHub credentials: workers still get none (PC6.6).
 
-## D12. Decisions
+## D11. Design choices
 
-Each question was decided as recommended (owner, 2026-11-19); the task that
-depends on it says so.
+The task that depends on each choice says so.
 
-1. (Removed 2026-11-19: Avoozl has no contained sessions.)
-2. **Skills: listed in the brief, or loaded by the harness.** *Decided:*
-   list them in the brief (EC6.3). It works on every harness and on chats.
+1. **Skills: listed in the brief, or loaded by the harness.**
+   List them in the brief (EC6.3). It works on every harness and on chats.
    A harness-native skills folder can be a later `context.skills` argv key
    once a live proof shows it loads only the copied folder (A).
-3. **Which roles get context.** *Decided:* `worker` only. The verifier and
+2. **Which roles get context.** `worker` only. The verifier and
    reviewer judge the diff against the spec without it, so a claim that
    only the context supports gets a second look. Add the falsifier later if
    investigations need it.
-4. **Any allowed approver, or only this person.** The owner's rule is an
+3. **Any allowed approver, or only this person.** The owner's rule is an
    allowed approver. A coworker who is an approver could approve a spec I
-   then take over. *Decided:* keep "allowed approver", since taking a spec
+   then take over. Keep "allowed approver", since taking a spec
    over is already my act and shows the spec first; add a machine setting
    `epicContext.ownApprovalsOnly` only if asked.
-5. **Context sent out through MCP calls.** Content rules cannot read MCP
-   arguments without breaking the "no arguments stored" rule. *Decided:*
-   accept: the person chose and mapped each server. Record only sizes
+4. **Context sent out through MCP calls.** Content rules cannot read MCP
+   arguments without breaking the "no arguments stored" rule.
+   Accept: the person chose and mapped each server. Record only sizes
    (EC7.5).
-6. **`repos` matching for a repository with no GitHub remote.** *Decided:*
-   match the registered repository ID, never a path.
-7. **A machine block with skills.** *Decided:* no. Skills come only from a
+5. **`repos` matching for a repository with no GitHub remote.**
+   Match the registered repository ID, never a path.
+6. **A machine block with skills.** No. Skills come only from a
    plugin, so each is hashed and approved; the machine block names only
    what the person wrote themselves.
 
-## D13. Risks
+## D12. Risks
 
 - Requirement 115 is not approved. If its driver words change, `you-drive`
   follows them; a task here says so.

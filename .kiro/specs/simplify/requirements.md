@@ -141,10 +141,7 @@ hand work to agents with one label.
    SHALL be a one-task spec named `issue-<number>`, as the landing spec says.
 3. Avoozl SHALL read each `labeled` event's actor and count the label only
    when that actor is a writer.
-4. A labeled issue whose title or body a non-writer wrote SHALL run with the
-   stranger rules of `intake/stranger-input.mjs`: the worker gets network off
-   and no plugin context.
-5. A labeled issue's landing record SHALL be the issue closing, as the landing
+4. A labeled issue's landing record SHALL be the issue closing, as the landing
    spec says.
 
 ### Requirement SM6: Server loop

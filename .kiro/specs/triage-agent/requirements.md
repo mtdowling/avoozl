@@ -255,8 +255,7 @@ do damage.
    repository's configured checks, and SHALL run them for a reproduction
    with no network and no credentials: in the sandbox, always with the
    network off, whatever the repository's own isolation setting says (avoozl
-   Requirement 112). (Changed 2026-11-18: the reproduction's isolation is
-   named. Changed 2026-11-19: no container; Avoozl runs no check in one.)
+   Requirement 112).
 8. Only a comment by the item's author or by a collaborator on the
    repository SHALL start a triage run. A comment by anyone else SHALL be
    read as data in the item's next run and SHALL NOT start, resume or

@@ -23,9 +23,6 @@ machine's `plugins.json`. A task gets it only when three tests pass (EC1).
 Nothing in a spec, an issue, a pull request or a repository file can turn
 it on.
 
-Changed 2026-11-19 (owner decision): Avoozl dropped its container sessions,
-its egress proxy and triage, so only tasks of approved specs run. The
-stranger-input test and the network hosts are gone from this spec.
 
 Approval lives in Avoozl, not in these files. Approving the spec, creating
 issues and starting agents are separate acts. Nothing here changes code
@@ -78,10 +75,10 @@ cited at `a8a22391`; or **A**, assumed and not checked, with the reason.
 ### Out of scope
 
 - Context for triage runs, reviews, verdicts, responders and planners
-  (D12, question 3).
+  (D11, question 2).
 - Credentials for GitHub. Workers still get no GitHub token (PC6.6).
 - A shared, hosted context service. Context stays on each machine.
-- Kiro Crew chat MCP servers set per session (EC9).
+- Kiro Crew chat MCP servers set per session (EC8).
 
 ### Words
 
@@ -158,7 +155,7 @@ for my own setup.
    - `mcp`: up to 10 servers by alias (PK10.1's alias rule), each
      `{about, command, env?}`: `about` 1 to 200 characters, `command` an
      argv list, `env` the environment variable names the server may read.
-   - `contentSets`: content rule set IDs (EC10.3).
+   - `contentSets`: content rule set IDs (EC9.3).
 2. A `repository`'s `.avoozl.json` SHALL refuse an `epicContext` key,
    naming the file and the key. A layered workspace config SHALL refuse it
    too: it is read only from this machine's `config.json`.
@@ -195,7 +192,7 @@ and approves exactly what it gives.
      mapping each alias to `{about, command}`. `command` SHALL be an argv
      list whose first item is a program name or a path inside the plugin
      folder. The file SHALL hold no `env` and no credential.
-   - `contentSets`: content rule set IDs (EC10.3).
+   - `contentSets`: content rule set IDs (EC9.3).
 3. A `context` part SHALL count only from a plugin declared in this
    machine's `plugins.json` and approved here. A `context` part of a plugin
    that `.avoozl.json` declares SHALL be ignored, and Settings › Plugins
@@ -251,8 +248,8 @@ to get the context its repository's sources name, and nothing more.
    rest SHALL still be given.
 4. A read that does not exist at session start SHALL be left out and named
    in the session record.
-5. Only the `worker` role SHALL get epic context in this spec (D12,
-   question 3).
+5. Only the `worker` role SHALL get epic context in this spec (D11,
+   question 2).
 
 ### Requirement EC6: Reads and skills in a process session
 
@@ -299,21 +296,7 @@ servers without the worker ever holding their sign-in.
    any error, never the arguments or the reply.
 6. MCP replies SHALL be untrusted data (Requirement 34.6).
 
-### Requirement EC8: No network hosts
-
-Changed 2026-11-19 (owner decision): the egress proxy this relied on is
-gone, so epic context names no hosts.
-
-**User story:** As the owner, I want epic context to leave a worker's
-network as its repository sets it.
-
-#### Acceptance criteria
-
-1. Epic context SHALL give no network host. A session's network SHALL stay
-   as its repository's `sandbox` settings make it, with or without epic
-   context.
-
-### Requirement EC9: Kiro Crew chat workers
+### Requirement EC8: Kiro Crew chat workers
 
 **User story:** As the owner, I want to know what epic context means on a
 chat worker, which runs as me.
@@ -332,7 +315,7 @@ chat worker, which runs as me.
 3. A chat worker that fails a test SHALL get a brief with no epic context
    section.
 
-### Requirement EC10: Visible, and kept out of what leaves the machine
+### Requirement EC9: Visible, and kept out of what leaves the machine
 
 **User story:** As the owner, I want to see which sessions got context and
 why, and I want the context kept out of commits and GitHub.
@@ -357,14 +340,14 @@ why, and I want the context kept out of commits and GitHub.
 5. `avoozl show TASK --json` and the MCP task read SHALL return the three
    tests and what was given for the last session, without paths' contents.
 
-### Requirement EC11: Security
+### Requirement EC10: Security
 
 **User story:** As the owner, I want each way to misuse epic context to be
 named with what stops it, and each stop tested.
 
 #### Acceptance criteria
 
-1. The design SHALL state the threats and what stops each (D9): a
+1. The design SHALL state the threats and what stops each (D8): a
    repository trying to turn context on, a comment that does not count, a
    coworker's spec,
    a plugin widening access, and context leaking out through commits,
@@ -373,7 +356,7 @@ named with what stops it, and each stop tested.
 3. A session without epic context SHALL have the same sandbox, brief and
    harness argv, byte for byte, as before this spec, which a test checks.
 
-### Requirement EC12: Tests, the live proof and the docs
+### Requirement EC11: Tests, the live proof and the docs
 
 **User story:** As the owner, I want proof on scratch repositories that the
 gate holds and the context arrives.
@@ -383,7 +366,7 @@ gate holds and the context arrives.
 1. Unit tests SHALL check each test of EC1 alone failing, each EC2 and EC3
    refusal, the approval hash binding, the merge and alias conflict, each
    read refusal, the relay's socket and stop and the byte-for-byte check of
-   EC11.3.
+   EC10.3.
 2. A live proof (ec-p1) SHALL run on scratch repositories with a fake MCP
    server and show the context given to an approved, driven spec task and
    withheld from an intake task, a coworker-driven spec and a repository

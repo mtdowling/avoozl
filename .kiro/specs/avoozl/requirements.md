@@ -5592,17 +5592,15 @@ read my credentials or reach the network through its checks.
    outside every secret path, and `writable`; reading no secret path; with
    the network as set; and with only the checks' environment allowlist
    (Requirement 7.1).
-3. (Removed 2026-11-19, owner decision: Avoozl runs no check in a
-   container.)
-4. `unconfined` SHALL be accepted only with the machine's opt-in. A machine
+3. `unconfined` SHALL be accepted only with the machine's opt-in. A machine
    with no sandbox SHALL run a `sandbox` check unconfined. Either way the
    check's record SHALL say `isolation: "unconfined"`, and the Landing page
    and the task's timeline SHALL show "not sandboxed".
-5. `prepare` SHALL run once per worktree and commit before its checks,
+4. `prepare` SHALL run once per worktree and commit before its checks,
    outside isolation, with the environment allowlist. A failed prepare SHALL
    run no check and SHALL say why.
-6. Every check record SHALL name the isolation it ran under.
-7. Tests SHALL show that, in a sandboxed check, a TCP connection to a public
+5. Every check record SHALL name the isolation it ran under.
+6. Tests SHALL show that, in a sandboxed check, a TCP connection to a public
    host fails with the network off, a write outside the roots fails, and
    `GH_TOKEN` is absent.
 
