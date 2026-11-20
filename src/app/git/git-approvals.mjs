@@ -1,10 +1,11 @@
 // Approvals live in git (design §4.42). An approval is a commit on the spec
-// repository's main branch that changes the spec's files and whose AUTHOR
-// email is on the repository's approvers list (`allowedActors`). It
+// repository's main branch that changes the spec's files and carries
+// evidence that an approver stands behind it (approverCheck): the approver
+// merged its pull request, the approver's verified signature signs it, or the
+// repository declares that branch protection lets only approvers in. It
 // approves the spec as that commit's tree holds it: Avoozl hashes the files
-// there itself. The commit message carries nothing; the committer neither
-// grants nor blocks an approval, so a squash merge (committer GitHub) or a
-// commit made on the author's behalf counts the same as the author's own.
+// there itself. The commit message carries nothing, and the committer is not
+// evidence, so a squash merge (committer GitHub) counts through its merger.
 //
 // Every commit is made with the checkout's own git identity. An agent's spec
 // draft stays on a spec branch, and Approve squashes it onto main as the
@@ -56,15 +57,27 @@ export const noreplyLogin = (email) =>
     String(email ?? ""),
   )?.[1] ?? null;
 
-// Whether an author email may approve, as an async (email, commit) -> bool.
+// Whether a commit's author may approve, as an async (email, commit, login)
+// -> bool. Workflow rule 7.1 names the evidence. `used` maps each commit it
+// accepted to the evidence: `merged_by`, `signature`, `branch-protection`
+// or `local`.
 //
 // - `repository` is the repository's policy entry (allowedActors,
 //   minimumPermission), or null when no GitHub policy names it.
-// - An email named in allowedActors approves. So does a login named there
-//   when the email is that login's GitHub address, or GitHub reports the
-//   commit's author as that login (one read per email).
-// - A repository that names nobody falls back to its minimumPermission,
-//   which needs the author's login and permission from GitHub.
+// - `trust` "github" (the default) accepts a commit when GitHub says an
+//   approver merged the pull request whose merge commit it is, or an
+//   approver's GitHub-verified signature signs it. The author email proves
+//   nothing, because anyone can write it.
+// - `trust` "branch-protection" is the repository's declaration that branch
+//   protection lets only approvers push to and merge into the specs branch.
+//   It trusts the author: an email named in allowedActors, a GitHub address
+//   for an approver's login, or the login GitHub reports for the commit.
+// - A login is an approver when allowedActors names it, or, with a
+//   minimumPermission, when it holds that permission.
+// - `login`, when given, is who GitHub says is making the commit now (the
+//   signed-in person clicking Approve), so no evidence is read.
+// - `cache` (get, set) keeps what GitHub returned for each commit, so a
+//   rebuild reads it back instead of asking again.
 // - With no policy at all (a local workspace) the one approver is this
 //   checkout's own git user.email, `localEmail`.
 export function approverCheck({
@@ -72,37 +85,131 @@ export function approverCheck({
   localEmail = null,
   github = null,
   repositoryName = null,
+  trust = "github",
+  cache = null,
 }) {
-  const known = new Map();
-  // `login`, when given, is who GitHub says the author is (the signed-in
-  // person clicking Approve); otherwise the commit is read.
-  return async (email, commit, login = null) => {
-    const key = lower(email);
-    if (!key && !login) return false;
-    if (!repository) return Boolean(localEmail) && key === lower(localEmail);
-    const actors = (repository.allowedActors || []).map(lower);
-    if (key && actors.includes(key)) return true;
-    const quick = noreplyLogin(email) ?? login,
-      cached = key || `login:${lower(quick)}`;
-    if (quick && actors.includes(lower(quick)) && !repository.minimumPermission)
-      return true;
-    if (known.has(cached)) return known.get(cached);
+  const known = new Map(),
+    used = new Map(),
+    actors = (repository?.allowedActors || []).map(lower),
+    askable = () => Boolean(github?.available?.() && repositoryName);
+  const loginAllowed = async (login) => {
+    const key = `login:${lower(login)}`;
+    if (known.has(key)) return known.get(key);
     let allowed = false;
-    if (github?.available?.() && repositoryName && (quick || commit))
+    if (actors.includes(lower(login)) && !repository.minimumPermission)
+      allowed = true;
+    else if (askable())
       try {
-        const login =
-          quick ?? (await github.commit(repositoryName, commit))?.author?.login;
-        if (login) {
-          const held = repository.minimumPermission
-            ? (await github.permission(repositoryName, login))?.permission
-            : null;
-          allowed = actorAllowed(repository, login, held).allowed;
-        }
+        const held = repository.minimumPermission
+          ? (await github.permission(repositoryName, login))?.permission
+          : null;
+        allowed = actorAllowed(repository, login, held).allowed;
       } catch {
         allowed = false;
       }
-    known.set(cached, allowed);
+    known.set(key, allowed);
     return allowed;
+  };
+  // What GitHub says about one commit: who merged the pull request whose
+  // merge commit it is, and who signed it with a verified signature.
+  const read = async (commit) => {
+    let found = cache?.get(commit);
+    if (found) return found;
+    let mergedBy = null;
+    for (const pull of (await github.commitPullRequests(
+      repositoryName,
+      commit,
+    )) ?? [])
+      if (pull.merged_at) {
+        const full = await github.pullRequest(repositoryName, pull.number);
+        if (full?.merged && full.merge_commit_sha === commit) {
+          mergedBy = full.merged_by?.login ?? null;
+          break;
+        }
+      }
+    const data = await github.commit(repositoryName, commit),
+      signer = data?.commit?.verification?.verified
+        ? (data.committer?.login ?? null)
+        : null;
+    found = { mergedBy, signer: signer === "web-flow" ? null : signer };
+    cache?.set(commit, found);
+    return found;
+  };
+  const proven = async (commit) => {
+    if (!commit || !askable()) return null;
+    let found;
+    try {
+      found = await read(commit);
+    } catch {
+      return null;
+    }
+    for (const [by, login] of [
+      ["merged_by", found.mergedBy],
+      ["signature", found.signer],
+      ["pushed", found.pushedBy],
+    ])
+      if (login && (await loginAllowed(login))) return by;
+    return null;
+  };
+  const check = async (email, commit, login = null) => {
+    const key = lower(email);
+    if (!key && !login) return false;
+    if (!repository) {
+      const own = Boolean(localEmail) && key === lower(localEmail);
+      if (own) used.set(commit, "local");
+      return own;
+    }
+    if (login) return loginAllowed(login);
+    let by = null;
+    if (trust === "github") by = await proven(commit);
+    else if (key && actors.includes(key)) by = "branch-protection";
+    else {
+      const quick = noreplyLogin(email);
+      let who = quick;
+      if (!who && key && askable() && commit) {
+        const cached = `email:${key}`;
+        if (!known.has(cached))
+          known.set(
+            cached,
+            await github
+              .commit(repositoryName, commit)
+              .then((data) => data?.author?.login ?? null)
+              .catch(() => null),
+          );
+        who = known.get(cached);
+      }
+      if (who && (await loginAllowed(who))) by = "branch-protection";
+    }
+    if (by) used.set(commit, by);
+    return Boolean(by);
+  };
+  check.used = used;
+  return check;
+}
+
+// A JSON file as a (get, set) cache of what GitHub returned for each commit
+// (approverCheck), so rebuilding a deleted database reads it back. Avoozl's
+// own approval commit is recorded here with `pushedBy`, the signed-in person
+// whose token pushed it.
+export function evidenceCache(workspaceRoot) {
+  const file = path.join(workspaceRoot, ".avoozl", "approval-evidence.json");
+  let data = null;
+  const load = () => {
+    if (!data)
+      try {
+        data = JSON.parse(fs.readFileSync(file, "utf8"));
+      } catch {
+        data = {};
+      }
+    return data;
+  };
+  return {
+    get: (commit) => load()[commit],
+    set(commit, value) {
+      load()[commit] = value;
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify(data));
+    },
   };
 }
 
@@ -381,7 +488,9 @@ export async function approvalCommits(
       }
     }
     if (!touched.size || !(await allowed(email, commit))) continue;
-    for (const spec of touched) found.push({ spec, commit, email, name, at });
+    const evidence = allowed.used?.get(commit) ?? null;
+    for (const spec of touched)
+      found.push({ spec, commit, email, name, at, evidence });
   }
   const object = (commit, spec, file) =>
       `${commit}:${specPath(root, spec)}/${file}`,

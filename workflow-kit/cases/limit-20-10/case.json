@@ -1,0 +1,28 @@
+{
+  "title": "A public repository gets no private name, path or host",
+  "rules": ["20.10"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "write-public",
+      "private": true
+    },
+    {
+      "kind": "write-public",
+      "private": false
+    }
+  ],
+  "expect": {
+    "limits": ["20.10", null]
+  }
+}

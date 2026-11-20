@@ -1,0 +1,29 @@
+{
+  "title": "With declared branch protection a stranger's commit approves nothing",
+  "rules": ["7.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "approvers": ["acme-owner"],
+  "approvalTrust": "branch-protection",
+  "history": [
+    {
+      "commit": "1",
+      "author": "acme-mallory"
+    }
+  ],
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "approved": {
+      "parser": false
+    },
+    "ready": []
+  }
+}

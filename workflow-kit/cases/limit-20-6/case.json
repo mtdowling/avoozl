@@ -1,0 +1,31 @@
+{
+  "title": "A runner grants no approval",
+  "rules": ["20.6"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "actions": [
+    {
+      "kind": "merge-pull-request",
+      "draft": false,
+      "specText": true
+    },
+    {
+      "kind": "push-specs-text"
+    },
+    {
+      "kind": "change-approvers"
+    }
+  ],
+  "expect": {
+    "limits": ["20.6", "20.6", "20.6"]
+  }
+}

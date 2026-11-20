@@ -6,6 +6,7 @@
     "defaultBranch": "main"
   },
   "approvers": ["acme-owner"],
+  "approvalTrust": "branch-protection",
   "history": [
     {
       "commit": "1",

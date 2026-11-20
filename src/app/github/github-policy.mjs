@@ -43,6 +43,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "baseBranch",
     "allowedActors",
     "minimumPermission",
+    "approvalTrust",
     "requiredChecks",
     "priorityLabels",
     "waitingLabels",
@@ -153,6 +154,7 @@ function repositoryInput(value, id, mode) {
     baseBranch,
     allowedActors,
     minimumPermission,
+    approvalTrust: approvalTrustInput(value.approvalTrust, label),
     requiredChecks: names(value.requiredChecks, `${label}.requiredChecks`),
     priorityLabels: priority,
     waitingLabels,
@@ -162,6 +164,15 @@ function repositoryInput(value, id, mode) {
     // One landing block (design §4.25).
     landing: landingInput(value.landing, `${label}.landing`),
   };
+}
+
+// `github` (unset): an approval needs GitHub's evidence. `branch-protection`
+// is the declaration that only approvers can push to the specs branch.
+export const APPROVAL_TRUSTS = ["github", "branch-protection"];
+function approvalTrustInput(value, label) {
+  if (value != null && !APPROVAL_TRUSTS.includes(value))
+    fail(`${label}.approvalTrust must be github or branch-protection.`);
+  return value ?? null;
 }
 
 const MAX_ATTEMPTS = 10;
