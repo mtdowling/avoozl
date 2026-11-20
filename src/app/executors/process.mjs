@@ -685,9 +685,17 @@ function servedModelOf(stateDirectory, slot, configDirectory) {
 // Then record the status of each live `process` session. A write worker
 // gets its own task worktree (R88.6), never the main checkout. Never throws
 // for one request; returns the errors it saw.
+// The harness a request runs on: the one it names, else its repository's.
+export const requestHarness = (store, request) =>
+  request.harness ??
+  sessionRepository(store, request)?.harness ??
+  DEFAULT_HARNESS;
+
+// `blocked` maps a harness name to why it cannot start here (MS5.3); a start
+// for one stays queued, so a failed start is not repeated.
 export async function drainProcessRequests(
   store,
-  { stateDirectory, prepareWorktree, ops = null },
+  { stateDirectory, prepareWorktree, ops = null, blocked = new Map() },
 ) {
   // Sends, status and stop name only a session; no repository is needed.
   const executor = processExecutor({ stateDirectory });
@@ -699,13 +707,17 @@ export async function drainProcessRequests(
   const startHold = (request) => {
     if (request.operation === "send") return null;
     health ??= healthContext(store);
-    const harness =
-      request.harness ??
-      sessionRepository(store, request)?.harness ??
-      DEFAULT_HARNESS;
-    return planQuotaHold(health, { model: request.model, harness });
+    return planQuotaHold(health, {
+      model: request.model,
+      harness: requestHarness(store, request),
+    });
   };
   for (const pending of pendingSessionRequests(store, PROCESS_EXECUTOR)) {
+    if (
+      pending.operation === "start" &&
+      blocked.has(requestHarness(store, pending))
+    )
+      continue;
     const taken = takeSessionRequest(store, pending, {
       ...owner,
       eligible: (request, queued) =>

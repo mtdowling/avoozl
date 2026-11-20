@@ -9,6 +9,8 @@ import { createHash } from "node:crypto";
 import os from "node:os";
 import { fail } from "../store/store.mjs";
 import { EXECUTOR_CONTRACT } from "./executors.mjs";
+import { readMachineEnv } from "./machine-env.mjs";
+import { harnessStartProblem } from "./harness-ready.mjs";
 
 const HARNESS_DIRECTORY = "harnesses";
 const HARNESS_APPROVALS = "harness-approvals.json";
@@ -394,6 +396,16 @@ export function readRoleProblem(definition) {
     : `${definition?.name ?? "This harness"} names no resultAllow, so a read-only session cannot write its result file.`;
 }
 
+function startProblemOf(value, configDirectory) {
+  let machineEnv = {};
+  try {
+    machineEnv = readMachineEnv(configDirectory);
+  } catch (error) {
+    return error.message;
+  }
+  return harnessStartProblem(value, { machineEnv });
+}
+
 export function listHarnessDefinitions(configDirectory) {
   if (typeof configDirectory !== "string" || !configDirectory) return [];
   const directory = path.join(path.resolve(configDirectory), HARNESS_DIRECTORY);
@@ -422,6 +434,8 @@ export function listHarnessDefinitions(configDirectory) {
         changed: Boolean(approvals[name]) && approvals[name] !== hash,
         model: value?.model !== undefined,
         readRoles: readRoleProblem({ name, resultAllow: value?.resultAllow }),
+        // Why it cannot start on this machine's server, or null (MS5.3).
+        startProblem: startProblemOf(value, configDirectory),
         proved: Array.isArray(value?.proved)
           ? value.proved.filter((item) => ROLE_CLASSES.includes(item))
           : [],

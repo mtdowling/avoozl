@@ -9,6 +9,9 @@ import {
   runningSupervisor,
   supervisorPaths,
 } from "../executors/supervisor.mjs";
+import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { ROLES, resolveRoles } from "../settings/chat-models.mjs";
 import { buildId } from "../executors/machine-build.mjs";
 import { lastPasses } from "../executors/machine-requests.mjs";
 
@@ -39,7 +42,21 @@ export function serveStatus(stateDirectory) {
   }
 }
 
-export function machineStatus({ stateDirectory }) {
+// Each role whose saved harness cannot start on this machine, and why (MS5.3).
+export function roleProblems(config, harnesses) {
+  const table = resolveRoles(config);
+  return ROLES.flatMap((role) => {
+    const harness = harnesses.find((h) => h.name === table[role]?.harness);
+    return harness?.startProblem
+      ? [{ role, harness: harness.name, problem: harness.startProblem }]
+      : [];
+  });
+}
+
+export function machineStatus({
+  stateDirectory,
+  configDirectory = machineAvoozlPaths().configDirectory,
+}) {
   const paths = supervisorPaths(stateDirectory),
     holder = runningSupervisor(stateDirectory);
   let children = [],
@@ -90,6 +107,9 @@ export function machineStatus({ stateDirectory }) {
         }
       : { running: false },
     serve: serveStatus(stateDirectory),
+    harnesses: listHarnessDefinitions(configDirectory).map(
+      ({ name, approved, startProblem }) => ({ name, approved, startProblem }),
+    ),
     children,
   };
 }

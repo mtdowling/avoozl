@@ -2335,6 +2335,7 @@
    "src/app/executors/test/harness-allow.test.mjs",
    "src/app/executors/test/harness-definitions.test.mjs",
    "src/app/executors/test/kirocrew-runtime.test.mjs",
+   "src/app/executors/test/machine-server.test.mjs",
    "src/app/executors/test/process-executor.test.mjs",
    "src/app/executors/test/process-roles.test.mjs",
    "src/app/executors/test/process-view.test.mjs",
@@ -2350,14 +2351,19 @@
    "src/app/test/direct-links.test.mjs",
    "src/app/test/harness-permissions.test.mjs",
    "src/app/test/home-no-wait.test.mjs",
+   "src/app/test/host-cli.test.mjs",
    "src/app/test/one-dispatcher.test.mjs",
    "src/app/test/plan-review-settings.test.mjs",
    "src/app/test/review-flags.test.mjs",
    "src/app/test/review-state.test.mjs",
    "src/app/test/role-harness.test.mjs",
+   "src/app/test/serve-supervisor.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs",
-   "src/app/workspace/test/demo.test.mjs"
+   "src/app/tick/test/notification-sinks.test.mjs",
+   "src/app/workspace/test/demo.test.mjs",
+   "src/app/workspace/test/machine-status.test.mjs",
+   "src/app/workspace/test/workspace-status.test.mjs"
   ],
   "src/app/executors/kirocrew.mjs": [
    "src/app/agents/test/role-table.test.mjs",
@@ -2492,6 +2498,9 @@
   ],
   "src/app/executors/kirocrew/session-observer.mjs": [
    "src/app/test/stock-kirocrew.test.mjs"
+  ],
+  "src/app/executors/login-unit.mjs": [
+   "src/app/executors/test/login-unit.test.mjs"
   ],
   "src/app/executors/machine-build.mjs": [
    "src/app/executors/test/machine-server.test.mjs",
@@ -3473,7 +3482,6 @@
    "src/app/test/review-flags.test.mjs",
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
-   "src/app/test/role-harness.test.mjs",
    "src/app/test/session-spec-holds.test.mjs",
    "src/app/test/single-write-path-servers.test.mjs",
    "src/app/test/single-write-path.test.mjs",
@@ -10217,6 +10225,7 @@
    "src/app/executors/test/kirocrew-plans-view.test.mjs",
    "src/app/executors/test/kirocrew-runtime.test.mjs",
    "src/app/executors/test/kirocrew-workspace-view.test.mjs",
+   "src/app/executors/test/login-unit.test.mjs",
    "src/app/executors/test/machine-server.test.mjs",
    "src/app/executors/test/process-executor.test.mjs",
    "src/app/executors/test/process-reply-summary.test.mjs",

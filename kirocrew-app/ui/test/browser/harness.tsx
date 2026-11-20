@@ -2071,7 +2071,14 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
     roles: { planner: { model: 'fake-writer' } } as Record<string, Record<string, string>>,
     harnessDefinitions: [
       { name: 'claude-code', approved: true, model: true, readRoles: null, proved: ['read', 'write'] },
-      { name: 'codex', approved: false, model: false, readRoles: 'codex names no resultAllow, so a read-only session cannot write its result file.', proved: ['write'] },
+      {
+        name: 'codex',
+        approved: false,
+        model: false,
+        readRoles: 'codex names no resultAllow, so a read-only session cannot write its result file.',
+        proved: ['write'],
+        startProblem: 'codex is not on the PATH of this machine\u2019s server.',
+      },
     ],
   }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])

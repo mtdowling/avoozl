@@ -20,6 +20,7 @@ import { machineFile } from "./crews.mjs";
 import { sinkPushers, validateNotifications } from "./notification-sinks.mjs";
 import { loopLockPaths, takeLock } from "../executors/machine-lock.mjs";
 import { needsKirocrewStep } from "./needs-kirocrew.mjs";
+import { blockedHarnesses, needsHarnessStep } from "./needs-harness.mjs";
 
 // The enabled workspace roots in the machine catalog, synced from the
 // machine config first so a hand edit counts.
@@ -76,10 +77,14 @@ export async function tickWorkspace(
       notifier: sinks,
     });
     const tick = await ops.execute("workspace.tick", { cron: true });
+    // A harness that cannot start here holds its starts and opens one item.
+    const blocked = blockedHarnesses(configDirectory);
+    needsHarnessStep(store, blocked);
     const { errors } = await drainProcessRequests(store, {
       stateDirectory,
       prepareWorktree,
       ops,
+      blocked,
     });
     // Awaited, unlike the app backend's, since the store closes after.
     await drainCheckRuns(store);

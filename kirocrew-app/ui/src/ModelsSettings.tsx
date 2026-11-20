@@ -131,6 +131,11 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
               <Hint size="xs" data-harness-proved>
                 {provedLine(d)}
               </Hint>
+              {d.startProblem && (
+                <ErrorText as="span" size="xs" data-harness-start-problem>
+                  Cannot start on this machine: {d.startProblem}
+                </ErrorText>
+              )}
               {d.readRoles && (
                 <Hint size="xs" data-harness-read-roles>
                   Not offered for read-only roles: {d.readRoles}
@@ -180,6 +185,11 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   {picked && !picked.approved && (
                     <ErrorText as="span" size="xs">
                       Not approved: it will not start until its hash is approved.
+                    </ErrorText>
+                  )}
+                  {picked?.startProblem && (
+                    <ErrorText as="span" size="xs" data-role-start-problem>
+                      Cannot start on this machine: {picked.startProblem}
                     </ErrorText>
                   )}
                 </Field>

@@ -42,7 +42,7 @@ they never collide with the IDs of the other specs.
 - [x] ms-1.5 Login install on Windows, after ms-1.2 [MS4] (§D4)
   - $done: Tests on the Windows CI leg with a fake `schtasks`: `avoozl start --at-login` writes the XML with a logon trigger for the current user, least privilege, restart on failure and the marker description, and runs `/Create` and `/Run`; `avoozl stop --at-login` runs `/Delete`; a task without the marker is refused.
   - $after: ms-1.2
-- [ ] ms-1.6 Model access and harness readiness for unattended children, after ms-1.2 [MS5] (§D6)
+- [x] ms-1.6 Model access and harness readiness for unattended children, after ms-1.2 [MS5] (§D6)
   - $done: Tests: a `keepEnv` value from `machine.env` reaches the child and no other name does; a group-readable file is refused on macOS and Linux; no value appears in logs, status or receipts; the sandbox test shows the file outside a child's read roots; a harness whose program is missing, or whose keys are all unset with no proxy, shows per role in `avoozl status` and Settings › Models and a request for it opens one Needs you item; screenshots of Settings › Models go to the owner; the pull request says whether Claude Code's plan sign-in on macOS is keychain-only, with how it was checked.
   - $after: ms-1.2
 - [ ] ms-1.7 The role proof script for any harness, after ms-1.2 [MS6.3] (§D6)

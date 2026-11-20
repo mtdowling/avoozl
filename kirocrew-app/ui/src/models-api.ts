@@ -64,6 +64,8 @@ export interface HarnessDefinition {
   model?: boolean
   // Why it cannot run a read-only role (it names no resultAllow), or null.
   readRoles?: string | null
+  // Why it cannot start on this machine's server (program or sign-in missing), or null.
+  startProblem?: string | null
   // The role classes a live proof ran it in.
   proved?: ('read' | 'write')[]
 }

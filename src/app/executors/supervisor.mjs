@@ -34,6 +34,7 @@ import {
 import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
 import { lockHolder, machineLockPaths, takeLock } from "./machine-lock.mjs";
 import { buildId } from "./machine-build.mjs";
+import { readMachineEnv, withKeptValues } from "./machine-env.mjs";
 import {
   ensureRequestTables,
   pendingRequests,
@@ -869,7 +870,13 @@ export function startSupervisor({
         // The child marker makes the CLI refuse person-only commands, even
         // on the command line (R95.5).
         env: withoutPushCredentials({
-          ...env,
+          // Model access the server's own environment lacks comes from
+          // machine.env, for the definition's keepEnv names only (MS5.2).
+          ...withKeptValues(
+            env,
+            definition.keepEnv ?? [],
+            readMachineEnv(configDirectory),
+          ),
           ...(values.tmp
             ? Object.fromEntries(
                 ["TMPDIR", ...(definition.tmpEnv ?? [])].map((name) => [
