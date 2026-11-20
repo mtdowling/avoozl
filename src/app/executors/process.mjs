@@ -40,11 +40,6 @@ import { processRow } from "../agents/role-table.mjs";
 import { loadHarnessDefinition } from "./harness-definitions.mjs";
 import { sessionServedModel } from "./process-view.mjs";
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
-import { sessionIsolation } from "../intake/stranger-input.mjs";
-import {
-  clearStrangerWait,
-  recordStrangerWait,
-} from "../intake/stranger-holds.mjs";
 
 const PROCESS_EXECUTOR = "process";
 // The harness a `process` repository runs when it names none.
@@ -80,13 +75,10 @@ export function sessionNetwork(sandbox, offline) {
   return list.length ? list : undefined;
 }
 
-// `isolationFor(task, role)` is sessionIsolation's answer (vm-harness D7):
-// a contained one sends the box settings with the request.
 export function processExecutor({
   stateDirectory,
   repositoryFor = () => null,
   harnessFor = () => null,
-  isolationFor = () => null,
 }) {
   return createExecutor({
     start(role, task, worktree, brief, model, permissionClass) {
@@ -95,11 +87,6 @@ export function processExecutor({
       const sandbox = repository.sandbox ?? {};
       const offline = processRow(role)?.offline === true;
       const sessionId = `process-${randomUUID()}`;
-      const isolation = isolationFor(task, role);
-      // Stranger input gets no shared cache folder and no writable path
-      // (VM6.6): its box mounts empty folders of its own.
-      const stranger = Boolean(isolation?.stranger);
-      const tmp = path.join(os.tmpdir(), `avoozl-${sessionId}`);
       return withDatabase(stateDirectory, (db) =>
         requestChild(db, {
           executor: PROCESS_EXECUTOR,
@@ -117,24 +104,12 @@ export function processExecutor({
           values: {
             // The session's own temp folder, outside the shared one's other
             // checkouts and outside the state folder the child cannot reach.
-            tmp,
-            repository_cache_dirs: stranger ? [] : (sandbox.writeRoots ?? []),
+            tmp: path.join(os.tmpdir(), `avoozl-${sessionId}`),
+            repository_cache_dirs: sandbox.writeRoots ?? [],
           },
-          ...(isolation?.kind === "contained"
-            ? {
-                contained: {
-                  repository: repository.id ?? "repository",
-                  isolation: repository.isolation ?? {},
-                  caches: stranger ? [] : (sandbox.writeRoots ?? []),
-                  ...(stranger
-                    ? { stranger: { reason: isolation.stranger.reason } }
-                    : {}),
-                },
-              }
-            : {}),
           allowCommands: sandbox.allowCommands,
           // Home paths the repository lets its checks and sessions read.
-          readable: stranger ? [] : (repository.isolation?.readable ?? []),
+          readable: repository.isolation?.readable ?? [],
           network: sessionNetwork(sandbox, offline),
         }),
       );
@@ -146,42 +121,6 @@ export function processExecutor({
     stop: (sessionId) =>
       withDatabase(stateDirectory, (db) => stopChild(db, sessionId)),
   });
-}
-
-// The subject a session's stranger input is read from: its task, or the
-// triage run it serves (vm-harness D7).
-export function sessionSubject(store, id) {
-  return (
-    store.read().tasks.find((task) => task.id === id) ??
-    (() => {
-      try {
-        return store.get("triage_runs", id);
-      } catch {
-        return null;
-      }
-    })()
-  );
-}
-
-// Why a stranger-input start waits, or null; the wait gets one Needs you
-// item per repository (VM6.5, VM6.10).
-function strangerWait(store, request) {
-  const repository = sessionRepository(store, request);
-  if (!repository) return null;
-  const answer = sessionIsolation(
-    store,
-    repository,
-    sessionSubject(store, request.task),
-    request.role,
-  );
-  if (!answer.wait) return null;
-  recordStrangerWait(store, {
-    repository: repository.id,
-    kind: "box",
-    reason: answer.wait,
-    requestId: request.id,
-  });
-  return answer.wait;
 }
 
 // A decision on findings (Go ahead, Investigate again, Stop) resumes the
@@ -779,8 +718,6 @@ export async function drainProcessRequests(
   // still holds it.
   const startHold = (request) => {
     if (request.operation === "send") return null;
-    const waits = strangerWait(store, request);
-    if (waits) return waits;
     health ??= healthContext(store);
     const harness =
       request.harness ??
@@ -876,18 +813,11 @@ export async function drainProcessRequests(
                   : request.worktree;
       let sessionId;
       try {
-        const isolation = sessionIsolation(
-          store,
-          repository,
-          sessionSubject(store, request.task),
-          request.role,
-        );
         sessionId = await processExecutor({
           stateDirectory,
           repositoryFor: () => repository,
           // The harness the request names (R98.3, R98.4), else the repository's.
           harnessFor: () => request.harness ?? null,
-          isolationFor: () => isolation,
         }).start(
           request.role,
           request.task,
@@ -905,7 +835,6 @@ export async function drainProcessRequests(
         );
         throw error;
       }
-      clearStrangerWait(store, request.id);
       bindSession(
         store,
         {

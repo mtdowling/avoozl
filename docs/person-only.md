@@ -69,6 +69,14 @@ sandbox the supervisor wraps it in:
 - Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
   `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git
   gets no credential helper.
+- On Linux it gets an empty `$XDG_RUNTIME_DIR`, and the docker socket,
+  podman's socket folder and the SSH agent socket are hidden, since a Unix
+  socket on a read-only mount still connects.
+- After it exits, Avoozl runs git in its task folder only while the folder's
+  `.git` file still names the git directory its checkout made, with that
+  directory and work tree named and hooks and `core.fsmonitor` off. It reads
+  the result and output files without following a symbolic link, and does not
+  commit a link that points outside the folder.
 
 macOS uses `sandbox-exec` and Linux uses bubblewrap (`bwrap`). A machine with
 neither, such as Windows, runs a harness only after you allow that harness on

@@ -1,5 +1,4 @@
-// Host-side git and file reads after any session (vm-harness vm-2.6, D6):
-// a task folder's `.git` file, hooks, fsmonitor and links written by a
+// Host-side git and file reads after any session: a task folder's `.git` file, hooks, fsmonitor and links written by a
 // worker change nothing on the host.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";

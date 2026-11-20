@@ -18,13 +18,7 @@
 //   (`stillQueued`, pr-landing.mjs), merged with the base and verified again.
 import os from "node:os";
 import { git, removeLandedTaskWorktree } from "../git/git.mjs";
-import {
-  enqueueLanding,
-  landingQueue,
-  landNext,
-  taskIds,
-} from "./landing-queue.mjs";
-import { withStrangerChecks } from "../intake/stranger-input.mjs";
+import { enqueueLanding, landingQueue, landNext } from "./landing-queue.mjs";
 import { directSteps, dropMember } from "./merge-batch.mjs";
 import { landingSettings } from "./landing-config.mjs";
 import {
@@ -157,15 +151,6 @@ export async function landDirect(
           checksEnv: repository.checksEnv,
           repositoryId: repository.id,
           isolation: repository.isolation,
-          strangerChecks:
-            withStrangerChecks(
-              store,
-              repository,
-              queue
-                .slice(0, limit)
-                .flatMap((entry) => taskIds(entry))
-                .map((id) => store.read().tasks.find((task) => task.id === id)),
-            ).strangerChecks ?? null,
           unionPaths: config?.landing?.unionPaths ?? [],
           tickOf: (dir, entry) => tickEntry(store, dir, entry),
           commitPrefix: repository.commitPrefix,

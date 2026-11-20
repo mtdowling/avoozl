@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { execFile, execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { readServeConfig } from "../settings/serve-config.mjs";
@@ -32,25 +32,6 @@ import {
   sandboxSecretPaths,
 } from "./sandbox.mjs";
 import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
-import {
-  BOX_EXEC,
-  BOX_FORWARD,
-  BOX_FRAMES,
-  openContainedSession,
-} from "./box-session.mjs";
-import {
-  preflightKey,
-  runBoxPreflight,
-  runtimeVersion,
-} from "./box-preflight.mjs";
-import { startEgressProxy } from "./egress-proxy.mjs";
-import {
-  isolationSetting,
-  pickRuntime,
-  pinnedImage,
-  sweepBoxes,
-} from "../workspace/check-isolation.mjs";
-import { emptyHooksFolder, noHookConfig } from "../git/task-git.mjs";
 
 const CHILD_WRAPPER = fileURLToPath(
   new URL("./supervisor-child.mjs", import.meta.url),
@@ -76,12 +57,8 @@ const OWN_VALUES = [
   "session_uuid",
   "permission",
   "repository_allow_commands",
-  "box_exec",
-  "box_settings",
 ];
 const stamp = () => new Date().toISOString();
-// How often the supervisor removes boxes whose session is not running.
-const SWEEP_MS = 60_000;
 
 export function supervisorPaths(stateDirectory) {
   if (typeof stateDirectory !== "string" || !stateDirectory)
@@ -149,22 +126,6 @@ export function openSupervisorDatabase(stateDirectory) {
     db.exec("ALTER TABLE children ADD COLUMN runs INTEGER NOT NULL DEFAULT 0");
   if (!columns.has("result"))
     db.exec("ALTER TABLE children ADD COLUMN result TEXT");
-  // The session's isolation (VM1.6): {kind, runtime?, image?, stranger?}.
-  if (!columns.has("isolation"))
-    db.exec("ALTER TABLE children ADD COLUMN isolation TEXT");
-  // Each contained-session preflight (vm-harness D5): its steps, by key.
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS box_preflights (
-      key TEXT PRIMARY KEY,
-      repository TEXT NOT NULL,
-      runtime TEXT NOT NULL,
-      harness TEXT NOT NULL,
-      state TEXT NOT NULL,
-      steps TEXT NOT NULL DEFAULT '[]',
-      failed TEXT,
-      at TEXT NOT NULL
-    );
-  `);
   return db;
 }
 
@@ -210,9 +171,6 @@ export function requestChild(db, request) {
     }),
     network: request.network ?? "off",
     readable: absolutePaths(request.readable, "readable"),
-    ...(request.contained
-      ? { contained: containedRequest(request.contained) }
-      : {}),
   };
   sandboxNetwork(settings.network === "off" ? undefined : settings.network);
   const now = stamp();
@@ -243,101 +201,6 @@ export function requestChild(db, request) {
   }
   return sessionId;
 }
-
-// A contained session's settings, as a request names them (vm-harness
-// D3): the repository, its isolation and caches, and the stranger reason.
-function containedRequest(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    fail("A contained request must be an object.");
-  const isolation = isolationSetting(
-    value.isolation ?? {},
-    "contained.isolation",
-  );
-  if (!isolation.image) fail("A contained session needs isolation.image.");
-  return {
-    repository: text(value.repository, "contained.repository"),
-    isolation,
-    caches: absolutePaths(value.caches, "contained.caches"),
-    ...(value.stranger
-      ? {
-          stranger: {
-            reason: text(value.stranger.reason, "a stranger reason"),
-          },
-        }
-      : {}),
-  };
-}
-
-// The latest preflight for a repository, or null (vm-harness D5).
-export function boxPreflight(db, repository) {
-  const row = db
-    .prepare(
-      "SELECT * FROM box_preflights WHERE repository = ? ORDER BY at DESC LIMIT 1",
-    )
-    .get(repository);
-  return row
-    ? {
-        ...row,
-        steps: JSON.parse(row.steps),
-        failed: row.failed ? JSON.parse(row.failed) : null,
-      }
-    : null;
-}
-
-// **Run preflight again** (person only): the repository's failed preflights
-// go, so its next contained session runs a new one.
-export function forgetBoxPreflight(db, repository) {
-  return db
-    .prepare(
-      "DELETE FROM box_preflights WHERE repository = ? AND state != 'passed'",
-    )
-    .run(repository).changes;
-}
-
-// The program paths a contained session's CLI tree may start on macOS
-// (VM3.4): the harness's program, node, box exec, git and the definition's
-// host programs. `env` gives the PATH a bare name is found on.
-function containedPrograms(definition, env) {
-  const found = (name) => {
-    if (path.isAbsolute(name)) return [name];
-    for (const folder of String(env.PATH ?? "").split(path.delimiter))
-      if (folder && fs.existsSync(path.join(folder, name)))
-        return [path.join(folder, name)];
-    return [];
-  };
-  let gitCore = null;
-  try {
-    gitCore = execFileSync("git", ["--exec-path"], {
-      encoding: "utf8",
-      timeout: 10_000,
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {}
-  return {
-    programs: [
-      ...found(definition.start[0]),
-      process.execPath,
-      // box exec is a node script: its #! line runs env, then node.
-      "/usr/bin/env",
-      BOX_EXEC,
-      ...found("git"),
-      ...(gitCore
-        ? [path.join(path.dirname(path.dirname(gitCore)), "bin", "git")]
-        : []),
-      ...(definition.box?.hostPrograms ?? []),
-    ],
-    programFolders: gitCore ? [gitCore] : [],
-  };
-}
-
-// Whether a box routes the CLI's commands to box exec: some `box` value
-// names {box_exec}. One that does not (Codex until vm-2.3 proves its
-// routing, D11 question 3) runs no contained session.
-const routesToBox = (box) =>
-  Boolean(box) &&
-  [...Object.values(box.env ?? {}), ...(box.args ?? [])].some((item) =>
-    String(item).includes("{box_exec}"),
-  );
 
 export function childRecord(db, sessionId) {
   return db
@@ -717,214 +580,6 @@ function update(db, sessionId, fields) {
   ).run(...keys.map((k) => fields[k]), stamp(), sessionId);
 }
 
-// The preflight's routing steps: the CLI once, as a contained session
-// with a fixed prompt, read-only, allowed only the preflight's commands.
-export const launchPreflight = (
-  {
-    session,
-    definition,
-    runtime,
-    configDirectory,
-    stateDirectory,
-    env = process.env,
-  },
-  input,
-) =>
-  new Promise((resolve, reject) => {
-    try {
-      const values = { tmp: input.tmp };
-      const opened = { ...input.opened, runtime, gitDirs: null };
-      const filled = {
-        box_exec: BOX_EXEC,
-        box_settings: opened.folders.settings,
-        worktree: input.worktree,
-        tmp: input.tmp,
-        session: session,
-        session_uuid: randomUUID(),
-        model: null,
-        permission: definition.permission.read,
-        brief_file: path.join(input.tmp, "brief.md"),
-      };
-      fs.writeFileSync(filled.brief_file, input.prompt, { mode: 0o600 });
-      const argv = [
-        ...fillHarnessArgv(definition.start, filled),
-        ...harnessAllow(definition, input.allow),
-        ...(definition.resultAllow
-          ? fillHarnessArgv(definition.resultAllow, filled)
-          : []),
-        ...fillHarnessArgv(definition.box.args ?? [], filled),
-      ];
-      const box = containedChild(definition, filled, opened, {
-        worktree: input.worktree,
-      });
-      const confined = confineChild(argv, {
-        definition,
-        configDirectory,
-        writeRoots: [input.tmp, path.join(input.worktree, ".avoozl")],
-        secrets: sandboxSecretPaths({
-          home: env.HOME || os.homedir(),
-          env,
-          configDirectory,
-          stateDirectory,
-        }),
-        readable: [filled.brief_file, ...box.readable],
-        home: env.HOME || os.homedir(),
-        readRoots: [
-          input.worktree,
-          input.tmp,
-          ...harnessReads(definition, env.HOME || os.homedir()),
-        ],
-        network: box.network,
-        contained: box.contained,
-        keepEnv: definition.keepEnv ?? [],
-        env: withoutPushCredentials({
-          ...env,
-          TMPDIR: values.tmp,
-          AVOOZL_CHILD: "1",
-          AVOOZL_CHILD_SESSION: session,
-          ...box.env,
-        }),
-      });
-      const child = spawn(confined.argv[0], confined.argv.slice(1), {
-        cwd: input.worktree,
-        stdio: [
-          definition.promptFrom === "stdin" ? "pipe" : "ignore",
-          "ignore",
-          "ignore",
-        ],
-        env: confined.env,
-        windowsHide: true,
-      });
-      if (definition.promptFrom === "stdin") child.stdin.end(input.prompt);
-      const timer = setTimeout(() => child.kill("SIGTERM"), 300_000);
-      child.on("error", (error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
-      child.on("exit", (code) => {
-        clearTimeout(timer);
-        resolve({ code });
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
-
-// What a contained session adds to its CLI's sandbox and environment
-// (vm-harness D3): its box settings, the egress proxy as its only network,
-// box exec's broker socket, its sign-in store, its programs, and git pinned
-// to its task folder.
-function containedChild(definition, filled, opened, row) {
-  const box = definition.box,
-    home = process.env.HOME || os.homedir(),
-    linux = process.platform === "linux";
-  // On Linux the CLI's proxy port lives in its own namespace, carried by
-  // the forwarder to the proxy's socket; on macOS it is the proxy's port.
-  const port = linux
-    ? 20000 + Math.floor(Math.random() * 40000)
-    : opened.proxy.port;
-  const env = {
-    ...Object.fromEntries(
-      Object.entries(box.env ?? {}).map(([name, value]) => [
-        name,
-        fillHarnessArgv([value], filled)[0],
-      ]),
-    ),
-    HTTPS_PROXY: `http://127.0.0.1:${port}`,
-    https_proxy: `http://127.0.0.1:${port}`,
-    NO_PROXY: "",
-    AVOOZL_BOX_SOCKET: opened.folders.brokerSocket,
-  };
-  const { programs, programFolders } = containedPrograms(
-    definition,
-    process.env,
-  );
-  return {
-    env,
-    network: { mode: "restricted", ports: [port] },
-    readable: [opened.folders.settings, BOX_EXEC, BOX_FRAMES, BOX_FORWARD],
-    contained: {
-      signIn: {
-        ...(box.signIn?.darwin ? { darwin: box.signIn.darwin } : {}),
-        ...(box.signIn?.linux
-          ? {
-              linux: box.signIn.linux.map((item) =>
-                path.join(home, item.slice(2)),
-              ),
-            }
-          : {}),
-      },
-      programs,
-      programFolders,
-      brokerSocket: opened.folders.brokerSocket,
-      sockets: linux
-        ? [opened.folders.brokerSocket, opened.folders.proxySocket]
-        : [],
-      forward: linux
-        ? [
-            process.execPath,
-            BOX_FORWARD,
-            String(port),
-            opened.folders.proxySocket,
-            "--",
-          ]
-        : [],
-      ...(opened.gitDirs
-        ? {
-            git: {
-              gitDir: opened.gitDirs.gitDir,
-              workTree: row.worktree,
-              hooks: emptyHooksFolder(),
-            },
-          }
-        : {}),
-    },
-  };
-}
-
-// A task folder's own git directory and the shared one, read before the
-// session starts, with no hook and no fsmonitor; null outside a repository.
-function taskGitDirs(worktree) {
-  try {
-    const [gitDir, common] = execFileSync(
-      "git",
-      [
-        ...noHookConfig(),
-        "rev-parse",
-        "--path-format=absolute",
-        "--git-dir",
-        "--git-common-dir",
-      ],
-      {
-        cwd: worktree,
-        encoding: "utf8",
-        timeout: 15_000,
-        stdio: ["ignore", "pipe", "ignore"],
-      },
-    )
-      .trim()
-      .split("\n");
-    return { gitDir, common };
-  } catch {
-    return null;
-  }
-}
-
-const runAsync = (argv) =>
-  new Promise((resolve) => {
-    execFile(
-      argv[0],
-      argv.slice(1),
-      { encoding: "utf8", maxBuffer: 8 * 1024 * 1024, timeout: 600_000 },
-      (error, stdout, stderr) =>
-        resolve({
-          status: error ? (Number.isInteger(error.code) ? error.code : 1) : 0,
-          stdout,
-          stderr,
-        }),
-    );
-  });
-
 // Git's own user config under home, which a confined child still reads.
 const GIT_USER_CONFIG = [".gitconfig", path.join(".config", "git")];
 
@@ -1076,12 +731,7 @@ export function startSupervisor({
     child.once("error", ended);
   };
 
-  // Contained sessions (vm-harness D3): their box, broker and proxy, by
-  // session, while they open, run and close.
-  const contained = new Map();
-  let sweptAt = 0;
-
-  const start = (row, message = null, opened = null) => {
+  const start = (row, message = null) => {
     const folder = path.join(paths.children, row.session_id);
     const log = path.join(folder, "log");
     const run = (row.runs ?? 0) + 1;
@@ -1116,15 +766,7 @@ export function startSupervisor({
       }
       const values = JSON.parse(row.placeholder_values);
       const settings = JSON.parse(row.settings || "{}");
-      if (settings.contained && !opened)
-        fail("A contained session starts only once its box is open.", 409);
       const filled = {
-        ...(opened
-          ? {
-              box_exec: BOX_EXEC,
-              box_settings: opened.folders.settings,
-            }
-          : {}),
         ...values,
         worktree: row.worktree,
         brief_file: briefFile,
@@ -1153,10 +795,6 @@ export function startSupervisor({
         ...(row.permission_class === "read" && definition.resultAllow
           ? fillHarnessArgv(definition.resultAllow, filled)
           : []),
-        // A contained session's routing and what it turns off (D3).
-        ...(opened && definition.box?.args
-          ? fillHarnessArgv(definition.box.args, filled)
-          : []),
       ];
       const promptFile = message ? messageFile : briefFile;
       const stdin =
@@ -1173,9 +811,6 @@ export function startSupervisor({
       });
       if (values.tmp)
         fs.mkdirSync(values.tmp, { recursive: true, mode: 0o700 });
-      const box = opened
-        ? containedChild(definition, filled, opened, row)
-        : null;
       const confined = confineChild(argv, {
         definition,
         configDirectory,
@@ -1189,7 +824,7 @@ export function startSupervisor({
             path.join(path.resolve(stateDirectory), "catalog.sqlite"),
           ),
         }),
-        readable: [promptFile, ...(box?.readable ?? [])],
+        readable: [promptFile],
         writable: [log],
         // Home is confined to the session's own folders, the harness's
         // config, git's user config and what the repository lists.
@@ -1205,14 +840,11 @@ export function startSupervisor({
           ),
           ...(settings.readable ?? []),
         ],
-        network: box
-          ? box.network
-          : sandboxNetwork(
-              !settings.network || settings.network === "off"
-                ? undefined
-                : settings.network,
-            ),
-        ...(box ? { contained: box.contained } : {}),
+        network: sandboxNetwork(
+          !settings.network || settings.network === "off"
+            ? undefined
+            : settings.network,
+        ),
         keepEnv: definition.keepEnv ?? [],
         // Avoozl pushes; an agent gets no push credentials (R102.6). The
         // sandbox then sets git's own empty credential helper.
@@ -1230,7 +862,6 @@ export function startSupervisor({
             : {}),
           AVOOZL_CHILD: "1",
           AVOOZL_CHILD_SESSION: row.session_id,
-          ...(box?.env ?? {}),
         }),
       });
       const out = fs.openSync(log, "a", 0o600);
@@ -1266,18 +897,6 @@ export function startSupervisor({
           ).run(message.id);
         update(db, row.session_id, {
           state: "running",
-          isolation: JSON.stringify(
-            opened
-              ? {
-                  kind: "container",
-                  runtime: opened.runtime,
-                  image: opened.image,
-                  ...(settings.contained?.stranger
-                    ? { stranger: settings.contained.stranger.reason }
-                    : {}),
-                }
-              : { kind: confined.sandbox ? "sandbox" : "unconfined" },
-          ),
           harness_hash: hash,
           pid: child.pid,
           process_started: started,
@@ -1313,16 +932,6 @@ export function startSupervisor({
   const observe = (row) => {
     const exit = row.exit_file && readJson(row.exit_file);
     if (exit && Number.isInteger(exit.code)) {
-      // A contained session's box goes first, so nothing in it can change
-      // the folder once Avoozl reads it (VM2.1).
-      const open = contained.get(row.session_id);
-      if (open) {
-        if (open.state === "running") {
-          open.state = "closing";
-          open.opened.close().finally(() => contained.delete(row.session_id));
-        }
-        return;
-      }
       own.delete(row.session_id);
       const read = readChildResult(row.worktree);
       return update(db, row.session_id, {
@@ -1359,7 +968,7 @@ export function startSupervisor({
         "SELECT * FROM children WHERE state = 'requested' ORDER BY requested_at",
       )
       .all())
-      startOrOpen(row);
+      start(row);
     // A message for a session whose run has exited resumes it.
     for (const row of db
       .prepare(
@@ -1368,183 +977,9 @@ export function startSupervisor({
              WHERE m.session_id = c.session_id AND m.state = 'queued')`,
       )
       .all())
-      startOrOpen(row, queuedMessage(db, row.session_id));
-    sweep();
+      start(row, queuedMessage(db, row.session_id));
     if (tickIntervalMs) tick();
     hostServe();
-  };
-
-  // A row with no box starts now. A contained one opens its box, broker and
-  // proxy first, after its preflight (D5), and starts on a later pass; one
-  // that cannot open is refused as `exited -1` with the reason.
-  const startOrOpen = (row, message = null) => {
-    const settings = JSON.parse(row.settings || "{}");
-    if (!settings.contained) return start(row, message);
-    const open = contained.get(row.session_id);
-    if (open?.state === "ready") {
-      open.state = "running";
-      return start(row, message, open.opened);
-    }
-    if (open) return;
-    const entry = { state: "opening" };
-    contained.set(row.session_id, entry);
-    openContained(row, settings.contained).then(
-      (opened) => {
-        entry.opened = opened;
-        entry.state = "ready";
-      },
-      (error) => {
-        contained.delete(row.session_id);
-        if (message)
-          db.prepare("UPDATE messages SET state = 'refused' WHERE id = ?").run(
-            message.id,
-          );
-        update(db, row.session_id, {
-          state: "exited",
-          exit_code: -1,
-          error: error.message,
-        });
-      },
-    );
-  };
-
-  // Open one contained session: its harness routes to the box, its runtime
-  // works, the preflight for its key passed (run now when there is none),
-  // then the box, broker and proxy start.
-  const openContained = async (row, settings) => {
-    const definition = loadHarnessDefinition({
-      configDirectory,
-      name: row.harness,
-    });
-    if (!definition.box)
-      fail(
-        `Harness ${definition.name} has no box key, so it cannot run a contained session.`,
-        409,
-      );
-    if (!routesToBox(definition.box))
-      fail(
-        `Harness ${definition.name}'s box sends no command to box exec, so it cannot run a contained session.`,
-        409,
-      );
-    const picked = pickRuntime({
-      named: settings.isolation.runtime,
-      purpose: "box",
-    });
-    if (picked.refused) fail(`The box cannot start: ${picked.refused}`, 409);
-    const runtime = picked.runtime,
-      pinned = await pinnedImage(runtime, settings.isolation.image, {
-        run: (program, args) => runAsync([program, ...args]),
-      });
-    if (pinned.refused) fail(pinned.refused, 409);
-    const key = preflightKey({
-      repository: settings.repository,
-      runtime,
-      version: await runtimeVersion(runtime),
-      digest: pinned.image,
-      harnessHash: definition.hash,
-    });
-    let record = db
-      .prepare("SELECT * FROM box_preflights WHERE key = ?")
-      .get(key);
-    if (!record) {
-      const result = await runBoxPreflight(
-        {
-          runtime,
-          image: pinned.image,
-          hosts: definition.box.hosts ?? [],
-          stateDirectory,
-          tmpEnv: definition.tmpEnv ?? [],
-        },
-        {
-          startProxy: startEgressProxy,
-          launch: (input) =>
-            launchPreflight(
-              {
-                session: row.session_id,
-                definition,
-                runtime,
-                configDirectory,
-                stateDirectory,
-                env,
-              },
-              input,
-            ),
-        },
-      );
-      db.prepare(
-        `INSERT OR REPLACE INTO box_preflights
-           (key, repository, runtime, harness, state, steps, failed, at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        key,
-        settings.repository,
-        runtime,
-        definition.name,
-        result.passed ? "passed" : "failed",
-        JSON.stringify(result.steps),
-        result.failed ? JSON.stringify(result.failed) : null,
-        stamp(),
-      );
-      record = {
-        state: result.passed ? "passed" : "failed",
-        failed: JSON.stringify(result.failed ?? null),
-      };
-    }
-    if (record.state !== "passed") {
-      const failed = record.failed ? JSON.parse(record.failed) : null;
-      fail(
-        `The contained-session preflight failed at "${failed?.name ?? "a step"}": ${failed?.output ?? ""}`,
-        409,
-      );
-    }
-    const values = JSON.parse(row.placeholder_values);
-    const gitDirs = taskGitDirs(row.worktree);
-    const opened = await openContainedSession(
-      {
-        runtime,
-        session: row.session_id,
-        image: pinned.image,
-        worktree: row.worktree,
-        gitDir: gitDirs?.common ?? null,
-        tmp: values.tmp,
-        caches: settings.caches ?? [],
-        readable: settings.isolation.readable ?? [],
-        writable: settings.stranger ? [] : (settings.isolation.writable ?? []),
-        tmpEnv: definition.tmpEnv ?? [],
-        hosts: definition.box.hosts ?? [],
-        secrets: sandboxSecretPaths({
-          home: env.HOME || os.homedir(),
-          env,
-          configDirectory,
-          stateDirectory,
-        }),
-        stateDirectory,
-      },
-      { startProxy: startEgressProxy },
-    );
-    return { ...opened, runtime, gitDirs };
-  };
-
-  // Remove boxes whose session is not running here (VM2.8), now and then.
-  const sweep = () => {
-    if (Date.now() - sweptAt < SWEEP_MS) return;
-    sweptAt = Date.now();
-    const picked = pickRuntime({ purpose: "box" });
-    if (!picked.runtime) return;
-    const live = new Set([
-      ...contained.keys(),
-      ...db
-        .prepare(
-          "SELECT session_id FROM children WHERE state IN ('requested', 'running')",
-        )
-        .all()
-        .map((r) => r.session_id),
-    ]);
-    try {
-      sweepBoxes(picked.runtime, live);
-    } catch {
-      // A runtime that cannot list leaves its boxes for the next sweep.
-    }
   };
 
   const schedule = () => {

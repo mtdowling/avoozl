@@ -369,8 +369,7 @@ export async function prepareWorktree(store, input = {}) {
   const prepared = await prepareTaskWorktree(store, repository, {
     branch,
     name: "avoozl-" + task.id,
-    // A fix from a pull request starts at the head Avoozl fetched (VM6.9).
-    start: task.fix?.source?.pull?.head ?? base?.branch ?? null,
+    start: base?.branch ?? null,
   });
   const record = {
     id: task.id,

@@ -22,7 +22,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { git, remoteGit } from "../git/git.mjs";
-import { recordIsolation } from "../workspace/check-isolation.mjs";
 import {
   guardedFastForward,
   landIntent,
@@ -276,11 +275,9 @@ export function directSteps({
   machine,
   configFile,
   checksEnv,
-  // The repository's id and isolation: each check runs under it, and
-  // under the stranger rule of a member with stranger input (VM6.4).
+  // The repository's id and isolation: each check runs under it.
   repositoryId,
   isolation,
-  strangerChecks = null,
   run = runCheckAt,
   scan = privacyScan,
   // The workspace, for plugin checks' cache and decide records.
@@ -408,20 +405,16 @@ export function directSteps({
           continue;
         }
         const result = await run(
-          {
-            id: repositoryId,
-            root,
-            checksEnv,
-            isolation,
-            ...(strangerChecks ? { strangerChecks } : {}),
-          },
+          { id: repositoryId, root, checksEnv, isolation },
           candidate,
           check.argv,
         );
         out.push({
           name: check.name,
           command: check.argv.join(" "),
-          ...recordIsolation(result),
+          ...(result.isolation !== undefined
+            ? { isolation: result.isolation }
+            : {}),
           exitCode: result.exitCode,
           ...(result.exitCode !== 0 && result.tail
             ? { tail: result.tail }

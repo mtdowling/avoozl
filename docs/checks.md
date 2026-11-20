@@ -101,15 +101,12 @@ Every check runs in the repository's `isolation`. Only a person sets it.
 }
 ```
 
-`run` is one of three modes:
+`run` is one of two modes:
 
 - `sandbox` is the default and uses the process sandbox. A check writes only its
   folder, its own temp folder, a per-repository cache folder and `writable`. It
   reads no credential or Avoozl state folder, plus `readable` where those would
   hide a file it needs.
-- `container` runs `image` with `docker` or `podman`, with the folder mounted at
-  the same path, `--network none` unless the network is on, the same environment
-  allowlist, and no home folder.
 - `unconfined` applies no isolation. It needs this machine's opt-in,
   `"checks": true` in `harness-unconfined.json` in Avoozl's config folder. A
   machine with no sandbox runs a `sandbox` check unconfined too.
@@ -119,14 +116,6 @@ commit before the checks, outside isolation, with the environment allowlist.
 When it fails, no check runs. Each check record names its isolation, and the
 Landing page and the task's timeline show "not sandboxed" for a check that ran
 unconfined.
-
-### Container mounts
-
-Before the checks, Avoozl writes a file with random content in the folder and
-reads it back in the same container. A runtime in a VM mounts a folder the VM
-does not share as empty (on a Mac, Colima shares only its `mounts`). When the
-content does not match, no check runs, and each is recorded as not run because
-the container cannot see the folder.
 
 ## Free disk space
 

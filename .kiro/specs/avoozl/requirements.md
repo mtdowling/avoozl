@@ -5575,17 +5575,16 @@ and 86.7: a check no longer runs as the person with nothing between it and
 the machine.
 
 **User story:** As the owner, I want every check Avoozl runs to run in a
-sandbox or a container with the network off by default, so that a worker's
-commit cannot read my credentials or reach the network through its checks.
+sandbox with the network off by default, so that a worker's commit cannot
+read my credentials or reach the network through its checks.
 
 #### Acceptance criteria
 
-1. A repository SHALL have one `isolation` setting, `{run, image, network,
+1. A repository SHALL have one `isolation` setting, `{run, network,
    readable, writable, prepare}`, kept in its repository settings. `run` SHALL
-   be `sandbox` (the default), `container` or `unconfined`; `network` SHALL
-   be `off` (the default) or `on`; `image` SHALL be required with
-   `container`; `readable` and `writable` SHALL be absolute paths; `prepare`
-   SHALL be command arguments. Only a person SHALL set it, with
+   be `sandbox` (the default) or `unconfined`; `network` SHALL be `off`
+   (the default) or `on`; `readable` and `writable` SHALL be absolute paths;
+   `prepare` SHALL be command arguments. Only a person SHALL set it, with
    `repository.configure` or Settings › Repository setup › Landing.
 2. With `sandbox`, every check (Avoozl's own check runs, integration's and
    landing's candidate runs) SHALL run in the process sandbox, writing only
@@ -5593,10 +5592,8 @@ commit cannot read my credentials or reach the network through its checks.
    outside every secret path, and `writable`; reading no secret path; with
    the network as set; and with only the checks' environment allowlist
    (Requirement 7.1).
-3. With `container`, a check SHALL run in `docker` or `podman`, whichever
-   is installed, with the folder mounted at the same path, `--network none`
-   unless the network is on, the same environment allowlist, and no home
-   folder mounted.
+3. (Removed 2026-11-19, owner decision: Avoozl runs no check in a
+   container.)
 4. `unconfined` SHALL be accepted only with the machine's opt-in. A machine
    with no sandbox SHALL run a `sandbox` check unconfined. Either way the
    check's record SHALL say `isolation: "unconfined"`, and the Landing page
@@ -5607,8 +5604,7 @@ commit cannot read my credentials or reach the network through its checks.
 6. Every check record SHALL name the isolation it ran under.
 7. Tests SHALL show that, in a sandboxed check, a TCP connection to a public
    host fails with the network off, a write outside the roots fails, and
-   `GH_TOKEN` is absent; container tests SHALL be skipped, saying so, where
-   no runtime is installed.
+   `GH_TOKEN` is absent.
 
 ### Requirement 113: A tick on the base branch completes the task
 

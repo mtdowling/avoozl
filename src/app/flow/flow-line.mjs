@@ -29,12 +29,7 @@ import {
 } from "../delivery/delivery.mjs";
 import { fence } from "../github/github-respond.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
-import {
-  checkOptions,
-  containerBlindness,
-  prepareChecks,
-  recordIsolation,
-} from "../workspace/check-isolation.mjs";
+import { checkOptions, prepareChecks } from "../workspace/check-isolation.mjs";
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
 import {
   checkCommand,
@@ -61,13 +56,13 @@ export async function runCheckAt(repository, commit, argv) {
         durationMs: 0,
         tail: `prepare failed: ${String(ready.stderr || "").split("\n")[0]}`,
       };
-    const blind = await containerBlindness(repository, dir);
-    if (blind) return { exitCode: null, durationMs: 0, tail: blind };
     const started = Date.now(),
       result = await commandEvidence(dir, argv, checkOptions(repository, dir));
     return {
       exitCode: result.exitCode,
-      ...recordIsolation(result),
+      ...(result.isolation !== undefined
+        ? { isolation: result.isolation }
+        : {}),
       durationMs: Date.now() - started,
       tail: String((result.stdout || "") + (result.stderr || ""))
         .split("\n")

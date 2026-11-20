@@ -6,18 +6,17 @@ import { RUN_CHOICES, isolationForm, isolationInput, isolationProblem } from '..
 
 test('a repository with no setting reads as the sandbox with the network off', () => {
   const form = isolationForm(null)
-  assert.deepEqual([form.run, form.network, form.image], ['sandbox', 'off', ''])
+  assert.deepEqual([form.run, form.network], ['sandbox', 'off'])
   assert.deepEqual(isolationInput(form), { run: 'sandbox', network: 'off' })
   assert.deepEqual(
     RUN_CHOICES.map((choice) => choice.value),
-    ['sandbox', 'container', 'unconfined'],
+    ['sandbox', 'unconfined'],
   )
 })
 
-test('the form round-trips a container setting with paths and prepare', () => {
+test('the form round-trips a setting with paths and prepare', () => {
   const value = {
-    run: 'container',
-    image: 'node:22',
+    run: 'sandbox',
     network: 'on',
     readable: ['/opt/sdk'],
     writable: ['/tmp/cache', '/var/tmp/out'],
@@ -26,27 +25,7 @@ test('the form round-trips a container setting with paths and prepare', () => {
   assert.deepEqual(isolationInput(isolationForm(value)), value)
 })
 
-test('a container needs an image, and paths must be absolute', () => {
-  assert.equal(isolationProblem({ ...isolationForm(null), run: 'container' }), 'Name the container image.')
-  assert.equal(isolationProblem({ ...isolationForm(null), run: 'container', image: 'a b' }), 'The image is one name, such as node:22.')
+test('paths must be absolute', () => {
   assert.match(isolationProblem({ ...isolationForm(null), readable: 'relative/dir' }) ?? '', /not an absolute path/)
   assert.equal(isolationProblem({ ...isolationForm(null), writable: '/abs\n\n/also' }), null)
-  // The image is dropped when the run is not a container.
-  assert.equal(isolationInput({ ...isolationForm(null), image: 'node:22' }).image, undefined)
-})
-
-test('the worker, runtime and stranger keys round-trip, and a box needs an image (vm-harness VM1, VM6.10)', () => {
-  const value = {
-    run: 'sandbox',
-    worker: 'container',
-    runtime: 'apple-container',
-    image: 'node:22',
-    network: 'off',
-    strangers: 'host',
-    strangerRoles: ['triage', 'checks'],
-  }
-  assert.deepEqual(isolationInput(isolationForm(value)), value)
-  // The defaults write nothing new.
-  assert.deepEqual(isolationInput(isolationForm({ run: 'sandbox', network: 'off' })), { run: 'sandbox', network: 'off' })
-  assert.equal(isolationProblem({ ...isolationForm(null), worker: 'container' }), 'Name the container image.')
 })

@@ -225,8 +225,7 @@ today (V: `src/app/git/git.mjs:464-530`). The same code serves both; the
 plugin's names are passed as the allowlist.
 
 Isolation: `isolatedCheck(repository, dir, argv, env, {network, readable})`.
-The plugin folder is added to `readable` (sandbox) or mounted read-only
-(container). `network` comes from the check, never from the repository's
+The plugin folder is added to `readable`. `network` comes from the check, never from the repository's
 `isolation.network`: a plugin check with `network: false` runs offline even
 in a repository whose isolation has the network on. Under `unconfined` no
 limit holds, and the record says "not sandboxed", as today.

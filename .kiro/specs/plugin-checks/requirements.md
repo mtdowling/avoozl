@@ -303,9 +303,8 @@ credentials or my network.
    names in its `env`. Push and GitHub credentials, the gateway's secrets
    and Avoozl's own tokens SHALL never reach it, even when listed, as for
    repository checks.
-4. A run step SHALL run in the repository's `isolation` (`sandbox`,
-   `container` or `unconfined`), with the plugin folder readable and not
-   writable. Its network SHALL be off unless its own `network` is `true`.
+4. A run step SHALL run in the repository's `isolation` (`sandbox` or
+   `unconfined`), with the plugin folder readable and not writable. Its network SHALL be off unless its own `network` is `true`.
    An MCP step's server runs as PK10.11 says.
 5. A plugin check, and any process it starts, SHALL NOT open a network
    listener. One that does SHALL be stopped, recorded as failed with that

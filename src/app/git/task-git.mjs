@@ -1,6 +1,5 @@
-// Git on a task folder, from the host (vm-harness D6, VM5.2). A worker, and
-// its box, can write the folder's top-level `.git` file, since the task
-// folder is writable. A `.git` file that names a git directory the worker
+// Git on a task folder, from the host. A worker can write the folder's
+// top-level `.git` file, since the task folder is writable. A `.git` file that names a git directory the worker
 // made, with `core.fsmonitor`, a hook, a filter or a signing program in its
 // config, would run a command on the host at Avoozl's next `git add`. So
 // every git command Avoozl runs in a task folder goes through taskGit, which
@@ -8,8 +7,8 @@
 //   1. reads the `.git` file and refuses unless it names the git directory
 //      git recorded when the folder was added: `{common}/worktrees/{name}`
 //      of the repository's own checkout, whose `gitdir` file points back at
-//      this folder (the checkout's git directory is outside every write root
-//      and mounted read-only in a box);
+//      this folder (the checkout's git directory is outside every write
+//      root);
 //   2. runs `git --git-dir={gitdir} --work-tree={folder}`, so the file is not
 //      read again;
 //   3. adds `-c core.hooksPath={empty folder} -c core.fsmonitor=false`.

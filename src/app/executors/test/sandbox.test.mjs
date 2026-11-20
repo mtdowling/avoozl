@@ -453,3 +453,33 @@ test("a confined child reads under home only its folders, its harness config and
   for (const name of ["sibling", "repositories", "documents"])
     assert.notEqual(out.read[name], "ok", `${name} was readable`);
 });
+
+test("a Linux child gets an empty runtime folder, and no SSH agent or docker socket", {
+  skip: process.platform === "win32" ? "Windows has no host sandbox" : false,
+}, () => {
+  const runtime = fs.realpathSync.native(
+      fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-bwrap-run-")),
+    ),
+    // An agent socket outside the runtime folder, as an SSH agent in the
+    // temp folder is; one inside it goes with the folder.
+    agentFolder = fs.realpathSync.native(
+      fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-bwrap-agent-")),
+    ),
+    agent = path.join(agentFolder, "agent.sock"),
+    work = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-bwrap-work-"));
+  fs.writeFileSync(agent, "");
+  try {
+    const argv = confineChild(["cli"], {
+      definition: { name: "cli", hash: "h" },
+      writeRoots: [work],
+      secrets: [],
+      kind: "bwrap",
+      env: { XDG_RUNTIME_DIR: runtime, SSH_AUTH_SOCK: agent, PATH: "/bin" },
+    }).argv.join(" ");
+    assert.ok(argv.includes(`--tmpfs ${runtime}`));
+    assert.ok(argv.includes(`--ro-bind /dev/null ${agent}`));
+  } finally {
+    for (const folder of [runtime, agentFolder, work])
+      fs.rmSync(folder, { recursive: true, force: true });
+  }
+});

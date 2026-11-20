@@ -355,8 +355,6 @@ export interface ConflictItem extends TaskOwner {
   // status running or review with no live session behind it. 'disk': a
   // volume too full for a worktree. 'crew-mode': a workspace a Crew Mode
   // conductor drove, held until a person lets the tick run it (WP1.3).
-  // 'stranger': stranger input that waits (vm-harness D7), with `choices`
-  // of boxed harnesses for Run on; 'box-preflight': a failed preflight.
   reason?:
     | 'review'
     | 'blocked'
@@ -368,12 +366,9 @@ export interface ConflictItem extends TaskOwner {
     | 'public-branch'
     | 'disk'
     | 'triage-blocked'
-    | 'stranger'
-    | 'box-preflight'
     | 'phase-check'
     | 'required-check'
     | 'plugin-check-clash'
-  choices?: string[]
   // A failed phase plugin check (plugin-checks D7): the proposed fix, whose
   // text holds the check's output as untrusted data, and the run it is for.
   phaseFix?: { run: string; plan: string; phase: string; repository: string; text: string }

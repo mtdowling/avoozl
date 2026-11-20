@@ -13,7 +13,6 @@ import {
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
 import {
   checkOptions,
-  containerBlindness,
   isolationSetting,
   prepareChecks,
 } from "../workspace/check-isolation.mjs";
@@ -759,13 +758,7 @@ export async function commandEvidence(
       isolation: null,
     };
   const run = wrapped?.argv ?? argv,
-    shown = wrapped
-      ? {
-          isolation: wrapped.isolation,
-          ...(wrapped.runtime ? { runtime: wrapped.runtime } : {}),
-          ...(wrapped.note ? { isolationNote: wrapped.note } : {}),
-        }
-      : {};
+    shown = wrapped ? { isolation: wrapped.isolation } : {};
   onStart?.();
   try {
     const running = exec(run[0], run.slice(1), {
@@ -817,14 +810,7 @@ export async function validateUnlocked(
 ) {
   const run = source;
   if (!run?.worktree) fail("Run has no worktree.");
-  // A stranger's task runs its checks under the stranger rule (VM6.4).
-  // Read here, not imported at the top: stranger-input.mjs reads git.mjs.
-  const { withStrangerChecks } = await import("../intake/stranger-input.mjs");
-  const repository = withStrangerChecks(
-    store,
-    store.get("repositories", run.repositoryId),
-    store.read().tasks.find((task) => task.id === run.taskId),
-  );
+  const repository = store.get("repositories", run.repositoryId);
   if (!repository) fail("Repository configuration is missing.");
   const inRun = (args) =>
     taskGit(run.worktree, args, { checkout: repository.root });
@@ -847,8 +833,6 @@ export async function validateUnlocked(
         .split("\n")[0]
         .slice(0, 200)}`,
     );
-  const blind = await containerBlindness(repository, run.worktree);
-  if (blind) fail(blind, 409);
   for (const { name, argv } of checks) {
     store.event(runId, "validation.started", { argv, name, phase });
     const record = await commandEvidence(

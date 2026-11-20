@@ -1,23 +1,17 @@
 // A repository's checks run under its isolation setting: the process
-// sandbox by default with the network off, a container, or unconfined only
-// with this machine's opt-in. Every record names the isolation it ran under.
+// sandbox by default with the network off, or unconfined only with this
+// machine's opt-in. Every record names the isolation it ran under.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
   CHECKS_UNCONFINED,
   checkOptions,
-  containerBlindness,
-  pickRuntime,
-  runtimeProgram,
   isolatedCheck,
   isolationSetting,
   prepareChecks,
 } from "../check-isolation.mjs";
-import { verdictCause } from "../../delivery/delivery.mjs";
 import { commandEvidence } from "../../git/git.mjs";
 import { HARNESS_UNCONFINED } from "../../executors/harness-definitions.mjs";
 import { sandboxKind } from "../../executors/sandbox.mjs";
@@ -37,27 +31,24 @@ test("the setting validates, with sandbox and network off by default", () => {
   assert.deepEqual(isolationSetting({}), { run: "sandbox", network: "off" });
   assert.deepEqual(
     isolationSetting({
-      run: "container",
-      image: "alpine:3",
       network: "on",
       readable: ["/opt/sdk"],
       prepare: ["npm", "ci"],
     }),
     {
-      run: "container",
-      image: "alpine:3",
+      run: "sandbox",
       network: "on",
       readable: [path.resolve("/opt/sdk")],
       prepare: ["npm", "ci"],
     },
   );
   for (const [bad, message] of [
-    [{ run: "vm" }, /sandbox, container or unconfined/],
-    [{ run: "container" }, /image is needed/],
+    [{ run: "vm" }, /sandbox or unconfined/],
+    [{ run: "container" }, /sandbox or unconfined/],
     [{ network: "maybe" }, /off or on/],
     [{ readable: ["relative/path"] }, /absolute paths/],
     [{ prepare: [] }, /command arguments/],
-    [{ image: "-v /:/host" }, /one container image/],
+    [{ image: "node:22" }, /Unknown isolation setting/],
     [{ shell: true }, /Unknown isolation setting/],
   ])
     assert.throws(() => isolationSetting(bad), message);
@@ -164,48 +155,6 @@ test("unconfined runs only with this machine's opt-in, and says so", async (t) =
   void t;
 });
 
-const runtime = pickRuntime().runtime ?? null;
-const image = (() => {
-  if (!runtime) return null;
-  const listed = spawnSync(
-    runtimeProgram(runtime),
-    ["image", "ls", "--format", "{{.Repository}}:{{.Tag}}"],
-    {
-      encoding: "utf8",
-    },
-  ).stdout;
-  return listed.split("\n").find((name) => /^alpine:/.test(name)) ?? null;
-})();
-
-test("a container check mounts its folder, has no network and no home", {
-  skip: !runtime
-    ? "no container runtime (Apple container, podman or docker) works here"
-    : !image
-      ? "no local alpine image to run without the network"
-      : false,
-}, async (t) => {
-  // A folder under home: a runtime in a VM (Colima, Docker Desktop) shares
-  // home with it, and the check mounts only this folder.
-  const dir = gitCheckout(
-      fs.mkdtempSync(path.join(os.homedir(), ".avoozl-isolation-ctr-")),
-    ),
-    repository = { id: "app", isolation: { run: "container", image } };
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const seen = await run(repository, dir, [
-    "sh",
-    "-c",
-    "cat README.md; ls /root 2>/dev/null | wc -l; wget -q -T 3 -O- http://1.1.1.1 >/dev/null 2>&1 && echo net || echo nonet",
-  ]);
-  assert.equal(seen.isolation, "container");
-  assert.equal(seen.exitCode, 0, seen.stderr);
-  // A runtime in a VM that does not share this folder shows it empty.
-  if (!/^app\n/.test(seen.stdout))
-    return t.skip("the container runtime does not share this folder");
-  assert.match(seen.stdout, /^app\n/);
-  assert.match(seen.stdout, /nonet/);
-  assert.doesNotMatch(seen.stdout, new RegExp(process.env.HOME ?? "/Users/"));
-});
-
 test("prepare runs once per worktree and commit, before the checks", async () => {
   const dir = gitCheckout(temporaryDirectory("avoozl-isolation-prep-")),
     marker = path.join(dir, "prepared.txt"),
@@ -234,72 +183,6 @@ test("prepare runs once per worktree and commit, before the checks", async () =>
   assert.match(results[0].notRun, /prepare failed/);
 });
 
-test("a container check runs only when the container sees its folder", async () => {
-  const dir = temporaryDirectory("avoozl-isolation-probe-"),
-    repository = {
-      id: "app-ctr",
-      isolation: { run: "container", image: "img" },
-    },
-    checks = [
-      { name: "test", argv: ["npm", "test"] },
-      { name: "lint", argv: ["npm", "run", "lint"] },
-    ];
-  // A fake runner: the probe's `cat` reads the sentinel when the container
-  // shares the folder, and finds nothing when it mounts empty.
-  const fake = (shared) => {
-    const ran = [];
-    const run = async (_dir, argv) => {
-      ran.push(argv);
-      if (argv[0] !== "sh") return { exitCode: 0, stdout: "", stderr: "" };
-      const file = argv.at(-1);
-      assert.equal(path.dirname(file), dir);
-      return shared
-        ? { exitCode: 0, stdout: fs.readFileSync(file, "utf8"), stderr: "" }
-        : { exitCode: 1, stdout: "", stderr: "" };
-    };
-    return { ran, run };
-  };
-  const options = (run) => ({ timeoutFor: () => 10_000, run, repository });
-  const seen = fake(true),
-    results = await runEach(dir, checks, options(seen.run));
-  assert.deepEqual(
-    results.map((r) => r.exitCode),
-    [0, 0],
-  );
-  assert.deepEqual(seen.ran.slice(1), [
-    ["npm", "test"],
-    ["npm", "run", "lint"],
-  ]);
-  const blind = fake(false),
-    refused = await runEach(dir, checks, options(blind.run));
-  assert.equal(blind.ran.length, 1, "only the probe ran");
-  const why = `The container cannot see ${dir}; share it with the container VM (for Colima, its mounts setting).`;
-  assert.deepEqual(
-    refused.map((r) => [r.name, r.exitCode, r.notRun]),
-    [
-      ["test", null, why],
-      ["lint", null, why],
-    ],
-  );
-  // The run's cause names the folder.
-  assert.match(
-    verdictCause(
-      {},
-      repository,
-      "c1",
-      { commit: "c1", checks: refused },
-      checks,
-    )?.cause ?? "",
-    /was not run: The container cannot see/,
-  );
-  // The sentinel never stays in the worktree.
-  assert.deepEqual(fs.readdirSync(dir), []);
-  // A sandboxed check needs no probe.
-  const sandboxed = fake(false);
-  await containerBlindness({ id: "app-sbx" }, dir, { run: sandboxed.run });
-  assert.deepEqual(sandboxed.ran, []);
-});
-
 test("repository.configure with {id, isolation} changes only how its checks run", async (t) => {
   const { store, ops } = deliveryWorkspace(t, {
     prefix: "avoozl-isolation-configure-",
@@ -307,13 +190,9 @@ test("repository.configure with {id, isolation} changes only how its checks run"
   });
   const set = await ops.execute("repository.configure", {
     id: "app",
-    isolation: { run: "container", image: "node:22", network: "on" },
+    isolation: { network: "on" },
   });
-  assert.deepEqual(set.isolation, {
-    run: "container",
-    image: "node:22",
-    network: "on",
-  });
+  assert.deepEqual(set.isolation, { run: "sandbox", network: "on" });
   const stored = store.get("repositories", "app");
   assert.deepEqual(
     [stored.landing, stored.checks],
@@ -325,7 +204,7 @@ test("repository.configure with {id, isolation} changes only how its checks run"
       id: "app",
       isolation: { run: "container" },
     }),
-    /image is needed/,
+    /sandbox or unconfined/,
   );
   await assert.rejects(
     ops.execute("repository.configure", { id: "nope", isolation: {} }),

@@ -6,12 +6,7 @@
 // off the tick; delivery judges the record they leave.
 import { PUBLISH_RULES, secretReason } from "../content/content-rules.mjs";
 import { commandEvidence, git, taskGit } from "../git/git.mjs";
-import {
-  checkOptions,
-  containerBlindness,
-  prepareChecks,
-  recordIsolation,
-} from "../workspace/check-isolation.mjs";
+import { checkOptions, prepareChecks } from "../workspace/check-isolation.mjs";
 import { fail } from "../store/store.mjs";
 
 // Protected by default in every repository (R86.6): CI workflows and the
@@ -100,12 +95,7 @@ export async function verifyPaths(store, { task, repository, commit, flow }) {
     ),
     verdict = pathVerdict(paths, {
       declared: declaredPaths(task),
-      // A stranger's change to anything under .github/ waits for a person
-      // and is not pushed (VM6.7): it would run in CI with the secrets.
-      protectedPaths: [
-        ...(flow?.verify?.protectedPaths || []),
-        ...(task.strangerInput ? [".github/**"] : []),
-      ],
+      protectedPaths: flow?.verify?.protectedPaths || [],
     }),
     allowed = protectedAllowance(store, task.id, commit);
   return {
@@ -227,8 +217,8 @@ export const notRunChecks = (checks, why) =>
 // check is {name, argv}, or a bare argv named by its command. Each result
 // carries the check's name, for display its command, and the isolation it
 // ran under. With `repository`, its `prepare` runs first and each check runs
-// in the repository's isolation (check-isolation.mjs); a failed prepare, or a
-// container that cannot see `dir`, runs no check.
+// in the repository's isolation (check-isolation.mjs); a failed prepare runs
+// no check.
 export async function runEach(
   dir,
   checks,
@@ -244,8 +234,6 @@ export async function runEach(
       return notRunAll(
         `prepare failed: ${notRunCause(ready, 0, 1) || "exit " + ready.exitCode}`,
       );
-    const blind = await containerBlindness(repository, dir, { run, env });
-    if (blind) return notRunAll(blind);
   }
   const isolate = repository
     ? checkOptions(repository, dir).isolate
@@ -294,7 +282,7 @@ export function checkResult(result, elapsed, timeoutMs, dir) {
     dir,
   );
   return {
-    ...recordIsolation(result),
+    ...(result.isolation !== undefined ? { isolation: result.isolation } : {}),
     exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
     ...(Number.isInteger(result.exitCode)
       ? {}
