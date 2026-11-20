@@ -45,10 +45,10 @@ they never collide with the IDs of the other specs.
 - [x] ms-1.6 Model access and harness readiness for unattended children, after ms-1.2 [MS5] (§D6)
   - $done: Tests: a `keepEnv` value from `machine.env` reaches the child and no other name does; a group-readable file is refused on macOS and Linux; no value appears in logs, status or receipts; the sandbox test shows the file outside a child's read roots; a harness whose program is missing, or whose keys are all unset with no proxy, shows per role in `avoozl status` and Settings › Models and a request for it opens one Needs you item; screenshots of Settings › Models go to the owner; the pull request says whether Claude Code's plan sign-in on macOS is keychain-only, with how it was checked.
   - $after: ms-1.2
-- [ ] ms-1.7 The role proof script for any harness, after ms-1.2 [MS6.3] (§D6)
-  - $done: `scripts/proof-ms-roles-live.mjs --harness NAME` runs the D6 scenario table on a scratch repository and prints one line per row; a test fails when a `ROLE_TABLE` row with `process: true` is not in its list; a dry run with a fake harness passes every row.
+- [x] ms-1.7 The role proof script for any harness, after ms-1.2 [MS6.3] (§D6)
+  - $done: `scripts/proofs/proof-ms-roles-live.mjs --harness NAME` runs the D6 rows on a scratch repository and prints one line per row; a test fails when a `ROLE_TABLE` row with `process: true` is not in its list; a dry run with `--harness fake-cli --offline` passes every row it can drive offline.
   - $after: ms-1.2
-  - It also runs nk-p2's command sink step (D12, question 3). Task ms-2.2 adds `--probes`.
+  - It replaces nk-p2's script and runs its command sink step (D12, question 3). Task ms-2.2 fills `--probes`.
 
 - [ ] ms-p1 Proof: one server per machine through races, restarts and closed front ends, after ms-1.3, ms-1.4, ms-1.6 [MS1, MS2, MS3, MS4] (§D3, §D5)
   - $done: Expected: (1) one machine server holds the lock and `avoozl status` names the login unit as its starter; (2) every start but one names the holder, and one tick pass runs per interval; (3) a new holder within 5 seconds and the tasks land; (4) the backend starts no second server and no second tick; a `kirocrew` task opens a chat through the cron; (5) the process task lands with Kiro Crew closed; (6) the listener check shows no new TCP listener.
@@ -76,7 +76,7 @@ they never collide with the IDs of the other specs.
   - $manual: true
   - $after: ms-1.3, ms-1.4, ms-1.6, ms-1.7
   - Setup: as ms-p1, with the server started by the login unit, model access from `machine.env` or a model proxy, every role's harness set to `claude-code`, investigate first on, and a `command` sink to a file. No Kiro Crew, Claude Code or other front end runs during the run. The owner runs it from his own terminal, because Kiro Crew's sandbox refuses a nested `sandbox-exec`.
-  - Action: (1) `scripts/proof-ms-roles-live.mjs --harness claude-code`; (2) push a failing commit to the scratch main; (3) read the sink file; (4) write the receipt.
+  - Action: (1) `scripts/proofs/proof-ms-roles-live.mjs --harness claude-code`; (2) push a failing commit to the scratch main; (3) read the sink file; (4) write the receipt.
   - Expected: (1) every row reaches its result kind and every session has executor `process`; (2) no watch session request exists and the line stops on the red head; (3) the sink file holds one line per decision; (4) the receipt lists each row with its harness version.
   - Failure means: some role still needs a front end open.
   - Next decision: whether `claude-code` becomes the default harness for new workspaces.
@@ -88,7 +88,7 @@ they never collide with the IDs of the other specs.
   - $after: ms-1.2
   - Codex's own sandbox stays off only inside Avoozl's sandbox (D12).
 - [ ] ms-2.2 The containment probes and their CI test, after ms-1.2, ms-1.7 [MS8.1, MS8.2, MS8.3, MS8.4] (§D7)
-  - $done: `src/app/sandbox-probes.mjs` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proof-ms-roles-live.mjs --probes` runs the same set in a live child.
+  - $done: `src/app/sandbox-probes.mjs` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proofs/proof-ms-roles-live.mjs --probes` runs the same set in a live child.
   - $after: ms-1.2, ms-1.7
   - Fix any probe that gets through in `src/app/executors/sandbox.mjs`, never by changing the probe.
 
@@ -98,7 +98,7 @@ they never collide with the IDs of the other specs.
   - $manual: true
   - $after: ms-2.1, ms-2.2, ms-p2
   - Setup: as ms-p2 with every role on `codex`, its own `CODEX_HOME`, and the model reached through the repository's model proxy. On macOS and on Linux. The owner runs it from his own terminal.
-  - Action: (1) `scripts/proof-ms-roles-live.mjs --harness codex --probes`; (2) read Codex's transcript and the probe log; (3) update `proved` in `codex.json` in the receipt's pull request.
+  - Action: (1) `scripts/proofs/proof-ms-roles-live.mjs --harness codex --probes`; (2) read Codex's transcript and the probe log; (3) update `proved` in `codex.json` in the receipt's pull request.
   - Expected: (1) every row reaches its result kind or the receipt names why it cannot; (2) every probe is refused on both systems, each with its error text; (3) `codex.json`'s `proved` matches the receipt.
   - Failure means: Codex cannot run unattended here; it stays off the failing roles.
   - Next decision: none.

@@ -426,6 +426,7 @@
    "src/app/test/large-workspace.test.mjs",
    "src/app/test/manual-path.test.mjs",
    "src/app/test/merge-method.test.mjs",
+   "src/app/test/ms-roles-rows.test.mjs",
    "src/app/test/next-and-notices.test.mjs",
    "src/app/test/no-driver-chat.test.mjs",
    "src/app/test/no-sage.test.mjs",
@@ -10408,6 +10409,7 @@
    "src/app/test/large-workspace.test.mjs",
    "src/app/test/manual-path.test.mjs",
    "src/app/test/merge-method.test.mjs",
+   "src/app/test/ms-roles-rows.test.mjs",
    "src/app/test/next-and-notices.test.mjs",
    "src/app/test/no-driver-chat.test.mjs",
    "src/app/test/no-sage.test.mjs",
@@ -11942,6 +11944,11 @@
    "src/app/workspace/test/onboarding.test.mjs",
    "src/app/workspace/test/repository-roles.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
+  ],
+  "src/app/tick/waiting-roles.mjs": [
+   "src/app/executors/test/process-executor.test.mjs",
+   "src/app/tick/test/needs-kirocrew.test.mjs",
+   "src/app/tick/test/notification-sinks.test.mjs"
   ],
   "src/app/workers/driver-scope.mjs": [
    "src/app/api/test/served-model-gate.test.mjs",

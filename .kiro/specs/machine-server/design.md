@@ -202,8 +202,11 @@ not set.
 The role proof (ms-p2) runs with the server started by the login unit and no
 front end open, which is the case that breaks.
 
-**Roles.** The proof script reads `ROLE_TABLE`, picks every row with
-`process: true`, and drives one scenario per row on a scratch repository.
+**Roles.** `scripts/proofs/proof-ms-roles-live.mjs --harness NAME` drives
+the rows of `scripts/proofs/ms-roles-rows.mjs` on a scratch repository and
+prints one line per row; a test fails when a `ROLE_TABLE` row with
+`process: true` has no row there. The machine server runs with
+`machine.tickSeconds` 10, started by `avoozl start` with no front end open.
 P59 and nk-p1 proved most rows already on Claude Code, but with the server
 started from the owner's terminal and the app backend draining. This proof
 is the first with neither.
@@ -211,15 +214,17 @@ is the first with neither.
 | Row | Scenario | Result kind |
 | --- | --- | --- |
 | worker | one-file task | commit by Avoozl, landed |
-| verifier, reviewer | the worker's task, `verify: "agent"`, one review role | verdict |
+| verifier | a task in a repository with no checks | verdict (not driven: the scratch repository has checks, which Avoozl runs itself) |
+| reviewer | a review role a spec adds | verdict (not driven: the scratch spec adds none) |
 | falsifier | investigate first on | verdict on findings |
 | planner, plan answer | New plan request; one plan review finding | spec folder; answers |
 | plan reviewer | plan review on that spec, second model | findings |
-| retro | after the task lands | reply |
+| retro | after the task lands (`flow.retro.everyTasks` 1) | reply |
 | responder | a reply request on an issue | posted reply |
-| task summary | the landed task | stored summary |
+| task summary | a person asks for the landed task's summary | stored summary |
 | pull request review | a labeled pull request | stored review |
 | assist | Ask for help on the page | answer, no file |
+| check decide | a plugin check that needs a decision | answer (not driven: no plugin check is installed) |
 | (line watch) | a red head on main | the line stops; no session request |
 
 ## D7. Codex inside Avoozl's sandbox (MS7, MS8)
