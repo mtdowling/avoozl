@@ -17,7 +17,9 @@
 // state home (XDG_CONFIG_HOME, XDG_STATE_HOME). The only thing outside it is
 // --github: a scratch GitHub repository the owner made for this, empty, which
 // the run pushes to and opens one pull request and one issue in. Run it from
-// a terminal outside Kiro Crew, on a machine user with no Kiro Crew:
+// a terminal outside Kiro Crew; a Kiro Crew kept for other work may stay
+// open, since the run's own home has none. --root must not exist yet or be
+// empty: nothing writes there before setup checks it.
 //
 //   node scripts/proofs/proof-ms-roles-live.mjs --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes]
 //   node scripts/proofs/proof-ms-roles-live.mjs --root DIR --harness fake-cli --offline
@@ -658,13 +660,6 @@ async function prove() {
     throw Error(
       "No sandbox here (inside another sandbox?). Run ms-roles from a terminal outside Kiro Crew.",
     );
-  if (
-    AGENT !== "fake" &&
-    fs.existsSync(path.join(os.homedir(), ".kiro", "crew"))
-  )
-    event("warning", {
-      text: "~/.kiro/crew exists: run ms-roles as a machine user with no Kiro Crew for the proof to count.",
-    });
   await setup();
   let proxy = null;
   if (AGENT !== "fake") {

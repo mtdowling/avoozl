@@ -13,7 +13,7 @@
 // folder). Run it again with the same --root to go on where it stopped. The
 // only GitHub writes go to two empty scratch repositories: the ones
 // --github-claude and --github-codex name, else private ones it makes with
-// the gh login and prints a delete command for. Only a PASS drafts its
+// the gh login and deletes at the end. Only a PASS drafts its
 // receipt under docs/evidence/; any other stays under the root. --dry-run
 // prints the plan without calling a model.
 import { execFileSync, spawnSync } from "node:child_process";
@@ -215,9 +215,35 @@ function scratchRepo(proof, named) {
     );
     fs.writeFileSync(file, JSON.stringify({ repo }, null, 2));
     say(`  Made the private scratch repository ${repo}.`);
+    proof.run.made.push(repo);
   }
-  proof.run.made.push(repo);
   return repo;
+}
+
+// Delete the scratch repositories this run made, by the exact names it
+// recorded in `made`, and nothing else. `gh` runs one gh command and returns
+// spawnSync's result. Returns the lines to print.
+export function deleteScratchRepos(made, gh) {
+  const lines = [];
+  const left = [];
+  for (const repo of new Set(made)) {
+    const done = gh(["repo", "delete", repo, "--yes"]);
+    if (done.status === 0)
+      lines.push(`Deleted the scratch repository ${repo}.`);
+    else {
+      left.push(repo);
+      lines.push(
+        `Could not delete ${repo}: ${String(done.stderr ?? done.error?.message ?? "").trim()}`,
+      );
+    }
+  }
+  if (left.length)
+    lines.push(
+      "Give gh the delete_repo scope, then delete them:",
+      "  gh auth refresh -h github.com -s delete_repo",
+      ...left.map((repo) => `  gh repo delete ${repo} --yes`),
+    );
+  return lines;
 }
 
 // ---- One proof's record -----------------------------------------------------
@@ -285,9 +311,20 @@ class Proof {
 
 // ---- ms-p2 and ms-p3: every role on one harness --------------------------------
 
+// A folder under `dir` for one roles run that does not exist yet: `run`,
+// else `run-2`, `run-3` and on. The roles script refuses a root with
+// anything in it, so the runner never makes or writes it.
+export function freshRunRoot(dir) {
+  for (let n = 1; ; n += 1) {
+    const root = path.join(dir, n === 1 ? "run" : `run-${n}`);
+    if (!fs.existsSync(root)) return root;
+  }
+}
+
 async function rolesProof(proof, { harness, github, probes }) {
-  const runRoot = path.join(proof.dir, "run");
-  const report = path.join(runRoot, "report.json");
+  // The roles run's root: the one this proof's progress names, else a new one.
+  const runRoot = () => proof.progress.runRoot ?? path.join(proof.dir, "run");
+  const report = () => path.join(runRoot(), "report.json");
   await proof.step(
     "front-end",
     "No Claude Code or Codex session drives the run",
@@ -298,16 +335,18 @@ async function rolesProof(proof, { harness, github, probes }) {
     `node ${path.relative(REPO, ROLES_SCRIPT)} --harness ${harness}${probes ? " --probes" : ""}`,
     {
       run: () => {
-        if (!fs.existsSync(report)) {
+        if (!fs.existsSync(report())) {
           const repo = scratchRepo(proof, github);
           const problem = emptyRepoProblem(repo);
           if (problem) return { ok: false, detail: problem };
+          proof.progress.runRoot = freshRunRoot(proof.dir);
+          proof.save();
           spawnSync(
             process.execPath,
             [
               ROLES_SCRIPT,
               "--root",
-              runRoot,
+              runRoot(),
               "--github",
               repo,
               "--harness",
@@ -317,12 +356,12 @@ async function rolesProof(proof, { harness, github, probes }) {
             { stdio: "inherit", env: isolationFreeEnv(), cwd: REPO },
           );
         }
-        if (!fs.existsSync(report))
+        if (!fs.existsSync(report()))
           return {
             ok: false,
-            detail: `No report: see ${path.join(runRoot, "events.jsonl")}`,
+            detail: `No report: see ${path.join(runRoot(), "events.jsonl")}`,
           };
-        const found = JSON.parse(fs.readFileSync(report, "utf8"));
+        const found = JSON.parse(fs.readFileSync(report(), "utf8"));
         proof.notes.push(
           `Harness version: ${found.version}. Avoozl ${found.avoozl}.`,
           "",
@@ -341,7 +380,7 @@ async function rolesProof(proof, { harness, github, probes }) {
         );
         return {
           ok: found.pass,
-          detail: `${found.rows.filter((row) => row.state === "ok").length}/${found.rows.length} rows ok; report ${report}`,
+          detail: `${found.rows.filter((row) => row.state === "ok").length}/${found.rows.length} rows ok; report ${report()}`,
         };
       },
     },
@@ -353,7 +392,7 @@ async function rolesProof(proof, { harness, github, probes }) {
     "skipped: the roles step failed, so there is no run to check";
   await proof.step("no-kirocrew", "The run used no Kiro Crew", {
     skip,
-    run: () => noKiroCrewCheck(runRoot, report),
+    run: () => noKiroCrewCheck(runRoot(), report()),
   });
   if (probes)
     await proof.step("probe-log", "Read Codex's transcript and the probe log", {
@@ -361,7 +400,7 @@ async function rolesProof(proof, { harness, github, probes }) {
         skip &&
         "skipped: the roles step failed, so no child log or probe line was written",
       person: [
-        `Read the child logs under ${path.join(runRoot, "home", "state", "avoozl", "supervisor", "children")} and the "probes" line in ${path.join(runRoot, "events.jsonl")}.`,
+        `Read the child logs under ${path.join(runRoot(), "home", "state", "avoozl", "supervisor", "children")} and the "probes" line in ${path.join(runRoot(), "events.jsonl")}.`,
       ],
       run: async () => ({
         ok: await yes("  Was every probe refused, each with its error text?"),
@@ -388,8 +427,8 @@ async function rolesProof(proof, { harness, github, probes }) {
 // The interactive Claude Code and Codex sessions in `psLines` (`ps -axo
 // pid=,ppid=,tty=,command=`): one on a terminal that is not a child of
 // `selfPid`. A headless child (`-p`, `exec`) or one with no terminal is
-// not a session. A Kiro Crew gateway or app is listed apart: it may run for
-// other work, since the run's own home has no Kiro Crew in it.
+// not a session. Nothing else counts: a Kiro Crew kept for other work may
+// stay open, since the run's own home has no Kiro Crew in it.
 export function frontEnds(psLines, selfPid) {
   const rows = psLines
     .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/))
@@ -406,52 +445,48 @@ export function frontEnds(psLines, selfPid) {
       if (at === selfPid) return true;
     return false;
   };
-  return {
-    sessions: rows
-      .filter(
-        (row) =>
-          !/^(\?+|-)$/.test(row.tty) &&
-          /(^|\/)(claude|codex)(\s|$)/.test(row.command) &&
-          !/\s(-p|--print|exec|--version)(\s|$)/.test(row.command) &&
-          !ours(row.pid),
-      )
-      .map((row) => row.command),
-    kirocrew: rows
-      .filter((row) =>
-        /kirocrew[^/]*\s+gateway|Kiro ?Crew\.app\/Contents\/MacOS/.test(
-          row.command,
-        ),
-      )
-      .map((row) => row.command),
-  };
+  return rows
+    .filter(
+      (row) =>
+        !/^(\?+|-)$/.test(row.tty) &&
+        /(^|\/)(claude|codex)(\s|$)/.test(row.command) &&
+        !/\s(-p|--print|exec|--version)(\s|$)/.test(row.command) &&
+        !ours(row.pid),
+    )
+    .map((row) => row.command);
+}
+
+// The lines `command args` prints. A busy Mac's `ps -axo command=` runs
+// past spawnSync's 1 MB default buffer, so this allows 64 MB.
+export function processLines(
+  command = "ps",
+  args = ["-axo", "pid=,ppid=,tty=,command="],
+) {
+  const ps = spawnSync(command, args, {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (ps.error || ps.status !== 0)
+    throw Error(
+      `ps could not list processes: ${ps.error?.message ?? ps.stderr}`,
+    );
+  return ps.stdout.split("\n");
 }
 
 async function frontEndCheck(run) {
-  const look = () => {
-    const ps = spawnSync("ps", ["-axo", "pid=,ppid=,tty=,command="], {
-      encoding: "utf8",
-    });
-    if (ps.error || ps.status !== 0)
-      throw Error(
-        `ps could not list processes: ${ps.error?.message ?? ps.stderr}`,
-      );
-    return frontEnds(ps.stdout.split("\n"), process.pid);
-  };
-  let found = look();
-  if (found.sessions.length && !run.dryRun) {
+  const look = () => frontEnds(processLines(), process.pid);
+  let sessions = look();
+  if (sessions.length && !run.dryRun) {
     say("  These Claude Code or Codex sessions are open:");
-    for (const command of found.sessions) say(`    ${command.slice(0, 200)}`);
+    for (const command of sessions) say(`    ${command.slice(0, 200)}`);
     await prompt("  Close them, then press Enter. ");
-    found = look();
+    sessions = look();
   }
-  const note = found.kirocrew.length
-    ? " Note: Kiro Crew runs for other work; the run's home has no Kiro Crew, so it does not drive the run."
-    : "";
   return {
-    ok: !found.sessions.length,
-    detail: found.sessions.length
-      ? `still open: ${found.sessions.slice(0, 3).join("; ").slice(0, 300)}.${note}`
-      : `no Claude Code or Codex session open.${note}`,
+    ok: !sessions.length,
+    detail: sessions.length
+      ? `still open: ${sessions.slice(0, 3).join("; ").slice(0, 300)}.`
+      : "no Claude Code or Codex session open.",
   };
 }
 
@@ -638,7 +673,7 @@ async function main() {
     say(`==== ${id}: ${title} (${proof.dir})`);
     if (run.dryRun)
       say(
-        `  would run: node ${path.relative(REPO, ROLES_SCRIPT)} --root ${path.join(proof.dir, "run")} --github ${(id === "ms-p2" ? run.github.claude : run.github.codex) ?? `(a new private ${scratchRepoName("LOGIN", id)})`} --harness ${id === "ms-p2" ? "claude-code" : "codex --probes"}`,
+        `  would run: node ${path.relative(REPO, ROLES_SCRIPT)} --root ${freshRunRoot(proof.dir)} --github ${(id === "ms-p2" ? run.github.claude : run.github.codex) ?? `(a new private ${scratchRepoName("LOGIN", id)})`} --harness ${id === "ms-p2" ? "claude-code" : "codex --probes"}`,
       );
     try {
       await go(proof, run);
@@ -659,8 +694,10 @@ async function main() {
     say(`${result.id} ${result.verdict} ${result.file}`);
   if (run.made.length) {
     say();
-    say("Delete the scratch repositories this run made when you are done:");
-    for (const repo of new Set(run.made)) say(`  gh repo delete ${repo} --yes`);
+    for (const line of deleteScratchRepos(run.made, (args) =>
+      spawnSync("gh", args, { encoding: "utf8" }),
+    ))
+      say(line);
   }
   if (!run.dryRun && run.proofs.includes("ms-p3"))
     say(
