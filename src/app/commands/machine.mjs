@@ -1,9 +1,8 @@
 // CLI commands of one kind: command, help lines and run.
 import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
-import { createAppMcp } from "../executors/kirocrew/app-mcp.mjs";
+import { runShim, shimClaim } from "../mcp/mcp-shim.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { machineStatus, serveStatus } from "../workspace/machine-status.mjs";
-import { handleMcp } from "../mcp/mcp.mjs";
 import { HOLDS_TASKS, readRunnerConfig } from "../workers/remote-runner.mjs";
 import { reportByToken } from "../workers/report-match.mjs";
 import { LinkStore } from "../serve/serve-auth.mjs";
@@ -20,7 +19,6 @@ import {
 import fs from "node:fs";
 import path from "node:path";
 import { runSupervisor } from "../executors/supervisor.mjs";
-import readline from "node:readline";
 import { help } from "../cli/command-help.mjs";
 import {
   approveHarnessByName,
@@ -45,122 +43,34 @@ const unitFor = (machine) =>
     configDirectory: path.resolve(machine.configDirectory),
   });
 
-const send = (body) => process.stdout.write(JSON.stringify(body) + "\n");
-
-// One JSON-RPC message per line on stdin: `answer` returns the reply, or null
-// for none. A line that does not parse, or an answer that throws, gets an
-// error reply.
-async function eachMessage(answer) {
-  const lines = readline.createInterface({ input: process.stdin });
-  for await (const line of lines) {
-    if (!line.trim()) continue;
-    let message;
-    try {
-      message = JSON.parse(line);
-    } catch {
-      send({
-        jsonrpc: "2.0",
-        id: null,
-        error: { code: -32700, message: "Parse error" },
-      });
-      continue;
-    }
-    let reply;
-    try {
-      reply = await answer(message);
-    } catch (error) {
-      reply = {
-        jsonrpc: "2.0",
-        id: message?.id ?? null,
-        error: { code: -32603, message: error.message },
-      };
-    }
-    if (reply !== null) send(reply);
-  }
-}
-
 export const commands = [
   {
     command: "mcp",
     help: [
       help(
         "machine",
-        "mcp --workspace PATH",
-        "Stdio MCP server for the workspace database",
+        "mcp [--workspace PATH]",
+        "Stdio MCP for agents: forwards to this machine's server, starting it if needed",
         { usage: "mcp --workspace PATH", about: "Stdio MCP server for agents" },
       ),
-      help("machine", "mcp --url URL", "Stdio bridge to a running server"),
       help(
         "machine",
         "mcp --kirocrew",
-        "Kiro Crew app server: workspace per caller",
+        "The same, for the Kiro Crew app: workspace per caller",
       ),
     ],
-    async run({
-      options,
-      env,
-      requestedWorkspace,
-      config,
-      dbPath,
-      endpoint,
-      requireDatabase,
-      useServer,
-      localOperations,
-    }) {
-      if (options.kirocrew) {
-        // The Kiro Crew app's stdio MCP server. Kiro Crew may share this process
-        // between sessions, so each request picks its own workspace (app-mcp.mjs);
-        // the working directory is never used.
-        const server = createAppMcp({
-          fallback: requestedWorkspace ? config : null,
+    async run({ options, env, requestedWorkspace, config }) {
+      const machine = machineAvoozlPaths();
+      await runShim({
+        stateDirectory: machine.stateDirectory,
+        configDirectory: machine.configDirectory,
+        claim: shimClaim({
+          kirocrew: Boolean(options.kirocrew),
+          workspace: requestedWorkspace ? config.workspaceRoot : null,
           env,
-        });
-        try {
-          await eachMessage((message) => server.handle(message));
-        } finally {
-          server.close();
-        }
-      } else if (!useServer()) {
-        // A stdio MCP server for one workspace: the same plans_* tools, served in
-        // process from the workspace database with no web server running.
-        requireDatabase();
-        const store = new Store(dbPath),
-          ops = localOperations(store);
-        try {
-          // No gateway fronts this server, so a caller block here could come
-          // from any client and is not read; `--kirocrew` is the attested form.
-          await eachMessage(
-            async (message) =>
-              (await handleMcp(message, ops, { base: endpoint })).body,
-          );
-        } finally {
-          store.close();
-        }
-      } else {
-        const mcpEndpoint = endpoint + "/mcp";
-        const lines = readline.createInterface({ input: process.stdin });
-        for await (const line of lines) {
-          let message;
-          try {
-            message = JSON.parse(line);
-            const response = await fetch(mcpEndpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(message),
-            });
-            const text = await response.text();
-            if (text) process.stdout.write(text + "\n");
-          } catch (error) {
-            process.stdout.write(
-              JSON.stringify({
-                jsonrpc: "2.0",
-                id: message?.id ?? null,
-                error: { code: -32603, message: error.message },
-              }) + "\n",
-            );
-          }
-        }
-      }
+        }),
+        env,
+      });
     },
   },
   {

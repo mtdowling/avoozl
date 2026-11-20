@@ -84,6 +84,15 @@ export function lockIsHeld(lock) {
   }
 }
 
+// Write a holder's record; only the holder calls this, after it holds the lock.
+export function writeRecord(record, info) {
+  const temporary = `${record}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(info, null, 2) + "\n", {
+    mode: 0o600,
+  });
+  fs.renameSync(temporary, record);
+}
+
 // Take the lock, then write the record. A probe by another process can refuse
 // the first try for a moment, so a refusal is tried again a few times; a real
 // holder refuses every time.
@@ -95,9 +104,7 @@ export function takeLock(
   for (let attempt = 0; attempt < tries; attempt++) {
     const taken = tryLock(lock);
     if (taken.held) {
-      fs.writeFileSync(record, JSON.stringify(info, null, 2) + "\n", {
-        mode: 0o600,
-      });
+      writeRecord(record, info);
       return taken;
     }
     if (attempt + 1 < tries)

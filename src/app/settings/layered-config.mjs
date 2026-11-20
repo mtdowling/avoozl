@@ -260,7 +260,6 @@ function environmentLayer(env) {
     operator: env.AVOOZL_OPERATOR,
     port: env.AVOOZL_PORT,
     host: env.AVOOZL_HOST,
-    url: env.AVOOZL_URL,
   };
   for (const [key, child] of Object.entries(value))
     if (!child) delete value[key];
@@ -283,7 +282,6 @@ function commandLineLayer(options) {
     documents: option(options, "documents"),
     port: option(options, "port"),
     host: option(options, "host"),
-    url: option(options, "url"),
   };
   for (const [key, child] of Object.entries(value))
     if (child === undefined) delete value[key];

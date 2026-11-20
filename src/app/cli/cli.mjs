@@ -94,6 +94,12 @@ try {
     command = "help";
   }
   const env = options.env || process.env;
+  // The CLI acts on the workspace database itself; agents reach the machine
+  // server through `avoozl mcp` (machine-server MS10.4).
+  if (options.url !== undefined || process.env.AVOOZL_URL !== undefined)
+    throw Error(
+      `${options.url !== undefined ? "--url" : "AVOOZL_URL"} is gone: the CLI works on the workspace database directly, and agents use avoozl mcp, which reaches this machine's server.`,
+    );
   const requestedWorkspace = options.workspace || env.AVOOZL_WORKSPACE;
   // Where the workspace was named, for `status` to say so.
   const requestedFrom = options.workspace
@@ -127,39 +133,12 @@ try {
       `${action} is a local-only maintenance operation and cannot use registered workspace ID ${registeredWorkspaceId}. Pass the workspace root path explicitly.`,
     );
   };
-  const request = async (operation, input = {}, expectedRevision) => {
-    let response;
-    try {
-      response = await fetch(endpoint + "/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operation, input, expectedRevision }),
-      });
-    } catch {
-      throw Error(
-        `No Avoozl server answered at ${endpoint}. Drop --url and AVOOZL_URL to act on the workspace database directly.`,
-      );
-    }
-    // `avoozl serve` answers /api/command only to a signed-in browser's
-    // session cookie, so a CLI pointed at it is refused (spec standalone-web SW5.4).
-    if (response.status === 401)
-      throw Error(
-        `${endpoint} refused the request: avoozl serve accepts /api/command only with a valid browser session cookie, never from the CLI. Drop --url and AVOOZL_URL: the CLI works on the workspace database directly.`,
-      );
-    const result = await response.json();
-    if (!response.ok) throw Error(result.error);
-    return result.result;
-  };
   const input = () =>
     options.input
       ? JSON.parse(fs.readFileSync(options.input, "utf8"))
       : options.json
         ? JSON.parse(options.json)
         : {};
-  // A server is used only when one is named. Otherwise commands and the
-  // stdio MCP server act in process on the workspace database, a registered
-  // workspace ID naming its root.
-  const useServer = () => Boolean(options.url || process.env.AVOOZL_URL);
   const localOperations = (store) =>
     new Operations(store, {
       operator: config.operator,
@@ -181,7 +160,6 @@ try {
       if (operation === "plan.approve" && input.evidence === undefined)
         input = { ...input, evidence: note };
     }
-    if (useServer()) return request(operation, input, expectedRevision);
     requireDatabase();
     const store = new Store(dbPath);
     try {
@@ -235,7 +213,6 @@ try {
       requireDatabase,
       requireLocalMaintenancePath,
       input,
-      useServer,
       localOperations,
       localOrRequest,
       machineStateDirectory,

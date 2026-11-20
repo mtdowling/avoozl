@@ -74,7 +74,7 @@ export const HELP_GROUPS = Object.freeze(
 );
 
 const OPTIONS = `Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
-of the application checkout. --db, --documents, --port, --operator and --url
+of the application checkout. --db, --documents, --port and --operator
 override workspace configuration. A person-only operation run inside an agent
 session runs and is recorded as run there. UI, CLI and MCP share application
 operations.`;

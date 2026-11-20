@@ -346,7 +346,9 @@ my agents.
 3. Messages SHALL be one JSON object per line. A line that is not one JSON
    object SHALL close the connection, so a browser's HTTP request is refused
    at its first line.
-4. The interface SHALL serve MCP `tools/list` and `tools/call` only. Each
+4. The interface SHALL serve MCP `tools/list` and `tools/call`, with the
+   `initialize` and `ping` handshake and the read-only `resources/*` calls
+   the Kiro Crew page reads its views by, and nothing else. Each
    call SHALL run as an agent principal: person-only operations SHALL be
    refused through it as through MCP today (R56, `mcpRefusal`). Spec
    approval, harness approval and the person-only

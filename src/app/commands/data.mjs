@@ -68,11 +68,10 @@ export const commands = [
       command,
       dbPath,
       input,
-      useServer,
       localOrRequest,
       helpPointer,
     }) {
-      if (!useServer() && !fs.existsSync(dbPath))
+      if (!fs.existsSync(dbPath))
         throw Error(
           `${command} is not a command. ${helpPointer(command)} Operations need a workspace: avoozl init PATH, then use --workspace PATH.`,
         );

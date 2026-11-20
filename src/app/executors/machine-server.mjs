@@ -83,10 +83,11 @@ export async function startMachineServer({
     starter,
     env,
   });
-  const found = await waitUntil(
-    () => runningSupervisor(stateDirectory),
-    20_000,
-  );
+  // Returned once it holds the lock and has written its control address.
+  const found = await waitUntil(() => {
+    const holder = runningSupervisor(stateDirectory);
+    return holder?.control ? holder : null;
+  }, 20_000).then((holder) => holder ?? runningSupervisor(stateDirectory));
   if (!found)
     throw Error(
       "The machine server did not take its lock within 20 seconds. See supervisor.log in the machine state folder.",

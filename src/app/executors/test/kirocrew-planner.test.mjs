@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { lintSpec, readSpecFolder } from "../../specs/spec-plans.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { runOwnMachine } from "../../test/shim-run.mjs";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(root, "hosts", "kirocrew"),
@@ -24,12 +25,12 @@ function servedTools() {
   for (const name of Object.keys(env))
     if (/^AVOOZL_/.test(name)) delete env[name];
   initializeWorkspace(workspace);
-  const output = execFileSync(
+  const output = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env,
       input:
         JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",

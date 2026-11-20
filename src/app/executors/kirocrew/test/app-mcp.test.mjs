@@ -13,6 +13,7 @@ import { enqueueSessionRequests } from "../../../sessions/session-requests.mjs";
 import { Store } from "../../../store/store.mjs";
 import { initializeWorkspace } from "../../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../../test/temporary.mjs";
+import { runOwnMachine } from "../../../test/shim-run.mjs";
 
 const root = fileURLToPath(new URL("../../../../../", import.meta.url)),
   launcher = path.join(root, "hosts", "kirocrew", "bin", "avoozl_mcp.py");
@@ -69,9 +70,9 @@ const call = (id, name, input, sessionKey) => ({
 });
 
 function serve(dir, cwd, messages, extraEnv = {}) {
-  const output = execFileSync("python3", [launcher], {
+  const output = runOwnMachine("python3", [launcher], {
     cwd,
-    encoding: "utf8",
+    dir,
     env: { ...isolatedEnv(dir), ...extraEnv },
     input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
   });

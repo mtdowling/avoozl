@@ -58,7 +58,14 @@ try {
 // resolve the same way they do in a checkout.
 fs.rmSync(lib, { recursive: true, force: true });
 const bundle = await rolldown({
-  input: path.join(root, "cli.mjs"),
+  // The CLI, and the programs the machine server starts by path.
+  input: [
+    "cli.mjs",
+    "src/app/executors/supervisor-main.mjs",
+    "src/app/executors/supervisor-child.mjs",
+    "src/app/tick/headless-tick-main.mjs",
+    "src/app/serve/serve-main.mjs",
+  ].map((file) => path.join(root, file)),
   platform: "node",
   // Keep linked dependencies (a task worktree's node_modules link) at their
   // in-tree path, so no machine path reaches the package.

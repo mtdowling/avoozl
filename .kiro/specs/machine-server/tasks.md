@@ -105,14 +105,14 @@ they never collide with the IDs of the other specs.
 
 ## Phase 3: The shim
 
-- [ ] ms-3.1 The control interface, after ms-1.2 [MS9] (§D8, §D10)
+- [x] ms-3.1 The control interface, after ms-1.2 [MS9] (§D8, §D10)
   - $done: Tests on Linux, macOS and Windows: the socket is `0600` in a `0700` folder, or the listener is `127.0.0.1`; no option or variable changes the address; a missing or wrong token, a missing `hello`, and an HTTP request line each close the connection with nothing run; with no token file every call is refused; a person-only operation is refused through it; a confined child cannot connect or read the token; a long state path falls back to the short socket folder; a search of logs, status and receipts after a run finds no token.
   - $after: ms-1.2
-  - The listener in the machine server, the token written after the lock, the address in `lock.json`, and the `app-mcp.mjs` workspace rules moved into the server.
-- [ ] ms-3.2 `avoozl mcp` is the shim, after ms-3.1, ms-1.3 [MS10] (§D8)
+  - The listener is `src/app/executors/control-server.mjs`, started by the machine server after it takes the lock; `src/app/executors/machine-control.mjs` runs each claim's calls through the `app-mcp.mjs` workspace rules inside the server, and writes the address into `lock.json`.
+- [x] ms-3.2 `avoozl mcp` is the shim, after ms-3.1, ms-1.3 [MS10] (§D8)
   - $done: Tests: the shim forwards calls and replies and imports no `Store`; `--kirocrew` passes the gateway caller block and a bound session reaches its workspace; with no server it starts one and the call succeeds within 20 seconds; a server of another build fails the call naming `avoozl start`; `tools/list` matches today's for each caller kind; `mcp --url`, `--url` and `AVOOZL_URL` are refused naming what replaces them; the cron's call works through the shim.
   - $after: ms-3.1, ms-1.3
-  - Delete the in-process MCP modes in `src/app/commands/machine.mjs` and the CLI's server request path in `src/app/cli/cli.mjs`.
+  - The shim is `src/app/mcp/mcp-shim.mjs`. The in-process MCP modes in `src/app/commands/machine.mjs` and the CLI's server request path in `src/app/cli/cli.mjs` are gone. The Kiro Crew bundle includes the programs the machine server starts by path, so the app's own copy can start it.
 
 - [ ] ms-p4 Proof: two front ends through the shim, after ms-3.2 [MS9, MS10] (§D8, §D10)
   - $done: Expected: (1) the call starts the server and returns; (2) both sessions see the same task state; (3) both approvals are refused through MCP and work from the person's own prompt; (4) the child's attempts are refused; (5) only the socket shows.

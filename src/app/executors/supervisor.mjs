@@ -1264,6 +1264,7 @@ export async function runSupervisor({
   configDirectory ??= machine.configDirectory;
   let supervisor = null;
   let said = false;
+  let stopped = () => {};
   while (!supervisor) {
     try {
       supervisor = startSupervisor({
@@ -1271,7 +1272,10 @@ export async function runSupervisor({
         configDirectory,
         starter,
         tickIntervalMs: readTickSeconds(configDirectory) * 1000,
-        onStop: () => process.exit(0),
+        onStop: () => {
+          stopped();
+          process.exit(0);
+        },
       });
     } catch (error) {
       if (!foreground || error.status !== 409) {
@@ -1284,9 +1288,20 @@ export async function runSupervisor({
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
+  // The control interface for `avoozl mcp` (MS9). Loaded here, so the
+  // supervisor module itself pulls in no MCP code.
+  let control = null;
+  try {
+    const { serveControl } = await import("./machine-control.mjs");
+    control = await serveControl({ stateDirectory });
+  } catch (error) {
+    console.error(`The control interface did not start: ${error.message}`);
+  }
+  stopped = () => control?.close();
   console.log(`Avoozl machine server running as pid ${process.pid}.`);
   for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"])
     process.on(signal, () => {
+      control?.close();
       supervisor.close();
       process.exit(0);
     });

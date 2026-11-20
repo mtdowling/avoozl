@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { WorkspaceRegistry } from "../../settings/host-config.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { runOwnMachine } from "../../test/shim-run.mjs";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(root, "hosts", "kirocrew"),
@@ -165,12 +166,12 @@ test("the packaged MCP server lists the plans tools and ships no runner hook", (
   const dir = temporaryDirectory(),
     workspace = path.join(dir, "workspace");
   initializeWorkspace(workspace);
-  const listed = execFileSync(
+  const listed = runOwnMachine(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
     {
       cwd: dir,
-      encoding: "utf8",
+      dir,
       env: isolatedEnv(dir),
       input:
         JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",
