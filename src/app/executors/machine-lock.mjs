@@ -73,9 +73,10 @@ export function lockIsHeld(lock) {
     db.exec("PRAGMA busy_timeout = 0");
     db.prepare("SELECT count(*) FROM sqlite_master").get();
     return false;
-  } catch (error) {
-    if (isBusy(error)) return true;
-    throw error;
+  } catch {
+    // Busy, or caught while a holder sets the file up: either way someone
+    // holds it, and the record names who.
+    return true;
   } finally {
     try {
       db?.close();

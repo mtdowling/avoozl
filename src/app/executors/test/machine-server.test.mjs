@@ -40,6 +40,7 @@ function machine(t, { tickSeconds } = {}) {
     });
   const state = () => {
     const found = run(["status"]);
+    assert.equal(found.status, 0, found.stderr);
     return JSON.parse(found.stdout).machine.supervisor;
   };
   t.after(() => {

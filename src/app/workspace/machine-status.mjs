@@ -61,9 +61,11 @@ export function machineStatus({
     holder = runningSupervisor(stateDirectory);
   let children = [],
     passes = [];
+  let unreadable = null;
   if (fs.existsSync(paths.database)) {
-    const db = new DatabaseSync(paths.database, { readOnly: true });
+    let db;
     try {
+      db = new DatabaseSync(paths.database, { readOnly: true });
       db.exec("PRAGMA busy_timeout = 5000");
       passes = lastPasses(db);
       children = db
@@ -82,8 +84,11 @@ export function machineStatus({
           requestedAt: row.requested_at,
           updatedAt: row.updated_at,
         }));
+    } catch (error) {
+      // The server may be setting its database up; status still answers.
+      unreadable = error.message;
     } finally {
-      db.close();
+      db?.close();
     }
   }
   return {
@@ -111,5 +116,6 @@ export function machineStatus({
       ({ name, approved, startProblem }) => ({ name, approved, startProblem }),
     ),
     children,
+    ...(unreadable ? { unreadable } : {}),
   };
 }
