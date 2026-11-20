@@ -31,7 +31,6 @@ const READS = {
     "policy-docs",
     "proof-p32",
     "release-scan",
-    "spec-facts-docs",
     "spec-manifests-on-tree",
   ],
   examples: [

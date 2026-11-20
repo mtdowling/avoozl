@@ -22,12 +22,11 @@ like any spec.
 
 ## Rewrite
 
-Set `integrationBranch` in the front-matter of the epic's `tasks.md`, for
-example `integrationBranch: rewrite/my-epic`. Avoozl creates no branch: create
-it and protect it first. Every task pull request targets the branch. Avoozl
-merges the default branch into it on the schedule in `integrationSync`
-(`weekly`, `daily` or `off`) as a merge commit, and never rebases or force
-pushes. The tick reads the branch head's checks and records acceptance for that
+Create a branch named exactly as the epic's folder, such as `my-epic`, and
+protect it. Avoozl creates no branch. Every task pull request targets the
+branch. Before each claim, Avoozl merges the default branch into it when the
+default branch has moved, as a merge commit, and never rebases or force pushes.
+See [Integration branches](github-workflow.md#11-integration-branches). The tick reads the branch head's checks and records acceptance for that
 head. A task merge moves the head, so acceptance stays open until the new head
 is green. While the head is red, or a sync has a conflict, release and
 auto-merge stop for the epic. When the head is green and level with the default
@@ -36,10 +35,9 @@ records who and which head, and never merges the branch itself.
 
 ## Cross-repository migration
 
-Stage one builds the tool. Each repository task lists stage one in its `after`
-fact, and its repository's checks run on it. Removal lists every repository task
-in `after`. To add a repository, copy a `migrate-repo-*` entry and add its ID to
-the `after` fact of `remove-old-path`.
+Stage one builds the tool. Each repository task follows stage one in the list,
+and its repository's checks run on it. Removal comes last. To add a repository,
+copy a `migrate-repo-*` entry above `remove-old-path`.
 
 ## Large generated change
 
@@ -52,9 +50,9 @@ command>` in each task. Keep a batch small enough to review in one pull request.
 A proposal is an epic folder (the parent) that lists one sub-spec per
 repository. The parent holds the shared requirements and the list of sub-specs,
 and no repository tasks. Each sub-spec has its own requirements, design and
-tasks, and is approved and released on its own. A task in one sub-spec can need
-a task in another by naming that task's ID in its `after` fact. Avoozl refuses
-the ID until the other sub-spec is approved and holds it.
+tasks, and is approved and released on its own. The parent links each sub-spec
+from a task title, and the order of those tasks is the order of the sub-specs.
+See [Linked specs](github-workflow.md#6-linked-specs).
 
 ### Gap report
 
@@ -80,5 +78,5 @@ To read the table from an issue body, use `--issue OWNER/REPO#N` in place of
 passing cell gives none. Avoozl refuses a line it cannot read and names its
 number. Nothing is added to a spec until a person runs `accept`, and then the
 tasks arrive as draft work that you review and approve again. A sub-spec takes a
-repository when its task facts name the repository (`repo`), or when its folder
-name is the repository's name.
+repository when its front matter names it (`repo`), or when its folder name is
+the repository's name.
