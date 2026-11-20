@@ -3,9 +3,9 @@
 `EC` numbers are in this spec's `requirements.md`; `R` numbers are in
 `.kiro/specs/avoozl/requirements.md`, `PK` numbers in
 `.kiro/specs/plugin-checks/`,
-and `PC` numbers in `.kiro/specs/plugin-credentials/`. Requirement 115 is on branch
-`spec/spec-assignee-2`. Labels are as in the requirements: **V** read in
-the file cited at `a8a22391`; **A** assumed.
+and `PC` numbers in `.kiro/specs/plugin-credentials/`. Labels are as in
+the requirements: **V** read in the file cited at `a8a22391`; **A**
+assumed.
 
 ## D1. Shape
 
@@ -121,7 +121,7 @@ naming the file, beside the other machine-only keys (A: the loader in
 `src/app/settings/repository-settings.mjs` lists known keys; the task finds
 the exact place). One operation, `context.machine.set`, is `person(...)` in
 its feature table and refused in its handler for a bound or MCP caller and
-for a child marked `AVOOZL_CHILD`. The CLI
+for a child marked `AVOOZL_CHILD`, as other person-only operations are. The CLI
 entry is `avoozl context set --json '{...}'` and `avoozl context show`.
 
 ## D4. The context part (EC3)

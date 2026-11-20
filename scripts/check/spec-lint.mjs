@@ -35,10 +35,36 @@ function statusErrors(spec) {
       ),
   );
 }
+// A spec describes Avoozl as it is; git history keeps what changed. A task,
+// requirement, criterion or section marked superseded or retired is old text
+// left in place, so it is refused: a heading or task title that says so, or
+// a line or criterion that starts with the word.
+const RETIRED =
+  "A task, requirement or section marked superseded or retired is not allowed: delete it. Git history keeps the old text.";
+const RETIRED_WORD = /\b(?:superseded|retired)\b/i;
+function retiredErrors(spec) {
+  return Object.entries(spec.files).flatMap(([file, text]) =>
+    String(text)
+      .split("\n")
+      .flatMap((line, at) => {
+        const body = line.replace(
+          /^\s*(?:[-*]|\d+[a-z]?\.)\s+(?:\$\w+:\s*)?/,
+          "",
+        );
+        const marked =
+          (/^#{1,6}\s/.test(line) && RETIRED_WORD.test(line)) ||
+          (/^\s*- \[[ x]\]\s/.test(line) && RETIRED_WORD.test(line)) ||
+          /^(?:\*\*)?(?:superseded|retired)\b/i.test(body);
+        return marked
+          ? [{ severity: "error", file, line: at + 1, message: RETIRED }]
+          : [];
+      }),
+  );
+}
 for (const name of names) {
   const spec = readSpecFolder(root, name),
     result = lintSpec({ spec }),
-    status = statusErrors(spec),
+    status = [...statusErrors(spec), ...retiredErrors(spec)],
     errors = [
       ...(result.diagnostics || []).filter((d) => d.severity === "error"),
       ...status,

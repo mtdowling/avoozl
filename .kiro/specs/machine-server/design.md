@@ -325,8 +325,7 @@ single-user program on one machine. It is a secret Avoozl makes itself, and
 that is acceptable only because the interface is local and serves one
 person. Any later spec that lets another machine reach the machine server
 SHALL replace it with an identity provider native to where Avoozl is
-deployed, and SHALL NOT reuse the token. The owner chose this mechanism on
-2026-11-19 (D12).
+deployed, and SHALL NOT reuse the token (D12).
 
 **Fail closed.** No token file, an unreadable one, a missing `hello` or a
 wrong token: nothing runs. There is no test bypass. Tests write their own
@@ -370,10 +369,7 @@ Milestones 2 and 3 can start once ms-1.2 lands, beside the rest of
 milestone 1; only their proofs wait for ms-p2. Milestone 4's move of
 `kirocrew-app/` waits for ms-1.3, which edits files under it.
 
-## D12. Decisions
-
-**Decided by the owner (2026-11-19).** He accepted every point of the
-conductor's review, so these are settled and not open:
+## D12. Rules
 
 - One machine server holds the machine lock. The Kiro Crew backend is a
   client of it, and never runs a second tick (MS1.3, MS2, D3, D5).
@@ -392,11 +388,10 @@ conductor's review, so these are settled and not open:
   opt-in login install (Windows as its own task), and every role proven on
   Claude Code (D11).
 
-**Questions, decided by the owner on 2026-11-19 as recommended.** Other
-sections cite these by number.
+**Numbered rules.** Other sections cite these by number.
 
 1. **Codex read roles with its sandbox off (MS7.1).** The read class takes
-   the owner's Codex rule above, as the write class does. Codex's read
+   the Codex rule above, as the write class does. Codex's read
    roles cannot run a command otherwise, and the read class's write roots
    already keep it off the code. The containment proof (MS8) is the check.
 2. **The cron's core change is in milestone 1 (D5).** One loop on a Kiro

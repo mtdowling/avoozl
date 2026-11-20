@@ -23,9 +23,7 @@ machine's `plugins.json`. A task gets it only when three tests pass (EC1).
 Nothing in a spec, an issue, a pull request or a repository file can turn
 it on.
 
-
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Nothing here changes code
+Nothing here changes code
 until its tasks run.
 
 Every claim about today's code carries one label: **V**, read in the file

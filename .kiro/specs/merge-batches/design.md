@@ -4,30 +4,14 @@
 sections without a `D` are in `.kiro/specs/avoozl/`. Labels are as in the
 requirements: **V** read in the file cited at `9124dcd`, **A** assumed.
 
-## D1. What stays and what goes
+## D1. The parts
 
-`direct` landing already has the pieces: a per-base queue
-(`landing-queue.mjs`), a landing worktree that merges a group with the base
-and checks it, a halving search, union paths, intents read back before the
-push, and a guarded fast-forward (V: `src/app/landing-trains.mjs`,
-`src/app/landing/landing-queue.mjs`, `src/app/landing/direct-landing.mjs`). Merge batches are
-that code with three changes: the group size comes from MB2 instead of a
-fixed four, the bisect confirms its culprit (MB4.3), and the group may cross
-drivers (MB1.4).
-
-| Goes                                                          | Lines (V) | Why it is not needed                                        |
-| ------------------------------------------------------------- | --------- | ----------------------------------------------------------- |
-| `integrator-*.mjs` (11 modules)                               | 3,167     | The second landing system                                    |
-| `landing-lease.mjs`                                           | 169       | One machine lands; the work lock already serializes it       |
-| `resource-slots.mjs`, and its use in `check-runs.mjs`         | 174       | Trains held platform slots; a check's own command manages its VM or container |
-| `setup-workflows.mjs`                                         | 130       | Nothing is pushed but the base, so no CI edit is needed      |
-| `train-heads.mjs`                                             | 16        | Trains' validated heads for Stop the line                    |
-| `docs/integrator-trains.md`, `scripts/proof-landing-trains.mjs` | —       | Docs and proofs of the removed system                        |
-
-The `workflow_dispatch` input `platforms` in Avoozl's own
-`.github/workflows/test.yml` was added for trains' CI fallback (V: its
-comment cites the deleted spec). It stays, because a plain dispatch still
-runs every platform, and its comment is rewritten.
+`direct` landing has a per-base queue (`landing-queue.mjs`), a landing
+worktree that merges a group with the base and checks it, a halving search,
+union paths, intents read back before the push, and a guarded fast-forward
+(`src/app/landing/landing-queue.mjs`, `src/app/landing/direct-landing.mjs`).
+The group size comes from MB2, the bisect confirms its culprit (MB4.3), and
+the group may cross drivers (MB1.4).
 
 ## D2. The size limit (MB2)
 
@@ -118,20 +102,17 @@ the first, the retro brief adds one line asking whether a different landing
 mode would help, with the numbers and the two choices of MB8.1. The retro
 proposes; the person decides, as for every retro proposal (R47).
 
-## D8. Old settings and commands
+## D8. Refused settings and commands
 
-| Old                                                   | After                                                        |
+| Setting or command                                    | What happens                                                 |
 | ----------------------------------------------------- | ------------------------------------------------------------ |
-| `landing.mode: "train"`, project `landing: "train"`   | Refused (2026-11-19; it loaded as `direct`)                  |
-| `landing.trains.*`                                    | Refused, naming the file and key (2026-11-19)                |
-| `machine.platforms`, `machine.slots`, `lease.*`       | Refused, naming the file and key (2026-11-19)                |
+| `landing.mode: "train"`, project `landing: "train"`   | Refused, naming the file and key                             |
+| `landing.trains.*`                                    | Refused, naming the file and key                             |
+| `machine.platforms`, `machine.slots`, `lease.*`       | Refused, naming the file and key                             |
 | `avoozl integrator run|status`                        | One line naming `direct` landing                             |
 | `avoozl landing submit`                               | One line naming `direct` landing                             |
 | `avoozl landing status`                               | Kept, showing D6                                             |
 | `avoozl-batch/*` branches on a remote                 | Left alone; Avoozl neither reads nor deletes them            |
-
-`src/avoozl-config.schema.json` marks the ignored keys as ignored, as it
-does for other retired keys, so an old file still validates.
 
 ## D9. Risks
 

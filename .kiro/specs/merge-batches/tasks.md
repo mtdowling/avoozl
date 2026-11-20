@@ -5,11 +5,8 @@ repo: avoozl
 
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
-brackets (`MB1` to `MB9`, in `requirements.md`); `D` sections refer to this
+brackets (`MB1` to `MB8`, in `requirements.md`); `D` sections refer to this
 spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
-
-Phase 1 builds merge batches into `direct` landing and removes nothing.
-Phase 2 removes the old system only after `mb-p1` shows the new one works.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces, real git with a bare remote, and fake executors; Avoozl runs the
@@ -21,8 +18,7 @@ afterward. Screen changes need phone and desktop, light and dark screenshots
 for owner approval before merge (R92.12); screenshots are shown to the owner
 and never committed (AGENTS.md).
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts. Task IDs start with `mb-` so they never collide with the IDs
+Task IDs start with `mb-` so they never collide with the IDs
 of the other specs.
 
 ## Phase 1: Merge batches in direct landing
@@ -52,22 +48,17 @@ of the other specs.
   - Action: (1) run the tick until the queue is empty; (2) read the Landing queue status after each merge batch.
   - Expected: (1) every good task lands, the bad one and the later of the pair go back to their workers, the flaky one lands; (2) the limit starts at 1, grows while batches land, and halves after each culprit; no ref but the base branch appears on the remote.
   - Failure means: merge batches lose a good task, blame an innocent one, or leave refs on the remote.
-  - Next decision: whether to remove the old system (Phase 2).
 
-## Phase 2: One system
+## Phase 2: Visible
 
-- [x] mb-2.1 Remove integrator trains, after mb-p1 [MB1.2, MB1.3, MB9.1, MB9.2, MB9.3] (§D1, §D8)
-  - $done: Tests: a file with `landing.mode: "train"` lands in merge batches; each retired key loads and the schema marks it ignored; each retired command prints its line and changes nothing; no source file imports a removed module; the pull request lists what each deleted test covered and where it is covered now.
-  - $after: mb-p1
-  - The modules D1 lists go; `train` loads as `direct`; `landing.trains`, `machine.platforms`, `machine.slots` and `lease` load and are ignored; `avoozl integrator` and `landing submit` answer with one line; the comment in `test.yml` is rewritten.
 - [x] mb-2.2 The Landing queue page and status, after mb-1.3 [MB7] (§D6)
   - $done: UI and CLI tests show each part from fixture records; none of the three makes a GitHub call; a member waiting 61 minutes opens one Needs you item and a second read opens none; screenshots of the page at 390 and 1280 px, light and dark, go to the owner.
   - $after: mb-1.3
   - Waiting, Testing, Last merge batches and Size per base, from stored records; the same in `avoozl landing status --json` and the MCP read; one Needs you item past 60 minutes.
-- [x] mb-2.3 The words and the product spec, after mb-2.1, mb-2.2 [MB1.5, MB9.4] (§D8)
-  - $done: The word test passes and fails on a planted "train"; `node scripts/spec-lint.mjs` reports 0 errors; the README's Landing section describes merge batches.
-  - $after: mb-2.1, mb-2.2
-  - A test over the page's strings, the help table, `README.md` and `docs/*.md` for "train" and "integrator"; Requirement 87.1 and 87.2 and every `train` mention in `.kiro/specs/avoozl/` describe merge batches or are marked retired.
+- [x] mb-2.3 The words, after mb-2.2 [MB1.5] (§D8)
+  - $done: The word test passes and fails on a planted "train"; `node scripts/check/spec-lint.mjs` reports 0 errors; the README's Landing section describes merge batches.
+  - $after: mb-2.2
+  - A test over the page's strings, the help table, `README.md` and `docs/*.md` for "train" and "integrator".
 
 ## Phase 3: The retro
 

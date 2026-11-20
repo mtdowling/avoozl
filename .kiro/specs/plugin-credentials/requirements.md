@@ -6,27 +6,18 @@ category: Planning
 
 ## Introduction
 
-Avoozl signs in to GitHub one way today: `localToken()` reads
-`AVOOZL_GITHUB_TOKEN`, then `GH_TOKEN`, then `GITHUB_TOKEN`, then runs
-`gh auth token` (V: `src/app/github/github.mjs:248-264`). Every API call
-of every job then uses that one token with that one person's full access.
-An organization that wants its engineers' Avoozl to act through its own
-GitHub App, with short-lived tokens and only the access each job needs,
-has no way in.
+An organization may want its engineers' Avoozl to act through its own
+GitHub App, with short-lived tokens and only the access each job needs.
 
-This spec adds a sixth plugin part, `credentials`. A plugin that provides
-it answers one call, `token({repository, owner, permissions, purpose})`,
+The `credentials` plugin part does that. A plugin that provides it answers
+one call, `token({repository, owner, permissions, purpose})`,
 with a token for that repository, the GitHub permissions that job needs,
 and the job's name, so that the provider can mint a narrow token, audit
 it and refuse a job it does not allow. Installing the plugin and approving
-its hash is the whole configuration. The two ways Avoozl signs in today
-become two built-in providers of the same part: `gh` and `env`.
+its hash is the whole configuration. With no plugin, Avoozl signs in
+through one of two built-in providers of the same part: `gh` and `env`.
 
-Approval lives in Avoozl, not in these files. Approving the spec, creating
-issues and starting agents are separate acts that a person does later.
-Nothing in it changes code until its tasks run.
-
-Claims about today's code carry one label: **V**, read in the file cited at
+Claims about code carry one label: **V**, read in the file cited at
 `84d792aa`; or **A**, assumed and not checked, with the reason.
 
 ### Why

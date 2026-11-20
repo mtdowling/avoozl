@@ -249,7 +249,6 @@ of scope. The docs say only that `avoozl serve` is local to its machine.
 | Open chat, chat links                | Process session (D7)                                |
 | Model list                           | Free text plus the harness definition's list        |
 | Per-turn usage from Kiro Crew's log  | Process cost from the harness output only           |
-| Send to Issue Radar, Radar reads     | "Needs Kiro Crew"                                   |
 | Stop all agents for chats            | Process sessions stop through the supervisor        |
 
 `instance.view` gains `host: "standalone" | "kirocrew"`, set by the server
@@ -287,7 +286,7 @@ local servers that receive the cookie lack the CSRF token (D5).
 **Authentication mechanism.** The owner link is the loopback token pattern
 that local developer servers such as Jupyter Server and VS Code's server
 use: a random secret shown only on the owner's terminal, exchanged once
-for a session cookie. The owner chose it for this spec. It is a secret
+for a session cookie. It is a secret
 Avoozl makes itself, which is acceptable only because the listener is
 loopback-only and serves one person. Any later spec that widens the bind
 SHALL replace it with an identity provider native to the place Avoozl is
@@ -302,7 +301,7 @@ None of it leaves the machine through this server.
 `0.0.0.0`, `::`, `listen(`, `--host` and `Access-Control-Allow`; every hit
 is loopback, a test, or explained in the pull request.
 
-## D11. The pin, and what the spike showed
+## D11. The pin
 
 **Why this is not a fork.** A fork is Kiro Crew's code copied into Avoozl
 and changed there. Here no Kiro Crew file is in this repository and none is
@@ -324,30 +323,3 @@ files, the lockfile and Kiro Crew's `LICENSE` and `NOTICE`, and checks the
 digest. The packages those files import are development
 dependencies of `kirocrew-app/ui`, at the lockfile's versions (SW12.5), so
 Kiro Crew's whole front end is not installed to build 32 of its modules.
-
-**The spike, 2026-11-18.** One day, on a scratch copy outside git, against
-Kiro Crew v0.12.2 and Avoozl at `750396e`.
-
-| Question                                          | Seen                                                                                         |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Does the page render on Kiro Crew's real parts?   | Yes: Home, Settings › Workspaces and Settings › Models, light and dark, with demo data       |
-| Was a Kiro Crew file edited?                      | No. A recursive compare of the copy with the release was clean                               |
-| Was an Avoozl view edited?                        | No                                                                                           |
-| React 18 or 19?                                   | Both built and rendered; see D3                                                              |
-| What else came along?                             | An animation library, a class-merge helper, a query client, i18n, the icons; listed in D3    |
-| Console errors in the built page?                 | None in the views captured                                                                   |
-| Against the stand-in harness this repo has today? | The one visible difference was the badge, which the stand-in draws differently               |
-
-**Not checked by the spike.** The task that builds this checks each one.
-
-- The same views in a running Kiro Crew, side by side. The spike compared
-  with this repository's stand-in harness, not with Kiro Crew's own page.
-- Every view other than the three above, and the 390 and 768 px widths.
-- Modals, navigation, the chat launcher and notices in use.
-- The content security policy of SW4.8, with the style hashes.
-- Kiro Crew's own theme hook, and three small stylesheets its entry file
-  also loads.
-- A build that installs only the needed packages; the spike installed Kiro
-  Crew's whole front end.
-- The font licenses: Kiro Crew's third-party notice file does not name its
-  two bundled fonts, so SW12.6 reads their license files from the source.
