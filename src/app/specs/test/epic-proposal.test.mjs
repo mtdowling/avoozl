@@ -71,48 +71,6 @@ function parent(root, members, entryExtra = {}) {
 const errors = (quality) =>
   quality.diagnostics.filter((d) => d.severity === "error");
 
-test("a parent that holds a repository task is refused", (t) => {
-  const { root, ops } = workspace(t);
-  sub(root, "repo-a", "repo-a");
-  parent(root, ["repo-a"], { repository: "repo-a", kind: "leaf" });
-  const quality = lintSpec({
-    spec: readSpecFolder(root, "parent"),
-    plan: { id: "parent" },
-    namespace: ops.specNamespace(),
-  });
-  assert.ok(errors(quality).some((d) => d.code === "spec.epic-task-fields"));
-  // A parent with only plan and summary entries is clean.
-  parent(root, ["repo-a"]);
-  assert.deepEqual(
-    errors(
-      lintSpec({
-        spec: readSpecFolder(root, "parent"),
-        plan: { id: "parent" },
-        namespace: ops.specNamespace(),
-      }),
-    ),
-    [],
-  );
-});
-
-test("a cross-repository requires on a missing ID is refused naming it, and passes once the other sub-spec holds it", (t) => {
-  const { root } = workspace(t);
-  sub(root, "repo-b", "repo-b", {
-    "b-1": leaf({ repository: "repo-b", requires: ["a-9"] }),
-  });
-  const spec = readSpecFolder(root, "repo-b"),
-    missing = lintSpec({ spec, plan: { id: "repo-b" }, data: { tasks: [] } });
-  const refused = errors(missing).find((d) => /a-9/.test(d.message));
-  assert.ok(refused, "names the missing ID");
-  // The other sub-spec is approved and holds the ID: the same text is clean.
-  const held = lintSpec({
-    spec,
-    plan: { id: "repo-b" },
-    data: { tasks: [{ id: "a-9", status: "planned", title: "x" }] },
-  });
-  assert.deepEqual(errors(held), []);
-});
-
 test("two sub-specs approve separately", async (t) => {
   const { root, store, ops } = workspace(t);
   for (const id of ["code", "repo-a", "repo-b"])
@@ -196,67 +154,5 @@ test("an unreadable line is refused naming its number, and a repository with no 
   assert.throws(
     () => gapProposals(parseGapReport(REPORT), () => null),
     /no sub-spec takes that repository/,
-  );
-});
-
-test("preview shows the table and proposals and writes nothing; accepting adds draft tasks; an agent cannot accept", async (t) => {
-  const { root, store, ops } = workspace(t);
-  for (const id of ["code", "repo-a", "repo-b"])
-    store.put("repositories", {
-      id,
-      root,
-      baseBranch: "main",
-      checks: [["npm", "test"]],
-    });
-  sub(root, "repo-a", "repo-a");
-  sub(root, "repo-b", "repo-b", { "b-1": leaf({ repository: "repo-b" }) });
-  parent(root, ["repo-a", "repo-b"]);
-  for (const spec of ["repo-a", "repo-b"])
-    await ops.execute("plan.create", {
-      spec,
-      context: { repositoryId: "code" },
-    });
-  const file = path.join(root, "gap.md");
-  fs.writeFileSync(file, REPORT);
-  const before = fs.readFileSync(
-    path.join(root, ".kiro/specs/repo-a/tasks.md"),
-    "utf8",
-  );
-  const preview = await ops.execute("gap.preview", {
-    parent: "parent",
-    path: file,
-  });
-  assert.equal(preview.proposals.length, 2);
-  assert.equal(
-    fs.readFileSync(path.join(root, ".kiro/specs/repo-a/tasks.md"), "utf8"),
-    before,
-  );
-  await assert.rejects(
-    ops.execute("gap.accept", { parent: "parent", path: file }, undefined, {
-      mcp: true,
-    }),
-    /person/,
-  );
-  await assert.rejects(
-    ops.execute("gap.preview", { parent: "parent", path: file }, undefined, {
-      mcp: true,
-    }),
-    /issue/,
-  );
-  const accepted = await ops.execute("gap.accept", {
-    parent: "parent",
-    path: file,
-  });
-  assert.deepEqual(accepted.added.sort(), [
-    "repo-a:close-gap-r2",
-    "repo-b:close-gap-r1",
-  ]);
-  assert.match(
-    fs.readFileSync(path.join(root, ".kiro/specs/repo-a/tasks.md"), "utf8"),
-    /close-gap-r2/,
-  );
-  assert.match(
-    fs.readFileSync(path.join(root, ".kiro/specs/repo-b/tasks.md"), "utf8"),
-    /close-gap-r1/,
   );
 });

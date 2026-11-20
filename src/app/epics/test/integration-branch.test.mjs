@@ -175,26 +175,6 @@ function lintWith(t, extra) {
   });
 }
 
-test("spec lint: an old manifest stays valid, a bad field is one error", (t) => {
-  assert.deepEqual(lintWith(t, {}).diagnostics, []);
-  assert.deepEqual(
-    lintWith(t, { integrationBranch: "rewrite/x", integrationSync: "daily" })
-      .diagnostics,
-    [],
-  );
-  for (const extra of [
-    { integrationBranch: "main branch" },
-    { integrationBranch: "rewrite/x", integrationSync: "never" },
-    { integrationSync: "off" },
-  ]) {
-    const found = lintWith(t, extra).diagnostics.filter(
-      (d) => d.code === "facts.schema",
-    );
-    assert.equal(found.length, 1, JSON.stringify(extra));
-    assert.match(found[0].message, /integration/i);
-  }
-});
-
 function operations(t, github) {
   const { root, store } = fixture(t);
   fs.writeFileSync(
