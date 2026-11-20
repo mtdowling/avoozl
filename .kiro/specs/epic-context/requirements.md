@@ -330,9 +330,13 @@ why, and I want the context kept out of commits and GitHub.
    that a giving source names in `contentSets`, at the `diff`, `github`
    and `brief` boundaries. A named set this machine does not have SHALL
    block as a missing terms file does.
-4. Settings › Epic context SHALL show the machine block, each machine
-   plugin's context part with its state, and the last ten sessions that got
-   context, with their tests.
+4. Settings › Epic context SHALL show this machine's own context as a form
+   (repos, folders to read, tools and content rule sets) with no raw JSON
+   editor, each machine plugin's context part read-only with its plugin
+   name and state, and the last ten sessions that got context, with their
+   tests. The form SHALL check each field before Save and show each problem
+   next to its field. A save SHALL refuse a folder that does not exist on
+   this machine.
 5. `avoozl show TASK --json` and the MCP task read SHALL return the three
    tests and what was given for the last session, without paths' contents.
 

@@ -5,7 +5,9 @@ import { notOnMcp, person } from "../api/operation-policy.mjs";
 import { contentBinding } from "../content/content-rules.mjs";
 import { contextView, setAnswer } from "../context/plugin-context.mjs";
 import {
+  checkReadsExist,
   readEpicContext,
+  validateEpicContext,
   writeEpicContext,
 } from "../context/epic-context-config.mjs";
 import { recentContextSessions } from "../context/context-record.mjs";
@@ -57,6 +59,7 @@ export const entries = [
       if (!this.configDirectory)
         fail("This workspace has no machine configuration folder.", 409);
       const value = input?.epicContext ?? null;
+      if (value !== null) checkReadsExist(validateEpicContext(value));
       return { epicContext: writeEpicContext(this.configDirectory, value) };
     },
   },

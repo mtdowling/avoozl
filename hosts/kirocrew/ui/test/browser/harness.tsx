@@ -2133,13 +2133,36 @@ if (query.get('page') === 'app' && query.get('epiccontext') === '1') {
     { name: 'approver', passed: true },
     why ? { name: 'you-drive', passed: false, why } : { name: 'you-drive', passed: true },
   ]
+  // &epicmachine=none: this machine has no context of its own yet. A save
+  // is kept and recorded in window.__contextWrites; a folder whose path holds
+  // "missing" is refused as the backend refuses a folder that is not there.
+  let machine: unknown =
+    query.get('epicmachine') === 'none'
+      ? null
+      : {
+          repos: ['acme/*'],
+          reads: ['~/notes/acme-widgets'],
+          mcp: { docs: { about: 'The docs host', command: ['docs-mcp', '--stdio'], env: ['DOCS_TOKEN'] } },
+          contentSets: ['acme-terms'],
+        }
+  const contextWrites: unknown[] = ((window as unknown as { __contextWrites: unknown[] }).__contextWrites = [])
+  answer('context.machine.set', (body) => {
+    const value = (body as { input: { epicContext: { reads?: string[] } | null } }).input.epicContext
+    const at = value?.reads?.findIndex((read) => read.includes('missing')) ?? -1
+    if (value && at >= 0) throw new Error(`epicContext.reads.${at} ${value.reads![at]} is not a folder on this machine.`)
+    contextWrites.push(value)
+    machine = value
+    return { epicContext: value }
+  })
+  answer('content.rules', () => ({
+    error: null,
+    configHash: 'h1',
+    mode: 'single-repo',
+    builtins: [],
+    sets: ['acme-terms', 'team-words'].map((id) => ({ id, action: 'block', source: 'file', boundaries: null, repositories: null, plugin: null, available: true })),
+  }))
   answer('context.get', () => ({
-    machine: {
-      repos: ['acme/*'],
-      reads: ['~/notes/acme-widgets'],
-      mcp: { docs: { about: 'The docs host', command: ['docs-mcp'], env: ['DOCS_TOKEN'] } },
-      contentSets: ['acme-terms'],
-    },
+    machine,
     plugins: [{ id: 'team-context', version: '1.0.0', ...part }],
     sessions: [
       {
