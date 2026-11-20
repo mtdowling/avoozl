@@ -1,18 +1,25 @@
 #!/usr/bin/env node
 // Proof pc-p1 (plugin-credentials PC1 to PC13): per-job tokens from a
-// credentials plugin, a refusal, a high-risk Allow and Cancel, a changed
-// plugin, a clash and its pick, and env, against a fake GitHub this script
+// credentials plugin, a high-risk Allow and Cancel, a changed plugin (the
+// refusal), a clash and its pick, and env, against a fake GitHub this script
 // starts on 127.0.0.1. It mints installation-style tokens at
 // POST /app/installations/1/access_tokens, enforces each token's
 // permissions on every REST call and git push, and serves two repositories'
 // bare remotes over smart HTTP (git http-backend).
 //
-//   node scripts/proofs/proof-pc-p1.mjs --root DIR
+//   PLAYWRIGHT_CORE=DIR node scripts/proofs/proof-pc-p1.mjs --root DIR
+//
+// The page clicks (Approve, Use this one, Remove) are made by Playwright in
+// a throwaway `avoozl serve` page; screenshots go to DIR/shots. Landing
+// setup is `avoozl setup`: `--yes` is the Allow, a run without it the
+// Cancel. PLAYWRIGHT_CORE is a playwright-core package directory with a
+// browser installed (no package of this repository depends on it).
 //
 // Everything lives under --root: the Avoozl config and state homes, the
 // plugin, the remotes, the checkouts and the logs. Nothing else is read or
 // written; no real GitHub, gh login, Kiro Crew or Avoozl home is used.
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
+import { promisify } from "node:util";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -26,6 +33,8 @@ const REPO = path.resolve(
 );
 const { values } = parseArgs({ options: { root: { type: "string" } } });
 if (!values.root) throw Error("Usage: proof-pc-p1.mjs --root DIR");
+if (!process.env.PLAYWRIGHT_CORE)
+  throw Error("Set PLAYWRIGHT_CORE to a playwright-core directory.");
 const ROOT = path.resolve(values.root);
 fs.mkdirSync(ROOT, { recursive: true });
 if (fs.readdirSync(ROOT).length) throw Error(`${ROOT} must be empty.`);
@@ -263,7 +272,20 @@ const { snapshot } = await import(path.join(REPO, "src/app/test/fixtures.mjs"));
 const settingsFile = plugins.pluginSettingsPath(),
   workspaceRoot = path.join(ROOT, "workspace"),
   fixture = path.join(REPO, "src/app/test/fixtures/plugins/fake-credentials");
-fs.mkdirSync(workspaceRoot, { recursive: true });
+// Asynchronous: the fake GitHub lives in this process and must keep answering.
+const avoozl = (...args) => {
+  const pending = promisify(execFile)(
+    process.execPath,
+    [path.join(REPO, "cli.mjs"), ...args],
+    { encoding: "utf8", env: process.env, timeout: 120_000 },
+  );
+  pending.child.stdin.end();
+  return pending.then((done) => done.stdout);
+};
+// A real, empty workspace the throwaway app serves.
+await avoozl("init", workspaceRoot);
+await avoozl("workspace", "add", "proof", "--root", workspaceRoot);
+await avoozl("workspace", "set-default", "proof");
 const pluginDir = (id) => {
   const dir = path.join(ROOT, "plugins", id);
   fs.cpSync(fixture, dir, { recursive: true });
@@ -285,11 +307,11 @@ const entry = (id) => ({
   contract: 1,
   config: {
     mintUrl: `${BASE}/app/installations/1/access_tokens`,
-    refuse: ["triage"],
     login: "acme-bot[bot]",
     person: "acme-dev",
   },
 });
+// Declared on this machine, not yet approved: the page's Approve is step 0.
 plugins.writePluginSettings(settingsFile, { plugins: [entry("acme-github")] });
 // A copy under another id in the workspace's .avoozl.json.
 fs.cpSync(
@@ -308,19 +330,16 @@ fs.writeFileSync(
     id: "acme-copy",
   }),
 );
+const workspaceFile = path.join(workspaceRoot, ".avoozl.json"),
+  readWorkspaceFile = () => JSON.parse(fs.readFileSync(workspaceFile, "utf8"));
 fs.writeFileSync(
-  path.join(workspaceRoot, ".avoozl.json"),
+  workspaceFile,
   JSON.stringify({
-    version: 1,
+    ...readWorkspaceFile(),
     plugins: [{ id: "acme-copy", path: "acme-copy", contract: 1 }],
   }),
 );
 const options = { workspaceRoot, settingsFile };
-const approve = (id) => {
-  const p = plugins.inspectPlugins(options).find((x) => x.id === id);
-  plugins.approvePlugin(options, { id, version: p.version, hash: p.hash });
-};
-approve("acme-github");
 
 const store = new Store(path.join(ROOT, "workspace.sqlite"));
 store.initialize({ ...snapshot(), tasks: [], edges: [] });
@@ -334,26 +353,34 @@ const ghRuns = () =>
     ? fs.readFileSync(ghLog, "utf8").trim().split("\n").filter(Boolean)
     : [];
 
-// Two bare remotes and a checkout of each.
+// Two bare remotes and a checkout of each, each with one first commit.
 for (const repo of ["acme/api", "octo/tools"]) {
   const dir = path.join(project, `${repo}.git`);
   fs.mkdirSync(dir, { recursive: true });
   run(dir, "init", "-q", "--bare", "-b", "main");
   run(dir, "config", "http.receivepack", "true");
 }
+const commit = (dir, file, text) => {
+  fs.writeFileSync(path.join(dir, file), text);
+  run(dir, "add", file);
+  run(dir, "commit", "-qm", `Add ${file}`);
+};
 const checkout = (repo, origin) => {
   const dir = path.join(ROOT, "checkouts", repo);
   fs.mkdirSync(dir, { recursive: true });
   run(dir, "init", "-q", "-b", "main");
   run(dir, "config", "user.name", "Proof Person");
   run(dir, "config", "user.email", "person@example.com");
+  commit(dir, "README.md", `${repo}\n`);
+  run(
+    dir,
+    "push",
+    "-q",
+    path.join(project, `${repo}.git`),
+    "HEAD:refs/heads/main",
+  );
   run(dir, "remote", "add", "origin", origin);
   return dir;
-};
-const commit = (dir, file, text) => {
-  fs.writeFileSync(path.join(dir, file), text);
-  run(dir, "add", file);
-  run(dir, "commit", "-qm", `Add ${file}`);
 };
 const api = checkout("acme/api", `git@127.0.0.1:acme/api.git`),
   tools = checkout("octo/tools", `${BASE}/octo/tools.git`),
@@ -362,6 +389,130 @@ fs.writeFileSync(
   path.join(api, ".git", "hooks", "pre-push"),
   `#!/bin/sh\nenv > "${hookEnv}"\ncat > /dev/null\n`,
   { mode: 0o755 },
+);
+await avoozl(
+  "repository",
+  "configure",
+  "api",
+  "--root",
+  api,
+  "--workspace",
+  workspaceRoot,
+);
+await avoozl(
+  "repository",
+  "configure",
+  "tools",
+  "--root",
+  tools,
+  "--workspace",
+  workspaceRoot,
+);
+
+// ---- The throwaway app and its browser --------------------------------------
+
+const { chromium } = await import(
+  path.join(process.env.PLAYWRIGHT_CORE, "index.mjs")
+);
+const browser = await chromium.launch(),
+  page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+let serve = null;
+const startServe = async () => {
+  serve = spawn(process.execPath, [path.join(REPO, "cli.mjs"), "serve"], {
+    env: process.env,
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  const link = await new Promise((resolve, reject) => {
+    serve.once("exit", () => reject(Error("avoozl serve exited")));
+    serve.stdout.on("data", (chunk) => {
+      const found = /http:\/\/\S+\/login\?token=\S+/.exec(String(chunk));
+      if (found) resolve(found[0]);
+    });
+  });
+  await page.goto(link);
+  await page.waitForSelector("[data-nav-head]");
+};
+const stopServe = () => {
+  serve?.kill();
+  serve = null;
+};
+// Settings > <tab>, by the left navigation.
+const settings = async (tab) => {
+  const head = page.locator("[data-nav-head]", { hasText: "Settings" });
+  if ((await head.getAttribute("data-open")) === null) await head.click();
+  await page.locator("[data-nav-item]", { hasText: tab }).first().click();
+  await page.waitForTimeout(800);
+};
+const text = () => page.locator("main").innerText();
+// A screenshot under --root (never in git), for the receipt's look check.
+const shot = (name) =>
+  page.screenshot({
+    path: path.join(ROOT, "shots", `${name}.png`),
+    fullPage: true,
+  });
+// Settings > GitHub's GitHub calls tab, where the sign-in lines are.
+const callsTab = async () => {
+  await page.getByRole("tab", { name: "GitHub calls" }).click();
+  await page.waitForTimeout(800);
+};
+const press = async (name) => {
+  await page.getByRole("button", { name }).first().click();
+  await page.waitForTimeout(800);
+};
+
+// ---- (0) approve the plugin in Settings > Plugins ---------------------------
+
+{
+  await startServe();
+  await settings("Plugins");
+  const waiting = /Needs approval/.test(await text());
+  await press(/Approve version 1\.0\.0/);
+  await shot("0-approved");
+  check(
+    "0 Settings > Plugins offers Approve for acme-github, and Approved follows",
+    waiting && /acme-github\s+Approved/.test(await text()),
+  );
+  check(
+    "0 the approval is on this machine",
+    plugins.inspectPlugins(options).find((p) => p.id === "acme-github")
+      ?.state === "approved",
+  );
+}
+// Both repositories on GitHub, landing `direct`, with landing setup's checks.
+await avoozl(
+  "github",
+  "configure",
+  "acme/api",
+  "--repo",
+  "api",
+  "--workspace",
+  workspaceRoot,
+);
+await avoozl(
+  "github",
+  "configure",
+  "octo/tools",
+  "--repo",
+  "tools",
+  "--workspace",
+  workspaceRoot,
+);
+fs.writeFileSync(
+  workspaceFile,
+  JSON.stringify({
+    ...readWorkspaceFile(),
+    github: {
+      mode: "single-repo",
+      repositories: {
+        "acme/api": {
+          baseBranch: "main",
+          requiredChecks: ["Linux", "macOS", "Windows"],
+          landing: { mode: "direct" },
+        },
+        "octo/tools": { baseBranch: "main", landing: { mode: "direct" } },
+      },
+    },
+  }),
 );
 
 // ---- (1) per-job tokens, the helper push, gh for octo ----------------------
@@ -430,7 +581,9 @@ fs.writeFileSync(
   );
   check(
     "1 the fake gh ran only for octo/tools",
-    ghRuns().length > 0 && ghRuns().every((line) => line.includes(HOST)),
+    ghRuns().length > 0 &&
+      ghRuns().every((line) => line.includes(HOST)) &&
+      !log.some((e) => e.repository?.startsWith("acme/") && e.token === "gh"),
     ghRuns().join("; "),
   );
   const authors = ["acme/api", "octo/tools"].flatMap((repo) =>
@@ -468,90 +621,103 @@ fs.writeFileSync(
   );
 }
 
-// ---- (2) triage is refused for acme; nothing falls back --------------------
+// ---- Settings > GitHub after (1) --------------------------------------------
 
 {
-  const github = client(),
-    runsBefore = ghRuns().length,
-    writesBefore = writes.length;
-  const error = await withJob("triage", () =>
-    github.createIssueComment("acme/api", 1, "triage says hi"),
-  ).catch((e) => e);
+  // The page's own process signs in: a read of acme/api's settings there
+  // mints its own check-in token, so the line carries the login and life.
+  const reply = await page.evaluate(async () => {
+    const r = await fetch("/apps/avoozl/api/command", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        operation: "github.repository.inspect",
+        input: { repository: "acme/api", baseBranch: "main" },
+        workspaceId: "proof",
+      }),
+    });
+    return r.status;
+  });
+  await settings("Plugins");
+  await settings("GitHub");
+  await callsTab();
+  await shot("1-sign-in-lines");
+  const shown = await text();
   check(
-    "2 triage writes nothing on acme/api",
-    error instanceof Error && writes.length === writesBefore,
-    error?.message,
+    "1 Settings > GitHub: acme through acme-github as acme-bot[bot] with a remaining life, everything else with gh",
+    reply === 200 &&
+      shown.includes(
+        `${HOST} · acme: signed in through acme-github as acme-bot[bot] (per-job permissions) · token good for`,
+      ) &&
+      shown.includes(`${HOST} · everything else: signed in with gh`),
+    shown
+      .split("\n")
+      .filter((l) => l.includes("signed in"))
+      .join(" | "),
   );
-  const rows = credentialsNeedsYou(store);
-  check(
-    "2 one Needs you item names acme-github's reason",
-    rows.some(
-      (r) =>
-        /acme-github/.test(r.title) && /does not allow triage/.test(r.detail),
-    ),
-    rows.map((r) => r.title).join("; "),
-  );
-  check("2 the fake gh did not run for acme", ghRuns().length === runsBefore);
-  await withJob("check-in", () => github.issue("acme/api", 1));
-  check("2 other work goes on", true);
 }
 
-// ---- (3) landing setup: Allow, then Cancel ---------------------------------
+// ---- (2) landing setup: Allow (--yes), then Cancel (no --yes) ---------------
+// The current design has no landing setup page: `avoozl setup` shows each
+// high-risk step with its permissions, `--yes` is the person's Allow, and a
+// run without it writes nothing.
 
 {
-  const github = client(),
-    input = {
-      repository: "acme/api",
-      base: "main",
-      checks: ["Linux", "macOS", "Windows"],
-      methods: ["squash"],
-    },
-    preview = await withJob("check-in", () => previewLanding(github, input)),
-    shown = preview.steps.filter((s) => s.status === "change");
-  check(
-    "3 the confirm names acme/api, the action and administration: write",
-    shown.length &&
-      shown.every(
-        (s) =>
-          s.target === "acme/api" &&
-          s.detail &&
-          /administration: write/.test(s.permissionsText),
-      ),
-    shown.map((s) => `${s.id}: ${s.permissionsText}`).join("; "),
+  const setupArgs = [
+      "setup",
+      "acme/api",
+      "--repo",
+      "api",
+      "--landing",
+      "pr",
+      "--methods",
+      "squash",
+      "--workspace",
+      workspaceRoot,
+    ],
+    before = writes.length;
+  const allowed = await promisify(execFile)(
+    process.execPath,
+    [path.join(REPO, "cli.mjs"), ...setupArgs, "--yes"],
+    { encoding: "utf8", env: process.env, timeout: 120_000 },
   );
-  const before = writes.length,
-    grants = processGrants.allow(
-      shown.map((s) => confirmStep({ job: s.job, target: s.target })),
-    );
-  const allowed = await withJob(
-    "check-in",
-    () => applyLanding(github, preview),
-    grants,
+  const confirm = allowed.stderr,
+    applied = JSON.parse(allowed.stdout);
+  check(
+    "2 the confirm names acme/api, the action and administration: write",
+    /on acme\/api\n\s+landing-setup asks GitHub for [^\n]*administration: write/.test(
+      confirm,
+    ),
+    confirm.split("\n").slice(0, 3).join(" / "),
   );
   const rulesets = writes
     .slice(before)
-    .filter((w) => /\/rulesets$/.test(w.path));
+    .filter((w) => /\/rulesets$/.test(w.path) && w.method === "POST");
   check(
-    "3 Allow writes the ruleset",
-    rulesets.length === 1 && allowed.written.includes("ruleset"),
-    JSON.stringify(allowed.written),
+    "2 Allow writes the ruleset",
+    rulesets.length === 1 && applied.written?.includes("ruleset"),
+    JSON.stringify(applied.written),
   );
   const again = writes.length,
-    cancelled = await withJob(
-      "check-in",
-      () => applyLanding(github, preview),
-      [],
+    cancelled = JSON.parse(
+      await avoozl(
+        ...setupArgs.slice(0, 4),
+        "--landing",
+        "pr",
+        "--workspace",
+        workspaceRoot,
+      ),
     );
   check(
-    "3 Cancel writes nothing and setup shows the step skipped",
+    "2 Cancel writes nothing and setup shows the step not applied",
     writes.length === again &&
-      cancelled.written.length === 0 &&
-      cancelled.skipped.some((s) => s.id === "ruleset"),
-    cancelled.skipped.map((s) => s.id).join(", "),
+      cancelled.applied === false &&
+      cancelled.github.some((s) => s.id === "ruleset" && s.status === "change"),
+    cancelled.github.map((s) => `${s.id}: ${s.status}`).join(", "),
   );
 }
 
-// ---- (4) the plugin changes ------------------------------------------------
+// ---- (3) the plugin changes ------------------------------------------------
 
 {
   fs.appendFileSync(
@@ -564,23 +730,43 @@ fs.writeFileSync(
     github.issue("acme/api", 1),
   ).catch((e) => e);
   check(
-    "4 every call for acme refuses with approve acme-github again",
-    /Approve acme-github again/.test(error?.message || ""),
+    "3 every call for acme refuses with approve acme-github again",
+    /approve (acme-github )?(it )?again/i.test(error?.message || ""),
     error?.message,
   );
-  check("4 the fake gh did not run for acme", ghRuns().length === runsBefore);
+  check("3 the fake gh did not run for acme", ghRuns().length === runsBefore);
   await withJob("check-in", () => github.issue("octo/tools", 1));
-  check("4 octo/tools still reads with gh", ghRuns().length >= runsBefore);
+  check(
+    "3 octo/tools still reads with gh",
+    log.at(-1)?.repository === "octo/tools" && log.at(-1)?.token === "gh",
+  );
+  await settings("GitHub");
+  await settings("Plugins");
+  await shot("3-changed");
+  check(
+    "3 Settings > Plugins shows acme-github changed",
+    /acme-github\s+Changed: approve again/.test(await text()),
+  );
 }
 
-// ---- (5) a clash and its pick ----------------------------------------------
+// ---- (4) a clash and its pick ----------------------------------------------
 
 {
-  approve("acme-github");
-  const settings = plugins.readPluginSettings(settingsFile);
-  settings.plugins.push(entry("acme-github-two"));
-  plugins.writePluginSettings(settingsFile, settings);
-  approve("acme-github-two");
+  await press(/Approve version 1\.0\.0/);
+  const settingsNow = plugins.readPluginSettings(settingsFile);
+  settingsNow.plugins.push(entry("acme-github-two"));
+  plugins.writePluginSettings(settingsFile, settingsNow);
+  await settings("GitHub");
+  await settings("Plugins");
+  await press(/Approve version 1\.0\.0/);
+  check(
+    "4 both copies approved in Settings > Plugins",
+    ["acme-github", "acme-github-two"].every(
+      (id) =>
+        plugins.inspectPlugins(options).find((p) => p.id === id)?.state ===
+        "approved",
+    ),
+  );
   const github = client(),
     calls = log.length;
   const error = await withJob("check-in", () =>
@@ -589,31 +775,70 @@ fs.writeFileSync(
   const rows = credentialsNeedsYou(store).filter((r) =>
     r.actions?.some((a) => a.label === "Use this one"),
   );
+  await settings("GitHub");
+  await settings("Plugins");
+  const pick = page
+    .locator("[data-signin-clash]")
+    .getByRole("button", { name: /^Use this one: / });
+  await shot("4-clash");
   check(
-    "5 the clash item appears with Use this one",
-    rows.length === 1 && rows[0].actions.length === 2,
+    "4 the clash item appears with Use this one",
+    rows.length === 1 &&
+      rows[0].actions.length === 2 &&
+      (await pick.count()) === 2,
     error?.message,
   );
   check(
-    "5 no GitHub call is made until the pick",
+    "4 no GitHub call is made until the pick",
     log.slice(calls).every((e) => e.kind !== "api"),
   );
-  pickCredentials(options, { host: HOST, id: "acme-github" });
+  // The pick for acme-github, by its own button in the clash box.
+  await page
+    .locator("[data-signin-clash]")
+    .getByRole("button", { name: "Use this one: acme-github", exact: true })
+    .click();
+  await page.waitForTimeout(800);
+  const picked =
+    plugins.readPluginSettings(settingsFile).credentialsPick?.[HOST];
+  const after = await page.locator("[data-signin-clash]").innerText();
   await withJob("check-in", () => client().issue("acme/api", 1));
   check(
-    "5 work resumes after the pick",
-    log
-      .slice(calls)
-      .some((e) => e.kind === "api" && e.repository === "acme/api"),
+    "4 the pick is acme-github, the page says so, and work resumes after it",
+    picked === "acme-github" &&
+      after.includes("Signing in through acme-github.") &&
+      log
+        .slice(calls)
+        .some((e) => e.kind === "api" && e.repository === "acme/api"),
+    `picked ${picked}`,
   );
 }
 
-// ---- (6) env ---------------------------------------------------------------
+// ---- (5) env ---------------------------------------------------------------
 
 {
-  plugins.removePlugin(options, { id: "acme-github" });
-  plugins.removePlugin(options, { id: "acme-github-two" });
+  // Remove both in Settings > Plugins: Remove, then the confirm's Remove plugin.
+  for (const id of ["acme-github-two", "acme-github"]) {
+    await settings("GitHub");
+    await settings("Plugins");
+    await page
+      .locator(`[data-form-section="${id}"]`)
+      .getByRole("button", { name: "Remove", exact: true })
+      .click();
+    await press("Remove plugin");
+  }
+  check(
+    "5 both plugins removed in Settings > Plugins",
+    !plugins
+      .inspectPlugins(options)
+      .some((p) => p.id === "acme-github" || p.id === "acme-github-two"),
+    plugins
+      .inspectPlugins(options)
+      .map((p) => p.id)
+      .join(", "),
+  );
   process.env.AVOOZL_GITHUB_TOKEN = ENV_TOKEN;
+  stopServe();
+  await startServe();
   const github = client();
   await withJob("check-in", () => github.issue("acme/api", 1));
   commit(api, "task-4.txt", "four\n");
@@ -622,20 +847,40 @@ fs.writeFileSync(
     job: "land",
   });
   const line = github.credentials.signIns()[0];
+  await settings("GitHub");
+  await callsTab();
+  await shot("5-env");
+  const shown = await text();
   check(
-    "6 Settings shows signed in with env and full access",
-    line?.provider === "env" && line.granted === "all" && line.owners === "all",
-    JSON.stringify(line),
+    "5 Settings shows signed in with env and full access",
+    line?.provider === "env" &&
+      line.granted === "all" &&
+      line.owners === "all" &&
+      shown.includes(`${HOST} · every owner: signed in with env (full access)`),
+    shown
+      .split("\n")
+      .filter((l) => l.includes("signed in"))
+      .join(" | "),
   );
   check(
-    "6 the tick reads and lands with that token",
+    "5 the tick reads and lands with that token",
     log
       .slice(at)
       .filter((e) => e.kind === "git" && e.token !== "none")
       .every((e) => e.token === "env") &&
-      log.some((e) => e.kind === "api" && e.token === "env"),
+      log.some((e) => e.kind === "api" && e.token === "env") &&
+      run(
+        path.join(project, "acme/api.git"),
+        "log",
+        "-1",
+        "--format=%s",
+        "main",
+      ) === "Add task-4.txt",
   );
 }
+
+await browser.close();
+stopServe();
 
 server.close();
 store.close();
