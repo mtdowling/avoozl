@@ -71,6 +71,7 @@ import { fail } from "../store/store.mjs";
 import { planPage } from "../api/views.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+import { taskFile } from "../specs/spec-tasks.mjs";
 
 // Archive or unarchive a plan (plan-archive.mjs): a session may too
 // (R56.4), and either one undoes the other. Delete below is the one-way path.
@@ -506,7 +507,7 @@ export const entries = [
             store,
             {
               boundary: "plan",
-              target: `${plan.spec}/tasks.md`,
+              target: `${plan.spec}/${taskFile(plan.files ?? {})}`,
               text: JSON.stringify(input.proposal, null, 1),
             },
             { mode: "refuse" },

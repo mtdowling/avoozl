@@ -14,6 +14,7 @@ import {
   revisionFiles,
 } from "./spec-plans.mjs";
 import { fail } from "../store/store.mjs";
+import { specTasks, taskFile } from "./spec-tasks.mjs";
 
 const TEMPLATE_FILE = "avoozl-template.json";
 const TEMPLATES_DIRECTORY = "templates";
@@ -210,7 +211,7 @@ function readTemplate(folder, name = path.basename(folder)) {
   );
   if (typeof value.starter !== "string")
     fail(`${where} starter must name a folder.`);
-  // A starter is a spec folder: tasks.md, and any other spec files.
+  // A starter is a spec folder: its task list, and any other spec files.
   const starterDir = inside(folder, value.starter, `${where} starter`),
     starter = {};
   let names;
@@ -219,14 +220,16 @@ function readTemplate(folder, name = path.basename(folder)) {
   } catch {
     fail(`${name}/${value.starter} is missing.`);
   }
-  if (!names.includes("tasks.md"))
-    fail(`${name}/${value.starter}/tasks.md is missing.`);
   if (names.length > MAX_SPEC_FILES)
     fail(`${name}/${value.starter} holds more than ${MAX_SPEC_FILES} files.`);
   for (const file of names)
     starter[file] = readText(
       path.join(starterDir, file),
       `${name}/${value.starter}/${file}`,
+    );
+  if (!specTasks(starter))
+    fail(
+      `${name}/${value.starter} has no tasks.md and no file with a ## Tasks section.`,
     );
   // Every placeholder names an input (R61.3).
   for (const [file, text] of [
@@ -254,7 +257,7 @@ function readTemplate(folder, name = path.basename(folder)) {
     error = lint.diagnostics.find((d) => d.severity === "error");
   if (error)
     fail(
-      `${name}/${value.starter}/${error.file || "tasks.md"} line ${error.lineStart}: ${error.message}`,
+      `${name}/${value.starter}/${error.file || taskFile(files)} line ${error.lineStart}: ${error.message}`,
     );
   if (value.phases !== undefined) {
     if (

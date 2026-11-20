@@ -17,6 +17,7 @@ const read = (file) => fs.readFileSync(root + file, "utf8");
 // The rule number in docs/github-workflow.md that each lint code enforces.
 // A code with no entry is reported as itself, so the case shows it.
 const RULE = {
+  "spec.tasks-twice": "1.2",
   "task.duplicate-id": "2.2",
   "task.repeated-id": "2.2",
   "facts.removed-key": "2.3",

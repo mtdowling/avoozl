@@ -1,0 +1,28 @@
+{
+  "title": "A spec in one file keeps its tasks under ## Tasks",
+  "rules": ["1.2", "3.6", "6.1", "15.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "config": ["acme-alice"],
+    "settings": ["acme-alice"]
+  },
+  "expect": {
+    "ready": ["config/c-2"],
+    "claim": {
+      "branch": "avoozl/config/c-2",
+      "base": "main",
+      "mergeBase": false
+    }
+  },
+  "expectFail": {
+    "ready": "sim-2.5",
+    "claim": "sim-1.1"
+  }
+}

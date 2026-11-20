@@ -6,6 +6,7 @@ import { parseRepository } from "../github/github.mjs";
 import { ruleBranch } from "../github/github-branch-rules.mjs";
 import { fail } from "../store/store.mjs";
 import { specFacts } from "../specs/spec-plans.mjs";
+import { specTasks } from "../specs/spec-tasks.mjs";
 
 const SYNC_SCHEDULES = ["weekly", "daily", "off"];
 const DEFAULT_SYNC = "weekly";
@@ -138,7 +139,7 @@ export function requireIntegrationBranch(check) {
 export function integrationBranchOf(store, plan) {
   try {
     const files = store.get("approvals", plan.approvalId)?.files;
-    return files?.["tasks.md"] === undefined
+    return !files || !specTasks(files)
       ? null
       : (integrationOf(specFacts(files))?.branch ?? null);
   } catch {

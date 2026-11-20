@@ -165,6 +165,7 @@ import { syncWorkspaceRepository } from "../workspace/workspace-repository.mjs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { specTasks, taskFile } from "../specs/spec-tasks.mjs";
 
 // Who an operation's GitHub posts are for (github-posted.mjs), or null when
 // the context does not say and an enclosing operation's actor holds. An
@@ -547,6 +548,7 @@ export class Operations {
         const branch = specsBranch(this.store, this.workspaceRoot, spec.root),
           read = await baseTasks(spec.root, branch, plan.spec, {
             fetched: this.ticksFetched,
+            files: plan.files,
           });
         if (!read?.text) continue;
         const seen = `${read.head}:${plan.approvalId}`;
@@ -555,7 +557,8 @@ export class Operations {
           ...read,
           branch,
           land,
-          commits: () => tickCommits(spec.root, read.head, plan.spec),
+          commits: () =>
+            tickCommits(spec.root, read.head, plan.spec, plan.files),
         });
         this.ticksSeen.set(plan.id, seen);
       } catch {
@@ -1302,7 +1305,13 @@ export class Operations {
     for (const file of revisionFiles(spec.files))
       if (typeof spec.files[file] === "string")
         documents[file] = spec.files[file];
-    return { name: spec.name, folder: spec.folder, hash: spec.hash, documents };
+    return {
+      name: spec.name,
+      folder: spec.folder,
+      hash: spec.hash,
+      documents,
+      tasksFile: taskFile(spec.files),
+    };
   }
   // The plan change a page edit becomes when the page must not write the
   // row: GitHub or a plugin owns it, or its approved plan does. Preview only:
@@ -1341,7 +1350,7 @@ export class Operations {
         change,
       };
     const spec = this.readSpec(plan.spec),
-      tasks = spec.files["tasks.md"] ?? "",
+      tasks = specTasks(spec.files)?.text ?? "",
       lines = tasks.split("\n"),
       item = specItems(plan.spec, tasks).find(
         (entry) =>
@@ -1376,7 +1385,7 @@ export class Operations {
       change,
     };
   }
-  // The receipt of the plan's last approval, whose tasks.md item text the
+  // The receipt of the plan's last approval, whose task item text the
   // current revision must keep for every approved ID.
   approvedSpec(plan) {
     const receipt = plan.approvalId
