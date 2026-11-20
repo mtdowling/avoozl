@@ -10,7 +10,7 @@ import { Store } from "../store/store.mjs";
 import { Operations } from "./operations.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-table.mjs";
-import { workspaceConfig } from "../settings/config.mjs";
+import { readWorkspaceConfig } from "../settings/config.mjs";
 import {
   machineAvoozlPaths,
   WorkspaceRegistry,
@@ -197,10 +197,18 @@ function machineOperation(registry, config, operation, input, home) {
     if (operation === "workspaces.list")
       return {
         defaultWorkspace: registry.config.defaultWorkspace || null,
-        items: registry.list().map((workspace) => ({
-          ...workspace,
-          served: sameDirectory(workspace.root, config.workspaceRoot),
-        })),
+        items: registry.list().map((workspace) => {
+          // A configuration that does not load is the page's banner.
+          const { configError } = readWorkspaceConfig({
+            workspace: workspace.root,
+            env: { ...process.env, AVOOZL_WORKSPACE: workspace.root },
+          });
+          return {
+            ...workspace,
+            served: sameDirectory(workspace.root, config.workspaceRoot),
+            ...(configError ? { configError } : {}),
+          };
+        }),
       };
     if (operation === "workspaces.remove" || operation === "workspaces.stop") {
       const id = String(input.id || "").trim();
@@ -283,7 +291,7 @@ export function commandContext({
     } catch (error) {
       throw badRequest(error.message, 404);
     }
-    const found = workspaceConfig({
+    const found = readWorkspaceConfig({
       workspace: root,
       env: { ...process.env, AVOOZL_WORKSPACE: root },
     });
@@ -292,6 +300,8 @@ export function commandContext({
   };
   // One store and Operations per workspace root, opened on first use.
   const operations = (target) => {
+    // A workspace whose configuration does not load refuses with its error.
+    if (target.configError) throw badRequest(target.configError, 409);
     let entry = opened.get(target.dbPath);
     if (!entry) {
       // A missing database is refused before opening, so a read never

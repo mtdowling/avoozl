@@ -165,6 +165,7 @@ export function createAppMcp({
         };
       if (bound.length === 1) return { entry: bound[0] };
     }
+    if (fallback?.configError) return { error: fallback.configError };
     const launch = existing(fallback);
     if (!launch)
       return {

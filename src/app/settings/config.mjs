@@ -42,11 +42,13 @@ export function operatorName({ configured, workspaceRoot } = {}) {
     } catch {}
   return (name || "").trim().slice(0, 200) || "Local operator";
 }
+// The root a command names with --workspace or AVOOZL_WORKSPACE, else here.
+const rootOf = (options, env) =>
+  path.resolve(options.workspace || env.AVOOZL_WORKSPACE || process.cwd());
+
 export function workspaceConfig(options = {}) {
   const env = options.env || process.env;
-  const workspaceRoot = path.resolve(
-    options.workspace || env.AVOOZL_WORKSPACE || process.cwd(),
-  );
+  const workspaceRoot = rootOf(options, env);
   const loaded = loadLayeredConfig({
       workspaceRoot,
       options,
@@ -81,4 +83,19 @@ export function workspaceConfig(options = {}) {
     port,
     endpoint: "http://127.0.0.1:" + port,
   };
+}
+
+// workspaceConfig, or, when the workspace's configuration does not load, its
+// root and the refusal as `configError`. The app backend and MCP server
+// start with it and refuse that workspace's operations with the same
+// message, so one bad key does not take the page down.
+export function readWorkspaceConfig(options = {}) {
+  try {
+    return workspaceConfig(options);
+  } catch (error) {
+    return {
+      workspaceRoot: rootOf(options, options.env || process.env),
+      configError: error.message,
+    };
+  }
 }
