@@ -290,10 +290,17 @@ SPEC --write`. A start marker with no end marker, or two blocks, is
 
 The role table keeps two rows:
 
-| Role | Runs | Access | Off by default |
+| Role | Runs | Access | On by default |
 | --- | --- | --- | --- |
-| `worker` | one task in its worktree on the claim branch | write | no |
-| `reviewer` | the task's head, read-only; posts a comment-only review | read | yes |
+| `worker` | one task in its worktree on the claim branch | write | yes |
+| `reviewer` | the task's head, read-only, in rounds with the worker until it approves or `reviewRounds` runs out | read | yes; `reviewers: []` turns it off |
+
+The reviewer is a separate session that never saw the worker's reasoning,
+with the adversarial prompt `prompts/reviewer.md`. On `changes-requested` the
+worker gets the findings and fixes or answers each; from the second round the
+reviewer judges each earlier finding against what changed. At `reviewRounds`
+(default 3) the task waits in Needs you with its open findings and does not
+land.
 
 Every other role becomes a skill or is cut:
 

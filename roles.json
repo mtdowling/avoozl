@@ -93,7 +93,7 @@
   {
     "name": "avoozl-reviewer",
     "model": "auto",
-    "description": "Avoozl Reviewer: judges one reported commit for one review focus and reports a verdict with findings.",
+    "description": "Avoozl Reviewer: a separate session that tries to defeat one reported commit and reports a verdict with ranked findings.",
     "tools": [
       "fs_read",
       "grep",

@@ -7,7 +7,13 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { deliveryPolicy, openFindings } from "../delivery/delivery.mjs";
+import {
+  DEFAULT_REVIEWER,
+  deliveryPolicy,
+  openFindings,
+  reviewRoles,
+  reviewRoundsFor,
+} from "../delivery/delivery.mjs";
 import { drainCheckRuns } from "../delivery/check-runs.mjs";
 import { Operations } from "../api/operations.mjs";
 import { Store } from "../store/store.mjs";
@@ -146,6 +152,33 @@ async function writer(
   const commit = await commitIn(worktree, file, text, `Work ${attempt}`);
   await report(env.ops, slot, { taskId, commit });
   return commit;
+}
+
+// One task, one correctness reviewer, and its first round: the writer's
+// commit c1 and a changes-requested verdict with `findings` (default F1).
+async function firstRound(t, delivery = {}, findings = null) {
+  const env = setup(t, {
+    tasks: [leaf("w1")],
+    edges: [],
+    delivery: { reviewers: [REVIEWERS[1]], ...delivery },
+  });
+  await env.tick();
+  const c1 = await writer(env, "w1", "w-1", 1, "src/a.txt", "a1\n");
+  await env.tick();
+  await env.bind("w1", "rr-1", "review:correctness", 1, {
+    model: "fake-c",
+    commit: c1,
+  });
+  await report(env.ops, "rr-1", {
+    taskId: "w1",
+    commit: c1,
+    verdict: "changes-requested",
+    findings: findings ?? [
+      { id: "F1", kind: "defect", paths: ["src/a.txt"], text: "Wrong." },
+    ],
+  });
+  await env.tick();
+  return { env, c1 };
 }
 
 const passed = [{ command: CHECK, exitCode: 0 }];
@@ -375,7 +408,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
   const close = (state) => ({ finding: "1:correctness:F1", state });
   await assert.rejects(
     report(ops, "rr-2", { taskId: "w1", commit: c2, verdict: "approved" }),
-    /Close every open finding as fixed or unchanged: 1:correctness:F1/,
+    /Close every open finding as fixed, unchanged or withdrawn: 1:correctness:F1/,
   );
   await assert.rejects(
     report(ops, "rr-2", {
@@ -512,27 +545,7 @@ test("a writer whose model is unknown opens a decision instead of a review", asy
 test("only a person dismisses an open finding when retrying a stopped delivery", async (t) => {
   // Nearby inputs: a dismissal from a session, a finding that is not open,
   // a missing reason, and the next brief after a dismissal.
-  const env = setup(t, {
-    tasks: [leaf("w1")],
-    edges: [],
-    delivery: { retries: 0, reviewers: [REVIEWERS[1]] },
-  });
-  await env.tick();
-  const c1 = await writer(env, "w1", "w-1", 1, "src/a.txt", "a1\n");
-  await env.tick();
-  await env.bind("w1", "rr-1", "review:correctness", 1, {
-    model: "fake-c",
-    commit: c1,
-  });
-  await report(env.ops, "rr-1", {
-    taskId: "w1",
-    commit: c1,
-    verdict: "changes-requested",
-    findings: [
-      { id: "F1", kind: "defect", paths: ["src/a.txt"], text: "Wrong." },
-    ],
-  });
-  await env.tick();
+  const { env } = await firstRound(t, { reviewRounds: 1 });
   assert.equal(env.store.get("task_deliveries", "w1").state, "decision");
   const dismiss = [{ finding: "1:correctness:F1", reason: "Accepted risk." }];
   await assert.rejects(
@@ -583,5 +596,100 @@ test("only a person dismisses an open finding when retrying a stopped delivery",
     brief,
     /1:correctness:F1/,
     "a dismissed finding is not quoted",
+  );
+});
+
+test("one reviewer runs by default, and reviewers [] turns it off", () => {
+  // Nearby inputs: no reviewers key, an empty workspace list, a repository's
+  // empty list under a workspace default, and reviewRounds bounds.
+  const on = deliveryPolicy({ delivery: {} });
+  assert.deepEqual(reviewRoles(on, "app"), [DEFAULT_REVIEWER]);
+  assert.equal(reviewRoundsFor(on, "app"), 3);
+  assert.deepEqual(
+    reviewRoles(deliveryPolicy({ delivery: { reviewers: [] } }), "app"),
+    [],
+  );
+  const repoOff = deliveryPolicy({
+    delivery: { repositories: { app: { reviewers: [], reviewRounds: 5 } } },
+  });
+  assert.deepEqual(reviewRoles(repoOff, "app"), []);
+  assert.deepEqual(reviewRoles(repoOff, "other"), [DEFAULT_REVIEWER]);
+  assert.equal(reviewRoundsFor(repoOff, "app"), 5);
+  assert.throws(
+    () => deliveryPolicy({ delivery: { reviewRounds: 0 } }),
+    /reviewRounds must be a whole number 1–10/,
+  );
+  assert.throws(
+    () =>
+      deliveryPolicy({
+        delivery: { repositories: { app: { reviewRounds: 11 } } },
+      }),
+    /reviewRounds must be a whole number 1–10/,
+  );
+});
+
+test("review rounds end in a decision at the cap and spend no retries", async (t) => {
+  // Nearby inputs: retries 0 (a review round is not a retry), a worker that
+  // answers a finding, a withdrawn closure, and the cap with open findings.
+  const { env } = await firstRound(t, { retries: 0, reviewRounds: 2 }, [
+    { id: "F1", kind: "defect", paths: ["src/a.txt"], text: "Wrong." },
+    { id: "F2", kind: "defect", paths: ["src/b.txt"], text: "Missing." },
+  ]);
+  let delivery = env.store.get("task_deliveries", "w1");
+  assert.equal(delivery.state, "failed", "round 1 sends it back");
+  assert.equal(delivery.attempts[0].review, "correctness");
+  // Round 2: the worker fixes F1 and answers F2; the reviewer withdraws F2
+  // with no diff on its path, but finds a new defect.
+  const c2 = await writer(env, "w1", "w-2", 2, "src/a.txt", "a2\n");
+  await env.tick();
+  await env.bind("w1", "rr-2", "review:correctness", 2, {
+    model: "fake-c",
+    commit: c2,
+  });
+  await report(env.ops, "rr-2", {
+    taskId: "w1",
+    commit: c2,
+    verdict: "changes-requested",
+    findings: [
+      { id: "F3", kind: "defect", paths: ["src/a.txt"], text: "Still off." },
+    ],
+    closures: [
+      { finding: "1:correctness:F1", state: "fixed" },
+      { finding: "1:correctness:F2", state: "withdrawn", note: "Answered." },
+    ],
+  });
+  await env.tick();
+  delivery = env.store.get("task_deliveries", "w1");
+  assert.equal(delivery.state, "decision", "two rounds reach the cap");
+  assert.equal(
+    delivery.cause,
+    "review requested changes in 2 rounds; open findings: 2:correctness:F3",
+  );
+  assert.deepEqual(
+    openFindings(delivery).map((f) => f.ref),
+    ["2:correctness:F3"],
+  );
+});
+
+test("a later review brief quotes the worker's claim and names the commit last reviewed", async (t) => {
+  const { env, c1 } = await firstRound(t);
+  await env.bind("w1", "w-2", "worker", 2, { model: "fake-a" });
+  const { path: worktree } = await env.ops.execute("worktree.prepare", {
+    taskId: "w1",
+  });
+  const c2 = await commitIn(worktree, "src/a.txt", "a2\n", "Work 2");
+  await report(env.ops, "w-2", {
+    taskId: "w1",
+    commit: c2,
+    text: "Fixed F1; tests pass.",
+  });
+  const review = (await env.tick()).dispatch.find(
+    (d) => d.role === "review:correctness",
+  );
+  assert.match(review.brief, /You last reviewed [0-9a-f]{40}: read `git log/);
+  assert.ok(review.brief.includes(`git log ${c1}..HEAD --stat`));
+  assert.match(
+    review.brief,
+    /The worker's done report, a claim you have not verified[^\n]*\n```text\nFixed F1; tests pass\.\n```/,
   );
 });

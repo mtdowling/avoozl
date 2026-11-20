@@ -4533,6 +4533,27 @@ entry may replace the workspace's list.
 - The checks role is always present, with id `checks`. Avoozl runs it
   itself (Checks in code, below); a verifier chat holds it only for a bar
   that needs judgment.
+- With no `reviewers` key, every repository gets `DEFAULT_REVIEWER` in
+  `delivery.mjs`: id `review`, agent `avoozl-reviewer`, `distinctFrom:
+  session`. `reviewers: []` turns review off, for the workspace or for one
+  repository under `repositories`.
+- `reviewRounds` (default 3, 1–10, workspace or repository) caps the review
+  rounds. Each `changes-requested` verdict fails the writer attempt with
+  `review: <role id>`, which `failuresSince` does not count against
+  `retries`. At the cap the delivery is `decision` with the cause
+  `review requested changes in N rounds; open findings: <refs>`, and the
+  tick sends one decision notice.
+- The worker's rework brief asks it to fix each open defect or answer it in
+  its done report. The next review brief quotes that report as an
+  unverified claim and names the role's last reviewed commit, so the
+  reviewer reads `git log <commit>..HEAD`. A closure may be `withdrawn` when
+  the answer shows a finding was not a defect.
+- `prompts/reviewer.md` is the reviewer's standing prompt: an independent
+  session that ranks every defect, tries to defeat the change through other
+  inputs, entry points and callers, judges whether each test would fail on a
+  revert, reruns checks a report claims without an exit code, attacks a
+  findings file the task names first, labels each finding blocking,
+  important or minor, and leaves style and other designs out.
 
 #### Checks in code
 

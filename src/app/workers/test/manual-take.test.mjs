@@ -44,7 +44,7 @@ function setup(t) {
     checkout = gitCheckout(path.join(root, "app"));
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
-    JSON.stringify({ version: 1, delivery: { retries: 1 } }),
+    JSON.stringify({ version: 1, delivery: { retries: 1, reviewers: [] } }),
   );
   const { dbPath } = workspaceConfig({ workspace: root, env: {} });
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });

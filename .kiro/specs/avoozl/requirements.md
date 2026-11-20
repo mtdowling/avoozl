@@ -665,7 +665,11 @@ reaches the integration branch or a dependent task.
    this machine's lanes (Requirement 6.3). Avoozl SHALL add no separate
    writer limit: every task writes in its own worktree and landing merges
    one head at a time. `lanes.local: 1` gives one writer on the machine.
-2. A repository's delivery policy MAY name review roles. Each role SHALL have
+2. Every repository SHALL get one review role by default: id `review`, agent
+   `avoozl-reviewer`, `distinctFrom: session`, prompt `prompts/reviewer.md`.
+   `reviewers: []` SHALL turn review off for the workspace or, under
+   `delivery.repositories`, for one repository. A repository's delivery
+   policy MAY instead name its own review roles. Each role SHALL have
    a unique `id`, a `focus` (for example "conventions", or "correctness and
    performance"), the agent that runs it, and a `distinctFrom` rule. Two
    roles split the review, so that each reviewer looks hard at one thing
@@ -700,10 +704,16 @@ session` SHALL relax this to a new session only.
    rebased commit as the delivery's new commit and review it again, because
    a rebase can change behavior the reviewers never saw.
 10. WHEN any review returns `changes-requested` THEN that writer attempt
-    SHALL fail and the retry path (Requirement 8) SHALL start a new writer
-    attempt on the same worktree, whose brief quotes the findings as data.
-    Its commit SHALL get new reviews from every role. Earlier attempts and
-    verdicts SHALL be kept as history.
+    SHALL fail as one review round and a new writer attempt SHALL start on
+    the same worktree, whose brief quotes the open findings as data and asks
+    the worker to fix each defect or answer it in its done report. Its
+    commit SHALL get new reviews from every role, and each review brief
+    SHALL quote the worker's done report as an unverified claim and name the
+    commit that role last reviewed. A review round SHALL NOT spend
+    `retries`. WHEN a task reaches `reviewRounds` rounds (default 3, 1–10,
+    set for the workspace or one repository) THEN its delivery SHALL wait
+    for a person's decision naming the open findings and SHALL NOT land.
+    Earlier attempts and verdicts SHALL be kept as history.
 11. A leaf whose repository has review roles SHALL NOT reach `integrated`
     any other way: `task.update` SHALL refuse a typed `integration` receipt
     and a complete status for it, so that no caller skips the reviews.
@@ -723,6 +733,9 @@ session` SHALL relax this to a new session only.
     WHEN classic protection is on but GitHub hides it from a non-admin THEN
     the rule SHALL show as unknown with that reason; only a count GitHub
     showed SHALL apply, and Avoozl SHALL invent none.
+14. A review session SHALL end only through its verdict report. A turn that
+    ends without one SHALL be nudged as a quiet session and SHALL NOT count
+    as approval.
 
 ### Requirement 37: Every finding is closed
 
@@ -741,12 +754,14 @@ between attempts.
    any defect, and SHALL refuse `changes-requested` with no defect, so that
    the verdict and its findings agree.
 3. A review of a later commit SHALL close every finding still open from
-   earlier verdicts of the same role on the same delivery, each as `fixed`
-   or `unchanged`, because a finding nobody answers is a finding lost.
+   earlier verdicts of the same role on the same delivery, each as `fixed`,
+   `unchanged`, or `withdrawn` when the worker's answer shows it was not a
+   defect, because a finding nobody answers is a finding lost.
 4. Avoozl SHALL check each closure against the changed files: `fixed` needs
    at least one of the finding's paths to have changed in the task's own
    diff between the two subject commits; `unchanged` needs none of them to
-   have changed. A closure that fails the check SHALL be refused.
+   have changed; `withdrawn` is the reviewer's own word and needs no check.
+   A closure that fails the check SHALL be refused.
 5. An `observation` closed either way SHALL be closed. A `defect` closed as
    `unchanged` SHALL stay open, so `approved` stays refused while it does.
 6. Only a person SHALL dismiss an open finding, when retrying a delivery

@@ -95,6 +95,40 @@ Implementation, integration, and acceptance are separate steps, and each keeps
 its own record. Avoozl never replaces a worker only because its activity went
 quiet. It checks the durable session and delivery records first.
 
+### Review
+
+Every task gets a reviewer before it lands. The reviewer is a separate session
+that never saw the worker's reasoning. It reads the task's diff with its
+callers and tests, tries to defeat the change, reruns the checks it relies on,
+and reports `approved` or `changes-requested` with ranked findings. Its prompt
+is `prompts/reviewer.md`.
+
+```json
+{
+  "delivery": {
+    "reviewRounds": 3,
+    "repositories": {
+      "docs-site": {
+        "reviewers": []
+      }
+    }
+  }
+}
+```
+
+On `changes-requested` the worker gets the findings. It fixes each defect or
+answers it in its done report, and the reviewer then judges each finding
+against the new commit: `fixed`, `unchanged`, or `withdrawn` when the answer
+shows it was not a defect. After `reviewRounds` rounds (default 3) with a
+defect still open, the task waits in **Needs you** with the open findings and
+does not land. A review round spends no `retries`.
+
+A reviewer turn that ends without a verdict is nudged and never counts as
+approval. `reviewers: []` turns review off for the workspace or, under
+`repositories`, for one repository. A `reviewers` list replaces the default
+reviewer with review roles of your own, each with an `id`, `focus`, `agent`
+and `distinctFrom` rule.
+
 ### Taking a task by hand
 
 `avoozl take TASK` holds one task for you while the tick runs the rest. It

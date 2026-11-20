@@ -230,7 +230,8 @@ runner needs, so that every other agent step is a skill any harness can run.
 #### Acceptance criteria
 
 1. The role table SHALL hold two roles: `worker` and `reviewer`. The reviewer
-   SHALL be optional per repository and off by default.
+   SHALL be on by default, and a repository SHALL turn it off with
+   `reviewers: []`.
 2. Avoozl SHALL ship these skills: `avoozl-spec` (write a spec), `avoozl-work`
    (work a task), `avoozl-review` (review a pull request), `avoozl-spec-review`
    (review a spec), `avoozl-retro` (a retrospective over landed work) and
