@@ -102,7 +102,9 @@ function boundednessDiagnostics(task, repositoryId, repositories) {
   // Every leaf runs its repository's checks; tasks never name them. Only a
   // registered repository's are known here.
   const known = Boolean(repositoryId) && repositories.has(repositoryId),
-    checks = repositoryChecks(repositories.get(repositoryId));
+    // A verifier chat stands in for missing repository checks; plugin
+    // checks never do.
+    checks = repositoryChecks(repositories.get(repositoryId), []);
   // A repository with no checks is judged by a verifier chat instead.
   if (!checks.length && known)
     found.push(

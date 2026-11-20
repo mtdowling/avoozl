@@ -38,9 +38,13 @@ export async function mergePath(
   github,
   repository,
   settings,
-  { branch: asked = null } = {},
+  { branch: asked = null, local = [] } = {},
 ) {
-  const named = settings?.requiredChecks || [],
+  // A name an approved plugin check provides here is checked locally and
+  // needs no GitHub branch rule (plugin-checks PK6.5).
+  const named = (settings?.requiredChecks || []).filter(
+      (name) => !local.includes(name),
+    ),
     value = shipOf(settings);
   const method = mergeMethod(settings);
   let allowed = false,

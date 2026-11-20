@@ -104,6 +104,9 @@ async function requiredChecks(github, target, base, declared) {
 //   target, base  the target repository, "owner/name", and its base branch
 //   login       Avoozl's own login on GitHub
 //   checks      check names required in addition to the repository's rules
+//   local       {names, result(name, commit)}: required names an approved
+//               plugin check on this machine provides, read from its local
+//               result and never from GitHub (plugin-checks D8)
 //   method      merge method (default "merge")
 //   intent(spec, entries) -> {journal, input, options} as in directSteps
 //   store       the workspace, whose content rules check every push
@@ -116,6 +119,7 @@ export function pullSteps({
   base,
   login,
   checks: declared = [],
+  local = { names: [], result: () => ({ conclusion: "pending" }) },
   method = "merge",
   intent,
   env,
@@ -170,15 +174,28 @@ export function pullSteps({
   // Every required check at `candidate`: its result, whether it is still
   // pending, and whether it failed.
   const headChecks = async (candidate, branch) => {
-    const required = await requiredChecks(github, target, branch, declared);
+    const required = await requiredChecks(github, target, branch, [
+      ...declared,
+      ...local.names,
+    ]);
     if (!required.length) return { required, results: [] };
     const [runs, status] = await Promise.all([
       github.checkRuns(target, candidate),
       github.commitStatus(target, candidate),
     ]);
-    return {
-      required,
-      results: required.map((name) => {
+    const results = required.map((name) => {
+        // A plugin check's result is this machine's, on this exact head;
+        // a GitHub check of the same name does not count.
+        if (local.names.includes(name)) {
+          const own = local.result(name, candidate);
+          return {
+            command: name,
+            conclusion: own.conclusion,
+            pending: own.conclusion === "pending",
+            local: true,
+            ...(own.firstError ? { firstError: own.firstError } : {}),
+          };
+        }
         const run = runs.find((r) => r.name === name),
           state = status.statuses.find((s) => s.context === name);
         if (run)
@@ -203,6 +220,16 @@ export function pullSteps({
           };
         return { command: name, conclusion: "missing", pending: true };
       }),
+      // A required name nothing here provides, with every other check
+      // done: no machine here can run it (PK6.4). It waits.
+      settled = results.every((r) => !r.pending || r.conclusion === "missing");
+    return {
+      required,
+      results: results.map((r) =>
+        r.conclusion === "missing" && settled && declared.includes(r.command)
+          ? { ...r, conclusion: "unprovided" }
+          : r,
+      ),
     };
   };
   const passing = (r) =>

@@ -2102,10 +2102,18 @@ export function verdictCause(
 function runRecord(task, repository, run) {
   const held = pathOutcome(run);
   if (held) return { ...held, checks: run.checks };
-  // The run's own selection: the checks its diff picked.
+  // The run's own selection: the checks its diff picked, plugin checks
+  // (plugin-checks D3) included by the name the run recorded.
   const all = declaredChecks(task, repository),
     expected = Array.isArray(run.selected)
-      ? all.filter((check) => run.selected.includes(check.name))
+      ? run.selected.map(
+          (name) =>
+            all.find((check) => check.name === name) ?? {
+              name,
+              argv: [name],
+              paths: null,
+            },
+        )
       : all,
     verdict = verdictCause(
       task,

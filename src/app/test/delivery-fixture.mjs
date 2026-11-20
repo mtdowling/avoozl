@@ -57,6 +57,9 @@ export function deliveryWorkspace(
     repository = {},
     files = {},
     config = { version: 1, lanes: { local: 4 }, delivery: { retries: 1 } },
+    // More Operations options (a plugin settings file, for one), or a
+    // function of the workspace root giving them.
+    operations = {},
   },
 ) {
   const root = temporaryDirectory(prefix),
@@ -79,7 +82,10 @@ export function deliveryWorkspace(
     root,
     checkout,
     store,
-    ops: new Operations(store, { workspaceRoot: root }),
+    ops: new Operations(store, {
+      workspaceRoot: root,
+      ...(typeof operations === "function" ? operations(root) : operations),
+    }),
   };
 }
 
@@ -96,11 +102,21 @@ export async function bind(ops, taskId, slot, role, attempt) {
   });
 }
 
-// A worker attempt that commits in the task's worktree and reports done.
-export async function workerDone(ops, taskId, slot, attempt = 1) {
+// A worker attempt that commits `files` (path -> text) in the task's
+// worktree and reports done. Returns the commit.
+export async function workerDone(
+  ops,
+  taskId,
+  slot,
+  attempt = 1,
+  files = { [`${taskId}-${attempt}.txt`]: "work\n" },
+) {
   await bind(ops, taskId, slot, "worker", attempt);
   const { path: worktree } = await ops.execute("worktree.prepare", { taskId });
-  fs.writeFileSync(path.join(worktree, `${taskId}-${attempt}.txt`), "work\n");
+  for (const [file, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(worktree, file)), { recursive: true });
+    fs.writeFileSync(path.join(worktree, file), text);
+  }
   git(worktree, "add", ".");
   git(worktree, "commit", "-m", `Work ${taskId} ${attempt}`);
   const commit = git(worktree, "rev-parse", "HEAD");

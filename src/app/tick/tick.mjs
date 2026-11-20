@@ -90,6 +90,8 @@ import {
   withSource,
 } from "../github/github-rate.mjs";
 import { taskSummaryDispatches } from "../tasks/task-summary.mjs";
+import { decideStep } from "../plugins/check-decide.mjs";
+import { queuePhaseChecks } from "../plugins/check-stages.mjs";
 import { summaryLine } from "../tasks/title-repeat.mjs";
 import {
   validateRoles,
@@ -1028,13 +1030,17 @@ async function runTick(
       // Command-only bars are checked by Avoozl itself, off this path: the
       // cron queues each run here and the app backend runs the queue
       // (check-runs.mjs). A spec driven elsewhere queues nothing.
-      if (script && delivery)
+      if (script && delivery) {
         queueCheckRuns(
           store,
           planCheckRuns(store, delivery).filter(
             (run) => !readOnly.has(run.task.planId),
           ),
         );
+        // A landed phase's plugin checks (plugin-checks D7), queued the
+        // same way; they hold no task.
+        queuePhaseChecks(store);
+      }
       // Timing (§4.11): queued, attempt starts, verifier and review
       // sessions, and merge. Always on; writes only what changed.
       syncSpans(store);
@@ -1057,6 +1063,8 @@ async function runTick(
             ? [
                 ...reviewDispatches(store, { config: roleConfig }),
                 ...taskSummaryDispatches(store, { config: roleConfig }),
+                // Plugin checks' decide calls (plugin-checks D5).
+                ...decideStep(store, { config: roleConfig }).dispatch,
               ]
             : [];
       // Read each spec's plan issue again right before its dispatches; a

@@ -47,6 +47,8 @@ import {
   checkCommand,
   repositoryChecks,
 } from "../workspace/repository-checks.mjs";
+import { pluginChecksOf } from "../plugins/plugin-checks.mjs";
+import { taskPluginChecks } from "../plugins/check-stages.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
@@ -1150,13 +1152,19 @@ export function taskDetailView(
       summary: ownSummary(detail) ?? "",
       acceptance: detail.acceptance || [],
       // The repository's checks, which every task runs.
+      // A plugin check shows by name, plugin and stage only (PK6.2).
       checks: repositoryChecks(
         store.get("repositories", taskRepository(detail) || ""),
+        pluginChecksOf(store),
       ).map((check) =>
-        check.name === checkCommand(check)
-          ? check.name
-          : `${check.name}: ${checkCommand(check)}${check.paths ? ` (for ${check.paths.join(", ")})` : ""}`,
+        check.source === "plugin"
+          ? `${check.name} (plugin ${check.plugin.id}, ${check.stage} stage)`
+          : check.name === checkCommand(check)
+            ? check.name
+            : `${check.name}: ${checkCommand(check)}${check.paths ? ` (for ${check.paths.join(", ")})` : ""}`,
       ),
+      // Its plugin checks' results and decide answers (plugin-checks PK8).
+      pluginChecks: taskPluginChecks(store, id),
       // Its plan's epic and its phase inside the plan (Requirement 59).
       epic: taskEpic(data, detail),
       epicTitle: epicOfPlan(data, detail.planId)?.title ?? null,

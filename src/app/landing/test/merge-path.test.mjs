@@ -141,3 +141,21 @@ test("GitHub failing to answer leaves the items not ok and says why", async () =
     "merge-method",
   ]);
 });
+
+test("pk-1.5: a required name a plugin check provides here needs no branch rule; a CI name still does", async () => {
+  const both = settings({ requiredChecks: ["build", "parity"] }),
+    asked = await mergePath(fake({ required: [] }), REPO, both, {
+      local: ["parity"],
+    });
+  const check = asked.items.find((item) => item.id === "required-check");
+  assert.equal(check.ok, false);
+  assert.match(check.detail, /does not require build\./);
+  assert.doesNotMatch(check.detail, /parity/);
+  const ruled = await mergePath(fake({ required: ["build"] }), REPO, both, {
+    local: ["parity"],
+  });
+  assert.equal(
+    ruled.items.find((item) => item.id === "required-check").ok,
+    true,
+  );
+});

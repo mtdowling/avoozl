@@ -28,6 +28,9 @@ import {
   landIntent,
 } from "../workers/driver-generations.mjs";
 import { runCheckAt } from "../flow/flow-line.mjs";
+import { runChecksAt } from "../delivery/check-runs.mjs";
+import { runPluginCheck } from "../plugins/plugin-check-run.mjs";
+import { pluginOptionsOf } from "../plugins/plugin-checks.mjs";
 import { enqueueLanding } from "./landing-queue.mjs";
 import { privacyScan, verifiedEvidence } from "../workers/working-heads.mjs";
 import { mergeBaseBack } from "../specs/spec-base.mjs";
@@ -280,8 +283,36 @@ export function directSteps({
   strangerChecks = null,
   run = runCheckAt,
   scan = privacyScan,
+  // The workspace, for plugin checks' cache and decide records.
+  store = null,
 }) {
   if (!checks.length) fail("Direct landing needs at least one check.", 400);
+  const own = { id: repositoryId, root, checksEnv, isolation },
+    pluginAt = async (check, candidate, baseHead, fresh) => {
+      const { checks: [result] = [] } = await runChecksAt(
+        own,
+        candidate,
+        [check],
+        {
+          timeoutFor: (_name, _command, seconds) => (seconds ?? 1200) * 1000,
+          plugin: (entry, dir, timeoutMs) =>
+            runPluginCheck(entry, {
+              store,
+              repository: own,
+              root,
+              dir,
+              commit: candidate,
+              base: baseHead,
+              repo: repository.startsWith("local/") ? repositoryId : repository,
+              timeoutMs,
+              fresh,
+              pluginOptions: store ? pluginOptionsOf(store) : null,
+            }),
+        },
+      );
+      const { tail, ...rest } = result;
+      return { ...rest, ...(result.exitCode !== 0 && tail ? { tail } : {}) };
+    };
   // A bare argv list is a check named by its command, with no paths.
   checks = checks.map((check) =>
     Array.isArray(check)
@@ -370,6 +401,12 @@ export function directSteps({
       const out = [];
       for (const check of checks) {
         if (!wanted(check.name) || !checkApplies(check, files)) continue;
+        // A task-stage plugin check runs on the candidate too (PK4.1); a
+        // rerun or bisect step runs it fresh, past the cache (PK5.4).
+        if (check.source === "plugin") {
+          out.push(await pluginAt(check, candidate, baseHead, Boolean(only)));
+          continue;
+        }
         const result = await run(
           {
             id: repositoryId,

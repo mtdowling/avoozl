@@ -370,7 +370,13 @@ export interface ConflictItem extends TaskOwner {
     | 'triage-blocked'
     | 'stranger'
     | 'box-preflight'
+    | 'phase-check'
+    | 'required-check'
+    | 'plugin-check-clash'
   choices?: string[]
+  // A failed phase plugin check (plugin-checks D7): the proposed fix, whose
+  // text holds the check's output as untrusted data, and the run it is for.
+  phaseFix?: { run: string; plan: string; phase: string; repository: string; text: string }
   // A forward item (RC24.9): the mirror change the Forward screen shows.
   forwardId?: string
   // A branch-landing item (RC16.6): the branch and the head a person may approve.

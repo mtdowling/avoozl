@@ -44,6 +44,14 @@ import { landingMetrics } from "./landing-trailers.mjs";
 import { fail } from "../store/store.mjs";
 import { landingSpecOf, specRevision } from "../intake/fix.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
+import { pluginChecksOf } from "../plugins/plugin-checks.mjs";
+
+// The checks a merge batch candidate runs: the repository's and its
+// task-stage plugin checks (plugin-checks PK4.1).
+const landingChecks = (store, repository) =>
+  repositoryChecks(repository, pluginChecksOf(store)).filter(
+    (check) => check.stage === "task",
+  );
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
 
 const ERRORS = "directLandingErrors";
@@ -58,7 +66,7 @@ export function queueDirect(store, { delivery, repository, task, at }) {
       `Take over ${planId ?? "the spec"} before it lands: avoozl spec takeover ${planId ?? "SPEC"}.`,
       409,
     );
-  if (!repositoryChecks(repository).length)
+  if (!landingChecks(store, repository).length)
     fail(
       `Repository ${repository.id} has no checks to land directly with.`,
       409,
@@ -144,7 +152,8 @@ export async function landDirect(
           // A journal reference names owner/name; a remote that is not on
           // GitHub (a bare folder) is named by its repository.
           repository: repository.github || `local/${repository.id}`,
-          checks: repositoryChecks(repository),
+          checks: landingChecks(store, repository),
+          store,
           checksEnv: repository.checksEnv,
           repositoryId: repository.id,
           isolation: repository.isolation,

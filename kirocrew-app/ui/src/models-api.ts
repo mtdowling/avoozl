@@ -15,6 +15,7 @@ export const ROLES = [
   { key: 'planner', label: 'Planner', line: 'Drafts specs from a GitHub planning label.', agent: false, model: true },
   { key: 'planReviewer', label: 'Plan reviewer', line: 'Reviews draft specs on a different model. Auto skips review until a model is picked.', agent: false, model: true },
   { key: 'retro', label: 'Retro', line: 'Finds the slowest step and proposes one change.', agent: false, model: true },
+  { key: 'checkDecide', label: 'Check decide', line: 'Answers whether a plugin check is needed for a task. Auto uses the planner’s model.', agent: false, model: true },
   // These pick only a harness and run on its agent's own model.
   { key: 'verifier', label: 'Verifier', line: 'Checks each commit and reports a verdict.', agent: false, model: false },
   { key: 'reviewer', label: 'Reviewers', line: 'Each review role a spec adds reads the commit and reports a verdict.', agent: false, model: false },
@@ -39,6 +40,7 @@ export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = {
   planner: 'write',
   planReviewer: 'read',
   retro: 'read',
+  checkDecide: 'read',
   verifier: 'read',
   reviewer: 'read',
   responder: 'read',

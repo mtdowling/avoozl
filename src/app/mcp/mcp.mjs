@@ -74,6 +74,10 @@ export const NARROW_TOOLS = {
     "triage.submit",
     "Narrow tool for the triage chat. Send your one triage result for the issue or pull request your session is bound to: {class: question|bug|optimization|feature|pull-request|unclear, reason, labels?, duplicateOf?, answer?: {body, citations: [path]}, question?, reproduction?: {path, text}, fix?: {bounded, why}, review?: {body, comments: [{path, line, side?, body}], partial, notCovered}, toOwner?: {reason}}. Avoozl checks it, runs the reproduction itself and makes every GitHub write after its content rules. It never closes, approves or requests changes.",
   ],
+  plans_submit_decide: [
+    "check.decide.submit",
+    "Narrow tool for the decide chat. Send your one answer for the plugin check your session is bound to: {needed: true|false, reason}, reason one line of at most 300 characters. Any other shape counts as needed. It changes nothing else.",
+  ],
   plans_next: [
     "runner.next",
     "Narrow tool for the avoozl skill. Every local leaf in one list: ready, running, waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries), and done. The tick starts ready work. Reads only.",

@@ -1,0 +1,67 @@
+{
+  "id": "acme-checks",
+  "version": "1.4.0",
+  "contract": 1,
+  "provides": ["checks"],
+  "servers": {
+    "review": {
+      "about": "The acme review service, which compares API behavior"
+    }
+  },
+  "checks": {
+    "parity": {
+      "repos": ["acme/*"],
+      "paths": ["src/api/**", "schema/**"],
+      "run": [
+        "bin/parity.mjs",
+        "--repo",
+        "{repo}",
+        "--from",
+        "{base}",
+        "--to",
+        "{commit}"
+      ],
+      "env": ["PARITY_TOKEN"],
+      "network": true,
+      "timeout": 1800,
+      "decide": "prompts/parity.md",
+      "decideAt": ["approve", "diff"],
+      "stage": "phase"
+    },
+    "license-scan": {
+      "repos": ["acme/web-*"],
+      "run": ["bin/license-scan.sh"]
+    },
+    "parity-review": {
+      "repos": ["acme/*"],
+      "paths": ["src/api/**"],
+      "timeout": 3600,
+      "stage": "branch",
+      "mcp": {
+        "server": "review",
+        "start": {
+          "tool": "create_review",
+          "args": {
+            "repo": "{repo}",
+            "from": "{base}",
+            "to": "{commit}",
+            "diff": "{diff_path}",
+            "question": "{file:ask.md}"
+          },
+          "id": "$.review.id"
+        },
+        "poll": {
+          "tool": "get_review",
+          "args": { "id": "{id}" },
+          "everySeconds": 60,
+          "until": { "path": "$.state", "in": ["done", "error"] }
+        },
+        "result": {
+          "path": "$.verdict",
+          "pass": ["same"],
+          "text": "$.summary"
+        }
+      }
+    }
+  }
+}

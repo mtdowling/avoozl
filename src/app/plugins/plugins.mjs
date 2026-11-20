@@ -28,6 +28,8 @@ import {
   validateGitSource,
 } from "./plugin-git.mjs";
 import { pluginSession } from "./plugin-session.mjs";
+import { jsonLines } from "./child-io.mjs";
+import { mappingHash, validateChecksPart } from "./plugin-checks.mjs";
 import { fail } from "../store/store.mjs";
 import { readTemplates } from "../specs/templates.mjs";
 
@@ -47,6 +49,8 @@ export const CAPABILITIES = {
 // own entry, in a child apart from the plugin's other code.
 // `policy` is data only as well: a limit this machine holds Avoozl to, so
 // far only `{"triage": "blocked", "reason": "..."}` (triage-agent TA12).
+// `checks` are check definitions and their files (plugin-checks D1): they
+// run as checks, never as a plugin child.
 export const PARTS = [
   "pack",
   "rules",
@@ -54,6 +58,7 @@ export const PARTS = [
   "template",
   "policy",
   "credentials",
+  "checks",
 ];
 // Parts Avoozl no longer reads. A plugin may still list them, so its other
 // parts keep working; they do nothing. Lessons packs went with the lessons
@@ -114,6 +119,10 @@ export function readPluginSettings(file) {
     approvals: record(value.approvals) ? value.approvals : {},
     disabled: Array.isArray(value.disabled) ? value.disabled : [],
     pins: record(value.pins) ? value.pins : {},
+    // Each checks plugin's server aliases mapped to local MCP server
+    // commands (plugin-checks PK10.2), and plugins marked broken (PK7.5).
+    ...(record(value.mcp) ? { mcp: value.mcp } : {}),
+    ...(record(value.broken) ? { broken: value.broken } : {}),
     // This machine's intake sources (design §4.12), kept through plugin edits.
     ...(record(value.intake) ? { intake: value.intake } : {}),
     // Which credentials plugin serves a host where two claim one owner
@@ -144,6 +153,9 @@ export const SECRET_VALUE = [
   /\bxox[baprs]-[A-Za-z0-9-]{10,}/,
   /\bsk-[A-Za-z0-9_-]{20,}/,
 ];
+// Whether a string looks like a credential value.
+export const credentialValue = (text) =>
+  SECRET_VALUE.some((pattern) => pattern.test(String(text)));
 const snake = (key) =>
   key
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
@@ -326,7 +338,9 @@ function pluginLocation({ entry, source }, options, pin = null) {
   );
 }
 
-export function validateManifest(manifest, entry) {
+// `folder`, when known, is where the manifest's files are: a checks part
+// is checked against it (plugin-checks PK1.5).
+export function validateManifest(manifest, entry, folder = null) {
   if (!record(manifest)) fail(`${PLUGIN_MANIFEST} must be an object.`);
   if (manifest.id !== entry.id)
     fail(
@@ -402,6 +416,17 @@ export function validateManifest(manifest, entry) {
   if (provides.includes("policy")) checkPolicy(manifest.policy);
   else if (manifest.policy !== undefined)
     fail(`${PLUGIN_MANIFEST} policy goes with provides policy.`);
+  if (
+    provides.includes("checks") ||
+    manifest.checks !== undefined ||
+    manifest.servers !== undefined
+  ) {
+    if (!provides.includes("checks"))
+      fail(
+        `${PLUGIN_MANIFEST} has checks or servers, so provides must list checks.`,
+      );
+    if (folder) validateChecksPart(manifest, folder);
+  }
   // A pack or a template runs no code (R55.3, R61.1): a plugin of data
   // parts only has no entry. A credentials part names its own entry.
   if (!kinds.some((kind) => kind !== "credentials")) {
@@ -568,7 +593,7 @@ export function inspectPlugin(declared, options, settings) {
   let pack = null,
     templates = null;
   try {
-    validateManifest(manifest, entry);
+    validateManifest(manifest, entry, location);
     hash = contentHash(location);
     if (pluginParts(manifest).provides.includes("pack"))
       pack = readPack(location, manifest.pack ?? PACK_FILE);
@@ -622,12 +647,15 @@ export function inspectPlugin(declared, options, settings) {
     };
   if (settings.disabled.includes(entry.id))
     return { ...shown, state: "disabled", reason: "Disabled in Settings." };
-  const approval = settings.approvals[entry.id];
+  const approval = settings.approvals[entry.id],
+    broken = settings.broken?.[entry.id];
   if (!approval)
     return {
       ...shown,
       state: "unapproved",
-      reason: "Not approved on this machine.",
+      reason: broken
+        ? `Marked broken: ${broken.reason} Approve it again to run it.`
+        : "Not approved on this machine.",
     };
   if (pin && approval.commit !== pin.commit)
     return {
@@ -642,6 +670,19 @@ export function inspectPlugin(declared, options, settings) {
       state: "changed",
       approval,
       reason: `Approved version ${approval.version} (${approval.hash.slice(0, 12)}) differs from ${manifest.version} (${hash.slice(0, 12)}); approve it again.`,
+    };
+  // A checks plugin's approval binds this machine's server mappings too
+  // (plugin-checks PK10.3).
+  if (
+    manifest.servers &&
+    (approval.mcpHash ?? null) !== mappingHash(settings.mcp?.[entry.id])
+  )
+    return {
+      ...shown,
+      state: "changed",
+      approval,
+      reason:
+        "This machine's MCP server mapping changed since the approval; approve it again.",
     };
   return { ...shown, state: "approved", approval, reason: null };
 }
@@ -706,7 +747,7 @@ export async function previewPlugin(options, input = {}) {
   let pack = null,
     templates = null;
   try {
-    validateManifest(manifest, { id: manifest?.id });
+    validateManifest(manifest, { id: manifest?.id }, location);
     if (pluginParts(manifest).provides.includes("pack"))
       pack = readPack(location, manifest.pack ?? PACK_FILE);
     if (pluginParts(manifest).provides.includes("template"))
@@ -938,16 +979,10 @@ export class PluginProcess {
     this.child.on("error", (error) =>
       this.fail(`could not start: ${error.message}`),
     );
-    let buffer = "";
-    this.child.stdout.on("data", (chunk) => {
-      buffer += chunk;
-      if (buffer.length > MAX_LINE) return this.stop("sent a reply over 1 MB.");
-      let at;
-      while ((at = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, at);
-        buffer = buffer.slice(at + 1);
-        this.receive(line);
-      }
+    jsonLines(this.child.stdout, {
+      maxLine: MAX_LINE,
+      onLine: (line) => this.receive(line),
+      onOverflow: () => this.stop("sent a reply over 1 MB."),
     });
   }
   receive(line) {
@@ -1130,9 +1165,13 @@ export function approvePlugin(
     kinds: plugin.kinds,
     ...(plugin.credentials ? { credentials: plugin.credentials } : {}),
     location: plugin.location,
+    ...(plugin.manifest?.servers
+      ? { mcpHash: mappingHash(settings.mcp?.[id]) }
+      : {}),
     approvedAt: new Date().toISOString(),
     ...(approvedBy ? { approvedBy } : {}),
   };
+  if (settings.broken) delete settings.broken[id];
   writePluginSettings(options.settingsFile, settings);
   return inspectPlugins(options).find((p) => p.id === id);
 }
@@ -1253,6 +1292,7 @@ async function pinGit(options, { entry, source }) {
     validateManifest(
       JSON.parse(fs.readFileSync(path.join(folder, PLUGIN_MANIFEST), "utf8")),
       entry,
+      folder,
     );
   } catch (error) {
     fail(`Commit ${commit.slice(0, 12)}: ${error.message}`, 409);

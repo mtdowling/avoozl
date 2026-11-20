@@ -6,6 +6,7 @@
 // role's saved harness, then the repository's executor.
 import { harnessExecutor, roleHarness } from "../settings/chat-models.mjs";
 import { TRIAGE_OUTPUT_LIMIT, triageOutput } from "../intake/triage-result.mjs";
+import { decideOutput } from "../plugins/decide-output.mjs";
 
 // The executor a repository's sessions run on: its `executor` setting, else
 // `kirocrew` (R93.5; a repository opts in, as the Nupp compiler's does).
@@ -292,6 +293,31 @@ export const ROLE_TABLE = Object.freeze({
     finish: () => [
       "You run without Avoozl's tools or network. Read README.md in the current folder first: the item is in item/, a pull request's diff in pull-request/, and the repository's files in repo/. Do not run gh or any command.",
       'Write your one result to .avoozl/output/triage.json as the JSON object your instructions describe, then write .avoozl/result.json as {"state": "done", "output": "triage.json"}. Cite repository files by their path under repo/, without the repo/ prefix.',
+      "Write no other file, then exit.",
+    ],
+  },
+  // A plugin check's decide call (plugin-checks D5): the check author's
+  // prompt and the task text or diff in a snapshot, read only and offline;
+  // its one answer is a 1 KB output file.
+  checkDecide: {
+    setting: "checkDecide",
+    roles: ["check-decide"],
+    prompt: "check-decide",
+    process: true,
+    access: "read",
+    folder: "snapshot",
+    scratch: "avoozl-decide-",
+    offline: true,
+    snapshot: async (store, request) =>
+      (await import("../plugins/check-decide.mjs")).decideSnapshot(
+        store,
+        request,
+      ),
+    hands: "decide",
+    output: { limit: 1024, validate: decideOutput },
+    finish: () => [
+      "You run without Avoozl's tools or network. Read README.md and prompt.md in the current folder, then the input file. Do not run any command.",
+      'Write your answer to .avoozl/output/decide.json as {"needed": true | false, "reason": "<one line, at most 300 characters>"}, then write .avoozl/result.json as {"state": "done", "output": "decide.json"}.',
       "Write no other file, then exit.",
     ],
   },

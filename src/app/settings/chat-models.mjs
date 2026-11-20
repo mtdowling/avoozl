@@ -4,7 +4,14 @@
 // stays unset and skips review. Avoozl moves no running chat to another one.
 import { fail } from "../store/store.mjs";
 
-export const MODEL_ROLES = Object.freeze(["planner", "planReviewer", "retro"]);
+// `checkDecide` is a plugin check's decide call (plugin-checks D5); unset,
+// it runs on the planner's model.
+export const MODEL_ROLES = Object.freeze([
+  "planner",
+  "planReviewer",
+  "retro",
+  "checkDecide",
+]);
 // The dispatch role each saved role names (tick.mjs).
 export const DISPATCH_ROLE = Object.freeze({
   planner: "planner",

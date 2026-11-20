@@ -30,6 +30,8 @@ import {
   withdrawLanding,
 } from "./landing-queue.mjs";
 import { pullSteps } from "./landing-pulls.mjs";
+import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
+import { localRequired } from "../plugins/check-stages.mjs";
 import {
   reopenAttempt,
   roundFinish,
@@ -349,12 +351,20 @@ export async function landPullRequests(
         githubLogin = authority.journal.local
           ? String((await personOf(github, repository.github)) ?? "")
           : authority.login,
+        required =
+          readGitHubPolicyOrNull(workspaceRoot)?.repositories?.[
+            repository.github
+          ]?.requiredChecks ?? [],
         steps = pullSteps({
           github,
           registry,
           root: repository.root,
           target: repository.github,
           base,
+          // requiredChecks, and those an approved plugin check provides
+          // read locally (plugin-checks D8).
+          checks: required,
+          local: localRequired(store, repository, required),
           login: githubLogin,
           method: "merge",
           env,

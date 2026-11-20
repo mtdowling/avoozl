@@ -340,11 +340,12 @@ async function headResults(store, repository, head, run, known) {
   const out = new Map();
   if (!known) {
     if (integratedHead(store, repository, head))
-      for (const check of repositoryChecks(repository))
+      // Plugin checks judge changes in check runs, never the line.
+      for (const check of repositoryChecks(repository, []))
         out.set(check.name, { exitCode: 0, tail: "" });
     return out;
   }
-  for (const check of repositoryChecks(repository))
+  for (const check of repositoryChecks(repository, []))
     out.set(check.name, await run(repository, head, check.argv));
   return out;
 }
@@ -358,7 +359,7 @@ export async function watchLine(
   const notify = [],
     policy = flowPolicy(config || {});
   for (const repository of store.list("repositories")) {
-    if (!repository.root || !repositoryChecks(repository).length) continue;
+    if (!repository.root || !repositoryChecks(repository, []).length) continue;
     // Its checks run in scratch worktrees: a full volume skips this watch.
     try {
       requireDiskSpace(
@@ -396,7 +397,7 @@ export async function watchLine(
     const results = await headResults(store, repository, head, run, known),
       green = { ...state.green },
       scope = policy.for(repository.id).stopTheLine.scope;
-    for (const { name, argv } of repositoryChecks(repository)) {
+    for (const { name, argv } of repositoryChecks(repository, [])) {
       const result = results.get(name),
         open = openStops(store).find(
           (s) => s.repositoryId === repository.id && s.check === name,
@@ -537,7 +538,7 @@ export async function judgeBaseFailures(
       failingName = failing ? checkKey(failing) : null,
       argv =
         failing &&
-        repositoryChecks(repository).find(
+        repositoryChecks(repository, []).find(
           (check) =>
             check.name === failingName ||
             checkCommand(check) === failing.command,

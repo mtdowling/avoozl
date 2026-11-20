@@ -195,6 +195,8 @@ const HOME_READS = new Set([
   'triage.view',
   'radar.releasequeue',
   'integration.view',
+  // Phase and branch plugin check results beside the branches.
+  'plugin.checks.stages',
   'landing.view',
 ])
 

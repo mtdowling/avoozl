@@ -232,7 +232,7 @@ export const notRunChecks = (checks, why) =>
 export async function runEach(
   dir,
   checks,
-  { timeoutFor, run = commandEvidence, env, repository } = {},
+  { timeoutFor, run = commandEvidence, env, repository, plugin } = {},
 ) {
   const out = [],
     notRunAll = (why) => notRunChecks(checks, why.slice(0, 300));
@@ -251,30 +251,57 @@ export async function runEach(
     ? checkOptions(repository, dir).isolate
     : undefined;
   for (const check of checks) {
+    // A plugin check runs through `plugin(check, dir, timeoutMs)`
+    // (plugin-check-run.mjs): its own command, environment, network and
+    // listener watch (plugin-checks D4).
+    if (check?.source === "plugin") {
+      out.push(
+        plugin
+          ? await plugin(
+              check,
+              dir,
+              timeoutFor(check.name, check.name, check.timeoutSeconds),
+            )
+          : {
+              name: check.name,
+              command: `plugin ${check.plugin.id}`,
+              exitCode: null,
+              notRun: "plugin checks run only in Avoozl's check runs",
+            },
+      );
+      continue;
+    }
     const argv = Array.isArray(check) ? check : check.argv,
       command = argv.join(" "),
       name = Array.isArray(check) ? command : check.name,
       timeoutMs = timeoutFor(name, command),
       started = Date.now(),
-      result = await run(dir, argv, { timeoutMs, env, isolate }),
-      elapsed = Date.now() - started,
-      tail = outputTail(
-        (result.stdout || "") + "\n" + (result.stderr || ""),
-        dir,
-      );
+      result = await run(dir, argv, { timeoutMs, env, isolate });
     out.push({
       name,
       command,
-      ...recordIsolation(result),
-      exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
-      ...(Number.isInteger(result.exitCode)
-        ? {}
-        : { notRun: notRunCause(result, elapsed, timeoutMs) }),
-      durationMs: elapsed,
-      ...(tail ? { tail } : {}),
+      ...checkResult(result, Date.now() - started, timeoutMs, dir),
     });
   }
   return out;
+}
+
+// One finished command as a check result: the isolation it ran under, its
+// exit code or why it did not run, its time and its redacted tail.
+export function checkResult(result, elapsed, timeoutMs, dir) {
+  const tail = outputTail(
+    (result.stdout || "") + "\n" + (result.stderr || ""),
+    dir,
+  );
+  return {
+    ...recordIsolation(result),
+    exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
+    ...(Number.isInteger(result.exitCode)
+      ? {}
+      : { notRun: notRunCause(result, elapsed, timeoutMs) }),
+    durationMs: elapsed,
+    ...(tail ? { tail } : {}),
+  };
 }
 
 // The task worktree, when checks may run warm in it: it is at `commit` and

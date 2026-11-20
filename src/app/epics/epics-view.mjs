@@ -3,6 +3,7 @@
 // specs that are not on GitHub yet. Read only. The Release queue rows carry each held reason; this file only groups.
 import { statusComplete } from "../../model.mjs";
 import { crossPlanEpics } from "./epics.mjs";
+import { stageResults } from "../plugins/check-stages.mjs";
 
 const phaseOf = (task) => task.phase?.id ?? "";
 
@@ -57,6 +58,7 @@ function whyUnprojected(plan, tasks) {
 export function epicsView(store, queue) {
   const data = store.read(),
     epicsOf = crossPlanEpics(data),
+    stages = stageResults(store),
     plans = new Map(store.list("plans").map((plan) => [plan.id, plan])),
     rows = queue.repositories.flatMap((entry) => entry.rows),
     tasksOf = (planId) => data.tasks.filter((task) => task.planId === planId),
@@ -67,7 +69,11 @@ export function epicsView(store, queue) {
       id: planId,
       title: plans.get(planId)?.title ?? planId,
       state: plans.get(planId)?.state ?? "approved",
-      phases: phasesOf(data, rows, tasksOf(planId)),
+      // Each phase's plugin checks on this machine (plugin-checks D10).
+      phases: phasesOf(data, rows, tasksOf(planId)).map((phase) => ({
+        ...phase,
+        pluginChecks: stages.phases[`${planId}:${phase.id}`] ?? null,
+      })),
     }),
     // A spec on GitHub with no epic is its own group.
     groups = [

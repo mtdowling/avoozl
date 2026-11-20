@@ -105,6 +105,8 @@ import {
   updateGitPlugin,
 } from "../plugins/plugins.mjs";
 import { mergePath } from "../landing/merge-path.mjs";
+import { pluginChecksView } from "../plugins/plugin-checks.mjs";
+import { localRequired, taskPluginChecks } from "../plugins/check-stages.mjs";
 import { RepoFiles } from "../git/repo-files.mjs";
 import { RepositorySettings } from "../settings/repository-settings.mjs";
 import { bindRetroMemory } from "../flow/retro-memory.mjs";
@@ -409,6 +411,17 @@ export class Operations {
               }
             : {}),
           health: health.get(p.id) ?? null,
+          // A checks plugin's checks, prompts and servers (plugin-checks
+          // PK7.2), shown before approval too.
+          ...(manifest?.checks
+            ? {
+                checks: pluginChecksView(
+                  this.store,
+                  { ...p, manifest },
+                  options,
+                ),
+              }
+            : {}),
         }));
       return {
         supportedContracts: SUPPORTED_CONTRACTS,
@@ -1924,6 +1937,8 @@ export class Operations {
         .map((id) => data.documents[id])
         .filter(Boolean),
       evidenceRecords,
+      // Its plugin checks and decide answers (plugin-checks PK8.2).
+      pluginChecks: taskPluginChecks(this.store, id),
       executionLocation: {
         branch: task.activity?.branch || task.integration?.branch || null,
         worktree: task.activity?.worktree || null,
@@ -2046,7 +2061,19 @@ export class Operations {
     return Promise.all(
       Object.entries(policy.repositories || {})
         .filter(([id]) => id === only)
-        .map(([id, entry]) => mergePath(this.github, id, entry)),
+        .map(([id, entry]) => {
+          // A required name an approved plugin check provides needs no
+          // branch rule (plugin-checks PK6.5).
+          const repository = this.store
+            .list("repositories")
+            .find((r) => r.github === id);
+          return mergePath(this.github, id, entry, {
+            local: repository
+              ? localRequired(this.store, repository, entry.requiredChecks)
+                  .names
+              : [],
+          });
+        }),
     );
   }
   async reconcilePlanningPullRequests() {

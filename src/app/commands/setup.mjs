@@ -666,11 +666,16 @@ export const commands = [
         "plugins pack-import ID --preview HASH [--github OWNER/REPO] [--accept-lowered] [--confirm-public]",
         "Import the exact preview",
       ),
+      help(
+        "setup",
+        "plugins map ID ALIAS --command JSON [--env NAME]... | --remove",
+        "Map a checks plugin's MCP server alias to a local stdio server command; the plugin needs approving again",
+      ),
     ],
     async run({ options, positionals, localOrRequest, need }) {
       // Settings' plugin actions at the command line (design §4.8). Approval
       // names the hash `plugins list` showed, so a person approves what they saw.
-      const [action = "list", id] = positionals,
+      const [action = "list", id, alias] = positionals,
         calls = {
           list: () => ["plugins.list", {}],
           approve: () => [
@@ -709,6 +714,21 @@ export const commands = [
               confirmPublic: Boolean(options["confirm-public"]),
             },
           ],
+          // A checks plugin's server alias on this machine (plugin-checks
+          // PK10.2): an argv list, and the variable names it may read.
+          map: () => [
+            "plugin.map",
+            {
+              id,
+              alias,
+              ...(options.remove
+                ? { remove: true }
+                : {
+                    command: JSON.parse(options.command ?? "null"),
+                    ...(options.env ? { env: [options.env].flat() } : {}),
+                  }),
+            },
+          ],
           add: () => [
             "plugin.add",
             {
@@ -730,7 +750,7 @@ export const commands = [
         };
       if (!calls[action])
         throw Error(
-          "Choose plugins list, add, update, approve, disable, enable, remove, pack-preview, or pack-import.",
+          "Choose plugins list, add, update, approve, disable, enable, remove, map, pack-preview, or pack-import.",
         );
       if (action !== "list") need(id, `plugins ${action} ID ...`);
       console.log(

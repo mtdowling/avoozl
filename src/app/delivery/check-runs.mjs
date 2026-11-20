@@ -13,7 +13,14 @@ import { withStrangerChecks } from "../intake/stranger-input.mjs";
 import os from "node:os";
 import path from "node:path";
 import { commandEvidence, git, withWorkLock } from "../git/git.mjs";
-import { selectedChecks } from "../workspace/repository-checks.mjs";
+import {
+  checkApplies,
+  repositoryChecks,
+  selectedChecks,
+} from "../workspace/repository-checks.mjs";
+import { pluginChecksOf, pluginOptionsOf } from "../plugins/plugin-checks.mjs";
+import { runPluginCheck } from "../plugins/plugin-check-run.mjs";
+import { decideAnswer, decideNow } from "../plugins/check-decide.mjs";
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
 import { openStops, putSpan, readFlowPolicy } from "../flow/flow.mjs";
 import { contentBinding } from "../content/content-rules.mjs";
@@ -84,7 +91,12 @@ export async function runChecksAt(
   repository,
   commit,
   checks,
-  { timeoutMs = CHECK_TIMEOUT_MS, timeoutFor, run = commandEvidence } = {},
+  {
+    timeoutMs = CHECK_TIMEOUT_MS,
+    timeoutFor,
+    run = commandEvidence,
+    plugin,
+  } = {},
 ) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-checks-")),
     notRunAll = (why) => notRunChecks(checks, why);
@@ -113,6 +125,7 @@ export async function runChecksAt(
       run,
       env: repository.checksEnv,
       repository,
+      plugin,
     });
     return { head, checks: results };
   } finally {
@@ -186,15 +199,23 @@ async function drainRepository(store, repositoryId, options) {
       store,
       { id: `checks:${repositoryId}`, repositoryId, kind: "checks" },
       async () => {
+        const skip = new Set();
         for (;;) {
           if (openStops(store).some((s) => s.full)) return;
           const next = checkRuns(store)
             .filter(
-              (r) => r.state === "queued" && r.repositoryId === repositoryId,
+              (r) =>
+                r.state === "queued" &&
+                r.repositoryId === repositoryId &&
+                !skip.has(r.id),
             )
             .sort((a, b) => (a.queuedAt < b.queuedAt ? -1 : 1))[0];
           if (!next) return;
-          if ((await runOne(store, repository, next, options))?.held) return;
+          const ran = await runOne(store, repository, next, options);
+          if (ran?.held) return;
+          // A run waiting on its decide answers stays queued; the others
+          // go on.
+          if (ran?.deciding) skip.add(next.id);
         }
       },
     );
@@ -204,15 +225,82 @@ async function drainRepository(store, repositoryId, options) {
   }
 }
 
+// What a phase or branch run checks (plugin-checks D7): the commit, the
+// base its `{base}` and diff name, and the changed files between them. A
+// commit the checkout lacks is fetched first.
+async function stageRange(repository, record) {
+  const scope = record.scope,
+    root = repository.root;
+  if (scope.kind === "branch")
+    await git(root, [
+      "fetch",
+      "--quiet",
+      "origin",
+      `+refs/heads/${scope.branch}:refs/avoozl/heads/${scope.branch}`,
+    ]).catch(() => {});
+  const base =
+      scope.kind === "phase"
+        ? await git(root, ["rev-parse", `${scope.first}^1`])
+        : await git(root, [
+            "merge-base",
+            record.commit,
+            repository.baseBranch || "main",
+          ]),
+    files = (
+      await git(root, [
+        "diff",
+        "--name-only",
+        "--no-renames",
+        "-z",
+        base,
+        record.commit,
+      ])
+    )
+      .split("\0")
+      .filter(Boolean);
+  return { base, files };
+}
+
+// The decide answer a phase or branch check takes from its tasks: needed
+// when any task's answer was, pending while any is, else skipped. A task
+// with no answer at all counts as needed.
+function stageAnswer(store, check, taskIds) {
+  const answers = taskIds.map((id) =>
+    decideAnswer(
+      store,
+      id,
+      check,
+      store.get("task_deliveries", id)?.commit ?? null,
+    ),
+  );
+  if (answers.some((a) => a.state === "needed" || a.state === "none"))
+    return { state: "needed" };
+  if (answers.some((a) => a.state === "pending")) return { state: "pending" };
+  return { state: "skip", reason: answers.find((a) => a.reason)?.reason };
+}
+
 async function runOne(store, repository, record, options) {
-  const task = store.read().tasks.find((t) => t.id === record.taskId),
-    startedAt = new Date().toISOString();
+  const scope = record.scope?.kind ?? "task",
+    task =
+      scope === "task"
+        ? store.read().tasks.find((t) => t.id === record.taskId)
+        : null,
+    startedAt = new Date().toISOString(),
+    plugins = options.plugins ?? pluginChecksOf(store);
   // A stranger's task runs its checks under the stranger rule (VM6.4).
   repository = withStrangerChecks(store, repository, task);
   // A run that will make a worktree waits, queued, while its volume is full.
-  if (!(await warmWorktree(store, record.taskId, record.commit)))
+  const warmAt =
+    scope === "task"
+      ? await warmWorktree(store, record.taskId, record.commit)
+      : null;
+  if (!warmAt)
     try {
-      requireDiskSpace(store, os.tmpdir(), `The check run of ${record.taskId}`);
+      requireDiskSpace(
+        store,
+        os.tmpdir(),
+        `The check run of ${record.taskId ?? record.id}`,
+      );
     } catch (error) {
       if (!error.lowDisk) throw error;
       store.transaction(() =>
@@ -220,20 +308,16 @@ async function runOne(store, repository, record, options) {
       );
       return { held: true };
     }
-  store.transaction(() =>
-    store.put("flow_records", {
-      ...record,
-      waiting: undefined,
-      state: "running",
-      pid: process.pid,
-      startedAt,
-    }),
-  );
   const flow = readFlowPolicy(contentBinding(store)?.workspaceRoot).for(
       repository.id,
     ),
-    timeoutFor = (name, command) =>
-      checkTimeout(name, flow, options.timeoutMs, command),
+    timeoutFor = (name, command, ownSeconds) =>
+      checkTimeout(
+        name,
+        flow,
+        ownSeconds ? ownSeconds * 1000 : options.timeoutMs,
+        command,
+      ),
     verdict = task
       ? await verifyPaths(store, {
           task,
@@ -242,12 +326,107 @@ async function runOne(store, repository, record, options) {
           flow,
         }).catch(() => null)
       : null,
-    { files = null, ...paths } = verdict ?? {},
-    argvs = task ? declaredArgv(task, repository, files) : [],
-    held = Boolean(paths.outside?.length || paths.protected?.length),
-    warm = held
-      ? null
-      : await warmWorktree(store, record.taskId, record.commit),
+    range =
+      scope === "task"
+        ? { base: verdict?.base ?? null, files: verdict?.files ?? null }
+        : await stageRange(repository, record).catch(() => ({
+            base: null,
+            files: null,
+          })),
+    { files: _files, ...paths } = verdict ?? {},
+    files = range.files,
+    stage = scope,
+    // This stage's checks for the change, then the plugin checks its
+    // paths leave out (shown as skipped: paths).
+    all = repositoryChecks(repository, plugins).filter(
+      (check) =>
+        check.stage === stage &&
+        (scope === "task" || check.source === "plugin"),
+    ),
+    skipped = all
+      .filter(
+        (check) => check.source === "plugin" && !checkApplies(check, files),
+      )
+      .map((check) => ({
+        name: check.name,
+        plugin: check.plugin.id,
+        filter: "paths",
+      })),
+    picked = all.filter((check) => checkApplies(check, files)),
+    deciding = [],
+    diff = () =>
+      git(repository.root, ["diff", range.base, record.commit]).catch(() => ""),
+    argvs = [];
+  // The decide answers (PK3, D5). A task's run also asks the diff calls
+  // its phase and branch checks will read.
+  if (task)
+    for (const check of repositoryChecks(repository, plugins))
+      if (check.decide && check.stage !== "task" && checkApplies(check, files))
+        await decideNow(store, { task, check, commit: record.commit, diff });
+  for (const check of picked) {
+    if (!check.decide) {
+      argvs.push(check);
+      continue;
+    }
+    const answer = task
+      ? await decideNow(store, { task, check, commit: record.commit, diff })
+      : stageAnswer(store, check, record.scope?.tasks ?? []);
+    if (answer.state === "pending") deciding.push(check.name);
+    else if (answer.state === "skip")
+      skipped.push({
+        name: check.name,
+        plugin: check.plugin.id,
+        filter: "decide",
+        ...(answer.reason ? { reason: answer.reason } : {}),
+      });
+    else argvs.push(check);
+  }
+  // One record holds every check of the commit: it waits, queued, while
+  // any check is Deciding (D5).
+  if (deciding.length) {
+    store.transaction(() =>
+      store.put("flow_records", {
+        ...store.get("flow_records", record.id),
+        waiting: `deciding: ${deciding.join(", ")}`,
+      }),
+    );
+    return { deciding: true };
+  }
+  store.transaction(() =>
+    store.put("flow_records", {
+      ...store.get("flow_records", record.id),
+      waiting: undefined,
+      state: "running",
+      pid: process.pid,
+      startedAt,
+    }),
+  );
+  const held = Boolean(paths.outside?.length || paths.protected?.length),
+    warm = held || scope !== "task" ? null : warmAt,
+    pluginOptions = pluginOptionsOf(store),
+    plugin = (check, dir, timeoutMs) =>
+      runPluginCheck(check, {
+        store,
+        repository,
+        root: repository.root,
+        dir,
+        commit: record.commit,
+        base: range.base,
+        repo: repository.github || repository.id,
+        timeoutMs,
+        fresh: record.fresh === true,
+        pluginOptions,
+        mcpId: store.get("flow_records", record.id)?.mcpIds?.[check.name],
+        onMcpId: (id) =>
+          store.transaction(() => {
+            const now = store.get("flow_records", record.id);
+            store.put("flow_records", {
+              ...now,
+              mcpIds: { ...(now.mcpIds ?? {}), [check.name]: id },
+            });
+          }),
+        ...(options.mcp ?? {}),
+      }),
     { head, checks } = held
       ? { head: record.commit, checks: [] }
       : warm
@@ -258,11 +437,13 @@ async function runOne(store, repository, record, options) {
               run: options.run,
               env: repository.checksEnv,
               repository,
+              plugin,
             }),
           }
         : await runChecksAt(repository, record.commit, argvs, {
             timeoutFor,
             run: options.run,
+            plugin,
           }),
     endedAt = new Date().toISOString();
   store.transaction(() =>
@@ -274,11 +455,13 @@ async function runOne(store, repository, record, options) {
       checks,
       // The checks this commit's diff picked, by name (R7.1).
       selected: argvs.map((check) => check.name),
+      ...(skipped.length ? { skipped } : {}),
       ...(verdict ? { paths } : {}),
       ...(warm ? { warm: true } : {}),
       endedAt,
     }),
   );
+  if (!task) return;
   // Flow timing: Avoozl's own check time is the `checks` stage (§4.11).
   putSpan(store, {
     id: `events:${record.taskId}:${record.attempt}:checks:${startedAt}`,

@@ -418,3 +418,76 @@ test("an open pull request from a same-org fork is found by its head repository"
   assert.equal(result.entry.pr, 7);
   assert.equal("head" in lists[0], false);
 });
+
+// plugin-checks pk-1.5 (D8, PK6.3, PK6.4): a required name a plugin check
+// provides is read from this machine's result on the exact head, never
+// from GitHub; a name nothing here runs waits with one Needs you row.
+test("pk-1.5: a required plugin check waits for its local result on the exact head, and a GitHub check of its name does not count", async (t) => {
+  const results = new Map(),
+    github = fakeGithub({
+      reviews: [approval("r1")],
+      runs: [
+        { name: "build", status: "completed", conclusion: "success" },
+        // A GitHub check that happens to share the name.
+        { name: "parity", status: "completed", conclusion: "success" },
+      ],
+    }),
+    x = await setup(t, github, {
+      checks: ["parity"],
+      local: {
+        names: ["parity"],
+        result: (name, commit) =>
+          results.get(`${name}@${commit}`) ?? { conclusion: "pending" },
+      },
+    });
+  const waiting = await landNext(x.store, Q, x.steps);
+  assert.equal(waiting.state, "waiting");
+  assert.equal(github.calls.merged.length, 0);
+  assert.deepEqual(
+    landingQueue(x.store, Q)[0].waiting.checks.map((c) => [
+      c.command,
+      c.conclusion,
+    ]),
+    [
+      ["build", "success"],
+      ["parity", "pending"],
+    ],
+  );
+  // A pass on another head does not count either.
+  results.set(`parity@${"d".repeat(40)}`, { conclusion: "success" });
+  assert.equal((await landNext(x.store, Q, x.steps)).state, "waiting");
+  results.set(`parity@${COMMIT}`, { conclusion: "success" });
+  const landed = await landNext(x.store, Q, x.steps);
+  assert.equal(landed.state, "landed");
+  // The pull request body names tasks only: nothing of the plugin.
+  const body = github.calls.created[0].input.body;
+  assert.doesNotMatch(body, /parity|bin\/|prompt/);
+});
+
+test("pk-1.5: a required name no plugin here provides and GitHub lacks waits as unprovided, with one Needs you row", async (t) => {
+  const { requiredCheckNeedsYou } = await import(
+    "../../plugins/check-stages.mjs"
+  );
+  const github = fakeGithub({ reviews: [approval("r1")] }),
+    x = await setup(t, github, { checks: ["parity"] });
+  assert.equal((await landNext(x.store, Q, x.steps)).state, "waiting");
+  assert.deepEqual(
+    landingQueue(x.store, Q)[0].waiting.checks.map((c) => [
+      c.command,
+      c.conclusion,
+    ]),
+    [
+      ["build", "success"],
+      ["parity", "unprovided"],
+    ],
+  );
+  const rows = requiredCheckNeedsYou(x.store);
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].title, /No machine here runs check `parity`/);
+  assert.equal((await landNext(x.store, Q, x.steps)).state, "waiting");
+  assert.deepEqual(
+    requiredCheckNeedsYou(x.store).map((r) => r.id),
+    rows.map((r) => r.id),
+    "a second tick opens no second row",
+  );
+});

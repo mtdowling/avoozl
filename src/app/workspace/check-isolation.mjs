@@ -491,7 +491,9 @@ export function checkCacheDirectory(repositoryId, stateDirectory) {
 // stranger rule for the task's checks (strangerRule, stranger-input.mjs):
 // "container" forces a container with the network off, "hold" refuses, and
 // "host" runs under `run`; all three get empty cache folders of their own and
-// no `writable` (VM6.4, VM6.6, VM6.10).
+// no `writable` (VM6.4, VM6.6, VM6.10). A plugin check passes its own
+// `network` (true or false, never the repository's) and `readable` folders
+// (its plugin folder, read-only) (plugin-checks D4).
 export function isolatedCheck(
   repository,
   dir,
@@ -502,9 +504,16 @@ export function isolatedCheck(
     pick = pickRuntime,
     paths: machine = machineAvoozlPaths(),
     stranger = null,
+    network,
+    readable: extra = [],
   } = {},
 ) {
-  const setting = isolationOf(repository),
+  const base = isolationOf(repository),
+    setting = {
+      ...base,
+      network: network === undefined ? base.network : network ? "on" : "off",
+      readable: [...(base.readable ?? []), ...extra],
+    },
     configDirectory = machine.configDirectory;
   if (stranger?.mode === "hold")
     return {

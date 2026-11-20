@@ -12,6 +12,7 @@ import { ruleBranch } from "../github/github-branch-rules.mjs";
 import { openStops } from "../flow/flow.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import { statusComplete } from "../../model.mjs";
+import { branchChecks, stageResults } from "../plugins/check-stages.mjs";
 import { fail } from "../store/store.mjs";
 
 const META = "integrationHeads";
@@ -108,12 +109,24 @@ export async function headStep(
         throw Error("the branch head could not be read");
       const settings = policy?.repositories?.[target.repository],
         base = await ruleBranch(github, target.repository, settings),
-        [checks, compare] = await Promise.all([
+        [remote, compare] = await Promise.all([
           checksOf(github, target.repository, head),
           github.compareCommits(target.repository, target.branch, base),
         ]),
-        checkState = headState(checks, settings?.requiredChecks || []),
         own = data.tasks.filter((task) => task.planId === plan.id),
+        // The head's branch-stage plugin checks, run here and never posted
+        // (plugin-checks D7, D8): pending until their run finishes.
+        checks = [
+          ...remote,
+          ...branchChecks(store, {
+            github: target.repository,
+            branch: target.branch,
+            head,
+            tasks: own.map((task) => task.id),
+            now,
+          }),
+        ],
+        checkState = headState(checks, settings?.requiredChecks || []),
         merged = own.filter((task) => statusComplete(data, task.status)).length;
       // Acceptance names the head it covers. A task merge never sets it.
       let acceptance = before?.acceptance ?? null;
@@ -158,7 +171,8 @@ const accepted = (entry) => entry?.acceptance?.head === entry?.head;
 
 // One row per epic with a branch, for Trace, In flight and Progress.
 export function integrationView(store) {
-  const { entries, landing } = read(store);
+  const { entries, landing } = read(store),
+    stages = stageResults(store);
   return {
     branches: Object.entries(entries).map(([key, entry]) => {
       const [repository, branch] = [
@@ -180,6 +194,8 @@ export function integrationView(store) {
         landing: landing[key] ?? null,
         error: entry.error ?? null,
         readAt: entry.readAt ?? null,
+        // Its branch-stage plugin checks on this machine (plugin-checks D10).
+        pluginChecks: stages.branches[key] ?? null,
       };
     }),
   };

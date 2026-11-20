@@ -1,8 +1,9 @@
 # Repository checks and isolation
 
 A repository's checks are the commands Avoozl runs on the exact commit of every
-task before it lands. They are the only checks there are: every task runs them,
-and a task never names its own.
+task before it lands. They are the only checks a repository holds: every task
+runs them, and a task never names its own. Checks may also come from a plugin
+this machine approved; see the [Checks part](plugins.md#checks-part).
 
 ```json [.avoozl.json]
 {
@@ -34,6 +35,7 @@ point Avoozl at a repository you do not trust, public ones included.
 | `scripts/worktree` in the repository | Every time Avoozl adds a worktree             | A person approves its SHA-256 hash first. The refusal prints the hash; set `worktreeHelper` on the repository to that hash. A changed file asks again. |
 | The repository's `checks`            | On worker commits and on commits Avoozl lands | They are in the repository settings a person edits. Checks never see the gateway, push or GitHub credentials.                                          |
 | A local-folder plugin                | When the tick uses it                         | A person approves its hash. Avoozl hashes it again just before it starts and refuses if it changed.                                                    |
+| A plugin check                       | On the repositories and stage it names        | A person approves its plugin. It sees only its own `env` names, its network is off unless it says `network: true`, and it may not listen. |
 
 ## Check environment
 
@@ -108,6 +110,8 @@ naming the folder and its free space. The row clears once there is room. The
 
 ## See also
 
+- [Checks part](plugins.md#checks-part) for checks a plugin ships, which every
+  machine with the plugin runs on the repositories it names
 - [Person-only operations](person-only.md) for the sandbox around unattended
   sessions
 - [Delivery](delivery.md) for registering a repository and its checks

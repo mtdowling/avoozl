@@ -627,6 +627,26 @@ export async function finishProcessSession(ops, binding, result, store = null) {
       asSession(),
     );
   }
+  // A decide call's answer; a blocked or bad one counts as needed.
+  if (hands === "decide") {
+    if (result.state !== "done") {
+      if (store) {
+        const { failDecide } = await import("../plugins/check-decide.mjs");
+        failDecide(
+          store,
+          binding.taskId,
+          result.text || "the call was blocked",
+        );
+      }
+      return null;
+    }
+    return ops.execute(
+      "check.decide.submit",
+      result.outputValue,
+      undefined,
+      asSession(),
+    );
+  }
   if (hands === "summary")
     return result.state === "done"
       ? ops.execute(

@@ -5,6 +5,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
+import type { PluginChecksPart } from './plugin-checks-api.ts'
 
 export type PluginState = 'invalid' | 'missing' | 'unsupported' | 'disabled' | 'unapproved' | 'changed' | 'approved'
 
@@ -37,6 +38,8 @@ export interface PluginRow {
   credentials?: { hosts: string[]; owners: string[] | null }
   approval?: { version: string; hash: string; commit?: string; approvedAt: string }
   health: PluginHealth | null
+  // A checks part: its checks, prompts and servers (plugin-checks PK7.2).
+  checks?: PluginChecksPart
 }
 
 export interface PluginList {
@@ -150,6 +153,7 @@ export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
   intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
   policy: { title: 'Machine policy', line: 'A limit this machine holds Avoozl to, such as no triage agent. Runs no code.' },
   credentials: { title: 'GitHub sign-in', line: 'Hands Avoozl short-lived GitHub tokens, one per job, from a process of its own.' },
+  checks: { title: 'Checks', line: 'Checks Avoozl runs on the repositories they name, kept on this machine. Results never go to GitHub.' },
   // Still listed by older plugins; Avoozl reads nothing from it (RC30.4).
   lessons: { title: 'Lessons pack (removed)', line: 'Avoozl no longer reads lessons packs. Remove lessons from provides.' },
 }

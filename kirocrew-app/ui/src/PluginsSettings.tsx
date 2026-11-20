@@ -8,6 +8,7 @@ import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
 import Badge from './ui/Badge.tsx'
 import { CONTRACT_LABEL, canApprove, capabilityLine, runsAs, PLUGIN_PARTS, partsOf, pluginsClient, signInClaims, signInClashes, stateLabel, type PluginRow } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
+import { PluginChecksFacts } from './PluginChecks.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
 import { PackImportDialog } from './PackImport.tsx'
@@ -125,6 +126,7 @@ function PluginCard(props: {
         </div>
       ) : null}
       <Parts row={row} />
+      {row.checks && row.id ? <PluginChecksFacts plugin={row.id} part={row.checks} busy={busy} act={act} workspaceId={workspaceId} /> : null}
       <Facts row={row} />
       {props.notes.length > 0 && (
         <Stack gap={2} data-plugin-notes>

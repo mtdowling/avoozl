@@ -366,6 +366,10 @@ const tools = {
         "what importing a plugin's settings pack would change",
       ],
       templates: ["template.list", "workflow templates of approved plugins"],
+      check_stages: [
+        "plugin.checks.stages",
+        "the phase and branch plugin check results on this machine",
+      ],
       template_preview: [
         "template.preview",
         "one template filled with inputs: {plugin, template, inputs}",

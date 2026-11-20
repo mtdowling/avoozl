@@ -20,6 +20,7 @@ import { nameFor } from './instance-api.ts'
 import { setupCards } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import IntegrationBranches from './IntegrationBranches.tsx'
+import StageChecks from './PluginChecks.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLink, ShowMore, SmallBtn, TaskTitleLink, useAskChat, usePages } from './ui/controls.tsx'
 import { useRefreshCountdown } from './RefreshButton.tsx'
@@ -825,6 +826,7 @@ export default function DashboardView(props: {
         </HomeSection>
       </HomePair>
       <IntegrationBranches workspaceId={workspaceId} />
+      <StageChecks workspaceId={workspaceId} />
     </section>
   )
 }

@@ -26,6 +26,8 @@ const ROLES = new Set([
   "falsifier",
   // One issue or pull request's triage run (triage.mjs).
   "triage",
+  // One plugin check's decide call (check-decide.mjs).
+  "check-decide",
 ]);
 // A review role's session (§5.2): `review:<role id>`, so each role numbers its
 // own attempts.
@@ -148,6 +150,9 @@ export function bindSession(
           store.get("receipts", named)?.kind === "assist-session") ||
         // A triage session binds to its run (triage.mjs).
         (role === "triage" && store.get("triage_runs", named)) ||
+        // A decide session binds to its call (check-decide.mjs).
+        (role === "check-decide" &&
+          store.get("flow_records", named)?.kind === "check-decide") ||
         // New plan's planner binds to its pending request (new-plan.mjs).
         (role === "planner" && newPlanRequested(store, named))
           ? named

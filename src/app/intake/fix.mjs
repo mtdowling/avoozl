@@ -156,6 +156,17 @@ export async function startFix(store, input = {}, context = {}) {
     by: input.by || "person",
     ...(pulled ? { pull: pulled.pull } : {}),
   });
+  // A plugin check's phase fix (plugin-checks D7): placed in that phase so
+  // the phase's checks run again once it lands. It stays out of the plan's
+  // journal: it lands as a fix.
+  const phase =
+    input.plan && input.phase
+      ? {
+          plan: String(input.plan),
+          phase: String(input.phase),
+          title: String(input.phaseTitle ?? input.phase).slice(0, 200),
+        }
+      : null;
   let id = null;
   store.mutate("Start a fix", (data) => {
     ensureInbox(data);
@@ -186,6 +197,12 @@ export async function startFix(store, input = {}, context = {}) {
         reason: "Started as a fix by a person.",
       },
       needsReview: false,
+      ...(phase
+        ? {
+            phase: { id: phase.phase, title: phase.title },
+            fixFor: { plan: phase.plan, phase: phase.phase },
+          }
+        : {}),
       createdAt: now,
       updatedAt: now,
     });

@@ -28,6 +28,7 @@ lists the parts the plugin provides:
 | `template` | A workflow template that starts a new spec from a reusable folder | No        |
 | `policy`   | A limit this machine holds Avoozl to, such as no triage agent     | No        |
 | `credentials` | GitHub tokens, per job, from the organization's own provider | Yes, in its own process |
+| `checks`   | Checks Avoozl runs on the repositories they name                  | As checks |
 
 Avoozl's own worker paths deliver every task, and each task's record is local.
 A plugin cannot add a delivery route or a task tracker, and Avoozl refuses a
@@ -50,14 +51,17 @@ These keys appear in the manifest:
   interface this plugin was built for. It is not the plugin's own version.
   Settings shows it as **Contract version**. This Avoozl supports contract
   version `1`.
-- `provides` lists the parts: `pack`, `rules`, `intake`, `template` and
-  `policy`.
+- `provides` lists the parts: `pack`, `rules`, `intake`, `template`,
+  `policy`, `credentials` and `checks`.
+- `checks` maps a check name to its definition, and `servers` names the MCP
+  servers its MCP steps use. See [Checks part](#checks-part).
 - `capabilities` lists optional features per kind. An intake part may list
   `actor`. Rules list none.
 - `pack` names the pack file inside the folder; it defaults to
   `avoozl-pack.json`.
 - `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides
-  only data parts (`pack`, `template`, `policy`) runs no code, so it has no
+  only data parts (`pack`, `template`, `policy`) or `checks` starts no plugin
+  process, so it has no
   `entry`; Avoozl refuses one that names an entry, and never starts a
   process for it.
 
@@ -526,6 +530,202 @@ The helper refuses to answer when the markers Avoozl sets for agent sessions
 are present. For a Kiro Crew chat this is a speed bump, not a sandbox: the
 process sandbox, which keeps `plugins.json`, plugin folders and `gh`'s
 config out of reach, is the barrier.
+
+## Checks part
+
+A `checks` part ships checks that every machine with the plugin runs on
+certain repositories, such as a parity check against an outside review
+service. Nothing of the plugin is written to those repositories: not its
+scripts, its prompts, its paths or its name in `.avoozl.json`. Checks may
+also come from a repository's own `checks` setting
+([Repository checks](checks.md)).
+
+```json [avoozl-plugin.json]
+{
+  "id": "acme-checks",
+  "version": "1.4.0",
+  "contract": 1,
+  "provides": ["checks"],
+  "servers": {
+    "review": { "about": "The acme review service, which compares API behavior" }
+  },
+  "checks": {
+    "parity": {
+      "repos": ["acme/*"],
+      "paths": ["src/api/**", "schema/**"],
+      "run": ["bin/parity.mjs", "--repo", "{repo}", "--from", "{base}", "--to", "{commit}"],
+      "env": ["PARITY_TOKEN"],
+      "network": true,
+      "timeout": 1800,
+      "decide": "prompts/parity.md",
+      "decideAt": ["approve", "diff"],
+      "stage": "task"
+    },
+    "parity-review": {
+      "repos": ["acme/*"],
+      "paths": ["src/api/**"],
+      "timeout": 3600,
+      "stage": "branch",
+      "mcp": {
+        "server": "review",
+        "start": {
+          "tool": "create_review",
+          "args": { "repo": "{repo}", "from": "{base}", "to": "{commit}", "diff": "{diff_path}", "question": "{file:ask.md}" },
+          "id": "$.review.id"
+        },
+        "poll": {
+          "tool": "get_review",
+          "args": { "id": "{id}" },
+          "everySeconds": 60,
+          "until": { "path": "$.state", "in": ["done", "error"] }
+        },
+        "result": { "path": "$.verdict", "pass": ["same"], "text": "$.summary" }
+      }
+    }
+  }
+}
+```
+
+A plugin holds at most 20 checks. Each check names `repos` and exactly one
+step, `run` or `mcp`:
+
+| Key        | What it holds                                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| `repos`    | 1 to 50 globs over `owner/name`, such as `acme/*`. A repository with no GitHub name matches by its ID.          |
+| `paths`    | Optional: 1 to 50 path globs. The check runs only for a change that touches one.                                |
+| `run`      | A run step: a script inside the plugin folder, never a command on `PATH`, then its arguments.                  |
+| `mcp`      | An MCP step: fixed tool calls on a local MCP server (below).                                                    |
+| `env`      | Run steps only: the environment variable names the script may read.                                            |
+| `network`  | Run steps only: `true` to let the script reach the network. Default `false`.                                    |
+| `timeout`  | Whole seconds, 1 to 7200.                                                                                       |
+| `decide`   | A Markdown prompt inside the folder that asks whether the check is needed (below).                             |
+| `decideAt` | `approve`, `diff` or both. Default `diff`.                                                                      |
+| `stage`    | `task` (default), `phase` or `branch` (below).                                                                  |
+
+A `.mjs` or `.js` script runs with Avoozl's own Node, so it runs the same on
+macOS, Linux and Windows. Its arguments may hold `{commit}`, `{base}` and
+`{repo}`; each value is checked for its shape first, and no shell runs. The
+script runs in the repository's isolation, in a worktree at the commit, with
+the plugin folder readable and not writable:
+
+```js [bin/parity.mjs]
+import { execFileSync } from "node:child_process";
+const arg = (name) => process.argv[process.argv.indexOf(name) + 1];
+const changed = execFileSync("git", ["diff", "--name-only", arg("--from"), arg("--to")], { encoding: "utf8" });
+if (changed.split("\n").some((file) => file.startsWith("schema/"))) {
+  console.log("parity: the schema changed");
+  process.exit(1);
+}
+```
+
+Every file a check names is inside the folder, so the plugin's content hash
+covers it, and approving the plugin approves the scripts and the prompts.
+Settings › Plugins shows each check's repositories, paths, step, network,
+timeout, stage and the full text of its prompt and of each file an MCP step
+sends, before you approve. A changed file asks for approval again.
+
+### Which changes a check runs on
+
+For each change, Avoozl applies the filters in this order, and a filter that
+rules a check out skips the rest: `repos`, `paths`, the decide answer, and
+then the result cache. A plugin check with the same name as one of the
+repository's own checks does not run there; the repository's runs. Two
+plugins with one check name for a repository are both held there, with one
+Needs you item.
+
+A decide prompt is plain Markdown:
+
+```markdown [prompts/parity.md]
+Answer whether this change can alter the public API of the service:
+request or response shapes, error codes, or the published schema.
+Changes only to tests, docs, comments or internal helpers do not.
+```
+
+At each point `decideAt` names, Avoozl asks one short read-only, offline
+model call (the **Check decide** role in Settings › Models, the planner's
+model by default) with the prompt, then the task's text (`approve`) or its
+diff (`diff`) as data. Its only answer is `{"needed": true | false, "reason":
+"..."}`. A failed call, bad output, no model, or an input over 200 KB counts
+as needed. The task shows each answer, and a person can press **Run it** or
+**Skip it** until the task's next commit. The tick makes no model call.
+
+The result cache keeps a passed or failed result per content key: the
+plugin's id, version and hash, the check's name, and the files its `paths`
+match at the commit (and at the base when the step uses `{base}`). The same
+content later reuses the result, marked **cached**. A merge batch's rerun
+runs the check again. The cache keeps at most 5,000 entries for 30 days.
+
+### Stages
+
+| Stage    | Runs at                                         | A failure holds                    |
+| -------- | ----------------------------------------------- | ---------------------------------- |
+| `task`   | The task's commit, and each merge batch         | That task's landing                |
+| `phase`  | Once every task of a phase has landed           | Nothing; one fix is proposed       |
+| `branch` | Each new head of an epic's integration branch   | That head's acceptance only        |
+
+A failed `phase` check opens one Needs you item holding the proposed fix;
+**Start** makes the fix in that phase, and the check runs again once it
+lands. A `phase` or `branch` check never delays a task's landing.
+
+### MCP steps
+
+An MCP step is a fixed program Avoozl runs itself, with no model in the
+loop: it calls `start` once, then `poll` every `everySeconds` (5 to 3600)
+until the value at `until.path` is one of `until.in`, then passes when the
+value at `result.path` is one of `pass`. Only the `text` value is kept as the
+check's output. Arguments may hold `{repo}`, `{commit}`, `{base}`,
+`{diff_path}` (a file holding the change's diff), `{id}` (the task id from
+`start`, in `poll`) and `{file:NAME}` (a file inside the plugin). A path is
+`$` then `.key` and `[index]` parts. A reply never chooses a tool, an
+argument or the next step. A restart resumes polling the same id.
+
+Each server alias a plugin declares in `servers` is mapped on this machine
+to a local stdio server, in Settings › Plugins (**Set mapping**) or with
+`avoozl plugins map`. The mapping lives in this machine's `plugins.json`,
+holds no credential, and its hash is part of the approval:
+
+```json [plugins.json]
+{
+  "mcp": {
+    "acme-checks": {
+      "review": { "command": ["/opt/acme/bin/review-mcp", "--stdio"], "env": ["REVIEW_TOKEN"] }
+    }
+  }
+}
+```
+
+```sh
+avoozl plugins map acme-checks review --command '["/opt/acme/bin/review-mcp", "--stdio"]' --env REVIEW_TOKEN
+avoozl plugins approve acme-checks --hash HASH
+```
+
+The server runs for one check and stops after it, outside the worker
+sandbox, with the check environment basics plus its mapping's `env` names.
+
+### Required by name, never posted
+
+A repository may name a plugin check in `requiredChecks`. On a machine whose
+approved plugin provides that name, a head counts as checked only when this
+machine's result passed on that exact head; a GitHub check of the same name
+does not count, and Setup asks for no GitHub branch rule for it. With no
+provider here and no GitHub check of that name, the task waits with one
+Needs you item.
+
+Plugin check results never go to GitHub: no commit status, check run,
+comment or review, under any setting. Pull request text and Activity show a
+plugin check by its name and result only.
+
+### What holds a plugin check
+
+A plugin check sees only the check environment basics and its own `env`
+names; push and GitHub credentials and the gateway's secrets never reach
+it. It may not open a network listener, and nor may anything it starts or
+its MCP server: one that does is stopped, failed, and its plugin is marked
+broken until approved again. Approving, mapping a server and **Run it** or
+**Skip it** are a person's acts. The decide call runs read-only and offline
+under a process harness; as a Kiro Crew chat its tool list is its only limit,
+which is a speed bump, not a sandbox.
+
 
 ## Intake part
 

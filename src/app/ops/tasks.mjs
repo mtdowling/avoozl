@@ -50,6 +50,11 @@ import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { highlightLanguages } from "../settings/highlight-languages.mjs";
 import { instanceView } from "../workspace/instance.mjs";
 import { landingNeedsYou } from "../epics/integration-head.mjs";
+import { pluginCheckNeedsYou } from "../plugins/plugin-checks.mjs";
+import {
+  phaseNeedsYou,
+  requiredCheckNeedsYou,
+} from "../plugins/check-stages.mjs";
 import { syncNeedsYou } from "../epics/integration-sync.mjs";
 import { decideInvestigation } from "../delivery/investigate.mjs";
 import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
@@ -479,6 +484,9 @@ export const entries = [
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...specPullNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
+      view.items.push(...pluginCheckNeedsYou(store));
+      view.items.push(...phaseNeedsYou(store));
+      view.items.push(...requiredCheckNeedsYou(store));
       view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...diskNeedsYou(store));

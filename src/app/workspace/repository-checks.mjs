@@ -64,26 +64,73 @@ export function checksSetting(value, label = "checks") {
   return structuredClone(value);
 }
 
-// The repository's checks as [{name, argv, paths}], in their written order.
+// The repository's own checks as [{name, argv, paths}], in written order.
 // `paths` is null for a check that runs on every change.
-export function repositoryChecks(repository) {
-  const value = repository?.checks;
+function ownChecks(repository) {
+  const value = repository?.checks,
+    own = (name, argv, paths = null) => ({
+      name,
+      argv: [...argv],
+      paths,
+      source: "repository",
+      stage: "task",
+    });
   if (Array.isArray(value))
-    return value
-      .filter(isArgv)
-      .map((argv) => ({ name: argv.join(" "), argv: [...argv], paths: null }));
+    return value.filter(isArgv).map((argv) => own(argv.join(" "), argv));
   if (!record(value)) return [];
   return Object.entries(value).flatMap(([name, entry]) => {
-    if (isArgv(entry)) return [{ name, argv: [...entry], paths: null }];
+    if (isArgv(entry)) return [own(name, entry)];
     if (!record(entry) || !isArgv(entry.run)) return [];
     return [
-      {
-        name,
-        argv: [...entry.run],
-        paths: entry.paths?.length ? [...entry.paths] : null,
-      },
+      own(name, entry.run, entry.paths?.length ? [...entry.paths] : null),
     ];
   });
+}
+
+// The name a plugin check's `repos` globs match: owner/name, else the ID.
+export const repositoryName = (repository) =>
+  String(repository?.github || repository?.id || "").toLowerCase();
+
+const appliesTo = (check, repository) =>
+  check.repos.some((glob) =>
+    matchesPath(glob.toLowerCase(), repositoryName(repository)),
+  );
+
+// Plugin checks against one repository (plugin-checks D3, PK2.3, PK2.4):
+// those whose `repos` match, minus a name the repository's own checks
+// use (shadowed) and a name two plugins define (a clash, both held).
+export function pluginCheckConflicts(repository, plugins = []) {
+  const names = new Set(ownChecks(repository).map((check) => check.name)),
+    mine = plugins.filter((check) => appliesTo(check, repository)),
+    owners = new Map();
+  for (const check of mine)
+    owners.set(check.name, [...(owners.get(check.name) ?? []), check]);
+  return {
+    kept: mine.filter(
+      (check) => !names.has(check.name) && owners.get(check.name).length === 1,
+    ),
+    shadowed: mine
+      .filter((check) => names.has(check.name))
+      .map((check) => ({ name: check.name, plugin: check.plugin.id })),
+    clashes: [...owners]
+      .filter(([name, list]) => list.length > 1 && !names.has(name))
+      .map(([name, list]) => ({
+        name,
+        plugins: list.map((check) => check.plugin.id),
+      })),
+  };
+}
+
+// Every check of a repository (plugin-checks D3): its own, as written,
+// then the approved plugin checks (`plugins`, approvedPluginChecks) that
+// apply to it, by plugin id and name. Each entry names its `source` and
+// `stage`. Every caller passes the plugin list; a caller that runs only
+// the repository's own commands says so with an empty list.
+export function repositoryChecks(repository, plugins) {
+  return [
+    ...ownChecks(repository),
+    ...pluginCheckConflicts(repository, plugins ?? []).kept,
+  ];
 }
 
 // Whether a check runs for a change that touches `files`: one without
@@ -94,9 +141,17 @@ export const checkApplies = (check, files) =>
   !Array.isArray(files) ||
   files.some((file) => check.paths.some((glob) => matchesPath(glob, file)));
 
-// The checks a change runs (`files`: its changed paths, or null for all).
-export const selectedChecks = (repository, files = null) =>
-  repositoryChecks(repository).filter((check) => checkApplies(check, files));
+// The checks of one stage a change runs (`files`: its changed paths, or
+// null for all).
+export const selectedChecks = (
+  repository,
+  files = null,
+  plugins = [],
+  stage = "task",
+) =>
+  repositoryChecks(repository, plugins).filter(
+    (check) => check.stage === stage && checkApplies(check, files),
+  );
 
 // The command text a check shows, for display.
 export const checkCommand = (check) => check.argv.join(" ");

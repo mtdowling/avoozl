@@ -78,7 +78,8 @@ export async function reproduce(
       state: "cannot-run",
       why: "The repository has no local checkout.",
     };
-  const checks = repositoryChecks(repository).map((entry) => entry.argv);
+  // A reproduction runs under the repository's own checks only.
+  const checks = repositoryChecks(repository, []).map((entry) => entry.argv);
   if (!checks.length)
     return {
       state: "cannot-run",

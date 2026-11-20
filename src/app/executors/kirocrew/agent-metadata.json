@@ -198,5 +198,13 @@
     ],
     "allowedTools": ["@avoozl:avoozl/plans_submit_triage"],
     "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-check-decide",
+    "model": "auto",
+    "description": "Avoozl Decide: answers whether one plugin check is needed for one task, from the check author's question and the task's text or diff. Changes nothing else.",
+    "tools": ["thinking", "@avoozl:avoozl/plans_submit_decide"],
+    "allowedTools": ["@avoozl:avoozl/plans_submit_decide"],
+    "includeMcpJson": false
   }
 ]

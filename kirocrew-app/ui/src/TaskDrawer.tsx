@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { TaskPluginChecksBox } from './PluginChecks.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn } from './ui/Btn'
@@ -661,7 +662,7 @@ function TaskPanel(props: {
                 {task.owner && <Row label="Assignee">{task.owner}</Row>}
               </Box>
             </SectionBox>
-            {(task.summary || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
+            {(task.summary || task.acceptance.length > 0 || task.checks.length > 0 || task.context || task.pluginChecks?.results.length || task.pluginChecks?.decides.length) && (
               <SectionBox id="description" title="Description">
                 <Stack gap={3}>
                   {task.summary && <Markdown text={task.summary} />}
@@ -691,6 +692,7 @@ function TaskPanel(props: {
                       </Box>
                     </div>
                   )}
+                  <TaskPluginChecksBox workspaceId={workspaceId} taskId={task.id} view={task.pluginChecks} onChanged={() => void load()} />
                   {task.context && (
                     <div>
                       <Box as="h4" size="sm" weight="semibold">

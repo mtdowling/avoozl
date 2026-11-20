@@ -134,6 +134,9 @@
         "retro": {
           "$ref": "#/$defs/chatRole"
         },
+        "checkDecide": {
+          "$ref": "#/$defs/chatRole"
+        },
         "verifier": {
           "$ref": "#/$defs/harnessRole"
         },

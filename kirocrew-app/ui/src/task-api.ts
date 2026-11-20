@@ -2,6 +2,7 @@
 // and the pure rules behind them (cycle check, new IDs, what an edit sends).
 // Kept free of JSX so node can test it directly.
 import type { TaskTimingDetail } from './flow-api.ts'
+import type { TaskPluginChecks } from './plugin-checks-api.ts'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { ConflictItem, DeliveryItem, DeliverySession } from './views-api.ts'
@@ -25,6 +26,8 @@ export interface TaskDetail {
     acceptance: string[]
     // The repository's checks, which every task runs.
     checks: string[]
+    // Its plugin checks' results and decide answers (plugin-checks PK8).
+    pluginChecks?: TaskPluginChecks
     epic: string | null
     epicTitle: string | null
     // Its phase inside its plan; older backends omit it.

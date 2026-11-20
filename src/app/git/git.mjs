@@ -737,7 +737,7 @@ export const helperHash = (file) =>
 export async function commandEvidence(
   cwd,
   argv,
-  { timeoutMs = 120000, onStart, env: allow, isolate } = {},
+  { timeoutMs = 120000, onStart, onChild, env: allow, isolate } = {},
 ) {
   if (
     !Array.isArray(argv) ||
@@ -768,12 +768,16 @@ export async function commandEvidence(
       : {};
   onStart?.();
   try {
-    const { stdout, stderr } = await exec(run[0], run.slice(1), {
+    const running = exec(run[0], run.slice(1), {
       cwd,
       env: wrapped?.env ?? environment,
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
     });
+    // The started process, for a caller that watches it (plugin checks'
+    // listener watch).
+    onChild?.(running.child);
+    const { stdout, stderr } = await running;
     return {
       argv,
       startedAt,
@@ -831,7 +835,8 @@ export async function validateUnlocked(
       "Commit the worktree changes before recording acceptance checks.",
       409,
     );
-  const checks = repositoryChecks(repository);
+  // The repository's own commands: plugin checks run only in check runs.
+  const checks = repositoryChecks(repository, []);
   if (!checks.length)
     fail("Configure the repository's checks before validation.");
   const results = [];
