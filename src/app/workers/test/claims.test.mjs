@@ -10,6 +10,7 @@ import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { specCheckout } from "../../test/spec-checkout.mjs";
+import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const leaf = (id) => ({
   id,
@@ -85,6 +86,7 @@ function setup(t, { tasks, existing = [], lanes = 20 } = {}) {
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     github: "acme/app",
+    worktreeRoot: temporaryDirectory("avoozl-claims-wt-"),
   });
   return { ...first, open, github, head, dbPath, root };
 }
@@ -102,7 +104,11 @@ test("runner.next with claim creates avoozl/<spec>/<task> at the base head", asy
     s.github.calls.filter((call) => call[0] === "create"),
     [["create", "acme/app", "avoozl/parser/a", s.head]],
   );
-  assert.equal(result.worktree.branch, "avoozl/parser/a");
+  assert.equal(
+    result.worktree?.branch,
+    "avoozl/parser/a",
+    result.worktreeError,
+  );
   assert.equal(
     execFileSync(
       "git",
