@@ -82,6 +82,13 @@ Access differs by tool:
 
 Each tool's description lists its actions.
 
+A worker's runner tools are narrow, one operation each: `plans_next` (with
+`claim`), `plans_report` and `plans_land`. `avoozl next --claim` and
+`avoozl land TASK` run the same operations at the command line. `plans_land`
+and `avoozl land` land a task now by its repository's landing mode, and only
+a task the caller claimed: the session bound to it, or at the command line a
+task this machine claimed or took.
+
 ### Person-only actions
 
 Some actions belong to a person, and MCP refuses them under any tool name. Do

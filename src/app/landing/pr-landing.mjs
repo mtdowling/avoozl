@@ -24,8 +24,8 @@ import { landingMetrics } from "./landing-trailers.mjs";
 import { baseRef, branchTip, git, remoteGit } from "../git/git.mjs";
 import {
   enqueueLanding,
-  landingQueue,
   landNext,
+  queueHeads,
   withdrawLanding,
 } from "./landing-queue.mjs";
 import { pullSteps } from "./landing-pulls.mjs";
@@ -341,21 +341,18 @@ export async function landPullRequests(
     machine,
     configFile,
     config = null,
+    only = null,
   } = {},
 ) {
   const notify = [],
     messages = [],
     at = new Date(now).toISOString();
   if (!github) return { notify, messages };
-  for (const repository of store
-    .list("repositories")
-    .filter(isPullRequestLanding)) {
-    // `rounds` is a count or, per repository, a function of the repository.
-    const tries = typeof rounds === "function" ? rounds(repository) : rounds,
-      base = repository.baseBranch || "main",
-      queue = landingQueue(store, { repositoryId: repository.id, base });
-    if (!queue.length) continue;
-    const head = queue[0];
+  for (const { repository, base, head, tries } of queueHeads(
+    store,
+    isPullRequestLanding,
+    { only, rounds },
+  )) {
     try {
       const registry = await registryOf(repository),
         // GitHub rights are the signed-in login's.

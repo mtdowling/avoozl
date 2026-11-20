@@ -212,6 +212,25 @@ const running = new Map();
 
 // Takes a waiting portion out of its queue, e.g. when its base moved and
 // its commit will be replaced; the key may be queued again later.
+// The queue heads one landing pass takes: each repository of one mode, or
+// only `only` (`avoozl land`), whose base has a queued portion, with its
+// base, its head portion and its `tries`. `rounds` is a count or, per
+// repository, a function of the repository.
+export function* queueHeads(store, isMode, { only = null, rounds } = {}) {
+  for (const repository of store.list("repositories")) {
+    if (!isMode(repository) || (only && repository.id !== only)) continue;
+    const base = repository.baseBranch || "main",
+      queue = landingQueue(store, { repositoryId: repository.id, base });
+    if (queue.length)
+      yield {
+        repository,
+        base,
+        head: queue[0],
+        tries: typeof rounds === "function" ? rounds(repository) : rounds,
+      };
+  }
+}
+
 export function withdrawLanding(store, { repositoryId, base, key }, reason) {
   const entry = store.get(TABLE, entryId(repositoryId, base, key));
   if (entry?.state !== "queued") return null;

@@ -175,6 +175,27 @@ export const commands = [
     },
   },
   {
+    command: "land",
+    help: [
+      help(
+        "land",
+        "land TASK_ID",
+        "Land a task you claimed now, by its repository's landing mode",
+      ),
+    ],
+    async run({ positionals, localOrRequest, need }) {
+      console.log(
+        JSON.stringify(
+          await localOrRequest("runner.land", {
+            taskId: need(positionals[0], "land TASK_ID"),
+          }),
+          null,
+          2,
+        ),
+      );
+    },
+  },
+  {
     command: "claim",
     help: [
       help(

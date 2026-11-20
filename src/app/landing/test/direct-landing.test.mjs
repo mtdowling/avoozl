@@ -13,6 +13,7 @@ import { landDirect } from "../direct-landing.mjs";
 import { graphView } from "../../api/page-views.mjs";
 import { cacheClaim, claimOf } from "../../workers/claims.mjs";
 import { retryLanded } from "../landed-work.mjs";
+import { Operations } from "../../api/operations.mjs";
 import { seedClaims, snapshot, verifiedTask } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
@@ -299,4 +300,31 @@ test("landed work keeps its own claim until its tick is known on the done branch
   );
   assert.deepEqual(deleted, ["avoozl/s/t1"]);
   assert.equal(claimOf(w.store, "acme/app", "t1"), null);
+});
+
+test("avoozl land lands a claimed task now by its repository's mode, and refuses a task the caller did not claim", async (t) => {
+  const w = await workspace(t),
+    ops = new Operations(w.store, { workspaceRoot: w.root }),
+    land = (taskId, context) =>
+      ops.execute("runner.land", { taskId }, undefined, context);
+  const { commit } = verified(w, "t1");
+  verified(w, "t2");
+  // Nobody here claimed it: the command line is refused, and so is another
+  // task's session.
+  await assert.rejects(land("t1", { local: true }), /not yours to land/);
+  await assert.rejects(
+    land("t1", { caller: { sessionKey: "dashboard:slot-t2" } }),
+    /not yours to land/,
+  );
+  // The session bound to t1 lands it, in direct mode on main.
+  const result = await land("t1", {
+    caller: { sessionKey: "dashboard:slot-t1" },
+  });
+  assert.deepEqual(result, { task: "t1", mode: "direct", state: "integrated" });
+  git(w.origin, "merge-base", "--is-ancestor", commit, "main");
+  assert.equal(w.store.get("task_deliveries", "t2").state, "verified");
+  // At the command line, a task this machine claimed is taken on too: main
+  // moved under it, so it is merged with main and checked again first.
+  await seedClaims(w.store, { own: ["t2"] });
+  assert.equal((await land("t2", { local: true })).state, "done");
 });

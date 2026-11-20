@@ -18,7 +18,7 @@
 //   (`stillQueued`, pr-landing.mjs), merged with the base and verified again.
 import os from "node:os";
 import { git, removeLandedTaskWorktree } from "../git/git.mjs";
-import { enqueueLanding, landingQueue, landNext } from "./landing-queue.mjs";
+import { enqueueLanding, landNext, queueHeads } from "./landing-queue.mjs";
 import { directSteps, dropMember } from "./merge-batch.mjs";
 import { landingSettings } from "./landing-config.mjs";
 import {
@@ -93,18 +93,17 @@ export async function landDirect(
     configFile,
     run,
     config,
+    only = null,
   } = {},
 ) {
   const notify = [],
     messages = [],
     at = new Date(now).toISOString();
-  for (const repository of store.list("repositories").filter(isDirectLanding)) {
-    // `rounds` is a count or, per repository, a function of the repository.
-    const tries = typeof rounds === "function" ? rounds(repository) : rounds,
-      base = repository.baseBranch || "main",
-      queue = landingQueue(store, { repositoryId: repository.id, base });
-    if (!queue.length) continue;
-    const head = queue[0];
+  for (const { repository, base, head, tries } of queueHeads(
+    store,
+    isDirectLanding,
+    { only, rounds },
+  )) {
     // A landing candidate needs a worktree: a full volume holds the queue.
     try {
       requireDiskSpace(store, os.tmpdir(), `Landing on ${repository.id}`);

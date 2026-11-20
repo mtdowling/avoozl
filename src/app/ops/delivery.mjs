@@ -18,6 +18,7 @@ import { deliveryView } from "../api/page-views.mjs";
 import { reportDone, runnerStatus } from "../workers/remote-runner.mjs";
 import { claimNext, nextView } from "../workers/runner.mjs";
 import { deleteClaim } from "../workers/claims.mjs";
+import { landTask } from "../landing/land-task.mjs";
 import { fail } from "../store/store.mjs";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
@@ -111,6 +112,27 @@ export const entries = [
           { github: readGitHubPolicyOrNull(this.workspaceRoot) },
         ),
       );
+    },
+  },
+  // Land one reported task now by its repository's mode (simplify §D7): the
+  // caller that claimed it only, from `avoozl land` or plans_land.
+  {
+    name: "runner.land",
+    class: "execute",
+    github: "land",
+    policy: routed,
+    handler({ input, context }) {
+      if (typeof input?.taskId !== "string" || !input.taskId)
+        fail("Name the task: {taskId}.", 400);
+      return landTask(this.store, input.taskId, {
+        caller: context.caller,
+        local: context.local === true && !context.mcp,
+        github: this.github,
+        workspaceRoot: this.workspaceRoot,
+        config: this.workspaceRoot
+          ? loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
+          : null,
+      });
     },
   },
   // Delete branch on a stale claim (simplify §D3): a person's, from Needs you

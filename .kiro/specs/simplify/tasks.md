@@ -38,7 +38,7 @@ merge, shown in chat and never committed.
 - [x] `sim-1.4` Draft pull requests and claim branch delete [SM4] (§D4)
   - Tests: `pr` mode opens the pull request from the claim branch as `landing.pr` says: a draft by default, never merged, marked ready or armed for auto-merge by the tick, and with `auto` merged guarded by the checked head; a moved base is merged in and checked again; a merged pull request's tick marks the task done on the next read; a pull request closed unmerged gives a Needs you item
   - After landing in any mode, Avoozl deletes the claim branch it created, and a test checks the tick is in the work commit or in a commit on the claim branch before the checks
-- [ ] `sim-1.5` `avoozl land` and `plans_land` [SM7.1, SM7.3] (§D7)
+- [x] `sim-1.5` `avoozl land` and `plans_land` [SM7.1, SM7.3] (§D7)
   - `avoozl land TASK` and `plans_land` run one operation that lands a reported task by its repository's mode, and refuse a task the caller did not claim
 - [ ] `sim-1.6` Label filters [SM5.1, SM5.3] (§D5)
   - Tests: `labels.require` and `labels.exclude` load from repository settings; a spec runs only when its spec issue carries every require label and no exclude label; a require label added by a non-writer does not count; an exclude label added later does not unclaim a claimed task

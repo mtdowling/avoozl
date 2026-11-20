@@ -74,6 +74,10 @@ export const NARROW_TOOLS = {
     "runner.next",
     "Narrow tool for the avoozl skill. Every local leaf in one list: ready, running, waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries), and done. With {claim: true} it claims the best ready task by creating its claim branch avoozl/<spec>/<task> on origin, makes its worktree on that branch and returns the task, the worktree and the brief; a task another runner claimed first is skipped.",
   ],
+  plans_land: [
+    "runner.land",
+    "Narrow tool for the avoozl-work skill. Land the task you claimed now, by its repository's landing mode: {taskId}. A verified task is queued and its repository's landing queue takes one step; returns {task, mode, state, queue?}. Refused for a task another session or runner claimed.",
+  ],
   plans_run_checks: [
     "flow.checks.run",
     "Narrow tool for worker chats. Local checks first: run your task's declared checks at HEAD of your worktree before each push, and record the pass the pre-push hook reads: {taskId, cwd: <absolute worktree path>}. Commit first. Returns {commit, checks: [{command, exitCode, durationMs, commit}], passed}; put that checks list in your done report.",
