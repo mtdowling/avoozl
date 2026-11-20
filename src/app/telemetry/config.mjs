@@ -1,16 +1,19 @@
 // Reads the OTLP exporter's configuration (spec otel-export, OT4 to OT6, OT12):
-// the machine setting `telemetry.enabled` in the machine config's
-// `config.json`, and the standard OTEL_EXPORTER_OTLP_* environment of the
-// process that runs the tick. A missing file, a missing key or a file that
-// cannot be read all mean off.
+// the machine setting `telemetry` in the machine config's `config.json`, and
+// the standard OTEL_EXPORTER_OTLP_* environment of the process that runs the
+// tick, which beats the saved endpoint and protocol. Header values come from
+// the environment only. A missing file, a missing key or a file that cannot
+// be read all mean off.
 import fs from "node:fs";
 import path from "node:path";
-import { validateTelemetry } from "../settings/telemetry-config.mjs";
+import {
+  HEADER_NAME,
+  endpointAllowed,
+  validateTelemetry,
+} from "../settings/telemetry-config.mjs";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_TIMEOUT_MS = 30_000;
-const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
-const TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
 
 // "a=1,b=2" as {a: "1", b: "2"}. A pair that is not name=value, or whose name
 // is not a header name, is refused by its name and never by its value.
@@ -21,7 +24,7 @@ export function parseHeaders(text) {
     .filter((part) => part.trim())) {
     const at = pair.indexOf("=");
     const name = (at < 0 ? pair : pair.slice(0, at)).trim();
-    if (at < 0 || !TOKEN.test(name))
+    if (at < 0 || !HEADER_NAME.test(name))
       throw Error(
         `OTEL_EXPORTER_OTLP_HEADERS: "${name.slice(0, 40)}" is not name=value.`,
       );
@@ -53,21 +56,8 @@ function signalEndpoint(own, shared, path) {
   return shared ? `${shared.replace(/\/+$/, "")}${path}` : null;
 }
 
-// https, or http to this machine, and nothing else.
-function allowed(endpoint) {
-  try {
-    const url = new URL(endpoint);
-    return (
-      url.protocol === "https:" ||
-      (url.protocol === "http:" && LOOPBACK.has(url.hostname))
-    );
-  } catch {
-    return false;
-  }
-}
-
 // The endpoint as scheme, host and port only: never a user, password, path or
-// query (OT6.4).
+// query (OT6.6).
 export function showEndpoint(endpoint) {
   try {
     const url = new URL(endpoint);
@@ -77,23 +67,31 @@ export function showEndpoint(endpoint) {
   }
 }
 
-function readEnabled(configDirectory) {
+// The saved setting, or {} when there is none or it cannot be read.
+export function readTelemetrySetting(configDirectory) {
   try {
     const file = path.join(configDirectory, "config.json");
     const { telemetry } = JSON.parse(fs.readFileSync(file, "utf8"));
     validateTelemetry(telemetry);
-    return telemetry?.enabled === true;
+    return telemetry ?? {};
   } catch {
-    return false;
+    return {};
   }
 }
 
-// {enabled, status, endpoints, endpoint, protocol, headerNames, headers,
-// timeoutMs, serviceName, resource}. `headers` holds the values: only
-// `send.mjs` reads it, and no status reply carries it.
+// {enabled, status, endpoints, endpoint, endpointFrom, protocol, headerNames,
+// missingHeaders, headers, timeoutMs, serviceName, resource, saved}.
+// `headers` holds the values: only `send.mjs` reads it, and no status reply
+// carries it.
 export function readTelemetryConfig(configDirectory, env = process.env) {
-  const enabled = readEnabled(configDirectory);
-  const shared = env.OTEL_EXPORTER_OTLP_ENDPOINT || null;
+  const saved = readTelemetrySetting(configDirectory);
+  const enabled = saved.enabled === true;
+  const fromEnv = Boolean(
+    env.OTEL_EXPORTER_OTLP_ENDPOINT ||
+      env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+      env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+  );
+  const shared = env.OTEL_EXPORTER_OTLP_ENDPOINT || saved.endpoint || null;
   const endpoints = {
     traces: signalEndpoint(
       env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
@@ -106,25 +104,33 @@ export function readTelemetryConfig(configDirectory, env = process.env) {
       "/v1/metrics",
     ),
   };
-  const protocol = env.OTEL_EXPORTER_OTLP_PROTOCOL || "http/json";
+  const protocol =
+    env.OTEL_EXPORTER_OTLP_PROTOCOL || saved.protocol || "http/json";
   const timeout = Number.parseInt(env.OTEL_EXPORTER_OTLP_TIMEOUT, 10);
   const config = {
     enabled,
     endpoints,
     endpoint: showEndpoint(endpoints.traces ?? endpoints.metrics),
+    endpointFrom: fromEnv ? "environment" : saved.endpoint ? "machine" : null,
     protocol,
     headerNames: [],
+    missingHeaders: [],
     headers: {},
     timeoutMs:
       timeout > 0 ? Math.min(timeout, MAX_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS,
     serviceName: env.OTEL_SERVICE_NAME || "avoozl",
     resource: parseResource(env.OTEL_RESOURCE_ATTRIBUTES),
+    saved: {
+      endpoint: saved.endpoint ?? null,
+      protocol: saved.protocol ?? "http/json",
+      headers: saved.headers ?? [],
+    },
   };
   const found = Object.values(endpoints).filter(Boolean);
   if (!enabled) return { ...config, status: "off" };
   if (!found.length) return { ...config, status: "no-endpoint" };
   if (protocol !== "http/json") return { ...config, status: "protocol" };
-  if (!found.every(allowed))
+  if (!found.every(endpointAllowed))
     return { ...config, status: "endpoint-not-allowed" };
   try {
     config.headers = parseHeaders(env.OTEL_EXPORTER_OTLP_HEADERS);
@@ -132,5 +138,10 @@ export function readTelemetryConfig(configDirectory, env = process.env) {
     return { ...config, status: "bad-headers" };
   }
   config.headerNames = Object.keys(config.headers);
+  config.missingHeaders = config.saved.headers.filter(
+    (name) => !(name.toLowerCase() in config.headers),
+  );
+  if (config.missingHeaders.length)
+    return { ...config, status: "missing-headers" };
   return { ...config, status: "ready" };
 }

@@ -49,13 +49,33 @@
     },
     "telemetry": {
       "type": "object",
-      "description": "Send task timing to an OpenTelemetry endpoint. Machine file only: a repository's .avoozl.json may not set it. The endpoint and headers come from the OTEL_EXPORTER_OTLP_* environment of the process that runs the tick.",
+      "description": "Export task timing to an OTLP endpoint. Machine file only: a repository's .avoozl.json may not set it. The OTEL_EXPORTER_OTLP_* environment of the process that runs the tick beats endpoint, protocol and headers, and header values come only from OTEL_EXPORTER_OTLP_HEADERS.",
       "additionalProperties": false,
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": false,
           "description": "Send traces and metrics. Off by default."
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "The collector's base URL: https, or http to localhost, 127.0.0.1 or ::1. No user, password or query. /v1/traces and /v1/metrics are added."
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["http/json"],
+          "default": "http/json",
+          "description": "OTLP over HTTP with JSON bodies, the only protocol sent."
+        },
+        "headers": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9!#$%&'*+.^_`|~-]+$"
+          },
+          "description": "Header names each request needs. Their values come from OTEL_EXPORTER_OTLP_HEADERS and are never stored."
         }
       }
     },

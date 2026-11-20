@@ -1,4 +1,4 @@
-// ot-5.2: canary and credential tests (OT9.2, OT9.5, OT6.3, OT12.4).
+// ot-5.2: canary and credential tests (OT9.2, OT9.5, OT6.4, OT12.4).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

@@ -410,24 +410,33 @@ answer('workspaces.list', () => ({
   ],
 }))
 // Settings > Workspaces > Telemetry. &telemetry=STATUS picks what the status
-// operation says (off by default); the switch flips it on and off.
+// operation says (off by default); a save sets it from what was saved.
 let telemetryStatus = query.get('telemetry') ?? 'off'
+const exporting = () => !['off', 'no-endpoint'].includes(telemetryStatus)
+let telemetrySaved: { endpoint: string | null; protocol: string; headers: string[] } = exporting()
+  ? { endpoint: 'https://otlp.example:4318', protocol: 'http/json', headers: ['authorization'] }
+  : { endpoint: null, protocol: 'http/json', headers: [] }
 const telemetryView = () => ({
   status: telemetryStatus,
   failure: telemetryStatus === 'backing-off' ? 'http 503' : null,
-  endpoint: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? null : 'https://otlp.example:4318',
+  endpoint: exporting() ? 'https://otlp.example:4318' : null,
+  endpointFrom: exporting() ? 'machine' : null,
   protocol: telemetryStatus === 'protocol' ? 'grpc' : 'http/json',
-  headerNames: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? [] : ['authorization'],
+  headerNames: exporting() ? ['authorization'] : [],
+  missingHeaders: [],
+  saved: telemetrySaved,
   sent: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? 41 : 0,
   queued: telemetryStatus === 'backing-off' ? 3 : 0,
   dropped: 0,
   rejected: 0,
   lastSuccessAt: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? '2026-11-20T03:12:09.000Z' : null,
-  local: { spans: 5120, points: 48210 },
+  local: { spans: 5120, points: 48210, days: 90, spanCap: 200000, pointCap: 1000000 },
 })
 answer('telemetry.status', telemetryView)
 answer('telemetry.configure', (body) => {
-  telemetryStatus = (body.input as { enabled?: boolean }).enabled ? 'no-endpoint' : 'off'
+  const input = body.input as { enabled?: boolean; endpoint?: string; headers?: string[] }
+  telemetrySaved = { ...telemetrySaved, endpoint: input.endpoint || null, headers: input.headers ?? telemetrySaved.headers }
+  telemetryStatus = input.enabled ? (input.endpoint ? 'sending' : 'no-endpoint') : 'off'
   return telemetryView()
 })
 

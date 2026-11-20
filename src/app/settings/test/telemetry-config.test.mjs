@@ -9,14 +9,31 @@ import { loadLayeredConfig } from "../layered-config.mjs";
 import { validateTelemetry } from "../telemetry-config.mjs";
 import { validateManifest } from "../../plugins/plugins.mjs";
 
-test("validateTelemetry accepts enabled and nothing, and names what it refuses", () => {
+test("validateTelemetry accepts its keys, and names what it refuses", () => {
   validateTelemetry({ enabled: true });
+  validateTelemetry({
+    enabled: false,
+    endpoint: "https://otlp.example:4318/otlp",
+    protocol: "http/json",
+    headers: ["authorization", "x-team"],
+  });
+  validateTelemetry({ endpoint: "http://localhost:4318" });
   validateTelemetry({});
   validateTelemetry(undefined);
+  for (const endpoint of [
+    "x",
+    "http://otlp.example",
+    "https://u:p@otlp.example",
+    "https://otlp.example/?key=1",
+  ])
+    assert.throws(() => validateTelemetry({ endpoint }), /telemetry\.endpoint/);
   assert.throws(
-    () => validateTelemetry({ endpoint: "x" }),
-    /telemetry\.endpoint/,
+    () => validateTelemetry({ protocol: "grpc" }),
+    /telemetry\.protocol/,
   );
+  for (const headers of ["authorization", ["authorization=Bearer x"], [1]])
+    assert.throws(() => validateTelemetry({ headers }), /telemetry\.headers/);
+  assert.throws(() => validateTelemetry({ token: "x" }), /telemetry\.token/);
   assert.throws(
     () => validateTelemetry({ enabled: "yes" }),
     /telemetry\.enabled/,

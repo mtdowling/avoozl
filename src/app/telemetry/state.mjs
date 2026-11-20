@@ -1,4 +1,4 @@
-// The instance ID (spec otel-export, OT6.5, §D2): a random UUID made once per
+// The instance ID (spec otel-export, OT6.7, §D2): a random UUID made once per
 // machine and kept in `telemetry.json` in the state folder, outside SQLite, so
 // `avoozl rebuild` keeps it. A file that cannot be read gives a fresh ID.
 import crypto from "node:crypto";

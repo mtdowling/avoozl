@@ -11,6 +11,7 @@ import {
   unregisterExporter,
 } from "./record.mjs";
 import { createSender } from "./send.mjs";
+import { LIMITS } from "./sqlite-exporter.mjs";
 import { instanceId } from "./state.mjs";
 
 const handles = new WeakMap();
@@ -25,14 +26,22 @@ export function telemetryStatusReply(store, config, active) {
     status: sender && config.status === "ready" ? sender.state : config.status,
     failure: sender?.failure ?? null,
     endpoint: config.endpoint,
+    endpointFrom: config.endpointFrom,
     protocol: config.protocol,
     headerNames: config.headerNames,
+    missingHeaders: config.missingHeaders,
+    saved: config.saved,
     sent: sender?.sent ?? 0,
     queued: sender?.queued ?? 0,
     dropped: sender?.dropped ?? 0,
     rejected: sender?.rejected ?? 0,
     lastSuccessAt: sender?.lastSuccessAt ?? null,
-    local: sqliteExporter(store).counts(),
+    local: {
+      ...sqliteExporter(store).counts(),
+      days: LIMITS.days,
+      spanCap: LIMITS.spanCap,
+      pointCap: LIMITS.pointCap,
+    },
   };
 }
 
