@@ -2338,7 +2338,7 @@ export function reviewBrief(
   attempt,
   role,
   open,
-  { claim = null, since = null } = {},
+  { claim = null, since = null, cliReport = null } = {},
 ) {
   const worktree = detachedWorktree(
       repository,
@@ -2347,7 +2347,20 @@ export function reviewBrief(
       attempt,
     ),
     base = repository.baseBranch || "main",
-    report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "${commit}", "verdict": "approved" | "changes-requested", "findings": [{"id": "F1", "kind": "defect" | "observation", "paths": ["<repository path>"], "text": "<label, file:line, trigger, what goes wrong, fix>"}], "closures": [{"finding": "<reference>", "state": "fixed" | "unchanged" | "withdrawn", "note": "<why>"}]}}`;
+    verdict = `"verdict": "approved" | "changes-requested", "findings": [{"id": "F1", "kind": "defect" | "observation", "paths": ["<repository path>"], "text": "<label, file:line, trigger, what goes wrong, fix>"}], "closures": [{"finding": "<reference>", "state": "fixed" | "unchanged" | "withdrawn", "note": "<why>"}]`,
+    report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "${commit}", ${verdict}}}`,
+    // R88.2 for a review: report by command line with the brief's token, so
+    // a Kiro Crew reviewer needs no MCP sharing (ms-p7: without it the
+    // reviewer could never report and its lane sat quiet).
+    where = cliReport?.workspace
+      ? ` --workspace ${JSON.stringify(cliReport.workspace)}`
+      : "",
+    cliArgs = cliReport
+      ? `--token ${cliReport.token} --role ${role.role}${where}`
+      : "",
+    reportStep = cliReport
+      ? `3. Write your verdict to a JSON file outside the worktree: {${verdict}}. Then run exactly, from inside ${worktree}: ${cliCommand()} runner report ${task.id} done ${cliArgs} --review <that file>\n   If you cannot judge the commit, run: ${cliCommand()} runner report ${task.id} blocked ${cliArgs} --text "<why>"\n   The token matches your report to this review; keep it to yourself.`
+      : `3. Call plans_report with ${report}.`;
   const own = taskLines(
     task,
     `Avoozl review ${role.id} for task ${task.id}`,
@@ -2367,8 +2380,8 @@ export function reviewBrief(
     "",
     `1. Run \`git -C ${repository.root} worktree add --detach ${worktree} ${commit}\`, and work only there. Confirm \`git rev-parse HEAD\` prints ${commit}.`,
     `2. Review the task's change (\`git diff $(git merge-base ${base} HEAD) HEAD\`) with the code around it and its callers, and try to defeat it.${since ? ` You last reviewed ${since}: read \`git log ${since}..HEAD --stat\` and judge each open finding below against what changed.` : ""} Rerun the checks you rely on. Edit, commit, merge, and push nothing.`,
-    `3. Call plans_report with ${report}.`,
-    'Every finding names at least one path. "approved" lists no defect and leaves none open; "changes-requested" lists at least one defect. Close every open finding below: fixed when the change touched its paths, unchanged when it did not, withdrawn when the worker\'s answer shows it was not a defect. A defect closed unchanged stays open. If plans_report refuses your verdict, correct it and report again. If you cannot judge the commit, report kind "blocked" with the reason. Your turn ends only with this report.',
+    reportStep,
+    'Every finding names at least one path. "approved" lists no defect and leaves none open; "changes-requested" lists at least one defect. Close every open finding below: fixed when the change touched its paths, unchanged when it did not, withdrawn when the worker\'s answer shows it was not a defect. A defect closed unchanged stays open. If your report is refused, correct it and report again. If you cannot judge the commit, report blocked with the reason. Your turn ends only with this report.',
     ...(claim
       ? [
           "",
@@ -2490,6 +2503,22 @@ export function planReviewDispatches(store, policy = null, options = {}) {
         continue;
       const attempt = Math.max(0, ...own.map((b) => b.attempt)) + 1,
         sha = delivery.commit.slice(0, 12),
+        label = "review-" + role.id,
+        run = roleRun("reviewer", {
+          config: options.config,
+          task,
+          repository,
+        }),
+        processRun = run.executor === "process",
+        // R88.2 for a review: a Kiro Crew review reports by command line
+        // with its own token, so it needs no MCP sharing.
+        token = processRun
+          ? null
+          : issueReportToken(store, {
+              taskId: task.id,
+              attempt,
+              role: role.role,
+            }),
         brief = withRules(
           store,
           reviewBrief(
@@ -2510,6 +2539,12 @@ export function planReviewDispatches(store, policy = null, options = {}) {
                     v.commit !== delivery.commit &&
                     v.verdict,
                 )?.commit ?? null,
+              cliReport: token
+                ? {
+                    token,
+                    workspace: contentBinding(store)?.workspaceRoot ?? null,
+                  }
+                : null,
             },
           ),
           "brief.review",
@@ -2528,13 +2563,6 @@ export function planReviewDispatches(store, policy = null, options = {}) {
         ? pickLane(lanes.lanes, { task: task.id, role: role.role }, lanes.taken)
         : null;
       if (lanes && !lane) continue;
-      const label = "review-" + role.id,
-        run = roleRun("reviewer", {
-          config: options.config,
-          task,
-          repository,
-        }),
-        processRun = run.executor === "process";
       dispatch.push(
         kirocrewRequest(store, {
           task: task.id,

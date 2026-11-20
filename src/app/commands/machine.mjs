@@ -1,4 +1,5 @@
 // CLI commands of one kind: command, help lines and run.
+import fs from "node:fs";
 import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
 import { serveKirocrew, serveWorkspace } from "../mcp/mcp-stdio.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
@@ -174,8 +175,8 @@ export const commands = [
     help: [
       help(
         "hooks",
-        "runner report TASK_ID done|blocked [--token T] [--text TEXT]",
-        "Report from the task's worktree; a worker's brief gives the token",
+        "runner report TASK_ID done|blocked [--token T] [--text TEXT] [--role review:ID --review FILE]",
+        "Report from the task's worktree; a worker's or review's brief gives the token",
       ),
       help(
         "machine",
@@ -210,6 +211,19 @@ export const commands = [
         // R88.2: matched by the report token and the worktree it runs in;
         // with no token, by the worktree of this command line's claim.
         requireDatabase();
+        // A review's verdict, findings and closures, as a JSON file.
+        let review = null;
+        if (typeof options.review === "string") {
+          try {
+            review = JSON.parse(fs.readFileSync(options.review, "utf8"));
+          } catch (error) {
+            throw Error(
+              `--review must name a JSON file: ${error.code || error.message}`,
+            );
+          }
+          if (!review || typeof review !== "object" || Array.isArray(review))
+            throw Error("--review must hold a JSON object.");
+        }
         const store = new Store(dbPath);
         try {
           result = await reportByToken(store, localOperations(store), {
@@ -218,6 +232,8 @@ export const commands = [
             token: token || undefined,
             cwd: process.cwd(),
             text: typeof options.text === "string" ? options.text : undefined,
+            ...(typeof options.role === "string" ? { role: options.role } : {}),
+            review,
           });
         } finally {
           store.close();
