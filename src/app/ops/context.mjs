@@ -8,7 +8,7 @@ import {
   readEpicContext,
   writeEpicContext,
 } from "../context/epic-context-config.mjs";
-import { recentContextSessions } from "../workers/epic-context.mjs";
+import { recentContextSessions } from "../context/context-record.mjs";
 import { inspectPlugins, readPluginSettings } from "../plugins/plugins.mjs";
 import { fail } from "../store/store.mjs";
 

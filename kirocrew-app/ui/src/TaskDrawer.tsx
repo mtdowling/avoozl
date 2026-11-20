@@ -335,6 +335,11 @@ function TaskPanel(props: {
           {task.state && <Badge variant={task.state === 'needs-you' ? 'warning' : undefined}>{task.state}</Badge>}
           {detail.locked && <Badge>locked</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
+          {task.epicContext?.chip && (
+            <Box as="span" data-epic-context>
+              <Badge>{task.epicContext.chip.label}</Badge>
+            </Box>
+          )}
         </Hint>
       </div>
       <Box flex flexWrap gap="2">

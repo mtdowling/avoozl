@@ -734,7 +734,7 @@ that landed the task.
   - $done: The plugin guide gains `poll` with the fake plugin as its example; a short guide to `plans_intake_submit` from a Kiro Crew cron job using a fake source; sources named only generically; the 7.4 scan covers the new docs and fixtures.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, 14.3, 14.6
   - The plugin guide gains `poll` with the fake plugin as its example; a short guide to `plans_intake_submit` from a Kiro Crew cron job using a fake source; sources named only generically; the 7.4 scan covers the new docs and fixtures.
-  - Built: `3040bef`: Intake part and source settings in `docs/plugins.md` with the fake tracker; `docs/policies.md` "Bring in work from other trackers and scripts" (MCP submit from a cron job); `avoozl-rules` skill lists `intake`; the release scan passes over docs and fixtures.
+  - Built: `3040bef`: Intake part and source settings in `docs/plugins.md` with the fake tracker; `docs/intake.md` "Script sources" (MCP submit from a cron job); `avoozl-rules` skill lists `intake`; the release scan passes over docs and fixtures.
 
 - [x] avoozl-p32 P32 Proof: incoming items from a fake plugin source and a fake MCP caller [R50] (§4.12)
   - $done: Expected: (1) `T1`, `T5`, and `T6` each become one pinned local leaf in `o/app`; `T2` is untriaged (eve lacks `write`); `T3` untriaged; `R1` untriaged with **Code review** and no leaf; issue 1 delivers and issue 2 is untriaged, as before; (2) nothing written; (3) the cursor and items stay, the error shows on the source, and the rest of the tick runs; after restore the next page is read and no item is duplicated; (4) `S1` is listed, not delivered (an MCP claim meets no starting rule); `S2` is paused; the bad link is refused with the field named while the others are stored; the replay is `unchanged` and the older one `stale`; (5) both refused; (6) `T4` is quarantined with a decision naming the set and rule and not the term; (7) the tab lists items from `github`, `tickets`, and `script` with a Source filter, non-GitHub rows link to their items and show no Issue Radar button; the page press makes one pinned leaf, and the MCP call gets 403; (8) `T1`'s task is quarantined until re-triggered or confirmed; (9) `T5`'s close is an order: `d5` is released with the brief note, and `T5`'s leaf has no verified completion; `T6`'s close holds `d6` and opens a decision, Avoozl does not reopen it, and the reopen lifts the hold with running sessions untouched; (10) the closed untied item is gone and tied ones stay; (11) every P31 expectation holds, and `untriaged.json` is not written.
@@ -981,7 +981,7 @@ Requirement 61, design §4.16.
   - $done: The sample SDK rewrite template lints and loads; the docs and the plugin and planner skills describe templates, manual leaves, and links and notes; the sample names no private system or company.
   - $after: 22.7, 22.4
   - A template-only sample plugin in the test tree with the §4.16 SDK rewrite template, its six phases, the manual Review with team leaf that cutover requires, two proof kinds and the flow defaults, naming no private system or company; `docs/plugins.md`, the plugin skill and the planner skill cover templates, manual leaves and links and notes.
-  - Built: `src/app/test/fixtures/plugins/sdk-templates/` (SDK rewrite: six phases, manual Review with team before cutover, two proof kinds, flow defaults, no private names); `docs/plugins.md` Template part, `docs/policies.md` Manual tasks and links and notes, the plugin skill, the avoozl skill and the planner agent prompt.
+  - Built: `src/app/test/fixtures/plugins/sdk-templates/` (SDK rewrite: six phases, manual Review with team before cutover, two proof kinds, flow defaults, no private names); `docs/plugins.md` Template part, `docs/manual-tasks.md`, the plugin skill, the avoozl skill and the planner agent prompt.
 
 - [x] avoozl-p37 P37 Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes [R61] (§4.16)
   - $done: Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes
@@ -1211,7 +1211,7 @@ Requirements 64.12–64.16 and 73, design §4.11 and §8.9.
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.
   - Built: `2456191`, PR #11 (`Picker.tsx`, `picker.ts`; `kirocrew-app/ui/test/picker.test.mjs`).
 
-## Phase 34: Investigate first, evidence, staying current, rules, fix share, ship mode
+## Phase 34: Investigate first, evidence, staying current, rules, fix share, who merges
 
 Requirements 75–80, design §4.11 and §4.21–§4.25.
 
@@ -1245,21 +1245,19 @@ Requirements 75–80, design §4.11 and §4.21–§4.25.
   - $after: 12.11
   - The fix-work rule, the Flow card and charts, and the retro payload.
   - Built: PR #42 (`isFixWork`, `metrics.fixWork`, `fixShare` per day and week, `fixWork` in the retro payload; leaves of a bugfix spec carry `specType`, and issue intake keeps the issue type).
-- [x] 34.6 Ship mode, after 15.4 [R80] (§4.25)
-  - $done: Ship mode
-  - $done: With delivery.ship manual, writers do not enable auto-merge and Needs you shows Ready to merge; auto-merge stays the default.
+- [x] 34.6 Who merges a pull request (`landing.pr`), after 15.4 [R80] (§4.25)
+  - $done: `landing.pr` (draft, ready, auto) is the one merge setting, for the workspace with a per-repository override; a draft waits for Ready for review or Approve and is never merged; with draft or ready a person merges on GitHub or with Merge for the exact head; with auto Avoozl merges after exact-head checks; Approve and Merge are person only; every `createPullRequest` call site says whether it opens a draft.
   - $after: 15.4
-  - `delivery.ship` in workspace and repository settings, the briefs, the Ready to merge item, and Integrate in Local only; Settings > Delivery shows it.
-  - Built: PR #42 (`shipMode` with task, spec, repository and workspace values; `ready-to-merge` in Needs you; person-only `delivery.integrate`; closed without merging goes back to the writer; the radio fold-out in `DeliverySettings.tsx`).
+  - `landing-config.mjs`, `landing-pulls.mjs`, `landing-queue-view.mjs`, `landing.ready` and `landing.merge` in `ops/delivery.mjs`, `markPullRequestReadyForReview` in `github.mjs`, `PullAction` in `ConflictsView.tsx`, `PrModeFields` in `LandingFields.tsx`, the Who merges section in `DeliverySettings.tsx`.
 
-- [x] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules, fix share and ship mode [R75–R80] (§4.21–§4.25)
+- [x] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules and fix share [R75–R79] (§4.21–§4.24)
   - $done: P45 Proof
   - $done: P45 passes with fake workers, a fake falsifier and a fake GitHub.
-  - $after: 34.1, 34.2, 34.3, 34.4, 34.5, 34.6
+  - $after: 34.1, 34.2, 34.3, 34.4, 34.5
   - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaves `a1` (plain), `a2` (`investigate: false`) and `a3` (plain), a bugfix spec with leaf `f1`, fake workers and a fake falsifier.
-  - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow; (8) set `delivery.ship` to `manual` and let `a3`'s checks pass.
-  - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3; (8) no auto-merge, one Ready to merge item, and completion after the person merges.
-  - Failure means: coding starts on refuted findings, a writer force pushes, or a manual ship merges without a person.
+  - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow.
+  - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3.
+  - Failure means: coding starts on refuted findings, or a writer force pushes.
   - Next decision: keep the falsifier only for large tasks, or drop the PR comment and keep evidence local.
   - Built: pass with fakes, `src/app/test/proof-p45.test.mjs` and `src/app/test/phase34.test.mjs`, PR #42. Not run live: no real falsifier chat, GitHub pull request, base move or merge has run yet.
 
@@ -1324,8 +1322,8 @@ Requirement 83, design §6.12.
   - `Store`, `privateFile`; `src/app/test/security-audit.test.mjs`.
 - [x] 37.3 Name repository-owned code; approve the worktree helper's hash [R83.4] (§6.12)
   - $done: Name repository-owned code; approve the worktree helper's hash
-  - $done: Repository-owned code is named in docs/policies.md, and the worktree helper runs only at its approved hash.
-  - `docs/policies.md`; `worktreeHelper` in `git.mjs` and repository settings; same test file.
+  - $done: Repository-owned code is named in docs/checks.md, and the worktree helper runs only at its approved hash.
+  - `docs/checks.md`; `worktreeHelper` in `git.mjs` and repository settings; same test file.
 - [x] 37.4 Hash a local plugin again before it starts [R83.6] (§6.12)
   - $done: Hash a local plugin again before it starts
   - $done: A local plugin is hashed again before it starts.
@@ -1636,7 +1634,7 @@ recovers, and a backend restart mid-run.
   - $done: A child cannot read the workspace database or credentials; docs and Settings call the chat refusal a speed bump.
   - $after: 47.2
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
-  - Built: `src/app/executors/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/executors/supervisor.mjs`; text in `docs/policies.md` and Settings › Models; tests in `src/app/executors/test/sandbox.test.mjs`.
+  - Built: `src/app/executors/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/executors/supervisor.mjs`; text in `docs/checks.md` and Settings › Models; tests in `src/app/executors/test/sandbox.test.mjs`.
 - [x] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
   - $done: `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend
   - $done: Finds its children again after a restart; a missing one is `gone`.

@@ -115,18 +115,6 @@ export function ConflictActions(props: {
           }
         />
       )}
-      {item.kind === 'ready-to-merge' && (
-        <ReadyToMerge
-          item={item}
-          busy={busy}
-          onIntegrate={() =>
-            run(async () => {
-              await views.integrate(workspaceId, item.taskId!, item.commit)
-              return { ok: true, text: `${item.taskId} lands on the next tick.` }
-            })
-          }
-        />
-      )}
       {item.kind === 'needs-human' && (item.reason === 'draft-pr' || item.reason === 'pr-merge') && item.repositoryId && item.base && item.key && (
         <PullAction
           item={item}
@@ -379,38 +367,6 @@ export function LandBranch(props: { item: ConflictItem; busy: boolean; onLand: (
   )
 }
 
-// Ready to merge (§4.25): a link to the pull request a person merges on
-// GitHub, or Integrate for a local task.
-export function ReadyToMerge(props: { item: ConflictItem; busy: boolean; onIntegrate: () => void }) {
-  const { item, busy } = props
-  const link = safeHref(item.link ?? null)
-  return (
-    <Row gap={2} data-ready-to-merge={item.taskId}>
-      {link && (
-        <PlainLink href={linkHref(link)} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" size="sm" underline>
-          <ExternalLink size={14} aria-hidden="true" />
-          Open pull request{item.pullRequest ? ` #${item.pullRequest}` : ''} to merge it
-        </PlainLink>
-      )}
-      {item.integrate && (
-        <DangerBtn
-          icon={Check}
-          tooltip="Land this task's verified commit on its integration branch"
-          disabled={busy}
-          confirm={{
-            title: `Integrate ${item.taskId}?`,
-            body: `Avoozl lands commit ${String(item.commit ?? '').slice(0, 12)} on the next tick, after its checks run again.`,
-            action: 'Integrate',
-          }}
-          onConfirm={props.onIntegrate}
-        >
-          Integrate
-        </DangerBtn>
-      )}
-    </Row>
-  )
-}
-
 // A pull request Avoozl opened (R119): a link to read it, and the one
 // person-only step it waits for. Approve marks a draft ready for review on
 // GitHub (GitHub refuses an approving review of one's own pull request, so
@@ -433,7 +389,8 @@ const PULL_ACTION = {
 export function PullAction(props: { item: ConflictItem; busy: boolean; onConfirm: () => void }) {
   const { item, busy } = props
   const link = safeHref(item.link ?? null)
-  const shape = PULL_ACTION[item.reason === 'pr-merge' ? 'pr-merge' : 'draft-pr']
+  const draft = item.reason !== 'pr-merge'
+  const shape = PULL_ACTION[draft ? 'draft-pr' : 'pr-merge']
   const number = item.pullRequest ? ` #${item.pullRequest}` : ''
   return (
     <Row gap={2} data-pull-action={item.reason}>
@@ -448,7 +405,8 @@ export function PullAction(props: { item: ConflictItem; busy: boolean; onConfirm
         icon={Check}
         tooltip={shape.tooltip}
         disabled={busy}
-        confirm={{ title: `${shape.label} pull request${number}?`, body: shape.body, action: shape.label }}
+        // Approve marks a draft ready and destroys nothing: not red.
+        confirm={{ title: `${shape.label} pull request${number}?`, body: shape.body, action: shape.label, primary: draft }}
         onConfirm={props.onConfirm}
       >
         {shape.label}

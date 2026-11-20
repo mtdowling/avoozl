@@ -126,8 +126,10 @@ review. Each repository's `landing` setting picks how:
 `landing.pr` says how Avoozl opens a `pr` repository's pull requests, and who
 merges them. Set it for the workspace at the top of `.avoozl.json`
 (`"landing": {"pr": "ready"}`), or for one repository in its landing block,
-which wins. Settings shows it on the repository's **Landing** tab. Only a
-person changes it; agents, MCP and the tick cannot.
+which wins. Settings shows the workspace's in **Settings › Delivery**, and a
+repository's on its **Landing** tab, where unset uses the workspace's. Only a
+person changes it; agents, MCP and the tick cannot. It is the only setting for
+who merges.
 
 | `landing.pr` | Opens as | Who merges |
 | --- | --- | --- |
@@ -161,9 +163,9 @@ With `auto`, Avoozl merges the pull request itself from the tick once the
 required checks and reviews pass on the exact head.
 
 In every mode a draft is never merged, never auto-merged and never batched
-while it is a draft. Pull request landing never makes a merge batch.
-`landing.autoMerge` does not apply to these pull requests. Only a person can
-press **Approve** or **Merge**.
+while it is a draft. Pull request landing never makes a merge batch, and
+Avoozl never arms GitHub auto-merge. Only a person can press **Approve** or
+**Merge**.
 
 GitHub does not let anyone approve their own pull request, and Avoozl opens
 pull requests as the owner. So **Ready for review** is the release signal, not
@@ -200,21 +202,6 @@ prefixed yet.
 When the base moves and a merge conflicts, or the checks fail, the task goes
 back to its worker chat. After the repository's `conflicts.maxAttempts` rounds
 (default 2) it goes to **Needs you**. **Stop the line** pauses the queue.
-
-### Who merges
-
-Each GitHub repository's `landing.autoMerge` decides who presses merge:
-
-- `true`, the default, has the writer turn on GitHub auto-merge.
-- `false` keeps it off and shows **Ready to merge** in **Needs you** once checks
-  and reviews pass. You merge on GitHub, or press **Integrate** for a local
-  task.
-
-A spec, through `ship` in its `tasks.md` front matter, or a single task may
-pin `auto-merge` or `manual`.
-
-This setting does not cover a `pr` repository. There `landing.pr` says who
-merges (see [How pull requests land](#how-pull-requests-land)).
 
 ## Investigate first
 

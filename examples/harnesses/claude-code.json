@@ -26,6 +26,9 @@
   "permission": { "write": "acceptEdits", "read": "dontAsk" },
   "writeRoots": ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
   "allow": ["--allowedTools", "Bash({repository_allow_commands}:*)"],
+  "context": {
+    "mcp": ["--mcp-config", "{context_mcp}", "--strict-mcp-config"]
+  },
   "resultAllow": [
     "--allowedTools",
     "Edit(/{worktree}/.avoozl/result.json)",

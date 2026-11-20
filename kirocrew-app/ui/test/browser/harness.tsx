@@ -40,7 +40,7 @@ import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
-import { AutoMergeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
+import { PrModeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
 import { toForm } from '../../src/settings-api.ts'
@@ -2781,7 +2781,7 @@ function LandingParts(props: { repository: RepositoryForm; set: (change: Partial
     <>
       <ConflictFields id="t" {...props} />
       <MergeMethodFields id="t" {...props} />
-      <AutoMergeFields id="t" {...props} />
+      <PrModeFields id="t" {...props} />
     </>
   )
 }
@@ -2814,8 +2814,8 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
 function WorkflowMapPage() {
   const config = WORKFLOW_POLICIES[query.get('config') ?? 'single']
   const form = toForm(config.policy as never)
-  // ?autoMerge=off: the repository's landing.autoMerge is false.
-  const [repository, setRepository] = useState<RepositoryForm>({ ...form.repositories[0], ...(query.get('autoMerge') === 'off' ? { autoMerge: 'off' } : {}) })
+  // ?pr=auto: the repository's landing.pr.
+  const [repository, setRepository] = useState<RepositoryForm>({ ...form.repositories[0], ...(query.get('pr') ? { prMode: query.get('pr') ?? '' } : {}) })
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
       <HarnessBoundary>
@@ -2833,6 +2833,103 @@ function PanelPage() {
       </HarnessBoundary>
     </div>
   )
+}
+// &epiccontext=1: two tasks whose last session got epic context, and Settings ›
+// Epic context with the machine block, a plugin part and the last sessions
+// (epic-context ec-2.7).
+if (query.get('page') === 'app' && query.get('epiccontext') === '1') {
+  const graph = replyFor('graph.view')?.({}) as { tasks: Record<string, unknown>[] }
+  const items = 'skill module-layout, read team-notes, mcp research'
+  answer('graph.view', () => ({
+    ...graph,
+    tasks: graph.tasks.map((entry, at) =>
+      at === 0
+        ? { ...entry, epicContext: { label: 'Epic context', sources: ['team-context'], items } }
+        : at === 1
+          ? { ...entry, epicContext: { label: 'Epic context (brief only)', sources: ['team-context'], items: 'skill module-layout, read team-notes' } }
+          : entry,
+    ),
+  }))
+  const part = {
+    repos: ['acme/*'],
+    skills: [
+      { name: 'error-messages', description: 'How the team words an error: what failed, why, and the next step.', hash: 'a'.repeat(64) },
+      { name: 'module-layout', description: 'How the team lays out a module: one folder, an index file, tests beside the code.', hash: 'b'.repeat(64) },
+    ],
+    reads: [{ id: 'team-notes', about: "The team's design notes", written: '{ask:notesRoot}/widgets', filled: '/srv/acme/team-notes/widgets' }],
+    ask: [{ name: 'notesRoot', question: 'The folder of your clone of acme/team-notes', answer: '/srv/acme/team-notes' }],
+    servers: [
+      {
+        alias: 'research',
+        about: "Answers questions from the team's design archive",
+        command: ['node', '/opt/acme/team-context/mcp/research.mjs'],
+        env: ['RESEARCH_TOKEN'],
+        replaced: false,
+        mapped: true,
+      },
+    ],
+    contentSets: ['acme-terms'],
+    ignored: null,
+    state: 'approved',
+    missing: { questions: [], aliases: [] },
+  }
+  const tests = (why: string | null) => [
+    { name: 'approved', passed: true },
+    { name: 'approver', passed: true },
+    why ? { name: 'you-drive', passed: false, why } : { name: 'you-drive', passed: true },
+  ]
+  answer('context.get', () => ({
+    machine: {
+      repos: ['acme/*'],
+      reads: ['~/notes/acme-widgets'],
+      mcp: { docs: { about: 'The docs host', command: ['docs-mcp'], env: ['DOCS_TOKEN'] } },
+      contentSets: ['acme-terms'],
+    },
+    plugins: [{ id: 'team-context', version: '1.0.0', ...part }],
+    sessions: [
+      {
+        at: '2026-11-20T09:12:00Z',
+        taskId: 'config.1.1',
+        resumed: false,
+        briefOnly: false,
+        given: true,
+        tests: tests(null),
+        sources: ['team-context'],
+        items,
+        left: [{ item: 'read old-notes', why: 'the folder is missing' }],
+      },
+      {
+        at: '2026-11-20T08:40:00Z',
+        taskId: 'config.1.2',
+        resumed: false,
+        briefOnly: false,
+        given: false,
+        tests: tests('Taken by octo-dev: its spec issue is assigned to them.'),
+        sources: [],
+        items: '',
+        left: [],
+      },
+    ],
+  }))
+  answer('plugins.list', () => ({
+    supportedContracts: [1],
+    plugins: [
+      {
+        id: 'team-context',
+        source: 'machine',
+        state: 'approved',
+        version: '1.0.0',
+        contract: 1,
+        provides: ['context'],
+        kinds: [],
+        hash: 'c'.repeat(64),
+        approval: { version: '1.0.0', hash: 'c'.repeat(64), approvedAt: '2026-11-20T08:00:00Z' },
+        config: {},
+        health: null,
+        context: part,
+      },
+    ],
+  }))
 }
 // &signin=1: the GitHub sign-in screens (signin-fixture.ts).
 if (query.get('signin') === '1') answerSignIn(page)

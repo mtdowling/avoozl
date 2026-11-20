@@ -33,6 +33,8 @@ import {
 } from "./sandbox.mjs";
 import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
 import { lockHolder, machineLockPaths, takeLock } from "./machine-lock.mjs";
+import { createBroker } from "./context-broker.mjs";
+import { markPluginBroken } from "../plugins/plugin-checks.mjs";
 import { buildId } from "./machine-build.mjs";
 import {
   ensureRequestTables,
@@ -66,7 +68,11 @@ const OWN_VALUES = [
   "session_uuid",
   "permission",
   "repository_allow_commands",
+  "context_mcp",
 ];
+const CONTEXT_RELAY = fileURLToPath(
+  new URL("./context-relay.mjs", import.meta.url),
+);
 const stamp = () => new Date().toISOString();
 
 export function supervisorPaths(stateDirectory) {
@@ -180,6 +186,7 @@ export function requestChild(db, request) {
     }),
     network: request.network ?? "off",
     readable: absolutePaths(request.readable, "readable"),
+    context: contextSettings(request.context),
   };
   sandboxNetwork(settings.network === "off" ? undefined : settings.network);
   const now = stamp();
@@ -209,6 +216,47 @@ export function requestChild(db, request) {
     throw error;
   }
   return sessionId;
+}
+
+// The epic context of a request (epic-context D6): {readable: [absolute],
+// cleanup: [absolute], mcp: {alias: {command, env, plugin?}}}, or null.
+// Reads are read-only roots for this session; `cleanup` folders are removed
+// when it exits; each MCP alias is served by the broker.
+export function contextSettings(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "object" || Array.isArray(value))
+    fail("Request context must be an object.");
+  const mcp = value.mcp ?? {};
+  if (typeof mcp !== "object" || Array.isArray(mcp))
+    fail("Request context.mcp must be an object.");
+  const strings = (list) =>
+    Array.isArray(list) && list.every((item) => typeof item === "string");
+  for (const [alias, server] of Object.entries(mcp))
+    if (
+      !/^[a-z][a-z0-9-]{0,39}$/.test(alias) ||
+      !strings(server?.command) ||
+      !server.command.length ||
+      !strings(server.env ?? [])
+    )
+      fail(`Request context.mcp.${alias} must be {command, env}.`);
+  return {
+    readable: absolutePaths(value.readable, "context.readable"),
+    cleanup: absolutePaths(value.cleanup, "context.cleanup"),
+    mcp,
+  };
+}
+
+// Replace a session's epic context before it resumes (null drops it), so a
+// resume runs with what the gate gave this time.
+export function setChildContext(db, sessionId, context) {
+  const row = childRecord(db, sessionId);
+  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  const settings = JSON.parse(row.settings || "{}");
+  settings.context = contextSettings(context);
+  db.prepare("UPDATE children SET settings = ? WHERE session_id = ?").run(
+    JSON.stringify(settings),
+    sessionId,
+  );
 }
 
 export function childRecord(db, sessionId) {
@@ -586,6 +634,13 @@ function absolutePaths(value, label) {
   return value.map((item) => path.resolve(item));
 }
 
+// `env` without the named variables.
+function withoutNames(env, names) {
+  const kept = { ...env };
+  for (const name of names) delete kept[name];
+  return kept;
+}
+
 // The worktree's shared git directory, which no write root may cover
 // (R94.4a), or null outside a repository.
 function gitCommonDir(worktree) {
@@ -644,6 +699,78 @@ export function startSupervisor({
   const db = openSupervisorDatabase(stateDirectory);
   // Children this process spawned; others were found again after a restart.
   const own = new Map();
+  // The epic context MCP broker: one socket per session that was given
+  // servers, outside every sandbox. Its calls go to the session's folder
+  // for its evidence.
+  const broker = createBroker({
+    onCall: (entry) => {
+      const file = path.join(
+        paths.children,
+        entry.session,
+        "context-calls.jsonl",
+      );
+      try {
+        fs.appendFileSync(file, JSON.stringify(entry) + "\n", { mode: 0o600 });
+      } catch {}
+    },
+    onViolation: ({ plugin, reason }) => {
+      if (plugin)
+        markPluginBroken(
+          {
+            settingsFile: path.join(
+              path.resolve(configDirectory),
+              "plugins.json",
+            ),
+          },
+          plugin,
+          reason,
+        );
+    },
+  });
+  // A finished session's epic context: its sockets and servers, and the
+  // folders made for it (the skills copy).
+  // One stdio MCP server per alias, each the relay: the file holds no
+  // environment value, only where to connect (EC7.2).
+  const openContextMcp = (session, mcp, folder) => {
+    const { socket, token } = broker.open({ session, servers: mcp }),
+      file = path.join(folder, "context-mcp.json");
+    fs.writeFileSync(
+      file,
+      JSON.stringify(
+        {
+          mcpServers: Object.fromEntries(
+            Object.keys(mcp).map((alias) => [
+              alias,
+              {
+                command: process.execPath,
+                args: [
+                  CONTEXT_RELAY,
+                  "--socket",
+                  socket,
+                  "--token",
+                  token,
+                  "--alias",
+                  alias,
+                ],
+              },
+            ]),
+          ),
+        },
+        null,
+        2,
+      ),
+      { mode: 0o600 },
+    );
+    return { file, socket };
+  };
+  const endContext = (row) => {
+    broker.close(row.session_id);
+    try {
+      for (const folder of JSON.parse(row.settings || "{}").context?.cleanup ??
+        [])
+        fs.rmSync(folder, { recursive: true, force: true });
+    } catch {}
+  };
   let timer = null;
   let closed = false;
   let ticking = null;
@@ -784,6 +911,19 @@ export function startSupervisor({
       }
       const values = JSON.parse(row.placeholder_values);
       const settings = JSON.parse(row.settings || "{}");
+      // Epic context (epic-context D6): read-only folders, and MCP servers
+      // through the relay when the harness loads a config file for them.
+      const context = settings.context ?? null;
+      const contextMcp =
+        // shortcut: the relay's Unix socket is POSIX only; Windows has no
+        // sandbox to keep a server's sign-in from the worker either.
+        process.platform !== "win32" &&
+        context &&
+        Object.keys(context.mcp).length &&
+        definition.context?.mcp
+          ? openContextMcp(row.session_id, context.mcp, folder)
+          : null;
+      if (!contextMcp) broker.close(row.session_id);
       const filled = {
         ...values,
         worktree: row.worktree,
@@ -793,6 +933,7 @@ export function startSupervisor({
         session_uuid: row.session_id.slice("process-".length),
         permission: definition.permission[row.permission_class],
         ...(messageFile ? { message_file: messageFile } : {}),
+        ...(contextMcp ? { context_mcp: contextMcp.file } : {}),
       };
       // start or resume, then the model when one is named, then the
       // repository's allow-list, checked again here (R94.4c).
@@ -813,6 +954,7 @@ export function startSupervisor({
         ...(row.permission_class === "read" && definition.resultAllow
           ? fillHarnessArgv(definition.resultAllow, filled)
           : []),
+        ...(contextMcp ? fillHarnessArgv(definition.context.mcp, filled) : []),
       ];
       const promptFile = message ? messageFile : briefFile;
       const stdin =
@@ -842,7 +984,7 @@ export function startSupervisor({
             path.join(path.resolve(stateDirectory), "catalog.sqlite"),
           ),
         }),
-        readable: [promptFile],
+        readable: [promptFile, ...(contextMcp ? [contextMcp.file] : [])],
         writable: [log],
         // Home is confined to the session's own folders, the harness's
         // config, git's user config and what the repository lists.
@@ -857,7 +999,11 @@ export function startSupervisor({
             path.join(env.HOME || os.homedir(), file),
           ),
           ...(settings.readable ?? []),
+          ...(context?.readable ?? []),
+          // The relay and the node that runs it, and the config naming it.
+          ...(contextMcp ? [CONTEXT_RELAY, process.execPath] : []),
         ],
+        sockets: contextMcp ? [contextMcp.socket] : [],
         network: sandboxNetwork(
           !settings.network || settings.network === "off"
             ? undefined
@@ -868,19 +1014,23 @@ export function startSupervisor({
         // sandbox then sets git's own empty credential helper.
         // The child marker makes the CLI refuse person-only commands, even
         // on the command line (R95.5).
-        env: withoutPushCredentials({
-          ...env,
-          ...(values.tmp
-            ? Object.fromEntries(
-                ["TMPDIR", ...(definition.tmpEnv ?? [])].map((name) => [
-                  name,
-                  values.tmp,
-                ]),
-              )
-            : {}),
-          AVOOZL_CHILD: "1",
-          AVOOZL_CHILD_SESSION: row.session_id,
-        }),
+        // A name a context server's mapping reads never reaches the worker.
+        env: withoutNames(
+          withoutPushCredentials({
+            ...env,
+            ...(values.tmp
+              ? Object.fromEntries(
+                  ["TMPDIR", ...(definition.tmpEnv ?? [])].map((name) => [
+                    name,
+                    values.tmp,
+                  ]),
+                )
+              : {}),
+            AVOOZL_CHILD: "1",
+            AVOOZL_CHILD_SESSION: row.session_id,
+          }),
+          Object.values(context?.mcp ?? {}).flatMap((server) => server.env),
+        ),
       });
       const out = fs.openSync(log, "a", 0o600);
       let child;
@@ -934,6 +1084,7 @@ export function startSupervisor({
       // Refused before it ran (an unapproved definition, a missing worktree):
       // `exited -1` takes the retry path rather than reopening as gone. A
       // refused resume drops its message and keeps the earlier run count.
+      endContext(row);
       if (message)
         db.prepare("UPDATE messages SET state = 'refused' WHERE id = ?").run(
           message.id,
@@ -951,6 +1102,7 @@ export function startSupervisor({
     const exit = row.exit_file && readJson(row.exit_file);
     if (exit && Number.isInteger(exit.code)) {
       own.delete(row.session_id);
+      endContext(row);
       const read = readChildResult(row.worktree);
       return update(db, row.session_id, {
         state: "exited",
@@ -968,6 +1120,7 @@ export function startSupervisor({
     // run in the same process group; stop it so nothing edits unowned.
     if (child) killGroup(row.pid);
     own.delete(row.session_id);
+    endContext(row);
     update(db, row.session_id, {
       state: "gone",
       error: "The supervisor cannot find this child.",
@@ -1027,6 +1180,7 @@ export function startSupervisor({
     if (closed) return;
     closed = true;
     clearTimeout(timer);
+    broker.closeAll();
     serveChild?.kill("SIGTERM");
     db.close();
     lock.release();
