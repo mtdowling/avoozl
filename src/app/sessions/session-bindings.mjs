@@ -101,7 +101,9 @@ function bindingsFor(store, taskId) {
 }
 
 // Record one slot for one task before the first brief is sent. Binding the same
-// slot again is a no-op that writes nothing; a slot never moves between tasks.
+// slot again is a no-op that writes nothing. Only a lane's session moves
+// between tasks (simplify §D22.1): its ended binding moves to the key
+// `<slot>#<boundAt>`, every field kept, and the slot's key holds the new one.
 // `guard(taskId)` runs inside the write transaction, before a new binding, so
 // a claim is checked and recorded atomically across processes.
 export function bindSession(
@@ -139,6 +141,8 @@ export function bindSession(
     fail("A session reason is at most 300 characters.");
   if (input.commit !== undefined && !SHA.test(input.commit))
     fail("Name the subject commit as a full lowercase SHA.");
+  if (input.lane !== undefined && !LANE.test(input.lane))
+    fail("Choose a lane, such as worker-1 or reviewer-1.");
   if (
     input.attempt !== undefined &&
     (!Number.isInteger(input.attempt) || input.attempt < 1)
@@ -168,7 +172,22 @@ export function bindSession(
           ? named
           : existingTask(store, named);
     if (!taskId) fail("Task not found.", 404);
-    const current = store.get("session_bindings", slot);
+    let current = store.get("session_bindings", slot);
+    if (
+      current &&
+      input.lane &&
+      current.lane === input.lane &&
+      ended(current) &&
+      (current.taskId !== taskId ||
+        current.role !== role ||
+        (input.attempt !== undefined && current.attempt !== input.attempt))
+    ) {
+      store.put("session_bindings", {
+        ...current,
+        id: `${slot}#${current.boundAt}`,
+      });
+      current = null;
+    }
     if (current) {
       if (
         current.taskId !== taskId ||
@@ -217,6 +236,7 @@ export function bindSession(
       ...(input.crew && input.crew !== "local" ? { crew: input.crew } : {}),
       ...(input.sessionReason ? { sessionReason: input.sessionReason } : {}),
       ...(input.commit ? { commit: input.commit } : {}),
+      ...(input.lane ? { lane: input.lane } : {}),
       // A worker opened to investigate first codes only after Go ahead
       // (§4.21).
       ...(input.investigate === true && role === "worker"
@@ -296,11 +316,20 @@ export function rediscoverSessions(store, input = {}) {
   return result;
 }
 
+// A lane binding whose task let go of the session: reported done or
+// blocked, stopped, or closed.
+const ended = (binding) =>
+  binding.interrupted ||
+  FINAL_STATUSES.has(binding.status) ||
+  binding.status === "gone" ||
+  ["done", "blocked"].includes(binding.report?.kind);
+
 export function listSessionBindings(store) {
   return store.list("session_bindings").reverse();
 }
 
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const LANE = /^(?:worker|reviewer)-[0-9]{1,2}$/;
 
 // Check explicit requests again when the tick consumes them. A request is not
 // permission to bypass a spec approval hold, including one on a prerequisite.

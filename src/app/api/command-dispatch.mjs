@@ -92,6 +92,8 @@ export const APP_OPERATIONS = new Set([
   "github.job.confirm",
   // Delete branch on a stale claim, under the same Allow (simplify §D3).
   "claim.delete",
+  // Resume on a closed lane, from Needs you (simplify §D22.4).
+  "lane.resume",
   "plugin.update",
   // Epic context (epic-context EC4, EC9): Settings reads it, and a person
   // sets the machine block and answers a plugin's questions.

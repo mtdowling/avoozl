@@ -134,7 +134,7 @@ merge, shown in chat and never committed.
 
 ## Phase 7: Lane sessions
 
-- [ ] `sim-7.1` Kiro Crew lane chats [SM20.1, SM20.2, SM20.3, SM20.4, SM20.5, SM20.8] (§D22, §D22.1, §D22.4)
+- [x] `sim-7.1` Kiro Crew lane chats [SM20.1, SM20.2, SM20.3, SM20.4, SM20.5, SM20.8] (§D22, §D22.1, §D22.4)
   - Tests: `lanes.local` worker lanes and `lanes.reviewers` reviewer lanes (default 1) bound the tick's worker and review starts; each start names its lane and header, and a lane takes a new task only when its last one is recorded
   - Tests: the cron opens a lane chat once with its header in `Avoozl/<workspace>`, clears it with `reset-conversation` and `replay: false` before each later task, releases the request when the clear is refused, and sets `trust` on worker and reviewer lane chats on every tick
   - Tests: a lane's new binding moves the earlier one to `<slot>#<boundAt>` with every field kept; a closed lane chat pauses the lane, gives one Needs you row with Resume, and opens again only after `lane.resume`

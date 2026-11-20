@@ -18,9 +18,12 @@ import { deliveryView } from "../api/page-views.mjs";
 import { reportDone, runnerStatus } from "../workers/remote-runner.mjs";
 import { claimNext, nextView } from "../workers/runner.mjs";
 import { deleteClaim } from "../workers/claims.mjs";
+import { lanesView, resumeLane } from "../sessions/lane-sessions.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { processSessionDetails } from "../executors/process-view.mjs";
 import { landTask } from "../landing/land-task.mjs";
 import { fail } from "../store/store.mjs";
-import { readDeliveryPolicy } from "../tick/tick.mjs";
+import { laneWorkspace, readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
 import { machineLinks } from "../tick/crews.mjs";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
@@ -250,6 +253,40 @@ export const entries = [
         laneLimit:
           readDeliveryPolicy(this.workspaceRoot).delivery?.concurrency ?? null,
       };
+    },
+  },
+  // This machine's lanes (simplify §D22.3): each lane's role, harness,
+  // state, task and how to open its session.
+  {
+    name: "lanes.view",
+    class: "observe",
+    github: "check-in",
+    policy: notOnMcp("A person reads the lanes with avoozl lanes or the page."),
+    handler({}) {
+      const policy = readDeliveryPolicy(this.workspaceRoot).delivery;
+      if (!policy) return { lanes: [] };
+      const paths = machineAvoozlPaths();
+      return {
+        lanes: lanesView(
+          this.store,
+          policy,
+          laneWorkspace(this.workspaceRoot),
+          {
+            attach: (slot) =>
+              processSessionDetails([slot], paths).get(slot)?.attach ?? null,
+          },
+        ),
+      };
+    },
+  },
+  // Resume on a lane a person closed (simplify §D22.4).
+  {
+    name: "lane.resume",
+    class: "execute",
+    github: "check-in",
+    policy: person("Only a person resumes a closed lane."),
+    handler({ input }) {
+      return resumeLane(this.store, input ?? {});
     },
   },
   // Dashboards › Landing queue: per base, in order, with hold reasons;

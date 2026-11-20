@@ -53,7 +53,7 @@ const REVIEWERS = [
 const policy = (delivery = {}) =>
   JSON.stringify({
     version: 1,
-    lanes: { local: 1 },
+    lanes: { local: 1, reviewers: 2 },
     roles: { worker: { model: "fake-a" } },
     delivery: {
       retries: 2,

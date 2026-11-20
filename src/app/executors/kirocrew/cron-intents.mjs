@@ -22,7 +22,14 @@ export function cronIntents(store, input = {}) {
   return {
     observe: listSessionBindings(store)
       .filter((b) => !FINAL_STATUSES.has(b.status))
-      .map(({ slot, taskId, role }) => ({ slot, taskId, role })),
+      .map(({ id, slot, taskId, role, lane, title }) => ({
+        slot,
+        taskId,
+        role,
+        // A lane chat's current binding names its lane and fixed header, so
+        // the cron keeps its trust and title (simplify §D22.1).
+        ...(lane && id === slot ? { lane, header: title } : {}),
+      })),
     dispatch: pending.filter(
       (request) =>
         request.operation === "start" && released.starts.has(request.id),
