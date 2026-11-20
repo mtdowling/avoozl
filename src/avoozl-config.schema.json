@@ -353,7 +353,15 @@
           "description": "Removed: the tick starts every task. \"tick\" is ignored; \"crew-mode\" holds the workspace until a person chooses Let the tick run it.",
           "enum": ["tick", "crew-mode"]
         },
+        "reviewRounds": {
+          "description": "Review rounds a task gets before a person decides: each changes-requested verdict sends the findings back to the worker.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3
+        },
         "reviewers": {
+          "description": "Review roles. Unset gives one reviewer (id review, agent avoozl-reviewer, distinctFrom session); [] turns review off.",
           "type": "array",
           "maxItems": 8,
           "items": {
@@ -369,7 +377,13 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+              "reviewRounds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              },
               "reviewers": {
+                "description": "This repository's review roles over the workspace's; [] turns review off here.",
                 "type": "array",
                 "maxItems": 8,
                 "items": {

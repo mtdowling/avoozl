@@ -228,7 +228,7 @@ test("a quiet verifier is nudged, then failed and retried, so the graph never ha
     path.join(root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
-      delivery: { retries: 1, quietMinutes: 10, nudges: 1 },
+      delivery: { retries: 1, quietMinutes: 10, nudges: 1, reviewers: [] },
     }),
   );
   const commit = await workerDone(ops, "a", "w-1");

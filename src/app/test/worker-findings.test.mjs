@@ -76,7 +76,7 @@ async function workspace(t, { process: onProcess = false } = {}) {
     JSON.stringify({
       version: 1,
       lanes: { local: 2 },
-      delivery: { investigate: { mode: "all" } },
+      delivery: { investigate: { mode: "all" }, reviewers: [] },
     }),
   );
   const { dbPath } = workspaceConfig({ workspace: root, env: {} });

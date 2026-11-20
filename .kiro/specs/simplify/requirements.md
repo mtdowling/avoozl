@@ -41,6 +41,7 @@ page view.
 | Group | A task with children |
 | Parallel group | A group whose title ends with `(**PARALLEL**)`; its children run side by side |
 | Wait | A task that must be ticked before another can start, derived from the list (§D19) |
+| Lane | One long-lived worker or reviewer session on a machine, reused task after task (§D22) |
 
 ### Order
 
@@ -230,7 +231,8 @@ runner needs, so that every other agent step is a skill any harness can run.
 #### Acceptance criteria
 
 1. The role table SHALL hold two roles: `worker` and `reviewer`. The reviewer
-   SHALL be optional per repository and off by default.
+   SHALL be on by default, and a repository SHALL turn it off with
+   `reviewers: []`.
 2. Avoozl SHALL ship these skills: `avoozl-spec` (write a spec), `avoozl-work`
    (work a task), `avoozl-review` (review a pull request), `avoozl-spec-review`
    (review a spec), `avoozl-retro` (a retrospective over landed work) and
@@ -451,3 +453,49 @@ lands in one place.
    spec's folder name and that holds work that is not the spec's, and spec
    lint SHALL report the warning `integration.foreign` for it WHEN it can
    read origin.
+
+### Requirement SM20: Lane sessions
+
+**User story:** As the owner, I want each machine to run a fixed set of
+long-lived agent sessions that I can find, read and name, so that no task
+waits on a trust approval and no chat list fills with one chat per task.
+
+#### Acceptance criteria
+
+1. Each machine SHALL run `lanes.local` worker lanes (default 3) and
+   `lanes.reviewers` reviewer lanes (default 1), both in the machine file.
+   A lane SHALL be one long-lived session on the role's harness: a Kiro Crew
+   chat, or a Claude Code or Codex session. A task SHALL start only on a
+   free lane of its role.
+2. Each lane session SHALL carry a fixed header Avoozl sets, naming the
+   workspace and the lane: `Avoozl · <workspace> · worker 2`, or
+   `Avoozl · <workspace> · reviewer` when the machine has one reviewer lane.
+   A harness that names sessions SHALL get it as the session's name; one
+   that does not SHALL get it as the first line of the session's prompt.
+3. Every lane session of a workspace SHALL live in one place per harness:
+   the Kiro Crew sidebar folder `Avoozl › <workspace>`, and for a process
+   harness the lane folder `~/.avoozl/lanes/<workspace>/<lane>/`.
+4. WHEN a lane takes a new task THEN its session SHALL start with a fresh
+   context: a Kiro Crew chat's conversation SHALL be cleared, and a process
+   harness SHALL start a new session with an id Avoozl chose. A review
+   round on the same task SHALL resume that task's session.
+5. Avoozl SHALL set a Kiro Crew lane chat's approval mode when it opens the
+   chat and again on every tick, and SHALL set its title again on a tick
+   that reads a different one. A reviewer lane SHALL be able to run git and
+   the repository's checks, and SHALL stay read-only by its prompt and its
+   agent's tools.
+6. A person SHALL be able to open and read each lane session: the Kiro Crew
+   chat itself, or the harness's own resume command (`claude --resume <id>`,
+   `codex resume <id>`) run with the lane's home. A process lane SHALL keep
+   its open task's session, and the last finished task's session until the
+   lane's next task starts; then Avoozl SHALL delete that lane's older
+   sessions and SHALL NOT touch a session it did not start.
+7. `avoozl lanes` SHALL list each lane with its role, harness, state, task,
+   and the command or link that opens its session, and the page's In flight
+   view SHALL show the same with an Open action per lane.
+8. WHEN a person closes a lane's session THEN that lane SHALL pause and
+   Needs you SHALL show one row for it with Resume. Avoozl SHALL open a new
+   session for the lane on the next tick only after a person presses Resume.
+   The task that ran there SHALL follow the vanished-session rule on another
+   free lane. Avoozl SHALL NOT replace a lane session because it went quiet
+   or its activity lease expired.

@@ -1,8 +1,8 @@
-// The real Claude Code binary, for the live proofs that run it under the
-// supervisor's sandbox. The toolbox keeps it at
-// ~/.toolbox/tools/claude-code/<version>/claude (about 340 MB). Its bin/claude
+// The real Claude Code and Codex binaries, for the live proofs that run them
+// under the supervisor's sandbox. The toolbox keeps each at
+// ~/.toolbox/tools/<tool>/<version>/<name> (hundreds of MB). Its bin/<name>
 // is a wrapper that fails inside the sandbox ("could not find wrapper
-// binary"), and ~/.toolbox/bin/claude is a shim; neither is the real one.
+// binary"), and ~/.toolbox/bin/<name> is a shim; neither is the real one.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -17,10 +17,10 @@ const isReal = (file) => {
   }
 };
 
-// For a path the person named or `claude` found on PATH: the file itself when
-// it is the real binary, the one a wrapper's bin/ folder sits beside, else the
+// For a path the person named or found on PATH: the file itself when it is
+// the real binary, the one a wrapper's bin/ folder sits beside, else the
 // newest installed version under `home`. Null when none is found.
-export function realClaude(candidate, home) {
+function realBinary(candidate, home, tool, name) {
   const found = [];
   if (candidate) {
     let file = candidate;
@@ -29,20 +29,25 @@ export function realClaude(candidate, home) {
     } catch {
       // A name that does not resolve is not a binary.
     }
-    found.push(file, path.join(path.dirname(file), "..", "claude"));
+    found.push(file, path.join(path.dirname(file), "..", name));
   }
-  const tools = path.join(home, ".toolbox", "tools", "claude-code");
+  const tools = path.join(home, ".toolbox", "tools", tool);
   if (fs.existsSync(tools))
     found.push(
       ...fs
         .readdirSync(tools)
         .filter((version) => /^\d/.test(version))
         .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
-        .map((version) => path.join(tools, version, "claude")),
+        .map((version) => path.join(tools, version, name)),
     );
   const real = found.map((file) => path.resolve(file)).find(isReal);
   return real ? fs.realpathSync(real) : null;
 }
+
+export const realClaude = (candidate, home) =>
+  realBinary(candidate, home, "claude-code", "claude");
+export const realCodex = (candidate, home) =>
+  realBinary(candidate, home, "codex", "codex");
 
 // The two Claude Code binaries a live proof needs (as P59 to P61 and nk-p1):
 // `exportWith` runs `default-credential-export` under the person's real HOME,

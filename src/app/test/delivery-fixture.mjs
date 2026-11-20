@@ -56,7 +56,12 @@ export function deliveryWorkspace(
     edges = [],
     repository = {},
     files = {},
-    config = { version: 1, lanes: { local: 4 }, delivery: { retries: 1 } },
+    // No review role: these tests judge the checks; review has its own tests.
+    config = {
+      version: 1,
+      lanes: { local: 4 },
+      delivery: { retries: 1, reviewers: [] },
+    },
     // More Operations options (a plugin settings file, for one), or a
     // function of the workspace root giving them.
     operations = {},

@@ -542,3 +542,40 @@ export function printResult(run, tag, pass) {
     `${tag} ${pass ? "PASS" : "FAIL"}${run.agent === "fake" ? " (fake agent: plumbing only, not the proof)" : ""}`,
   );
 }
+
+// A throwaway test crew's dashboard API (live-harness.sh) through its saved
+// sign-in cookie. A session that has lapsed is refreshed once with the
+// cookie's refresh part, as the dashboard itself does.
+export function crewApi({ harnessDir, port }, method, route, body) {
+  const call = (method, route, body) => {
+    const cookies = path.join(harnessDir, "cookies.txt");
+    const out = execFileSync(
+      "curl",
+      [
+        "-sS",
+        "-X",
+        method,
+        "-b",
+        cookies,
+        "-c",
+        cookies,
+        "-H",
+        `Origin: http://localhost:${port}`,
+        "-H",
+        "Content-Type: application/json",
+        `http://localhost:${port}${route}`,
+        ...(body ? ["-d", JSON.stringify(body)] : []),
+      ],
+      { encoding: "utf8" },
+    );
+    try {
+      return JSON.parse(out);
+    } catch {
+      return { raw: out.slice(0, 300) };
+    }
+  };
+  const reply = call(method, route, body);
+  if (reply?.code !== "forbidden") return reply;
+  call("POST", "/api/auth/refresh");
+  return call(method, route, body);
+}
