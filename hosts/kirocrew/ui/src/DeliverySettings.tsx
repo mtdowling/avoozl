@@ -9,6 +9,7 @@
 // one confirm.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
+import { Box } from './ui/Box'
 import { Card } from './ui/Card'
 import { CheckRow, Field } from './ui/Field'
 import { Input } from './ui/Input'
@@ -75,20 +76,20 @@ export const AUTOPILOT_MODES: Record<Mode, { title: string; line: string; steps:
 // the choice's label.
 function Steps({ steps }: { steps: string[] }) {
   return (
-    <span role="list" data-autopilot-steps className="mt-1 flex flex-wrap items-center gap-1 text-xs">
+    <Box as="span" role="list" mt="1" flex flexWrap items="center" gap="1" size="xs" data-autopilot-steps>
       {steps.map((step, index) => (
-        <span key={step} role="listitem" className="inline-flex items-center gap-1">
+        <Box as="span" key={step} role="listitem" inlineFlex items="center" gap="1">
           {index > 0 && (
-            <span aria-hidden="true" style={{ color: 'var(--muted)' }}>
+            <Hint as="span" aria-hidden="true">
               →
-            </span>
+            </Hint>
           )}
-          <span className="rounded px-1.5 py-0.5" style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)' }}>
+          <Box as="span" css-border-color="border" css-background="card" css-color="text" rounded="base" border="all" px="1.5" py="0.5">
             {step}
-          </span>
-        </span>
+          </Box>
+        </Box>
       ))}
-    </span>
+    </Box>
   )
 }
 
@@ -232,9 +233,9 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
           )}
           <Stack gap={3} data-autopilot-loop>
             <Stack gap={2} role="group" aria-labelledby="avoozl-loop-run">
-              <span id="avoozl-loop-run" className="text-sm font-medium">
+              <Box as="span" id="avoozl-loop-run" size="sm" weight="medium">
                 Run
-              </span>
+              </Box>
               {RUN_KINDS.map((kind) => (
                 <CheckRow
                   key={kind.key}
