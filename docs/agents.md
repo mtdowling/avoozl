@@ -102,7 +102,6 @@ these in the Avoozl app:
 - adding or removing repositories or intake sources
 - workspace, flow, and delivery settings
 - **Run anyway**, and resuming a pulled stop
-- starting or deciding a retro
 - **Deliver this** and **Plan this** on an incoming item
 - acting on an issue or pull request from the GitHub pages
 - opening a code review chat

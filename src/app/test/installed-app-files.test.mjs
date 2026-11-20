@@ -21,10 +21,7 @@ test("the installed bundle reads the shipped agent prompts and version", async (
     });
   const lib = path.join(installed, "bin", "lib"),
     load = (file) => import(pathToFileURL(path.join(lib, "src", "app", file)));
-  const { retroPrompt } = await load("flow/flow-retro.mjs"),
-    { shippedPrompts } = await load("agents/prompts.mjs");
-
-  assert.equal(retroPrompt(), agent("avoozl-retro"));
+  const { shippedPrompts } = await load("agents/prompts.mjs");
   const shipped = shippedPrompts();
   assert.equal(shipped["agent.retro"], agent("avoozl-retro"));
   assert.equal(shipped["agent.planner"], agent("avoozl-planner"));

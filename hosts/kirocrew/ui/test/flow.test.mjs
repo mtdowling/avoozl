@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { bannerText, barSegments, duration, metricCards, pdcaText, proposalText, stopRows, toFlowForm, toFlowSection } from '../src/flow-api.ts'
+import { bannerText, barSegments, duration, metricCards, stopRows, toFlowForm, toFlowSection } from '../src/flow-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const empty = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
@@ -62,31 +62,12 @@ test('the banner names the check, branch, culprit, fix task and paused count', (
   assert.match(bannerText({ ...stop, runAnyway: { by: 'dashboard', at: '' } }), /Dispatch resumed by Run anyway\./)
 })
 
-test('proposals and PDCA results read as one line each', () => {
-  const p = {
-    id: 'p1',
-    type: 'settings',
-    file: 'workspace',
-    key: 'flow.retro.slowFactor',
-    from: 3,
-    to: 5,
-    metric: 'lead time',
-    direction: 'down',
-    evidence: 'e',
-    status: 'approved',
-    pdca: { before: 60 * 60_000, after: 61 * 60_000, result: 'no change', window: 10 },
-  }
-  assert.equal(proposalText(p), 'flow.retro.slowFactor 3 → 5')
-  assert.equal(pdcaText(p), 'PDCA: lead time 1 h → 1 h 1 m, did not help.')
-  assert.equal(pdcaText({ ...p, status: 'open' }), null)
-})
-
-test('Settings > Flow leaves blank fields to their defaults and refuses bad values before saving', () => {
+test('Settings > Flow leaves blank fields to their defaults', () => {
   assert.deepEqual(toFlowSection(toFlowForm({})), { flow: {} })
-  const form = { ...toFlowForm({}), scope: 'repo', localChecksFirst: 'off', slowFactor: '2.5' }
-  assert.deepEqual(toFlowSection(form).flow, { stopTheLine: { scope: 'repo' }, localChecksFirst: false, retro: { slowFactor: 2.5 } })
-  assert.match(toFlowSection({ ...form, everyTasks: '0' }).error, /1–1000/)
-  assert.match(toFlowSection({ ...form, slowFactor: '1' }).error, /1\.1–20/)
+  const form = { ...toFlowForm({}), scope: 'repo', localChecksFirst: 'off' }
+  assert.deepEqual(toFlowSection(form).flow, { stopTheLine: { scope: 'repo' }, localChecksFirst: false })
+  // The retro is a skill now, with no settings to keep.
+  assert.equal('everyTasks' in toFlowForm({ retro: { everyTasks: 3 } }), false)
   // Batching has no setting (R108.8): an old `batch` is not a field and is
   // not saved back.
   assert.equal('max' in toFlowForm({ batch: { max: 4 } }), false)
@@ -108,13 +89,11 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
     firstSection = dashboard.indexOf('<Tiles')
   assert.ok(banner > 0 && banner < firstSection)
   assert.ok(drawer.includes('<SectionBox id="timing"'))
-  for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.instructions'])
-    assert.ok(settings.includes(`"${key}"`), key)
-  assert.match(settings, /Saved on this machine only\./)
-  for (const title of ['Timing', 'Pause on a broken check', 'Local checks first', 'Retro']) assert.match(settings, new RegExp(`<Section title="${title}"`))
+  for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst']) assert.ok(settings.includes(`"${key}"`), key)
+  for (const title of ['Timing', 'Pause on a broken check', 'Local checks first']) assert.match(settings, new RegExp(`<Section title="${title}"`))
   assert.doesNotMatch(settings, /Batching|flow\.batch/, 'batching has no setting')
-  // Approve is not red; Run anyway asks first.
-  assert.match(source('FlowMemory.tsx'), /<Btn type="button" primary disabled=\{busy\} onClick=\{\(\) => onDecide\(proposal, 'approve'\)\}>/)
+  assert.doesNotMatch(settings, /flow\.retro/)
+  // Run anyway asks first.
   assert.match(flow, /title: 'Run anyway\?'/)
 })
 
@@ -137,17 +116,6 @@ test('model pickers offer the models Kiro Crew lists, plus auto', async () => {
     modelOptions([], 'gone-model').map((o) => o.value),
     ['auto', 'gone-model'],
   )
-  // The retro's model moved to Settings › Models (ModelsSettings.tsx).
-  assert.doesNotMatch(source('FlowSettings.tsx'), /avoozl-flow-model/)
-})
-
-test('the retro instructions use the shared built-in prompt part', () => {
-  const settings = source('FlowSettings.tsx'),
-    part = source('PromptInstructions.tsx')
-  assert.match(settings, /<PromptInstructions[\s\S]*builtIn=\{value\.retroPrompt\}/)
-  assert.match(part, /Added after the built-in prompt\./)
-  assert.match(part, /read-only/)
-  assert.match(part, /navigator\.clipboard\.writeText/)
 })
 
 test('charts use theme colors and no yellow', async () => {

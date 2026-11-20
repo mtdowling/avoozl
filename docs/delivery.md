@@ -100,7 +100,7 @@ other chats need two steps in Kiro Crew, each done once:
    runs outside the chat sandbox, with your access.
 2. Set the chat folder. After the first tick, open the chat folder
    **Avoozl** › _repository ID_ in the sidebar and set its project directory
-   to the checkout. The planner, responder, and retro chats open there, and the
+   to the checkout. The planner and responder chats open there, and the
    tick opens none of them until it is set.
 
 ## Workers and verification

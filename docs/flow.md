@@ -1,8 +1,8 @@
 # Flow
 
-Flow settings control how work moves once delivery is on: when it pauses, when
-it checks, and when Avoozl stops to look back. They live under `flow` in
-`.avoozl.json`, and a repository can override them.
+Flow settings control how work moves once delivery is on: when it pauses and
+when it checks. They live under `flow` in `.avoozl.json`, and a repository can
+override them.
 
 ```json
 {
@@ -10,11 +10,7 @@ it checks, and when Avoozl stops to look back. They live under `flow` in
     "stopTheLine": {
       "scope": "dependents"
     },
-    "localChecksFirst": true,
-    "retro": {
-      "everyTasks": 10,
-      "slowFactor": 3
-    }
+    "localChecksFirst": true
   }
 }
 ```
@@ -52,10 +48,7 @@ repository's checks in its worktree before each push.
 
 ## Retros
 
-A retro starts after every `retro.everyTasks` finished tasks (default 10). It
-also starts when a task or a CI wait takes more than `retro.slowFactor` times
-its repository's usual time (default 3), or when a worker starts its third
-attempt. A tool-less `avoozl-retro` session names the biggest slowdown and
-proposes up to three changes, each a settings change or a spec change. You
-approve or reject each one under its retro on the **Retros** page, and Avoozl
-measures an approved change afterward.
+A retro is a skill you run when you want one: ask an agent session for a retro
+and it loads `avoozl-retro`. The skill reads `avoozl flow`, names the biggest
+slowdown with its numbers, and proposes up to three changes, each a settings
+change or a spec change. It changes nothing; you decide and make each change.

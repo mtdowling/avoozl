@@ -120,8 +120,6 @@ export const VIEW_ICONS = {
   landing: GitPullRequest,
   // Gauge is in the host's lucide-react export list (checked 2026-11-13).
   flow: Gauge,
-  // A retro is a review of how delivery went; ClipboardCheck is in the host's list.
-  retros: ClipboardCheck,
   conflicts: CircleAlert,
   untriaged: Inbox,
   // Needs you reuses the Conflicts icon.

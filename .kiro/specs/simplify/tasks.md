@@ -101,7 +101,7 @@ merge, shown in chat and never committed.
   - `delivery/investigate.mjs`, the falsifier stage and every `$investigate` read are gone; the `avoozl-investigate` skill tells a worker to write the findings file its task's `$done` names, and a reviewer how to try to prove it wrong (SM17.5)
 - [ ] `sim-4.3` Cut driver bookkeeping [SM2.5, SM14.1] (§D3)
   - `workers/driver.mjs`, `driver-scope.mjs`, `working-heads.mjs` and `remote-runner.mjs` are gone, with the `drivers` table and the `driver` and `worker` CLI commands; the assignee rule and claim branches decide who runs a task
-- [ ] `sim-4.4` Cut flow extras [SM14.1, SM14.4, SM17.3] (§D14, §D20)
+- [x] `sim-4.4` Cut flow extras [SM14.1, SM14.4, SM17.3] (§D14, §D20)
   - Build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chats, retro memory and retro operations are gone from `src/app/flow/`, with `bin/build-receipt` and the `avoozl-costs` skill; `flow-retro.mjs` and `retro-files.mjs` are gone once `avoozl-retro` ships
   - Flow keeps no fix-work share: `isFixWork`, the task `fix` flag, `metrics.fixWork`, `fixShare` and the retro brief's `fixWork` are gone (SM17.3)
   - Stop the line and the worker's own check run still pass their tests

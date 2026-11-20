@@ -1,19 +1,16 @@
-// Settings > Flow (design §8.4, R48.6–R48.8): stop the line, local checks
-// first and retros for this workspace. Saves write `flow` in
-// .avoozl.json through flow.settings.update with the file's hash; the retro
-// instructions are saved on this machine only (flow.instructions.update).
+// Settings > Flow (design §8.4, R48.6–R48.8): stop the line and local
+// checks first for this workspace. Saves write `flow` in .avoozl.json
+// through flow.settings.update with the file's hash.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Card } from './ui/Card'
-import { Input } from './ui/Input'
-import { ChoiceCards, SectionHeading } from './ui/controls.tsx'
+import { ChoiceCards } from './ui/controls.tsx'
 import { Section } from './SettingsView.tsx'
-import { CheckRow, FieldGrid as SharedGrid, Field, Marker, RawKey } from './ui/Field.tsx'
+import { CheckRow, Marker, RawKey } from './ui/Field.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Pause } from './icons.ts'
 import { SaveFooter } from './SaveFooter.tsx'
-import PromptInstructions from './PromptInstructions.tsx'
 import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
@@ -21,24 +18,6 @@ import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 
 const OPTIONAL = { required: false } as const
-
-// One field in a FieldGrid: the shared Field, lined up with the fields
-// beside it (align), every Flow value optional.
-function Labeled(props: { id: string; label: string; raw: string; children: React.ReactNode; note?: string }) {
-  return (
-    <Field id={props.id} label={props.label} raw={props.raw} rule={OPTIONAL} help={props.note} align attrs={{ 'data-flow-field': true }}>
-      {props.children}
-    </Field>
-  )
-}
-
-function FieldGrid({ children, group }: { children: React.ReactNode; group?: string }) {
-  return (
-    <SharedGrid align group={group}>
-      {children}
-    </SharedGrid>
-  )
-}
 
 // One bordered, titled box per sub-section, on the card surface.
 function FlowBox({ children }: { children: React.ReactNode }) {
@@ -66,20 +45,18 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
   const load = useCallback((id: string) => client.settings(id), [client])
   const { value, error, reload } = useRead<Settings>(workspaceId, load)
   const [form, setForm] = useState<FlowForm>(toFlowForm())
-  const [instructions, setInstructions] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ error?: string; ok?: string } | null>(null)
   useEffect(() => {
     if (!value) return
     setForm(toFlowForm(value.flow))
-    setInstructions(value.instructions ?? '')
   }, [value])
   const set = (change: Partial<FlowForm>) => {
     setMessage(null)
     setForm({ ...form, ...change })
   }
   const built = toFlowSection(form)
-  const dirty = Boolean(value) && (JSON.stringify(form) !== JSON.stringify(toFlowForm(value?.flow)) || instructions !== (value?.instructions ?? ''))
+  const dirty = Boolean(value) && JSON.stringify(form) !== JSON.stringify(toFlowForm(value?.flow))
   const save = async () => {
     if (!value) return
     if (built.error) return
@@ -87,7 +64,6 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
     setMessage(null)
     try {
       await client.saveSettings(workspaceId, { flow: built.flow!, expectedHash: value.hash })
-      if (instructions !== (value.instructions ?? '')) await client.saveInstructions(workspaceId, instructions)
       setMessage({ ok: 'Saved.' })
       await reload()
     } catch (caught) {
@@ -134,43 +110,6 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
           <CheckRow label="Require a local pass before push" raw="flow.localChecksFirst" checked={local} onChange={(on) => set({ localChecksFirst: on ? 'on' : 'off' })} />
         </Section>
       </FlowBox>
-      <FlowBox>
-        <Section title="Retro" blurb="A review that finds the biggest slowdown and proposes a settings or spec change. You approve or reject each proposal.">
-          <SectionHeading level={4} title="When it runs" />
-          <FieldGrid group="when">
-            <Labeled id="avoozl-flow-every" label="After this many tasks" raw="flow.retro.everyTasks">
-              <Input
-                id="avoozl-flow-every"
-                inputMode="numeric"
-                value={form.everyTasks}
-                placeholder={String(FLOW_DEFAULTS.everyTasks)}
-                onChange={(event) => set({ everyTasks: event.target.value })}
-              />
-            </Labeled>
-            <Labeled id="avoozl-flow-slow" label="Slow when over (× usual)" raw="flow.retro.slowFactor">
-              <Input
-                id="avoozl-flow-slow"
-                inputMode="decimal"
-                value={form.slowFactor}
-                placeholder={String(FLOW_DEFAULTS.slowFactor)}
-                onChange={(event) => set({ slowFactor: event.target.value })}
-              />
-            </Labeled>
-          </FieldGrid>
-          {/* The retro's model is under Settings › Models. */}
-          <SectionHeading level={4} title="What it weighs" />
-          <PromptInstructions
-            id="avoozl-flow-instructions"
-            agent="retro"
-            builtIn={value.retroPrompt}
-            value={instructions}
-            onChange={(text) => (setMessage(null), setInstructions(text))}
-            raw="flow.retro.instructions"
-            placeholder="What the retro should weigh, for example: fewer review rounds matter more than CI time."
-            note="Saved on this machine only."
-          />
-        </Section>
-      </FlowBox>
       <SaveFooter
         dirty={dirty}
         saving={saving}
@@ -182,7 +121,6 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
         onDiscard={() => {
           setMessage(null)
           setForm(toFlowForm(value.flow))
-          setInstructions(value.instructions ?? '')
         }}
       />
     </Stack>

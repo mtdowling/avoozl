@@ -461,19 +461,6 @@ async function nothingCommitted(store, taskId, worktree) {
 export async function finishProcessSession(ops, binding, result, store = null) {
   result = withChildOutput(processRow(binding.role), result);
   const hands = processRow(binding.role)?.hands;
-  if (hands === "reply") {
-    if (!store) return null;
-    const { recordRetroReply } = await import("../flow/flow-retro.mjs");
-    return recordRetroReply(
-      store,
-      binding.taskId,
-      result.state === "done" && result.report
-        ? JSON.stringify(result.report)
-        : result.state === "done"
-          ? result.text
-          : "",
-    );
-  }
   // A pull request review is kept with its request and shown with the
   // session; nothing goes to GitHub (NK4.4).
   if (hands === "pr-review") {
@@ -1104,12 +1091,7 @@ export async function drainProcessRequests(
                 },
               );
           }
-          // A retro that wrote no good result still ends its retro, as
-          // failed, so the next one can start.
-          if (
-            result?.state ||
-            (result && processRow(binding.role)?.hands === "reply")
-          )
+          if (result?.state)
             await finishProcessSession(ops, binding, result, store).catch(
               (error) =>
                 errors.push({ id: binding.slot, error: error.message }),

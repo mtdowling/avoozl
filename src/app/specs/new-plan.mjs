@@ -13,7 +13,7 @@ import { specFolderPath, specsDirectory } from "./specs-path.mjs";
 import { sessionRepository } from "../executors/process.mjs";
 import { roleRun } from "../agents/role-table.mjs";
 import { recordPlanReviewWriter } from "../reviews/plan-review-authorship.mjs";
-import { steeringOptions, withSeed } from "../flow/retro-memory.mjs";
+import { shippedPrompts } from "../agents/prompts.mjs";
 import {
   STEERING_FILE,
   STEERING_TEXT,
@@ -213,7 +213,7 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
     );
 
   const folder = path.join(specsDirectory(deps.specRoot), name),
-    rules = steeringOptions(store);
+    rules = { text: shippedPrompts()["steering.specs"], older: [] };
   if (input.preview === true)
     return {
       name,
@@ -242,7 +242,7 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
         input.writeSteering === true ? "written" : steering.state,
         rules.text,
       )
-    : withSeed(store, newPlanBrief(request), "agent.planner");
+    : newPlanBrief(request);
   // A content rule that blocks the text refuses it: nothing is recorded.
   if (contentBinding(store)?.workspaceRoot)
     enforce(

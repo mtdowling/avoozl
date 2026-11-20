@@ -376,3 +376,21 @@ export function rebasePrompt(
     });
   return { target, n, version: promptState(file, shipped)[target].version };
 }
+
+// The prompts sessions get: the shipped text of each target.
+export const currentPrompts = () => promptState(null, shippedPrompts());
+
+// The version of each shipped prompt, for a session's binding (R68.12).
+export const promptVersions = () =>
+  Object.fromEntries(
+    Object.entries(currentPrompts()).map(([target, s]) => [target, s.version]),
+  );
+
+// Which shipped prompt a session role runs on.
+export function roleTarget(role) {
+  if (role === "worker") return "brief.worker";
+  if (typeof role === "string" && role.startsWith("review:"))
+    return "brief.review";
+  if (role === "planner") return "agent.planner";
+  return null;
+}

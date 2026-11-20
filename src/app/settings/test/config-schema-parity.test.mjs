@@ -103,7 +103,7 @@ const PAIRS = [
     DELIVERY_REPOSITORY_KEYS,
   ],
   ["#/$defs/flow", [...new Set(FLOW_PATHS.map((path) => path.split(".")[0]))]],
-  ...["stopTheLine", "retro", "verify"].map((group) => [
+  ...["stopTheLine", "verify"].map((group) => [
     `#/$defs/flow/properties/${group}`,
     flowGroup(group),
   ]),

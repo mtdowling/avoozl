@@ -275,50 +275,6 @@ test("a verifier runs read-only in a detached worktree Avoozl adds, and its verd
   assert.doesNotMatch(gitIn(m.checkout, "worktree", "list"), /verify-1/);
 });
 
-test("a retro runs in a scratch folder and its result file is its reply", async (t) => {
-  const m = machine(t);
-  m.store.put("flow_retros", {
-    id: "retro-1",
-    n: 1,
-    state: "running",
-    triggers: [],
-    reverts: [],
-    proposals: [],
-    dropped: [],
-    startedAt: new Date().toISOString(),
-  });
-  const reply = {
-    bottleneck: { stage: "review", evidence: "Reviews wait 3 hours." },
-    proposals: [],
-  };
-  enqueueSessionRequests(m.store, {
-    starts: [
-      {
-        executor: "process",
-        role: "retro",
-        task: "retro-1",
-        repository: "app",
-        brief: `Numbers.\nRESULT:${JSON.stringify({ state: "done", report: reply })}`,
-      },
-    ],
-  });
-  const ops = { execute: async () => assert.fail("a retro sends no report") };
-  await drainProcessRequests(m.store, {
-    stateDirectory: m.stateDirectory,
-    ops,
-  });
-  const [binding] = m.store.list("session_bindings");
-  assert.equal(binding.permissionClass, "read");
-  const scratch = /cwd: (\S+) /;
-  assert.deepEqual(await settle(m, ops, binding.slot), []);
-  const folder = scratch.exec(m.log(binding.slot))[1];
-  assert.match(path.basename(folder), /^avoozl-retro-/);
-  assert.ok(!fs.existsSync(folder), "the scratch folder is removed");
-  const retro = m.store.get("flow_retros", "retro-1");
-  assert.equal(retro.state, "done");
-  assert.equal(retro.bottleneck.stage, "review");
-});
-
 test("a process repository's verifier and new-plan planner requests name process", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-roles-route-"));
   const store = new Store(path.join(root, "workspace.sqlite"));

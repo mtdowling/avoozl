@@ -111,7 +111,6 @@ import { contextView } from "../context/plugin-context.mjs";
 import { contextChip, taskContext } from "../context/context-record.mjs";
 import { taskPluginChecks } from "../plugins/check-stages.mjs";
 import { RepositorySettings } from "../settings/repository-settings.mjs";
-import { bindRetroMemory } from "../flow/retro-memory.mjs";
 import {
   approvalBase,
   approvalCommits,
@@ -121,11 +120,6 @@ import {
   gitTop,
 } from "../git/git-approvals.mjs";
 import { landingsFromGit } from "../landing/landing-trailers.mjs";
-import {
-  readRetroFiles,
-  retroText,
-  writeRetroFiles,
-} from "../flow/retro-files.mjs";
 import { specsBranch, specsBranchSetting } from "../specs/specs-branch.mjs";
 import {
   createSpecPlan,
@@ -275,24 +269,6 @@ export class Operations {
       bindContentRules(store, {
         workspaceRoot,
         pluginSettingsFile,
-      });
-    if (workspaceRoot && configDirectory)
-      bindRetroMemory(store, {
-        configDirectory,
-        workspaceRoot,
-        shipped: shippedPrompts,
-        loadPluginFolders: () =>
-          inspectPlugins(this.pluginOptions)
-            .filter(
-              (p) =>
-                p.location && p.state !== "invalid" && p.state !== "missing",
-            )
-            .map((p) => ({
-              id: p.id,
-              location: p.location,
-              provides: p.provides || [],
-              state: p.state,
-            })),
       });
   }
   read() {
@@ -898,26 +874,6 @@ export class Operations {
   // from it only in layout) is approved again as that commit's author, which
   // also makes its ticked tasks done; and each landing commit's trailers become the
   // Activity rows of what landed.
-  // The checkout that holds retro files (retro-files.mjs): the git work
-  // tree of this workspace's first spec root, or null.
-  async retroRoot() {
-    let roots = [];
-    try {
-      roots = this.specRoots();
-    } catch {
-      return null;
-    }
-    for (const root of roots.filter(Boolean)) {
-      const top = await gitTop(root);
-      if (top) return top;
-    }
-    return null;
-  }
-  // Commit the retros that finished since the last write (§4.42).
-  async writeRetroFiles() {
-    const root = await this.retroRoot();
-    return root ? writeRetroFiles(this.store, root) : null;
-  }
   // Send what the OTLP exporter has queued, for a process about to end.
   async flushTelemetry() {
     await telemetryHandle(this.store)?.flush();
@@ -1144,33 +1100,9 @@ export class Operations {
             key: `landed:${task.task}:${landing.commit}`,
           });
         }
-    // Retros, from their committed files.
-    const retros = [],
-      retroRoot = only_root ?? (await this.retroRoot());
-    if (retroRoot) {
-      const base = await approvalBase(retroRoot).catch(() => null);
-      for (const retro of await readRetroFiles(
-        retroRoot,
-        base?.head ?? "HEAD",
-      )) {
-        if (store.get("flow_retros", retro.id)) continue;
-        store.put("flow_retros", retro);
-        retros.push(retro.id);
-      }
-      store.setMeta("retro.files", {
-        ...(store.getMeta("retro.files") || {}),
-        ...Object.fromEntries(
-          store
-            .list("flow_retros")
-            .filter((retro) => retros.includes(retro.id))
-            .map((retro) => [retro.id, digest(retroText(retro))]),
-        ),
-      });
-    }
     return {
       plans: names.length,
       approved,
-      retros,
       drafts: names.filter((name) => !approved.includes(name)),
       // The adopted specs' tasks that came in done (statusComplete takes a status id).
       done: ((data) =>
@@ -1723,19 +1655,10 @@ export class Operations {
       refuseGitHubAuthority(this.read(), name, input);
 
     if (
-      [
-        "flow.settings.update",
-        "flow.instructions.update",
-        "flow.retro.decide",
-        "flow.retro.start",
-        "flow.retro.again",
-      ].includes(name) &&
+      ["flow.settings.update"].includes(name) &&
       (context.caller || context.mcp)
     )
-      fail(
-        "Only a person changes flow settings and decides retro proposals, in the Avoozl page.",
-        403,
-      );
+      fail("Only a person changes flow settings, in the Avoozl page.", 403);
 
     if (
       ["driver.settings.update"].includes(name) &&

@@ -100,45 +100,6 @@ export interface LineStop {
   sessions?: { slot: string; taskId: string; role: string; attempt: number; stopped: boolean; error?: string; finished?: boolean }[]
 }
 
-export interface Proposal {
-  id: string
-  type: 'settings' | 'plan'
-  file?: 'workspace' | 'repository'
-  repository?: string
-  key?: string
-  from?: unknown
-  to?: unknown
-  spec?: string
-  change?: string
-  metric: string
-  direction: 'up' | 'down'
-  evidence: string
-  status: 'open' | 'approved' | 'rejected'
-  removesCheck?: boolean
-  revertOf?: string
-  reason?: string | null
-  pdca?: { before: number | null; after?: number | null; result?: 'helped' | 'no change' | 'worse'; window: number }
-}
-
-export interface Retro {
-  id: string
-  n: number
-  state: 'running' | 'done' | 'failed'
-  triggers: { kind: string; detail: string }[]
-  startedAt: string
-  finishedAt?: string
-  error?: string
-  // The model the retro ran on; retros from before it was recorded omit it.
-  model?: string
-  // Why it failed, by kind: it never started, was lost, never replied, or
-  // timed out; and how long it waited.
-  failure?: 'never-started' | 'lost' | 'no-reply' | 'timeout'
-  waitedMs?: number
-  bottleneck: { stage: string; repository: string | null; evidence: string } | null
-  proposals: Proposal[]
-  dropped: { index: number; key: string | null; reason: string }[]
-}
-
 export interface FlowViewModel {
   window: { size: number; since: string | null }
   metrics: Metrics
@@ -149,7 +110,6 @@ export interface FlowViewModel {
   line: LineStop[]
   flaky: { id: string; check: string; commit: string; at: string }[]
   ciOnly: { id: string; taskId: string; commit: string; checks: string[]; at: string }[]
-  retros: Retro[]
   stages: Stage[]
   repositories: string[]
   epics: { id: string; title: string }[]
@@ -263,14 +223,10 @@ export function flowClient(api: AppApi) {
     runAnyway: (workspaceId: string, stopId: string) => run(workspaceId, 'flow.runAnyway', { stopId, confirm: true }),
     stop: (workspaceId: string, input: PullInput) => run<{ stop: LineStop }>(workspaceId, 'flow.stop', { ...input }),
     resume: (workspaceId: string, stopId: string) => run<{ stop: LineStop }>(workspaceId, 'flow.resume', { stopId }),
-    startRetro: (workspaceId: string) => run(workspaceId, 'flow.retro.start'),
-    runRetroAgain: (workspaceId: string, id: string) => run(workspaceId, 'flow.retro.again', { id }),
-    decide: (workspaceId: string, input: Record<string, unknown>) => run(workspaceId, 'flow.retro.decide', input),
     settings: (workspaceId: string) => run<FlowSettings>(workspaceId, 'flow.settings.get'),
     saveSettings: (workspaceId: string, input: { flow: FlowSection; repository?: string | null; expectedHash: string }) =>
       run<FlowSettings>(workspaceId, 'flow.settings.update', input),
     models: () => api.get<unknown>('/api/models').then(parseModels),
-    saveInstructions: (workspaceId: string, instructions: string) => run<{ instructions: string }>(workspaceId, 'flow.instructions.update', { instructions }),
   }
 }
 
@@ -348,15 +304,6 @@ export const SOURCE_TEXT = {
   events: 'from events',
 } as const
 
-// "flow.retro.everyTasks 10 → 5" or the plan change in words.
-export function proposalText(p: Proposal): string {
-  if (p.type === 'plan') return `${p.change} (spec ${p.spec})`
-  const where = p.file === 'repository' ? ` in ${p.repository}` : ''
-  return `${p.key} ${JSON.stringify(p.from)} → ${JSON.stringify(p.to)}${where}`
-}
-
-export const directionText = (p: Proposal) => `${p.metric} ${p.direction === 'down' ? '↓' : '↑'}`
-
 // A unified diff as lines to color: added, removed, hunk header or context.
 export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hunk' | 'same'; text: string }[] {
   if (!diff) return []
@@ -364,14 +311,6 @@ export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hu
     kind: text.startsWith('@@') ? 'hunk' : text.startsWith('+') ? 'add' : text.startsWith('-') ? 'del' : 'same',
     text,
   }))
-}
-
-export function pdcaText(p: Proposal): string | null {
-  if (p.status !== 'approved' || !p.pdca) return null
-  if (!p.pdca.result) return `PDCA: measuring over the next ${p.pdca.window} tasks.`
-  const verdict = p.pdca.result === 'helped' ? 'helped' : p.pdca.result === 'worse' ? 'worse' : 'did not help'
-  const fmt = (v: number | null | undefined) => (v === null || v === undefined ? '–' : /rate|efficiency/.test(p.metric) ? percent(v) : duration(v))
-  return `PDCA: ${p.metric} ${fmt(p.pdca.before)} → ${fmt(p.pdca.after)}, ${verdict}.`
 }
 
 // What a pulled stop covers, in words.
@@ -555,7 +494,6 @@ export function flowChoices(base: Pick<FlowViewModel, 'tasks' | 'repositories' |
 export interface FlowSection {
   stopTheLine?: { scope?: 'dependents' | 'repo' | 'all' }
   localChecksFirst?: boolean
-  retro?: { everyTasks?: number; slowFactor?: number }
 }
 
 export interface FlowSettings {
@@ -564,30 +502,22 @@ export interface FlowSettings {
   hash: string
   flow: FlowSection
   repositories: Record<string, FlowSection>
-  instructions: string | null
-  retroPrompt: string | null
 }
 
 export const FLOW_DEFAULTS = {
   scope: 'dependents',
   localChecksFirst: true,
-  everyTasks: 10,
-  slowFactor: 3,
 } as const
 
 export interface FlowForm {
   scope: '' | 'dependents' | 'repo' | 'all'
   localChecksFirst: '' | 'on' | 'off'
-  everyTasks: string
-  slowFactor: string
 }
 
 export function toFlowForm(section: FlowSection = {}): FlowForm {
   return {
     scope: section.stopTheLine?.scope ?? '',
     localChecksFirst: section.localChecksFirst === undefined ? '' : section.localChecksFirst ? 'on' : 'off',
-    everyTasks: section.retro?.everyTasks === undefined ? '' : String(section.retro.everyTasks),
-    slowFactor: section.retro?.slowFactor === undefined ? '' : String(section.retro.slowFactor),
   }
 }
 
@@ -597,17 +527,5 @@ export function toFlowSection(form: FlowForm): { flow?: FlowSection; error?: str
   const flow: FlowSection = {}
   if (form.scope) flow.stopTheLine = { scope: form.scope }
   if (form.localChecksFirst) flow.localChecksFirst = form.localChecksFirst === 'on'
-  const retro: FlowSection['retro'] = {}
-  if (form.everyTasks.trim()) {
-    const n = Number(form.everyTasks)
-    if (!Number.isInteger(n) || n < 1 || n > 1000) return { error: 'After this many tasks must be a whole number 1–1000.' }
-    retro.everyTasks = n
-  }
-  if (form.slowFactor.trim()) {
-    const n = Number(form.slowFactor)
-    if (!Number.isFinite(n) || n < 1.1 || n > 20) return { error: 'Slow when over must be a number 1.1–20.' }
-    retro.slowFactor = n
-  }
-  if (Object.keys(retro).length) flow.retro = retro
   return { flow }
 }

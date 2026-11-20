@@ -14,7 +14,6 @@
 // decision (delivery.mjs).
 import { liveAttempt } from "../../delivery/delivery.mjs";
 import { ingestToolRows, toolCallsReadable } from "../../flow/flow.mjs";
-import { recordRetroReply } from "../../flow/flow-retro.mjs";
 import {
   listSessionBindings,
   recordSessionStatus,
@@ -83,29 +82,6 @@ export async function observeToolRows(store, readRows, { checksFor } = {}) {
     }
   }
   return { rows, errors };
-}
-
-// A retrospective's answer (§4.11): the tool-less avoozl-retro agent ends
-// its turn with one JSON object, read from its last assistant row once the
-// session is idle. Writes only when a reply is recorded.
-export async function observeRetroReplies(store, readRows) {
-  const errors = [];
-  for (const binding of listSessionBindings(store)) {
-    if (binding.role !== "retro" || binding.status !== "idle") continue;
-    if (store.get("flow_retros", binding.taskId)?.state !== "running") continue;
-    try {
-      const { rows } = await readRows(binding.slot, null),
-        reply = [...rows]
-          .reverse()
-          .find(
-            (r) => r?.role === "assistant" && typeof r.content === "string",
-          );
-      if (reply) recordRetroReply(store, binding.taskId, reply.content);
-    } catch (error) {
-      errors.push({ slot: binding.slot, error: error.message });
-    }
-  }
-  return { errors };
 }
 
 export {

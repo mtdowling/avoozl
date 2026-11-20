@@ -110,6 +110,7 @@ const DROPPED_TABLES = [
   "planning_usage",
   "flow_usage",
   "flow_spans",
+  "flow_retros",
 ];
 
 // The tables of {id, body} rows; the read tables add the three with
@@ -138,7 +139,6 @@ const BODY_TABLES = new Set([
   "content_reports",
   "flow_records",
   "flow_stops",
-  "flow_retros",
   "pr_feedback",
   "incoming_items",
   "intake_sources",
@@ -306,7 +306,6 @@ export class Store {
    CREATE TABLE IF NOT EXISTS content_reports(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_records(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_stops(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS flow_retros(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS pr_feedback(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS incoming_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS intake_sources(id TEXT PRIMARY KEY,body TEXT NOT NULL);

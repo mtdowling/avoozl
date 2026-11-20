@@ -36,7 +36,6 @@ import {
   judgeBaseFailures,
   watchLine,
 } from "../flow/flow-line.mjs";
-import { retroStep } from "../flow/flow-retro.mjs";
 import { queueCheckRuns } from "../delivery/check-runs.mjs";
 import {
   completeParents,
@@ -928,14 +927,6 @@ async function runTick(
       // Timing (§4.11): queued, attempt starts, verifier and review
       // sessions, and merge. Always on; writes only what changed.
       syncSpans(store);
-      // Retrospectives (§4.11): one at a time, on the cron only.
-      const home = store.list("repositories").find((p) => p.root),
-        retro =
-          script && !unobserved.length
-            ? retroStep(store, memory.value || {}, {
-                repository: home?.id ?? null,
-              })
-            : { dispatch: [] };
       // Code review chats a person asked for (pr-review.mjs), cron only.
       const roleConfig = memory.value || {},
         reviews =
@@ -963,10 +954,9 @@ async function runTick(
         ...verify.filter((d) => !readOnlyTask(d.task)),
         ...investigation.dispatch.filter((d) => !heldTask(d.task)),
         ...responders.filter((d) => !heldTask(d.task)),
-        ...retro.dispatch,
         ...reviews.filter((d) => !heldTask(d.task)),
       ];
-      // Settings › Models: the planner and retro chats open on
+      // Settings › Models: the planner chats open on
       // the saved model.
       dispatch = withChatModels(dispatch, memory.value || {});
       if (contextBrief)

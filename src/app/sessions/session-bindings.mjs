@@ -149,8 +149,6 @@ export function bindSession(
       // A responder binds to the issue snapshot it answers (github-respond.mjs).
       taskId =
         (role === "responder" && store.get("github_responses", named)) ||
-        // A retrospective binds to its retro record (§4.11).
-        (role === "retro" && store.get("flow_retros", named)) ||
         // A code review chat binds to its request (pr-review.mjs).
         (role === "pr-review" &&
           store.get("receipts", named)?.kind === "pr-review") ||
@@ -239,24 +237,6 @@ export function bindSession(
         consumer,
       });
     store.put("session_bindings", binding);
-    // A retro keeps its chat on its own record, so the Retros page can link
-    // it, and a failure can say what became of it.
-    if (role === "retro") {
-      const retro = store.get("flow_retros", taskId),
-        harness = input.requestId
-          ? store.get("session_requests", input.requestId)?.request?.harness
-          : undefined;
-      if (retro)
-        store.put("flow_retros", {
-          ...retro,
-          session: {
-            slot,
-            executor: binding.executor ?? "kirocrew",
-            ...(harness ? { harness } : {}),
-            boundAt: binding.boundAt,
-          },
-        });
-    }
     store.ensureReportSecret();
     return { binding, changed: true };
   });

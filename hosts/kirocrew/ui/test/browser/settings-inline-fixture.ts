@@ -34,15 +34,12 @@ export function installInlineFixture() {
 
   // Flow
   let flow: Record<string, unknown> = {}
-  let instructions = ''
   const flowSettings = () => ({
     filename: '.avoozl.json',
     exists: true,
     hash: hash(),
     flow,
     repositories: {},
-    instructions,
-    retroPrompt: 'Review saved timings and propose one change.',
   })
   answer('flow.settings.get', () => flowSettings())
   answer('flow.settings.update', (body) => {
@@ -50,11 +47,6 @@ export function installInlineFixture() {
     flow = (body.input as { flow: Record<string, unknown> }).flow
     write(body)
     return flowSettings()
-  })
-  answer('flow.instructions.update', (body) => {
-    instructions = String((body.input as { instructions?: string }).instructions ?? '')
-    writes.push(body)
-    return {}
   })
 
   // Repository setup

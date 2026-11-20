@@ -79,7 +79,7 @@ import {
   recordFindings,
   TABLE as INVESTIGATIONS,
 } from "./investigate.mjs";
-import { currentPrompts } from "../flow/retro-memory.mjs";
+import { currentPrompts } from "../agents/prompts.mjs";
 import {
   blockerNotes,
   completionReached,
@@ -1801,10 +1801,9 @@ export function sessionTitle(taskId, attempt, label) {
 
 // The brief a ready leaf's worker gets, for its route. A plans-repo leaf's
 // brief is the task's own text and its linked branch (§6.6).
-// The standing rules a brief ends with (design §4.18): the built-in
-// sections, or this workspace's override of the unlocked ones.
+// The standing rules a brief ends with (design §4.18): the shipped sections.
 function withRules(store, brief, target) {
-  const rules = currentPrompts(store)[target]?.text?.trim();
+  const rules = currentPrompts()[target]?.text?.trim();
   return rules ? `${brief}\n\n${rules}` : brief;
 }
 

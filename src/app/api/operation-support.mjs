@@ -5,7 +5,7 @@ import { taskAuthority, taskKind, taskRepository } from "../../work-model.mjs";
 import { busyTaskIds, declaredChecks } from "../delivery/delivery.mjs";
 import { sessionUrl } from "../tick/notifications.mjs";
 import { checkCommand } from "../workspace/repository-checks.mjs";
-import { promptVersions, roleTarget } from "../flow/retro-memory.mjs";
+import { promptVersions, roleTarget } from "../agents/prompts.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { fail } from "../store/store.mjs";
 import path from "node:path";
@@ -364,7 +364,7 @@ export function stampPrompts(store, result) {
   const binding = result?.binding,
     target = binding && roleTarget(binding.role);
   if (!target || !result.changed || binding.prompts) return result;
-  const version = promptVersions(store)[target],
+  const version = promptVersions()[target],
     next = { ...binding, prompts: { [target]: version } };
   store.put("session_bindings", next);
   return { ...result, binding: next };

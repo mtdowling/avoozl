@@ -1343,7 +1343,7 @@
     },
     "flow": {
       "type": "object",
-      "description": "Flow settings: what a failure stops, when a retro runs, what counts as CI waste, and what verification protects. The retro instructions are saved on each machine, never here.",
+      "description": "Flow settings: what a broken check pauses, whether a worker must pass its local checks before it pushes, and what verification protects.",
       "additionalProperties": false,
       "properties": {
         "stopTheLine": {
@@ -1361,24 +1361,6 @@
           "type": "boolean",
           "default": true,
           "description": "Run the declared checks locally before pushing."
-        },
-        "retro": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "everyTasks": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 1000,
-              "default": 10
-            },
-            "slowFactor": {
-              "type": "number",
-              "minimum": 1.1,
-              "maximum": 20,
-              "default": 3
-            }
-          }
         },
         "verify": {
           "type": "object",

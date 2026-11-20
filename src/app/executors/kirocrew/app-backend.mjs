@@ -24,7 +24,6 @@ import {
   gatewaySlotRows,
   gatewayUsageTurns,
   observeSessions,
-  observeRetroReplies,
   observeToolRows,
 } from "./session-observer.mjs";
 import { declaredChecks } from "../../delivery/delivery.mjs";
@@ -295,10 +294,6 @@ export function startAppBackend({
                 ).map(checkCommand);
               },
             });
-            if (errors.length) console.error(errors[0].error);
-          }
-          if (rowReader) {
-            const { errors } = await observeRetroReplies(store, rowReader);
             if (errors.length) console.error(errors[0].error);
           }
           // Token and credit counts as telemetry points (otel-export §D4).

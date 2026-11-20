@@ -54,7 +54,6 @@ database is a cache that every machine builds from the same commits:
 | Approval | A commit on main that changes the spec's files, authored by an approver |
 | Task done | The tick in `tasks.md` on the spec's base branch |
 | Landing record | `Avoozl-Task:` trailers on the landing commit |
-| Retro | `.kiro/retros/` |
 | Driver | The spec issue's assignee on GitHub |
 
 A tick another person lands counts on your machine at your next tick, and so
@@ -117,7 +116,7 @@ in `.avoozl.json`:
     "planner": {
       "harness": "claude-code"
     },
-    "retro": {
+    "reviewer": {
       "harness": "kirocrew"
     }
   }

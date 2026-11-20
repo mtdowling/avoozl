@@ -89,4 +89,3 @@ and run `avoozl rebuild`. It:
 - approves again each spec whose current text an approver committed on main
 - lists what landed from the landing commits' trailers, with each task's Flow
   spans
-- reads the retros committed under `.kiro/retros/`
