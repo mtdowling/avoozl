@@ -90,6 +90,8 @@ export const APP_OPERATIONS = new Set([
   // high-risk steps, and the Needs you actions that run under one.
   "plugin.credentials.pick",
   "github.job.confirm",
+  // Delete branch on a stale claim, under the same Allow (simplify §D3).
+  "claim.delete",
   "plugin.update",
   // Epic context (epic-context EC4, EC9): Settings reads it, and a person
   // sets the machine block and answers a plugin's questions.

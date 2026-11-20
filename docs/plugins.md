@@ -330,6 +330,7 @@ these permissions:
 | `worker-grants` | low | contents: write, issues: write, metadata: read | Open and checkpoint worker branches |
 | `workspace-publish` | low | contents: write, metadata: read, pull_requests: write | Publish a workspace repository |
 | `landing-setup` | high | administration: write, metadata: read, statuses: write, variables: write | Set rulesets, repository settings and variables |
+| `claim-delete` | high | contents: write, metadata: read | Delete a stale claim branch |
 
 A `high` job asks first. Before any provider is asked for its token, the
 page shows one confirm naming the repository (or owner), the action and these

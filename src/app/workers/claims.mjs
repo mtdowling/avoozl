@@ -3,6 +3,7 @@
 // second one with 422, so two runners never hold one task. The cache keeps
 // the branches each read saw, so a rebuilt cache finds every claim again.
 import { fail } from "../store/store.mjs";
+import { confirmStep } from "../github/github-jobs.mjs";
 
 const PREFIX = "avoozl/";
 const META = "claims.branches";
@@ -67,21 +68,150 @@ export function cacheClaim(store, repository, claim) {
   store.setMeta(META, { ...all, [repository]: [...own, claim] });
 }
 
-// Read and cache the claim branches of every repository with a GitHub name.
-// A repository whose read fails keeps its cached claims.
+// Read and cache the claim branches of every repository with a GitHub name,
+// each with its head commit's time (`at`), read once per head. A repository
+// whose read fails keeps its cached claims.
 export async function refreshClaims(store, github) {
   if (!github?.branchesUnder) return [];
   const read = {},
-    errors = [];
+    errors = [],
+    cached = store.getMeta(META) || {};
   for (const repository of store.list("repositories"))
     if (repository.github)
       try {
-        read[repository.github] = await readClaims(github, repository.github);
+        const claims = await readClaims(github, repository.github),
+          known = new Map(
+            (cached[repository.github] || []).map((c) => [c.sha, c.at]),
+          );
+        for (const claim of claims)
+          claim.at =
+            known.get(claim.sha) ??
+            (await headTime(github, repository.github, claim.sha));
+        read[repository.github] = claims;
       } catch (error) {
         errors.push({ repository: repository.github, error: error.message });
       }
   cacheClaims(store, read);
   return errors;
+}
+
+// A claim head's commit time, or null when it cannot be read (the claim
+// still counts; it just cannot go stale until a read gives its time).
+async function headTime(github, repository, sha) {
+  if (!github.commit || !sha) return null;
+  try {
+    return (
+      (await github.commit(repository, sha))?.commit?.committer?.date ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
+// Drop one claim branch from the cache, once it is gone from origin.
+export function forgetClaim(store, repository, branch) {
+  const all = store.getMeta(META) || {};
+  if (!all[repository]) return;
+  store.setMeta(META, {
+    ...all,
+    [repository]: all[repository].filter((c) => c.branch !== branch),
+  });
+}
+
+export const DEFAULT_STALE_HOURS = 24;
+const HOUR = 3600 * 1000;
+
+// Whether the tick reads the claim branches now: once per 15 minutes, as
+// staleness is counted in hours.
+const READ_EVERY = 15 * 60 * 1000;
+export function claimsDue(store, now = Date.now()) {
+  if (!store.list("repositories").some((repository) => repository.github))
+    return false;
+  if (now - (store.getMeta("claims.readAt") ?? 0) < READ_EVERY) return false;
+  store.setMeta("claims.readAt", now);
+  return true;
+}
+
+// Cached claims whose head commit is older than their repository's
+// `claims.staleHours` (simplify §D3, default 24), with their age in hours.
+export function staleClaims(store, now = Date.now()) {
+  const all = store.getMeta(META) || {},
+    seen = new Set(),
+    stale = [];
+  for (const repository of store.list("repositories")) {
+    if (!repository.github || seen.has(repository.github)) continue;
+    seen.add(repository.github);
+    const hours = repository.claims?.staleHours ?? DEFAULT_STALE_HOURS;
+    for (const claim of all[repository.github] || []) {
+      const at = Date.parse(claim.at ?? "");
+      if (Number.isFinite(at) && now - at > hours * HOUR)
+        stale.push({
+          ...claim,
+          repository: repository.github,
+          hours,
+          ageHours: Math.floor((now - at) / HOUR),
+          staleAt: new Date(at + hours * HOUR).toISOString(),
+        });
+    }
+  }
+  return stale.sort((a, b) => a.staleAt.localeCompare(b.staleAt));
+}
+
+// One Needs you row per stale claim, for the spec issue's assignee. Only a
+// person deletes the branch, through the high-risk confirm; Avoozl never
+// deletes another runner's claim branch on its own.
+export function claimsNeedsYou(store, now = Date.now()) {
+  return staleClaims(store, now).map((claim) => {
+    const assignees = store.get("drivers", claim.spec)?.assignees ?? [],
+      who = assignees.length
+        ? `For ${assignees.join(", ")}, the spec issue's assignee: `
+        : "The spec issue names no assignee. ";
+    return {
+      kind: "needs-human",
+      reason: "stale-claim",
+      id: `stale-claim:${claim.repository}:${claim.branch}`,
+      taskId: null,
+      authority: "github",
+      assignees,
+      link: `https://github.com/${claim.repository}/tree/${claim.branch}`,
+      title: `${claim.branch} has had no commit for ${claim.ageHours} hours`,
+      detail: `${who}the claim on ${claim.task} in ${claim.repository} has had no new commit for over ${claim.hours} hours. Ask whoever holds it, or delete the branch so the task is ready again. Avoozl deletes no other runner's claim branch.`,
+      openedAt: claim.staleAt,
+      actions: [
+        {
+          label: "Delete branch",
+          operation: "claim.delete",
+          input: { repository: claim.repository, branch: claim.branch },
+          confirm: [
+            confirmStep({
+              job: "claim-delete",
+              target: claim.repository,
+              action: `Delete ${claim.branch}`,
+            }),
+          ],
+        },
+      ],
+    };
+  });
+}
+
+// A person's Delete branch: the claim branch only, in a registered
+// repository, as the high-risk claim-delete job.
+export async function deleteClaim(store, github, { repository, branch }) {
+  const claim = parseClaimRef({ ref: `refs/heads/${branch ?? ""}` });
+  if (!claim) fail("Name a claim branch: avoozl/<spec>/<task>.", 400);
+  if (
+    !store
+      .list("repositories")
+      .some(
+        (r) =>
+          String(r.github).toLowerCase() === String(repository).toLowerCase(),
+      )
+  )
+    fail(`${repository} is not a repository in this workspace.`, 404);
+  await github.deleteBranch(repository, branch);
+  forgetClaim(store, repository, branch);
+  return { deleted: branch, repository };
 }
 
 // Claim the first of `candidates` ({task, repository}) whose branch GitHub

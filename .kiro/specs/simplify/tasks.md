@@ -33,7 +33,7 @@ merge, shown in chat and never committed.
 - [x] `sim-1.1` Claim by claim branch [SM2.1, SM2.2, SM2.3, SM2.5] (§D3)
   - Tests with a fake GitHub: `runner.next` with `claim` creates `avoozl/<spec>/<task>` at the base head through the refs create call; a 422 makes it take the next ready task; ten refusals end with "every ready task is claimed"; a task with an existing claim branch is not ready
   - A rebuilt cache finds every claimed task from the claim branches alone
-- [ ] `sim-1.3` Stale claims in Needs you [SM2.4] (§D3)
+- [x] `sim-1.3` Stale claims in Needs you [SM2.4] (§D3)
   - Tests: a claim branch whose newest commit is older than `claims.staleHours` (default 24) gives one Needs you item for the spec issue's assignee; Delete branch runs as a high-risk job behind the confirm popup and the CLI prompt; Avoozl deletes no other runner's claim branch on its own
 - [ ] `sim-1.4` Draft pull requests and claim branch delete [SM4] (§D4)
   - Tests: `pr` mode opens a draft pull request from the claim branch and never calls the merge, ready-for-review or auto-merge endpoints; a moved base is merged in and checked again; a merged pull request's tick marks the task done on the next read; a pull request closed unmerged gives a Needs you item

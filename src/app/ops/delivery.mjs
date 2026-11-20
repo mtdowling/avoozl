@@ -17,6 +17,7 @@ import { stampPrompts } from "../api/operation-support.mjs";
 import { deliveryView } from "../api/page-views.mjs";
 import { reportDone, runnerStatus } from "../workers/remote-runner.mjs";
 import { claimNext, nextView } from "../workers/runner.mjs";
+import { deleteClaim } from "../workers/claims.mjs";
 import { fail } from "../store/store.mjs";
 import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
@@ -110,6 +111,18 @@ export const entries = [
           { github: readGitHubPolicyOrNull(this.workspaceRoot) },
         ),
       );
+    },
+  },
+  // Delete branch on a stale claim (simplify §D3): a person's, from Needs you
+  // or `avoozl claim delete`, as the high-risk claim-delete job that only
+  // the confirm's grant lets through.
+  {
+    name: "claim.delete",
+    class: "protect",
+    github: "claim-delete",
+    policy: person("Only a person deletes a claim branch."),
+    handler({ input }) {
+      return deleteClaim(this.store, this.github, input ?? {});
     },
   },
   // Let the tick run it (WP1.3): a person's, from the page or the CLI.

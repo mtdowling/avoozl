@@ -114,6 +114,13 @@ export const JOBS = Object.freeze({
     risk: "high",
     permissions: repo({ administration: w, statuses: w, variables: w }),
   },
+  // Deleting a claim branch frees a task another runner holds (simplify
+  // §D3), so only a person does it, after the confirm.
+  "claim-delete": {
+    description: "Delete a stale claim branch",
+    risk: "high",
+    permissions: repo({ contents: w }),
+  },
 });
 
 const LEVEL = { read: 1, write: 2, admin: 3 };

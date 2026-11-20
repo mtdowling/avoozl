@@ -105,6 +105,24 @@ function helperHash(value, id) {
   return value;
 }
 
+// `claims.staleHours` (simplify §D3): hours without a commit before a claim
+// branch shows as stale.
+export const CLAIMS_KEYS = Object.freeze(["staleHours"]);
+function claimsOf(value, id) {
+  if (
+    !record(value) ||
+    Object.keys(value).some((key) => !CLAIMS_KEYS.includes(key))
+  )
+    fail(`Repository ${id} claims may set only staleHours.`);
+  const hours = value.staleHours;
+  if (
+    hours !== undefined &&
+    !(typeof hours === "number" && hours >= 1 && hours <= 720)
+  )
+    fail(`Repository ${id} claims.staleHours must be a number 1–720.`);
+  return hours === undefined ? {} : { staleHours: hours };
+}
+
 function landingOf(value, id) {
   if (!["direct", "pr", "off"].includes(value))
     fail(`Repository ${id} landing must be direct, pr or off.`);
@@ -124,6 +142,7 @@ export const REPOSITORY_KEYS = Object.freeze([
   "checksEnv",
   "worktreeHelper",
   "landing",
+  "claims",
   "planning",
   "editable",
   "executor",
@@ -198,6 +217,9 @@ function repositoryInput(value, id, base) {
     ...(value.landing === undefined
       ? {}
       : { landing: landingOf(value.landing, id) }),
+    ...(value.claims === undefined
+      ? {}
+      : { claims: claimsOf(value.claims, id) }),
     planning: Boolean(value.planning),
     editable: value.editable !== false,
     ...executorInput(value, id),
@@ -350,6 +372,9 @@ function appliedActions(store) {
             ? { worktreeHelper: repository.worktreeHelper }
             : {}),
           ...(repository.landing ? { landing: repository.landing } : {}),
+          ...(repository.claims
+            ? { claims: structuredClone(repository.claims) }
+            : {}),
           planning: Boolean(repository.planning),
           editable: repository.editable !== false,
           ...executorSettings(repository),

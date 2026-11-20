@@ -70,6 +70,7 @@ import {
 import { planningIdentity } from "../github/github-marker.mjs";
 import { respondStep } from "../github/github-respond.mjs";
 import { refreshOpenItems } from "../github/github-open-read.mjs";
+import { claimsDue, refreshClaims } from "../workers/claims.mjs";
 import { reviewDispatches } from "../reviews/pr-review.mjs";
 import { investigationStep } from "../delivery/investigate.mjs";
 import {
@@ -755,6 +756,19 @@ async function runTick(
             text: error.message,
           });
         }
+      // The claim branches and their head times, for stale claims in Needs
+      // you (simplify §D3). Reads only: Avoozl deletes no claim branch here.
+      if (script && github && claimsDue(store))
+        for (const failed of await under(
+          "tick",
+          "check-in",
+          refreshClaims,
+        )(store, github))
+          planned.notify.push({
+            channel: "failure",
+            title: `Avoozl could not read the claim branches of ${failed.repository}`,
+            text: failed.error,
+          });
       // Closed intake items no task holds go after 30 days.
       if (script) purgeClosed(store);
       // After a restart, and on every tick, nothing new is dispatched until

@@ -1682,6 +1682,19 @@ export class GitHubClient {
     });
   }
 
+  // Deletes a branch on origin. A 404 or 422 is already gone.
+  deleteBranch(value, name) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "DELETE",
+      `/repos/${owner}/${repo}/git/refs/heads/${name.split("/").map(encodeURIComponent).join("/")}`,
+    ).catch((error) => {
+      if (error.status !== 404 && error.status !== 422) throw error;
+      return null;
+    });
+  }
+
   // A file (base64 `content`) or a folder (an array) at `ref`.
   contents(value, pathname, ref) {
     const { owner, repo } =

@@ -1,5 +1,9 @@
 [
   [
+    "claim",
+    "delete"
+  ],
+  [
     "content",
     "allow"
   ],

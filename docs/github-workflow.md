@@ -754,6 +754,28 @@ checkout. Kiro's Spec Builder and Kiro Crew planner chats write in
 process. Keep the spec checkout on `specs.branch`: the Specs page names the
 problem when another branch is checked out.
 
+### Stale claims
+
+A claim branch whose newest commit is older than `claims.staleHours` hours
+shows in **Needs you** for the spec issue's assignee (12.4). `staleHours` is a
+repository setting, 24 by default:
+
+```json
+{
+  "repositories": {
+    "app": {
+      "claims": {
+        "staleHours": 12
+      }
+    }
+  }
+}
+```
+
+The tick reads the claim branches every 15 minutes and deletes none. **Delete
+branch** on the row, or `avoozl claim delete REPOSITORY BRANCH`, deletes the
+branch on origin after the high-risk confirm, and the task is ready again.
+
 ### Refs
 
 A task title may end in refs. `[R1.2]` names the requirements the task builds

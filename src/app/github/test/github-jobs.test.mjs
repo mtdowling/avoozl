@@ -37,6 +37,7 @@ import { snapshot } from "../../test/fixtures.mjs";
 const HIGH_CALL = {
   "landing-setup": (github) =>
     github.updateRepository("acme/api", { allow_squash_merge: false }),
+  "claim-delete": (github) => github.deleteBranch("acme/api", "avoozl/s/t"),
 };
 
 const APP = path.join(import.meta.dirname, "..", "..");

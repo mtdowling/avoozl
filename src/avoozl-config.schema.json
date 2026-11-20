@@ -931,6 +931,19 @@
           "description": "How verified work reaches the base branch. direct: Avoozl lands verified work on the base in merge batches. pr: Avoozl opens a pull request and merges it once its checks pass. off, or absent: Avoozl pushes nothing and the commit waits for a person.",
           "enum": ["direct", "pr", "off"]
         },
+        "claims": {
+          "description": "How long a claim branch may go without a commit before it shows as stale in Needs you.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "staleHours": {
+              "description": "Hours since the claim branch's newest commit after which the claim is stale. Default 24.",
+              "type": "number",
+              "minimum": 1,
+              "maximum": 720
+            }
+          }
+        },
         "planning": {
           "type": "boolean",
           "default": false,

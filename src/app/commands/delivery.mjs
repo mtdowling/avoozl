@@ -4,6 +4,8 @@ import { requestPass } from "../executors/machine-server.mjs";
 import { contentHook } from "../content/content-hook.mjs";
 import { RETIRED_LANDING, landingStatusLine } from "./support.mjs";
 import { help } from "../cli/command-help.mjs";
+import { confirmHighRisk } from "../cli/confirm-high-risk.mjs";
+import { confirmStep } from "../github/github-jobs.mjs";
 import { watchTick } from "../tick/tick-watchdog.mjs";
 
 async function runTaskDone({ options, positionals, localOrRequest, need }) {
@@ -166,6 +168,45 @@ export const commands = [
             "runner.next",
             options.claim ? { claim: true } : {},
           ),
+          null,
+          2,
+        ),
+      );
+    },
+  },
+  {
+    command: "claim",
+    help: [
+      help(
+        "deliver",
+        "claim delete REPOSITORY BRANCH [--yes]",
+        "Delete a stale claim branch on origin so its task is ready again; asks first (a person only)",
+      ),
+    ],
+    async run({ options, positionals, localOrRequest, need, env }) {
+      if (positionals[0] !== "delete")
+        throw Error("Use claim delete REPOSITORY BRANCH.");
+      const usage = "claim delete REPOSITORY BRANCH",
+        repository = need(positionals[1], usage),
+        branch = need(positionals[2], usage);
+      // The same high-risk confirm the page shows (simplify §D3).
+      const allow = await confirmHighRisk(
+        [
+          confirmStep({
+            job: "claim-delete",
+            target: repository,
+            action: `Delete ${branch}`,
+          }),
+        ],
+        { yes: options.yes === true, localOrRequest, env },
+      );
+      if (allow === null) {
+        console.log("Cancelled: nothing was deleted.");
+        return;
+      }
+      console.log(
+        JSON.stringify(
+          await localOrRequest("claim.delete", { repository, branch, allow }),
           null,
           2,
         ),
