@@ -1,0 +1,41 @@
+{
+  "title": "A live lease is not taken",
+  "rules": ["12.6", "12.7"],
+  "runner": {
+    "login": "acme-bob",
+    "defaultBranch": "main",
+    "staleHours": 24
+  },
+  "origin": {
+    "branches": ["main", "avoozl/parser/p-2", "avoozl-lease/parser/p-2/1"],
+    "behind": [],
+    "claimAgeHours": {
+      "parser/p-2": 2
+    },
+    "leases": {
+      "parser/p-2": [
+        {
+          "generation": 1,
+          "ageHours": 2
+        }
+      ]
+    }
+  },
+  "issues": {
+    "parser": ["acme-bob"]
+  },
+  "resume": {
+    "task": "parser/p-2",
+    "runners": ["r1", "r2"]
+  },
+  "expect": {
+    "resume": {
+      "holder": null,
+      "lease": null,
+      "stopped": ["r1", "r2"]
+    }
+  },
+  "expectFail": {
+    "resume": "sim-1.1"
+  }
+}

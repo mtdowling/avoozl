@@ -1,0 +1,32 @@
+{
+  "title": "A text change by a non-approver needs a new approval",
+  "rules": ["7.2", "7.3"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "approvers": ["acme-owner"],
+  "history": [
+    {
+      "commit": "1",
+      "author": "acme-owner"
+    },
+    {
+      "commit": "2",
+      "author": "acme-bob"
+    }
+  ],
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "approved": {
+      "parser": false
+    },
+    "ready": []
+  }
+}
