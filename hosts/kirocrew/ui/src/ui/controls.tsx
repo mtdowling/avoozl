@@ -8,7 +8,8 @@ import { createContext, useCallback, useContext, useMemo, useState, type CSSProp
 import { useAppApi, useChatLauncher } from '../host.ts'
 import { Btn } from './Btn'
 import { Card } from './Card'
-import { ChevronRight, Info, MessageSquare, VIEW_ICONS, type LucideIcon } from '../icons.ts'
+import { DISCLOSURE, DisclosureMark } from './Disclosure.tsx'
+import { Info, MessageSquare, VIEW_ICONS, type LucideIcon } from '../icons.ts'
 import { chatClient, type ChatSeed, type HelpSeed } from '../chat-api.ts'
 import { useTaskDrawer } from '../drawer-context.ts'
 import { errorMessage } from '../workspace-api.ts'
@@ -262,10 +263,8 @@ export function Fold(props: { title: ReactNode; open?: boolean; children: ReactN
       data-fold={props.id}
       data-fold-group={group}
     >
-      <summary className="flex items-center gap-2 py-2 text-sm font-semibold" style={{ cursor: 'pointer', listStyle: 'none' }}>
-        <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>
-          <ChevronRight size={ICON} />
-        </span>
+      <summary className="flex items-center gap-2 py-2 text-sm font-semibold" {...DISCLOSURE}>
+        <DisclosureMark size={ICON} />
         {props.title}
       </summary>
       <div className="pb-3">{props.children}</div>
@@ -289,12 +288,11 @@ export function SectionBox(props: { id: string; title: ReactNode; open?: boolean
             aria-controls={body}
             onClick={() => setOpen(!open)}
             className="flex w-full items-center gap-2 text-left"
-            style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer' }}
+            style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit' }}
             data-section-toggle={props.id}
+            {...DISCLOSURE}
           >
-            <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>
-              <ChevronRight size={ICON} />
-            </span>
+            <DisclosureMark size={ICON} />
             {props.title}
           </button>
         </h3>

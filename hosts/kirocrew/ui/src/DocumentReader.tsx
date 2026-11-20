@@ -10,6 +10,7 @@ import { Markdown } from './ui/Markdown.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useMedia } from './use-media.ts'
 import { PROSE_MEASURE } from './PlansView.tsx'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { IconBtn, SectionHeading } from './ui/controls.tsx'
 import { Copy, FolderOpen } from './icons.ts'
 import { outline } from './markdown.ts'
@@ -167,7 +168,8 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
         {headings.length > 0 &&
           (narrow ? (
             <Box as="details" css-border-color="border" border="b" px="4" py="2" size="sm">
-              <Box as="summary" cursorPointer weight="medium">
+              <Box as="summary" flex items="center" gap="1.5" weight="medium" {...DISCLOSURE}>
+                <DisclosureMark size={13} />
                 Outline
               </Box>
               <Outline headings={headings} onJump={jump} />

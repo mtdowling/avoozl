@@ -7,7 +7,7 @@
 // 28px button height.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavSlotHost } from './nav-slot.tsx'
-import { ChevronDown } from './icons.ts'
+import { DisclosureMark } from './ui/Disclosure.tsx'
 import { NAV_PILL } from './nav-style.ts'
 import Badge from './ui/Badge.tsx'
 import { Box, type LookProps } from './ui/Box'
@@ -123,8 +123,8 @@ export function NavAccordion(props: {
                 {group.label}
               </Box>
               {kids && (
-                <Box aria-hidden="true" data-nav-chevron as="span" css-transform={expanded ? 'none' : 'rotate-90deg'}>
-                  <ChevronDown size={14} />
+                <Box data-nav-chevron as="span">
+                  <DisclosureMark />
                 </Box>
               )}
             </button>
