@@ -1,8 +1,34 @@
 # Avoozl
 
-Avoozl turns a spec you approve into merged code. It splits the spec into
-tasks, gives each task to a coding agent in its own worktree, runs your checks
-on the exact commit the agent made, and lands the work once they pass.
+Avoozl is an open workflow for landing specs and epics on GitHub. Write the
+plan as a task list. Many agents and teammates can work on it at once without
+doing the same task twice. Each task lands in order, after checks pass. You
+choose where people sign off: every PR, only the gates, or never.
+
+Plan in specs. Land in parallel. You keep the final say.
+
+## Open workflow
+
+[docs/github-workflow.md](docs/github-workflow.md) is the public workflow. It
+says how a tool lands an epic task by task from spec files on GitHub, and any
+tool can follow it. Avoozl is one way to run it, through its CLI, MCP server,
+web app, Kiro Crew plugin and skills.
+
+- **Parallel work.** Tasks that do not wait on each other start at once, up to
+  a machine's `lanes.local` limit. Avoozl ranks ready tasks by how many tasks
+  they unblock, then by file order. Planned: branch claims, so two runners
+  never take one task, and parallel task groups in list order.
+- **Teams.** The spec issue's assignee drives the spec. To hand it off,
+  reassign the issue. Specs, approvals and ticks live in git, and issues and
+  assignees live on GitHub.
+- **People decide.** An approval is a commit by an approver. A `$manual` task
+  is a gate that holds everything after it until a person ticks it. The
+  repository's `landing` setting is `off`, `direct` or `pr`. Planned:
+  `landing.pr` as `draft`, `ready` or `auto`.
+- **Specs or epics.** An epic lists its member specs with `$plan`, and a
+  member spec may name its epic.
+
+## Task list
 
 Each task in a spec says what it waits on and what done means:
 
@@ -123,8 +149,15 @@ avoozl repository configure code --workspace ~/plans \
 ```
 
 Each check is a name and a command, run without a shell. Turn delivery on by
-adding `{ "delivery": {} }` to `.avoozl.json`. With no GitHub, this
-workspace drives every spec.
+adding a `delivery` object to `.avoozl.json`:
+
+```json
+{
+  "delivery": {}
+}
+```
+
+With no GitHub, this workspace drives every spec.
 
 The repository's `landing` setting decides what happens to work that passes:
 
