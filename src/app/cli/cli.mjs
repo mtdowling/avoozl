@@ -14,6 +14,7 @@ import {
 } from "../mcp/mcp-policy.mjs";
 import { Operations } from "../api/operations.mjs";
 import { Store } from "../store/store.mjs";
+import { initializeFirst } from "../workspace/workspace.mjs";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -116,9 +117,7 @@ try {
     { dbPath, endpoint } = config;
   const requireDatabase = () => {
     if (!fs.existsSync(dbPath))
-      throw Error(
-        "Initialize a workspace first: avoozl init PATH, then use --workspace PATH.",
-      );
+      throw Error(initializeFirst(config.workspaceRoot));
   };
   const requireLocalMaintenancePath = (action) => {
     if (!registeredWorkspaceId) return;

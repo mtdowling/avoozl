@@ -16,7 +16,10 @@ import {
   machineAvoozlPaths,
   WorkspaceRegistry,
 } from "../settings/host-config.mjs";
-import { initializeWorkspace } from "../workspace/workspace.mjs";
+import {
+  initializeFirst,
+  initializeWorkspace,
+} from "../workspace/workspace.mjs";
 import { expandHome, listFolders } from "../workspace/folder-browse.mjs";
 import {
   DEMO_WORKSPACE_ID,
@@ -363,10 +366,14 @@ export function commandContext({
   const operations = (target) => {
     let entry = opened.get(target.dbPath);
     if (!entry) {
+      // A missing database is refused before opening, so a read never
+      // creates the file `avoozl init` then refuses.
+      if (!fs.existsSync(target.dbPath))
+        throw badRequest(initializeFirst(target.workspaceRoot), 503);
       const store = new Store(target.dbPath);
       if (!store.initialized()) {
         store.close();
-        throw badRequest("Initialize this Avoozl workspace first.", 503);
+        throw badRequest(initializeFirst(target.workspaceRoot), 503);
       }
       entry = {
         store,
