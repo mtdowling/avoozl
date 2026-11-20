@@ -231,6 +231,13 @@ class CredentialChild {
         guard: this.guard,
         checkListeners: this.checkListeners,
       });
+      // Kept for the process's life, but never what keeps it alive: a CLI
+      // command exits when its work is done. A call's own timeout timer
+      // holds the process open while that call waits.
+      const { child } = this.process;
+      child.unref();
+      child.stdin.unref?.();
+      child.stdout.unref?.();
       await this.process
         .request("hello", {
           entry: path.join(plugin.location, plugin.manifest.credentials.entry),
@@ -301,7 +308,7 @@ export function machineCredentials({
   };
   // plugins.json is read on every token call (one small file); the folders
   // are inspected again when it changed, or every 10 minutes.
-  const choose = (owner) => {
+  const current = () => {
     const settings = readSettings(),
       signature = JSON.stringify(settings);
     if (
@@ -310,6 +317,10 @@ export function machineCredentials({
       now() - inspected.at > REHASH_MS
     )
       inspected = { ...inspect(), signature };
+    return inspected;
+  };
+  const choose = (owner) => {
+    current();
     return chooseProvider({
       plugins: inspected.plugins,
       settings: inspected.settings,
@@ -466,9 +477,10 @@ export function machineCredentials({
     drop(entry) {
       if (cache.get(entry?.key) === entry) cache.delete(entry.key);
     },
-    // What Settings shows: the newest token per provider in use (D11).
+    // What Settings shows: the newest token per provider in use (D11), from
+    // plugins.json as it is now: an approval shows at once.
     signIns() {
-      const { plugins } = inspected || inspect(),
+      const { plugins } = current(),
         rows = new Map();
       for (const entry of cache.values()) {
         const row = rows.get(entry.provider);

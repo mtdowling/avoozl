@@ -363,6 +363,44 @@ test("the credentials child lives on across calls, restarts at most once a minut
   broken.close();
 });
 
+test("Settings' sign-in lines show an approval made after the last call at once", async () => {
+  const m = machine({ plugins: [{}] }),
+    credentials = m.credentials();
+  // A call before the approval inspects the plugins as they were then.
+  await call(credentials, "octo/tools");
+  assert.deepEqual(
+    credentials.signIns().map((line) => line.provider),
+    ["gh"],
+  );
+  m.approve();
+  assert.deepEqual(
+    credentials.signIns().map((line) => line.provider),
+    ["acme-github", "gh"],
+  );
+  credentials.close();
+});
+
+test("a process that used the credentials child exits on its own", async () => {
+  const m = machine({ plugins: [{}] });
+  m.approve();
+  const script = `
+    const { machineCredentials } = await import(${JSON.stringify(path.join(REPO_ROOT, "src/app/github/github-credentials.mjs"))});
+    const credentials = machineCredentials({ settingsFile: ${JSON.stringify(m.settingsFile)}, env: { PATH: process.env.PATH } });
+    const auth = await credentials.token({ repository: "acme/api", owner: "acme", job: "check-in" });
+    console.log(auth.provider ?? "token");
+  `;
+  // A child the process waited on would hold it open until this timeout.
+  const out = execFileSync(
+    process.execPath,
+    ["--input-type=module", "-e", script],
+    {
+      encoding: "utf8",
+      timeout: 20_000,
+    },
+  );
+  assert.ok(out.trim(), "the token call returned before the exit");
+});
+
 test("localToken and its GH_TOKEN and GITHUB_TOKEN reads are gone", () => {
   let hits = "";
   try {
