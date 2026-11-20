@@ -6,7 +6,6 @@ import { isArchivedTask, isHistoricalTask } from "./browse-model.mjs";
 import {
   completionReached,
   isManual,
-  supersedingTask,
   taskKind,
   taskRepository,
 } from "./work-model.mjs";
@@ -243,7 +242,7 @@ export function queryTasks(data, options = {}) {
             // stale claim, a held completion) holds its dependents too. An
             // edge from a superseded task is judged by its replacement.
             (index.prerequisites.get(t.id) || []).every((e) => {
-              const from = supersedingTask(index.byId, e.from);
+              const from = index.byId.get(e.from);
               // A dependent stacked on this blocker's open pull request
               // (task 8.2) does not wait for it to merge.
               if (from && options.stacked?.get(t.id) === from.id)

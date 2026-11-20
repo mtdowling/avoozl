@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
-import { demoOperations, installDemo } from '../../../src/app/workspace/demo.mjs'
+import { demoOperations, installDemo } from '../../../src/app/test/demo-fixture.mjs'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 

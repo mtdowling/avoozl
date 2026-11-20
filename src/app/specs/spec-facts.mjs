@@ -446,9 +446,11 @@ export function readFacts(text, items) {
   // default fills a leaf; a package takes none. A task keeps its facts in
   // the order its bullets list them, and a filled-in key goes where `ORDER`
   // puts it among them.
-  const parents = new Set(
-    items.map((item) => item.parent?.key).filter(Boolean),
-  );
+  // A spec group (an item whose title links a spec) is a package too.
+  const parents = new Set([
+    ...items.map((item) => item.parent?.key).filter(Boolean),
+    ...items.filter((item) => item.spec).map((item) => item.key),
+  ]);
   if (!isEpic)
     for (const [key, entry] of Object.entries(tasks)) {
       const fill = { kind: parents.has(key) ? "package" : "leaf" };

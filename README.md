@@ -127,9 +127,9 @@ avoozl init ~/plans --name "My plans"
 ```
 
 It holds `.avoozl.json` for settings you can commit, `.kiro/specs/` for specs,
-and a local database that is not committed. A new workspace is empty.
-`avoozl seed --workspace ~/plans` adds an example as draft specs, and
-does not approve them.
+and a local database that is not committed. A new workspace is empty. Add a
+repository with `avoozl repository configure ID --root PATH`, then run
+`avoozl rebuild`.
 
 ## Delivering a spec
 
@@ -228,7 +228,7 @@ The [docs](docs/README.md) cover the rest:
   sandbox they run in
 - [Person-only operations](docs/person-only.md) for what an agent session cannot
   do
-- [Manual tasks and task links](docs/manual-tasks.md) for steps only a person
+- [Manual tasks](docs/manual-tasks.md) for steps only a person
   does
 - [Intake sources](docs/intake.md) for bringing in work from trackers and
   scripts

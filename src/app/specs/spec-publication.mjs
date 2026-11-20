@@ -49,12 +49,63 @@ function remember(store, level, id, config, issue, extra = {}) {
   });
 }
 
-const issueBody = (kind) =>
+// The hidden comment that names the spec or epic an issue is for (workflow
+// rule 8.2), so a rebuilt cache finds the issue again.
+const issueMark = (kind, id) => `<!-- avoozl:${kind} ${id} -->`;
+const MARK = /<!-- avoozl:(spec|epic) ([A-Za-z0-9][A-Za-z0-9._-]{0,159}) -->/;
+
+const issueBody = (kind, id) =>
   [
     `This ${kind}'s one assignee drives it in Avoozl. Reassign it to hand the ${kind} to someone else.`,
     "",
     "The design and the tasks stay in the spec's files.",
+    "",
+    issueMark(kind, id),
   ].join("\n");
+
+// Read every open spec and epic issue back from its hidden comment, in each
+// repository with a GitHub name, and keep the oldest per spec. Reads only.
+// shortcut: two open issues for one spec are not closed here (rule 8.2);
+// the older one is used.
+export async function readSpecIssues(store, github) {
+  const found = [],
+    errors = [];
+  if (!github?.listIssues) return { found, errors };
+  for (const repository of store.list("repositories")) {
+    if (!repository.github) continue;
+    let issues;
+    try {
+      issues = await github.listIssues(repository.github, { state: "open" });
+    } catch (error) {
+      errors.push({ repository: repository.github, error: error.message });
+      continue;
+    }
+    for (const issue of [...(issues ?? [])].sort(
+      (a, b) => a.number - b.number,
+    )) {
+      const match = MARK.exec(issue.body ?? "");
+      if (!match) continue;
+      const level = match[1] === "spec" ? "plan" : "epic",
+        id = match[2];
+      if (store.get("receipts", receiptId(level, id))?.number) continue;
+      remember(
+        store,
+        level,
+        id,
+        { id: repository.github },
+        issue,
+        level === "plan" ? { planId: id } : {},
+      );
+      found.push({
+        level,
+        id,
+        repository: repository.github,
+        number: issue.number,
+      });
+    }
+  }
+  return { found, errors };
+}
 
 // Publishes one spec plan.
 export async function publishSpec(
@@ -112,7 +163,7 @@ export async function publishSpec(
     else {
       const made = await asJob("spec-issues", github).createIssue(config, {
         title: epic.title || epic.id,
-        body: issueBody("epic"),
+        body: issueBody("epic", epic.id),
         ...(identity.epicIssueType ? { type: identity.epicIssueType } : {}),
       });
       remember(store, "epic", epic.id, config, made);
@@ -126,7 +177,7 @@ export async function publishSpec(
       : undefined;
   const issue = await asJob("spec-issues", github).createIssue(config, {
     title: plan.title || plan.id,
-    body: issueBody("spec"),
+    body: issueBody("spec", plan.spec),
     ...(under ? { parentIssueId: under } : {}),
   });
   remember(store, "plan", plan.id, config, issue, {

@@ -29,6 +29,6 @@
     }
   },
   "expectFail": {
-    "landing": "sim-2.6"
+    "landing": "sim-1.4"
   }
 }

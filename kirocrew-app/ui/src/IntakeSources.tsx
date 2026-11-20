@@ -2,8 +2,7 @@
 // where work comes in from, one list. A GitHub source is a repository whose
 // issues may start work; it is set in Repository setup and shows here with
 // a link there. The GitHub box is the open items read: what no source covers.
-// Any other source is a plugin that provides intake, or `mcp` for a script or
-// cron job that sends items. Each source is one box with
+// Any other source is `mcp`, for a script or cron job that sends items. Each source is one box with
 // its status (on or off, last poll, items, last error), what it can set
 // off, and who counts. A source is declared on this computer by default;
 // sharing it in `.avoozl.json` asks you to confirm, because its id and
@@ -338,7 +337,6 @@ function AddSourceDialog(props: {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<{ text: string; field?: keyof SourceForm } | null>(null)
   const set = (patch: Partial<SourceForm>) => setForm({ ...form, ...patch })
-  const pollers = props.plugins.filter((row) => row.id && row.provides?.includes('intake'))
   const dirty = JSON.stringify(form) !== JSON.stringify(emptySourceForm())
   const invalid = (field: keyof SourceForm) => (problem?.field === field ? true : undefined)
   const add = () => {
@@ -362,22 +360,6 @@ function AddSourceDialog(props: {
       .finally(() => setBusy(false))
   }
   const via = [
-    ...pollers.map((row) => {
-      const t = sourceTriggers({ id: null, scope: 'machine', error: null, entry: { via: `plugin:${row.id}` } }, props.plugins)
-      return {
-        key: `plugin:${row.id}`,
-        title: `Plugin ${row.id}`,
-        line: `Avoozl polls it on each tick.${row.state === 'approved' ? '' : ' The plugin is off until you approve or enable it.'}`,
-        description: (
-          <Box as="p" size="xs">
-            <Box as="span" weight="semibold">
-              {t.level}.
-            </Box>{' '}
-            {t.line}
-          </Box>
-        ),
-      }
-    }),
     {
       key: 'mcp',
       title: 'MCP',
@@ -456,11 +438,6 @@ function AddSourceDialog(props: {
         </Group>
         <Group legend="Comes from (required)">
           <RadioFold name="intake-via" label="Comes from" value={form.via} onChange={(value) => set({ via: value })} sections={via} />
-          {!pollers.length && (
-            <Hint as="p" size="xs" flush>
-              No plugin provides intake. Add one above to poll it.
-            </Hint>
-          )}
         </Group>
         <Group legend="Item fields">
           <Field id="intake-labelFields" label="Fields as labels" marker="optional" raw="labelFields" hint="Comma list. Each adds a field:value label before rules match.">
@@ -589,7 +566,7 @@ export default function IntakeSources({
           <Box css-border-color="border" css-border-style="dashed" mt="3" rounded="lg" border="all" p="3" data-intake-empty>
             <EmptyState
               title="No other source yet"
-              subtitle="Add one to poll an intake plugin, or to take items a script or cron job sends through MCP."
+              subtitle="Add one to take items a script or cron job sends through MCP."
               // TODO: add the shared "Ask for help" chat link here once it is on main.
               action={addButton}
             />

@@ -17,7 +17,7 @@ test('each edited field belongs to exactly one tab', () => {
   assert.equal(new Set(all).size, all.length)
   assert.deepEqual(
     EDIT_TABS.map((t) => t.key),
-    ['general', 'landing', 'github', 'map'],
+    ['general', 'landing', 'github'],
   )
 })
 
@@ -104,9 +104,9 @@ test('no setting renders outside a tab, on any tab', { skip }, async () => {
   )
   assert.deepEqual(
     (await tabs()).map((t) => t.key),
-    ['general', 'landing', 'github', 'map'],
+    ['general', 'landing', 'github'],
   )
-  for (const key of ['general', 'landing', 'github', 'map']) {
+  for (const key of ['general', 'landing', 'github']) {
     await tab(key)
     const got = await page.evaluate(`(() => {
       const body = document.querySelector('[data-repository-edit] [data-modal-body]')
@@ -117,7 +117,7 @@ test('no setting renders outside a tab, on any tab', { skip }, async () => {
     })()`)
     assert.deepEqual(got.top, ['tablist', 'tabpanel'], key)
     assert.deepEqual(got.loose, [], key)
-    assert.ok(got.fields > 0 || key === 'map', `${key} has its settings`)
+    assert.ok(got.fields > 0, `${key} has its settings`)
   }
   assert.deepEqual(page.errors, [])
 })
@@ -130,8 +130,8 @@ test('saving from any tab saves every tab', { skip }, async () => {
   await type('[data-repository-edit] input[id$="-base"]', 'trunk')
   await settle()
   const marks = Object.fromEntries((await tabs()).map((t) => [t.key, t.dirty]))
-  assert.deepEqual(marks, { general: false, landing: true, github: true, map: false })
-  await tab('map')
+  assert.deepEqual(marks, { general: false, landing: true, github: true })
+  await tab('general')
   assert.equal(await press('dialog[open] button', 'Save'), true)
   await page.until(`!document.querySelector('[data-repository-edit]')`)
   const write = await page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'github.settings.update').at(-1)?.input`)

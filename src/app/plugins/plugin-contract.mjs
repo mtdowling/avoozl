@@ -48,42 +48,6 @@ const actor = (value, where) =>
     ? null
     : text(value, where, { max: 200 });
 
-// Intake kind (R50.7, R55.8): one call, poll.
-export const intakeReplies = {
-  // Changed items since the cursor. A bad item is
-  // refused naming its field and the rest still count (R50.2).
-  poll(reply) {
-    object(reply, "poll reply");
-    if (!Array.isArray(reply.items) || reply.items.length > 500)
-      throw new ContractError(
-        "poll reply items must be a list of at most 500.",
-      );
-    const items = [],
-      refused = [];
-    reply.items.forEach((item, i) => {
-      try {
-        items.push(incomingItem(item, `poll reply item ${i}`));
-      } catch (error) {
-        if (!(error instanceof ContractError)) throw error;
-        refused.push({
-          index: i,
-          id: typeof item?.id === "string" ? item.id.slice(0, 200) : null,
-          reason: error.message,
-        });
-      }
-    });
-    return {
-      items,
-      refused,
-      cursor: text(reply.cursor, "poll reply cursor", {
-        max: 2000,
-        optional: true,
-      }),
-      more: reply.more === true,
-    };
-  },
-};
-
 const ITEM_KINDS = ["issue", "pr", "review", "ticket"];
 const names = (value, where, max) => {
   if (value === undefined) return [];
@@ -98,8 +62,8 @@ const names = (value, where, max) => {
   return value;
 };
 
-// One incoming item from a plugin (R50.1, R50.2), as untrusted data. The
-// source is the declared source's id, set by Avoozl, never by the plugin.
+// One incoming item pushed over MCP (R50.1, R50.2), as untrusted data. The
+// source is the declared source's id, set by Avoozl, never by the caller.
 export function incomingItem(value, where = "item") {
   object(value, where);
   if (!ITEM_KINDS.includes(value.kind))
@@ -179,13 +143,11 @@ const rulesReplies = {
 
 export function checkReply(kind, method, reply, asked) {
   const check = (
-    kind === "intake"
-      ? intakeReplies
-      : kind === "rules"
-        ? rulesReplies
-        : kind === "credentials"
-          ? credentialsReplies
-          : null
+    kind === "rules"
+      ? rulesReplies
+      : kind === "credentials"
+        ? credentialsReplies
+        : null
   )?.[method];
   if (!check) throw new ContractError(`Unknown ${kind} call ${method}.`);
   return check(reply, asked);

@@ -2,10 +2,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-import { emptyRepository, settingsClient, setupForm, setupInput, splitList, toForm, toPolicy } from '../src/settings-api.ts'
+import { emptyRepository, settingsClient, splitList, toForm, toPolicy } from '../src/settings-api.ts'
 import { normalizeGitHubPolicy, policySection } from '../../../src/app/github/github-policy.mjs'
 
 const POLICY = {
+  mode: 'single-repo',
+  planningRepository: null,
   cacheSeconds: 45,
   writesPerMinute: 50,
   writesPerHour: 300,
@@ -19,7 +21,6 @@ const POLICY = {
       minimumPermission: 'maintain',
       requiredChecks: ['build'],
       priorityLabels: ['critical'],
-      role: 'both',
     },
   },
 }
@@ -39,8 +40,8 @@ test('cleared fields become null at the top and vanish below it', () => {
   form.epicIssueType = ''
   form.repositories[0].minimumPermission = ''
   const policy = toPolicy(form)
-  assert.equal('mode' in policy, false)
-  assert.equal('planningRepository' in policy, false)
+  assert.equal(policy.mode, 'single-repo')
+  assert.equal(policy.planningRepository, null)
   assert.equal(policy.epicIssueType, null)
   const repository = policy.repositories['example/app']
   assert.equal('minimumPermission' in repository, false)
@@ -63,6 +64,8 @@ test('the backend accepts the form and refuses the older reviews setting', () =>
 
 test('an empty form clears every policy key', () => {
   assert.deepEqual(toPolicy(toForm({})), {
+    mode: null,
+    planningRepository: null,
     epicIssueType: null,
     cacheSeconds: null,
     writesPerMinute: null,
@@ -107,47 +110,6 @@ test('the client calls the three settings operations for the workspace', async (
     ],
   )
   assert.deepEqual(calls[2].body.input, { github: { mode: null }, expectedHash: 'hash-1' })
-})
-
-test('the setup form starts from saved settings and builds the wizard input', () => {
-  // The setup wizard reads the mode the roles make, as the backend derives it.
-  const form = setupForm({ ...POLICY, mode: 'plans-repo', planningRepository: 'example/plans' })
-  assert.equal(form.mode, 'plans-repo')
-  assert.equal(form.repositories, 'example/app')
-  assert.deepEqual(setupInput(form), {
-    mode: 'plans-repo',
-    planningRepository: 'example/plans',
-    repositories: ['example/app'],
-    epic: true,
-  })
-  const fresh = setupForm({})
-  fresh.mode = 'single-repo'
-  fresh.planningRepository = 'example/ignored'
-  fresh.repositories = 'a/b'
-  assert.deepEqual(setupInput(fresh), {
-    mode: 'single-repo',
-    repositories: ['a/b'],
-    epic: true,
-  })
-})
-
-test('the setup client previews, then confirms with the preview hash', async () => {
-  const calls = []
-  const client = settingsClient({
-    post: async (path, body) => {
-      calls.push(body)
-      return { result: { previewHash: 'p1' } }
-    },
-  })
-  await client.setup('w1', { mode: 'plans-repo' })
-  await client.setup('w1', { mode: 'plans-repo', confirm: true, previewHash: 'p1' })
-  assert.deepEqual(
-    calls.map((body) => [body.operation, body.input.confirm ?? false, body.input.previewHash ?? null]),
-    [
-      ['github.setup', false, null],
-      ['github.setup', true, 'p1'],
-    ],
-  )
 })
 
 test('the cache seconds round-trip for the workspace only', () => {

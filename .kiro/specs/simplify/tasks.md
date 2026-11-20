@@ -33,7 +33,7 @@ merge, shown in chat and never committed.
 
 ## Phase 1: Runner core
 
-- [ ] `sim-1.1` Claim by claim branch [SM2.1, SM2.2, SM2.3, SM2.5] (§D3)
+- [x] `sim-1.1` Claim by claim branch [SM2.1, SM2.2, SM2.3, SM2.5] (§D3)
   - $after: sim-0
   - Tests with a fake GitHub: `runner.next` with `claim` creates `avoozl/<spec>/<task>` at the base head through the refs create call; a 422 makes it take the next ready task; ten refusals end with "every ready task is claimed"; a task with an existing claim branch is not ready
   - A rebuilt cache finds every claimed task from the claim branches alone
@@ -65,16 +65,16 @@ merge, shown in chat and never committed.
 
 ## Phase 2: Order and the graph
 
-- [ ] `sim-2.1` Order from the list and parallel groups [SM16.1, SM16.2, SM16.3, SM16.4, SM16.5, SM16.6, SM16.8, SM16.9] (§D19.1, §D19.3)
+- [x] `sim-2.1` Order from the list and parallel groups [SM16.1, SM16.2, SM16.3, SM16.4, SM16.5, SM16.6, SM16.8, SM16.9] (§D19.1, §D19.3)
   - $after: sim-0
   - `waitsOf` in `src/app/specs/order.mjs` derives the waits, and the ready rule, ranking and lint read only it
   - Tests: the owner's example in §D19 gives `ec-2.1`, then `ec-2.2`, then `ec-2.4` to `ec-2.7` with no wait among them, then `ec-2.8`; an untagged child group of a parallel group runs its children in order; the first item of a phase waits for the phase above; a group is never ready or claimed
   - Tests: lint reports `group.box`, `parallel.size`, `parallel.leaf` and `parallel.tag` as §D19.3 says; the tag before refs parses; a spec that still has `$after` facts is read by them until `sim-2.2`
-- [ ] `sim-2.5` Linked specs as spec groups [SM16.7, SM18] (§D19.2, §D19.3)
+- [x] `sim-2.5` Linked specs as spec groups [SM16.7, SM18] (§D19.2, §D19.3)
   - $after: sim-2.1
   - Tests: a title's inline or reference-style link to a spec folder's `tasks.md` makes a spec group whose children are that spec's tasks; its tasks are ready only after its own wait, the linked spec's approval and the linked spec's order; a link to a doc page leaves the task a leaf; the box is derived, and the last task's landing ticks the parent in the same commit on one specs branch or in its own commit otherwise
   - Tests: lint reports `link.missing` (allowed while an earlier unticked task stands in the same list), `link.twice` and `link.children`
-- [ ] `sim-2.6` Integration branches by name [SM19] (§D21)
+- [x] `sim-2.6` Integration branches by name [SM19] (§D21)
   - $after: sim-2.5
   - Tests: a branch named for a spec's folder on origin is the base of that spec and of every spec it links, the outermost one winning; with no such branch the base is the default branch; Avoozl creates and merges no integration branch
   - Tests: before each claim on such a branch, a default branch that moved since its last merge is merged in with a merge commit and pushed, and an unmoved one changes nothing; two tasks of a parallel group claimed in one pass start on one merged head; a conflict gives one Needs you item naming the branch and files, and no task on that branch is claimed until the merge is in
@@ -128,14 +128,14 @@ merge, shown in chat and never committed.
   - Build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chats, retro memory and retro operations are gone from `src/app/flow/`, with `bin/build-receipt` and the `avoozl-costs` skill; `flow-retro.mjs` and `retro-files.mjs` are gone once `avoozl-retro` ships
   - Flow keeps no fix-work share: `isFixWork`, the task `fix` flag, `metrics.fixWork`, `fixShare` and the retro brief's `fixWork` are gone (SM17.3)
   - Stop the line and the worker's own check run still pass their tests
-- [ ] `sim-4.5` Cut the setup tower [SM12] (§D12)
+- [x] `sim-4.5` Cut the setup tower [SM12] (§D12)
   - $after: sim-0
   - Demo mode, example installs, sample specs, instance names, onboarding, repository kinds and roles, setup access and `avoozl setup` are gone, with `seed`, `examples` and `setup` commands
   - A test adds a repository with `avoozl repository configure ID --root PATH`, runs `avoozl rebuild`, and finds its specs, ticks, claims and spec issues, with no GitHub write
-- [ ] `sim-4.6` Cut task extras [SM4.5, SM14.1] (§D14)
+- [x] `sim-4.6` Cut task extras [SM4.5, SM14.1] (§D14)
   - $after: sim-0
   - Evidence bundles, supersede, dedup, title repeat, task notes, task steps, task files and task summaries are gone from `src/app/tasks/`, with their operations, commands and MCP tools; lint's summary-repeats-title check goes, since a task has no summary
-- [ ] `sim-4.7` Refuse the cut plugin parts [SM11] (§D11)
+- [x] `sim-4.7` Refuse the cut plugin parts [SM11] (§D11)
   - $after: sim-0
   - `PARTS` is `rules`, `credentials`, `checks` and `context`; a manifest listing `pack`, `intake`, `template` or `policy` is refused with "<part> is not a plugin part"; `plugin-pack.mjs` is gone
 - [ ] `sim-4.9` Cut GitHub extras [SM12.3, SM14.1] (§D14)

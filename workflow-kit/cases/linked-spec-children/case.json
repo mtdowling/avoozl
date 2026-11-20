@@ -20,9 +20,5 @@
       "base": "main",
       "mergeBase": false
     }
-  },
-  "expectFail": {
-    "ready": "sim-2.5",
-    "claim": "sim-1.1"
   }
 }

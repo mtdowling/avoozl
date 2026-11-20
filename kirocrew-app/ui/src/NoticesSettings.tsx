@@ -7,14 +7,14 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { FieldGroup } from './ui/FieldGroup.tsx'
-import { useInstance } from './InstanceName.tsx'
+import { useHostKind } from './host-kind.ts'
 import { NOTICES_CHANGED, noticesOn, setNotices } from './notices.ts'
 
 type Permission = NotificationPermission | 'unsupported'
 const permission = (): Permission => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
 
 export function NoticesSettings(props: { workspaceId: string | null }) {
-  const host = useInstance(props.workspaceId)?.host
+  const host = useHostKind()
   const [on, setOn] = useState(() => noticesOn(window.localStorage))
   const [allowed, setAllowed] = useState<Permission>(permission)
   useEffect(() => {

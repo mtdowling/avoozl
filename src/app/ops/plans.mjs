@@ -56,7 +56,6 @@ import {
   proposeWork,
   savePlan,
 } from "../specs/plans.mjs";
-import { pickTemplate } from "../plugins/plugins.mjs";
 import { recordFindingDecision } from "../reviews/review-findings.mjs";
 import { specLinks } from "../tasks/scm-links.mjs";
 import {
@@ -435,7 +434,6 @@ export const entries = [
           (repo) => !repo.planning,
         ),
         specRoot: this.specRoots()[0] || null,
-        template: (ref) => pickTemplate(this.pluginOptions, ref),
       });
       return result;
     },

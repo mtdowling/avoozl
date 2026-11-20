@@ -14,6 +14,7 @@ import { hasPendingSpecDependencies } from "../../spec-dependencies.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { issueReportToken } from "../workers/report-match.mjs";
+import { claimBranch, claimedTaskIds } from "../workers/claims.mjs";
 import { fail } from "../store/store.mjs";
 import { fileURLToPath } from "node:url";
 import {
@@ -34,7 +35,6 @@ import {
 import { heldByStop } from "../flow/flow-line.mjs";
 import { needsJudgment, taskCheckRuns } from "./check-runs.mjs";
 import { pathOutcome } from "./verify.mjs";
-import { summaryLine } from "../tasks/title-repeat.mjs";
 import {
   checkCommand,
   resultFor,
@@ -68,14 +68,8 @@ import { unblockCounts } from "../specs/release-ranking.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { recordCorrection } from "../flow/corrections.mjs";
 import {
-  addEvidence,
-  attachEvidence,
-  evidenceInput,
-} from "../tasks/evidence.mjs";
-import {
   falsifierInput,
   findingsInput,
-  findingsText,
   gateOpen,
   investigateLines,
   investigateSettings,
@@ -89,14 +83,12 @@ import { healthContext, modelsOf } from "../flow/provider-health.mjs";
 import {
   blockerNotes,
   completionReached,
-  supersedingTask,
   taskCompletion,
   taskKind,
   taskRepository,
   taskRoute,
 } from "../../work-model.mjs";
 import { validateLanes } from "../tick/lanes.mjs";
-import { briefNotes } from "../tasks/task-notes.mjs";
 
 // `findings` is a worker's first turn when it investigates first (R75.1).
 const REPORT_KINDS = ["progress", "done", "blocked", "question", "findings"];
@@ -329,7 +321,8 @@ export async function prepareWorktree(store, input = {}) {
   )
     fail(`Task ID ${task.id} cannot name a branch.`, 409);
   const repository = taskRepositoryRecord(store, task),
-    branch = "avoozl/" + task.id;
+    // A claimed task works on its claim branch (§D3); others on their own.
+    branch = input.claim === true ? claimBranch(task) : "avoozl/" + task.id;
   // Prepare and the spec's qualified reference resolve the same base
   // (spec-base.mjs): the spec's working branch, else a legacy integration
   // branch, else the repository's base branch.
@@ -345,7 +338,8 @@ export async function prepareWorktree(store, input = {}) {
   const prepared = await prepareTaskWorktree(store, repository, {
     branch,
     name: "avoozl-" + task.id,
-    start: base?.branch ?? null,
+    // A claim on an integration branch starts from that branch.
+    start: (input.claim === true && input.start) || base?.branch || null,
   });
   const record = {
     id: task.id,
@@ -469,7 +463,7 @@ function checkResults(value) {
       (Number.isInteger(entry.durationMs) && entry.durationMs >= 0)) &&
     (entry.commit === undefined ||
       (typeof entry.commit === "string" && SHA.test(entry.commit))) &&
-    // The tail of a failing check's log, for the evidence bundle (R76.1).
+    // The tail of a failing check's log.
     (entry.logTail === undefined ||
       (typeof entry.logTail === "string" && entry.logTail.length <= 4000)) &&
     // The repository check's name, when the report gives it.
@@ -841,8 +835,6 @@ export async function reportSession(
         409,
       );
   }
-  // Attachments are checked in full before anything is taken (R76.2).
-  const attached = evidenceInput(input.evidence);
   if (kind === "done" && !gateOpen(store, binding))
     fail(
       'Investigate first: report kind "findings" and wait for Avoozl\'s Go ahead before you report done.',
@@ -936,8 +928,7 @@ export async function reportSession(
         (last.verdict ?? null) === (judgment ? input.verdict : null) &&
         JSON.stringify(last.review) === JSON.stringify(review) &&
         JSON.stringify(last.findings) === JSON.stringify(findings) &&
-        JSON.stringify(last.falsifier) === JSON.stringify(reply) &&
-        !attached;
+        JSON.stringify(last.falsifier) === JSON.stringify(reply);
     if (same) return { binding: current, report: last, changed: false };
     if (last && FINAL_REPORTS.has(last.kind))
       fail(`This attempt already reported ${last.kind}.`, 409);
@@ -963,8 +954,6 @@ export async function reportSession(
     flowOnReport(store, next, report);
     return { binding: next, report, changed: true };
   });
-  if (result.changed)
-    reportEvidence(store, task, binding, result.report, attached);
   return result;
 }
 
@@ -996,48 +985,6 @@ async function doneCommit(store, task, binding, reported) {
       409,
     );
   return head;
-}
-
-// What a report adds to the task's evidence bundle (§4.22, R76.1).
-function reportEvidence(store, task, binding, report, attached) {
-  const repository = taskRepository(task) || null,
-    source = `${binding.role} ${binding.attempt}`,
-    add = (kind, text) =>
-      addEvidence(store, task.id, {
-        kind,
-        source,
-        text,
-        repository,
-        at: report.at,
-      });
-  if (report.findings) add("findings", findingsText(report.findings));
-  if (report.falsifier)
-    add(
-      "falsifier",
-      `${report.falsifier.verdict} (${report.falsifier.confidence}): ${report.falsifier.evidence}`,
-    );
-  if (report.review)
-    add(
-      "review",
-      [
-        `${binding.role.slice("review:".length)}: ${report.review.verdict} on ${String(report.commit).slice(0, 12)}`,
-        ...report.review.findings.map(
-          (f) => `${f.id} (${f.kind}, ${f.paths.join(", ")}): ${f.text}`,
-        ),
-      ].join("\n"),
-    );
-  for (const c of report.checks || [])
-    add(
-      "check",
-      [
-        `${c.command}: ${c.notRun ? `not run (${c.notRun})` : `exit ${c.exitCode}`}`,
-        c.logTail ? `Last lines:\n${c.logTail}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    );
-  if (attached?.length)
-    attachEvidence(store, task.id, attached, { source, repository });
 }
 
 // Worker bindings the delivery pipeline follows, newest attempt per task: the
@@ -1175,15 +1122,6 @@ export function retryDelivery(
           statusAt: at,
         });
     return { delivery: next, changed: true };
-  });
-  // The person's answer goes in the evidence bundle (R76.1).
-  addEvidence(store, task.id, {
-    kind: "decision",
-    source: local ? "cli" : "dashboard",
-    text: input.reason
-      ? `Sent back by ${local ? "the command line" : "a person"}: ${input.reason}`
-      : `Retried by ${local ? "the command line" : "a person"}${dismiss.length ? `, dismissing ${dismiss.map((d) => d.finding).join(", ")}` : ""}.`,
-    repository: taskRepository(task) || null,
   });
   return result;
 }
@@ -1615,8 +1553,16 @@ export function outsideSource(task) {
   return null;
 }
 
+// The brief's `Summary:` line for a task, or null. A summary of several
+// lines (its bullets as written) starts on the next line.
+export function summaryLine(task) {
+  const text = typeof task?.summary === "string" ? task.summary.trim() : "";
+  if (!text) return null;
+  return text.includes("\n") ? `Summary:\n${text}` : `Summary: ${text}`;
+}
+
 // The brief's heading and the task's own text: its title line, its summary
-// (its description bullets as written, when they add to the title), then its
+// (its description bullets as written), then its
 // acceptance. Outside text is quoted as data under one line
 // that says so; a plan's own task reads as before.
 function taskLines(task, heading, outside, { summary = true } = {}) {
@@ -1659,7 +1605,6 @@ export function workerBrief(
     outside = outsideSource(task),
     investigate = false,
     findingsVia = null,
-    linksAndNotes = "",
   },
 ) {
   const own = taskLines(task, `Avoozl task ${task.id}`, outside);
@@ -1671,8 +1616,6 @@ export function workerBrief(
       `Repository: ${repository.id}, checkout ${repository.root}, base branch ${repository.baseBranch || "main"}.`,
     ...(outside ? [checks, ...own.text] : [...own.text, checks]),
     ...(notes.length ? ["", ...notes] : []),
-    // Links people and agents left (R61.20), framed as data.
-    ...(linksAndNotes ? ["", linksAndNotes] : []),
     "",
     // Investigate first (R75.1): findings before any change.
     ...(investigate
@@ -1727,6 +1670,8 @@ export function busyTaskIds(store, bindings = listSessionBindings(store)) {
   }
   for (const delivery of deliveries.values())
     if (delivery.state !== "failed") claimed.add(delivery.taskId);
+  // A claim branch on origin holds its task, whoever made it (§D3).
+  for (const id of claimedTaskIds(store)) claimed.add(id);
   return claimed;
 }
 
@@ -1825,7 +1770,7 @@ function blockerTasks(data, task) {
     .filter(
       (e) => e.to === task.id && ["requires", "sequence"].includes(e.kind),
     )
-    .map((e) => supersedingTask(byId, e.from))
+    .map((e) => byId.get(e.from))
     .filter(Boolean);
 }
 
@@ -1874,7 +1819,6 @@ function composeLeafBrief(
         ...specTextNotes(store, task, repository),
       ],
       findings: openFindings(delivery),
-      linksAndNotes: briefNotes(store, task, blockerTasks(data, task)),
     };
   const token = issueReportToken(store, { taskId: task.id, attempt });
   // The pair table (worker-briefs.mjs) picks the steps; a declined pair runs
@@ -2629,8 +2573,6 @@ function judgeable(store, data) {
     const task = data.tasks.find((t) => t.id === delivery.taskId),
       repository = store.get("repositories", taskRepository(task) || "");
     if (!task || !repository?.root) continue;
-    // A superseded task gets no new session (R39.1); a running one finishes.
-    if (task.status === "superseded") continue;
     // Held by a stopped line: no new checks session until it is green.
     if (
       (delivery.verifications || []).some(
@@ -3025,7 +2967,7 @@ export function completeParents(store, { now = Date.now() } = {}) {
       // Children by parent, built once rather than scanned per parent.
       childrenOf = new Map();
     for (const t of data.tasks)
-      if (t.parent !== undefined && t.status !== "superseded") {
+      if (t.parent !== undefined) {
         if (!childrenOf.has(t.parent)) childrenOf.set(t.parent, []);
         childrenOf.get(t.parent).push(t);
       }
@@ -3036,7 +2978,6 @@ export function completeParents(store, { now = Date.now() } = {}) {
         parent.childrenComplete
       )
         return false;
-      // A superseded child is history; its replacement counts instead.
       const children = childrenOf.get(parent.id) || [];
       return (
         children.length > 0 &&

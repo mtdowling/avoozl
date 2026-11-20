@@ -40,10 +40,6 @@ import { fail } from "../store/store.mjs";
 import { checksSetting } from "../workspace/repository-checks.mjs";
 import { isolationSetting } from "../workspace/check-isolation.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
-import {
-  withRoles,
-  withoutDerivedKeys,
-} from "../workspace/repository-roles.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
 const APPLY_KEYS = Object.freeze([
@@ -67,9 +63,7 @@ function same(left, right) {
 function privilegedConfiguration(value) {
   return Object.fromEntries(
     Object.entries(value).filter(
-      // `packs` only records where imported settings came from.
-      ([key]) =>
-        !["$schema", "version", "conversations", "packs"].includes(key),
+      ([key]) => !["$schema", "version", "conversations"].includes(key),
     ),
   );
 }
@@ -808,15 +802,12 @@ export class RepositorySettings {
       filename: this.filename,
       exists: file.exists,
       hash: file.hash,
-      // Every entry carries its role, read from the stored mode when the
-      // file has none yet; nothing is written by reading (R105.7).
       github: policySection(
-        withRoles(
-          Object.fromEntries(
-            POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map(
-              (key) => [key, github[key]],
-            ),
-          ),
+        Object.fromEntries(
+          POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map((key) => [
+            key,
+            github[key],
+          ]),
         ),
       ),
     };
@@ -825,7 +816,7 @@ export class RepositorySettings {
   // Replaces the policy keys of `github` and keeps every other key. The
   // whole block is validated before the file is written.
   updateGitHubSettings({ github, expectedHash } = {}) {
-    const section = withoutDerivedKeys(policySection(github)),
+    const section = policySection(github),
       before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);

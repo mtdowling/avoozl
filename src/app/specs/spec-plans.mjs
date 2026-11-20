@@ -42,7 +42,13 @@ import {
   tasksSection,
 } from "./spec-tasks.mjs";
 import { integrationOf } from "../epics/integration-branch.mjs";
-import { repeatsTitle } from "../tasks/title-repeat.mjs";
+import {
+  linkDefinitions,
+  linkProblems,
+  orderProblems,
+  specGroupOf,
+  waitsOf,
+} from "./order.mjs";
 import {
   LETTERED,
   NAMED,
@@ -472,6 +478,9 @@ export function parseSpec({
   files,
   leftover = false,
   factsBlocks = false,
+  // linkedReader (order.mjs): the other specs, so a spec group reaches into
+  // the spec it links. Without it a parse reads this spec alone.
+  linked = null,
 }) {
   const diagnostics = [],
     proposals = [];
@@ -608,6 +617,11 @@ export function parseSpec({
       );
   }
 
+  // A title's link to another spec makes its task a spec group (§D19.2).
+  const definitions = linkDefinitions(tasksText),
+    taskLines = tasksText.split("\n");
+  for (const item of items)
+    if (item.key) item.spec = specGroupOf(name, item, definitions, taskLines);
   const facts = readFacts(tasksText, items),
     bullets = itemBullets(tasksText, items),
     manifest = facts.manifest,
@@ -742,21 +756,8 @@ export function parseSpec({
     try {
       // The item's whole line is its title. One over the limit is refused;
       // its cut form only keeps the other checks from failing on it.
-      // The item's description bullets are its summary. One that repeats
-      // the title is refused and left out.
-      let own = (bullets.get(item.line) ?? []).filter((bullet) => {
-        if (!repeatsTitle(bullet.text, item.title)) return true;
-        diagnostics.push(
-          diagnostic(
-            "task.summary-repeats-title",
-            tasksFile,
-            bullet.line,
-            "This repeats the title; say what the title does not, or delete it.",
-            { taskId: item.id },
-          ),
-        );
-        return false;
-      });
+      // The item's description bullets are its summary.
+      let own = bullets.get(item.line) ?? [];
       const rest = structuredClone(entry);
       // A leaf with no `$done` gives its results as plain bullets: each
       // one is a result, and it has no summary.
@@ -826,6 +827,23 @@ export function parseSpec({
       );
     }
   }
+  // Order from the list (simplify §D19): a spec with no `$after` fact takes
+  // its waits from waitsOf. shortcut: a spec that still has `$after` facts
+  // is read by them, until every spec is rewritten (sim-2.2).
+  if (!proposals.some((proposal) => proposal.requires?.length)) {
+    const waits = new Map();
+    for (const { from, to } of waitsOf(name, tasksText, linked))
+      waits.set(to, [...(waits.get(to) ?? []), from]);
+    for (const proposal of proposals)
+      if (waits.has(proposal.id)) proposal.requires = waits.get(proposal.id);
+  }
+  diagnostics.push(
+    ...[...orderProblems(items), ...linkProblems(items, linked)].map((found) =>
+      diagnostic(found.code, tasksFile, found.line, found.message, {
+        taskId: found.taskId,
+      }),
+    ),
+  );
   return { type, kind: "plan", items, diagnostics, proposals };
 }
 

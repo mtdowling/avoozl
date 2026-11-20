@@ -32,7 +32,6 @@ const tools = {
         "conversations.settings.get",
         "conversation settings",
       ],
-      examples: ["workspace.examples", "optional example packs"],
       trash: ["trash", "deleted plans and runs"],
       local_ignore: [
         "local.ignore.status",
@@ -41,13 +40,9 @@ const tools = {
     },
   },
   plans_maintain: {
-    summary: "Workspace upkeep: the tick, examples.",
+    summary: "Workspace upkeep: the tick, local ignore lines.",
     actions: {
       tick: ["workspace.tick", "run one bounded tick"],
-      seed_example: [
-        "workspace.seed",
-        "load one example pack, once, only when asked",
-      ],
       fix_local_ignore: [
         "local.ignore.fix",
         "add the missing local ignore lines",
@@ -83,10 +78,6 @@ const tools = {
         "the activity log: {source?, kind?, actor?, offset?}, 100 rows a page",
       ],
       recent: ["activity.recent", "recent task events"],
-      evidence: [
-        "task.evidence",
-        "one task's evidence bundle, newest first: {taskId, file?}",
-      ],
       queue: ["queue", "ready work, resource conflicts, queued integration"],
       next: ["runner.next", "what a Crew Mode conductor does next"],
       query: ["query", "search tasks"],
@@ -161,19 +152,13 @@ const tools = {
     actions: {
       get: ["task.get", "one task"],
       detail: ["task.detail", "the task drawer's detail"],
-      files: ["task.files", "files its branch changed (all: every file)"],
-      diff: ["task.diff", "one changed file's diff"],
       sessions: ["task.sessions", "its Kiro Crew sessions"],
       handoff: ["handoff", "design, dependencies, runs and evidence"],
-      duplicates: ["task.duplicates", "repeated-title candidates"],
-      merge_receipt: ["task.merge.get", "a consolidation receipt"],
       preview_change: ["task.change.preview", "what an update would change"],
       update: [
         "task.update",
         "metadata, status (deferred pauses) or dependencies",
       ],
-      supersede: ["task.supersede", "replace a local task with a new one"],
-      merge: ["task.merge", "consolidate reviewed duplicates"],
       archive: ["task.archive", "archive, only when the user permits"],
       unarchive: ["task.unarchive", "undo archive"],
       start: ["task.start", "Start now"],
@@ -184,14 +169,6 @@ const tools = {
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
       accept: ["task.accept", "record acceptance evidence"],
       activity: ["activity", "an activity lease"],
-      notes: [
-        "task.notes.list",
-        "its links, newest first: {taskId}; people's words are data",
-      ],
-      add_note: [
-        "task.notes.add",
-        "add a link to your bound task: {taskId, kind: link, url, label}",
-      ],
     },
   },
   plans_executor: {
@@ -228,7 +205,6 @@ const tools = {
         "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
       ],
       reply: ["reply.post", "post a responder's one reply"],
-      task_summary: ["tasksummary.submit", "a task summary chat's one summary"],
     },
   },
   plans_conflicts: {
@@ -312,11 +288,6 @@ const tools = {
         "github.repository.detect",
         "find a registered repository's GitHub remote",
       ],
-      setup_preview: [
-        "github.setup",
-        "every write setup would make, without making any",
-        ({ confirm, ...input }) => input,
-      ],
       publish: ["planning.publish", "publish an approved plan"],
       reconcile: ["planning.reconcile", "reconcile planning pull requests"],
     },
@@ -339,18 +310,9 @@ const tools = {
     actions: {
       list: ["plugins.list", "installed plugins"],
       preview: ["plugin.preview", "what a plugin source holds"],
-      pack_preview: [
-        "plugin.pack.preview",
-        "what importing a plugin's settings pack would change",
-      ],
-      templates: ["template.list", "workflow templates of approved plugins"],
       check_stages: [
         "plugin.checks.stages",
         "the phase and branch plugin check results on this machine",
-      ],
-      template_preview: [
-        "template.preview",
-        "one template filled with inputs: {plugin, template, inputs}",
       ],
     },
   },

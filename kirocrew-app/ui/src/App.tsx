@@ -43,8 +43,6 @@ import type { Drill } from './graph-layout.ts'
 import { viewsClient } from './views-api.ts'
 import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
 import { changePage } from './nav-history.ts'
-import { DemoBar, DemoProvider, StartDemoButton, useDemo } from './Demo.tsx'
-import { DEMO_CATALOG, DEMO_WORKSPACE_ID } from './demo-api.ts'
 import { errorMessage, pickDefault, readPageState, workspaceClient, writePageState, type WorkspaceList } from './workspace-api'
 import { Box } from './ui/Box'
 import { Glyph } from './ui/Glyph'
@@ -79,18 +77,15 @@ function NavLabel(props: { view: keyof typeof VIEW_ICONS; text: string; count?: 
 export default function AvoozlApp() {
   return (
     <NavHistoryProvider>
-      <DemoProvider>
-        <NavSlotProvider>
-          <AvoozlPage />
-        </NavSlotProvider>
-      </DemoProvider>
+      <NavSlotProvider>
+        <AvoozlPage />
+      </NavSlotProvider>
     </NavHistoryProvider>
   )
 }
 
 function AvoozlPage() {
   const nav = useNav()
-  const demo = useDemo()
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const saved = useMemo(() => readPageState(storage()), [])
@@ -137,14 +132,13 @@ function AvoozlPage() {
     writePageState(storage(), { workspaceId })
   }, [workspaceId])
 
-  // The link's workspace, once the catalog confirms it exists. The demo keeps
-  // its own sample.
+  // The link's workspace, once the catalog confirms it exists.
   useEffect(() => {
-    if (!decisionLink?.workspace || !list || demo.active || linkWorkspaceSet.current) return
+    if (!decisionLink?.workspace || !list || linkWorkspaceSet.current) return
     linkWorkspaceSet.current = true
     if (list.items.some((w) => w.id === decisionLink.workspace)) setWorkspaceId(decisionLink.workspace)
     else setError(`This link is for workspace ${decisionLink.workspace}, which this page does not list.`)
-  }, [decisionLink, list, demo.active])
+  }, [decisionLink, list])
 
   // Every change of tab or Settings section is a Back step that keeps
   // where the page was (changePage).
@@ -162,8 +156,7 @@ function AvoozlPage() {
     changePage(nav, here, next, apply, (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous section'), open)
   const openWorkspaces = () => go({ settingsTab: 'workspaces', tab: 'settings' })
   // A saved workspace counts only once the catalog confirms it still exists.
-  // The demo reads its own sample; the saved choice waits for Exit demo.
-  const active = demo.active ? DEMO_WORKSPACE_ID : list ? workspaceId : null
+  const active = list ? workspaceId : null
   const needsWorkspace = tab !== 'settings' && !active
 
   // A Needs you item's spec link: put the spec in the address, then open Specs,
@@ -309,13 +302,8 @@ function AvoozlPage() {
     else if (key === 'retros') go({ tab: 'retros', retrosPage: sub as RetrosPage, focus: null, drill: null })
     else go({ tab: 'waiting', waitingSection: sub as WaitingSection, focus: null, drill: null })
   }
-  // The workspace pill, first in the nav and in the phone's menu. In the demo
-  // it names the sample alone (the guard's catalog), and picking does nothing.
-  const pill = demo.active ? (
-    <WorkspacePill list={DEMO_CATALOG} value={DEMO_WORKSPACE_ID} onChange={() => undefined} onManage={openWorkspaces} />
-  ) : (
-    <WorkspacePill list={list} value={workspaceId} onChange={setWorkspaceId} onManage={openWorkspaces} />
-  )
+  // The workspace pill, first in the nav and in the phone's menu.
+  const pill = <WorkspacePill list={list} value={workspaceId} onChange={setWorkspaceId} onManage={openWorkspaces} />
   return (
     <Box {...{ [APP_ATTR]: '' }} css-display="contents">
       <ConfirmProvider>
@@ -357,7 +345,6 @@ function AvoozlPage() {
                       {!phone && <PageRefreshIcon />}
                     </Box>
                   </Box>
-                  <DemoBar />
                   {!ownBanner && !needsWorkspace && stops.length > 0 && (
                     <Box pb="2" px={phone ? '4' : '2'} data-shell-line-banner>
                       <LineBanner stops={stops} workspaceId={active} />
@@ -390,15 +377,10 @@ function AvoozlPage() {
                         }
                         action={
                           list?.items.length === 0 ? (
-                            <Box flex flexWrap items="center" justify="center" gap="2">
-                              <Btn type="button" onClick={openWorkspaces}>
-                                Open Settings › Workspaces
-                              </Btn>
-                              <StartDemoButton />
-                            </Box>
-                          ) : (
-                            <StartDemoButton />
-                          )
+                            <Btn type="button" onClick={openWorkspaces}>
+                              Open Settings › Workspaces
+                            </Btn>
+                          ) : undefined
                         }
                       />
                     ) : tab === 'dashboard' ? (
@@ -408,7 +390,7 @@ function AvoozlPage() {
                     ) : tab === 'graph' ? (
                       <GraphPage
                         workspaceId={active}
-                        workspaceName={(demo.active ? DEMO_CATALOG : list)?.items.find((w) => w.id === active)?.name ?? null}
+                        workspaceName={list?.items.find((w) => w.id === active)?.name ?? null}
                         focus={focus}
                         drill={drill}
                         onDrill={setDrill}
@@ -431,7 +413,7 @@ function AvoozlPage() {
                         workspaceId={active}
                         section={waitingSection}
                         onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
-                        decision={decisionLink && !demo.active && (!decisionLink.workspace || decisionLink.workspace === active) ? decisionLink.decision : null}
+                        decision={decisionLink && (!decisionLink.workspace || decisionLink.workspace === active) ? decisionLink.decision : null}
                         onLeaveDecision={() => {
                           setDecisionLink(null)
                           const base = urlBase(window.location.pathname)
@@ -455,10 +437,8 @@ function AvoozlPage() {
                         workspaceName={list?.items.find((w) => w.id === active)?.name}
                         tab={settingsTab}
                         onTab={(next) => go({ settingsTab: next })}
-                        // The demo's catalog is the sample alone; it never replaces the
-                        // person's own choice.
-                        onSelectWorkspace={(id) => !demo.active && id && setWorkspaceId(id)}
-                        onListChange={(next) => !demo.active && takeList(next)}
+                        onSelectWorkspace={(id) => id && setWorkspaceId(id)}
+                        onListChange={(next) => takeList(next)}
                         onOpenPlans={() => chooseTab('plans')}
                       />
                     )}

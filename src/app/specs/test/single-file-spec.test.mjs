@@ -5,6 +5,7 @@ import test from "node:test";
 import { lintSpec, parseSpec, specHash } from "../spec-plans.mjs";
 import { tickedText, ticksOf } from "../spec-ticks.mjs";
 import { addTaskLines, specTasks, taskFile } from "../spec-tasks.mjs";
+import { linkDefinitions, linkedSpecOf } from "../order.mjs";
 
 const TASKS = `---
 repo: app
@@ -144,5 +145,28 @@ test("a proposed task goes at the end of the ## Tasks section", () => {
     addTaskLines("tasks.md", "a", ["b"]),
     "a\nb\n",
     "tasks.md gets the lines at its end",
+  );
+});
+
+test("a spec link may target a single file, and its definition is kept", () => {
+  const none = new Map();
+  assert.equal(
+    linkedSpecOf("settings", "Build [c](../config/config.md)", none),
+    "config",
+  );
+  assert.equal(
+    linkedSpecOf("settings", "Build [c](../config/tasks.md)", none),
+    "config",
+  );
+  assert.equal(
+    linkedSpecOf("settings", "Read [c](../config/design.md)", none),
+    null,
+  );
+  // A reference definition below the section still reads.
+  const file = `# Settings\n\n## Tasks\n\n- [ ] \`s-1\` Build [config]\n\n## Notes\n\n[config]: ../config/config.md\n`;
+  const text = specTasks({ "settings.md": file }).text;
+  assert.equal(
+    linkedSpecOf("settings", "Build [config]", linkDefinitions(text)),
+    "config",
   );
 });

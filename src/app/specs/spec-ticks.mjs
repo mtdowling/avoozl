@@ -15,10 +15,17 @@ import { commitSubject } from "../landing/landing-config.mjs";
 import { recordActivity } from "../store/activity-log.mjs";
 import { FINAL_STATUSES } from "../sessions/session-bindings.mjs";
 import { checkedItems, specItems } from "./spec-plans.mjs";
+import { linkDefinitions, specGroupOf } from "./order.mjs";
 import { statusComplete } from "../../query.mjs";
 import { specsPath } from "./specs-path.mjs";
 import { specsBranch } from "./specs-branch.mjs";
-import { TASKS_FILE, taskFile, taskText } from "./spec-tasks.mjs";
+import {
+  SPEC_TEXT,
+  TASKS_FILE,
+  specTasks,
+  taskFile,
+  taskText,
+} from "./spec-tasks.mjs";
 
 const exec = promisify(execFile);
 // The file that holds a spec's tasks, as a path in the checkout at `root`.
@@ -95,6 +102,64 @@ export function tickedText(name, text, ids, file = TASKS_FILE) {
   return { text: lines.join("\n"), ticked };
 }
 
+// Linked specs (simplify §D19.2): once every task of `spec` is ticked in the
+// checkout at `dir`, tick each spec group that links it, in the same commit,
+// and so on up. Returns the IDs it ticked.
+// shortcut: only a parent on the same specs branch is ticked; a parent
+// elsewhere waits for its own tick commit.
+export async function tickParents(dir, spec, seen = new Set([spec])) {
+  const folder = path.join(dir, specsPath(dir)),
+    // A folder's task file, its whole text and its task text, or null.
+    read = (name) => {
+      const files = {};
+      try {
+        for (const file of fs.readdirSync(path.join(folder, name)))
+          if (SPEC_TEXT.test(file))
+            files[file] = fs.readFileSync(
+              path.join(folder, name, file),
+              "utf8",
+            );
+      } catch {
+        return null;
+      }
+      const found = specTasks(files);
+      return found && { ...found, raw: files[found.file] };
+    },
+    own = read(spec),
+    items = own ? specItems(spec, own.text).filter((item) => item.key) : [];
+  if (!items.length || items.some((item) => item.mark !== "x")) return [];
+  const ticked = [];
+  let names = [];
+  try {
+    names = fs.readdirSync(folder);
+  } catch {}
+  for (const name of names) {
+    const found = !seen.has(name) && read(name);
+    if (!found) continue;
+    const { file, text, raw } = found,
+      definitions = linkDefinitions(text),
+      lines = text.split("\n"),
+      groups = specItems(name, text)
+        .filter(
+          (item) =>
+            item.key &&
+            item.mark !== "x" &&
+            specGroupOf(name, item, definitions, lines) === spec,
+        )
+        .map((item) => item.id);
+    if (!groups.length) continue;
+    const tick = tickedText(name, raw, groups, file);
+    if (!tick.ticked.length) continue;
+    fs.writeFileSync(path.join(folder, name, file), tick.text);
+    await git(dir, ["add", `${specsPath(dir)}/${name}/${file}`]);
+    ticked.push(
+      ...tick.ticked,
+      ...(await tickParents(dir, name, new Set([...seen, name]))),
+    );
+  }
+  return ticked;
+}
+
 // The IDs tasks.md names for these task IDs: the plan's mapping, backwards.
 export const itemIdsOf = (plan, taskIds) =>
   Object.entries(plan?.mapping ?? {})
@@ -134,6 +199,7 @@ export async function tickEntry(store, dir, entry) {
   if (!ticked.length) return;
   fs.writeFileSync(file, text);
   await git(dir, ["add", relative]);
+  await tickParents(dir, plan.spec);
 }
 
 // A spec that lives in a plans repository other than the code repository:
@@ -203,7 +269,7 @@ export async function tickBranch(
         if (!tick.ticked.length) continue;
         fs.writeFileSync(file, tick.text);
         await git(dir, ["add", relative]);
-        ticked.push(...tick.ticked);
+        ticked.push(...tick.ticked, ...(await tickParents(dir, spec)));
       }
       if (!ticked.length) return { ticked };
       await git(

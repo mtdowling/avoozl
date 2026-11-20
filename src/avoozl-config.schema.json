@@ -146,9 +146,6 @@
         "responder": {
           "$ref": "#/$defs/harnessRole"
         },
-        "taskSummary": {
-          "$ref": "#/$defs/harnessRole"
-        },
         "assist": {
           "$ref": "#/$defs/harnessRole"
         },
@@ -482,30 +479,6 @@
               "remote": {
                 "enum": ["allow", "forbid"]
               }
-            }
-          }
-        }
-      }
-    },
-    "packs": {
-      "type": "object",
-      "description": "Written by a pack import (design \u00a74.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "version": {
-            "type": "string"
-          },
-          "importedAt": {
-            "type": "string"
-          },
-          "importedBy": {
-            "type": "string"
-          },
-          "settings": {
-            "type": "array",
-            "items": {
-              "type": "string"
             }
           }
         }
@@ -1173,10 +1146,6 @@
       "type": "object",
       "description": "Who may trigger work in one repository and which labels do what. No label name is built in.",
       "properties": {
-        "role": {
-          "enum": ["local", "code", "planning", "both"],
-          "description": "What this repository is for (design \u00a74.34). local: tasks stay in the workspace database. code: pull requests land here and issues live in the planning repository. planning: holds the issues and specs, no code. both: code and its own issues. The mode and planningRepository derive from the roles."
-        },
         "checkout": {
           "type": "string",
           "minLength": 1

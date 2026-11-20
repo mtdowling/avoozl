@@ -101,11 +101,9 @@ my-plans/
   .kiro/specs/<name>/              specs
 ```
 
-A new workspace has no tasks and no repositories.
-`avoozl seed --workspace ~/plans` adds a made-up example epic as draft
-specs. Loading examples never approves a plan, starts a session, or configures
-a repository. See [Workspaces](workspaces.md) for settings files, demo mode and
-backups.
+A new workspace has no tasks and no repositories. Add one with
+`avoozl repository configure ID --root PATH`, then run `avoozl rebuild`. See
+[Workspaces](workspaces.md) for settings files and backups.
 
 ## Write and approve a spec
 

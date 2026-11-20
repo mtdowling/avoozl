@@ -57,7 +57,7 @@ before(async () => {
   fs.writeFileSync(path.join(machine.configDirectory, 'harnesses', 'fake-cli.json'), bytes)
   approveHarnessDefinition({ configDirectory: machine.configDirectory, name: 'fake-cli', hash: harnessDefinitionHash(Buffer.from(bytes)) })
   const config = workspaceConfig({ workspace: root, env: process.env })
-  server = await startServe({ config, uiDir: ui, registryOptions, home: process.env.HOME, demoRoot: path.join(scratch, 'demo'), log: () => {} })
+  server = await startServe({ config, uiDir: ui, registryOptions, home: process.env.HOME, log: () => {} })
   store = new Store(config.dbPath)
   close = async () => {
     store.close()

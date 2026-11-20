@@ -167,26 +167,11 @@ export function settingsClient(api: AppApi) {
     get: (workspaceId: string) => run<GitHubSettings>('github.settings.get', {}, workspaceId),
     validate: (workspaceId: string, github: Policy) => run<Validation>('github.settings.validate', { github }, workspaceId),
     save: (workspaceId: string, github: Policy, expectedHash: string | null) => run<GitHubSettings>('github.settings.update', { github, expectedHash }, workspaceId),
-    setup: (workspaceId: string, input: SetupInput) => run<SetupResult>('github.setup', { ...input }, workspaceId),
     // A person's Allow for the high-risk steps the confirm showed
     // (plugin-credentials §D7); the apply sends the grant ids back.
     allow: (workspaceId: string, steps: HighRiskStep[]) => run<{ grants: string[] }>('github.job.confirm', { steps }, workspaceId),
     // Stops a running apply before its next write.
-    cancelSetup: (workspaceId: string, previewHash: string) => run<{ cancelled: boolean }>('github.setup.cancel', { previewHash }, workspaceId),
   }
-}
-
-// Set up GitHub wizard (design §8.2). The backend reads GitHub, previews
-// every write, and writes only on confirm with the preview's hash.
-export interface SetupInput {
-  mode: string
-  planningRepository?: string
-  repositories?: string[]
-  epic?: boolean
-  confirm?: boolean
-  previewHash?: string
-  // Grant ids from github.job.confirm for the high-risk writes.
-  allow?: string[]
 }
 
 // A high-risk GitHub step: its job, where, and the exact permissions it
@@ -200,74 +185,11 @@ export interface HighRiskStep {
   permissionsHash: string
 }
 
-export interface SetupWrite extends Partial<HighRiskStep> {
-  step: string
-  action: string
-  object: string
-  owner: string
-  name: string
-  visibility: string | null
-  detail: string
-}
-
 // The confirm's line for one high-risk step.
 export const permissionsLine = (step: Partial<HighRiskStep>) => (step.job ? `${step.job} asks GitHub for ${step.permissionsText} on ${step.target}` : '')
 
 // The steps a confirm allows: the high-risk ones.
 export const highRisk = (steps: Partial<HighRiskStep>[]) => steps.filter((step): step is HighRiskStep => step.risk === 'high')
-
-export interface SetupStep {
-  id: string
-  title: string
-  status: string
-  notes: string[]
-  reason: string | null
-  fix: string | null
-}
-
-export interface SetupResult {
-  writes: SetupWrite[]
-  previewHash: string
-  nothingToChange: boolean
-  applied: boolean
-  results?: (SetupWrite & { status: string; reason?: string; manual?: string[] })[]
-  steps: SetupStep[]
-  checklist: { id: string; text: string; link: string | null }[]
-  settings: {
-    github: Policy
-    expectedHash: string | null
-    changed: boolean
-    diff: string
-    error: string | null
-  }
-}
-
-export interface SetupForm {
-  mode: string
-  planningRepository: string
-  repositories: string
-  epic: boolean
-}
-
-// Wizard defaults from the saved settings.
-export function setupForm(github: Policy): SetupForm {
-  return {
-    mode: str(github.mode) || 'plans-repo',
-    planningRepository: str(github.planningRepository),
-    repositories: Object.keys(record(github.repositories)).join(', '),
-    epic: true,
-  }
-}
-
-// The operation input.
-export function setupInput(form: SetupForm): SetupInput {
-  return compact({
-    mode: form.mode,
-    planningRepository: form.mode === 'plans-repo' ? blank(form.planningRepository) : undefined,
-    repositories: splitList(form.repositories),
-    epic: form.epic,
-  }) as unknown as SetupInput
-}
 
 export interface RepositoryForm {
   name: string
@@ -360,7 +282,7 @@ export function toForm(github: Policy): SettingsForm {
       return {
         name,
         baseBranch: str(entry.baseBranch),
-        role: str(entry.role),
+        role: '',
         allowedActors: joined(entry.allowedActors),
         minimumPermission: str(entry.minimumPermission),
         requiredChecks: joined(entry.requiredChecks),
@@ -380,10 +302,14 @@ function compact(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined))
 }
 
-// Every top-level policy key is present; null clears it on save. The mode
-// and planning repository are not written: the roles make them.
+// Every top-level policy key is present; null clears it on save. Each
+// repository's role is the form's own: the save writes the mode and the
+// planning repository it gives.
 export function toPolicy(form: SettingsForm): Policy {
   return {
+    mode: blank(form.mode) ?? null,
+    // Kept in every mode, so switching to Local only and back restores it.
+    planningRepository: blank(form.planningRepository) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
     cacheSeconds: count(form.cacheSeconds) ?? null,
     writesPerMinute: count(form.writesPerMinute) ?? null,
@@ -395,7 +321,6 @@ export function toPolicy(form: SettingsForm): Policy {
             compact({
               ...repository.rest,
               baseBranch: blank(repository.baseBranch),
-              role: blank(repository.role),
               allowedActors: splitList(repository.allowedActors),
               minimumPermission: blank(repository.minimumPermission),
               requiredChecks: splitList(repository.requiredChecks),
@@ -439,8 +364,7 @@ export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
 // The first required setting the form leaves blank, as a sentence, or null.
 // Save is blocked while one is missing, so the message names what to fill.
 export function missingRequired(form: SettingsForm): string | null {
-  if (form.mode === 'plans-repo' && !form.planningRepository.trim())
-    return 'A code repository needs a planning repository: give one repository the planning role in Repository setup.'
+  if (form.mode === 'plans-repo' && !form.planningRepository.trim()) return 'A code repository needs a planning repository: set github.planningRepository in .avoozl.json.'
   // Local only reads no repository GitHub setting.
   if (!isGitHubMode(form.mode)) return null
   for (const [index, repository] of form.repositories.entries()) {
@@ -588,8 +512,8 @@ export const MODE_CARDS = [
 export const modeKey = (mode: string) => (mode === 'plans-repo' || mode === 'single-repo' ? mode : 'local')
 export const isGitHubMode = (mode: string) => modeKey(mode) !== 'local'
 
-// Repository roles (design §4.34, R105). The backend decides the mode from
-// them (repository-roles.mjs); this file only draws them and builds the edit.
+// Repository roles: the page draws each repository's place from the mode and
+// the planning repository, and an edit writes those two keys.
 export const ROLE_OPTIONS = [
   { value: 'local', label: 'Local only', line: "Tasks stay in this workspace's database. Nothing goes to GitHub." },
   { value: 'code', label: 'Code repository', line: 'Pull requests land here. Its specs live in the planning repository.' },
@@ -613,11 +537,11 @@ export interface RoleRow {
   github: string | null
 }
 
-// A row's role: the one saved on its entry, else the one the mode gives.
+// A row's role: the one the form set in this edit, else the one the mode gives.
 export function roleOfRow(form: Pick<SettingsForm, 'mode' | 'planningRepository' | 'repositories'>, row: RoleRow): string {
   if (!row.github) return 'local'
-  const saved = row.policy >= 0 ? form.repositories[row.policy]?.role : ''
-  return saved || roleFromMode(modeKey(form.mode), row.github, form.planningRepository)
+  const set = row.policy >= 0 ? form.repositories[row.policy]?.role : ''
+  return set || roleFromMode(modeKey(form.mode), row.github, form.planningRepository)
 }
 
 // The mode the roles make, for the form's own checks until the save derives it.
@@ -708,40 +632,6 @@ export function unusedInLocal(form: SettingsForm): string[] {
   if (form.repositories.length) kept.push(`${form.repositories.length} repository GitHub setting${form.repositories.length === 1 ? '' : 's'}`)
   if (form.epicIssueType.trim()) kept.push('epic issue type')
   return kept
-}
-
-// Set up GitHub (SetupWizard.tsx): pure helpers.
-// Each write's group in the review step, by the wizard's step id.
-export const SETUP_GROUPS: { key: string; title: string; steps: string[] }[] = [
-  { key: 'repository', title: 'Repository', steps: ['token', 'repository', 'issues'] },
-  { key: 'epic', title: 'Epic issue type', steps: ['epic'] },
-  { key: 'labels', title: 'Labels', steps: ['labels'] },
-  { key: 'settings', title: 'Settings file', steps: ['settings'] },
-]
-
-// create, change or keep, from the write's action.
-export const writeBadge = (write: Pick<SetupWrite, 'action'>) => (/^create|^enable/.test(write.action) ? 'create' : /^keep/.test(write.action) ? 'keep' : 'change')
-
-export function groupWrites(writes: SetupWrite[]) {
-  return SETUP_GROUPS.map((group) => ({ ...group, writes: writes.filter((w) => group.steps.includes(w.step)) })).filter((g) => g.writes.length)
-}
-
-// Whether the button shows: only when the read-only preview finds a change.
-export type SetupState =
-  | { kind: 'checking' }
-  | { kind: 'error'; reason: string; fix: string | null }
-  | { kind: 'set-up'; at: string }
-  | { kind: 'changes'; count: number; at: string }
-
-export function setupState(result: SetupResult | null, error: string | null, at: string): SetupState {
-  if (error) return { kind: 'error', reason: error, fix: null }
-  if (!result) return { kind: 'checking' }
-  // A failed step (no gh, a missing scope) means the preview could not read
-  // what it needs: say why and how to fix it.
-  const blocked = result.steps.find((s) => s.status === 'failed')
-  if (blocked && !result.writes.length) return { kind: 'error', reason: `${blocked.title}: ${blocked.reason}`, fix: blocked.fix }
-  if (result.writes.length || result.settings.changed) return { kind: 'changes', count: result.writes.length + (result.settings.changed ? 1 : 0), at }
-  return { kind: 'set-up', at }
 }
 
 // Settings opens on Workspaces. The inner tab is kept only while the person

@@ -308,18 +308,6 @@ test("P45 (1)–(3): findings first, a falsifier, the gate, Needs you, and small
     .map((r) => `${r.role}:${r.stage}`);
   assert.ok(spans.includes("worker:investigate"), spans.join());
   assert.ok(spans.includes("falsifier:falsify"), spans.join());
-
-  // The evidence bundle has the findings, both replies and the decisions.
-  const evidence = await w.ops.execute("task.evidence", { taskId: "a3" });
-  const kinds = evidence.entries.map((e) => e.kind);
-  assert.deepEqual(
-    kinds.filter((k) => k === "findings").length,
-    2,
-    kinds.join(),
-  );
-  assert.equal(kinds.filter((k) => k === "falsifier").length, 2);
-  assert.equal(kinds.filter((k) => k === "decision").length, 2);
-  assert.equal(kinds[0], "decision", "newest first");
 });
 
 test("P45 mode off dispatches exactly as before, and a manifest override wins", async (t) => {

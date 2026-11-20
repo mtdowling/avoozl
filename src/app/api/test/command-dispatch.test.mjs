@@ -68,15 +68,19 @@ async function both(t) {
 
 test("one write and one observe operation give the same result through both servers", async (t) => {
   const { viaBackend, direct } = await both(t);
-  const observe = { operation: "instance.view" },
-    write = { operation: "instance.rename", input: { name: "Same name" } };
-  const a = await viaBackend(write),
-    b = await direct(write);
+  const observe = { operation: "workspaces.list" },
+    hash = async () =>
+      (await direct({ operation: "activity.settings.get" })).body.result.hash,
+    write = async () => ({
+      operation: "activity.settings.update",
+      input: { retentionDays: 30, expectedHash: await hash() },
+    });
+  const a = await viaBackend(await write()),
+    b = await direct(await write());
   assert.equal(a.status, 200);
   assert.deepEqual(b, a);
   const seen = await viaBackend(observe),
     through = await direct(observe);
-  assert.equal(seen.body.result.name, "Same name");
   assert.equal(seen.body.result.host, "kirocrew");
   assert.equal(through.body.result.host, "standalone");
   assert.deepEqual(
@@ -126,7 +130,7 @@ test("a page read refuses an uninitialized workspace and init then fixes it", as
   const view = () =>
     dispatchCommand({
       principal: OWNER,
-      request: { operation: "instance.view" },
+      request: { operation: "panel.view" },
       context,
     });
   const refused = await view();

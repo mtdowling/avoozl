@@ -23,9 +23,6 @@ async function runTaskDone({ options, positionals, localOrRequest, need }) {
                 : options.skipped
                   ? "skipped"
                   : "done",
-              ...(options.link
-                ? { links: [{ url: options.link, label: options.label }] }
-                : {}),
             }
           : { taskId },
       ),
@@ -125,12 +122,21 @@ export const commands = [
     help: [
       help(
         "deliver",
-        "next",
-        "The ready, running, waiting, Needs you and done lists",
+        "next [--claim]",
+        "The ready, running, waiting, Needs you and done lists; --claim takes the first ready task by its claim branch",
       ),
     ],
-    async run({ localOrRequest }) {
-      console.log(JSON.stringify(await localOrRequest("runner.next"), null, 2));
+    async run({ options, localOrRequest }) {
+      console.log(
+        JSON.stringify(
+          await localOrRequest(
+            "runner.next",
+            options.claim ? { claim: true } : {},
+          ),
+          null,
+          2,
+        ),
+      );
     },
   },
   {
@@ -368,67 +374,11 @@ export const commands = [
     },
   },
   {
-    command: "task links",
-    help: [
-      help(
-        "deliver",
-        "task links TASK_ID [list]",
-        "A task's links, newest first",
-      ),
-      help("deliver", "task links TASK_ID add --link URL --label LABEL", ""),
-      help(
-        "deliver",
-        "task links TASK_ID edit LINK_ID --link URL --label LABEL",
-        "(a person only)",
-      ),
-      help(
-        "deliver",
-        "task links TASK_ID remove LINK_ID",
-        "Remove a link; it stays in the activity history (a person only)",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      // Task links (R61.22): list and add for anyone; edit and remove are a
-      // person's, as the command line is.
-      const taskId = need(
-          positionals[1],
-          "task links TASK_ID [add|edit|remove]",
-        ),
-        action = positionals[2] || "list",
-        entry = () => ({
-          kind: "link",
-          url: options.link,
-          label: options.label,
-        });
-      const name = {
-        list: "task.notes.list",
-        add: "task.notes.add",
-        edit: "task.notes.edit",
-        remove: "task.notes.remove",
-      }[action];
-      if (!name)
-        throw Error("Choose task links TASK_ID list, add, edit or remove.");
-      const id =
-          action === "list" || action === "add"
-            ? undefined
-            : need(positionals[3], `task links TASK_ID ${action} LINK_ID`),
-        input =
-          action === "list"
-            ? { taskId }
-            : action === "add"
-              ? { taskId, ...entry() }
-              : action === "edit"
-                ? { taskId, id, ...entry() }
-                : { taskId, id };
-      console.log(JSON.stringify(await localOrRequest(name, input), null, 2));
-    },
-  },
-  {
     command: "task done",
     help: [
       help(
         "deliver",
-        "task done TASK_ID [--skipped|--refused] [--link URL --label LABEL]",
+        "task done TASK_ID [--skipped|--refused]",
         "Mark a manual task done, skipped or refused (a person only;\nrefused is a no-go and keeps its dependents held)",
       ),
     ],
@@ -444,41 +394,6 @@ export const commands = [
       ),
     ],
     run: runTaskDone,
-  },
-  {
-    command: "task supersede",
-    help: [
-      help(
-        "deliver",
-        "task supersede TASK_ID [--id NEW_ID] [--title TITLE] [--requires A,B] [--reason TEXT]",
-        "Replace a local task; its dependents wait on the new one",
-      ),
-    ],
-    async run({ options, positionals, localOrRequest, need }) {
-      const create = {};
-      if (options.id) create.id = options.id;
-      if (options.title) create.title = options.title;
-      if (options.summary) create.summary = options.summary;
-      if (options.requires !== undefined)
-        create.requires = options.requires
-          .split(",")
-          .map((id) => id.trim())
-          .filter(Boolean);
-      console.log(
-        JSON.stringify(
-          await localOrRequest("task.supersede", {
-            id: need(
-              positionals[1],
-              "task supersede TASK_ID [--title TITLE] ...",
-            ),
-            create,
-            ...(options.reason ? { reason: options.reason } : {}),
-          }),
-          null,
-          2,
-        ),
-      );
-    },
   },
   {
     command: "flow stop",

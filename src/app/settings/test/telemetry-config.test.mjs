@@ -47,18 +47,18 @@ test("telemetry in .avoozl.json is refused, naming the file and the machine file
 
 test("a plugin manifest with a telemetry key fails", () => {
   const manifest = {
-    id: "fake-intake",
+    id: "fake-rules",
     version: "1.0.0",
     contract: 1,
-    kinds: ["intake"],
-    capabilities: { intake: [] },
+    kinds: ["rules"],
+    capabilities: { rules: [] },
     entry: "index.mjs",
   };
   assert.throws(
     () =>
       validateManifest(
         { ...manifest, telemetry: { enabled: true } },
-        { id: "fake-intake" },
+        { id: "fake-rules" },
       ),
     /telemetry/,
   );

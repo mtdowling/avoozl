@@ -178,18 +178,12 @@ const OPEN = new Map([
       "delivery",
       "flow",
       "contentRules",
-      "packs",
       "machine",
       "notifications",
       "serve",
       "telemetry",
       "specs",
     ],
-  ],
-  // plugin-pack.mjs writes each entry.
-  [
-    "#/properties/packs/additionalProperties",
-    ["version", "importedAt", "importedBy", "settings"],
   ],
   // readRunnerConfig in remote-runner.mjs.
   [

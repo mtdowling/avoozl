@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { classifyOperation } from "../../api/operation-table.mjs";
 import { APP_OPERATIONS } from "../../executors/kirocrew/app-backend.mjs";
-import { demoOperations, installDemo } from "../../workspace/demo.mjs";
+import { demoOperations, installDemo } from "../../test/demo-fixture.mjs";
 import { epicsView } from "../epics-view.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 

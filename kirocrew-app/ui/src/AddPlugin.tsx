@@ -25,12 +25,10 @@ import {
   publicWarning,
   sharedBlocked,
   stateLabel,
-  type PackPreview,
   type PluginForm,
   type PluginPreview,
   type PluginRow,
 } from './plugins-api.ts'
-import { PackChanges } from './PackImport.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { IconLabel } from './ui/controls.tsx'
 import { PairedCard } from './ui/PairedCards.tsx'
@@ -82,7 +80,7 @@ function SourceFields({ form, set }: { form: PluginForm; set: (patch: Partial<Pl
     package: (
       <Box css-grid-template-columns="minmax-0-2fr-minmax-6rem-1fr" grid gap="2">
         <Field label="Package name" marker="required" raw="package">
-          <Input value={form.package} placeholder="@example/avoozl-intake" onChange={(e: Change) => set({ package: e.target.value })} />
+          <Input value={form.package} placeholder="@example/avoozl-rules" onChange={(e: Change) => set({ package: e.target.value })} />
         </Field>
         <Field label="Version" marker="optional" hint="Checked against what is installed.">
           <Input value={form.version} placeholder="1.2.0" onChange={(e: Change) => set({ version: e.target.value })} />
@@ -136,7 +134,6 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
     ['Commit found', preview.commit],
     ['Version', preview.version],
     ['Parts', preview.provides || preview.kinds ? partTitles(preview).join(', ') : undefined],
-    ['Pack', preview.pack ? (preview.pack.description ?? 'Settings only') + ` (${Object.keys(preview.pack.settings).join(', ')})` : undefined],
     ['Capabilities', capabilities],
     // A credentials part: who it signs Avoozl in as, and where (PC2.3).
     ['GitHub sign-in', preview.credentials ? signInClaims({ id: preview.id ?? null, credentials: preview.credentials }).join(' ') : undefined],
@@ -268,8 +265,6 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
   const [form, setForm] = useState<PluginForm>(emptyPluginForm())
   const [preview, setPreview] = useState<PluginPreview | null>(null)
   const [added, setAdded] = useState<PluginRow | null>(null)
-  // The pack preview the review step shows; import comes after approval.
-  const [pack, setPack] = useState<PackPreview | null>(null)
   const [confirmPublic, setConfirmPublic] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -317,7 +312,6 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       try {
         const row = await client.add(workspaceId, checked.input)
         setAdded(row)
-        if (row.pack && row.id) setPack(await client.packPreview(workspaceId, row.id).catch(() => null))
       } catch (caught) {
         const warning = publicWarning(caught)
         throw warning ? Error(`${warning} Tick the box to share it anyway.`) : caught
@@ -424,11 +418,6 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
             <Parts row={added} />
             <Facts row={added} />
           </FieldGroup>
-          {pack && (
-            <FieldGroup title="Settings pack" blurb="After you approve, import these from the plugin’s card. Nothing is imported now.">
-              <PackChanges preview={pack} />
-            </FieldGroup>
-          )}
           <Hint as="p" size="xs">
             Cancel removes the entry just added. Nothing has run.
           </Hint>

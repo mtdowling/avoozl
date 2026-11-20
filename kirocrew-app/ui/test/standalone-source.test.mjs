@@ -215,7 +215,7 @@ test('no view imports a Kiro Crew file by path (SW1.2)', () => {
   assert.deepEqual(pathImports(path.join(ui, 'src')), [])
 })
 
-test('no view tests which build it runs in (SW1.2); the host comes from instance.view (SW10.3)', () => {
+test('no view tests which build it runs in (SW1.2); the host comes from workspaces.list (SW10.3)', () => {
   const dir = path.join(ui, 'src')
   const found = []
   for (const name of fs.readdirSync(dir, { recursive: true }))

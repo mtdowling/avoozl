@@ -37,7 +37,6 @@ import { personPosting, postedText } from "../github/github-posted.mjs";
 // when it is saved (§4.16); like `plan`, every set covers it by default.
 // A boundary Avoozl no longer checks. A saved set may still list it; it
 // matches nothing. `lesson` went with the lessons store (RC30.4).
-const REMOVED_BOUNDARIES = ["lesson"];
 export const BOUNDARIES = Object.freeze([
   "plan",
   "github",
@@ -46,9 +45,6 @@ export const BOUNDARIES = Object.freeze([
   "intake",
   "proposal",
   "activity",
-  // Each evidence bundle entry (§4.22); a match is saved redacted.
-  "evidence",
-  "notes",
 ]);
 const OPT_IN = new Set(["intake"]);
 export const ACTIONS = Object.freeze(["block", "report"]);
@@ -388,9 +384,7 @@ export function validateContentRules(
       if (
         !Array.isArray(entry.boundaries) ||
         !entry.boundaries.length ||
-        entry.boundaries.some(
-          (b) => !BOUNDARIES.includes(b) && !REMOVED_BOUNDARIES.includes(b),
-        )
+        entry.boundaries.some((b) => !BOUNDARIES.includes(b))
       )
         fail(`${where}.boundaries may list only ${BOUNDARIES.join(", ")}.`);
       boundaries = [...new Set(entry.boundaries)];

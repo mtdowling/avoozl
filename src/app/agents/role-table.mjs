@@ -56,8 +56,7 @@ const verdictFinish = (allowCommands) => [
 //            by `validate(text)`, which throws its reason (NK3)
 //   hands    how the result is recorded: report (session.report), reply (the
 //            retro's reply), folder (the stored folder; nothing to record),
-//            post-reply (reply.post, as the session), summary
-//            (tasksummary.submit, as the session), falsifier
+//            post-reply (reply.post, as the session), falsifier
 //            (session.report with the verdict and no commit)
 //   finish   the lines that replace the Avoozl tools in a child's brief
 //   offline  true when the child gets no network, whatever its repository
@@ -193,22 +192,6 @@ export const ROLE_TABLE = Object.freeze({
     hands: "post-reply",
     finish: () => [
       'You run without Avoozl\'s tools. Instead of calling plans_post_reply, write .avoozl/result.json in the current folder: {"state": "done", "report": {"body": "<your reply>"}}, or {"state": "blocked", "text": "<why>"} if you cannot draft one. Avoozl checks the reply and posts it.',
-      RESULT_LIMIT,
-    ],
-  },
-  // The summary reads only its brief; Avoozl stores it on the task (NK2.3).
-  taskSummary: {
-    setting: "taskSummary",
-    roles: ["task-summary"],
-    prompt: "task-summary",
-    process: true,
-    access: "read",
-    folder: "scratch",
-    scratch: "avoozl-summary-",
-    offline: true,
-    hands: "summary",
-    finish: () => [
-      'You run without Avoozl\'s tools. Instead of calling plans_submit_task_summary, write .avoozl/result.json in the current folder: {"state": "done", "report": {"summary": "<your summary>"}}.',
       RESULT_LIMIT,
     ],
   },

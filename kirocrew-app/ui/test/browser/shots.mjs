@@ -61,9 +61,7 @@ export function demoHelpers(page) {
     await page.open(url, { width, height: 900, dark })
     await page.evaluate('localStorage.clear()')
     await page.open(url, { width, height: 900, dark })
-    await page.until(`Boolean(${button('Start demo')})`)
-    await press(button('Start demo'))
-    await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
+    await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
     if (width < 768) {
       await press(`document.querySelector('[data-top-rail-bar]')`)
       await wait(150)

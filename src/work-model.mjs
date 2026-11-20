@@ -59,22 +59,6 @@ export function taskCompletion(task) {
   return "integrated";
 }
 
-// The newest task in `id`'s supersede chain (§5.2, R39.2). Readiness judges
-// an edge from a replaced task by its replacement; edges are never rewritten,
-// because plan approval rebuilds plan edges. A broken or cyclic chain stops
-// at the last task it reached.
-export function supersedingTask(byId, id) {
-  let task = byId.get(id);
-  const seen = new Set();
-  while (task?.supersededBy && !seen.has(task.id)) {
-    seen.add(task.id);
-    const next = byId.get(task.supersededBy);
-    if (!next) break;
-    task = next;
-  }
-  return task;
-}
-
 // The one repository a leaf targets: its `repository` fact, else the
 // `repositoryId` its plan gave it.
 export function taskRepository(task) {

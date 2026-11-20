@@ -6,7 +6,6 @@
 import { taskSourceRefs } from "../../task-identity.mjs";
 import { linkSets } from "../tasks/scm-links.mjs";
 import { planReviewSummary } from "../reviews/plan-review-summary.mjs";
-import { ownSummary } from "../tasks/title-repeat.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 
@@ -47,7 +46,7 @@ const specName = (task) => {
 };
 
 const textOf = (task) => ({
-  summary: ownSummary(task),
+  summary: task.summary?.trim() || null,
   acceptance: Array.isArray(task.acceptance)
     ? task.acceptance.map(String)
     : typeof task.acceptance === "string"

@@ -25,7 +25,6 @@ import {
 import { usageView } from "../flow/flow-usage.mjs";
 import { flowView, readFlowConfig } from "../flow/flow.mjs";
 import { buildRows, buildView } from "../flow/build-receipt-read.mjs";
-import { peekInstance } from "../workspace/instance.mjs";
 import { withWorkLock } from "../git/git.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import {
@@ -76,11 +75,7 @@ export const entries = [
     github: "ci-receipts",
     policy: routed,
     handler() {
-      const instance = peekInstance(this.store);
-      return buildView(buildRows(this.store), {
-        instanceName: (id) =>
-          id && id === instance?.id ? instance.name : null,
-      });
+      return buildView(buildRows(this.store));
     },
   },
   {

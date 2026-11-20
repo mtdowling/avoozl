@@ -38,7 +38,8 @@ test('a repository with no saved role gets the one its mode gives', () => {
   })
   assert.equal(roleOfRow(form, rowOf(form, 'a/app')), 'code')
   assert.equal(roleOfRow(form, rowOf(form, 'a/plans')), 'planning')
-  assert.equal(roleOfRow(form, rowOf(form, 'a/lib')), 'both')
+  // A saved role key is not read: the mode decides.
+  assert.equal(roleOfRow(form, rowOf(form, 'a/lib')), 'code')
   // No entry: the mode decides.
   assert.equal(roleOfRow(form, { policy: -1, github: 'a/new' }), 'code')
   assert.equal(roleOfRow(form, { policy: -1, github: null }), 'local')
@@ -80,13 +81,12 @@ test('a role on a repository with no entry adds one on its branch', () => {
   assert.equal(withRole(form, { policy: -1, github: null, branch: 'main' }, 'both'), form)
 })
 
-test('a saved role round-trips through the form and the policy', () => {
-  const github = { repositories: { 'a/app': entry({ role: 'code' }) } }
-  const form = toForm(github)
-  assert.equal(form.repositories[0].role, 'code')
-  assert.equal(toPolicy(form).repositories['a/app'].role, 'code')
-  assert.equal(Object.hasOwn(form.repositories[0].rest, 'role'), false)
-  assert.equal(Object.hasOwn(toPolicy(toForm({ repositories: { 'a/app': entry() } })).repositories['a/app'], 'role'), false)
+test('a role belongs to the form: the policy keeps the mode and no role key', () => {
+  const form = toForm({ repositories: { 'a/app': entry() } })
+  const next = withRole(form, { ...rowOf(form, 'a/app'), branch: 'main' }, 'both')
+  const policy = toPolicy(next)
+  assert.equal(policy.mode, 'single-repo')
+  assert.equal(Object.hasOwn(policy.repositories['a/app'], 'role'), false)
 })
 
 test('the line above the list says where tasks live', () => {

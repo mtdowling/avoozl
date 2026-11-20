@@ -16,12 +16,6 @@ import { fileURLToPath } from "node:url";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { SUPPORTED_CONTRACTS } from "./plugin-contract.mjs";
 import {
-  PACK_FILE,
-  packPreview,
-  readPack,
-  withProvenance,
-} from "./plugin-pack.mjs";
-import {
   fetchGitCommit,
   gitRemote,
   resolveGitRef,
@@ -31,7 +25,6 @@ import { pluginSession } from "./plugin-session.mjs";
 import { jsonLines } from "./child-io.mjs";
 import { mappingHash, validateChecksPart } from "./plugin-checks.mjs";
 import { fail } from "../store/store.mjs";
-import { readTemplates } from "../specs/templates.mjs";
 import {
   contextHash,
   contextView,
@@ -40,37 +33,17 @@ import {
 
 const PLUGIN_MANIFEST = "avoozl-plugin.json";
 const RESERVED_IDS = new Set(["local", "github"]);
-export const KINDS = ["intake", "rules"];
-export const CAPABILITIES = {
-  // The intake part's one call is `poll`, which brings outside work in
-  // (R50.7). `actor` says it reports who closed an item.
-  intake: ["actor"],
-  rules: [],
-};
-// The parts one plugin may bundle (R55.1), and the code kind each runs as.
-// A pack is settings only and runs as nothing. `template` is a workflow
-// template (design §4.16): folders under templates/, data only too.
-// `credentials` hands Avoozl GitHub tokens (plugin-credentials §D1) from its
-// own entry, in a child apart from the plugin's other code.
+export const KINDS = ["rules"];
+export const CAPABILITIES = { rules: [] };
+// The parts one plugin may bundle (simplify SM11), and the code kind each
+// runs as. `credentials` hands Avoozl GitHub tokens (plugin-credentials §D1)
+// from its own entry, in a child apart from the plugin's other code.
 // `checks` are check definitions and their files (plugin-checks D1): they
-// run as checks, never as a plugin child. `context` is data too: skills,
-// reads and MCP servers for the owner's own work (epic-context).
-export const PARTS = [
-  "pack",
-  "rules",
-  "intake",
-  "template",
-  "credentials",
-  "checks",
-  "context",
-];
-// Parts Avoozl no longer reads. A plugin may still list them, so its other
-// parts keep working; they do nothing. Lessons packs went with the lessons
-// store (RC30.4).
-const REMOVED_PARTS = ["lessons"];
+// run as checks, never as a plugin child. `context` is data the
+// epic-context spec reads.
+export const PARTS = ["rules", "credentials", "checks", "context"];
 const PART_KIND = {
   rules: "rules",
-  intake: "intake",
   credentials: "credentials",
 };
 const CODE_KINDS = [...KINDS, "credentials"];
@@ -365,12 +338,11 @@ export function validateManifest(manifest, entry, folder = null) {
     value.length > 0 &&
     new Set(value).size === value.length;
   if (manifest.provides !== undefined) {
-    if (
-      !list(manifest.provides) ||
-      manifest.provides.some(
-        (part) => !PARTS.includes(part) && !REMOVED_PARTS.includes(part),
-      )
-    )
+    const other = Array.isArray(manifest.provides)
+      ? manifest.provides.find((part) => !PARTS.includes(part))
+      : undefined;
+    if (other !== undefined) fail(`${other} is not a plugin part.`);
+    if (!list(manifest.provides))
       fail(
         `${PLUGIN_MANIFEST} provides must list ${PARTS.join(", ")}, each once.`,
       );
@@ -379,7 +351,7 @@ export function validateManifest(manifest, entry, folder = null) {
     manifest.kinds.some((kind) => !KINDS.includes(kind))
   )
     fail(
-      `${PLUGIN_MANIFEST} kinds must list intake or rules, or provides must list its parts.`,
+      `${PLUGIN_MANIFEST} kinds must list rules, or provides must list its parts.`,
     );
   const { provides, kinds } = pluginParts(manifest);
   if (
@@ -407,17 +379,6 @@ export function validateManifest(manifest, entry, folder = null) {
   }
   if (manifest.telemetry !== undefined)
     fail(`${PLUGIN_MANIFEST} may not set telemetry: it is a machine setting.`);
-  if (provides.includes("pack")) {
-    const file = manifest.pack ?? PACK_FILE;
-    if (
-      typeof file !== "string" ||
-      !/\.json$/.test(file) ||
-      path.isAbsolute(file) ||
-      file.split(/[\\/]/).includes("..")
-    )
-      fail(`${PLUGIN_MANIFEST} pack must be a .json file inside the plugin.`);
-  } else if (manifest.pack !== undefined)
-    fail(`${PLUGIN_MANIFEST} pack goes with provides pack.`);
   if (folder) readContextPart(manifest, folder);
   else if (!provides.includes("context") && manifest.context !== undefined)
     fail(`${PLUGIN_MANIFEST} context goes with provides context.`);
@@ -435,13 +396,13 @@ export function validateManifest(manifest, entry, folder = null) {
       );
     if (folder) validateChecksPart(manifest, folder);
   }
-  // A pack or a template runs no code (R55.3, R61.1): a plugin of data
-  // parts only has no entry. A credentials part names its own entry.
+  // A plugin of data parts only has no entry. A credentials part names its
+  // own entry.
   if (!kinds.some((kind) => kind !== "credentials")) {
     if (manifest.entry !== undefined)
       fail(
         kinds.length
-          ? `${PLUGIN_MANIFEST} entry is for intake or rules; credentials names its own entry. Remove entry.`
+          ? `${PLUGIN_MANIFEST} entry is for rules; credentials names its own entry. Remove entry.`
           : `${PLUGIN_MANIFEST} provides only ${provides.join(", ")}, which run${provides.length === 1 ? "s" : ""} no code; remove entry.`,
       );
     return manifest;
@@ -563,16 +524,9 @@ export function inspectPlugin(declared, options, settings) {
           : `${PLUGIN_MANIFEST} is unreadable: ${missing.message}`,
     };
   }
-  let pack = null,
-    templates = null;
   try {
     validateManifest(manifest, entry, location);
     hash = contentHash(location);
-    if (pluginParts(manifest).provides.includes("pack"))
-      pack = readPack(location, manifest.pack ?? PACK_FILE);
-    // An invalid template makes its plugin invalid (R61.2, R61.4).
-    if (pluginParts(manifest).provides.includes("template"))
-      templates = readTemplates(location);
   } catch (invalid) {
     return { ...base, location, state: "invalid", reason: invalid.message };
   }
@@ -606,8 +560,6 @@ export function inspectPlugin(declared, options, settings) {
           },
         }
       : {}),
-    ...(pack ? { pack } : {}),
-    ...(templates ? { templates } : {}),
   };
   if (!SUPPORTED_CONTRACTS.includes(manifest.contract))
     return {
@@ -733,9 +685,7 @@ export async function previewPlugin(options, input = {}) {
           : `${PLUGIN_MANIFEST} is unreadable: ${error.message}`,
     };
   }
-  let pack = null,
-    templates = null,
-    context = null;
+  let context = null;
   try {
     validateManifest(manifest, { id: manifest?.id }, location);
     // What an approval of a context part would bind (epic-context EC4.1).
@@ -745,13 +695,6 @@ export async function previewPlugin(options, input = {}) {
         { id: manifest.id, source: scope, state: "unapproved", context: part },
         readPluginSettings(options.settingsFile),
       );
-    if (pluginParts(manifest).provides.includes("pack"))
-      pack = readPack(location, manifest.pack ?? PACK_FILE);
-    if (pluginParts(manifest).provides.includes("template"))
-      templates = readTemplates(location).map((t) => ({
-        id: t.id,
-        title: t.title,
-      }));
   } catch (error) {
     return { location, error: error.message };
   }
@@ -770,42 +713,9 @@ export async function previewPlugin(options, input = {}) {
           },
         }
       : {}),
-    ...(pack ? { pack } : {}),
-    ...(templates ? { templates } : {}),
     ...(context ? { context } : {}),
     supported: SUPPORTED_CONTRACTS.includes(manifest.contract),
   };
-}
-
-// Each template of each plugin approved on this computer (R61.1): only
-// these are offered.
-export function approvedTemplates(options) {
-  return inspectPlugins(options)
-    .filter((plugin) => plugin.state === "approved" && plugin.templates)
-    .flatMap((plugin) =>
-      plugin.templates.map((template) => ({ plugin, template })),
-    );
-}
-
-// One approved template by {plugin, template[, version]}. A version other
-// than the approved one is refused: the person saw that one.
-export function pickTemplate(options, { plugin, template, version } = {}) {
-  if (typeof plugin !== "string" || typeof template !== "string")
-    fail("Name the template: plugin and template.");
-  const found = approvedTemplates(options).find(
-    (entry) => entry.plugin.id === plugin && entry.template.id === template,
-  );
-  if (!found)
-    fail(
-      `Template ${template} of plugin ${plugin} is not offered: approve the plugin on this computer first.`,
-      404,
-    );
-  if (version !== undefined && version !== found.plugin.version)
-    fail(
-      `Plugin ${plugin} is now version ${found.plugin.version}. Pick the template again.`,
-      409,
-    );
-  return found;
 }
 
 export function inspectPlugins(options) {
@@ -1382,135 +1292,4 @@ export function removePlugin(options, { id }) {
       list.filter((entry) => entry?.id !== id),
     );
   return { id, removed: true };
-}
-
-// `.avoozl.json` `packs`: which pack and version each imported setting
-// came from (R55.6). An unreadable file reads as none.
-export function repositoryPacks(workspaceRoot) {
-  try {
-    const packs = readRepositoryPolicy(workspaceRoot).packs;
-    return record(packs) ? packs : {};
-  } catch {
-    return {};
-  }
-}
-
-// A plugin's pack against this repository's `.avoozl.json` (R55.5). Reads
-// only. It works before approval, so a person can look before trusting it.
-// With `template`, the pack is that template's `pack` and `flow` (R61.6):
-// the same preview and person-only import as Settings.
-function packPlugin(options, id, template) {
-  if (typeof id !== "string" || !id) fail("Name the plugin by its id.");
-  const plugin = inspectPlugins(options).find((p) => p.id === id);
-  if (!plugin) fail(`Plugin ${id} is not declared.`, 404);
-  if (plugin.state === "invalid" || plugin.state === "missing")
-    fail(`Plugin ${id} cannot be previewed: ${plugin.reason}`, 409);
-  if (template !== undefined) {
-    const found = plugin.templates?.find((t) => t.id === template);
-    if (!found) fail(`Plugin ${id} has no template ${template}.`, 404);
-    if (!found.pack && !found.flow)
-      fail(`Template ${template} sets no settings.`, 409);
-    const settings = {
-      ...(found.pack?.settings ?? {}),
-      ...(found.flow ? { flow: found.flow } : {}),
-    };
-    return {
-      ...plugin,
-      pack: {
-        description: found.pack?.description ?? `${found.title} settings`,
-        settings,
-      },
-    };
-  }
-  if (!plugin.provides?.includes("pack"))
-    fail(`Plugin ${id} provides no pack.`, 409);
-  return plugin;
-}
-
-function previewFor(options, plugin, repositories) {
-  // Content rules screen a pack before it is previewed, saved or shared.
-  options.screenPack?.(plugin.pack);
-  let current;
-  try {
-    current = readRepositoryPolicy(options.workspaceRoot);
-  } catch (error) {
-    fail(error.message, 409);
-  }
-  return packPreview({
-    plugin,
-    pack: plugin.pack,
-    current: { version: 1, ...current },
-    repositories,
-    pluginIds: declaredPlugins(options)
-      .map((p) => p.entry?.id)
-      .filter(Boolean),
-  });
-}
-
-export function previewPluginPack(
-  options,
-  { id, repositories, template } = {},
-) {
-  const { next, ...preview } = previewFor(
-    options,
-    packPlugin(options, id, template),
-    repositories,
-  );
-  return preview;
-}
-
-// Settings **Import** (R55.5-R55.7): only an approved plugin, only the exact
-// preview the person saw, a who-counts change only when they accepted it,
-// and a machine-only plugin's id written into `.avoozl.json` only when they
-// confirmed. Never called by the tick or example installation.
-export function importPluginPack(
-  options,
-  {
-    id,
-    repositories,
-    previewHash,
-    acceptLowered = false,
-    confirmPublic = false,
-    template,
-  } = {},
-  importedBy = "",
-) {
-  const plugin = packPlugin(options, id, template);
-  if (plugin.state !== "approved")
-    fail(
-      `Approve plugin ${id} version ${plugin.version} before importing its pack.`,
-      409,
-    );
-  const preview = previewFor(options, plugin, repositories);
-  if (previewHash !== preview.previewHash)
-    fail(
-      `The pack or .avoozl.json changed since that preview. Preview ${id} again.`,
-      409,
-    );
-  if (preview.warnings.length && !acceptLowered) {
-    const error = Error(
-      `${preview.warnings.join(" ")} Accept the change to import it.`,
-    );
-    error.status = 409;
-    error.code = "pack-lowers-who-counts";
-    throw error;
-  }
-  if (plugin.source === "machine" && !confirmPublic) {
-    const error = Error(
-      `Importing writes ${id}'s settings and its id into .avoozl.json, which anyone who can read the repository sees. Confirm to import.`,
-    );
-    error.status = 409;
-    error.code = "plugin-public-repository";
-    throw error;
-  }
-  const next = withProvenance(preview, {
-    at: new Date().toISOString(),
-    by: importedBy,
-  });
-  const file = path.join(options.workspaceRoot, ".avoozl.json"),
-    temporary = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, JSON.stringify(next, null, 2) + "\n");
-  fs.renameSync(temporary, file);
-  const { next: _, ...result } = preview;
-  return { ...result, imported: next.packs[id] };
 }

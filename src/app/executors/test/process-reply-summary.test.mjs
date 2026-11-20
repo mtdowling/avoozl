@@ -1,5 +1,5 @@
-// The responder and the task summary as `process` children (without-kirocrew
-// nk-2.2, NK2.2, NK2.3, NK2.5): the same request on either executor, the
+// The responder as a `process` child (without-kirocrew nk-2.2, NK2.2,
+// NK2.5): the same request on either executor, the
 // child's result recorded by the operation a chat's tool call runs, and no
 // network for the child.
 import assert from "node:assert/strict";
@@ -15,7 +15,6 @@ import {
   processExecutor,
 } from "../process.mjs";
 import { childRecord, openSupervisorDatabase } from "../supervisor.mjs";
-import { taskSummaryDispatches } from "../../tasks/task-summary.mjs";
 import { fixture, snapshot } from "../../test/fixtures.mjs";
 import { FakeGitHub } from "../../test/fake-github.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
@@ -180,46 +179,7 @@ test("a child's reply the screen refuses is held as a chat's is", async (t) => {
   assert.equal(w.github.comments.length, 0);
 });
 
-test("a child's task summary is stored and shown", async (t) => {
-  const { root, store } = fixture(t),
-    data = snapshot();
-  data.tasks = [
-    {
-      id: "b",
-      title: "Task b",
-      scope: "catalog",
-      status: "planned",
-      epic: "sample",
-      track: "catalog",
-      tags: [],
-      acceptance: ["b is observable."],
-    },
-  ];
-  store.initialize(data);
-  const ops = new Operations(store, { workspaceRoot: root });
-  await ops.execute("task.summary.request", { id: "b" });
-  const config = { roles: { taskSummary: { harness: "fake-cli" } } };
-  const [onChat] = taskSummaryDispatches(store);
-  assert.equal(onChat.executor, "kirocrew");
-  const [child] = taskSummaryDispatches(store, { config });
-  assert.equal(child.executor, "process");
-  assert.equal(child.harness, "fake-cli");
-  assert.equal(child.permissionClass, "read");
-  assert.equal(child.brief, onChat.brief);
-  const binding = await bindChild(ops, child, "process-s1");
-  const summary = "Task b is planned and waits on nothing.";
-  await finishProcessSession(
-    ops,
-    binding,
-    { state: "done", report: { summary } },
-    store,
-  );
-  const shown = (await ops.execute("task.detail", { id: "b" })).summary;
-  assert.equal(shown.state, "ready");
-  assert.equal(shown.text, summary);
-});
-
-test("neither child gets a network path, whatever its repository allows", async (t) => {
+test("the responder child gets no network path, whatever its repository allows", async (t) => {
   const state = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-offline-"));
   t.after(() => fs.rmSync(state, { recursive: true, force: true }));
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-offline-w-"));
@@ -241,7 +201,6 @@ test("neither child gets a network path, whatever its repository allows", async 
     }
   };
   assert.equal((await settings("responder")).network, "off");
-  assert.equal((await settings("task-summary")).network, "off");
   // A verifier still gets its repository's network.
   assert.notEqual((await settings("verifier")).network, "off");
 });

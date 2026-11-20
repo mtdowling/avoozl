@@ -13,11 +13,6 @@ const r = "read",
 // installation access token for an app" and "Permissions required for
 // GitHub Apps" pages: organization_projects (read, write, admin) and
 // variables (read, write) are token permissions as named here.
-// organization_administration exists too, but GitHub lists creating an
-// organization's issue types under its own "Issue Types" organization
-// permission, which the installation token call does not name yet; so
-// issue-types-setup asks organization_administration: write, and a
-// provider may have to mint without narrowing for it.
 // Changes from the design's table: check-in also reads checks and
 // statuses (every pull request read carries its check rollup), ci-receipts
 // also reads pull requests and contents (CI is counted per pull request
@@ -113,17 +108,6 @@ export const JOBS = Object.freeze({
     description: "Publish a workspace repository",
     risk: "low",
     permissions: repo({ contents: w, pull_requests: w }),
-  },
-  "repo-setup": {
-    description: "Create labels and set up repository checks",
-    risk: "high",
-    permissions: repo({ administration: w, issues: w }),
-  },
-  "issue-types-setup": {
-    description: "Create an organization's issue types",
-    risk: "high",
-    owner: true,
-    permissions: { organization_administration: w },
   },
   "landing-setup": {
     description: "Set rulesets, repository settings and variables",

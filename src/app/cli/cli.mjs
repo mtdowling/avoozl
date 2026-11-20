@@ -55,6 +55,7 @@ try {
           "off",
           "release",
           "discard",
+          "claim",
           "writes",
           "retire",
           "delete-spec-folder",

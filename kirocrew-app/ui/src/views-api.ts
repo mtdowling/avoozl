@@ -257,9 +257,6 @@ export interface DeliveryItem extends TaskOwner {
   status: string | null
   complete: boolean
   repository: string | null
-  // The supersede chain (§5.2): the task this one replaced, and its replacement.
-  supersedes?: string | null
-  supersededBy?: string | null
   sessions: DeliverySession[]
   // A worker start queued and not bound yet (direct-links DL1.3).
   starting?: boolean
@@ -325,11 +322,11 @@ export interface ReviewTask extends TaskOwner {
 }
 
 // A Needs you row's own action (plugin-credentials §D7, §D10): Use this
-// one or Create labels. `confirm` lists the high-risk
+// one. `confirm` lists the high-risk
 // steps the shared confirm shows before the operation runs.
 export interface NeedsYouAction {
   label: string
-  operation: 'plugin.credentials.pick' | 'github.labels.create'
+  operation: 'plugin.credentials.pick'
   input: Record<string, unknown>
   confirm?: HighRiskStep[]
 }
@@ -472,8 +469,6 @@ export function viewsClient(api: AppApi) {
     deliveryPage: (workspaceId: string) =>
       run<{ revision: number; items: DeliveryItem[]; contentReports?: ContentReport[]; laneLimit?: number | null }>('delivery.view', {}, workspaceId),
     // Replace a local task with a new one; dependents then wait on the new one.
-    supersede: (workspaceId: string, id: string, create: { id?: string; title?: string }) =>
-      run<{ superseded: { id: string }; task: { id: string } }>('task.supersede', { id, create }, workspaceId),
     conflicts: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId).then((r) => r.items),
     conflictsPage: (workspaceId: string, decision?: string | null) =>
       run<{ revision: number; items: ConflictItem[]; target?: DecisionTarget }>('conflicts.view', decision ? { decision } : {}, workspaceId),
@@ -606,21 +601,6 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'tick-failed': 'Tick failed',
   investigation: 'Findings',
   'branch-landing': 'Ready to land',
-}
-
-// A local task that is not already replaced may be superseded by hand. GitHub
-// tasks are replaced in their plan instead.
-export function canSupersede(item: DeliveryItem): boolean {
-  return (item.authority ?? 'local') === 'local' && !item.supersededBy && item.status !== 'superseded'
-}
-
-// The new task's fields from the form: blank inputs fall back to the defaults
-// the operation picks (the next free ID, the old title).
-export function supersedeInput(form: { id: string; title: string }): { id?: string; title?: string } {
-  const input: { id?: string; title?: string } = {}
-  if (form.id.trim()) input.id = form.id.trim()
-  if (form.title.trim()) input.title = form.title.trim()
-  return input
 }
 
 // One review chat or verdict on a task, for the drawer, the Delivery card

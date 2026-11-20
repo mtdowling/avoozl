@@ -38,6 +38,8 @@ export interface FolderListing {
 export interface WorkspaceList {
   defaultWorkspace: string | null
   items: CatalogWorkspace[]
+  // The server that answered: Kiro Crew's app backend or `avoozl serve`.
+  host?: 'kirocrew' | 'standalone'
 }
 
 export interface Repository {
@@ -57,16 +59,6 @@ export interface Repository {
   isolation?: Partial<Isolation> | null
 }
 
-// The kind of repository a folder looks like (repository-kind.mjs): a role,
-// and why.
-export interface DetectedKind {
-  role: string
-  reasons: string[]
-  code: string | null
-  specs: number
-  visibility: 'public' | 'private' | null
-}
-
 export interface DetectedCheckout {
   root: string
   baseBranch: string
@@ -74,7 +66,6 @@ export interface DetectedCheckout {
   remote: string | null
   github: string | null
   id: string | null
-  kind: DetectedKind
 }
 
 export interface NewWorkspace {

@@ -335,14 +335,6 @@ test("a definition with no resume codes the task without the step and says why",
   assert.doesNotMatch(skipped.brief, /Investigate first/);
   assert.match(skipped.brief, /"state": "done"/);
   assert.match(skipped.investigateSkipped, /no resume command/);
-  // The reason lands on the task when the child opens.
-  enqueueSessionRequests(w.store, { starts: [skipped] });
-  await w.settle(() => w.store.list("session_bindings").length > 0);
-  const evidence = path.join(w.root, ".avoozl", "local", "evidence", "a");
-  assert.match(
-    fs.readFileSync(path.join(evidence, "bundle.json"), "utf8"),
-    /Investigate first was skipped/,
-  );
 });
 
 // nk-2.1 (NK2.1, NK2.5): the falsifier as a child. It reads a detached copy

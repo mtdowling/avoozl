@@ -11,6 +11,7 @@ import { integrationOf } from "./integration-branch.mjs";
 import { specFacts } from "../specs/spec-plans.mjs";
 import { ruleBranch } from "../github/github-branch-rules.mjs";
 import { asJob } from "../github/github-jobs.mjs";
+import { conflictRow, sharedFiles } from "../specs/integration-base.mjs";
 import { specTasks } from "../specs/spec-tasks.mjs";
 
 const META = "integrationSync";
@@ -75,18 +76,6 @@ export function syncTargets(store, policy) {
     }
   }
   return { targets, problems };
-}
-
-// Files both sides changed, which is where a conflict can be.
-async function sharedFiles(github, repository, branch, base) {
-  const [theirs, ours] = await Promise.all([
-    github.compareCommits(repository, branch, base),
-    github.compareCommits(repository, base, branch),
-  ]);
-  const mine = new Set((ours.files || []).map((file) => file.filename));
-  return (theirs.files || [])
-    .map((file) => file.filename)
-    .filter((name) => mine.has(name));
 }
 
 // The tick step. `targets` are the epics this machine syncs. Returns
@@ -177,29 +166,14 @@ export async function syncStep(
 
 // The Needs you rows the last step left standing.
 export function syncNeedsYou(store) {
-  const items = [];
-  for (const [key, entry] of Object.entries(
-    store.getMeta(META)?.entries ?? {},
-  )) {
-    if (entry.state !== "conflict") continue;
-    const [repository, branch] = [
-        key.slice(0, key.indexOf("@")),
-        key.slice(key.indexOf("@") + 1),
-      ],
-      files = entry.files?.length
-        ? entry.files.join(", ")
-        : "none could be listed";
-    items.push({
-      kind: "needs-human",
-      reason: "crew",
-      id: `integration-conflict:${key}`,
-      taskId: null,
-      authority: "github",
-      link: `https://github.com/${repository}/compare/${branch}...${entry.base}`,
-      title: `${branch} has a conflict with ${entry.base}`,
-      detail: `Merging ${entry.base} into ${branch} in ${repository} conflicts. Files changed on both sides: ${files}. Merge ${entry.base} into the branch yourself and push; Avoozl changed nothing and the row clears when the branch has caught up.`,
-      openedAt: new Date(entry.lastAt).toISOString(),
-    });
-  }
-  return items;
+  return Object.entries(store.getMeta(META)?.entries ?? {})
+    .filter(([, entry]) => entry.state === "conflict")
+    .map(([key, entry]) =>
+      conflictRow(
+        key,
+        entry,
+        () =>
+          "Avoozl changed nothing and the row clears when the branch has caught up.",
+      ),
+    );
 }

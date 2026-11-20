@@ -9,7 +9,6 @@ import { Card } from './ui/Card'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
 import { ExternalLink, Laptop, Lock } from './icons.ts'
-import { InstanceNickname } from './InstanceName.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 import { LABEL_MAX, bannerTitle, chipText, driverClient, toMachineSettings, type DriverSpec, type DriverStatus } from './driver-api.ts'
@@ -122,7 +121,6 @@ export function ThisComputer(props: { workspaceId: string | null }) {
         <Box id="avoozl-this-computer" as="h4" size="base" weight="semibold">
           This computer
         </Box>
-        <InstanceNickname workspaceId={props.workspaceId} />
         {machine && (
           <>
             <Hint as="p" size="xs">

@@ -156,10 +156,6 @@ test("direct edits of GitHub-owned rows are refused and routed to projection", a
     ["task.update", { id: "github-a", title: "Renamed" }],
     ["task.archive", { id: "github-a" }],
     ["task.accept", { id: "github-a", componentOnly: true }],
-    [
-      "task.merge",
-      { targetId: "local-a", duplicateIds: ["github-b"], reason: "Same." },
-    ],
   ])
     await assert.rejects(ops.execute(name, input), (error) => {
       assert.equal(error.status, 409);

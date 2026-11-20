@@ -4,7 +4,8 @@
 // here, so both layouts read the same way.
 //
 // The task text of a single-file spec keeps the file's line numbers: its
-// front-matter and the section's lines stay, every other line is blank, and
+// front-matter, the section's lines and link definitions stay, every other
+// line is blank, and
 // each heading under `## Tasks` loses one `#`, so its `###` phases read as
 // tasks.md's `##` phases. A diagnostic's line and a tick's line are lines of
 // the real file.
@@ -12,6 +13,9 @@ export const TASKS_FILE = "tasks.md";
 const FENCE = /^\s*(```|~~~)/;
 const HEADING = /^(#{1,6})\s/;
 const TASKS_HEADING = /^##[ \t]+Tasks[ \t]*#*[ \t]*$/;
+// A reference-style link definition, `[label]: target`. A single file's task
+// text keeps these lines, so a task title's link reads its target.
+export const LINK_DEFINITION = /^ {0,3}\[([^\]]+)\]:\s*<?([^\s>]+)>?/;
 // A Markdown file directly in a spec folder is part of the spec.
 export const SPEC_TEXT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\.md$/;
 
@@ -71,7 +75,8 @@ export function taskText(file, text) {
     .map((line, index) => {
       const at = index + 1;
       if (at <= front) return line;
-      if (at <= section.start || at >= section.end) return "";
+      if (at <= section.start || at >= section.end)
+        return LINK_DEFINITION.test(line) ? line : "";
       if (FENCE.test(line)) fenced = !fenced;
       return !fenced && /^#{3,6}\s/.test(line) ? line.slice(1) : line;
     })

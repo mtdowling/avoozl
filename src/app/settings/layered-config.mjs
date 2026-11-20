@@ -11,7 +11,6 @@ import {
   assertNoMachineKeys,
   validateLandingConfig,
 } from "../landing/landing-config.mjs";
-import { deriveGitHubKeys } from "../workspace/repository-roles.mjs";
 import { specsPathProblem } from "../specs/specs-path.mjs";
 import { branchNameProblem } from "../epics/integration-branch.mjs";
 
@@ -397,9 +396,6 @@ export function loadLayeredConfig({
   const mergeLayers = (selected) =>
     selected.reduce((result, layer) => deepMerge(result, layer.value), {});
   const config = mergeLayers(layers);
-  // Repository roles decide the GitHub mode, so readers of the raw keys see
-  // the derived value (R105.8).
-  if (config.github) config.github = deriveGitHubKeys(config.github);
   validateRoles(config);
   validateRunnerRole(config.runner);
   validatePlanReview(config.planReview);
