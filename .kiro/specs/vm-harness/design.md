@@ -100,7 +100,10 @@ nothing but the CLI run on the host.
         "runtime": "apple-container",
         "image": "public.ecr.aws/docker/library/node:22-bookworm",
         "network": "off",
-        "prepare": ["npm", "ci"]
+        "prepare": [
+          "npm",
+          "ci"
+        ]
       }
     }
   }
@@ -250,16 +253,30 @@ box exec.
 ```json [~/.config/avoozl/harnesses/claude-code.json, the new key]
 {
   "box": {
-    "env": { "CLAUDE_CODE_SHELL_PREFIX": "{box_exec}" },
+    "env": {
+      "CLAUDE_CODE_SHELL_PREFIX": "{box_exec}"
+    },
     "args": [
-      "--setting-sources", "user",
-      "--settings", "{box_settings}",
+      "--setting-sources",
+      "user",
+      "--settings",
+      "{box_settings}",
       "--strict-mcp-config",
-      "--disallowedTools", "WebFetch",
-      "--disallowedTools", "WebSearch"
+      "--disallowedTools",
+      "WebFetch",
+      "--disallowedTools",
+      "WebSearch"
     ],
-    "hosts": ["api.anthropic.com:443", "platform.claude.com:443"],
-    "signIn": { "darwin": "keychain", "linux": ["~/.claude/.credentials.json"] }
+    "hosts": [
+      "api.anthropic.com:443",
+      "platform.claude.com:443"
+    ],
+    "signIn": {
+      "darwin": "keychain",
+      "linux": [
+        "~/.claude/.credentials.json"
+      ]
+    }
   }
 }
 ```

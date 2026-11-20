@@ -5,7 +5,22 @@ checks it, and Avoozl lands it. Avoozl calls delivery Autopilot in the app.
 
 ```sh
 avoozl repository configure code --workspace ~/plans \
-  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"],"diff":["git","diff","--check"]}}'
+  --json '{
+  "root": "/path/to/code",
+  "baseBranch": "main",
+  "worktreeRoot": "/path/to/worktrees",
+  "checks": {
+    "test": [
+      "npm",
+      "test"
+    ],
+    "diff": [
+      "git",
+      "diff",
+      "--check"
+    ]
+  }
+}'
 ```
 
 That registers the checkout the work changes, its base branch, a folder for
@@ -19,7 +34,9 @@ for checks, their environment, and the sandbox they run in.
 Delivery starts with a `delivery` block in `.avoozl.json`:
 
 ```json
-{ "delivery": {} }
+{
+  "delivery": {}
+}
 ```
 
 A task lands only from the workspace that drives its spec. With no GitHub,
@@ -41,7 +58,12 @@ A machine's `lanes.local` sets how many worker sessions run at once. The
 default is 3. It lives in `~/.config/avoozl/config.json`:
 
 ```json
-{ "version": 1, "lanes": { "local": 1 } }
+{
+  "version": 1,
+  "lanes": {
+    "local": 1
+  }
+}
 ```
 
 ### Kiro Crew setup
@@ -160,7 +182,14 @@ are sure enough and the findings stand. Otherwise the task waits in **Needs
 you** with **Go ahead**, **Investigate again**, and **Stop**.
 
 ```json
-{ "delivery": { "investigate": { "mode": "all", "minConfidence": "high" } } }
+{
+  "delivery": {
+    "investigate": {
+      "mode": "all",
+      "minConfidence": "high"
+    }
+  }
+}
 ```
 
 `mode` is `not-small` (the default), `all`, or `off`, and `minConfidence`

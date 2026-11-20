@@ -26,7 +26,12 @@ Spec folders live in `.kiro/specs/` unless the `.avoozl.json` at the root of
 the repository that holds them says otherwise:
 
 ```json
-{ "version": 1, "specs": { "path": "docs/specs" } }
+{
+  "version": 1,
+  "specs": {
+    "path": "docs/specs"
+  }
+}
 ```
 
 `specs.path` is relative to that repository's root. Avoozl refuses one that

@@ -9,8 +9,17 @@ content rules and its intake source together.
   "id": "sdk-team",
   "version": "1.0.0",
   "contract": 1,
-  "provides": ["pack", "rules", "intake"],
-  "capabilities": { "intake": ["actor"], "rules": [] },
+  "provides": [
+    "pack",
+    "rules",
+    "intake"
+  ],
+  "capabilities": {
+    "intake": [
+      "actor"
+    ],
+    "rules": []
+  },
   "pack": "avoozl-pack.json",
   "entry": "index.mjs"
 }
@@ -89,7 +98,9 @@ A `plugins` entry declares each plugin, either in the repository's
       "id": "fake-intake",
       "path": "../fake-intake",
       "contract": 1,
-      "config": { "intakeFile": "intake.json" }
+      "config": {
+        "intakeFile": "intake.json"
+      }
     }
   ]
 }
@@ -218,10 +229,24 @@ file:
   "settings": {
     "repositories": {
       "minimumPermission": "write",
-      "priorityLabels": ["p0", "p1", "p2", "p3"],
-      "waitingLabels": ["response-requested"]
+      "priorityLabels": [
+        "p0",
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "waitingLabels": [
+        "response-requested"
+      ]
     },
-    "contentRules": { "sets": [{ "id": "team-terms", "plugin": "sdk-team" }] }
+    "contentRules": {
+      "sets": [
+        {
+          "id": "team-terms",
+          "plugin": "sdk-team"
+        }
+      ]
+    }
   }
 }
 ```
@@ -349,7 +374,9 @@ limit so far blocks the [triage agent](triage.md):
   "id": "team-policy",
   "version": "1.0.0",
   "contract": 1,
-  "provides": ["policy"],
+  "provides": [
+    "policy"
+  ],
   "policy": {
     "triage": "blocked",
     "reason": "Our team triages issues by hand."
@@ -380,11 +407,18 @@ the whole setup.
   "id": "acme-github",
   "version": "2.1.0",
   "contract": 1,
-  "provides": ["credentials"],
+  "provides": [
+    "credentials"
+  ],
   "credentials": {
     "entry": "token.mjs",
-    "hosts": ["github.com"],
-    "owners": ["acme", "acme-labs"]
+    "hosts": [
+      "github.com"
+    ],
+    "owners": [
+      "acme",
+      "acme-labs"
+    ]
   }
 }
 ```
@@ -410,7 +444,10 @@ for one makes it invalid, with a reason that names the file and the key
       "ref": "v2.1.0",
       "subdir": "acme-github",
       "contract": 1,
-      "config": { "serviceUrl": "https://tokens.example.com/mint", "keyEnv": "ACME_TOKEN_KEY" }
+      "config": {
+        "serviceUrl": "https://tokens.example.com/mint",
+        "keyEnv": "ACME_TOKEN_KEY"
+      }
     }
   ]
 }
@@ -545,41 +582,87 @@ also come from a repository's own `checks` setting
   "id": "acme-checks",
   "version": "1.4.0",
   "contract": 1,
-  "provides": ["checks"],
+  "provides": [
+    "checks"
+  ],
   "servers": {
-    "review": { "about": "The acme review service, which compares API behavior" }
+    "review": {
+      "about": "The acme review service, which compares API behavior"
+    }
   },
   "checks": {
     "parity": {
-      "repos": ["acme/*"],
-      "paths": ["src/api/**", "schema/**"],
-      "run": ["bin/parity.mjs", "--repo", "{repo}", "--from", "{base}", "--to", "{commit}"],
-      "env": ["PARITY_TOKEN"],
+      "repos": [
+        "acme/*"
+      ],
+      "paths": [
+        "src/api/**",
+        "schema/**"
+      ],
+      "run": [
+        "bin/parity.mjs",
+        "--repo",
+        "{repo}",
+        "--from",
+        "{base}",
+        "--to",
+        "{commit}"
+      ],
+      "env": [
+        "PARITY_TOKEN"
+      ],
       "network": true,
       "timeout": 1800,
       "decide": "prompts/parity.md",
-      "decideAt": ["approve", "diff"],
+      "decideAt": [
+        "approve",
+        "diff"
+      ],
       "stage": "task"
     },
     "parity-review": {
-      "repos": ["acme/*"],
-      "paths": ["src/api/**"],
+      "repos": [
+        "acme/*"
+      ],
+      "paths": [
+        "src/api/**"
+      ],
       "timeout": 3600,
       "stage": "branch",
       "mcp": {
         "server": "review",
         "start": {
           "tool": "create_review",
-          "args": { "repo": "{repo}", "from": "{base}", "to": "{commit}", "diff": "{diff_path}", "question": "{file:ask.md}" },
+          "args": {
+            "repo": "{repo}",
+            "from": "{base}",
+            "to": "{commit}",
+            "diff": "{diff_path}",
+            "question": "{file:ask.md}"
+          },
           "id": "$.review.id"
         },
         "poll": {
           "tool": "get_review",
-          "args": { "id": "{id}" },
+          "args": {
+            "id": "{id}"
+          },
           "everySeconds": 60,
-          "until": { "path": "$.state", "in": ["done", "error"] }
+          "until": {
+            "path": "$.state",
+            "in": [
+              "done",
+              "error"
+            ]
+          }
         },
-        "result": { "path": "$.verdict", "pass": ["same"], "text": "$.summary" }
+        "result": {
+          "path": "$.verdict",
+          "pass": [
+            "same"
+          ],
+          "text": "$.summary"
+        }
       }
     }
   }
@@ -688,7 +771,15 @@ holds no credential, and its hash is part of the approval:
 {
   "mcp": {
     "acme-checks": {
-      "review": { "command": ["/opt/acme/bin/review-mcp", "--stdio"], "env": ["REVIEW_TOKEN"] }
+      "review": {
+        "command": [
+          "/opt/acme/bin/review-mcp",
+          "--stdio"
+        ],
+        "env": [
+          "REVIEW_TOKEN"
+        ]
+      }
     }
   }
 }
@@ -782,7 +873,9 @@ machine's `plugins.json` when its name must stay private:
       "tickets": {
         "via": "plugin:fake-intake",
         "repository": "example/app",
-        "labelFields": ["component"],
+        "labelFields": [
+          "component"
+        ],
         "minimumPermission": "write"
       }
     }

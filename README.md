@@ -109,7 +109,17 @@ worktrees, and the checks every task must pass:
 
 ```sh
 avoozl repository configure code --workspace ~/plans \
-  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"]}}'
+  --json '{
+  "root": "/path/to/code",
+  "baseBranch": "main",
+  "worktreeRoot": "/path/to/worktrees",
+  "checks": {
+    "test": [
+      "npm",
+      "test"
+    ]
+  }
+}'
 ```
 
 Each check is a name and a command, run without a shell. Turn delivery on by
@@ -147,7 +157,11 @@ same state. Any stdio MCP client can run the server:
   "mcpServers": {
     "avoozl": {
       "command": "avoozl",
-      "args": ["mcp", "--workspace", "/path/to/plans"]
+      "args": [
+        "mcp",
+        "--workspace",
+        "/path/to/plans"
+      ]
     }
   }
 }

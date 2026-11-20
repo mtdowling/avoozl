@@ -9,11 +9,16 @@ itself never lands in a repository.
 {
   "contentRules": {
     "sets": [
-      { "id": "company-terms" },
+      {
+        "id": "company-terms"
+      },
       {
         "id": "trial-hostnames",
         "action": "report",
-        "boundaries": ["github", "diff"]
+        "boundaries": [
+          "github",
+          "diff"
+        ]
       }
     ]
   }

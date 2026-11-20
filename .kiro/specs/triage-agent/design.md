@@ -53,11 +53,18 @@ One result shape for every class, checked by one validator:
 {
   "class": "bug",
   "reason": "nupp run fails on Windows when …",
-  "labels": ["bug"],
+  "labels": [
+    "bug"
+  ],
   "duplicateOf": null,
   "answer": null,
-  "reproduction": { "path": "tests/regress_122.nupp" },
-  "fix": { "bounded": true, "why": "the loader reuses a stale check; one function" },
+  "reproduction": {
+    "path": "tests/regress_122.nupp"
+  },
+  "fix": {
+    "bounded": true,
+    "why": "the loader reuses a stale check; one function"
+  },
   "review": null,
   "toOwner": null
 }
@@ -262,7 +269,15 @@ The block is a fifth plugin part, `policy`, data only like `pack` and
 `template`:
 
 ```json
-{ "provides": ["policy"], "policy": { "triage": "blocked", "reason": "..." } }
+{
+  "provides": [
+    "policy"
+  ],
+  "policy": {
+    "triage": "blocked",
+    "reason": "..."
+  }
+}
 ```
 
 Why this shape: the plugin contract already has data-only parts checked at

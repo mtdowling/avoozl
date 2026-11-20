@@ -90,7 +90,9 @@ comes only from approved specs.
       "example-org/app": {
         "baseBranch": "main",
         "checkout": "../app",
-        "allowedActors": ["your-login"]
+        "allowedActors": [
+          "your-login"
+        ]
       }
     }
   }
@@ -164,8 +166,14 @@ so treat it as early.
     "repositories": {
       "example-org/app": {
         "baseBranch": "main",
-        "allowedActors": ["your-login"],
-        "discussions": { "categories": ["Q&A"] }
+        "allowedActors": [
+          "your-login"
+        ],
+        "discussions": {
+          "categories": [
+            "Q&A"
+          ]
+        }
       }
     }
   }

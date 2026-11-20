@@ -217,17 +217,45 @@ be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
 
 ```html
 <!-- avoozl-task
-{"version":2,
- "taskId":"w3.reactor-timers",
- "namespace":"avz_k3q9m2x7v4d8p1ta",
- "kind":"leaf",
- "parent":"w3",
- "source":{"commit":"<40-hex>","manifest":"<sha256>"},
- "compiler":"<sha256>",
- "edges":{"conditions":{"<task-id>":"integrated"},"supports":["<task-id>"]},
- "applied":{"title":"<sha256>","body":"<sha256>","labels":["agent:managed"],"blockers":["<node-id>"],
-            "project":{"Release":"runtime-flip","Wave":2}},
- "order":{"actor":"<login>","reason":"COMPLETED","closedAt":"<ISO-8601>"}}
+{
+  "version": 2,
+  "taskId": "w3.reactor-timers",
+  "namespace": "avz_k3q9m2x7v4d8p1ta",
+  "kind": "leaf",
+  "parent": "w3",
+  "source": {
+    "commit": "<40-hex>",
+    "manifest": "<sha256>"
+  },
+  "compiler": "<sha256>",
+  "edges": {
+    "conditions": {
+      "<task-id>": "integrated"
+    },
+    "supports": [
+      "<task-id>"
+    ]
+  },
+  "applied": {
+    "title": "<sha256>",
+    "body": "<sha256>",
+    "labels": [
+      "agent:managed"
+    ],
+    "blockers": [
+      "<node-id>"
+    ],
+    "project": {
+      "Release": "runtime-flip",
+      "Wave": 2
+    }
+  },
+  "order": {
+    "actor": "<login>",
+    "reason": "COMPLETED",
+    "closedAt": "<ISO-8601>"
+  }
+}
 -->
 ```
 
@@ -309,14 +337,22 @@ be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
   "name": "avoozl",
   "displayName": "Avoozl",
   "license": "MIT",
-  "skills": ["skills/avoozl"],
+  "skills": [
+    "skills/avoozl"
+  ],
   "agents": [
     "agents/avoozl-planner.json",
     "agents/avoozl-verifier.json",
     "agents/avoozl-responder.json"
   ],
   "mcpServers": {
-    "avoozl": { "command": "node", "args": ["bin/avoozl.mjs", "mcp"] }
+    "avoozl": {
+      "command": "node",
+      "args": [
+        "bin/avoozl.mjs",
+        "mcp"
+      ]
+    }
   },
   "backend": {
     "type": "node",
@@ -340,16 +376,32 @@ be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
         "name": "Avoozl needs a decision",
         "icon": "CircleHelp"
       },
-      { "id": "failure", "name": "Avoozl delivery failed", "icon": "CircleX" }
+      {
+        "id": "failure",
+        "name": "Avoozl delivery failed",
+        "icon": "CircleX"
+      }
     ]
   },
   "ui": {
     "entry": "dist/index.mjs",
     "pages": [
-      { "route": "/apps/avoozl", "label": "Avoozl", "icon": "Workflow" }
+      {
+        "route": "/apps/avoozl",
+        "label": "Avoozl",
+        "icon": "Workflow"
+      }
     ]
   },
-  "dependencies": { "commands": ["node", "git"], "optionalCommands": ["gh"] }
+  "dependencies": {
+    "commands": [
+      "node",
+      "git"
+    ],
+    "optionalCommands": [
+      "gh"
+    ]
+  }
 }
 ```
 
@@ -415,11 +467,19 @@ Since 2026-11-17 `mode` and `planningRepository` are derived from each repositor
         "checkout": "../app",
         "folder": "Avoozl/example-app",
         "baseBranch": "main",
-        "allowedActors": ["maintainer-login"],
+        "allowedActors": [
+          "maintainer-login"
+        ],
         "minimumPermission": "maintain",
-        "requiredChecks": ["build", "test"],
+        "requiredChecks": [
+          "build",
+          "test"
+        ],
         "dependencyText": false,
-        "priority": ["critical", "high"],
+        "priority": [
+          "critical",
+          "high"
+        ],
         "managedLabels": {
           "managed": "agent:managed",
           "responding": "agent:responding",
@@ -441,7 +501,11 @@ Since 2026-11-17 `mode` and `planningRepository` are derived from each repositor
             "author": "maintainer-login",
             "autoPublishChildren": false
           },
-          { "id": "pause", "action": "pause", "match": "label:agent:paused" }
+          {
+            "id": "pause",
+            "action": "pause",
+            "match": "label:agent:paused"
+          }
         ]
       }
     }
@@ -729,8 +793,14 @@ credentials masked.
   "id": "example-intake",
   "version": "1.2.0",
   "contract": 1,
-  "kinds": ["intake"],
-  "capabilities": { "intake": ["actor"] },
+  "kinds": [
+    "intake"
+  ],
+  "capabilities": {
+    "intake": [
+      "actor"
+    ]
+  },
   "entry": "index.mjs"
 }
 ```
@@ -806,15 +876,28 @@ screen beside them. The facts read `kirocrew-native` at `dbf001b`.
 {
   "contentRules": {
     "sets": [
-      { "id": "company-terms" },
+      {
+        "id": "company-terms"
+      },
       {
         "id": "public-only",
         "action": "block",
-        "boundaries": ["github", "diff"],
-        "repositories": ["example/app"]
+        "boundaries": [
+          "github",
+          "diff"
+        ],
+        "repositories": [
+          "example/app"
+        ]
       },
-      { "id": "trial-hostnames", "action": "report" },
-      { "id": "example-rules", "plugin": "example-rules" }
+      {
+        "id": "trial-hostnames",
+        "action": "report"
+      },
+      {
+        "id": "example-rules",
+        "plugin": "example-rules"
+      }
     ]
   }
 }
@@ -1394,9 +1477,15 @@ Reply:
 ```json
 {
   "flow": {
-    "stopTheLine": { "scope": "dependents" },
+    "stopTheLine": {
+      "scope": "dependents"
+    },
     "localChecksFirst": true,
-    "retro": { "everyTasks": 10, "slowFactor": 3, "model": "auto" }
+    "retro": {
+      "everyTasks": 10,
+      "slowFactor": 3,
+      "model": "auto"
+    }
   }
 }
 ```
@@ -1500,12 +1589,19 @@ Read against Avoozl `kirocrew-native` at `6d83f83` (2026-11-12), read only.
   "kind": "ticket",
   "title": "Export fails on empty sheet",
   "body": "…",
-  "labels": ["sev:3"],
+  "labels": [
+    "sev:3"
+  ],
   "author": "alice",
-  "assignees": ["bob"],
+  "assignees": [
+    "bob"
+  ],
   "state": "open",
   "updatedAt": "2026-11-12T20:01:00Z",
-  "fields": { "component": "export", "queue": "app-team" },
+  "fields": {
+    "component": "export",
+    "queue": "app-team"
+  },
   "trigger": {
     "actor": "bob",
     "permission": "write",
@@ -1544,11 +1640,16 @@ off a public repository:
       "tickets": {
         "via": "plugin:example-tracker",
         "repository": "example/app",
-        "labelFields": ["component"],
+        "labelFields": [
+          "component"
+        ],
         "assigneeField": "owner",
         "minimumPermission": "write"
       },
-      "script": { "via": "mcp", "repository": "example/app" }
+      "script": {
+        "via": "mcp",
+        "repository": "example/app"
+      }
     }
   }
 }
@@ -2048,33 +2149,71 @@ missing after a rebuild, like session bindings.
   "title": "SDK rewrite",
   "description": "Rewrite one SDK on the new runtime, phase by phase, with a team review before cutover.",
   "inputs": [
-    { "id": "sdk", "label": "Which SDK", "type": "text", "required": true },
+    {
+      "id": "sdk",
+      "label": "Which SDK",
+      "type": "text",
+      "required": true
+    },
     {
       "id": "repository",
       "label": "Target repository",
       "type": "repositories",
       "required": true
     },
-    { "id": "gaps", "label": "Gap list", "type": "file", "required": false }
+    {
+      "id": "gaps",
+      "label": "Gap list",
+      "type": "file",
+      "required": false
+    }
   ],
   "prompt": "prompt.md",
   "starter": "starter",
   "phases": [
-    { "id": "inventory", "title": "Inventory" },
-    { "id": "codegen", "title": "Codegen" },
-    { "id": "runtime", "title": "Runtime" },
-    { "id": "protocol-tests", "title": "Protocol tests" },
-    { "id": "review", "title": "Review" },
-    { "id": "cutover", "title": "Cutover" }
+    {
+      "id": "inventory",
+      "title": "Inventory"
+    },
+    {
+      "id": "codegen",
+      "title": "Codegen"
+    },
+    {
+      "id": "runtime",
+      "title": "Runtime"
+    },
+    {
+      "id": "protocol-tests",
+      "title": "Protocol tests"
+    },
+    {
+      "id": "review",
+      "title": "Review"
+    },
+    {
+      "id": "cutover",
+      "title": "Cutover"
+    }
   ],
   "proofKinds": [
-    { "id": "protocol-tests", "title": "Protocol tests pass" },
-    { "id": "cutover-dry-run", "title": "Cutover dry run" }
+    {
+      "id": "protocol-tests",
+      "title": "Protocol tests pass"
+    },
+    {
+      "id": "cutover-dry-run",
+      "title": "Cutover dry run"
+    }
   ],
   "flow": {
-    "stopTheLine": { "scope": "dependents" },
+    "stopTheLine": {
+      "scope": "dependents"
+    },
     "localChecksFirst": true,
-    "retro": { "everyTasks": 10 }
+    "retro": {
+      "everyTasks": 10
+    }
   }
 }
 ```
@@ -2159,11 +2298,17 @@ How an override reaches a session:
   "metric": "first-pass rate",
   "direction": "up",
   "evidence": {
-    "runs": ["4.1#1", "4.2#2", "4.3#1"],
+    "runs": [
+      "4.1#1",
+      "4.2#2",
+      "4.3#1"
+    ],
     "value": "50%",
     "effect": "fewer rejections for a missing test"
   },
-  "lessons": ["L-7f3a"]
+  "lessons": [
+    "L-7f3a"
+  ]
 }
 ```
 
@@ -2509,7 +2654,14 @@ limits and credits belong to that machine. `.avoozl.json` refuses the key
 {
   "providers": {
     "lowPercent": 80,
-    "limits": { "claude": { "credits": 500 }, "model-a": { "tokens": 2000000 } }
+    "limits": {
+      "claude": {
+        "credits": 500
+      },
+      "model-a": {
+        "tokens": 2000000
+      }
+    }
   }
 }
 ```
@@ -2696,10 +2848,21 @@ commit needs a new press.
 who merges and how, and how many times a conflict is fixed:
 
 ```json
-"github": { "repositories": { "owner/name": {
-  "landing": { "mode": "pr", "autoMerge": true, "method": "squash" },
-  "conflicts": { "onSourceConflict": "fix", "maxAttempts": 2 }
-} } }
+"github": {
+  "repositories": {
+    "owner/name": {
+      "landing": {
+        "mode": "pr",
+        "autoMerge": true,
+        "method": "squash"
+      },
+      "conflicts": {
+        "onSourceConflict": "fix",
+        "maxAttempts": 2
+      }
+    }
+  }
+}
 ```
 
 | Key                    | Values                       | Default | When the block sets none                                       |
@@ -2988,12 +3151,40 @@ placeholders; nothing is passed through a shell.
 ```json
 {
   "name": "example-cli",
-  "start": ["example-cli", "--cwd", "{worktree}", "--model", "{model}", "--prompt-file", "{brief_file}", "--sandbox", "{permission}"],
-  "resume": ["example-cli", "--resume", "{session}", "--message-file", "{message_file}"],
-  "permission": { "write": "workspace-write", "read": "read-only" },
-  "writeRoots": ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
-  "allow": ["{repository_allow_commands}"],
-  "cost": { "from": "output", "field": "total_cost_usd" }
+  "start": [
+    "example-cli",
+    "--cwd",
+    "{worktree}",
+    "--model",
+    "{model}",
+    "--prompt-file",
+    "{brief_file}",
+    "--sandbox",
+    "{permission}"
+  ],
+  "resume": [
+    "example-cli",
+    "--resume",
+    "{session}",
+    "--message-file",
+    "{message_file}"
+  ],
+  "permission": {
+    "write": "workspace-write",
+    "read": "read-only"
+  },
+  "writeRoots": [
+    "{worktree}",
+    "{tmp}",
+    "{repository_cache_dirs}"
+  ],
+  "allow": [
+    "{repository_allow_commands}"
+  ],
+  "cost": {
+    "from": "output",
+    "field": "total_cost_usd"
+  }
 }
 ```
 
@@ -3049,11 +3240,23 @@ in `.avoozl.json` holds each role's harness, agent and model:
 ```json
 {
   "roles": {
-    "worker": { "harness": "claude-code", "agent": "avoozl-worker", "model": "<model>" },
-    "falsifier": { "model": "<other model>" },
-    "planner": { "model": "<model>" },
-    "planReviewer": { "model": "<other model>" },
-    "retro": { "harness": "kirocrew" },
+    "worker": {
+      "harness": "claude-code",
+      "agent": "avoozl-worker",
+      "model": "<model>"
+    },
+    "falsifier": {
+      "model": "<other model>"
+    },
+    "planner": {
+      "model": "<model>"
+    },
+    "planReviewer": {
+      "model": "<other model>"
+    },
+    "retro": {
+      "harness": "kirocrew"
+    },
     "reviewDraft": {}
   }
 }
@@ -3407,7 +3610,21 @@ without them still parses: `task` is null, `attempt` is 1 and `phase` is the
 command.
 
 ```
-{"v":1,"issue":12,"task":"7.2","attempt":2,"phase":"test","commit":"abc1234","command":"npm test","target":"macos-latest","start":"warm","ms":41230,"exit":1,"counters":{},"at":"2026-11-16T10:00:00Z"}
+{
+  "v": 1,
+  "issue": 12,
+  "task": "7.2",
+  "attempt": 2,
+  "phase": "test",
+  "commit": "abc1234",
+  "command": "npm test",
+  "target": "macos-latest",
+  "start": "warm",
+  "ms": 41230,
+  "exit": 1,
+  "counters": {},
+  "at": "2026-11-16T10:00:00Z"
+}
 ```
 
 `bin/build-receipt` gains `--task`, `--attempt` and `--phase`, with
@@ -5041,7 +5258,9 @@ entry may replace the workspace's list.
       }
     ],
     "repositories": {
-      "example-rewrite": { "feedbackRounds": 3 }
+      "example-rewrite": {
+        "feedbackRounds": 3
+      }
     }
   }
 }
@@ -5070,9 +5289,25 @@ argv, or to `{"run": [argv], "paths": [glob, ...]}`:
 
 ```json
 {
-  "test": ["npm", "test"],
-  "diff": ["git", "diff", "--check"],
-  "ui": { "run": ["npm", "run", "test:ui"], "paths": ["src/ui/**"] }
+  "test": [
+    "npm",
+    "test"
+  ],
+  "diff": [
+    "git",
+    "diff",
+    "--check"
+  ],
+  "ui": {
+    "run": [
+      "npm",
+      "run",
+      "test:ui"
+    ],
+    "paths": [
+      "src/ui/**"
+    ]
+  }
 }
 ```
 
@@ -5135,10 +5370,21 @@ default.
      "commit": "<C>",
      "verdict": "changes-requested",
      "findings": [
-       { "id": "F1", "kind": "defect", "paths": ["src/x.py"], "text": "..." }
+       {
+         "id": "F1",
+         "kind": "defect",
+         "paths": [
+           "src/x.py"
+         ],
+         "text": "..."
+       }
      ],
      "closures": [
-       { "finding": "2:correctness:F2", "state": "fixed", "note": "..." }
+       {
+         "finding": "2:correctness:F2",
+         "state": "fixed",
+         "note": "..."
+       }
      ]
    }
    ```
@@ -5971,10 +6217,16 @@ driver is read from it:
   marker (§3.4, `kind: "plan"`) gets a `claim`:
 
 ```json
-"claim": {"machine": "mch_7hw2c4n6r8t1y3pq", "label": "laptop",
-          "login": "octocat", "takenAt": "<ISO-8601>",
-          "heartbeatAt": "<ISO-8601>", "from": null, "forced": false,
-          "export": null}
+"claim": {
+  "machine": "mch_7hw2c4n6r8t1y3pq",
+  "label": "laptop",
+  "login": "octocat",
+  "takenAt": "<ISO-8601>",
+  "heartbeatAt": "<ISO-8601>",
+  "from": null,
+  "forced": false,
+  "export": null
+}
 ```
 
 A workspace drives a spec only when the issue that decides has **exactly
