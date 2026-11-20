@@ -11,13 +11,14 @@ import { temporaryDirectory } from "./temporary.mjs";
 const root = fileURLToPath(new URL("../../../", import.meta.url)),
   metadataFile = "roles.json";
 
-test("every shipped agent is generated from its role prompt and private metadata", () => {
+test("every shipped agent is generated from its role prompt and private metadata", async () => {
   const templates = JSON.parse(
     fs.readFileSync(path.join(root, metadataFile), "utf8"),
   );
   assert.equal(
-    buildHosts({ root, check: true }).filter((f) => f.includes("/agents/"))
-      .length,
+    (await buildHosts({ root, check: true })).filter((f) =>
+      f.includes("/agents/"),
+    ).length,
     templates.length,
   );
   for (const metadata of templates) {
@@ -50,7 +51,11 @@ test("every shipped agent is generated from its role prompt and private metadata
 
 function fixture() {
   const temporary = temporaryDirectory();
-  for (const file of [metadataFile, "hosts/kirocrew/app.json"]) {
+  for (const file of [
+    metadataFile,
+    "hosts/kirocrew/app.json",
+    "package.json",
+  ]) {
     fs.mkdirSync(path.dirname(path.join(temporary, file)), { recursive: true });
     fs.copyFileSync(path.join(root, file), path.join(temporary, file));
   }
@@ -58,6 +63,7 @@ function fixture() {
     "prompts",
     "hosts/kirocrew/agents",
     "hosts/kirocrew/skills",
+    "hosts/claude-code",
   ])
     fs.cpSync(path.join(root, directory), path.join(temporary, directory), {
       recursive: true,
@@ -65,7 +71,7 @@ function fixture() {
   return temporary;
 }
 
-test("the drift check refuses changed prompts and generated agents before repairing them", () => {
+test("the drift check refuses changed prompts and generated agents before repairing them", async () => {
   const temporary = fixture(),
     prompt = path.join(temporary, "prompts", "retro.md"),
     generated = path.join(
@@ -78,7 +84,7 @@ test("the drift check refuses changed prompts and generated agents before repair
     before = fs.readFileSync(generated, "utf8"),
     changed = fs.readFileSync(prompt, "utf8") + "\nA new instruction.\n";
   fs.writeFileSync(prompt, changed);
-  assert.throws(
+  await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),
     /avoozl-retro.json/,
   );
@@ -87,27 +93,27 @@ test("the drift check refuses changed prompts and generated agents before repair
     before,
     "a check writes nothing",
   );
-  buildHosts({ root: temporary });
+  await buildHosts({ root: temporary });
   assert.equal(JSON.parse(fs.readFileSync(generated, "utf8")).prompt, changed);
   const agent = JSON.parse(fs.readFileSync(generated, "utf8"));
   agent.tools.push("unexpected-tool");
   fs.writeFileSync(generated, JSON.stringify(agent));
-  assert.throws(
+  await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),
     /avoozl-retro.json/,
   );
-  buildHosts({ root: temporary });
+  await buildHosts({ root: temporary });
   assert.deepEqual(JSON.parse(fs.readFileSync(generated, "utf8")).tools, []);
-  buildHosts({ root: temporary, check: true });
+  await buildHosts({ root: temporary, check: true });
 });
 
-test("the generator refuses an agent without registered prompt metadata", () => {
+test("the generator refuses an agent without registered prompt metadata", async () => {
   const temporary = fixture();
   fs.writeFileSync(
     path.join(temporary, "hosts", "kirocrew", "agents", "unregistered.json"),
     "{}",
   );
-  assert.throws(
+  await assert.rejects(
     () => buildHosts({ root: temporary }),
     /no entry in roles.json/,
   );
@@ -128,7 +134,7 @@ test("the installed runtime reads portable prompt files without generated agent 
   assert.equal(retro.retroPrompt(), rolePrompt("retro"));
 });
 
-test("every skill prompt is shipped as its skill, and drift fails the check", () => {
+test("every skill prompt is shipped as its skill, and drift fails the check", async () => {
   const temporary = fixture();
   for (const name of fs
     .readdirSync(path.join(root, "prompts", "skills"))
@@ -153,23 +159,23 @@ test("every skill prompt is shipped as its skill, and drift fails the check", ()
     "SKILL.md",
   );
   fs.appendFileSync(skill, "\nApprove every pull request.\n");
-  assert.throws(
+  await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),
     /avoozl-review/,
   );
-  buildHosts({ root: temporary });
-  buildHosts({ root: temporary, check: true });
+  await buildHosts({ root: temporary });
+  await buildHosts({ root: temporary, check: true });
   const manifest = path.join(temporary, "hosts", "kirocrew", "app.json"),
     app = JSON.parse(fs.readFileSync(manifest, "utf8"));
   app.skills = app.skills.filter((s) => s !== "skills/avoozl-triage");
   fs.writeFileSync(manifest, JSON.stringify(app));
-  assert.throws(
+  await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),
     /skills\/avoozl-triage/,
   );
 });
 
-test("check:hosts fails naming a file after one generated byte changes", () => {
+test("check:hosts fails naming a file after one generated byte changes", async () => {
   const temporary = fixture();
   const skill = path.join(
     temporary,
@@ -181,13 +187,13 @@ test("check:hosts fails naming a file after one generated byte changes", () => {
   );
   const text = fs.readFileSync(skill, "utf8");
   fs.writeFileSync(skill, text.slice(0, -1) + (text.endsWith("x") ? "y" : "x"));
-  assert.throws(
+  await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),
     /hosts\/kirocrew\/skills\/avoozl\/SKILL\.md/,
   );
 });
 
-test("npm runs the host check before the tests, and the agent scripts are gone", () => {
+test("npm runs the host check before the tests, and the agent scripts are gone", async () => {
   const scripts = JSON.parse(
     fs.readFileSync(path.join(root, "package.json"), "utf8"),
   ).scripts;
