@@ -64,6 +64,8 @@ export interface GraphTask extends TaskOwner {
   nextAction?: string | null
   // The archived plan this task belongs to (plan.archive), or null.
   planArchived?: string | null
+  // Epic context its last session got: the chip's words, sources and items.
+  epicContext?: { label: string; sources: string[]; items: string } | null
   issue: { number: number | null; url: string | null; repository: string | null } | null
   // A step only a person does (R61.11); `needsYou.manual` once it waits for
   // one. Older backends omit them.

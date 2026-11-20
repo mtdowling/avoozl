@@ -6,6 +6,7 @@ import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
 import type { PluginChecksPart } from './plugin-checks-api.ts'
+import type { ContextPart } from './context-api.ts'
 
 export type PluginState = 'invalid' | 'missing' | 'unsupported' | 'disabled' | 'unapproved' | 'changed' | 'approved'
 
@@ -40,6 +41,8 @@ export interface PluginRow {
   health: PluginHealth | null
   // A checks part: its checks, prompts and servers (plugin-checks PK7.2).
   checks?: PluginChecksPart
+  // A context part: skills, reads and MCP servers for its owner's own work.
+  context?: ContextPart
 }
 
 export interface PluginList {
@@ -106,6 +109,7 @@ export interface PluginPreview {
   pack?: { description?: string; settings: Record<string, unknown> }
   capabilities?: Record<string, string[]>
   credentials?: { hosts: string[]; owners: string[] | null }
+  context?: ContextPart
   supported?: boolean
   // A git source: the commit its ref names now.
   commit?: string
@@ -152,6 +156,7 @@ export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
   rules: { title: 'Content rules', line: 'Rule sets supplied while Avoozl runs. The terms never go into Git.' },
   intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
   credentials: { title: 'GitHub sign-in', line: 'Hands Avoozl short-lived GitHub tokens, one per job, from a process of its own.' },
+  context: { title: 'Epic context', line: 'Skills, read folders and MCP servers a worker gets on its owner’s own approved spec tasks. Kept on this machine.' },
   checks: { title: 'Checks', line: 'Checks Avoozl runs on the repositories they name, kept on this machine. Results never go to GitHub.' },
   // Still listed by older plugins; Avoozl reads nothing from it (RC30.4).
   lessons: { title: 'Lessons pack (removed)', line: 'Avoozl no longer reads lessons packs. Remove lessons from provides.' },

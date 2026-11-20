@@ -45,6 +45,7 @@
     "docs/triage.md",
     "docs/content-rules.md",
     "docs/plugins.md",
+    "docs/epic-context.md",
     "docs/epic-types.md",
     "kirocrew-app/",
     "!src/**/test/",

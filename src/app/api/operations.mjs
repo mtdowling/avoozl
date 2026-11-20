@@ -111,6 +111,7 @@ import {
 import { mergePath } from "../landing/merge-path.mjs";
 import { pluginChecksView } from "../plugins/plugin-checks.mjs";
 import { contextView } from "../context/plugin-context.mjs";
+import { contextChip, taskContext } from "../context/context-record.mjs";
 import { localRequired, taskPluginChecks } from "../plugins/check-stages.mjs";
 import { RepositorySettings } from "../settings/repository-settings.mjs";
 import { bindRetroMemory } from "../flow/retro-memory.mjs";
@@ -1510,6 +1511,11 @@ export class Operations {
       evidenceRecords,
       // Its plugin checks and decide answers (plugin-checks PK8.2).
       pluginChecks: taskPluginChecks(this.store, id),
+      // The three tests and what epic context gave its last session: names
+      // only, never a path's contents (epic-context EC9.5).
+      epicContext: taskContext(this.store, id)
+        ? { ...taskContext(this.store, id), chip: contextChip(this.store, id) }
+        : null,
       executionLocation: {
         branch: task.activity?.branch || task.integration?.branch || null,
         worktree: task.activity?.worktree || null,

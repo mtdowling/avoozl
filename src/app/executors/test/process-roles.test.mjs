@@ -9,14 +9,11 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  approveHarnessDefinition,
   fillHarnessArgv,
-  harnessDefinitionHash,
   harnessPermission,
   parseHarnessDefinition,
 } from "../harness-definitions.mjs";
-import { startSupervisor, supervisorPaths } from "../supervisor.mjs";
-import { sandboxKind } from "../sandbox.mjs";
+import { supervisorPaths } from "../supervisor.mjs";
 import { planVerifierDispatches } from "../../delivery/delivery.mjs";
 import {
   drainProcessRequests,
@@ -26,6 +23,7 @@ import {
 import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
 import { newPlanStarts, newPlanTask } from "../../specs/new-plan.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
+import { initCheckout, startFakeSupervisor } from "./process-machine.mjs";
 import { Store } from "../../store/store.mjs";
 
 const CLAUDE = fileURLToPath(
@@ -158,13 +156,7 @@ function machine(t) {
   const stateDirectory = path.join(root, "state");
   const configDirectory = path.join(root, "config");
   const checkout = path.join(root, "checkout");
-  fs.mkdirSync(checkout);
-  gitIn(checkout, "init", "-q", "-b", "main");
-  gitIn(checkout, "config", "user.name", "Test");
-  gitIn(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  gitIn(checkout, "add", ".");
-  gitIn(checkout, "commit", "-q", "-m", "Start");
+  initCheckout(checkout);
   const agent = path.join(root, "agent.mjs");
   fs.writeFileSync(agent, AGENT);
   fs.mkdirSync(path.join(configDirectory, "harnesses"), { recursive: true });
@@ -178,21 +170,10 @@ function machine(t) {
     // How a read-only child writes its result (NK6.1); the fake ignores it.
     resultAllow: ["--result-file"],
   });
-  fs.writeFileSync(
-    path.join(configDirectory, "harnesses", "fake-cli.json"),
-    bytes,
-  );
-  const hash = harnessDefinitionHash(Buffer.from(bytes));
-  approveHarnessDefinition({ configDirectory, name: "fake-cli", hash });
-  if (!sandboxKind())
-    fs.writeFileSync(
-      path.join(configDirectory, "harness-unconfined.json"),
-      JSON.stringify({ "fake-cli": hash }),
-    );
-  const supervisor = startSupervisor({
+  const supervisor = startFakeSupervisor({
     stateDirectory,
     configDirectory,
-    intervalMs: 60_000,
+    bytes,
   });
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => {

@@ -102,6 +102,11 @@ export const APP_OPERATIONS = new Set([
   "plugin.update",
   "plugin.pack.preview",
   "plugin.pack.import",
+  // Epic context (epic-context EC4, EC9): Settings reads it, and a person
+  // sets the machine block and answers a plugin's questions.
+  "context.get",
+  "context.machine.set",
+  "plugin.answer",
   // Checks from a plugin (plugin-checks D10).
   "plugin.map",
   "plugin.checks.stages",

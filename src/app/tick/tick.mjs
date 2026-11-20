@@ -604,6 +604,9 @@ async function runTick(
     github: client,
     plugins,
     folders = null,
+    // `contextBrief(entry)`: the epic context section for a Kiro Crew
+    // worker's brief, or "" (epic-context EC8).
+    contextBrief = null,
   },
 ) {
   const at = new Date().toISOString();
@@ -1017,6 +1020,16 @@ async function runTick(
       // Settings › Models: the planner and retro chats open on
       // the saved model.
       dispatch = withChatModels(dispatch, memory.value || {});
+      if (contextBrief)
+        dispatch = await Promise.all(
+          dispatch.map(async (d) => {
+            const section =
+              d.role === "worker" && d.executor === "kirocrew"
+                ? await contextBrief(d).catch(() => "")
+                : "";
+            return section ? { ...d, brief: `${d.brief}\n\n${section}` } : d;
+          }),
+        );
       const pending = cron ? pendingSessionRequests(store) : [],
         lostDispatchPlans = script
           ? await recheckDrivers(

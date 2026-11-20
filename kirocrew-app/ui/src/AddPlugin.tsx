@@ -45,6 +45,7 @@ import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { ContextPartFacts } from './ContextPart.tsx'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -154,6 +155,7 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
             </Box>
           ))}
       </Box>
+      {preview.context && preview.id ? <ContextPartFacts plugin={preview.id} part={preview.context} /> : null}
       <Field
         label="Id"
         marker="required"
