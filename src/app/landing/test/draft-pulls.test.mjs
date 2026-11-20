@@ -5,8 +5,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const SRC = new URL("../../..", import.meta.url).pathname;
+const SRC = fileURLToPath(new URL("../../..", import.meta.url));
 // shortcut: the mirror and the old approval pull requests are being
 // removed (spec/drop-mirror, spec/approval-cutdown); drop these entries
 // when they land.
@@ -36,7 +37,7 @@ function argumentsAt(text, open) {
 test("every createPullRequest call site says whether it opens a draft", () => {
   const calls = [];
   for (const file of sources(SRC)) {
-    const name = relative(SRC, file);
+    const name = relative(SRC, file).split("\\").join("/");
     if (REMOVED.some((prefix) => name.startsWith(prefix))) continue;
     const text = readFileSync(file, "utf8");
     for (const match of text.matchAll(/\.createPullRequest\(/g))

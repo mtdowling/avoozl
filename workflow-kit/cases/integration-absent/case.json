@@ -1,0 +1,25 @@
+{
+  "title": "With no branch named for the spec, tasks land on the default branch",
+  "rules": ["11.1"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "client": ["acme-alice"]
+  },
+  "expect": {
+    "claim": {
+      "branch": "avoozl/client/c-1",
+      "base": "main",
+      "mergeBase": false
+    }
+  },
+  "expectFail": {
+    "claim": "sim-1.1"
+  }
+}
