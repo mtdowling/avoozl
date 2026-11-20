@@ -73,3 +73,14 @@ test('autoSend never starts a session: Start is a click (SW7.6)', () => {
   assert.doesNotMatch(dialog, /autoSend/)
   assert.equal([...dialog.matchAll(/'session\.open', \{ message/g)].length, 1)
 })
+
+test('an item with no id, such as a blocked task, is known by its kind and task', () => {
+  const storage = memory()
+  const blocked = (taskId) => ({ kind: 'needs-human', taskId, title: `Blocked ${taskId}` })
+  assert.deepEqual(takeNew(storage, []), [])
+  assert.deepEqual(
+    takeNew(storage, [blocked('a'), blocked('b')]).map((i) => i.title),
+    ['Blocked a', 'Blocked b'],
+  )
+  assert.deepEqual(takeNew(storage, [blocked('a'), blocked('b')]), [], 'a reload shows none')
+})

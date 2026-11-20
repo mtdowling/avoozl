@@ -134,7 +134,9 @@ test('the requests name the right repositories and checkout', () => {
 test('the client calls only the flow operations, and none approves, starts or pushes', async () => {
   const seen = []
   const client = onboardClient({ post: async (_path, body) => (seen.push(body), { result: {} }) })
-  for (const call of Object.values(client)) await call('ws', 'x', {}, 'y')
+  // The same arguments for every call; the last is a list, as applyGitHub's
+  // writes and adopt's approvers are.
+  for (const call of Object.values(client)) await call('ws', 'x', {}, [])
   const names = new Set(seen.map((body) => body.operation))
   for (const name of names) assert.ok([...ONBOARD_READS, ...ONBOARD_WRITES].includes(name), name)
   for (const name of names) assert.doesNotMatch(name, /approve|run\.|jobs\.|batch\.|task\.start|push|publish|dispatch/)

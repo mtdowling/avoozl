@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { readPageState } from '../workspace-api.ts'
-import { NOTICES_CHANGED, NOTICE_INTERVAL_MS, noticeText, noticesOn, takeNew, type NeedsYouItem } from '../notices.ts'
+import { NOTICES_CHANGED, NOTICE_INTERVAL_MS, noticeKey, noticeText, noticesOn, takeNew, type NeedsYouItem } from '../notices.ts'
 import { navigate } from './host.ts'
 
 export function Notices() {
@@ -18,7 +18,7 @@ export function Notices() {
         const reply = await api.post<{ result: { items?: NeedsYouItem[] } }>('/apps/avoozl/api/command', { operation: 'conflicts.view', input: {}, workspaceId })
         if (!live) return
         for (const item of takeNew(window.localStorage, reply.result.items ?? [])) {
-          const shown = new Notification(noticeText(item.title) || 'Avoozl needs you', { tag: item.id })
+          const shown = new Notification(noticeText(item.title) || 'Avoozl needs you', { tag: noticeKey(item) })
           shown.onclick = () => {
             window.focus()
             navigate('/apps/avoozl')
