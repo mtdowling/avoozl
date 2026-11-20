@@ -7,6 +7,7 @@ import {
   REAL_CLAUDE_BYTES,
   claudeBinaries,
   realClaude,
+  realCodex,
 } from "../../../scripts/proofs/real-claude.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -65,4 +66,16 @@ test("the export runs the person's shim and the child runs the real binary", () 
     exportWith: wrapper,
     child: fs.realpathSync(real),
   });
+});
+
+test("Codex's real binary is found the same way, never Claude Code's", () => {
+  const home = temporaryDirectory();
+  toolbox(home, "2.1.327.1766");
+  const real = file(
+    path.join(home, ".toolbox", "tools", "codex", "0.170.0.969", "codex"),
+    REAL_CLAUDE_BYTES + 1,
+  );
+  const shim = file(path.join(home, ".toolbox", "bin", "codex"), 4_000_000);
+  assert.equal(realCodex(shim, home), fs.realpathSync(real));
+  assert.equal(realCodex(null, temporaryDirectory()), null);
 });

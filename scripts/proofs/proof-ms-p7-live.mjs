@@ -22,6 +22,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { crewApi } from "./machine.mjs";
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -179,43 +180,9 @@ async function setup() {
   event("setup.done", { task: TASK });
 }
 
-// The test crew's dashboard API through the harness's saved cookie. A
-// session that has lapsed is refreshed once with the cookie's refresh part,
-// as the dashboard itself does.
-function api(method, route, body) {
-  const reply = call(method, route, body);
-  if (reply?.code !== "forbidden") return reply;
-  call("POST", "/api/auth/refresh");
-  return call(method, route, body);
-}
-
-function call(method, route, body) {
-  const cookies = path.join(HARNESS_DIR, "cookies.txt");
-  const out = execFileSync(
-    "curl",
-    [
-      "-sS",
-      "-X",
-      method,
-      "-b",
-      cookies,
-      "-c",
-      cookies,
-      "-H",
-      `Origin: http://localhost:${values.port}`,
-      "-H",
-      "Content-Type: application/json",
-      `http://localhost:${values.port}${route}`,
-      ...(body ? ["-d", JSON.stringify(body)] : []),
-    ],
-    { encoding: "utf8" },
-  );
-  try {
-    return JSON.parse(out);
-  } catch {
-    return { raw: out.slice(0, 300) };
-  }
-}
+// The test crew's dashboard API through the harness's saved cookie.
+const api = (method, route, body) =>
+  crewApi({ harnessDir: HARNESS_DIR, port: values.port }, method, route, body);
 
 async function state() {
   const { Store } = await import("../../src/app/store/store.mjs");

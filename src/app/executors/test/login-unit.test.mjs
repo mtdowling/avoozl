@@ -100,6 +100,30 @@ test("systemd: every word is quoted and a specifier cannot expand", (t) => {
   assert.match(unit.text, /Environment="PATH=\/opt\/tools:\/usr\/bin"/);
 });
 
+test("a unit keeps the variables that pick the machine folders and no other", (t) => {
+  const { base, root } = scratch(t);
+  const env = {
+    KIROCREW_HOME: path.join(root, "crew"),
+    XDG_STATE_HOME: path.join(root, "xdg-state"),
+    AWS_SECRET_ACCESS_KEY: "not-in-the-unit",
+  };
+  const launchd = loginUnit({ ...base, env, kind: "launchd" });
+  for (const [name, value] of Object.entries(env).slice(0, 2))
+    assert.ok(
+      launchd.text.includes(
+        `<key>${name}</key>\n    <string>${value}</string>`,
+      ),
+      name,
+    );
+  const systemd = loginUnit({ ...base, env, kind: "systemd" });
+  assert.ok(
+    systemd.text.includes(`Environment="KIROCREW_HOME=${env.KIROCREW_HOME}"`),
+  );
+  for (const unit of [launchd, systemd]) {
+    assert.doesNotMatch(unit.text, /not-in-the-unit|AWS_|XDG_CONFIG_HOME/);
+  }
+});
+
 test("a unit refuses relative paths and a line break", (t) => {
   const { base } = scratch(t);
   assert.throws(
