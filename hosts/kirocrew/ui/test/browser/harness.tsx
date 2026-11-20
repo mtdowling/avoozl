@@ -390,11 +390,22 @@ function Scenario({ name }: { name: string }) {
 // ?page=app: the whole Avoozl page on one workspace with intake on, for
 // tests that move between tabs.
 // &long=1 names the workspace long enough to need cutting short, and adds a
-// second one to switch to.
+// second one to switch to. &configError=1 gives it a .avoozl.json that does
+// not load.
 answer('workspaces.list', () => ({
   defaultWorkspace: 'w',
   items: [
-    { id: 'w', name: query.get('long') === '1' ? 'Recipe box planning and the meal planner rewrite' : 'Harness', root: '/w', enabled: true, state: 'ready', served: true },
+    {
+      id: 'w',
+      name: query.get('long') === '1' ? 'Recipe box planning and the meal planner rewrite' : 'Harness',
+      root: '/w',
+      enabled: true,
+      state: 'ready',
+      served: true,
+      ...(query.get('configError')
+        ? { configError: 'Unknown setting "github.repositories.example/app.role" in repository Avoozl configuration at /w/.avoozl.json. Remove it.' }
+        : {}),
+    },
     ...(query.get('long') === '1' ? [{ id: 'w2', name: 'Avoozl', root: '/w2', enabled: true, state: 'ready', served: false }] : []),
   ],
 }))
