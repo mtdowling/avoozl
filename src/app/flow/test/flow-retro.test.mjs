@@ -7,7 +7,7 @@ import test from "node:test";
 import { pdcaResult, recordRetroReply, retroStep } from "../flow-retro.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
-import { snapshot } from "../../test/fixtures.mjs";
+import { seedSpan, snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const leaf = (id) => ({
@@ -45,22 +45,30 @@ function setup(t, n) {
   const finish = (list) => {
     for (const id of list) {
       const at = (m) => new Date(clock + m * 60_000).toISOString();
-      store.db
-        .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
-        .run("q" + id, id, 1, null, "queued", at(0), at(10), "events", null);
-      store.db
-        .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
-        .run(
-          "c" + id,
-          id,
-          1,
-          "worker",
-          "coding",
-          at(10),
-          at(40),
-          "events",
-          null,
-        );
+      seedSpan(
+        store,
+        "q" + id,
+        id,
+        1,
+        null,
+        "queued",
+        at(0),
+        at(10),
+        "events",
+        null,
+      );
+      seedSpan(
+        store,
+        "c" + id,
+        id,
+        1,
+        "worker",
+        "coding",
+        at(10),
+        at(40),
+        "events",
+        null,
+      );
       store.mutate("finish " + id, (data) => {
         data.tasks.find((x) => x.id === id).integration = {
           commit: "x",
@@ -382,19 +390,18 @@ test("a slow task triggers a retro past 3x the usual lead time by default; a sav
       config = saved ? { flow: { retro: { slowFactor: saved } } } : {};
     const clock = s.finish(s.ids.slice(0, 5)),
       at = (m) => new Date(clock + m * 60_000).toISOString();
-    s.store.db
-      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?)")
-      .run(
-        "ct6",
-        "t6",
-        1,
-        "worker",
-        "coding",
-        at(0),
-        at(coding),
-        "events",
-        null,
-      );
+    seedSpan(
+      s.store,
+      "ct6",
+      "t6",
+      1,
+      "worker",
+      "coding",
+      at(0),
+      at(coding),
+      "events",
+      null,
+    );
     s.store.mutate("finish t6", (data) => {
       data.tasks.find((x) => x.id === "t6").integration = {
         commit: "x",

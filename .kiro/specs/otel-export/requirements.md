@@ -74,7 +74,8 @@ API, so that the local store and any exporter see the same data.
    call to the API throw or wait. A SQLite write failure SHALL throw to the
    caller, as a database write does.
 7. `grep` for `putSpan`, `deleteSpan`, `flow_spans` and `flow_usage` in
-   `src/` SHALL find nothing.
+   `src/` SHALL find nothing outside the store's list of tables an old
+   database drops.
 
 ### Requirement OT2: The local store
 
@@ -97,9 +98,10 @@ without any setup, so that Flow works before anyone has heard of OTLP.
    delete a trace that has an open span and was active in the last 7 days.
 5. Pruning SHALL run when the database opens and then after 500 writes, at
    most once in 10 minutes, and SHALL NOT run inside a write's transaction.
-6. `avoozl rebuild` SHALL give a database with both tables empty. Avoozl SHALL
-   NOT recreate timing from git, GitHub or sessions, and Flow SHALL show no
-   history from before the rebuild.
+6. `avoozl rebuild` SHALL give a database whose points table is empty and
+   whose spans table holds only the stage spans the landing commits'
+   `Avoozl-Span` trailers carry. Avoozl SHALL NOT recreate timing from
+   GitHub or sessions.
 7. The retention and caps SHALL be fixed values in code with no setting.
 
 ### Requirement OT3: Flow reads the local store
@@ -109,11 +111,10 @@ same records an exporter sends, so that a backend and Flow agree.
 
 #### Acceptance criteria
 
-1. Flow's reads of lead time, time per stage, first-pass rate, tokens and
-   credits SHALL be queries on `telemetry_spans` and `telemetry_points`.
-   These are the Flow page while it exists, the Flow numbers MCP call, and the
-   CLI.
-2. `listSpans`, `taskTiming` and the usage reads SHALL return the shapes
+1. Flow's reads of lead time, time per stage and first-pass rate SHALL be
+   queries on `telemetry_spans`. These are the Flow page, the Flow numbers
+   MCP call, and the CLI.
+2. `listSpans` and `taskTiming` SHALL return the shapes
    Flow's callers and tests expect, and those tests SHALL pass with only
    their seeding going through the recording API.
 3. Stop-the-line state SHALL stay in `flow_stops`. Each stop and each resume

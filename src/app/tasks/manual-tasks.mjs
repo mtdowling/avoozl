@@ -5,7 +5,7 @@
 // over MCP (mcp-policy.mjs) before this runs.
 import { statusComplete } from "../../model.mjs";
 import { isManual } from "../../work-model.mjs";
-import { putSpan } from "../flow/flow.mjs";
+import { recordSpan } from "../flow/flow.mjs";
 import { fail } from "../store/store.mjs";
 
 const CHOICES = Object.freeze(["done", "skipped", "refused"]);
@@ -80,7 +80,7 @@ export function completeManual(store, input = {}, { by = "person" } = {}) {
       by,
     });
     if (since && since < at)
-      putSpan(store, {
+      recordSpan(store, {
         id: `manual:${task.id}:${at}`,
         taskId: task.id,
         role: "person",

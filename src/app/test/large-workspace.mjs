@@ -10,6 +10,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { span } from "../telemetry/record.mjs";
 import { fileURLToPath } from "node:url";
 import { Store } from "../store/store.mjs";
 import { Operations } from "../api/operations.mjs";
@@ -304,9 +305,6 @@ export async function largeWorkspace(
         history: [],
       });
   });
-  const spans = store.db.prepare(
-    "INSERT INTO flow_spans(id,task_id,attempt,role,stage,started_at,ended_at,source,detail) VALUES (?,?,?,?,?,?,?,?,?)",
-  );
   store.transaction(() => {
     const data = store.read();
     let n = 0;
@@ -315,20 +313,19 @@ export async function largeWorkspace(
         const start = Date.parse("2026-01-01T00:00:00Z") + n * 3600000;
         for (const [stage, offset, length] of [
           ["queued", 0, 600000],
-          ["work", 600000, 1800000],
-          ["verify", 2400000, 600000],
+          ["coding", 600000, 1800000],
+          ["tests", 2400000, 600000],
         ])
-          spans.run(
-            `${task.id}:${stage}`,
-            task.id,
-            1,
-            "worker",
+          span(store, {
+            key: `${task.id}:${stage}`,
+            taskId: task.id,
+            attempt: 1,
+            role: "worker",
             stage,
-            new Date(start + offset).toISOString(),
-            new Date(start + offset + length).toISOString(),
-            "synthetic",
-            null,
-          );
+            startedAt: new Date(start + offset).toISOString(),
+            endedAt: new Date(start + offset + length).toISOString(),
+            source: "synthetic",
+          });
         n++;
       }
   });

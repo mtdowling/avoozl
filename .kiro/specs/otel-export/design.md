@@ -38,11 +38,9 @@ The dotted line is the opt-in path. The folder `src/app/telemetry/` holds:
 Flow imports from `src/app/telemetry/`, and `src/app/telemetry/` imports
 nothing from `src/app/flow/`. Outside itself it reads session bindings, the
 session executor's usage call (`gatewayUsageTurns`), the host config's state
-folder and the store handle. `simplify` cuts usage, planning flow,
-corrections, build receipts, retros, the Flow view and the fix-work flag
-(`sim-4.4`). Nothing here reads them, so the cut changes nothing here. What
-`simplify` keeps of Flow (`taskTiming`, the stop-the-line code, the Flow
-numbers MCP call, §D13) reads the tables in §D4.
+folder and the store handle. Nothing here reads planning flow, corrections,
+build receipts, retros or the fix-work flag. What Flow keeps (`taskTiming`,
+the stop-the-line code, the Flow numbers MCP call) reads the tables in §D4.
 
 ## D2. The recording API (OT1)
 
@@ -179,33 +177,34 @@ tables, and the writers call the API.
 | Flow code | Reads or writes | Moves to |
 | --- | --- | --- |
 | `listSpans(store, {taskId})` | `flow_spans` | `SELECT` on `telemetry_spans` where `parent_span_id IS NOT NULL` (and `task_id=?`), ordered by `started_at, span_id`, with `key` returned as `id` and `ended_at` as `endedAt` |
-| `putSpan(store, span)` | `flow_spans` upsert | `telemetry.span` |
-| `deleteSpan(store, id)` | `flow_spans` delete | `telemetry.dropSpan` |
+| `recordSpan(store, span)` | | `telemetry.span`, with the task's repository and spec |
+| A dropped span in the tool-call path | | `telemetry.dropSpan` |
 | `taskTiming` | `listSpans`, `task_deliveries` | Unchanged |
-| Usage reads for tokens and credits | `flow_usage` | `SELECT` on `telemetry_points` where `name` is `avoozl.tokens` or `avoozl.credits`, with `stage`, `role`, `model` and `attrs.direction` |
-| A finished task in Flow's pass | Nothing recorded | `telemetry.finishTask` |
-| Opening and closing a stop | `flow_stops` | `flow_stops` as before, plus `telemetry.point` for `avoozl.stop_the_line.events` |
+| A finished task in Flow's pass | | `telemetry.finishTask`, once per task with a stage span here |
+| `putStop(store, stop)` | `flow_stops` | `flow_stops` as before, plus `telemetry.point` for `avoozl.stop_the_line.events` when a stop opens or closes |
 
-The writers of a span are the callers of `putSpan`: Flow's report,
-decision, tool-call and sync paths in `flow.mjs`, the check runs in
+Every writer of a span calls `recordSpan`: Flow's report, decision,
+tool-call and sync paths in `flow.mjs`, the check runs in
 `delivery/check-runs.mjs`, the plugin check decision in
-`plugins/check-decide.mjs`, the manual task in `tasks/manual-tasks.mjs`, and
-the worker's phase mark in `api/operations.mjs`. Each calls `telemetry.span`
-with the same fields and a `key` equal to the id it already builds. The
-tables `flow_spans` and `flow_usage`, their schema lines in `store/store.mjs`
-and the code that creates or reads them are gone.
+`plugins/check-decide.mjs`, the manual task in `tasks/manual-tasks.mjs`, the
+worker's phase mark and the rebuild from landing trailers in
+`api/operations.mjs`. `recordSpan` hands `telemetry.span` the same fields, a
+`key` equal to the id the writer builds, and the task's repository and spec,
+so every span of one task names one trace.
 
-Tokens and credits come from `usage.mjs`. For each of a task's session
-bindings it calls `gatewayUsageTurns(slot)`, and for each turn row it records
-up to three points: `avoozl.tokens` with `direction` `input`, `avoozl.tokens`
-with `direction` `output`, and `avoozl.credits`. The point's `id` is
-`<slot>@<ts>:<name>:<direction>`, so a turn read twice records once. The
-`stage` is the stage span of the binding's attempt that holds `ts`, or
-`unattributed`. A session whose executor has no usage call records none. Only
+Tokens and credits come from `usage.mjs`. On each app backend pass, for each
+session the tick opened, it calls `gatewayUsageTurns(slot)` until the
+session ends, and for each turn row it records up to three points:
+`avoozl.tokens` with `direction` `input`, `avoozl.tokens` with `direction`
+`output`, and `avoozl.credits`. A token point's `id` is
+`<slot>@<ts>:<name>:<direction>` and a credit point's
+`<slot>@<ts>:avoozl.credits`, so a turn read twice records once. The `stage`
+is the stage span of the binding's attempt that holds `ts`, or
+`unattributed`. Without a gateway there is no usage call and no point. Only
 counts are recorded, never row text.
 
-Flow's tests that seed `flow_spans` and `flow_usage` seed the tables through
-the API, and their assertions stay as they are (OT3.2).
+Flow's tests seed spans through `recordSpan`, and their assertions stay as
+they are (OT3.2).
 
 ## D5. Retention, size and rebuild (OT2)
 
@@ -232,8 +231,10 @@ Pruning runs once when the database opens and then after every 500 writes, at
 most once in 10 minutes, as its own transaction after the write's commit.
 
 The tables are a local cache of what happened on this machine. `avoozl
-rebuild` makes a fresh database from git, and git holds no timing, so both
-tables start empty and Flow shows no history from before it. The OTLP
+rebuild` makes a fresh database from git: the points table starts empty, and
+the spans table holds the stage spans each landing commit carries in its
+`Avoozl-Span` trailers. Flow's next pass records those tasks' roots and
+task points again. The OTLP
 exporter keeps nothing in SQLite, so a rebuild does not touch it, and the
 instance ID in the state folder is kept.
 
@@ -605,8 +606,9 @@ JSON rules. The fake collector is an `http.createServer` on `127.0.0.1` that
 records each request and answers with a status the test sets.
 
 The proof task runs Avoozl against a scratch repository with a bare remote,
-as `scripts/proofs/` does for other features. It writes one two-task spec and
-lands both tasks with a fake harness, first with OTLP off, then with
+as `scripts/proofs/` does for other features. It seeds one two-task spec as
+an approved plan and lands both tasks by direct landing, with a scripted
+worker commit standing in for the harness, first with OTLP off, then with
 `telemetry.enabled` and the endpoint set to the fake collector's loopback URL.
 
 With OTLP off, the collector receives no request and `taskTiming` for each
@@ -616,8 +618,10 @@ canary, and the root's times equal the stored spans'. The proof then sets the
 collector to hold its reply open and lands a third task. It passes when the
 task lands while the collector's request is still unanswered, which shows
 landing never waits on the export. It then makes the collector answer `503`
-and checks the status says **Backing off**. Last it runs `avoozl rebuild` and
-checks both tables are empty and the instance ID is unchanged.
+and checks `telemetry.status` says **Backing off**. Last it runs `avoozl
+rebuild` on an empty database and checks the points table is empty, the
+spans table holds only the landing trailers' spans, and the instance ID is
+unchanged.
 
 ## D15. Limits and choices
 
@@ -632,5 +636,4 @@ checks both tables are empty and the instance ID is unchanged.
 | Protocols | `http/json` only. `http/protobuf` and gRPC need a collector in front |
 | Outbox | None. The queue is in memory, and the local tables hold the full record |
 | Local retention and caps | Fixed values in code (§D5), with no setting |
-| Order with `simplify` | The Flow move (`ot-2.1` to `ot-2.3`) edits `flow.mjs` after `sim-4.4` is on main, so Flow is edited once |
 | Official exporter packages | Not used (§D13). `otlp.mjs` and `send.mjs` are the only files that hold wire code, and the recording API does not depend on them |

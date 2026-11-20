@@ -20,7 +20,7 @@ import { waitsOnKirocrew } from "../tick/needs-kirocrew.mjs";
 import { statusComplete } from "../../model.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { fail } from "../store/store.mjs";
-import { putSpan } from "../flow/flow.mjs";
+import { recordSpan } from "../flow/flow.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
 import { pluginChecksOf } from "./plugin-checks.mjs";
 import { decideOutput } from "./decide-output.mjs";
@@ -164,7 +164,7 @@ function settle(store, record, { needed, reason, cause, by }) {
     doneAt,
   });
   try {
-    putSpan(store, {
+    recordSpan(store, {
       id: `events:${record.id}`,
       taskId: record.taskId,
       attempt: store.get("task_deliveries", record.taskId)?.attempt ?? null,

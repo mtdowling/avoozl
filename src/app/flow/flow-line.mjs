@@ -18,6 +18,7 @@ import {
   flowPolicy,
   listOr,
   openStops,
+  putStop,
   stopScope,
 } from "./flow.mjs";
 import { fail } from "../store/store.mjs";
@@ -258,7 +259,7 @@ function openStop(
       repository,
       safeTail(store, tail, repository.github || repository.id),
     );
-  store.transaction(() => store.put("flow_stops", stop));
+  store.transaction(() => putStop(store, stop));
   notify.push({
     channel: "failure",
     task: stop.fixTaskId,
@@ -287,7 +288,7 @@ function closeStop(store, stop, notify, now) {
       closedAt: at,
       timeToFixMs: Math.max(0, now - Date.parse(stop.openedAt)),
     };
-  store.transaction(() => store.put("flow_stops", closed));
+  store.transaction(() => putStop(store, closed));
   notify.push({
     channel: "failure",
     task: stop.fixTaskId,
@@ -673,7 +674,7 @@ export function runAnyway(store, input = {}, { operator = "dashboard" } = {}) {
       ...stop,
       runAnyway: { by: operator, at: new Date().toISOString() },
     };
-    store.put("flow_stops", next);
+    putStop(store, next);
     return { stop: next, changed: true };
   });
 }
@@ -748,7 +749,7 @@ export function pullCord(
       runAnyway: null,
       ...(full ? { full: true, sessions: [] } : {}),
     };
-  store.transaction(() => store.put("flow_stops", stop));
+  store.transaction(() => putStop(store, stop));
   queueNotifications(store, [
     {
       channel: "failure",
@@ -853,7 +854,7 @@ export async function pullFullStop(
       }
     }
     const next = { ...store.get("flow_stops", stop.id), sessions };
-    store.put("flow_stops", next);
+    putStop(store, next);
     return { stop: next };
   });
 }
@@ -886,7 +887,7 @@ export function resumeStop(store, input = {}, { by, now = Date.now() } = {}) {
         timeToFixMs: Math.max(0, now - Date.parse(stop.openedAt)),
         resumedBy: { by, at },
       };
-    store.put("flow_stops", closed);
+    putStop(store, closed);
     // A full stop's interrupted tasks are ready again: the next tick starts
     // each on its kept worktree, agent and model (R64.15).
     if (stop.full)

@@ -113,4 +113,5 @@ export {
   gatewaySlotReader,
   gatewaySessionStopper,
   gatewaySlotRows,
+  gatewayUsageTurns,
 } from "../kirocrew.mjs";
