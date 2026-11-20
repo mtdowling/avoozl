@@ -270,7 +270,7 @@ with no front end open, so that Kiro Crew is optional.
 1. Every row of the role table that runs as a child (V: `process: true` in
    `src/app/agents/role-table.mjs:102-306`: worker, verifier, reviewer, planner,
    retro, falsifier, responder, task summary, plan reviewer, plan answer,
-   pull request review, triage, assist) SHALL run on the `claude-code`
+   pull request review, assist) SHALL run on the `claude-code`
    definition as a child of a machine server started by the login unit,
    with no Kiro Crew, Claude Code or other front end running, and SHALL reach
    its result kind.

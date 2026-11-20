@@ -3940,6 +3940,13 @@ transcripts, Flow spans and queue order are disposable.
   Multiple coordinated changes or design choices become a proportionate spec; several
   separately owned areas become an epic. Reuse the input issue as the spec issue only
   when its repository and visibility match the spec's home.
+- **A fix** (Requirement 102.19) is that bounded fix, also started from text.
+  Its record is `task.fix = {v: 2, source: {issue: {repository, number}} |
+  {text, by}, snapshot, acceptance, definition}` in `src/app/intake/fix.mjs`:
+  `snapshot` is the digest of the issue's title and body or of the text,
+  `acceptance` the two lines, and `definition` the digest of the canonical
+  record. **Make this a spec** writes `.kiro/specs/fix-<n>/` with the text as
+  `requirements.md` and one task, and archives the fix with a link to it.
 - `intake.plan` and `intake.deliver` must accept GitHub items; today they refuse them
   (`src/app/intake/intake.mjs:1134`).
 - **Initial intake** makes at most two idempotent writes on the filed issue: a `crew:avoozl` label
@@ -4639,9 +4646,8 @@ text is saved as the next revision first. Each approval writes one Activity
 row (`plan.approved`, source `tick`, the author as actor) naming the commit.
 A clicked approval already has its receipt, so the tick skips it.
 
-**Dismiss.** Removed 2026-11-19 with Triage (triage-agent TA8.7): the
-GitHub pages' Close with a reason replaces it, and the triage agent reads
-GitHub items again on its own poll after a rebuild.
+**Dismiss.** There is none. A person closes a GitHub item on GitHub, and
+the open items read picks open items up again after a rebuild.
 
 ### 4.43 Task IDs and refs in tasks.md
 
@@ -4793,7 +4799,7 @@ Every record Avoozl reads is a commit, a tick, a pull request or an issue.
 | --- | --- |
 | Approval | An approver's commit on the specs branch (`git-approvals.mjs`) |
 | Several specs approved at once | One commit holding them, ordered by `$after` |
-| A spec pull request | A pull request, reviewed by the triage agent and merged on GitHub |
+| A spec pull request | A pull request, reviewed and merged on GitHub |
 | Driver | The spec issue's assignee (§4.44) |
 | Landing | A guarded push or head-guarded merge (`guarded-push.mjs`) |
 | Task done | Its tick on the base branch (§4.41) |

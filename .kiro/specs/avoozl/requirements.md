@@ -1100,10 +1100,6 @@ repositories before Nupp moves, so that the default is safe.
 
 ### Requirement 32: GitHub setup wizard
 
-**Changed 2026-11-19 (triage-agent TA13).** Set up GitHub, like all
-repository onboarding, asks nothing about triage, writes no `triage` key and
-makes no triage label; Set up triage on the Triage agent page does that.
-
 **User story:** As a maintainer, I want Avoozl to set up GitHub for me from
 its Settings view, so that I never configure repositories, Projects, fields,
 issue types, or labels by hand.
@@ -1870,7 +1866,7 @@ and what to change, and one settings group for the flow rules.
 
 ### Requirement 49: Untriaged list
 
-**Changed 2026-11-19 (triage-agent TA8.7, TA11).** Needs you › Triage and the Untriaged settings are gone. The GitHub › Issues and Pull requests pages, with the triage agent's owner queue, replace this list. The text below is the record.
+**Changed 2026-11-19.** Needs you › Triage and the Untriaged settings are gone. GitHub items wait in the intake list for a person. The text below is the record.
 
 **Status 2026-11-18.** There is no Untriaged or Intake tab. The list is Needs you › Triage (#464), with its count in the nav. Old `untriaged` and `intake` links open Triage. The per-repository **Untriaged** group is under Settings › Repository setup › Triggers and labels.
 
@@ -2185,7 +2181,7 @@ action: retiring is what Delete does to a plan with an approved revision.
 
 ### Requirement 52: Send to Issue Radar, and working beside crews
 
-**Changed 2026-11-19 (triage-agent TA11.2).** Removed: Send to Issue Radar, With Issue Radar, the crew list, claims and strip, the escalation intake, the crew labels and Settings › Issue Radar. The text below is the record.
+**Changed 2026-11-19.** Removed: Send to Issue Radar, With Issue Radar, the crew list, claims and strip, the escalation intake, the crew labels and Settings › Issue Radar. The text below is the record.
 
 Added 2026-11-13 (owner decision). Design §8.5 "Send to Issue Radar" and
 §6.4. Requirement 103 (2026-11-16) supersedes criterion 7 for task issues
@@ -3725,7 +3721,7 @@ on a bigger or safer machine without a shared database or a shared gateway.
 
 ### Requirement 85: The content hook
 
-**Changed 2026-11-19 (triage-agent TA11.3).** Public crews are gone; the content hook stays as a general pre-tool-use command in `src/app/content/content-hook.mjs`, and nothing in Avoozl names an Issue Radar crew's agent.
+**Changed 2026-11-19.** Public crews are gone; the content hook stays as a general pre-tool-use command in `src/app/content/content-hook.mjs`, and nothing in Avoozl names an Issue Radar crew's agent.
 
 Added 2026-11-14 (owner request); cut to the hook alone 2026-11-19 (owner
 decision). Design §6.14. Usage in `docs/content-hook.md`. The clean crew
@@ -3997,7 +3993,7 @@ removed, so that the app has one way to deliver work.
    repository (Requirement 117). The pre-push content rule (Requirement
    87.9) SHALL be its one leak guard. The freeze on public
    `core-dev` is lifted.
-6. (Changed 2026-11-19, triage-agent TA11.2: the Issue Radar intake source this
+6. (Changed 2026-11-19: the Issue Radar intake source this
    criterion kept, with Radar escalations, Send to Issue Radar
    and Settings › Issue Radar, is removed too.) Who codes SHALL be removed (owner decision, 2026-11-18). The Avoozl
    worker SHALL be the only coder; the harness each role runs on (a Kiro
@@ -4024,8 +4020,6 @@ removed, so that the app has one way to deliver work.
      by 45.4 (criterion 2).
 
 ### Requirement 92: Links to related GitHub items, and the landing queue
-
-**Changed 2026-11-19 (triage-agent TA8.7).** Avoozl now has GitHub › Issues and Pull requests pages (TA8); the rule below that it has none is replaced. The links and the landing queue stay. The text below is the record.
 
 Revised 2026-11-17 (owner decision; design §4.27). Avoozl has no Issues or
 Pull requests pages. It links from specs and in-flight work to the related
@@ -4696,10 +4690,21 @@ issue per task or exposing private planning information.
     `C:\Users\<name>`, `~/`); and this machine's own hostname and username.
     Tests SHALL insert a made-up hostname and username into every public
     field and expect refusal with nothing written.
+19. A fix SHALL be one task with no spec files whose definition is its text
+    (the issue's title and body as they read when it started, or what the
+    owner typed), its repository and two acceptance lines: it does what the
+    text asks, and the repository's checks pass on the exact head that
+    lands. Its definition hash SHALL be the hash of those. A fix SHALL start
+    from **Deliver this** on an incoming issue, from **New fix** beside
+    **New spec** on the page, or from `avoozl fix "TEXT" --repo ID`;
+    starting it is the approval. A fix from an issue SHALL keep its record
+    on that issue, and a fix without one in the workspace database. It SHALL
+    run, be checked and land like any task, and **Make this a spec** SHALL
+    turn a fix that grew into a spec folder holding its text.
 
 ### Requirement 103: Issue Radar stays off Avoozl's issues
 
-**Changed 2026-11-19 (triage-agent TA11.2).** The Issue Radar integration is removed, so Avoozl writes no `crew:avoozl` label and reads no crew label. The text below is the record.
+**Changed 2026-11-19.** The Issue Radar integration is removed, so Avoozl writes no `crew:avoozl` label and reads no crew label. The text below is the record.
 
 Added 2026-11-16 (owner decision). Design §4.32.10. Planning only. Extends
 Requirement 102. Where they conflict it supersedes Requirement 52.7 and,
@@ -5049,7 +5054,7 @@ GitHub issue.
 
 ### Requirement 110: One intake list
 
-**Changed 2026-11-19 (triage-agent TA8.7, TA11.1).** Rules no longer route intake items: every item waits for a person (`avoozl intake deliver|plan`, or the GitHub pages for GitHub items). The Triage list is gone; `intake.sources` stays.
+**Changed 2026-11-19.** Rules no longer route intake items: every item waits for a person (`avoozl intake deliver|plan`). The Triage list is gone; `intake.sources` stays.
 
 Added 2026-11-18 (owner decision on `docs/research/simplification-audit.md` item 6
 and F5). Design §4.39. Changes Requirement 50.6 and the issue intake part
@@ -5351,9 +5356,9 @@ rebuilds its database from main and GitHub.
     committed file under `.kiro/retros/`, authored by the agent identity,
     and a rebuild SHALL restore the Flow spans and retros from git.
 10. Triage SHALL show a Dismiss button on each GitHub item that asks first and
-    adds `avoozl:dismissed`. (Changed 2026-11-19, triage-agent TA8.7: Triage,
-    its Dismiss, `intake.dismiss` and the `avoozl:dismissed` label are removed;
-    Close with a reason on the GitHub pages replaces it. The same goes for
+    adds `avoozl:dismissed`. (Changed 2026-11-19: Triage, its Dismiss,
+    `intake.dismiss` and the `avoozl:dismissed` label are removed; a person
+    closes the item on GitHub. The same goes for
     the dismiss part of criteria 8 and 12, and criterion 9's read of
     GitHub's issues, which went with `github.sync`.)
 11. Tests SHALL show: an author-only approval; an approval whose committer is
@@ -5557,10 +5562,8 @@ what git and GitHub already hold.
    approval SHALL be a person's instruction carried out as their commit:
    `plan.approve` SHALL stay person-only and SHALL NOT be a tool an agent
    calls on its own. Nothing else SHALL be stored.
-3. A spec pull request SHALL be a pull request: the triage agent's pull
-   request review SHALL check a spec pull request too, for spec lint and its
-   requirement and design references, and merging it SHALL be the approval
-   when an approver authored it.
+3. A spec pull request SHALL be a pull request, reviewed like any other on
+   GitHub, and merging it SHALL be the approval when an approver authored it.
 4. The driver SHALL be the spec issue's single assignee (R66, R116), set by
    a person on GitHub.
 5. A landing SHALL be a guarded fast-forward or a head-guarded merge

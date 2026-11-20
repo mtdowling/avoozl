@@ -2712,7 +2712,7 @@ crews (39.4) and P49 are retired; their code is in git history.
   - Expected: (1) and (2) refused with rule set, id and place and no text; (3) goes through, then the tick deletes it, pulls the cord and notifies once; (4) a clean comment stays; (5) refused before sign-off, accepted after, refused again when the hook changes.
   - Failure means: a canary stays on GitHub, an edit is used instead of a delete, or the refusal repeats the text.
   - Next decision: ask Kiro Crew for a single write tool for crews.
-  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3, ta-5.2); not run.
+  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command; not run.
 
 ## Phase 40: Unattended basics
 
@@ -3743,9 +3743,9 @@ Owner decision 2026-11-19 (Requirement 118, design §4.46).
   - `adoptCommitted` and `applyMainApprovals` in `operations.mjs`, `src/app/git/test/git-approvals.test.mjs`.
 - [x] 70.2 Spec pull requests are pull requests, after 70.1 [R118.3] (§4.46)
   - $done: Spec pull requests are pull requests, after 70.1
-  - $done: The triage review prompt checks a spec pull request for spec lint and its requirement and design references; merging it by an approver approves it.
+  - $done: Merging a spec pull request authored by an approver approves it.
   - $after: 70.1
-  - `prompts/triage.md`.
+  - `git-approvals.mjs`.
 - [x] 70.3 The driver is the spec issue's assignee, after 70.1 [R118.4] (§4.46)
   - $done: The driver is the spec issue's assignee, after 70.1
   - $done: The driver reads the spec issue's assignee and never writes it; the read-only banner links to the spec issue; This computer holds only the label.

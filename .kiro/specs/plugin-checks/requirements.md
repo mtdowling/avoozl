@@ -207,11 +207,11 @@ its failure holds, so that a whole-phase check does not block single tasks.
    the phase's first task landed, and it SHALL apply when the combined
    diff passes PK2 and, with `decide`, any of the phase's tasks had
    `needed: true`.
-3. WHEN a `phase` check fails THEN Avoozl SHALL propose one fix (the fix of
-   `triage-agent` TA9) for that plan and phase, holding the check's name and
+3. WHEN a `phase` check fails THEN Avoozl SHALL propose one fix (design
+   §4.12 of `avoozl`) for that plan and phase, holding the check's name and
    the bounded output excerpt as untrusted text, in one Needs you item.
    A person's **Start** SHALL create the fix in that phase, since starting a
-   fix is its approval (TA9). WHEN the fix lands THEN the phase check SHALL
+   fix is its approval. WHEN the fix lands THEN the phase check SHALL
    run again over the phase's changes and the fix.
 4. `branch` SHALL run on each new head of an epic's integration branch
    (V: `src/app/epics/integration-branch.mjs`) and SHALL count in that head's acceptance state

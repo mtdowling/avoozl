@@ -21,7 +21,6 @@ only for Avoozl's own workers.
 | `rc-22.3` to `rc-22.5`, `rc-p22` | `an-1.1` to `an-p1` | open, fake plugin, no owner |
 | `rc-24.3` to `rc-24.5` | `an-2.1` to `an-2.3` | open, fake GitHub |
 | `rc-p24` | `an-p2` (fake) and an owner step (real) | the real run needs scratch repositories |
-| `avoozl` 39.1 to 39.5, `avoozl-p49` | `an-3.1` to `an-p3` | open, tests with fakes |
 | `avoozl-p38`, `p39`, `p43` | `an-4.1`, `an-4.2`, `an-4.4` | parts tested, named proof never run |
 | `avoozl-p42` steps 13, 14 | `an-4.3` | Share steps not in the proof test |
 | `rc-23.*`, `rc-24.1`, `rc-24.2`, `rc-25.1` to `rc-25.3`, `rc-26.*`, `rc-20.*`, `rc-22.1`, `rc-22.2` | not included | merged |
@@ -37,7 +36,6 @@ only for Avoozl's own workers.
 ```text
 Phase 1 gates:   retired 2026-11-18
 Phase 2 plans:   retired 2026-11-19
-Phase 3 public:  an-3.1 -> an-3.2 -> an-3.3 / an-3.4 -> an-3.5 -> an-p3
 Phase 4 proofs:  an-4.1, an-4.2, an-4.3, an-4.4   (independent)
 ```
 

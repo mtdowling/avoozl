@@ -176,10 +176,9 @@ cache entries are `flow_records` kinds beside them.
 
 ## D3. One list of checks
 
-`repositoryChecks(repository)` is read by seven modules (V: `git grep`
+`repositoryChecks(repository)` is read by six modules (V: `git grep`
 over `src/app`: `check-runs.mjs` through `selectedChecks`, `direct-landing.mjs`,
-`flow-line.mjs`, `page-views.mjs`, `plan-quality.mjs`, `triage-reproduce.mjs`,
-`git.mjs`). Its signature becomes `repositoryChecks(repository, plugins)`,
+`flow-line.mjs`, `page-views.mjs`, `plan-quality.mjs`, `git.mjs`). Its signature becomes `repositoryChecks(repository, plugins)`,
 where `plugins` is `approvedPluginChecks(options)`, loaded once per run or
 view. Every caller passes it; none keeps a repository-only path. Each entry:
 

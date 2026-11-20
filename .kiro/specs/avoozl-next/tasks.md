@@ -4,8 +4,7 @@ repo: avoozl
 # Tasks: the remaining Avoozl work
 
 Status 2026-11-18 (spec audit). Phases 1 to 3 are built, under the PRs named
-on each ticked task. Phase 3 and `an-p3` are superseded: public crews are
-removed except the content hook (triage-agent TA11.3). In Phase 4, `an-4.1`
+on each ticked task. In Phase 4, `an-4.1`
 and `an-4.3` are superseded (Ideas and the lessons store
 were removed) and `an-4.2` and `an-4.4` are proved live.
 
@@ -65,55 +64,6 @@ Retired 2026-11-19 (owner decision): Avoozl does not forward pull requests or co
   - $done: Retired 2026-11-19. Nothing to do.
   - $after: an-2.1, an-2.2, an-2.3
   - Retired 2026-11-19: the private mirror and its plans branch are deleted; a repository names its specs branch instead (Requirement 117).
-
-## Phase 3: Crews on public repositories
-
-Superseded 2026-11-18 (owner decision): public crews are removed except the
-content hook, which becomes a general pre-tool-use command (triage-agent
-TA11.3, task ta-5.2). Until ta-5.2 lands the code below still runs.
-
-Requirement AN3 (R85, §6.14).
-
-- [x] an-3.1 Hook command: scan a crew's writes before they run [AN3.1]
-  - $done: `avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text.
-  - Built: PR #381 (main spec task 39.1).
-  - `avoozl content hook`, now `src/app/content/content-hook.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
-  - Superseded 2026-11-18: public crews are removed except the content hook, which is now a general pre-tool-use command (triage-agent TA11.3); the rest was deleted 2026-11-19.
-  - Design: the avoozl spec's §6.14.
-- [x] an-3.2 Audit on the tick: delete a hit, pull the cord, alert, after an-3.1 [AN3.1]
-  - $done: The tick deletes a matching crew comment, closes a matching pull request, pulls the cord for the repository, and sends one notice and one Needs you item.
-  - $after: an-3.1
-  - Built: PR #397 (main spec task 39.2).
-  - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
-  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3); ta-5.2 deletes the rest of this work.
-  - Design: the avoozl spec's §6.14.
-- [x] an-3.3 Public crew checklist, sign-off and handoff gate, after an-3.1 and an-3.2 [AN3.1]
-  - $done: A person signs off the checklist; a public repository is handed to Issue Radar only with a current sign-off, which lapses when a hashed item changes.
-  - $after: an-3.1, an-3.2
-  - Built: PR #420 (main spec task 39.3).
-  - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
-  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3); ta-5.2 deletes the rest of this work.
-  - Design: the avoozl spec's §6.14.
-- [x] an-3.4 Stop public crews, after an-3.2 [AN3.1]
-  - $done: One person-only action pulls the cord for every public repository with a crew and lists the crews to pause.
-  - $after: an-3.2
-  - Built: PR #410 (main spec task 39.4).
-  - `publiccrews.stop` in the app, the CLI and MCP policy (person only to resume).
-  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3); ta-5.2 deletes the rest of this work.
-  - Design: the avoozl spec's §6.14.
-- [x] an-3.5 Public docs and the upstream requests, after an-3.3 and an-3.4 [AN3.1]
-  - $done: `docs/public-crews.md` states the limits in generic terms and drafts the Kiro Crew requests without filing them.
-  - $after: an-3.3, an-3.4
-  - Built: PR #425 (main spec task 39.5).
-  - `docs/public-crews.md` (now `docs/content-hook.md`) in generic terms; limits stated; requests drafted, none filed.
-  - Superseded 2026-11-18: public crews are removed except the content hook, which is now a general pre-tool-use command (triage-agent TA11.3); the rest was deleted 2026-11-19.
-  - Design: the avoozl spec's §6.14.
-- [x] an-p3 Proof: a public crew's leak is stopped, deleted and alerted, after an-3.1, an-3.2, an-3.3, an-3.4, an-3.5 [AN3.2]
-  - $done: Expected result observed; receipt under `docs/evidence/`.
-  - $after: an-3.1, an-3.2, an-3.3, an-3.4, an-3.5
-  - Setup: an isolated Kiro Crew home, a scratch repository, a fake terms file with one canary, a test crew agent with the hook. Action: (1) the crew posts a comment, opens a pull request and publishes a commit, each with the canary; (2) it publishes a commit with the canary in a file; (3) it writes a comment through a script; (4) the tick runs; (5) hand an issue to a crew before and after sign-off. Expected: (1) and (2) refused with rule set, id and place and no text; (3) goes through, then the tick deletes it, pulls the cord and notifies once; (4) a clean comment stays; (5) refused before sign-off, accepted after, refused again when the hook changes.
-  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3, ta-5.2); not run.
-  - Design: the avoozl spec's §6.14.
 
 ## Phase 4: Named proofs for shipped features
 

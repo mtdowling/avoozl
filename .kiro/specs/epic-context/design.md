@@ -3,8 +3,7 @@
 `EC` numbers are in this spec's `requirements.md`; `R` numbers are in
 `.kiro/specs/avoozl/requirements.md`, `PK` numbers in
 `.kiro/specs/plugin-checks/`,
-`PC` numbers in `.kiro/specs/plugin-credentials/` and `TA` numbers in
-`.kiro/specs/triage-agent/`. Requirement 115 is on branch
+and `PC` numbers in `.kiro/specs/plugin-credentials/`. Requirement 115 is on branch
 `spec/spec-assignee-2`. Labels are as in the requirements: **V** read in
 the file cited at `a8a22391`; **A** assumed.
 
@@ -122,7 +121,7 @@ naming the file, beside the other machine-only keys (A: the loader in
 `src/app/settings/repository-settings.mjs` lists known keys; the task finds
 the exact place). One operation, `context.machine.set`, is `person(...)` in
 its feature table and refused in its handler for a bound or MCP caller and
-for a child marked `AVOOZL_CHILD`, as `triage.setup` is (TA13.3). The CLI
+for a child marked `AVOOZL_CHILD`. The CLI
 entry is `avoozl context set --json '{...}'` and `avoozl context show`.
 
 ## D4. The context part (EC3)
@@ -191,8 +190,7 @@ hold `name` (the folder name) and `description` (1 to 300 characters).
 
 `contextSources(options)` in `plugins.mjs` returns the machine block and
 every plugin that is `approved`, `source: machine`, provides `context`, has
-every ask answered and every alias mapped. It filters exactly as
-`triageBlock` does (V: `plugins.mjs:428`), so a plugin that `.avoozl.json`
+every ask answered and every alias mapped. A plugin that `.avoozl.json`
 declares is skipped. Settings marks such a part "context ignored: declared
 in .avoozl.json".
 

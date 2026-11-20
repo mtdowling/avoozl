@@ -213,7 +213,6 @@ is the first with neither.
 | responder | a reply request on an issue | posted reply |
 | task summary | the landed task | stored summary |
 | pull request review | a labeled pull request | stored review |
-| triage | a new issue | triage result |
 | assist | Ask for help on the page | answer, no file |
 | (line watch) | a red head on main | the line stops; no session request |
 

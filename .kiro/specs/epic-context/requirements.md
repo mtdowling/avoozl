@@ -54,9 +54,8 @@ cited at `a8a22391`; or **A**, assumed and not checked, with the reason.
 - Requirement 115 (the spec issue's assignee says who drives a spec, and a
   spec with no spec issue drives here as "Not shared"), on branch
   `spec/spec-assignee-2`, not yet approved.
-- `.kiro/specs/triage-agent/` TA13.5 and `.kiro/specs/plugin-credentials/`
-  PC2.2: a plugin part that only this machine's `plugins.json` may declare
-  (V: `triageBlock`, `src/app/plugins/plugins.mjs:428`).
+- `.kiro/specs/plugin-credentials/` PC2.2: a plugin part that only this
+  machine's `plugins.json` may declare.
 - `.kiro/specs/plugin-checks/` PK10: MCP servers named by alias, mapped on
   this machine with environment variable names and no credential values.
 - Intake tasks have IDs `intake-` plus 16 hex characters (V: `intakeTaskId`,
@@ -74,7 +73,7 @@ cited at `a8a22391`; or **A**, assumed and not checked, with the reason.
 
 ### Out of scope
 
-- Context for triage runs, reviews, verdicts, responders and planners
+- Context for reviews, verdicts, responders and planners
   (D11, question 2).
 - Credentials for GitHub. Workers still get no GitHub token (PC6.6).
 - A shared, hosted context service. Context stays on each machine.
@@ -107,7 +106,7 @@ never widen what a worker reaches.
    - **approved**: the task is a task of a spec whose approved revision is
      on the specs branch, and the task is in that revision's `tasks.md`.
      A task whose ID starts with `intake-` (an intake task), and any task
-     made outside a spec (a triage fix, a reproduction, `avoozl fix`),
+     made outside a spec (a fix, `avoozl fix`),
      SHALL fail this test.
    - **approver**: the commit that approved that revision is by an allowed
      approver, read with the git approval reader (`approvalCommits` with

@@ -54,10 +54,10 @@ The plugin is declared in this machine's `plugins.json` only (PC2.2):
 
 ```js [token.mjs]
 // A fake provider: asks the organization's token service for an app token
-// scoped to one repository and the job's permissions, and refuses triage.
+// scoped to one repository and the job's permissions, and refuses replies.
 export const credentials = {
   async token({ repository, owner, permissions, purpose }, { config }) {
-    if (purpose === "triage") throw Error("acme does not allow triage comments.");
+    if (purpose === "respond") throw Error("acme does not allow agent replies.");
     const reply = await fetch(config.serviceUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -102,7 +102,7 @@ data; a separate module and child keep them apart at no cost to other parts.
 | `src/app/ops/` (entries), `src/app/tick/tick.mjs`   | Each operation entry and tick step names its `github` job; `operations.mjs` and `under()` wrap the handler in `withJob` |
 | `src/app/ops/plugins.mjs`                           | `plugin.credentials.pick`, person-only, in `writes` |
 | `src/app/ops/github.mjs`                            | `github.job.confirm`, person-only (D7); `github.settings.get` returns the sign-in lines (D11) |
-| Setup modules (`github-setup.mjs`, `setup-landing.mjs`, the triage setup flow) | Each write's description names its job and permissions (D7) |
+| Setup modules (`github-setup.mjs`, `setup-landing.mjs`) | Each write's description names its job and permissions (D7) |
 | UI: `PluginsSettings.tsx`, `AddPlugin.tsx`, `SettingsView.tsx`, `Modal.tsx` users | The host and owners line (PC2.3), the pick, the sign-in line and per-login calls, the confirm modal |
 
 No dependency is added. The credentials child is the plugin child already
@@ -227,7 +227,7 @@ for GitHub Apps" page; names marked **A** were not checked here.
 
 | Job               | Risk | Permissions | Used by (today's modules) |
 | ----------------- | ---- | ----------- | ------------------------- |
-| `check-in`        | low  | metadata, contents, issues, pull_requests: read | tick reads, `github-open-read`, `github-items`, `pull-request-snapshot`, `github-intake` reads, `scm-links`, `git-approvals` reads, `spec-scheduler`, `integration-head`, `driver` reads, page views |
+| `check-in`        | low  | metadata, contents, issues, pull_requests: read | tick reads, `github-open-read`, `pull-request-snapshot`, `github-intake` reads, `scm-links`, `git-approvals` reads, `spec-scheduler`, `integration-head`, `driver` reads, page views |
 | `ci-receipts`     | low  | metadata, actions, checks, statuses: read | `check-reads`, `flow-ci`, `build-receipt-read` |
 | `rules-read`      | low  | metadata, administration: read | `github-branch-rules`, `merge-path`, `github.repository.inspect` |
 | `land`            | low  | metadata: read; contents, pull_requests: write; checks, statuses: read | `landing-pulls`, `pr-landing`, direct landing (`direct-landing`, `guarded-push`), `merge-batch`, `working-heads.pushHead` |
@@ -235,9 +235,7 @@ for GitHub Apps" page; names marked **A** were not checked here.
 | `spec-branch`     | low  | metadata: read; contents, pull_requests, issues: write | `spec-ticks`, `git-approvals` push |
 | `spec-issues`     | low  | metadata: read; issues: write | `spec-publication`, `intake.createIssue`, `driver` claims and assignees, sub-issues, blockers, setting an issue's type |
 | `evidence`        | low  | metadata, pull_requests: read; issues: write | `tasks/evidence` |
-| `triage`          | low  | metadata, contents: read; issues, pull_requests: write | `triage`, `triage-reproduce` |
 | `respond`         | low  | metadata: read; discussions, issues: write | `github-respond` |
-| `page-actions`    | low  | metadata: read; issues, pull_requests: write | `github-pages` (a person's comment, label, assignee, review) |
 | `integration`     | low  | metadata: read; contents: write | `integration-sync`, `integration-branch` |
 | `worker-grants`   | low  | metadata: read; contents, issues: write | `remote-runner`, `working-heads` checkpoints |
 | `workspace-publish` | low | metadata: read; contents, pull_requests: write | `workspace-repository` |
@@ -245,7 +243,6 @@ for GitHub Apps" page; names marked **A** were not checked here.
 | `repo-setup`      | high | metadata: read; administration, issues: write | `github-setup` (labels, repository checks) |
 | `issue-types-setup` | high | organization_administration: write (**A**), owner-level | `github-setup` `create-issue-type` |
 | `landing-setup`   | high | metadata: read; administration, statuses, variables (**A**): write | `setup-landing` (rulesets, repository settings, variables, the status probe) |
-| `triage-setup`    | high | metadata: read; issues: write | the triage setup flow (creating its labels) |
 | `comment-delete`  | high | metadata: read; issues: write | `deleteIssueComment` callers |
 
 Rules the table follows:
@@ -320,7 +317,7 @@ page                     app backend
 - `permissionsHash` is SHA-256 of `{job, target, permissions}`. A job
   table or target that changed since the preview refuses the grant
   (PC13.4).
-- Set up GitHub, landing setup and triage setup already preview and then
+- Set up GitHub and landing setup already preview and then
   apply (V: `buildPlan` writes in `src/app/github/github-setup.mjs`,
   `previewLanding` / `applyLanding` in `src/app/github/setup-landing.mjs`).
   Each write description gains `job` and `permissions`, and the existing
@@ -459,7 +456,7 @@ plugin checks get `checkEnvironment`; agent-facing env goes through
 
 | Cause | What the call does | Needs you |
 | ----- | ------------------ | --------- |
-| Plugin throws (refusal) | Fails with the redacted reason | One item per provider, host, owner, job: "acme-github refused `triage` on acme/api: <reason>" |
+| Plugin throws (refusal) | Fails with the redacted reason | One item per provider, host, owner, job: "acme-github refused `respond` on acme/api: <reason>" |
 | Timeout, crash, listener, bad reply | Fails; child restarted next call | Same item, with the cause |
 | Claiming plugin changed, missing or broken | Fails for its owners, no provider call | "Approve acme-github again; GitHub work for acme and acme-labs waits" |
 | Two claims on one owner, no pick | Fails for that owner, no provider call | "Pick one" with **Use this one** per plugin |

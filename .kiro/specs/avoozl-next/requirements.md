@@ -4,7 +4,7 @@ category: Planning
 
 # Requirements: the remaining Avoozl work
 
-Status 2026-11-18: AN1 to AN3 are built (see `tasks.md`). AN4.1 for P38 and
+Status 2026-11-18: AN1 and AN2 are built (see `tasks.md`). AN4.1 for P38 and
 AN4.2 are superseded because Ideas and the lessons store were removed.
 
 ## Introduction
@@ -51,22 +51,6 @@ code between repositories, so the private mirror, its orphan plans branch and
 the two-home spec reader are deleted. A repository names the branch its specs
 live on instead (`specs.branch`, Avoozl Requirement 117). The number stays so
 that other requirements keep their references.
-
-### Requirement AN3: Crews on public repositories
-
-Superseded 2026-11-18 (owner decision): public crews are removed except the
-content hook, which becomes a general pre-tool-use command (triage-agent
-TA11.3, task ta-5.2). Until ta-5.2 lands the code below still runs.
-
-**User story:** As the owner of a machine with private names and notes, I want
-a crew on a public repository fenced by a scan before send, an audit and a
-stop, so that one careless line cannot become a public leak.
-
-#### Acceptance criteria
-
-1. The behavior of R85.1 to R85.10 SHALL hold (design §6.14 of `avoozl`).
-2. A proof SHALL show a refused canary, a script write that the tick deletes,
-   and a handoff refused before sign-off and after a hook change.
 
 ### Requirement AN4: Named proofs for features that already ship
 
