@@ -22,6 +22,7 @@ import { DEFAULT_SPECS_PATH, specsPathOf } from "../specs/specs-path.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { strangerFromItem } from "../intake/stranger-input.mjs";
 import { patchTask } from "../intake/intake.mjs";
+import { asJob } from "./github-jobs.mjs";
 
 const lower = (value) => String(value ?? "").toLowerCase();
 const KINDS = new Set(["issue", "pr", "all"]);
@@ -309,7 +310,7 @@ export async function itemsAct(store, github, input = {}, context = {}) {
     case "answer": {
       want(["issue"]);
       const body = requireText(input.body ?? row.triage?.draft?.body, "answer");
-      await github.createIssueComment(
+      await asJob("page-actions", github).createIssueComment(
         repository,
         number,
         `${body}\n\n${AGENT_LINE}`,
@@ -324,7 +325,9 @@ export async function itemsAct(store, github, input = {}, context = {}) {
       break;
     case "assign":
       if (!context.login) fail("Avoozl cannot read your GitHub login.", 409);
-      await github.addAssignees(repository, number, [context.login]);
+      await asJob("page-actions", github).addAssignees(repository, number, [
+        context.login,
+      ]);
       break;
     case "labels": {
       const add = Array.isArray(input.add) ? input.add.filter(Boolean) : [],
@@ -332,9 +335,14 @@ export async function itemsAct(store, github, input = {}, context = {}) {
           ? input.remove.filter(Boolean)
           : [];
       if (!add.length && !remove.length) fail("Name a label to add or remove.");
-      if (add.length) await github.addLabels(repository, number, add);
+      if (add.length)
+        await asJob("page-actions", github).addLabels(repository, number, add);
       for (const label of remove)
-        await github.removeLabel(repository, number, label);
+        await asJob("page-actions", github).removeLabel(
+          repository,
+          number,
+          label,
+        );
       out = { add, remove };
       break;
     }
@@ -356,7 +364,7 @@ export async function itemsAct(store, github, input = {}, context = {}) {
       const reason = issue ? (input.reason ?? "completed") : null;
       if (issue && !["completed", "not_planned"].includes(reason))
         fail("A close reason is completed or not_planned.");
-      await github.updateIssue(repository, number, {
+      await asJob("page-actions", github).updateIssue(repository, number, {
         state: "closed",
         ...(reason ? { state_reason: reason } : {}),
       });
@@ -379,7 +387,7 @@ export async function itemsAct(store, github, input = {}, context = {}) {
           action === "editReview"
             ? (input.comments ?? draft?.comments ?? [])
             : [];
-      await github.submitReview(repository, number, {
+      await asJob("page-actions", github).submitReview(repository, number, {
         event:
           action === "approve"
             ? "APPROVE"
@@ -399,7 +407,11 @@ export async function itemsAct(store, github, input = {}, context = {}) {
     }
     case "comment": {
       const body = requireText(input.body, "comment");
-      await github.createIssueComment(repository, number, body);
+      await asJob("page-actions", github).createIssueComment(
+        repository,
+        number,
+        body,
+      );
       break;
     }
     default:

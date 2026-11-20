@@ -53,6 +53,7 @@ import {
   DEFAULT_CACHE_SECONDS,
   GitHubClient,
   defaultGitHubClient,
+  personOf,
   parseRepository,
   requirePrivateRepository,
 } from "../github/github.mjs";
@@ -70,6 +71,15 @@ import {
 } from "./operation-support.mjs";
 import { OPERATIONS, classifyOperation } from "./operation-table.mjs";
 import { flushOutbox } from "../store/outbox.mjs";
+import { processGrants, withJob } from "../github/github-jobs.mjs";
+import { recordMissingLabels } from "../github/github-setup.mjs";
+import {
+  credentialsNeedsYou,
+  machineCredentials,
+  pickCredentials,
+  recordCredentialEvents,
+  recordNoPerson,
+} from "../github/github-credentials.mjs";
 import { lintPlan } from "../specs/plan-quality.mjs";
 import { recordPlanReviewWriter } from "../reviews/plan-review-authorship.mjs";
 import { planReviewSummary } from "../reviews/plan-review-summary.mjs";
@@ -87,6 +97,7 @@ import {
   pickTemplate,
   pluginHost,
   pluginSettingsPath,
+  readPluginSettings,
   previewPlugin,
   previewPluginPack,
   removePlugin,
@@ -246,14 +257,29 @@ export class Operations {
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     // Every GitHub text write passes content rules first (§4.9).
-    const client = github || defaultGitHubClient();
+    const client =
+      github ||
+      defaultGitHubClient({
+        credentials: machineCredentials({ settingsFile: pluginSettingsFile }),
+      });
+    // A person's Allows for high-risk GitHub steps (plugin-credentials §D7),
+    // in this process's memory only.
+    this.grants = processGrants;
     // Conditional reads and the rate-limit pause live in this workspace.
-    if (client instanceof GitHubClient)
+    if (client instanceof GitHubClient) {
       client.bind(store, {
         cacheSeconds: () => this.cacheSeconds(),
         countFile: countFilePath(),
         writeLimits: () => this.writeLimits(),
       });
+      // Failures raise Needs you rows; each new token gets an Activity row.
+      recordCredentialEvents(store, client.credentials);
+      client.onNoPerson = (provider, owner) =>
+        recordNoPerson(store, { provider, owner });
+      client.onMissingLabels = (repository, names) =>
+        recordMissingLabels(store, repository, names);
+    }
+    this.githubClient = client;
     this.github = guardGitHub(client, store);
     this.configuration = configuration;
     this.workspaceRoot = workspaceRoot;
@@ -387,6 +413,9 @@ export class Operations {
       return {
         supportedContracts: SUPPORTED_CONTRACTS,
         plugins,
+        // Which credentials plugin serves a host where two claim one owner.
+        credentialsPick:
+          readPluginSettings(options.settingsFile).credentialsPick ?? {},
       };
     }
     // What importing a plugin's pack would change. Reads only.
@@ -435,6 +464,8 @@ export class Operations {
     if (name === "plugin.update")
       return strip(await updateGitPlugin(options, input));
     if (name === "plugin.remove") return removePlugin(options, input);
+    if (name === "plugin.credentials.pick")
+      return pickCredentials(options, input);
     if (name === "plugin.pack.import") {
       const result = importPluginPack(options, input, this.operator);
       this.configuration?.reload();
@@ -954,9 +985,7 @@ export class Operations {
     if (!this.approverLogin)
       try {
         this.approverLogin =
-          (this.github?.available?.() &&
-            (await this.github.currentUser())?.login) ||
-          null;
+          (this.github?.available?.() && (await personOf(this.github))) || null;
       } catch {}
     if (this.approverLogin) return this.approverLogin;
     if (!gated) return this.operator;
@@ -974,7 +1003,7 @@ export class Operations {
     ) {
       if (!this.approverLogin)
         try {
-          this.approverLogin = (await this.github.currentUser())?.login || null;
+          this.approverLogin = (await personOf(this.github)) || null;
         } catch {}
       if (this.approverLogin) return this.approverLogin;
     }
@@ -1941,6 +1970,12 @@ export class Operations {
       error,
       // The last GitHub rate-limit numbers, for Settings > GitHub.
       rate: {
+        // Who signs Avoozl in, per host and owner group (plugin-credentials
+        // §D11), never the token.
+        signIns:
+          this.githubClient instanceof GitHubClient
+            ? (this.githubClient.credentials.signIns?.() ?? [])
+            : [],
         ...rateView(this.store, Date.now(), { countFile: countFilePath() }),
         cacheSeconds: this.cacheSeconds(),
         // The write pace and the projection that waits on it, if any.
@@ -2254,11 +2289,23 @@ export class Operations {
       );
     const operation = OPERATIONS.get(name);
     if (!operation) fail("Unknown operation " + name, 404);
-    return operation.handler.call(this, {
-      name,
-      input,
-      expectedRevision,
-      context,
-    });
+    // Every GitHub call runs inside the entry's job (plugin-credentials §D6).
+    // A person's confirmed apply carries the grants its Allow made; the
+    // page sends their ids, and only a person reaches github.job.confirm.
+    const grants =
+      Array.isArray(input?.allow) && !context.caller && !context.mcp
+        ? this.grants.get(input.allow)
+        : [];
+    return withJob(
+      operation.github ?? null,
+      () =>
+        operation.handler.call(this, {
+          name,
+          input,
+          expectedRevision,
+          context,
+        }),
+      grants,
+    );
   }
 }

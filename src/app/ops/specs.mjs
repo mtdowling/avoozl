@@ -39,6 +39,7 @@ import { reanchorSpec, resumeSpec } from "../specs/spec-reanchor.mjs";
 import { driverIdOf } from "../specs/spec-scheduler.mjs";
 import { specAuthority, takeOverSpec } from "../specs/spec-takeover.mjs";
 import { fail } from "../store/store.mjs";
+import { confirmStep, withJob } from "../github/github-jobs.mjs";
 import { taskDefinition } from "../specs/task-outcomes.mjs";
 import { readCache } from "../github/github-open-read.mjs";
 import { publishOffer, reserveGrants } from "../workers/worker-grants.mjs";
@@ -214,15 +215,19 @@ async function specOfferHandler({ name, input, context }) {
           ?.grantStaleAfter,
       ),
     });
-  if (name === "spec.grants.release")
-    return releaseGrant({
+  if (name === "spec.grants.release") {
+    const released = await releaseGrant({
       ...held,
       task: input.task,
       by: { kind: "person" },
     });
+    addLeftBranches(store, released.left);
+    return released;
+  }
   if (name === "spec.grants") {
     // Carry or settle what exists first, then answer new requests.
     const reconciled = await reconcileGrants(held);
+    addLeftBranches(store, reconciled.left);
     return {
       reconciled,
       ...(await reserveGrants({
@@ -280,12 +285,70 @@ function specJournalReanchorHandler({ name, input, context }) {
       });
 }
 
+// Grant branches own-branch-delete left (D7), for Needs you.
+const LEFT = "grantBranchesLeft";
+export const leftBranches = (store) => {
+  try {
+    return store.getMeta(LEFT) || [];
+  } catch {
+    return [];
+  }
+};
+const setLeftBranches = (store, rows) => store.setMeta(LEFT, rows);
+function addLeftBranches(store, rows = []) {
+  if (!rows?.length) return;
+  const have = leftBranches(store),
+    key = (row) => `${row.repository}|${row.branch}`,
+    known = new Set(have.map(key));
+  setLeftBranches(store, [
+    ...have,
+    ...rows.filter((row) => !known.has(key(row))),
+  ]);
+}
+export function leftBranchesNeedsYou(store) {
+  const rows = leftBranches(store);
+  if (!rows.length) return [];
+  return [
+    {
+      kind: "needs-human",
+      reason: "crew",
+      id: "grant-branches-left",
+      taskId: null,
+      authority: "github",
+      title: `${rows.length} grant branch${rows.length === 1 ? "" : "es"} Avoozl did not delete`,
+      detail: `Their heads moved since Avoozl made them, so they are not Avoozl's own to delete: ${rows.map((row) => `${row.repository} ${row.branch}`).join(", ")}.`,
+      actions: [...new Set(rows.map((row) => row.repository))].map(
+        (repository) => ({
+          label: "Delete branches",
+          operation: "spec.grants.branches.delete",
+          input: {
+            repository,
+            branches: rows
+              .filter((row) => row.repository === repository)
+              .map((row) => row.branch),
+          },
+          confirm: rows
+            .filter((row) => row.repository === repository)
+            .map((row) =>
+              confirmStep({
+                job: "branch-delete",
+                target: repository,
+                action: `Delete the branch ${row.branch}`,
+              }),
+            ),
+        }),
+      ),
+    },
+  ];
+}
+
 export const entries = [
   // The spec driver (§6.10). Status reads everywhere; moving the role or
   // changing this computer's settings is a person's, on the page or CLI.
   {
     name: "driver.status",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -296,6 +359,7 @@ export const entries = [
   {
     name: "driver.takeover.preview",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -306,6 +370,7 @@ export const entries = [
   {
     name: "driver.settings.update",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes this computer's driver settings."),
     handler({ input }) {
       const store = this.store;
@@ -320,6 +385,7 @@ export const entries = [
   {
     name: "driver.handoff",
     class: "protect",
+    github: "spec-issues",
     policy: person("Only a person hands off a spec's driver."),
     handler({ input }) {
       const store = this.store;
@@ -330,6 +396,7 @@ export const entries = [
   {
     name: "driver.away.decide",
     class: "protect",
+    github: "spec-issues",
     policy: person("Only a person decides an away task."),
     handler({ input }) {
       const store = this.store;
@@ -339,18 +406,21 @@ export const entries = [
   {
     name: "driver.takeover",
     class: "protect",
+    github: "spec-issues",
     policy: person("Only a person takes over a spec's driver."),
     handler: driverTakeoverHandler,
   },
   {
     name: "driver.forceTakeover",
     class: "protect",
+    github: "spec-issues",
     policy: person("Only a person takes over a spec's driver by force."),
     handler: driverTakeoverHandler,
   },
   {
     name: "mirror.adopt",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person applies mirror setup.", (input) =>
       Boolean(input?.confirm),
     ),
@@ -359,6 +429,7 @@ export const entries = [
   {
     name: "mirror.create",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person applies mirror setup.", (input) =>
       Boolean(input?.confirm),
     ),
@@ -367,12 +438,14 @@ export const entries = [
   {
     name: "mirror.forward",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person forwards a change to the public repository."),
     handler: mirrorForwardHandler,
   },
   {
     name: "mirror.forward.review",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person reviews a change before it is forwarded."),
     handler: mirrorForwardHandler,
   },
@@ -380,6 +453,7 @@ export const entries = [
   {
     name: "specpr.view",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("App page rendering only."),
     handler({}) {
       const store = this.store;
@@ -389,18 +463,21 @@ export const entries = [
   {
     name: "specpr.adopt",
     class: "protect",
+    github: "spec-branch",
     policy: person("Only a person presses Review as spec."),
     handler: specprAdoptHandler,
   },
   {
     name: "specpr.reject",
     class: "protect",
+    github: "spec-branch",
     policy: person("Only a person rejects a spec pull request."),
     handler: specprAdoptHandler,
   },
   {
     name: "specpr.requestChanges",
     class: "protect",
+    github: "spec-branch",
     policy: person("Only a person requests changes on a spec pull request."),
     handler: specprAdoptHandler,
   },
@@ -408,6 +485,7 @@ export const entries = [
   {
     name: "spec.publish",
     class: "execute",
+    github: "spec-issues",
     policy: person("Only a person publishes a spec issue."),
     async handler({ input, context }) {
       const store = this.store;
@@ -432,6 +510,7 @@ export const entries = [
   {
     name: "repository.setup",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person applies repository setup.", (input) =>
       Boolean(input?.confirm),
     ),
@@ -480,24 +559,67 @@ export const entries = [
   {
     name: "spec.offer",
     class: "execute",
+    github: "spec-issues",
     policy: person("Only a person offers a task to a worker."),
     handler: specOfferHandler,
   },
   {
     name: "spec.grants",
     class: "execute",
+    github: "worker-grants",
     policy: person("Only a person reserves worker accepts."),
     handler: specOfferHandler,
   },
   {
     name: "spec.grants.release",
     class: "execute",
+    github: "own-branch-delete",
     policy: person("Only a person releases a worker accept."),
     handler: specOfferHandler,
+  },
+  // Needs you's **Delete branches** (plugin-credentials §D7): grant
+  // branches own-branch-delete left, deleted as the high-risk branch-delete
+  // job after a person's Allow.
+  {
+    name: "spec.grants.branches.delete",
+    class: "protect",
+    github: "check-in",
+    policy: person("Only a person deletes branches."),
+    async handler({ input }) {
+      const left = leftBranches(this.store),
+        wanted = left.filter(
+          (row) =>
+            row.repository === input.repository &&
+            (input.branches ?? []).includes(row.branch),
+        ),
+        deleted = [],
+        skipped = [];
+      for (const row of wanted)
+        try {
+          await withJob("branch-delete", () =>
+            this.github.deleteBranch(row.repository, row.branch),
+          );
+          deleted.push(row.branch);
+        } catch (error) {
+          skipped.push({ branch: row.branch, reason: error.message });
+        }
+      setLeftBranches(
+        this.store,
+        left.filter(
+          (row) =>
+            !(
+              row.repository === input.repository &&
+              deleted.includes(row.branch)
+            ),
+        ),
+      );
+      return { deleted, skipped };
+    },
   },
   {
     name: "spec.grants.status",
     class: "execute",
+    github: "worker-grants",
     policy: person("Only a person reads worker accepts."),
     handler: specOfferHandler,
   },
@@ -505,6 +627,7 @@ export const entries = [
   {
     name: "spec.takeover",
     class: "execute",
+    github: "spec-issues",
     policy: person("Only a person takes over a spec."),
     handler({ input, context }) {
       const store = this.store;
@@ -525,12 +648,14 @@ export const entries = [
   {
     name: "spec.journal.reanchor",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person reanchors a spec journal."),
     handler: specJournalReanchorHandler,
   },
   {
     name: "spec.journal.resume",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person resumes a spec journal."),
     handler: specJournalReanchorHandler,
   },
@@ -538,6 +663,7 @@ export const entries = [
   {
     name: "planning.publish",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -548,6 +674,7 @@ export const entries = [
   {
     name: "planning.reconcile",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({}) {
       return this.reconcilePlanningPullRequests();

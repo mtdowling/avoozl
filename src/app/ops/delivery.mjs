@@ -52,6 +52,7 @@ export const entries = [
   {
     name: "remote.view",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
     ),
@@ -63,6 +64,7 @@ export const entries = [
   {
     name: "remote.status",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
     ),
@@ -75,6 +77,7 @@ export const entries = [
   {
     name: "remote.report",
     class: "execute",
+    github: "worker-grants",
     policy: notOnMcp(
       "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
     ),
@@ -87,6 +90,7 @@ export const entries = [
   {
     name: "worker.accept",
     class: "execute",
+    github: "worker-grants",
     policy: notOnMcp(
       "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
     ),
@@ -99,6 +103,7 @@ export const entries = [
   {
     name: "worker.setup",
     class: "execute",
+    github: "check-in",
     policy: notOnMcp(
       "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
     ),
@@ -113,6 +118,7 @@ export const entries = [
   {
     name: "worker.pull",
     class: "execute",
+    github: "worker-grants",
     policy: notOnMcp(
       "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
     ),
@@ -125,6 +131,7 @@ export const entries = [
   {
     name: "runner.next",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -139,6 +146,7 @@ export const entries = [
   {
     name: "runner.take",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person takes a task by hand."),
     async handler({ input, context }) {
       const store = this.store;
@@ -162,6 +170,7 @@ export const entries = [
   {
     name: "delivery.runner.release",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person lets the tick run this workspace."),
     handler({ input, context }) {
       if (context.caller || context.mcp)
@@ -179,6 +188,7 @@ export const entries = [
   {
     name: "providers.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -189,6 +199,7 @@ export const entries = [
   {
     name: "provider.switch.preview",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -200,6 +211,7 @@ export const entries = [
   {
     name: "provider.switch.dryRun",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person runs a model switch's dry run."),
     handler({ input }) {
       const store = this.store;
@@ -225,6 +237,7 @@ export const entries = [
   {
     name: "provider.switch",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person switches models."),
     handler({ input }) {
       const store = this.store;
@@ -235,6 +248,7 @@ export const entries = [
   {
     name: "provider.health.clear",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person undoes a provider mark."),
     handler({ input }) {
       const store = this.store;
@@ -245,6 +259,7 @@ export const entries = [
   {
     name: "providers.settings.update",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes provider settings."),
     handler({ input }) {
       const store = this.store;
@@ -255,6 +270,7 @@ export const entries = [
   {
     name: "delivery.integrate",
     class: "protect",
+    github: "land",
     policy: person("Only a person presses Integrate on a Ready to merge task."),
     handler({ input, context }) {
       const store = this.store;
@@ -273,6 +289,7 @@ export const entries = [
   {
     name: "delivery.settings.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       return this.settingsFile().readDeliverySettings();
@@ -282,6 +299,7 @@ export const entries = [
   {
     name: "delivery.settings.update",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes delivery settings."),
     handler({ input, context }) {
       if (context.caller || context.mcp)
@@ -298,6 +316,7 @@ export const entries = [
   {
     name: "verify.allow",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person lets a commit's protected paths land."),
     handler({ input, context }) {
       const store = this.store;
@@ -312,6 +331,7 @@ export const entries = [
   {
     name: "delivery.retry",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -326,6 +346,7 @@ export const entries = [
   {
     name: "notifications.deliver",
     class: "execute",
+    github: "check-in",
     policy: notOnMcp("The tick delivers notifications itself."),
     handler({}) {
       const store = this.store;
@@ -336,6 +357,7 @@ export const entries = [
   {
     name: "delivery.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -357,6 +379,7 @@ export const entries = [
   {
     name: "landing.queue",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -372,6 +395,7 @@ export const entries = [
   {
     name: "radar.releasequeue",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -385,6 +409,7 @@ export const entries = [
   {
     name: "integration.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -395,6 +420,7 @@ export const entries = [
   {
     name: "landing.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -405,6 +431,7 @@ export const entries = [
   {
     name: "integration.land",
     class: "execute",
+    github: "integration",
     policy: person("Only a person approves landing an integration branch."),
     handler({ input, context }) {
       const store = this.store;
@@ -423,6 +450,7 @@ export const entries = [
   {
     name: "radar.integrationbranch",
     class: "observe",
+    github: "check-in",
     policy: routed,
     async handler({ input }) {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
@@ -446,6 +474,7 @@ export const entries = [
   {
     name: "integration.merge",
     class: "protect",
+    github: "integration",
     policy: routed,
     handler({ input }) {
       const store = this.store;

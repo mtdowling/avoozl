@@ -33,6 +33,8 @@ export interface PluginRow {
   config?: Record<string, unknown>
   state: PluginState
   reason: string | null
+  // A credentials part's claim: the hosts and owners it signs Avoozl in to.
+  credentials?: { hosts: string[]; owners: string[] | null }
   approval?: { version: string; hash: string; commit?: string; approvedAt: string }
   health: PluginHealth | null
 }
@@ -40,6 +42,7 @@ export interface PluginRow {
 export interface PluginList {
   supportedContracts: number[]
   plugins: PluginRow[]
+  credentialsPick?: Record<string, string>
 }
 
 export interface PluginForm {
@@ -99,6 +102,7 @@ export interface PluginPreview {
   kinds?: string[]
   pack?: { description?: string; settings: Record<string, unknown> }
   capabilities?: Record<string, string[]>
+  credentials?: { hosts: string[]; owners: string[] | null }
   supported?: boolean
   // A git source: the commit its ref names now.
   commit?: string
@@ -145,8 +149,40 @@ export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
   rules: { title: 'Content rules', line: 'Rule sets supplied while Avoozl runs. The terms never go into Git.' },
   intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
   policy: { title: 'Machine policy', line: 'A limit this machine holds Avoozl to, such as no triage agent. Runs no code.' },
+  credentials: { title: 'GitHub sign-in', line: 'Hands Avoozl short-lived GitHub tokens, one per job, from a process of its own.' },
   // Still listed by older plugins; Avoozl reads nothing from it (RC30.4).
   lessons: { title: 'Lessons pack (removed)', line: 'Avoozl no longer reads lessons packs. Remove lessons from provides.' },
+}
+
+// What a credentials plugin claims (plugin-credentials PC2.3), one line per
+// host: "acme-github will sign Avoozl in to github.com for acme, acme-labs."
+export function signInClaims(row: { id: string | null; credentials?: { hosts: string[]; owners: string[] | null } }): string[] {
+  if (!row.credentials) return []
+  const owners = row.credentials.owners
+  return row.credentials.hosts.map(
+    (host) =>
+      `${row.id} will sign Avoozl in to ${host}${owners ? ` for ${owners.join(', ')}` : ''}. Every GitHub call Avoozl makes there${owners ? ' for them' : ''} will use its tokens.`,
+  )
+}
+
+// Hosts where two or more approved credentials plugins claim one owner
+// (PC2.5): each needs a pick, kept in this machine's plugins.json.
+export function signInClashes(rows: PluginRow[]): { host: string; plugins: string[] }[] {
+  const claiming = rows.filter((row) => row.credentials && row.source === 'machine' && row.state !== 'disabled' && row.approval)
+  const out: { host: string; plugins: string[] }[] = []
+  const hosts = new Set(claiming.flatMap((row) => row.credentials!.hosts))
+  for (const host of hosts) {
+    const here = claiming.filter((row) => row.credentials!.hosts.includes(host))
+    const overlap = here.filter((a) =>
+      here.some(
+        (b) =>
+          b !== a &&
+          (!a.credentials!.owners || !b.credentials!.owners || a.credentials!.owners.some((o) => b.credentials!.owners!.some((p) => p.toLowerCase() === o.toLowerCase()))),
+      ),
+    )
+    if (overlap.length > 1) out.push({ host, plugins: overlap.map((row) => row.id ?? '') })
+  }
+  return out
 }
 
 // A row's parts; a plugin from before `provides` has one part per kind.
@@ -318,6 +354,8 @@ export function pluginsClient(api: AppApi) {
     update: (workspaceId: string, id: string) => run<PluginRow>('plugin.update', { id }, workspaceId),
     disable: (workspaceId: string, id: string, disabled: boolean) => run<PluginRow>('plugin.disable', { id, disabled }, workspaceId),
     remove: (workspaceId: string, id: string) => run<{ id: string; removed: boolean }>('plugin.remove', { id }, workspaceId),
+    // Use this one: the credentials plugin that serves a host where two claim one owner.
+    pick: (workspaceId: string, host: string, id: string) => run<{ host: string; id: string }>('plugin.credentials.pick', { host, id }, workspaceId),
     // What importing the pack would change. Reads only.
     packPreview: (workspaceId: string, id: string) => run<PackPreview>('plugin.pack.preview', { id }, workspaceId),
     // A template's pack and flow defaults, as a pack (R61.6).

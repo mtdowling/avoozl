@@ -10,6 +10,7 @@ import { commitSubject } from "../landing/landing-config.mjs";
 import { integrationOf } from "./integration-branch.mjs";
 import { planManifest } from "../mirror/forward-epics.mjs";
 import { ruleBranch } from "../github/github-branch-rules.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const META = "integrationSync";
 const DAY = 24 * 60 * 60 * 1000;
@@ -137,7 +138,7 @@ export async function syncStep(
         continue;
       }
       try {
-        await github.mergeBranch(repository, {
+        await asJob("integration", github).mergeBranch(repository, {
           base: branch,
           head: base,
           message: commitSubject(

@@ -1,3 +1,4 @@
+import { asJob } from "../github-jobs.mjs";
 // Reading GitHub within its limits (triage-agent ta-2.1 to ta-2.3, TA10,
 // design §D7), with the real client over a fake GitHub that counts calls
 // by kind.
@@ -126,7 +127,7 @@ test("below the low mark with a landing read waiting, triage reads and starts no
   const low = setup(t, { remaining: 150 });
   low.fake.add(1);
   // The rate is known once any call has answered.
-  await low.github.currentUser();
+  await low.github.request("GET", "/user");
   assert.deepEqual(
     (({ read, start }) => ({ read, start }))(
       triageBudget(low.github, { othersWaiting: true }),
@@ -139,7 +140,7 @@ test("below the low mark with a landing read waiting, triage reads and starts no
     { read: true, start: false },
   );
   const high = setup(t, { remaining: 4000 });
-  await high.github.currentUser();
+  await high.github.request("GET", "/user");
   assert.deepEqual(
     (({ read, start }) => ({ read, start }))(
       triageBudget(high.github, { othersWaiting: true }),
@@ -159,7 +160,7 @@ test("triage's calls are counted by kind and match the fake's", async (t) => {
   await readChangedItems(w.store, counted, REPO);
   await readPullCounts(w.store, counted, REPO, [2]);
   await itemDetail(w.store, counted, REPO, 1);
-  await counted.createIssueComment(REPO, 1, "Hello");
+  await asJob("triage", counted).createIssueComment(REPO, 1, "Hello");
   const calls = triageCalls(w.store, now());
   assert.deepEqual(
     {
@@ -186,8 +187,8 @@ test("a write through the content-rules and driver guards is still counted", asy
       { now },
     );
   w.fake.add(1);
-  await counted.createIssueComment(REPO, 1, "Hello");
-  await counted.addLabels(REPO, 1, ["bug"]);
+  await asJob("triage", counted).createIssueComment(REPO, 1, "Hello");
+  await asJob("triage", counted).addLabels(REPO, 1, ["bug"]);
   assert.equal(triageCalls(w.store, now()).writes, 2);
   assert.equal(w.fake.calls.writes, 2);
 });

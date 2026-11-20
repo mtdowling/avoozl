@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // Repository files by git: a nupp-sized plans branch (41 specs) costs no REST
 // or GraphQL call with git, a few with the GraphQL fallback, and none when
 // the head has not moved. The old path's count is measured in the same test.
@@ -131,12 +135,15 @@ function setup(t) {
     server = api(repo),
     store = new Store(path.join(dir, "workspace.sqlite"));
   t.after(() => store.close());
-  const github = new GitHubClient({
-    token: "test-token",
-    apiUrl: "https://api.example.test",
-    gitUrl: repo.base,
-    fetch: server.fetch,
-  }).bind(store, { cacheSeconds: () => 0 });
+  const github = defaultJob(
+    "check-in",
+    new GitHubClient({
+      credentials: fixedCredentials("test-token"),
+      apiUrl: "https://api.example.test",
+      gitUrl: repo.base,
+      fetch: server.fetch,
+    }),
+  ).bind(store, { cacheSeconds: () => 0 });
   const gitCalls = () => {
     let n = 0;
     for (const row of Object.values(github.rate.usage))

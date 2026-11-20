@@ -11,7 +11,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { ConfirmCopy } from './ui/controls.tsx'
-import type { GitHubSettings, Policy, SetupInput, SetupResult } from './settings-api.ts'
+import { highRisk, type GitHubSettings, type Policy, type SetupInput, type SetupResult, type SetupWrite } from './settings-api.ts'
 import type { SpecList, SpecSummary } from './plans-api.ts'
 
 export type OnboardMode = 'local' | 'plans-repo' | 'single-repo'
@@ -267,7 +267,12 @@ export function onboardClient(api: AppApi) {
     specs: (w: string) => run<SpecList>(w, 'plan.specs'),
     scan: (w: string, specs: string[]) => run<ScanResult>(w, 'onboarding.scan', { specs }),
     // Writes: only from Set up and Import, after the person asks.
-    applyGitHub: (w: string, input: SetupInput, previewHash: string) => run<SetupResult>(w, 'github.setup', { ...input, confirm: true, previewHash }),
+    // The person's yes in the step before is the Allow for its high-risk writes (§D7).
+    applyGitHub: async (w: string, input: SetupInput, previewHash: string, writes: SetupWrite[] = []) => {
+      const steps = highRisk(writes),
+        allow = steps.length ? (await run<{ grants: string[] }>(w, 'github.job.confirm', { steps })).grants : []
+      return run<SetupResult>(w, 'github.setup', { ...input, confirm: true, previewHash, allow })
+    },
     saveSettings: (w: string, github: Policy, expectedHash: string | null) => run<GitHubSettings>(w, 'github.settings.update', { github, expectedHash }),
     register: (w: string, input: Record<string, unknown>) => run<{ id: string }>(w, 'repositories.configure', input),
     authors: (w: string, folder: string) => run<{ items: Author[] }>(w, 'onboarding.authors', { folder }),

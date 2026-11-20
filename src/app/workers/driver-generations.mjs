@@ -30,7 +30,7 @@
 // Private handoff (driver.mjs buildExport) is unchanged: sensitive controls
 // still travel there, never in this journal.
 import { randomBytes } from "node:crypto";
-import { git } from "../git/git.mjs";
+import { git, landingJob, remoteGit } from "../git/git.mjs";
 import { appendRecord, replayJournal } from "../specs/spec-journal.mjs";
 import { fail } from "../store/store.mjs";
 
@@ -355,18 +355,21 @@ export async function guardedFastForward(
     fail("The candidate does not build on the expected base.", 409);
   const environment = { ...(env ?? process.env), GIT_TERMINAL_PROMPT: "0" },
     remote = (
-      await git(root, ["ls-remote", "--heads", url, `refs/heads/${branch}`], {
-        env: environment,
-      })
+      await remoteGit(
+        root,
+        ["ls-remote", "--heads", url, `refs/heads/${branch}`],
+        {
+          env: environment,
+        },
+      )
     ).split(/\s+/)[0];
   if (remote !== base) return false;
   try {
-    await git(
+    await remoteGit(
       root,
       ["push", "--quiet", url, `${candidate}:refs/heads/${branch}`],
-      {
-        env: environment,
-      },
+      // A range that changes a workflow file lands as land-workflows (PC4.7).
+      { env: environment, job: await landingJob(root, base, candidate) },
     );
     return true;
   } catch {

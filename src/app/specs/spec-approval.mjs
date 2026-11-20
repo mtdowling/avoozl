@@ -22,6 +22,7 @@ import {
   specName,
 } from "./spec-plans.mjs";
 import { DEFAULT_SPECS_PATH, specsPathOf } from "./specs-path.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const key = (planId, hash) => `spec-approval:${planId}:${hash}`;
 
@@ -50,7 +51,7 @@ async function freshBranch(github, repository, spec, attempt, oid) {
   for (let tries = 0; ; tries += 1, attempt += 1) {
     const name = `avoozl/approve-${spec}${attempt > 1 ? `-${attempt}` : ""}`;
     try {
-      await github.createBranch(repository, name, oid);
+      await asJob("spec-branch", github).createBranch(repository, name, oid);
       return { name, attempt };
     } catch (error) {
       if (error.status !== 422 || tries >= 9) throw error;
@@ -187,21 +188,24 @@ export async function openApproval(
       head.oid,
     ),
     attempt = branch.attempt;
-  await github.commitFiles(repository, {
+  await asJob("spec-branch", github).commitFiles(repository, {
     branch: branch.name,
     message: `Approve spec ${spec}`,
     expectedHeadOid: head.oid,
     files: encoded(changes),
   });
-  const pull = await github.createPullRequest(repository, {
-      title: `Approve spec ${spec}`,
-      head: branch.name,
-      base,
-      body:
-        `Approves spec ${spec} as it stands. Its merge commit is the approval.` +
-        (specIssue ? `\n\nSpec issue: ${specIssue}` : "") +
-        delegationLine(delegation),
-    }),
+  const pull = await asJob("spec-branch", github).createPullRequest(
+      repository,
+      {
+        title: `Approve spec ${spec}`,
+        head: branch.name,
+        base,
+        body:
+          `Approves spec ${spec} as it stands. Its merge commit is the approval.` +
+          (specIssue ? `\n\nSpec issue: ${specIssue}` : "") +
+          delegationLine(delegation),
+      },
+    ),
     requested = await askReviewers(github, repository, pull.number, reviewers),
     state = {
       state: "open",
@@ -231,7 +235,11 @@ const delegationLine = (delegation) =>
 async function askReviewers(github, repository, number, reviewers) {
   if (!reviewers?.length || !github.requestReviewers) return [];
   try {
-    await github.requestReviewers(repository, number, reviewers);
+    await asJob("spec-branch", github).requestReviewers(
+      repository,
+      number,
+      reviewers,
+    );
     return [...reviewers];
   } catch {
     return [];
@@ -296,20 +304,23 @@ export async function openBatchApproval(
       1,
       head.oid,
     );
-  await github.commitFiles(repository, {
+  await asJob("spec-branch", github).commitFiles(repository, {
     branch: branch.name,
     message: `Approve ${names.length} specs`,
     expectedHeadOid: head.oid,
     files: encoded(Object.assign({}, ...fresh.map((part) => part.changes))),
   });
-  const pull = await github.createPullRequest(repository, {
-    title: `Approve ${names.length} specs`,
-    head: branch.name,
-    base,
-    body:
-      `Approves these specs as they stand. Its merge commit is their approval.\n\n${names.map((name) => `- ${name}`).join("\n")}` +
-      delegationLine(delegation),
-  });
+  const pull = await asJob("spec-branch", github).createPullRequest(
+    repository,
+    {
+      title: `Approve ${names.length} specs`,
+      head: branch.name,
+      base,
+      body:
+        `Approves these specs as they stand. Its merge commit is their approval.\n\n${names.map((name) => `- ${name}`).join("\n")}` +
+        delegationLine(delegation),
+    },
+  );
   const requested = await askReviewers(
     github,
     repository,

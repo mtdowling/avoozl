@@ -27,6 +27,12 @@ For a Kiro Crew chat this is a speed bump. The chat runs as you, with your
 files, your `gh` login and your network, so nothing stops a determined agent
 from writing the database or calling `gh` itself.
 
+`avoozl credential`, the git credential helper Avoozl hands its own git
+commands, refuses to answer inside an agent session or a supervisor child, and
+`--yes` for a high-risk GitHub step is refused there too. Both are speed
+bumps, not walls: code running as you can unset the markers. The sandbox is
+what keeps an agent from `plugins.json`, plugin folders and `gh`'s config.
+
 ## Approval delegation
 
 Approval delegation lets an agent approve in its own name. A person runs

@@ -43,6 +43,7 @@ export const entries = [
   {
     name: "run.start",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -72,6 +73,7 @@ export const entries = [
   {
     name: "session.bind",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -101,6 +103,7 @@ export const entries = [
   {
     name: "executor.kirocrew.take",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -129,6 +132,7 @@ export const entries = [
   {
     name: "executor.kirocrew.release",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -139,6 +143,7 @@ export const entries = [
   {
     name: "executor.kirocrew.complete",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -149,6 +154,7 @@ export const entries = [
   {
     name: "session.rediscover",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -159,6 +165,7 @@ export const entries = [
   {
     name: "session.request",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -169,6 +176,7 @@ export const entries = [
   {
     name: "session.status",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -180,6 +188,7 @@ export const entries = [
   {
     name: "session.send",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person sends a message to a process session."),
     handler({ input, context }) {
       const store = this.store;
@@ -197,6 +206,7 @@ export const entries = [
   {
     name: "session.open",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person opens a session, in the Avoozl page."),
     handler({ input, context }) {
       const store = this.store;
@@ -214,6 +224,7 @@ export const entries = [
   {
     name: "session.view",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "The standalone page's process view of a session it opened; agents have the worker tools.",
     ),
@@ -229,6 +240,7 @@ export const entries = [
   {
     name: "reply.post",
     class: "execute",
+    github: "page-actions",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -240,6 +252,7 @@ export const entries = [
   {
     name: "session.report",
     class: "execute",
+    github: "check-in",
     policy: routed,
     async handler({ input, context }) {
       const store = this.store;
@@ -283,6 +296,7 @@ export const entries = [
   {
     name: "worktree.prepare",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -294,6 +308,7 @@ export const entries = [
   {
     name: "review.chat.show",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "A person reads a stored pull request review with avoozl show.",
     ),
@@ -306,6 +321,7 @@ export const entries = [
   {
     name: "review.chat",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person starts a code review chat."),
     handler({ input, context }) {
       const store = this.store;

@@ -46,11 +46,15 @@ Ask what the team needs, then list only those parts in `provides`:
 | Terms Avoozl must never write                                                                                   | `rules`    |
 | Outside work brought in on each tick                                                                            | `intake`   |
 | A repeated kind of work started the same way each time, as folders under `templates/`                           | `template` |
+| GitHub sign-in through the organization's own short-lived tokens, per job                                        | `credentials` |
 | A limit on the machines that approve it: `"policy": {"triage": "blocked", "reason": "..."}` blocks the triage agent | `policy`   |
 
 A plugin with only `pack`, `template` or `policy` has no `entry` and runs no
 code. A `policy` part counts only when the plugin is declared in the
 machine's `plugins.json`, never in `.avoozl.json`.
+
+A `credentials` part runs from its own `credentials.entry`, in a child of
+its own; see **Credentials** below.
 
 The code kinds are `intake` and `rules`. A manifest written
 before `provides` lists `kinds` instead; with `provides`, leave `kinds` out,
@@ -96,6 +100,18 @@ or make it match.
    (`"manual": true`, no checks; it completes by a person). Copy the
    `sdk-templates` sample (`src/app/test/fixtures/plugins/sdk-templates/`)
    and its proof (`src/app/test/proof-p37.test.mjs`).
+
+## Credentials
+
+A `credentials` part hands Avoozl a GitHub token per job. The manifest holds
+`"credentials": {"entry": "token.mjs", "hosts": ["github.com"], "owners": ["acme"]}`;
+`owners` is optional (1 to 100 owners; without it every owner on the host).
+The entry exports `credentials.token({repository, owner, permissions, purpose}, {config})`
+and returns `{token, expiresAt, login, granted, person?}`. Throw to refuse a
+job. Declare it on **This computer only**: a `.avoozl.json` entry for it is
+invalid. An owner it claims never falls back to `gh`. Copy the fake
+provider in `docs/plugins.md` (Credentials part), with neutral names such as
+`acme-github` and `acme-bot[bot]`.
 
 ## Where it comes from
 

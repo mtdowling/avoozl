@@ -177,10 +177,93 @@ const rulesReplies = {
   },
 };
 
-export function checkReply(kind, method, reply) {
+export function checkReply(kind, method, reply, asked) {
   const check = (
-    kind === "intake" ? intakeReplies : kind === "rules" ? rulesReplies : null
+    kind === "intake"
+      ? intakeReplies
+      : kind === "rules"
+        ? rulesReplies
+        : kind === "credentials"
+          ? credentialsReplies
+          : null
   )?.[method];
   if (!check) throw new ContractError(`Unknown ${kind} call ${method}.`);
-  return check(reply);
+  return check(reply, asked);
 }
+
+// Credentials kind (plugin-credentials §D5): one call, token. `asked` is the
+// permission set Avoozl asked for. A token is never put in an error.
+const LEVELS = { read: 1, write: 2, admin: 3 };
+const LOGIN = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/;
+export const credentialsReplies = {
+  token(reply, asked = {}) {
+    object(reply, "token reply");
+    for (const key of Object.keys(reply))
+      if (!["token", "expiresAt", "login", "person", "granted"].includes(key))
+        throw new ContractError(`token reply ${key} is not a reply field.`);
+    if (
+      typeof reply.token !== "string" ||
+      !/^[A-Za-z0-9_.~+/=-]{1,8192}$/.test(reply.token)
+    )
+      throw new ContractError(
+        "token reply token must be 1 to 8,192 characters of letters, digits and _ . ~ + / = -.",
+      );
+    let expiresAt = null;
+    if (reply.expiresAt !== null) {
+      const at =
+          typeof reply.expiresAt === "string"
+            ? Date.parse(reply.expiresAt)
+            : NaN,
+        now = Date.now();
+      if (!(at > now + 60_000 && at <= now + 24 * 3600_000))
+        throw new ContractError(
+          "token reply expiresAt must be null or a time 1 minute to 24 hours from now.",
+        );
+      expiresAt = new Date(at).toISOString();
+    }
+    const login = String(reply.login ?? "");
+    if (!LOGIN.test(login.replace(/\[bot\]$/, "")))
+      throw new ContractError("token reply login must be a GitHub login.");
+    if (
+      reply.person !== undefined &&
+      (typeof reply.person !== "string" || !LOGIN.test(reply.person))
+    )
+      throw new ContractError(
+        "token reply person must be a GitHub login of a person.",
+      );
+    const granted = reply.granted;
+    if (
+      granted !== "all" &&
+      (!granted ||
+        typeof granted !== "object" ||
+        Array.isArray(granted) ||
+        Object.entries(granted).some(
+          ([name, level]) => !/^[a-z_]{1,64}$/.test(name) || !LEVELS[level],
+        ))
+    )
+      throw new ContractError(
+        'token reply granted must be "all" or a permission set.',
+      );
+    const missing = Object.entries(asked).filter(
+      ([name, level]) =>
+        granted !== "all" && !(LEVELS[granted[name]] >= LEVELS[level]),
+    );
+    if (missing.length)
+      throw new ContractError(
+        `granted ${missing.map(([name]) => `${name}: ${granted[name] || "none"}`).join(", ")}; the job needs ${missing.map(([name, level]) => `${name}: ${level}`).join(", ")}.`,
+      );
+    const broader =
+      granted === "all" ||
+      Object.entries(granted).some(
+        ([name, level]) => !(LEVELS[asked[name]] >= LEVELS[level]),
+      );
+    return {
+      token: reply.token,
+      expiresAt,
+      login,
+      person: reply.person ?? null,
+      granted,
+      broader,
+    };
+  },
+};

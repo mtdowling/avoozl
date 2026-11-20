@@ -1,0 +1,11 @@
+{
+  "id": "acme-github",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": ["credentials"],
+  "credentials": {
+    "entry": "token.mjs",
+    "hosts": ["github.com"],
+    "owners": ["acme"]
+  }
+}

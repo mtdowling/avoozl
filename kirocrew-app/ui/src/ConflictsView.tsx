@@ -57,6 +57,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { permissionsLine } from './settings-api.ts'
 import { PlainButton, PlainLink } from './ui/Plain'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
@@ -152,6 +153,50 @@ export function ConflictActions(props: {
           >
             Let the tick run it
           </DangerBtn>
+        </Row>
+      )}
+      {item.kind === 'needs-human' && (item.actions ?? []).length > 0 && (
+        <Row gap={2} data-needs-actions>
+          {(item.actions ?? []).map((act) =>
+            act.confirm?.length ? (
+              <DangerBtn
+                key={act.label + JSON.stringify(act.input)}
+                icon={Check}
+                tooltip="Shows the GitHub permissions it asks for first"
+                disabled={busy}
+                confirm={{
+                  title: `${act.label}?`,
+                  body: act.confirm.map((step) => `${step.action ?? step.job}: ${permissionsLine(step)}.`).join(' '),
+                  action: 'Allow',
+                }}
+                onConfirm={() =>
+                  run(async () => {
+                    await views.needsYouAction(workspaceId, act)
+                    props.onReload?.()
+                    return { ok: true, text: `${act.label}: done.` }
+                  })
+                }
+              >
+                {act.label}
+              </DangerBtn>
+            ) : (
+              <TipBtn
+                key={act.label + JSON.stringify(act.input)}
+                tooltip={act.label}
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    await views.needsYouAction(workspaceId, act)
+                    props.onReload?.()
+                    return { ok: true, text: `${act.label}: done.` }
+                  })
+                }
+              >
+                {act.label}
+                {typeof act.input.id === 'string' ? `: ${act.input.id}` : ''}
+              </TipBtn>
+            ),
+          )}
         </Row>
       )}
       {item.kind === 'branch-landing' && item.repository && item.branch && item.head && (

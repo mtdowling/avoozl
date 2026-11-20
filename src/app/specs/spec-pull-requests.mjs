@@ -25,6 +25,7 @@ import {
 } from "./spec-plans.mjs";
 import { workingBranch } from "../workers/working-heads.mjs";
 import { fail } from "../store/store.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 import { DEFAULT_SPECS_PATH, specsPathOf } from "./specs-path.mjs";
 
 const SPEC_PULL_KIND = "spec-pr";
@@ -552,12 +553,14 @@ export async function rejectPull(store, github, { id, reason }) {
     fail("That spec pull request is not open here.", 404);
   const text = String(reason ?? "").trim();
   if (!text) fail("Say why the pull request is rejected.", 400);
-  await github.createIssueComment(
+  await asJob("spec-branch", github).createIssueComment(
     pull.repository,
     pull.number,
     `Rejected in Avoozl: ${text}`,
   );
-  await github.updateIssue(pull.repository, pull.number, { state: "closed" });
+  await asJob("spec-branch", github).updateIssue(pull.repository, pull.number, {
+    state: "closed",
+  });
   store.put("receipts", {
     ...pull,
     state: "closed",
@@ -584,7 +587,7 @@ export async function requestChanges(store, github, { id }) {
     (finding) =>
       `- ${finding.severity ?? "info"}${finding.file ? ` (${finding.file}${finding.line ? `:${finding.line}` : ""})` : ""}: ${finding.statement}`,
   );
-  await github.createIssueComment(
+  await asJob("spec-branch", github).createIssueComment(
     pull.repository,
     pull.number,
     `Changes requested on ${pull.spec} at ${pull.head.slice(0, 7)}:\n\n${lines.join("\n")}`,

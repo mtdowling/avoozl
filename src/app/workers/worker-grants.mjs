@@ -30,6 +30,7 @@ import {
 import { fail } from "../store/store.mjs";
 import { workerId } from "./worker-offers.mjs";
 import { fetchExact, sourceRegistry } from "./working-heads.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const REQUEST = /<!-- avoozl-grant-request:v1 (\{.*?\}) -->/s;
 const SPEC = /^[a-z0-9][a-z0-9-]{0,79}$/;
@@ -166,7 +167,11 @@ export async function reserveGrants({
     head ??= (await github.branch(grants, base))?.commit?.sha;
     if (!head) fail(`Cannot read ${base} in ${grants}.`, 502);
     try {
-      await github.createBranch(grants, grantBranch(spec, request.task), head);
+      await asJob("worker-grants", github).createBranch(
+        grants,
+        grantBranch(spec, request.task),
+        head,
+      );
     } catch (error) {
       if (error.status !== 422) throw error;
       // Someone else's reservation holds the name.
@@ -182,6 +187,9 @@ export async function reserveGrants({
         driver,
         worker,
         tasks: [{ task: request.task, definition: request.definition }],
+        // The commit the grant branch was made at: only a branch still
+        // there is Avoozl's own to delete (own-branch-delete, §D6).
+        base: head,
       },
       options,
     );
@@ -212,7 +220,7 @@ export async function requestGrants(store, { pools, github }) {
     const key = `${offer.spec}:${offer.task}:${offer.generation}`,
       pool = pools.find((candidate) => candidate.spec === offer.spec);
     if (asked[key] || !pool) continue;
-    const comment = await github.createIssueComment(
+    const comment = await asJob("worker-grants", github).createIssueComment(
       pool.repository,
       pool.issue,
       requestBody(offer),

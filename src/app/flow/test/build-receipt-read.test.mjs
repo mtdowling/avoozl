@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // R101.1, R101.2, R101.5, R101.6 on a fake GitHub: every artifact and line of
 // a merged pull request is kept, a repeat costs no call, none is remembered,
 // and Flow and Trace show what was stored.
@@ -490,11 +494,14 @@ test("the artifact list is one unfiltered cached read; a 304 reads nothing more"
       { status: 200, headers: { etag } },
     );
   };
-  const client = new GitHubClient({
-    token: "x",
-    apiUrl: "https://api.example.test",
-    fetch,
-  }).bind(store, { now: () => clock, cacheSeconds: () => 60 });
+  const client = defaultJob(
+    "ci-receipts",
+    new GitHubClient({
+      credentials: fixedCredentials("x"),
+      apiUrl: "https://api.example.test",
+      fetch,
+    }),
+  ).bind(store, { now: () => clock, cacheSeconds: () => 60 });
   const first = await client.listArtifacts(REPO);
   assert.equal(first[0].workflow_run.head_sha, "sha51");
   assert.doesNotMatch(seen[0].url, /name=/);

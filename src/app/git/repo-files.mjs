@@ -13,6 +13,7 @@ import { execFile } from "node:child_process";
 import { chmodSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { parseRepository } from "../github/github.mjs";
+import { remoteGitSetup } from "./git.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;
 // A branch name safe to put in a ref path and an argument list.
@@ -72,20 +73,21 @@ export class RepoFiles {
     });
   }
 
-  async #env(repository) {
-    const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-      url = this.github.gitRemote(repository);
-    // The same token the API calls use, sent only to an https host and kept
-    // out of the argument list.
-    if (url.startsWith("https://")) {
-      const header = await this.github.gitHeader?.();
-      if (header) {
-        env.GIT_CONFIG_COUNT = "1";
-        env.GIT_CONFIG_KEY_0 = `http.${new URL(url).origin}/.extraheader`;
-        env.GIT_CONFIG_VALUE_0 = header;
-      }
-    }
-    return { env, url };
+  // A network git command for `repository`, signed in through Avoozl's
+  // credential helper (§D9): the token never sits in git's environment.
+  #remote(repository) {
+    const url = this.github.gitRemote(repository);
+    return {
+      url,
+      run: (full, options = {}) => {
+        const setup = remoteGitSetup(this.root, full(url), {
+          repository: `${repository.owner}/${repository.repo}`,
+          remote: url,
+          env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+        });
+        return this.#run(setup.args, { ...options, env: setup.env });
+      },
+    };
   }
 
   async #cacheDir(repository) {
@@ -121,10 +123,11 @@ export class RepoFiles {
       typeof value === "string" ? parseRepository(value) : value;
     if (this.#gitReady(repository) && safeBranch(branch))
       try {
-        const { env, url } = await this.#env(repository),
-          out = await this.#run(["ls-remote", url, `refs/heads/${branch}`], {
-            env,
-          });
+        const out = await this.#remote(repository).run((url) => [
+          "ls-remote",
+          url,
+          `refs/heads/${branch}`,
+        ]);
         this.github.countGit?.();
         const sha = out.toString("utf8").split(/\s/)[0];
         return SHA.test(sha) ? sha : null;
@@ -170,7 +173,7 @@ export class RepoFiles {
   async #viaGit(repository, ref, sha, { prefix, paths, want, text }) {
     const dir = await this.#cacheDir(repository),
       git = (args, options) => this.#run(["--git-dir", dir, ...args], options),
-      { env, url } = await this.#env(repository);
+      remote = this.#remote(repository);
     let have = true;
     try {
       await git(["cat-file", "-e", `${sha}^{commit}`]);
@@ -183,18 +186,17 @@ export class RepoFiles {
         : `refs/avoozl/heads/${ref}`;
       // A folder read wants every file under it; a few named files are read
       // lazily, so the rest of a large repository is never downloaded.
-      await git(
-        [
-          "fetch",
-          "-q",
-          "--no-tags",
-          "--depth=1",
-          ...(paths ? ["--filter=blob:none"] : []),
-          url,
-          `+${sha}:${refname}`,
-        ],
-        { env },
-      );
+      await remote.run((url) => [
+        "--git-dir",
+        dir,
+        "fetch",
+        "-q",
+        "--no-tags",
+        "--depth=1",
+        ...(paths ? ["--filter=blob:none"] : []),
+        url,
+        `+${sha}:${refname}`,
+      ]);
       this.github.countGit?.();
     }
     const listing = (
@@ -202,7 +204,6 @@ export class RepoFiles {
         paths
           ? ["ls-tree", "-z", sha, "--", ...paths]
           : ["ls-tree", "-r", "-z", sha, "--", prefix],
-        { env },
       )
     )
       .toString("utf8")
@@ -218,10 +219,11 @@ export class RepoFiles {
     const files = new Map();
     const entries = [...blobs].filter(([file]) => text(file));
     if (entries.length) {
-      const out = await git(["cat-file", "--batch"], {
-        env,
-        input: entries.map(([, id]) => id).join("\n") + "\n",
-      });
+      // A partial clone fetches the named blobs here, signed in the same way.
+      const out = await remote.run(
+        () => ["--git-dir", dir, "cat-file", "--batch"],
+        { input: entries.map(([, id]) => id).join("\n") + "\n" },
+      );
       let at = 0;
       for (const [file] of entries) {
         const end = out.indexOf(10, at),

@@ -17,6 +17,7 @@ import { queueNotifications } from "../tick/notifications.mjs";
 import { appendRecord, replayJournal } from "../specs/spec-journal.mjs";
 import { fail } from "../store/store.mjs";
 import { grantBranch, grantOp } from "./worker-grants.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const COMPLETING = new Set(["landed", "done", "skipped"]);
 const UNITS = { m: 60_000, h: 3_600_000, d: 86_400_000 };
@@ -76,6 +77,24 @@ async function read(journal, options) {
   );
 }
 
+// Deletes a grant branch only when it is Avoozl's own (own-branch-delete,
+// §D6, PC13.1): under the grant prefix, and its head still the commit the
+// grant was made at. Any other branch is left for a person. True when the
+// branch is gone.
+export async function deleteOwnBranch(github, repository, branch, grant) {
+  if (!/^avoozl\/[^/]+\/grant\/[^/]+$/.test(branch)) return false;
+  let head = null;
+  try {
+    head = (await github.branch(repository, branch))?.commit?.sha ?? null;
+  } catch (error) {
+    if (error.status !== 404) throw error;
+  }
+  if (!head) return true;
+  if (!grant?.base || head !== grant.base) return false;
+  await asJob("own-branch-delete", github).deleteBranch(repository, branch);
+  return true;
+}
+
 // After a takeover, or when a result was accepted: carry an unfinished grant
 // into the current generation for the same worker, and settle a finished one
 // (delete its grant branch and write the release). Never touches another
@@ -94,11 +113,19 @@ export async function reconcileGrants({
   if (!check.ok)
     return { ok: false, reason: check.reason, carried: [], settled: [] };
   const state = check.state,
-    result = { ok: true, carried: [], settled: [] };
+    // `left`: grant branches that are not Avoozl's own to delete; a
+    // person deletes them with Delete branches (branch-delete).
+    result = { ok: true, carried: [], settled: [], left: [] };
   for (const grant of [...state.grants]) {
     const [{ task, definition }] = grant.tasks;
     if (completed(state, grant)) {
-      await github.deleteBranch(grants, grantBranch(spec, task));
+      if (
+        !(await deleteOwnBranch(github, grants, grantBranch(spec, task), grant))
+      )
+        result.left.push({
+          repository: grants,
+          branch: grantBranch(spec, task),
+        });
       await appendRecord(
         journal,
         {
@@ -157,7 +184,12 @@ export async function releaseGrant({
   const state = check.state,
     grant = state.grants.find((c) => c.tasks[0].task === task);
   if (!grant) fail(`Task ${task} has no active grant.`, 404);
-  await github.deleteBranch(grants, grantBranch(spec, task));
+  const left = !(await deleteOwnBranch(
+    github,
+    grants,
+    grantBranch(spec, task),
+    grant,
+  ));
   const written = await appendRecord(
     journal,
     {
@@ -171,7 +203,14 @@ export async function releaseGrant({
     },
     options,
   );
-  return { task, worker: grant.worker, record: written.id };
+  return {
+    task,
+    worker: grant.worker,
+    record: written.id,
+    ...(left
+      ? { left: [{ repository: grants, branch: grantBranch(spec, task) }] }
+      : {}),
+  };
 }
 
 // Needs you rows for stale grants. The text has no age, so the same grant

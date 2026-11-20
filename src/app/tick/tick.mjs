@@ -141,6 +141,7 @@ import {
 const attemptsFor = (config) => (repository) =>
   landingSettings(config || {}, repository.github, repository).maxAttempts;
 import { noteTickRun } from "./tick-activity.mjs";
+import { withJob } from "../github/github-jobs.mjs";
 
 // The colon keeps this lock out of every configured repository's namespace.
 // GitHub projection takes it too, so one workspace has one writer at a time.
@@ -554,11 +555,13 @@ function plansOf(store, taskIds) {
   return plans;
 }
 
-// Runs a step with its GitHub calls counted under `source`.
+// Runs a step with its GitHub calls counted under `source`, as the GitHub
+// job `job` (plugin-credentials §D6). The tick holds no grant, so a
+// high-risk job fails here as person-only (PC8.4).
 const under =
-  (source, step) =>
+  (source, job, step) =>
   (...args) =>
-    withSource(source, () => step(...args));
+    withSource(source, () => withJob(job, () => step(...args), []));
 
 async function runTick(
   store,
@@ -601,7 +604,13 @@ async function runTick(
       // so a spec driven elsewhere is read-only for this whole tick.
       // Its own plan-issue writes (claim, heartbeat, epic link) are the
       // lock itself, so it holds the unguarded client.
-      notify.push(...(await driverStep(store, live, { script })).notify);
+      notify.push(
+        ...(
+          await under("tick", "spec-issues", driverStep)(store, live, {
+            script,
+          })
+        ).notify,
+      );
       // Observe first: statuses the script read land before any planning.
       if (roster) {
         const bound = new Set(listSessionBindings(store).map((b) => b.slot));
@@ -666,7 +675,11 @@ async function runTick(
           // A conflict at integration goes back to the worker chat.
           planned.messages.push(...(integrated.messages ?? []));
           // `pr` repositories land through pull requests (task 42.6).
-          const landed = await landPullRequests(store, {
+          const landed = await under(
+            "tick",
+            "land",
+            landPullRequests,
+          )(store, {
             github,
             workspaceRoot,
             rounds: attemptsFor(memory.value),
@@ -674,7 +687,11 @@ async function runTick(
           planned.notify.push(...landed.notify);
           planned.messages.push(...landed.messages);
           // `direct` repositories push to their remote from the tick (41.9).
-          const pushed = await landDirect(store, {
+          const pushed = await under(
+            "tick",
+            "land",
+            landDirect,
+          )(store, {
             github,
             workspaceRoot,
             rounds: attemptsFor(memory.value),
@@ -716,27 +733,44 @@ async function runTick(
             ...step.errors,
             ...(await publishInstanceStep(store, github, { policy })).errors,
             ...(
-              await under("forward", mirrorForwardStep)(store, github, {
-                policy,
-                publicBranches,
-              })
+              await under("forward", "check-in", mirrorForwardStep)(
+                store,
+                github,
+                {
+                  policy,
+                  publicBranches,
+                },
+              )
             ).errors,
             ...(await mirrorBatchStep(store, github, { policy })).errors,
             ...(
-              await under("forward", mirrorForwardRunStep)(store, github, {
-                policy,
-                files: new RepoFiles({
-                  github,
-                  root: workspaceRoot
-                    ? path.join(workspaceRoot, ".avoozl", "local", "git-cache")
-                    : null,
-                }),
-              })
+              await under("forward", "check-in", mirrorForwardRunStep)(
+                store,
+                github,
+                {
+                  policy,
+                  files: new RepoFiles({
+                    github,
+                    root: workspaceRoot
+                      ? path.join(
+                          workspaceRoot,
+                          ".avoozl",
+                          "local",
+                          "git-cache",
+                        )
+                      : null,
+                  }),
+                },
+              )
             ).errors,
             ...(
-              await under("forward", mirrorPublicPollStep)(store, github, {
-                policy,
-              })
+              await under("forward", "check-in", mirrorPublicPollStep)(
+                store,
+                github,
+                {
+                  policy,
+                },
+              )
             ).errors,
             ...(await mirrorForwardAuditStep(store, github, { policy })).errors,
             ...(await publicBranchStep(store, github, { policy })).errors,
@@ -767,10 +801,15 @@ async function runTick(
                   store.get("github_repositories", target.repository)
                     ?.activeMachine === machine,
               ),
-              step = await syncStep(store, github, mine, {
-                policy,
-                problems: found.problems,
-              });
+              step = await under("tick", "integration", syncStep)(
+                store,
+                github,
+                mine,
+                {
+                  policy,
+                  problems: found.problems,
+                },
+              );
             planned.notify.push(...step.notify);
             for (const text of step.errors)
               planned.notify.push({
@@ -781,8 +820,16 @@ async function runTick(
             // The branch head's checks, acceptance for it, and the stop that
             // holds the epic's line while it is red or the sync conflicts
             // (RC16.3, RC16.7).
-            for (const text of (await headStep(store, github, mine, { policy }))
-              .errors)
+            for (const text of (
+              await under("tick", "integration", headStep)(
+                store,
+                github,
+                mine,
+                {
+                  policy,
+                },
+              )
+            ).errors)
               planned.notify.push({
                 channel: "failure",
                 title: "Avoozl could not read an integration branch head",
@@ -800,7 +847,7 @@ async function runTick(
       // repository per interval, for spec pull requests and closed inputs.
       if (script && github)
         try {
-          await refreshOpenItems(
+          await under("tick", "check-in", refreshOpenItems)(
             store,
             github,
             readGitHubPolicyOrNull(workspaceRoot),
@@ -817,7 +864,7 @@ async function runTick(
       let triage = { dispatch: [], notify: [] };
       if (script && github)
         try {
-          triage = await under("triage", triageStep)(store, github, {
+          triage = await under("triage", "triage", triageStep)(store, github, {
             policy: readGitHubPolicyOrNull(workspaceRoot),
             config: memory.value || {},
             workspaceRoot,
@@ -837,14 +884,18 @@ async function runTick(
           const policy = readGitHubPolicy(workspaceRoot);
           planned.notify.push(
             ...(
-              await evidenceCommentStep(store, github, {
-                leak: (text) =>
-                  policy.mode === "plans-repo" &&
-                  findPlanningLeak(
-                    [["evidence", text]],
-                    policy.planningRepository,
-                  ),
-              })
+              await under("tick", "evidence", evidenceCommentStep)(
+                store,
+                github,
+                {
+                  leak: (text) =>
+                    policy.mode === "plans-repo" &&
+                    findPlanningLeak(
+                      [["evidence", text]],
+                      policy.planningRepository,
+                    ),
+                },
+              )
             ).notify,
           );
         } catch (error) {
@@ -857,10 +908,14 @@ async function runTick(
       // CI per pull request for the retro (§4.30).
       if (script)
         try {
-          const step = await ciStep(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-            config: ciConfig,
-          });
+          const step = await under("tick", "ci-receipts", ciStep)(
+            store,
+            github,
+            {
+              policy: readGitHubPolicyOrNull(workspaceRoot),
+              config: ciConfig,
+            },
+          );
           for (const { repository, error } of step.errors)
             planned.notify.push({
               channel: "failure",
@@ -906,10 +961,15 @@ async function runTick(
       if (script && github)
         try {
           responders = (
-            await respondStep(store, github, workspaceRoot, {
-              open: !unobserved.length,
-              config: memory.value || {},
-            })
+            await under("tick", "respond", respondStep)(
+              store,
+              github,
+              workspaceRoot,
+              {
+                open: !unobserved.length,
+                config: memory.value || {},
+              },
+            )
           ).dispatch;
         } catch (error) {
           planned.notify.push({
@@ -1187,7 +1247,12 @@ async function runTick(
   }
 }
 
+// Every other GitHub read of the tick runs as check-in.
 export const tick = (store, options) =>
   withSource("tick", () =>
-    withGitHubReadSnapshots(() => runTick(store, options)),
+    withJob(
+      "check-in",
+      () => withGitHubReadSnapshots(() => runTick(store, options)),
+      [],
+    ),
   );

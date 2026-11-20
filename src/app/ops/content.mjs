@@ -38,6 +38,7 @@ export const entries = [
   {
     name: "content.rules",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -57,18 +58,21 @@ export const entries = [
   {
     name: "content.terms.get",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person reads content-rule terms."),
     handler: contentTermsGetHandler,
   },
   {
     name: "content.terms.update",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person edits content-rule terms."),
     handler: contentTermsGetHandler,
   },
   {
     name: "content.sets.update",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person edits content-rule sets."),
     handler: contentTermsGetHandler,
   },
@@ -76,6 +80,7 @@ export const entries = [
   {
     name: "content.allow",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person allows a blocked write once."),
     handler({ input, context }) {
       const store = this.store;
@@ -89,6 +94,7 @@ export const entries = [
   {
     name: "content.show",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person reads a matched line."),
     handler({ input, context }) {
       const store = this.store;
@@ -105,6 +111,7 @@ export const entries = [
   {
     name: "content.check",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       return this.contentCheck(input, context);

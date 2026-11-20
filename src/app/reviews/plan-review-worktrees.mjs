@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { digest } from "../../model.mjs";
-import { git, withWorkLock } from "../git/git.mjs";
+import { git, remoteGit, withWorkLock } from "../git/git.mjs";
 import { revisionFiles, specFacts, specName } from "../specs/spec-plans.mjs";
 import { specsPath } from "../specs/specs-path.mjs";
 import { fail } from "../store/store.mjs";
@@ -76,7 +76,7 @@ export async function preparePlanReviewWorktrees(
           kind: "review",
         },
         async () => {
-          const remote = await git(checkout.root, [
+          const remote = await remoteGit(checkout.root, [
               "ls-remote",
               "--symref",
               "origin",
@@ -85,7 +85,7 @@ export async function preparePlanReviewWorktrees(
             branch = /^ref: refs\/heads\/(.+)\s+HEAD$/m.exec(remote)?.[1];
           if (!branch || branch.startsWith("-"))
             fail(`Cannot read the default branch of ${repository}.`, 409);
-          await git(checkout.root, [
+          await remoteGit(checkout.root, [
             "fetch",
             "--no-tags",
             "origin",

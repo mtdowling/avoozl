@@ -8,6 +8,7 @@
 // is ignored. Each judged head is remembered, so a head is judged once.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { remoteGit } from "../git/git.mjs";
 import { declaredArgv } from "../delivery/check-runs.mjs";
 import { driverState } from "./driver-generations.mjs";
 import { replayJournal } from "../specs/spec-journal.mjs";
@@ -27,8 +28,8 @@ const COMPLETING = new Set(["landed", "done", "skipped"]);
 // The head of `branch` on a registered repository, or null. Reads only.
 export async function remoteHead(registry, repository, branch) {
   try {
-    const { stdout } = await run(
-      "git",
+    const stdout = await remoteGit(
+      process.cwd(),
       ["ls-remote", registry.get(repository).url, `refs/heads/${branch}`],
       { env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } },
     );

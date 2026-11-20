@@ -13,6 +13,7 @@ import { normalizeGitHubPolicy } from "./github-policy.mjs";
 import { parseRepository } from "./github.mjs";
 import { withoutDerivedKeys } from "../workspace/repository-roles.mjs";
 import { fail } from "../store/store.mjs";
+import { confirmStep, withJob } from "./github-jobs.mjs";
 
 const SCOPES = ["repo", "read:org"];
 // A classic scope that includes another (GitHub's scope hierarchy).
@@ -162,8 +163,17 @@ function buildPlan(github, request, state) {
   const note = (step, text) => steps[step].notes.push(text);
   const block = (step, status, reason, fix = null) =>
     Object.assign(steps[step], { status, reason, fix });
-  const write = (step, description, run, after = []) =>
-    writes.push({ step, ...description, after, run });
+  // Each write is a high-risk job (plugin-credentials PC13.3): its
+  // description names the job and the exact permissions the confirm shows,
+  // and it runs only under the grant that confirm made.
+  const write = (step, { job, target, ...description }, run, after = []) =>
+    writes.push({
+      step,
+      ...confirmStep({ job, target, action: description.detail }),
+      ...description,
+      after,
+      run: () => withJob(job, run),
+    });
 
   // 1 Token.
   if (state.tokenError) {
@@ -211,6 +221,8 @@ function buildPlan(github, request, state) {
           "issues",
           {
             action: "enable-issues",
+            job: "repo-setup",
+            target: id,
             object: "repository",
             owner: parseRepository(id).owner,
             name: id,
@@ -253,6 +265,8 @@ function buildPlan(github, request, state) {
       "repository",
       {
         action: "create-repository",
+        job: "repo-setup",
+        target: owner,
         object: "repository",
         owner,
         name: id,
@@ -326,6 +340,8 @@ function buildPlan(github, request, state) {
         "epic",
         {
           action: "create-issue-type",
+          job: "issue-types-setup",
+          target: owner,
           object: "issue type",
           owner,
           name: request.epicIssueType,
@@ -444,6 +460,21 @@ function settingsProposal(request, settings, ctx) {
   };
 }
 
+// The steps a repository admin takes on GitHub when a provider refuses a
+// setup write, or the grant to ask the provider for (PC13.8).
+export function manualSteps(entry) {
+  const where = entry.name || entry.target;
+  const steps = {
+    "enable-issues": `On GitHub, open ${where} › Settings › General and turn Issues on.`,
+    "create-repository": `On GitHub, create the private repository ${where} with issues on.`,
+    "create-issue-type": `On GitHub, open the ${entry.owner} organization › Settings › Issue types and add ${entry.name}.`,
+  };
+  return [
+    steps[entry.action] || `On GitHub, do this by hand: ${entry.detail}`,
+    `Or grant the sign-in ${entry.permissionsText} on ${entry.target}, then run setup again.`,
+  ];
+}
+
 const describe = (entry) => {
   const { run, after, ...rest } = entry;
   return rest;
@@ -537,9 +568,78 @@ export async function githubSetup({ github, settings }, input = {}) {
         ...describe(entry),
         status: "failed",
         reason: error.message,
+        // What a repository admin does by hand instead (PC13.8).
+        manual: manualSteps(entry),
       });
     }
   }
   cancelled.delete(previewHash);
   return view({ applied: true, results });
+}
+
+// ---- Labels an issue named that its repository lacks (§D6) -------------
+
+const MISSING = "githubMissingLabels";
+const missingLabels = (store) => {
+  try {
+    return store.getMeta(MISSING) || {};
+  } catch {
+    return {};
+  }
+};
+
+export function recordMissingLabels(store, repository, names) {
+  try {
+    const all = missingLabels(store),
+      have = new Set(all[repository] || []);
+    for (const name of names) have.add(name);
+    store.setMeta(MISSING, { ...all, [repository]: [...have].sort() });
+  } catch {
+    // A busy store only loses the Needs you row; the publish still waits.
+  }
+}
+
+// One Needs you row per repository, whose Create labels runs repo-setup
+// through the confirm.
+export function missingLabelsNeedsYou(store) {
+  return Object.entries(missingLabels(store))
+    .filter(([, names]) => names.length)
+    .map(([repository, names]) => ({
+      kind: "needs-human",
+      reason: "crew",
+      id: `github-labels:${repository}`,
+      taskId: null,
+      authority: "github",
+      title: `${repository} lacks label${names.length === 1 ? "" : "s"} ${names.join(", ")}`,
+      detail:
+        "Avoozl never makes a label as part of other work. Create them here, or on GitHub, and the waiting issue goes out on the next tick.",
+      actions: [
+        {
+          label: "Create labels",
+          operation: "github.labels.create",
+          input: { repository },
+          confirm: [
+            confirmStep({
+              job: "repo-setup",
+              target: repository,
+              action: `Create the labels ${names.join(", ")}`,
+            }),
+          ],
+        },
+      ],
+    }));
+}
+
+// Create labels: a person's, under the repo-setup grant the confirm made.
+export async function createMissingLabels(store, github, repository) {
+  const names = missingLabels(store)[repository] || [],
+    created = [];
+  for (const name of names) {
+    await withJob("repo-setup", () => github.ensureLabel(repository, { name }));
+    created.push(name);
+  }
+  const all = missingLabels(store);
+  delete all[repository];
+  store.setMeta(MISSING, all);
+  return { repository, created };
 }

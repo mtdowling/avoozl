@@ -4,6 +4,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import type { SpecPull } from './spec-pr-api.ts'
 import { COMMAND_PATH } from './workspace-api.ts'
+import type { HighRiskStep } from './settings-api.ts'
 
 // A task's owner as every view reports it (R28.5).
 export interface TaskOwner {
@@ -322,8 +323,19 @@ export interface ReviewTask extends TaskOwner {
   context?: ItemContext
 }
 
+// A Needs you row's own action (plugin-credentials §D7, §D10): Use this
+// one, Create labels or Delete branches. `confirm` lists the high-risk
+// steps the shared confirm shows before the operation runs.
+export interface NeedsYouAction {
+  label: string
+  operation: 'plugin.credentials.pick' | 'github.labels.create' | 'spec.grants.branches.delete'
+  input: Record<string, unknown>
+  confirm?: HighRiskStep[]
+}
+
 export interface ConflictItem extends TaskOwner {
   context?: ItemContext
+  actions?: NeedsYouAction[]
   // The item a notice's link opened (direct-links D3).
   linked?: boolean
   planReview?: { planId: string; revisionHash: string }
@@ -482,6 +494,13 @@ export function viewsClient(api: AppApi) {
     // Land a verified local task under manual ship (§4.25).
     // Let the tick run a workspace a Crew Mode conductor drove (WP1.3).
     letTickRun: (workspaceId: string, expectedHash?: string) => run<unknown>('delivery.runner.release', expectedHash ? { expectedHash } : {}, workspaceId),
+    // A Needs you action; its high-risk steps are allowed first, by the
+    // person who pressed Allow in the confirm.
+    needsYouAction: async (workspaceId: string, action: NeedsYouAction) => {
+      const steps = action.confirm ?? [],
+        allow = steps.length ? (await run<{ grants: string[] }>('github.job.confirm', { steps }, workspaceId)).grants : []
+      return run<unknown>(action.operation, { ...action.input, ...(steps.length ? { allow } : {}) }, workspaceId)
+    },
     integrate: (workspaceId: string, taskId: string, commit?: string) => run<unknown>('delivery.integrate', { taskId, ...(commit ? { commit } : {}) }, workspaceId),
     // Retry a delivery waiting on a decision, dismissing the named findings.
     retry: (workspaceId: string, taskId: string, dismiss: { finding: string; reason: string }[] = []) => run<unknown>('delivery.retry', { taskId, dismiss }, workspaceId),

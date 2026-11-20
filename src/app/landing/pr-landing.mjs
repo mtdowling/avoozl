@@ -20,8 +20,9 @@
 // their manifest entry.
 // shortcut: a landed task's worktree is kept and batches do not land by
 // pull request; upgrade with the worktree cleanup after landing (40.4).
+import { personOf } from "../github/github.mjs";
 import { landingMetrics } from "./landing-trailers.mjs";
-import { git } from "../git/git.mjs";
+import { git, remoteGit } from "../git/git.mjs";
 import {
   enqueueLanding,
   landingQueue,
@@ -79,7 +80,7 @@ async function registryOf(repository) {
 // as it is.
 export async function syncBase(repository, { env } = {}) {
   const base = repository.baseBranch || "main";
-  await git(repository.root, ["fetch", "--quiet", "origin", base], {
+  await remoteGit(repository.root, ["fetch", "--quiet", "origin", base], {
     env: { ...(env ?? process.env), ...NO_PROMPT },
   });
   const remote = await git(repository.root, ["rev-parse", "FETCH_HEAD"]),
@@ -346,7 +347,7 @@ export async function landPullRequests(
         // GitHub rights are the signed-in login's; a local journal's login
         // is this workspace's operator, which GitHub does not know.
         githubLogin = authority.journal.local
-          ? String((await github.currentUser())?.login ?? "")
+          ? String((await personOf(github, repository.github)) ?? "")
           : authority.login,
         steps = pullSteps({
           github,

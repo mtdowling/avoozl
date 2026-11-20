@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubClient } from "../github.mjs";
@@ -5,24 +9,27 @@ import { GitHubClient } from "../github.mjs";
 // A client whose fetch answers each path from `routes`: a value, or
 // [status, value, headers].
 function client(routes, seen = []) {
-  return new GitHubClient({
-    token: "test-token",
-    apiUrl: "https://api.example.test",
-    fetch: async (url) => {
-      const u = new URL(url);
-      seen.push(u.pathname + u.search);
-      const found = Object.entries(routes).find(([path]) =>
-        u.pathname.endsWith(path),
-      );
-      const [status, value, headers] = Array.isArray(found?.[1])
-        ? found[1]
-        : [200, found?.[1] ?? null, {}];
-      return new Response(JSON.stringify(value), {
-        status,
-        headers: { "content-type": "application/json", ...headers },
-      });
-    },
-  });
+  return defaultJob(
+    "check-in",
+    new GitHubClient({
+      credentials: fixedCredentials("test-token"),
+      apiUrl: "https://api.example.test",
+      fetch: async (url) => {
+        const u = new URL(url);
+        seen.push(u.pathname + u.search);
+        const found = Object.entries(routes).find(([path]) =>
+          u.pathname.endsWith(path),
+        );
+        const [status, value, headers] = Array.isArray(found?.[1])
+          ? found[1]
+          : [200, found?.[1] ?? null, {}];
+        return new Response(JSON.stringify(value), {
+          status,
+          headers: { "content-type": "application/json", ...headers },
+        });
+      },
+    }),
+  );
 }
 
 test("collaborator permission uses role_name for maintain and triage", async () => {

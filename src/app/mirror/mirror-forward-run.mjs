@@ -11,6 +11,7 @@
 // shortcut: the person's grant is the local `gh` sign-in, and only when it is
 // that person's own. A person who is not signed in here gets one row, never
 // a shared token.
+import { asJob } from "../github/github-jobs.mjs";
 import { PUBLISH_RULES, check } from "../content/content-rules.mjs";
 import {
   assertNoInstance,
@@ -382,12 +383,15 @@ export async function forwardRecord(
               return { conflict: true, paths: [] };
             throw error;
           }
-          const created = await github.createPullRequest(mirror.source, {
-            title,
-            body,
-            head,
-            base,
-          });
+          const created = await asJob("spec-branch", github).createPullRequest(
+            mirror.source,
+            {
+              title,
+              body,
+              head,
+              base,
+            },
+          );
           number = created.number;
         }
         const next = {
@@ -440,7 +444,7 @@ async function conflictIssue(
   let number = record.conflictIssue ?? null;
   if (!number)
     number = (
-      await github.createIssue(mirror.mirror, {
+      await asJob("spec-issues", github).createIssue(mirror.mirror, {
         title: `The change from ${record.mirrorPr ? `#${record.mirrorPr}` : "the epic"} conflicts with the public repository`,
         body: [
           "The change does not apply to the current default branch of the public repository. These paths conflict:",

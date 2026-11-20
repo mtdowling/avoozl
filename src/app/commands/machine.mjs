@@ -25,6 +25,7 @@ import {
   listHarnessDefinitions,
 } from "../executors/harness-definitions.mjs";
 import { agentSessionNote, cliRefusal } from "../mcp/mcp-policy.mjs";
+import { runCredentialHelper } from "../github/credential-helper.mjs";
 
 const send = (body) => process.stdout.write(JSON.stringify(body) + "\n");
 
@@ -322,6 +323,16 @@ export const commands = [
             `\nTo stop it: ${unit.unload.join("; ")}`,
         );
       }
+    },
+  },
+  {
+    command: "credential",
+    // The git credential helper Avoozl gives its own git commands; git runs
+    // it, so it is not in the help a person reads.
+    help: [],
+    // Git runs it, with no workspace; it answers only under Avoozl's git.
+    run({ positionals }) {
+      return runCredentialHelper(positionals[0]);
     },
   },
   {

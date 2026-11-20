@@ -4,6 +4,8 @@ import { Store } from "../store/store.mjs";
 import fs from "node:fs";
 import { help } from "../cli/command-help.mjs";
 import { runWorkspace } from "./setup.mjs";
+import { credentialsProblems } from "../github/github-credentials.mjs";
+import { pluginSettingsPath } from "../plugins/plugins.mjs";
 
 async function runEpics({ positionals, command, localOrRequest }) {
   console.log(
@@ -102,11 +104,19 @@ export const commands = [
         about: "Validate the task graph",
       }),
     ],
-    run({ dbPath, requireDatabase }) {
+    run({ dbPath, requireDatabase, config }) {
       requireDatabase();
       const store = new Store(dbPath);
       try {
-        const errors = validate(store.read());
+        const errors = [
+          ...validate(store.read()),
+          // A credentials plugin .avoozl.json declares, named by file and
+          // key (plugin-credentials PC2.2).
+          ...credentialsProblems({
+            workspaceRoot: config.workspaceRoot,
+            settingsFile: pluginSettingsPath(),
+          }),
+        ];
         if (errors.length) throw Error(errors.join("\n"));
         console.log("Valid SQLite task graph and plan references.");
       } finally {

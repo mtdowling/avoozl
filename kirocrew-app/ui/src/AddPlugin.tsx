@@ -15,6 +15,7 @@ import {
   emptyPluginForm,
   locationOf,
   partTitles,
+  signInClaims,
   PLUGIN_SOURCES,
   PLUGIN_STEPS,
   capabilityLine,
@@ -136,6 +137,8 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
     ['Parts', preview.provides || preview.kinds ? partTitles(preview).join(', ') : undefined],
     ['Pack', preview.pack ? (preview.pack.description ?? 'Settings only') + ` (${Object.keys(preview.pack.settings).join(', ')})` : undefined],
     ['Capabilities', capabilities],
+    // A credentials part: who it signs Avoozl in as, and where (PC2.3).
+    ['GitHub sign-in', preview.credentials ? signInClaims({ id: preview.id ?? null, credentials: preview.credentials }).join(' ') : undefined],
   ]
   return (
     <Box flex flexCol gap="3" size="sm" data-plugin-what>

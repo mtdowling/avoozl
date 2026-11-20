@@ -32,6 +32,7 @@ import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
 import { privacyHits, privacyRules } from "../content/privacy.mjs";
 import { fail } from "../store/store.mjs";
 import { OUTCOME_KINDS } from "./task-outcomes.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const JOURNAL_VERSION = 1;
 // Significant transitions only. Poll results, frontiers, rankings and
@@ -611,7 +612,8 @@ export function githubJournal(github, repository, number) {
             comment.updated_at !== comment.created_at,
         ),
       })),
-    create: (body) => github.createIssueComment(repository, number, body),
+    create: (body) =>
+      asJob("spec-issues", github).createIssueComment(repository, number, body),
     permission: async (login) =>
       (await github.permission(repository, login))?.permission ?? "none",
   };

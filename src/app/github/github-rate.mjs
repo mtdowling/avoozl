@@ -146,10 +146,11 @@ export class ResponseCache {
   }
 
   // One entry per URL, Accept header and login, so a second account never
-  // reads the first one's answer.
-  key(token, accept, href, body) {
+  // reads the first one's answer. `who` is {provider, login} (PC9.3): a new
+  // token for the same login reads the same answers.
+  key(who, accept, href, body) {
     return (
-      this.owner(token) +
+      this.owner(who) +
       accept +
       "|" +
       href +
@@ -159,9 +160,12 @@ export class ResponseCache {
     );
   }
 
-  owner(token) {
+  owner(who) {
     return (
-      createHash("sha256").update(String(token)).digest("hex").slice(0, 8) + "|"
+      createHash("sha256")
+        .update(`${who?.provider ?? ""}|${who?.login ?? ""}`)
+        .digest("hex")
+        .slice(0, 8) + "|"
     );
   }
 
@@ -228,9 +232,9 @@ export class ResponseCache {
   // A write ran: the answers it may have changed are no longer fresh. They
   // stay, so the next read asks GitHub with their ETag, and a 304 is free.
   // `repo` is "owner/name", or empty for everything this login stored.
-  invalidate(token, repo) {
+  invalidate(who, repo) {
     try {
-      const own = this.owner(token) + "%";
+      const own = this.owner(who) + "%";
       if (repo)
         this.#db()
           .prepare(
@@ -320,32 +324,40 @@ export class RateState {
     this.calls = 0;
     this.notModified = 0;
     this.dirty = false;
+    // Each token login has its own limit (plugin-credentials PC9.1):
+    // {login: {resources, pause}}, and calls counted per login.
+    this.logins = {};
+    this.loginUsage = {};
   }
 
-  observe(resource, { limit, remaining, resetAtMs }) {
+  #login(login) {
+    return (this.logins[login] ??= { resources: {}, pause: null });
+  }
+
+  observe(resource, { limit, remaining, resetAtMs }, login) {
     if (![limit, remaining, resetAtMs].every(Number.isFinite)) return;
-    this.resources[resource] = {
+    const entry = {
       limit,
       remaining,
       resetAt: iso(resetAtMs),
       at: this.now(),
     };
+    this.resources[resource] = entry;
+    if (login !== undefined) this.#login(login).resources[resource] = entry;
     // Spent: hold every call to this resource until it resets.
     if (remaining <= 0 && resetAtMs > this.now())
-      this.limit({ resource, until: resetAtMs, reason: "primary" });
+      this.limit({ resource, until: resetAtMs, reason: "primary", login });
     this.dirty = true;
   }
 
-  // A call that went out (a 304 is counted apart), by source.
-  count(notModified, source = currentSource()) {
+  // A call that went out (a 304 is counted apart), by source and login.
+  count(notModified, source = currentSource(), login) {
     this.calls += 1;
     if (notModified) this.notModified += 1;
-    add(
-      this.usage,
-      bucketOf(this.now()),
-      source,
-      notModified ? "notModified" : "calls",
-    );
+    const field = notModified ? "notModified" : "calls";
+    add(this.usage, bucketOf(this.now()), source, field);
+    if (login !== undefined)
+      add(this.loginUsage, bucketOf(this.now()), String(login), field);
     this.dirty = true;
   }
 
@@ -364,24 +376,46 @@ export class RateState {
   }
 
   // `scope` "all" is a secondary limit, which holds every resource.
-  limit({ resource, until, reason }) {
+  limit({ resource, until, reason, login }) {
     const at = this.now(),
-      end = Math.min(Math.max(until, at + 1000), at + MAX_WAIT_MS);
-    if (this.pause && this.pause.until >= end) return;
-    this.pause = {
-      resource,
-      scope: reason === "primary" ? resource : "all",
-      until: end,
-      reason,
-      at,
-    };
+      end = Math.min(Math.max(until, at + 1000), at + MAX_WAIT_MS),
+      pause = {
+        resource,
+        scope: reason === "primary" ? resource : "all",
+        until: end,
+        reason,
+        at,
+      };
+    if (login !== undefined) {
+      const mine = this.#login(login);
+      if (mine.pause && mine.pause.until >= end) return;
+      mine.pause = { ...pause, login };
+    } else {
+      if (this.pause && this.pause.until >= end) return;
+      this.pause = pause;
+    }
     this.dirty = true;
     this.flush();
   }
 
-  // The error a call raises while held back, or null when it may go.
-  held(resource) {
-    const pause = this.pause || readRate(this.store).pause;
+  // The error a call raises while held back, or null when it may go. A
+  // limit on one login never holds calls made as another.
+  held(resource, login) {
+    const stored = readRate(this.store),
+      pause =
+        [
+          login !== undefined && this.logins[login]?.pause,
+          login !== undefined && stored.logins?.[login]?.pause,
+          this.pause,
+          // A pause every known login shares holds the tick, not a login
+          // that has its own state.
+          stored.pause,
+        ].find(
+          (p) =>
+            p &&
+            p.until > this.now() &&
+            (login === undefined || !p.login || p.login === login),
+        ) || null;
     if (!pause || pause.until <= this.now()) return null;
     if (pause.scope !== "all" && pause.scope !== resource) return null;
     return pause;
@@ -396,15 +430,52 @@ export class RateState {
         resources = { ...(stored.resources || {}) };
       for (const [name, mine] of Object.entries(this.resources))
         if (!(resources[name]?.at > mine.at)) resources[name] = mine;
-      const pauses = [stored.pause, this.pause].filter(
-          (pause) => pause && pause.until > this.now(),
-        ),
+      const live = (pause) => pause && pause.until > this.now(),
+        logins = structuredClone(stored.logins || {});
+      for (const [login, mine] of Object.entries(this.logins)) {
+        const into = (logins[login] ??= { resources: {}, pause: null });
+        for (const [name, entry] of Object.entries(mine.resources))
+          if (!(into.resources[name]?.at > entry.at))
+            into.resources[name] = entry;
+        if (live(mine.pause) && !(into.pause?.until >= mine.pause.until))
+          into.pause = mine.pause;
+      }
+      for (const mine of Object.values(logins))
+        if (!live(mine.pause)) mine.pause = null;
+      // The workspace-wide pause, which holds the tick: one without a
+      // login, or every login Avoozl uses being limited at once.
+      const known = Object.values(logins),
+        all =
+          known.length && known.every((mine) => live(mine.pause))
+            ? known
+                .map((mine) => mine.pause)
+                .sort((a, b) => a.until - b.until)[0]
+            : null;
+      const pauses = [
+          stored.pause?.login ? null : stored.pause,
+          this.pause,
+          all,
+        ].filter(live),
         pause = pauses.sort((a, b) => b.until - a.until)[0] ?? null,
         stats = {
           calls: stored.calls ?? 0,
           notModified: stored.notModified ?? 0,
         };
-      const usage = stored.usage || {};
+      const usage = stored.usage || {},
+        loginUsage = stored.loginUsage || {};
+      for (const [bucket, row] of Object.entries(this.loginUsage))
+        for (const [login, mine] of Object.entries(row)) {
+          const into = ((loginUsage[bucket] ??= {})[login] ??= {
+            calls: 0,
+            notModified: 0,
+            cached: 0,
+          });
+          for (const field of Object.keys(into))
+            into[field] += mine[field] || 0;
+        }
+      for (const bucket of Object.keys(loginUsage))
+        if (Number(bucket) < this.now() - HOUR_MS - BUCKET_MS)
+          delete loginUsage[bucket];
       for (const [bucket, row] of Object.entries(this.usage))
         for (const [source, mine] of Object.entries(row)) {
           const into = ((usage[bucket] ??= {})[source] ??= {
@@ -431,9 +502,12 @@ export class RateState {
         resources,
         pause,
         usage,
+        logins,
+        loginUsage,
         ...stats,
       });
       this.usage = {};
+      this.loginUsage = {};
       this.pause = pause;
       this.calls = 0;
       this.notModified = 0;
@@ -556,7 +630,20 @@ const rateText = (state, pause) => {
 export function rateNeedsYou(store, now = Date.now()) {
   const state = readRate(store),
     pause = state.pause;
-  if (!pause || pause.until <= now) return [];
+  // One row per limited login while others still work (PC9.1).
+  if (!pause || pause.until <= now)
+    return Object.entries(state.logins || {})
+      .filter(([, mine]) => mine.pause && mine.pause.until > now)
+      .map(([login, mine]) => ({
+        kind: "needs-human",
+        reason: "crew",
+        id: `github-rate-limit:${login}`,
+        taskId: null,
+        authority: "github",
+        title: `GitHub rate limit reached for ${login}, resumes at ${iso(mine.pause.until)}`,
+        detail: `Calls made as ${login} wait until then; calls made as other logins go on. Nothing needs doing: this row clears itself.`,
+        openedAt: iso(mine.pause.at),
+      }));
   const entry = state.resources?.[pause.resource];
   return [
     {
@@ -595,10 +682,31 @@ export function rateView(store, now = Date.now(), { countFile } = {}) {
         });
         for (const field of Object.keys(into)) into[field] += mine[field] || 0;
       }
-  const view = rateViewOf(state, now);
+  const view = rateViewOf(state, now),
+    byLogin = {};
+  for (const [bucket, row] of Object.entries(state.loginUsage || {}))
+    if (Number(bucket) > now - HOUR_MS)
+      for (const [login, mine] of Object.entries(row)) {
+        const into = (byLogin[login] ??= {
+          calls: 0,
+          notModified: 0,
+          cached: 0,
+          limitedUntil: null,
+        });
+        for (const field of ["calls", "notModified", "cached"])
+          into[field] += mine[field] || 0;
+      }
+  for (const [login, mine] of Object.entries(state.logins || {}))
+    if (mine.pause && mine.pause.until > now)
+      (byLogin[login] ??= {
+        calls: 0,
+        notModified: 0,
+        cached: 0,
+      }).limitedUntil = iso(mine.pause.until);
   return {
     ...view,
     bySource,
+    byLogin,
     hourCalls: Object.entries(bySource).reduce(
       (n, [source, row]) => (source === "git" ? n : n + row.calls),
       0,

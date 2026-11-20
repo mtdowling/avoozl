@@ -3,6 +3,7 @@
 // helpers the pages draw with. Kept free of JSX so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
+import type { HighRiskStep } from './settings-api.ts'
 
 export type ItemKind = 'issue' | 'pr'
 
@@ -145,6 +146,8 @@ export interface TriageSetupPreview {
   repository: string
   defaults: { existing: string; dailyRuns: number; fullReviewMaxLines: number }
   labels: { name: string; color: string; description: string; exists: boolean | null }[]
+  // Each label to make as a high-risk step (plugin-credentials PC13.3).
+  writes?: ({ label: string } & HighRiskStep)[]
   labelsError: string | null
   harnesses: string[]
   harness: string
@@ -156,6 +159,7 @@ export interface TriageSetup {
   fullReviewMaxLines: number
   harness: string
   createLabels: string[]
+  allow?: string[]
 }
 
 export interface ListFilter {
@@ -185,6 +189,8 @@ export function itemsClient(api: AppApi) {
     settings: (workspaceId: string, repository: string, change: Record<string, unknown>) => call<unknown>('triage.settings', workspaceId, { repository, ...change }),
     setupPreview: (workspaceId: string, repository: string) => call<TriageSetupPreview>('triage.setup', workspaceId, { repository }),
     setup: (workspaceId: string, repository: string, choice: TriageSetup) => call<unknown>('triage.setup', workspaceId, { repository, confirm: true, ...choice }),
+    // A person's Allow for the labels the setup shows (§D7).
+    allow: (workspaceId: string, steps: HighRiskStep[]) => call<{ grants: string[] }>('github.job.confirm', workspaceId, { steps }),
     off: (workspaceId: string, repository: string) => call<unknown>('triage.off', workspaceId, { repository }),
     settle: (workspaceId: string, repository: string, number: number) => call<unknown>('triage.owner.done', workspaceId, { repository, number }),
   }

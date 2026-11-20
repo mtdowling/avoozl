@@ -24,6 +24,7 @@ import {
   enforce as enforceContent,
   screenReply,
 } from "../content/content-rules.mjs";
+import { asJob } from "./github-jobs.mjs";
 
 const RESPONDER_AGENT = "avoozl-responder";
 // GitHub refuses comments longer than 65,536 characters.
@@ -221,8 +222,16 @@ export async function postReply(store, github, input = {}, caller, options) {
   });
   const comment =
     response.kind === "discussion"
-      ? await github.addDiscussionComment(response.discussionId, body)
-      : await github.createIssueComment(config, response.number, body);
+      ? await asJob("respond", github).addDiscussionComment(
+          response.discussionId,
+          body,
+          config.id || response.repository,
+        )
+      : await asJob("respond", github).createIssueComment(
+          config,
+          response.number,
+          body,
+        );
   const replied = {
     ...store.get("github_responses", response.id),
     state: "replied",

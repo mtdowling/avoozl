@@ -10,6 +10,7 @@
 // envelope stays for a machine with no GitHub access (runner mode).
 // shortcut: the process harness binary is not looked for, only named; check
 // it when a headless worker is first started.
+import { personOf } from "../github/github.mjs";
 import { gatewayClient } from "../executors/kirocrew/gateway-client.mjs";
 
 const READ = new Set(["read", "triage", "write", "maintain", "admin"]);
@@ -51,7 +52,8 @@ export async function previewWorker({
     );
     return { ...result, ok: false };
   }
-  result.login = (await github.currentUser())?.login ?? null;
+  // The person this worker machine signs in for (§D12).
+  result.login = (await personOf(github)) ?? null;
   if (!result.login) {
     problems.push("GitHub did not name this machine's login.");
     return { ...result, ok: false };

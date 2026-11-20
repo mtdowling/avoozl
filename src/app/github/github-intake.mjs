@@ -24,6 +24,7 @@ import {
   startTask,
   withPolicy,
 } from "../intake/intake.mjs";
+import { asJob } from "./github-jobs.mjs";
 
 export const INTAKE_MARKER = "<!-- avoozl-intake:v1 -->";
 const ITEM_ID =
@@ -87,7 +88,7 @@ export async function initialWrites(
 ) {
   const writes = [];
   if (!hasStatus(comments, login)) {
-    await github.createIssueComment(
+    await asJob("spec-issues", github).createIssueComment(
       repository,
       issue.number,
       statusComment(action, spec),
@@ -268,13 +269,25 @@ export async function watchInputs(store, github) {
         task.dispatch?.state !== "withdrawn",
     );
   if (!watched.length) return [];
-  const answer = await github.graphql(
+  // One read per repository: a token is minted for one repository (PC5.6).
+  const byRepository = new Map();
+  for (const task of watched) {
+    const name = task.intake.issue.repository || "";
+    if (!byRepository.has(name)) byRepository.set(name, []);
+    byRepository.get(name).push(task.intake.issue.nodeId);
+  }
+  const nodes = [];
+  for (const [repository, ids] of byRepository) {
+    const answer = await github.graphql(
       NODES,
-      { ids: watched.map((task) => task.intake.issue.nodeId) },
+      { ids },
       "read the state of intake issues",
-    ),
-    closed = new Set(
-      (answer?.nodes || [])
+      repository ? { repository } : {},
+    );
+    nodes.push(...(answer?.nodes || []));
+  }
+  const closed = new Set(
+      nodes
         .filter((node) => node?.state === "CLOSED" && !closedByMerge(node))
         .map((node) => node.id),
     ),

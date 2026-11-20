@@ -3,6 +3,7 @@
 // shotCss()), and the full app's Specs page opened on a
 // desktop or a phone.
 import fs from 'node:fs'
+import path from 'node:path'
 import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
@@ -40,4 +41,11 @@ export async function openSpecs(page, width, settle, spec = 'byte-types') {
   if (!spec) return
   await page.until(`Boolean(document.querySelector('[data-plan-row="spec:${spec}"]'))`, 30000)
   await page.evaluate(click(`[data-plan-row="spec:${spec}"]`))
+}
+
+// One screenshot as <out>/<name>-<width>-<theme>.png, its path printed.
+export async function saveShot(page, out, name, width, theme) {
+  const file = path.join(out, `${name}-${width}-${theme}.png`)
+  await page.screenshot(file)
+  console.log(file)
 }

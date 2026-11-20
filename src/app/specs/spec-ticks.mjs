@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { git } from "../git/git.mjs";
+import { git, remoteGit } from "../git/git.mjs";
 import { commitSubject } from "../landing/landing-config.mjs";
 import { recordActivity } from "../store/activity-log.mjs";
 import { FINAL_STATUSES } from "../sessions/session-bindings.mjs";
@@ -182,7 +182,7 @@ export async function tickBranch(
   { branch, files, remote = "origin", tries = 5, env, commitPrefix = "" },
 ) {
   for (let attempt = 1; ; attempt++) {
-    await git(root, ["fetch", "--quiet", remote, branch], { env });
+    await remoteGit(root, ["fetch", "--quiet", remote, branch], { env });
     const base = await git(root, ["rev-parse", "FETCH_HEAD"]),
       dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-tick-"));
     try {
@@ -210,12 +210,10 @@ export async function tickBranch(
       );
       const commit = await git(dir, ["rev-parse", "HEAD"]);
       try {
-        await git(
+        await remoteGit(
           dir,
           ["push", "--quiet", remote, `HEAD:refs/heads/${branch}`],
-          {
-            env,
-          },
+          { env, job: "spec-branch" },
         );
         return { ticked, commit };
       } catch (error) {
@@ -236,7 +234,9 @@ export async function baseHead(root, branch, { fetched } = {}) {
   const remote = `refs/remotes/origin/${branch}`;
   if (!fetched?.has(root)) {
     fetched?.add(root);
-    await git(root, ["fetch", "--quiet", "origin", branch]).catch(() => {});
+    await remoteGit(root, ["fetch", "--quiet", "origin", branch]).catch(
+      () => {},
+    );
   }
   const ref = await git(root, ["rev-parse", "--verify", `${remote}^{commit}`])
     .then(() => remote)

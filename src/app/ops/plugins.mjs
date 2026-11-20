@@ -27,18 +27,23 @@ const writes = [
   "plugin.remove",
   "plugin.update",
   "plugin.pack.import",
+  // Which credentials plugin serves a host where two claim one owner
+  // (plugin-credentials PC2.6, PC8.2).
+  "plugin.credentials.pick",
 ];
 
 export const entries = [
   ...reads.map((name) => ({
     name,
     class: "observe",
+    github: null,
     policy: routed,
     handler: pluginHandler,
   })),
   ...writes.map((name) => ({
     name,
     class: "protect",
+    github: null,
     policy: changesPlugins,
     handler: pluginHandler,
   })),

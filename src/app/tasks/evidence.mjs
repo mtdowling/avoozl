@@ -21,6 +21,7 @@ import {
   secretReason,
 } from "../content/content-rules.mjs";
 import { fail } from "../store/store.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const EVIDENCE_KINDS = Object.freeze([
   "findings",
@@ -327,8 +328,12 @@ export async function evidenceCommentStep(
           )?.id ?? null;
       }
       const result = id
-        ? await github.updateIssueComment(row.repository, id, body)
-        : await github.createIssueComment(
+        ? await asJob("evidence", github).updateIssueComment(
+            row.repository,
+            id,
+            body,
+          )
+        : await asJob("evidence", github).createIssueComment(
             row.repository,
             row.pull.number,
             body,

@@ -1,3 +1,8 @@
+import {
+  allowing,
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // Task 3.18: the Set up GitHub wizard (design §8.2, Requirement 32). Fake
 // GitHub only: a fetch that answers the REST and GraphQL calls the wizard
 // makes and logs every write.
@@ -271,7 +276,10 @@ function fakeGitHub({
     return reply(404, { message: "Not Found " + pathname });
   };
   return {
-    github: new GitHubClient({ token: "test", fetch }),
+    github: defaultJob(
+      "check-in",
+      new GitHubClient({ credentials: fixedCredentials("test"), fetch }),
+    ),
     state,
     log,
   };
@@ -306,11 +314,13 @@ const run = (
 
 async function apply(fake, input, settings, milestones) {
   const preview = await run(fake, input, settings, milestones);
-  return run(
-    fake,
-    { ...input, confirm: true, previewHash: preview.previewHash },
-    settings,
-    milestones,
+  return allowing(preview.writes, () =>
+    run(
+      fake,
+      { ...input, confirm: true, previewHash: preview.previewHash },
+      settings,
+      milestones,
+    ),
   );
 }
 
@@ -492,10 +502,18 @@ test("github.setup runs through Operations and its proposal saves through Settin
     .catch((error) => error);
   assert.match(preview.message, /Choose plans-repo or single-repo/);
   const first = await ops.execute("github.setup", PLANS);
+  // The modal's Allow: a person's grants for each high-risk write.
+  const { grants } = await ops.execute(
+    "github.job.confirm",
+    { steps: first.writes },
+    undefined,
+    { person: true },
+  );
   const applied = await ops.execute("github.setup", {
     ...PLANS,
     confirm: true,
     previewHash: first.previewHash,
+    allow: grants,
   });
   await ops.execute("github.settings.update", {
     github: applied.settings.github,

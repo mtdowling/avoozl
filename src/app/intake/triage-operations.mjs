@@ -16,6 +16,7 @@ import {
   submitTriage,
   triageView,
 } from "./triage.mjs";
+import { confirmStep, withJob } from "../github/github-jobs.mjs";
 
 const lower = (value) => String(value ?? "").toLowerCase();
 
@@ -108,12 +109,23 @@ async function setupTriage(ops, input) {
     exists: have ? have.has(lower(label.name)) : null,
   }));
   const harnesses = harnessChoices(ops);
+  // Each label to make is a high-risk write (plugin-credentials PC13.3):
+  // the setup confirm lists its job and permissions and allows it.
+  const labelWrite = (label) =>
+    confirmStep({
+      job: "triage-setup",
+      target: repository,
+      action: `Create the label ${label.name}`,
+    });
   if (!input.confirm)
     return {
       repository,
       defaults: TRIAGE_DEFAULTS,
       labels,
       labelsError,
+      writes: labels
+        .filter((label) => label.exists === false)
+        .map((label) => ({ label: label.name, ...labelWrite(label) })),
       harnesses,
       harness:
         ops.settingsFile().readModelSettings().roles?.triage?.harness ?? "auto",
@@ -156,12 +168,31 @@ async function setupTriage(ops, input) {
       roles,
       expectedHash: models.readFile().hash,
     });
-  const created = [];
-  for (const { name, color, description } of missing) {
-    await ops.github.ensureLabel(repository, { name, color, description });
-    created.push(name);
-  }
-  return { ...saved, created, harness };
+  // A label the provider refuses is skipped with what to do by hand;
+  // the others are still made (PC13.8).
+  const created = [],
+    skipped = [];
+  for (const label of missing)
+    try {
+      await withJob("triage-setup", () =>
+        ops.github.ensureLabel(repository, {
+          name: label.name,
+          color: label.color,
+          description: label.description,
+        }),
+      );
+      created.push(label.name);
+    } catch (error) {
+      skipped.push({
+        label: label.name,
+        reason: error.message,
+        manual: [
+          `On GitHub, open ${repository} › Issues › Labels and add ${label.name}.`,
+          `Or grant the sign-in ${labelWrite(label).permissionsText} on ${repository}, then run setup again.`,
+        ],
+      });
+    }
+  return { ...saved, created, skipped, harness };
 }
 
 const reads =
@@ -171,6 +202,7 @@ export const entries = [
   {
     name: "items.list",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(reads),
     async handler({ input }) {
       return itemsList(this.store, input, { login: await login(this.github) });
@@ -179,6 +211,7 @@ export const entries = [
   {
     name: "items.detail",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(reads),
     handler({ input }) {
       return itemsDetail(this.store, this.github, input);
@@ -187,6 +220,7 @@ export const entries = [
   {
     name: "triage.view",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(reads),
     handler() {
       return triageView(
@@ -201,6 +235,7 @@ export const entries = [
   {
     name: "triage.submit",
     class: "execute",
+    github: "triage",
     policy: routed,
     handler({ input, context }) {
       return submitTriage(this.store, input, context.caller);
@@ -209,6 +244,7 @@ export const entries = [
   {
     name: "items.act",
     class: "protect",
+    github: "page-actions",
     policy: person(
       "Only a person acts on an issue or pull request: approve, request changes, close, label or comment.",
     ),
@@ -225,30 +261,35 @@ export const entries = [
   {
     name: "triage.pause",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person pauses the triage agent."),
     handler: control("pause"),
   },
   {
     name: "triage.resume",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person resumes the triage agent."),
     handler: control("resume"),
   },
   {
     name: "triage.stop",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person stops the triage agent."),
     handler: control("stop"),
   },
   {
     name: "triage.start",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person starts the triage agent again."),
     handler: control("start"),
   },
   {
     name: "triage.owner.done",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person settles an owner queue item."),
     handler({ input }) {
       settleOwner(this.store, input);
@@ -258,6 +299,7 @@ export const entries = [
   {
     name: "triage.settings",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes the triage agent's settings."),
     handler({ input }) {
       if (input.agent !== undefined)
@@ -271,6 +313,7 @@ export const entries = [
   {
     name: "triage.setup",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person sets up the triage agent."),
     handler({ input, context }) {
       personOnly(context, "sets up the triage agent");
@@ -281,6 +324,7 @@ export const entries = [
   {
     name: "triage.off",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person turns the triage agent off."),
     handler({ input, context }) {
       personOnly(context, "turns the triage agent off");

@@ -16,6 +16,7 @@ import { fail } from "../store/store.mjs";
 import { epicOfPlan } from "../epics/epics.mjs";
 import { githubJournal, localJournal } from "./spec-journal.mjs";
 import { reusableInput } from "../github/github-intake.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const receiptId = (level, id) => `github-parent:${level}:${id}`;
 const lower = (value) => String(value ?? "").toLowerCase();
@@ -133,7 +134,7 @@ export async function publishSpec(
         owner: stored.repository?.split("/")[0],
       };
     else {
-      const made = await github.createIssue(config, {
+      const made = await asJob("spec-issues", github).createIssue(config, {
         title: epic.title || epic.id,
         body: issueBody("epic"),
         ...(identity.epicIssueType ? { type: identity.epicIssueType } : {}),
@@ -147,7 +148,7 @@ export async function publishSpec(
     epicIssue?.node_id && lower(epicIssue.owner) === lower(config.owner)
       ? epicIssue.node_id
       : undefined;
-  const issue = await github.createIssue(config, {
+  const issue = await asJob("spec-issues", github).createIssue(config, {
     title: plan.title || plan.id,
     body: issueBody("spec"),
     ...(under ? { parentIssueId: under } : {}),

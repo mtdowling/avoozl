@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -319,23 +323,26 @@ test("replay reads every comment page and orders by comment ID", async () => {
       }))
       .reverse(),
     pages = [];
-  const github = new GitHubClient({
-    token: "t",
-    apiUrl: "https://api.example.test",
-    fetch: async (url) => {
-      const parsed = new URL(url);
-      if (parsed.pathname.endsWith("/permission"))
-        return new Response(JSON.stringify({ permission: "admin" }), {
-          status: 200,
-        });
-      const page = Number(parsed.searchParams.get("page"));
-      pages.push(page);
-      return new Response(
-        JSON.stringify(comments.slice((page - 1) * 100, page * 100)),
-        { status: 200 },
-      );
-    },
-  });
+  const github = defaultJob(
+    "check-in",
+    new GitHubClient({
+      credentials: fixedCredentials("t"),
+      apiUrl: "https://api.example.test",
+      fetch: async (url) => {
+        const parsed = new URL(url);
+        if (parsed.pathname.endsWith("/permission"))
+          return new Response(JSON.stringify({ permission: "admin" }), {
+            status: 200,
+          });
+        const page = Number(parsed.searchParams.get("page"));
+        pages.push(page);
+        return new Response(
+          JSON.stringify(comments.slice((page - 1) * 100, page * 100)),
+          { status: 200 },
+        );
+      },
+    }),
+  );
   const remote = githubJournal(github, "example/code", 4),
     result = await replayJournal(await remote.list(), {
       ...PUBLIC,

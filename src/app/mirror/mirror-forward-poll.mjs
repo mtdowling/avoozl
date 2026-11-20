@@ -5,6 +5,7 @@
 //
 // shortcut: reads one pull request at a time, three calls at most per open
 // record per tick. Upgrade to a conditional (ETag) read at many records.
+import { asJob } from "../github/github-jobs.mjs";
 import { noteInstances } from "./mirror-forward-run.mjs";
 
 const marker = (id) => `<!-- avoozl-review-copy ${id} -->`;
@@ -21,13 +22,20 @@ async function copyComments(store, github, record, mirror) {
     const text = `${marker(comment.id)}\n@${comment.user?.login ?? "someone"} commented on the public pull request:\n\n${comment.body ?? ""}`;
     // The mirror pull request is merged, so one follow-up issue holds them.
     if (!next.followUpIssue) {
-      const issue = await github.createIssue(mirror.mirror, {
-        title: `Review comments on the public pull request for mirror #${record.mirrorPr}`,
-        body: text,
-      });
+      const issue = await asJob("spec-issues", github).createIssue(
+        mirror.mirror,
+        {
+          title: `Review comments on the public pull request for mirror #${record.mirrorPr}`,
+          body: text,
+        },
+      );
       next.followUpIssue = issue.number;
     } else {
-      await github.createIssueComment(mirror.mirror, next.followUpIssue, text);
+      await asJob("spec-issues", github).createIssueComment(
+        mirror.mirror,
+        next.followUpIssue,
+        text,
+      );
     }
     next.copiedComments.push(String(comment.id));
     // Saved after each copy so a failure later never repeats one.

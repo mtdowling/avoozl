@@ -21,7 +21,8 @@
 //   last verified commit is kept under a private local ref so the work can be
 //   recovered after a fork is deleted or the database is lost.
 import { createHash } from "node:crypto";
-import { git } from "../git/git.mjs";
+import { git, landingJob, remoteGit } from "../git/git.mjs";
+import { currentJob } from "../github/github-jobs.mjs";
 export { withoutPushCredentials } from "../git/git.mjs";
 import { branchNameProblem } from "../epics/integration-branch.mjs";
 import { enforce, pushLines } from "../content/content-rules.mjs";
@@ -201,7 +202,7 @@ export async function fetchExact(root, ref, registry, { env } = {}) {
     into = fetchedRef(ref),
     // Avoozl's private local refs only; nothing here writes a remote.
     fetch = (url, branch, local) =>
-      git(
+      remoteGit(
         root,
         [
           "fetch",
@@ -429,7 +430,7 @@ export async function pushHead(
   if (!SHA.test(commit ?? "")) fail("Name the exact commit to push.", 400);
   let remote = null;
   try {
-    const listed = await git(
+    const listed = await remoteGit(
       root,
       ["ls-remote", "--heads", url, `refs/heads/${branch}`],
       {
@@ -474,11 +475,16 @@ export async function pushHead(
       { mode: "refuse" },
     );
   try {
-    await git(
+    await remoteGit(
       root,
       ["push", "--quiet", url, `${commit}:refs/heads/${branch}`],
       {
         env: { ...(env ?? process.env), ...NO_PROMPT },
+        // A landing whose range changes a workflow file needs
+        // workflows: write (PC4.7); a checkpoint keeps its own job.
+        ...(currentJob() === "land"
+          ? { job: await landingJob(root, base, commit) }
+          : {}),
       },
     );
   } catch {

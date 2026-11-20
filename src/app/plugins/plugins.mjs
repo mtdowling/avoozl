@@ -43,9 +43,18 @@ export const CAPABILITIES = {
 // The parts one plugin may bundle (R55.1), and the code kind each runs as.
 // A pack is settings only and runs as nothing. `template` is a workflow
 // template (design §4.16): folders under templates/, data only too.
+// `credentials` hands Avoozl GitHub tokens (plugin-credentials §D1) from its
+// own entry, in a child apart from the plugin's other code.
 // `policy` is data only as well: a limit this machine holds Avoozl to, so
 // far only `{"triage": "blocked", "reason": "..."}` (triage-agent TA12).
-export const PARTS = ["pack", "rules", "intake", "template", "policy"];
+export const PARTS = [
+  "pack",
+  "rules",
+  "intake",
+  "template",
+  "policy",
+  "credentials",
+];
 // Parts Avoozl no longer reads. A plugin may still list them, so its other
 // parts keep working; they do nothing. Lessons packs went with the lessons
 // store (RC30.4).
@@ -53,7 +62,9 @@ const REMOVED_PARTS = ["lessons"];
 const PART_KIND = {
   rules: "rules",
   intake: "intake",
+  credentials: "credentials",
 };
+const CODE_KINDS = [...KINDS, "credentials"];
 
 // A manifest's parts and the code kinds they need. A manifest written
 // before `provides` names its kinds, and each kind is its own part.
@@ -65,7 +76,7 @@ function pluginParts(manifest) {
       : [];
   return {
     provides: [...provides],
-    kinds: KINDS.filter((kind) =>
+    kinds: CODE_KINDS.filter((kind) =>
       provides.some((part) => PART_KIND[part] === kind),
     ),
   };
@@ -105,6 +116,11 @@ export function readPluginSettings(file) {
     pins: record(value.pins) ? value.pins : {},
     // This machine's intake sources (design §4.12), kept through plugin edits.
     ...(record(value.intake) ? { intake: value.intake } : {}),
+    // Which credentials plugin serves a host where two claim one owner
+    // (PC2.6): {host: pluginId}.
+    ...(record(value.credentialsPick)
+      ? { credentialsPick: value.credentialsPick }
+      : {}),
   };
 }
 
@@ -121,7 +137,7 @@ export function writePluginSettings(file, value) {
 // environment variables (keys ending in `Env`) for the plugin to read.
 const SECRET_KEY =
   /(^|_)(?:api_key|access_key|private_key|client_secret|secret|password|passwd|token|credential)s?(_|$)/;
-const SECRET_VALUE = [
+export const SECRET_VALUE = [
   /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/,
   /\bgh[pousr]_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{22,}/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
@@ -244,7 +260,7 @@ export function declaredPlugins({ workspaceRoot, settingsFile }) {
       } catch (refused) {
         error = refused.message;
       }
-      found.push({ entry, source, error });
+      found.push({ entry, source, index: i, error });
     });
   let repository = [];
   try {
@@ -380,29 +396,74 @@ export function validateManifest(manifest, entry) {
       fail(`${PLUGIN_MANIFEST} pack must be a .json file inside the plugin.`);
   } else if (manifest.pack !== undefined)
     fail(`${PLUGIN_MANIFEST} pack goes with provides pack.`);
+  if (provides.includes("credentials")) checkCredentials(manifest.credentials);
+  else if (manifest.credentials !== undefined)
+    fail(`${PLUGIN_MANIFEST} credentials goes with provides credentials.`);
   if (provides.includes("policy")) checkPolicy(manifest.policy);
   else if (manifest.policy !== undefined)
     fail(`${PLUGIN_MANIFEST} policy goes with provides policy.`);
   // A pack or a template runs no code (R55.3, R61.1): a plugin of data
-  // parts only has no entry.
-  if (!kinds.length) {
+  // parts only has no entry. A credentials part names its own entry.
+  if (!kinds.some((kind) => kind !== "credentials")) {
     if (manifest.entry !== undefined)
       fail(
-        `${PLUGIN_MANIFEST} provides only ${provides.join(", ")}, which run${provides.length === 1 ? "s" : ""} no code; remove entry.`,
+        kinds.length
+          ? `${PLUGIN_MANIFEST} entry is for intake or rules; credentials names its own entry. Remove entry.`
+          : `${PLUGIN_MANIFEST} provides only ${provides.join(", ")}, which run${provides.length === 1 ? "s" : ""} no code; remove entry.`,
       );
     return manifest;
   }
-  if (
-    typeof manifest.entry !== "string" ||
-    !/\.(?:mjs|js)$/.test(manifest.entry) ||
-    path.isAbsolute(manifest.entry) ||
-    manifest.entry.split(/[\\/]/).includes("..")
-  )
+  if (!inside(manifest.entry))
     fail(
       `${PLUGIN_MANIFEST} entry must be a .mjs or .js file inside the plugin.`,
     );
   return manifest;
 }
+
+const inside = (file) =>
+  typeof file === "string" &&
+  /\.(?:mjs|js)$/.test(file) &&
+  !path.isAbsolute(file) &&
+  !file.split(/[\\/]/).includes("..");
+const HOST =
+  /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*(?::[0-9]{1,5})?$/;
+const OWNER = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/;
+
+// The credentials part (PC1.2): {entry, hosts, owners?}.
+function checkCredentials(value) {
+  const where = `${PLUGIN_MANIFEST} credentials`;
+  if (!record(value)) fail(`${where} must be an object.`);
+  for (const key of Object.keys(value))
+    if (!["entry", "hosts", "owners"].includes(key))
+      fail(`${where}.${key} is not a credentials setting.`);
+  if (!inside(value.entry))
+    fail(`${where}.entry must be a .mjs or .js file inside the plugin.`);
+  const { hosts, owners } = value;
+  if (
+    !Array.isArray(hosts) ||
+    hosts.length < 1 ||
+    hosts.length > 10 ||
+    hosts.some((host) => typeof host !== "string" || !HOST.test(host)) ||
+    new Set(hosts).size !== hosts.length
+  )
+    fail(
+      `${where}.hosts must list 1 to 10 lowercase GitHub host names, each once.`,
+    );
+  if (
+    owners !== undefined &&
+    (!Array.isArray(owners) ||
+      owners.length < 1 ||
+      owners.length > 100 ||
+      owners.some((owner) => typeof owner !== "string" || !OWNER.test(owner)) ||
+      new Set(owners.map((owner) => owner.toLowerCase())).size !==
+        owners.length)
+  )
+    fail(`${where}.owners must list 1 to 100 GitHub owner names, each once.`);
+}
+
+// A repository may not choose who Avoozl signs in as (PC2.2).
+const repositoryCredentials = (key, id) =>
+  `.avoozl.json ${key}: plugin ${id} provides credentials; only this machine's plugins.json may declare who Avoozl signs in as.`;
 
 // A policy part: `triage` is "blocked" (the one limit so far), with the
 // reason a person reads where the limit applies.
@@ -518,6 +579,14 @@ export function inspectPlugin(declared, options, settings) {
     return { ...base, location, state: "invalid", reason: invalid.message };
   }
   const { provides, kinds } = pluginParts(manifest);
+  if (source === "repository" && provides.includes("credentials"))
+    return {
+      ...base,
+      location,
+      provides,
+      state: "invalid",
+      reason: repositoryCredentials(`plugins.${declared.index}`, entry.id),
+    };
   const shown = {
     ...base,
     location,
@@ -528,6 +597,14 @@ export function inspectPlugin(declared, options, settings) {
     capabilities: manifest.capabilities ?? {},
     hash,
     manifest,
+    ...(provides.includes("credentials")
+      ? {
+          credentials: {
+            hosts: manifest.credentials.hosts,
+            owners: manifest.credentials.owners ?? null,
+          },
+        }
+      : {}),
     ...(pack ? { pack } : {}),
     ...(templates ? { templates } : {}),
   };
@@ -647,6 +724,14 @@ export async function previewPlugin(options, input = {}) {
     contract: manifest.contract,
     ...pluginParts(manifest),
     capabilities: manifest.capabilities ?? {},
+    ...(manifest.credentials
+      ? {
+          credentials: {
+            hosts: manifest.credentials.hosts,
+            owners: manifest.credentials.owners ?? null,
+          },
+        }
+      : {}),
     ...(pack ? { pack } : {}),
     ...(templates ? { templates } : {}),
     supported: SUPPORTED_CONTRACTS.includes(manifest.contract),
@@ -822,8 +907,9 @@ function childEnvironment(config, extra) {
   return { ...env, ...extra };
 }
 
-// One running plugin: JSON lines over stdio, one call at a time.
-class PluginProcess {
+// One running plugin: JSON lines over stdio, one call at a time. The
+// credentials host (github-credentials.mjs) runs one too, outside any tick.
+export class PluginProcess {
   constructor(plugin, { timeoutMs, deadline, guard, checkListeners }) {
     this.plugin = plugin;
     this.timeoutMs = timeoutMs;
@@ -958,7 +1044,8 @@ export function pluginHost({
         const plugin = plugins.get(id);
         if (!plugin) return { reason: `Plugin ${id} is not declared.` };
         if (plugin.state !== "approved") return { reason: plugin.reason };
-        if (!plugin.kinds.includes(kind))
+        // Tokens never sit in a tick's plugin child (PC1.3, PC1.7).
+        if (kind === "credentials" || !plugin.kinds.includes(kind))
           return { reason: `Plugin ${id} does not declare the kind ${kind}.` };
         if (!running.has(id)) {
           // A local folder can change between the check above and the spawn;
@@ -1041,6 +1128,7 @@ export function approvePlugin(
     ...(plugin.commit ? { commit: plugin.commit } : {}),
     provides: plugin.provides,
     kinds: plugin.kinds,
+    ...(plugin.credentials ? { credentials: plugin.credentials } : {}),
     location: plugin.location,
     approvedAt: new Date().toISOString(),
     ...(approvedBy ? { approvedBy } : {}),
@@ -1108,6 +1196,23 @@ function checkAdd(options, { scope, entry, confirmPublic }, visibility) {
     fail(`Plugin ${entry.id} is already declared.`, 409);
 }
 
+// Add plugin refuses the repository scope for a credentials plugin (PC2.2).
+function refuseRepositoryCredentials(location, id) {
+  let manifest = null;
+  try {
+    manifest = JSON.parse(
+      fs.readFileSync(path.join(location, PLUGIN_MANIFEST), "utf8"),
+    );
+  } catch {
+    return;
+  }
+  if (pluginParts(manifest).provides.includes("credentials"))
+    fail(
+      `Plugin ${id} provides credentials; only this machine's plugins.json may declare who Avoozl signs in as. Add it on this machine.`,
+      409,
+    );
+}
+
 export function addPlugin(
   options,
   { scope = "machine", entry, confirmPublic = false },
@@ -1116,6 +1221,11 @@ export function addPlugin(
   if (entry?.git !== undefined)
     fail("A git plugin is added with addGitPlugin, which fetches it.");
   checkAdd(options, { scope, entry, confirmPublic }, visibility);
+  if (scope === "repository")
+    refuseRepositoryCredentials(
+      pluginLocation({ entry, source: "repository" }, options),
+      entry.id,
+    );
   if (scope === "machine") {
     const settings = readPluginSettings(options.settingsFile);
     settings.plugins.push(entry);
@@ -1182,6 +1292,11 @@ export async function addGitPlugin(
   checkAdd(options, { scope, entry, confirmPublic }, visibility);
   const source = scope === "repository" ? "repository" : "machine";
   const pin = await pinGit(options, { entry, source });
+  if (scope === "repository")
+    refuseRepositoryCredentials(
+      pluginLocation({ entry, source }, options, pin),
+      entry.id,
+    );
   if (declaredPlugins(options).some((p) => p.entry?.id === entry.id))
     fail(`Plugin ${entry.id} is already declared.`, 409);
   const settings = readPluginSettings(options.settingsFile);
@@ -1219,6 +1334,8 @@ export function removePlugin(options, { id }) {
   delete settings.approvals[id];
   delete settings.pins[id];
   settings.disabled = settings.disabled.filter((item) => item !== id);
+  for (const [host, picked] of Object.entries(settings.credentialsPick || {}))
+    if (picked === id) delete settings.credentialsPick[host];
   writePluginSettings(options.settingsFile, settings);
   pruneGit(options.settingsFile, id);
   if (declared.some((p) => p.source === "repository"))

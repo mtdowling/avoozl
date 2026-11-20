@@ -336,7 +336,7 @@ function OnboardDialog(props: {
           return
         }
         if (write.key === 'github' && result) {
-          result = await client.applyGitHub(workspaceId, setupRequest(form, found, settings), result.previewHash)
+          result = await client.applyGitHub(workspaceId, setupRequest(form, found, settings), result.previewHash, result.writes)
           setCheck(result)
           const failed = (result.results ?? []).filter((r) => r.status !== 'done')
           setWritten((list) => [...list, `made ${(result!.results ?? []).length - failed.length} GitHub changes`])

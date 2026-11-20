@@ -71,6 +71,7 @@ export const entries = [
   {
     name: "workspace.examples",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       return listExamples();
@@ -80,6 +81,7 @@ export const entries = [
   {
     name: "workspace.seed",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision, context }) {
       const store = this.store;
@@ -93,6 +95,7 @@ export const entries = [
   {
     name: "instance.view",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "The app page shows and renames this install's display name; a chat has no use for it.",
     ),
@@ -105,6 +108,7 @@ export const entries = [
   {
     name: "instance.rename",
     class: "execute",
+    github: "check-in",
     policy: notOnMcp(
       "The app page shows and renames this install's display name; a chat has no use for it.",
     ),
@@ -120,6 +124,7 @@ export const entries = [
   {
     name: "workspace.rebuild",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person rebuilds the workspace, from the CLI."),
     handler({ context }) {
       if (context.caller || context.mcp)
@@ -131,6 +136,7 @@ export const entries = [
   {
     name: "workspace.tick",
     class: "execute",
+    github: "check-in",
     policy: routed,
     async handler({ input }) {
       const store = this.store;
@@ -291,6 +297,7 @@ export const entries = [
   {
     name: "workspace.tick.health",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -301,6 +308,7 @@ export const entries = [
   {
     name: "workspace.tick.log",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -311,6 +319,7 @@ export const entries = [
   {
     name: "workspace",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -356,6 +365,7 @@ export const entries = [
   {
     name: "configuration.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       return this.settingsFile().readConfiguration(input.scope ?? "repository");
@@ -365,6 +375,7 @@ export const entries = [
   {
     name: "configuration.update",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes workspace settings."),
     async handler({ input }) {
       if (!this.configuration)
@@ -385,6 +396,7 @@ export const entries = [
   {
     name: "local.ignore.status",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       return globalLocalIgnoreStatus();
@@ -394,6 +406,7 @@ export const entries = [
   {
     name: "local.ignore.fix",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({}) {
       return ensureGlobalLocalIgnore();
@@ -403,6 +416,7 @@ export const entries = [
   {
     name: "repositories.list",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -414,6 +428,7 @@ export const entries = [
   {
     name: "repositories.detect",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       return detectRepository({
@@ -429,6 +444,7 @@ export const entries = [
   {
     name: "onboarding.inspect",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("App page rendering only."),
     handler({ input }) {
       const store = this.store;
@@ -443,6 +459,7 @@ export const entries = [
   {
     name: "onboarding.scan",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("App page rendering only."),
     handler({ input }) {
       const store = this.store;
@@ -453,6 +470,7 @@ export const entries = [
   {
     name: "onboarding.authors",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("App page rendering only."),
     handler({ input }) {
       return commitAuthors(input.folder);
@@ -464,6 +482,7 @@ export const entries = [
   {
     name: "onboarding.adopt",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person adopts a repository from git."),
     handler({ input, context }) {
       if (context.caller || context.mcp)
@@ -475,6 +494,7 @@ export const entries = [
   {
     name: "repositories.configure",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person adds or changes a repository."),
     async handler({ input }) {
       const store = this.store;
@@ -575,6 +595,7 @@ export const entries = [
   {
     name: "repositories.remove",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person removes a repository."),
     async handler({ input }) {
       const store = this.store;
@@ -606,6 +627,7 @@ export const entries = [
   {
     name: "workspace.repository.configure",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person sets the workspace repository."),
     async handler({ input }) {
       const store = this.store;
@@ -624,6 +646,7 @@ export const entries = [
   {
     name: "workspace.repository.status",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -634,6 +657,7 @@ export const entries = [
   {
     name: "workspace.repository.publish",
     class: "protect",
+    github: "workspace-publish",
     policy: person("Only a person publishes the workspace repository."),
     async handler({ input }) {
       const store = this.store;
@@ -648,6 +672,7 @@ export const entries = [
   {
     name: "workspace.repository.sync",
     class: "protect",
+    github: "workspace-publish",
     policy: person("Only a person syncs the workspace repository."),
     async handler({}) {
       const store = this.store;
@@ -662,6 +687,7 @@ export const entries = [
   {
     name: "repository.configure",
     class: "protect",
+    github: "check-in",
     // The worker, runtime and stranger keys are refused from an agent
     // session's CLI too (VM1.5, VM6.12).
     policy: person("Only a person adds or changes a repository.", undefined, {
@@ -717,6 +743,7 @@ export const entries = [
   {
     name: "repository.remove",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person removes a repository."),
     handler({ input }) {
       const store = this.store;

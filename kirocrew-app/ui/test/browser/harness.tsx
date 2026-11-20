@@ -11,6 +11,7 @@ import { RefreshCw } from '../../src/icons.ts'
 import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import { answer, Btn, Card, Refusal, replyFor, useAppApi } from './stubs.tsx'
+import { answerSignIn } from './signin-fixture.ts'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { SpecLinkContext } from '../../src/spec-link.ts'
 import { ConfirmProvider, DangerBtn, InfoTip } from '../../src/ui/controls.tsx'
@@ -2709,7 +2710,13 @@ function NeedsPage() {
           Switch workspace
         </button>
       )}
-      <ConflictsView workspaceId={workspaceId} />
+      {query.get('signin') === '1' ? (
+        <ConfirmProvider>
+          <ConflictsView workspaceId={workspaceId} />
+        </ConfirmProvider>
+      ) : (
+        <ConflictsView workspaceId={workspaceId} />
+      )}
     </>
   )
 }
@@ -2992,6 +2999,8 @@ function PanelPage() {
     </div>
   )
 }
+// &signin=1: the GitHub sign-in screens (signin-fixture.ts).
+if (query.get('signin') === '1') answerSignIn(page)
 createRoot(document.getElementById('root')!).render(
   page === 'needs' ? (
     <NeedsPage />

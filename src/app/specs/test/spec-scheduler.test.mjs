@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // Task 41.1: the scheduler for spec drivers. Unblock ranking, repository-wide
 // path holds, the branch-only release rule (R102.4), and the journal check
 // before dispatch (§4.32.7). Workspaces and journals are scratch copies.
@@ -305,20 +309,23 @@ test("a GitHub journal that cannot be read holds its spec", async (t) => {
   // With no repository row, the real client still reads the receipt's
   // repository (it once asked for /repos/undefined/undefined).
   const paths = [],
-    client = new GitHubClient({
-      token: "test",
-      fetch: async (input) => {
-        const at = new URL(String(input)).pathname;
-        paths.push(at);
-        return new Response(
-          at.endsWith("/comments") ? "[]" : '{"private":true}',
-          {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          },
-        );
-      },
-    });
+    client = defaultJob(
+      "check-in",
+      new GitHubClient({
+        credentials: fixedCredentials("test"),
+        fetch: async (input) => {
+          const at = new URL(String(input)).pathname;
+          paths.push(at);
+          return new Response(
+            at.endsWith("/comments") ? "[]" : '{"private":true}',
+            {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            },
+          );
+        },
+      }),
+    );
   const real = await revalidateSpecs(store, {
     github: client,
     planIds: ["spec-a"],

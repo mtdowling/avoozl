@@ -26,7 +26,9 @@ for (const name of ["log", "info", "debug", "warn"])
   console[name] = (...args) => console.error(...args);
 
 let plugin = null,
-  config = {};
+  config = {},
+  // A credentials child serves that part alone (PC1.3).
+  only = null;
 
 async function handle({ id, method, params }) {
   if (method === "hello") {
@@ -35,11 +37,15 @@ async function handle({ id, method, params }) {
     config = params.config ?? {};
     if (!plugin?.[params.kind] || typeof plugin[params.kind] !== "object")
       throw Error(`The entry module exports no ${params.kind}.`);
+    if (params.kind === "credentials") only = "credentials";
     return {
-      kinds: ["intake", "rules"].filter((kind) => plugin[kind]),
+      kinds: ["intake", "rules", "credentials"].filter(
+        (kind) => plugin[kind] && (!only || kind === only),
+      ),
     };
   }
   const [kind, name] = String(method).split(".");
+  if (only && kind !== only) throw Error(`The plugin has no ${method}.`);
   const fn = plugin?.[kind]?.[name];
   if (typeof fn !== "function") throw Error(`The plugin has no ${method}.`);
   return (await fn.call(plugin[kind], params, { config })) ?? null;

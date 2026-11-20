@@ -7,6 +7,7 @@
 // tracking branch and a reviewed pull request instead (R102.21, §4.32.13).
 // shortcut: `gitCopy` uses the local git and the `gh` credential helper, and
 // has no live test; the step is tested with an injected copy.
+import { asJob } from "../github/github-jobs.mjs";
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -184,7 +185,7 @@ async function importUpstream({
     });
   let pull = open.find((p) => p.head?.ref === tracking);
   if (!pull)
-    pull = await github.createPullRequest(mirror.mirror, {
+    pull = await asJob("spec-branch", github).createPullRequest(mirror.mirror, {
       title: `Import ${mirror.source} ${sourceBranch} into ${mirrorBranch}`,
       head: tracking,
       base: mirrorBranch,

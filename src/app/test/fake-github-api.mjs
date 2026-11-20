@@ -1,3 +1,4 @@
+import { defaultJob, fixedCredentials } from "./github-credentials.mjs";
 // A fake GitHub behind the real GitHubClient: the client's `fetch` is
 // answered here, so its pacer, conditional requests and rate handling run
 // as they do live. Every call is counted by kind (REST, conditional 304,
@@ -72,13 +73,16 @@ export class FakeGitHubApi {
     Object.assign(this.items.get(number), change, { updated_at: this.tick() });
   }
 
-  client(options = {}) {
-    return new GitHubClient({
-      token: "test-token",
-      apiUrl: "https://api.example.test",
-      fetch: (url, init) => this.fetch(new URL(url), init),
-      ...options,
-    });
+  client({ job = "check-in", ...options } = {}) {
+    return defaultJob(
+      job,
+      new GitHubClient({
+        credentials: fixedCredentials("test-token"),
+        apiUrl: "https://api.example.test",
+        fetch: (url, init) => this.fetch(new URL(url), init),
+        ...options,
+      }),
+    );
   }
 
   headers() {

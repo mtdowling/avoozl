@@ -19,7 +19,7 @@ import { takeOverSpec } from "../specs/spec-takeover.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { lintSpec, readSpecFolder, taskToken } from "../specs/spec-plans.mjs";
 import { specsDirectory, specsPath } from "../specs/specs-path.mjs";
-import { git } from "../git/git.mjs";
+import { git, remoteGit } from "../git/git.mjs";
 import { isCollaborator } from "./stranger-input.mjs";
 
 export const FIX_VERSION = 2;
@@ -240,7 +240,7 @@ async function pullHead(repository, number, github) {
     }
   }
   const ref = `refs/avoozl/pull/${n}`;
-  await git(repository.localCheckout, [
+  await remoteGit(repository.localCheckout, [
     "fetch",
     "--no-tags",
     "origin",

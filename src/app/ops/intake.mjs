@@ -66,6 +66,7 @@ export const entries = [
   {
     name: "intake.submit",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       return submitItems(
@@ -79,6 +80,7 @@ export const entries = [
   {
     name: "intake.list",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -89,6 +91,7 @@ export const entries = [
   {
     name: "intake.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -99,6 +102,7 @@ export const entries = [
   {
     name: "intake.sources",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -148,6 +152,7 @@ export const entries = [
   {
     name: "intake.confirm",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person confirms an incoming item's changed text."),
     handler({ input }) {
       const store = this.store;
@@ -159,24 +164,28 @@ export const entries = [
   {
     name: "intake.deliver",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person presses Deliver this on an incoming item."),
     handler: intakeDeliverHandler,
   },
   {
     name: "intake.plan",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person presses Plan this on an incoming item."),
     handler: intakeDeliverHandler,
   },
   {
     name: "intake.source.add",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes intake sources."),
     handler: intakeSourceAddHandler,
   },
   {
     name: "intake.source.remove",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes intake sources."),
     handler: intakeSourceAddHandler,
   },

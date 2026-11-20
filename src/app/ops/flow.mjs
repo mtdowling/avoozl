@@ -53,6 +53,7 @@ export const entries = [
   {
     name: "flow.checks.run",
     class: "execute",
+    github: "ci-receipts",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -78,6 +79,7 @@ export const entries = [
   {
     name: "builds.view",
     class: "observe",
+    github: "ci-receipts",
     policy: routed,
     handler() {
       const instance = peekInstance(this.store);
@@ -90,6 +92,7 @@ export const entries = [
   {
     name: "flow.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -127,6 +130,7 @@ export const entries = [
   {
     name: "models.settings.get",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "Settings › Models reads the chat models; a chat has no use for them.",
     ),
@@ -142,6 +146,7 @@ export const entries = [
   {
     name: "harness.list",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("Harness files are this machine's; a chat has no use."),
     handler({}) {
       return listHarnessDefinitions(this.configDirectory);
@@ -151,6 +156,7 @@ export const entries = [
   {
     name: "harness.approve",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person approves a program to run on this machine."),
     handler({ input, context }) {
       if (context.caller || context.mcp)
@@ -166,6 +172,7 @@ export const entries = [
   {
     name: "needskirocrew.runon",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person chooses the harness a waiting role runs on."),
     handler({ input, context }) {
       const store = this.store;
@@ -189,6 +196,7 @@ export const entries = [
   {
     name: "stranger.runon",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person moves stranger input to a harness."),
     handler({ input, context }) {
       if (context.caller || context.mcp)
@@ -203,6 +211,7 @@ export const entries = [
   {
     name: "box.preflight.retry",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person runs the box preflight again."),
     handler({ input }) {
       return retryPreflight(
@@ -216,6 +225,7 @@ export const entries = [
   {
     name: "models.settings.update",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person changes chat models."),
     handler({ input, context }) {
       if (context.caller || context.mcp)
@@ -229,6 +239,7 @@ export const entries = [
   {
     name: "flow.settings.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ context }) {
       const store = this.store;
@@ -251,6 +262,7 @@ export const entries = [
   {
     name: "flow.settings.update",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person changes flow settings."),
     handler({ input }) {
       const written = this.settingsFile().updateFlowSettings(input);
@@ -262,6 +274,7 @@ export const entries = [
   {
     name: "flow.instructions.update",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person changes flow settings."),
     handler({ input }) {
       const store = this.store;
@@ -272,6 +285,7 @@ export const entries = [
   {
     name: "flow.retro.start",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person starts a retro."),
     handler({}) {
       const store = this.store;
@@ -301,6 +315,7 @@ export const entries = [
   {
     name: "flow.retro.again",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person runs a retro again."),
     handler({ input }) {
       const store = this.store;
@@ -311,6 +326,7 @@ export const entries = [
   {
     name: "flow.retro.decide",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person decides retro proposals."),
     handler({ input, context }) {
       const store = this.store;
@@ -383,6 +399,7 @@ export const entries = [
   {
     name: "flow.runAnyway",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person presses Run anyway."),
     handler({ input, context }) {
       const store = this.store;
@@ -402,6 +419,7 @@ export const entries = [
   {
     name: "flow.stop",
     class: "execute",
+    github: "check-in",
     policy: person(
       "Only a person stops all agents.",
       (input) => input?.full === true,
@@ -437,6 +455,7 @@ export const entries = [
   {
     name: "flow.resume",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person resumes a pulled stop."),
     handler({ input, context }) {
       const store = this.store;

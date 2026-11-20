@@ -1,23 +1,31 @@
+import {
+  defaultJob,
+  fixedCredentials,
+  granted,
+} from "../../test/github-credentials.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubClient } from "../github.mjs";
 
 function client(reply) {
   const requests = [],
-    github = new GitHubClient({
-      token: "test-token",
-      apiUrl: "https://api.example.test",
-      fetch: async (url, options) => {
-        const request = {
-          method: options.method,
-          url: String(url).replace("https://api.example.test", ""),
-          body: options.body ? JSON.parse(options.body) : undefined,
-        };
-        requests.push(request);
-        const { status = 200, body = [] } = reply(request) || {};
-        return new Response(JSON.stringify(body), { status });
-      },
-    });
+    github = defaultJob(
+      "spec-branch",
+      new GitHubClient({
+        credentials: fixedCredentials("test-token"),
+        apiUrl: "https://api.example.test",
+        fetch: async (url, options) => {
+          const request = {
+            method: options.method,
+            url: String(url).replace("https://api.example.test", ""),
+            body: options.body ? JSON.parse(options.body) : undefined,
+          };
+          requests.push(request);
+          const { status = 200, body = [] } = reply(request) || {};
+          return new Response(JSON.stringify(body), { status });
+        },
+      }),
+    );
   return { github, requests };
 }
 
@@ -33,7 +41,9 @@ test("sub-issue, dependency, and issue type endpoints", async () => {
   await github.listIssueBlocking("example/plans", 4);
   assert.deepEqual(await github.listIssueTypes("user"), []);
   await github.listIssueTypes("example");
-  await github.createIssueType("example", { name: "Epic", color: "purple" });
+  await granted("issue-types-setup", "example", () =>
+    github.createIssueType("example", { name: "Epic", color: "purple" }),
+  );
   await github.setIssueType("example/plans", 3, "Epic");
   assert.deepEqual(
     requests.map(({ method, url, body }) => [method, url, body]),

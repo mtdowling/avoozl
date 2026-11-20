@@ -106,6 +106,7 @@ test("a second run with nothing to change writes nothing", async () => {
   assert.equal(preview.message, "Nothing to change");
   assert.deepEqual(await applyLanding(github, preview), {
     written: [],
+    skipped: [],
     message: "Nothing to change",
   });
   assert.deepEqual(github.writes, []);

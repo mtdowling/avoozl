@@ -1,3 +1,5 @@
+import { personOf } from "../github/github.mjs";
+import { remoteGitSetup } from "../git/git.mjs";
 // One driver per spec (design §6.10, Requirement 66). In a GitHub mode the
 // driver is named by the spec's plan issue: its one assignee says which
 // person, and the machine claim in Avoozl's marker says which of that
@@ -29,6 +31,7 @@ import { epicOfPlan } from "../epics/epics.mjs";
 import { fail } from "../store/store.mjs";
 import { mirrorConfig, refusePrivateToSource } from "../mirror/mirror-sync.mjs";
 import { exportEvidence, importEvidence } from "../tasks/evidence.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const TABLE = "drivers";
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
@@ -424,10 +427,16 @@ function verdictOf({ assignees, claim, login, machine, handoff }) {
   return { state: "driver", reason: "driver" };
 }
 
-async function currentLogin(github) {
-  const user = await github.currentUser();
-  if (!user?.login) fail("GitHub did not say which login this token is.", 502);
-  return user.login;
+// This machine's person on GitHub (§D12): the spec issue's assignee and
+// the driver claim name the person, never a provider's bot login.
+async function currentLogin(github, value) {
+  const login = await personOf(github, value);
+  if (!login)
+    fail(
+      "The GitHub sign-in names no person, so driver claims wait. See Needs you.",
+      409,
+    );
+  return login;
 }
 
 // One read of the plan issue (and the epic issue when the plan issue has
@@ -456,7 +465,7 @@ async function readGitHubDriver(
   if (row.number) issue = await github.issue(config, row.number);
   else if (find)
     issue = await findPlanIssue(github, config, namespace, plan.id);
-  login = login || (await currentLogin(github));
+  login = login || (await currentLogin(github, config));
   const now = ctx.now();
   if (!issue) {
     const projected = planTasks(store.read(), plan.id).some(
@@ -522,7 +531,7 @@ async function readGitHubDriver(
     now - Date.parse(claim.heartbeatAt) >= settings.heartbeatMinutes * 60_000
   ) {
     nextClaim = { ...claim, heartbeatAt: iso(now) };
-    await github.updateIssue(config, issue.number, {
+    await asJob("spec-issues", github).updateIssue(config, issue.number, {
       body: withClaimBody(
         issue.body,
         { ...marker, claim: nextClaim },
@@ -710,7 +719,7 @@ async function createPlanIssue(
   const identity = ctx.identity(),
     label = managedLabel(config, identity);
   refusePrivateToSource(plan, identity.repositories, config.id);
-  const created = await github.createIssue(config, {
+  const created = await asJob("spec-issues", github).createIssue(config, {
     title: planTitle(plan),
     body: withClaimBody(
       planSection(plan),
@@ -1168,7 +1177,7 @@ async function writeExport(
       marker = planMarkerOf(issue, identity.namespace, plan.id);
     if (!marker?.claim) fail("The plan issue lost its claim.", 409);
     const claim = { ...marker.claim, export: sha256 };
-    await github.updateIssue(config, row.number, {
+    await asJob("spec-issues", github).updateIssue(config, row.number, {
       body: withClaimBody(issue.body, { ...marker, claim }, identity),
     });
     next = { ...next, claim, state: "read-only", reason: "handed-off" };
@@ -1221,18 +1230,24 @@ function readExportFile(file) {
 }
 
 function commitPresent(root, commit) {
-  const run = (args) =>
+  const run = ({ args, env }) =>
     execFileSync("git", ["-C", root, ...args], {
       stdio: ["ignore", "ignore", "ignore"],
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      env: env ?? process.env,
     });
+  const has = () => run({ args: ["cat-file", "-e", commit + "^{commit}"] });
   try {
-    run(["cat-file", "-e", commit + "^{commit}"]);
+    has();
     return true;
   } catch {
     try {
-      run(["fetch", "--quiet", "origin"]);
-      run(["cat-file", "-e", commit + "^{commit}"]);
+      // A fetch goes out signed in as Avoozl's own git (§D9).
+      run(
+        remoteGitSetup(root, ["fetch", "--quiet", "origin"], {
+          env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+        }),
+      );
+      has();
       return true;
     } catch {
       return false;
@@ -1395,7 +1410,7 @@ async function writeClaim(store, github, ctx, row, claim) {
         null,
         managedLabel(config, identity),
       );
-  await github.updateIssue(config, row.number, {
+  await asJob("spec-issues", github).updateIssue(config, row.number, {
     body: withClaimBody(issue.body, { ...marker, claim }, identity),
   });
 }
@@ -1567,7 +1582,9 @@ export async function forceTakeOver(store, github, input = {}, hooks = {}) {
   // silently ignores the change for a token without push access.
   const current = logins(issue);
   if (!(current.length === 1 && same(current[0], login))) {
-    await github.updateIssue(config, row.number, { assignees: [login] });
+    await asJob("spec-issues", github).updateIssue(config, row.number, {
+      assignees: [login],
+    });
     const kept = logins(await github.issue(config, row.number));
     if (!(kept.length === 1 && same(kept[0], login)))
       fail(

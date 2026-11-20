@@ -35,6 +35,8 @@ import {
   isGitHubMode,
   rateLines,
   usageRows,
+  loginRows,
+  signInLine,
   sortUsage,
   nextUsageSort,
   USAGE_SORT,
@@ -1082,7 +1084,7 @@ function WorkspaceGitHub(props: {
           </Card>
         )}
         {tab === 'calls' &&
-          (rateLines(props.rate).length || usageRows(props.rate).length ? (
+          (rateLines(props.rate).length || usageRows(props.rate).length || props.rate?.signIns?.length ? (
             <RateBlock rate={props.rate} />
           ) : (
             <Card>
@@ -1277,14 +1279,23 @@ function SettingsBody(
 // source, all in one bordered section.
 export function RateBlock({ rate }: { rate: RateView | undefined }) {
   const lines = rateLines(rate),
-    rows = usageRows(rate)
-  if (!lines.length && !rows.length) return null
+    rows = usageRows(rate),
+    logins = loginRows(rate),
+    signIns = rate?.signIns ?? []
+  if (!lines.length && !rows.length && !signIns.length) return null
   return (
     <Card>
       <Section
         title="GitHub calls"
-        blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. Calls count against the limit; 304s and cached answers do not."
+        blurb="Who signs Avoozl in, the last rate-limit numbers GitHub sent, and the calls of the last hour by source and by login. Calls count against the limit; 304s and cached answers do not."
       >
+        {signIns.length > 0 && (
+          <Box as="div" flex flexCol gap="1" size="sm" data-github-signin>
+            {signIns.map((line) => (
+              <p key={`${line.host}|${line.provider}`}>{signInLine(line)}</p>
+            ))}
+          </Box>
+        )}
         {lines.length > 0 && (
           <Hint as="div" flex flexCol gap="1" size="xs" data-github-rate>
             {lines.map((line) => (
@@ -1300,6 +1311,11 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
             <UsageTable rows={rows} />
           </>
         )}
+        {logins.length > 0 && (
+          <Box data-github-logins>
+            <UsageTable rows={logins} first="Login" />
+          </Box>
+        )}
       </Section>
     </Card>
   )
@@ -1314,7 +1330,7 @@ const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
 
 // A real table: each heading is a button that sorts by it, and the th says
 // which way (aria-sort). Numbers sit right-aligned.
-export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
+export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof usageRows>; first?: string }) {
   const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
   const sorted = sortUsage(rows, sort)
   return (
@@ -1350,7 +1366,7 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
                     weight="medium"
                     onClick={() => setSort(nextUsageSort(sort, col.key))}
                   >
-                    {col.label}
+                    {col.key === 'source' ? first : col.label}
                     <Hint aria-hidden="true" as="span" size="xs">
                       {on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
                     </Hint>

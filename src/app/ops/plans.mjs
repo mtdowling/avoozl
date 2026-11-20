@@ -190,6 +190,7 @@ export const entries = [
   {
     name: "plan.extract",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       if (
@@ -207,6 +208,7 @@ export const entries = [
   {
     name: "epics.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -221,6 +223,7 @@ export const entries = [
   {
     name: "gap.preview",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       return this.gapPreview(input, {
@@ -232,6 +235,7 @@ export const entries = [
   {
     name: "gap.accept",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person accepts gap report proposals."),
     async handler({ input, context }) {
       const store = this.store;
@@ -275,6 +279,7 @@ export const entries = [
   {
     name: "plan.spec.read",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       return this.readSpecDocuments(input);
@@ -283,24 +288,28 @@ export const entries = [
   {
     name: "plan.archive",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler: planArchiveHandler,
   },
   {
     name: "plan.unarchive",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler: planArchiveHandler,
   },
   {
     name: "plan.delete.preview",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler: planDeletePreviewHandler,
   },
   {
     name: "plan.delete",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person deletes a plan."),
     handler: planDeletePreviewHandler,
   },
@@ -308,6 +317,7 @@ export const entries = [
   {
     name: "plan.restore",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ name, input }) {
       const store = this.store;
@@ -330,6 +340,7 @@ export const entries = [
   {
     name: "plan.list",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -340,6 +351,7 @@ export const entries = [
   {
     name: "plan.specs",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       return this.specList();
@@ -348,12 +360,14 @@ export const entries = [
   {
     name: "epic.list",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler: epicListHandler,
   },
   {
     name: "epic.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler: epicListHandler,
   },
@@ -361,6 +375,7 @@ export const entries = [
   {
     name: "plan.table",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -400,6 +415,7 @@ export const entries = [
   {
     name: "plan.classify",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -418,6 +434,7 @@ export const entries = [
   {
     name: "plan.new",
     class: "draft",
+    github: "check-in",
     policy: person("Only a person starts a new plan."),
     handler({ input, context }) {
       const store = this.store;
@@ -439,6 +456,7 @@ export const entries = [
   {
     name: "plan.create",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -452,6 +470,7 @@ export const entries = [
   {
     name: "plan.save",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -487,6 +506,7 @@ export const entries = [
   {
     name: "plan.propose",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -513,6 +533,7 @@ export const entries = [
   {
     name: "plan.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -564,6 +585,7 @@ export const entries = [
   {
     name: "plan.lint",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -588,6 +610,7 @@ export const entries = [
   {
     name: "plan.preview",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -725,6 +748,7 @@ export const entries = [
   {
     name: "plan.approve",
     class: "protect",
+    github: "spec-branch",
     policy: person(
       "Only a person approves a plan.",
       (input) => !input?.delegate,
@@ -819,6 +843,7 @@ export const entries = [
   {
     name: "plan.approveMany",
     class: "protect",
+    github: "spec-branch",
     policy: person(
       "Only a person approves a plan.",
       (input) => !input?.delegate,
@@ -831,6 +856,7 @@ export const entries = [
   {
     name: "approval.delegates",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -841,6 +867,7 @@ export const entries = [
   {
     name: "approval.delegate.grant",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person grants approval delegation."),
     async handler({ input }) {
       const store = this.store;
@@ -855,6 +882,7 @@ export const entries = [
   {
     name: "approval.delegate.revoke",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person revokes approval delegation."),
     async handler({ input }) {
       const store = this.store;
@@ -868,6 +896,7 @@ export const entries = [
   {
     name: "plan.approvalBatches",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       return approvalBatches(this, input);
@@ -877,6 +906,7 @@ export const entries = [
   {
     name: "plan.extract.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -887,6 +917,7 @@ export const entries = [
   {
     name: "plan.extraction.submit",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -898,6 +929,7 @@ export const entries = [
   {
     name: "plan.extraction.dispose",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -908,6 +940,7 @@ export const entries = [
   {
     name: "plan.review.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -918,6 +951,7 @@ export const entries = [
   {
     name: "plan.review.list",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -928,6 +962,7 @@ export const entries = [
   {
     name: "plan.reviewSummary",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -938,6 +973,7 @@ export const entries = [
   {
     name: "plan.review.findings",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -948,6 +984,7 @@ export const entries = [
   {
     name: "plan.review.view",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("App page rendering only."),
     handler({ input }) {
       const store = this.store;
@@ -958,6 +995,7 @@ export const entries = [
   {
     name: "plan.review.answer",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -968,6 +1006,7 @@ export const entries = [
   {
     name: "plan.review.decide",
     class: "draft",
+    github: "check-in",
     policy: person("Only a person starts or skips a draft review."),
     handler({ input, context }) {
       const store = this.store;
@@ -1020,6 +1059,7 @@ export const entries = [
   {
     name: "plan.review.submit",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -1039,6 +1079,7 @@ export const entries = [
   {
     name: "plan.review.reply",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -1054,6 +1095,7 @@ export const entries = [
   {
     name: "plan.review.finding.decide",
     class: "draft",
+    github: "check-in",
     policy: person("Only a person decides a review finding."),
     handler({ input }) {
       const store = this.store;
@@ -1073,6 +1115,7 @@ export const entries = [
   {
     name: "plan.review.dispose",
     class: "draft",
+    github: "check-in",
     policy: person("Only a person closes a review comment."),
     handler({ input }) {
       const store = this.store;
@@ -1106,6 +1149,7 @@ export const entries = [
   {
     name: "plan.review.apply",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -1119,6 +1163,7 @@ export const entries = [
   {
     name: "plan.review.pipeline.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;

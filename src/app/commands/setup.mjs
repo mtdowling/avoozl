@@ -6,6 +6,9 @@ import { workflowSkill } from "../cli/skill.mjs";
 import { workspaceStatus } from "../workspace/workspace-status.mjs";
 import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { help } from "../cli/command-help.mjs";
+import { confirmHighRisk, refuseAgentYes } from "../cli/confirm-high-risk.mjs";
+
+const CANCELLED = "Cancelled: nothing was written.";
 
 async function runSpecOffer({ options, positionals, localOrRequest, need }) {
   // The driver offers a task to a worker login and reserves the grants its
@@ -406,6 +409,21 @@ export const commands = [
           previewHash: options["preview-hash"] ?? provided.previewHash,
         };
       } else throw Error("Choose github status, configure or setup.");
+      // An apply shows each high-risk write with its permissions and asks
+      // first (plugin-credentials PC13.6).
+      if (operation === "github.setup" && value.confirm) {
+        refuseAgentYes(options.yes === true);
+        const preview = await localOrRequest(operation, {
+          ...value,
+          confirm: false,
+        });
+        const grants = await confirmHighRisk(preview.writes, {
+          yes: options.yes === true,
+          localOrRequest,
+        });
+        if (grants === null) return console.log(CANCELLED);
+        value.allow = grants;
+      }
       console.log(
         JSON.stringify(await localOrRequest(operation, value), null, 2),
       );
@@ -447,6 +465,21 @@ export const commands = [
                 .map((name) => name.trim())
                 .filter(Boolean),
             };
+      // Making labels is high risk: shown and asked first (PC13.6).
+      if (action === "setup" && value.confirm) {
+        refuseAgentYes(options.yes === true);
+        const preview = await localOrRequest("triage.setup", {
+          repository,
+        });
+        const grants = await confirmHighRisk(
+          (preview.writes || []).filter((write) =>
+            (value.createLabels || []).includes(write.label),
+          ),
+          { yes: options.yes === true, localOrRequest },
+        );
+        if (grants === null) return console.log(CANCELLED);
+        value.allow = grants;
+      }
       console.log(
         JSON.stringify(
           await localOrRequest(`triage.${action}`, value),
@@ -507,18 +540,32 @@ export const commands = [
           ?.split(",")
           .map((entry) => entry.trim())
           .filter(Boolean);
+      const value = {
+        repository: need(
+          positionals[0],
+          "setup OWNER/REPO --repo ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+        ),
+        repositoryId: options.repo,
+        methods: list(options.methods),
+        landing: options.landing,
+        confirm: Boolean(options.yes),
+      };
+      // --yes applies: it shows each GitHub write with its permissions and
+      // counts as the person's yes to them (PC13.6).
+      if (value.confirm) {
+        refuseAgentYes(true);
+        const preview = await localOrRequest("repository.setup", {
+          ...value,
+          confirm: false,
+        });
+        value.allow = await confirmHighRisk(
+          (preview.github || []).filter((step) => step.status === "change"),
+          { yes: true, localOrRequest },
+        );
+      }
       console.log(
         JSON.stringify(
-          await localOrRequest("repository.setup", {
-            repository: need(
-              positionals[0],
-              "setup OWNER/REPO --repo ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
-            ),
-            repositoryId: options.repo,
-            methods: list(options.methods),
-            landing: options.landing,
-            confirm: Boolean(options.yes),
-          }),
+          await localOrRequest("repository.setup", value),
           null,
           2,
         ),

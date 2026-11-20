@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // rc-16.4: the scheduled merge of the default branch into an epic's
 // integration branch (RC16.6, design D21), with a fake GitHub that models the
 // branch. Nothing here reaches the network.
@@ -277,17 +281,20 @@ test("targets: two repositories, or none to pick, are named as problems, not gue
 
 test("the real client merges with POST /merges and compares with a slash in the branch", async () => {
   const seen = [];
-  const client = new GitHubClient({
-    token: "t",
-    apiUrl: "https://api.example.test",
-    fetch: async (url, init) => {
-      const u = new URL(url);
-      seen.push([init.method, u.pathname, init.body]);
-      return u.pathname.endsWith("/merges")
-        ? new Response("", { status: 200 })
-        : new Response(JSON.stringify({ ahead_by: 0 }), { status: 200 });
-    },
-  });
+  const client = defaultJob(
+    "integration",
+    new GitHubClient({
+      credentials: fixedCredentials("t"),
+      apiUrl: "https://api.example.test",
+      fetch: async (url, init) => {
+        const u = new URL(url);
+        seen.push([init.method, u.pathname, init.body]);
+        return u.pathname.endsWith("/merges")
+          ? new Response("", { status: 200 })
+          : new Response(JSON.stringify({ ahead_by: 0 }), { status: 200 });
+      },
+    }),
+  );
   await client.compareCommits(REPO, BRANCH, "main");
   assert.equal(
     await client.mergeBranch(REPO, {

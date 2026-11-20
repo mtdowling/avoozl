@@ -87,6 +87,16 @@ export class WritePacer {
         "CREATE TABLE IF NOT EXISTS github_write_journal(id INTEGER PRIMARY KEY AUTOINCREMENT,at INTEGER NOT NULL,method TEXT,path TEXT,tag TEXT,status INTEGER);" +
           "CREATE INDEX IF NOT EXISTS github_write_journal_at ON github_write_journal(at)",
       );
+      // Each login has its own write windows (plugin-credentials PC9.2).
+      if (
+        !this.store.db
+          .prepare("PRAGMA table_info(github_write_journal)")
+          .all()
+          .some((column) => column.name === "login")
+      )
+        this.store.db.exec(
+          "ALTER TABLE github_write_journal ADD COLUMN login TEXT",
+        );
       // A row with no status is a write that may or may not have landed.
       const unfinished = this.store.db
         .prepare(
@@ -99,22 +109,32 @@ export class WritePacer {
     return this.store.db;
   }
 
-  // Times of the writes in the last hour, ascending.
-  history(now = this.now()) {
-    return this.#db()
-      .prepare("SELECT at FROM github_write_journal WHERE at>? ORDER BY at")
-      .all(now - HOUR)
-      .map((row) => row.at);
+  // Times of the writes in the last hour, ascending: one login's when
+  // `login` is given.
+  history(now = this.now(), login) {
+    return (
+      login === undefined
+        ? this.#db()
+            .prepare(
+              "SELECT at FROM github_write_journal WHERE at>? ORDER BY at",
+            )
+            .all(now - HOUR)
+        : this.#db()
+            .prepare(
+              "SELECT at FROM github_write_journal WHERE at>? AND login IS ? ORDER BY at",
+            )
+            .all(now - HOUR, login ?? null)
+    ).map((row) => row.at);
   }
 
   // Runs `send` once the pace allows, one write at a time. Throws a paced
   // error, sending nothing, when the wait is longer than a short sleep.
-  run({ method, pathname }, send) {
+  run({ method, pathname, login }, send) {
     const turn = this.tail.then(async () => {
       // A short wait is slept once and the write goes: it is the only one
       // in line, and the wait ends when its slot opens.
       const now = this.now(),
-        until = this.#until(now);
+        until = this.#until(now, login);
       if (until) {
         if (until.at - now > MAX_SLEEP_MS)
           throw pacedError({ until: until.at, reason: until.reason });
@@ -124,10 +144,15 @@ export class WritePacer {
         id = Number(
           db
             .prepare(
-              "INSERT INTO github_write_journal(at,method,path,tag) VALUES (?,?,?,?)",
+              "INSERT INTO github_write_journal(at,method,path,tag,login) VALUES (?,?,?,?,?)",
             )
-            .run(this.now(), method, pathname, runs.getStore() ?? null)
-            .lastInsertRowid,
+            .run(
+              this.now(),
+              method,
+              pathname,
+              runs.getStore() ?? null,
+              login ?? null,
+            ).lastInsertRowid,
         );
       let status = 0;
       try {
@@ -149,10 +174,10 @@ export class WritePacer {
   }
 
   // The time and reason the next write must wait for, or null to go now.
-  #until(now) {
+  #until(now, login) {
     const db = this.#db(),
       limits = this.limits(),
-      primary = this.primary();
+      primary = this.primary(login);
     db.prepare(
       "DELETE FROM github_write_journal WHERE at<? AND tag IS NULL",
     ).run(now - 2 * HOUR);
@@ -163,7 +188,7 @@ export class WritePacer {
       primary.resetAtMs > now
     )
       return { at: primary.resetAtMs, reason: "primary limit nearly spent" };
-    const times = this.history(now),
+    const times = this.history(now, login),
       at = nextSlot(times, now, limits);
     if (at <= now) return null;
     const hour = times.length >= limits.perHour;

@@ -15,6 +15,7 @@ import { git } from "../git/git.mjs";
 import { applyAccess, previewAccess } from "./setup-access.mjs";
 import { applyLanding, previewLanding } from "../github/setup-landing.mjs";
 import { fail } from "../store/store.mjs";
+import { personOf } from "../github/github.mjs";
 
 const ACCESS = (id) => `setupAccess:${id}`;
 const LANDINGS = ["direct", "pr", "off"];
@@ -33,7 +34,8 @@ export async function repositorySetup(
     fail("landing must be direct, pr or off.", 400);
   const base = input.base ?? repository.baseBranch ?? "main",
     url = await git(repository.root, ["remote", "get-url", "origin"]),
-    login = String((await github.currentUser())?.login ?? "");
+    // The person setting up (§D12): a plugin's person, not its bot login.
+    login = String((await personOf(github, input.repository)) ?? "");
   const access = await previewAccess(github, {
     wanted: {
       target: input.repository,
@@ -89,9 +91,10 @@ export async function repositorySetup(
   await applyAccess(access, (settings) =>
     store.setMeta(ACCESS(repository.id), settings),
   );
-  const written = landingSteps
-    ? (await applyLanding(github, landingSteps)).written
-    : [];
+  const landed = landingSteps
+      ? await applyLanding(github, landingSteps)
+      : { written: [], skipped: [] },
+    written = landed.written;
   if (repositoryChanges.length) {
     const next = { ...repository, landing, baseBranch: base };
     store.put("repositories", next);
@@ -103,6 +106,8 @@ export async function repositorySetup(
     ...preview,
     applied: true,
     written,
+    // Refused or not allowed: skipped, with what to do by hand (PC13.8).
+    skipped: landed.skipped,
     blocked: blocked.map((s) => ({ id: s.id, permission: s.permission })),
   };
 }

@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // Paced GitHub writes: a serial pacer in front of every write, a journal that
 // counts the windows, and the pace estimate.
 // A virtual clock and fakes only: no network and no real waiting.
@@ -60,7 +64,13 @@ function client(t, time, fetch, limits) {
   const store = new Store(
       path.join(temporaryDirectory("avoozl-pacer-"), "workspace.sqlite"),
     ),
-    github = new GitHubClient({ token: "t", fetch }).bind(store, {
+    github = defaultJob(
+      "spec-issues",
+      new GitHubClient({
+        credentials: fixedCredentials("t"),
+        fetch,
+      }),
+    ).bind(store, {
       now: time.read,
       sleep: time.sleep,
       writeLimits: () => limits,

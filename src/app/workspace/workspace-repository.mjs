@@ -8,12 +8,13 @@ import { fail } from "../store/store.mjs";
 import { secretReason } from "../content/content-rules.mjs";
 import { requirePrivateRepository } from "../github/github.mjs";
 import { synchronizeAgentInstructions } from "../agents/agent-instructions.mjs";
-import { checkoutRoot } from "../git/git.mjs";
+import { checkoutRoot, remoteGit } from "../git/git.mjs";
 import { configuredRepositoryInstructionSources } from "../specs/source-sync.mjs";
 import {
   assertPortableRepositoryConfig,
   assertSafeConfig,
 } from "../settings/layered-config.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const exec = promisify(execFile);
 const allowedPath =
@@ -246,7 +247,7 @@ export async function configureWorkspaceRepository(store, input, github) {
 
 async function remoteHead(config, { fetch = true } = {}) {
   if (fetch)
-    await git(config.root, [
+    await remoteGit(config.root, [
       "fetch",
       "--no-tags",
       config.remote,
@@ -326,11 +327,11 @@ export async function publishWorkspaceRepository(store, input = {}) {
     if (base) args.push("-p", base);
     args.push("-m", input.message || "Publish Avoozl workspace");
     const commit = await git(config.root, args, { env });
-    await git(config.root, [
-      "push",
-      config.remote,
-      `${commit}:refs/heads/${targetBranch}`,
-    ]);
+    await remoteGit(
+      config.root,
+      ["push", config.remote, `${commit}:refs/heads/${targetBranch}`],
+      { job: "workspace-publish" },
+    );
     const publication = {
       commit,
       branch: targetBranch,
@@ -689,15 +690,18 @@ export async function publishPlanningPullRequest(store, github, { planId }) {
       targetBranch: head,
       message: `Publish ${plan.title}`,
     });
-    pull = await github.createPullRequest(config.repository, {
-      title: plan.title,
-      head,
-      base: config.branch,
-      body: `<!-- avoozl-planning-pr
+    pull = await asJob("workspace-publish", github).createPullRequest(
+      config.repository,
+      {
+        title: plan.title,
+        head,
+        base: config.branch,
+        body: `<!-- avoozl-planning-pr
 ${JSON.stringify({ version: 1, planId: plan.id, planHash: plan.hash, commit: publication.commit })}
 -->
 Requests team review of the exact Avoozl design revision \`${plan.hash}\`. Merging authorizes projection of its task issues.`,
-    });
+      },
+    );
   }
   const receipt = {
     id: "planning-pr:" + pull.node_id,

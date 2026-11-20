@@ -15,6 +15,7 @@
 // matched. Upgrade if a repository names its base by a pattern.
 import { parseRepository } from "./github.mjs";
 import { fail } from "../store/store.mjs";
+import { asJob, confirmStep, withJob } from "./github-jobs.mjs";
 
 export const RULESET_NAME = "avoozl-required-check";
 export const LANDING_VARIABLE = { name: "AVOOZL_LANDING", value: "pr" };
@@ -63,12 +64,24 @@ export async function previewLanding(github, input) {
   if (!remote) fail(`${repository} was not found.`, 404);
   const admin = remote.permissions?.admin === true,
     steps = [];
+  // Each write is the high-risk landing-setup job (plugin-credentials
+  // PC13.3): the confirm lists it with its permissions and allows it.
   const step = (id, changed, detail, write) =>
     steps.push(
       !changed
         ? { id, status: "ok", detail }
         : admin
-          ? { id, status: "change", detail, write }
+          ? {
+              id,
+              status: "change",
+              detail,
+              write,
+              ...confirmStep({
+                job: "landing-setup",
+                target: repository,
+                action: detail,
+              }),
+            }
           : {
               id,
               status: "blocked",
@@ -79,9 +92,9 @@ export async function previewLanding(github, input) {
     );
 
   // Ruleset: add only what is missing, to the rule that already exists.
-  const rulesets = (await github.rulesets(repository)).filter((ruleset) =>
-      applies(ruleset, base, remote.default_branch),
-    ),
+  const rulesets = (
+      await asJob("rules-read", github).rulesets(repository)
+    ).filter((ruleset) => applies(ruleset, base, remote.default_branch)),
     holder = rulesets.find((ruleset) =>
       (ruleset.rules ?? []).some((rule) => rule.type === CHECKS),
     ),
@@ -160,9 +173,9 @@ export async function previewLanding(github, input) {
   );
 
   // The CI variable.
-  const variable = (await github.listRepoVariables(repository)).find(
-    (v) => v.name === LANDING_VARIABLE.name,
-  );
+  const variable = (
+    await asJob("rules-read", github).listRepoVariables(repository)
+  ).find((v) => v.name === LANDING_VARIABLE.name);
   step(
     "ci-variable",
     variable?.value !== LANDING_VARIABLE.value,
@@ -183,28 +196,60 @@ export async function previewLanding(github, input) {
   };
 }
 
-// Write each `change` step of a preview. Blocked steps write nothing.
+// What a repository admin does on GitHub by hand when a write is refused
+// (PC13.8), or the permission to grant the sign-in.
+const MANUAL = {
+  ruleset: (repository, detail) =>
+    `On GitHub, open ${repository} › Settings › Rules and do this: ${detail}`,
+  "merge-methods": (repository, detail) =>
+    `On GitHub, open ${repository} › Settings › General › Pull Requests: ${detail}`,
+  "ci-variable": (repository, detail) =>
+    `On GitHub, open ${repository} › Settings › Secrets and variables › Actions › Variables: ${detail}`,
+};
+
+// Write each `change` step of a preview. Blocked steps write nothing. A
+// write the provider refuses, or with no Allow, is skipped with what to do
+// by hand, and the other writes still run (PC13.5, PC13.8).
 export async function applyLanding(github, preview) {
   const { repository } = preview,
-    written = [];
-  for (const { id, status, write } of preview.steps) {
+    written = [],
+    skipped = [];
+  for (const entry of preview.steps) {
+    const { id, status, write } = entry;
     if (status !== "change") continue;
-    if (write.create) await github.createRuleset(repository, write.create);
-    else if (write.update)
-      await github.updateRuleset(repository, write.update, write.body);
-    else if (write.repository)
-      await github.updateRepository(repository, write.repository);
-    else if (write.variable)
-      await github.setRepoVariable(
-        repository,
-        write.variable.name,
-        write.variable.value,
+    try {
+      await withJob("landing-setup", () =>
+        write.create
+          ? github.createRuleset(repository, write.create)
+          : write.update
+            ? github.updateRuleset(repository, write.update, write.body)
+            : write.repository
+              ? github.updateRepository(repository, write.repository)
+              : github.setRepoVariable(
+                  repository,
+                  write.variable.name,
+                  write.variable.value,
+                ),
       );
-    written.push(id);
+      written.push(id);
+    } catch (error) {
+      skipped.push({
+        id,
+        reason: error.message,
+        manual: [
+          MANUAL[id](repository, entry.detail),
+          `Or grant the sign-in ${entry.permissionsText ?? "administration: write"} on ${repository}, then run setup again.`,
+        ],
+      });
+    }
   }
   return {
     written,
-    message: written.length ? null : (preview.message ?? "Nothing to change"),
+    skipped,
+    message:
+      written.length || skipped.length
+        ? null
+        : (preview.message ?? "Nothing to change"),
   };
 }
 
@@ -215,7 +260,7 @@ export async function postVerified(github, repository, sha, statuses) {
     statuses ?? (await github.commitStatus(repository, sha)).statuses;
   if (seen.some((s) => s.context === VERIFY_CONTEXT && s.state === "success"))
     return false;
-  await github.createCommitStatus(repository, sha, {
+  await asJob("land", github).createCommitStatus(repository, sha, {
     state: "success",
     context: VERIFY_CONTEXT,
     description: "Avoozl verified this head.",

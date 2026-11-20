@@ -17,6 +17,8 @@ import {
   isolationSetting,
   prepareChecks,
 } from "../workspace/check-isolation.mjs";
+import { CLI_FILE, shellQuote } from "../workers/report-command.mjs";
+import { currentJob } from "../github/github-jobs.mjs";
 import { taskGit } from "./task-git.mjs";
 export { taskGit } from "./task-git.mjs";
 const exec = promisify(execFile);
@@ -75,6 +77,135 @@ export async function git(cwd, args, { env } = {}) {
       ...(env ? { env } : {}),
     })
   ).stdout.trim();
+}
+
+// The git host Avoozl's GitHub is on: AVOOZL_GIT_URL, or github.com for the
+// public API. Another API host with no git host named has none.
+export function githubGitUrl(env = process.env) {
+  const api = env.GITHUB_API_URL || "https://api.github.com";
+  return (
+    env.AVOOZL_GIT_URL ||
+    (/^https:\/\/api\.github\.com\/?$/.test(api) ? "https://github.com" : "")
+  ).replace(/\/$/, "");
+}
+
+// The host of a git remote: a URL or the scp form `git@host:path`.
+function remoteHost(remote) {
+  const scp = /^[^/@:]+@([^/:]+):/.exec(remote);
+  if (scp) return scp[1].toLowerCase();
+  try {
+    return new URL(remote).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+// The `owner/name` a GitHub remote names: the last two path parts.
+function repositoryOfRemote(remote) {
+  const scp = /^[^/@:]+@[^/:]+:(.+)$/.exec(remote);
+  let pathname = scp ? scp[1] : null;
+  if (!pathname)
+    try {
+      pathname = new URL(remote).pathname;
+    } catch {
+      return null;
+    }
+  const parts = pathname
+    .replace(/\.git$/, "")
+    .split("/")
+    .filter(Boolean);
+  return parts.length >= 2 ? parts.slice(-2).join("/") : null;
+}
+
+// The remote a network command names: its first argument after the
+// subcommand that is not an option, as a URL.
+function remoteOf(cwd, args, env) {
+  const named = args.slice(1).find((arg) => !arg.startsWith("-"));
+  if (!named) return null;
+  if (/[:/]/.test(named)) return named;
+  try {
+    return execFileSync("git", ["remote", "get-url", named], {
+      cwd,
+      env,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+// The command git runs as its credential helper: this Avoozl's CLI, quoted
+// for the POSIX shell git uses on every platform.
+const helperCommand = () =>
+  `${shellQuote(process.execPath, "linux")} ${shellQuote(CLI_FILE, "linux")} credential`;
+
+// The arguments and environment of one network git command (§D9). For a
+// remote on Avoozl's GitHub host, for this command only: every configured
+// credential helper is cleared and `avoozl credential` answers, from the
+// same provider and job table as the API, for that one repository; the
+// host's SSH forms are rewritten to its https form. The token reaches git
+// only through the helper's stdout: never its environment, arguments or
+// config. Any other remote keeps the person's own git sign-in. `job` is
+// the current job unless named.
+export function remoteGitSetup(
+  cwd,
+  args,
+  { repository = null, job = currentJob() || "check-in", env, remote } = {},
+) {
+  const base = env ?? process.env,
+    gitUrl = githubGitUrl(process.env),
+    plain = { args, env };
+  if (!gitUrl) return plain;
+  const host = new URL(gitUrl).hostname.toLowerCase(),
+    target = remote ?? remoteOf(cwd, args, base);
+  if (!target || remoteHost(target) !== host) return plain;
+  repository ??= repositoryOfRemote(target);
+  if (!repository) return plain;
+  // Avoozl's own git, run by this process, is not an agent's: the helper's
+  // agent-session check (PC6.7) is for a helper an agent runs itself. A
+  // supervisor child keeps AVOOZL_CHILD, so the helper refuses it.
+  const { KIROCREW_SPAWNED, KIRO_SESSION_ID, ...own } = base;
+  return {
+    args: [
+      "-c",
+      "credential.helper=",
+      "-c",
+      `credential.helper=!${helperCommand()}`,
+      "-c",
+      "credential.useHttpPath=true",
+      "-c",
+      `url.${gitUrl}/.insteadOf=git@${host}:`,
+      "-c",
+      `url.${gitUrl}/.insteadOf=ssh://git@${host}/`,
+      ...args,
+    ],
+    env: {
+      ...own,
+      AVOOZL_CREDENTIAL_JOB: job,
+      AVOOZL_CREDENTIAL_REPOSITORY: repository,
+      AVOOZL_CREDENTIAL_WORKSPACE: cwd,
+      GIT_TERMINAL_PROMPT: "0",
+    },
+  };
+}
+
+// The one way Avoozl runs a network git command (push, fetch, ls-remote,
+// clone). A test fails on any other in src/app.
+export function remoteGit(cwd, args, options = {}) {
+  const setup = remoteGitSetup(cwd, args, options);
+  return git(cwd, setup.args, { env: setup.env });
+}
+
+// The job of a landing push (PC4.7): one that changes a workflow file needs
+// `workflows: write`.
+export async function landingJob(cwd, from, to) {
+  const files = await git(cwd, ["diff", "--name-only", `${from}..${to}`]).catch(
+    () => "",
+  );
+  return files.split("\n").some((file) => file.startsWith(".github/workflows/"))
+    ? "land-workflows"
+    : "land";
 }
 // Avoozl's own files in a task worktree, such as a child's
 // `.avoozl/result.json` (§4.28), never reach a worker's commit, whatever the
@@ -558,6 +689,8 @@ const PUSH_CREDENTIALS = [
   /^GIT_SSH_COMMAND$/i,
   /^GIT_CONFIG_(?:COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$/i,
   /^GIT_CREDENTIAL/i,
+  // The git credential helper's job, repository and workspace (§D9).
+  /^AVOOZL_CREDENTIAL_/i,
 ];
 export function withoutPushCredentials(env = process.env) {
   const out = {};

@@ -27,6 +27,7 @@ import { startGitHubItem } from "../github/github-intake.mjs";
 import { openFixJournal } from "./fix.mjs";
 import { prepareWorktree } from "../delivery/delivery.mjs";
 import { AGENT_LINE } from "./triage.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const COLLABORATOR = new Set(["write", "maintain", "admin"]);
 const CHECK_TIMEOUT_MS = 10 * 60 * 1000;
@@ -231,7 +232,7 @@ export async function reproduceStep(store, github, run, row, context) {
     const sent = await context.write(
       { kind: "question", body: ASK(result.question) },
       () =>
-        github.createIssueComment(
+        asJob("triage", github).createIssueComment(
           run.repository,
           run.number,
           ASK(result.question),

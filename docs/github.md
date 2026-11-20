@@ -11,6 +11,33 @@ avoozl setup OWNER/REPO --repo app --landing pr --yes
 
 The first command previews the setup, and `--yes` applies it.
 
+## How Avoozl signs in
+
+For each owner on a GitHub host, Avoozl signs in with:
+
+1. the [credentials plugin](plugins.md#credentials-part) that claims that
+   owner, when one is approved on this machine;
+2. else `env`: the token in `AVOOZL_GITHUB_TOKEN`, when it is set;
+3. else `gh`: `gh auth token --hostname <host>`.
+
+A credentials plugin is declared only in this machine's `plugins.json`; a
+repository's `.avoozl.json` never chooses who Avoozl signs in as. An owner a
+plugin claims never falls back to `env` or `gh`, even while the plugin
+fails. `GH_TOKEN` and `GITHUB_TOKEN` are `gh`'s to read.
+
+Comments, reviews, labels, pull requests and pushes made with a plugin's
+token show the token's login on GitHub, such as `acme-bot[bot]`. Commits
+keep the person's git author and committer (`user.name`, `user.email`),
+and approvals still count by the commit's author email. **Settings ›
+GitHub › GitHub calls** shows one sign-in line per provider in use, and the
+calls of the last hour by login.
+
+Each GitHub write that sets up a repository or deletes on GitHub is high
+risk: Avoozl shows the repository, the action and the exact permissions, and
+waits for **Allow** (or `--yes` in the CLI) before it asks for a token. Avoozl
+never makes a label as part of other work; a missing label waits in Needs you
+with **Create labels**.
+
 ## Repository roles
 
 Each repository has a role, chosen in **Settings › Repository setup**, in

@@ -18,6 +18,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { remoteGit, remoteGitSetup } from "../git/git.mjs";
+import { personOf } from "../github/github.mjs";
 import { enforce, pushLines } from "../content/content-rules.mjs";
 import { taskGit } from "../git/task-git.mjs";
 import { fail } from "../store/store.mjs";
@@ -252,7 +254,7 @@ export async function pullWork(store, workspaceRoot, github) {
     fail('This workspace is not a worker (.avoozl.json runner.role "worker").');
   if (!github?.available?.())
     fail("A worker needs GitHub to pull offers.", 409);
-  const login = (await github.currentUser())?.login;
+  const login = await personOf(github);
   if (!login) fail("GitHub did not name this worker's login.", 409);
   const running = Object.values(tasksOf(store)).filter(
       (record) => !TERMINAL.has(record.state),
@@ -276,7 +278,7 @@ export async function acceptWork(store, workspaceRoot, github) {
   if (config?.role !== "worker")
     fail('This workspace is not a worker (.avoozl.json runner.role "worker").');
   if (!github?.available?.()) fail("A worker needs GitHub to claim.", 409);
-  const login = (await github.currentUser())?.login;
+  const login = await personOf(github);
   if (!login) fail("GitHub did not name this worker's login.", 409);
   const requested = await requestGrants(store, {
       pools: config.pools,
@@ -377,6 +379,11 @@ export function runnerStatus(store, workspaceRoot) {
   };
 }
 
+// The URL a remote name stands for, read in the checkout itself (never the
+// worker-writable task folder).
+const remoteUrl = async (checkout, name) =>
+  /[:/]/.test(name) ? name : git(checkout, "remote", "get-url", name);
+
 const git = (cwd, ...args) =>
   run("git", args, { cwd, maxBuffer: 4 << 20 }).then((r) => r.stdout.trim());
 
@@ -400,7 +407,9 @@ async function startWorktree(store, config, id, record) {
         `${record.envelope.baseCommit}^{commit}`,
       );
     } catch {
-      await git(repo, "fetch", config.remote);
+      await remoteGit(repo, ["fetch", config.remote], {
+        job: "worker-grants",
+      });
     }
     await git(
       repo,
@@ -542,11 +551,23 @@ export async function runnerTick(
           },
           { mode: "refuse", taskId: id },
         );
-        await taskGit(
+        // Signed in through Avoozl's helper for the push (§D9), run as
+        // taskGit on the worker's folder.
+        const push = remoteGitSetup(
           record.worktree,
           ["push", config.remote, `HEAD:refs/heads/${record.branch}`],
-          { checkout: config.repos[record.envelope.repo]?.path },
+          {
+            job: "worker-grants",
+            remote: await remoteUrl(
+              config.repos[record.envelope.repo]?.path,
+              config.remote,
+            ),
+          },
         );
+        await taskGit(record.worktree, push.args, {
+          checkout: config.repos[record.envelope.repo]?.path,
+          env: push.env,
+        });
         update(store, id, { state: "pushed", checks, pushedAt: now() });
       } else if (
         record.worker &&

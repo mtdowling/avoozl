@@ -48,6 +48,7 @@ import {
   triageBudget,
   triageCalls,
 } from "../github/github-items.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 export const TRIAGE_ROLE = "triage";
 export { CLASSES } from "./triage-result.mjs";
@@ -901,7 +902,7 @@ async function carryOut(store, github, run, row, settings, context, notify) {
   if (labels.length && settings.labels === "add")
     writes.push(
       await write(store, run, { kind: "labels", labels }, () =>
-        github.addLabels(run.repository, run.number, labels),
+        asJob("triage", github).addLabels(run.repository, run.number, labels),
       ),
     );
   else if (labels.length) putItem(store, row, { suggested: labels });
@@ -913,7 +914,7 @@ async function carryOut(store, github, run, row, settings, context, notify) {
           run,
           { kind: "answer", body: `${result.answer.body}\n\n${AGENT_LINE}` },
           () =>
-            github.createIssueComment(
+            asJob("triage", github).createIssueComment(
               run.repository,
               run.number,
               `${result.answer.body}\n\n${AGENT_LINE}`,
@@ -977,7 +978,7 @@ async function carryOut(store, github, run, row, settings, context, notify) {
     } else
       writes.push(
         await write(store, run, review, () =>
-          github.submitReview(run.repository, run.number, {
+          asJob("triage", github).submitReview(run.repository, run.number, {
             event: "COMMENT",
             commit_id: row.head ?? row.detail?.head ?? undefined,
             body,

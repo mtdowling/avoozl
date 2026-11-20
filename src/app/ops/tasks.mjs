@@ -43,6 +43,9 @@ import { withWorkLock } from "../git/git.mjs";
 import { paceNeedsYou } from "../github/github-pacer.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import { rateNeedsYou } from "../github/github-rate.mjs";
+import { credentialsNeedsYou } from "../github/github-credentials.mjs";
+import { leftBranchesNeedsYou } from "./specs.mjs";
+import { missingLabelsNeedsYou } from "../github/github-setup.mjs";
 import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { highlightLanguages } from "../settings/highlight-languages.mjs";
 import { instanceView } from "../workspace/instance.mjs";
@@ -202,6 +205,7 @@ export const entries = [
   {
     name: "client.describe",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -212,6 +216,7 @@ export const entries = [
   {
     name: "task.duplicates",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       return input.title
@@ -228,6 +233,7 @@ export const entries = [
   {
     name: "task.merge",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -238,6 +244,7 @@ export const entries = [
   {
     name: "task.supersede",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -252,6 +259,7 @@ export const entries = [
   {
     name: "task.merge.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -265,6 +273,7 @@ export const entries = [
   {
     name: "task.evidence",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -278,6 +287,7 @@ export const entries = [
   {
     name: "investigation.decide",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person decides on a task's findings."),
     handler({ input, context }) {
       const store = this.store;
@@ -305,6 +315,7 @@ export const entries = [
   {
     name: "highlight.languages",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("App page rendering only."),
     handler({}) {
       return highlightLanguages(this.workspaceRoot);
@@ -314,6 +325,7 @@ export const entries = [
   {
     name: "activity.recent",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -324,6 +336,7 @@ export const entries = [
   {
     name: "activity.list",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -350,6 +363,7 @@ export const entries = [
   {
     name: "activity.settings.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       return this.settingsFile().readActivitySettings();
@@ -359,6 +373,7 @@ export const entries = [
   {
     name: "activity.settings.update",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes how long activity is kept."),
     handler({ input, context }) {
       if (context.caller || context.mcp)
@@ -372,6 +387,7 @@ export const entries = [
   {
     name: "task.start",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -384,6 +400,7 @@ export const entries = [
   {
     name: "chat.context",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("App page rendering only."),
     async handler({ input, context }) {
       const store = this.store;
@@ -417,6 +434,7 @@ export const entries = [
   {
     name: "graph.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -438,6 +456,7 @@ export const entries = [
   {
     name: "conflicts.view",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -476,6 +495,9 @@ export const entries = [
         ),
       );
       view.items.push(...rateNeedsYou(store));
+      view.items.push(...credentialsNeedsYou(store));
+      view.items.push(...leftBranchesNeedsYou(store));
+      view.items.push(...missingLabelsNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
@@ -511,6 +533,7 @@ export const entries = [
   {
     name: "panel.view",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "The chat side panel's one read; its parts are each on MCP already.",
     ),
@@ -535,48 +558,56 @@ export const entries = [
   {
     name: "task.manual.complete",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person marks a manual task done."),
     handler: taskManualCompleteHandler,
   },
   {
     name: "task.manual.reopen",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person reopens a manual task."),
     handler: taskManualCompleteHandler,
   },
   {
     name: "task.notes.list",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler: taskNotesListHandler,
   },
   {
     name: "task.notes.add",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler: taskNotesListHandler,
   },
   {
     name: "task.notes.edit",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person edits a link."),
     handler: taskNotesListHandler,
   },
   {
     name: "task.notes.remove",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person removes a link."),
     handler: taskNotesListHandler,
   },
   {
     name: "fix.start",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person starts a fix; starting it approves it."),
     handler: fixStartHandler,
   },
   {
     name: "fix.spec",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person makes a fix a spec."),
     handler: fixStartHandler,
   },
@@ -584,6 +615,7 @@ export const entries = [
   {
     name: "task.detail",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -610,6 +642,7 @@ export const entries = [
   {
     name: "task.summary.request",
     class: "execute",
+    github: "check-in",
     policy: person("Only a person asks for a task summary."),
     handler({ input }) {
       const store = this.store;
@@ -630,6 +663,7 @@ export const entries = [
   {
     name: "tasksummary.submit",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input, context }) {
       const store = this.store;
@@ -640,6 +674,7 @@ export const entries = [
   {
     name: "task.files",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -650,6 +685,7 @@ export const entries = [
   {
     name: "task.diff",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -660,6 +696,7 @@ export const entries = [
   {
     name: "task.change.preview",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       return this.previewTaskChange(input);
@@ -669,6 +706,7 @@ export const entries = [
   {
     name: "conflicts.settle",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -679,6 +717,7 @@ export const entries = [
   {
     name: "state",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "Whole-database read; plans_view and plans_task read what a session needs.",
     ),
@@ -690,6 +729,7 @@ export const entries = [
   {
     name: "conversations.settings.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -700,6 +740,7 @@ export const entries = [
   {
     name: "conversations.settings.update",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes workspace settings."),
     handler({ input }) {
       const store = this.store;
@@ -720,6 +761,7 @@ export const entries = [
   {
     name: "query",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -737,6 +779,7 @@ export const entries = [
   {
     name: "task.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -747,6 +790,7 @@ export const entries = [
   {
     name: "report.save",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -834,6 +878,7 @@ export const entries = [
   {
     name: "report.delete",
     class: "draft",
+    github: "check-in",
     policy: person("Only a person deletes a report."),
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -858,6 +903,7 @@ export const entries = [
   {
     name: "agent.instructions.source",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp("App page rendering only."),
     handler({ input }) {
       const store = this.store;
@@ -893,6 +939,7 @@ export const entries = [
   {
     name: "agent.instructions.toggle",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes workspace settings."),
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -909,12 +956,14 @@ export const entries = [
   {
     name: "task.archive",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler: taskArchiveHandler,
   },
   {
     name: "task.unarchive",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler: taskArchiveHandler,
   },
@@ -923,6 +972,7 @@ export const entries = [
   {
     name: "visualization.delete",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person deletes a visualization."),
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -971,6 +1021,7 @@ export const entries = [
   {
     name: "trash",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;
@@ -987,6 +1038,7 @@ export const entries = [
   {
     name: "task.sessions",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -1007,6 +1059,7 @@ export const entries = [
   {
     name: "document.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const doc = this.read().documents[input.id];
@@ -1018,6 +1071,7 @@ export const entries = [
   {
     name: "task.capture",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -1032,6 +1086,7 @@ export const entries = [
   {
     name: "intent.submit",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       return this.submitIntent(input, expectedRevision);
@@ -1041,6 +1096,7 @@ export const entries = [
   {
     name: "intent.get",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -1054,6 +1110,7 @@ export const entries = [
   {
     name: "task.update",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -1289,6 +1346,7 @@ export const entries = [
   {
     name: "activity",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -1303,6 +1361,7 @@ export const entries = [
   {
     name: "document.update",
     class: "draft",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -1347,6 +1406,7 @@ export const entries = [
   {
     name: "queue.design.triage",
     class: "execute",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -1392,6 +1452,7 @@ export const entries = [
   {
     name: "task.accept",
     class: "protect",
+    github: "check-in",
     policy: routed,
     handler({ input, expectedRevision }) {
       const store = this.store;
@@ -1433,6 +1494,7 @@ export const entries = [
   {
     name: "handoff",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const task = this.detail(input.id);
@@ -1458,6 +1520,7 @@ export const entries = [
   {
     name: "queue",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -1524,6 +1587,7 @@ export const entries = [
   {
     name: "legacy.mcp",
     class: "protect",
+    github: "check-in",
     policy: notOnMcp(
       "The MCP server's own protocol methods (initialize, ping, view resources) in src/mcp.mjs.",
     ),

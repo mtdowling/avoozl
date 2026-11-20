@@ -109,6 +109,12 @@ export const APP_OPERATIONS = new Set([
   "plugin.approve",
   "plugin.disable",
   "plugin.remove",
+  // GitHub sign-in (plugin-credentials): Use this one, a person's Allow for
+  // high-risk steps, and the Needs you actions that run under one.
+  "plugin.credentials.pick",
+  "github.job.confirm",
+  "github.labels.create",
+  "spec.grants.branches.delete",
   "plugin.update",
   "plugin.pack.preview",
   "plugin.pack.import",

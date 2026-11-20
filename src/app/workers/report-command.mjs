@@ -6,6 +6,7 @@
 import { fileURLToPath } from "node:url";
 
 const CLI = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
+export const CLI_FILE = CLI;
 
 // One word for a POSIX shell or, on Windows, for cmd.exe and PowerShell.
 export const shellQuote = (text, platform = process.platform) =>

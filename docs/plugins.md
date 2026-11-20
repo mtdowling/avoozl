@@ -27,6 +27,7 @@ lists the parts the plugin provides:
 | `intake`   | An intake source: its `poll` brings outside work in               | Yes       |
 | `template` | A workflow template that starts a new spec from a reusable folder | No        |
 | `policy`   | A limit this machine holds Avoozl to, such as no triage agent     | No        |
+| `credentials` | GitHub tokens, per job, from the organization's own provider | Yes, in its own process |
 
 Avoozl's own worker paths deliver every task, and each task's record is local.
 A plugin cannot add a delivery route or a task tracker, and Avoozl refuses a
@@ -360,6 +361,171 @@ repository. While it holds, **Set up triage** shows the reason instead of
 its button, `avoozl triage setup` and `triage.setup` refuse with it, and a
 repository whose agent is on runs no triage and shows one Needs you row.
 Disable or remove the plugin to lift the block.
+
+## Credentials part
+
+A credentials part signs Avoozl in to GitHub through the organization's own
+token service. For each GitHub call Avoozl asks it for a token for one
+repository, the GitHub permissions that one job needs, and the job's name,
+so the provider can mint a narrow, short-lived token, log it, and refuse a
+job it does not allow. Installing and approving the plugin on this machine is
+the whole setup.
+
+```json [avoozl-plugin.json]
+{
+  "id": "acme-github",
+  "version": "2.1.0",
+  "contract": 1,
+  "provides": ["credentials"],
+  "credentials": {
+    "entry": "token.mjs",
+    "hosts": ["github.com"],
+    "owners": ["acme", "acme-labs"]
+  }
+}
+```
+
+`hosts` lists 1 to 10 lowercase GitHub host names, with an optional
+`:port`. `owners`, optional, lists 1 to 100 users or organizations; without
+it the plugin claims every owner on its hosts. Every other owner signs in
+with `env` or `gh` (see [How Avoozl signs in](github.md#how-avoozl-signs-in)).
+`entry` is the credentials module; it runs in a child process of its own,
+apart from any intake or rules code of the same plugin.
+
+A credentials plugin is declared only in this machine's `plugins.json`. A
+repository does not choose who Avoozl signs in as: a `.avoozl.json` entry
+for one makes it invalid, with a reason that names the file and the key
+(such as `.avoozl.json plugins.0`), and Add plugin refuses that scope.
+
+```json [plugins.json]
+{
+  "plugins": [
+    {
+      "id": "acme-github",
+      "git": "https://git.example.com/acme/avoozl-plugins.git",
+      "ref": "v2.1.0",
+      "subdir": "acme-github",
+      "contract": 1,
+      "config": { "serviceUrl": "https://tokens.example.com/mint", "keyEnv": "ACME_TOKEN_KEY" }
+    }
+  ]
+}
+```
+
+```js [token.mjs]
+// A fake provider: asks the organization's token service for a token
+// scoped to one repository and the job's permissions, and refuses triage.
+export const credentials = {
+  async token({ repository, owner, permissions, purpose }, { config }) {
+    if (purpose === "triage") throw Error("acme does not allow triage comments.");
+    const reply = await fetch(config.serviceUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ repository, owner, permissions, purpose }),
+    }).then((r) => r.json());
+    return {
+      token: reply.token,
+      expiresAt: reply.expires_at,
+      login: "acme-bot[bot]",
+      person: reply.person,
+      granted: reply.permissions,
+    };
+  },
+};
+```
+
+### The call and the reply
+
+Avoozl calls `credentials.token` with `{repository, owner, permissions,
+purpose}`. `repository` is `owner/name`, or `null` for a job on an owner
+alone (an organization's issue types). `permissions` uses GitHub's own
+fine-grained names, each `read` or `write`. `purpose` is the job's name.
+
+The reply is `{token, expiresAt, login, granted, person?}`:
+
+| Field       | Rule |
+| ----------- | ---- |
+| `token`     | 1 to 8,192 characters of letters, digits and `_ . ~ + / = -`; no space or line break |
+| `expiresAt` | `null`, or an ISO time more than 1 minute and at most 24 hours away |
+| `login`     | The GitHub login the token acts as, such as `acme-bot[bot]` |
+| `person`    | Optional: the person this machine signs in for, such as `acme-dev` |
+| `granted`   | `"all"`, or the permissions the token holds |
+
+A reply of any other shape is a failure of that call. A `granted` narrower
+than asked is a refusal naming what is missing; `"all"` or broader is used
+and shown as **broader than asked** in Settings. Throw to refuse a job: the
+message, with any token or credential-looking text replaced by
+`[redacted]` and cut to 500 characters, is shown as the reason. A call that
+takes over 20 seconds fails.
+
+Avoozl keeps each token in the memory of the process that asked, until 5
+minutes before `expiresAt`, and asks again after a 401. It never writes a
+token to disk, the database, a log, Activity, a Needs you row, an error or a
+child's environment.
+
+### Jobs
+
+Every GitHub call Avoozl makes runs inside one job, and each job asks for
+these permissions:
+
+| Job | Risk | Permissions | What it does |
+| --- | ---- | ----------- | ------------ |
+| `check-in` | low | checks: read, contents: read, issues: read, metadata: read, pull_requests: read, statuses: read | Read issues, pull requests, files and checks |
+| `ci-receipts` | low | actions: read, checks: read, contents: read, metadata: read, pull_requests: read, statuses: read | Read CI runs, checks and their receipts |
+| `rules-read` | low | administration: read, contents: read, metadata: read | Read branch rules and repository settings |
+| `land` | low | checks: read, contents: write, issues: read, metadata: read, pull_requests: write, statuses: write | Land approved work |
+| `land-workflows` | low | checks: read, contents: write, issues: read, metadata: read, pull_requests: write, statuses: write, workflows: write | Land approved work that changes .github/workflows |
+| `spec-branch` | low | contents: write, issues: write, metadata: read, pull_requests: write | Push spec branches and their pull requests |
+| `spec-issues` | low | contents: read, issues: write, metadata: read, pull_requests: read | Publish spec and task issues, claims and assignees |
+| `evidence` | low | contents: read, issues: write, metadata: read, pull_requests: read | Post the evidence comment on a pull request |
+| `triage` | low | contents: read, issues: write, metadata: read, pull_requests: write | Comment on and label new issues (triage agent) |
+| `respond` | low | discussions: write, issues: write, metadata: read | Answer discussions and issues |
+| `page-actions` | low | contents: read, issues: write, metadata: read, pull_requests: write | A person's comment, label, assignee or review |
+| `integration` | low | checks: read, contents: write, metadata: read, statuses: read | Move an epic's integration branch |
+| `worker-grants` | low | contents: write, issues: write, metadata: read | Open and checkpoint worker branches |
+| `workspace-publish` | low | contents: write, metadata: read, pull_requests: write | Publish a workspace repository |
+| `own-branch-delete` | low | contents: write, metadata: read | Delete a worker branch Avoozl pushed |
+| `repo-setup` | high | administration: write, issues: write, metadata: read | Create labels and set up repository checks |
+| `issue-types-setup` | high | organization_administration: write | Create an organization's issue types |
+| `landing-setup` | high | administration: write, metadata: read, statuses: write, variables: write | Set rulesets, repository settings and variables |
+| `triage-setup` | high | issues: write, metadata: read | Create the triage agent's labels |
+| `branch-delete` | high | contents: write, metadata: read | Delete a branch |
+
+A `high` job asks first. Before any provider is asked for its token, the
+page shows one confirm naming the repository (or owner), the action and these
+exact permissions, with **Allow** and **Cancel**; `gh` and `env` too. Set
+up GitHub, landing setup and triage setup list each write's job and
+permissions in their own confirm. **Allow** lets that one step ask once,
+within 10 minutes; **Cancel** writes nothing and the rest of setup goes on.
+The CLI shows the same lines and asks `Allow? [y/N]`, or takes `--yes`.
+The tick, agents and MCP cannot allow a high job, so there it fails as
+person-only. A provider that refuses a setup step leaves it skipped, with
+what a repository admin does by hand.
+
+### When the provider fails
+
+An error, a timeout, a refusal or a bad reply fails that GitHub call, and the
+work waits as it does for any GitHub outage. One Needs you row names the
+provider, the owner, the job and the reason, and clears on the next token that
+works. **An owner a plugin claims never falls back to `env` or `gh`.** A
+plugin that changed since its approval refuses every call for its owners
+until a person approves it again. Two plugins that claim one owner both
+wait until a person picks one with **Use this one** in Settings › Plugins
+(or `plugin.credentials.pick`).
+
+### Git and agents
+
+Avoozl's own pushes and fetches sign in through `avoozl credential`, a git
+credential helper that asks the same provider for that one repository and
+job, in its own process. The token reaches git only through the helper's
+answer, never git's environment, arguments or config, and SSH remotes of the
+host are rewritten to https for that command. Workers and checks get no
+token and no helper.
+
+The helper refuses to answer when the markers Avoozl sets for agent sessions
+are present. For a Kiro Crew chat this is a speed bump, not a sandbox: the
+process sandbox, which keeps `plugins.json`, plugin folders and `gh`'s
+config out of reach, is the barrier.
 
 ## Intake part
 

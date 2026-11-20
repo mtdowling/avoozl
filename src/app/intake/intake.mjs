@@ -25,6 +25,7 @@ import { declaredPlugins, readPluginSettings } from "../plugins/plugins.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { canonical, fail } from "../store/store.mjs";
 import { GITHUB_VIA, validateGitHubSource } from "../github/github-sources.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 // `retro` holds the skill changes a person approved from a retrospective
 // (design §4.18).
@@ -796,7 +797,7 @@ export async function submitItems(sources, githubPolicy, github, input = {}) {
       });
       continue;
     }
-    const issue = await github.createIssue(repository, {
+    const issue = await asJob("spec-issues", github).createIssue(repository, {
       title: item.title,
       body: [
         item.body,

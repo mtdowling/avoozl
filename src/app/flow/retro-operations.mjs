@@ -99,6 +99,7 @@ export const entries = [
   {
     name: "flow.proposals",
     class: "observe",
+    github: "check-in",
     policy: notOnMcp(
       "The Flow tab's Proposals view; proposals are a person's to decide.",
     ),
@@ -109,6 +110,7 @@ export const entries = [
   ...Object.keys(overrides).map((name) => ({
     name,
     class: "execute",
+    github: null,
     policy: person("Only a person changes prompt overrides."),
     handler: overrideHandler,
   })),

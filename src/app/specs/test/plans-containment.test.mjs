@@ -251,9 +251,9 @@ test("no git push in the app source uses --mirror, --all, --tags or a wildcard",
     if (file === "cli.mjs") continue; // the word there is an option name
     const text = fs.readFileSync(path.join(dir, entry), "utf8");
     for (const match of text.matchAll(
-      /^\s*"push",\n([\s\S]{0,200}?)\n\s*\]/gm,
+      /^\s*"push",\n([\s\S]{0,200}?)\n\s*\]|\["push",([^\]\n]{0,200})\]/gm,
     )) {
-      const call = match[1];
+      const call = match[1] ?? match[2];
       if (file === "mirror-setup.mjs") {
         assert.match(call, /--mirror/, "the one seeding call");
         continue;
@@ -264,7 +264,12 @@ test("no git push in the app source uses --mirror, --all, --tags or a wildcard",
     }
   }
   assert.deepEqual(found.sort(), [
+    "driver-generations.mjs",
+    "git-approvals.mjs",
     "mirror-forward-git.mjs",
+    "remote-runner.mjs",
+    "spec-ticks.mjs",
+    "working-heads.mjs",
     "workspace-repository.mjs",
   ]);
 });

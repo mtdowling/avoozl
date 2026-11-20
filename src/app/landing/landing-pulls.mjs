@@ -40,6 +40,7 @@ import {
 import { postVerified } from "../github/setup-landing.mjs";
 import { fail } from "../store/store.mjs";
 import { firstErrorLine } from "../delivery/verify.mjs";
+import { asJob } from "../github/github-jobs.mjs";
 
 const lower = (value) => String(value).toLowerCase();
 const PASS = new Set(["success", "neutral", "skipped"]);
@@ -78,7 +79,9 @@ async function findPull(github, target, entry, base) {
 async function requiredChecks(github, target, base, declared) {
   const names = new Set(declared),
     [rules, remote] = await Promise.all([
-      github.branchRules(target, base).catch(() => []),
+      asJob("rules-read", github)
+        .branchRules(target, base)
+        .catch(() => []),
       github.branch(target, base).catch(() => null),
     ]);
   for (const rule of rules || [])
@@ -278,7 +281,7 @@ export function pullSteps({
           // is refused as an invalid head).
           sameOwner =
             fork && lower(sourceOwner) === lower(target.split("/")[0]);
-        pull = await github.createPullRequest(target, {
+        pull = await asJob("land", github).createPullRequest(target, {
           title: commitSubject(
             commitPrefix,
             `Land ${entry.tasks.length === 1 && entry.tasks[0].public ? entry.tasks[0].public : entry.key}`,

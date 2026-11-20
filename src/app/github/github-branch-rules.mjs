@@ -5,6 +5,7 @@
 // review verdict (task 9.10) needs that many; when it does not, Avoozl's
 // reviewer chats are the review gate.
 import { parseRepository } from "./github.mjs";
+import { asJob } from "./github-jobs.mjs";
 
 const settingsPage = (repository, page) =>
   `https://github.com/${repository}/settings/${page}`;
@@ -43,12 +44,14 @@ async function classicHidden(github, repository, branch, protection) {
 // GitHub cannot be read; the caller decides what that means.
 export async function branchReviewRule(github, repository, branch) {
   const [rules, protection] = await Promise.all([
-    github.branchRules(repository, branch),
-    github.branchProtection(repository, branch).catch((error) => {
-      // Classic protection needs admin access to read; rulesets do not.
-      if (error.status === 403) return null;
-      throw error;
-    }),
+    asJob("rules-read", github).branchRules(repository, branch),
+    asJob("rules-read", github)
+      .branchProtection(repository, branch)
+      .catch((error) => {
+        // Classic protection needs admin access to read; rulesets do not.
+        if (error.status === 403) return null;
+        throw error;
+      }),
   ]);
   const hidden = await classicHidden(github, repository, branch, protection);
   let approvals = 0,
@@ -115,8 +118,12 @@ export async function seenCheckNames(
           })
           .catch(() => [])
       : [],
-    github.branchRules(repository, branch).catch(() => []),
-    github.branchProtection(repository, branch).catch(() => null),
+    asJob("rules-read", github)
+      .branchRules(repository, branch)
+      .catch(() => []),
+    asJob("rules-read", github)
+      .branchProtection(repository, branch)
+      .catch(() => null),
     // Anyone who can read the repository sees classic required checks here,
     // even when the protection endpoint is admin-only.
     github.branch(repository, branch).catch(() => null),

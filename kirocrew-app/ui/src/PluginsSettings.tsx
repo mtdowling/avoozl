@@ -6,7 +6,7 @@ import { EmptyState } from './ui/EmptyState'
 import { FieldGroup } from './ui/FieldGroup.tsx'
 import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
 import Badge from './ui/Badge.tsx'
-import { CONTRACT_LABEL, canApprove, capabilityLine, runsAs, PLUGIN_PARTS, partsOf, pluginsClient, stateLabel, type PluginRow } from './plugins-api.ts'
+import { CONTRACT_LABEL, canApprove, capabilityLine, runsAs, PLUGIN_PARTS, partsOf, pluginsClient, signInClaims, signInClashes, stateLabel, type PluginRow } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
@@ -67,6 +67,13 @@ export function Parts({ row }: { row: PluginRow }) {
             {PLUGIN_PARTS[part]?.title ?? part}
           </Box>
           <Hint> {PLUGIN_PARTS[part]?.line}</Hint>
+          {part === 'credentials'
+            ? signInClaims(row).map((line) => (
+                <Hint block key={line} data-plugin-signin>
+                  {line}
+                </Hint>
+              ))
+            : null}
           {part === 'pack' && row.pack ? (
             <Hint block>
               {row.pack.imported
@@ -258,6 +265,23 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
           }}
         />
       ) : null}
+      {signInClashes(value?.plugins ?? []).map((clash) => (
+        <Box key={clash.host} as="div" flex flexCol gap="1" size="sm" data-signin-clash>
+          <p>
+            {clash.plugins.join(' and ')} both sign Avoozl in to {clash.host} for the same owner.{' '}
+            {value?.credentialsPick?.[clash.host] ? `Signing in through ${value.credentialsPick[clash.host]}.` : 'GitHub work for that owner waits until you pick one.'}
+          </p>
+          <Row gap={2}>
+            {clash.plugins
+              .filter((id) => id !== value?.credentialsPick?.[clash.host])
+              .map((id) => (
+                <TipBtn key={id} tooltip={`Sign in through ${id} on ${clash.host}`} disabled={acting || busy} onClick={() => act(() => client.pick(workspaceId, clash.host, id))}>
+                  Use this one: {id}
+                </TipBtn>
+              ))}
+          </Row>
+        </Box>
+      ))}
       <PairedCards paired={wide} attrs={{ 'data-plugins-layout': '' }}>
         <AddPlugin workspaceId={workspaceId} client={client} supported={value?.supportedContracts ?? []} onChanged={reload} />
         <PairedCard title="Installed plugins" label="Installed plugins" meta={value?.plugins.length ? <Badge>{value.plugins.length}</Badge> : null} grow={3}>

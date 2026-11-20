@@ -60,6 +60,49 @@ export interface RateView {
   // Calls in the last hour by source, and their total (github-rate.mjs).
   bySource?: Record<string, { calls: number; notModified: number; cached: number }>
   hourCalls?: number
+  // Calls in the last hour by token login (plugin-credentials PC9.5).
+  byLogin?: Record<string, { calls: number; notModified: number; cached: number; limitedUntil?: string | null }>
+  // Who signs Avoozl in, per host and owner group (PC9.4).
+  signIns?: SignIn[]
+}
+
+export interface SignIn {
+  host: string
+  provider: string
+  owners: string[] | 'all' | 'other'
+  state: string
+  login: string | null
+  person: string | null
+  granted: 'all' | 'per-job'
+  broader: string[]
+  expiresAt: string | null
+}
+
+const BUILT_IN = new Set(['gh', 'env'])
+
+// One line per provider in use (plugin-credentials §D11), such as
+// "github.com · acme: signed in through acme-github as acme-bot[bot]
+// (per-job permissions) · token good for 41 min".
+export function signInLine(line: SignIn, now = Date.now()): string {
+  const who = line.owners === 'all' ? 'every owner' : line.owners === 'other' ? 'everything else' : line.owners.join(', ')
+  const how = BUILT_IN.has(line.provider) ? `signed in with ${line.provider}` : `signed in through ${line.provider}`
+  const as = line.login ? ` as ${line.login}` : ''
+  const access = line.granted === 'all' ? 'full access' : 'per-job permissions'
+  const life = line.expiresAt
+    ? `token good for ${Math.max(0, Math.round((Date.parse(line.expiresAt) - now) / 60000))} min`
+    : BUILT_IN.has(line.provider)
+      ? 'no expiry'
+      : 'no token yet'
+  const state = line.state === 'approved' ? '' : ` · ${line.state}: approve it again`
+  const broader = line.broader.length ? ` · broader than asked: ${line.broader.join(', ')}` : ''
+  return `${line.host} · ${who}: ${how}${as} (${access}) · ${life}${state}${broader}`
+}
+
+// One row per token login for the last hour, the busiest first.
+export function loginRows(rate: RateView | undefined | null) {
+  return Object.entries(rate?.byLogin ?? {})
+    .map(([source, row]) => ({ source, calls: row.calls, notModified: row.notModified, cached: row.cached }))
+    .sort((a, b) => b.calls - a.calls || a.source.localeCompare(b.source))
 }
 
 // One row per source for the last hour, the busiest first. Calls cost the
@@ -125,6 +168,9 @@ export function settingsClient(api: AppApi) {
     validate: (workspaceId: string, github: Policy) => run<Validation>('github.settings.validate', { github }, workspaceId),
     save: (workspaceId: string, github: Policy, expectedHash: string | null) => run<GitHubSettings>('github.settings.update', { github, expectedHash }, workspaceId),
     setup: (workspaceId: string, input: SetupInput) => run<SetupResult>('github.setup', { ...input }, workspaceId),
+    // A person's Allow for the high-risk steps the confirm showed
+    // (plugin-credentials §D7); the apply sends the grant ids back.
+    allow: (workspaceId: string, steps: HighRiskStep[]) => run<{ grants: string[] }>('github.job.confirm', { steps }, workspaceId),
     // Stops a running apply before its next write.
     cancelSetup: (workspaceId: string, previewHash: string) => run<{ cancelled: boolean }>('github.setup.cancel', { previewHash }, workspaceId),
   }
@@ -139,9 +185,22 @@ export interface SetupInput {
   epic?: boolean
   confirm?: boolean
   previewHash?: string
+  // Grant ids from github.job.confirm for the high-risk writes.
+  allow?: string[]
 }
 
-export interface SetupWrite {
+// A high-risk GitHub step: its job, where, and the exact permissions it
+// asks for (plugin-credentials PC13.2).
+export interface HighRiskStep {
+  job: string
+  action?: string
+  target: string
+  risk: 'high' | 'low'
+  permissionsText: string
+  permissionsHash: string
+}
+
+export interface SetupWrite extends Partial<HighRiskStep> {
   step: string
   action: string
   object: string
@@ -150,6 +209,12 @@ export interface SetupWrite {
   visibility: string | null
   detail: string
 }
+
+// The confirm's line for one high-risk step.
+export const permissionsLine = (step: Partial<HighRiskStep>) => (step.job ? `${step.job} asks GitHub for ${step.permissionsText} on ${step.target}` : '')
+
+// The steps a confirm allows: the high-risk ones.
+export const highRisk = (steps: Partial<HighRiskStep>[]) => steps.filter((step): step is HighRiskStep => step.risk === 'high')
 
 export interface SetupStep {
   id: string
@@ -165,7 +230,7 @@ export interface SetupResult {
   previewHash: string
   nothingToChange: boolean
   applied: boolean
-  results?: (SetupWrite & { status: string; reason?: string })[]
+  results?: (SetupWrite & { status: string; reason?: string; manual?: string[] })[]
   steps: SetupStep[]
   checklist: { id: string; text: string; link: string | null }[]
   settings: {

@@ -47,6 +47,10 @@ folders) plus the names a repository lists in `checksEnv`:
 Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK` and the
 like) never reach a check, even when listed.
 
+Checks never get a GitHub token or Avoozl's git credential helper
+(`avoozl credential`): their environment drops the helper's variables with
+the other push credentials.
+
 ## Isolation
 
 Every check runs in the repository's `isolation`. Only a person sets it.

@@ -12,7 +12,19 @@ import { Btn } from './ui/Btn'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { IconBtn, IconLabel, ICON } from './ui/controls.tsx'
 import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
-import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
+import {
+  groupWrites,
+  setupForm,
+  setupInput,
+  setupState,
+  writeBadge,
+  type GitHubSettings,
+  type SetupForm,
+  type SetupResult,
+  settingsClient,
+  highRisk,
+  permissionsLine,
+} from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
 import { Modal } from './ui/Modal.tsx'
@@ -87,7 +99,11 @@ export function SetupDialog(props: {
       setStep(2)
       applying.current = result.previewHash
       try {
-        setResult(await client.setup(workspaceId, { ...setupInput(form), confirm: true, previewHash: result.previewHash }))
+        // Apply is the Allow for every write listed above, with its job
+        // and permissions (PC13.3): no second popup.
+        const steps = highRisk(result.writes),
+          allow = steps.length ? (await client.allow(workspaceId, steps)).grants : []
+        setResult(await client.setup(workspaceId, { ...setupInput(form), confirm: true, previewHash: result.previewHash, allow }))
       } finally {
         applying.current = null
       }
@@ -192,6 +208,11 @@ export function SetupDialog(props: {
                     <Hint as="span" wFull pl="12" size="xs">
                       {write.detail}
                     </Hint>
+                    {write.job ? (
+                      <Hint as="span" wFull pl="12" size="xs" data-setup-permissions>
+                        {permissionsLine(write)}
+                      </Hint>
+                    ) : null}
                   </Box>
                 ))}
               </Box>
@@ -235,6 +256,11 @@ export function SetupDialog(props: {
                 <li key={i}>
                   {entry.status}: {entry.action} {entry.name}
                   {entry.reason ? ` (${entry.reason})` : ''}
+                  {(entry.manual ?? []).map((line) => (
+                    <Box key={line} as="span" block data-setup-manual>
+                      {line}
+                    </Box>
+                  ))}
                 </li>
               ))}
             </Box>

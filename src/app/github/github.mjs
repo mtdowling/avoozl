@@ -1,5 +1,4 @@
 import { sharedGitHubRead } from "./github-read-snapshot.mjs";
-import { execFileSync } from "node:child_process";
 import {
   RateState,
   ResponseCache,
@@ -9,6 +8,17 @@ import {
 } from "./github-rate.mjs";
 import { fail } from "../store/store.mjs";
 import { WritePacer } from "./github-pacer.mjs";
+import {
+  tokenTransportAllowed,
+  currentGrants,
+  currentJob,
+  graphqlNeeds,
+  jobOf,
+  missingFrom,
+  restNeeds,
+  useGrant,
+} from "./github-jobs.mjs";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 const API_VERSION = "2022-11-28";
 const SNAPSHOT_CLIENT = Symbol("GitHub read snapshot client");
@@ -245,29 +255,68 @@ export async function requirePrivateRepository(github, value) {
   return remote;
 }
 
-function localToken() {
-  const configured =
-    process.env.AVOOZL_GITHUB_TOKEN ||
-    process.env.GH_TOKEN ||
-    process.env.GITHUB_TOKEN;
-  if (configured?.trim()) return configured.trim();
-  try {
-    return execFileSync("gh", ["auth", "token"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 5000,
-    }).trim();
-  } catch {
-    return "";
-  }
+// The repository (or owner) a call is for: `{repository, owner}`, from
+// "owner/name", {owner, repo}, or an owner alone. None is this machine's
+// built-in sign-in (a call about the person, such as GET /user).
+export function targetOf(value) {
+  if (!value) return { repository: null, owner: null };
+  if (typeof value === "string")
+    return value.includes("/")
+      ? (({ id, owner }) => ({ repository: id, owner }))(parseRepository(value))
+      : { repository: null, owner: value };
+  if (value.owner && (value.repo || value.name))
+    return {
+      repository: `${value.owner}/${value.repo || value.name}`,
+      owner: value.owner,
+    };
+  if (value.repository) return targetOf(value.repository);
+  return { repository: null, owner: value.owner || null };
 }
+const ownerOf = (value) => targetOf(value).owner;
+
+// The target of one request, read from its path, its search or its GraphQL
+// variables. A token minted for one repository is only sent on its calls
+// (PC5.6).
+function targetOfRequest(pathname, { query, body } = {}) {
+  const repo = /^\/repos\/([^/]+)\/([^/?]+)/.exec(pathname);
+  if (repo) return targetOf({ owner: repo[1], repo: repo[2] });
+  const org = /^\/(?:orgs|users)\/([^/?]+)/.exec(pathname);
+  if (org) return { repository: null, owner: decodeURIComponent(org[1]) };
+  const q = String(query?.q || body?.variables?.q || "");
+  const searched = /\brepo:([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/.exec(q);
+  if (searched) return targetOf({ owner: searched[1], repo: searched[2] });
+  const variables = body?.variables || {};
+  if (variables.owner && (variables.repo || variables.name))
+    return targetOf(variables);
+  if (variables.owner || variables.login)
+    return { repository: null, owner: variables.owner || variables.login };
+  return { repository: null, owner: null };
+}
+
+// The client method a call came from, for the guard's errors.
+const calls = new AsyncLocalStorage();
+const currentCall = () => calls.getStore() || null;
+const INTERNAL = new Set([
+  "constructor",
+  "bind",
+  "authorize",
+  "request",
+  "send",
+  "available",
+  "signedIn",
+  "gitRemote",
+  "countGit",
+  "rateLimit",
+  "currentUser",
+  "personLogin",
+]);
 
 // Files read in one GraphQL query.
 export const BLOB_CHUNK = 100;
 
 export class GitHubClient {
   constructor({
-    token,
+    credentials,
     apiUrl = process.env.GITHUB_API_URL || "https://api.github.com",
     fetch: fetchImpl = globalThis.fetch,
     timeoutMs = 30000,
@@ -275,13 +324,18 @@ export class GitHubClient {
   } = {}) {
     // Read guards forward this identity, so wrapped and direct readers share.
     this[SNAPSHOT_CLIENT] = {};
-    this.token = token || "";
-    this.discoverToken = token === undefined;
     this.apiUrl = apiUrl.replace(/\/$/, "");
+    // Who signs each call in (github-credentials.mjs): a token per job and
+    // repository, asked for per call and never kept on the client.
+    this.credentials =
+      credentials ||
+      lazyCredentials({ apiUrl: this.apiUrl, gitUrl, fetch: fetchImpl });
     this.fetch = fetchImpl;
     this.timeoutMs = timeoutMs;
-    // The newest x-ratelimit-* headers per resource (core, search, graphql).
+    // The newest x-ratelimit-* headers per resource (core, search, graphql),
+    // and each token login's newest core numbers.
     this.rateLimits = new Map();
+    this.loginLimits = new Map();
     this.cacheSeconds = () => DEFAULT_CACHE_SECONDS;
     // Where `git fetch` reaches repositories: github.com, or the host named
     // here. Another API host with no git host named reads over the API only.
@@ -296,15 +350,6 @@ export class GitHubClient {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
     return this.gitUrl ? `${this.gitUrl}/${owner}/${repo}.git` : null;
-  }
-
-  // The Authorization header git sends: the token the API calls use.
-  async gitHeader() {
-    if (!this.signedIn()) return null;
-    return (
-      "Authorization: Basic " +
-      Buffer.from(`x-access-token:${this.token}`).toString("base64")
-    );
   }
 
   // A git call that reached the remote. It costs no API quota.
@@ -333,8 +378,11 @@ export class GitHubClient {
           now,
           sleep,
           limits: writeLimits,
-          primary: () => {
-            const seen = this.rateLimits.get("core");
+          // The core limit of the login that writes (PC9.1).
+          primary: (login) => {
+            const seen =
+              (login !== undefined && this.loginLimits.get(login)) ||
+              this.rateLimits.get("core");
             return seen
               ? {
                   limit: seen.limit,
@@ -344,62 +392,146 @@ export class GitHubClient {
               : null;
           },
           // A write cut off mid-call may have landed: the next read must see.
-          onInterrupted: () => this.cache?.invalidate(this.token, ""),
+          onInterrupted: () => this.cache?.invalidate(this.lastIdentity, ""),
         })
       : null;
     return this;
   }
 
-  available() {
-    return Boolean(this.token) || this.discoverToken;
+  // True when a provider is chosen for the owner (plugin-credentials §D3):
+  // false only when two plugins clash or a claiming plugin is unusable.
+  available(value) {
+    return this.credentials.available?.(ownerOf(value)) ?? true;
   }
 
-  // True only when a token is in hand; discovery (gh auth token) runs here
-  // once. available() also says yes while discovery is pending, so a reader
-  // that must not go out unauthenticated (GitHub's anonymous limit is 60
-  // requests an hour, and private repositories answer 404) asks this.
-  signedIn() {
-    if (!this.token && this.discoverToken) {
-      this.token = localToken();
-      this.discoverToken = false;
+  // True once a check-in token was obtained for the owner (or, with none,
+  // this machine's built-in sign-in). A reader that must not go out
+  // unauthenticated asks this.
+  async signedIn(value) {
+    try {
+      const target = targetOf(value);
+      await this.credentials.token({ ...target, job: "check-in" });
+      return true;
+    } catch {
+      return false;
     }
-    return Boolean(this.token);
+  }
+
+  // The job, the guard and the token for one call (§D6, §D7, §D8). The
+  // guard runs in production too: a missing binding is a bug, not full
+  // access.
+  async authorize(method, pathname, options) {
+    const job = currentJob(),
+      call = currentCall() || `${method} ${pathname.split("?")[0]}`;
+    if (!job) {
+      const error = Error(`GitHub call ${call} runs outside any job.`);
+      error.status = 500;
+      throw error;
+    }
+    const entry = jobOf(job),
+      needs =
+        pathname === "/graphql"
+          ? graphqlNeeds(options.body?.query)
+          : restNeeds(method, pathname),
+      missing = missingFrom(entry.permissions, needs);
+    if (missing.length) {
+      const error = Error(
+        `GitHub call ${call} needs ${missing.join(", ")}, which job ${job} does not have.`,
+      );
+      error.status = 500;
+      throw error;
+    }
+    const target = options.repository
+      ? targetOf(options.repository)
+      : targetOfRequest(pathname, options);
+    if (entry.risk === "high") {
+      const where = target.repository || target.owner;
+      if (!useGrant(currentGrants(), job, where)) {
+        const error = Error(
+          `${entry.description} on ${where} is high risk: only a person can allow it, in the Avoozl page or the CLI.`,
+        );
+        error.status = 403;
+        error.code = "person-only";
+        throw error;
+      }
+    }
+    if (!tokenTransportAllowed(this.apiUrl))
+      fail(`Avoozl sends GitHub tokens over https only (${this.apiUrl}).`, 503);
+    return { job, target };
   }
 
   // `etag` makes the read conditional: GitHub answers 304, which does not
   // count against the rate limit (checked live 2026-11-13), and this
   // returns { notModified: true }.
   async request(method, pathname, options = {}) {
+    const { job, target } = await this.authorize(method, pathname, options);
     const write =
       method !== "GET" &&
       !(
         pathname === "/graphql" &&
         /^\s*(query\b|\{)/.test(options.body?.query || "")
       );
-    if (!write || !this.pacer) return this.send(method, pathname, options);
-    // Every write waits its turn: one at a time, inside the write pace.
-    const held = this.rate?.held(resourceOf(pathname));
-    if (held) throw rateLimitError(held);
-    this.signedIn();
-    return this.pacer.run({ method, pathname }, () =>
-      this.send(method, pathname, options),
-    );
+    // A 401 drops that token, asks once more and retries once (PC5.4).
+    const attempt = async (retry) => {
+      const auth = await this.credentials.token({ ...target, job });
+      this.lastIdentity = auth;
+      try {
+        if (!write || !this.pacer)
+          return await this.send(method, pathname, { ...options, auth });
+        // Every write waits its turn: one at a time, inside the write pace.
+        const held = this.rate?.held(resourceOf(pathname), auth.login);
+        if (held) throw rateLimitError(held);
+        return await this.pacer.run(
+          { method, pathname, login: auth.login },
+          () => this.send(method, pathname, { ...options, auth }),
+        );
+      } catch (error) {
+        if (error.status !== 401 || !retry) throw error;
+        this.credentials.drop?.(auth);
+        return attempt(false);
+      }
+    };
+    return attempt(true);
+  }
+
+  // The token's login (for a plugin, the reply's `login`, with no call:
+  // GET /user fails for installation tokens). `value` names the repository
+  // or owner whose provider is meant; without it, this machine's built-in.
+  async currentUser(value) {
+    const auth = await this.credentials.token({
+      ...targetOf(value),
+      job: currentJob() || "check-in",
+    });
+    if (!auth.login)
+      fail("GitHub did not say who this token signs in as.", 503);
+    return { login: auth.login };
+  }
+
+  // The person this machine signs in for (§D12): a plugin's `person`, or for
+  // gh and env the token's own login. Null when a plugin names no person.
+  async personLogin(value) {
+    const auth = await this.credentials.token({
+      ...targetOf(value),
+      job: currentJob() || "check-in",
+    });
+    if (!auth.person) this.onNoPerson?.(auth.provider, targetOf(value).owner);
+    return auth.person || null;
   }
 
   async send(
     method,
     pathname,
-    { query, body, accept, headers, etag, responseProjection, uncached } = {},
+    {
+      query,
+      body,
+      accept,
+      headers,
+      etag,
+      responseProjection,
+      uncached,
+      auth,
+    } = {},
   ) {
-    if (!this.token && this.discoverToken) {
-      this.token = localToken();
-      this.discoverToken = false;
-    }
-    if (!this.token)
-      fail(
-        "GitHub authentication is unavailable. Run gh auth login or set AVOOZL_GITHUB_TOKEN.",
-        503,
-      );
     const url = new URL(this.apiUrl + pathname);
     for (const [key, value] of Object.entries(query || {}))
       if (value !== undefined && value !== null && value !== "")
@@ -416,7 +548,7 @@ export class GitHubClient {
       key =
         readable && !etag && !uncached && this.cache
           ? this.cache.key(
-              this.token,
+              auth,
               responseProjection
                 ? wanted + "|projection:" + responseProjection.version
                 : wanted,
@@ -443,7 +575,7 @@ export class GitHubClient {
       this.rate?.cached();
       return reply(stored);
     }
-    const held = this.rate?.held(resource);
+    const held = this.rate?.held(resource, auth.login);
     if (held) {
       if (stored) {
         this.rate?.cached();
@@ -457,7 +589,7 @@ export class GitHubClient {
         method,
         headers: {
           Accept: wanted,
-          Authorization: "Bearer " + this.token,
+          Authorization: "Bearer " + auth.token,
           "X-GitHub-Api-Version": API_VERSION,
           "User-Agent": "avoozl",
           ...(etag ? { "If-None-Match": etag } : {}),
@@ -483,13 +615,19 @@ export class GitHubClient {
         ).toISOString(),
       };
       this.rateLimits.set(header("x-ratelimit-resource") || resource, seen);
-      this.rate?.observe(header("x-ratelimit-resource") || resource, {
-        limit: seen.limit,
-        remaining: seen.remaining,
-        resetAtMs: Date.parse(seen.resetAt),
-      });
+      if ((header("x-ratelimit-resource") || resource) === "core")
+        this.loginLimits.set(auth.login, seen);
+      this.rate?.observe(
+        header("x-ratelimit-resource") || resource,
+        {
+          limit: seen.limit,
+          remaining: seen.remaining,
+          resetAtMs: Date.parse(seen.resetAt),
+        },
+        auth.login,
+      );
     }
-    this.rate?.count(response.status === 304);
+    this.rate?.count(response.status === 304, undefined, auth.login);
     if (etag && response.status === 304) {
       this.rate?.flush();
       return { notModified: true, etag };
@@ -510,7 +648,7 @@ export class GitHubClient {
         resource,
         (this.rate?.now ?? Date.now)(),
       );
-      if (limit && this.rate) this.rate.limit(limit);
+      if (limit && this.rate) this.rate.limit({ ...limit, login: auth.login });
       this.rate?.flush();
       if (limit && stored) return reply(stored);
       const error = limit
@@ -548,7 +686,7 @@ export class GitHubClient {
       );
     // A write makes what it touched stale (not gone: a 304 still revalidates).
     if (!readable && response.ok && this.cache)
-      this.cache.invalidate(this.token, repoId);
+      this.cache.invalidate(auth, repoId);
     this.rate?.flush();
     // `headers` asks for the Link and scope headers beside the body.
     return headers ? { value, link, scopes, etag: tag } : value;
@@ -659,10 +797,6 @@ export class GitHubClient {
     return items;
   }
 
-  currentUser() {
-    return this.request("GET", "/user");
-  }
-
   repository(value) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
@@ -694,7 +828,7 @@ export class GitHubClient {
         if (error.status === 404)
           return { permission: "none", user: { login: actor } };
         if (error.status !== 403) throw error;
-        const me = await this.currentUser().catch(() => null);
+        const me = await this.currentUser({ owner, repo }).catch(() => null);
         if (
           me?.login &&
           String(me.login).toLowerCase() === String(actor).toLowerCase()
@@ -800,6 +934,7 @@ export class GitHubClient {
         `mutation($input:AddBlockedByInput!){addBlockedBy(input:$input){issue{id}}}`,
         { input: nodes },
         "add a blocked-by link",
+        { repository: value },
       );
       return { id: blockerIssueId };
     }
@@ -838,6 +973,38 @@ export class GitHubClient {
     });
   }
 
+  // The labels named, as GitHub has them. A missing one fails with 409
+  // `labels-missing` and is recorded for Needs you's Create labels.
+  async existingLabels(value, names = []) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      found = [],
+      missing = [];
+    for (const name of names || [])
+      try {
+        found.push(
+          await this.request(
+            "GET",
+            `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`,
+          ),
+        );
+      } catch (error) {
+        if (error.status !== 404) throw error;
+        missing.push(name);
+      }
+    if (missing.length) {
+      this.onMissingLabels?.(`${owner}/${repo}`, missing);
+      const error = Error(
+        `${owner}/${repo} has no label ${missing.join(", ")}. Create it from Needs you (Create labels), then try again.`,
+      );
+      error.status = 409;
+      error.code = "labels-missing";
+      error.missingLabels = missing;
+      throw error;
+    }
+    return found;
+  }
+
   // One content write. With `parentIssueId` (the parent's node ID) the issue
   // is made under its parent in the same GraphQL mutation, so it needs no
   // addSubIssue call after; a `type` name goes in as its issueTypeId. With
@@ -846,6 +1013,9 @@ export class GitHubClient {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
       { parentIssueId, ...rest } = input || {};
+    // Creating a label is high risk (PC13.1): an issue names only labels
+    // the repository has, and a missing one refuses the issue.
+    const labels = await this.existingLabels({ owner, repo }, rest.labels);
     if (!parentIssueId && !rest.type)
       return this.request("POST", `/repos/${owner}/${repo}/issues`, {
         body: rest,
@@ -857,13 +1027,8 @@ export class GitHubClient {
       : null;
     if (rest.type && !typeId)
       fail(`${owner} has no ${rest.type} issue type.`, 409);
-    const [repository, labels, assignees] = await Promise.all([
+    const [repository, assignees] = await Promise.all([
         this.repository({ owner, repo }),
-        Promise.all(
-          (rest.labels || []).map((name) =>
-            this.ensureLabel({ owner, repo }, { name }),
-          ),
-        ),
         Promise.all(
           (rest.assignees || []).map((login) =>
             this.request("GET", `/users/${encodeURIComponent(login)}`),
@@ -888,6 +1053,7 @@ export class GitHubClient {
           },
         },
         "create an issue",
+        { repository: { owner, repo } },
       ),
       issue = data?.createIssue?.issue;
     if (!issue?.id || !issue.number)
@@ -1069,10 +1235,16 @@ export class GitHubClient {
     return this.updateIssue(value, number, { type });
   }
 
-  async graphql(query, variables, what, { uncached = false } = {}) {
+  async graphql(
+    query,
+    variables,
+    what,
+    { uncached = false, repository = null } = {},
+  ) {
     const result = await this.request("POST", "/graphql", {
       body: { query, variables },
       uncached,
+      ...(repository ? { repository } : {}),
     });
     if (result?.errors?.length)
       fail(
@@ -1094,12 +1266,14 @@ export class GitHubClient {
   }
 
   // Links a branch in `repositoryId` (may differ from the issue's repository)
-  // to the issue, created at `oid` (F51, L13). Needs push access there.
-  async createLinkedBranch({ issueId, repositoryId, oid, name }) {
+  // to the issue, created at `oid` (F51, L13). Needs push access there;
+  // `repository` names it for the token.
+  async createLinkedBranch({ issueId, repositoryId, oid, name, repository }) {
     const data = await this.graphql(
         `mutation($input:CreateLinkedBranchInput!){createLinkedBranch(input:$input){linkedBranch{id ref{name repository{id nameWithOwner}}}}}`,
         { input: { issueId, repositoryId, oid, name } },
         "create a linked branch",
+        { repository },
       ),
       branch = data?.createLinkedBranch?.linkedBranch;
     if (!branch?.ref?.name)
@@ -1379,11 +1553,13 @@ export class GitHubClient {
     }));
   }
 
-  async addDiscussionComment(discussionId, body) {
+  // `repository` names the discussion's repository for the token.
+  async addDiscussionComment(discussionId, body, repository = null) {
     const data = await this.graphql(
         `mutation($input:AddDiscussionCommentInput!){addDiscussionComment(input:$input){comment{id url}}}`,
         { input: { discussionId, body } },
         "comment on a discussion",
+        { repository },
       ),
       comment = data?.addDiscussionComment?.comment;
     if (!comment?.id) fail("GitHub returned invalid comment data.", 502);
@@ -1588,6 +1764,7 @@ export class GitHubClient {
         },
       },
       "commit files",
+      { repository: { owner, repo } },
     );
     return data?.createCommitOnBranch?.commit?.oid ?? null;
   }
@@ -1662,21 +1839,23 @@ export class GitHubClient {
   async downloadArtifact(value, id) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
-    if (!this.signedIn()) fail("GitHub authentication is unavailable.", 503);
-    const url = `${this.apiUrl}/repos/${owner}/${repo}/actions/artifacts/${Number(id)}/zip`;
+    const pathname = `/repos/${owner}/${repo}/actions/artifacts/${Number(id)}/zip`,
+      { job, target } = await this.authorize("GET", pathname, {}),
+      auth = await this.credentials.token({ ...target, job }),
+      url = this.apiUrl + pathname;
     let location;
     try {
       const response = await this.fetch(url, {
         redirect: "manual",
         headers: {
           Accept: "application/vnd.github+json",
-          Authorization: "Bearer " + this.token,
+          Authorization: "Bearer " + auth.token,
           "X-GitHub-Api-Version": API_VERSION,
           "User-Agent": "avoozl",
         },
         signal: AbortSignal.timeout(this.timeoutMs),
       });
-      this.rate?.count(false);
+      this.rate?.count(false, undefined, auth.login);
       this.rate?.flush();
       location = response.headers?.get?.("location");
       if (!location) fail(`GitHub gave no download for artifact ${id}.`, 502);
@@ -2013,6 +2192,44 @@ export class GitHubClient {
   }
 }
 
-export function defaultGitHubClient() {
-  return new GitHubClient();
+// Each public method names itself for the guard (the outermost one wins).
+for (const name of Object.getOwnPropertyNames(GitHubClient.prototype)) {
+  const method = GitHubClient.prototype[name];
+  if (INTERNAL.has(name) || typeof method !== "function") continue;
+  GitHubClient.prototype[name] = function (...args) {
+    return currentCall()
+      ? method.apply(this, args)
+      : calls.run(name, () => method.apply(this, args));
+  };
+}
+
+// The person this machine signs in for, on `value`'s owner (§D12): a
+// plugin's `person`, or the login of gh or env. Null when a plugin names no
+// person. Clients without personLogin (fakes) answer with currentUser.
+export async function personOf(github, value) {
+  if (typeof github?.personLogin === "function")
+    return github.personLogin(value);
+  return (await github?.currentUser?.())?.login ?? null;
+}
+
+export function defaultGitHubClient({ credentials } = {}) {
+  return new GitHubClient({ credentials });
+}
+
+// This machine's providers, loaded on the first token call: the module
+// reads plugins, which import much of Avoozl.
+function lazyCredentials(options) {
+  let loaded = null;
+  const load = () =>
+    (loaded ??= import("./github-credentials.mjs").then((module) =>
+      module.machineCredentials(options),
+    ));
+  return {
+    available: () => true,
+    token: async (input) => (await load()).token(input),
+    drop: async (entry) => (await load()).drop(entry),
+    signIns: async () => (await load()).signIns(),
+    on: async (event, fn) => (await load()).on(event, fn),
+    close: async () => loaded && (await loaded).close(),
+  };
 }

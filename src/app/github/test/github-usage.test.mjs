@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // Calls counted by source, and one query for all open pull requests. Fake
 // fetch and a temporary store; no network.
 import assert from "node:assert/strict";
@@ -17,27 +21,30 @@ function setup(t, nodes = []) {
     countFile = path.join(dir, "gh-calls.jsonl"),
     log = { queries: [] };
   t.after(() => store.close());
-  const github = new GitHubClient({
-    token: "test-token",
-    apiUrl: "https://api.example.test",
-    fetch: async (url, options) => {
-      const body = JSON.parse(options.body);
-      log.queries.push(body);
-      return new Response(
-        JSON.stringify({
-          data: {
-            repository: {
-              pullRequests: {
-                pageInfo: { hasNextPage: false, endCursor: null },
-                nodes,
+  const github = defaultJob(
+    "check-in",
+    new GitHubClient({
+      credentials: fixedCredentials("test-token"),
+      apiUrl: "https://api.example.test",
+      fetch: async (url, options) => {
+        const body = JSON.parse(options.body);
+        log.queries.push(body);
+        return new Response(
+          JSON.stringify({
+            data: {
+              repository: {
+                pullRequests: {
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                  nodes,
+                },
               },
             },
-          },
-        }),
-        { status: 200 },
-      );
-    },
-  }).bind(store, { now: () => T0, cacheSeconds: () => 60, countFile });
+          }),
+          { status: 200 },
+        );
+      },
+    }),
+  ).bind(store, { now: () => T0, cacheSeconds: () => 60, countFile });
   return { github, store, log, countFile, dir };
 }
 

@@ -13,7 +13,7 @@ import { execFile, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { git } from "./git.mjs";
+import { git, remoteGit } from "./git.mjs";
 import { actorAllowed } from "../github/github-policy.mjs";
 import {
   isSpecFile,
@@ -124,7 +124,7 @@ export async function approvalBase(root) {
           "refs/remotes/origin/HEAD",
         ]).catch(() => "")
       ).replace(/^refs\/remotes\/origin\//, "") || "main";
-    await git(root, ["fetch", "--quiet", "origin", branch], {
+    await remoteGit(root, ["fetch", "--quiet", "origin", branch], {
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     });
     return {
@@ -217,10 +217,13 @@ export async function commitOnMain(
       { ...process.env, ...env },
     );
     if (base.remote)
-      await git(
+      await remoteGit(
         root,
         ["push", "--quiet", "origin", `${commit}:refs/heads/${base.branch}`],
-        { env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } },
+        {
+          env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+          job: "spec-branch",
+        },
       );
     await moveLocal(root, base.branch, commit, Object.keys(files));
     return { commit, branch: base.branch };

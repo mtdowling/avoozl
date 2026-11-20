@@ -11,7 +11,11 @@ import {
   readGitHubPolicyOrNull,
   requireDefaultBranches,
 } from "../github/github-policy.mjs";
-import { cancelSetup, githubSetup } from "../github/github-setup.mjs";
+import {
+  cancelSetup,
+  createMissingLabels,
+  githubSetup,
+} from "../github/github-setup.mjs";
 import {
   configureGitHubRepository,
   machineIdentity,
@@ -32,6 +36,7 @@ export const entries = [
   {
     name: "github.settings.get",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       return this.githubSettings();
@@ -42,6 +47,7 @@ export const entries = [
   {
     name: "github.repository.labels",
     class: "observe",
+    github: "check-in",
     policy: routed,
     async handler({ input }) {
       const repository = input.repository;
@@ -75,6 +81,7 @@ export const entries = [
   {
     name: "github.repository.inspect",
     class: "observe",
+    github: "rules-read",
     policy: routed,
     async handler({ input }) {
       const repository = input.repository;
@@ -84,7 +91,7 @@ export const entries = [
       )
         fail("Name one repository as owner/repository.");
       const signedIn = this.github?.signedIn
-        ? this.github.signedIn()
+        ? await this.github.signedIn(repository)
         : this.github?.available?.();
       if (!signedIn)
         return {
@@ -93,7 +100,7 @@ export const entries = [
           reviewRule: null,
           checks: null,
           error:
-            "GitHub is not signed in for Avoozl (no GH_TOKEN, and gh auth token gave none), so its rules and checks cannot be read.",
+            "GitHub is not signed in for Avoozl (run `gh auth login`, or set AVOOZL_GITHUB_TOKEN), so its rules and checks cannot be read.",
         };
       try {
         const branch = await ruleBranch(this.github, repository, {
@@ -134,6 +141,7 @@ export const entries = [
   {
     name: "github.settings.validate",
     class: "observe",
+    github: "check-in",
     policy: routed,
     async handler({ input }) {
       try {
@@ -153,6 +161,7 @@ export const entries = [
   {
     name: "github.setup",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person applies GitHub setup.", (input) =>
       Boolean(input?.confirm),
     ),
@@ -170,15 +179,55 @@ export const entries = [
   {
     name: "github.setup.cancel",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person cancels a GitHub setup."),
     handler({ input }) {
       return cancelSetup(input.previewHash);
+    },
+  },
+  // Needs you's Create labels: the labels an issue named that its
+  // repository lacks, made under a person's repo-setup Allow.
+  {
+    name: "github.labels.create",
+    class: "protect",
+    github: "check-in",
+    policy: person("Only a person creates labels."),
+    handler({ input }) {
+      return createMissingLabels(this.store, this.github, input.repository);
+    },
+  },
+  // A person's Allow for high-risk GitHub steps (plugin-credentials §D7):
+  // each step's job, target and the hash of the permissions the confirm
+  // showed. Returns grant ids that the apply sends back; each serves one
+  // step once, within 10 minutes, in this process.
+  {
+    name: "github.job.confirm",
+    class: "protect",
+    github: null,
+    policy: person("Only a person allows a high-risk GitHub step."),
+    handler({ input, context }) {
+      if (!context.person)
+        fail(
+          "Only a person allows a high-risk GitHub step, in the Avoozl page or the CLI.",
+          403,
+        );
+      if (!Array.isArray(input.steps) || !input.steps.length)
+        fail("Name the steps to allow.");
+      const grants = this.grants.allow(
+        input.steps.map(({ job, target, permissionsHash }) => ({
+          job: String(job),
+          target: String(target),
+          permissionsHash: String(permissionsHash),
+        })),
+      );
+      return { grants: grants.map((grant) => grant.id), expiresIn: 600 };
     },
   },
 
   {
     name: "github.settings.update",
     class: "protect",
+    github: "check-in",
     policy: person(
       "Only a person changes GitHub settings, including Who counts.",
     ),
@@ -198,6 +247,7 @@ export const entries = [
   {
     name: "github.repository.detect",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({ input }) {
       const store = this.store;
@@ -208,6 +258,7 @@ export const entries = [
   {
     name: "github.repository.connect",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person connects a repository to GitHub."),
     async handler({ input }) {
       const store = this.store;
@@ -234,6 +285,7 @@ export const entries = [
   {
     name: "github.configure",
     class: "protect",
+    github: "check-in",
     policy: person("Only a person changes GitHub setup."),
     async handler({ input }) {
       const store = this.store;
@@ -256,6 +308,7 @@ export const entries = [
   {
     name: "github.repositories",
     class: "observe",
+    github: "check-in",
     policy: routed,
     handler({}) {
       const store = this.store;

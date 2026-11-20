@@ -15,6 +15,7 @@ import { Input } from './ui/Input'
 import { SelectField } from './ui/SelectField'
 import { errorMessage } from './workspace-api.ts'
 import type { TriageSetupPreview, itemsClient } from './github-items-api.ts'
+import { permissionsLine } from './settings-api.ts'
 
 const HARNESS_LABEL: Record<string, string> = { auto: "The repository's executor", kirocrew: 'A Kiro Crew chat' }
 
@@ -60,7 +61,11 @@ export function TriageSetup(props: {
   const apply = async () => {
     setBusy(true)
     try {
+      // Turn triage on is the Allow for the labels listed above (PC13.3).
+      const steps = (preview?.writes ?? []).filter((write) => toMake.some((label) => label.name === write.label)),
+        allow = steps.length ? (await client.allow(workspaceId, steps)).grants : []
       await client.setup(workspaceId, repository, {
+        allow,
         existing,
         dailyRuns: Number(dailyRuns),
         fullReviewMaxLines: Number(reviewLines),
@@ -147,6 +152,11 @@ export function TriageSetup(props: {
             {toMake.length ? `make ${toMake.length} label${toMake.length === 1 ? '' : 's'} (${toMake.map((label) => label.name).join(', ')}) in ${repository}, then ` : ''}turn the
             triage agent on there.
           </Hint>
+          {toMake.length > 0 && (preview.writes ?? []).length > 0 && (
+            <Hint size="xs" data-setup-permissions>
+              {permissionsLine((preview.writes ?? [])[0])}
+            </Hint>
+          )}
           <Box flex flexWrap gap="2">
             <Btn type="button" primary disabled={busy} onClick={() => void apply()} data-triage-setup-apply>
               {busy ? 'Turning on…' : 'Turn triage on'}

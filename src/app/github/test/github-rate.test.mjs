@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // GitHub rate-limit handling with fakes: conditional reads that reuse the
 // stored body on a 304, a bounded cache, a pause on 403 and 429, one Needs
 // you row, and a stretched tick when the budget is low. No network.
@@ -66,11 +70,14 @@ function fakeGitHub(routes) {
 }
 
 function bound(t, store, fetch, now = () => T0) {
-  const github = new GitHubClient({
-    token: "test-token",
-    apiUrl: "https://api.example.test",
-    fetch,
-  });
+  const github = defaultJob(
+    "spec-issues",
+    new GitHubClient({
+      credentials: fixedCredentials("test-token"),
+      apiUrl: "https://api.example.test",
+      fetch,
+    }),
+  );
   github.bind(store, { now, cacheSeconds: () => 0, sleep: async () => {} });
   return github;
 }
@@ -443,11 +450,14 @@ test("a quiet tick makes fewer counted calls than the old path", async (t) => {
   };
   const run = async (bind) => {
     const { fetch, log } = fakeGitHub(routes),
-      github = new GitHubClient({
-        token: "test-token",
-        apiUrl: "https://api.example.test",
-        fetch,
-      });
+      github = defaultJob(
+        "check-in",
+        new GitHubClient({
+          credentials: fixedCredentials("test-token"),
+          apiUrl: "https://api.example.test",
+          fetch,
+        }),
+      );
     if (bind) github.bind(workspace(t));
     for (let i = 0; i < 4; i += 1) await tick(github);
     return log;
@@ -531,11 +541,14 @@ function aged(t, routes, seconds = () => 60) {
   const store = workspace(t),
     clock = { now: T0 },
     { fetch, log } = fakeGitHub(routes),
-    github = new GitHubClient({
-      token: "test-token",
-      apiUrl: "https://api.example.test",
-      fetch,
-    });
+    github = defaultJob(
+      "spec-issues",
+      new GitHubClient({
+        credentials: fixedCredentials("test-token"),
+        apiUrl: "https://api.example.test",
+        fetch,
+      }),
+    );
   github.bind(store, { now: () => clock.now, cacheSeconds: seconds });
   return { github, log, clock, store };
 }
@@ -609,7 +622,7 @@ test("a GraphQL query is kept for the max age, a mutation makes it stale, errors
   assert.deepEqual(await github.graphql("query{a}", {}, "read a"), { n: 2 });
   assert.deepEqual(await github.graphql("query{a}", {}, "read a"), { n: 2 });
   assert.equal(log.requests.length, 2);
-  await github.graphql("mutation{b}", {}, "write b");
+  await github.graphql("mutation{createIssue}", {}, "write b");
   assert.deepEqual(await github.graphql("query{a}", {}, "read a"), { n: 4 });
 });
 

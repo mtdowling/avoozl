@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 import { guardGitHub } from "../../content/content-rules.mjs";
 import { driverGuard } from "../../workers/driver-scope.mjs";
 import assert from "node:assert/strict";
@@ -31,11 +35,14 @@ function workspace(t) {
 }
 function client(t, fetch, cacheSeconds = 0) {
   const { root, store } = workspace(t);
-  const github = new GitHubClient({
-    token: "fake-token",
-    apiUrl: "https://example.test",
-    fetch,
-  }).bind(store, {
+  const github = defaultJob(
+    "ci-receipts",
+    new GitHubClient({
+      credentials: fixedCredentials("fake-token"),
+      apiUrl: "https://example.test",
+      fetch,
+    }),
+  ).bind(store, {
     now: () => NOW,
     cacheSeconds: () => cacheSeconds,
     countFile: path.join(root, "calls.jsonl"),

@@ -21,7 +21,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { git } from "../git/git.mjs";
+import { git, remoteGit } from "../git/git.mjs";
 import { recordIsolation } from "../workspace/check-isolation.mjs";
 import {
   guardedFastForward,
@@ -302,15 +302,19 @@ export function directSteps({
     log,
     async readBase() {
       return (
-        await git(root, ["ls-remote", "--heads", url, `refs/heads/${branch}`], {
-          env: environment,
-        })
+        await remoteGit(
+          root,
+          ["ls-remote", "--heads", url, `refs/heads/${branch}`],
+          {
+            env: environment,
+          },
+        )
       ).split(/\s+/)[0];
     },
     async prepare(entries, baseHead) {
       const known = stacked.get(stackId(baseHead, entries));
       if (known) return { candidate: known };
-      await git(root, ["fetch", "--quiet", url, `refs/heads/${branch}`], {
+      await remoteGit(root, ["fetch", "--quiet", url, `refs/heads/${branch}`], {
         env: environment,
       });
       for (const entry of entries) await holdMember(root, entry);

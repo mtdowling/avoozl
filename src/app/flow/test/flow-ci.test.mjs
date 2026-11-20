@@ -1,3 +1,7 @@
+import {
+  defaultJob,
+  fixedCredentials,
+} from "../../test/github-credentials.mjs";
 // Phase 54: retrospectives catch steady CI waste (Requirement 100, §4.30).
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -265,11 +269,14 @@ test("54.2 one cached runs read per repository per check; a 304 reuses the cache
       { status: 200, headers: { etag } },
     );
   };
-  const github = new GitHubClient({
-    token: "x",
-    apiUrl: "https://api.example.test",
-    fetch,
-  }).bind(store, {
+  const github = defaultJob(
+    "ci-receipts",
+    new GitHubClient({
+      credentials: fixedCredentials("x"),
+      apiUrl: "https://api.example.test",
+      fetch,
+    }),
+  ).bind(store, {
     now: () => clock,
     cacheSeconds: () => 60,
     countFile: path.join(dir, "gh-calls.jsonl"),
@@ -679,11 +686,14 @@ test("54.1 the closed list comes from the open pull request query, with no extra
       status: 200,
     });
   };
-  const github = new GitHubClient({
-    token: "x",
-    apiUrl: "https://api.example.test",
-    fetch,
-  }).bind(store, {
+  const github = defaultJob(
+    "ci-receipts",
+    new GitHubClient({
+      credentials: fixedCredentials("x"),
+      apiUrl: "https://api.example.test",
+      fetch,
+    }),
+  ).bind(store, {
     now: () => NOW,
     cacheSeconds: () => 60,
     countFile: path.join(dir, "gh-calls.jsonl"),
