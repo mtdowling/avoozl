@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { Store } from "../store/store.mjs";
+import { recordSpan } from "../flow/flow.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { createWorktree, validateUnlocked, withWorkLock } from "../git/git.mjs";
 export function snapshot() {
@@ -263,4 +264,32 @@ export async function seedClaims(store, { own = [], other = [] } = {}) {
       sha: "a".repeat(40),
       ...(mine ? { own: true } : {}),
     });
+}
+
+// One Flow stage span, seeded through the recording API, in the column order
+// the old span table had: id, task, attempt, role, stage, start, end, source,
+// detail.
+export function seedSpan(
+  store,
+  id,
+  taskId,
+  attempt,
+  role,
+  stage,
+  startedAt,
+  endedAt,
+  source,
+  detail,
+) {
+  return recordSpan(store, {
+    id,
+    taskId,
+    attempt,
+    role,
+    stage,
+    startedAt,
+    endedAt,
+    source,
+    detail,
+  });
 }

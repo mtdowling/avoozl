@@ -173,6 +173,24 @@ export function gatewaySlotRows(env = process.env, request = fetch) {
   };
 }
 
+// Per-turn token and credit rows of one session the app opened, for the
+// telemetry points (otel-export §D4): GET /api/usage/turns?slot=<slot>&days=30,
+// granted in app.json. Kiro Crew returns only rows stamped with this app.
+export function gatewayUsageTurns(env = process.env, request = fetch) {
+  const client = gatewayClient(env, request);
+  if (!client) return null;
+  return async (slot) => {
+    const response = await client.call(
+      `/api/usage/turns?slot=${encodeURIComponent(slot)}&days=30`,
+      { method: "GET" },
+    );
+    if (!response.ok)
+      throw Error(`Kiro Crew refused the usage read (${response.status}).`);
+    const body = await response.json();
+    return Array.isArray(body?.turns) ? body.turns : [];
+  };
+}
+
 // Provider selection is kept outside neutral request objects and durable rows.
 const prepared = new WeakMap();
 const privateKey = (id) => `executor.kirocrew.${id}`;

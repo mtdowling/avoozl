@@ -18,23 +18,11 @@ import {
 import { taskRepository } from "../../work-model.mjs";
 import { inPlan } from "../api/page-views.mjs";
 import { fail } from "../store/store.mjs";
+import { STAGES } from "../telemetry/stages.mjs";
+import * as telemetry from "../telemetry/record.mjs";
+import { listStageSpans } from "../telemetry/sqlite-exporter.mjs";
 
-export const STAGES = Object.freeze([
-  "queued",
-  // Findings before code, and the falsifier checking them (§4.21).
-  "investigate",
-  "falsify",
-  "coding",
-  "tests",
-  "commands",
-  // Declared checks Avoozl ran itself (check-runs.mjs).
-  "checks",
-  "ci-wait",
-  "review",
-  "rework",
-  "merge",
-  "waiting",
-]);
+export { STAGES };
 // Active time in flow efficiency; the rest is waiting on someone else.
 const ACTIVE = new Set([
   "investigate",
@@ -208,70 +196,95 @@ export function flowPolicy(config) {
 
 // ------------------------------------------------------------------- spans
 
-const COLUMNS =
-  "id,task_id,attempt,role,stage,started_at,ended_at,source,detail";
-const rowSpan = (row) => ({
-  id: row.id,
-  taskId: row.task_id,
-  attempt: row.attempt,
-  role: row.role,
-  stage: row.stage,
-  startedAt: row.started_at,
-  endedAt: row.ended_at,
-  source: row.source,
-  detail: row.detail,
-});
+// Every stage span, oldest first, from the local telemetry table.
+export const listSpans = (store, { taskId } = {}) =>
+  listStageSpans(store.db, { taskId });
 
-// Every span, oldest first; an old read-only database without the table
-// reads as none.
-export function listSpans(store, { taskId } = {}) {
-  try {
-    const rows = taskId
-      ? store.db
-          .prepare(
-            `SELECT ${COLUMNS} FROM flow_spans WHERE task_id=? ORDER BY started_at, id`,
-          )
-          .all(taskId)
-      : store.db
-          .prepare(`SELECT ${COLUMNS} FROM flow_spans ORDER BY started_at, id`)
-          .all();
-    return rows.map(rowSpan);
-  } catch {
-    return [];
-  }
+// The repository and spec a task's spans carry, so every span of one task
+// names one trace. A value the recording API would refuse is left out.
+const SPEC_NAME = /^[A-Za-z0-9._-]{1,128}$/;
+export function traceFields(store, taskId) {
+  const task = store.read().tasks.find((t) => t.id === taskId),
+    repo = taskRepository(task),
+    spec = task?.planId;
+  return {
+    ...(typeof repo === "string" && repo && repo.length <= 128 ? { repo } : {}),
+    ...(typeof spec === "string" && SPEC_NAME.test(spec) ? { spec } : {}),
+  };
 }
 
-// Insert or update one span; writes only when something changed.
-export function putSpan(store, span) {
+// Record or replace one stage span through the recording API; `id` is the
+// span's stable key. Returns false when nothing changed.
+export function recordSpan(store, span) {
   if (!STAGES.includes(span.stage)) fail(`Unknown flow stage ${span.stage}.`);
   if (!SOURCES.includes(span.source))
     fail(`Unknown span source ${span.source}.`);
-  const values = [
-    span.id,
-    span.taskId,
-    span.attempt ?? null,
-    span.role ?? null,
-    span.stage,
-    span.startedAt,
-    span.endedAt ?? null,
-    span.source,
-    span.detail ?? null,
-  ];
-  store.db
-    .prepare(
-      `INSERT INTO flow_spans(${COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?)
-       ON CONFLICT(id) DO UPDATE SET attempt=excluded.attempt,
-       role=excluded.role,stage=excluded.stage,started_at=excluded.started_at,
-       ended_at=excluded.ended_at,source=excluded.source,detail=excluded.detail
-       WHERE ifnull(flow_spans.ended_at,'')<>ifnull(excluded.ended_at,'')
-          OR flow_spans.stage<>excluded.stage
-          OR ifnull(flow_spans.detail,'')<>ifnull(excluded.detail,'')`,
-    )
-    .run(...values);
+  return telemetry.span(store, {
+    key: span.id,
+    taskId: span.taskId,
+    ...traceFields(store, span.taskId),
+    stage: span.stage,
+    role: span.role ?? null,
+    attempt: span.attempt ?? null,
+    source: span.source,
+    detail: span.detail || null,
+    startedAt: span.startedAt,
+    endedAt: span.endedAt ?? null,
+  });
 }
 
-const deleteSpan = (store, id) =>
-  store.db.prepare("DELETE FROM flow_spans WHERE id=?").run(id);
+// Store a stop-the-line row. A new stop records a `pulled` point and a stop
+// that just closed a `resumed` one (OT8.7), with its scope and kind and never
+// its check or reason.
+export function putStop(store, stop) {
+  const before = store.get("flow_stops", stop.id);
+  store.put("flow_stops", stop);
+  const event = !before
+    ? "pulled"
+    : stop.closedAt && !before.closedAt
+      ? "resumed"
+      : null;
+  if (!event) return;
+  const repo = stop.repositoryId;
+  telemetry.point(store, {
+    id: `${stop.id}:${event}`,
+    name: "avoozl.stop_the_line.events",
+    kind: "sum",
+    unit: "{event}",
+    value: 1,
+    at: event === "pulled" ? stop.openedAt : stop.closedAt,
+    ...(typeof repo === "string" && repo && repo.length <= 128 ? { repo } : {}),
+    attrs: {
+      scope: String(stop.scope || "dependents").slice(0, 128),
+      kind: stop.manual ? "manual" : "check",
+      event,
+    },
+  });
+}
+
+// Record each finished task's root span and task points once (OT3.4).
+// A task with no stage span on this machine records nothing, so a database
+// that predates the tables does not record its whole history at once.
+function finishTasks(store, data) {
+  const done = telemetry.finishedTasks(store);
+  for (const task of data.tasks) {
+    const end = finishedAt(task);
+    if (!end || done.has(task.id)) continue;
+    const spans = listSpans(store, { taskId: task.id });
+    if (!spans.length) continue;
+    const timing = taskTiming(store, task, { spans });
+    try {
+      telemetry.finishTask(store, {
+        taskId: task.id,
+        ...traceFields(store, task.id),
+        finishedAt: end,
+        outcome: "landed",
+        firstPass: timing.firstPass,
+        manual: task.manual === true,
+      });
+    } catch {}
+  }
+}
 
 // A check or command name, kept only when it passes the content rules at the
 // `brief` boundary (R43.6); a match or an unavailable set drops it.
@@ -315,7 +328,7 @@ const openSpans = (store, taskId, attempt, role) =>
 function closeOpen(store, taskId, attempt, role, at, { except = null } = {}) {
   for (const span of openSpans(store, taskId, attempt, role))
     if (!except || !except(span))
-      putSpan(store, {
+      recordSpan(store, {
         ...span,
         endedAt: span.startedAt > at ? span.startedAt : at,
       });
@@ -335,7 +348,7 @@ function ensureWorkerStart(store, binding) {
     (s) => s.attempt === binding.attempt && s.role === "worker",
   );
   if (spans.length) return;
-  putSpan(store, {
+  recordSpan(store, {
     id: spanId(
       "events",
       binding.taskId,
@@ -375,7 +388,7 @@ export function flowOnReport(store, binding, report) {
         s.source === "tool-calls",
     ),
     put = (stage, source, detail = null) =>
-      putSpan(store, {
+      recordSpan(store, {
         id: spanId(source, taskId, attempt, "worker", stage, at),
         taskId,
         attempt,
@@ -430,7 +443,7 @@ export function flowOnDecision(store, binding, action, at) {
   const { taskId, attempt } = binding;
   closeOpen(store, taskId, attempt, "worker", at);
   const stage = action === "go" ? workerStage(attempt) : "investigate";
-  putSpan(store, {
+  recordSpan(store, {
     id: spanId("events", taskId, attempt, "worker", stage, at),
     taskId,
     attempt,
@@ -508,7 +521,7 @@ export function syncSpans(store, { now = Date.now() } = {}) {
         const task = memo.byId.get(taskId),
           from = task && readyAt(store, data, task, attempt, memo);
         if (from && from < binding.boundAt)
-          putSpan(store, {
+          recordSpan(store, {
             id: spanId("events", taskId, attempt, null, "queued", from),
             taskId,
             attempt,
@@ -530,7 +543,7 @@ export function syncSpans(store, { now = Date.now() } = {}) {
             span.role === "worker" &&
             !span.endedAt
           )
-            putSpan(store, {
+            recordSpan(store, {
               ...span,
               endedAt:
                 span.startedAt > next.boundAt ? span.startedAt : next.boundAt,
@@ -579,7 +592,7 @@ export function syncSpans(store, { now = Date.now() } = {}) {
       detail: stage === "review" ? binding.role.slice("review:".length) : null,
     };
     const seen = spans.find((s) => s.id === id);
-    if (!seen || seen.endedAt !== end) putSpan(store, span);
+    if (!seen || seen.endedAt !== end) recordSpan(store, span);
   }
   // merge: from the last approval of the delivered commit to integration.
   for (const delivery of store.list("task_deliveries")) {
@@ -602,7 +615,7 @@ export function syncSpans(store, { now = Date.now() } = {}) {
       id = spanId("events", delivery.taskId, null, null, "merge", start),
       seen = spans.find((s) => s.id === id);
     if (!seen || seen.endedAt !== end)
-      putSpan(store, {
+      recordSpan(store, {
         id,
         taskId: delivery.taskId,
         stage: "merge",
@@ -611,6 +624,8 @@ export function syncSpans(store, { now = Date.now() } = {}) {
         source: "events",
       });
   }
+  // Flow's pass over finished tasks: each one's root span, once.
+  finishTasks(store, store.read());
 }
 
 function integratedAt(store, delivery) {
@@ -675,8 +690,8 @@ export function ingestToolRows(store, binding, rows, { checks = [] } = {}) {
     if (!mine().some((s) => s.source === "tool-calls")) {
       for (const span of mine())
         if (span.source !== "tool-calls" && span.stage !== "waiting")
-          deleteSpan(store, span.id);
-      putSpan(store, {
+          telemetry.dropSpan(store, span.id);
+      recordSpan(store, {
         id: `tool-calls:${taskId}:${attempt}:worker:start#start`,
         taskId,
         attempt,
@@ -692,12 +707,12 @@ export function ingestToolRows(store, binding, rows, { checks = [] } = {}) {
       seen.add(key);
       for (const span of mine())
         if (span.source === "tool-calls" && !span.endedAt)
-          putSpan(store, {
+          recordSpan(store, {
             ...span,
             endedAt: span.startedAt > row.ts ? span.startedAt : row.ts,
           });
       const { stage, detail } = toolStage(row, checks);
-      putSpan(store, {
+      recordSpan(store, {
         id: `tool-calls:${taskId}:${attempt}:worker:${row.ts}#${key}`,
         taskId,
         attempt,
@@ -713,7 +728,7 @@ export function ingestToolRows(store, binding, rows, { checks = [] } = {}) {
     if (["done", "blocked"].includes(binding.report?.kind))
       for (const span of mine())
         if (span.source === "tool-calls" && !span.endedAt)
-          putSpan(store, {
+          recordSpan(store, {
             ...span,
             endedAt:
               span.startedAt > binding.report.at

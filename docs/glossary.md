@@ -34,5 +34,9 @@ meaning. Words that look alike are set apart below.
 - **required checks**: GitHub check names a pull request must pass
   (`requiredChecks`). A repository's own check commands (`projects.<id>.checks`)
   are a different thing.
+- **OTLP**: the OpenTelemetry protocol, the JSON body a backend or collector
+  takes at `/v1/traces` and `/v1/metrics` ([Telemetry](telemetry.md)).
+- **exporter**: where recorded timing goes. The SQLite exporter writes
+  Avoozl's own tables; the OTLP exporter sends to an endpoint.
 - **mode**: plans-repo, single-repo or local. It is worked out from repository
   roles and is never written.

@@ -62,7 +62,7 @@ test("legacy schema gains missing tables and retains activity and idea migration
     store.put("plans", { id: "fake-plan", state: "draft", hash: "fake-hash" });
     store.put("incoming_items", { id: "idea", record: { kind: "idea" } });
     store.put("incoming_items", { id: "ticket", record: { kind: "ticket" } });
-    for (const table of ["activity_log", "flow_spans"])
+    for (const table of ["activity_log", "telemetry_spans"])
       store.db.exec(`DROP TABLE ${table}`);
   } finally {
     store.close();

@@ -31,7 +31,7 @@ import { claimedTaskIds, refreshClaims } from "../workers/claims.mjs";
 import { readSpecIssues } from "../specs/spec-publication.mjs";
 import { linkedReader } from "../specs/order.mjs";
 import { taskEpic } from "../epics/epics.mjs";
-import { putSpan } from "../flow/flow.mjs";
+import { recordSpan } from "../flow/flow.mjs";
 import {
   formatGapTable,
   gapProposals,
@@ -1133,7 +1133,7 @@ export class Operations {
           // Flow's spans for the task, as its landing commit carried them.
           for (const span of spans)
             try {
-              putSpan(store, { ...span, taskId: task.task });
+              recordSpan(store, { ...span, taskId: task.task });
             } catch {}
           recordActivity(store, {
             source: "tick",

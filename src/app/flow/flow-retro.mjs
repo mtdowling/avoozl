@@ -15,6 +15,7 @@ import {
   flowPolicy,
   flowView,
   listOr,
+  listSpans,
   readKey,
   taskTiming,
 } from "./flow.mjs";
@@ -157,7 +158,7 @@ function triggers(store, data, config, s, now) {
         `retry:${binding.taskId}:${binding.attempt}`,
         `${binding.taskId} started attempt ${binding.attempt}`,
       );
-  const ci = listSpansSafe(store).filter(
+  const ci = listSpans(store).filter(
     (sp) => sp.stage === "ci-wait" && sp.endedAt,
   );
   for (const [i, span] of ci.entries()) {
@@ -181,18 +182,6 @@ function triggers(store, data, config, s, now) {
       );
   }
   return { out, seen: [...seen], finishedCount: finished.length };
-}
-
-function listSpansSafe(store) {
-  try {
-    return store.db
-      .prepare(
-        "SELECT id,task_id AS taskId,stage,started_at AS startedAt,ended_at AS endedAt FROM flow_spans ORDER BY started_at",
-      )
-      .all();
-  } catch {
-    return [];
-  }
 }
 
 // Per repository over the window's finished tasks: the median lead time and

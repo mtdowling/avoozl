@@ -17,9 +17,7 @@ light and dark screenshots for the owner before merge, shown in chat and never
 committed.
 
 A group tagged `(**PARALLEL**)` holds tasks that share no file and may run at
-the same time. The two tasks that edit Flow's code wait on `sim-4.4`, the
-`simplify` task that cuts Flow's extras, so Flow is edited once. No task here
-names a task of another spec, so `ot-2.1` says it in a bullet.
+the same time.
 
 ## Phase 1: Recording API and local store
 
@@ -27,7 +25,7 @@ names a task of another spec, so `ot-2.1` says it in a bullet.
   - [x] `ot-1.1` Local tables and the SQLite exporter [OT2.1, OT2.2, OT2.6] (§D3)
     - `src/app/telemetry/sqlite-exporter.mjs` creates `telemetry_spans` and `telemetry_points` with the columns and indexes of §D3 when the database opens, and writes and reads them
     - Tests: a span upserts by key and is `false` the second time with equal values; a point inserts by ID and ignores a repeat; a stage span's `parent_span_id` is set before its root exists
-    - Tests: a database made by `avoozl rebuild` holds both tables empty
+    - Tests: a new database holds both tables empty
   - [x] `ot-1.2` The machine setting [OT4.1, OT4.3, OT5.1, OT5.2, OT5.4] (§D6)
     - Tests: `validateTelemetry` accepts `{"enabled": true}` and `{}` and refuses another key, a non-boolean `enabled` and a non-object, each with a message that names the key
     - Tests: a `telemetry` key in a workspace or repository `.avoozl.json` fails with the file and the machine config path, as `serve` does; a plugin manifest with a `telemetry` key fails plugin lint
@@ -41,19 +39,17 @@ names a task of another spec, so `ot-2.1` says it in a bullet.
 
 ## Phase 2: Flow on the recording path
 
-- [ ] `ot-2.1` Every span writer calls the API [OT1.1, OT1.3, OT1.7, OT3.4] (§D4)
-  - Starts after `sim-4.4` is on main, so Flow's cut and this move do not edit `flow.mjs` at once
-  - Flow's report, decision, tool-call and sync paths, the check runs, the plugin check decision, the manual task and the worker's phase mark call `telemetry.span` and `telemetry.dropSpan` with the key they already build; `putSpan`, `deleteSpan`, the `flow_spans` schema and its other readers are gone
-  - Flow's pass over finished tasks calls `telemetry.finishTask` with the task's outcome and first-pass result from `taskTiming`
-  - Tests: Flow's span and timing tests pass with their seeding going through the API; a search of `src/` for `putSpan`, `deleteSpan` and `flow_spans` finds nothing
-- [ ] `ot-2.2` Usage and stop events as points [OT8.6, OT8.7, OT3.3] (§D4, §D9)
-  - `src/app/telemetry/usage.mjs` reads each task session's turn rows with `gatewayUsageTurns` and records `avoozl.tokens` (input and output) and `avoozl.credits` points with the ID `<slot>@<ts>:<name>:<direction>`; the usage reads of Flow, the `flow_usage` schema and its other readers are gone
-  - `flow-line.mjs` records an `avoozl.stop_the_line.events` point when a stop opens and when it closes, with `scope`, `kind` and `event`, and no check name; `flow_stops` stays as it is
+- [x] `ot-2.1` Every span writer calls the API [OT1.1, OT1.3, OT1.7, OT3.4] (§D4)
+  - Flow's report, decision, tool-call and sync paths, the check runs, the plugin check decision, the manual task, the worker's phase mark and the rebuild from landing trailers call `recordSpan` in `flow.mjs`, which hands the key they already build to `telemetry.span` with the task's repository and spec; the tool-call path drops a span with `telemetry.dropSpan`; `putSpan`, `deleteSpan` and the `flow_spans` schema are gone
+  - Flow's pass over finished tasks calls `telemetry.finishTask` with the task's outcome and first-pass result from `taskTiming`, once per task, and skips a task with no stage span on this machine
+  - Tests: Flow's span and timing tests pass with their seeding going through the API; a search of `src/` for `putSpan`, `deleteSpan`, `flow_spans` and `flow_usage` finds nothing outside the store's list of tables an old database drops
+- [x] `ot-2.2` Usage and stop events as points [OT8.6, OT8.7, OT3.3] (§D4, §D9)
+  - `src/app/telemetry/usage.mjs` reads each task session's turn rows with `gatewayUsageTurns`, on the app backend's pass, and records `avoozl.tokens` (input and output) and `avoozl.credits` points with the ID `<slot>@<ts>:<name>:<direction>` (`<slot>@<ts>:avoozl.credits` for credits)
+  - `putStop` in `flow.mjs`, which every writer of `flow_stops` calls, records an `avoozl.stop_the_line.events` point when a stop opens and when it closes, with `scope`, `kind` and `event`, and no check name or reason; `flow_stops` stays as it is
   - Tests: a turn row read twice records once; a point takes the stage of the span that holds its time and `unattributed` otherwise; a session with no usage call records none; a stop and its resume give one `pulled` and one `resumed` point
-  - A search of `src/` for `flow_usage` finds nothing
-- [ ] `ot-2.3` Flow reads the local tables [OT3.1, OT3.2] (§D4)
-  - `listSpans`, `taskTiming`, the usage totals and the first-pass rate read `telemetry_spans` and `telemetry_points`; the Flow numbers MCP call and the CLI return what they returned
-  - Tests: Flow's existing tests for lead time, time per stage, first-pass rate, tokens and credits pass on the tables, with the seeding changed and no assertion changed
+- [x] `ot-2.3` Flow reads the local tables [OT3.1, OT3.2] (§D4)
+  - `listSpans`, `taskTiming` and the first-pass rate read `telemetry_spans`; the Flow numbers MCP call and the CLI return what they returned
+  - Tests: Flow's existing tests for lead time, time per stage and first-pass rate pass on the table, with the seeding changed and no assertion changed
 - [x] `ot-2.4` Retention and size cap [OT2.3, OT2.4, OT2.5, OT2.7] (§D5)
   - `sqlite-exporter.mjs` prunes at open and after every 500 writes, at most once in 10 minutes, outside the write's transaction, by the rules and numbers of §D5
   - Tests with small caps passed in: a finished trace older than 90 days goes with its root and children; over the cap the oldest finished traces go until the table is at 90 percent; a trace with an open span active in the last 7 days stays; points go by age and then oldest first; pruning does not run inside a write
@@ -96,17 +92,17 @@ names a task of another spec, so `ot-2.1` says it in a bullet.
 
 ## Phase 5: Docs and proof
 
-- [ ] `ot-5.1` Docs [OT6.1, OT8.4, OT9.2, OT12.1, OT14.2] (§D5, §D12, §D13)
+- [x] `ot-5.1` Docs [OT6.1, OT8.4, OT9.2, OT12.1, OT14.2] (§D5, §D12, §D13)
   - `docs/telemetry.md` opens with the machine setting and the two environment variables, then lists what Avoozl records locally and for how long, the caps, that a rebuild empties the tables, what OTLP exports, what is never sent, the transport rules, delta metrics with the collector step for Prometheus-style backends, and the limit that a stop or an outage loses unsent items; it names Grafana, Honeycomb, Datadog and CloudWatch only as example backends
   - `docs/README.md` lists the page, `docs/flow.md` links to it from Timing, and `docs/glossary.md` defines OTLP and exporter; the docs link and JSON tests pass
 - [x] `ot-5.2` Canary and credential tests [OT9.2, OT9.5, OT6.3, OT12.4] (§D8, §D12)
   - Tests: a task whose title, done text, branch, worktree path, session text and token-looking string each hold a canary records and exports; no table row, request body, log line, status reply or state file holds one
   - Tests: a canary in a span's `detail` is in the local row and absent from every OTLP body
   - Tests: a header value set to a canary is absent from the log, the state file, the status reply, an error message and every table
-- [ ] `ot-p1` Proof: a fake collector receives a scratch-repository task [OT4.1, OT3.1, OT7.2, OT8.1, OT10.1, OT11.2, OT2.6] (§D14)
-  - A script under `scripts/proofs/` makes a scratch repository with a bare remote, writes a two-task spec, and lands both tasks with a fake harness, first with telemetry off and then with it enabled in a temporary machine config and `OTEL_EXPORTER_OTLP_ENDPOINT` set to a fake collector on `127.0.0.1`
+- [x] `ot-p1` Proof: a fake collector receives a scratch-repository task [OT4.1, OT3.1, OT7.2, OT8.1, OT10.1, OT11.2, OT2.6] (§D14)
+  - `scripts/proofs/ot-p1.mjs` makes a scratch repository with a bare remote, seeds a two-task spec as an approved plan, and lands both tasks by direct landing, with a scripted worker commit standing in for the harness, first with telemetry off and then with it enabled in a temporary machine config and `OTEL_EXPORTER_OTLP_ENDPOINT` set to a fake collector on `127.0.0.1`
   - With it off, the collector received nothing and `taskTiming` for each task reads from `telemetry_spans`
   - With it on, the collector received one trace for each task with a root and its stage spans, the metrics for both tasks, and no canary; the root's times equal the stored spans'
-  - With the collector holding its reply open, a third task lands before the collector answers; after the collector answers `503`, `avoozl telemetry status` prints `backing-off`
-  - `avoozl rebuild` leaves both tables empty and the instance ID unchanged
+  - With the collector holding its reply open, a third task lands before the collector answers; after the collector answers `503`, `telemetry.status`, which `avoozl telemetry status` calls, says `backing-off` in the process that runs the exporter
+  - `avoozl rebuild` on an empty database leaves the points table empty, the spans table holding only the landed tasks' trailer spans, and the instance ID unchanged
   - A receipt under `docs/evidence/` records the run, written only after the checks pass

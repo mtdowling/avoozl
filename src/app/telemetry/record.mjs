@@ -62,6 +62,8 @@ export const FIELDS = Object.freeze({
 const ATTRS = ["direction", "outcome", "first_pass", "scope", "kind", "event"];
 const NAME = /^[A-Za-z0-9._:/-]+$/;
 const SPEC = /^[A-Za-z0-9._-]+$/;
+// A UCUM unit as OTLP writes it: `s`, `{token}`.
+const UNIT = /^[A-Za-z0-9._/{}]+$/;
 const METRIC = /^[a-z][a-z0-9._]*$/;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: the point is to find them.
 const CONTROL = /[\u0000-\u001f\u007f]/;
@@ -117,7 +119,7 @@ const CHECKS = {
   startedAt: (v) => time("startedAt", v),
   endedAt: (v) => time("endedAt", v),
   at: (v) => time("at", v),
-  unit: (v) => pattern("unit", v, NAME),
+  unit: (v) => pattern("unit", v, UNIT),
   name: (v) => pattern("name", v, METRIC),
   kind: (v) => {
     if (v !== "sum" && v !== "histogram")
@@ -238,13 +240,13 @@ export function span(store, input) {
   row.span_id = spanId(given.key);
   row.trace_id = traceId(given.repo, given.spec, given.taskId);
   row.parent_span_id = spanId(rootKey(given.taskId));
-  const changed = context(store).sqlite.putSpan(row);
+  const changed = context(store).sqlite.writeSpan(row);
   if (changed) notify(store, "onSpan", row);
   return changed;
 }
 
 export function dropSpan(store, key) {
-  const removed = context(store).sqlite.deleteSpan(text("key", key));
+  const removed = context(store).sqlite.removeSpan(text("key", key));
   if (removed) notify(store, "onDropSpan", { key });
   return removed > 0;
 }
@@ -263,6 +265,17 @@ export function point(store, input) {
   if (added) notify(store, "onPoint", row);
   return added;
 }
+
+// The tasks whose root span is recorded.
+export const finishedTasks = (store) =>
+  new Set(
+    store.db
+      .prepare(
+        "SELECT task_id FROM telemetry_spans WHERE parent_span_id IS NULL",
+      )
+      .all()
+      .map((row) => row.task_id),
+  );
 
 const seconds = (from, to) => (Date.parse(to) - Date.parse(from)) / 1000;
 
@@ -308,7 +321,7 @@ export function finishTask(store, input) {
       first_pass: pass === null ? null : pass ? 1 : 0,
       attempts,
     };
-    sqlite.putSpan(root);
+    sqlite.writeSpan(root);
     const base = { taskId, repo, spec, at: finishedAt };
     const attrs = { outcome: done };
     if (pass !== null) attrs.first_pass = pass;

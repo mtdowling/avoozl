@@ -109,6 +109,7 @@ const DROPPED_TABLES = [
   "planning_spans",
   "planning_usage",
   "flow_usage",
+  "flow_spans",
 ];
 
 // The tables of {id, body} rows; the read tables add the three with
@@ -303,8 +304,6 @@ export class Store {
    CREATE TABLE IF NOT EXISTS content_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS content_allowances(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS content_reports(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS flow_spans(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,stage TEXT NOT NULL,started_at TEXT NOT NULL,ended_at TEXT,source TEXT NOT NULL,detail TEXT);
-   CREATE INDEX IF NOT EXISTS flow_spans_task ON flow_spans(task_id,attempt);
    CREATE TABLE IF NOT EXISTS flow_records(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_stops(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_retros(id TEXT PRIMARY KEY,body TEXT NOT NULL);

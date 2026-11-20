@@ -213,6 +213,36 @@ export function pruneTelemetry(db, { limits = LIMITS, now = Date.now() } = {}) {
   }
 }
 
+// The stage spans Flow reads, oldest first, in Flow's shape: the key is the
+// span's `id`. A database without the table (an old read-only one) reads as
+// none.
+export function listStageSpans(db, { taskId } = {}) {
+  try {
+    const where = taskId
+      ? "parent_span_id IS NOT NULL AND task_id=?"
+      : "parent_span_id IS NOT NULL";
+    return db
+      .prepare(
+        `SELECT key, task_id, attempt, role, stage, started_at, ended_at, source, detail
+         FROM telemetry_spans WHERE ${where} ORDER BY started_at, key`,
+      )
+      .all(...(taskId ? [taskId] : []))
+      .map((row) => ({
+        id: row.key,
+        taskId: row.task_id,
+        attempt: row.attempt,
+        role: row.role,
+        stage: row.stage,
+        startedAt: row.started_at,
+        endedAt: row.ended_at,
+        source: row.source,
+        detail: row.detail,
+      }));
+  } catch {
+    return [];
+  }
+}
+
 // The exporter for one store. `limits` and `clock` are for tests.
 export function createSqliteExporter(
   store,
@@ -247,14 +277,14 @@ export function createSqliteExporter(
     status: () => ({ name: "sqlite" }),
     findSpan: (key) => findSpan.get(key),
     // True when the row is new or differs from the stored one.
-    putSpan(row) {
+    writeSpan(row) {
       const before = findSpan.get(row.key);
       if (before && same(SPAN_COLUMNS, before, row)) return false;
       upsertSpan.run(...values(SPAN_COLUMNS, row));
       maybePrune();
       return true;
     },
-    deleteSpan(key) {
+    removeSpan(key) {
       return db.prepare("DELETE FROM telemetry_spans WHERE key=?").run(key)
         .changes;
     },

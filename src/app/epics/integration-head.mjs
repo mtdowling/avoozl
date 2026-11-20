@@ -9,7 +9,7 @@
 // merges the branch into the default branch: no code path here writes to it.
 import { checksOf, green } from "../delivery/check-reads.mjs";
 import { ruleBranch } from "../github/github-branch-rules.mjs";
-import { openStops } from "../flow/flow.mjs";
+import { openStops, putStop } from "../flow/flow.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import { statusComplete } from "../../model.mjs";
 import { branchChecks, stageResults } from "../plugins/check-stages.mjs";
@@ -35,7 +35,7 @@ function holdLine(store, target, plan, reason, now) {
     open = openStops(store).find((stop) => stop.branch === key);
   if (!reason) {
     if (open)
-      store.put("flow_stops", {
+      putStop(store, {
         ...open,
         closedAt: new Date(now).toISOString(),
         resumedBy: {
@@ -46,11 +46,11 @@ function holdLine(store, target, plan, reason, now) {
     return;
   }
   if (open) {
-    if (open.reason !== reason) store.put("flow_stops", { ...open, reason });
+    if (open.reason !== reason) putStop(store, { ...open, reason });
     return;
   }
   const at = new Date(now).toISOString();
-  store.put("flow_stops", {
+  putStop(store, {
     id: `stop:branch:${key}:${at}`,
     manual: true,
     by: { kind: "app", name: "integration branch" },
