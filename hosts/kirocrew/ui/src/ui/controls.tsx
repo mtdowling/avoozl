@@ -132,14 +132,22 @@ export function IconBtn(props: { icon: LucideIcon; label: string; tooltip?: stri
 }
 
 // The 'i' icon: the details that would crowd the page, in the shared tooltip.
-// It takes focus, so the tip opens from the keyboard too.
+// A button described by its tip: hover, keyboard focus or a tap opens it,
+// Esc closes it. `label` names what it explains, e.g. "What hash approved means".
 export function InfoTip(props: { text: string; label?: string }) {
   return (
     <Tooltip text={props.text}>
       {(describedBy) => (
-        <span tabIndex={0} role="img" aria-label={props.label ?? 'Info'} aria-describedby={describedBy} data-info-tip className="inline-flex items-center text-muted">
+        <button
+          type="button"
+          aria-label={props.label ?? 'Info'}
+          aria-describedby={describedBy}
+          data-info-tip
+          className="inline-flex items-center text-muted"
+          style={{ padding: 0, border: 0, background: 'transparent', color: 'var(--muted)', cursor: 'help', lineHeight: 0 }}
+        >
           <Info size={ICON} aria-hidden="true" />
-        </span>
+        </button>
       )}
     </Tooltip>
   )

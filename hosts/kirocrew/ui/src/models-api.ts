@@ -145,3 +145,19 @@ export function provedLine(d: HarnessDefinition): string {
   const proved = d.proved ?? []
   return (['read', 'write'] as const).map((c) => `${c}: ${proved.includes(c) ? 'proved' : 'not proved'}`).join(', ')
 }
+
+// The approval badge.
+export function approvalLabel(d: HarnessDefinition): string {
+  return d.approved ? 'hash approved' : d.changed ? 'changed since approval' : 'not approved'
+}
+
+// What the approval badge means, for its info tooltip.
+export function approvalTip(d: HarnessDefinition): string {
+  if (d.approved) return 'You approved this exact file. If it changes outside Avoozl, it won’t start until you approve it again.'
+  if (d.changed) return 'This file changed after you approved it. It won’t start until you approve it again.'
+  return 'You have not approved this file yet. It won’t start until you approve it.'
+}
+
+// What the proved line means, for its info tooltip.
+export const PROVED_TIP =
+  'The harness file says its sandbox was tested for read-only roles (reviewer) and editing roles (worker). This comes from the file, not a test run on this computer.'

@@ -82,3 +82,25 @@ test('keyboard: a plain anchor is a focus stop described by its tip; the info ic
   await settle()
   assert.equal(await tip(), null)
 })
+
+test('keyboard: the info icon is a button described by its tip; Tab opens it, Esc closes it, a click opens it', { skip }, async () => {
+  await open()
+  const wired = await page.evaluate(`(() => {
+    const b = document.querySelector('[data-info-tip]')
+    const tipEl = document.getElementById(b.getAttribute('aria-describedby'))
+    return { tag: b.tagName, type: b.type, label: b.getAttribute('aria-label'), tip: tipEl?.textContent, role: tipEl?.getAttribute('role') }
+  })()`)
+  assert.deepEqual(wired, { tag: 'BUTTON', type: 'button', label: 'Info', tip: 'Details that do not fit on the page', role: 'tooltip' })
+  await page.key('Tab', 'Tab', 9)
+  await page.key('Tab', 'Tab', 9)
+  await settle()
+  assert.equal(await page.evaluate(`document.activeElement.hasAttribute('data-info-tip')`), true)
+  assert.equal(await tip(), 'Details that do not fit on the page', 'keyboard focus shows it')
+  await page.key('Escape', 'Escape', 27)
+  await settle()
+  assert.equal(await tip(), null, 'Esc closes it')
+  const { x, y } = await center('[data-info-tip]')
+  await page.click(x, y)
+  await settle()
+  assert.equal(await tip(), 'Details that do not fit on the page', 'a click opens it at once')
+})
