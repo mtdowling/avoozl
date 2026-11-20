@@ -89,10 +89,10 @@ they never collide with the IDs of the other specs.
   - `hosts/kirocrew/crons/tick.py` opens, sends and re-trusts and nothing else; the Python test with a fake context covers each and a refused send; the Node test that the cron's call runs the pass passes; `app.json`'s permissions are unchanged.
 - [x] ms-5.2 Docs and the product spec, after ms-1.2, ms-3.2 [MS4, MS13] (§D2)
   - The product spec, worker-paths WP1.1 and standalone-web SW3 and SW9 say what MS13 lists; `README.md`, `docs/getting-started.md`, `docs/person-only.md`, `docs/glossary.md`, `docs/workspaces.md` and `docs/scale-out.md` describe `avoozl tick`, the launchd, systemd and crontab lines, `avoozl mcp`, the drive skill, `machine.env` and the host packages, and name no `avoozl supervisor`, `avoozl serve`, `avoozl start` or `avoozl stop` command.
-- [x] ms-p7 Proof: the cron on a throwaway Kiro Crew, after ms-5.1 [MS12] (§D5)
+- [ ] ms-p7 Proof: the cron on a throwaway Kiro Crew, after ms-5.1 [MS12] (§D5)
   - Expected: (1) the chat opens, gets the message and keeps trust mode; (2) the cron history shows only open, send and trust calls besides the pass; (3) the task lands.
-  - Expected result observed; receipt in `docs/evidence/ms-p7-cron-pass.md`.
-  - Setup: the throwaway test Kiro Crew with its own home, an isolated workspace with one `kirocrew` task, and the cron as the only thing that runs the tick. The chat drives the test crew's clicks itself.
+  - Expected result observed; receipt under `docs/evidence/`.
+  - Setup: the throwaway test Kiro Crew with its own home and this machine's `loop` on, an isolated workspace with one `kirocrew` task, and the cron as the only thing that runs the tick; `scripts/proofs/proof-ms-p7-live.mjs` sets it up and acts as the person. The chat drives the test crew's clicks itself.
   - Action: (1) approve the task; (2) go ahead on its findings, which sends a message to its chat; (3) restart the test crew's gateway; (4) read the cron's run history.
   - Expected: (1) the chat opens, gets the message and keeps trust mode; (2) the cron history shows only open, send and trust calls besides the pass; (3) the task lands.
   - Failure means: the cron does work the pass should own, or a Kiro Crew machine needs another timer.

@@ -105,6 +105,10 @@ minute, so there is nothing to set up. On a machine without Kiro Crew, pick
 one of the timers below. Each runs `avoozl tick` once a minute for every
 enabled workspace in this machine's catalog.
 
+A tick starts and lands work only on a machine whose `config.json` turns its
+`loop` on ([Delivery](delivery.md#the-server-loop)); without it, each tick
+still reads and caches.
+
 An agent a tick starts keeps running after that tick exits; the next tick
 finds it again by its process and session, and reaps or resumes it. Two
 ticks that overlap are safe: the second skips what the first holds.
