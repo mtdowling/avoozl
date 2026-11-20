@@ -33,9 +33,7 @@ avoozl driver set --label "Draco"
 `driver set --label` names this machine in the driver banner and status.
 
 A spec can wait on another when a parent spec links both and lists one first.
-The waiting spec's driver starts it once the other spec's last tick reaches the
-base branch, whoever drove those tasks. See
-[Order across specs](avoozl-specs.md#order-across-specs) for the rules.
+See [Linked specs](github-workflow.md#6-linked-specs) for the rules.
 
 ### Handing off a spec
 
@@ -61,8 +59,8 @@ database is a cache that every machine builds from the same commits:
 
 A tick another person lands counts on your machine at your next tick, and so
 does one committed by hand. An approval counts on every machine that pulls
-main, because the author of the commit is the approval. See
-[Specs](avoozl-specs.md#approval-commits) for who counts as an approver.
+main. See [Approving in Avoozl](github-workflow.md#approving-in-avoozl) for
+who counts as an approver.
 
 Each landed task's trailers carry when its first worker started, its tries,
 its harness and model, its cost and its Flow spans:

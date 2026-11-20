@@ -27,12 +27,36 @@ the task above it, so it is ready. A runner claims it by creating the branch
 `avoozl/parser/p-2`, does the work there, ticks the box in the same commit,
 and lands it. Tasks `p-4` and `p-5` run side by side once `p-2` is ticked.
 
+Every task takes the same path from an approved spec to a deleted claim
+branch:
+
+```mermaid
+flowchart TD
+  approve[Spec approved] --> issue[Spec issue]
+  issue --> assign[Assigned]
+  assign --> ready[Ready]
+  ready --> claim{Claim branch}
+  claim -- exists --> next[Next task]
+  claim -- created --> work[Work and tick]
+  work --> merge[Merge base]
+  merge --> checks{Checks pass}
+  checks -- no --> work
+  checks -- base moved --> merge
+  checks -- yes --> land[Land]
+  land --> ticked[Ticked on base]
+  ticked --> delete[Branch deleted]
+```
+
+The tick rides in the commit that lands, so the task is done the moment the
+work reaches the specs branch. Approval (7), assignment (8), the ready rule
+(9), claims (12) and landing (13) give each step's rules.
+
 The words MUST, MUST NOT, SHOULD and MAY are used as in
 [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119). Each rule has a number,
 and each rule can be checked: the [workflow kit](../workflow-kit/README.md)
 holds sample repositories with the answer a runner gives for each. A runner
-that follows rule `3.1` is one the kit's `3.1` cases accept. Avoozl's own tool
-details are in [avoozl-specs.md](avoozl-specs.md).
+that follows rule `3.1` is one the kit's `3.1` cases accept. See
+[Avoozl](#avoozl) for what Avoozl adds and the rules it does not follow yet.
 
 ## Terms
 
@@ -302,7 +326,24 @@ POST /repos/acme/widget/git/refs
 ```
 
 GitHub refuses the create when the branch exists (HTTP 422). No comment or
-label is needed to claim.
+label is needed to claim. When two runners claim one task, the first create
+wins:
+
+```mermaid
+sequenceDiagram
+  participant A as Runner A
+  participant G as GitHub
+  participant B as Runner B
+  A->>G: Create avoozl/parser/p-2
+  B->>G: Create avoozl/parser/p-2
+  G-->>A: 201 Created
+  G-->>B: 422 Exists
+  A->>A: Start the agent
+  B->>B: Take the next task
+```
+
+A runner that also shows work in progress with a label on the spec issue takes
+that label's name from its settings (16.2).
 
 - **12.1** A runner MUST claim a task by creating `avoozl/<spec>/<task>` at the
   base's head, and MUST claim before an agent starts.
@@ -377,10 +418,10 @@ review**.
   when the task landed and its author is who landed it. A box ticked by hand
   counts the same. Ticks on other branches count for nothing.
 
-## 16. Label filters
+## 16. Labels
 
 An optional part. A runner MAY narrow what it picks up with two lists per
-repository in its own settings:
+repository in its own settings, and MAY name the stop label (18) there:
 
 ```json
 {
@@ -390,7 +431,8 @@ repository in its own settings:
     ],
     "exclude": [
       "needs-design"
-    ]
+    ],
+    "stop": "avoozl:stopped"
   }
 }
 ```
@@ -399,6 +441,11 @@ repository in its own settings:
   `require` label and no `exclude` label. A `require` label MUST count only
   when a writer added it. An `exclude` label added later MUST NOT unclaim a
   task already claimed.
+- **16.2** A runner SHOULD let its settings set the name of every label it
+  reads or writes: the `require` and `exclude` filters, the stop label, and
+  any label it uses to mark a claim or work in progress. A label name on this
+  page is a default. The `require` and `exclude` lists are empty by default,
+  and the stop label is `avoozl:stopped`.
 
 ## 17. Labeled issues
 
@@ -426,9 +473,9 @@ filters, in a repository with no spec for it, is a one-task spec:
 
 An optional part.
 
-- **18.1** The `avoozl:stopped` label on a spec issue or a parent spec's issue
-  stops new claims for it. A writer MAY add it. Only an approver's removal
-  resumes the spec.
+- **18.1** The stop label, `avoozl:stopped` by default (16.2), on a spec issue
+  or a parent spec's issue stops new claims for it. A writer MAY add it. Only
+  an approver's removal resumes the spec.
 
 ## 19. Review output
 
@@ -479,7 +526,8 @@ review goes.
 | Spec issue publishing (8.1) | Optional; without it, a person creates the issues |
 | Landing modes (14) | A runner supports at least one; `direct` or `off` alone is enough |
 | Integration branches (11) | Optional; without them, a runner refuses a spec that has a branch named for it |
-| Label filters (16) and labeled issues (17) | Optional |
+| Label filters (16.1) and labeled issues (17) | Optional |
+| Label names set in settings (16.2) | Optional; a runner with fixed names uses this page's defaults |
 | Stop label (18) | Optional |
 | Review output (19) | Optional; when a runner reviews, it posts as this page says |
 | Linked specs (6) | Optional; without them, a runner refuses a spec with a spec group |
@@ -492,9 +540,14 @@ the answers a runner gives: the rule numbers a spec breaks, the ready tasks in
 order, the claim, and the landing result. A runner passes workflow v1 when it
 gives every answer in every case for the parts it supports.
 
-## Avoozl status
+## Avoozl
 
-Avoozl is the reference runner, and it does not follow every rule yet:
+Avoozl is the reference runner. It reads specs as this page says, and adds the
+settings, refs, lint and commands below.
+
+### Avoozl status
+
+Avoozl does not follow every rule yet:
 
 - Order (3), manual tags (4), plain done bullets (2.3, 2.4), front matter (5),
   linked specs (6) and integration branches (11): Avoozl still reads `$` fact
@@ -503,13 +556,106 @@ Avoozl is the reference runner, and it does not follow every rule yet:
   creating it through the refs API.
 - Next task (10): Avoozl ranks by the number of tasks unblocked and then file
   order.
-- Label filters (16) and labeled issues (17): not built.
+- Label filters (16.1), label names set in settings (16.2), labeled issues
+  (17) and the stop label (18): not built.
 
 The kit marks each probe Avoozl fails with the task that fixes it.
 
+### Spec files
+
+A spec folder may hold `bugfix.md` in place of `requirements.md`, but not
+both. A spec file may be at most 1 MB, and a folder may hold at most 50 of
+them. Inside Avoozl a spec is stored as a plan, so the `plan.*` operations,
+the `plans_*` MCP tools and the `plan` CLI commands keep that name. Avoozl
+also reads older plan files written with fenced `task` blocks.
+
+### Specs path and branch
+
+The `.avoozl.json` at the root of the repository that holds the specs may
+move the specs folder and name the specs branch:
+
+```json
+{
+  "version": 1,
+  "specs": {
+    "path": "docs/specs",
+    "branch": "avoozl-plans"
+  }
+}
+```
+
+`specs.path` is relative to the repository root. Avoozl refuses one that is
+absolute, names a `.` or `..` folder, or is a symlink that leads out of the
+checkout. Kiro's Spec Builder and Kiro Crew planner chats write in
+`.kiro/specs/`, so with another path, draft with a planner that runs as a
+process. Keep the spec checkout on `specs.branch`: the Specs page names the
+problem when another branch is checked out.
+
+### Refs
+
+A task title may end in refs. `[R1.2]` names the requirements the task builds
+and `(§2.1)` the design sections it follows:
+
+```markdown
+- [ ] `cfg-1` Validate config [R1.2, DL2.3] (§2.1)
+  - An unknown key is reported with its path
+```
+
+- A requirement ref is `R<n>` for a `Requirement <n>:` heading, or the
+  heading's own ID, such as `DL2` for `Requirement DL2:`. `.<m>` adds its
+  numbered criterion.
+- A design ref is `§` and the number a `design.md` heading starts with, such
+  as `§2.1` for `### 2.1 Loader` or `§D1` for `## D1. Shape`.
+- A range such as `R4.1–R4.3` or `NK1 to NK3` names both ends.
+
+The page shows refs as chips that open the requirement or section. A task
+never names checks: every task runs its repository's checks. See
+[Repository checks and isolation](checks.md) for how checks are set.
+
+### Lint
+
+Spec lint checks a folder against sections 1 to 6. Avoozl also refuses a
+folder that:
+
+- has both `requirements.md` and `bugfix.md`
+- has a ref that names nothing in the spec, or whose file the spec lacks
+- holds an `avoozl/manifest.json`
+
+### Creating a spec
+
+Choose **New spec** on the Specs page, name it, pick its repositories, and
+start it **Blank** (Kiro Crew's Spec Builder writes it with you), **From a
+goal** (an Avoozl planner chat writes the draft), or **From template** (see
+[Writing a plugin](plugins.md#template-part)). Before Spec Builder starts,
+Avoozl offers to add `.kiro/steering/avoozl-specs.md`, which holds these
+rules, and never writes it over a copy you changed. From the CLI:
+
+```sh
+avoozl plan.create --json '{"spec":"NAME"}' --workspace ~/plans
+```
+
+### Approving in Avoozl
+
+For a draft in a checkout, select the spec, review the lint results and the
+graph, and choose **Approve**. It writes one commit on the specs branch,
+authored by you, and pushes it without force. `avoozl plan approve NAME...`
+previews that from the CLI and approves only the specs it names. Avoozl
+refuses when the specs branch already holds that exact text from someone who
+is not an approver, because the commit would change nothing.
+
+The approvers are `github.repositories.<repo>.allowedActors`, or the people
+with write access when it names nobody. In Local only mode the approver is
+the checkout's `user.email`. After approval, **Make the GitHub issues** makes
+the spec issue.
+
+### Ticks in Avoozl
+
+On its next tick, Avoozl marks a task done when its box is ticked, and closes
+any worker session it had on it. `[~]` and `[-]` marks do nothing. When a tick
+is taken out of a done task, the task stays done, and **Needs you** offers
+**Reopen** or **Keep done**.
+
 ## Related pages
 
-- See [avoozl-specs.md](avoozl-specs.md) for Avoozl's spec pages, lint and
-  commands.
 - See [delivery.md](delivery.md) for how Avoozl checks and lands a task.
 - See [drivers.md](drivers.md) for which Avoozl workspace runs a spec.
