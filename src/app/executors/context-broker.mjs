@@ -1,5 +1,6 @@
-// The MCP broker (epic-context EC7, D6): the supervisor listens on one Unix
-// socket per session, outside every sandbox. A relay (context-relay.mjs)
+// The MCP broker (epic-context EC7, D6): one Unix socket per session,
+// outside every sandbox, served by that session's own broker process
+// (context-broker-main.mjs). A relay (context-relay.mjs)
 // connects with the session's token and an alias; the broker checks both,
 // starts the real server on that connection with the check environment
 // basics plus the mapping's `env` names, in a scratch folder, and pipes
@@ -160,16 +161,19 @@ export function createBroker({
   return {
     // Listen for `session`; `servers` maps each alias it was given to
     // {command, env, plugin?}. Returns {socket, token}. A session opened
-    // before (a resume) is closed first, so its token changes.
-    open({ session, servers }) {
+    // before (a resume) is closed first, so its token changes. `socket` and
+    // `token` may be given, the socket in a `0700` folder of its own.
+    open({ session, servers, socket, token }) {
       close(session);
-      const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avz-")),
-        socket = path.join(folder, "mcp.sock");
+      const folder = socket
+        ? path.dirname(socket)
+        : fs.mkdtempSync(path.join(os.tmpdir(), "avz-"));
+      socket ??= path.join(folder, "mcp.sock");
       fs.chmodSync(folder, 0o700);
       const state = {
         folder,
         servers: { ...servers },
-        token: randomBytes(24).toString("hex"),
+        token: token ?? randomBytes(24).toString("hex"),
         sockets: new Set(),
         server: net.createServer(),
       };

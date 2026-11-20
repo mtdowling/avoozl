@@ -52,7 +52,7 @@ const cli = (m, ...args) => {
 test("a machine with no supervisor state reports nothing and creates nothing", () => {
   const m = machine();
   const status = machineStatus({ stateDirectory: m.stateDirectory });
-  assert.deepEqual(status.supervisor, { running: false });
+  assert.deepEqual(status.passes, []);
   assert.deepEqual(status.children, []);
   assert.equal(fs.existsSync(supervisorPaths(m.stateDirectory).root), false);
 });

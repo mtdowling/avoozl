@@ -1,29 +1,23 @@
-// The machine lock and the loop lock (MS2, design D3): an operating-system
-// lock, so eight starters leave one holder and a killed holder frees it.
+// The pass locks (MS2, design D3): an operating-system lock, so eight ticks
+// at once leave one holder and a killed holder frees it.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { spawn } from "node:child_process";
-import {
-  loopLockPaths,
-  lockHolder,
-  machineLockPaths,
-  takeLock,
-  tryLock,
-} from "../machine-lock.mjs";
+import { loopLockPaths, takeLock, tryLock } from "../pass-lock.mjs";
 
-const LOCK = new URL("../machine-lock.mjs", import.meta.url).href;
+const LOCK = new URL("../pass-lock.mjs", import.meta.url).href;
 
-// A starter: waits for the barrier file, takes the lock, prints "held" or
-// "refused <pid>", and keeps a held lock until its stdin closes.
+// A tick: waits for the barrier file, takes the workspace's pass lock, prints
+// "held" or "refused <pid>", and keeps a held lock until its stdin closes.
 const STARTER = `
 import fs from "node:fs";
-import { machineLockPaths, takeLock } from ${JSON.stringify(LOCK)};
-const [state, barrier] = process.argv.slice(2);
+import { loopLockPaths, takeLock } from ${JSON.stringify(LOCK)};
+const [database, barrier] = process.argv.slice(2);
 while (!fs.existsSync(barrier)) await new Promise((r) => setTimeout(r, 5));
-const taken = takeLock(machineLockPaths(state), { pid: process.pid });
+const taken = takeLock(loopLockPaths(database), { pid: process.pid });
 if (taken.held) {
   console.log("held " + process.pid);
   process.stdin.resume();
@@ -89,27 +83,9 @@ test("an exclusive lock is held for the handle's life and refused at once to a s
   again.close();
 });
 
-test("the holder is named from the record only while the lock is held", (t) => {
-  const { root } = scratch(t);
-  const paths = machineLockPaths(root);
-  assert.equal(lockHolder(paths), null);
-  const taken = takeLock(paths, { pid: process.pid });
-  assert.equal(lockHolder(paths).pid, process.pid);
-  const second = takeLock(paths, { pid: 1 }, { tries: 1 });
-  assert.equal(second.held, false);
-  assert.equal(second.holder.pid, process.pid);
-  // A record left by a holder that is gone names nobody while the next one
-  // sets up.
-  fs.writeFileSync(paths.record, JSON.stringify({ pid: 2 ** 22 + 7 }));
-  assert.deepEqual(lockHolder(paths), {});
-  taken.close();
-  assert.equal(lockHolder(paths), null);
-  assert.ok(fs.existsSync(paths.lock), "the lock file is never deleted");
-});
-
-test("eight starters behind one barrier leave one holder, and a killed holder is replaced within 5 seconds", async (t) => {
+test("eight ticks behind one barrier leave one holder, and a killed holder is replaced within 5 seconds", async (t) => {
   const { root, start } = scratch(t);
-  const state = path.join(root, "state");
+  const state = path.join(root, "workspace.sqlite");
   const barrier = path.join(root, "go");
   const first = Array.from({ length: 8 }, () => start(state, barrier));
   fs.writeFileSync(barrier, "");
@@ -131,7 +107,7 @@ test("eight starters behind one barrier leave one holder, and a killed holder is
   assert.ok(Date.now() - begun < 5000);
 });
 
-test("two state folders on one workspace leave one loop lock holder, and a waiter takes over", (t) => {
+test("two state folders on one workspace leave one pass lock holder, named by its record, and the next takes over", (t) => {
   const { root } = scratch(t);
   const paths = loopLockPaths(path.join(root, "workspace.sqlite"));
   const a = takeLock(paths, { pid: 1, stateDirectory: "a" });
@@ -143,4 +119,5 @@ test("two state folders on one workspace leave one loop lock holder, and a waite
   const c = takeLock(paths, { pid: 2, stateDirectory: "b" });
   assert.equal(c.held, true);
   c.close();
+  assert.ok(fs.existsSync(paths.lock), "the lock file is never deleted");
 });

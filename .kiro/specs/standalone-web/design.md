@@ -12,7 +12,7 @@ Kiro Crew machine (unchanged)                 Machine without Kiro Crew
 Kiro Crew page (dist/index.mjs)               browser on the same machine
   │ host SDK (externals)                        │ http://127.0.0.1:<port>/apps/avoozl
   ▼                                             ▼
-Kiro Crew gateway ── signed principal ──┐     avoozl serve  (serve-server.mjs)
+Kiro Crew gateway ── signed principal ──┐     page server  (serve-server.mjs)
                                         ▼       │ Host/Origin/CSRF/cookie checks (D5)
                               app-backend.mjs   │ principal = owner-session "local"
                                         │       ▼
@@ -37,10 +37,10 @@ same request to the same dispatch the app backend uses (D4).
 | `scripts/bundle/build-kirocrew-app.mjs`          | Changed        | Runs the third build                                   |
 | `src/app/api/command-dispatch.mjs`            | New            | The body of today's `/api/command` handler              |
 | `src/app/executors/kirocrew/app-backend.mjs`                 | Changed        | Calls `command-dispatch.mjs`; behavior unchanged        |
-| `src/app/serve/serve-server.mjs`                | New            | `avoozl serve`: listener, sign-in, static files         |
+| `src/app/serve/serve-server.mjs`                | New            | the page server: listener, sign-in, static files        |
 | `src/app/serve/serve-auth.mjs`                  | New            | Link tokens, sessions, CSRF, header checks              |
 | `src/app/cli/cli.mjs`                         | Changed        | `serve`, `serve link`                                   |
-| `src/app/executors/supervisor.mjs`                  | Changed        | Optional server child (D8)                              |
+| `src/app/executors/page-child.mjs`                  | New            | Each tick keeps the server up (D8)                      |
 
 ## D2. The host shim
 
@@ -56,7 +56,7 @@ standalone build gives it the same two modules from Kiro Crew's own source
   as its Storybook does.
 - **Requests.** The provider's client has no setting for a base address or a
   fetch function (S). It calls `fetch` with a relative path, so
-  `/apps/avoozl/api/command` reaches `avoozl serve` as it is. The entry
+  `/apps/avoozl/api/command` reaches the page server as it is. The entry
   wraps `fetch` once to add `X-Avoozl-CSRF`, read from
   `<meta name="avoozl-csrf">`, to requests for the server origin (SW1.4).
   `shareReads` and the Demo guard in `host.ts` wrap the client as they do
@@ -66,9 +66,9 @@ standalone build gives it the same two modules from Kiro Crew's own source
   sets a launch record and navigates to `/chat…` (S); the shim reads that
   record and opens the Start a session dialog (D7). The page's own in-page
   Back history stays as it is. The page accepts only a path under
-  `/apps/<name>` as its base (S), which is where `avoozl serve` serves it.
+  `/apps/<name>` as its base (S), which is where the page server serves it.
 - **Gateway routes.** The page also calls a few of Kiro Crew's own routes
-  (models, reveal, chat slots, Spec Builder). `avoozl serve` answers each
+  (models, reveal, chat slots, Spec Builder). The page server answers each
   from the table of what needs Kiro Crew (D9): with Avoozl's own data where
   it has it, such as the harness list for models, and with "Needs Kiro
   Crew" otherwise.
@@ -141,7 +141,7 @@ database, whose writes already go through the store's locking and
 Host ok? ──no──> 403
 OPTIONS? ──yes─> 403
 /login?  ──yes─> token check ─ok─> new session, Set-Cookie, 303 /apps/avoozl
-   │                          └bad─> 403 "This link is not valid. Run avoozl serve link."
+   │                          └bad─> 403 "This link is not valid. Run avoozl link."
 cookie -> live session? ──no──> 401 (page: how to get a link; API: JSON)
 POST?    ──yes─> Origin, Sec-Fetch-Site, Content-Type, X-Avoozl-CSRF ──bad─> 403
 dispatch (D4) or static file (fixed list)
@@ -151,9 +151,8 @@ dispatch (D4) or static file (fixed list)
 **Link records.** A link is 32 bytes from `crypto.randomBytes`, base64url.
 Its SHA-256, creation time and used time go in a `serve_links` table in a
 `serve.sqlite` file in the machine state folder (folder `0700`, file
-`0600`). `avoozl serve` adds one at start and prints it;
-`avoozl serve link` adds one and prints it (SW4.2). The server reads the
-table at `/login`, so `serve link` needs no channel to the server. Used and
+`0600`). `avoozl link` adds one and prints it (SW4.2). The server reads the
+table at `/login`, so `avoozl link` needs no channel to the server. Used and
 expired rows are deleted on each login. Comparison uses
 `crypto.timingSafeEqual` on the hashes (SW4.1).
 
@@ -196,7 +195,7 @@ task uses the hook if it stands alone and the same two attributes if it
 does not.
 
 The fonts are Kiro Crew's and come out of its stylesheet as bundle files
-(S: eight font files, 129 kB). `avoozl serve` serves them, and `font-src
+(S: eight font files, 129 kB). The page server serves them, and `font-src
 'self'` allows them.
 
 The theme control sits in a thin standalone header with the Avoozl name,
@@ -212,7 +211,7 @@ openChat({message, agent}) ─> Start a session dialog
      role  = map(agent) or "assist"          (Settings › Models gives harness, model)
      brief = message (editable)
 Start ─> session.open {role, brief}          (person-only operation)
-      ─> process executor ─> supervisor child in the workspace root, read-only
+      ─> process executor ─> process child in the workspace root, read-only
       ─> process view (Phase 50): status, log tail, cost, Send message, attach
 ```
 
@@ -226,18 +225,20 @@ agent principals cannot call it.
 With no approved harness, the dialog shows the message and a Copy button
 and starts nothing (SW7.5).
 
-## D8. Supervisor hosting
+## D8. The tick keeps the page up
 
 `serve.enabled` and `serve.port` are machine configuration keys, validated
 with the other machine keys and refused in `.avoozl.json`. When enabled,
-the supervisor starts `serve-main.mjs` as a child, like the tick and the
-integrator, records its pid and port, and restarts it when it exits. The
-supervised server prints no link; `avoozl serve link` makes one (SW9.2).
+each `avoozl tick` starts `serve-main.mjs` detached when it does not run,
+records its pid, start time and port in `supervisor/page.json`, starts it
+again once it has exited, and stops it when the setting is off or the port
+changed (machine-server D8). The server prints no link; `avoozl link` makes
+one (SW9.2).
 With a fixed `serve.port` the origin stays the same across restarts, so a
 browser tab only needs a new link, not a new address.
 
 A person who wants to look at a headless machine from their laptop is out
-of scope. The docs say only that `avoozl serve` is local to its machine.
+of scope. The docs say only that the page is local to its machine.
 
 ## D9. What needs Kiro Crew
 
@@ -249,7 +250,7 @@ of scope. The docs say only that `avoozl serve` is local to its machine.
 | Open chat, chat links                | Process session (D7)                                |
 | Model list                           | Free text plus the harness definition's list        |
 | Per-turn usage from Kiro Crew's log  | Process cost from the harness output only           |
-| Stop all agents for chats            | Process sessions stop through the supervisor        |
+| Stop all agents for chats            | Process sessions stop through the supervisor pass   |
 
 `instance.view` gains `host: "standalone" | "kirocrew"`, set by the server
 that answers. The page reads it once per load (SW10.3).
@@ -259,18 +260,18 @@ that answers. The page reads it once per load (SW10.3).
 This section follows the repository owner's exposure policy for anything
 that listens on a socket.
 
-**Exposure.** One listener, `127.0.0.1:<port>`, in `avoozl serve` or its
-supervised child. There is no code path to any other address (SW3.1), and a
-test checks the bound address on all three platforms (SW3.6). The
-supervisor itself listens on nothing (SW9.4). No container, port publish,
+**Exposure.** One listener, `127.0.0.1:<port>`, in the page server a tick
+starts. There is no code path to any other address (SW3.1), and a test
+checks the bound address on all three platforms (SW3.6). The tick itself
+listens on nothing (SW9.4). No container, port publish,
 tunnel, share or remote access is built (Out of scope).
 
 **Callers on the same machine.** Any local process and any other local user
 can open a TCP connection to the port. They are refused without a session
 cookie (SW4.5), and a cookie needs a one-time link that is printed only to
-the terminal that ran `avoozl serve` or `avoozl serve link`. The link
+the terminal that ran `avoozl link`. The link
 records are hashes in a `0600` file in a `0700` folder. A `process` child
-cannot read that folder (SW5.5) and cannot run either command (SW3.7,
+cannot read that folder (SW5.5) and cannot run `avoozl link` (SW3.7,
 SW4.2).
 
 **Callers in the owner's browser.** Other web pages are stopped by the

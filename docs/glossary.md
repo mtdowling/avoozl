@@ -40,3 +40,17 @@ meaning. Words that look alike are set apart below.
   Avoozl's own tables; the OTLP exporter sends to an endpoint.
 - **mode**: plans-repo, single-repo or local. It is worked out from repository
   roles and is never written.
+- **tick**: one pass of `avoozl tick` over this machine's workspaces: it
+  plans, starts and checks agents, lands what passed, and exits. **timer**:
+  whatever runs the tick on a schedule: launchd, systemd, cron, the Kiro Crew
+  cron, or a chat that follows the `avoozl-drive` skill
+  ([Getting started](getting-started.md#run-the-tick-on-a-timer)).
+- **supervisor pass**: the step of each tick that starts `process` agents and
+  later reaps or resumes them by their recorded process and session. An agent
+  outlives the tick that started it.
+- **`machine.env`**: the owner-only file in this machine's Avoozl config
+  folder that holds the model keys a `process` agent's harness names in
+  `keepEnv`.
+- **host package**: the files one front end installs, generated from
+  `prompts/` and `roles.json`: the Kiro Crew app (`hosts/kirocrew/`) and the
+  Claude Code plugin (`hosts/claude-code/`).

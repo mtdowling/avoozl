@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { WorkspaceRegistry } from "../../settings/host-config.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
-import { runOwnMachine } from "../../test/shim-run.mjs";
+import { runOwnMachine } from "../../test/own-machine.mjs";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(root, "hosts", "kirocrew"),
@@ -303,9 +303,12 @@ test("packaged MCP server answers the tick from any working directory", () => {
     .split("\n")
     .map((line) => JSON.parse(line));
   assert.notEqual(tick.result.isError, true, JSON.stringify(tick));
-  // The machine server's own first pass may hold the work lock.
-  if (tick.result.structuredContent.skipped !== "locked")
-    assert.deepEqual(tick.result.structuredContent.dispatch, []);
+  // The tick tool ran one pass for the named workspace.
+  const results = JSON.parse(tick.result.content[0].text);
+  assert.deepEqual(
+    results.filter((r) => r.root).map((r) => [r.root, r.tick]),
+    [[workspace, "ran"]],
+  );
 });
 
 test("packaged MCP server serves the catalog's default workspace when none is named", () => {
@@ -337,19 +340,21 @@ test("packaged MCP server serves the catalog's default workspace when none is na
   );
   const reply = JSON.parse(output.trim());
   assert.notEqual(reply.result.isError, true, output);
-  // The machine server ticks the catalog workspace as it starts, so this
-  // call may meet that pass holding the work lock: either way the call
-  // reached the default workspace.
-  if (reply.result.structuredContent.skipped !== "locked")
-    assert.equal(reply.result.structuredContent.policy.status, "loaded");
+  // The pass ran for the catalog's default workspace.
+  const results = JSON.parse(reply.result.content[0].text);
+  assert.deepEqual(
+    results
+      .filter((r) => r.root)
+      .map((r) => [fs.realpathSync.native(r.root), r.tick]),
+    [[fs.realpathSync.native(workspace), "ran"]],
+  );
 });
 
 test("packaged launcher defaults to a loopback, signed-principal backend", async (t) => {
   const dir = temporaryDirectory(),
     workspace = path.join(dir, "workspace");
   initializeWorkspace(workspace);
-  // Under the gateway the backend starts this machine's server (MS3.5): it
-  // gets a state folder of its own, and is stopped after.
+  // A state folder of its own, so nothing touches this machine's.
   const env = {
     ...isolatedEnv(dir),
     XDG_STATE_HOME: path.join(dir, "state"),
@@ -361,10 +366,7 @@ test("packaged launcher defaults to a loopback, signed-principal backend", async
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  t.after(() => {
-    child.kill();
-    spawnSync(process.execPath, [CLI, "stop"], { env, encoding: "utf8" });
-  });
+  t.after(() => child.kill());
   const port = await new Promise((resolve, reject) => {
     let text = "";
     child.stdout.on("data", (chunk) => {

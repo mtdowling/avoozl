@@ -7,7 +7,7 @@ person's own agent's job, such as a Kiro Crew ultra mode run.
 
 ```sh
 avoozl driver status
-avoozl supervisor unit --write
+avoozl tick
 avoozl rebuild --workspace ~/plans
 ```
 
@@ -81,22 +81,23 @@ from those trailers. See
 
 ## Headless machines
 
-A machine whose roles use `process` harnesses runs with the CLI alone.
-`avoozl supervisor` owns this machine's agent children, one supervisor per
-machine, and with
-`--tick-seconds N` it also runs the tick of every workspace on the machine.
-`avoozl supervisor unit` prints a launchd unit on macOS or a systemd user unit
-on Linux that starts it at login and again if it stops. `--write` writes the
-file and prints the commands that load it:
+A machine whose roles use `process` harnesses runs with the CLI alone. A
+timer runs `avoozl tick` once a minute: a launchd agent on macOS, a systemd
+user timer on Linux, or a crontab line, as
+[Getting started](getting-started.md#run-the-tick-on-a-timer) gives them.
+Each tick passes every workspace on the machine, starts the agents the tick
+asks for, and exits; the agents run on, and the next tick reaps or resumes
+them.
 
 ```sh
-avoozl supervisor unit --write
+avoozl tick
 avoozl status
 avoozl runner status --json
 ```
 
-`avoozl status` names the workspace, the supervisor and its children, and
-`avoozl runner status --json` lists the worker's tasks and their states. A
+`avoozl status` names the workspace, each workspace's last pass and this
+machine's agents, and `avoozl runner status --json` lists the worker's tasks
+and their states. A
 harness runs only after a person on that machine approves it with
 `avoozl harness approve NAME`. See
 [Getting started](getting-started.md#approve-a-harness) for harness files.

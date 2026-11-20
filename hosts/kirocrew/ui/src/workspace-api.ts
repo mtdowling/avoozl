@@ -38,7 +38,7 @@ export interface FolderListing {
 export interface WorkspaceList {
   defaultWorkspace: string | null
   items: CatalogWorkspace[]
-  // The server that answered: Kiro Crew's app backend or `avoozl serve`.
+  // The server that answered: Kiro Crew's app backend or the standalone page's.
   host?: 'kirocrew' | 'standalone'
 }
 

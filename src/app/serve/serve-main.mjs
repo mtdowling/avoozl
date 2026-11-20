@@ -1,7 +1,8 @@
-// The standalone page's server as a supervised child (SW9). The supervisor
-// starts it with `serve.enabled`, restarts it when it exits, and keeps its
-// port when `serve.port` fixes one. It prints no owner link: the owner runs
-// `avoozl serve link` at this machine's own shell.
+// The standalone page's server as a child of the tick (SW9). A tick starts it
+// with `serve.enabled`, starts it again when it has exited, and keeps its
+// port when `serve.port` fixes one (page-child.mjs). It prints no owner link:
+// the owner runs `avoozl link` at this machine's own shell.
+import fs from "node:fs";
 import { parseArgs } from "node:util";
 import path from "node:path";
 import { workspaceConfig } from "../settings/config.mjs";
@@ -14,8 +15,20 @@ const { values } = parseArgs({
     "state-directory": { type: "string" },
     "config-directory": { type: "string" },
     port: { type: "string" },
+    // Where to write output when started with no stdout (Windows).
+    log: { type: "string" },
   },
 });
+if (values.log) {
+  const out = fs.openSync(values.log, "a", 0o600);
+  for (const stream of [process.stdout, process.stderr])
+    stream.write = (chunk, encoding, done) => {
+      fs.writeSync(out, typeof chunk === "string" ? chunk : Buffer.from(chunk));
+      if (typeof encoding === "function") encoding();
+      else if (typeof done === "function") done();
+      return true;
+    };
+}
 const stateDirectory = path.resolve(values["state-directory"]),
   configDirectory = path.resolve(values["config-directory"]);
 // The served workspace is the catalog's default; the page's picker reaches the

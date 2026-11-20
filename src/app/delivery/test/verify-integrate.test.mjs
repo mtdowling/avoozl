@@ -20,7 +20,7 @@ import {
   leaf,
   workerDone,
 } from "../../test/delivery-fixture.mjs";
-import { runOwnMachine } from "../../test/shim-run.mjs";
+import { runOwnMachine } from "../../test/own-machine.mjs";
 
 const repo = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(repo, "hosts", "kirocrew");

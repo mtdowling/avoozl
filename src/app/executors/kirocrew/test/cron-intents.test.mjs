@@ -1,6 +1,7 @@
-// The Kiro Crew cron's tick call (MS1.3, MS12.1, MS12.3): it records what the
-// cron observed, returns what the machine server released, and never plans.
+// The Kiro Crew cron's tick call (MS1.3, MS12.1): it runs this machine's tick
+// pass, records what the cron observed, and returns what the pass released.
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../../../api/operations.mjs";
@@ -12,14 +13,18 @@ import { recordReleased, tickHealth } from "../../../tick/tick.mjs";
 import { initializeWorkspace } from "../../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../../test/temporary.mjs";
 import { createAppMcp } from "../app-mcp.mjs";
+import { ownMachineEnv } from "../../../test/own-machine.mjs";
 
-const tickCall = (input) => ({
+const tickCall = (input, cron = true) => ({
   jsonrpc: "2.0",
   id: 1,
   method: "tools/call",
   params: {
     name: "plans_maintain",
-    arguments: { action: "tick", input: { cron: true, ...input } },
+    arguments: {
+      action: "tick",
+      input: { ...(cron ? { cron } : {}), ...input },
+    },
   },
 });
 
@@ -54,69 +59,62 @@ async function scratch() {
   const { starts } = enqueueSessionRequests(store, {
     starts: [start("task-1")],
   });
-  return { config, store, request: starts[0] };
+  // A machine of its own, whose catalog does not list this workspace.
+  const env = ownMachineEnv(path.join(dir, "machine"));
+  return { config, store, request: starts[0], env, dir };
 }
 
-const answer = async (config, ensureServer, input) => {
-  const mcp = createAppMcp({ fallback: config, ensureServer });
+const answer = async ({ config, env }, input, cron = true) => {
+  const mcp = createAppMcp({ fallback: config, env });
   try {
-    const reply = await mcp.handle(tickCall(input));
+    const reply = await mcp.handle(tickCall(input, cron));
     return JSON.parse(reply.result.content[0].text);
   } finally {
     mcp.close();
   }
 };
 
-test("with a server running the cron gets the released start, and its observations are recorded", async () => {
-  const { config, store, request } = await scratch();
+test("the cron's call runs the machine's pass, returns the released start, and records its observations", async () => {
+  const w = await scratch();
   try {
-    // Nothing is released until the server's tick says so.
-    let intents = await answer(config, () => ({ started: false }), {});
+    // Nothing is released until a tick says so.
+    let intents = await answer(w, {});
     assert.deepEqual(intents.dispatch, []);
+    // The pass ran on this machine's own state folder.
+    assert.ok(
+      fs.existsSync(path.join(w.env.XDG_STATE_HOME, "avoozl", "supervisor")),
+    );
 
-    recordReleased(store, { dispatch: [request], messages: [] });
-    intents = await answer(config, () => ({ started: false }), {
+    recordReleased(w.store, { dispatch: [w.request], messages: [] });
+    intents = await answer(w, {
       sessions: [{ target: "slot-2", status: "idle" }],
     });
     assert.deepEqual(
       intents.dispatch.map((d) => d.id),
-      [request.id],
+      [w.request.id],
     );
     assert.deepEqual(intents.observe, [
       { slot: "slot-2", taskId: "task-2", role: "worker" },
     ]);
-    const bound = listSessionBindings(store).find((b) => b.slot === "slot-2");
+    const bound = listSessionBindings(w.store).find((b) => b.slot === "slot-2");
     assert.equal(bound.status, "idle");
-    // It never reached the planner: no tick receipt was written.
-    assert.equal(tickHealth(store).lastRun, null);
+    // This workspace is not in the machine's catalog, so no tick ran on it.
+    assert.equal(tickHealth(w.store).lastRun, null);
   } finally {
-    store.close();
+    w.store.close();
   }
 });
 
-test("with no server the call starts one, records observations and returns no intents", async () => {
-  const { config, store, request } = await scratch();
+test("a chat's tick call runs one pass for its own workspace", async () => {
+  const w = await scratch();
   try {
-    recordReleased(store, { dispatch: [request], messages: [] });
-    let started = 0;
-    const intents = await answer(
-      config,
-      () => {
-        started += 1;
-        return { started: true };
-      },
-      { sessions: [{ target: "slot-2", status: "working" }] },
+    const results = await answer(w, {}, false);
+    assert.deepEqual(
+      results.filter((r) => r.root).map((r) => [r.root, r.tick]),
+      [[w.config.workspaceRoot, "ran"]],
     );
-    assert.equal(started, 1);
-    assert.deepEqual(intents, {
-      observe: [],
-      dispatch: [],
-      messages: [],
-      notify: [],
-    });
-    const bound = listSessionBindings(store).find((b) => b.slot === "slot-2");
-    assert.equal(bound.status, "working");
+    assert.notEqual(tickHealth(w.store).lastRun, null);
   } finally {
-    store.close();
+    w.store.close();
   }
 });

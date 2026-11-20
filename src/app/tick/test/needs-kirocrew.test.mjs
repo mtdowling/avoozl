@@ -12,7 +12,7 @@ import {
   approveHarnessDefinition,
   harnessDefinitionHash,
 } from "../../executors/harness-definitions.mjs";
-import { tickWorkspace } from "../headless-tick.mjs";
+import { tickWorkspace } from "../tick-pass.mjs";
 import {
   KIROCREW_READERS,
   NEEDS_KIROCREW,

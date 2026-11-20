@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../settings/config.mjs";
 import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { runOwnMachine } from "./shim-run.mjs";
+import { runOwnMachine } from "./own-machine.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url)),
   cli = path.join(root, "cli.mjs");

@@ -37,6 +37,7 @@ test("installed into a Claude Code config, the plugin has its skills, MCP entry 
   assert.deepEqual(skills, [
     "avoozl",
     "avoozl-answer",
+    "avoozl-drive",
     "avoozl-review",
     "avoozl-triage",
   ]);

@@ -36,21 +36,14 @@ Settings that belong to one machine, such as `lanes` and `serve`, live in
 
 ## Standalone server
 
-`avoozl serve` serves the page without Kiro Crew:
-
-```sh
-avoozl serve --workspace ~/plans --port 4800
-```
-
-It listens on `127.0.0.1` only. `--host`, `--bind`, and `AVOOZL_HOST` refuse to
-start. It prints a one-time owner link that signs one browser in, and
-`avoozl serve link` prints another for the running server.
-
-On a headless machine, set `serve.enabled`, and optionally a fixed
-`serve.port`, in the machine's `config.json`. The supervisor then runs the
-server as a child, restarts it on the same port, and prints no link; run
-`avoozl serve link` in that machine's shell. `avoozl status` shows the
-server's origin.
+The page runs without Kiro Crew when this machine's `config.json` sets
+`serve.enabled`, and optionally a fixed `serve.port`. Each `avoozl tick`
+keeps it up: the next tick starts it, starts it again on the same port if it
+stopped, and stops it once `serve.enabled` is off. It listens on `127.0.0.1`
+only and prints no link; run `avoozl link` in that machine's shell for a
+one-time owner link that signs one browser in. `avoozl status` shows the
+page's origin. See [Getting started](getting-started.md#run-the-tick-on-a-timer)
+for the timer that runs the tick.
 
 Without Kiro Crew, a button that opens a chat opens a **Start a session**
 dialog. **Start** runs the message as a read-only `assist` session on a

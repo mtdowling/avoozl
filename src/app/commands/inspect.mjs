@@ -26,7 +26,7 @@ export const commands = [
       help(
         "inspect",
         "status [--workspace PATH]",
-        "The named workspace, then the machine host, its workspaces, the supervisor and its children",
+        "The named workspace, then the machine host, its workspaces, the last tick passes and the process children",
         {
           usage: "status --workspace PATH",
           about: "The workspace, then this machine",

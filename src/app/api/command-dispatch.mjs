@@ -1,5 +1,5 @@
 // One dispatch for both servers that run the Avoozl page's operations: the
-// Kiro Crew app backend (app-backend.mjs) and `avoozl serve`. The caller
+// Kiro Crew app backend (app-backend.mjs) and the standalone page. The caller
 // authenticates and passes the principal; this module authorizes the
 // operation, opens the workspace, and runs it. Each Kiro Crew reader in the
 // context is optional: an operation that needs an absent one answers

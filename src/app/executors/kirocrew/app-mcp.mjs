@@ -27,7 +27,8 @@ import { Store } from "../../store/store.mjs";
 import { callerSlot } from "../../delivery/delivery.mjs";
 import { dispatchMcp } from "../../../mcp.mjs";
 import { cronIntents } from "./cron-intents.mjs";
-import { ensureMachineServer } from "./ensure-server.mjs";
+import { passReply, tickCall, toolReply } from "../../mcp/mcp-tick.mjs";
+import { runPass } from "../../tick/tick-pass.mjs";
 
 // kiro_crew/mcp_caller.py CALLER_CAPABILITY_KEY and caller_identity_capability().
 const CALLER_CAPABILITY = "kirocrew.caller-identity";
@@ -47,14 +48,7 @@ const rpcError = (id, message, code = -32603) => ({
 });
 
 // The avoozl-tick cron's call: plans_maintain tick marked cron.
-function cronTick(message) {
-  if (message.method !== "tools/call") return false;
-  const { name, arguments: args } = message.params || {};
-  const input = args?.input;
-  return (
-    input?.cron === true && name === "plans_maintain" && args.action === "tick"
-  );
-}
+const cronTick = (message) => tickCall(message)?.cron === true;
 
 // A script cron spawns its own copy of this server and sends no caller block;
 // Kiro Crew names the job only in KIROCREW_SESSION_KEY ("cron:<job id>",
@@ -92,11 +86,9 @@ function withoutCaller(message) {
 export function createAppMcp({
   fallback = null,
   env = process.env,
-  // Starts the machine server when none runs (MS12.3); returns { started }.
-  ensureServer = () => ensureMachineServer({ env }),
   // Whether a caller block in a message is the gateway's (`avoozl mcp
-  // --kirocrew`). Any other front end's block is dropped: a claim routes a
-  // call and never grants one (MS10.2).
+  // --kirocrew`). Any other front end's block is dropped: it could come from
+  // any client (MS10.2).
   attested = true,
 } = {}) {
   // One Store and Operations per database, opened on first use and kept, so
@@ -224,18 +216,7 @@ export function createAppMcp({
     // error here would count toward Kiro Crew's cron auto-pause (five in a
     // row), and a paused tick stays off after the person adds a workspace.
     if (target.noWorkspace && cronTick(message))
-      return {
-        jsonrpc: "2.0",
-        id: message.id,
-        result: complete(message, {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ skipped: true, reason: target.error }),
-            },
-          ],
-        }),
-      };
+      return toolReply(message, { skipped: true, reason: target.error });
     if (target.error) {
       if (message.method === "tools/call")
         return {
@@ -248,30 +229,28 @@ export function createAppMcp({
         };
       return rpcError(message.id, target.error);
     }
-    // The cron's tick is the machine server's job; this call only records
-    // what the cron saw and hands back what the server released (MS12.1).
-    if (cronTick(message)) {
-      const running = !ensureServer().started;
-      const intents = cronIntents(
-        target.entry.store,
-        message.params.arguments.input,
-      );
-      return {
-        jsonrpc: "2.0",
-        id: message.id,
-        result: complete(message, {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                running
-                  ? intents
-                  : { observe: [], dispatch: [], messages: [], notify: [] },
-              ),
-            },
-          ],
-        }),
-      };
+    // The cron runs this machine's tick pass, then hands back the chat
+    // intents the pass released; only this cron can carry them out (MS12.1).
+    // Any other tick call runs the pass for its own workspace.
+    const tick = tickCall(message);
+    if (tick) {
+      const machine = machineAvoozlPaths({ env });
+      // The pass gets no gateway secret, so nothing it starts inherits one.
+      const clean = { ...env };
+      delete clean.KIROCREW_PROXY_SECRET;
+      delete clean.KIROCREW_GATEWAY_ORIGIN_PROOF;
+      const results = await runPass({
+        stateDirectory: machine.stateDirectory,
+        configDirectory: machine.configDirectory,
+        roots: tick.cron ? undefined : [target.entry.config.workspaceRoot],
+        env: clean,
+      });
+      return tick.cron
+        ? toolReply(
+            message,
+            cronIntents(target.entry.store, message.params.arguments.input),
+          )
+        : passReply(message, results);
     }
     return (
       await handleMcp(message, target.entry.ops, { attestedCaller: attested })

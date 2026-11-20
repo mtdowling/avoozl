@@ -151,7 +151,7 @@ export function chatRoute(slot, crew = null) {
 
 // Where one displayed attempt opens, for the page that shows it: the action
 // (`chat`, `log`, `connect`, `waiting` or `none`), its label and link, and
-// the machine it runs on. `standalone` is true for `avoozl serve`, where a
+// the machine it runs on. `standalone` is true for the standalone page, where a
 // Kiro Crew chat opens through the owner's dashboard address or the desktop
 // app's registered link. A link names one exact session, so an old link
 // never opens a newer attempt.

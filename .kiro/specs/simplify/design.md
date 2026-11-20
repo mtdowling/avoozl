@@ -164,8 +164,9 @@ machine's lanes are full, starts a worker session on each claim through the
 repository's worker harness, and calls `runner.land` for each reported task.
 It uses only operations a caller can also call.
 
-The supervisor runs the pass on a headless machine (`avoozl supervisor
---tick`); the Kiro Crew app backend runs it through the tick cron.
+Each `avoozl tick` runs the pass, from whatever timer runs it: launchd,
+systemd or cron on a headless machine, the app's tick cron in Kiro Crew, or a
+driver chat (machine-server MS1).
 
 ## D7. The surface
 

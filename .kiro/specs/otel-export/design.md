@@ -256,7 +256,7 @@ tick:
 ```sh
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.acme.example:4318
 export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer ${ACME_OTLP_TOKEN}"
-avoozl serve
+avoozl tick
 ```
 
 `config.mjs` returns `{enabled, endpoints, headerNames, headers, timeoutMs,

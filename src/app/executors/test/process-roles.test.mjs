@@ -23,7 +23,7 @@ import {
 import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
 import { newPlanStarts, newPlanTask } from "../../specs/new-plan.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
-import { initCheckout, startFakeSupervisor } from "./process-machine.mjs";
+import { initCheckout, openFakeSupervisor } from "./process-machine.mjs";
 import { Store } from "../../store/store.mjs";
 
 const CLAUDE = fileURLToPath(
@@ -170,7 +170,7 @@ function machine(t) {
     // How a read-only child writes its result (NK6.1); the fake ignores it.
     resultAllow: ["--result-file"],
   });
-  const supervisor = startFakeSupervisor({
+  const supervisor = openFakeSupervisor({
     stateDirectory,
     configDirectory,
     bytes,
