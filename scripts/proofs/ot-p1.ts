@@ -29,15 +29,15 @@ if (!receipt) {
   process.exit(2);
 }
 
-const { digest } = await import(path.join(repo, "src", "model.mjs"));
+const { digest } = await import(path.join(repo, "src", "model.ts"));
 const { Store } = await imp("store/store.ts");
-const { Operations } = await imp("api/operations.mjs");
-const { integrateVerified } = await imp("delivery/delivery.mjs");
-const { landDirect } = await imp("landing/direct-landing.mjs");
-const { syncSpans, taskTiming, listSpans } = await imp("flow/flow.mjs");
-const { startTelemetry } = await imp("telemetry/index.mjs");
-const { snapshot, verifiedTask } = await imp("test/fixtures.mjs");
-const { startCollector } = await imp("telemetry/test/fake-collector.mjs");
+const { Operations } = await imp("api/operations.ts");
+const { integrateVerified } = await imp("delivery/delivery.ts");
+const { landDirect } = await imp("landing/direct-landing.ts");
+const { syncSpans, taskTiming, listSpans } = await imp("flow/flow.ts");
+const { startTelemetry } = await imp("telemetry/index.ts");
+const { snapshot, verifiedTask } = await imp("test/fixtures.ts");
+const { startCollector } = await imp("telemetry/test/fake-collector.ts");
 
 const cleanups = [];
 const t = { after: (fn) => cleanups.push(fn) };
@@ -319,7 +319,7 @@ try {
   collector.behave = () => "hold";
   const before = collector.requests.length;
   const startedAt = Date.now();
-  const point = (await import(path.join(repo, "src/app/telemetry/record.mjs")))
+  const point = (await import(path.join(repo, "src/app/telemetry/record.ts")))
     .point;
   point(on.store, {
     id: "proof:pending",

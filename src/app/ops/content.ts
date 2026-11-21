@@ -7,10 +7,10 @@ import {
   readTermsFile,
   showDecisionLine,
   writeTermsFile,
-} from "../content/content-rules.mjs";
-import { inspectPlugins } from "../plugins/plugins.mjs";
+} from "../content/content-rules.ts";
+import { inspectPlugins } from "../plugins/plugins.ts";
 import { fail } from "../store/store.ts";
-import { person, routed } from "../api/operation-policy.mjs";
+import { person, routed } from "../api/operation-policy.ts";
 
 // Settings > Content rules editing: a person only. Terms are private, so
 // a session can neither read nor write them.

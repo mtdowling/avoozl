@@ -1,13 +1,13 @@
 // @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
-import { runPass } from "../tick/tick-pass.mjs";
-import { machineAvoozlPaths } from "../settings/host-config.mjs";
-import { contentHook } from "../content/content-hook.mjs";
-import { help } from "../cli/command-help.mjs";
-import { confirmHighRisk } from "../cli/confirm-high-risk.mjs";
-import { confirmStep } from "../github/github-jobs.mjs";
-import { watchTick } from "../tick/tick-watchdog.mjs";
-import { laneTable } from "../sessions/lane-sessions.mjs";
+import { runPass } from "../tick/tick-pass.ts";
+import { machineAvoozlPaths } from "../settings/host-config.ts";
+import { contentHook } from "../content/content-hook.ts";
+import { help } from "../cli/command-help.ts";
+import { confirmHighRisk } from "../cli/confirm-high-risk.ts";
+import { confirmStep } from "../github/github-jobs.ts";
+import { watchTick } from "../tick/tick-watchdog.ts";
+import { laneTable } from "../sessions/lane-sessions.ts";
 
 async function runTaskDone({ options, positionals, localOrRequest, need }) {
   // A manual task (R61.13): a person marks it done or reopens it.

@@ -24,11 +24,11 @@
 // of JSX so node
 // can test it directly.
 import type { Graph, GraphTask } from './views-api.ts'
-import { NODE_STATES, nodeState as sharedNodeState } from '../../../../src/delivery-lanes.mjs'
+import { NODE_STATES, nodeState as sharedNodeState } from '../../../../src/delivery-lanes.ts'
 
 export type NodeState = 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred' | 'draft'
 
-// The words are shared with the CLI's `query` and `show` (src/delivery-lanes.mjs).
+// The words are shared with the CLI's `query` and `show` (src/delivery-lanes.ts).
 export const STATES: { id: NodeState; label: string }[] = NODE_STATES.map(([id, label]) => ({ id, label }))
 
 // Sizes in SVG pixels. The page draws with SPACING; `layoutGraph` takes
@@ -152,7 +152,7 @@ export interface Layout {
 }
 
 // Older backends send no `state`; the shared rule derives the same order
-// from the fields they do send (src/delivery-lanes.mjs).
+// from the fields they do send (src/delivery-lanes.ts).
 export const nodeState: (task: GraphTask) => NodeState = sharedNodeState
 
 // wave = 1 + the highest wave of what a task waits on (its blocking

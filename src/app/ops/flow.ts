@@ -1,23 +1,23 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
-import { taskRepository } from "../../work-model.mjs";
-import { runLocalChecks } from "../flow/flow-checks.mjs";
+import { taskRepository } from "../../work-model.ts";
+import { runLocalChecks } from "../flow/flow-checks.ts";
 import {
   lineBanner,
   pullCord,
   pullFullStop,
   resumeStop,
   runAnyway,
-} from "../flow/flow-line.mjs";
-import { flowView } from "../flow/flow.mjs";
+} from "../flow/flow-line.ts";
+import { flowView } from "../flow/flow.ts";
 import {
   approveHarnessByName,
   listHarnessDefinitions,
-} from "../executors/harness-definitions.mjs";
-import { runOn } from "../tick/needs-kirocrew.mjs";
+} from "../executors/harness-definitions.ts";
+import { runOn } from "../tick/needs-kirocrew.ts";
 import { fail } from "../store/store.ts";
 import path from "node:path";
-import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.ts";
 
 export const entries = [
   // Local checks first (R45): run the declared checks in a worktree and

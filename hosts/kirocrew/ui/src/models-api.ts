@@ -1,6 +1,6 @@
 // Settings > Models: the one roles table (R98.6), each role's harness,
 // model and, for the worker, agent. Saved as `roles` in
-// .avoozl.json (src/app/agents/role-table.mjs); a save drops the older `models`,
+// .avoozl.json (src/app/agents/role-table.ts); a save drops the older `models`,
 // `harnesses` and Delivery agent and model keys. Issue Radar crews pick
 // their own model. Free of JSX so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'

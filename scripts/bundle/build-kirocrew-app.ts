@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import { build } from "vite";
 import { buildHosts } from "./build-hosts.ts";
-import { writeUiStamp } from "../../src/app/serve/ui-bundle.mjs";
+import { writeUiStamp } from "../../src/app/serve/ui-bundle.ts";
 import { buildStandalone } from "./build-standalone.ts";
 
 const root = path.resolve(
@@ -35,7 +35,7 @@ await build({
   root: ui,
   configFile: path.join(ui, "vite.config.ts"),
 });
-// The installed backend refuses a page built from other source (ui-bundle.mjs).
+// The installed backend refuses a page built from other source (ui-bundle.ts).
 writeUiStamp(ui);
 // The standalone page (SW2). A failure is reported and fails the build at the
 // end, after everything else is built.
@@ -55,11 +55,13 @@ fs.rmSync(lib, { recursive: true, force: true });
 const bundle = await rolldown({
   // The CLI, and the programs a tick starts by path.
   input: [
-    "cli.mjs",
-    "src/app/executors/supervisor-child.mjs",
-    "src/app/executors/context-broker-main.mjs",
-    "src/app/executors/context-relay.mjs",
-    "src/app/serve/serve-main.mjs",
+    "cli.ts",
+    "src/app/executors/supervisor-child.ts",
+    "src/app/executors/context-broker-main.ts",
+    "src/app/executors/context-relay.ts",
+    "src/app/serve/serve-main.ts",
+    // Started as its own process by plugins.ts, so nothing imports it.
+    "src/app/plugins/plugin-child.ts",
   ].map((file) => path.join(root, file)),
   platform: "node",
   // Keep linked dependencies (a task worktree's node_modules link) at their
@@ -84,8 +86,6 @@ for (const data of [
     .filter((name) => name.endsWith(".json"))
     .map((name) => path.join("src", name)),
   path.join("src", "app", "skills"),
-  // Started as its own process by plugins.mjs, so the bundle never imports it.
-  path.join("src", "app", "plugins", "plugin-child.mjs"),
   "examples",
   "prompts",
 ])

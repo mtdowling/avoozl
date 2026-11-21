@@ -1,37 +1,37 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
-import { retryDelivery } from "../delivery/delivery.mjs";
-import { integrateRun } from "../git/git.mjs";
-import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
+import { retryDelivery } from "../delivery/delivery.ts";
+import { integrateRun } from "../git/git.ts";
+import { readGitHubPolicyOrNull } from "../github/github-policy.ts";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
-} from "../epics/integration-branch.mjs";
-import { integrationView, landBranch } from "../epics/integration-head.mjs";
-import { landingView } from "../landing/landing-view.mjs";
-import { approveMerge, releaseDraft } from "../landing/landing-pulls.mjs";
-import { loadLayeredConfig } from "../settings/layered-config.mjs";
-import { manualTake } from "../workers/manual-take.mjs";
-import { deliverNotifications } from "../tick/notifications.mjs";
-import { stampPrompts } from "../api/operation-support.mjs";
-import { deliveryView } from "../api/page-views.mjs";
-import { claimNext, nextView } from "../workers/runner.mjs";
-import { claimsView, deleteClaim } from "../workers/claims.mjs";
-import { lanesView, resumeLane } from "../sessions/lane-sessions.mjs";
-import { machineAvoozlPaths } from "../settings/host-config.mjs";
-import { processSessionDetails } from "../executors/process-view.mjs";
-import { landTask } from "../landing/land-task.mjs";
+} from "../epics/integration-branch.ts";
+import { integrationView, landBranch } from "../epics/integration-head.ts";
+import { landingView } from "../landing/landing-view.ts";
+import { approveMerge, releaseDraft } from "../landing/landing-pulls.ts";
+import { loadLayeredConfig } from "../settings/layered-config.ts";
+import { manualTake } from "../workers/manual-take.ts";
+import { deliverNotifications } from "../tick/notifications.ts";
+import { stampPrompts } from "../api/operation-support.ts";
+import { deliveryView } from "../api/page-views.ts";
+import { claimNext, nextView } from "../workers/runner.ts";
+import { claimsView, deleteClaim } from "../workers/claims.ts";
+import { lanesView, resumeLane } from "../sessions/lane-sessions.ts";
+import { machineAvoozlPaths } from "../settings/host-config.ts";
+import { processSessionDetails } from "../executors/process-view.ts";
+import { landTask } from "../landing/land-task.ts";
 import { fail } from "../store/store.ts";
-import { laneWorkspace, readDeliveryPolicy } from "../tick/tick.mjs";
-import { allowProtectedPaths } from "../delivery/verify.mjs";
-import { machineLinks } from "../tick/crews.mjs";
+import { laneWorkspace, readDeliveryPolicy } from "../tick/tick.ts";
+import { allowProtectedPaths } from "../delivery/verify.ts";
+import { machineLinks } from "../tick/crews.ts";
 import {
   loopFile,
   readMachineLoop,
   validateLoop,
   writeMachineLoop,
-} from "../tick/loop.mjs";
-import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+} from "../tick/loop.ts";
+import { person, notOnMcp, routed } from "../api/operation-policy.ts";
 
 // This machine's loop for Settings › Autopilot; a file that cannot be read
 // says why instead.

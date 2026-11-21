@@ -1,33 +1,33 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
-import { resolveTaskId } from "../../task-identity.mjs";
-import { prepareWorktree, reportSession } from "../delivery/delivery.mjs";
+import { resolveTaskId } from "../../task-identity.ts";
+import { prepareWorktree, reportSession } from "../delivery/delivery.ts";
 import {
   completeKirocrewRequest,
   kirocrewConsumer,
   releaseKirocrewRequest,
   takeKirocrewRequest,
-} from "../executors/kirocrew.mjs";
-import { readFlowPolicy } from "../flow/flow.mjs";
-import { machineRoots, postReply } from "../github/github-respond.mjs";
-import { machineAvoozlPaths } from "../settings/host-config.mjs";
-import { loadLayeredConfig } from "../settings/layered-config.mjs";
-import { markKirocrewSeen } from "../tick/needs-kirocrew.mjs";
-import { stampPrompts } from "../api/operation-support.mjs";
+} from "../executors/kirocrew.ts";
+import { readFlowPolicy } from "../flow/flow.ts";
+import { machineRoots, postReply } from "../github/github-respond.ts";
+import { machineAvoozlPaths } from "../settings/host-config.ts";
+import { loadLayeredConfig } from "../settings/layered-config.ts";
+import { markKirocrewSeen } from "../tick/needs-kirocrew.ts";
+import { stampPrompts } from "../api/operation-support.ts";
 import {
   bindSession,
   recordSessionStatus,
   rediscoverSessions,
   requestSession,
-} from "../sessions/session-bindings.mjs";
-import { openSession, viewOpened } from "../sessions/session-open.mjs";
-import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
-import { queueSessionSend } from "../sessions/session-send.mjs";
+} from "../sessions/session-bindings.ts";
+import { openSession, viewOpened } from "../sessions/session-open.ts";
+import { sessionStartHold } from "../sessions/session-request-eligibility.ts";
+import { queueSessionSend } from "../sessions/session-send.ts";
 import { fail } from "../store/store.ts";
-import { readDeliveryPolicy } from "../tick/tick.mjs";
-import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
+import { readDeliveryPolicy } from "../tick/tick.ts";
+import { workspaceRepositories } from "../workspace/workspace-repositories.ts";
 import path from "node:path";
-import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.ts";
 
 export const entries = [
   // A run start is a dispatch request, and an extraction opens a record

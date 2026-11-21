@@ -16,7 +16,7 @@ import {
   PUBLISH_RULES,
   check,
   secretReason,
-} from "../content/content-rules.mjs";
+} from "../content/content-rules.ts";
 
 const ACTIVITY_SOURCES = Object.freeze([
   "local",

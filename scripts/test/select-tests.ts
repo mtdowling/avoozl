@@ -115,7 +115,7 @@ function closure(entry, cache = new Map()) {
 // A test that starts a node process may run any file the command line loads.
 const STARTS_PROCESS =
   /process\.execPath|cli\.(mjs|ts)|avoozl\.mjs|\bfork\s*\(/;
-const SPAWN_ENTRIES = ["cli.mjs", "hosts/kirocrew/bin/avoozl.mjs"];
+const SPAWN_ENTRIES = ["cli.ts", "hosts/kirocrew/bin/avoozl.mjs"];
 
 const directImports = (file) => {
   const text = fs.readFileSync(path.join(root, file), "utf8");
@@ -180,7 +180,7 @@ export function select(
     else if (f.startsWith("prompts/")) full(`${f}: prompt read at run time`);
     else if (/^src\/.+\.(mjs|ts)$/.test(f)) srcChanged.push(f);
     else if (f.startsWith("src/")) full(`${f}: non-module file under src`);
-    else if (f === "cli.mjs" || f === "cli.ts") srcChanged.push(f);
+    else if (f === "cli.ts" || f === "cli.ts") srcChanged.push(f);
     else if (f.startsWith("examples/")) {
       for (const t of pick(READS.examples, all)) out.node.add(t);
       out.reasons.push(`${f}: example read by tests`);
