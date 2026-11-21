@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The plugin contract (design §4.8, Requirement 34): the calls Avoozl
 // makes and the shape each reply must have. A plugin is outside code, so
 // every reply is checked here before anything reads it, and its text stays
@@ -15,14 +14,34 @@ export const SUPPORTED_CONTRACTS = [1];
 export class ContractError extends Error {}
 
 const MAX_TEXT = 20000;
+type Json = Record<string, unknown>;
+// A permission set: names to read, write or admin.
+type Permissions = Record<string, unknown>;
 
-function object(value, where) {
+function object(value: unknown, where: string): Json {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new ContractError(`${where} must be an object.`);
-  return value;
+  return value as Json;
 }
 
-function text(value, where, { max = MAX_TEXT, optional = false } = {}) {
+function text(
+  value: unknown,
+  where: string,
+  options?: { max?: number; optional?: false },
+): string;
+function text(
+  value: unknown,
+  where: string,
+  options: { max?: number; optional: boolean },
+): string | null;
+function text(
+  value: unknown,
+  where: string,
+  {
+    max = MAX_TEXT,
+    optional = false,
+  }: { max?: number; optional?: boolean } = {},
+): string | null {
   if (optional && (value === undefined || value === null)) return null;
   if (typeof value !== "string" || !value.trim() || value.length > max)
     throw new ContractError(`${where} must be text of 1-${max} characters.`);
@@ -31,9 +50,23 @@ function text(value, where, { max = MAX_TEXT, optional = false } = {}) {
 
 // Only http and https links reach a view or brief; a `javascript:` or file
 // link from a plugin is refused.
-export function link(value, where, { optional = true } = {}) {
+export function link(
+  value: unknown,
+  where: string,
+  options?: { optional?: true },
+): string | null;
+export function link(
+  value: unknown,
+  where: string,
+  options: { optional: false },
+): string;
+export function link(
+  value: unknown,
+  where: string,
+  { optional = true }: { optional?: boolean } = {},
+): string | null {
   if (optional && (value === undefined || value === null)) return null;
-  let url;
+  let url: URL;
   try {
     url = new URL(text(value, where, { max: 2000 }));
   } catch (error) {
@@ -45,13 +78,13 @@ export function link(value, where, { optional = true } = {}) {
   return url.href;
 }
 
-const actor = (value, where) =>
+const actor = (value: unknown, where: string) =>
   value === undefined || value === null
     ? null
     : text(value, where, { max: 200 });
 
 const ITEM_KINDS = ["issue", "pr", "review", "ticket"];
-const names = (value, where, max) => {
+const names = (value: unknown, where: string, max: number): string[] => {
   if (value === undefined) return [];
   if (
     !Array.isArray(value) ||
@@ -66,16 +99,15 @@ const names = (value, where, max) => {
 
 // One incoming item pushed over MCP (R50.1, R50.2), as untrusted data. The
 // source is the declared source's id, set by Avoozl, never by the caller.
-export function incomingItem(value, where = "item"): Item {
-  object(value, where);
-  if (!ITEM_KINDS.includes(value.kind))
+export function incomingItem(input: unknown, where = "item"): Item {
+  const value = object(input, where);
+  if (typeof value.kind !== "string" || !ITEM_KINDS.includes(value.kind))
     throw new ContractError(
       `${where} kind must be one of ${ITEM_KINDS.join(", ")}.`,
     );
-  if (!["open", "closed"].includes(value.state))
+  if (value.state !== "open" && value.state !== "closed")
     throw new ContractError(`${where} state must be open or closed.`);
-  const fields = value.fields ?? {};
-  object(fields, `${where} fields`);
+  const fields = object(value.fields ?? {}, `${where} fields`);
   if (Object.keys(fields).length > 50)
     throw new ContractError(`${where} fields may hold at most 50 keys.`);
   for (const [key, field] of Object.entries(fields))
@@ -101,7 +133,7 @@ export function incomingItem(value, where = "item"): Item {
     assignees: names(value.assignees, `${where} assignees`, 20),
     state: value.state,
     closeReason: closed
-      ? ["completed", "not_planned"].includes(value.closeReason)
+      ? value.closeReason === "completed" || value.closeReason === "not_planned"
         ? value.closeReason
         : null
       : null,
@@ -116,16 +148,20 @@ export function incomingItem(value, where = "item"): Item {
 // The event that last changed what a rule would match: who acted and that
 // person's standing, which the plugin maps from its own system's roles.
 const STANDINGS = ["none", "read", "triage", "write", "maintain", "admin"];
-function trigger(value, where) {
-  if (value === undefined || value === null) return null;
-  object(value, where);
-  if (value.permission !== undefined && !STANDINGS.includes(value.permission))
+function trigger(input: unknown, where: string) {
+  if (input === undefined || input === null) return null;
+  const value = object(input, where);
+  if (
+    value.permission !== undefined &&
+    (typeof value.permission !== "string" ||
+      !STANDINGS.includes(value.permission))
+  )
     throw new ContractError(
       `${where} permission must be one of ${STANDINGS.join(", ")}.`,
     );
   return {
     actor: actor(value.actor, `${where} actor`),
-    permission: value.permission ?? null,
+    permission: (value.permission as string | undefined) ?? null,
     eventId: actor(value.eventId, `${where} eventId`),
     at: actor(value.at, `${where} at`),
   };
@@ -133,35 +169,43 @@ function trigger(value, where) {
 
 // Rules kind (R40.9): one call, ruleSets, returning {sets: [{id, version,
 // rules: [{id, pattern}]}]}. The rules stay in memory (content-rules.mjs).
-const rulesReplies = {
+// The calls a kind answers, each checking one reply.
+type Replies = Record<string, (reply: unknown, asked?: Permissions) => unknown>;
+
+const rulesReplies: Replies = {
   ruleSets(reply) {
     try {
       return { sets: checkRuleSets(reply) };
     } catch (error) {
-      throw new ContractError(error.message);
+      throw new ContractError((error as Error).message);
     }
   },
 };
 
-export function checkReply(kind, method, reply, asked) {
+export function checkReply(
+  kind: string,
+  method: string,
+  reply: unknown,
+  asked?: Permissions,
+) {
   const check = (
     kind === "rules"
       ? rulesReplies
       : kind === "credentials"
         ? credentialsReplies
         : null
-  )?.[method];
+  )?.[method] as Replies[string] | undefined;
   if (!check) throw new ContractError(`Unknown ${kind} call ${method}.`);
   return check(reply, asked);
 }
 
 // Credentials kind (plugin-credentials §D5): one call, token. `asked` is the
 // permission set Avoozl asked for. A token is never put in an error.
-const LEVELS = { read: 1, write: 2, admin: 3 };
+const LEVELS: Record<string, number> = { read: 1, write: 2, admin: 3 };
 const LOGIN = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/;
-export const credentialsReplies = {
-  token(reply, asked = {}) {
-    object(reply, "token reply");
+export const credentialsReplies: Replies = {
+  token(input, asked = {}) {
+    const reply = object(input, "token reply");
     for (const key of Object.keys(reply))
       if (!["token", "expiresAt", "login", "person", "granted"].includes(key))
         throw new ContractError(`token reply ${key} is not a reply field.`);
@@ -172,7 +216,7 @@ export const credentialsReplies = {
       throw new ContractError(
         "token reply token must be 1 to 8,192 characters of letters, digits and _ . ~ + / = -.",
       );
-    let expiresAt = null;
+    let expiresAt: string | null = null;
     if (reply.expiresAt !== null) {
       const at =
           typeof reply.expiresAt === "string"
@@ -202,31 +246,35 @@ export const credentialsReplies = {
         typeof granted !== "object" ||
         Array.isArray(granted) ||
         Object.entries(granted).some(
-          ([name, level]) => !/^[a-z_]{1,64}$/.test(name) || !LEVELS[level],
+          ([name, level]) =>
+            !/^[a-z_]{1,64}$/.test(name) || !LEVELS[String(level)],
         ))
     )
       throw new ContractError(
         'token reply granted must be "all" or a permission set.',
       );
+    // Past the check above, `granted` is "all" or a permission set.
+    const set = granted as "all" | Permissions;
     const missing = Object.entries(asked).filter(
       ([name, level]) =>
-        granted !== "all" && !(LEVELS[granted[name]] >= LEVELS[level]),
+        set !== "all" && !(LEVELS[String(set[name])] >= LEVELS[String(level)]),
     );
     if (missing.length)
       throw new ContractError(
-        `granted ${missing.map(([name]) => `${name}: ${granted[name] || "none"}`).join(", ")}; the job needs ${missing.map(([name, level]) => `${name}: ${level}`).join(", ")}.`,
+        `granted ${missing.map(([name]) => `${name}: ${(set as Permissions)[name] || "none"}`).join(", ")}; the job needs ${missing.map(([name, level]) => `${name}: ${level}`).join(", ")}.`,
       );
     const broader =
-      granted === "all" ||
-      Object.entries(granted).some(
-        ([name, level]) => !(LEVELS[asked[name]] >= LEVELS[level]),
+      set === "all" ||
+      Object.entries(set).some(
+        ([name, level]) =>
+          !(LEVELS[String(asked[name])] >= LEVELS[String(level)]),
       );
     return {
       token: reply.token,
       expiresAt,
       login,
       person: reply.person ?? null,
-      granted,
+      granted: set,
       broader,
     };
   },

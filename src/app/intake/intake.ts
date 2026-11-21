@@ -41,7 +41,12 @@ export type Item = {
   fields?: Record<string, unknown>;
   state?: string;
   author?: unknown;
-  trigger?: { actor?: string; permission?: string } | null;
+  trigger?: {
+    actor?: string | null;
+    permission?: string | null;
+    eventId?: string | null;
+    at?: string | null;
+  } | null;
   updatedAt?: string;
   closedAt?: string | null;
   closedBy?: string | null;
