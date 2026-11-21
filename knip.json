@@ -2,6 +2,8 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "entry": [
     "cli.ts",
+    "cli.mjs",
+    "src/app/cli/postinstall.mjs",
     "bin/*",
     "hosts/kirocrew/bin/avoozl.mjs",
     "hosts/claude-code/hooks/guard.ts",
