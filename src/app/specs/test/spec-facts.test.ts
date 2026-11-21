@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Tasks hold no facts (simplify sim-2.2, §D20): a task is its title and
 // plain done bullets; `$` bullets and the removed front-matter keys are lint
 // errors with their fix, and nothing reads them.
@@ -6,14 +5,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { lintSpec, parseSpec } from "../spec-plans.ts";
 
-const lines = (...rows) => rows.join("\n") + "\n";
-const spec = (text) => ({
+const lines = (...rows: string[]) => rows.join("\n") + "\n";
+const spec = (text: string) => ({
   name: "config",
   exists: true,
   files: { "tasks.md": text },
 });
-const parse = (text) => parseSpec(spec(text));
-const codes = (result) =>
+const parse = (text: string) => parseSpec(spec(text));
+const codes = (result: Pick<ReturnType<typeof parseSpec>, "diagnostics">) =>
   result.diagnostics
     .filter((d) => d.severity === "error")
     .map((d) => `${d.code} ${d.file}:${d.lineStart}`);
@@ -137,7 +136,7 @@ test("lint reports done.missing, group.bullets, manual.tag, manual.group and fro
 
 test("a long title stays whole and is refused over the limit", () => {
   const long = "Read the config file: " + "and report each problem. ".repeat(8),
-    text = (title) => lines(`- [ ] \`cfg-1\` ${title}`, "  - It reads");
+    text = (title: string) => lines(`- [ ] \`cfg-1\` ${title}`, "  - It reads");
   assert.ok(long.trim().length <= 240);
   assert.equal(parse(text(long)).proposals[0].title, long.trim());
   assert.deepEqual(codes(parse(text(long.repeat(2)))), [

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The sign-in probe (MS5.3): run once in the worker's sandbox, its answer
 // cached per definition hash and machine.env, its failure shown redacted.
 import assert from "node:assert/strict";
@@ -89,7 +88,7 @@ test("no key set but the probe passes: the harness can start", (t) => {
   assert.equal(done.ok, true, String(done.message));
   const [listed] = listHarnessDefinitions(configDirectory);
   assert.equal(listed.startProblem, null);
-  assert.equal(listed.probe.ok, true);
+  assert.equal(listed.probe?.ok, true);
   assert.equal(listed.probes, true);
 });
 
@@ -99,12 +98,12 @@ test("a failed probe is the start problem: the CLI's own words, redacted, and a 
   assert.equal(done.ok, false);
   const [listed] = listHarnessDefinitions(configDirectory);
   assert.equal(listed.startProblem, done.message);
-  assert.match(done.message, /^fake-cli failed its sign-in check: /);
-  assert.match(done.message, /Check again\.$/);
+  assert.match(String(done.message), /^fake-cli failed its sign-in check: /);
+  assert.match(String(done.message), /Check again\.$/);
   // The keepEnv names reach the child, the rest do not, and the home holds
   // the copied settings.json.
-  assert.match(done.message, /kept:AWS_PROFILE,MODEL_KEY seeded:true/);
-  assert.doesNotMatch(done.message, /sk-very-private-value/);
+  assert.match(String(done.message), /kept:AWS_PROFILE,MODEL_KEY seeded:true/);
+  assert.doesNotMatch(String(done.message), /sk-very-private-value/);
   assert.doesNotMatch(
     fs.readFileSync(path.join(configDirectory, "harness-probes.json"), "utf8"),
     /sk-very-private-value/,
