@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
@@ -10,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const cronPath = fileURLToPath(
   new URL("../../../hosts/kirocrew/crons/tick.py", import.meta.url),
 );
-const ticks = (steps) =>
+const ticks = (steps: unknown) =>
   JSON.parse(
     execFileSync(
       "python3",
@@ -56,7 +55,7 @@ print(json.dumps(out))
     ),
   );
 
-const start = (task, role, extra = {}) => ({
+const start = (task: string, role: string, extra = {}) => ({
   task,
   role,
   title: `avoozl:${task}`,

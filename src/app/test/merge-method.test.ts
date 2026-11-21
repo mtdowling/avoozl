@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // landing.method: squash (the default) or merge, and nothing else. The older
 // merge.method is refused.
 import assert from "node:assert/strict";
@@ -7,7 +6,7 @@ import { normalizeGitHubPolicy } from "../github/github-policy.ts";
 const REPO = "example/app";
 
 test("landing.method defaults to squash and is refused when unknown", () => {
-  const entry = (extra) =>
+  const entry = (extra: Record<string, unknown>) =>
     normalizeGitHubPolicy({
       mode: "single-repo",
       repositories: { [REPO]: { baseBranch: "main", ...extra } },

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The owner's proof runner: its options, the scratch repository guard and
 // the front-end check.
 import assert from "node:assert/strict";
@@ -75,7 +74,7 @@ test("the scratch guard takes only a real scratch-named repository outside nupp-
     "o/Test.Repo",
   ])
     assert.equal(scratchRepoProblem(repo), null, repo);
-  for (const [repo, problem] of [
+  const refused: [string | undefined, RegExp][] = [
     ["o/avoozl", /does not look like a scratch/],
     ["nupp-lang/nupp-scratch", /nupp-lang/],
     ["OWNER/SCRATCH", /placeholder/],
@@ -84,8 +83,9 @@ test("the scratch guard takes only a real scratch-named repository outside nupp-
     ["owner", /OWNER\/NAME/],
     ["o/a b", /OWNER\/NAME/],
     [undefined, /OWNER\/NAME/],
-  ])
-    assert.match(scratchRepoProblem(repo), problem, String(repo));
+  ];
+  for (const [repo, problem] of refused)
+    assert.match(String(scratchRepoProblem(repo)), problem, String(repo));
 });
 
 test("a made scratch repository is named like the other avoozl-scratch ones and passes the guard", () => {
@@ -141,10 +141,10 @@ test("each roles run gets a root that does not exist yet", () => {
 });
 
 test("the end deletes only the scratch repositories the run recorded", () => {
-  const calls = [];
+  const calls: string[][] = [];
   const lines = deleteScratchRepos(
     ["o/avoozl-scratch-ms-p2-1", "o/avoozl-scratch-ms-p2-1"],
-    (args) => {
+    (args: string[]) => {
       calls.push(args);
       return { status: 0 };
     },

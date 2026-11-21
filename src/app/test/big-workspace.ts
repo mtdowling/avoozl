@@ -1,10 +1,16 @@
-// @ts-nocheck: typing debt
 // A generated workspace the size of a large planning repository: 41 specs,
 // about 527 tasks and 931 edges. Every value is fake.
 export const BIG = { specs: 41, tasks: 527, edges: 931 };
 
-export function bigSnapshot(base, size = BIG) {
-  const data = { ...base, tasks: [], edges: [], epics: [] };
+import type { Snapshot } from "../../types.ts";
+
+export function bigSnapshot(base: Snapshot, size = BIG) {
+  const data: Snapshot & { epics: Record<string, unknown>[] } = {
+    ...base,
+    tasks: [],
+    edges: [],
+    epics: [],
+  };
   const perSpec = Math.ceil(size.tasks / size.specs);
   for (let i = 0; i < size.tasks; i += 1) {
     const spec = `spec-${String(Math.floor(i / perSpec)).padStart(2, "0")}`;

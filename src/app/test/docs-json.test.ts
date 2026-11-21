@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // JSON shown in the docs is pretty-printed: 2-space indent, one key per line.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -9,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const skip = ["docs/research", "docs/evidence"];
 
-function* markdown(dir) {
+function* markdown(dir: string): Generator<string> {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
     const rel = path.relative(root, file).split(path.sep).join("/");

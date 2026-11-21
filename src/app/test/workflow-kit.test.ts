@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Runs the workflow kit (`workflow-kit/`) against Avoozl. Each case lists the
 // probes a runner answers (`violations`, `ready`, `claim`, `landing`). A probe
 // Avoozl does not pass yet carries `expectFail` with the simplify task that
@@ -14,19 +13,19 @@ import { STEPS, scenario } from "./workflow-kit-scenario.ts";
 import { currentPage } from "../../../scripts/kit/scenarios-doc.ts";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const read = (file) => fs.readFileSync(root + file, "utf8");
+const read = (file: string) => fs.readFileSync(root + file, "utf8");
 
 const simplify = read(".kiro/specs/simplify/tasks.md");
-const tickedTask = (id) =>
+const tickedTask = (id: string) =>
   new RegExp(`^\\s*- \\[x\\] \`${id.replace(/\./g, "\\.")}\``, "m").test(
     simplify,
   );
-const openTask = (id) =>
+const openTask = (id: string) =>
   new RegExp(`^\\s*- \\[ \\] \`${id.replace(/\./g, "\\.")}\``, "m").test(
     simplify,
   );
 
-const rules = new Set();
+const rules = new Set<string>();
 const doc = read("docs/github-workflow.md");
 if (/^# Workflow v1$/m.test(doc))
   for (const match of doc.matchAll(/^- \*\*\[?(\d+\.\d+)/gm))
@@ -46,7 +45,7 @@ for (const testCase of readCases()) {
       assert.ok(openTask(task), `${task} is not a simplify task`);
     }
     if (rules.size)
-      for (const rule of testCase.rules)
+      for (const rule of testCase.rules ?? [])
         assert.ok(rules.has(rule), `rule ${rule} is not in the workflow doc`);
     const verdicts = judge(
       testCase,
@@ -85,7 +84,8 @@ test("workflow kit: the doc lists exactly the rules no case checks", () => {
 test("workflow kit: a history ends in the case's repo files", () => {
   for (const testCase of readCases().filter((item) => item.history)) {
     const final = {};
-    for (const commit of testCase.history) Object.assign(final, commit.files);
+    for (const commit of testCase.history ?? [])
+      Object.assign(final, commit.files);
     assert.deepEqual(final, testCase.files, testCase.name);
   }
 });
@@ -109,7 +109,9 @@ test("workflow kit: the scenarios page is current", () => {
 });
 
 test("workflow kit: a rule links to its scenarios exactly when a case checks it", () => {
-  const checked = new Set(readCases().flatMap((testCase) => testCase.rules));
+  const checked = new Set(
+    readCases().flatMap((testCase) => testCase.rules ?? []),
+  );
   for (const rule of rules) {
     const bullet = new RegExp(
       `^- \\*\\*\\[${rule.replace(".", "\\.")}\\]\\(github-workflow-scenarios\\.md#rule-${rule.replace(".", "")}\\)\\*\\*`,

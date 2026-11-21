@@ -1,15 +1,14 @@
-// @ts-nocheck: typing debt
 import { after } from "node:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const directories = new Set();
+const directories = new Set<string>();
 
 // Make every entry under `root` writable: Windows refuses to delete a
 // read-only file (git writes its objects read-only).
-function writable(root) {
-  let entries = [];
+function writable(root: string) {
+  let entries: fs.Dirent[] = [];
   try {
     entries = fs.readdirSync(root, { withFileTypes: true });
   } catch {
@@ -38,7 +37,8 @@ after(() => {
     try {
       remove();
     } catch (error) {
-      if (!["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw error;
+      const code = (error as NodeJS.ErrnoException).code ?? "";
+      if (!["EPERM", "EACCES", "EBUSY"].includes(code)) throw error;
       writable(root);
       try {
         remove();
@@ -47,7 +47,9 @@ after(() => {
         // Windows until the test process exits; the runner's temp folder is
         // discarded. Close the handle in the test if this starts to matter.
         if (process.platform !== "win32") throw again;
-        process.emitWarning(`left ${root}: ${again.code}`);
+        process.emitWarning(
+          `left ${root}: ${(again as NodeJS.ErrnoException).code}`,
+        );
       }
     }
   }

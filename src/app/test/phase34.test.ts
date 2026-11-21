@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 // Phase 34 parts the P45 proof does not reach (tasks 34.4–34.6): the
 // manifest's ship fields. Every value is fake.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { validateProposal } from "../specs/spec-plans.ts";
 
-const leaf = (id, extra = {}) => ({
+const leaf = (id: string, extra = {}) => ({
   id,
   title: "Task " + id,
   scope: "catalog",

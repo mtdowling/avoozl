@@ -1,18 +1,17 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { detectCheckout } from "../git/git.ts";
 
-function checkout(t, name) {
+function checkout(t: TestContext, name: string) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-detect-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const root = path.join(dir, name);
   fs.mkdirSync(root);
-  const git = (...args) =>
+  const git = (...args: string[]) =>
     execFileSync("git", args, { cwd: root, stdio: "ignore" });
   git("init", "-q", "-b", "trunk");
   git(

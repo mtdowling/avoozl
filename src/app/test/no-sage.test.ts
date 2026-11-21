@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The separate review app was dropped (2026-11-14): no tracked file may name it,
 // except the historical records under docs/research and docs/evidence.
 import assert from "node:assert/strict";
@@ -42,10 +41,11 @@ test("a saved key for the dropped review app is refused, naming it", async () =>
   const { readGitHubPolicyOrNull } = await import("../github/github-policy.ts");
   const { temporaryDirectory } = await import("./temporary.ts");
   const key = `codeReview${WORD}`;
-  for (const [saved, name] of [
+  const cases: [Record<string, unknown>, string][] = [
     [{ [key]: { enabled: true } }, key],
     [{ review: { [key]: true } }, "review"],
-  ]) {
+  ];
+  for (const [saved, name] of cases) {
     const root = temporaryDirectory();
     fs.writeFileSync(
       path.join(root, ".avoozl.json"),

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One meaning for each word (worker-paths WP8): the page, the CLI help,
 // README.md and docs/*.md never name a removed way to run work. Dated
 // records under docs/research/ and docs/evidence/ are not
@@ -21,12 +20,15 @@ const RETIRED = [
 // Source text with its comments taken out, so only what the page can show
 // is read. shortcut: a `//` inside a string literal ends the line early;
 // this reads less, never more.
-const withoutComments = (text) =>
+const withoutComments = (text: string) =>
   text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 
-function pageSources(dir) {
-  const out = [];
-  for (const name of fs.readdirSync(dir, { recursive: true })) {
+function pageSources(dir: string) {
+  const out: [string, string][] = [];
+  for (const name of fs.readdirSync(dir, {
+    recursive: true,
+    encoding: "utf8",
+  })) {
     if (!/\.(ts|tsx)$/.test(name)) continue;
     const file = path.join(dir, name);
     out.push([
@@ -44,11 +46,14 @@ const docs = () =>
       .readdirSync(path.join(ROOT, "docs"))
       .filter((name) => name.endsWith(".md"))
       .map((name) => path.join("docs", name)),
-  ].map((name) => [name, fs.readFileSync(path.join(ROOT, name), "utf8")]);
+  ].map((name): [string, string] => [
+    name,
+    fs.readFileSync(path.join(ROOT, name), "utf8"),
+  ]);
 
 // Every place and word a retired name appears in.
-function retired(texts) {
-  const found = [];
+function retired(texts: [string, string][]) {
+  const found: string[] = [];
   for (const [name, text] of texts)
     for (const pattern of RETIRED) {
       const match = pattern.exec(text);
@@ -57,9 +62,9 @@ function retired(texts) {
   return found;
 }
 
-const surfaces = () => [
+const surfaces = (): [string, string][] => [
   ...pageSources(path.join(ROOT, "hosts", "kirocrew", "ui", "src")),
-  ["avoozl help all", helpText("all")],
+  ["avoozl help all", String(helpText("all"))],
   ...docs(),
 ];
 

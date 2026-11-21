@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The live proofs run the real Claude Code, not the toolbox's wrapper or shim.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -13,14 +12,14 @@ import {
 import { temporaryDirectory } from "./temporary.ts";
 
 // A sparse file of the given size: it takes no disk.
-function file(target, bytes) {
+function file(target: string, bytes: number) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, "");
   fs.truncateSync(target, bytes);
   return target;
 }
 
-function toolbox(home, version, { wrapper = true } = {}) {
+function toolbox(home: string, version: string, { wrapper = true } = {}) {
   const dir = path.join(home, ".toolbox", "tools", "claude-code", version);
   const real = file(path.join(dir, "claude"), REAL_CLAUDE_BYTES + 1);
   if (wrapper) file(path.join(dir, "bin", "claude"), 16_000_000);

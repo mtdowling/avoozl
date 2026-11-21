@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -126,8 +125,8 @@ test("the installed runtime reads portable prompt files without generated agent 
     source = path.join(root, "hosts", "kirocrew", "bin", "lib");
   fs.cpSync(source, installed, { recursive: true });
   // No app.json or agents/ is copied: prompts are runtime data in the bundle.
-  const load = (file) =>
-      import(pathToFileURL(path.join(installed, "src", "app", file))),
+  const load = (file: string) =>
+      import(pathToFileURL(path.join(installed, "src", "app", file)).href),
     prompts = await load("agents/prompts.mjs");
   assert.equal(prompts.rolePrompt("responder"), rolePrompt("responder"));
   assert.equal(prompts.shippedPrompts()["brief.worker"], rolePrompt("worker"));
@@ -166,7 +165,7 @@ test("every skill prompt is shipped as its skill, and drift fails the check", as
   await buildHosts({ root: temporary, check: true });
   const manifest = path.join(temporary, "hosts", "kirocrew", "app.json"),
     app = JSON.parse(fs.readFileSync(manifest, "utf8"));
-  app.skills = app.skills.filter((s) => s !== "skills/avoozl-triage");
+  app.skills = app.skills.filter((s: string) => s !== "skills/avoozl-triage");
   fs.writeFileSync(manifest, JSON.stringify(app));
   await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),

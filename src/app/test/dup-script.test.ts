@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
@@ -24,10 +23,10 @@ const BODY = `export function summarize(rows, options = {}) {
 }
 `;
 
-function repo(t) {
+function repo(t: TestContext) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dup-script-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const git = (...args) => execFileSync("git", args, { cwd: dir });
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir });
   git("init", "-q", "-b", "main");
   git("config", "user.name", "Fixture");
   git("config", "user.email", "fixture@example.invalid");
@@ -39,7 +38,7 @@ function repo(t) {
   fs.writeFileSync(path.join(dir, "src", "a.mjs"), BODY);
   git("add", ".");
   git("commit", "-q", "-m", "Start");
-  const run = (...args) =>
+  const run = (...args: string[]) =>
     spawnSync(process.execPath, [script, ...args], {
       cwd: dir,
       encoding: "utf8",
@@ -63,7 +62,7 @@ test("dup fails when duplication grows and --update only lowers the baseline", (
   const baseline = path.join(dir, "scripts", "check", "dup-baseline.json");
   fs.mkdirSync(path.dirname(baseline), { recursive: true });
   fs.writeFileSync(path.join(dir, "src", "b.mjs"), `// Copy.\n${BODY}`);
-  const write = (lines) =>
+  const write = (lines: number) =>
     fs.writeFileSync(
       baseline,
       JSON.stringify({ duplicatedLines: lines, percentage: 0 }),

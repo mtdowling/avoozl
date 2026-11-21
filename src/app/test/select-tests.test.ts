@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
@@ -47,7 +46,7 @@ test("the test map names only test files that exist", () => {
   const map = JSON.parse(
     fs.readFileSync("scripts/test/test-map.json", "utf8"),
   ).files;
-  for (const tests of Object.values(map))
+  for (const tests of Object.values(map) as string[][])
     for (const t of tests) assert.ok(fs.existsSync(t), t);
 });
 

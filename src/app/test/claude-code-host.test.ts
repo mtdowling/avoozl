@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Claude Code host package (MS11.3): built from prompts/, a plugin with
 // the skills, an MCP entry that runs `avoozl mcp`, and a guard that refuses
 // the agent's own shell call to a person-only `avoozl` command.
@@ -12,15 +11,15 @@ import { temporaryDirectory } from "./temporary.ts";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url)),
   host = path.join(root, "hosts", "claude-code");
-const read = (file) => fs.readFileSync(file, "utf8");
-const frontMatter = (text) =>
+const read = (file: string) => fs.readFileSync(file, "utf8");
+const frontMatter = (text: string) =>
   Object.fromEntries(
     text
       .split("\n---")[0]
       .split("\n")
       .slice(1)
-      .map((line) => line.match(/^([a-z]+): (.*)$/))
-      .filter(Boolean)
+      .map((line: string) => line.match(/^([a-z]+): (.*)$/))
+      .filter((m): m is RegExpMatchArray => m !== null)
       .map((match) => [match[1], match[2]]),
   );
 
@@ -61,7 +60,7 @@ test("installed into a Claude Code config, the plugin has its skills, MCP entry 
   assert.ok(fs.existsSync(path.join(installed, "hooks", "guard.ts")));
 });
 
-function guard(command) {
+function guard(command: string) {
   return spawnSync(process.execPath, [path.join(host, "hooks", "guard.ts")], {
     input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }),
     encoding: "utf8",
@@ -79,7 +78,9 @@ test("the guard refuses each person-only avoozl command and allows the others", 
     ["flow", "resume"],
   ])
     assert.ok(
-      personOnly.some((prefix) => prefix.join(" ") === words.join(" ")),
+      personOnly.some(
+        (prefix: string[]) => prefix.join(" ") === words.join(" "),
+      ),
       words.join(" "),
     );
   for (const prefix of personOnly) {

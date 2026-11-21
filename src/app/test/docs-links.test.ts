@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The docs are read as Markdown on github.com: every page is in the index,
 // every relative link resolves, and no site-only syntax is left.
 import assert from "node:assert/strict";
@@ -10,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const docs = path.join(root, "docs");
 const pages = fs.readdirSync(docs).filter((name) => name.endsWith(".md"));
-const read = (file) =>
+const read = (file: string) =>
   fs.readFileSync(file, "utf8").replace(/^```[\s\S]*?^```/gm, "");
 
 test("the docs index lists every page", () => {
