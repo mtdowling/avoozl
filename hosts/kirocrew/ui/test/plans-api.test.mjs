@@ -83,19 +83,6 @@ test('a move between the check and plan.approve reads as the same change; other 
   await assert.rejects(plansClient(refused.api).approve('ws', 'config', hash), /changed on disk/)
 })
 
-test('Make the GitHub issues sends spec.publish with the home repository, and none without one', async () => {
-  const { api, calls } = fakeApi(() => ({ home: 'github', repository: 'o/plans', number: 4 }))
-  assert.equal((await plansClient(api).publish('ws', 'config', 'o/plans')).number, 4)
-  await plansClient(api).publish('ws', 'config', null)
-  assert.deepEqual(
-    calls.map((call) => call.body),
-    [
-      { operation: 'spec.publish', input: { planId: 'config', repository: 'o/plans' }, workspaceId: 'ws' },
-      { operation: 'spec.publish', input: { planId: 'config' }, workspaceId: 'ws' },
-    ],
-  )
-})
-
 test('a revision change lists changed files with line counts', () => {
   const change = revisionChange({ hash: 'h1', files: { 'a.md': 'one\ntwo\n', 'b.md': 'same\n' } }, { hash: 'h2', files: { 'a.md': 'one\n2\nthree\n', 'b.md': 'same\n' } })
   assert.deepEqual(change, { from: 'h1', to: 'h2', files: [{ file: 'a.md', added: 2, removed: 1 }] })

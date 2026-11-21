@@ -1994,48 +1994,6 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
       disk: { folder: '.kiro/specs/byte-types/', exists: true, hash: at, changed: false, critique: null },
     }))
   }
-  // &publish=1: load-config is approved in a GitHub workspace and has no
-  // spec issue yet, so its header offers Make the GitHub issues (R118.7).
-  if (query.get('publish')) {
-    const hash = 'feedc0de'.repeat(8)
-    const files = { 'requirements.md': '# Load config\n\nRead config.json.\n', 'tasks.md': '- [ ] 1 Load config\n' }
-    let issue: { kind: 'issue'; repository: string; number: number; url: string } | null = null
-    answer('github.settings.get', () => ({ effective: { mode: 'plans-repo', planningRepository: 'acme/plans' } }))
-    answer('plan.get', () => ({
-      id: 'load-config',
-      spec: 'load-config',
-      title: 'Load config',
-      hash,
-      revision: 2,
-      state: 'approved',
-      files,
-      approvals: [{ id: 'a1', hash, at: '2026-11-19T12:00:00Z', approvedBy: 'mira@example.test' }],
-      history: [],
-      quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
-      disk: { folder: '.kiro/specs/load-config/', exists: true, hash, changed: false, critique: null },
-      links: { issue, workingBranches: [], pulls: [], sources: [] },
-    }))
-    answer('plan.spec.read', () => ({ name: 'load-config', folder: '.kiro/specs/load-config/', hash, documents: files }))
-    answer('plan.preview', () => ({ reviewedHash: hash, expectedRevision: 2, tasks: [], dependencies: [] }))
-    // The spec's folder summary, as plan.table gives it for every spec row.
-    const folder = {
-      name: 'load-config',
-      folder: '.kiro/specs/load-config/',
-      type: 'feature',
-      hash,
-      files: Object.keys(files),
-      counts: { error: 0, warning: 0, info: 0 },
-      taskCount: 1,
-      critique: null,
-      plan: { id: 'load-config', state: 'approved', hash, revision: 2, changed: false, approved: true },
-    }
-    answer('plan.table', () => ({ root: '/repo', problem: null, specs: [folder], revision: 7, items }))
-    answer('spec.publish', (body) => {
-      state.calls.push(body as never)
-      issue = { kind: 'issue', repository: 'acme/plans', number: 41, url: 'https://github.com/acme/plans/issues/41' }
-      return { home: 'github', existing: false, repository: 'acme/plans', number: 41 }
-    })
-  }
 }
 function SpecsPage() {
   return (

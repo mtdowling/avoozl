@@ -270,10 +270,6 @@ export function plansClient(api: AppApi) {
         throw caught
       }
     },
-    // Make the GitHub issues (spec.publish, R102.2): the spec's issue and
-    // its epic's. A person's explicit act; approval never does it.
-    publish: (workspaceId: string, planId: string, repository: string | null) =>
-      run<{ home: string; repository?: string; number?: number }>(workspaceId, 'spec.publish', { planId, ...(repository ? { repository } : {}) }),
   }
 }
 

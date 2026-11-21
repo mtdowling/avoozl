@@ -13,7 +13,6 @@ import { Authority } from './Authority.tsx'
 import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { IconBtn, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, usePages, useRunInChat } from './ui/controls.tsx'
 import {
-  CirclePlus,
   ArrowUpDown,
   CaseSensitive,
   Clock,
@@ -1005,23 +1004,15 @@ interface SpecActions {
   onGraph?: () => void
   onFolder?: () => void
   github: string | null
-  onPublish?: () => void
 }
 
 // The primary action: Import a folder Avoozl has not stored; Approve a draft
-// that can be approved; Open in Spec Builder for a draft that cannot yet;
-// Make the GitHub issues for an approved spec that has none; Edit spec
-// otherwise.
-export function primaryAction(
-  row: Pick<PlanRow, 'status' | 'spec'>,
-  plan: { state: string } | null,
-  blocker: string | null,
-  publish = false,
-): 'import' | 'approve' | 'publish' | 'edit' {
+// that can be approved; Edit spec otherwise. Approval publishes the spec's
+// issue.
+export function primaryAction(row: Pick<PlanRow, 'status' | 'spec'>, plan: { state: string } | null, blocker: string | null): 'import' | 'approve' | 'edit' {
   if (row.status === 'not imported') return 'import'
   if (plan && (plan.state === 'draft' || row.status === 'changed')) return blocker === null ? 'approve' : 'edit'
-  if (row.status === 'draft') return 'edit'
-  return publish ? 'publish' : 'edit'
+  return 'edit'
 }
 
 function specMeta(row: PlanRow, plan: (SpecPlan & { createdAt?: string; updatedAt?: string }) | null): ReactNode[] {
@@ -1059,17 +1050,11 @@ function specMeta(row: PlanRow, plan: (SpecPlan & { createdAt?: string; updatedA
 
 function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecActions; busy: boolean; flush: boolean }) {
   const { row, plan, actions } = props
-  const primary = primaryAction(row, plan, actions.approveBlocker ?? null, Boolean(actions.onPublish))
+  const primary = primaryAction(row, plan, actions.approveBlocker ?? null)
   const id = row.planId ?? row.spec ?? row.key
   const primaryButton = {
     import: { label: 'Import', icon: Download, tooltip: 'Store this folder as a draft spec. Approves and starts nothing.', onClick: actions.onImport },
     approve: { label: 'Approve', icon: ClipboardCheck, tooltip: `Approve revision ${shortHash(plan?.hash)}. Its ready tasks may then start.`, onClick: actions.onApprove },
-    publish: {
-      label: 'Make the GitHub issues',
-      icon: CirclePlus,
-      tooltip: "Make this spec's issue and its epic's issue on GitHub. Approving never does this.",
-      onClick: actions.onPublish,
-    },
     edit: { label: 'Edit spec', icon: Pencil, tooltip: 'Run in a chat: the avoozl-spec skill revises this spec on a spec branch', onClick: actions.onEdit },
   }[primary]
   const PrimaryIcon = primaryButton.icon
@@ -1955,15 +1940,6 @@ export default function PlansView(props: {
   }
   const importRow = (next: PlanRow) => next.spec && act((workspaceId) => plans.store(workspaceId, next.spec!))
   const rows = table ? filterRows(table.items, filter) : []
-  // Make the GitHub issues (R102.2): an approved spec with no spec issue yet,
-  // in a workspace that uses GitHub. Never automatic.
-  const publish = (next: PlanRow, repository: string | null) =>
-    next.planId &&
-    act(async (workspaceId) => {
-      const done = await plans.publish(workspaceId, next.planId!, repository)
-      setNotice(done.number ? `Made the GitHub issues for ${next.name}: ${done.repository}#${done.number}.` : `${next.name} has its issues already.`)
-      return { id: next.planId! }
-    })
   const specActions = (row: PlanRow): SpecActions => {
     const actions = rowActions(row)
     const blocker = approveBlocker(plan)
@@ -1980,7 +1956,6 @@ export default function PlansView(props: {
       onGraph: actions.scoped ? () => scope('graph', row) : undefined,
       onFolder: table?.root && row.folder ? () => void reveal(`${table.root!.replace(/\/$/, '')}/${row.folder}`).then(setNotice) : undefined,
       github: repoHref && row.folder ? `${repoHref}/tree/HEAD/${row.folder}` : null,
-      onPublish: specHome && specHome.mode !== 'local' && plan?.state === 'approved' && !plan.links?.issue && workspace ? () => publish(row, home) : undefined,
     }
   }
 
