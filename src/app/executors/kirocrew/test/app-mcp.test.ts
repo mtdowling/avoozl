@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Kiro Crew app's stdio MCP server is safe to share between sessions: each
 // request picks its workspace from the gateway's caller block, never from the
 // process, and it advertises kirocrew.caller-identity so the gateway sends one.
@@ -15,19 +14,30 @@ import { Store } from "../../../store/store.ts";
 import { initializeWorkspace } from "../../../workspace/workspace.ts";
 import { temporaryDirectory } from "../../../test/temporary.ts";
 import { runOwnMachine } from "../../../test/own-machine.ts";
+import { isolatedEnv } from "../../../test/isolated-env.ts";
+import type { SessionBinding } from "../../../sessions/session-bindings.ts";
 
 const root = fileURLToPath(new URL("../../../../../", import.meta.url)),
   launcher = path.join(root, "hosts", "kirocrew", "bin", "avoozl_mcp.py");
 
-function isolatedEnv(dir) {
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
-  for (const name of Object.keys(env))
-    if (/^AVOOZL_|^PORT$/.test(name)) delete env[name];
-  return env;
+// One JSON-RPC answer, for the fields these tests read.
+interface Reply {
+  id: number;
+  result: {
+    isError?: boolean;
+    content: { text: string }[];
+    capabilities: { experimental: Record<string, unknown> };
+  };
+  error: { code: number };
 }
 
 // An initialized workspace with one task per slot, each slot bound to its own.
-async function workspace(dir, name, task, slots) {
+async function workspace(
+  dir: string,
+  name: string,
+  task: string,
+  slots: string[],
+) {
   const workspaceRoot = path.join(dir, name);
   initializeWorkspace(workspaceRoot, { name });
   const store = new Store(workspaceConfig({ workspace: workspaceRoot }).dbPath);
@@ -51,7 +61,12 @@ async function workspace(dir, name, task, slots) {
 }
 
 // name is a tool, or "tool.action" for a grouped tool.
-const call = (id, name, input, sessionKey) => ({
+const call = (
+  id: number,
+  name: string,
+  input: Record<string, unknown>,
+  sessionKey?: string,
+) => ({
   jsonrpc: "2.0",
   id,
   method: "tools/call",
@@ -70,23 +85,35 @@ const call = (id, name, input, sessionKey) => ({
   },
 });
 
-function serve(dir, cwd, messages, extraEnv = {}) {
+function serve(
+  dir: string,
+  cwd: string,
+  messages: unknown[],
+  extraEnv: NodeJS.ProcessEnv = {},
+) {
   const output = runOwnMachine("python3", [launcher], {
     cwd,
     dir,
     env: { ...isolatedEnv(dir), ...extraEnv },
     input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
   });
-  return new Map(
+  const replies = new Map(
     output
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line))
+      .map((line): Reply => JSON.parse(line))
       .map((reply) => [reply.id, reply]),
   );
+  return {
+    get(id: number) {
+      const reply = replies.get(id);
+      assert.ok(reply, `no reply ${id}`);
+      return reply;
+    },
+  };
 }
 
-const text = (reply) => reply.result.content[0].text;
+const text = (reply: Reply) => reply.result.content[0].text;
 
 test("one pooled MCP process serves two workspaces without mixing them", async () => {
   // Nearby inputs: interleaved callers from two workspaces, a bound caller
@@ -99,10 +126,10 @@ test("one pooled MCP process serves two workspaces without mixing them", async (
     beta = await workspace(dir, "beta", "task-b", ["slot-b", "slot-x"]),
     cwd = await workspace(dir, "cwd", "task-c", ["slot-c"]);
   const registry = new WorkspaceRegistry({ env });
-  registry.add("alpha", { id: "alpha", root: alpha, enabled: true });
-  registry.add("beta", { id: "beta", root: beta, enabled: true });
+  registry.add("alpha", { root: alpha, enabled: true });
+  registry.add("beta", { root: beta, enabled: true });
   registry.close();
-  const progress = (taskId, words) => ({
+  const progress = (taskId: string, words: string) => ({
     taskId,
     kind: "progress",
     text: words,
@@ -155,20 +182,21 @@ test("one pooled MCP process serves two workspaces without mixing them", async (
     "the working directory's workspace is never used",
   );
   assert.match(text(replies.get(8)), /more than one Avoozl workspace/);
-  const found = (id) => replies.get(id).result.isError !== true;
+  const found = (id: number) => replies.get(id).result.isError !== true;
   assert.equal(found(9), true, "slot-b reads beta");
   assert.equal(found(10), false, "slot-a never reads beta");
   assert.equal(found(11), true, "a caller with no binding uses the default");
 
-  const reports = (workspaceRoot) => {
+  const reports = (workspaceRoot: string) => {
     const store = new Store(
       workspaceConfig({ workspace: workspaceRoot }).dbPath,
     );
     try {
       return store
-        .list("session_bindings")
-        .filter((binding) => binding.report)
-        .map((binding) => [binding.slot, binding.report.text]);
+        .list<SessionBinding & { report?: { text: string } }>(
+          "session_bindings",
+        )
+        .flatMap(({ slot, report }) => (report ? [[slot, report.text]] : []));
     } finally {
       store.close();
     }
@@ -244,7 +272,7 @@ test("a script cron's own server takes requests as the cron its env names", asyn
   } finally {
     store.close();
   }
-  const take = (id, sessionKey) => {
+  const take = (id: number, sessionKey?: string) => {
     const message = call(id, "plans_executor", {}, sessionKey);
     message.params.arguments = {
       action: "take",

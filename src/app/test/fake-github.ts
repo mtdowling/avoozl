@@ -69,6 +69,8 @@ export class FakeGitHub {
   declare branchPullRequests?: Answer;
   declare pullRequest?: Answer;
   declare commit?: Answer;
+  declare listDiscussions?: Answer;
+  declare addDiscussionComment?: Answer;
   constructor() {
     this.login = "worker";
     this.issues = [];

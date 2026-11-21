@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The supervisor pass (R95.1-R95.4): owns pid, exit code and log; a child
 // outlives the tick that started it, and a later tick's pass reaps or resumes
 // it, and records a lost one `gone`; two passes at once start nothing twice.
@@ -7,6 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import type { DatabaseSync } from "node:sqlite";
+import type { TestContext } from "node:test";
 import {
   approveHarnessDefinition,
   harnessDefinitionHash,
@@ -23,7 +24,7 @@ import {
 } from "../supervisor.ts";
 import { tryLock } from "../pass-lock.ts";
 import { sandboxKind } from "../sandbox.ts";
-import { scratchRoot } from "./process-machine.ts";
+import { scratchRoot, until } from "./process-machine.ts";
 
 const SUPERVISOR = new URL("../supervisor.ts", import.meta.url).href;
 
@@ -42,7 +43,18 @@ if (brief.waitFor) {
 } else finish();
 `;
 
-function scratch(t, { approve = true, keepEnv = undefined, extra = {} } = {}) {
+// `approve`: approve the definition. `keepEnv`: its pass-through names.
+// `extra`: more definition keys.
+interface ScratchOptions {
+  approve?: boolean;
+  keepEnv?: string[];
+  extra?: Record<string, unknown>;
+}
+
+function scratch(
+  t: TestContext,
+  { approve = true, keepEnv, extra = {} }: ScratchOptions = {},
+) {
   const { root, defer } = scratchRoot(t, "avoozl-supervisor-");
   const stateDirectory = path.join(root, "state");
   const configDirectory = path.join(root, "config");
@@ -78,7 +90,11 @@ function scratch(t, { approve = true, keepEnv = undefined, extra = {} } = {}) {
   return { root, stateDirectory, configDirectory, worktree, defer };
 }
 
-const request = (worktree, brief = {}, extra = {}) => ({
+const request = (
+  worktree: string,
+  brief: Record<string, unknown> = {},
+  extra: Record<string, unknown> = {},
+) => ({
   executor: "process",
   role: "worker",
   task: "1.1",
@@ -92,13 +108,13 @@ const request = (worktree, brief = {}, extra = {}) => ({
 });
 
 // The child's log, to explain a failed status.
-const childLog = (db, id) => {
+const childLog = (db: DatabaseSync, id: string) => {
   const row = childRecord(db, id);
   return `${row.error ?? ""}\n${row.log_file && fs.existsSync(row.log_file) ? fs.readFileSync(row.log_file, "utf8") : ""}`;
 };
 
 // Stop a process this test started and wait until it is gone.
-async function stopProcess(pid) {
+async function stopProcess(pid: number) {
   try {
     process.kill(pid);
   } catch {
@@ -115,14 +131,21 @@ async function stopProcess(pid) {
 }
 
 // A supervisor for one tick, after its first pass.
-function openAndPass(options) {
+function openAndPass(options: Parameters<typeof openSupervisor>[0]) {
   const supervisor = openSupervisor(options);
   supervisor.pass();
   return supervisor;
 }
 
 // Request one child and pass until it is no longer working.
-async function runToEnd({ stateDirectory, configDirectory, worktree, defer }) {
+type Machine = ReturnType<typeof scratch>;
+
+async function runToEnd({
+  stateDirectory,
+  configDirectory,
+  worktree,
+  defer,
+}: Omit<Machine, "root">) {
   const db = openSupervisorDatabase(stateDirectory);
   defer(() => db.close());
   const id = requestChild(db, request(worktree));
@@ -133,16 +156,6 @@ async function runToEnd({ stateDirectory, configDirectory, worktree, defer }) {
     return childStatus(db, id) !== "working";
   });
   return { db, id };
-}
-
-async function until(check, timeoutMs = 30_000) {
-  const end = Date.now() + timeoutMs;
-  for (;;) {
-    const value = check();
-    if (value) return value;
-    if (Date.now() > end) throw Error("Timed out waiting.");
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
 }
 
 test("requests: only process requests, and the supervisor fills its own placeholders", (t) => {
@@ -207,7 +220,7 @@ test("a resumed child never reads as exited while its message starts it", async 
     reader.close();
   });
   const id = requestChild(db, request(worktree));
-  const seen = [];
+  const seen: string[] = [];
   const supervisor = openAndPass({
     stateDirectory,
     configDirectory,
@@ -454,7 +467,8 @@ test("a child outlives the tick that started it; the next tick reaps it, resumes
   insert.run(reused, worktree, process.pid, "not this process", now, now);
 
   // Some sandboxes cannot run ps; name this process's start time here.
-  const startTime = (at) => (at === process.pid ? "this process" : null);
+  const startTime = (at: number) =>
+    at === process.pid ? "this process" : null;
   const tick = () => {
     const second = openSupervisor({
       stateDirectory,
@@ -513,7 +527,7 @@ async function runSeen({
   defer,
   db,
   id,
-}) {
+}: Omit<Machine, "root"> & { db: DatabaseSync; id: string }) {
   const supervisor = openSupervisor({ stateDirectory, configDirectory });
   defer(() => supervisor.close());
   await until(() => {
