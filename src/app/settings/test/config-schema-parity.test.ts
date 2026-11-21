@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import {
   COMMAND_SINK_KEYS,
   NOTIFICATIONS_KEYS,
@@ -68,7 +67,7 @@ const flowGroup = (group: string) =>
   );
 
 // Each closed schema object and the keys its validator accepts.
-const PAIRS = [
+const PAIRS: [string, readonly string[]][] = [
   ["#/properties/roles", ROLES],
   ["#/$defs/chatRole", ROLE_FIELDS],
   ["#/$defs/agentRole", AGENT_ROLE_FIELDS],
@@ -95,8 +94,11 @@ const PAIRS = [
     "#/properties/delivery/properties/repositories/additionalProperties",
     DELIVERY_REPOSITORY_KEYS,
   ],
-  ["#/$defs/flow", [...new Set(FLOW_PATHS.map((path) => path.split(".")[0]))]],
-  ...["stopTheLine", "verify"].map((group) => [
+  [
+    "#/$defs/flow",
+    [...new Set(FLOW_PATHS.map((path) => path.split(".")[0] ?? path))],
+  ],
+  ...["stopTheLine", "verify"].map((group): [string, readonly string[]] => [
     `#/$defs/flow/properties/${group}`,
     flowGroup(group),
   ]),

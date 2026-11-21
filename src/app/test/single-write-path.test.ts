@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One SQLite write path, CLI half: with no server URL the CLI changes the
 // workspace database only inside an Operations call. The servers' half is in
 // single-write-path-servers.test.mjs.
@@ -33,7 +32,7 @@ test("CLI local mode writes SQLite only inside Operations", () => {
   const store = new Store(dbPath(workspace));
   try {
     assert.equal(
-      store.read().tasks.find((task) => task.id === "sample-task").title,
+      store.read().tasks.find((task) => task.id === "sample-task")?.title,
       "Renamed",
     );
   } finally {

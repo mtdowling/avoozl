@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Home's Landing queue and Recently landed (landing.view): read from the
 // landing queue table only, with no GitHub call.
 import test from "node:test";
@@ -9,7 +8,7 @@ import { landingView } from "../landing-view.ts";
 import { Operations } from "../../api/operations.ts";
 
 const Q = { repositoryId: "fixture", base: "main" };
-const SHA = (n) => String(n).repeat(40).slice(0, 40);
+const SHA = (n: number) => String(n).repeat(40).slice(0, 40);
 const DAY = 24 * 60 * 60 * 1000;
 
 test("the queue is in order with one held reason each, and landings are newest first", async (t) => {
@@ -30,7 +29,7 @@ test("the queue is in order with one held reason each, and landings are newest f
   });
   enqueueLanding(store, { ...Q, key: "three", commit: SHA(3), tasks: ["t3"] });
   const now = Date.parse("2026-11-17T12:00:00Z");
-  const landed = (key, days, pr) =>
+  const landed = (key: string, days: number, pr?: number) =>
     store.put("landing_queue", {
       id: `fixture\0main\0${key}`,
       ...Q,

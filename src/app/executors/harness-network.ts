@@ -78,12 +78,13 @@ export function harnessNetwork(
   const proxy = definition.egress
     ? startEgressProxy({ hosts: definition.egress, folder, exitFile, env })
     : null;
+  const childEnv: Record<string, string | undefined> = {
+    ...(definition.setEnv ?? {}),
+    ...credentials,
+    ...(proxy ? egressEnv(proxy.port) : {}),
+  };
   return {
-    env: {
-      ...(definition.setEnv ?? {}),
-      ...credentials,
-      ...(proxy ? egressEnv(proxy.port) : {}),
-    },
+    env: childEnv,
     keep: Object.keys(credentials),
     // A named profile makes the AWS SDKs skip keys in the environment, so
     // exported keys go without one: they are that profile's.
