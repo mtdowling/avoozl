@@ -273,3 +273,16 @@ export async function launch(chrome) {
   }
   return { page, close, pid: child.pid, profile }
 }
+
+// One harness and one browser page for a test file's tests.
+export async function startChrome(chrome) {
+  const { buildHarness } = await import('./build.ts')
+  const harness = await buildHarness(),
+    browser = await launch(chrome)
+  return { harness, browser, page: await browser.page() }
+}
+
+export async function stopChrome(browser, harness) {
+  await browser?.close()
+  harness?.remove()
+}

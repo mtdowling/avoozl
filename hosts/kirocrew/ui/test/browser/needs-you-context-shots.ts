@@ -8,24 +8,10 @@
 //   node test/browser/needs-you-context-shots.mjs <out dir>
 //
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
-import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { startShots } from './shots.ts'
 
-const [out] = process.argv.slice(2)
-if (!out) {
-  console.error('Usage: needs-you-context-shots.mjs <out dir>')
-  process.exit(2)
-}
-const chrome = findChrome()
-if (!chrome) {
-  console.error('No Chrome found; set AVOOZL_CHROME.')
-  process.exit(1)
-}
-fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: await shotCss() })
-const browser = await launch(chrome)
+const { out, harness, browser } = await startShots('needs-you-context-shots.mjs <out dir>')
 const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 // Item kinds, in the order the fixture lists them.
 const PICKS = {

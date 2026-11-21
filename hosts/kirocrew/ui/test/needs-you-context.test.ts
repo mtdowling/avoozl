@@ -6,8 +6,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 import { askLine, evidenceOf, lineDiff, reviewEvidence, sourceLine, unblockLine } from '../src/needs-you-context.ts'
 import { needsContextItems } from './browser/needs-context-fixture.ts'
 
@@ -51,15 +50,9 @@ const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Needs you context tests'
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 
 test('each kind draws its spec link, evidence and context before Resolve', { skip }, async () => {
   await page.open(harness.url({ page: 'app', needsctx: '1' }), { width: 1280, height: 900 })

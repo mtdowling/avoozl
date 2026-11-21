@@ -4,22 +4,15 @@
 // window, and leave a focused text box alone. Skipped when no Chrome.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found'
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 
 async function openSpec(params = {}, size = { width: 1280, height: 800 }) {

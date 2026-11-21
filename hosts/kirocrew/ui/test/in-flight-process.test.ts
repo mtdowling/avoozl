@@ -6,8 +6,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { processLine } from '../src/in-flight-api.ts'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 import { inFlight } from './browser/in-flight-nav.ts'
 
 const details = (extra = {}) => ({ harness: 'claude-code', state: 'running', exitCode: null, run: 1, logTail: null, cost: null, attach: null, ...extra })
@@ -24,15 +23,9 @@ const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the In flight browser test'
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 
 test('a process row shows its log tail and cost, and Attach copies the command', { skip }, async () => {
   await page.open(harness.url({ page: 'app', process: '1' }), { width: 1280, height: 900 })

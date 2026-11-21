@@ -6,8 +6,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { checkDot } from '../src/in-flight-api.ts'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 import { inFlight } from './browser/in-flight-nav.ts'
 
 const checks = (extra = {}) => ({ state: 'pass', dot: 'pass', head: 'a'.repeat(40), ageMs: 4 * 60000, current: true, url: null, ...extra })
@@ -28,15 +27,9 @@ const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the In flight chips browser test'
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 
 for (const width of [1280, 390])
   test(`each In flight row has PR and branch chips that open a new tab and fit at ${width} px`, { skip }, async () => {

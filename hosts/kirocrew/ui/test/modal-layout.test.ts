@@ -8,8 +8,7 @@
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 
 // Without Chrome: no modal builds its own header or button row inside the
 // shared Modal's body; each passes `title` (and `footer`).
@@ -30,15 +29,9 @@ const findOpener = (name) => `[...document.querySelectorAll('button')].find((b) 
 
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 
 const READ = `(() => {
   const box = [...document.querySelectorAll('[data-modal-box]')].at(-1)

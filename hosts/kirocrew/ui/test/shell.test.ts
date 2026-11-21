@@ -5,8 +5,7 @@
 // Browser parts run in a real Chrome (AVOOZL_CHROME), skipped without one.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 
 const { NAV, LIST, clampWidth, listSpec, readFlag, readWidth, stepWidth, writeFlag, writeWidth } = await import('../src/columns.ts')
 
@@ -36,15 +35,9 @@ const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the shell tests'
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 120))')
 const box = (sel) =>
   page.evaluate(

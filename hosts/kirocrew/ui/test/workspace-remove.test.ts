@@ -8,8 +8,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 
 const { isRunning, removeLines } = await import('../src/workspace-api.ts')
 
@@ -36,15 +35,9 @@ const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the wor
 const shots = process.env.AVOOZL_SHOTS || null
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 const wait = (ms = 250) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 
