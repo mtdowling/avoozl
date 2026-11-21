@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Open chat on the standalone page (standalone-web SW7, D7): a person's message
 // becomes a `process` session in the workspace root, read-only unless the role
 // is a write role. The page shows what Start would do (`preview`), then Start
@@ -15,7 +14,11 @@ import {
 import { enqueueSessionRequests } from "./session-requests.ts";
 import { SEND_MAX_CHARS } from "./session-send.ts";
 import { processSessionDetails } from "../executors/process-view.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { SessionBinding } from "./session-bindings.ts";
+
+import type { RolesConfig } from "../agents/role-table.ts";
+type OpenContext = { config: RolesConfig; configDirectory: string };
 
 const OPEN_KIND = "assist-session";
 const DEFAULT_ROLE = "assist";
@@ -28,7 +31,7 @@ const TITLE_CHARS = 60;
 // which the tick starts. Add a role to OPENABLE when one can start on a
 // message alone.
 const OPENABLE = ["assist"];
-export function roleFor(agent) {
+export function roleFor(agent: unknown) {
   const role = typeof agent === "string" ? agent.replace(/^avoozl-/, "") : "";
   return OPENABLE.includes(role) ? role : DEFAULT_ROLE;
 }
@@ -36,10 +39,18 @@ export function roleFor(agent) {
 // The harness this role runs on, and why not when none can: the one Settings ›
 // Models names for the role, else the worker's, else claude-code, else the
 // only approved one.
-export function pickHarness({ config, configDirectory, role }) {
-  const approved = listHarnessDefinitions(configDirectory).filter(
-    (definition) => definition.approved,
-  );
+export function pickHarness({
+  config,
+  configDirectory,
+  role,
+}: OpenContext & { role: string }): {
+  harness: string | null;
+  reason: string | null;
+} {
+  const approved: { name: string; approved?: boolean }[] =
+    listHarnessDefinitions(configDirectory).filter(
+      (definition: { approved?: boolean }) => definition.approved,
+    );
   if (!approved.length)
     return {
       harness: null,
@@ -50,7 +61,7 @@ export function pickHarness({ config, configDirectory, role }) {
   const run = roleRun("assist", { config });
   if (run.executor === "process") {
     if (approved.some((definition) => definition.name === run.harness))
-      return { harness: run.harness, reason: null };
+      return { harness: run.harness ?? null, reason: null };
     return {
       harness: null,
       reason: `Harness ${run.harness}, picked for this role in Settings › Models, is not approved on this machine.`,
@@ -73,7 +84,14 @@ export function pickHarness({ config, configDirectory, role }) {
   return { harness: found.name, reason: null };
 }
 
-function describe(input, { config, configDirectory }) {
+type OpenInput = {
+  agent?: unknown;
+  role?: unknown;
+  preview?: unknown;
+  message?: unknown;
+};
+
+function describe(input: OpenInput, { config, configDirectory }: OpenContext) {
   const role = roleFor(input.agent ?? input.role),
     row = ROLE_TABLE[role],
     { harness, reason } = pickHarness({ config, configDirectory, role });
@@ -91,9 +109,14 @@ function describe(input, { config, configDirectory }) {
 // and harness Start would use. Otherwise it records the session and queues its
 // start; the drain starts the child.
 export function openSession(
-  store,
-  input = {},
-  { config, configDirectory, workspaceRoot, now = () => new Date() },
+  store: Store,
+  input: OpenInput = {},
+  {
+    config,
+    configDirectory,
+    workspaceRoot,
+    now = () => new Date(),
+  }: OpenContext & { workspaceRoot: string; now?: () => Date },
 ) {
   const plan = describe(input, { config, configDirectory });
   if (input.preview === true) return plan;
@@ -101,7 +124,7 @@ export function openSession(
   if (!message) fail("Write a message to start the session with.", 422);
   if (message.length > SEND_MAX_CHARS)
     fail(`A message is at most ${SEND_MAX_CHARS} characters.`, 422);
-  if (!plan.available) fail(plan.reason, 409);
+  if (!plan.available) fail(String(plan.reason), 409);
   const id = `assist:${randomUUID()}`,
     title = `Assist: ${message.replace(/\s+/g, " ").slice(0, TITLE_CHARS)}`;
   store.transaction(() => {
@@ -136,10 +159,10 @@ export function openSession(
 }
 
 // The slot of a page-opened session once the drain has started it, or null.
-function openedSlot(store, id) {
+function openedSlot(store: Store, id: string) {
   return (
     store
-      .list("session_bindings")
+      .list<SessionBinding>("session_bindings")
       .find((binding) => binding.taskId === id && binding.role === DEFAULT_ROLE)
       ?.slot ?? null
   );
@@ -148,39 +171,54 @@ function openedSlot(store, id) {
 // `session.view`: where a page-opened session stands, for the page's process
 // view (SW7.4): queued until the supervisor's drain starts it, then the
 // supervisor's status, the log tail, the cost and the attach command. Read-only.
-export function viewOpened(store, input = {}, paths) {
+type Paths = Parameters<typeof processSessionDetails>[1];
+
+export function viewOpened(
+  store: Store,
+  input: { slot?: unknown; id?: unknown } = {},
+  paths: Paths,
+) {
   // A bound session by its slot (a link or Open chat naming one), or one this
   // page opened by its id. A Kiro Crew chat is not shown here (SW7.3).
   if (typeof input.slot === "string") {
-    const binding = store.get("session_bindings", input.slot);
-    if (!binding) fail("No such session.", 404);
+    const binding = store.get<SessionBinding>("session_bindings", input.slot);
+    if (!binding) return fail("No such session.", 404);
     if (binding.executor !== "process") return { kirocrewChat: true };
     return viewSlot(store, binding, binding.title ?? binding.taskId, paths);
   }
   const id = typeof input.id === "string" ? input.id : "",
-    receipt = store.get("receipts", id);
-  if (receipt?.kind !== OPEN_KIND) fail("No such session.", 404);
+    receipt = store.get<{ id: string; kind?: string; title?: string }>(
+      "receipts",
+      id,
+    );
+  if (!receipt || receipt.kind !== OPEN_KIND)
+    return fail("No such session.", 404);
   const slot = openedSlot(store, id);
   if (!slot) return { id, title: receipt.title, state: "queued", slot: null };
   return {
     id,
     ...viewSlot(
       store,
-      store.get("session_bindings", slot),
+      store.get<SessionBinding>("session_bindings", slot)!,
       receipt.title,
       paths,
     ),
   };
 }
 
-function viewSlot(store, binding, title, paths) {
+function viewSlot(
+  store: Store,
+  binding: SessionBinding,
+  title: unknown,
+  paths: Paths,
+) {
   const process =
     processSessionDetails([binding.slot], paths).get(binding.slot) ?? null;
   return {
     title,
     state:
       process?.state === "exited" ||
-      ["closed", "lost", "gone"].includes(binding.status)
+      ["closed", "lost", "gone"].includes(String(binding.status))
         ? "ended"
         : "working",
     slot: binding.slot,

@@ -154,10 +154,9 @@ export const commands: Command[] = [
       ),
     ],
     async run({ options, localOrRequest }) {
-      const { lanes } = await localOrRequest<{ lanes: unknown[] }>(
-        "lanes.view",
-        {},
-      );
+      const { lanes } = await localOrRequest<{
+        lanes: Parameters<typeof laneTable>[0];
+      }>("lanes.view", {});
       if (options.json) {
         console.log(JSON.stringify(lanes, null, 2));
         return;

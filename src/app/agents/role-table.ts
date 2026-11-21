@@ -29,7 +29,7 @@ export interface RoleRow {
   finish?: (allowCommands?: string[][] | null) => string[];
 }
 // A config with a `roles` table: `.avoozl.json` or a layer of it.
-type RolesConfig =
+export type RolesConfig =
   | { roles?: unknown; [key: string]: unknown }
   | null
   | undefined;

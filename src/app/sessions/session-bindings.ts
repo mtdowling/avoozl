@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { bindSessionRequest } from "./session-requests.ts";
 import { saveKirocrewIntent } from "../executors/kirocrew.ts";
 import { hasPendingSpecDependencies } from "../../spec-dependencies.ts";
@@ -6,8 +5,61 @@ import { queryTasks } from "../../query.ts";
 // Kiro Crew session bindings: which visible session (slot key) works on which
 // task. Kiro Crew owns the sessions; Avoozl keeps only this pointer, and a lost
 // pointer is recovered from the session title `avoozl:<task-id> <short title>`.
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
 import { resolveTaskId } from "../../task-identity.ts";
+import type { Snapshot } from "../../types.ts";
+
+// One `session_bindings` row: which session works on which task.
+export interface SessionBinding {
+  id: string;
+  slot: string;
+  taskId: string;
+  role: string;
+  attempt: number;
+  title: string | null;
+  source: string;
+  boundAt: string;
+  conductor?: string;
+  model?: string;
+  agent?: string;
+  crew?: string;
+  sessionReason?: string;
+  commit?: string;
+  lane?: string;
+  harnessSession?: string;
+  executor?: string;
+  permissionClass?: unknown;
+  worktree?: string;
+  context?: unknown;
+  status?: string;
+  statusAt?: string;
+  served?: unknown;
+  interrupted?: unknown;
+  report?: { kind?: string; at?: string } | null;
+  [key: string]: unknown;
+}
+// What a caller asks to bind; every field is checked here.
+export type BindInput = {
+  executor?: string;
+  requestId?: string;
+  slot?: unknown;
+  role?: string;
+  title?: unknown;
+  model?: unknown;
+  crew?: unknown;
+  agent?: unknown;
+  sessionReason?: unknown;
+  commit?: unknown;
+  lane?: unknown;
+  harnessSession?: unknown;
+  attempt?: unknown;
+  taskId?: unknown;
+  source?: unknown;
+  permissionClass?: unknown;
+  worktree?: string;
+  context?: unknown;
+  [key: string]: unknown;
+};
 
 const ROLES = new Set([
   "worker",
@@ -20,7 +72,7 @@ const ROLES = new Set([
 // A review role's session (§5.2): `review:<role id>`, so each role numbers its
 // own attempts.
 const REVIEW_ROLE = /^review:[a-z0-9][a-z0-9-]{0,39}$/;
-const isRole = (role) => ROLES.has(role) || REVIEW_ROLE.test(role);
+const isRole = (role: string) => ROLES.has(role) || REVIEW_ROLE.test(role);
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const TITLE = /^avoozl:(\S+)(?:\s|$)/;
@@ -29,11 +81,11 @@ const MAX_TITLE = 500;
 const MAX_ROSTER = 256 * 1024;
 
 // The task ID a session title names, or null when the title is not Avoozl's.
-export function taskIdFromSessionTitle(title) {
+export function taskIdFromSessionTitle(title: unknown) {
   return typeof title === "string" ? title.match(TITLE)?.[1] || null : null;
 }
 
-function text(value, label, max) {
+function text(value: unknown, label: string, max: number): string {
   if (
     typeof value !== "string" ||
     !value.trim() ||
@@ -43,13 +95,29 @@ function text(value, label, max) {
     fail(
       `Choose ${/^[aeiou]/.test(label) ? "an" : "a"} ${label} of 1–${max} printable characters.`,
     );
-  return value.trim();
+  return (value as string).trim();
 }
 
 // The epic context a chat worker's brief carried, from the task's record
 // when the tests passed (epic-context EC8.1).
-function briefContext(store, taskId, role, executor) {
-  const last = store.getMeta("epicContext")?.tasks?.[taskId];
+function briefContext(
+  store: Store,
+  taskId: string,
+  role: string,
+  executor: string | undefined,
+) {
+  const last = store.getMeta<{
+    tasks?: Record<
+      string,
+      {
+        briefOnly?: boolean;
+        given?: boolean;
+        sources?: unknown;
+        items?: unknown;
+        tests?: unknown;
+      }
+    >;
+  }>("epicContext")?.tasks?.[taskId];
   return role === "worker" &&
     executor !== "process" &&
     last?.briefOnly &&
@@ -65,15 +133,15 @@ function briefContext(store, taskId, role, executor) {
     : {};
 }
 
-function existingTask(store, id) {
+function existingTask(store: Store, id: string) {
   const data = store.read(),
     taskId = resolveTaskId(data, id);
   return data.tasks.some((task) => task.id === taskId) ? taskId : null;
 }
 
-function bindingsFor(store, taskId) {
+function bindingsFor(store: Store, taskId: string) {
   return store
-    .list("session_bindings")
+    .list<SessionBinding>("session_bindings")
     .filter((binding) => binding.taskId === taskId);
 }
 
@@ -84,10 +152,18 @@ function bindingsFor(store, taskId) {
 // `guard(taskId)` runs inside the write transaction, before a new binding, so
 // a claim is checked and recorded atomically across processes.
 export function bindSession(
-  store,
-  input = {},
-  { guard, conductor, consumer } = {},
-) {
+  store: Store,
+  input: BindInput = {},
+  {
+    guard,
+    conductor,
+    consumer,
+  }: {
+    guard?: (taskId: string) => void;
+    conductor?: string;
+    consumer?: string;
+  } = {},
+): { binding: SessionBinding; changed: boolean } {
   if (input.executor && input.executor !== "kirocrew" && !input.requestId)
     fail("Executor bindings require their claimed request.", 403);
   const slot = text(input.slot, "session slot key", MAX_SLOT),
@@ -100,15 +176,15 @@ export function bindSession(
     fail(
       "Choose role worker, responder, assist, check-decide, or review:<id>.",
     );
-  if (input.model !== undefined && !MODEL.test(input.model))
+  if (input.model !== undefined && !MODEL.test(String(input.model)))
     fail("Choose a model name.");
   // The crew, agent, and why (R41.9, R53.10).
   if (
     input.crew !== undefined &&
-    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(input.crew)
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(String(input.crew))
   )
     fail("Choose a crew id.");
-  if (input.agent !== undefined && !AGENT.test(input.agent))
+  if (input.agent !== undefined && !AGENT.test(String(input.agent)))
     fail("Choose an agent name.");
   if (
     input.sessionReason !== undefined &&
@@ -116,18 +192,18 @@ export function bindSession(
       input.sessionReason.length > 300)
   )
     fail("A session reason is at most 300 characters.");
-  if (input.commit !== undefined && !SHA.test(input.commit))
+  if (input.commit !== undefined && !SHA.test(String(input.commit)))
     fail("Name the subject commit as a full lowercase SHA.");
-  if (input.lane !== undefined && !LANE.test(input.lane))
+  if (input.lane !== undefined && !LANE.test(String(input.lane)))
     fail("Choose a lane, such as worker-1 or reviewer-1.");
   if (
     input.harnessSession !== undefined &&
-    !/^[0-9a-f-]{36}$/.test(input.harnessSession)
+    !/^[0-9a-f-]{36}$/.test(String(input.harnessSession))
   )
     fail("Name the harness session as a UUID.");
   if (
     input.attempt !== undefined &&
-    (!Number.isInteger(input.attempt) || input.attempt < 1)
+    (!Number.isInteger(input.attempt) || (input.attempt as number) < 1)
   )
     fail("Choose a positive whole attempt number.");
   return store.transaction(() => {
@@ -144,7 +220,7 @@ export function bindSession(
           ? named
           : existingTask(store, named);
     if (!taskId) fail("Task not found.", 404);
-    let current = store.get("session_bindings", slot);
+    let current = store.get<SessionBinding>("session_bindings", slot);
     if (
       current &&
       input.lane &&
@@ -174,7 +250,7 @@ export function bindSession(
     }
     guard?.(taskId);
     const attempt =
-      input.attempt ??
+      (input.attempt as number | undefined) ??
       bindingsFor(store, taskId).filter((binding) => binding.role === role)
         .length + 1;
     if (
@@ -186,7 +262,7 @@ export function bindSession(
         `Task ${taskId} already has a ${role} session for attempt ${attempt}.`,
         409,
       );
-    const binding = {
+    const binding: SessionBinding = {
       id: slot,
       slot,
       taskId,
@@ -195,7 +271,7 @@ export function bindSession(
       title,
       source: conductor
         ? "conductor"
-        : ["title", "tick"].includes(input.source)
+        : input.source === "title" || input.source === "tick"
           ? input.source
           : "bind",
       // Who took it, for a Crew Mode conductor: its own session slot, or
@@ -203,13 +279,19 @@ export function bindSession(
       ...(conductor ? { conductor } : {}),
       // The model the session was opened on, and the commit a checks or
       // review session judges (§5.2). Unset means unknown.
-      ...(input.model ? { model: input.model } : {}),
-      ...(input.agent ? { agent: input.agent } : {}),
-      ...(input.crew && input.crew !== "local" ? { crew: input.crew } : {}),
-      ...(input.sessionReason ? { sessionReason: input.sessionReason } : {}),
-      ...(input.commit ? { commit: input.commit } : {}),
-      ...(input.lane ? { lane: input.lane } : {}),
-      ...(input.harnessSession ? { harnessSession: input.harnessSession } : {}),
+      ...(input.model ? { model: input.model as string } : {}),
+      ...(input.agent ? { agent: input.agent as string } : {}),
+      ...(input.crew && input.crew !== "local"
+        ? { crew: input.crew as string }
+        : {}),
+      ...(input.sessionReason
+        ? { sessionReason: input.sessionReason as string }
+        : {}),
+      ...(input.commit ? { commit: input.commit as string } : {}),
+      ...(input.lane ? { lane: input.lane as string } : {}),
+      ...(input.harnessSession
+        ? { harnessSession: input.harnessSession as string }
+        : {}),
       ...(input.executor ? { executor: input.executor } : {}),
       ...(input.permissionClass
         ? { permissionClass: input.permissionClass }
@@ -234,11 +316,20 @@ export function bindSession(
 
 // Rebuild lost bindings from session titles. Sessions that are already bound,
 // do not carry an Avoozl title, or name an unknown task are reported, not bound.
-export function rediscoverSessions(store, input = {}) {
+export function rediscoverSessions(
+  store: Store,
+  input: { sessions?: unknown } = {},
+) {
   if (!Array.isArray(input.sessions) || input.sessions.length > 1000)
     fail("Provide sessions as a list of up to 1000 {slot, title} entries.");
-  const result = { bound: [], unchanged: [], ignored: [] };
-  for (const session of input.sessions) {
+  const result: {
+    bound: SessionBinding[];
+    unchanged: SessionBinding[];
+    ignored: { slot: string; reason: string }[];
+  } = { bound: [], unchanged: [], ignored: [] };
+  for (const session of input.sessions as
+    | { slot?: unknown; title?: unknown }[]
+    | never[]) {
     const slot = text(session?.slot, "session slot key", MAX_SLOT),
       named = taskIdFromSessionTitle(session?.title);
     const taskId = named && existingTask(store, named);
@@ -249,7 +340,7 @@ export function rediscoverSessions(store, input = {}) {
       });
       continue;
     }
-    const current = store.get("session_bindings", slot);
+    const current = store.get<SessionBinding>("session_bindings", slot);
     if (current) {
       result.unchanged.push(current);
       continue;
@@ -268,14 +359,14 @@ export function rediscoverSessions(store, input = {}) {
 
 // A lane binding whose task let go of the session: reported done or
 // blocked, stopped, or closed.
-const ended = (binding) =>
+const ended = (binding: SessionBinding) =>
   binding.interrupted ||
-  FINAL_STATUSES.has(binding.status) ||
+  FINAL_STATUSES.has(String(binding.status)) ||
   binding.status === "gone" ||
-  ["done", "blocked"].includes(binding.report?.kind);
+  ["done", "blocked"].includes(String(binding.report?.kind));
 
-export function listSessionBindings(store) {
-  return store.list("session_bindings").reverse();
+export function listSessionBindings(store: Store) {
+  return store.list<SessionBinding>("session_bindings").reverse();
 }
 
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
@@ -283,15 +374,19 @@ const LANE = /^(?:worker|reviewer)-[0-9]{1,2}$/;
 
 // Check explicit requests again when the tick consumes them. A request is not
 // permission to bypass a spec approval hold, including one on a prerequisite.
-export function sessionRequestHold(data, taskId, role = "worker") {
+export function sessionRequestHold(
+  data: Snapshot,
+  taskId: string,
+  role = "worker",
+) {
   const tasks = new Map(data.tasks.map((task) => [task.id, task])),
-    incoming = new Map();
+    incoming = new Map<string, string[]>();
   for (const edge of data.edges)
     if (["requires", "sequence"].includes(edge.kind)) {
       if (!incoming.has(edge.to)) incoming.set(edge.to, []);
-      incoming.get(edge.to).push(edge.from);
+      incoming.get(edge.to)!.push(edge.from);
     }
-  const seen = new Set(),
+  const seen = new Set<string>(),
     queue = [taskId];
   for (let at = 0; at < queue.length; at++) {
     const id = queue[at];
@@ -318,14 +413,26 @@ export function sessionRequestHold(data, taskId, role = "worker") {
 
 // Explicit requests keep their existing API; provider configuration is adapted
 // privately while the caller reads only the portable intent.
-export function requestSession(store, input = {}, repositories = []) {
+export function requestSession(
+  store: Store,
+  input: {
+    role?: string;
+    executor?: unknown;
+    repository?: unknown;
+    taskId?: unknown;
+    agent?: unknown;
+    model?: unknown;
+    permissionClass?: unknown;
+  } = {},
+  repositories: { id: string; localCheckout?: unknown }[] = [],
+) {
   const role = input.role ?? "worker",
     executor = input.executor ?? "kirocrew",
     repositoryId = text(input.repository, "repository ID", 100);
   if (!ROLES.has(role))
     fail("Choose role worker, responder, assist, or check-decide.");
   if (typeof executor !== "string" || !/^[a-z][a-z0-9-]*$/.test(executor))
-    fail("Choose an executor name.");
+    return fail("Choose an executor name.");
   const repository = repositories.find((entry) => entry.id === repositoryId);
   if (!repository?.localCheckout)
     fail("Choose a registered repository with a local checkout.", 404);
@@ -334,8 +441,14 @@ export function requestSession(store, input = {}, repositories = []) {
     if (!taskId) fail("Task not found.", 404);
     const held = sessionRequestHold(store.read(), taskId, role);
     if (held) fail(held, 409);
+    type Intent = {
+      id: string;
+      repository?: string;
+      executor?: string;
+      [key: string]: unknown;
+    };
     const id = `${taskId}:${role}`,
-      row = store.get("session_requests", id),
+      row = store.get<Intent & { intent?: Intent }>("session_requests", id),
       current = row?.intent ?? row;
     if (
       current &&
@@ -370,14 +483,14 @@ export function requestSession(store, input = {}, repositories = []) {
   });
 }
 
-export function listSessionRequests(store) {
+export function listSessionRequests(store: Store) {
   return store
-    .list("session_requests")
+    .list<{ id: string; kind?: string; intent?: unknown }>("session_requests")
     .reverse()
     .flatMap((row) =>
       row.intent
         ? [row.intent]
-        : !["start", "send"].includes(row.kind)
+        : !["start", "send"].includes(String(row.kind))
           ? [row]
           : [],
     );
@@ -403,7 +516,11 @@ export const FINAL_STATUSES = new Set(["closed", "lost"]);
 // or "`<slot>` — <status> (…)" for closed and lost rows. The bound title is
 // skipped first, so a title holding " — idle" cannot pose as a status.
 // Returns the named slot's status, or null when the roster does not list it.
-export function statusFromRoster(roster, slot, title = null) {
+export function statusFromRoster(
+  roster: unknown,
+  slot: string,
+  title: string | null = null,
+) {
   if (typeof roster !== "string") return null;
   for (const line of roster.split("\n")) {
     const start = line.indexOf("`" + slot + "`");
@@ -412,7 +529,7 @@ export function statusFromRoster(roster, slot, title = null) {
     if (title && rest.startsWith(` (${title})`))
       rest = rest.slice(title.length + 3);
     const status = rest.match(/^(?: \(.*?\))? — ([a-z]+)/)?.[1];
-    if (STATUSES.has(status)) return status;
+    if (status && STATUSES.has(status)) return status;
   }
   return null;
 }
@@ -422,11 +539,15 @@ export function statusFromRoster(roster, slot, title = null) {
 // said about the session's model ({requested, model, withheld, changed}),
 // passed by the tick or by the backend's slot read; it is kept on the binding
 // as `served`, and left unset by a Kiro Crew that does not report it.
-export function recordSessionStatus(store, input = {}, { served: seen } = {}) {
+export function recordSessionStatus(
+  store: Store,
+  input: { slot?: unknown; status?: unknown } = {},
+  { served: seen }: { served?: unknown } = {},
+) {
   const slot = text(input.slot, "session slot key", MAX_SLOT);
   return store.transaction(() => {
-    const binding = store.get("session_bindings", slot);
-    if (!binding) fail("Session not bound.", 404);
+    const binding = store.get<SessionBinding>("session_bindings", slot);
+    if (!binding) return fail("Session not bound.", 404);
     if (typeof input.status === "string" && input.status.length > MAX_ROSTER)
       fail("The session roster is too large.");
     const status =
@@ -436,7 +557,7 @@ export function recordSessionStatus(store, input = {}, { served: seen } = {}) {
     // Kiro Crew states nothing about a closed or lost session's model, so
     // the last live reading stands; with none, its null is kept and judged.
     const reading =
-      seen && FINAL_STATUSES.has(status) && binding.served
+      seen && FINAL_STATUSES.has(String(status)) && binding.served
         ? binding.served
         : seen;
     const served =
@@ -445,7 +566,7 @@ export function recordSessionStatus(store, input = {}, { served: seen } = {}) {
         : null;
     if (!served && (!status || binding.status === status))
       return { binding, status, changed: false };
-    const next = {
+    const next: SessionBinding = {
       ...binding,
       ...(status && status !== binding.status
         ? { status, statusAt: new Date().toISOString() }
@@ -461,11 +582,16 @@ export function recordSessionStatus(store, input = {}, { served: seen } = {}) {
 // done or blocked report: "wait", "nudge", or "exhausted" once the nudge bound
 // is spent. Only an observed idle status counts, so a session Avoozl cannot see
 // (disconnected, or a lapsed lease) is never treated as quiet.
-export function quietStep(binding, nudge, policy, now) {
+export function quietStep(
+  binding: SessionBinding,
+  nudge: { at?: string; count?: number } | null | undefined,
+  policy: { quietMinutes: number; nudges: number },
+  now: number,
+) {
   if (binding.status !== "idle" || binding.source !== "tick") return "wait";
   const since = Math.max(
     ...[binding.boundAt, binding.statusAt, binding.report?.at, nudge?.at]
-      .filter(Boolean)
+      .filter((value): value is string => Boolean(value))
       .map((value) => Date.parse(value)),
   );
   if (now - since < policy.quietMinutes * 60_000) return "wait";
