@@ -73,3 +73,13 @@ export function demoHelpers(page) {
   }
   return { wait, click: press, button, openDemoSpecs }
 }
+
+// Steps that open a nav section and one of its items: the top rail's menu on
+// a phone, the left nav on a desktop. Each is a script for page.evaluate().
+const navScope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+export const menu = (width) =>
+  width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
+export const head = (width, section = 'Settings') =>
+  `(() => { const b = [...document.querySelectorAll('${navScope(width)} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(section)})); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
+export const item = (width, text) =>
+  `(() => { const b = [...document.querySelectorAll('${navScope(width)} [data-nav-item]')].find((x) => x.textContent.trim() === ${JSON.stringify(text)}); if (b) b.click(); return Boolean(b) })()`

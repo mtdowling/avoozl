@@ -5,24 +5,10 @@
 // at desktop and phone width, light and dark: <out>/<state>-<size>-<theme>.png.
 //
 //   node test/browser/activity-keep-shots.mjs <out dir>
-import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { startShots } from './shots.ts'
 
-const [out] = process.argv.slice(2)
-if (!out) {
-  console.error('Usage: activity-keep-shots.mjs <out dir>')
-  process.exit(2)
-}
-const chrome = findChrome()
-if (!chrome) {
-  console.error('No Chrome found; set AVOOZL_CHROME.')
-  process.exit(1)
-}
-fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: await shotCss() })
-const browser = await launch(chrome)
+const { out, harness, browser } = await startShots('activity-keep-shots.mjs <out dir>')
 const SIZES = { desktop: { width: 1280, height: 800 }, phone: { width: 390, height: 844 } }
 const type = (value) =>
   `(() => { const i = document.getElementById('avoozl-activity-keep'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ${JSON.stringify(value)}); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()`

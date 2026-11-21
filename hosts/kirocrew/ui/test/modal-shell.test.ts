@@ -8,23 +8,16 @@
 // Runs in a real Chrome (AVOOZL_CHROME); skipped without one.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 
 const { draftsGraph } = await import('./browser/graph-chains.ts')
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal shell tests'
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 
 const TOP = `[...document.querySelectorAll('dialog[data-modal]')].at(-1)`
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')

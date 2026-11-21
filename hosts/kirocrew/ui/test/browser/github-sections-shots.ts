@@ -5,24 +5,10 @@
 // and phone (375 px), light and dark: <out>/<name>-<width>-<theme>.png.
 //
 //   AVOOZL_HOST_CSS=<host css> node test/browser/github-sections-shots.mjs <out dir>
-import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { startShots } from './shots.ts'
 
-const [out] = process.argv.slice(2)
-if (!out) {
-  console.error('Usage: github-sections-shots.mjs <out dir>')
-  process.exit(2)
-}
-const chrome = findChrome()
-if (!chrome) {
-  console.error('No Chrome found; set AVOOZL_CHROME.')
-  process.exit(1)
-}
-fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: await shotCss() })
-const browser = await launch(chrome)
+const { out, harness, browser } = await startShots('github-sections-shots.mjs <out dir>')
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')

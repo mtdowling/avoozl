@@ -7,24 +7,10 @@
 // it (a before shot), the row as it is.
 //
 //   node test/browser/send-message-shots.mjs <out dir>
-import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { startShots } from './shots.ts'
 
-const [out] = process.argv.slice(2)
-if (!out) {
-  console.error('Usage: send-message-shots.mjs <out dir>')
-  process.exit(2)
-}
-const chrome = findChrome()
-if (!chrome) {
-  console.error('No Chrome found; set AVOOZL_CHROME.')
-  process.exit(1)
-}
-fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: await shotCss() })
-const browser = await launch(chrome)
+const { out, harness, browser } = await startShots('send-message-shots.mjs <out dir>')
 const row = `[...document.querySelectorAll('[data-in-flight-row]')].find((r) => r.querySelector('[data-process-status]'))`
 try {
   const page = await browser.page()

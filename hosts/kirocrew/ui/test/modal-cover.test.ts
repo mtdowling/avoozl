@@ -8,8 +8,7 @@
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
 
 // Runs without Chrome: every modal is the shared Modal, and every z-index
 // comes from the one ordered set in layers.ts.
@@ -41,15 +40,9 @@ const OPENERS = {
 
 let harness, browser, page
 before(async () => {
-  if (skip) return
-  harness = await buildHarness()
-  browser = await launch(chrome)
-  page = await browser.page()
+  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
 })
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+after(() => stopChrome(browser, harness))
 
 // The topmost modal (the element with aria-modal, which holds its backdrop
 // and its box) and what each probe point hits.
