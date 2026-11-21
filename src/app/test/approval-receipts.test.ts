@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -7,6 +6,12 @@ import { fixture, markdown, recordedRun, validateRun } from "./fixtures.ts";
 import { Operations } from "../api/operations.ts";
 import { git, integrateRun } from "../git/git.ts";
 import { operatorName } from "../settings/config.ts";
+
+// A task as task.accept returns it.
+interface Accepted {
+  status: string;
+  acceptanceEvidence: { evidence: string };
+}
 
 test("the operator falls back from configuration to git to the OS user", (t) => {
   const { root } = fixture(t);
@@ -38,7 +43,7 @@ test("acceptance derives its evidence from a validated run and requires none wit
     checks: [[process.execPath, "check.mjs"]],
   });
   // Acceptance before any validation requires nothing and states nothing.
-  const component = await ops.execute("task.accept", {
+  const component = await ops.execute<Accepted>("task.accept", {
     id: "sample-task",
     componentOnly: true,
   });
@@ -54,8 +59,11 @@ test("acceptance derives its evidence from a validated run and requires none wit
   const validation = await validateRun(store, run);
   assert.equal(validation.passed, true);
   await integrateRun(store, { id: run.id, expectedCommit: validation.commit });
-  const landed = store.read().tasks[0].integration.commit;
-  const accepted = await ops.execute("task.accept", { id: "sample-task" });
+  const landed = store.read().tasks[0].integration?.commit;
+  assert.ok(landed);
+  const accepted = await ops.execute<Accepted>("task.accept", {
+    id: "sample-task",
+  });
   assert.equal(accepted.status, "accepted");
   assert.match(
     accepted.acceptanceEvidence.evidence,
@@ -63,7 +71,7 @@ test("acceptance derives its evidence from a validated run and requires none wit
   );
   assert.match(accepted.acceptanceEvidence.evidence, /check\.mjs$/);
   // A caller's own statement still wins.
-  const restated = await ops.execute("task.accept", {
+  const restated = await ops.execute<Accepted>("task.accept", {
     id: "sample-task",
     evidence: "Verified the behavior by hand against the landed commit.",
   });

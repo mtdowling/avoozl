@@ -179,9 +179,18 @@ const allowed = (finding) =>
           finding.file.replace(/^hosts\/kirocrew\/bin\/lib\//, "")),
   );
 
+// One package's scan: how many files it ships and what it must not ship.
+export interface PackageReport {
+  files: number;
+  excluded: string[];
+  missingNotices: string[];
+  findings: { file: string; category: string; rule: string; line: number }[];
+  allowed: { file: string; rule: string; reason: string }[];
+}
+
 export function scanPackages() {
   const packages = { npm: npmFiles(), app: appFiles() },
-    report = {};
+    report: Record<string, PackageReport> = {};
   for (const [name, files] of Object.entries(packages)) {
     const findings = scanFiles(files);
     report[name] = {

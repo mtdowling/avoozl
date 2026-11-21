@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Home's first load must not wait on the network: every read Home sends
 // through the app backend answers while GitHub and Kiro Crew never answer,
 // and (off Windows) while `git` and `gh` take seconds to start. The backend
@@ -7,16 +6,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { createHash, createHmac, randomBytes } from "node:crypto";
 import { startAppBackend } from "../executors/kirocrew/app-backend.ts";
 import { workspaceConfig } from "../settings/config.ts";
 import { Store } from "../store/store.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import { SECRET, sign } from "./signed-principal.ts";
 
 // Every read Home's page sends on first load: the shell, the nav, and each
 // Home card (DashboardView, IntegrationBranches, the setup cards).
-const HOME = [
+const HOME: [string, Record<string, unknown>][] = [
   ["conflicts.view", {}],
   ["graph.view", {}],
   ["delivery.view", {}],
@@ -31,30 +30,6 @@ const HOME = [
 const REPO = "mtdowling/avoozl-home-test";
 // Each reply's limit. A slow `git` or `gh` takes 2 s to start below.
 const LIMIT_MS = 1500;
-
-function sign(body) {
-  const claim = {
-      issuedAt: Math.floor(Date.now() / 1000),
-      kind: "owner-session",
-      ownerId: "owner",
-      requestId: randomBytes(16).toString("hex"),
-      version: 1,
-    },
-    encoded = Buffer.from(JSON.stringify(claim)).toString("base64url");
-  const signature = createHmac("sha256", "secret")
-    .update(
-      [
-        "kirocrew-proxy-principal-v1",
-        String(claim.issuedAt),
-        "POST",
-        "/api/command",
-        createHash("sha256").update(body).digest("hex"),
-        encoded,
-      ].join("\n"),
-    )
-    .digest("hex");
-  return `${encoded}.${signature}`;
-}
 
 test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
   const root = temporaryDirectory();
@@ -71,7 +46,7 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
     },
   };
   fs.writeFileSync(file, JSON.stringify(saved));
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     XDG_CONFIG_HOME: path.join(root, "config"),
   };
@@ -136,13 +111,11 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
   }
   const server = startAppBackend({
     config,
-    secret: "secret",
+    secret: SECRET,
     notifier: null,
     slotReader: null,
     rowReader: null,
     usageReader: null,
-    modelSwitcher: null,
-    modelReader: null,
     sessionStopper: null,
     registryOptions: {
       configPath: hostConfig,
@@ -157,23 +130,22 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
     else process.env.AVOOZL_GITHUB_TOKEN = saved_.token;
   });
   await new Promise((resolve) => server.once("listening", resolve));
-  const post = async (operation, input) => {
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const post = async (operation: string, input: unknown) => {
     const body = JSON.stringify({ operation, input, workspaceId: "w" });
     const start = performance.now();
-    const reply = await real(
-      `http://127.0.0.1:${server.address().port}/api/command`,
-      {
-        method: "POST",
-        headers: { "X-KiroCrew-Principal": sign(body) },
-        body,
-        signal: AbortSignal.timeout(10_000),
-      },
-    );
+    const reply = await real(`http://127.0.0.1:${address.port}/api/command`, {
+      method: "POST",
+      headers: { "X-KiroCrew-Principal": sign(body) },
+      body,
+      signal: AbortSignal.timeout(10_000),
+    });
     return {
       operation,
       status: reply.status,
       ms: performance.now() - start,
-      result: (await reply.json()).result,
+      result: ((await reply.json()) as { result: unknown }).result,
     };
   };
   // Twice: the first load, and a reload while the refreshes still hang.
