@@ -1,10 +1,32 @@
-// @ts-nocheck: typing debt
 // Check reads for a pull request's head commit, for the integration head
 // (integration-head.mjs).
 const FINE = new Set(["success", "neutral", "skipped"]);
 
+// One check as the head reads it.
+export interface HeadCheck {
+  name: string;
+  done: boolean;
+  ok: boolean;
+}
+
+// The GitHub reads this needs.
+export interface CheckReader {
+  checkRuns(
+    repository: string,
+    sha: string,
+  ): Promise<{ name: string; status: string; conclusion: string }[] | null>;
+  commitStatus(
+    repository: string,
+    sha: string,
+  ): Promise<{ statuses?: { context: string; state: string }[] } | null>;
+}
+
 // Every check run and commit status on the head commit, as {name, ok, done}.
-export async function checksOf(github, repository, sha) {
+export async function checksOf(
+  github: CheckReader,
+  repository: string,
+  sha: string,
+): Promise<HeadCheck[]> {
   const [runs, status] = await Promise.all([
     github.checkRuns(repository, sha),
     github.commitStatus(repository, sha),
@@ -23,7 +45,7 @@ export async function checksOf(github, repository, sha) {
   ];
 }
 
-export const green = (checks, required) =>
+export const green = (checks: HeadCheck[], required: string[]) =>
   checks.length > 0 &&
   checks.every((check) => check.ok) &&
   required.every((name) => checks.some((check) => check.name === name));

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // highlight.languages: the extra code-fence grammars a workspace names in
 // `.avoozl.json` `highlight.languages` ({ "<fence name>": "<file>" }). Each
 // file is JSON data (an ordered token list, see hosts/kirocrew/ui/src/
@@ -12,12 +11,19 @@ const MAX_FILE = 64 * 1024,
   MAX_TOKENS = 200,
   MAX_PATTERN = 1000;
 
-function inside(root, file) {
+// One grammar token: a class name and its pattern.
+interface Token {
+  type: string;
+  pattern: string;
+  flags?: string;
+}
+
+function inside(root: string, file: string) {
   const relative = path.relative(root, file);
   return relative && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-function grammar(text) {
+function grammar(text: string): { tokens: Token[] } {
   const value = JSON.parse(text);
   if (
     !value ||
@@ -26,7 +32,7 @@ function grammar(text) {
   )
     throw Error(`needs a "tokens" list of at most ${MAX_TOKENS} entries`);
   return {
-    tokens: value.tokens.map((token, i) => {
+    tokens: value.tokens.map((token: Partial<Token> | null, i: number) => {
       if (
         !token ||
         typeof token.type !== "string" ||
@@ -47,9 +53,9 @@ function grammar(text) {
   };
 }
 
-export function highlightLanguages(workspaceRoot) {
-  const languages = {},
-    problems = [];
+export function highlightLanguages(workspaceRoot: string | null | undefined) {
+  const languages: Record<string, { tokens: Token[] }> = {},
+    problems: string[] = [];
   if (!workspaceRoot) return { languages, problems };
   let config;
   try {
@@ -62,7 +68,7 @@ export function highlightLanguages(workspaceRoot) {
   const entries = config?.highlight?.languages;
   if (!entries || typeof entries !== "object" || Array.isArray(entries))
     return { languages, problems };
-  let root;
+  let root: string;
   try {
     root = fs.realpathSync.native(workspaceRoot);
   } catch {
@@ -81,7 +87,7 @@ export function highlightLanguages(workspaceRoot) {
       languages[name] = grammar(fs.readFileSync(target, "utf8"));
     } catch (error) {
       problems.push(
-        `highlight.languages.${name} ${error.code === "ENOENT" ? "names a missing file" : error.message}.`,
+        `highlight.languages.${name} ${(error as NodeJS.ErrnoException).code === "ENOENT" ? "names a missing file" : (error as Error).message}.`,
       );
     }
   }

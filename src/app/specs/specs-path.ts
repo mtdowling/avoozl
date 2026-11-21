@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Where a repository keeps its spec folders: `specs.path` in the
 // `.avoozl.json` at the root of the checkout that holds them, else
 // `.kiro/specs`. The value is a relative path inside the repository with no
@@ -11,7 +10,7 @@ export const DEFAULT_SPECS_PATH = ".kiro/specs";
 const SEGMENT = /^[A-Za-z0-9._-]+$/;
 
 // Why `value` is not a specs path, or null. Checks the text only.
-export function specsPathProblem(value) {
+export function specsPathProblem(value: unknown) {
   if (typeof value !== "string" || !value.length || value.length > 200)
     return "specs.path is a relative folder of 1 to 200 characters, such as .kiro/specs.";
   if (path.posix.isAbsolute(value) || path.win32.isAbsolute(value))
@@ -26,8 +25,8 @@ export function specsPathProblem(value) {
 
 // The setting as written in `<root>/.avoozl.json`, or undefined. A missing
 // or unreadable file is unset; layered-config reports a broken one.
-function setting(root) {
-  let text;
+function setting(root: string): unknown {
+  let text: string;
   try {
     text = fs.readFileSync(path.join(root, ".avoozl.json"), "utf8");
   } catch {
@@ -40,7 +39,7 @@ function setting(root) {
   }
 }
 
-function inside(root, target) {
+function inside(root: string, target: string) {
   const relative = path.relative(root, target);
   return (
     relative === "" ||
@@ -50,15 +49,15 @@ function inside(root, target) {
 
 // The checked specs path of the checkout at `root`, with `/` separators and
 // no trailing slash. With no root it is the default.
-export function specsPath(root) {
+export function specsPath(root: string | null | undefined): string {
   const value = root ? setting(root) : undefined;
-  if (value === undefined) return DEFAULT_SPECS_PATH;
+  if (!root || value === undefined) return DEFAULT_SPECS_PATH;
   const problem = specsPathProblem(value);
   if (problem) fail(`${path.join(root, ".avoozl.json")}: ${problem}`, 409);
-  const clean = value.replace(/\/+$/, "");
+  const clean = String(value).replace(/\/+$/, "");
   // A symlink anywhere on the path may not lead out of the checkout: the
   // deepest folder of it that exists must resolve inside the root.
-  let real = null;
+  let real: string | null = null;
   for (
     let at = clean.split("/");
     at.length && real === null;
@@ -78,8 +77,10 @@ export function specsPath(root) {
 }
 
 // The specs folder on disk.
-export const specsDirectory = (root) => path.join(root, specsPath(root));
+export const specsDirectory = (root: string) =>
+  path.join(root, specsPath(root));
 
 // One spec folder as a repository path with a trailing slash, such as
 // `.kiro/specs/<name>/`.
-export const specFolderPath = (root, name) => `${specsPath(root)}/${name}/`;
+export const specFolderPath = (root: string, name: string) =>
+  `${specsPath(root)}/${name}/`;
