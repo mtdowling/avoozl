@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Checks in code (design §5.2 Checks, R7.1, R38): a reported commit's
 // repository checks are run by Avoozl itself, with no model call. The tick
 // only queues a run (a `check-run` flow record); the app backend runs the
@@ -14,6 +13,7 @@ import {
   baseRef,
   commandEvidence,
   git,
+  type Repository,
   withWorkLock,
   remoteGit,
 } from "../git/git.ts";
@@ -27,39 +27,88 @@ import { decideAnswer, decideNow } from "../plugins/check-decide.ts";
 import { requireDiskSpace } from "../workspace/disk-space.ts";
 import { openStops, recordSpan, readFlowPolicy } from "../flow/flow.ts";
 import { contentBinding } from "../content/content-rules.ts";
+import { fail } from "../store/store.ts";
 import {
+  type Check,
+  type CheckRecord,
   checkTimeout,
+  type PluginStep,
   outputTail,
   notRunChecks,
   runEach,
   verifyPaths,
   warmWorktree,
 } from "./verify.ts";
+import type { Store } from "../store/store.ts";
+import type { Task } from "../../types.ts";
 
 export { outputTail };
 
 export const CHECK_TIMEOUT_MS = 20 * 60_000;
 const KIND = "check-run";
 
-export const checkRuns = (store) => {
+// One queued, running or finished check run (a `check-run` flow record).
+export interface CheckRun {
+  id: string;
+  kind: string;
+  taskId?: string;
+  repositoryId: string;
+  commit: string;
+  attempt?: number;
+  state: string;
+  queuedAt: string;
+  pid?: number;
+  scope?: { kind: string; branch?: string; first?: string; tasks?: string[] };
+  fresh?: boolean;
+  mcpIds?: Record<string, string>;
+  waiting?: string;
+  [key: string]: unknown;
+}
+// What runChecksAt and runEach are given.
+type RunOptions = Omit<Parameters<typeof runEach>[2], "timeoutFor"> & {
+  timeoutFor?: Parameters<typeof runEach>[2]["timeoutFor"];
+  timeoutMs?: number;
+};
+// What a queue pass is given: the plugin checks, the default timeout, a
+// check runner and the MCP step options (tests).
+export interface DrainOptions {
+  plugins?: Parameters<typeof repositoryChecks>[1];
+  timeoutMs?: number;
+  run?: RunOptions["run"];
+  mcp?: Record<string, unknown>;
+}
+
+export const checkRuns = (store: Store): CheckRun[] => {
   try {
-    return store.list("flow_records").filter((r) => r.kind === KIND);
+    return store.list<CheckRun>("flow_records").filter((r) => r.kind === KIND);
   } catch {
     return [];
   }
 };
 
-export const taskCheckRuns = (store, taskId) =>
+export const taskCheckRuns = (store: Store, taskId: string) =>
   checkRuns(store)
     .filter((r) => r.taskId === taskId)
-    .sort((a, b) => a.attempt - b.attempt);
+    .sort((a, b) => Number(a.attempt) - Number(b.attempt));
 
 // Queue one run for the delivery's commit. Returns the record.
 export function queueCheckRun(
-  store,
-  { task, repository, commit, attempt, now },
+  store: Store,
+  {
+    task,
+    repository,
+    commit,
+    attempt,
+    now,
+  }: {
+    task: { id: string };
+    repository: { id: string };
+    commit: string;
+    attempt: number;
+    now?: number;
+  },
 ) {
-  const record = {
+  const record: CheckRun = {
     id: `${KIND}:${task.id}:${attempt}`,
     kind: KIND,
     taskId: task.id,
@@ -73,26 +122,29 @@ export function queueCheckRun(
   return record;
 }
 
-export const queueCheckRuns = (store, runs, now = Date.now()) =>
-  runs.map((run) => queueCheckRun(store, { ...run, now }));
+export const queueCheckRuns = (
+  store: Store,
+  runs: Omit<Parameters<typeof queueCheckRun>[1], "now">[],
+  now = Date.now(),
+) => runs.map((run) => queueCheckRun(store, { ...run, now }));
 
 // Run every declared check at `commit` in a clean detached worktree, then
 // remove it. A worktree that cannot be made at the exact commit runs
 // nothing: every check is not run, the checking's failure, not the writer's.
 export async function runChecksAt(
-  repository,
-  commit,
-  checks,
+  repository: NonNullable<RunOptions["repository"]> & { root: string },
+  commit: string,
+  checks: Check[],
   {
     timeoutMs = CHECK_TIMEOUT_MS,
     timeoutFor,
     run = commandEvidence,
     plugin,
-  } = {},
-) {
+  }: RunOptions = {},
+): Promise<{ head: string | null; checks: CheckRecord[] }> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-checks-")),
-    notRunAll = (why) => notRunChecks(checks, why);
-  let head = null;
+    notRunAll = (why: string) => notRunChecks(checks, why);
+  let head: string | null = null;
   try {
     try {
       await git(repository.root, ["worktree", "add", "--detach", dir, commit]);
@@ -101,7 +153,11 @@ export async function runChecksAt(
       return {
         head,
         checks: notRunAll(
-          `no worktree at ${commit.slice(0, 12)}: ${String(error.message).split("\n")[0].slice(0, 160)}`,
+          `no worktree at ${commit.slice(0, 12)}: ${String(
+            (error as Error).message,
+          )
+            .split("\n")[0]
+            ?.slice(0, 160)}`,
         ),
       };
     }
@@ -109,7 +165,7 @@ export async function runChecksAt(
       return {
         head,
         checks: notRunAll(
-          `the worktree is at ${head.slice(0, 12)}, not ${commit.slice(0, 12)}`,
+          `the worktree is at ${String(head).slice(0, 12)}, not ${commit.slice(0, 12)}`,
         ),
       };
     const results = await runEach(dir, checks, {
@@ -129,17 +185,19 @@ export async function runChecksAt(
   }
 }
 
-const alive = (pid) => {
+const alive = (pid: number | undefined) => {
+  // No pid cannot be signalled, so it is not known to be gone.
+  if (pid === undefined) return true;
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return error.code !== "ESRCH";
+    return (error as NodeJS.ErrnoException).code !== "ESRCH";
   }
 };
 
 // A run left `running` by a process that is gone goes back in the queue.
-function requeueOrphans(store) {
+function requeueOrphans(store: Store) {
   for (const record of checkRuns(store))
     if (record.state === "running" && !alive(record.pid))
       store.transaction(() =>
@@ -151,13 +209,13 @@ function requeueOrphans(store) {
       );
 }
 
-const inFlight = new WeakMap();
+const inFlight = new WeakMap<Store, Promise<void>>();
 
 // Run the queue: per repository, queued runs oldest first, one at a time,
 // under a work lock so another process never runs the same repository at
 // once. Nothing starts while all agents are stopped (R64.12). Never throws;
 // returns the promise of this pass (one pass per store at a time).
-export function drainCheckRuns(store, options = {}) {
+export function drainCheckRuns(store: Store, options: DrainOptions = {}) {
   const current = inFlight.get(store);
   if (current) return current;
   const pass = (async () => {
@@ -183,17 +241,21 @@ export function drainCheckRuns(store, options = {}) {
   return pass;
 }
 
-async function drainRepository(store, repositoryId, options) {
-  const repository = store.get("repositories", repositoryId);
+async function drainRepository(
+  store: Store,
+  repositoryId: string,
+  options: DrainOptions,
+) {
+  const repository = store.get<Repository>("repositories", repositoryId);
   if (!repository?.root) return;
   try {
     await withWorkLock(
       store,
       { id: `checks:${repositoryId}`, repositoryId, kind: "checks" },
       async () => {
-        const skip = new Set();
+        const skip = new Set<string>();
         for (;;) {
-          if (openStops(store).some((s) => s.full)) return;
+          if (openStops(store).some((s: { full?: boolean }) => s.full)) return;
           const next = checkRuns(store)
             .filter(
               (r) =>
@@ -213,15 +275,15 @@ async function drainRepository(store, repositoryId, options) {
     );
   } catch (error) {
     // Held by integration or another process: the next pass tries again.
-    if (!error.contention) throw error;
+    if (!(error as { contention?: boolean }).contention) throw error;
   }
 }
 
 // What a phase or branch run checks (plugin-checks D7): the commit, the
 // base its `{base}` and diff name, and the changed files between them. A
 // commit the checkout lacks is fetched first.
-async function stageRange(repository, record) {
-  const scope = record.scope,
+async function stageRange(repository: Repository, record: CheckRun) {
+  const scope = record.scope ?? { kind: "task" },
     root = repository.root;
   if (scope.kind === "branch")
     await remoteGit(
@@ -260,13 +322,14 @@ async function stageRange(repository, record) {
 // The decide answer a phase or branch check takes from its tasks: needed
 // when any task's answer was, pending while any is, else skipped. A task
 // with no answer at all counts as needed.
-function stageAnswer(store, check, taskIds) {
+function stageAnswer(store: Store, check: unknown, taskIds: string[]) {
   const answers = taskIds.map((id) =>
     decideAnswer(
       store,
       id,
       check,
-      store.get("task_deliveries", id)?.commit ?? null,
+      store.get<{ id: string; commit?: string }>("task_deliveries", id)
+        ?.commit ?? null,
     ),
   );
   if (answers.some((a) => a.state === "needed" || a.state === "none"))
@@ -275,18 +338,27 @@ function stageAnswer(store, check, taskIds) {
   return { state: "skip", reason: answers.find((a) => a.reason)?.reason };
 }
 
-async function runOne(store, repository, record, options) {
+async function runOne(
+  store: Store,
+  repository: Repository,
+  record: CheckRun,
+  options: DrainOptions,
+) {
+  // The run as stored now; a record removed meanwhile stops the run.
+  const current = () =>
+    store.get<CheckRun>("flow_records", record.id) ??
+    fail(`Check run ${record.id} is gone.`);
   const scope = record.scope?.kind ?? "task",
     task =
       scope === "task"
-        ? store.read().tasks.find((t) => t.id === record.taskId)
+        ? store.read().tasks.find((t: Task) => t.id === record.taskId)
         : null,
     startedAt = new Date().toISOString(),
     plugins = options.plugins ?? pluginChecksOf(store);
   // A run that will make a worktree waits, queued, while its volume is full.
   const warmAt =
     scope === "task"
-      ? await warmWorktree(store, record.taskId, record.commit)
+      ? await warmWorktree(store, String(record.taskId), record.commit)
       : null;
   if (!warmAt)
     try {
@@ -296,7 +368,7 @@ async function runOne(store, repository, record, options) {
         `The check run of ${record.taskId ?? record.id}`,
       );
     } catch (error) {
-      if (!error.lowDisk) throw error;
+      if (!(error as { lowDisk?: boolean }).lowDisk) throw error;
       store.transaction(() =>
         store.put("flow_records", { ...record, waiting: "low disk" }),
       );
@@ -305,7 +377,7 @@ async function runOne(store, repository, record, options) {
   const flow = readFlowPolicy(contentBinding(store)?.workspaceRoot).for(
       repository.id,
     ),
-    timeoutFor = (name, command, ownSeconds) =>
+    timeoutFor = (name: string, command: string, ownSeconds?: number) =>
       checkTimeout(
         name,
         flow,
@@ -343,14 +415,16 @@ async function runOne(store, repository, record, options) {
       )
       .map((check) => ({
         name: check.name,
-        plugin: check.plugin.id,
+        plugin: check.plugin?.id,
         filter: "paths",
       })),
     picked = all.filter((check) => checkApplies(check, files)),
-    deciding = [],
+    deciding: string[] = [],
     diff = () =>
-      git(repository.root, ["diff", range.base, record.commit]).catch(() => ""),
-    argvs = [];
+      git(repository.root, ["diff", range.base ?? "", record.commit]).catch(
+        () => "",
+      ),
+    argvs: typeof picked = [];
   // The decide answers (PK3, D5). A task's run also asks the diff calls
   // its phase and branch checks will read.
   if (task)
@@ -369,7 +443,7 @@ async function runOne(store, repository, record, options) {
     else if (answer.state === "skip")
       skipped.push({
         name: check.name,
-        plugin: check.plugin.id,
+        plugin: check.plugin?.id,
         filter: "decide",
         ...(answer.reason ? { reason: answer.reason } : {}),
       });
@@ -380,7 +454,7 @@ async function runOne(store, repository, record, options) {
   if (deciding.length) {
     store.transaction(() =>
       store.put("flow_records", {
-        ...store.get("flow_records", record.id),
+        ...current(),
         waiting: `deciding: ${deciding.join(", ")}`,
       }),
     );
@@ -388,35 +462,41 @@ async function runOne(store, repository, record, options) {
   }
   store.transaction(() =>
     store.put("flow_records", {
-      ...store.get("flow_records", record.id),
+      ...current(),
       waiting: undefined,
       state: "running",
       pid: process.pid,
       startedAt,
     }),
   );
-  const held = Boolean(paths.outside?.length || paths.protected?.length),
+  const held = Boolean(verdict?.outside?.length || verdict?.protected?.length),
     warm = held || scope !== "task" ? null : warmAt,
     pluginOptions = pluginOptionsOf(store),
-    plugin = (check, dir, timeoutMs) =>
-      runPluginCheck(check, {
+    plugin = (check: PluginStep, dir: string, timeoutMs: number) =>
+      // approvedPluginChecks built the plugin block runPluginCheck reads.
+      runPluginCheck(check as Parameters<typeof runPluginCheck>[0], {
         store,
         repository,
         root: repository.root,
         dir,
         commit: record.commit,
-        base: range.base,
+        base: range.base ?? undefined,
         repo: repository.github || repository.id,
         timeoutMs,
         fresh: record.fresh === true,
         pluginOptions,
-        mcpId: store.get("flow_records", record.id)?.mcpIds?.[check.name],
-        onMcpId: (id) =>
+        mcpId: store.get<CheckRun>("flow_records", record.id)?.mcpIds?.[
+          check.name
+        ],
+        onMcpId: (id: string) =>
           store.transaction(() => {
-            const now = store.get("flow_records", record.id);
+            const now = current();
             store.put("flow_records", {
               ...now,
-              mcpIds: { ...(now.mcpIds ?? {}), [check.name]: id },
+              mcpIds: {
+                ...(now?.mcpIds ?? {}),
+                [check.name]: id,
+              },
             });
           }),
         ...(options.mcp ?? {}),
@@ -442,7 +522,7 @@ async function runOne(store, repository, record, options) {
     endedAt = new Date().toISOString();
   store.transaction(() =>
     store.put("flow_records", {
-      ...store.get("flow_records", record.id),
+      ...current(),
       state: "finished",
       pid: undefined,
       head,

@@ -28,6 +28,8 @@ export interface RepositoryCheck {
   paths: string[] | null;
   source: string;
   stage: string;
+  // A plugin check's plugin (see PluginCheck).
+  plugin?: { id: string; [key: string]: unknown };
   [key: string]: unknown;
 }
 

@@ -100,7 +100,12 @@ const answered = (record) => record?.state === "done";
 // {state: "needed" | "skip" | "pending" | "none", reason, flipped?}. A
 // person's flip holds until the task's next commit; a `true` at approval
 // skips the diff call.
-export function decideAnswer(store, taskId, check, commit = null) {
+export function decideAnswer(
+  store,
+  taskId,
+  check,
+  commit: string | null = null,
+) {
   const flip = store.get("flow_records", flipId(taskId, check));
   if (flip && (flip.commit ?? null) === (commit ?? null))
     return {

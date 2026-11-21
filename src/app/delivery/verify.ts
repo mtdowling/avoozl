@@ -24,18 +24,18 @@ export type Check =
       source?: string;
       plugin?: { id: string };
       timeoutSeconds?: number;
-      [key: string]: unknown;
     };
+// A declared check in its object form: a plugin check is one.
+export type PluginStep = Exclude<Check, string[]>;
 // One check's result.
 export interface CheckRecord {
   name?: string;
   command?: string;
-  exitCode: number | null;
+  exitCode?: number | null;
   notRun?: string;
   isolation?: unknown;
   durationMs?: number;
   tail?: string;
-  [key: string]: unknown;
 }
 // The repository flow settings these rules read (flow.ts readFlowPolicy).
 interface FlowVerify {
@@ -331,7 +331,11 @@ export async function runEach(
     env?: readonly string[];
     repository?: CheckRepository | null;
     plugin?:
-      | ((check: Check, dir: string, timeoutMs: number) => Promise<CheckRecord>)
+      | ((
+          check: PluginStep,
+          dir: string,
+          timeoutMs: number,
+        ) => Promise<CheckRecord>)
       | null;
   },
 ): Promise<CheckRecord[]> {
