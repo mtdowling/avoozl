@@ -100,7 +100,7 @@ export function sandboxAllowCommands(
 // space. Checked again here so no path around the config check can pass a
 // push through.
 export function harnessAllow(
-  definition: { allow?: unknown },
+  definition: { allow?: readonly string[] },
   commands: unknown,
 ): string[] {
   if (!definition.allow) return [];

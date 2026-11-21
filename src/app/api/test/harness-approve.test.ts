@@ -1,10 +1,10 @@
-// @ts-nocheck: typing debt
 // `avoozl harness approve NAME` and `harness list`: a person approves one
 // harness file by the hash of its bytes now; an agent cannot.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { temporaryDirectory } from "../../test/temporary.ts";
@@ -13,15 +13,16 @@ import {
   listHarnessDefinitions,
 } from "../../executors/harness-definitions.ts";
 import { OPERATIONS } from "../operation-table.ts";
-import { Operations } from "../operations.ts";
+import { Operations, type OperationContext } from "../operations.ts";
+import type { StatusError } from "../../store/store.ts";
 import { fixture } from "../../test/fixtures.ts";
 
-function setup(t) {
+function setup(t: TestContext) {
   const { root, store } = fixture(t),
     configDirectory = path.join(root, "machine-config");
   fs.mkdirSync(path.join(configDirectory, "harnesses"), { recursive: true });
   const file = path.join(configDirectory, "harnesses", "example-cli.json"),
-    write = (text) => fs.writeFileSync(file, text);
+    write = (text: string) => fs.writeFileSync(file, text);
   write('{"name": "example-cli"}\n');
   return {
     file,
@@ -31,7 +32,7 @@ function setup(t) {
   };
 }
 
-const states = async (ops) =>
+const states = async (ops: Operations) =>
   Object.fromEntries(
     listHarnessDefinitions(ops.configDirectory).map((d) => [
       d.name,
@@ -42,7 +43,10 @@ const states = async (ops) =>
 test("approve records the file's hash, and list tells approved, not approved and changed", async (t) => {
   const { ops, file, write } = setup(t);
   assert.deepEqual(await states(ops), { "example-cli": "not approved" });
-  const done = await ops.execute("harness.approve", { name: "example-cli" });
+  const done = await ops.execute<{ name: string; path: string; hash: string }>(
+    "harness.approve",
+    { name: "example-cli" },
+  );
   assert.equal(done.name, "example-cli");
   assert.equal(done.path, file);
   assert.equal(done.hash, harnessDefinitionHash(fs.readFileSync(file)));
@@ -67,7 +71,11 @@ test("approve refuses a missing file and a bad name", async (t) => {
 
 test("an agent, over MCP or from a session, cannot approve, and the policy keeps it off agent roles", async (t) => {
   const { ops, configDirectory } = setup(t);
-  for (const context of [{ mcp: true }, { caller: { role: "worker" } }])
+  const contexts: OperationContext[] = [
+    { mcp: true },
+    { caller: { sessionKey: "worker-session" } },
+  ];
+  for (const context of contexts)
     await assert.rejects(
       ops.execute(
         "harness.approve",
@@ -75,7 +83,7 @@ test("an agent, over MCP or from a session, cannot approve, and the policy keeps
         undefined,
         context,
       ),
-      (error) => error.status === 403,
+      (error: StatusError) => error.status === 403,
     );
   assert.equal(
     fs.existsSync(path.join(configDirectory, "harness-approvals.json")),
@@ -87,20 +95,21 @@ test("an agent, over MCP or from a session, cannot approve, and the policy keeps
 
 test("the CLI lists and approves with no workspace, and refuses inside a supervisor child", () => {
   const machine = temporaryDirectory("avoozl-harness-cli-"),
-    env = {
+    config = path.join(machine, "config"),
+    env: NodeJS.ProcessEnv = {
       ...process.env,
       HOME: path.join(machine, "home"),
-      XDG_CONFIG_HOME: path.join(machine, "config"),
+      XDG_CONFIG_HOME: config,
       XDG_STATE_HOME: path.join(machine, "state"),
     },
     cli = fileURLToPath(new URL("../../../../cli.ts", import.meta.url)),
-    run = (args, extra = {}) =>
+    run = (args: string[], extra: Record<string, string> = {}) =>
       execFileSync(process.execPath, [cli, ...args], {
         env: { ...env, ...extra },
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
       }),
-    folder = path.join(env.XDG_CONFIG_HOME, "avoozl", "harnesses"),
+    folder = path.join(config, "avoozl", "harnesses"),
     file = path.join(folder, "example-cli.json");
   for (const key of Object.keys(env))
     if (/^AVOOZL(_|$)/.test(key)) delete env[key];

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Kiro Crew chat workers (epic-context ec-2.5): a chat that passes the
 // tests gets the skills and reads named in its brief and no MCP server, and
 // its binding reads "brief only"; one that fails gets a brief with no
@@ -6,6 +5,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { chatBrief } from "../epic-context.ts";
 import { approverCheck } from "../../git/git-approvals.ts";
 import { bindSession } from "../../sessions/session-bindings.ts";
@@ -19,7 +19,7 @@ import { writeSpec } from "../../test/spec-fixture.ts";
 
 const TASK = "config.1.1";
 
-async function world(t) {
+async function world(t: TestContext) {
   const r = specCheckout(),
     { store } = fixture(t),
     ctx = contextMachine({
@@ -78,15 +78,15 @@ test("a passing chat worker's brief names its skills and reads and no MCP server
     role: "worker",
     executor: "kirocrew",
   });
-  assert.equal(binding.epicContext.mode, "brief only");
+  assert.equal(binding.epicContext?.mode, "brief only");
   assert.deepEqual(
-    binding.epicContext.tests.map((x) => x.passed),
+    binding.epicContext?.tests?.map((x) => x.passed),
     [true, true],
   );
   const row = listActivity(w.store).items.find(
     (i) => i.kind === "epic-context.session",
   );
-  assert.match(row.summary, /skill module-layout/);
+  assert.match(String(row?.summary), /skill module-layout/);
   // The tick plans the same start again: one row per attempt.
   await chatBrief(w.store, w.ops, entry);
   assert.equal(

@@ -1,9 +1,10 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 
+import { once } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { startAppBackend } from "../kirocrew/app-backend.ts";
 import { workspaceConfig } from "../../settings/config.ts";
 import { initializeWorkspace } from "../../workspace/workspace.ts";
@@ -11,10 +12,29 @@ import { writeSpec } from "../../test/spec-fixture.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { SECRET, sign } from "../../test/signed-principal.ts";
 
-async function backend(t) {
+// One spec folder on plan.specs.
+interface SpecItem {
+  name: string;
+  plan: { approved?: boolean } | null;
+}
+// The command endpoint's reply: the fields these tests read.
+interface Reply {
+  result: {
+    root: string;
+    items: SpecItem[];
+    hash: string;
+    expectedRevision: number;
+  };
+  error: string;
+}
+
+async function backend(t: TestContext) {
   const root = temporaryDirectory(),
     served = path.join(root, "served"),
-    env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };
+    env: NodeJS.ProcessEnv = {
+      ...process.env,
+      XDG_CONFIG_HOME: path.join(root, "config"),
+    };
   for (const name of Object.keys(env))
     if (/^AVOOZL_/.test(name)) delete env[name];
   initializeWorkspace(served);
@@ -27,9 +47,16 @@ async function backend(t) {
     },
   });
   t.after(() => server.close());
-  await new Promise((resolve) => server.once("listening", resolve));
-  const base = `http://127.0.0.1:${server.address().port}`;
-  const call = async (operation, input = {}, kind = "owner-session") => {
+  await once(server, "listening");
+  const address = server.address();
+  if (!address || typeof address === "string")
+    throw Error("The backend has no port.");
+  const base = `http://127.0.0.1:${address.port}`;
+  const call = async (
+    operation: string,
+    input = {},
+    kind = "owner-session",
+  ) => {
     const body = JSON.stringify({ operation, input }),
       response = await fetch(base + "/api/command", {
         method: "POST",
@@ -39,7 +66,9 @@ async function backend(t) {
         },
         body,
       });
-    return { status: response.status, body: await response.json() };
+    // The endpoint's JSON reply.
+    const reply = (await response.json()) as Reply;
+    return { status: response.status, body: reply };
   };
   return { served, call };
 }
@@ -67,7 +96,7 @@ test("the Plans view lists, stores, and approves a spec folder", async (t) => {
   });
   assert.equal(approved.status, 200, JSON.stringify(approved.body));
   const after = (await call("plan.specs")).body.result.items[0];
-  assert.equal(after.plan.approved, true);
+  assert.equal(after.plan?.approved, true);
 });
 
 test("app tokens may read spec plans but not store or approve them", async (t) => {

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The two tests of epic context (epic-context ec-1.1): a task of an
 // approved spec passes both; each failing alone gives no context and names
 // its test. Real git and a real store.
@@ -6,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { approverCheck } from "../../git/git-approvals.ts";
 import { epicContextGate } from "../epic-context.ts";
 import { parseSpec } from "../../specs/spec-plans.ts";
@@ -20,7 +20,11 @@ process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
 const OTHER = "someone@example.com";
 const TASK = "config.1.1";
 
-const commitAs = (r, author, message = "Spec") => {
+const commitAs = (
+  r: ReturnType<typeof specCheckout>,
+  author: string,
+  message = "Spec",
+) => {
   r.run(["add", "-A"]);
   r.run(["commit", "-q", "-m", message], {
     GIT_AUTHOR_NAME: "A",
@@ -32,7 +36,13 @@ const commitAs = (r, author, message = "Spec") => {
 
 // A workspace whose spec `config` is approved by `author`'s commit, with the
 // store records an approval leaves: the plan, its receipt and the tasks.
-async function world(t, { author = OWNER, extraTask = null } = {}) {
+async function world(
+  t: TestContext,
+  {
+    author = OWNER,
+    extraTask = null,
+  }: { author?: string; extraTask?: string | null } = {},
+) {
   const r = specCheckout(),
     { store } = fixture(t);
   writeSpec(r.root, "config");
@@ -58,7 +68,7 @@ async function world(t, { author = OWNER, extraTask = null } = {}) {
   };
 }
 
-const failed = (result) =>
+const failed = (result: { tests: { name: string; passed: boolean }[] }) =>
   result.tests.filter((entry) => !entry.passed).map((entry) => entry.name);
 
 test("a task of an approved spec passes both tests", async (t) => {
@@ -80,7 +90,7 @@ test("each test failing alone gives given false and names that test with its rea
   assert.equal(approver.given, false);
   assert.deepEqual(failed(approver), ["approver"]);
   assert.match(
-    approver.tests[1].why,
+    approver.tests[1].why ?? "",
     /someone@example\.com.*not an allowed approver/,
   );
 
@@ -88,7 +98,7 @@ test("each test failing alone gives given false and names that test with its rea
   const added = await unapproved.gate("config.9.9");
   assert.deepEqual(failed(added), ["approved", "approver"]);
   assert.match(
-    added.tests[0].why,
+    added.tests[0].why ?? "",
     /config\.9\.9 is not in the approved revision/,
   );
 });
@@ -119,10 +129,10 @@ test("an intake task and a fix fail approved", async (t) => {
   const intake = await w.gate("intake-0123456789abcdef");
   assert.equal(intake.given, false);
   assert.ok(failed(intake).includes("approved"));
-  assert.match(intake.tests[0].why, /intake task/);
+  assert.match(intake.tests[0].why ?? "", /intake task/);
   const fix = await w.gate("fix-1");
   assert.ok(failed(fix).includes("approved"));
-  assert.match(fix.tests[0].why, /not in an approved spec/);
+  assert.match(fix.tests[0].why ?? "", /not in an approved spec/);
   assert.equal((await w.gate("missing")).given, false);
 });
 
@@ -139,7 +149,7 @@ test("a git error fails the test that needed it", async (t) => {
   assert.equal(broken.given, false);
   assert.ok(failed(broken).includes("approved"));
   assert.match(
-    broken.tests[0].why,
+    broken.tests[0].why ?? "",
     /git could not be read|not on the specs branch|has no/,
   );
   const throws = await epicContextGate(
@@ -153,7 +163,7 @@ test("a git error fails the test that needed it", async (t) => {
     },
   );
   assert.deepEqual(failed(throws), ["approver"]);
-  assert.match(throws.tests[1].why, /could not be read: no network/);
+  assert.match(throws.tests[1].why ?? "", /could not be read: no network/);
 });
 
 test("spec text and a .avoozl.json key that ask for context change nothing", async (t) => {

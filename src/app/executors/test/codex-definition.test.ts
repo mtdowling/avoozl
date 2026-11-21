@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Codex definition file (task 48.1; R94.1, R94.4, R94.7). Codex runs
 // from this file alone: these tests read it as data and change no code.
 import assert from "node:assert/strict";
@@ -17,12 +16,14 @@ import {
 } from "../harness-definitions.ts";
 import { confineChild } from "../sandbox.ts";
 import { harnessAllow } from "../harness-allow.ts";
+import type { HarnessDefinition } from "../harness-definitions.ts";
+import type { TestContext } from "node:test";
 
 const CODEX = fileURLToPath(
   new URL("../../../../examples/harnesses/codex.json", import.meta.url),
 );
 
-function approved(t) {
+function approved(t: TestContext) {
   const configDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), "avoozl-codex-config-"),
   );
@@ -41,7 +42,7 @@ function approved(t) {
   return loadHarnessDefinition({ configDirectory, name: "codex" });
 }
 
-const values = (definition, permissionClass) => ({
+const values = (definition: HarnessDefinition, permissionClass: string) => ({
   worktree: "/work/task",
   permission: definition.permission[permissionClass],
   model: "gpt-5",
@@ -77,7 +78,7 @@ test("start reads the brief on stdin in the task folder's sandbox", (t) => {
           values(definition, permissionClass),
         ),
         ...fillHarnessArgv(
-          definition.model,
+          definition.model ?? [],
           values(definition, permissionClass),
         ),
       ],

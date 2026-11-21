@@ -1,12 +1,14 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "../../test/github-credentials.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubClient } from "../github.ts";
 
-// A client whose fetch answers each path from `routes`: a value, or
+// A client whose fetch answers each path from `routes` as
 // [status, value, headers].
-function client(routes, seen = []) {
+function client(
+  routes: Record<string, [number, unknown, Record<string, string>]>,
+  seen: string[] = [],
+) {
   return defaultJob(
     "check-in",
     new GitHubClient({
@@ -18,9 +20,7 @@ function client(routes, seen = []) {
         const found = Object.entries(routes).find(([path]) =>
           u.pathname.endsWith(path),
         );
-        const [status, value, headers] = Array.isArray(found?.[1])
-          ? found[1]
-          : [200, found?.[1] ?? null, {}];
+        const [status, value, headers] = found?.[1] ?? [200, null, {}];
         return new Response(JSON.stringify(value), {
           status,
           headers: { "content-type": "application/json", ...headers },
@@ -36,17 +36,17 @@ test("collaborator permission uses role_name for maintain and triage", async () 
   // read; only `role_name` names the real role.
   github.fetch = async (url) => {
     const login = String(url).split("/collaborators/")[1].split("/")[0];
-    const body = {
+    const bodies: Record<string, unknown> = {
       maintainer: { permission: "write", role_name: "maintain" },
       triager: { permission: "read", role_name: "triage" },
       writer: { permission: "write", role_name: "write" },
       // A custom role names no built-in role: its base permission counts.
       custom: { permission: "write", role_name: "security-reviewer" },
       owner: { permission: "admin", role_name: "admin" },
-    }[login];
-    return new Response(JSON.stringify(body), { status: 200 });
+    };
+    return new Response(JSON.stringify(bodies[login]), { status: 200 });
   };
-  const held = async (login) =>
+  const held = async (login: string) =>
     (await github.permission("example/code", login)).permission;
   assert.equal(await held("maintainer"), "maintain");
   assert.equal(await held("triager"), "triage");

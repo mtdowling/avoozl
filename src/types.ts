@@ -155,6 +155,13 @@ export interface Snapshot {
   documents: Record<string, Document>;
   taskAliases?: Record<string, string>;
   tracks?: { id: string; [key: string]: unknown }[];
+  // The workspace's own name and page settings (initializeWorkspace).
+  project?: {
+    name?: string;
+    title?: string;
+    pollIntervalMs?: number;
+    [key: string]: unknown;
+  };
   presentation?: Record<string, unknown>;
   // Saved reports (report.save).
   savedSearches?: { id: string; [key: string]: unknown }[];

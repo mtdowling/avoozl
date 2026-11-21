@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What a session gets (epic-context ec-2.1): the sources that name the
 // task's repository, merged; a conflicting alias, an unsafe read and a
 // missing read left out with a reason; Needs you rows.
@@ -19,8 +18,9 @@ import { bindContentRules } from "../../content/content-rules.ts";
 import { contextMachine } from "../../context/test/context-fixture.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import type { ContextSource } from "../epic-context.ts";
 
-const places = (home, extra = {}) => ({
+const places = (home: string, extra = {}) => ({
   home,
   env: {},
   configDirectory: path.join(home, ".config", "avoozl"),
@@ -28,7 +28,10 @@ const places = (home, extra = {}) => ({
   ...extra,
 });
 
-const source = (name, extra = {}) => ({
+const source = (
+  name: string,
+  extra: Partial<ContextSource> = {},
+): ContextSource => ({
   kind: "machine",
   name,
   repos: ["acme/*"],

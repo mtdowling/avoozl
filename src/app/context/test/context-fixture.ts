@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Test helper for epic context: the example team-context plugin copied into
 // a temporary machine, declared in its plugins.json, with the notes folder
 // asked for, and approved on request.
@@ -11,6 +10,20 @@ import {
   writePluginSettings,
 } from "../../plugins/plugins.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found } from "../../test/view-shapes.ts";
+
+// The team-context manifest, as a test edits it.
+export interface ContextManifest {
+  context: {
+    reads?: { id: string; about?: string; path?: string }[];
+    ask?: Record<string, string>;
+    mcp?: string;
+    contentSets?: string[];
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+type PluginSettings = ReturnType<typeof readPluginSettings>;
 
 export const EXAMPLE = path.join(
   import.meta.dirname,
@@ -31,6 +44,13 @@ export function contextMachine({
   map = true,
   // Where plugins.json lives, when the test's machine has its own folder.
   settingsFolder = null,
+}: {
+  edit?: (manifest: ContextManifest) => ContextManifest | void;
+  declare?: string;
+  approve?: boolean;
+  answer?: boolean;
+  map?: boolean;
+  settingsFolder?: string | null;
 } = {}) {
   const root = temporaryDirectory("avoozl-ctx-"),
     workspaceRoot = path.join(root, "workspace"),
@@ -45,7 +65,7 @@ export function contextMachine({
   fs.writeFileSync(path.join(notes, "widgets", "note.md"), "A note.\n");
   fs.cpSync(EXAMPLE, folder, { recursive: true });
   const file = path.join(folder, "avoozl-plugin.json"),
-    manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+    manifest: ContextManifest = JSON.parse(fs.readFileSync(file, "utf8"));
   fs.writeFileSync(file, JSON.stringify(edit(manifest) ?? manifest, null, 2));
   const entry = { id: "team-context", path: folder, contract: 1 };
   if (declare === "repository")
@@ -68,12 +88,16 @@ export function contextMachine({
   const options = { workspaceRoot, settingsFile };
   const plugin = () =>
     inspectPlugins(options).find((p) => p.id === "team-context");
-  const approveNow = () =>
-    approvePlugin(options, {
+  const approveNow = () => {
+    const inspected = found(plugin(), "team-context");
+    if (!("hash" in inspected))
+      throw Error(`team-context did not load: ${inspected.reason}`);
+    return approvePlugin(options, {
       id: "team-context",
-      version: plugin().version,
-      hash: plugin().hash,
+      version: inspected.version,
+      hash: inspected.hash,
     });
+  };
   if (approve) approveNow();
   return {
     root,
@@ -85,7 +109,7 @@ export function contextMachine({
     plugin,
     approve: approveNow,
     settings: () => readPluginSettings(settingsFile),
-    write: (edit) => {
+    write: (edit: (settings: PluginSettings) => void) => {
       const settings = readPluginSettings(settingsFile);
       edit(settings);
       writePluginSettings(settingsFile, settings);

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,12 +9,12 @@ import {
 } from "../local-ignore.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-function gitConfig(initialFilename = null) {
+function gitConfig(initialFilename: string | null = null) {
   let filename = initialFilename;
-  const calls = [];
+  const calls: string[][] = [];
   return {
     calls,
-    run(command, args) {
+    run(command: string, args: string[]) {
       calls.push([command, ...args]);
       assert.equal(command, "git");
       if (args.includes("--get")) {
@@ -27,7 +26,7 @@ function gitConfig(initialFilename = null) {
         "--global",
         "core.excludesFile",
       ]);
-      filename = args.at(-1);
+      filename = args.at(-1) ?? null;
       return "";
     },
   };
@@ -140,7 +139,7 @@ test("local ignore setup refuses to follow a configured symbolic link", () => {
   const status = globalLocalIgnoreStatus({ run: git.run });
   assert.equal(status.ignored, false);
   assert.equal(status.safeToWrite, false);
-  assert.match(status.unsafeReason, /symbolic link/);
+  assert.match(String(status.unsafeReason), /symbolic link/);
   assert.throws(
     () => ensureGlobalLocalIgnore({ run: git.run }),
     /symbolic link/,

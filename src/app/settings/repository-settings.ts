@@ -992,7 +992,13 @@ export class RepositorySettings {
   }
 
   // Replace the table whole. An empty table removes `roles`.
-  updateModelSettings({ roles = {}, expectedHash } = {}) {
+  updateModelSettings({
+    roles = {},
+    expectedHash,
+  }: {
+    roles?: Record<string, unknown>;
+    expectedHash?: string | null;
+  } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);

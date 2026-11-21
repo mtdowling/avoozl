@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "../../test/github-credentials.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -6,7 +5,7 @@ import { GitHubClient } from "../github.ts";
 
 // GitHub rejects an update to an existing file that does not name its blob sha.
 test("putFile sends the existing file's sha and none for a new file", async () => {
-  const puts = [],
+  const puts: { url: string; body: { sha?: string } }[] = [],
     github = defaultJob(
       "spec-branch",
       new GitHubClient({
@@ -14,14 +13,17 @@ test("putFile sends the existing file's sha and none for a new file", async () =
         apiUrl: "https://api.example.test",
         fetch: async (url, options) => {
           const json = { headers: { "content-type": "application/json" } };
-          if (options.method === "GET")
+          if (options?.method === "GET")
             return String(url).includes("/old.md")
               ? new Response('{"sha":"abc123"}', { status: 200, ...json })
               : new Response('{"message":"Not Found"}', {
                   status: 404,
                   ...json,
                 });
-          puts.push({ url: String(url), body: JSON.parse(options.body) });
+          puts.push({
+            url: String(url),
+            body: JSON.parse(String(options?.body)),
+          });
           return new Response("{}", { status: 200, ...json });
         },
       }),

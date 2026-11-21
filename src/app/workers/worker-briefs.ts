@@ -23,7 +23,7 @@ interface BriefContext {
 // One table cell: the steps builder, the round's closing line, or a
 // declined kind with the kind that runs instead.
 interface Cell {
-  steps?: (context: BriefContext) => unknown;
+  steps?: (context: BriefContext) => string[];
   finish?: string;
   declined?: string;
   fallback?: string;

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // specs.path, the one required file, and other Markdown files as spec text.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -18,15 +17,17 @@ import { leafBrief } from "../../delivery/delivery.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found, type PlanPreview } from "../../test/view-shapes.ts";
+import type { SpecFolder } from "../spec-plans.ts";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-const setPath = (root, value) =>
+const setPath = (root: string, value: string) =>
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({ version: 1, specs: { path: value } }),
   );
-const codes = (spec) =>
+const codes = (spec: SpecFolder) =>
   lintSpec({ spec, plan: { id: spec.name } }).diagnostics.map(
     (d) => `${d.code} ${d.file}`,
   );
@@ -135,11 +136,11 @@ test("Kiro's three-file layout reads and hashes as before", () => {
   assert.equal(result.type, "bugfix");
   assert.equal(specCategory(fix.files), "Runtime");
   assert.ok(
-    result.proposals
-      .find((p) => p.id === "fix.1.1")
-      .acceptance.includes(
-        "WHEN a file is valid THEN the system SHALL CONTINUE TO load it",
-      ),
+    found(
+      result.proposals?.find((p) => p.id === "fix.1.1"),
+    ).acceptance?.includes(
+      "WHEN a file is valid THEN the system SHALL CONTINUE TO load it",
+    ),
   );
 });
 
@@ -149,7 +150,10 @@ test("a worker's brief names every spec file as context", async (t) => {
     directory = writeSpec(root, "config");
   fs.writeFileSync(path.join(directory, "notes.md"), "# Notes\n");
   await ops.execute("plan.create", { spec: "config" });
-  const preview = await ops.execute("plan.preview", { id: "config" });
+  const preview = await ops.execute<PlanPreview & { reviewedHash: string }>(
+    "plan.preview",
+    { id: "config" },
+  );
   await ops.execute("plan.approve", {
     id: "config",
     expectedHash: preview.reviewedHash,

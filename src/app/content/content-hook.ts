@@ -44,7 +44,13 @@ const GIT_VALUE_FLAGS = new Set([
 // is not in the call. A here-document's body is skipped, and the command
 // carrying it is marked `heredoc`.
 
-export function parseShell(input) {
+// One shell command: its words, and whether it carries a here-document.
+export interface ShellCommand {
+  words: { text: string; dynamic: boolean }[];
+  heredoc: boolean;
+}
+
+export function parseShell(input: unknown): ShellCommand[] {
   const s = String(input ?? "").replace(/\\\r?\n/g, ""),
     commands = [],
     pending = [];

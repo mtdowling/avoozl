@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The content hook (R85, design §6.14) scans an agent's writes before they
 // run. The terms
 // file is fake and the canary is made up; no real term is in this repo.
@@ -7,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { bindContentRules } from "../content-rules.ts";
 import { contentHook, parseShell, scanCall } from "../content-hook.ts";
 import { Store } from "../../store/store.ts";
@@ -20,10 +20,13 @@ process.env.GIT_CONFIG_GLOBAL = path.join(
 fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "");
 
 const CANARY = "zorblatcanary",
-  git = (cwd, ...args) =>
+  git = (cwd: string, ...args: string[]) =>
     execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-function workspace(t, { terms = `canary: ${CANARY}\n` } = {}) {
+function workspace(
+  t: TestContext,
+  { terms = `canary: ${CANARY}\n` }: { terms?: string | null } = {},
+) {
   const root = temporaryDirectory("avoozl-pc-"),
     dbPath = path.join(root, "workspace.sqlite"),
     store = new Store(dbPath);
@@ -45,7 +48,7 @@ function workspace(t, { terms = `canary: ${CANARY}\n` } = {}) {
   return { root, store, dbPath, configFile };
 }
 
-const refused = (store, command, cwd) => {
+const refused = (store: Store, command: string, cwd: string) => {
   const result = scanCall(store, { command, cwd });
   assert.equal(result.ok, false, command);
   assert.ok(
@@ -125,14 +128,15 @@ test("a body or message file is read, and a stdin or missing file is refused", (
 
 test("text from a shell expansion or here-document is refused with the reason", (t) => {
   const { store, root } = workspace(t);
-  for (const [command, pattern] of [
+  const cases: [string, RegExp][] = [
     ['gh issue comment 4 --body "$(cat note.md)"', /shell expansion/],
     ["gh issue comment 4 --body $BODY", /shell expansion/],
     ["gh issue comment 4 --body `cat note.md`", /shell expansion/],
     ["git push origin $BRANCH", /shell expansion/],
     ['git commit -m "$(cat <<EOF\nhello\nEOF\n)"', /shell expansion/],
     ["gh issue comment 4 -F - <<EOF\nhello\nEOF", /here-document/],
-  ]) {
+  ];
+  for (const [command, pattern] of cases) {
     const text = refused(store, command, root);
     assert.match(text, pattern, command);
     assert.match(text, /Write the text to a file and pass the file/);
@@ -259,7 +263,7 @@ test("a missing terms file refuses the call and names the set", (t) => {
 
 test("the hook command returns exit code 2 with a message, 0 for a pass", (t) => {
   const { root, dbPath, configFile } = workspace(t),
-    run = (event) =>
+    run = (event: unknown) =>
       contentHook({
         stdin: typeof event === "string" ? event : JSON.stringify(event),
         dbPath,
@@ -267,7 +271,7 @@ test("the hook command returns exit code 2 with a message, 0 for a pass", (t) =>
         configFile,
         cwd: root,
       }),
-    call = (command) => ({
+    call = (command: string) => ({
       hook_event_name: "preToolUse",
       cwd: root,
       tool_name: "execute_bash",
@@ -299,7 +303,7 @@ test("the hook command returns exit code 2 with a message, 0 for a pass", (t) =>
 });
 
 test("the shell reader splits commands and marks expansions", () => {
-  const words = (line) =>
+  const words = (line: string) =>
     parseShell(line).map((c) => c.words.map((w) => w.text));
   assert.deepEqual(words("a b && c 'd e' \"f g\"; h\\ i | j"), [
     ["a", "b"],

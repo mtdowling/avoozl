@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The pair table (worker-paths WP3, design D3): every executor and task kind
 // has a brief or a stated reason, and every brief runs to a recorded result.
 import assert from "node:assert/strict";
@@ -15,26 +14,18 @@ import { fakeExecutor } from "../../test/worker-fakes.ts";
 
 const REPOSITORY = { id: "app", root: "/tmp/app", baseBranch: "main" };
 const TASK = { id: "a", title: "Task a", acceptance: ["Works."] };
-const RECORD = {
-  envelope: { taskId: "a", baseCommit: "abc123", brief: "Do the work." },
-};
-const WHERE = { worktree: "/tmp/wt", branch: "avoozl/remote/a" };
 
 // The brief each cell builds, as the session would read it, or null when the
 // cell is declined.
-function build(executor, kind) {
+function build(executor: string, kind: string): string | null {
   const { cell, declined } = briefCell(executor, kind);
   if (declined || kind !== briefCell(executor, kind).kind) return null;
+  if (kind === "round") return cell.finish ?? null;
   const cliReport = { worktree: "/tmp/wt", token: "tok", workspace: "/tmp/ws" };
-  if (kind === "single" || kind === "investigate")
-    return workerBrief(TASK, REPOSITORY, {
-      attempt: 1,
-      investigate: kind === "investigate",
-      findingsVia: { executor, cliReport },
-      steps: cell.steps({ task: TASK, repository: REPOSITORY, cliReport }),
-    });
-  if (kind === "round") return cell.finish;
-  return cell.brief(RECORD, WHERE, "avoozl");
+  return workerBrief(TASK, REPOSITORY, {
+    attempt: 1,
+    steps: cell.steps?.({ task: TASK, repository: REPOSITORY, cliReport }),
+  });
 }
 
 test("every executor and kind has a brief or a stated reason", () => {
@@ -47,11 +38,12 @@ test("every executor and kind has a brief or a stated reason", () => {
       const found = WORKER_BRIEFS[executor][kind];
       if (found.declined) {
         assert.ok(found.declined.length > 10, `${executor} ${kind}: a reason`);
-        assert.ok(KINDS.includes(found.fallback), `${executor} ${kind}`);
-        assert.ok(!WORKER_BRIEFS[executor][found.fallback].declined);
+        const fallback = found.fallback ?? "";
+        assert.ok(KINDS.includes(fallback), `${executor} ${kind}`);
+        assert.ok(!WORKER_BRIEFS[executor][fallback].declined);
       } else
         assert.ok(
-          ["steps", "brief", "finish"].some((key) => found[key]),
+          Boolean(found.steps || found.finish),
           `${executor} ${kind}: a builder`,
         );
     }

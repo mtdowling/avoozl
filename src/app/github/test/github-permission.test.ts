@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "../../test/github-credentials.ts";
 // A login without push access cannot read collaborator permissions: its own
 // role comes from the repository, and another login's reads as none.
@@ -7,7 +6,7 @@ import test from "node:test";
 import { GitHubClient } from "../github.ts";
 import { landingRights, qualifiedRef } from "../../landing/push-head.ts";
 
-const json = (status, body) =>
+const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -15,7 +14,7 @@ const json = (status, body) =>
 
 // GitHub as a read-only `reader` sees it on acme/app, and as a writer on
 // acme/app-fork.
-function client(seen = []) {
+function client(seen: string[] = []) {
   return defaultJob(
     "check-in",
     new GitHubClient({
@@ -52,7 +51,7 @@ function client(seen = []) {
 }
 
 test("the signed-in login's own role comes from the repository when GitHub refuses", async () => {
-  const seen = [],
+  const seen: string[] = [],
     github = client(seen);
   assert.equal(
     (await github.permission("acme/app", "reader")).permission,
