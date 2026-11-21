@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Maps changed paths to the tests that can be affected. Pull requests and
 // `npm run test:changed` use it; main and the nightly run always run it with
 // --full. Anything it cannot classify selects every test.
@@ -23,7 +22,7 @@ const root = path.resolve(
 const IN_TEST_DIR = /^src\/app\/(.+\/)?test\//;
 
 // Tests that read repository files outside src/ while they run.
-const READS = {
+const READS: Record<"docs" | "examples" | "ui", string[]> = {
   docs: [
     "docs-json",
     "docs-links",
@@ -58,7 +57,7 @@ const READS = {
 
 const SCANNERS = ["no-sage", "release-scan"];
 
-const list = (cmd, args) =>
+const list = (cmd: string, args: string[]) =>
   execFileSync(cmd, args, { cwd: root, encoding: "utf8" })
     .split("\n")
     .filter(Boolean);
@@ -68,9 +67,7 @@ export const nodeTestFiles = () =>
       "ls-files",
       "-co",
       "--exclude-standard",
-      "src/*.test.mjs",
       "src/*.test.ts",
-      "src/app/*test/*.test.mjs",
       "src/app/*test/*.test.ts",
     ]),
   ].sort();
@@ -79,7 +76,6 @@ export const uiTestFiles = () =>
     "ls-files",
     "-co",
     "--exclude-standard",
-    "hosts/kirocrew/ui/test/*.test.mjs",
     "hosts/kirocrew/ui/test/*.test.ts",
   ]).sort();
 
@@ -87,11 +83,12 @@ export const uiTestFiles = () =>
 // literal import() call.
 const IMPORT =
   /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["'](\.{1,2}\/[^"']+)["']/g;
-function closure(entry, cache = new Map()) {
-  const seen = new Set(),
+type Imports = Map<string, string[]>;
+function closure(entry: string, cache: Imports = new Map()) {
+  const seen = new Set<string>(),
     todo = [entry];
   while (todo.length) {
-    const file = todo.pop();
+    const file = todo.pop()!;
     if (seen.has(file)) continue;
     seen.add(file);
     let deps = cache.get(file);
@@ -117,34 +114,35 @@ const STARTS_PROCESS =
   /process\.execPath|cli\.(mjs|ts)|avoozl\.mjs|\bfork\s*\(/;
 const SPAWN_ENTRIES = ["cli.ts", "hosts/kirocrew/bin/avoozl.mjs"];
 
-const directImports = (file) => {
+const directImports = (file: string) => {
   const text = fs.readFileSync(path.join(root, file), "utf8");
   return [...text.matchAll(IMPORT)].map((m) =>
     path.posix.join(path.posix.dirname(file), m[1]),
   );
 };
-const base = (f) => path.posix.basename(f).replace(/\.test\.(mjs|ts)$/, "");
-const pick = (names, files) =>
+const base = (f: string) =>
+  path.posix.basename(f).replace(/\.test\.(mjs|ts)$/, "");
+const pick = (names: string[], files: string[]) =>
   files.filter((f) => IN_TEST_DIR.test(f) && names.includes(base(f)));
 
 export function select(
-  changed,
+  changed: string[],
   { all = nodeTestFiles(), ui = uiTestFiles() } = {},
 ) {
   const out = {
     full: false,
-    reasons: [],
-    node: new Set(),
+    reasons: [] as string[],
+    node: new Set<string>(),
     ui: false,
     specLint: false,
   };
-  const full = (why) => {
+  const full = (why: string) => {
     out.full = true;
     out.reasons.push(why);
   };
   if (!changed.length) full("no changed files could be read");
-  const cache = new Map(),
-    srcChanged = [];
+  const cache: Imports = new Map(),
+    srcChanged: string[] = [];
   for (const f of changed) {
     if (out.full) break;
     const isTest = /\.test\.(mjs|ts)$/.test(f);
@@ -180,7 +178,7 @@ export function select(
     else if (f.startsWith("prompts/")) full(`${f}: prompt read at run time`);
     else if (/^src\/.+\.(mjs|ts)$/.test(f)) srcChanged.push(f);
     else if (f.startsWith("src/")) full(`${f}: non-module file under src`);
-    else if (f === "cli.ts" || f === "cli.ts") srcChanged.push(f);
+    else if (f === "cli.ts") srcChanged.push(f);
     else if (f.startsWith("examples/")) {
       for (const t of pick(READS.examples, all)) out.node.add(t);
       out.reasons.push(`${f}: example read by tests`);
@@ -199,7 +197,7 @@ export function select(
     out.ui = true;
     const map = JSON.parse(
       fs.readFileSync(path.join(root, "scripts/test/test-map.json"), "utf8"),
-    ).files;
+    ).files as Record<string, string[]>;
     for (const s of srcChanged) {
       const ran = (map[s] ?? []).filter((t) => all.includes(t));
       for (const t of ran) out.node.add(t);
@@ -241,7 +239,7 @@ export function select(
   };
 }
 
-export function changedFiles(base) {
+export function changedFiles(base: string) {
   const merge = list("git", ["merge-base", base, "HEAD"])[0];
   return [
     ...new Set([
@@ -253,7 +251,8 @@ export function changedFiles(base) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2),
-    at = (flag) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : null);
+    at = (flag: string) =>
+      args.includes(flag) ? args[args.indexOf(flag) + 1] : null;
   const files = args.includes("--full")
     ? []
     : changedFiles(at("--base") ?? "origin/main");

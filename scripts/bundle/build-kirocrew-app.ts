@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -39,11 +38,11 @@ await build({
 writeUiStamp(ui);
 // The standalone page (SW2). A failure is reported and fails the build at the
 // end, after everything else is built.
-let standaloneError = null;
+let standaloneError: Error | null = null;
 try {
   await buildStandalone({ ui });
 } catch (error) {
-  standaloneError = error;
+  standaloneError = error as Error;
 }
 
 // Kiro Crew installs the app by copying kirocrew-app, and refuses entry points

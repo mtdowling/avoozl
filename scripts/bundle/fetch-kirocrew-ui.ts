@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Fetches the Kiro Crew source the standalone page builds on, at the release
 // named in hosts/kirocrew/ui/kirocrew-pin.json, into a cache outside git, and
 // checks its digest before anything reads a file. No Kiro Crew file is ever
@@ -42,10 +41,19 @@ export const KEEP = [
   "website/src",
 ];
 
-export const readPin = (file = PIN_FILE) =>
+// The pinned Kiro Crew release: its repository, tag, commit and digest.
+export type Pin = {
+  repository: string;
+  tag: string;
+  commit: string;
+  digest: string;
+  [key: string]: unknown;
+};
+
+export const readPin = (file = PIN_FILE): Pin =>
   JSON.parse(fs.readFileSync(file, "utf8"));
 
-function* files(base, relative) {
+function* files(base: string, relative: string): Generator<string> {
   const full = path.join(base, relative);
   let stat;
   try {
@@ -60,7 +68,7 @@ function* files(base, relative) {
 }
 
 // sha256 over "<file sha256>  <path>" lines, paths sorted, forward slashes.
-export function treeDigest(folder) {
+export function treeDigest(folder: string) {
   const all = KEEP.flatMap((entry) => [...files(folder, entry)]).sort(),
     sum = createHash("sha256");
   for (const file of all)
@@ -80,7 +88,7 @@ export function cacheRoot(env = process.env) {
   );
 }
 
-export function checkDigest(folder, pin) {
+export function checkDigest(folder: string, pin: Pin) {
   const found = treeDigest(folder);
   if (found !== pin.digest)
     throw new Error(
@@ -88,7 +96,7 @@ export function checkDigest(folder, pin) {
     );
 }
 
-function git(args, cwd) {
+function git(args: string[], cwd: string) {
   return execFileSync("git", args, {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
@@ -97,7 +105,7 @@ function git(args, cwd) {
 }
 
 // A partial, sparse checkout of the pinned commit: only the kept paths.
-function download(pin, into) {
+function download(pin: Pin, into: string) {
   fs.mkdirSync(into, { recursive: true });
   git(["init", "-q"], into);
   git(["remote", "add", "origin", pin.repository], into);
@@ -153,7 +161,7 @@ export function fetchKiroCrewUi({
   } catch (error) {
     fs.rmSync(staging, { recursive: true, force: true });
     throw new Error(
-      `The Kiro Crew source for the standalone page could not be had: ${error.message.split("\n")[0]}`,
+      `The Kiro Crew source for the standalone page could not be had: ${(error as Error).message.split("\n")[0]}`,
     );
   }
   return folder;
@@ -168,7 +176,7 @@ if (
       console.log(treeDigest(fetchFolder()));
     else console.log(fetchKiroCrewUi());
   } catch (error) {
-    console.error(error.message);
+    console.error((error as Error).message);
     process.exitCode = 1;
   }
 }

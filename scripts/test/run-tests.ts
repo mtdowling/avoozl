@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Runs the node tests and the page tests. With no flag, every test runs
 // (`npm test`). `--changed [--base REV]` runs only what scripts/test/select-tests.ts
 // picks (`npm run test:changed`). `--ui` also runs the page tests after the
@@ -17,7 +16,7 @@ import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { machineAvoozlPaths } from "../../src/app/settings/host-config.ts";
 import { changedFiles, select } from "./select-tests.ts";
-import { allTestFiles, planFor, shardOf } from "./test-plan.ts";
+import { allTestFiles, planFor, shardOf, type System } from "./test-plan.ts";
 
 const args = process.argv.slice(2),
   changed = args.includes("--changed"),
@@ -78,7 +77,7 @@ process.env.NODE_OPTIONS = [
 ]
   .filter(Boolean)
   .join(" ");
-const node = (files) =>
+const node = (files: string[]) =>
   spawnSync(
     process.execPath,
     [
@@ -90,28 +89,22 @@ const node = (files) =>
     { stdio: "inherit" },
   ).status ?? 1;
 
-const flag = (name) =>
+const flag = (name: string) =>
   args.includes(name) ? args[args.indexOf(name) + 1] : null;
 const system = flag("--system"),
   shard = flag("--shard")?.split("/").map(Number),
   chromeOnly = args.includes("--chrome-only");
-if (system && !["linux", "macos", "windows"].includes(system))
+const isSystem = (value: string | null): value is System =>
+  value === "linux" || value === "macos" || value === "windows";
+if (system && !isSystem(system))
   throw Error("--system takes linux, macos or windows");
 if (shard && !(shard[0] >= 1 && shard[0] <= shard[1]))
   throw Error("--shard takes K/N with 1 <= K <= N");
 if ((shard || chromeOnly) && !system)
   throw Error("--shard and --chrome-only need --system");
 
-let nodeFiles = [
-    "src/*.test.mjs",
-    "src/*.test.ts",
-    "src/app/**/test/*.test.mjs",
-    "src/app/**/test/*.test.ts",
-  ],
-  uiFiles = [
-    "hosts/kirocrew/ui/test/*.test.mjs",
-    "hosts/kirocrew/ui/test/*.test.ts",
-  ];
+let nodeFiles = ["src/*.test.ts", "src/app/**/test/*.test.ts"],
+  uiFiles = ["hosts/kirocrew/ui/test/*.test.ts"];
 if (system && !changed) ({ node: nodeFiles, ui: uiFiles } = allTestFiles());
 if (changed) {
   const sel = select(changedFiles(base));
@@ -122,7 +115,7 @@ if (changed) {
   nodeFiles = sel.node;
   uiFiles = sel.uiFiles;
 }
-if (system) {
+if (isSystem(system)) {
   const plan = planFor({ node: nodeFiles, uiFiles }, system, {
     pullRequest: changed,
   });

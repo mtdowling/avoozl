@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Writes scripts/test/test-map.json: for each source file, the node test files that
 // run at least one of its functions. Each test file runs alone under V8
 // coverage, and the node processes it starts count too. scripts/test/select-tests.ts
@@ -20,25 +19,19 @@ const root = path.resolve(
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-map-")),
   tests = execFileSync(
     "git",
-    [
-      "ls-files",
-      "src/*.test.mjs",
-      "src/*.test.ts",
-      "src/app/*test/*.test.mjs",
-      "src/app/*test/*.test.ts",
-    ],
+    ["ls-files", "src/*.test.ts", "src/app/*test/*.test.ts"],
     { cwd: root, encoding: "utf8" },
   )
     .split("\n")
     .filter(Boolean)
     .sort(),
-  tracked = (re) =>
+  tracked = (re: RegExp) =>
     execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" })
       .split("\n")
       .filter((f) => re.test(f));
 
-const runOne = (test, i) =>
-  new Promise((resolve) => {
+const runOne = (test: string, i: number) =>
+  new Promise<{ test: string; dir: string }>((resolve) => {
     const dir = path.join(tmp, String(i)),
       child = spawn(
         process.execPath,
@@ -52,7 +45,7 @@ const runOne = (test, i) =>
     child.on("close", () => resolve({ test, dir }));
   });
 
-const results = [];
+const results: { test: string; dir: string }[] = [];
 let next = 0;
 await Promise.all(
   Array.from(
@@ -66,7 +59,7 @@ await Promise.all(
   ),
 );
 
-const exercised = new Map(); // file -> Set(test)
+const exercised = new Map<string, Set<string>>();
 for (const { test, dir } of results) {
   for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
     let data;
@@ -80,16 +73,21 @@ for (const { test, dir } of results) {
         continue;
       const file = entry.url.slice(prefix.length);
       // The first entry is the module itself; later entries are its functions.
-      if (!entry.functions.some((f, i) => i > 0 && f.ranges[0].count > 0))
+      if (
+        !entry.functions.some(
+          (f: { ranges: { count: number }[] }, i: number) =>
+            i > 0 && f.ranges[0].count > 0,
+        )
+      )
         continue;
       if (!exercised.has(file)) exercised.set(file, new Set());
-      exercised.get(file).add(test);
+      exercised.get(file)!.add(test);
     }
   }
 }
-const files = {};
-for (const f of tracked(/^(src\/.*\.(mjs|ts)|cli\.(mjs|ts))$/).filter(
-  (f) => !/\.test\.(mjs|ts)$/.test(f) && !/^src\/app\/(.+\/)?test\//.test(f),
+const files: Record<string, string[]> = {};
+for (const f of tracked(/^(src\/.*\.ts|cli\.ts)$/).filter(
+  (f) => !/\.test\.ts$/.test(f) && !/^src\/app\/(.+\/)?test\//.test(f),
 ))
   files[f] = [...(exercised.get(f) ?? [])].sort();
 // osNeutral is a reviewed list kept by hand (scripts/test/test-plan.ts); a new

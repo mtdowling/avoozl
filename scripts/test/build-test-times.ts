@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Writes scripts/test/test-times.json: how long each test file takes alone, in
 // milliseconds, with Chrome skipped as on the macOS and Windows shards.
 // scripts/test/test-plan.ts uses it to give each CI shard about the same work.
@@ -20,8 +19,8 @@ const root = path.resolve(
 const { node, ui } = allTestFiles();
 const files = [...node, ...ui];
 
-const time = (file) =>
-  new Promise((resolve) => {
+const time = (file: string) =>
+  new Promise<number>((resolve) => {
     const start = Date.now();
     spawn(process.execPath, ["--test", "--test-timeout=60000", file], {
       cwd: root,
@@ -30,7 +29,7 @@ const time = (file) =>
     }).on("close", () => resolve(Date.now() - start));
   });
 
-const times = {};
+const times: Record<string, number> = {};
 let next = 0;
 // Eight at a time, like a CI runner, so waits for the disk show up.
 await Promise.all(
