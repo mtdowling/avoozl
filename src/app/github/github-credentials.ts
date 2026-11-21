@@ -386,7 +386,15 @@ export function machineCredentials({
       listeners[event].push(fn);
     },
     // {token, login, person, provider, granted, broader, expiresAt}.
-    async token({ repository = null, owner, job }) {
+    async token({
+      repository = null,
+      owner,
+      job,
+    }: {
+      repository?: string | null;
+      owner?: string;
+      job: string;
+    }) {
       const permissions = jobOf(job).permissions,
         scopeKey = lower(repository || owner),
         choice = choose(owner),
