@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt, see the commit message
 // P57 model proxy: an HTTPS CONNECT proxy on 127.0.0.1 that tunnels only to
 // AWS Bedrock runtime hosts on port 443 (bedrock-runtime for Claude Code,
 // bedrock-mantle for Codex's OpenAI models), so a sandboxed child whose

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { select } from "../../../scripts/test/select-tests.mjs";
+import { select } from "../../../scripts/test/select-tests.ts";
 
 test("a docs or spec change runs only the tests that read repository docs", () => {
   const s = select([
@@ -21,8 +21,8 @@ test("anything unclassified, a package or CI file, a helper, or the selector run
     "package.json",
     ".github/workflows/test.yml",
     "src/app/test/helpers.mjs",
-    "scripts/test/select-tests.mjs",
-    "scripts/test/run-tests.mjs",
+    "scripts/test/select-tests.ts",
+    "scripts/test/run-tests.ts",
     "something-new/file.txt",
     "src/schema.json",
   ])

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ROLE_TABLE } from "../agents/role-table.mjs";
-import { ROWS } from "../../../scripts/proofs/ms-roles-rows.mjs";
+import { ROWS } from "../../../scripts/proofs/ms-roles-rows.ts";
 
 test("every ROLE_TABLE row with process: true is a row of the role proof", () => {
   const driven = new Set(ROWS.flatMap((row) => row.drives));

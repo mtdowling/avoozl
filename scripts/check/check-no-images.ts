@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Fails when git tracks an image. Screenshots are never committed: keep them
 // outside git (.avoozl-shots/ or the temp folder) and show them in chat.
 // ALLOWED lists the real app assets.

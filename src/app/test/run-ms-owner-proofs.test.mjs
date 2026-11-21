@@ -14,7 +14,7 @@ import {
   processLines,
   scratchRepoName,
   scratchRepoProblem,
-} from "../../../scripts/proofs/run-ms-owner-proofs.mjs";
+} from "../../../scripts/proofs/run-ms-owner-proofs.ts";
 
 const GITHUB = [
   "--github-claude",
@@ -104,7 +104,7 @@ test("only an interactive Claude Code or Codex session outside the run is a fron
     "  601     1 ttys002  /opt/homebrew/bin/codex --model gpt-5",
     "  602     1 ??       codex app-server",
     "  603     1 ttys003  claude -p hello",
-    "  700   650 ttys004  node scripts/proofs/run-ms-owner-proofs.mjs",
+    "  700   650 ttys004  node scripts/proofs/run-ms-owner-proofs.ts",
     "  701   700 ttys004  codex",
     "  702   701 ttys004  /usr/bin/codex exec --json",
     "  800     1 ttys005  vim codex.json",

@@ -1,15 +1,16 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Writes docs/github-workflow-scenarios.md from the workflow kit's cases:
 //
-//   node scripts/kit/scenarios-doc.mjs          write the page
-//   node scripts/kit/scenarios-doc.mjs --check  fail when the page is stale
+//   node scripts/kit/scenarios-doc.ts          write the page
+//   node scripts/kit/scenarios-doc.ts --check  fail when the page is stale
 //
 // Each case becomes a Given / When / Then section with links to the rules it
 // checks. `renderScenarios` is the same function the test calls.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { probesOf, readCases } from "../../workflow-kit/load.mjs";
+import { probesOf, readCases } from "../../workflow-kit/load.ts";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

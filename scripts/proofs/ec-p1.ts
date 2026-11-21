@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Proof ec-p1 (epic-context): context reaches the owner's own spec task and
 // nothing else. Everything runs on this machine in temporary folders: an
 // isolated Avoozl home and workspace, a scratch repository acme/widgets with
@@ -9,7 +10,7 @@
 // rules, Activity) does the rest. Prints one JSON line per observation and
 // writes the receipt; exits 1 on a failed expectation.
 //
-//   node scripts/proofs/ec-p1.mjs <receipt file>
+//   node scripts/proofs/ec-p1.ts <receipt file>
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -24,7 +25,7 @@ delete process.env.KIROCREW_HOME;
 const imp = (file) => import(path.join(repo, "src", "app", file));
 const [receipt] = process.argv.slice(2);
 if (!receipt) {
-  console.error("Usage: ec-p1.mjs <receipt file>");
+  console.error("Usage: ec-p1.ts <receipt file>");
   process.exit(2);
 }
 
@@ -339,7 +340,7 @@ fs.writeFileSync(
   [
     "# Proof ec-p1: epic context reaches the owner's own spec task and nothing else",
     "",
-    `Run ${new Date().toISOString()} on ${os.platform()} with \`node scripts/proofs/ec-p1.mjs\`.`,
+    `Run ${new Date().toISOString()} on ${os.platform()} with \`node scripts/proofs/ec-p1.ts\`.`,
     "",
     "Setup: an isolated home and workspace, scratch repository acme/widgets with an approved one-task spec, the example `team-context` plugin with a fake stdio MCP server `research`, a fake GitHub, and a scripted harness CLI. Avoozl's gate, supervisor, broker, relay, content rules and Activity are the real code. This machine has no sandbox, so the harness ran under the per-machine opt-in; the sandbox profile itself is covered by unit tests only.",
     "",

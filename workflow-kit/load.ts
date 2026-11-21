@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt, see the commit message
 // Reads the workflow kit's cases and judges a runner's results. It depends on
 // nothing but Node, so any runner written in JavaScript can use it as is.
 import fs from "node:fs";

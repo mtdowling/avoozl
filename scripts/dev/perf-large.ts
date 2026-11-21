@@ -1,7 +1,8 @@
+// @ts-nocheck: typing debt, see the commit message
 // Time the tick and the page reads on a large synthetic workspace, with the
 // SQLite statements each one runs and the size of its reply.
 //
-//   node scripts/dev/perf-large.mjs [--specs 60] [--keep DIR]
+//   node scripts/dev/perf-large.ts [--specs 60] [--keep DIR]
 //
 // Builds the workspace from src/app/test/large-workspace.mjs in a temporary
 // folder (or DIR), prints one Markdown table, and removes the folder unless

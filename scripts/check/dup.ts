@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Copy/paste check with jscpd, configured in .jscpd.json.
 //
-//   node scripts/check/dup.mjs              whole repo; fails when duplicated lines
+//   node scripts/check/dup.ts              whole repo; fails when duplicated lines
 //                                     grew past scripts/check/dup-baseline.json
-//   node scripts/check/dup.mjs --update     same, then lowers the baseline to the
+//   node scripts/check/dup.ts --update     same, then lowers the baseline to the
 //                                     current count (never raises it)
-//   node scripts/check/dup.mjs --changed [--base REF]
+//   node scripts/check/dup.ts --changed [--base REF]
 //                                     clones that touch files changed since
 //                                     the merge base with REF (origin/main);
 //                                     fails when the change adds or grows one

@@ -27,7 +27,9 @@ Run `npm run format` (Biome) before committing; CI runs `npm run format:check`.
 Markdown is not auto-formatted.
 Read `.kiro/skills/writing-documentation/SKILL.md` before writing docs, specs,
 prompts or skills.
-Run `npm test` and `git diff --check` before landing. `npm run test:changed`
+Run `npm test`, `npm run typecheck` and `git diff --check` before landing.
+Node runs `.ts` files directly (type stripping), so TypeScript stays erasable:
+no `enum`, `namespace` or parameter properties. `npm run test:changed`
 runs only the tests a change reaches, as CI does. The built page
 (`hosts/kirocrew/ui/dist`) is not in git; `npm run build` makes it. Do not add commit attribution
 or co-authors. Use short imperative commit messages.

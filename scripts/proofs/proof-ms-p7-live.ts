@@ -1,13 +1,14 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Proof ms-p7 (machine-server MS12, design D5): the Kiro Crew cron is the
 // machine's timer. On a throwaway test Kiro Crew with its own home and port,
 // the cron runs the tick pass, opens the task's lane chats, sends the
 // message the pass released, and sets trust mode again after the gateway
 // restarts. Nothing else is in the cron's runs.
 //
-//   node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR --port PORT --github OWNER/NAME setup
-//   node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR --port PORT watch
-//   node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR --port PORT cleanup
+//   node scripts/proofs/proof-ms-p7-live.ts --root DIR --harness-dir DIR --port PORT --github OWNER/NAME setup
+//   node scripts/proofs/proof-ms-p7-live.ts --root DIR --harness-dir DIR --port PORT watch
+//   node scripts/proofs/proof-ms-p7-live.ts --root DIR --harness-dir DIR --port PORT cleanup
 //
 // `setup` makes a private scratch repository on GitHub with gh, a checkout
 // of it, a test-crew worker agent with shell tools, and a workspace in the
@@ -25,7 +26,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { crewApi, proofCommands } from "./machine.mjs";
+import { crewApi, proofCommands } from "./machine.ts";
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -45,7 +46,7 @@ const { values, positionals } = parseArgs({
 });
 if (!values.root || !values["harness-dir"]) {
   console.error(
-    "Usage: node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR [--port PORT] [--github OWNER/NAME] setup|watch|cleanup",
+    "Usage: node scripts/proofs/proof-ms-p7-live.ts --root DIR --harness-dir DIR [--port PORT] [--github OWNER/NAME] setup|watch|cleanup",
   );
   process.exit(64);
 }

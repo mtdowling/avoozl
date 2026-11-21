@@ -7,7 +7,7 @@ import {
   osSensitive,
   planFor,
   shardOf,
-} from "../../../scripts/test/test-plan.mjs";
+} from "../../../scripts/test/test-plan.ts";
 
 const all = allTestFiles();
 const sel = { node: all.node, uiFiles: all.ui };

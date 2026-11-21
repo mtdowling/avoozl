@@ -1,13 +1,14 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // The owner's run of the open machine-server proofs (machine-server
 // tasks.md): ms-p2 and ms-p3, which also cover nk-p2, from the owner's own
 // terminal, not from a Kiro Crew chat. It runs what a script can run, stops with
 // numbered steps where only a person can act, checks the expected result
 // itself where it can, and writes one draft receipt per proof.
 //
-//   node scripts/proofs/run-ms-owner-proofs.mjs
-//   node scripts/proofs/run-ms-owner-proofs.mjs --only ms-p3
-//   node scripts/proofs/run-ms-owner-proofs.mjs --dry-run
+//   node scripts/proofs/run-ms-owner-proofs.ts
+//   node scripts/proofs/run-ms-owner-proofs.ts --only ms-p3
+//   node scripts/proofs/run-ms-owner-proofs.ts --dry-run
 //
 // Everything lives under one root it prints (--root, else a new temporary
 // folder). Run it again with the same --root to go on where it stopped. The
@@ -23,7 +24,7 @@ import path from "node:path";
 import readline from "node:readline/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { claudeBinaries, realCodex } from "./real-claude.mjs";
+import { claudeBinaries, realCodex } from "./real-claude.ts";
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -34,9 +35,9 @@ const ROLES_SCRIPT = path.join(
   REPO,
   "scripts",
   "proofs",
-  "proof-ms-roles-live.mjs",
+  "proof-ms-roles-live.ts",
 );
-const SELF = "scripts/proofs/run-ms-owner-proofs.mjs";
+const SELF = "scripts/proofs/run-ms-owner-proofs.ts";
 
 // The order they run in: ms-p3 builds on what ms-p2 shows.
 export const PROOF_IDS = Object.freeze(["ms-p2", "ms-p3"]);

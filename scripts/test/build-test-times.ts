@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Writes scripts/test/test-times.json: how long each test file takes alone, in
 // milliseconds, with Chrome skipped as on the macOS and Windows shards.
-// scripts/test/test-plan.mjs uses it to give each CI shard about the same work.
+// scripts/test/test-plan.ts uses it to give each CI shard about the same work.
 // Files not listed count as the median. Regenerate it now and then:
 //   npm run test:times
 import os from "node:os";
@@ -9,7 +10,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { allTestFiles } from "./test-plan.mjs";
+import { allTestFiles } from "./test-plan.ts";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

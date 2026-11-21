@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -6,9 +7,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import { build } from "vite";
-import { buildHosts } from "../build-hosts.mjs";
+import { buildHosts } from "./build-hosts.ts";
 import { writeUiStamp } from "../../src/app/serve/ui-bundle.mjs";
-import { buildStandalone } from "./build-standalone.mjs";
+import { buildStandalone } from "./build-standalone.ts";
 
 const root = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),

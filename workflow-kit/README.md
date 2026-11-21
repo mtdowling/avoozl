@@ -236,7 +236,7 @@ nothing, and the stale holder scenario marks `rejectedPushes` with
 
 ## Running it
 
-`load.mjs` exports `readCases()`, which returns each case with its `files`, and
+`load.ts` exports `readCases()`, which returns each case with its `files`, and
 `judge(case, got)`, which compares a runner's answers with `expect` and returns
 `pass`, `fail`, `expected-fail` or `unexpected-pass` for each probe.
 

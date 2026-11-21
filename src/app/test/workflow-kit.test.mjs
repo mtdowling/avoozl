@@ -7,10 +7,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { judge, probesOf, readCases } from "../../../workflow-kit/load.mjs";
+import { judge, probesOf, readCases } from "../../../workflow-kit/load.ts";
 import { avoozl } from "./workflow-kit-adapter.mjs";
 import { STEPS, scenario } from "./workflow-kit-scenario.mjs";
-import { currentPage } from "../../../scripts/kit/scenarios-doc.mjs";
+import { currentPage } from "../../../scripts/kit/scenarios-doc.ts";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const read = (file) => fs.readFileSync(root + file, "utf8");

@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt, see the commit message
 // The real Claude Code and Codex binaries, for the live proofs that run them
 // under the supervisor's sandbox. The toolbox keeps each at
 // ~/.toolbox/tools/<tool>/<version>/<name> (hundreds of MB). Its bin/<name>

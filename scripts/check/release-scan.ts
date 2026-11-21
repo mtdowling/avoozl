@@ -1,13 +1,14 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Release scan (design §13 gates 5 and 7, R24.2). Lists what the npm package
 // and the Kiro Crew app package would ship, and fails when either holds an
 // excluded file or a secret, private name, or machine path that is not
 // allowed below.
 //
-//   node scripts/check/release-scan.mjs            scan the two packages, plugin docs and
+//   node scripts/check/release-scan.ts            scan the two packages, plugin docs and
 //                                            fake plugins; exit 1 on a finding
-//   node scripts/check/release-scan.mjs --tree     also count findings in every tracked file
-//   node scripts/check/release-scan.mjs --history  also count findings added anywhere in HEAD's history
+//   node scripts/check/release-scan.ts --tree     also count findings in every tracked file
+//   node scripts/check/release-scan.ts --history  also count findings added anywhere in HEAD's history
 //   --json                                   print the report as JSON
 //
 // Research under docs/research/ and receipts under docs/evidence/ record

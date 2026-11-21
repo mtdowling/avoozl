@@ -14,7 +14,7 @@ import {
   scanPackages,
   scanPlugins,
   scanText,
-} from "../../../scripts/check/release-scan.mjs";
+} from "../../../scripts/check/release-scan.ts";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Proof ms-p2 and ms-p3 (machine-server D6, D7), and ms-roles (without-kirocrew
 // D8): every role of Avoozl on one harness, with no front end open. A timer
 // runs `avoozl tick` every 10 seconds, each a process of its own that runs one
@@ -19,8 +20,8 @@
 // open, since the run's own home has none. --root must not exist yet or be
 // empty: nothing writes there before setup checks it.
 //
-//   node scripts/proofs/proof-ms-roles-live.mjs --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes]
-//   node scripts/proofs/proof-ms-roles-live.mjs --root DIR --harness fake-cli --offline
+//   node scripts/proofs/proof-ms-roles-live.ts --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes]
+//   node scripts/proofs/proof-ms-roles-live.ts --root DIR --harness fake-cli --offline
 //
 // `--harness fake-cli --offline` checks this script's plumbing with no GitHub
 // and a fake agent, and never counts as the proof. `--probes` also runs the
@@ -32,9 +33,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { installHarness, isolatedMachine, proofCommands } from "./machine.mjs";
-import { ROWS } from "./ms-roles-rows.mjs";
-import { realClaude, realCodex } from "./real-claude.mjs";
+import { installHarness, isolatedMachine, proofCommands } from "./machine.ts";
+import { ROWS } from "./ms-roles-rows.ts";
+import { realClaude, realCodex } from "./real-claude.ts";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -63,7 +64,7 @@ const AGENT = { "claude-code": "claude", codex: "codex", "fake-cli": "fake" }[
 ];
 if (!values.root || !AGENT) {
   console.error(
-    "Usage: node scripts/proofs/proof-ms-roles-live.mjs --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes] | --root DIR --harness fake-cli --offline",
+    "Usage: node scripts/proofs/proof-ms-roles-live.ts --root DIR --github OWNER/SCRATCH --harness claude-code|codex [--probes] | --root DIR --harness fake-cli --offline",
   );
   process.exit(64);
 }
@@ -606,7 +607,7 @@ async function prove() {
     proxy = spawn(
       process.execPath,
       [
-        path.join(REPO_ROOT, "scripts", "proofs", "p57-model-proxy.mjs"),
+        path.join(REPO_ROOT, "scripts", "proofs", "p57-model-proxy.ts"),
         String(PROXY_PORT),
         P.proxyLog,
       ],

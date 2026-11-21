@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt, see the commit message
 // Lint every spec folder under .kiro/specs/ with the checks approval runs
 // (lintSpec). Exits 1 when any folder has an error. CI runs it on every
 // change, including docs-only ones that skip the full suite.
