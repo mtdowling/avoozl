@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Links the `avoozl` command globally after `npm install` or `npm ci` in a
 // checkout (the `postinstall` script), as `npm link` does: the global
 // `avoozl` then runs this checkout's cli.ts from any folder. It skips CI, a
@@ -16,7 +15,7 @@ const root = path.resolve(
 );
 
 // Returns why this install does not link the command, or "" when it does.
-export function skipReason(env, dir) {
+export function skipReason(env: NodeJS.ProcessEnv, dir: string) {
   if (env.AVOOZL_NO_GLOBAL_LINK) return "AVOOZL_NO_GLOBAL_LINK is set";
   if (env.CI) return "CI is set";
   if (env.npm_config_global === "true") return "this is a global install";
@@ -28,7 +27,10 @@ export function skipReason(env, dir) {
 // Returns the command and arguments that link `dir` into npm's global prefix.
 // A folder installed globally is a symlink to it, and --ignore-scripts keeps
 // that install from running this script again.
-export function linkCommand(env, dir) {
+export function linkCommand(
+  env: NodeJS.ProcessEnv,
+  dir: string,
+): [string, string[]] {
   const args = [
     "install",
     "--global",

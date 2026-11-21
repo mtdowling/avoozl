@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { linkCommand, skipReason } from "../link-global.ts";

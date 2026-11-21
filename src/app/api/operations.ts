@@ -140,7 +140,7 @@ import {
   tickCommits,
   tickOpenGroups,
 } from "../specs/spec-ticks.ts";
-import { canonical, fail } from "../store/store.ts";
+import { canonical, fail, type Store } from "../store/store.ts";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.ts";
 import { syncWorkspaceRepository } from "../workspace/workspace-repository.ts";
 import { randomUUID } from "node:crypto";
@@ -160,9 +160,43 @@ export function postingActor(name, context) {
   return context.person === true ? "person" : null;
 }
 
+// Who is calling an operation (the dispatcher reads it, never the caller's
+// input): an attested Kiro Crew session, any MCP transport, or the person at
+// the command line or on the page.
+export interface OperationContext {
+  caller?: { sessionKey: string } | null;
+  mcp?: boolean;
+  local?: boolean;
+  person?: boolean;
+  [key: string]: unknown;
+}
+
+export interface OperationsOptions {
+  operator?: string;
+  github?: unknown;
+  configuration?: { workspaceRoot?: string; [key: string]: unknown } | null;
+  workspaceRoot?: string | null;
+  plansRoot?: string | null;
+  repositoryBindingGuard?: unknown;
+  notifier?: unknown;
+  sessionStopper?: unknown;
+  kirocrewAbsent?: boolean;
+  pluginSettingsFile?: string;
+  plugins?: unknown;
+  configDirectory?: string | null;
+  shippedPrompts?: unknown;
+  backgroundReads?: boolean;
+}
+
 export class Operations {
+  // shortcut: only the fields typed callers read are declared; the rest of
+  // this class is still typing debt.
+  store: Store;
+  operator: string;
+  workspaceRoot: string | null;
+  plansRoot: string | null;
   constructor(
-    store,
+    store: Store,
     {
       operator,
       github,
@@ -191,7 +225,7 @@ export class Operations {
       // network. The CLI and MCP keep
       // reading first.
       backgroundReads = false,
-    } = {},
+    }: OperationsOptions = {},
   ) {
     this.store = store;
     this.backgroundReads = backgroundReads;
@@ -1496,7 +1530,13 @@ export class Operations {
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
   // `context.person` is a person's own call: the page's owner session or a
   // CLI command outside any agent. Their GitHub posts go out as written.
-  async execute(name, input = {}, expectedRevision, context = {}) {
+  // The result's shape depends on the operation: a typed caller names it.
+  async execute<T = unknown>(
+    name: string,
+    input: Record<string, unknown> = {},
+    expectedRevision?: number,
+    context: OperationContext = {},
+  ): Promise<T> {
     const actor = postingActor(name, context) ?? currentActor() ?? "unknown";
     const result = await asActor(actor, () =>
       withSource(sourceOfOperation(name), () =>

@@ -1,15 +1,14 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import path from "node:path";
 import { workspaceConfig, applicationRoot } from "../settings/config.ts";
 export function workflowSkill(config = workspaceConfig()) {
-  const quote = (value) => "'" + value.replaceAll("'", "'\\''") + "'";
+  const quote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
   const command =
     "node " +
     quote(path.join(applicationRoot, `cli${path.extname(import.meta.url)}`)) +
     " --workspace " +
     quote(config.workspaceRoot);
-  const values = {
+  const values: Record<string, string> = {
     PLANS_ROOT: config.workspaceRoot,
     CLI: command,
     WORKSPACE_CLI: command,
@@ -19,6 +18,6 @@ export function workflowSkill(config = workspaceConfig()) {
     .readFileSync(new URL("../skills/avoozl/SKILL.md", import.meta.url), "utf8")
     .replace(
       /\{\{(PLANS_ROOT|CLI|WORKSPACE_CLI|APP_ROOT)\}\}/g,
-      (_, key) => values[key],
+      (_, key: string) => values[key]!,
     );
 }

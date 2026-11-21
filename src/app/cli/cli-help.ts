@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What `avoozl help` prints. Every command's usage lines sit in its entry in
 // cli-commands.mjs, each naming the job a person is doing; the overview, a
 // group's page, one command's page and `help all` are all rendered from those
@@ -6,10 +5,11 @@
 
 import { TAGLINE } from "../../work-split.ts";
 import { COMMANDS } from "./cli-commands.ts";
+import type { HelpLine } from "./command-help.ts";
 
 // The tagline as the help's heading, wrapped to a terminal's 80 columns.
 const WIDTH = 80;
-const HEADING = TAGLINE.split(" ").reduce((lines, word) => {
+const HEADING = TAGLINE.split(" ").reduce((lines: string[], word) => {
   const last = lines.at(-1);
   if (last && (last + " " + word).length <= WIDTH)
     lines[lines.length - 1] = last + " " + word;
@@ -68,7 +68,7 @@ const GROUPS = Object.freeze([
 export const HELP_GROUPS = Object.freeze(
   GROUPS.map((group) => ({
     ...group,
-    entries: COMMANDS.flatMap((command) => command.help).filter(
+    entries: COMMANDS.flatMap((command): HelpLine[] => command.help).filter(
       (line) => line.group === group.id,
     ),
   })),
@@ -82,7 +82,7 @@ operations.`;
 
 // The command words a usage line starts with: `plugins disable|enable ID`
 // names plugins. An OPERATION line names no command.
-const commandsOf = ({ usage }) => {
+const commandsOf = ({ usage }: { usage: string }) => {
   const word = usage.split(/\s/)[0];
   return /^[a-z][a-z|-]*$/.test(word) ? word.split("|") : [];
 };
@@ -93,7 +93,7 @@ export const helpCommands = () => [
 ];
 
 const INDENT = "      ";
-function lines({ usage, about }) {
+function lines({ usage, about }: { usage: string; about?: string }) {
   const [first, ...rest] = usage.split("\n");
   return [
     `  ${PROGRAM} ${first}`,
@@ -102,11 +102,12 @@ function lines({ usage, about }) {
   ];
 }
 
-const heading = (group) => `${group.title}: ${group.summary}`;
+type Group = (typeof HELP_GROUPS)[number];
+const heading = (group: Group) => `${group.title}: ${group.summary}`;
 
 // Words wrapped to `width`, each line after `indent`.
-function wrapped(words, indent, width = 78) {
-  const out = [];
+function wrapped(words: string[], indent: string, width = 78) {
+  const out: string[] = [];
   let line = "";
   for (const word of words) {
     if (line && indent.length + line.length + 1 + word.length > width) {
@@ -120,7 +121,7 @@ function wrapped(words, indent, width = 78) {
 
 function overview() {
   const first = HELP_GROUPS.flatMap((group) =>
-      group.entries.filter((e) => e.first).map((e) => e.first),
+      group.entries.flatMap((e) => (e.first ? [e.first] : [])),
     ),
     width = Math.max(...first.map((e) => e.usage.length)) + 2,
     pad = Math.max(...HELP_GROUPS.map((group) => group.id.length)) + 2;
@@ -151,12 +152,12 @@ function overview() {
   ].join("\n");
 }
 
-const groupPage = (group) =>
+const groupPage = (group: Group) =>
   [heading(group), "", ...group.entries.flatMap(lines)].join("\n");
 
 // The help for `topic`: nothing for the overview, a group ID, a command, or
 // `all`. Returns null when there is no such topic.
-export function helpText(topic) {
+export function helpText(topic?: string | null) {
   if (topic === undefined || topic === null || topic === "") return overview();
   if (topic === "all")
     return [
@@ -187,7 +188,7 @@ export function helpText(topic) {
 
 // The line that sends a person to the right help after a refusal: the
 // command's own page when the help holds it, else the overview.
-export function helpPointer(command) {
+export function helpPointer(command: string) {
   return helpCommands().includes(command)
     ? `Run ${PROGRAM} help ${command} for its usage.`
     : `Run ${PROGRAM} help for the commands.`;

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `avoozl help`: a one-screen overview grouped by job, with `help GROUP`,
 // `help COMMAND` and `help all` rendered from the same table, so every
 // command that runs can be reached and none is written down twice.
@@ -28,9 +27,13 @@ const dispatched = [
   ),
 ].filter((command) => command !== "OPERATION");
 
-function cli(...args) {
+function cli(...args: string[]) {
   const home = temporaryDirectory("avoozl-cli-help-"),
-    env = { ...process.env, HOME: home, XDG_CONFIG_HOME: home };
+    env: NodeJS.ProcessEnv = {
+      ...process.env,
+      HOME: home,
+      XDG_CONFIG_HOME: home,
+    };
   for (const key of Object.keys(env))
     if (/^AVOOZL(_|$)/.test(key)) delete env[key];
   return spawnSync(process.execPath, [CLI, ...args], {
@@ -40,7 +43,7 @@ function cli(...args) {
   });
 }
 
-const usageLines = (text) =>
+const usageLines = (text: string) =>
   text.split("\n").filter((line) => line.startsWith("  avoozl "));
 
 test("the help holds every command the CLI runs, and no other", () => {
@@ -58,7 +61,7 @@ test("the help holds every command the CLI runs, and no other", () => {
 });
 
 test("the overview fits one screen and names every group and command", () => {
-  const overview = helpText(),
+  const overview = helpText()!,
     lines = overview.split("\n");
   assert.ok(lines.length <= 40, `the overview is ${lines.length} lines`);
   for (const line of lines)
@@ -80,9 +83,9 @@ test("the overview fits one screen and names every group and command", () => {
 });
 
 test("a group, a command and all are full views of the same entries", () => {
-  const all = helpText("all");
+  const all = helpText("all")!;
   for (const group of HELP_GROUPS) {
-    const page = helpText(group.id);
+    const page = helpText(group.id)!;
     assert.equal(usageLines(page).length, group.entries.length, group.id);
     for (const { usage, about } of group.entries) {
       const first = `  avoozl ${usage.split("\n")[0]}`;
@@ -97,12 +100,12 @@ test("a group, a command and all are full views of the same entries", () => {
     HELP_GROUPS.reduce((sum, group) => sum + group.entries.length, 0),
   );
   // A command's page gathers its lines from every group that holds one.
-  const flow = helpText("flow");
+  const flow = helpText("flow")!;
   assert.match(flow, /avoozl help deliver, avoozl help inspect/);
   assert.equal(usageLines(flow).length, 5);
   assert.ok(usageLines(flow).every((line) => line.startsWith("  avoozl flow")));
   for (const command of helpCommands())
-    assert.ok(usageLines(helpText(command)).length >= 1, command);
+    assert.ok(usageLines(helpText(command)!).length >= 1, command);
   // A group named like a command holds all of that command's lines, so
   // `avoozl help setup` and `avoozl help plan` leave nothing out.
   for (const group of HELP_GROUPS.filter(({ id }) =>
@@ -120,7 +123,7 @@ test("a group, a command and all are full views of the same entries", () => {
 });
 
 test("the help and its pointers use one program name", () => {
-  const all = helpText("all");
+  const all = helpText("all")!;
   assert.doesNotMatch(all, /node cli\.mjs|aicommander/);
   for (const line of all.split("\n"))
     if (/^ {2}\S/.test(line)) assert.match(line, /^ {2}avoozl /);
@@ -137,13 +140,14 @@ test("the CLI prints each view and points a refusal at the right help", () => {
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, helpText() + "\n", args.join(" "));
   }
-  for (const [args, topic] of [
+  const pages: [string[], string][] = [
     [["help", "hooks"], "hooks"],
     [["help", "all"], "all"],
     [["help", "workspace"], "workspace"],
     [["workspace", "--help"], "workspace"],
     [["flow", "stop", "-h"], "flow"],
-  ]) {
+  ];
+  for (const [args, topic] of pages) {
     const run = cli(...args);
     assert.equal(run.status, 0, run.stderr);
     assert.equal(run.stdout, helpText(topic) + "\n", args.join(" "));

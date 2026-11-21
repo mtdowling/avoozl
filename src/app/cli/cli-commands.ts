@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every CLI command, from one table per kind of work. An entry is
 // {command, help, run}: `command` is the word typed (`plan review` names a
 // subcommand), `help` its usage lines for `avoozl help` (cli-help.mjs renders
@@ -35,7 +34,7 @@ for (const entry of COMMANDS) {
 
 // The entry for `command` and its first argument: `plan review` before
 // `plan`. With none, the command names an operation (the OPERATION entry).
-export const findCommand = (command, positionals) =>
+export const findCommand = (command: string, positionals: string[]) =>
   byWords.get(`${command} ${positionals[0]}`) ??
   byWords.get(command) ??
   byWords.get("OPERATION");
