@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
@@ -6,9 +5,17 @@ import {
   createExecutor,
   EXECUTOR_CONTRACT,
   executorStatus,
+  type Executor,
 } from "../executors.ts";
 
-const start = [
+type StartArgs = Parameters<Executor["start"]>;
+type Adapter = Parameters<typeof createExecutor>[0];
+// What a test's fake implementation may add or replace; `id` is its own.
+type Overrides = Partial<Adapter> & { id?: string };
+// A value of the wrong type, to check createExecutor refuses it at run time.
+const unchecked = <T>(value: unknown) => value as T;
+
+const start: StartArgs = [
   "worker",
   "task-one",
   "/scratch/task-one",
@@ -16,7 +23,7 @@ const start = [
   "model-one",
   "write",
 ];
-const implementation = (overrides = {}) => ({
+const implementation = (overrides: Overrides = {}): Adapter => ({
   start: () => "session-one",
   send: () => "accepted",
   status: () => "idle",
@@ -24,14 +31,14 @@ const implementation = (overrides = {}) => ({
 });
 
 test("start and send preserve the neutral arguments and implementation context", async () => {
-  const calls = [],
+  const calls: unknown[][] = [],
     adapter = implementation({
       id: "session-one",
-      async start(...args) {
+      async start(this: { id: string }, ...args: unknown[]) {
         calls.push(["start", ...args]);
         return this.id;
       },
-      send(...args) {
+      send(this: { id: string }, ...args: unknown[]) {
         calls.push(["send", this.id, ...args]);
         return "refused";
       },
@@ -53,10 +60,10 @@ test("start and send preserve the neutral arguments and implementation context",
 });
 
 test("read-only sessions may omit a worktree and use the default model", async () => {
-  let received;
+  let received: unknown[] = [];
   const executor = createExecutor(
     implementation({
-      start: (...args) => {
+      start: (...args: unknown[]) => {
         received = args;
         return "review-one";
       },
@@ -85,10 +92,10 @@ test("status preserves every allowed state and distinguishes idle from gone", as
     "exited 7",
     "exited -15",
   ]) {
-    let observed;
+    let observed: string | null | undefined;
     const executor = createExecutor(
       implementation({
-        status: (id) => {
+        status: (id: string | null) => {
           observed = id;
           return state;
         },
@@ -143,33 +150,36 @@ test("optional capabilities are absent when unsupported, and validate their resu
   const minimal = createExecutor(implementation());
   assert.equal("stop" in minimal, false);
   assert.equal("usage" in minimal, false);
-  const calls = [],
+  const calls: (string | null)[] = [],
     executor = createExecutor(
       implementation({
-        stop: (id) => {
+        stop: (id: string | null) => {
           calls.push(id);
           return "stopped";
         },
-        usage: (id) => {
+        usage: (id: string | null) => {
           calls.push(id);
           return { tokens: 42, cost: 0.03 };
         },
       }),
     );
-  assert.equal(await executor.stop("session-one"), "stopped");
-  assert.deepEqual(await executor.usage("session-one"), {
+  assert.equal(await executor.stop?.("session-one"), "stopped");
+  assert.deepEqual(await executor.usage?.("session-one"), {
     tokens: 42,
     cost: 0.03,
   });
   assert.deepEqual(calls, ["session-one", "session-one"]);
   assert.equal(
-    await createExecutor(implementation({ usage: () => null })).usage(
+    await createExecutor(implementation({ usage: () => null })).usage?.(
       "session-one",
     ),
     null,
   );
   await assert.rejects(
-    createExecutor(implementation({ stop: () => "gone" })).stop("session-one"),
+    async () =>
+      createExecutor(implementation({ stop: () => "gone" })).stop?.(
+        "session-one",
+      ),
     /return stopped/,
   );
   for (const result of [
@@ -183,9 +193,10 @@ test("optional capabilities are absent when unsupported, and validate their resu
     { vendorDetails: {} },
   ])
     await assert.rejects(
-      createExecutor(implementation({ usage: () => result })).usage(
-        "session-one",
-      ),
+      async () =>
+        createExecutor(implementation({ usage: () => result })).usage?.(
+          "session-one",
+        ),
       /Executor usage/,
     );
 });
@@ -195,10 +206,13 @@ test("invalid implementations, start inputs and required results are refused", a
     null,
     {},
     { start() {}, send() {} },
-    implementation({ stop: true }),
-    implementation({ usage: 3 }),
+    implementation(unchecked<Overrides>({ stop: true })),
+    implementation(unchecked<Overrides>({ usage: 3 })),
   ])
-    assert.throws(() => createExecutor(adapter), /[Ee]xecutor/);
+    assert.throws(
+      () => createExecutor(unchecked<Adapter>(adapter)),
+      /[Ee]xecutor/,
+    );
   let called = false;
   const executor = createExecutor(
     implementation({
@@ -215,10 +229,13 @@ test("invalid implementations, start inputs and required results are refused", a
     [3, null],
     [4, {}],
     [5, "trust"],
-  ]) {
-    const args = [...start];
+  ] as const) {
+    const args: unknown[] = [...start];
     args[index] = bad;
-    await assert.rejects(executor.start(...args), TypeError);
+    await assert.rejects(
+      executor.start(...unchecked<StartArgs>(args)),
+      TypeError,
+    );
   }
   assert.equal(called, false);
   await assert.rejects(

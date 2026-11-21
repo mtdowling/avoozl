@@ -1,10 +1,10 @@
-// @ts-nocheck: typing debt
 // The world epic-context's process tests and its proof run in: a process
 // machine with a fake harness CLI, an approved spec, the example plugin with
 // a fake MCP server, and the stores the gate reads.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import type { TestContext } from "node:test";
 import { drainProcessRequests } from "../process.ts";
 import { childRecord, openSupervisorDatabase } from "../supervisor.ts";
 import { approverCheck } from "../../git/git-approvals.ts";
@@ -14,12 +14,52 @@ import { contextMachine } from "../../context/test/context-fixture.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
 import { seedApproval } from "../../test/epic-context-seed.ts";
 import { appStore, gitIn, machine, until } from "./process-machine.ts";
+import type { Store } from "../../store/store.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
+import type { FakeGitHub } from "../../test/fake-github.ts";
+
+// The operations a process session's epic context reads, faked.
+export interface ContextOps {
+  configDirectory: string;
+  workspaceRoot: string;
+  pluginOptions: unknown;
+  approvalCheckout: () => Promise<string>;
+  approverOf: () => Promise<ReturnType<typeof approverCheck>>;
+  execute: () => Promise<object>;
+  github?: FakeGitHub;
+}
+// A machine with an approved spec. `note`: the file a brief names; `ops`:
+// set by finish.
+export interface World {
+  m: ReturnType<typeof machine>;
+  store: Store;
+  configDirectory: string;
+  files: Record<string, string>;
+  revision: string;
+  note?: string;
+  ops?: ContextOps;
+}
+type Context = ReturnType<typeof contextMachine>;
+// One run of the fake CLI: its argv, prompt and environment names.
+export interface Run {
+  argv: string[];
+  prompt: string;
+  env: string[];
+}
+// The epic context a child's settings record, when it got any.
+export interface ChildSettings {
+  context: {
+    readable: string[];
+    cleanup: string[];
+    mcp: Record<string, unknown>;
+  } | null;
+}
 
 export const APPROVER = "test@example.com";
 
 // The fake MCP server the plugin ships: one tool, `ask`, that echoes a
 // marker, and a file of the environment names it ran with.
-export const server = (record, { listen = false } = {}) => `
+export const server = (record: string, { listen = false } = {}) => `
 import fs from "node:fs";
 import net from "node:net";
 import readline from "node:readline";
@@ -71,7 +111,7 @@ fs.mkdirSync(".avoozl", { recursive: true });
 fs.writeFileSync(".avoozl/result.json", JSON.stringify({ state: "done", text: "ok" }));
 `;
 
-export function world(t, { mcp = true } = {}) {
+export function world(t: TestContext, { mcp = true } = {}): World {
   const m = machine(
     t,
     mcp ? { context: { mcp: ["--mcp-config", "{context_mcp}"] } } : {},
@@ -103,7 +143,7 @@ export function world(t, { mcp = true } = {}) {
   return { m, store, configDirectory, files, revision };
 }
 
-export async function finish(w, ctx) {
+export async function finish(w: World, ctx: Context) {
   await seedApproval(w.store, { root: w.m.checkout, tasks: ["sample-task"] });
   bindContentRules(w.store, {
     workspaceRoot: ctx.workspaceRoot,
@@ -127,7 +167,7 @@ export async function finish(w, ctx) {
 // Plugin side: the example plugin, its server replaced by the fake, the
 // answers and the mapping this machine holds.
 export function plugin(
-  w,
+  w: World,
   { approve = true, sets = false, listen = false } = {},
 ) {
   const ctx = contextMachine({
@@ -147,7 +187,7 @@ export function plugin(
   return { ctx, record };
 }
 
-export const start = (w, extra = {}) =>
+export const start = (w: World, extra: Record<string, unknown> = {}) =>
   enqueueSessionRequests(w.store, {
     starts: [
       {
@@ -162,7 +202,10 @@ export const start = (w, extra = {}) =>
     ],
   });
 
-export async function run(w, extra = {}) {
+export async function run(
+  w: World,
+  extra: Record<string, unknown> & { attempt?: number } = {},
+) {
   start(w, extra);
   const { errors } = await drainProcessRequests(w.store, {
     stateDirectory: w.m.stateDirectory,
@@ -171,13 +214,14 @@ export async function run(w, extra = {}) {
   });
   assert.deepEqual(errors, []);
   const binding = w.store
-    .list("session_bindings")
+    .list<SessionBinding>("session_bindings")
     .find((b) => (b.attempt ?? 1) === (extra.attempt ?? 1));
+  assert.ok(binding, "the run is bound");
   await settle(w, binding.slot);
   return binding.slot;
 }
 
-export async function settle(w, slot) {
+export async function settle(w: World, slot: string) {
   await until(() => {
     w.m.supervisor.pass();
     const db = openSupervisorDatabase(w.m.stateDirectory);
@@ -189,7 +233,7 @@ export async function settle(w, slot) {
   });
 }
 
-export const settings = (w, slot) => {
+export const settings = (w: World, slot: string): ChildSettings => {
   const db = openSupervisorDatabase(w.m.stateDirectory);
   try {
     return JSON.parse(childRecord(db, slot).settings);
@@ -197,11 +241,17 @@ export const settings = (w, slot) => {
     db.close();
   }
 };
-export const runs = (w) =>
+export const runs = (w: World): Run[] =>
   JSON.parse(fs.readFileSync(path.join(w.m.worktree, "runs.json"), "utf8"));
+// The run at `index` (negative counts from the last), which must exist.
+export const runAt = (w: World, index: number) => {
+  const found = runs(w).at(index);
+  assert.ok(found, `no run ${index}`);
+  return found;
+};
 
 // Drain until the session of `attempt` has started, then wait for it to end.
-export async function followUp(w, attempt) {
+export async function followUp(w: World, attempt: number) {
   await until(async () => {
     w.m.supervisor.pass();
     await drainProcessRequests(w.store, {
@@ -209,11 +259,14 @@ export async function followUp(w, attempt) {
       prepareWorktree: async () => ({ path: w.m.worktree }),
       ops: w.ops,
     });
-    return w.store.list("session_bindings").some((b) => b.attempt === attempt);
+    return w.store
+      .list<SessionBinding>("session_bindings")
+      .some((b) => b.attempt === attempt);
   });
   const binding = w.store
-    .list("session_bindings")
+    .list<SessionBinding>("session_bindings")
     .find((b) => b.attempt === attempt);
+  assert.ok(binding, `attempt ${attempt} is bound`);
   await settle(w, binding.slot);
   return binding;
 }
@@ -221,7 +274,7 @@ export async function followUp(w, attempt) {
 // A scratch folder can sit under the real Kiro Crew home, a path the sandbox
 // denies; name another home for the test, so only the folders it makes are
 // judged.
-export function keepKiroCrewHome(t, root) {
+export function keepKiroCrewHome(t: TestContext, root: string) {
   const was = process.env.KIROCREW_HOME;
   process.env.KIROCREW_HOME = path.join(root, "kirocrew-home");
   t.after(() => {

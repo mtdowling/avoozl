@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -11,7 +10,23 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 const adapter = fileURLToPath(
   new URL("../../../../hosts/kirocrew/executors/kirocrew.py", import.meta.url),
 );
-const run = (body) =>
+// What the Python fake records: an open, a bind, a mode change or a send.
+interface Binding {
+  taskId?: string;
+  slot?: string;
+  lane?: string;
+  title?: string;
+  attempt?: number;
+  commit?: string;
+}
+type Open = ["open", string, Record<string, string>];
+type Bind = ["bind", Binding];
+type Call = Open | Bind | ["mode", string, string] | ["send", string, string];
+const isBind = (row: Call): row is Bind => row[0] === "bind";
+const isOpen = (row: Call): row is Open => row[0] === "open";
+
+// Run `body` against the adapter and parse what it prints as T.
+const run = <T>(body: string): T =>
   JSON.parse(
     execFileSync(
       "python3",
@@ -49,15 +64,19 @@ ${body}
   );
 
 test("the Python adapter implements the same start, send and status parameters", () => {
-  const methods = run(
+  const methods = run<Record<string, string[]>>(
     `print(json.dumps({name: list(inspect.signature(getattr(e, name)).parameters) for name in ("start", "send", "status")}))`,
   );
-  for (const name of ["start", "send", "status"])
+  for (const name of ["start", "send", "status"] as const)
     assert.deepEqual(methods[name], EXECUTOR_CONTRACT[name]);
 });
 
 test("the real adapter inherits a project and binds before mode and first message", () => {
-  const result = run(`
+  const result = run<{
+    slot: string;
+    calls: Call[];
+    observations: { folders: Record<string, boolean> };
+  }>(`
 d = {"task": "task-one", "role": "worker", "title": "avoozl:task-one work", "folder": "Avoozl/app", "agent": "worker-agent", "model": "model-one", "brief": "Do the work", "mode": "trust_reads", "attempt": 2, "commit": "a" * 40}
 args = e.arguments(d)
 slot = e.start(*args)
@@ -72,8 +91,9 @@ print(json.dumps({"slot": slot, "calls": calls, "observations": e.observations()
     "avoozl:task-one work",
     { folder_id: "child", agent: "worker-agent", model: "model-one" },
   ]);
-  assert.equal(result.calls[1][1].attempt, 2);
-  assert.equal(result.calls[1][1].commit, "a".repeat(40));
+  const [[, binding]] = result.calls.filter(isBind);
+  assert.equal(binding.attempt, 2);
+  assert.equal(binding.commit, "a".repeat(40));
   assert.deepEqual(result.calls[2], ["mode", "session-one", "trust_reads"]);
   assert.deepEqual(result.observations.folders, {
     Avoozl: true,
@@ -105,7 +125,7 @@ print(json.dumps(calls))`),
 });
 
 test("two prepared requests retain their own private configuration", () => {
-  const result = run(`
+  const result = run<Open[]>(`
 a = e.arguments({"task": "one", "title": "first", "brief": "A", "project": False, "agent": "agent-a"})
 b = e.arguments({"task": "two", "title": "second", "brief": "B", "project": False, "agent": "agent-b"})
 e.start(*a); e.start(*b)
@@ -133,7 +153,7 @@ print(json.dumps([row[0] for row in calls]))`),
 });
 
 test("status preserves the shared vocabulary and raw observations retain terminal detail", () => {
-  const result = run(`
+  const result = run<string[][]>(`
 out = []
 for state in ("working", "idle", "queued", "closed", "lost", "gone", "exited 0", "exited -15"):
     ctx.roster = {"sessions": [{"target": "one", "status": state}]}
@@ -155,7 +175,7 @@ print(json.dumps(out))`);
 });
 
 test("an unavailable, malformed or unknown roster never becomes gone", () => {
-  const result = run(`
+  const result = run<string[]>(`
 out = []
 for response in ({}, {"sessions": False}, {"sessions": None}, {"ok": False}, {"sessions": "bad"}, {"sessions": [{"target": "one"}]}, {"sessions": [{"target": "one", "status": "unknown"}]}, {"sessions": [{"target": "one", "status": "exited 9007199254740992"}]}):
     ctx.roster = response
@@ -215,7 +235,12 @@ test("a lane chat opens once by its header, is cleared before each later task, a
   // Nearby inputs: a lane with no chat yet, a known lane chat that clears,
   // one with a turn running (409), one Kiro Crew no longer has (404), and a
   // reviewer lane, which gets trust like a worker lane.
-  const result = run(`
+  const result = run<{
+    calls: Call[];
+    resets: [string, unknown][];
+    busy: boolean;
+    slots: string[];
+  }>(`
 resets = []
 answers = []
 def _post(path, body):
@@ -242,7 +267,7 @@ print(json.dumps({"calls": calls, "resets": resets, "busy": busy, "slots": [firs
     "Avoozl · ws · worker 1",
     { folder_id: "child", agent: "" },
   ]);
-  const binds = result.calls.filter((row) => row[0] === "bind");
+  const binds = result.calls.filter(isBind);
   assert.deepEqual(
     binds.map((row) => [row[1].taskId, row[1].slot, row[1].lane]),
     [
@@ -268,14 +293,14 @@ print(json.dumps({"calls": calls, "resets": resets, "busy": busy, "slots": [firs
   );
   assert.equal(result.busy, true, "a busy lane chat releases the request");
   assert.equal(
-    result.calls.filter((row) => row[0] === "open").length,
+    result.calls.filter(isOpen).length,
     2,
     "only a lane with no known chat, or a gone one, opens",
   );
   assert.deepEqual(
-    result.calls
-      .filter((row) => row[0] === "mode")
-      .map((row) => [row[1], row[2]]),
+    result.calls.flatMap((row) =>
+      row[0] === "mode" ? [[row[1], row[2]]] : [],
+    ),
     [
       ["session-one", "trust"],
       ["session-one", "trust"],
@@ -286,7 +311,7 @@ print(json.dumps({"calls": calls, "resets": resets, "busy": busy, "slots": [firs
 });
 
 test("the cron keeps trust on a reviewer lane chat as on a worker chat", () => {
-  const result = run(`
+  const result = run<Call[]>(`
 e.keep_trust([{"slot": "w", "role": "worker"}, {"slot": "r", "role": "review:review", "lane": "reviewer-1"}, {"slot": "v", "role": "verifier"}])
 print(json.dumps(calls))`);
   assert.deepEqual(result, [
@@ -296,7 +321,7 @@ print(json.dumps(calls))`);
 });
 
 test("a review round on the same task continues in its lane chat with no clear", () => {
-  const result = run(`
+  const result = run<{ slot: string; resets: string[]; kinds: string[] }>(`
 resets = []
 ctx._post = lambda path, body: resets.append(path) or {"reset": True}
 d = {"task": "one", "role": "worker", "title": "avoozl:one", "folder": "Avoozl/app", "project": False, "brief": "Round 2", "attempt": 2, "lane": {"id": "worker-1", "header": "h", "slot": "lane-chat", "resume": True}}

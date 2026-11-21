@@ -1,11 +1,10 @@
-// @ts-nocheck: typing debt
 // In flight for `process` sessions (R98.1): status, log tail, cost and an
 // attach command, read from the supervisor without changing it.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   approveHarnessDefinition,
   harnessDefinitionHash,
@@ -31,7 +30,7 @@ import {
 import { snapshot } from "../../test/fixtures.ts";
 import { Store } from "../../store/store.ts";
 
-const definition = (extra = {}) => ({
+const definition = (extra: Record<string, unknown> = {}) => ({
   name: "fake-cli",
   start: ["fake-cli", "--prompt-file", "{brief_file}"],
   resume: ["fake-cli", "--resume", "{session_uuid}"],
@@ -41,7 +40,7 @@ const definition = (extra = {}) => ({
   ...extra,
 });
 
-function machine(t, extra) {
+function machine(t: TestContext, extra?: Record<string, unknown>) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-process-view-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const stateDirectory = path.join(root, "state");
@@ -63,7 +62,10 @@ function machine(t, extra) {
 }
 
 // A child the supervisor started twice (a resume), with its log written.
-function child({ stateDirectory, worktree }, log) {
+function child(
+  { stateDirectory, worktree }: { stateDirectory: string; worktree: string },
+  log: string,
+) {
   const db = openSupervisorDatabase(stateDirectory);
   try {
     const sessionId = requestChild(db, {
@@ -100,6 +102,7 @@ test("the log tail drops terminal escapes and keeps the last lines", (t) => {
   const lines = Array.from({ length: 30 }, (_, n) => `line ${n + 1}`);
   fs.writeFileSync(file, `\x1b[31m${lines.join("\r\n")}\x1b[0m\x07\n\n`);
   const tail = logTail(file);
+  assert.ok(tail);
   assert.equal(tail.split("\n").length, 20);
   assert.equal(tail.split("\n")[0], "line 11");
   assert.equal(tail.split("\n").at(-1), "line 30");
@@ -127,11 +130,12 @@ test("details: status, run, log tail, summed cost and the attach command", (t) =
   });
   assert.deepEqual([...details.keys()], [sessionId]);
   const one = details.get(sessionId);
+  assert.ok(one);
   assert.equal(one.harness, "fake-cli");
   assert.equal(one.state, "running");
   assert.equal(one.run, 2);
   assert.equal(one.cost, 0.75);
-  assert.match(one.logTail, /^working on it\n/);
+  assert.match(String(one.logTail), /^working on it\n/);
   assert.equal(
     one.attach,
     `cd '${paths.worktree}' && fake-cli --resume ${sessionId.slice("process-".length)}`,
@@ -152,6 +156,7 @@ test("a per-session cost is the last value, not the sum", (t) => {
     ].join("\n") + "\n",
   );
   const one = processSessionDetails([sessionId], paths).get(sessionId);
+  assert.ok(one);
   assert.equal(one.cost, 0.16);
   assert.throws(
     () =>
@@ -178,9 +183,12 @@ test("no attach in the definition follows the log; no cost field is unknown", (t
     ...paths,
     platform: "linux",
   }).get(sessionId);
+  assert.ok(one);
   assert.equal(one.cost, null);
   assert.equal(one.attach, `tail -n 20 -f ${shellQuote(file, "linux")}`);
   const row = {
+    harness: "fake-cli",
+    state: "running",
     log_file: "C:\\it's\\log",
     worktree: "C:\\w",
     session_id: "process-x",
@@ -199,8 +207,9 @@ test("an unapproved definition shows no cost and still offers the log", (t) => {
   );
   const { sessionId } = child(paths, '{"total_cost_usd":1}\n');
   const one = processSessionDetails([sessionId], paths).get(sessionId);
+  assert.ok(one);
   assert.equal(one.cost, null);
-  assert.match(one.attach, /log/);
+  assert.match(String(one.attach), /log/);
 });
 
 test("no supervisor on this machine: no details and no files made", (t) => {
@@ -229,7 +238,7 @@ test("delivery.view gives a live process session its details and no chat link", 
   const crew = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-crew-home-"));
   const saved = process.env.KIROCREW_HOME;
   process.env.KIROCREW_HOME = crew;
-  let store = null;
+  let store: Store | null = null;
   // One hook, store first: Windows cannot remove an open database file.
   t.after(() => {
     store?.close();
@@ -272,10 +281,12 @@ test("delivery.view gives a live process session its details and no chat link", 
     ],
   });
   const [pending] = store.list("session_requests");
-  const { request, claimToken } = takeSessionRequest(store, pending, {
+  const taken = takeSessionRequest(store, pending, {
     executor: "process",
     consumer: "supervisor",
   });
+  assert.ok(taken);
+  const { request, claimToken } = taken;
   bindSession(
     store,
     {
@@ -295,6 +306,7 @@ test("delivery.view gives a live process session its details and no chat link", 
   const item = deliveryView(store, store.read()).items.find(
     (i) => i.id === "sample-task",
   );
+  assert.ok(item);
   const [session] = item.sessions;
   assert.equal(session.executor, "process");
   assert.equal(session.link, null);
