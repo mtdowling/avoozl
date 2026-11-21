@@ -365,9 +365,17 @@ repository.
   repository some source names: the three tests with passed or failed and
   the reason, then the given items by name. A repository no source names
   writes nothing, so other work adds no rows.
-- Settings › Epic context lists the machine block (with **Edit**), each
-  machine plugin's part and its state (approved, needs answers, needs
-  mapping, changed, ignored), and the last ten sessions with context.
+- Settings › Epic context opens with **Extra context for your work**: with
+  no block it says "None set. Workers get only the task and the repo." and
+  offers **Add context**; with one it shows the form in place. The fields are
+  Repos (chips), Folders to read (the folder picker, each one checked to
+  exist on save), Tools (name, what it does, the command one argument per
+  box, and environment variable names) and Content rules (checkboxes of
+  this machine's sets). Save sends `context.machine.set`; a refusal that
+  names a key shows under that key's field. **View as JSON** shows the
+  block read-only. Below it, each machine plugin's part is listed read-only
+  with its state (approved, needs answers, needs mapping, changed,
+  ignored), then the last ten sessions with context.
 - `avoozl show TASK --json` and the MCP task read return
   `epicContext` from the binding.
 
