@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // This machine's process children and last tick passes, for a machine that
 // has only the CLI (R98.5, design §4.28): `avoozl status` and `avoozl runner
 // status --json`. Read-only: it never creates the supervisor directory, takes
@@ -11,12 +10,16 @@ import { listHarnessDefinitions } from "../executors/harness-definitions.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
 import { ROLES, resolveRoles } from "../agents/role-table.ts";
 import { lastPasses } from "../executors/tick-passes.ts";
+import type { RolesConfig } from "../agents/role-table.ts";
+
+type ChildRow = Record<string, unknown>;
+type Harness = { name: string; approved?: boolean; startProblem?: string };
 
 const COLUMNS = `session_id, role, task, harness, state, pid, exit_code,
   error, requested_at, updated_at`;
 
 // Same words as childStatus (R93): working, exited <code> or gone.
-const statusOf = (row) =>
+const statusOf = (row: ChildRow) =>
   row.state === "requested" || row.state === "running"
     ? "working"
     : row.state === "exited"
@@ -25,7 +28,11 @@ const statusOf = (row) =>
 
 // The standalone page's server, from the file it writes at start (serve.json):
 // its origin and pid, when that process is alive.
-export function serveStatus(stateDirectory) {
+export function serveStatus(stateDirectory: string): {
+  running: boolean;
+  origin?: string;
+  pid?: number;
+} {
   try {
     const found = JSON.parse(
       fs.readFileSync(path.join(stateDirectory, "serve.json"), "utf8"),
@@ -34,13 +41,14 @@ export function serveStatus(stateDirectory) {
     return { running: true, origin: found.origin, pid: found.pid };
   } catch (error) {
     // EPERM: the process exists, owned by another user.
-    if (error?.code === "EPERM") return { running: true };
+    if ((error as NodeJS.ErrnoException)?.code === "EPERM")
+      return { running: true };
     return { running: false };
   }
 }
 
 // Each role whose saved harness cannot start on this machine, and why (MS5.3).
-export function roleProblems(config, harnesses) {
+export function roleProblems(config: RolesConfig, harnesses: Harness[]) {
   const table = resolveRoles(config);
   return ROLES.flatMap((role) => {
     const harness = harnesses.find((h) => h.name === table[role]?.harness);
@@ -53,13 +61,16 @@ export function roleProblems(config, harnesses) {
 export function machineStatus({
   stateDirectory,
   configDirectory = machineAvoozlPaths().configDirectory,
+}: {
+  stateDirectory: string;
+  configDirectory?: string;
 }) {
   const paths = supervisorPaths(stateDirectory);
-  let children = [],
-    passes = [];
-  let unreadable = null;
+  let children: Record<string, unknown>[] = [],
+    passes: Record<string, unknown>[] = [];
+  let unreadable: string | null = null;
   if (fs.existsSync(paths.database)) {
-    let db;
+    let db: DatabaseSync | undefined;
     try {
       db = new DatabaseSync(paths.database, { readOnly: true });
       db.exec("PRAGMA busy_timeout = 5000");
@@ -82,7 +93,7 @@ export function machineStatus({
         }));
     } catch (error) {
       // A tick may be setting its database up; status still answers.
-      unreadable = error.message;
+      unreadable = (error as Error).message;
     } finally {
       db?.close();
     }
@@ -93,7 +104,7 @@ export function machineStatus({
     // Each workspace's last pass: whether a timer runs `avoozl tick`.
     passes,
     serve: serveStatus(stateDirectory),
-    harnesses: listHarnessDefinitions(configDirectory).map(
+    harnesses: (listHarnessDefinitions(configDirectory) as Harness[]).map(
       ({ name, approved, startProblem }) => ({ name, approved, startProblem }),
     ),
     children,

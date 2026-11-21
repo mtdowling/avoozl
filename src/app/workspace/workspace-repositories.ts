@@ -1,10 +1,66 @@
-// @ts-nocheck: typing debt
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
 
-export function workspaceRepositories(store) {
-  const repositories = store.list("repositories");
-  const authorization = store.list("github_repositories");
-  const byId = new Map();
+// One repository as the workspace shows it: a registered checkout, a GitHub
+// repository, or both.
+export type WorkspaceRepository = {
+  id: string;
+  name: string;
+  github: string | null;
+  localCheckout: string | null;
+  worktreeRoot: string | null;
+  planning: boolean;
+  editable: boolean;
+  baseBranch: string;
+  landing?: string | null;
+  harness?: string | null;
+  checks: unknown;
+  isolation?: unknown;
+  labels?: unknown;
+  claims?: unknown;
+  queue: {
+    enabled: boolean;
+    issues: boolean;
+    pullRequests: boolean;
+    visibility: string | null;
+  };
+  issueAuthorization: {
+    enabled: boolean;
+    assignee?: string;
+    autoStart?: boolean;
+    provider?: string | null;
+    model?: string | null;
+  };
+};
+type RepositoryRow = {
+  id: string;
+  name?: string;
+  github?: string;
+  root: string;
+  worktreeRoot?: string;
+  planning?: boolean;
+  editable?: boolean;
+  baseBranch?: string;
+  landing?: string;
+  harness?: string;
+  checks?: unknown[];
+  isolation?: unknown;
+  labels?: unknown;
+  claims?: unknown;
+};
+type AuthorizationRow = {
+  id: string;
+  workspaceRepositoryId?: string;
+  repositoryId?: string;
+  assignee?: string;
+  autoStart?: boolean;
+  provider?: string;
+  model?: string;
+};
+
+export function workspaceRepositories(store: Store): WorkspaceRepository[] {
+  const repositories = store.list<RepositoryRow>("repositories");
+  const authorization = store.list<AuthorizationRow>("github_repositories");
+  const byId = new Map<string, WorkspaceRepository>();
 
   for (const repository of repositories)
     byId.set(repository.id, {
@@ -33,7 +89,7 @@ export function workspaceRepositories(store) {
       issueAuthorization: { enabled: false },
     });
 
-  const ensure = (repository, repositoryId) => {
+  const ensure = (repository: string, repositoryId: string | undefined) => {
     const matched = repositoryId
       ? byId.get(repositoryId)
       : [...byId.values()].find((item) => item.github === repository);
@@ -57,7 +113,7 @@ export function workspaceRepositories(store) {
         },
         issueAuthorization: { enabled: false },
       });
-    return byId.get(id);
+    return byId.get(id)!;
   };
 
   for (const entry of authorization) {
@@ -79,7 +135,9 @@ export function workspaceRepositories(store) {
   );
 }
 
-export function assertRepositoryRemovable(store, repository) {
+type Removable = Pick<WorkspaceRepository, "id" | "github" | "localCheckout">;
+
+export function assertRepositoryRemovable(store: Store, repository: Removable) {
   if (repository.localCheckout) {
     const locked = store.db
       .prepare("SELECT id FROM work_locks WHERE repository_id=? LIMIT 1")
@@ -92,7 +150,10 @@ export function assertRepositoryRemovable(store, repository) {
   }
 }
 
-export function removeWorkspaceRepositoryRecords(store, repository) {
+export function removeWorkspaceRepositoryRecords(
+  store: Store,
+  repository: Removable,
+) {
   assertRepositoryRemovable(store, repository);
   store.transaction(() => {
     if (repository.github) {

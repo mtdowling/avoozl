@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Folder paths a person types or picks for a workspace. A leading `~` is
 // their home folder, as in a shell. The picker lists folders under home only:
 // the app page runs in an iframe with no native folder dialog, and a dialog
@@ -11,7 +10,11 @@ const MAX_FOLDERS = 500;
 
 // `~` or `~/x` (and `~\x` on Windows) become paths under `home`. `~user` is
 // left alone: it names another person's home, which we do not look up.
-export function expandHome(value, home, platform = process.platform) {
+export function expandHome(
+  value: unknown,
+  home: string,
+  platform: string = process.platform,
+) {
   const text = String(value ?? "").trim();
   if (text === "~") return home;
   if (text.startsWith("~/") || (platform === "win32" && text.startsWith("~\\")))
@@ -19,17 +22,17 @@ export function expandHome(value, home, platform = process.platform) {
   return text;
 }
 
-const inside = (child, parent) =>
+const inside = (child: string, parent: string) =>
   child === parent ||
   child.startsWith(parent.endsWith(path.sep) ? parent : parent + path.sep);
 
 // One folder's subfolders, for the picker. `at` defaults to home and must
 // resolve (after links) to home or a folder inside it.
-export function listFolders(at, home) {
+export function listFolders(at: unknown, home: string) {
   const realHome = fs.realpathSync.native(home);
   const wanted = at ? expandHome(at, home) : home;
   if (!path.isAbsolute(wanted)) throw Error("Choose an absolute folder.");
-  let real;
+  let real: string;
   try {
     real = fs.realpathSync.native(wanted);
   } catch {
@@ -40,17 +43,18 @@ export function listFolders(at, home) {
       "The folder picker shows folders in your home folder only. Type the path instead.",
     );
   if (!fs.statSync(real).isDirectory()) throw Error(`Not a folder: ${real}`);
-  let entries;
+  let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(real, { withFileTypes: true });
-  } catch (error) {
+  } catch (thrown) {
+    const error = thrown as NodeJS.ErrnoException;
     throw Error(`Cannot read ${real}: ${error.code || error.message}`);
   }
   const folders = entries
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b));
-  const full = (name) => path.join(real, name);
+  const full = (name: string) => path.join(real, name);
   return {
     path: real,
     home: realHome,

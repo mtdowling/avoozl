@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,17 +5,35 @@ import { execFileSync } from "node:child_process";
 
 export const LOCAL_IGNORE_PATTERN = ".avoozl/local/";
 
-function configuredExcludesFile({ env, home, run }) {
+// How the status reads git's own setting; tests pass a stand-in.
+type Run = (
+  file: string,
+  args: string[],
+  options: import("node:child_process").ExecFileSyncOptions,
+) => string | Buffer;
+type Where = { env?: NodeJS.ProcessEnv; home?: string; run?: Run };
+
+function configuredExcludesFile({
+  env,
+  home,
+  run,
+}: {
+  env: NodeJS.ProcessEnv;
+  home: string;
+  run: Run;
+}) {
   try {
-    const value = run(
-      "git",
-      ["config", "--global", "--path", "--get", "core.excludesFile"],
-      {
-        encoding: "utf8",
-        env,
-        stdio: ["ignore", "pipe", "ignore"],
-        timeout: 5000,
-      },
+    const value = String(
+      run(
+        "git",
+        ["config", "--global", "--path", "--get", "core.excludesFile"],
+        {
+          encoding: "utf8",
+          env,
+          stdio: ["ignore", "pipe", "ignore"],
+          timeout: 5000,
+        },
+      ),
     ).trim();
     if (value) return { filename: path.resolve(value), configured: true };
   } catch {}
@@ -29,7 +46,7 @@ function configuredExcludesFile({ env, home, run }) {
   };
 }
 
-function hasLocalRule(text) {
+function hasLocalRule(text: string) {
   return String(text || "")
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -41,7 +58,7 @@ function hasLocalRule(text) {
     );
 }
 
-function targetStatus(filename) {
+function targetStatus(filename: string) {
   try {
     const stat = fs.lstatSync(filename);
     return {
@@ -54,7 +71,7 @@ function targetStatus(filename) {
           : "The global Git ignore path is not a regular file.",
     };
   } catch (error) {
-    if (error.code === "ENOENT")
+    if ((error as NodeJS.ErrnoException).code === "ENOENT")
       return { exists: false, safeToWrite: true, unsafeReason: null };
     throw error;
   }
@@ -64,14 +81,14 @@ export function globalLocalIgnoreStatus({
   env = process.env,
   home = os.homedir(),
   run = execFileSync,
-} = {}) {
+}: Where = {}) {
   const target = configuredExcludesFile({ env, home, run }),
     file = targetStatus(target.filename);
   let text = "";
   try {
     text = fs.readFileSync(target.filename, "utf8");
   } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
   return {
     pattern: LOCAL_IGNORE_PATTERN,
@@ -87,9 +104,9 @@ export function ensureGlobalLocalIgnore({
   env = process.env,
   home = os.homedir(),
   run = execFileSync,
-} = {}) {
+}: Where = {}) {
   const before = globalLocalIgnoreStatus({ env, home, run });
-  if (!before.safeToWrite) throw Error(before.unsafeReason);
+  if (!before.safeToWrite) throw Error(String(before.unsafeReason));
   fs.mkdirSync(path.dirname(before.filename), {
     recursive: true,
     mode: 0o755,

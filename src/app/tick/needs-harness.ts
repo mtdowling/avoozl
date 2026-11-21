@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A role whose harness cannot start on this machine's server (MS5.3). The
 // headless tick finds each pending `process` start whose harness has a start
 // problem and opens one Needs you item per role; the drain leaves those starts
@@ -8,27 +7,34 @@ import { listHarnessDefinitions } from "../executors/harness-definitions.ts";
 import { requestHarness } from "../executors/process.ts";
 import { pendingSessionRequests } from "../sessions/session-requests.ts";
 import { recordWaitingRoles } from "./waiting-roles.ts";
+import type { Store } from "../store/store.ts";
 
 const ITEMS = "needs-harness.items";
 
 // Harness name to its start problem, for every approved definition that has one.
-export const blockedHarnesses = (configDirectory) =>
-  new Map(
-    listHarnessDefinitions(configDirectory)
+type Definition = { name: string; approved?: boolean; startProblem?: string };
+
+export const blockedHarnesses = (configDirectory: string) =>
+  new Map<string, string>(
+    (listHarnessDefinitions(configDirectory) as Definition[])
       .filter((definition) => definition.approved && definition.startProblem)
-      .map((definition) => [definition.name, definition.startProblem]),
+      .map((definition) => [definition.name, definition.startProblem!]),
   );
 
 // Record one item per role with a start waiting on a blocked harness.
-export function needsHarnessStep(store, blocked, now = Date.now()) {
-  const entries = [];
+export function needsHarnessStep(
+  store: Store,
+  blocked: Map<string, string>,
+  now = Date.now(),
+) {
+  const entries: Parameters<typeof recordWaitingRoles>[2] = [];
   for (const request of pendingSessionRequests(store, "process")) {
     if (request.operation === "send") continue;
     const harness = requestHarness(store, request);
     const problem = blocked.get(harness);
     if (problem)
       entries.push({
-        role: rowFor(request.role)?.setting ?? request.role,
+        role: rowFor(String(request.role))?.setting ?? String(request.role),
         id: request.id,
         extra: { harness, problem },
       });
@@ -36,14 +42,24 @@ export function needsHarnessStep(store, blocked, now = Date.now()) {
   return recordWaitingRoles(store, ITEMS, entries, now);
 }
 
-export const needsHarnessItems = (store) =>
-  Object.values(store.getMeta(ITEMS) ?? {}).map((item) => ({
-    kind: "needs-harness",
-    id: `needs-harness:${item.role}`,
-    taskId: null,
-    role: item.role,
-    title: `${item.role} cannot start on ${item.harness}`,
-    detail: `${item.requests.length} session${item.requests.length === 1 ? "" : "s"} for ${item.role} wait. ${item.problem}`,
-    choices: [],
-    openedAt: item.since,
-  }));
+type Waiting = {
+  role: string;
+  harness?: string;
+  problem?: string;
+  requests: string[];
+  since: string;
+};
+
+export const needsHarnessItems = (store: Store) =>
+  Object.values(store.getMeta<Record<string, Waiting>>(ITEMS) ?? {}).map(
+    (item) => ({
+      kind: "needs-harness",
+      id: `needs-harness:${item.role}`,
+      taskId: null,
+      role: item.role,
+      title: `${item.role} cannot start on ${item.harness}`,
+      detail: `${item.requests.length} session${item.requests.length === 1 ? "" : "s"} for ${item.role} wait. ${item.problem}`,
+      choices: [],
+      openedAt: item.since,
+    }),
+  );
