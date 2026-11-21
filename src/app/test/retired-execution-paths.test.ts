@@ -1,9 +1,8 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { workspaceConfig } from "../settings/config.ts";
 import { groupedCall, GROUPED_TOOLS } from "../mcp/mcp-tools.ts";
 import { Operations } from "../api/operations.ts";
@@ -15,11 +14,12 @@ import { temporaryDirectory } from "./temporary.ts";
 // server loop on.
 loopOn();
 const XDG = process.env.XDG_CONFIG_HOME;
+assert.ok(XDG, "loopOn sets XDG_CONFIG_HOME");
 const MACHINE = path.join(XDG, "avoozl", "config.json");
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const leaf = (id, extra = {}) => ({
+const leaf = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   title: "Task " + id,
   kind: "leaf",
@@ -35,7 +35,11 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-function workspace(t, tasks, tracked = {}) {
+function workspace(
+  t: TestContext,
+  tasks: ReturnType<typeof leaf>[],
+  tracked: Record<string, unknown> = {},
+) {
   const root = temporaryDirectory("avoozl-retired-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -100,7 +104,14 @@ test("an unknown machine file key is refused, naming it", async (t) => {
     JSON.stringify({ version: 1, loop: { run: ["specs"] } }),
   );
   const env = workspace(t, [leaf("a"), leaf("b")]);
-  const result = await env.ops.execute("workspace.tick", { sessions: [] }),
+  const result = await env.ops.execute<{
+      dispatch: {
+        role: string;
+        task: string;
+        model?: string;
+        crew?: unknown;
+      }[];
+    }>("workspace.tick", { sessions: [] }),
     workers = Object.fromEntries(
       result.dispatch
         .filter((d) => d.role === "worker")
