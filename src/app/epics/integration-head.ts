@@ -10,6 +10,7 @@
 import { checksOf, green } from "../delivery/check-reads.ts";
 import type { CheckReader, HeadCheck } from "../delivery/check-reads.ts";
 import { ruleBranch } from "../github/github-branch-rules.ts";
+import type { RulesReader } from "../github/github-branch-rules.ts";
 import { openStops, putStop } from "../flow/flow.ts";
 import { queueNotifications } from "../tick/notifications.ts";
 import { statusComplete } from "../../model.ts";
@@ -43,19 +44,23 @@ type HeadMeta = {
 type Plan = { id: string; spec?: string; deletedAt?: string };
 type Check = HeadCheck & { [key: string]: unknown };
 // The GitHub reads a head step makes (with checksOf's and ruleBranch's).
-type HeadGitHub = CheckReader & {
-  branch(
-    repository: string,
-    branch: string,
-  ): Promise<{ commit?: { sha?: string } } | null>;
-  compareCommits(
-    repository: string,
-    base: string,
-    head: string,
-  ): Promise<{ ahead_by?: unknown } | null>;
-};
+type HeadGitHub = CheckReader &
+  Pick<RulesReader, "repository"> & {
+    branch(
+      repository: string,
+      branch: string,
+    ): Promise<{ commit?: { sha?: string } } | null>;
+    compareCommits(
+      repository: string,
+      base: string,
+      head: string,
+    ): Promise<{ ahead_by?: unknown } | null>;
+  };
 type Policy = {
-  repositories?: Record<string, { requiredChecks?: string[] }>;
+  repositories?: Record<
+    string,
+    { requiredChecks?: string[]; baseBranch?: string | null }
+  >;
 } | null;
 
 const read = (store: Store): HeadMeta =>
@@ -158,8 +163,9 @@ export async function headStep(
       if (!head || !SHA.test(head))
         throw Error("the branch head could not be read");
       const settings = policy?.repositories?.[target.repository],
-        base = await ruleBranch(github, target.repository, settings),
-        [remote, compare] = await Promise.all([
+        base = await ruleBranch(github, target.repository, settings);
+      if (!base) throw Error("the default branch could not be read");
+      const [remote, compare] = await Promise.all([
           checksOf(github, target.repository, head),
           github.compareCommits(target.repository, target.branch, base),
         ]),

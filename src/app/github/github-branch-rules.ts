@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What GitHub's own rules on a repository's base branch say, read only:
 // rulesets (`rules/branches`) and classic branch protection. Avoozl follows
 // them instead of keeping its own copy (owner decision 2026-11-12, R36.13):
@@ -8,12 +7,89 @@
 import { parseRepository } from "./github.ts";
 import { asJob } from "./github-jobs.ts";
 
-const settingsPage = (repository, page) =>
+// A ruleset rule GitHub lists for a branch.
+interface Rule {
+  type?: string;
+  parameters?: {
+    required_approving_review_count?: unknown;
+    dismiss_stale_reviews_on_push?: unknown;
+    require_last_push_approval?: unknown;
+    required_status_checks?: ({ context?: string } | null)[];
+  };
+}
+// The checks classic protection requires.
+type RequiredChecks = {
+  contexts?: string[];
+  checks?: ({ context?: string } | null)[];
+} | null;
+// Classic branch protection, as GitHub answers it.
+interface Protection {
+  required_pull_request_reviews?: {
+    required_approving_review_count?: unknown;
+    dismiss_stale_reviews?: unknown;
+    require_last_push_approval?: unknown;
+  } | null;
+  required_status_checks?: RequiredChecks;
+}
+// The GitHub reads the rules make.
+export interface RulesReader {
+  repository(name: ReturnType<typeof parseRepository>): Promise<{
+    default_branch?: string;
+    permissions?: { admin?: boolean };
+  } | null>;
+  branch(
+    repository: string,
+    branch: string,
+  ): Promise<{
+    protection?: { enabled?: boolean; required_status_checks?: RequiredChecks };
+  } | null>;
+  branchRules(repository: string, branch: string): Promise<Rule[] | null>;
+  branchProtection(
+    repository: string,
+    branch: string,
+  ): Promise<Protection | null>;
+  listCommits(
+    repository: string,
+    branch: string,
+    options: { limit: number },
+  ): Promise<({ sha?: string } | null)[] | null>;
+  listPullRequests?(
+    repository: string,
+    options: Record<string, unknown>,
+  ): Promise<({ head?: { sha?: string } } | null)[]>;
+  checkRuns(
+    repository: string,
+    sha: string,
+  ): Promise<
+    ({
+      name?: string;
+      app?: { name?: string };
+      completed_at?: string;
+      started_at?: string;
+    } | null)[]
+  >;
+  commitStatus(
+    repository: string,
+    sha: string,
+  ): Promise<{
+    statuses?: ({
+      context?: string;
+      updated_at?: string;
+      created_at?: string;
+    } | null)[];
+  } | null>;
+}
+
+const settingsPage = (repository: string, page: string) =>
   `https://github.com/${repository}/settings/${page}`;
 
 // The branch a repository's rules are read on: the policy's base branch,
 // else GitHub's default branch.
-export async function ruleBranch(github, repository, policyEntry) {
+export async function ruleBranch(
+  github: Pick<RulesReader, "repository">,
+  repository: string,
+  policyEntry: { baseBranch?: string | null } | null | undefined,
+) {
   if (policyEntry?.baseBranch) return policyEntry.baseBranch;
   const remote = await github.repository(parseRepository(repository));
   return remote?.default_branch || null;
@@ -25,7 +101,12 @@ export async function ruleBranch(github, repository, policyEntry) {
 // also true for rulesets, checked live 2026-11-13.) An admin's 404 is
 // real (no classic protection), so this needs the repository's own
 // `permissions.admin`; an unreadable answer counts as hidden.
-async function classicHidden(github, repository, branch, protection) {
+async function classicHidden(
+  github: RulesReader,
+  repository: string,
+  branch: string,
+  protection: Protection | null,
+) {
   if (protection) return false;
   const remote = await github.branch(repository, branch);
   if (remote?.protection?.enabled !== true) return false;
@@ -43,14 +124,18 @@ async function classicHidden(github, repository, branch, protection) {
 // on but GitHub shows its review rule only to admins, so `approvals` is a
 // floor and the real count is unknown; Avoozl invents none. Throws when
 // GitHub cannot be read; the caller decides what that means.
-export async function branchReviewRule(github, repository, branch) {
+export async function branchReviewRule(
+  github: RulesReader,
+  repository: string,
+  branch: string,
+) {
   const [rules, protection] = await Promise.all([
     asJob("rules-read", github).branchRules(repository, branch),
     asJob("rules-read", github)
       .branchProtection(repository, branch)
       .catch((error) => {
         // Classic protection needs admin access to read; rulesets do not.
-        if (error.status === 403) return null;
+        if ((error as { status?: number }).status === 403) return null;
         throw error;
       }),
   ]);
@@ -58,7 +143,7 @@ export async function branchReviewRule(github, repository, branch) {
   let approvals = 0,
     dismissStale = false,
     lastPushApproval = false;
-  const sources = [];
+  const sources: string[] = [];
   for (const rule of rules || [])
     if (rule?.type === "pull_request") {
       const count =
@@ -101,9 +186,9 @@ export async function branchReviewRule(github, repository, branch) {
 // Check names Avoozl can see for a repository: the check runs and commit
 // statuses on the branch's recent commits, and the checks its rules require.
 export async function seenCheckNames(
-  github,
-  repository,
-  branch,
+  github: RulesReader,
+  repository: string,
+  branch: string,
   { commits = 5, pulls = 5 } = {},
 ) {
   const [recent, open, rules, protection, remote] = await Promise.all([
@@ -129,11 +214,11 @@ export async function seenCheckNames(
     // even when the protection endpoint is admin-only.
     github.branch(repository, branch).catch(() => null),
   ]);
-  const seen = new Set(),
-    required = new Set(),
+  const seen = new Set<string>(),
+    required = new Set<string>(),
     // Where each name was seen last: the app or "status", and when.
-    sources = {};
-  const note = (name, source, at) => {
+    sources: Record<string, { source: string; at: string | null }> = {};
+  const note = (name: string, source: string, at: string | undefined) => {
     seen.add(name);
     const last = sources[name];
     if (!last || (at && (!last.at || at > last.at)))
@@ -142,10 +227,13 @@ export async function seenCheckNames(
   const shas = [
     ...(recent || []).map((commit) => commit?.sha),
     ...(open || []).slice(0, pulls).map((pull) => pull?.head?.sha),
-  ].filter((sha, index, all) => sha && all.indexOf(sha) === index);
+  ].filter(
+    (sha, index, all): sha is string =>
+      Boolean(sha) && all.indexOf(sha) === index,
+  );
   for (const sha of shas) {
     const [runs, status] = await Promise.all([
-      github.checkRuns(repository, sha).catch(() => []),
+      github.checkRuns(repository, sha).catch(() => [] as never[]),
       github.commitStatus(repository, sha).catch(() => ({ statuses: [] })),
     ]);
     for (const run of runs)
@@ -175,7 +263,8 @@ export async function seenCheckNames(
     for (const check of classic?.checks || [])
       if (check?.context) required.add(check.context);
   }
-  const sort = (set) => [...set].sort((a, b) => a.localeCompare(b));
+  const sort = (set: Set<string>) =>
+    [...set].sort((a, b) => a.localeCompare(b));
   return {
     branch,
     seen: sort(new Set([...seen, ...required])),

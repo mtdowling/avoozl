@@ -10,6 +10,7 @@ import { commitSubject } from "../landing/landing-config.ts";
 import { integrationOf } from "./integration-branch.ts";
 import { specFacts } from "../specs/spec-plans.ts";
 import { ruleBranch } from "../github/github-branch-rules.ts";
+import type { RulesReader } from "../github/github-branch-rules.ts";
 import { asJob } from "../github/github-jobs.ts";
 import { conflictRow, sharedFiles } from "../specs/integration-base.ts";
 import { specTasks } from "../specs/spec-tasks.ts";
@@ -30,7 +31,11 @@ type Plan = {
 type Policy = {
   repositories?: Record<
     string,
-    { landing?: { commitPrefix?: string }; [key: string]: unknown }
+    {
+      landing?: { commitPrefix?: string };
+      baseBranch?: string | null;
+      [key: string]: unknown;
+    }
   >;
 } | null;
 export type SyncTarget = {
@@ -48,7 +53,7 @@ type Entry = {
 };
 type SyncMeta = { entries: Record<string, Entry>; problems: string };
 // The GitHub calls the sync makes (with ruleBranch's and sharedFiles').
-type SyncGitHub = {
+type SyncGitHub = Pick<RulesReader, "repository"> & {
   compareCommits(
     repository: string,
     base: string,
@@ -161,6 +166,7 @@ export async function syncStep(
         repository,
         policy?.repositories?.[repository],
       );
+      if (!base) throw Error("the default branch could not be read");
       if (base === branch) {
         say(
           "the integration branch is the default branch, so nothing is merged.",
