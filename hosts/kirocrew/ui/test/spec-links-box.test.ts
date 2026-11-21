@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The spec details panel's Links box (task 44.2, R92.4, R92.9): the spec
 // issue, working branch, open pull requests with a check dot each, and the
 // source issues the spec came from. Every link opens a new tab with no
@@ -7,7 +6,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, launch, type Browser, type Harness, type Page } from './browser/chrome.ts'
 import { demoReplies, demoScript } from './browser/demo-replies.ts'
 import { noLinksFixture, specLinksFixture } from './browser/spec-links-fixture.ts'
 
@@ -15,6 +14,7 @@ const { checkDot, scmLinkText } = await import('../src/plans-api.ts')
 
 test('link text and check dots: an older head is grey and says so', () => {
   const links = specLinksFixture()
+  assert.ok(links.issue)
   assert.equal(scmLinkText(links.issue), 'example/specs#40')
   assert.equal(scmLinkText(links.workingBranches[0]), 'avoozl/meal-planner/work')
   assert.equal(scmLinkText({ kind: 'commit', repository: 'a/b', sha: 'c'.repeat(40), url: '' }), 'ccccccc')
@@ -24,20 +24,22 @@ test('link text and check dots: an older head is grey and says so', () => {
   const stale = checkDot(links.pulls[2].checks, when)
   assert.equal(stale.color, 'var(--muted)')
   assert.match(stale.label, /older commit/)
-  assert.equal(checkDot({ ...links.pulls[0].checks, dot: 'fail' }, when).color, 'var(--danger)')
+  const passed = links.pulls[0].checks
+  assert.ok(passed)
+  assert.equal(checkDot({ ...passed, dot: 'fail' }, when).color, 'var(--danger)')
   assert.deepEqual(checkDot(null, when), { label: 'No checks recorded', color: 'var(--muted)' })
 })
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Links box tests'
-let browser, page
-const harnesses = {}
+let browser: Browser | undefined, page: Page
+const harnesses: Record<string, Harness> = {}
 before(async () => {
-  if (skip) return
+  if (!chrome) return
   for (const [name, links] of [
     ['full', specLinksFixture()],
     ['empty', noLinksFixture()],
-  ])
+  ] as [string, ReturnType<typeof specLinksFixture>][])
     harnesses[name] = await buildHarness({ scripts: { 'demo.js': demoScript(await demoReplies({ plan: { id: 'meal-planner', with: { links } } })) } })
   browser = await launch(chrome)
   page = await browser.page()
@@ -47,10 +49,10 @@ after(async () => {
   for (const harness of Object.values(harnesses)) harness.remove()
 })
 
-const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
-const button = (text, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const click = (expression: string) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
+const button = (text: string, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 
-async function openSpec(harness, width) {
+async function openSpec(harness: Harness, width: number) {
   const url = harness.url({ page: 'demo', theme: 'light' })
   await page.open(url, { width, height: 900 })
   await page.evaluate('localStorage.clear()')
@@ -67,7 +69,7 @@ async function openSpec(harness, width) {
 }
 
 const read = () =>
-  page.evaluate(`(() => {
+  page.evaluate<{ rows: Record<string, string>; anchors: { href: string; target: string; rel: string }[]; dots: (string | null)[][]; pulls: string[] } | null>(`(() => {
     const box = document.querySelector('[aria-label="Spec details"] [data-spec-links]')
     if (!box) return null
     const rows = Object.fromEntries([...box.querySelectorAll('[data-spec-links-row]')].map((r) => [r.dataset.specLinksRow, r.querySelector('dd').textContent]))
@@ -90,7 +92,7 @@ for (const width of [1280, 390]) {
       box.dots.map(([dot]) => dot),
       ['pass', 'pending', 'stale'],
     )
-    assert.match(box.dots[2][1], /older commit/)
+    assert.match(box.dots[2][1] ?? '', /older commit/)
     assert.ok(box.anchors.length >= 9)
     for (const a of box.anchors) {
       assert.match(a.href, /^https:\/\/github\.com\/example\//)
@@ -103,6 +105,7 @@ for (const width of [1280, 390]) {
 test('missing records show as None and make no link', { skip }, async () => {
   await openSpec(harnesses.empty, 1280)
   const box = await read()
+  assert.ok(box, 'the Links box is in the spec details panel')
   assert.deepEqual(box.rows, { 'Spec issue': 'None', 'Working branch': 'None', 'Open pull requests': 'None', 'Source issues': 'None' })
   assert.deepEqual(box.anchors, [])
 })

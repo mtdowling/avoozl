@@ -1,15 +1,14 @@
-// @ts-nocheck: typing debt
 // Repository roles (R105): the role of each repository row, the edit a role
 // change makes, the planning row with no checkout, and the old link.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { modeFromRoles, roleFromMode, roleOfRow, tasksLiveLine, toForm, toPolicy, withRole, ROLE_OPTIONS } from '../src/settings-api.ts'
+import { modeFromRoles, roleFromMode, roleOfRow, tasksLiveLine, toForm, toPolicy, withRole, ROLE_OPTIONS, type SettingsForm } from '../src/settings-api.ts'
 import { repositoryRows } from '../src/repository-rows.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const entry = (extra = {}) => ({ baseBranch: 'main', ...extra })
-const rowOf = (form, name) => {
+const rowOf = (form: SettingsForm, name: string) => {
   const policy = form.repositories.findIndex((r) => r.name === name)
   return { policy, github: name, branch: 'main' }
 }
@@ -75,9 +74,9 @@ test('a role on a repository with no entry adds one on its branch', () => {
   })
   const next = withRole(form, { policy: -1, github: 'a/lib', branch: 'trunk' }, 'both')
   const added = next.repositories.find((r) => r.name === 'a/lib')
-  assert.equal(added.role, 'both')
-  assert.equal(added.baseBranch, 'trunk')
-  assert.equal(next.repositories.find((r) => r.name === 'a/app').role, 'both')
+  assert.equal(added?.role, 'both')
+  assert.equal(added?.baseBranch, 'trunk')
+  assert.equal(next.repositories.find((r) => r.name === 'a/app')?.role, 'both')
   // No GitHub remote: nothing changes.
   assert.equal(withRole(form, { policy: -1, github: null, branch: 'main' }, 'both'), form)
 })
@@ -87,7 +86,8 @@ test('a role belongs to the form: the policy keeps the mode and no role key', ()
   const next = withRole(form, { ...rowOf(form, 'a/app'), branch: 'main' }, 'both')
   const policy = toPolicy(next)
   assert.equal(policy.mode, 'single-repo')
-  assert.equal(Object.hasOwn(policy.repositories['a/app'], 'role'), false)
+  const repositories = policy.repositories as Record<string, object>
+  assert.equal(Object.hasOwn(repositories['a/app'], 'role'), false)
 })
 
 test('the line above the list says where tasks live', () => {

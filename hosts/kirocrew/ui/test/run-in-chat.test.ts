@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Run in a chat (simplify sim-5.2, §D13): the seed names the skill that does
 // the work and the item's IDs, for a spec, a task and a Needs you item. The
 // page sends it to the host's chat launcher: a Kiro Crew chat inside Kiro
@@ -8,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { runSeed } from '../src/chat-api.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('a spec is revised with avoozl-spec and reviewed with avoozl-spec-review, by name', () => {
   const revise = runSeed({ kind: 'spec', spec: 'search', review: false })

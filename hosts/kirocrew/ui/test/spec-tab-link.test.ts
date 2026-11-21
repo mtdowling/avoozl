@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A pasted spec tab link opens the Specs page on that tab. The page has no
 // DOM renderer in this test, so it checks the wiring in App.tsx's source.
 import assert from 'node:assert/strict'

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings pages edit in place. In Chrome, on the harness app page with a
 // stateful backend (?page=app&inline=1), each page must show its fields
 // as editable inputs with no Edit or Configure button, show one Save and
@@ -6,53 +5,52 @@
 // and persist through the shared operation with the expected hash. Skipped
 // when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
+import { clickText } from './browser/picker-steps.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Settings inline edit tests'
 
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
-const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector, text) =>
-  `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
-const set = (selector, value) =>
+const wait = (ms: number) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const set = (selector: string, value: string) =>
   page.evaluate(
     `(() => { const el = document.querySelector(${JSON.stringify(selector)}); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })); return true })()`,
   )
 const footer = () => page.evaluate(`Boolean(document.querySelector('[data-save-footer]'))`)
-const writes = () => page.evaluate(`window.__writes.map((w) => ({ operation: w.operation, input: w.input, workspaceId: w.workspaceId }))`)
-const press = (label) => page.evaluate(click('[data-save-footer] button', label))
+// Each write the inline fixture recorded; I is the input fields a test reads.
+const writes = <I = Record<string, unknown>>() =>
+  page.evaluate<{ operation: string; input: I; workspaceId: string }[]>(`window.__writes.map((w) => ({ operation: w.operation, input: w.input, workspaceId: w.workspaceId }))`)
+const press = (label: string) => page.evaluate(clickText('[data-save-footer] button', label))
 
-async function openPage(label, width = 1280, theme = 'light', query = {}) {
+async function openPage(label: string, width = 1280, theme = 'light', query = {}) {
   await page.open(harness.url({ page: 'app', basic: '1', inline: '1', theme, ...query }), { width, height: 800, dark: theme === 'dark' })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(200)
-  assert.ok(await page.evaluate(click(`${scope} [data-nav-head]`, 'Settings')), 'Settings')
+  assert.ok(await page.evaluate(clickText(`${scope} [data-nav-head]`, 'Settings')), 'Settings')
   await wait(200)
   if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-  assert.ok(await page.evaluate(click(`${scope} [data-nav-item]`, label)), label)
+  assert.ok(await page.evaluate(clickText(`${scope} [data-nav-item]`, label)), label)
   if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(300)
   await page.until(`Boolean(document.querySelector('[data-settings-body]'))`)
   // Nothing on the page opens a dialog or an editor behind a button.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-open-settings], [data-settings-dialog]').length`), 0, `${label}: no Configure button or dialog`)
-  const labels = await page.evaluate(`[...document.querySelectorAll('[data-settings-body] button')].map((b) => b.textContent.trim())`)
-  assert.ok(!labels.some((text) => /^(Edit|Configure)\b/.test(text)), `${label}: no Edit button (${labels.join(' | ')})`)
+  const labels = await page.evaluate<string[]>(`[...document.querySelectorAll('[data-settings-body] button')].map((b) => b.textContent.trim())`)
+  assert.ok(!labels.some((text: string) => /^(Edit|Configure)\b/.test(text)), `${label}: no Edit button (${labels.join(' | ')})`)
 }
 
 for (const width of [1280, 390]) {
   test(`Autopilot edits in place at ${width} px: Discard, Save with the hash`, { skip }, async () => {
     await openPage('Autopilot', width)
     assert.equal(await footer(), false, 'no footer before a change')
-    const radio = (mode) => `document.querySelector('[data-radio-fold="avoozl-delivery-pr"] input[value="${mode}"]')`
+    const radio = (mode: string) => `document.querySelector('[data-radio-fold="avoozl-delivery-pr"] input[value="${mode}"]')`
     await page.until(`Boolean(${radio('ready')})`)
     await page.evaluate(`${radio('ready')}.click()`)
     await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
@@ -74,8 +72,8 @@ for (const width of [1280, 390]) {
 
   test(`Autopilot off at ${width} px: every setting shows and saves; on writes the loop, off removes it`, { skip }, async () => {
     await openPage('Autopilot', width, 'light', { autopilot: 'off' })
-    const choice = (mode) => `document.querySelector('[data-radio-fold="avoozl-autopilot"] input[value="${mode}"]')`
-    const pr = (mode) => `document.querySelector('[data-radio-fold="avoozl-delivery-pr"] input[value="${mode}"]')`
+    const choice = (mode: string) => `document.querySelector('[data-radio-fold="avoozl-autopilot"] input[value="${mode}"]')`
+    const pr = (mode: string) => `document.querySelector('[data-radio-fold="avoozl-delivery-pr"] input[value="${mode}"]')`
     await page.until(`Boolean(${choice('off')})`)
     assert.equal(await page.evaluate(`${choice('off')}.checked`), true, 'Off is picked')
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-autopilot-steps]').length`), 2, 'both flows show')
@@ -129,7 +127,7 @@ for (const width of [1280, 390]) {
     await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
     await press('Save')
     await page.until(`window.__writes.length === 1`)
-    const [call] = await writes()
+    const [call] = await writes<{ flow: { localChecksFirst: boolean }; expectedHash: string }>()
     assert.equal(call.operation, 'flow.settings.update')
     assert.equal(call.input.flow.localChecksFirst, false)
     assert.equal(call.input.expectedHash, 'h1')
@@ -147,18 +145,18 @@ for (const width of [1280, 390]) {
       'Incoming items checkbox',
     )
     await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
-    assert.ok(await page.evaluate(click('[data-terms-editor] button, [data-terms-editor] [role="tab"]', 'File view')), 'File view')
+    assert.ok(await page.evaluate(clickText('[data-terms-editor] button, [data-terms-editor] [role="tab"]', 'File view')), 'File view')
     await page.until(`Boolean(document.querySelector('[data-terms-editor] textarea'))`)
     await set('[data-terms-editor] textarea', 'zebra: zebra falcon\nmango: mango tree\n')
     await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
     await press('Save')
     await page.until(`window.__writes.length === 2`)
-    const calls = await writes()
+    const calls = await writes<{ sets?: { boundaries: string[] }[]; expectedHash?: string; text?: string }>()
     assert.equal(calls[0].operation, 'content.sets.update')
-    assert.ok(calls[0].input.sets[0].boundaries.includes('intake'))
+    assert.ok(calls[0].input.sets?.[0].boundaries.includes('intake'))
     assert.equal(calls[0].input.expectedHash, 'h1')
     assert.equal(calls[1].operation, 'content.terms.update')
-    assert.match(calls[1].input.text, /mango/)
+    assert.match(calls[1].input.text ?? '', /mango/)
     await page.until(`!document.querySelector('[data-save-footer] [data-save]')`)
     assert.deepEqual(page.errors, [])
   })
@@ -179,7 +177,7 @@ for (const width of [1280, 390]) {
     await page.until(`!${save}.disabled`)
     await page.evaluate(`${save}.click()`)
     await page.until(`window.__writes.length === 1`)
-    const [call] = await writes()
+    const [call] = await writes<{ github: { repositories: Record<string, { baseBranch: string }> }; expectedHash: string }>()
     assert.equal(call.operation, 'github.settings.update')
     assert.equal(call.input.github.repositories['acme/recipe-box'].baseBranch, 'develop')
     assert.equal(call.input.expectedHash, 'h1')
@@ -190,7 +188,7 @@ for (const width of [1280, 390]) {
     await openPage('Plugins', width)
     await page.until(`Boolean(document.querySelector('[data-plugins-layout]'))`)
     await page.until(`Boolean(document.querySelector('[data-plugins-layout] button'))`)
-    assert.ok(await page.evaluate(click('[data-plugins-layout] button', 'Disable')), 'Disable')
+    assert.ok(await page.evaluate(clickText('[data-plugins-layout] button', 'Disable')), 'Disable')
     await page.until(`window.__writes.length === 1`)
     const [call] = await writes()
     assert.equal(call.operation, 'plugin.disable')

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // plugin-checks pk-3.1: the words a task's plugin checks, a check's step
 // and a decide answer show, and the mapping form's parse, from fixture
 // records.
@@ -28,6 +27,12 @@ test('a decide answer names its point and reason, and a flip its person', () => 
 
 test('a mapping is a JSON argument list and comma separated names', () => {
   assert.deepEqual(parseMapping('["/opt/review-mcp", "--stdio"]', 'REVIEW_TOKEN, OTHER'), { command: ['/opt/review-mcp', '--stdio'], env: ['REVIEW_TOKEN', 'OTHER'] })
-  assert.match(parseMapping('/opt/review-mcp --stdio', '').error, /JSON list/)
-  assert.match(parseMapping('[]', '').error, /one or more/)
+  for (const [command, error] of [
+    ['/opt/review-mcp --stdio', /JSON list/],
+    ['[]', /one or more/],
+  ] as const) {
+    const parsed = parseMapping(command, '')
+    assert.ok('error' in parsed, command)
+    assert.match(parsed.error, error)
+  }
 })

@@ -1,8 +1,8 @@
-// @ts-nocheck: typing debt
 // Runs under node's type stripping: `node --test hosts/kirocrew/ui/test`.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
+import { fakeApi } from './fake-api.ts'
 import { emptyRepository, settingsClient, splitList, toForm, toPolicy } from '../src/settings-api.ts'
 import { normalizeGitHubPolicy, policySection } from '../../../../src/app/github/github-policy.ts'
 
@@ -44,7 +44,7 @@ test('cleared fields become null at the top and vanish below it', () => {
   assert.equal(policy.mode, 'single-repo')
   assert.equal(policy.planningRepository, null)
   assert.equal(policy.epicIssueType, null)
-  const repository = policy.repositories['example/app']
+  const repository = (policy.repositories as Record<string, object>)['example/app']
   assert.equal('minimumPermission' in repository, false)
 })
 
@@ -84,7 +84,7 @@ test('lists split on commas and lines; numbers stay as typed when not whole', ()
   repository.priority = ' p0,\np1 '
   form.repositories = [repository]
   const policy = toPolicy(form)
-  assert.deepEqual(policy.repositories['example/new'], {
+  assert.deepEqual((policy.repositories as Record<string, object>)['example/new'], {
     baseBranch: 'main',
     priorityLabels: ['p0', 'p1'],
     conflicts: { maxAttempts: 3 },
@@ -92,13 +92,8 @@ test('lists split on commas and lines; numbers stay as typed when not whole', ()
 })
 
 test('the client calls the three settings operations for the workspace', async () => {
-  const calls = []
-  const client = settingsClient({
-    post: async (path, body) => {
-      calls.push({ path, body })
-      return { result: { ok: true } }
-    },
-  })
+  const { api, calls } = fakeApi(() => ({ ok: true }))
+  const client = settingsClient(api)
   await client.get('w1')
   await client.validate('w1', { mode: null })
   await client.save('w1', { mode: null }, 'hash-1')
@@ -120,6 +115,6 @@ test('the cache seconds round-trip for the workspace only', () => {
   assert.equal('cacheSeconds' in form.repositories[0], false)
   const policy = toPolicy(form)
   assert.equal(policy.cacheSeconds, 45)
-  assert.equal('cacheSeconds' in policy.repositories['o/r'], false)
+  assert.equal('cacheSeconds' in (policy.repositories as Record<string, object>)['o/r'], false)
   assert.equal(toPolicy({ ...form, cacheSeconds: '' }).cacheSeconds, null)
 })

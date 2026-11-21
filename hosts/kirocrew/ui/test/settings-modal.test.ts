@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings: in-place repository editing, the shared radio fold-out in Add
 // plugin, the Add rule set main action and the workspace "How to add" label.
 import assert from 'node:assert/strict'
@@ -6,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { trapStep } from '../src/focus-trap.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('Tab stays inside the dialog and wraps both ways', () => {
   assert.equal(trapStep(3, 2, false), 0)

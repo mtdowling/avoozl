@@ -1,16 +1,16 @@
-// @ts-nocheck: typing debt
 // Settings > Repository setup > Edit: every setting sits on a tab of the
 // shared tab bar, and the one Save writes every
 // tab's changes. Logic in node; the dialog in real Chrome on the harness
 // (?page=app&roles=plans). The browser tests skip when no Chrome is found.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
+import { test } from 'node:test'
 import { EDIT_TABS, EDIT_TAB_FIELDS, dirtyTabs, errorTabs } from '../src/repo-edit-tabs.ts'
 import { emptyRepository } from '../src/settings-api.ts'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('each edited field belongs to exactly one tab', () => {
   const all = Object.values(EDIT_TAB_FIELDS).flat()
@@ -41,23 +41,20 @@ test('the dialog uses the shared tab bar and keeps nothing outside it', () => {
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Edit tabs tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 250))')
-const press = (selector, text) =>
+const press = (selector: string, text: string) =>
   page.evaluate(
     `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => (x.getAttribute('aria-label') || x.textContent).trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`,
   )
-const tab = async (key) => {
+const tab = async (key: string) => {
   await page.evaluate(`document.querySelector('[data-repository-edit] [role=tab][data-tab="${key}"]').click()`)
   await page.until(`document.querySelector('[data-repository-edit] [role=tabpanel]')?.dataset.tabPanel === '${key}'`)
   await settle()
 }
 // Types into a React input or picks a select value.
-const type = (selector, value) =>
+const type = (selector: string, value: string) =>
   page.evaluate(`(() => {
     const el = document.querySelector(${JSON.stringify(selector)})
     const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
@@ -66,11 +63,11 @@ const type = (selector, value) =>
     return true
   })()`)
 const tabs = () =>
-  page.evaluate(
+  page.evaluate<{ key: string; dirty: boolean; error: boolean }[]>(
     `[...document.querySelectorAll('[data-repository-edit] [role=tab]')].map((t) => ({ key: t.dataset.tab, dirty: t.dataset.dirty === 'true', error: t.dataset.error === 'true' }))`,
   )
 
-async function openEdit(name) {
+async function openEdit(name: string) {
   await page.open(harness.url({ page: 'app', basic: '1', theme: 'light', roles: 'plans' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   await page.evaluate(
@@ -102,7 +99,7 @@ test('no setting renders outside a tab, on any tab', { skip }, async () => {
   )
   for (const key of ['general', 'landing', 'github']) {
     await tab(key)
-    const got = await page.evaluate(`(() => {
+    const got = await page.evaluate<{ top: (string | null)[]; loose: string[]; fields: number }>(`(() => {
       const body = document.querySelector('[data-repository-edit] [data-modal-body]')
       const top = [...body.children].filter((el) => el.tagName !== 'STYLE').map((el) => el.getAttribute('role'))
       const loose = [...body.querySelectorAll('input, select, textarea, label, button, h3, h4')].filter((el) => !el.closest('[role=tabpanel], [role=tablist]')).map((el) => el.outerHTML.slice(0, 80))
@@ -128,7 +125,9 @@ test('saving from any tab saves every tab', { skip }, async () => {
   await tab('general')
   assert.equal(await press('dialog[open] button', 'Save'), true)
   await page.until(`!document.querySelector('[data-repository-edit]')`)
-  const write = await page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'github.settings.update').at(-1)?.input`)
+  const write = await page.evaluate<{ github: { repositories: Record<string, Record<string, unknown>> } }>(
+    `window.__harness.calls.filter((c) => c.operation === 'github.settings.update').at(-1)?.input`,
+  )
   const entry = write.github.repositories['acme/recipe-box']
   assert.equal(entry.baseBranch, 'trunk')
   assert.deepEqual(entry.allowedActors, ['sam'])
