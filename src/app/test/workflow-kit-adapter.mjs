@@ -20,6 +20,7 @@ import {
 import { landingAction } from "../landing/landing-action.mjs";
 import { specIssuesOf } from "../specs/spec-publication.mjs";
 import { stoppedSpecs } from "../specs/label-filters.mjs";
+import { tickedText } from "../specs/spec-ticks.mjs";
 
 // The rule number in docs/github-workflow.md that each lint code enforces.
 // A code with no entry is reported as itself, so the case shows it.
@@ -436,6 +437,15 @@ export async function avoozl(testCase) {
     got.manualTick = await manualTick(testCase, specs);
   if (testCase.expect.specIssues || testCase.expect.duplicates)
     Object.assign(got, specIssues(testCase));
+  if (testCase.expect.groupTicks)
+    got.groupTicks = Object.fromEntries(
+      Object.entries(specs).map(([name, files]) => [
+        name,
+        tickedText(name, files["tasks.md"] ?? "", [], "tasks.md", {
+          groups: true,
+        }).ticked,
+      ]),
+    );
   if (testCase.expect.limits)
     got.limits = testCase.actions.map((action) =>
       runnerLimit(action, testCase.runner),

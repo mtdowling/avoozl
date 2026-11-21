@@ -302,6 +302,31 @@ test("a direct push and a squash-merged pull request each resolve to their tick 
   }
 });
 
+test("a group two landings left open is ticked by the next read, in its own commit, once", async (t) => {
+  // Nearby inputs: a second machine reading the fixed branch commits
+  // nothing, and a group with an open child is left open.
+  const root = temporaryDirectory("avoozl-group-box-"),
+    raced = tick(tick(TASKS, 1), 2),
+    { origin } = repo(root, "app", { [FILE]: raced }),
+    w = { root, origin },
+    start = git(origin, "rev-parse", "main");
+  await machine(t, w, "a");
+  const head = git(origin, "rev-parse", "main");
+  assert.equal(show(origin, "main"), raced.replace("- [ ] 1 ", "- [x] 1 "));
+  assert.equal(git(origin, "rev-list", "--count", `${start}..${head}`), "1");
+  assert.equal(git(origin, "log", "-1", "--format=%s", head), "Tick s.1");
+  assert.equal(
+    git(origin, "diff", "--numstat", start, head),
+    `1\t1\t${FILE}`,
+    "only the group's box changed",
+  );
+  await machine(t, w, "b");
+  assert.equal(git(origin, "rev-parse", "main"), head);
+  const open = repo(root, "open", { [FILE]: tick(TASKS, 1) });
+  await machine(t, { root, origin: open.origin }, "c");
+  assert.equal(show(open.origin, "main"), tick(TASKS, 1));
+});
+
 test("a spec in a separate plans repository is ticked there, as its own commit, retrying a race", async (t) => {
   const w = await workspace(t, { specInCode: false }),
     plans = repo(w.root, "plans", { [FILE]: TASKS }),

@@ -1,0 +1,23 @@
+{
+  "title": "A group two landings left open with every child ticked is ticked in its own commit",
+  "rules": ["3.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "violations": {
+      "parser": ["3.2"]
+    },
+    "groupTicks": {
+      "parser": ["p-2"]
+    }
+  }
+}
