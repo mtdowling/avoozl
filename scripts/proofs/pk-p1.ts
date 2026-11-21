@@ -62,7 +62,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const port = server.address().port;
 
 // ---- The workspace and the scratch repository ---------------------------
-const { Store } = await imp("store/store.mjs");
+const { Store } = await imp("store/store.ts");
 const { Operations } = await imp("api/operations.mjs");
 const { snapshot } = await imp("test/fixtures.mjs");
 const plugins = await imp("plugins/plugins.mjs");
@@ -567,7 +567,7 @@ try {
       "--input-type=module",
       "-e",
       `
-    const { Store } = await import(${JSON.stringify(src("store/store.mjs"))});
+    const { Store } = await import(${JSON.stringify(src("store/store.ts"))});
     const { Operations } = await import(${JSON.stringify(src("api/operations.mjs"))});
     const { drainCheckRuns } = await import(${JSON.stringify(src("delivery/check-runs.mjs"))});
     const store = new Store(${JSON.stringify(storeFile)});
