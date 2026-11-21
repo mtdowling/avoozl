@@ -5,7 +5,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { TestContext } from "node:test";
 
-type Reply =
+export type Reply =
   | number
   | { status: number; headers?: Record<string, string> }
   | "reset"

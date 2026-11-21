@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The containment probes (MS8): a stand-in harness with its own sandbox off
 // (`danger-full-access`) runs every probe under confineChild, and Avoozl's
 // sandbox refuses each. On the macOS and Linux CI legs AVOOZL_REQUIRE_SANDBOX
@@ -10,6 +9,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { PROBES, RUN_PROBES, probeArgv } from "../../sandbox-probes.ts";
 import { harnessPermission } from "../harness-definitions.ts";
@@ -22,18 +22,22 @@ import {
 
 const kind = sandboxKind();
 const required = Boolean(process.env.AVOOZL_REQUIRE_SANDBOX);
-const real = (file) => fs.realpathSync.native(file);
+const real = (file: string) => fs.realpathSync.native(file);
 const definition = { name: "stand-in", hash: "b".repeat(64) };
 const KEYCHAIN_SERVICE = `avoozl-probe-${process.pid}`;
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, stdio: ["ignore", "pipe", "ignore"] });
 
 // A machine with a secret in each place a probe reaches for.
-async function machine(t) {
+async function machine(t: TestContext) {
   const root = real(fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-probes-")));
   const server = net.createServer((socket) => socket.end());
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) =>
+    server.listen(0, "127.0.0.1", () => resolve()),
+  );
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
   t.after(() => {
     server.close();
     fs.rmSync(root, { recursive: true, force: true, maxRetries: 10 });
@@ -100,7 +104,7 @@ async function machine(t) {
       state_directory: stateDirectory,
       other_temp: otherTemp,
       public_host: "example.com",
-      closed_port: server.address().port,
+      closed_port: address.port,
       workspace_database: database,
       keychain_service: KEYCHAIN_SERVICE,
       keep_env: "",
@@ -110,7 +114,11 @@ async function machine(t) {
 
 // Run the probes in a stand-in harness. With `confined`, under confineChild
 // as a read child with its own sandbox off; without, as a plain child.
-async function runProbes(m, probes, { confined = true } = {}) {
+async function runProbes(
+  m: Awaited<ReturnType<typeof machine>>,
+  probes: unknown,
+  { confined = true } = {},
+): Promise<Record<string, number>> {
   const file = path.join(m.tmp, "probes.json");
   fs.writeFileSync(file, JSON.stringify(probes));
   const argv = [
@@ -161,7 +169,7 @@ async function runProbes(m, probes, { confined = true } = {}) {
     proc.on("error", reject);
     proc.on("exit", (code) => {
       try {
-        resolve(JSON.parse(out.trim().split("\n").pop()));
+        resolve(JSON.parse(out.trim().split("\n").pop() ?? ""));
       } catch {
         reject(Error(`The stand-in exited ${code}: ${out}\n${err}`));
       }
@@ -170,7 +178,7 @@ async function runProbes(m, probes, { confined = true } = {}) {
 }
 
 // The probes that got through: each exited 0.
-const through = (results) =>
+const through = (results: Record<string, number>) =>
   Object.entries(results)
     .filter(([, code]) => code === 0)
     .map(([id]) => id);

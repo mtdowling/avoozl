@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,7 +11,7 @@ import {
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "../config-schema.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-function writeJson(filename, value) {
+function writeJson(filename: string, value: unknown) {
   fs.mkdirSync(path.dirname(filename), { recursive: true });
   fs.writeFileSync(filename, JSON.stringify(value, null, 2) + "\n");
 }
@@ -98,9 +97,14 @@ test("repository configuration paths are owned by its repository root", () => {
     config.dbPath,
     path.join(workspaceRoot, ".avoozl", "local", "workspace.sqlite"),
   );
-  assert.equal(config.repositories.code.root, path.join(workspaceRoot, "code"));
+  // The checkout entry as the file wrote it.
+  const code = config.repositories?.code as {
+    root?: string;
+    worktreeRoot?: string;
+  };
+  assert.equal(code.root, path.join(workspaceRoot, "code"));
   assert.equal(
-    config.repositories.code.worktreeRoot,
+    code.worktreeRoot,
     path.join(workspaceRoot, ".avoozl", "local", "worktrees"),
   );
 });
@@ -228,7 +232,7 @@ test("a file that sets a removed or unknown key fails to load, naming both", () 
           workspaceRoot,
           env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
         }),
-      (error) =>
+      (error: Error) =>
         error.message.includes(`"${key}"`) && error.message.includes(file),
       key,
     );
@@ -238,10 +242,10 @@ test("a file that sets a removed or unknown key fails to load, naming both", () 
 // Each nested older spelling, and a nested key the product never had. The
 // error names the key's whole path and the file.
 test("a file that sets a removed or unknown nested key fails to load, naming its path", () => {
-  const repo = (entry) => ({
+  const repo = (entry: Record<string, unknown>) => ({
     github: { repositories: { "o/app": { baseBranch: "main", ...entry } } },
   });
-  for (const [key, value] of [
+  const cases: [string, Record<string, unknown>][] = [
     ["delivery.ship", { delivery: { ship: "manual" } }],
     ["delivery.concurrency", { delivery: { concurrency: 2 } }],
     ["delivery.agent", { delivery: { agent: "a" } }],
@@ -268,7 +272,8 @@ test("a file that sets a removed or unknown nested key fails to load, naming its
       "github.repositories.o/app.landing.bogus",
       repo({ landing: { bogus: 1 } }),
     ],
-  ]) {
+  ];
+  for (const [key, value] of cases) {
     const workspaceRoot = temporaryDirectory("avoozl-config-nested-keys-"),
       file = path.join(workspaceRoot, ".avoozl.json");
     writeJson(file, { version: 1, ...value });
@@ -278,7 +283,7 @@ test("a file that sets a removed or unknown nested key fails to load, naming its
           workspaceRoot,
           env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
         }),
-      (error) =>
+      (error: Error) =>
         error.message.includes(`"${key}"`) && error.message.includes(file),
       key,
     );

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Task 41.1: the scheduler for spec drivers. Unblock ranking, repository-wide
 // path holds and the branch-only release rule (R102.3). Workspaces are
 // scratch copies.
@@ -7,17 +6,20 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import { branchOnly, scheduleReady } from "../spec-scheduler.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { loopOn } from "../../test/fixtures.ts";
+import type { TickResult } from "../../test/view-shapes.ts";
+import type { Edge, Task } from "../../../types.ts";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
-const leaf = (id, extra = {}) => ({
+const leaf = (id: string, extra: Partial<Task> = {}): Task => ({
   id,
   title: "Task " + id,
   scope: "catalog",
@@ -30,7 +32,7 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-const ids = (tasks) => tasks.map((task) => task.id);
+const ids = (tasks: { id: string }[]) => tasks.map((task) => task.id);
 
 test("ranking: more unblocked first within a rank; pins and ranks stay first", () => {
   const tasks = [
@@ -101,17 +103,21 @@ test("a branch-only prerequisite releases only its own spec's work in its reposi
     candidates: tasks.slice(2),
   });
   assert.deepEqual(order, ["same-spec", "after-landed"]);
-  assert.match(held.get("cross-spec"), /Waits for verified to land/);
-  assert.match(held.get("cross-repo"), /Waits for verified to land/);
+  assert.match(held.get("cross-spec") ?? "", /Waits for verified to land/);
+  assert.match(held.get("cross-repo") ?? "", /Waits for verified to land/);
 });
 
 // A workspace with a real checkout `app`, a tick-run delivery policy and
 // the given tasks.
-function workspace(t, { tasks, edges = [] }) {
+function workspace(
+  t: TestContext,
+  { tasks, edges = [] }: { tasks: Task[]; edges?: Edge[] },
+) {
   const root = temporaryDirectory("avoozl-scheduler-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
-  const git = (...args) => execFileSync("git", args, { cwd: checkout });
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { cwd: checkout });
   git("init", "-q", "-b", "main");
   git("config", "user.name", "Test");
   git("config", "user.email", "test@example.com");
@@ -133,10 +139,10 @@ function workspace(t, { tasks, edges = [] }) {
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 
-const dispatched = async (ops) =>
-  (await ops.execute("workspace.tick", { sessions: [] })).dispatch.map(
-    (d) => d.task,
-  );
+const dispatched = async (ops: Operations) =>
+  (
+    await ops.execute<TickResult>("workspace.tick", { sessions: [] })
+  ).dispatch.map((d) => d.task);
 
 test("the tick dispatches the leaf that unblocks more first, within a rank", async (t) => {
   const { ops } = workspace(t, {

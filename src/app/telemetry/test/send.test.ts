@@ -1,20 +1,24 @@
-// @ts-nocheck: typing debt
 // ot-3.3: queue, send and retry (OT10.2 to OT10.8, OT12.2 to OT12.6).
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { Store } from "../../store/store.ts";
 import { readTelemetryConfig } from "../config.ts";
 import { createQueue } from "../queue.ts";
 import { finishTask, point, registerExporter, span } from "../record.ts";
 import { createSender } from "../send.ts";
-import { startCollector } from "./fake-collector.ts";
+import {
+  startCollector,
+  type Collector,
+  type Reply,
+} from "./fake-collector.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
 const CANARY = "CANARY-HEADER-VALUE";
 
-function config(collector, extra = {}) {
+function config(collector: Collector, extra = {}) {
   const directory = temporaryDirectory("avoozl-send-");
   fs.writeFileSync(
     path.join(directory, "config.json"),
@@ -29,7 +33,7 @@ function config(collector, extra = {}) {
 }
 
 // A queue holding one finished task: one trace and its points.
-function fill(t) {
+function fill(t: TestContext) {
   const store = new Store(":memory:");
   t.after(() => store.close());
   const queue = createQueue();
@@ -59,10 +63,14 @@ function fill(t) {
   return { store, queue };
 }
 
-function sender(t, collector, options = {}) {
+function sender(
+  t: TestContext,
+  collector: Collector,
+  options: { filled?: ReturnType<typeof fill> } = {},
+) {
   const { queue } = options.filled ?? fill(t);
   const clock = { at: 1_000_000 };
-  const logs = [];
+  const logs: string[] = [];
   const made = createSender({
     config: config(collector),
     context: { instanceId: "11111111-1111-4111-8111-111111111111" },
@@ -89,20 +97,22 @@ test("a batch posts one traces request and one metrics request with the owner's 
     assert.equal(request.headers.authorization, CANARY);
     assert.equal(request.headers["x-team"], "blue");
   }
-  assert.ok(collector.requests[0].body.resourceSpans);
-  assert.ok(collector.requests[1].body.resourceMetrics);
+  assert.ok(Object.hasOwn(Object(collector.requests[0].body), "resourceSpans"));
+  assert.ok(
+    Object.hasOwn(Object(collector.requests[1].body), "resourceMetrics"),
+  );
   const status = s.status();
   assert.equal(status.sent > 0, true);
   assert.equal(status.queued, 0);
   assert.equal(status.state, "sending");
   assert.equal(status.failure, null);
-  assert.match(status.lastSuccessAt, /^\d{4}-/);
+  assert.match(status.lastSuccessAt ?? "", /^\d{4}-/);
 });
 
 test("503, 429 with Retry-After, a reset and a timeout retry with backoff", async (t) => {
   const collector = await startCollector(t);
   const s = sender(t, collector);
-  const replies = [
+  const replies: Reply[] = [
     503,
     { status: 429, headers: { "retry-after": "7" } },
     "reset",
@@ -181,7 +191,9 @@ test("a full queue drops the oldest item and counts it", () => {
   for (let i = 0; i < 501; i++) dropped += queue.addTrace({ n: i });
   assert.equal(dropped, 1);
   assert.equal(queue.length(), 500);
-  assert.equal(queue.take(1)[0].trace.n, 1);
+  const [first] = queue.take(1);
+  assert.ok(first.type === "trace");
+  assert.deepEqual(first.trace, { n: 1 });
   // Points share an item up to 100, then start another.
   const points = createQueue();
   for (let i = 0; i < 250; i++) points.addPoint({ id: i });

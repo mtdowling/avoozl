@@ -38,8 +38,18 @@ const RECENT = 10;
 // git log on a resume.
 const approvedRevisions = new Map();
 
-const fails = (name, why) => ({ name, passed: false, why });
-const passes = (name) => ({ name, passed: true });
+// One of the gate's tests and, when it failed, why.
+interface GateTest {
+  name: string;
+  passed: boolean;
+  why?: string;
+}
+const fails = (name: string, why: string): GateTest => ({
+  name,
+  passed: false,
+  why,
+});
+const passes = (name: string): GateTest => ({ name, passed: true });
 
 // What the git side needs, from the Operations that own it: where a plan's
 // spec checkout is, and who approves in it. Tests pass their own.

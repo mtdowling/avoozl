@@ -1287,7 +1287,19 @@ export class GitHubClient {
   // Links a branch in `repositoryId` (may differ from the issue's repository)
   // to the issue, created at `oid` (F51, L13). Needs push access there;
   // `repository` names it for the token.
-  async createLinkedBranch({ issueId, repositoryId, oid, name, repository }) {
+  async createLinkedBranch({
+    issueId,
+    repositoryId,
+    oid,
+    name,
+    repository,
+  }: {
+    issueId: string;
+    repositoryId: string;
+    oid: string;
+    name: string;
+    repository?: string;
+  }) {
     const data = await this.graphql(
         `mutation($input:CreateLinkedBranchInput!){createLinkedBranch(input:$input){linkedBranch{id ref{name repository{id nameWithOwner}}}}}`,
         { input: { issueId, repositoryId, oid, name } },

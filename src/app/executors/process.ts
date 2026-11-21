@@ -590,7 +590,7 @@ export async function drainProcessRequests(
     blocked = new Map(),
   }: {
     stateDirectory: string;
-    prepareWorktree: unknown;
+    prepareWorktree?: unknown;
     ops?: unknown;
     blocked?: Map<string, string>;
   },

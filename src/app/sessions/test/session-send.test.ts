@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Send message on a `process` session (R98.2): session.send queues a `send`
 // request that the process drain hands to the supervisor; only a person
 // sends, and only to a live process session.
@@ -7,10 +6,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { classifyOperation } from "../../api/operation-table.ts";
 import { mcpRefusal } from "../../mcp/mcp-policy.ts";
-import { bindSession } from "../session-bindings.ts";
+import { bindSession, type SessionBinding } from "../session-bindings.ts";
 import {
   enqueueSessionRequests,
   pendingSessionRequests,
@@ -29,9 +29,11 @@ import {
 } from "../../executors/supervisor.ts";
 import { drainProcessRequests } from "../../executors/process.ts";
 import { snapshot } from "../../test/fixtures.ts";
-import { Store } from "../../store/store.ts";
+import { Store, type StatusError } from "../../store/store.ts";
+import { found } from "../../test/view-shapes.ts";
+import type { OperationContext } from "../../api/operations.ts";
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-send-"));
   const store = new Store(path.join(root, "workspace.sqlite"));
   // One hook, store first: Windows cannot remove an open database file.
@@ -44,7 +46,7 @@ function workspace(t) {
 }
 
 // A bound `process` worker session, as the drain leaves one.
-function processSession(store, slot = "process-1") {
+function processSession(store: Store, slot = "process-1") {
   const worktree = path.join(os.tmpdir(), "avoozl-send-wt");
   enqueueSessionRequests(store, {
     starts: [
@@ -59,10 +61,12 @@ function processSession(store, slot = "process-1") {
     ],
   });
   const [pending] = pendingSessionRequests(store, "process");
-  const { request, claimToken } = takeSessionRequest(store, pending, {
-    executor: "process",
-    consumer: "supervisor",
-  });
+  const { request, claimToken } = found(
+    takeSessionRequest(store, pending, {
+      executor: "process",
+      consumer: "supervisor",
+    }),
+  );
   bindSession(
     store,
     {
@@ -109,11 +113,11 @@ test("a person's message is queued as a process send", (t) => {
 test("an empty, long, unknown, chat or ended session send is refused", (t) => {
   const { store } = workspace(t);
   const slot = processSession(store);
-  const status = (fn) => {
+  const status = (fn: () => unknown) => {
     try {
       fn();
     } catch (error) {
-      return error.status;
+      return error instanceof Error && "status" in error ? error.status : null;
     }
     return null;
   };
@@ -142,7 +146,7 @@ test("an empty, long, unknown, chat or ended session send is refused", (t) => {
     409,
   );
   store.put("session_bindings", {
-    ...store.get("session_bindings", slot),
+    ...found(store.get<SessionBinding>("session_bindings", slot)),
     status: "closed",
   });
   assert.equal(
@@ -155,14 +159,21 @@ test("session.send is a person's write: MCP and agent sessions are refused", asy
   const { root, store } = workspace(t);
   const slot = processSession(store);
   assert.equal(classifyOperation("session.send"), "execute");
-  assert.match(mcpRefusal("session.send", {}), /^Only a person/);
+  assert.match(mcpRefusal("session.send", {}) ?? "", /^Only a person/);
   const ops = new Operations(store, { workspaceRoot: root });
-  for (const context of [{ mcp: true }, { caller: { sessionKey: "chat-9" } }])
+  const contexts: OperationContext[] = [
+    { mcp: true },
+    { caller: { sessionKey: "chat-9" } },
+  ];
+  for (const context of contexts)
     await assert.rejects(
       ops.execute("session.send", { slot, text: "hi" }, undefined, context),
-      (error) => error.status === 403,
+      (error: StatusError) => error.status === 403,
     );
-  const result = await ops.execute("session.send", { slot, text: "hi" });
+  const result = await ops.execute<{ state: string }>("session.send", {
+    slot,
+    text: "hi",
+  });
   assert.equal(result.state, "queued");
   assert.equal(
     store.list("session_requests").filter((r) => r.kind === "send").length,
@@ -193,7 +204,7 @@ test("the drain hands a queued message to the supervisor", async (t) => {
   const { errors } = await drainProcessRequests(store, { stateDirectory });
   assert.deepEqual(errors, []);
   assert.equal(
-    store.list("session_requests").find((r) => r.kind === "send").state,
+    store.list("session_requests").find((r) => r.kind === "send")?.state,
     "sent",
   );
   const check = openSupervisorDatabase(stateDirectory);

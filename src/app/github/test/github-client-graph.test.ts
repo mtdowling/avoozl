@@ -1,11 +1,20 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "../../test/github-credentials.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { GitHubClient } from "../github.ts";
+import type { StatusError } from "../../store/store.ts";
 
-function client(reply) {
-  const requests = [],
+// One request the fake GitHub saw.
+interface Seen {
+  method?: string;
+  url: string;
+  body?: { query: string; variables: Record<string, unknown> };
+}
+
+function client(
+  reply: (request: Seen) => { status?: number; body?: unknown } | undefined,
+) {
+  const requests: Seen[] = [],
     github = defaultJob(
       "spec-branch",
       new GitHubClient({
@@ -13,9 +22,9 @@ function client(reply) {
         apiUrl: "https://api.example.test",
         fetch: async (url, options) => {
           const request = {
-            method: options.method,
+            method: options?.method,
             url: String(url).replace("https://api.example.test", ""),
-            body: options.body ? JSON.parse(options.body) : undefined,
+            body: options?.body ? JSON.parse(String(options.body)) : undefined,
           };
           requests.push(request);
           const { status = 200, body = [] } = reply(request) || {};
@@ -94,8 +103,11 @@ test("createLinkedBranch names the code repository and the base oid", async () =
     repositoryId: "R_code",
   });
   assert.equal(requests[0].url, "/graphql");
-  assert.match(requests[0].body.query, /createLinkedBranch\(input:\$input\)/);
-  assert.deepEqual(requests[0].body.variables.input, {
+  assert.match(
+    requests[0].body?.query ?? "",
+    /createLinkedBranch\(input:\$input\)/,
+  );
+  assert.deepEqual(requests[0].body?.variables.input, {
     issueId: "I_plan",
     repositoryId: "R_code",
     oid: "c".repeat(40),
@@ -140,7 +152,7 @@ test("issue links read linked branches and the open blocked-by count", async () 
     openBlockedBy: 1,
     totalBlockedBy: 3,
   });
-  assert.deepEqual(requests[0].body.variables, {
+  assert.deepEqual(requests[0].body?.variables, {
     owner: "example",
     repo: "plans",
     number: 8,
@@ -168,14 +180,14 @@ test("GraphQL errors fail instead of reading as empty", async () => {
 
 test("branch head and branch pull requests read what plans-repo delivery needs", async () => {
   const { github, requests } = client((request) =>
-    /ref\(qualifiedName/.test(request.body.query)
+    /ref\(qualifiedName/.test(request.body?.query ?? "")
       ? {
           body: {
             data: {
               repository: {
                 id: "R_code",
                 ref:
-                  request.body.variables.ref === "refs/heads/main"
+                  request.body?.variables.ref === "refs/heads/main"
                     ? { target: { oid: "c".repeat(40) } }
                     : null,
               },
@@ -210,10 +222,10 @@ test("branch head and branch pull requests read what plans-repo delivery needs",
   });
   await assert.rejects(
     github.branchHead("example/app", "gone"),
-    (error) => error.status === 409,
+    (error: StatusError) => error.status === 409,
   );
   const [pull] = await github.branchPullRequests("example/app", "avoozl/w3");
   assert.deepEqual(pull.commits, [{ oid: "d", message: "m" }]);
-  assert.equal(requests[2].body.variables.branch, "avoozl/w3");
-  assert.match(requests[2].body.query, /headRefName:\$branch/);
+  assert.equal(requests[2].body?.variables.branch, "avoozl/w3");
+  assert.match(requests[2].body?.query ?? "", /headRefName:\$branch/);
 });
