@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One SQLite write path, servers' half: the app backend, the stdio MCP server,
 // and the tick cron (which calls plans_maintain tick on that MCP server) change the
 // workspace database only inside an Operations call.

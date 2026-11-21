@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `avoozl context set` and `avoozl context show` from a terminal, and the
 // plugin list's context part (epic-context ec-1.2, ec-1.4).
 import assert from "node:assert/strict";
@@ -42,7 +41,7 @@ function setup() {
     JSON.stringify({ version: 1, port: 0, workspaces: {} }),
   );
   initializeWorkspace(workspace, { name: "Context CLI", port: 0 });
-  const run = (args, extra = {}) =>
+  const run = (args: string[], extra = {}) =>
     execFileSync(process.execPath, [cli, ...args, "--workspace", workspace], {
       encoding: "utf8",
       env: { ...process.env, ...env, ...extra },
@@ -113,8 +112,18 @@ test("plugins.list shows the context part, and answering is a person's act", asy
       workspaceRoot: machine.workspaceRoot,
       pluginSettingsFile: machine.settingsFile,
     });
-    const listed = await ops.execute("plugins.list", {});
-    const part = listed.plugins.find((p) => p.id === "team-context").context;
+    const listed = await ops.execute<{
+      plugins: {
+        id: string;
+        context: {
+          state: string;
+          ask: { answer: unknown }[];
+          missing: unknown;
+        };
+      }[];
+    }>("plugins.list", {});
+    const part = listed.plugins.find((p) => p.id === "team-context")?.context;
+    assert.ok(part);
     assert.equal(part.state, "unapproved");
     assert.equal(part.ask[0].answer, null);
     assert.deepEqual(part.missing, {

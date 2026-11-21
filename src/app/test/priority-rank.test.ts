@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Task 4.5: priority order from a repository's priority labels.
 import assert from "node:assert/strict";
 import test from "node:test";

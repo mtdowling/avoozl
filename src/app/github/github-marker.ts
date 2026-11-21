@@ -233,7 +233,7 @@ function validateOrder(order) {
   );
 }
 
-export function renderMarker(marker, options) {
+export function renderMarker(marker, options?) {
   validateMarker(marker, options);
   return `<!-- avoozl-task\n${JSON.stringify(marker)}\n-->`;
 }

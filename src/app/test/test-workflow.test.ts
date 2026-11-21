@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Avoozl's own test workflow accepts the validation dispatch (lt-4.5). No YAML
 // parser in the repository, so this reads the text it depends on.
 import assert from "node:assert/strict";

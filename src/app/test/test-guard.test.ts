@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // scripts/test/test-guard.ts: a test process that writes under a guarded folder
 // fails; reads and writes elsewhere go on.
 import assert from "node:assert/strict";

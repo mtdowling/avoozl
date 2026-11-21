@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The role proof's rows (machine-server D6, ms-1.7): every role the process
 // executor runs has a row, so a new role cannot skip the live proof.
 import assert from "node:assert/strict";

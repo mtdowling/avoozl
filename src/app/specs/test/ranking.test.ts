@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import { rankReady, unblockCounts } from "../ranking.ts";
@@ -23,7 +22,7 @@ test("unblock count counts every open task downstream, once", () => {
 
 // rankReady (simplify sim-1.2, §D3.1): each key breaks the tie the one
 // before it leaves, over the waits the list derives.
-const ranked = (text, ready) =>
+const ranked = (text: string, ready: string[]) =>
   rankReady(
     ready.map((id) => ({ id })),
     { edges: waitsOf("s", text), open: () => true },

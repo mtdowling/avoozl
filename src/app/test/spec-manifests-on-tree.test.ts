@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The repository's own spec must lint with no errors. PR #52 once committed
 // a 0-byte manifest that blocked approving the spec; facts now live in
 // tasks.md (spec-conversion.test.mjs checks no manifest is left).
