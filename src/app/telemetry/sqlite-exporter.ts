@@ -20,7 +20,14 @@ export type SpanRow = {
   ended_at: string | null;
   [key: string]: unknown;
 };
-export type Limits = typeof LIMITS;
+export type Limits = Readonly<{
+  days: number;
+  openDays: number;
+  spanCap: number;
+  pointCap: number;
+  everyWrites: number;
+  everyMs: number;
+}>;
 type Count = { n: number };
 
 export const TELEMETRY_SCHEMA = `
@@ -115,7 +122,7 @@ const POINT_COLUMNS = [
 
 // Fixed values, with no setting (OT2.7). A table over its cap is pruned down
 // to 90 percent of it.
-export const LIMITS = Object.freeze({
+export const LIMITS: Limits = Object.freeze({
   days: 90,
   openDays: 7,
   spanCap: 200_000,

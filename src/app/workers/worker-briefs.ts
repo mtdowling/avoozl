@@ -14,7 +14,7 @@ export const KINDS = Object.freeze(["single", "round"]);
 interface BriefContext {
   task: { id: string; [key: string]: unknown };
   repository?: {
-    sandbox?: { allowCommands?: string[] };
+    sandbox?: { allowCommands?: string[][] };
     [key: string]: unknown;
   };
   cliReport?: unknown;

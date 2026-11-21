@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createExecutor } from "./executors.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
 import { rolePrompt } from "../agents/prompts.ts";
 import { execFile } from "node:child_process";
 import { cliReportCaller } from "../workers/report-match.ts";
@@ -84,7 +84,7 @@ function sessionNetwork(sandbox, offline) {
 // session without it is requested exactly as before (EC10.3).
 export function processExecutor({
   stateDirectory,
-  repositoryFor = () => null,
+  repositoryFor = (_task: string, _worktree: string): object | null => null,
   harnessFor = () => null,
   contextFor = () => null,
   laneFor = () => null,
@@ -397,7 +397,12 @@ async function nothingCommitted(store, taskId, worktree) {
   }
 }
 
-export async function finishProcessSession(ops, binding, result, store = null) {
+export async function finishProcessSession(
+  ops,
+  binding,
+  result,
+  store: Store | null = null,
+) {
   result = withChildOutput(processRow(binding.role), result);
   const hands = processRow(binding.role)?.hands;
   if (hands === "folder") return null;

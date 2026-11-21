@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The sandbox for unattended process children (R95.6): with a fake home,
 // every secret path is unreadable and unwritable from a child, writes stay in
 // the write roots, and the network is off or limited to named loopback ports.
@@ -7,7 +6,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { spawn } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import {
@@ -22,9 +21,27 @@ import {
 
 const definition = { name: "fake-cli", hash: "a".repeat(64) };
 const kind = sandboxKind();
-const real = (file) => fs.realpathSync.native(file);
+const real = (file: string) => fs.realpathSync.native(file);
 
-function scratch(t) {
+// What the probe child printed: each read and write's outcome by name, and
+// the connection's.
+interface ProbeOut {
+  read: Record<string, string>;
+  write: Record<string, string>;
+  net: string | null;
+}
+
+// Listen on a free loopback port until the test ends; answer the port.
+async function listen(t: TestContext) {
+  const server = net.createServer((socket) => socket.end());
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return address.port;
+}
+
+function scratch(t: TestContext) {
   const root = real(fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-sandbox-")));
   t.after(() =>
     fs.rmSync(root, { recursive: true, force: true, maxRetries: 10 }),
@@ -76,7 +93,7 @@ function scratch(t) {
   };
 }
 
-function secretPaths(s) {
+function secretPaths(s: ReturnType<typeof scratch>) {
   return sandboxSecretPaths({
     home: s.home,
     env: s.env,
@@ -109,8 +126,8 @@ else {
 }
 `;
 
-function run(argv, env) {
-  return new Promise((resolve, reject) => {
+function run(argv: string[], env: NodeJS.ProcessEnv) {
+  return new Promise<ProbeOut>((resolve, reject) => {
     const child = spawn(argv[0], argv.slice(1), { env });
     let stdout = "",
       stderr = "";
@@ -119,7 +136,7 @@ function run(argv, env) {
     child.on("error", reject);
     child.on("exit", (code) => {
       try {
-        resolve(JSON.parse(stdout.trim().split("\n").pop()));
+        resolve(JSON.parse(stdout.trim().split("\n").at(-1) ?? ""));
       } catch {
         reject(Error(`child exited ${code}: ${stdout}\n${stderr}`));
       }
@@ -318,9 +335,7 @@ test("from a sandboxed child every secret path is unreadable and unwritable and 
   skip: !kind && "this machine has no usable sandbox",
 }, async (t) => {
   const s = scratch(t);
-  const server = net.createServer((socket) => socket.end());
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  t.after(() => server.close());
+  const port = await listen(t);
   const brief = path.join(
     s.stateDirectory,
     "supervisor",
@@ -338,7 +353,7 @@ test("from a sandboxed child every secret path is unreadable and unwritable and 
       tmp: path.join(s.tmp, "b"),
       outside: path.join(s.root, "outside"),
     },
-    port: server.address().port,
+    port,
   };
   fs.writeFileSync(path.join(s.worktree, "a"), "mine");
   const confined = confineChild(
@@ -355,13 +370,10 @@ test("from a sandboxed child every secret path is unreadable and unwritable and 
   assert.equal(confined.sandbox, kind);
   assert.equal(confined.env.GH_TOKEN, undefined);
   const out = await run(confined.argv, confined.env);
-  for (const name of Object.keys(s.secrets)) {
+  for (const [name, secret] of Object.entries(s.secrets)) {
     assert.notEqual(out.read[name], "ok", `${name} was readable`);
     assert.notEqual(out.write[name], "ok", `${name} was writable`);
-    assert.equal(
-      fs.readFileSync(s.secrets[name], "utf8").includes("changed"),
-      false,
-    );
+    assert.equal(fs.readFileSync(secret, "utf8").includes("changed"), false);
   }
   assert.notEqual(out.write.newInSecret, "ok");
   assert.equal(fs.existsSync(plan.writes.newInSecret), false);
@@ -378,15 +390,9 @@ test("on macOS a restricted network reaches only the named loopback port", {
   skip: kind !== "sandbox-exec" && "needs sandbox-exec",
 }, async (t) => {
   const s = scratch(t);
-  const listen = async () => {
-    const server = net.createServer((socket) => socket.end());
-    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    t.after(() => server.close());
-    return server.address().port;
-  };
-  const named = await listen();
-  const other = await listen();
-  const probe = async (port) =>
+  const named = await listen(t);
+  const other = await listen(t);
+  const probe = async (port: number) =>
     (
       await run(
         confineChild(
@@ -416,7 +422,7 @@ test("a confined child reads under home only its folders, its harness config and
 }, async (t) => {
   const s = scratch(t),
     worktree = path.join(s.home, "repositories", "app-wt"),
-    file = (name, text = name) => {
+    file = (name: string, text = name) => {
       fs.mkdirSync(path.dirname(name), { recursive: true });
       fs.writeFileSync(name, text);
       return name;

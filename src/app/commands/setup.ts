@@ -1,15 +1,68 @@
-// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
-import { workspaceConfig } from "../settings/config.ts";
+import { type WorkspaceConfig, workspaceConfig } from "../settings/config.ts";
 import { WorkspaceRegistry } from "../settings/host-config.ts";
 import { machineStatus, roleProblems } from "../workspace/machine-status.ts";
 import { workflowSkill } from "../cli/skill.ts";
 import { workspaceStatus } from "../workspace/workspace-status.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
-import { type Command, help } from "../cli/command-help.ts";
+import {
+  type Command,
+  type CommandContext,
+  help,
+} from "../cli/command-help.ts";
 import { confirmHighRisk, refuseAgentYes } from "../cli/confirm-high-risk.ts";
 
 const CANCELLED = "Cancelled: nothing was written.";
+
+// An option's value, or undefined when it is absent or a bare flag.
+const text = (value: string | true | undefined) =>
+  typeof value === "string" ? value : undefined;
+// A request input field that is text, or undefined.
+const field = (value: unknown) =>
+  typeof value === "string" ? value : undefined;
+
+// The configuration loaded: this command does not start on one that failed.
+const isLoaded = (
+  config: CommandContext["config"],
+): config is WorkspaceConfig =>
+  !config.configError && typeof config.dbPath === "string";
+function loaded(config: CommandContext["config"]) {
+  if (!isLoaded(config))
+    throw Error(
+      config.configError ?? "The workspace configuration did not load.",
+    );
+  return config;
+}
+
+// The workspace ID and registration `workspace add` and `adopt` take, from
+// the command line or the JSON input.
+function registrationOf({
+  options,
+  positionals,
+  input,
+}: Pick<CommandContext, "options" | "positionals" | "input">) {
+  const provided = input(),
+    given = provided.repositories,
+    // The repositories from the input, else the --repositories JSON.
+    repositories: Record<string, unknown> =
+      given && typeof given === "object" && !Array.isArray(given)
+        ? Object.fromEntries(Object.entries(given))
+        : options.repositories
+          ? JSON.parse(String(options.repositories))
+          : {};
+  return {
+    id: text(options.id) || positionals[1] || field(provided.id) || "",
+    root: text(options.root) || field(provided.root),
+    name: text(options.name) || field(provided.name),
+    enabled:
+      options.inactive === true
+        ? false
+        : typeof provided.enabled === "boolean"
+          ? provided.enabled
+          : true,
+    repositories,
+  };
+}
 
 export async function runWorkspace({
   options,
@@ -20,16 +73,22 @@ export async function runWorkspace({
   config,
   input,
   machineStateDirectory,
-}) {
+  env,
+}: CommandContext) {
   const action = command === "status" ? "status" : positionals[0] || "list";
   const registry = new WorkspaceRegistry({
-    env: options.env || process.env,
-    ...(options["host-config"] ? { configPath: options["host-config"] } : {}),
-    ...(options.catalog ? { catalogPath: options.catalog } : {}),
+    env,
+    ...(text(options["host-config"])
+      ? { configPath: text(options["host-config"]) }
+      : {}),
+    ...(text(options.catalog) ? { catalogPath: text(options.catalog) } : {}),
   });
   const hostUrl =
     registry.config.url || `http://127.0.0.1:${registry.config.port || 9428}`;
-  const live = async (pathname, { method = "GET", body } = {}) => {
+  const live = async (
+    pathname: string,
+    { method = "GET", body }: { method?: string; body?: unknown } = {},
+  ) => {
     if (registry.config.port === 0 && !registry.config.url) return null;
     let response;
     try {
@@ -46,9 +105,10 @@ export async function runWorkspace({
     } catch {
       return null;
     }
-    let payload = {};
+    let payload: { error?: string; result?: unknown } = {};
     try {
-      payload = await response.json();
+      // The host's JSON reply.
+      payload = (await response.json()) as typeof payload;
     } catch {}
     if (!response.ok)
       throw Error(
@@ -76,13 +136,13 @@ export async function runWorkspace({
             ? {
                 workspace: workspaceStatus({
                   named,
-                  from: requestedFrom,
+                  from: requestedFrom ?? "",
                   config: registered
                     ? workspaceConfig({
                         ...options,
                         workspace: registered.root,
                       })
-                    : config,
+                    : loaded(config),
                   catalog: result,
                 }),
               }
@@ -95,23 +155,8 @@ export async function runWorkspace({
         };
       }
     } else if (action === "add") {
-      const provided = input();
-      const repositories =
-        provided.repositories ||
-        (options.repositories ? JSON.parse(options.repositories) : {});
-      const id = options.id || positionals[1] || provided.id;
-      const registration = {
-        id,
-        root: options.root || provided.root,
-        name: options.name || provided.name,
-        enabled:
-          options.inactive === true
-            ? false
-            : provided.enabled === undefined
-              ? true
-              : provided.enabled,
-        repositories,
-      };
+      const registration = registrationOf({ options, positionals, input }),
+        { id } = registration;
       result =
         (await live("/api/workspaces", {
           method: "POST",
@@ -122,25 +167,16 @@ export async function runWorkspace({
         throw Error(
           "Workspace adoption is local-only. Stop the running Avoozl host before adopting an existing workspace.",
         );
-      const provided = input(),
-        id = options.id || positionals[1] || provided.id;
-      result = registry.adopt(id, {
-        root: options.root || provided.root,
-        name: options.name || provided.name,
-        enabled:
-          options.inactive === true
-            ? false
-            : provided.enabled === undefined
-              ? true
-              : provided.enabled,
-        repositories:
-          provided.repositories ||
-          (options.repositories ? JSON.parse(options.repositories) : {}),
+      const { id, ...registration } = registrationOf({
+        options,
+        positionals,
+        input,
       });
+      result = registry.adopt(id, registration);
     } else if (
       ["remove", "start", "drain", "resume", "stop"].includes(action)
     ) {
-      const id = options.id || positionals[1];
+      const id = text(options.id) || positionals[1];
       result = await live(
         `/api/workspaces/${encodeURIComponent(id)}/lifecycle`,
         { method: "POST", body: { action } },
@@ -151,7 +187,7 @@ export async function runWorkspace({
         else result = registry.setEnabled(id, action !== "stop");
       }
     } else if (action === "set-default") {
-      const id = options.id || positionals[1];
+      const id = text(options.id) || positionals[1];
       result =
         (await live("/api/workspaces/default", {
           method: "POST",
@@ -167,12 +203,11 @@ export async function runWorkspace({
     registry.close();
   }
 }
-function runTask({ command }) {
+function runTask({ command }: CommandContext): never {
   throw Error(
-    {
-      task: "Choose task done or task reopen.",
-      checks: "Choose checks run.",
-    }[command],
+    command === "task"
+      ? "Choose task done or task reopen."
+      : "Choose checks run.",
   );
 }
 
@@ -193,10 +228,13 @@ export const commands: Command[] = [
       console.log(
         JSON.stringify(
           initializeWorkspace(positionals[0], {
-            name: options.name,
-            port: options.port,
-            documents: options.documents,
-            db: options.db,
+            name: text(options.name),
+            port:
+              text(options.port) === undefined
+                ? undefined
+                : Number(options.port),
+            documents: text(options.documents),
+            db: text(options.db),
           }),
           null,
           2,
@@ -390,7 +428,7 @@ export const commands: Command[] = [
       // Settings' plugin actions at the command line (design §4.8). Approval
       // names the hash `plugins list` showed, so a person approves what they saw.
       const [action = "list", id, alias] = positionals,
-        calls = {
+        calls: Record<string, () => [string, Record<string, unknown>]> = {
           list: () => ["plugins.list", {}],
           approve: () => [
             "plugin.approve",
@@ -415,7 +453,7 @@ export const commands: Command[] = [
               ...(options.remove
                 ? { remove: true }
                 : {
-                    command: JSON.parse(options.command ?? "null"),
+                    command: JSON.parse(String(options.command ?? "null")),
                     ...(options.env ? { env: [options.env].flat() } : {}),
                   }),
             },
@@ -433,7 +471,7 @@ export const commands: Command[] = [
                 ...(options.subdir ? { subdir: options.subdir } : {}),
                 contract: Number(options.contract ?? 1),
                 ...(options.config
-                  ? { config: JSON.parse(options.config) }
+                  ? { config: JSON.parse(String(options.config)) }
                   : {}),
               },
             },
@@ -459,7 +497,7 @@ export const commands: Command[] = [
       ),
     ],
     run({ config }) {
-      process.stdout.write(workflowSkill(config));
+      process.stdout.write(workflowSkill(loaded(config)));
     },
   },
   { command: "task", help: [], run: runTask },

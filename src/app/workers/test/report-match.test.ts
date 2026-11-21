@@ -1,9 +1,8 @@
-// @ts-nocheck: typing debt
 import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   cliReportCaller,
   issueReportToken,
@@ -14,10 +13,16 @@ import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { withStatus, type Refusal } from "../../test/refusal.ts";
+import { found } from "../../test/view-shapes.ts";
+import { boundWorktrees } from "../../test/delivery-fixture.ts";
 
-const git = (cwd, ...args) =>
+// What session.report answers.
+type Reported = { report: { kind: string; commit?: string } };
+
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const leaf = (id) => ({
+const leaf = (id: string) => ({
   id,
   title: "Task " + id,
   scope: "catalog",
@@ -30,7 +35,7 @@ const leaf = (id) => ({
 });
 
 // Two leaves, each with a real worktree and a bound session.
-async function setup(t) {
+async function setup(t: TestContext) {
   const root = temporaryDirectory("avoozl-report-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -53,23 +58,13 @@ async function setup(t) {
     baseBranch: "main",
   });
   const ops = new Operations(store, { workspaceRoot: root }),
-    paths = {};
-  for (const id of ["a", "b"]) {
-    paths[id] = (await ops.execute("worktree.prepare", { taskId: id })).path;
-    await ops.execute("session.bind", {
-      taskId: id,
-      slot: `slot-${id}`,
-      attempt: 1,
-      source: "tick",
-      title: `avoozl:${id} Task ${id}`,
-    });
-  }
+    paths = await boundWorktrees(ops, ["a", "b"]);
   return { store, ops, paths };
 }
 
 test("a token matches its task from the worktree or a folder below it", async (t) => {
   const { store, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", attempt: 1 });
+    token = found(issueReportToken(store, { taskId: "a", attempt: 1 }));
   fs.mkdirSync(path.join(paths.a, "sub"));
   for (const cwd of [paths.a, path.join(paths.a, "sub")])
     assert.equal(
@@ -80,12 +75,12 @@ test("a token matches its task from the worktree or a folder below it", async (t
 
 test("wrong, malformed, other-task and replaced tokens get 403 and never echo the token", async (t) => {
   const { store, ops, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", attempt: 1 }),
-    tokenB = issueReportToken(store, { taskId: "b", attempt: 1 }),
-    refuse = (input, pattern) =>
+    token = found(issueReportToken(store, { taskId: "a", attempt: 1 })),
+    tokenB = found(issueReportToken(store, { taskId: "b", attempt: 1 })),
+    refuse = (input: { taskId: string; token?: string }, pattern: RegExp) =>
       assert.throws(
         () => matchCliReport(store, { cwd: paths.a, ...input }),
-        (e) =>
+        (e: Refusal) =>
           e.status === 403 &&
           pattern.test(e.message) &&
           !e.message.includes(token),
@@ -106,7 +101,7 @@ test("wrong, malformed, other-task and replaced tokens get 403 and never echo th
   assert.equal(
     matchCliReport(store, {
       taskId: "a",
-      token: issueReportToken(store, { taskId: "a", attempt: 2 }),
+      token: found(issueReportToken(store, { taskId: "a", attempt: 2 })),
       cwd: paths.a,
     }).slot,
     "slot-a2",
@@ -115,26 +110,26 @@ test("wrong, malformed, other-task and replaced tokens get 403 and never echo th
 
 test("a report from another task's worktree, a symlink out, or a missing folder gets 403", async (t) => {
   const { store, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", attempt: 1 }),
+    token = found(issueReportToken(store, { taskId: "a", attempt: 1 })),
     link = path.join(paths.a, "escape");
   fs.symlinkSync(paths.b, link);
   for (const cwd of [paths.b, link, path.join(paths.a, "missing")])
     assert.throws(
       () => matchCliReport(store, { taskId: "a", token, cwd }),
-      (e) => e.status === 403 && /worktree/.test(e.message),
+      withStatus(403, /worktree/),
     );
 });
 
 test("a matched report is accepted without MCP identity, an unmatched one is not", async (t) => {
   const { store, ops, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", attempt: 1 }),
+    token = found(issueReportToken(store, { taskId: "a", attempt: 1 })),
     progress = { taskId: "a", kind: "progress", text: "Halfway." };
   await assert.rejects(
     ops.execute("session.report", progress, undefined, {}),
-    (e) => e.status === 403,
+    withStatus(403),
   );
   const binding = matchCliReport(store, { taskId: "a", token, cwd: paths.a }),
-    done = await ops.execute("session.report", progress, undefined, {
+    done = await ops.execute<Reported>("session.report", progress, undefined, {
       caller: cliReportCaller(binding),
     });
   assert.ok(done.report);
@@ -146,7 +141,7 @@ test("a matched report is accepted without MCP identity, an unmatched one is not
 
 test("reportByToken reads the commit from HEAD and refuses a wrong token or worktree", async (t) => {
   const { store, ops, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", attempt: 1 });
+    token = found(issueReportToken(store, { taskId: "a", attempt: 1 }));
   await assert.rejects(
     reportByToken(store, ops, {
       taskId: "a",
@@ -154,7 +149,7 @@ test("reportByToken reads the commit from HEAD and refuses a wrong token or work
       token,
       cwd: paths.b,
     }),
-    (e) => e.status === 403,
+    withStatus(403),
   );
   await assert.rejects(
     reportByToken(store, ops, {
@@ -163,7 +158,7 @@ test("reportByToken reads the commit from HEAD and refuses a wrong token or work
       token: "1".repeat(48),
       cwd: paths.a,
     }),
-    (e) => e.status === 403,
+    withStatus(403),
   );
   fs.writeFileSync(path.join(paths.a, "x.txt"), "x\n");
   git(paths.a, "add", ".");
@@ -183,5 +178,7 @@ test("reportByToken reads the commit from HEAD and refuses a wrong token or work
     token,
     cwd: paths.a,
   });
-  assert.equal(result.report.commit, git(paths.a, "rev-parse", "HEAD"));
+  assert.partialDeepStrictEqual(result, {
+    report: { commit: git(paths.a, "rev-parse", "HEAD") },
+  });
 });

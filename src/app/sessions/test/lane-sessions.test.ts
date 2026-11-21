@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // Lane sessions (simplify §D22, sim-7.1): the tick hands each worker and
 // review start a free lane, a lane's chat moves on to its next task, and a
 // lane a person closed waits for Resume.
 import assert from "node:assert/strict";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import {
   as,
   bind,
@@ -12,13 +11,50 @@ import {
   leaf,
   workerDone,
 } from "../../test/delivery-fixture.ts";
-import { laneHeader, laneTable, observeLanes } from "../lane-sessions.ts";
+import {
+  laneHeader,
+  laneTable,
+  observeLanes,
+  type lanesView,
+  type Lane,
+  type LaneRow,
+} from "../lane-sessions.ts";
 import { loopOn } from "../../test/fixtures.ts";
+import type { Operations } from "../../api/operations.ts";
+import type { SessionBinding } from "../session-bindings.ts";
+import { withStatus } from "../../test/refusal.ts";
+import {
+  found,
+  type NeedsYouItem,
+  type TickResult,
+} from "../../test/view-shapes.ts";
+
+// A start the tick asks for, with the lane it runs in.
+type Start = TickResult["dispatch"][number] & {
+  attempt?: number;
+  lane: { id: string; header: string; slot?: string };
+};
+// Needs you, with each row's actions.
+type Conflicts = {
+  items: (NeedsYouItem & { actions: { operation: string }[] })[];
+};
+// A task's delivery record, for the fields these tests read.
+interface Delivery {
+  attempts: { outcome: string }[];
+  verifications: { cause: string }[];
+}
+type Leaf = ReturnType<typeof leaf>;
 
 // The tick starts work only with the server loop on.
 loopOn();
 
-const setup = (t, { tasks = [leaf("a"), leaf("b")], delivery = {} } = {}) =>
+const setup = (
+  t: TestContext,
+  {
+    tasks = [leaf("a"), leaf("b")],
+    delivery = {},
+  }: { tasks?: Leaf[]; delivery?: Record<string, unknown> } = {},
+) =>
   deliveryWorkspace(t, {
     prefix: "avoozl-lanes-",
     tasks,
@@ -30,15 +66,16 @@ const setup = (t, { tasks = [leaf("a"), leaf("b")], delivery = {} } = {}) =>
   });
 
 // The cron's tick, with each named slot in its roster.
-const tick = (ops, sessions = {}) =>
-  ops.execute("workspace.tick", {
+const tick = (ops: Operations, sessions: Record<string, string> = {}) =>
+  ops.execute<{ dispatch: Start[] }>("workspace.tick", {
     sessions: Object.entries(sessions).map(([target, status]) => ({
       target,
       status,
     })),
   });
 
-const workers = (result) => result.dispatch.filter((d) => d.role === "worker");
+const workers = (result: { dispatch: Start[] }) =>
+  result.dispatch.filter((d) => d.role === "worker");
 
 test("one worker lane runs one task at a time, and its chat takes the next task", async (t) => {
   // Nearby inputs: a second ready task while the lane is busy, a reported
@@ -69,11 +106,14 @@ test("one worker lane runs one task at a time, and its chat takes the next task"
   );
   // The worker reports done in the lane's chat; once recorded the lane is
   // free and the next start names the chat to clear and reuse.
-  const { path: worktree } = await ops.execute("worktree.prepare", {
-    taskId: "a",
-  });
+  const { path: worktree } = await ops.execute<{ path: string }>(
+    "worktree.prepare",
+    {
+      taskId: "a",
+    },
+  );
   const { execFileSync } = await import("node:child_process");
-  const git = (...args) =>
+  const git = (...args: string[]) =>
     execFileSync("git", args, { cwd: worktree, encoding: "utf8" }).trim();
   git("commit", "--allow-empty", "-qm", "Work a");
   await ops.execute(
@@ -83,7 +123,10 @@ test("one worker lane runs one task at a time, and its chat takes the next task"
     as("lane-w1"),
   );
   const next = workers(await tick(ops, { "lane-w1": "idle" }));
-  const before = store.get("session_bindings", "lane-w1");
+  const before = found(
+    store.get<SessionBinding>("session_bindings", "lane-w1"),
+    "the lane's binding",
+  );
   assert.deepEqual(
     next.map((d) => [d.task, d.lane]),
     [
@@ -109,14 +152,17 @@ test("one worker lane runs one task at a time, and its chat takes the next task"
     title: header,
     lane: "worker-1",
   });
-  assert.equal(store.get("session_bindings", "lane-w1").taskId, "b");
+  assert.equal(
+    store.get<SessionBinding>("session_bindings", "lane-w1")?.taskId,
+    "b",
+  );
   assert.deepEqual(
     store.get("session_bindings", `lane-w1#${before.boundAt}`),
     { ...before, id: `lane-w1#${before.boundAt}` },
     "the earlier binding moves aside with every field kept",
   );
   assert.equal(
-    store.get("task_deliveries", "a").attempts[0].outcome,
+    store.get<Delivery>("task_deliveries", "a")?.attempts[0].outcome,
     "done",
     "task a's attempt stays recorded",
   );
@@ -146,9 +192,9 @@ test("a lane whose chat a person closed pauses, shows in Needs you, and opens ag
     lane: "worker-1",
   });
   await tick(ops, { "lane-w1": "closed" });
-  const items = (await ops.execute("conflicts.view", {})).items.filter(
-    (item) => item.reason === "lane-closed",
-  );
+  const items = (
+    await ops.execute<Conflicts>("conflicts.view", {})
+  ).items.filter((item) => item.reason === "lane-closed");
   assert.deepEqual(
     items.map((item) => [item.id, item.actions[0].operation]),
     [["lane-closed:worker-1", "lane.resume"]],
@@ -157,7 +203,7 @@ test("a lane whose chat a person closed pauses, shows in Needs you, and opens ag
   assert.deepEqual(workers(await tick(ops, { "lane-w1": "closed" })), []);
   await assert.rejects(
     ops.execute("lane.resume", { lane: "worker-1" }, undefined, { mcp: true }),
-    (error) => error.status === 403,
+    withStatus(403),
   );
   await assert.rejects(
     ops.execute("lane.resume", { lane: "reviewer-1" }),
@@ -171,12 +217,14 @@ test("a lane whose chat a person closed pauses, shows in Needs you, and opens ag
     "a new chat for the lane, never the closed one",
   );
   assert.equal(
-    (await ops.execute("conflicts.view", {})).items.filter(
+    (await ops.execute<Conflicts>("conflicts.view", {})).items.filter(
       (item) => item.reason === "lane-closed",
     ).length,
     0,
   );
-  const { lanes } = await ops.execute("lanes.view", {});
+  const { lanes } = await ops.execute<{
+    lanes: ReturnType<typeof lanesView>;
+  }>("lanes.view", {});
   assert.deepEqual(
     lanes.map((l) => [l.lane, l.role, l.state]),
     [
@@ -188,7 +236,11 @@ test("a lane whose chat a person closed pauses, shows in Needs you, and opens ag
     laneTable(lanes),
     /^LANE\s+ROLE\s+HARNESS\s+STATE\s+TASK\s+OPEN\n/,
   );
-  assert.equal(store.getMeta("lanes")["worker-1"].paused, undefined);
+  assert.equal(
+    store.getMeta<Record<string, { paused?: unknown }>>("lanes")?.["worker-1"]
+      ?.paused,
+    undefined,
+  );
 });
 
 test("a process lane whose child exited stays free", (t) => {
@@ -222,9 +274,12 @@ test("reviews wait for a free reviewer lane", async (t) => {
   await tick(ops);
   await workerDone(ops, "a", "w-a");
   await bind(ops, "b", "w-b", "worker", 1);
-  const { path: worktree } = await ops.execute("worktree.prepare", {
-    taskId: "b",
-  });
+  const { path: worktree } = await ops.execute<{ path: string }>(
+    "worktree.prepare",
+    {
+      taskId: "b",
+    },
+  );
   const { execFileSync } = await import("node:child_process");
   execFileSync("git", ["commit", "--allow-empty", "-qm", "Work b"], {
     cwd: worktree,
@@ -275,12 +330,15 @@ test("a quiet review recorded as failed frees its reviewer lane for the next rev
     lane: "reviewer-1",
   });
   await tick(ops, { "w-a": "idle", "lane-r1": "idle" });
-  const binding = store.get("session_bindings", "lane-r1"),
+  const binding = found(
+      store.get<SessionBinding>("session_bindings", "lane-r1"),
+    ),
     at = new Date(Date.now() - 10 * 60_000).toISOString();
   store.put("session_bindings", { ...binding, boundAt: at, statusAt: at });
   await tick(ops, { "w-a": "idle", "lane-r1": "idle" });
   assert.match(
-    store.get("task_deliveries", "a").verifications.at(-1).cause,
+    store.get<Delivery>("task_deliveries", "a")?.verifications.at(-1)?.cause ??
+      "",
     /quiet after 0 nudges/,
   );
   const again = (
@@ -328,19 +386,33 @@ test("a process lane's home is ~/.avoozl/lanes/<workspace>/<lane>", async () => 
 
 test("a review round's lane is the one its task's last session ran on, and it resumes there", async () => {
   const { laneRequest, pickLane } = await import("../lane-sessions.ts");
-  const binding = {
+  const binding: SessionBinding = {
+      id: "process-x",
+      slot: "process-x",
       taskId: "a",
       role: "worker",
+      attempt: 1,
+      title: "h",
+      source: "tick",
       lane: "worker-2",
       boundAt: "2026-11-20T00:00:00.000Z",
       harnessSession: "0b9a1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d",
     },
-    lanes = [
-      { id: "worker-1", role: "worker", state: "free", workspace: "ws" },
+    free: Omit<LaneRow, keyof Lane> = {
+      state: "free",
+      task: null,
+      slot: null,
+      executor: null,
+      binding: null,
+      request: null,
+      taskBindings: [],
+    },
+    lanes: LaneRow[] = [
+      { ...free, id: "worker-1", role: "worker", header: "", workspace: "ws" },
       {
+        ...free,
         id: "worker-2",
         role: "worker",
-        state: "free",
         workspace: "ws",
         header: "h",
         slot: "process-x",
@@ -348,7 +420,10 @@ test("a review round's lane is the one its task's last session ran on, and it re
         taskBindings: [binding],
       },
     ];
-  const lane = pickLane(lanes, { task: "a", role: "worker" }, new Set());
+  const lane = found(
+    pickLane(lanes, { task: "a", role: "worker" }, new Set()),
+    "a lane",
+  );
   assert.equal(lane.id, "worker-2");
   assert.deepEqual(laneRequest(lane, { task: "a", role: "worker" }), {
     id: "worker-2",

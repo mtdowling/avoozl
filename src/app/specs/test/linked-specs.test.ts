@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Linked specs (simplify sim-2.5, §D19.2): a task title's link to another
 // spec's tasks.md makes a spec group whose children are that spec's tasks.
 import assert from "node:assert/strict";
@@ -14,6 +13,9 @@ import { Operations } from "../../api/operations.ts";
 import { createSpecPlan, readSpecFolder } from "../spec-plans.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
+import { found } from "../../test/view-shapes.ts";
+
+type Linked = ReturnType<typeof linkedReader>;
 
 const PARENT = [
   "- [ ] `ctx-spec` Write the spec for [epic context]",
@@ -35,19 +37,19 @@ const CHILD = [
   "",
 ].join("\n");
 
-const reader = (specs) =>
+const reader = (specs: Record<string, string>) =>
   linkedReader(Object.entries(specs).map(([name, text]) => ({ name, text })));
-const spec = (name, text, linked) => ({
+const spec = (name: string, text: string, linked?: Linked) => ({
   name,
   exists: true,
   files: { "tasks.md": text },
   linked,
 });
-const requires = (parsed) =>
+const requires = (parsed: ReturnType<typeof parseSpec>) =>
   Object.fromEntries(
     parsed.proposals.map((p) => [p.id, [p.kind, ...(p.requires ?? [])]]),
   );
-const errors = (name, text, linked) =>
+const errors = (name: string, text: string, linked?: Linked) =>
   lintSpec({ spec: spec(name, text, linked) })
     .diagnostics.filter((d) => /^link\./.test(d.code))
     .map((d) => [d.code, d.taskId]);
@@ -105,7 +107,7 @@ test("lint reports link.missing, link.twice and link.children", () => {
 
 test("the landing that ticks a linked spec's last task ticks the parent's box in the same commit", async () => {
   const { root, run } = specCheckout("avoozl-linked-tick-"),
-    write = (name, text) => {
+    write = (name: string, text: string) => {
       const file = path.join(root, ".kiro", "specs", name, "tasks.md");
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, text);
@@ -114,13 +116,16 @@ test("the landing that ticks a linked spec's last task ticks the parent's box in
   write("epic-context", CHILD.replace("- [ ] `ec-1`", "- [x] `ec-1`"));
   run(["add", "-A"]);
   run(["commit", "-q", "-m", "Start"]);
-  const plans = {
+  const plans: Record<
+      string,
+      { spec: string; mapping: Record<string, string> }
+    > = {
       "epic-context": {
         spec: "epic-context",
         mapping: { "ec-1": "ec-1", "ec-2": "ec-2" },
       },
     },
-    store = { get: (_table, id) => plans[id] };
+    store = { get: (_table: string, id: string) => plans[id] };
   await tickEntry(store, root, {
     spec: "epic-context",
     tasks: [{ task: "ec-2" }],
@@ -140,7 +145,7 @@ test("a linked spec's first task waits on the parent's task above it until both 
     JSON.stringify({ version: 1, github: { mode: "local" } }),
   );
   const ops = new Operations(store, { workspaceRoot: root }),
-    spec = (name, tasks) => {
+    spec = (name: string, tasks: string) => {
       writeSpec(root, name, { "tasks.md": `---\nrepo: app\n---\n${tasks}` });
       return createSpecPlan(
         store,
@@ -148,13 +153,16 @@ test("a linked spec's first task waits on the parent's task above it until both 
         readSpecFolder(root, name),
       );
     },
-    approve = (id) =>
+    approve = (id: string) =>
       ops.execute("plan.approve", {
         id,
-        expectedHash: store.get("plans", id).hash,
+        expectedHash: found(
+          store.get<{ id: string; hash: string }>("plans", id),
+        ).hash,
         expectedRevision: store.read().revision,
       }),
-    task = (id) => store.read().tasks.find((row) => row.id === id);
+    task = (id: string) =>
+      found(store.read().tasks.find((row) => row.id === id));
   spec("source", "- [ ] `src-1` Build the source\n  - It builds\n");
   spec("consumer", "- [ ] `use-1` Use the source\n  - It is used\n");
   spec(
@@ -163,7 +171,7 @@ test("a linked spec's first task waits on the parent's task above it until both 
   );
   await approve("consumer");
   assert.deepEqual(
-    task("use-1").pendingSpecDependencies.map((ref) => ref.taskId),
+    task("use-1").pendingSpecDependencies?.map((ref) => ref.taskId),
     ["src-1"],
   );
   await approve("source");

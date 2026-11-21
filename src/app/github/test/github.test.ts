@@ -1,22 +1,31 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
-import { FakeGitHub } from "../../test/fake-github.ts";
+import { FakeGitHub, type FakeIssue } from "../../test/fake-github.ts";
+import type { Store } from "../../store/store.ts";
+import type { PlanDraft } from "../../test/view-shapes.ts";
 
 const NAMESPACE = "avz_testtesttesttest";
 
 // The planning workspace's .avoozl.json, which owns the marker namespace.
-function planningRoot(root, value = { version: 1, namespace: NAMESPACE }) {
+function planningRoot(
+  root: string,
+  value: Record<string, unknown> = { version: 1, namespace: NAMESPACE },
+) {
   fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify(value));
   return root;
 }
 
-function configure(store, github, manager = null, root = temporaryDirectory()) {
+function configure(
+  store: Store,
+  github: FakeGitHub,
+  root = temporaryDirectory(),
+) {
   store.put("repositories", {
     id: "code",
     root: "/tmp/code",
@@ -26,7 +35,6 @@ function configure(store, github, manager = null, root = temporaryDirectory()) {
   });
   const ops = new Operations(store, {
     github,
-    manager,
     operator: "Operator",
     workspaceRoot: planningRoot(root),
   });
@@ -54,11 +62,16 @@ function readyIssue(body = "## Acceptance criteria\n\n- [ ] It works") {
   };
 }
 
-function markerOf(issue) {
-  return JSON.parse(issue.body.match(/<!-- avoozl-task\n(.*)\n-->/)[1]);
+function markerOf(issue: FakeIssue) {
+  const marker = issue.body.match(/<!-- avoozl-task\n(.*)\n-->/);
+  assert.ok(marker, "the issue has a task marker");
+  return JSON.parse(marker[1]);
 }
 
-async function twoRepositoryPlan(t, avoozlJson) {
+async function twoRepositoryPlan(
+  t: TestContext,
+  avoozlJson?: Record<string, unknown>,
+) {
   const { store } = fixture(t),
     github = new FakeGitHub(),
     ops = new Operations(store, {
@@ -82,8 +95,13 @@ async function twoRepositoryPlan(t, avoozlJson) {
   return { store, github, ops };
 }
 
-async function approve(ops, store, id, tasks) {
-  const plan = await ops.execute("plan.create", {
+async function approve(
+  ops: Operations,
+  store: Store,
+  id: string,
+  tasks: Record<string, unknown>[],
+) {
+  const plan = await ops.execute<PlanDraft>("plan.create", {
     id,
     prompt: "Repository " + id,
     text:
@@ -100,17 +118,21 @@ async function approve(ops, store, id, tasks) {
   return { plan, approved };
 }
 
-async function projectedWorkspace(t, tasks, policy = {}) {
+async function projectedWorkspace(
+  t: TestContext,
+  tasks: Record<string, unknown>[],
+  policy = {},
+) {
   const { store } = fixture(t),
     github = new FakeGitHub(),
     root = temporaryDirectory(),
-    ops = await configure(store, github, null, root);
+    ops = await configure(store, github, root);
   planningRoot(root, { version: 1, namespace: NAMESPACE, ...policy });
   const { plan, approved } = await approve(ops, store, "projection", tasks);
   return { store, github, ops, plan, approved, root };
 }
 
-const leaf = (id, extra = {}) => ({
+const leaf = (id: string, extra = {}) => ({
   id,
   title: "Task " + id,
   summary: "Summary " + id,
@@ -119,10 +141,10 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-function issueFor(github, taskId) {
+function issueFor(github: FakeGitHub, taskId: string) {
   return github.created.find((issue) => markerOf(issue).taskId === taskId);
 }
 
-function labelsOf(issue) {
-  return (issue.labels || []).map((label) => label.name);
+function labelsOf(issue: FakeIssue | undefined) {
+  return (issue?.labels || []).map((label) => label.name);
 }

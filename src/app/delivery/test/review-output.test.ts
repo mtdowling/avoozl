@@ -1,12 +1,13 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { bindContentRules } from "../../content/content-rules.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { postReviewOutput } from "../review-output.ts";
+import type { Store } from "../../store/store.ts";
 
 const SHA = "a".repeat(40),
   START = "2026-11-01T00:00:00.000Z",
@@ -14,7 +15,7 @@ const SHA = "a".repeat(40),
 
 // A store with task `sample-task` in plan `config`, its spec issue #9 in
 // example/code, and a GitHub that records each comment.
-function setup(t) {
+function setup(t: TestContext) {
   const { store } = fixture(t);
   store.mutate("Plan the task", (data) => {
     data.tasks[0].planId = "config";
@@ -27,9 +28,13 @@ function setup(t) {
     repository: "example/code",
     number: 9,
   });
-  const comments = [],
+  const comments: { repository: string; number: number; body: string }[] = [],
     github = {
-      createIssueComment: async (repository, number, body) => {
+      createIssueComment: async (
+        repository: string,
+        number: number,
+        body: string,
+      ) => {
         comments.push({ repository, number, body });
         return { id: comments.length };
       },
@@ -37,8 +42,14 @@ function setup(t) {
   return { store, github, comments };
 }
 
-const review = (store, attempt, at, findings = []) =>
+const review = (
+  store: Store,
+  attempt: number,
+  at: string,
+  findings: (typeof FINDING)[] = [],
+) =>
   store.put("session_bindings", {
+    id: `review-${attempt}`,
     slot: `review-${attempt}`,
     taskId: "sample-task",
     role: "reviewer",
@@ -62,10 +73,13 @@ const FINDING = {
 test("the first pass posts nothing; a later review round is one spec issue comment, once", async (t) => {
   const { store, github, comments } = setup(t);
   review(store, 1, "2026-10-30T00:00:00.000Z");
-  assert.deepEqual(await postReviewOutput(store, github, { now: START }), []);
+  assert.deepEqual(
+    await postReviewOutput(store, github, { now: Date.parse(START) }),
+    [],
+  );
   assert.equal(comments.length, 0, "older rounds are not posted");
   review(store, 2, LATER, [FINDING]);
-  await postReviewOutput(store, github, { now: LATER });
+  await postReviewOutput(store, github, { now: Date.parse(LATER) });
   assert.equal(comments.length, 1);
   const [comment] = comments;
   assert.deepEqual([comment.repository, comment.number], ["example/code", 9]);
@@ -75,7 +89,7 @@ test("the first pass posts nothing; a later review round is one spec issue comme
   );
   assert.match(comment.body, /aaaaaaaaaaaa .*\*\*changes-requested\*\*/);
   assert.match(comment.body, /- \*\*defect\*\* F1 \(`src\/config\.mjs`\)/);
-  await postReviewOutput(store, github, { now: LATER });
+  await postReviewOutput(store, github, { now: Date.parse(LATER) });
   assert.equal(comments.length, 1, "posted once");
 });
 
@@ -86,9 +100,13 @@ test("a task with a pull request gets its output there", async (t) => {
   store.mutate("Name the repository", (data) => {
     data.tasks[0].repository = "code";
   });
-  store.put("task_deliveries", { taskId: "sample-task", pr: 31 });
+  store.put("task_deliveries", {
+    id: "sample-task",
+    taskId: "sample-task",
+    pr: 31,
+  });
   review(store, 1, LATER);
-  await postReviewOutput(store, github, { now: LATER });
+  await postReviewOutput(store, github, { now: Date.parse(LATER) });
   assert.deepEqual(
     comments.map((c) => [c.repository, c.number]),
     [["example/code", 31]],
@@ -116,7 +134,7 @@ test("a failing check run is posted with its command and output tail", async (t)
       },
     ],
   });
-  await postReviewOutput(store, github, { now: LATER });
+  await postReviewOutput(store, github, { now: Date.parse(LATER) });
   assert.equal(comments.length, 1);
   assert.match(comments[0].body, /\*\*1 failed\*\*/);
   assert.match(comments[0].body, /`npm test` exited 1/);
@@ -149,10 +167,10 @@ test("output the content rules refuse is held, not posted", async (t) => {
   review(store, 1, LATER, [
     { ...FINDING, text: "It names made-up-private-plan." },
   ]);
-  await postReviewOutput(store, github, { now: LATER });
+  await postReviewOutput(store, github, { now: Date.parse(LATER) });
   assert.equal(comments.length, 0);
   assert.equal(
-    store.get("receipts", "review-output:sample-task:1:reviewer").state,
+    store.get("receipts", "review-output:sample-task:1:reviewer")?.state,
     "held",
   );
 });
@@ -166,12 +184,12 @@ test("a failed post is tried again on the next pass", async (t) => {
     throw new Error("GitHub is down");
   };
   assert.deepEqual(
-    (await postReviewOutput(store, github, { now: LATER })).map(
+    (await postReviewOutput(store, github, { now: Date.parse(LATER) })).map(
       (failed) => failed.error,
     ),
     ["GitHub is down"],
   );
   github.createIssueComment = post;
-  await postReviewOutput(store, github, { now: LATER });
+  await postReviewOutput(store, github, { now: Date.parse(LATER) });
   assert.equal(comments.length, 1);
 });

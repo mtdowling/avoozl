@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { startAppBackend } from "../kirocrew/app-backend.ts";
 import { workspaceConfig } from "../../settings/config.ts";
 import { Store } from "../../store/store.ts";
@@ -12,8 +11,36 @@ import { initializeWorkspace } from "../../workspace/workspace.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { SECRET, sign, isolatedEnv } from "../../test/signed-principal.ts";
 
+// A workspace as workspaces.list and its edits answer.
+interface WorkspaceRow {
+  id: string;
+  name: string;
+  root: string;
+  served: boolean;
+  enabled: boolean;
+  maxConcurrentRuns?: number;
+  [key: string]: unknown;
+}
+interface WorkspaceList {
+  items: WorkspaceRow[];
+  defaultWorkspace: string;
+}
+// workspace.tick.health's answer.
+interface Health {
+  lastRun: { outcome: string; policy: string; at: string } | null;
+  lock: { pid: number; live: boolean } | null;
+}
+// workspaces.browse's answer.
+interface Browse {
+  path: string;
+  parent: string | null;
+  folders: { name: string; workspace: boolean }[];
+}
+// An answer whose fields a test reads one by one.
+type Fields = Record<string, unknown>;
+
 // A backend serving one initialized workspace, with its own machine catalog.
-async function backend(t) {
+async function backend(t: TestContext) {
   const root = temporaryDirectory(),
     served = path.join(root, "served"),
     home = path.join(root, "home");
@@ -30,8 +57,13 @@ async function backend(t) {
   });
   t.after(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));
-  const base = `http://127.0.0.1:${server.address().port}`;
-  const call = async (value, kind) => {
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  const call = async <T = Fields>(
+    value: Record<string, unknown>,
+    kind?: string,
+  ) => {
     const body = JSON.stringify(value),
       response = await fetch(base + "/api/command", {
         method: "POST",
@@ -41,14 +73,15 @@ async function backend(t) {
         },
         body,
       });
-    return { status: response.status, body: await response.json() };
+    const answer: { result: T } = JSON.parse(await response.text());
+    return { status: response.status, body: answer };
   };
   return { root, served, home, call };
 }
 
 test("Workspace view lists, adds, and initializes catalog workspaces", async (t) => {
   const { root, served, call } = await backend(t);
-  const empty = await call({ operation: "workspaces.list" });
+  const empty = await call<WorkspaceList>({ operation: "workspaces.list" });
   assert.equal(empty.status, 200);
   assert.deepEqual(empty.body.result.items, []);
 
@@ -67,7 +100,8 @@ test("Workspace view lists, adds, and initializes catalog workspaces", async (t)
   });
   assert.equal(added.status, 200, JSON.stringify(added.body));
 
-  const listed = (await call({ operation: "workspaces.list" })).body.result;
+  const listed = (await call<WorkspaceList>({ operation: "workspaces.list" }))
+    .body.result;
   assert.deepEqual(
     listed.items.map(({ id, name, served }) => ({ id, name, served })),
     [
@@ -77,7 +111,7 @@ test("Workspace view lists, adds, and initializes catalog workspaces", async (t)
   );
   assert.equal(listed.defaultWorkspace, "fresh");
 
-  const refused = {
+  const refused: Record<string, [Fields, number]> = {
     relative: [{ id: "rel", root: "relative/path" }, 400],
     duplicate: [{ id: "fresh", root: path.join(root, "other") }, 409],
     "existing directory": [{ id: "again", root: fresh }, 409],
@@ -137,16 +171,18 @@ test("run tick now records health outside SQLite and reports a held lock", async
   const store = new Store(workspaceConfig({ workspace: served }).dbPath);
   t.after(() => store.close());
   const revision = store.read().revision;
-  const ran = await call({ operation: "workspace.tick" });
+  const ran = await call<{ policy: { status: string } }>({
+    operation: "workspace.tick",
+  });
   assert.equal(ran.status, 200, JSON.stringify(ran.body));
   assert.equal(ran.body.result.policy.status, "loaded");
   assert.equal(store.read().revision, revision, "the tick changed no state");
 
-  const health = (await call({ operation: "workspace.tick.health" })).body
-    .result;
-  assert.equal(health.lastRun.outcome, "ok");
-  assert.equal(health.lastRun.policy, "loaded");
-  assert.ok(Date.parse(health.lastRun.at));
+  const health = (await call<Health>({ operation: "workspace.tick.health" }))
+    .body.result;
+  assert.equal(health.lastRun?.outcome, "ok");
+  assert.equal(health.lastRun?.policy, "loaded");
+  assert.ok(Date.parse(health.lastRun?.at ?? ""));
   assert.equal(health.lock, null);
 
   store.db
@@ -161,9 +197,9 @@ test("run tick now records health outside SQLite and reports a held lock", async
   assert.deepEqual((await call({ operation: "workspace.tick" })).body.result, {
     skipped: "locked",
   });
-  const locked = (await call({ operation: "workspace.tick.health" })).body
-    .result;
-  assert.equal(locked.lastRun.outcome, "locked");
+  const locked = (await call<Health>({ operation: "workspace.tick.health" }))
+    .body.result;
+  assert.equal(locked.lastRun?.outcome, "locked");
   assert.deepEqual(locked.lock, { pid: process.pid, live: true });
 });
 
@@ -204,14 +240,18 @@ test("a request may name a catalog workspace to register repositories in", async
   });
   assert.equal(configured.status, 200, JSON.stringify(configured.body));
   const listed = (
-    await call({ workspaceId: "other", operation: "repositories.list" })
+    await call<{ items: { id: string }[] }>({
+      workspaceId: "other",
+      operation: "repositories.list",
+    })
   ).body.result.items;
   assert.deepEqual(
     listed.map(({ id }) => id),
     ["app"],
   );
-  const servedList = (await call({ operation: "repositories.list" })).body
-    .result.items;
+  const servedList = (
+    await call<{ items: unknown[] }>({ operation: "repositories.list" })
+  ).body.result.items;
   assert.deepEqual(servedList, [], "the served workspace is unchanged");
   assert.equal(
     (await call({ workspaceId: "nope", operation: "repositories.list" }))
@@ -246,7 +286,10 @@ test("a catalog workspace with a read-only database is read without writing", as
     ).status,
     200,
   );
-  const state = await call({ workspaceId: "copy", operation: "state" });
+  const state = await call<{ tasks: unknown }>({
+    workspaceId: "copy",
+    operation: "state",
+  });
   assert.equal(state.status, 200, JSON.stringify(state.body));
   assert.ok(Array.isArray(state.body.result.tasks));
   assert.equal(hash(), before);
@@ -254,7 +297,7 @@ test("a catalog workspace with a read-only database is read without writing", as
 
 test("Remove takes a workspace off the list and keeps its folder and database; the default moves to the next enabled one", async (t) => {
   const { root, call } = await backend(t);
-  const roots = {};
+  const roots: Record<string, string> = {};
   for (const id of ["first", "second", "third"]) {
     roots[id] = path.join(root, id);
     assert.equal(
@@ -274,7 +317,8 @@ test("Remove takes a workspace off the list and keeps its folder and database; t
   });
   assert.equal(stopped.status, 200, JSON.stringify(stopped.body));
   assert.equal(stopped.body.result.enabled, false);
-  let listed = (await call({ operation: "workspaces.list" })).body.result;
+  let listed = (await call<WorkspaceList>({ operation: "workspaces.list" }))
+    .body.result;
   assert.equal(listed.defaultWorkspace, "first");
   // Removing the default picks the next enabled one, skipping the stopped one.
   const removed = await call({
@@ -290,7 +334,8 @@ test("Remove takes a workspace off the list and keeps its folder and database; t
     },
     { id: "first", removed: true, databasePreserved: true },
   );
-  listed = (await call({ operation: "workspaces.list" })).body.result;
+  listed = (await call<WorkspaceList>({ operation: "workspaces.list" })).body
+    .result;
   assert.deepEqual(
     listed.items.map((item) => item.id),
     ["second", "third"],
@@ -321,7 +366,8 @@ test("only a person removes or stops a workspace", async (t) => {
         403,
         `${kind} ${operation}`,
       );
-  const listed = (await call({ operation: "workspaces.list" })).body.result;
+  const listed = (await call<WorkspaceList>({ operation: "workspaces.list" }))
+    .body.result;
   assert.deepEqual(
     listed.items.map((item) => [item.id, item.enabled]),
     [["kept", true]],
@@ -369,7 +415,7 @@ test("the folder picker lists folders under home only, and only for a person", a
   fs.mkdirSync(path.join(home, ".hidden"));
   fs.writeFileSync(path.join(home, "file.txt"), "");
   initializeWorkspace(path.join(home, "plans"));
-  const top = await call({ operation: "workspaces.browse", input: {} });
+  const top = await call<Browse>({ operation: "workspaces.browse", input: {} });
   assert.equal(top.status, 200, JSON.stringify(top.body));
   assert.equal(top.body.result.path, fs.realpathSync(home));
   assert.equal(top.body.result.parent, null);
@@ -381,7 +427,7 @@ test("the folder picker lists folders under home only, and only for a person", a
       ["plans", true],
     ],
   );
-  const inner = await call({
+  const inner = await call<Browse>({
     operation: "workspaces.browse",
     input: { path: "~/a" },
   });
@@ -447,7 +493,8 @@ test("a person edits a workspace's name, folder, on/off and default", async (t) 
     },
     { name: "Second", max: undefined, enabled: false },
   );
-  let listed = (await call({ operation: "workspaces.list" })).body.result;
+  let listed = (await call<WorkspaceList>({ operation: "workspaces.list" }))
+    .body.result;
   assert.equal(listed.defaultWorkspace, "two");
 
   // A moved folder: the new path holds this workspace.
@@ -466,7 +513,7 @@ test("a person edits a workspace's name, folder, on/off and default", async (t) 
   // Refused: a blank name, a relative or missing folder, an
   // empty folder, another workspace's folder, an unknown ID.
   fs.mkdirSync(path.join(home, "empty"));
-  const refused = [
+  const refused: [Fields, number][] = [
     [{ id: "two", name: "  " }, 400],
     [{ id: "two", root: "relative" }, 400],
     [{ id: "two", root: path.join(root, "nope") }, 400],
@@ -480,10 +527,11 @@ test("a person edits a workspace's name, folder, on/off and default", async (t) 
       status,
       JSON.stringify(input),
     );
-  listed = (await call({ operation: "workspaces.list" })).body.result;
+  listed = (await call<WorkspaceList>({ operation: "workspaces.list" })).body
+    .result;
   const two = listed.items.find((item) => item.id === "two");
   assert.deepEqual(
-    [two.name, two.maxConcurrentRuns, two.root],
+    [two?.name, two?.maxConcurrentRuns, two?.root],
     ["Second", undefined, fs.realpathSync(path.join(home, "moved"))],
   );
   for (const kind of ["app-token", "agent-tool"])

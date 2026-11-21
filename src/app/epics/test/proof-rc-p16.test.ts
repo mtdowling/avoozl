@@ -14,6 +14,12 @@ import {
 } from "../integration-head.ts";
 import { syncNeedsYou, syncStep } from "../integration-sync.ts";
 import { fixture } from "../../test/fixtures.ts";
+import {
+  compared,
+  recordMerge,
+  type BranchSides,
+  type Merge,
+} from "./branch-fake.ts";
 
 const REPO = "example/code";
 const BRANCH = "rewrite/x";
@@ -38,15 +44,10 @@ const pass = { name: "build", status: "completed", conclusion: "success" };
 const fail = { name: "build", status: "completed", conclusion: "failure" };
 
 // The fake GitHub's state.
-interface Fake {
+interface Fake extends BranchSides {
   head: string;
   checks: { name: string; status: string; conclusion?: string }[];
-  fresh: number;
-  own: number;
-  conflict: boolean;
   protected: boolean;
-  mainFiles: string[];
-  branchFiles: string[];
 }
 
 function fakeGitHub(state: Partial<Fake> = {}) {
@@ -63,7 +64,7 @@ function fakeGitHub(state: Partial<Fake> = {}) {
   };
   const github = {
     s,
-    merges: [] as { base: string; head: string }[],
+    merges: [] as Merge[],
     available: () => true,
     repository: async () => ({ default_branch: "main" }),
     branch: async (_repo: string, name: string) => {
@@ -73,23 +74,10 @@ function fakeGitHub(state: Partial<Fake> = {}) {
     },
     checkRuns: async () => s.checks,
     commitStatus: async () => ({ statuses: [] }),
-    compareCommits: async (_repo: string, base: string, head: string) => {
-      const fromMain = base === BRANCH && head === "main";
-      return {
-        ahead_by: fromMain ? s.fresh : s.own,
-        behind_by: fromMain ? s.own : s.fresh,
-        files: (fromMain ? s.mainFiles : s.branchFiles).map((filename) => ({
-          filename,
-        })),
-      };
-    },
-    mergeBranch: async (
-      _repo: string,
-      input: { base: string; head: string },
-    ) => {
-      github.merges.push(input);
-      if (s.conflict)
-        throw Object.assign(Error("Merge conflict"), { status: 409 });
+    compareCommits: async (_repo: string, base: string, head: string) =>
+      compared(s, BRANCH, base, head),
+    mergeBranch: async (_repo: string, input: Merge) => {
+      recordMerge(github.merges, s, input);
       s.fresh = 0;
       s.own++;
       s.head = sha(9);

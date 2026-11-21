@@ -27,6 +27,30 @@ import { globalAvoozlConfigPath } from "../settings/layered-config.ts";
 import { queueNotifications } from "../tick/notifications.ts";
 import { PRIVACY_SET, privacyHits, privacyRules } from "./privacy.ts";
 import { fail } from "../store/store.ts";
+import type { Store } from "../store/store.ts";
+
+// One line of text a write would publish, and where it sits.
+export interface ContentLine {
+  target: string;
+  line: number;
+  text: string;
+}
+// One rule match: the set, rule and place, never the matched text.
+export interface Finding {
+  set: string;
+  rule: string;
+  boundary?: string;
+  target: string;
+  line?: number;
+  action: string;
+  version?: string;
+}
+// What check answers.
+export interface CheckResult {
+  findings: Finding[];
+  unavailable: { set: string; reason: string }[];
+  allowed?: unknown[];
+}
 import { personPosting, postedText } from "../github/github-posted.ts";
 import { branchRefs } from "../git/git.ts";
 
@@ -970,7 +994,18 @@ function privacyFindings(binding, boundary, lines) {
 // check({boundary, repository, target, text, added}): findings as {set, rule,
 // boundary, target, line, action, version?}, and the covering sets that are
 // unavailable as {set, reason}. Never the matched text. Writes nothing.
-export function check(store, input) {
+export function check(
+  store: Store,
+  input: {
+    boundary: string;
+    repository?: string | null;
+    target?: string;
+    added?: ContentLine[];
+    text?: string;
+    contextSets?: string[];
+    [key: string]: unknown;
+  },
+): CheckResult {
   const { boundary, repository = null } = input;
   if (!BOUNDARIES.includes(boundary))
     fail(`Unknown content boundary ${boundary}.`);
@@ -1058,7 +1093,7 @@ export function contentHash(input) {
   );
 }
 
-export const findingText = (f) =>
+export const findingText = (f: Finding) =>
   `${f.set} rule ${f.rule} at ${f.target}${f.line ? ` line ${f.line}` : ""}`;
 
 const decisionId = (set, target) =>
@@ -1919,7 +1954,12 @@ export function patchAdded(file, patch) {
 
 // The lines an outgoing range publishes: added lines, commit messages and
 // ref names (R87.9, R102.7).
-export function pushLines(root, base, head, refs) {
+export function pushLines(
+  root: string,
+  base: string,
+  head: string,
+  refs: (string | null | undefined)[],
+): ContentLine[] {
   return [
     ...addedLines(root, base, head),
     ...commitMessageLines(root, base, head),

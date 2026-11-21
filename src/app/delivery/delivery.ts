@@ -1441,7 +1441,7 @@ export function processSteps(
   {
     branch = `avoozl/${task.id}`,
     allowCommands,
-  }: { branch?: string; allowCommands?: string[] } = {},
+  }: { branch?: string; allowCommands?: string[][] } = {},
 ) {
   return [
     `1. Work only in the current folder, the worktree of task ${task.id} on branch ${branch}. Do not run cd; name every file by its path from this folder.`,

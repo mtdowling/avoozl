@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Epic context in a process session (epic-context ec-2.2, ec-2.3): reads,
 // skills and the brief for a worker that passes the two tests, the MCP
 // relay and broker with a fake server, and a session that fails the gate
@@ -12,23 +11,40 @@ import test from "node:test";
 import { drainProcessRequests } from "../process.ts";
 import { parseHarnessDefinition } from "../harness-definitions.ts";
 import { childRecord, openSupervisorDatabase } from "../supervisor.ts";
-import { listActivity } from "../../store/activity-log.ts";
+import { listActivity, type ActivityRow } from "../../store/activity-log.ts";
 import { enqueueSessionRequests } from "../../sessions/session-requests.ts";
 import { FakeGitHub } from "../../test/fake-github.ts";
 import { unapprove } from "../../test/epic-context-seed.ts";
 import { until } from "./process-machine.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
+import type { RequestRow } from "../../sessions/session-requests.ts";
 
 import {
   finish,
   plugin,
   run,
+  runAt,
   runs,
   settings,
+  type Run,
   followUp,
   settle,
   world,
 } from "./epic-context-world.ts";
 const posix = process.platform !== "win32";
+// A binding with the epic context record the gate leaves on it.
+type ContextBinding = SessionBinding & {
+  epicContext?: { tests: { passed: boolean }[]; items: string[] } | null;
+};
+// An activity row of `kind`, which must exist.
+const activity = (
+  w: ReturnType<typeof world>,
+  test: (row: ActivityRow) => boolean,
+) => {
+  const row = listActivity(w.store).items.find(test);
+  assert.ok(row, "no such activity");
+  return row;
+};
 
 test("a passing worker gets reads, skills, the brief and the MCP server, and the folder goes with it", {
   skip: !posix && "the MCP relay uses a Unix socket",
@@ -41,6 +57,7 @@ test("a passing worker gets reads, skills, the brief and the MCP server, and the
   t.after(() => delete process.env.RESEARCH_TOKEN);
   const slot = await run(w);
   const saved = settings(w, slot).context;
+  assert.ok(saved);
   // A read joins the read-only folders; none is writable (EC6.1).
   assert.ok(
     saved.readable.includes(fs.realpathSync(path.join(ctx.notes, "widgets"))),
@@ -87,15 +104,13 @@ test("a passing worker gets reads, skills, the brief and the MCP server, and the
   // The skills copy goes when the child exits (EC6.4).
   assert.ok(!fs.existsSync(skills));
   // Activity names the tests and the given items; the chip's binding too.
-  const row = listActivity(w.store).items.find(
-    (item) => item.kind === "epic-context.session",
-  );
+  const row = activity(w, (item) => item.kind === "epic-context.session");
   assert.match(row.summary, /approved passed.*approver passed/);
   assert.match(row.summary, /skill module-layout/);
   assert.match(row.summary, /mcp research/);
-  const binding = w.store.get("session_bindings", slot);
+  const binding = w.store.get<ContextBinding>("session_bindings", slot);
   assert.deepEqual(
-    binding.epicContext.tests.map((x) => x.passed),
+    binding?.epicContext?.tests.map((x) => x.passed),
     [true, true],
   );
   // Each call reaches Activity, with no argument or reply (EC7.5).
@@ -124,7 +139,7 @@ test("a changed skill file gives no skill", async (t) => {
   );
   await run(w);
   // A changed file turns the plugin `changed`, so nothing is given at all.
-  assert.ok(!runs(w)[0].prompt.includes("## Epic context"));
+  assert.ok(!runAt(w, 0).prompt.includes("## Epic context"));
   assert.ok(!fs.existsSync(path.join(w.m.worktree, "skill.txt")));
 });
 
@@ -140,7 +155,7 @@ test("a failing or sourceless session runs exactly as one with no source", async
   ctx.write((settings) => (settings.disabled = []));
   unapprove(w.store);
   const failed = await run(w, { attempt: 2 });
-  const normal = (slot, run) => ({
+  const normal = (slot: string, run: Run) => ({
     argv: JSON.parse(JSON.stringify(run.argv).replaceAll(slot.slice(8), "ID")),
     prompt: run.prompt,
     env: run.env,
@@ -149,7 +164,7 @@ test("a failing or sourceless session runs exactly as one with no source", async
   assert.deepEqual(normal(failed, two), normal(plain, one));
   const db = openSupervisorDatabase(w.m.stateDirectory);
   try {
-    const row = (slot) => childRecord(db, slot);
+    const row = (slot: string) => childRecord(db, slot);
     assert.equal(row(failed).brief, row(plain).brief);
     assert.equal(
       row(failed).placeholder_values.replaceAll(failed, "S"),
@@ -198,8 +213,9 @@ test("a resume runs the tests again and drops context when one now fails", async
     w.m.supervisor.pass();
     return runs(w).length === 2;
   });
-  assert.ok(!runs(w)[1].argv.includes("--mcp-config"));
-  const resumed = listActivity(w.store).items.find(
+  assert.ok(!runAt(w, 1).argv.includes("--mcp-config"));
+  const resumed = activity(
+    w,
     (item) =>
       item.kind === "epic-context.session" && /Resumed/.test(item.summary),
   );
@@ -207,7 +223,10 @@ test("a resume runs the tests again and drops context when one now fails", async
     resumed.summary,
     /approved failed: The approved revision of config is not on the specs branch/,
   );
-  assert.equal(w.store.get("session_bindings", slot).epicContext, null);
+  assert.equal(
+    w.store.get<ContextBinding>("session_bindings", slot)?.epicContext,
+    null,
+  );
 });
 
 test("only the worker role gets context", async (t) => {
@@ -223,7 +242,7 @@ test("only the worker role gets context", async (t) => {
       role: "verifier",
       repository: w.store.get("repositories", "app"),
     },
-    { ops: w.ops, places: { home: os.homedir() } },
+    { ops: w.ops, places: { home: os.homedir() }, definition: null },
   );
   assert.equal(given, null);
 });
@@ -241,11 +260,12 @@ test("a harness without context.mcp gets no MCP servers, and the record says so"
   assert.match(first.prompt, /## Epic context/);
   assert.ok(!first.prompt.includes("research:"));
   assert.ok(!fs.existsSync(path.join(w.m.worktree, "mcp-research.json")));
-  assert.deepEqual(Object.keys(settings(w, slot).context.mcp), []);
-  const row = w.store.get("session_bindings", slot);
-  assert.equal(row.epicContext.items.includes("mcp"), false);
+  assert.deepEqual(Object.keys(settings(w, slot).context?.mcp ?? {}), []);
+  const row = w.store.get<ContextBinding>("session_bindings", slot);
+  assert.equal(row?.epicContext?.items.includes("mcp"), false);
   const left = JSON.stringify(
-    w.store.getMeta("epicContext").tasks["sample-task"].left,
+    w.store.getMeta<{ tasks: Record<string, { left: unknown }> }>("epicContext")
+      ?.tasks["sample-task"]?.left,
   );
   assert.match(left, /mcp research.*the harness has no context\.mcp/);
 });
@@ -260,10 +280,10 @@ test("a server that listens is stopped and its plugin is marked broken", {
   await run(w, { brief: `HOLD:3000 READ:${w.note}` });
   await until(() => ctx.settings().broken?.["team-context"]);
   assert.match(
-    ctx.settings().broken["team-context"].reason,
+    ctx.settings().broken?.["team-context"]?.reason ?? "",
     /network listener/,
   );
-  assert.equal(ctx.plugin().state, "unapproved");
+  assert.equal(ctx.plugin()?.state, "unapproved");
 });
 
 test("the harness context key passes the argv checks and must name the config file", () => {
@@ -276,7 +296,7 @@ test("the harness context key passes the argv checks and must name the config fi
       "utf8",
     ),
   );
-  assert.deepEqual(parseHarnessDefinition(base).context.mcp, [
+  assert.deepEqual(parseHarnessDefinition(base).context?.mcp, [
     "--mcp-config",
     "{context_mcp}",
     "--strict-mcp-config",
@@ -311,10 +331,11 @@ test("text from a login that does not count never reaches a context session", {
   const github = new FakeGitHub();
   github.permissions.set("maintainer", "write");
   github.permissions.set("stranger", "read");
+  assert.ok(w.ops);
   w.ops.github = github;
   // The session is still running when the text arrives.
   const slot = await run(w, { brief: `HOLD:100 READ:${w.note}` });
-  const send = (login, text) => {
+  const send = (login: string, text: string) => {
     enqueueSessionRequests(w.store, {
       sends: [
         {
@@ -340,28 +361,31 @@ test("text from a login that does not count never reaches a context session", {
     w.m.supervisor.pass();
     return runs(w).length === 2;
   });
-  assert.match(runs(w)[1].prompt, /Please rename it/);
+  assert.match(runAt(w, 1).prompt, /Please rename it/);
   // A login that does not count is not sent; the session stops and a new
   // one starts with the text and no epic context.
   await send("stranger", "Also add this.");
   assert.ok(!JSON.stringify(runs(w)).includes("Also add this"));
   await settle(w, slot);
   const follow = w.store
-    .list("session_requests")
+    .list<RequestRow>("session_requests")
     .find((row) => row.request?.epicContext === false);
+  assert.ok(follow);
   assert.equal(follow.request.attempt, 2);
   assert.equal(follow.request.after, slot);
   // Once the first session has ended, the follow-up starts.
   const second = await followUp(w, 2);
-  const last = runs(w).at(-1);
+  const last = runAt(w, -1);
   assert.match(last.prompt, /Also add this/);
   assert.ok(!last.prompt.includes("## Epic context"));
   assert.ok(!last.argv.includes("--mcp-config"));
   assert.equal(settings(w, second.slot).context, null);
-  assert.equal(
-    w.store.get("session_bindings", second.slot).epicContext,
-    undefined,
+  const secondBinding = w.store.get<ContextBinding>(
+    "session_bindings",
+    second.slot,
   );
+  assert.ok(secondBinding);
+  assert.equal(secondBinding.epicContext, undefined);
   const rows = listActivity(w.store).items.map((item) => item.summary);
   assert.ok(
     rows.some((row) => /Text from stranger, who does not count/.test(row)),

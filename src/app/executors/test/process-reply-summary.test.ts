@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The responder as a `process` child (without-kirocrew nk-2.2, NK2.2,
 // NK2.5): the same request on either executor, the
 // child's result recorded by the operation a chat's tool call runs, and no
@@ -8,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import {
   finishProcessSession,
@@ -18,17 +17,24 @@ import {
 import { childRecord, openSupervisorDatabase } from "../supervisor.ts";
 import { fixture, snapshot } from "../../test/fixtures.ts";
 import { FakeGitHub } from "../../test/fake-github.ts";
+import type { Dispatch } from "../../test/fake-crew.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { postedText } from "../../github/github-posted.ts";
 
 const REPO = "example/code";
 
-const git = (cwd, ...args) =>
+// A dispatch the tick asks for, with the fields a process child reads.
+type ChildDispatch = Dispatch & { worktree: string; brief: string };
+// The tick's answer.
+type Tick = { dispatch: ChildDispatch[] };
+
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 // A workspace whose responder runs on the role harness `harness`, with a
 // checkout at a real commit and one open discussion on a fake GitHub.
-function responder(t, harness) {
+function responder(t: TestContext, harness: string | null) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
     checkout = temporaryDirectory(),
@@ -82,8 +88,15 @@ function responder(t, harness) {
       author: "maintainer",
     },
   ];
-  github.addDiscussionComment = async (discussionId, body) => {
-    const comment = { id: github.comments.length + 1, discussionId, body };
+  github.addDiscussionComment = async (discussionId: string, body: string) => {
+    const comment = {
+      id: github.comments.length + 1,
+      number: 7,
+      discussionId,
+      body,
+      html_url: `https://example.test/${REPO}/discussions/7`,
+      user: { login: github.login },
+    };
     github.comments.push(comment);
     return comment;
   };
@@ -92,7 +105,11 @@ function responder(t, harness) {
 }
 
 // Bind the dispatch as the drain does for a `process` child.
-async function bindChild(ops, dispatch, slot) {
+async function bindChild(
+  ops: Operations,
+  dispatch: ChildDispatch,
+  slot: string,
+) {
   await ops.execute("session.bind", {
     taskId: dispatch.task,
     slot,
@@ -100,19 +117,21 @@ async function bindChild(ops, dispatch, slot) {
     attempt: dispatch.attempt ?? 1,
     source: "tick",
   });
-  return ops.store.get("session_bindings", slot);
+  return ops.store.get<SessionBinding>("session_bindings", slot);
 }
 
 test("the responder asks for the same reply on either executor", async (t) => {
   const chat = responder(t, null);
-  const [onChat] = (await chat.ops.execute("workspace.tick", { sessions: [] }))
-    .dispatch;
+  const [onChat] = (
+    await chat.ops.execute<Tick>("workspace.tick", { sessions: [] })
+  ).dispatch;
   assert.equal(onChat.executor, "kirocrew");
   assert.equal(onChat.role, "responder");
 
   const w = responder(t, "fake-cli");
-  const [child] = (await w.ops.execute("workspace.tick", { sessions: [] }))
-    .dispatch;
+  const [child] = (
+    await w.ops.execute<Tick>("workspace.tick", { sessions: [] })
+  ).dispatch;
   assert.equal(child.executor, "process");
   assert.equal(child.harness, "fake-cli");
   assert.equal(child.permissionClass, "read");
@@ -128,8 +147,9 @@ test("the responder asks for the same reply on either executor", async (t) => {
 
 test("a child's reply is posted once, and none for a blocked result", async (t) => {
   const w = responder(t, "fake-cli");
-  const [dispatch] = (await w.ops.execute("workspace.tick", { sessions: [] }))
-    .dispatch;
+  const [dispatch] = (
+    await w.ops.execute<Tick>("workspace.tick", { sessions: [] })
+  ).dispatch;
   const binding = await bindChild(w.ops, dispatch, "process-r1");
   await finishProcessSession(
     w.ops,
@@ -145,7 +165,7 @@ test("a child's reply is posted once, and none for a blocked result", async (t) 
     { state: "done", text: "", report: { body } },
     w.store,
   );
-  assert.equal(posted.posted, true);
+  assert.partialDeepStrictEqual(posted, { posted: true });
   assert.equal(w.github.comments.length, 1);
   assert.equal(w.github.comments[0].body, postedText(body));
   await assert.rejects(
@@ -162,8 +182,9 @@ test("a child's reply is posted once, and none for a blocked result", async (t) 
 
 test("a child's reply the screen refuses is held as a chat's is", async (t) => {
   const w = responder(t, "fake-cli");
-  const [dispatch] = (await w.ops.execute("workspace.tick", { sessions: [] }))
-    .dispatch;
+  const [dispatch] = (
+    await w.ops.execute<Tick>("workspace.tick", { sessions: [] })
+  ).dispatch;
   const binding = await bindChild(w.ops, dispatch, "process-r2");
   await assert.rejects(
     finishProcessSession(
@@ -175,7 +196,8 @@ test("a child's reply the screen refuses is held as a chat's is", async (t) => {
       },
       w.store,
     ),
-    (error) => error.status === 422 && /nothing was posted/.test(error.message),
+    (error: Error & { status?: number }) =>
+      error.status === 422 && /nothing was posted/.test(error.message),
   );
   assert.equal(w.github.comments.length, 0);
 });
@@ -192,7 +214,7 @@ test("the responder child gets no network path, whatever its repository allows",
       sandbox: { network: ["localhost:8080"] },
     }),
   });
-  const settings = async (role) => {
+  const settings = async (role: string) => {
     const id = await executor.start(role, "t", folder, "Brief.", null, "read");
     const db = openSupervisorDatabase(state);
     try {
@@ -221,7 +243,7 @@ test("every child reaches the model proxy; only an online one the network too", 
       },
     }),
   });
-  const network = async (role) => {
+  const network = async (role: string) => {
     const id = await executor.start(role, "t", folder, "Brief.", null, "read");
     const db = openSupervisorDatabase(state);
     try {

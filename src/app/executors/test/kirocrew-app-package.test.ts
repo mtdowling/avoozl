@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -9,19 +8,50 @@ import { WorkspaceRegistry } from "../../settings/host-config.ts";
 import { initializeWorkspace } from "../../workspace/workspace.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { runOwnMachine } from "../../test/own-machine.ts";
+import { isolatedEnv } from "../../test/isolated-env.ts";
+
+// The parts of hosts/kirocrew/app.json these tests read.
+interface Manifest {
+  name: string;
+  backend: { entryPoint: string; [key: string]: unknown };
+  crons: { script: string; [key: string]: unknown }[];
+  permissions: { cron: boolean; api: string[] };
+  notifications: { channels: { id: string }[] };
+  dependencies: Record<string, string[]>;
+  mcpServers: { avoozl: { command: string; args: string[] } };
+  skills: string[];
+  agents: string[];
+  ui: { entry: string };
+}
+// A tools/list answer.
+interface ToolList {
+  result: { tools: { name: string }[] };
+}
+// One tick pass result per workspace, as the plans_maintain tick answers.
+type TickResult = { root?: string; tick?: string };
+// A call the fake ScriptContext recorded, and a plans_* tool call.
+type Call = [string, ...unknown[]];
+type ToolCall = [
+  "call_tool",
+  string,
+  string,
+  { action: string; input: { sessions?: unknown[] } },
+];
+const isToolCall = (call: Call): call is ToolCall => call[0] === "call_tool";
+// What one run of crons/tick.py did.
+interface TickRun {
+  outcome: string;
+  calls: Call[];
+  returned?: string;
+}
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url)),
   app = path.join(root, "hosts", "kirocrew"),
-  manifest = JSON.parse(fs.readFileSync(path.join(app, "app.json"), "utf8")),
+  manifest: Manifest = JSON.parse(
+    fs.readFileSync(path.join(app, "app.json"), "utf8"),
+  ),
   launcher = path.join(app, "bin", "avoozl.mjs"),
   CLI = path.join(root, "cli.ts");
-
-function isolatedEnv(dir) {
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
-  for (const name of Object.keys(env))
-    if (/^AVOOZL_|^PORT$/.test(name)) delete env[name];
-  return env;
-}
 
 test("manifest declares the §4.2 app and every target ships in the package", () => {
   assert.equal(manifest.name, "avoozl");
@@ -92,7 +122,10 @@ test("manifest declares the §4.2 app and every target ships in the package", ()
 test("the built package carries no path of the machine that built it", () => {
   const lib = path.join(app, "bin", "lib"),
     needle = fs.realpathSync.native(root).replace(/\/$/, "");
-  for (const file of fs.readdirSync(lib, { recursive: true })) {
+  for (const file of fs.readdirSync(lib, {
+    recursive: true,
+    encoding: "utf8",
+  })) {
     const full = path.join(lib, file);
     if (fs.statSync(full).isFile())
       assert.ok(!fs.readFileSync(full, "utf8").includes(needle), file);
@@ -109,19 +142,18 @@ test("packaged launcher serves only the backend and MCP", () => {
           env: isolatedEnv(dir),
           stdio: "pipe",
         }),
-      (error) =>
-        error.status === 2 && /use app-backend, mcp\./.test(error.stderr),
+      (error: Error & { status?: number; stderr?: Buffer }) =>
+        error.status === 2 &&
+        /use app-backend, mcp\./.test(String(error.stderr)),
       command,
     );
 });
 
-test("the packaged MCP server lists the plans tools and ships no runner hook", () => {
-  const dir = temporaryDirectory(),
-    workspace = path.join(dir, "workspace");
-  initializeWorkspace(workspace);
+// The tool names the packaged MCP server lists, run with `args` from `dir`.
+function listTools(dir: string, args: string[] = []) {
   const listed = runOwnMachine(
     "python3",
-    [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
+    [path.join(app, "bin", "avoozl_mcp.py"), ...args],
     {
       cwd: dir,
       dir,
@@ -130,9 +162,15 @@ test("the packaged MCP server lists the plans tools and ships no runner hook", (
         JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",
     },
   );
-  const names = JSON.parse(listed.trim().split("\n")[0]).result.tools.map(
-    (tool) => tool.name,
-  );
+  const list: ToolList = JSON.parse(listed.trim().split("\n")[0]);
+  return list.result.tools.map((tool) => tool.name);
+}
+
+test("the packaged MCP server lists the plans tools and ships no runner hook", () => {
+  const dir = temporaryDirectory(),
+    workspace = path.join(dir, "workspace");
+  initializeWorkspace(workspace);
+  const names = listTools(dir, ["--workspace", workspace]);
   for (const name of ["plans_view", "plans_session", "plans_task"])
     assert.ok(names.includes(name), name);
   assert.equal(
@@ -158,7 +196,7 @@ test("the MCP launcher names its crew home when the launch env has none", () => 
     path.join(bin, "avoozl.mjs"),
     "console.log(process.env.KIROCREW_HOME ?? '');\n",
   );
-  const run = (env) =>
+  const run = (env: NodeJS.ProcessEnv) =>
     execFileSync("python3", [path.join(bin, "avoozl_mcp.py")], {
       encoding: "utf8",
       env: { PATH: process.env.PATH, ...env },
@@ -169,25 +207,12 @@ test("the MCP launcher names its crew home when the launch env has none", () => 
 
 test("every plans_* tool a brief, prompt, agent, cron or skill names is listed", () => {
   const dir = temporaryDirectory();
-  const listed = runOwnMachine(
-    "python3",
-    [path.join(app, "bin", "avoozl_mcp.py")],
-    {
-      cwd: dir,
-      dir,
-      env: isolatedEnv(dir),
-      input:
-        JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",
-    },
-  );
-  const names = new Set(
-    JSON.parse(listed.trim().split("\n")[0]).result.tools.map((t) => t.name),
-  );
+  const names = new Set(listTools(dir));
   // Briefs, nudges, skills and agent metadata are in src/app, role prompts in
   // prompts/; agents mount tools by name.
-  const files = (dir, test) =>
+  const files = (dir: string, test: (file: string) => boolean) =>
     fs
-      .readdirSync(dir, { recursive: true })
+      .readdirSync(dir, { recursive: true, encoding: "utf8" })
       .map((name) => path.join(dir, name))
       .filter((file) => test(file) && fs.statSync(file).isFile());
   const sources = [
@@ -205,7 +230,7 @@ test("every plans_* tool a brief, prompt, agent, cron or skill names is listed",
     ...files(path.join(app, "crons"), (f) => f.endsWith(".py")),
     ...files(path.join(app, "skills"), (f) => f.endsWith(".md")),
   ];
-  const missing = new Set();
+  const missing = new Set<string>();
   for (const file of sources)
     for (const [name] of fs
       .readFileSync(file, "utf8")
@@ -256,7 +281,7 @@ test("packaged MCP server answers the tick from any working directory", () => {
     .map((line) => JSON.parse(line));
   assert.notEqual(tick.result.isError, true, JSON.stringify(tick));
   // The tick tool ran one pass for the named workspace.
-  const results = JSON.parse(tick.result.content[0].text);
+  const results: TickResult[] = JSON.parse(tick.result.content[0].text);
   assert.deepEqual(
     results.filter((r) => r.root).map((r) => [r.root, r.tick]),
     [[workspace, "ran"]],
@@ -269,7 +294,7 @@ test("packaged MCP server serves the catalog's default workspace when none is na
     env = isolatedEnv(dir);
   initializeWorkspace(workspace);
   const registry = new WorkspaceRegistry({ env });
-  registry.add("sample", { id: "sample", root: workspace, enabled: true });
+  registry.add("sample", { root: workspace, enabled: true });
   registry.close();
   const output = runOwnMachine(
     "python3",
@@ -293,11 +318,11 @@ test("packaged MCP server serves the catalog's default workspace when none is na
   const reply = JSON.parse(output.trim());
   assert.notEqual(reply.result.isError, true, output);
   // The pass ran for the catalog's default workspace.
-  const results = JSON.parse(reply.result.content[0].text);
+  const results: TickResult[] = JSON.parse(reply.result.content[0].text);
   assert.deepEqual(
-    results
-      .filter((r) => r.root)
-      .map((r) => [fs.realpathSync.native(r.root), r.tick]),
+    results.flatMap(({ root, tick }) =>
+      root ? [[fs.realpathSync.native(root), tick]] : [],
+    ),
     [[fs.realpathSync.native(workspace), "ran"]],
   );
 });
@@ -342,7 +367,10 @@ test("packaged launcher defaults to a loopback, signed-principal backend", async
 });
 
 // Runs crons/tick.py:run against a fake ScriptContext that records each call.
-function tick(intents, { results = {} } = {}) {
+function tick(
+  intents: Record<string, unknown>,
+  { results = {} }: { results?: Record<string, unknown> } = {},
+): TickRun {
   const harness = `
 import importlib.util, json, sys
 spec = importlib.util.spec_from_file_location("tick", sys.argv[1])
@@ -502,7 +530,9 @@ test("tick cron passes Kiro Crew's model fields through only when the row has th
       },
     },
   );
-  assert.deepEqual(result.calls[2][3].input.sessions, [
+  const toolCall = result.calls[2];
+  assert.ok(isToolCall(toolCall));
+  assert.deepEqual(toolCall[3].input.sessions, [
     { target: "new", status: "idle", ...model },
     { target: "old", status: "idle" },
   ]);
@@ -551,7 +581,7 @@ test("tick cron sends every other message when the gateway refuses one", () => {
     ["slot-old", "slot-2"],
   );
   assert.match(
-    result.returned,
+    result.returned ?? "",
     /^1 message\(s\) refused: slot-old: .*not_creator/,
   );
 });

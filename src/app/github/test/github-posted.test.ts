@@ -1,8 +1,8 @@
-// @ts-nocheck: typing debt
 // What Avoozl posts to GitHub: broken mentions and the posted marker, put
 // on by the content-rules guard that every write passes, except a person's.
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { guardGitHub } from "../../content/content-rules.ts";
 import { postingActor } from "../../api/operations.ts";
 import {
@@ -52,10 +52,10 @@ test("a post ends with the marker once", () => {
 
 test("every comment, review and pull request write goes out defused and marked", async (t) => {
   const { store } = fixture(t),
-    sent = [];
+    sent: [string, unknown[]][] = [];
   const record =
-    (name) =>
-    async (...args) => {
+    (name: string) =>
+    async (...args: unknown[]) => {
       sent.push([name, args]);
       return { id: 1 };
     };
@@ -84,27 +84,38 @@ test("every comment, review and pull request write goes out defused and marked",
   assert.equal(comment[1][2], `Hi ${defused}\n\n${POSTED}`);
   assert.equal(update[1][2], `Hi ${defused}\n\n${POSTED}`);
   assert.equal(discussion[1][1], `Hi ${defused}\n\n${POSTED}`);
-  assert.equal(pull[1][1].body, `For ${defused}\n\n${POSTED}`);
-  assert.equal(pull[1][1].title, "T");
+  assert.deepEqual(pull[1], [
+    "o/r",
+    {
+      title: "T",
+      head: "h",
+      base: "main",
+      body: `For ${defused}\n\n${POSTED}`,
+    },
+  ]);
   // An issue body is not a post.
-  assert.equal(issue[1][1].body, "Issue @octocat");
+  assert.deepEqual(issue[1], ["o/r", { title: "T", body: "Issue @octocat" }]);
 });
 
 // A comment through the guard every write passes, with a fake GitHub that
 // records it, posted as `actor`.
-function commenting(t) {
+function commenting(t: TestContext) {
   const { store } = fixture(t),
-    comments = [];
+    comments: { number: number; body: string }[] = [];
   const github = guardGitHub(
     {
-      async createIssueComment(_repository, number, body) {
+      async createIssueComment(
+        _repository: string,
+        number: number,
+        body: string,
+      ) {
         comments.push({ number, body });
         return { id: comments.length };
       },
     },
     store,
   );
-  const post = (actor) =>
+  const post = (actor: string | null) =>
     asActor(actor, () =>
       github.createIssueComment(
         "o/r",
@@ -137,16 +148,23 @@ test("an agent's, a plugin's and the tick's posts are marked and defused", async
   const person = { person: true };
   assert.equal(postingActor("task.update", person), "person");
   assert.equal(postingActor("task.update", {}), null);
-  assert.equal(postingActor("reply.post", { caller: "s", mcp: true }), "agent");
+  assert.equal(
+    postingActor("reply.post", { caller: { sessionKey: "s" }, mcp: true }),
+    "agent",
+  );
   assert.equal(postingActor("reply.post", { mcp: true, ...person }), "agent");
   assert.equal(postingActor("retro.add", { plugin: "p", ...person }), "agent");
   // A person who runs the tick still gets the tick's own text, marked.
   assert.equal(postingActor("workspace.tick", person), "avoozl");
   const { store } = fixture(t),
-    sent = [];
+    sent: string[] = [];
   const github = guardGitHub(
     {
-      async createIssueComment(_repository, _number, body) {
+      async createIssueComment(
+        _repository: string,
+        _number: number,
+        body: string,
+      ) {
         sent.push(body);
         return { id: sent.length };
       },

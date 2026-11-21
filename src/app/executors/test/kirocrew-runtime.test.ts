@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { nativeDispatch } from "../../test/executor-fixture.ts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -7,7 +6,7 @@ import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { startAppBackend, verifyPrincipal } from "../kirocrew/app-backend.ts";
 import { workspaceConfig } from "../../settings/config.ts";
@@ -21,9 +20,56 @@ import { initializeWorkspace } from "../../workspace/workspace.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { runOwnMachine } from "../../test/own-machine.ts";
+import { isolatedEnv } from "../../test/isolated-env.ts";
+import { withStatus, type Refusal } from "../../test/refusal.ts";
+import { found, type TickResult } from "../../test/view-shapes.ts";
+import type { Store } from "../../store/store.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
 
 const cli = fileURLToPath(new URL("../../../../cli.ts", import.meta.url));
 const SECRET = "test-proxy-secret";
+
+// What one workspace.tick pass answers, as these tests read it.
+interface Tick extends TickResult {
+  policy: { status: string; hash: string; using?: string };
+  observe: unknown[];
+  messages: unknown[];
+  notify: { channel?: string; [key: string]: unknown }[];
+  dispatch: (TickResult["dispatch"][number] & {
+    title: string;
+    brief: string;
+  })[];
+}
+// session.bind's and session.status's answers.
+type Bound = { changed: boolean; binding: SessionBinding };
+type Status = { status: string; changed: boolean };
+// session.rediscover's answer.
+interface Rediscovered {
+  bound: SessionBinding[];
+  unchanged: SessionBinding[];
+  ignored: { slot: string; reason: string }[];
+}
+// One JSON-RPC reply of the stdio server.
+interface Reply {
+  id: number;
+  result: {
+    protocolVersion?: string;
+    tools: { name: string }[];
+    isError?: boolean;
+    content: { text: string }[];
+  };
+}
+// A claim's fields, any of which a test may make wrong.
+interface SignOptions {
+  kind?: string;
+  ownerId?: string;
+  method?: string;
+  target?: string;
+  body?: string;
+  secret?: string;
+  issuedAt?: number;
+  requestId?: string;
+}
 
 // Mirrors kiro_crew/apps/proxy_auth.py `sign_proxy_principal_claim`.
 function sign({
@@ -35,7 +81,7 @@ function sign({
   secret = SECRET,
   issuedAt = Math.floor(Date.now() / 1000),
   requestId = randomBytes(16).toString("hex"),
-} = {}) {
+}: SignOptions = {}) {
   const claim = { issuedAt, kind, ownerId, requestId, version: 1 },
     encoded = Buffer.from(JSON.stringify(claim)).toString("base64url"),
     signature = createHmac("sha256", secret)
@@ -54,39 +100,40 @@ function sign({
 }
 
 // Every row of every table, so a test can prove an operation wrote nothing.
-function dump(store) {
+function dump(store: Store) {
   return Object.fromEntries(
     store.db
       .prepare("SELECT name FROM sqlite_master WHERE type='table'")
       .all()
       .map(({ name }) => [
-        name,
-        store.db.prepare(`SELECT * FROM "${name}"`).all(),
+        String(name),
+        store.db.prepare(`SELECT * FROM "${String(name)}"`).all(),
       ]),
   );
 }
 
-function isolatedEnv(root) {
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };
-  for (const name of Object.keys(env))
-    if (/^AVOOZL_/.test(name)) delete env[name];
-  return env;
-}
+const env = (root: string) => isolatedEnv(root, /^AVOOZL_/);
 
-async function backend(t, secret = SECRET) {
+async function backend(t: TestContext, secret = SECRET) {
   const root = temporaryDirectory();
   initializeWorkspace(root);
   const server = startAppBackend({
-    config: workspaceConfig({ workspace: root, env: isolatedEnv(root) }),
+    config: workspaceConfig({ workspace: root, env: env(root) }),
     secret,
   });
   t.after(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));
-  const { address, port } = server.address();
+  const bound = server.address();
+  assert.ok(bound && typeof bound === "object");
+  const { address, port } = bound;
   return { address, base: `http://127.0.0.1:${port}` };
 }
 
-function command(base, value, header) {
+function command(
+  base: string,
+  value: unknown,
+  header?: (body: string) => string,
+) {
   const body = JSON.stringify(value);
   return fetch(base + "/api/command", {
     method: "POST",
@@ -114,9 +161,10 @@ test("app backend accepts only a fresh, exact, gateway-signed principal", async 
     state = { operation: "state" };
   const ok = await command(base, state, (body) => sign({ body }));
   assert.equal(ok.status, 200);
-  assert.equal((await ok.json()).result.revision >= 1, true);
+  const answer: { result: { revision: number } } = JSON.parse(await ok.text());
+  assert.equal(answer.result.revision >= 1, true);
 
-  const refused = {
+  const refused: Record<string, (body: string) => string> = {
     "wrong secret": (body) => sign({ body, secret: "other" }),
     "other body": () => sign({ body: "{}" }),
     "other target": (body) => sign({ body, target: "/api/other" }),
@@ -188,7 +236,7 @@ test("app backend fails closed without a proxy secret", async (t) => {
       method: "POST",
       target: "/api/command",
       secret: "",
-      replay: { accept: () => true },
+      replay: { maxEntries: 1, seen: new Map(), accept: () => true },
     }),
     null,
   );
@@ -257,14 +305,14 @@ test("avoozl mcp serves plans_* tools over stdio without a web server", () => {
     [cli, "mcp", "--workspace", path.join(root, "workspace")],
     {
       dir: root,
-      env: isolatedEnv(root),
+      env: env(root),
       input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
     },
   );
   const responses = output
     .trim()
     .split("\n")
-    .map((line) => JSON.parse(line));
+    .map((line): Reply => JSON.parse(line));
   assert.deepEqual(
     responses.map((r) => r.id),
     [1, 2, 3],
@@ -279,10 +327,11 @@ test("avoozl mcp serves plans_* tools over stdio without a web server", () => {
   const tick = responses[2].result;
   assert.notEqual(tick.isError, true, JSON.stringify(tick));
   // The tick tool ran one pass for the workspace.
+  const passes: { root?: string; tick?: string }[] = JSON.parse(
+    tick.content[0].text,
+  );
   assert.deepEqual(
-    JSON.parse(tick.content[0].text)
-      .filter((r) => r.root)
-      .map((r) => r.tick),
+    passes.filter((r) => r.root).map((r) => r.tick),
     ["ran"],
   );
 });
@@ -294,8 +343,8 @@ test("workspace.tick is locked, loads policy, and writes nothing twice", async (
   fs.writeFileSync(policyFile, JSON.stringify({ version: 1, name: "Fix" }));
 
   const before = dump(store),
-    first = await ops.execute("workspace.tick"),
-    second = await ops.execute("workspace.tick");
+    first = await ops.execute<Tick>("workspace.tick"),
+    second = await ops.execute<Tick>("workspace.tick");
   assert.deepEqual(dump(store), before, "two ticks write nothing");
   assert.deepEqual(second, first);
   assert.equal(first.policy.status, "loaded");
@@ -326,13 +375,13 @@ test("workspace.tick is locked, loads policy, and writes nothing twice", async (
   store.db.prepare("DELETE FROM work_locks").run();
 
   fs.writeFileSync(policyFile, "{ not json");
-  const invalid = await ops.execute("workspace.tick");
+  const invalid = await ops.execute<Tick>("workspace.tick");
   assert.equal(invalid.policy.status, "invalid");
   assert.equal(invalid.policy.using, first.policy.hash);
   assert.equal(invalid.notify.length, 1);
   assert.equal(invalid.notify[0].channel, "decision");
   assert.deepEqual(
-    (await ops.execute("workspace.tick")).notify,
+    (await ops.execute<Tick>("workspace.tick")).notify,
     [],
     "one invalid file raises one decision",
   );
@@ -341,15 +390,21 @@ test("workspace.tick is locked, loads policy, and writes nothing twice", async (
     policyFile,
     JSON.stringify({ version: 1, github: { token: "x" } }),
   );
-  assert.equal((await ops.execute("workspace.tick")).policy.status, "invalid");
+  assert.equal(
+    (await ops.execute<Tick>("workspace.tick")).policy.status,
+    "invalid",
+  );
   fs.rmSync(policyFile);
-  assert.equal((await ops.execute("workspace.tick")).policy.status, "absent");
+  assert.equal(
+    (await ops.execute<Tick>("workspace.tick")).policy.status,
+    "absent",
+  );
 });
 
 test("plans_session bind binds once and never moves a slot", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
-  const bound = await ops.execute("session.bind", {
+  const bound = await ops.execute<Bound>("session.bind", {
     taskId: "sample-task",
     slot: "slot-1",
     title: "avoozl:sample-task Implement fixture",
@@ -359,7 +414,7 @@ test("plans_session bind binds once and never moves a slot", async (t) => {
   assert.equal(bound.binding.attempt, 1);
 
   const before = dump(store),
-    again = await ops.execute("session.bind", {
+    again = await ops.execute<Bound>("session.bind", {
       taskId: "sample-task",
       slot: "slot-1",
     });
@@ -372,17 +427,17 @@ test("plans_session bind binds once and never moves a slot", async (t) => {
       slot: "slot-1",
       role: "responder",
     }),
-    (error) => error.status === 409,
+    withStatus(409),
   );
   await assert.rejects(
     ops.execute("session.bind", { taskId: "missing", slot: "slot-2" }),
-    (error) => error.status === 404,
+    withStatus(404),
   );
   await assert.rejects(
     ops.execute("session.bind", { taskId: "sample-task", slot: "" }),
-    (error) => error.status === 400,
+    withStatus(400),
   );
-  assert.deepEqual((await ops.execute("workspace.tick")).observe, [
+  assert.deepEqual((await ops.execute<Tick>("workspace.tick")).observe, [
     { slot: "slot-1", taskId: "sample-task", role: "worker" },
   ]);
 });
@@ -405,22 +460,26 @@ test("lost bindings are rediscovered from avoozl:<task-id> titles", async (t) =>
     { slot: "chat", title: "Ordinary chat" },
     { slot: "gone", title: "avoozl:deleted-task Old work" },
   ];
-  const found = await ops.execute("session.rediscover", { sessions });
+  const rediscovered = await ops.execute<Rediscovered>("session.rediscover", {
+    sessions,
+  });
   assert.deepEqual(
-    found.bound.map((b) => [b.slot, b.taskId, b.attempt, b.source]),
+    rediscovered.bound.map((b) => [b.slot, b.taskId, b.attempt, b.source]),
     [["lost", "sample-task", 2, "title"]],
   );
   assert.deepEqual(
-    found.unchanged.map((b) => b.slot),
+    rediscovered.unchanged.map((b) => b.slot),
     ["kept"],
   );
-  assert.deepEqual(found.ignored, [
+  assert.deepEqual(rediscovered.ignored, [
     { slot: "chat", reason: "not-avoozl" },
     { slot: "gone", reason: "unknown-task" },
   ]);
 
   const before = dump(store),
-    repeat = await ops.execute("session.rediscover", { sessions });
+    repeat = await ops.execute<Rediscovered>("session.rediscover", {
+      sessions,
+    });
   assert.deepEqual(repeat.bound, []);
   assert.deepEqual(dump(store), before, "a second rediscovery writes nothing");
 });
@@ -440,26 +499,32 @@ test("a session request dispatches once, and a closed session is read once", asy
   };
   await assert.rejects(
     ops.execute("session.request", { ...request, repository: "missing" }),
-    (error) => error.status === 404,
+    withStatus(404),
   );
   await assert.rejects(
     ops.execute("session.request", { ...request, agent: "bad agent" }),
-    (error) => error.status === 400,
+    withStatus(400),
   );
-  assert.equal((await ops.execute("session.request", request)).changed, true);
-  assert.equal((await ops.execute("session.request", request)).changed, false);
+  assert.equal(
+    (await ops.execute<Status>("session.request", request)).changed,
+    true,
+  );
+  assert.equal(
+    (await ops.execute<Status>("session.request", request)).changed,
+    false,
+  );
   await assert.rejects(
     ops.execute("session.request", { ...request, agent: "other" }),
-    (error) => error.status === 409,
+    withStatus(409),
   );
 
   const before = dump(store),
-    first = await ops.execute("workspace.tick"),
-    second = await ops.execute("workspace.tick");
+    first = await ops.execute<Tick>("workspace.tick"),
+    second = await ops.execute<Tick>("workspace.tick");
   assert.deepEqual(dump(store), before, "planning a dispatch writes nothing");
   assert.deepEqual(second.dispatch, first.dispatch);
   assert.equal(first.dispatch.length, 1);
-  const [intent] = first.dispatch;
+  const intent = found(first.dispatch[0], "the dispatch");
   assert.deepEqual(
     { ...nativeDispatch(store, intent), brief: undefined },
     {
@@ -479,19 +544,19 @@ test("a session request dispatches once, and a closed session is read once", asy
     slot: "slot-1",
     title: intent.title,
   });
-  const bound = await ops.execute("workspace.tick");
+  const bound = await ops.execute<Tick>("workspace.tick");
   assert.deepEqual(bound.dispatch, [], "a bound task is not dispatched again");
   assert.deepEqual(bound.observe, [
     { slot: "slot-1", taskId: "sample-task", role: "worker" },
   ]);
 
-  const roster = (status) =>
+  const roster = (state: string) =>
     `📋 1 session(s) you stood up:\n  💤 \`other\` (x) — working\n  ${
-      status === "closed"
+      state === "closed"
         ? "✅ `slot-1` — closed (finished and closed its tab; nothing to re-dispatch)"
         : "💤 `slot-1` (avoozl:sample-task Implement fixture) — idle"
     }`;
-  const idle = await ops.execute("session.status", {
+  const idle = await ops.execute<Status>("session.status", {
     slot: "slot-1",
     status: roster("idle"),
   });
@@ -499,7 +564,7 @@ test("a session request dispatches once, and a closed session is read once", asy
   const unchanged = dump(store);
   assert.equal(
     (
-      await ops.execute("session.status", {
+      await ops.execute<Status>("session.status", {
         slot: "slot-1",
         status: roster("idle"),
       })
@@ -507,23 +572,27 @@ test("a session request dispatches once, and a closed session is read once", asy
     false,
   );
   assert.equal(
-    (await ops.execute("session.status", { slot: "slot-1", status: "📋 none" }))
-      .changed,
+    (
+      await ops.execute<Status>("session.status", {
+        slot: "slot-1",
+        status: "📋 none",
+      })
+    ).changed,
     false,
     "an unlisted slot writes nothing",
   );
   assert.deepEqual(dump(store), unchanged);
-  const closed = await ops.execute("session.status", {
+  const closed = await ops.execute<Status>("session.status", {
     slot: "slot-1",
     status: roster("closed"),
   });
   assert.deepEqual([closed.status, closed.changed], ["closed", true]);
-  const after = await ops.execute("workspace.tick");
+  const after = await ops.execute<Tick>("workspace.tick");
   assert.deepEqual(after.observe, [], "a closed session is final");
   assert.deepEqual(after.dispatch, [], "closing does not redispatch");
   await assert.rejects(
     ops.execute("session.status", { slot: "nope", status: "idle" }),
-    (error) => error.status === 404,
+    withStatus(404),
   );
 });
 
@@ -553,12 +622,13 @@ test("app page views load through the backend, and removed routes are gone", asy
     ["conflicts.view", {}],
     ["github.settings.get", {}],
     ["workspace.tick.health", {}],
-  ]) {
+  ] as const) {
     const reply = await command(base, { operation, input }, (body) =>
       sign({ body }),
     );
     assert.equal(reply.status, 200, operation);
-    assert.ok("result" in (await reply.json()), operation);
+    const answer: object = JSON.parse(await reply.text());
+    assert.ok("result" in answer, operation);
   }
   for (const [method, route] of [
     ["POST", "/api/github-intake"],
@@ -611,7 +681,7 @@ test("removed queue and intake operations are unknown to Operations", async (t) 
     "github.intake.capability.create",
     "openhands.automations.intake.prepare",
   ])
-    await assert.rejects(ops.execute(operation, {}), (error) => {
+    await assert.rejects(ops.execute(operation, {}), (error: Refusal) => {
       assert.equal(error.status, 404, operation);
       return true;
     });
