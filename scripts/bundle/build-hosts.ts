@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt, see the commit message
 // Every host package from one source (machine-server MS11, design D9):
 // `prompts/<role>.md`, `prompts/skills/<name>.md` and `roles.json`. Each host
 // has one adapter that maps the source to that host's files. `--check` builds
@@ -14,12 +13,22 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
 
-function readSource(root) {
+type Role = { name: string; description?: string; [key: string]: unknown };
+type Source = {
+  roles: Role[];
+  skills: Map<string, string>;
+  prompt: (role: string) => string;
+  host: (file: string) => string;
+};
+type Context = { personOnly: string[][]; version: string };
+type Built = { host: string; files: Map<string, string> };
+
+function readSource(root: string): Source {
   const prompts = path.join(root, "prompts");
   const roles = JSON.parse(
     fs.readFileSync(path.join(root, "roles.json"), "utf8"),
   );
-  const skills = new Map();
+  const skills = new Map<string, string>();
   const skillFolder = path.join(prompts, "skills");
   for (const file of fs.existsSync(skillFolder)
     ? fs.readdirSync(skillFolder).sort()
@@ -34,18 +43,20 @@ function readSource(root) {
   return {
     roles,
     skills,
-    prompt: (role) => fs.readFileSync(path.join(prompts, `${role}.md`), "utf8"),
+    prompt: (role: string) =>
+      fs.readFileSync(path.join(prompts, `${role}.md`), "utf8"),
     // Files every front end's package shares (prompts/hosts/).
-    host: (file) => fs.readFileSync(path.join(prompts, "hosts", file), "utf8"),
+    host: (file: string) =>
+      fs.readFileSync(path.join(prompts, "hosts", file), "utf8"),
   };
 }
 
 // Kiro Crew: one agent file per role in roles.json, with its prompt, and one
 // SKILL.md per skill. app.json is hand-written and must name the same files.
-function kirocrew(root, source) {
+function kirocrew(root: string, source: Source): Built {
   const host = path.join(root, "hosts", "kirocrew"),
     manifest = JSON.parse(fs.readFileSync(path.join(host, "app.json"), "utf8")),
-    files = new Map();
+    files = new Map<string, string>();
   for (const metadata of source.roles) {
     const role = metadata.name?.replace(/^avoozl-/, "");
     if (!/^[a-z][a-z0-9-]*$/.test(role) || "prompt" in metadata)
@@ -54,7 +65,7 @@ function kirocrew(root, source) {
     if (files.has(file))
       throw Error(`roles.json names ${metadata.name} twice.`);
     const prompt = source.prompt(role),
-      agent = {};
+      agent: Record<string, unknown> = {};
     // Keep the generated field order as well as every metadata value.
     for (const [key, value] of Object.entries(metadata)) {
       agent[key] = value;
@@ -63,7 +74,7 @@ function kirocrew(root, source) {
     agent.prompt ??= prompt;
     files.set(file, JSON.stringify(agent, null, 2) + "\n");
   }
-  const registered = new Set(manifest.agents);
+  const registered = new Set<string>(manifest.agents);
   const agents = [...files.keys()].map((file) => file.replaceAll("\\", "/"));
   if (
     registered.size !== agents.length ||
@@ -83,13 +94,13 @@ function kirocrew(root, source) {
 }
 
 // The words of each `avoozl` command only a person may run: its help says so.
-async function personOnlyCommands() {
+async function personOnlyCommands(): Promise<string[][]> {
   const { COMMANDS } = await import("../../src/app/cli/cli-commands.ts");
-  const prefixes = new Set();
+  const prefixes = new Set<string>();
   for (const entry of COMMANDS)
     for (const line of entry.help ?? [])
       if (/a person only/.test(line.about ?? "")) {
-        const words = [];
+        const words: string[] = [];
         for (const word of line.usage.split(/\s+/)) {
           if (!/^[a-z][a-z-]*(\|[a-z][a-z-]*)*$/.test(word)) break;
           words.push(word);
@@ -114,10 +125,14 @@ const PORTABLE_SKILLS = [
 // person-only guard as a PreToolUse hook on Bash. Claude Code runs Avoozl's
 // roles as process children, not as plugin agents, so it takes no agents.
 // Format: https://code.claude.com/docs/en/plugins/components (2026-11).
-function claudeCode(root, source, { personOnly, version }) {
+function claudeCode(
+  root: string,
+  source: Source,
+  { personOnly, version }: Context,
+): Built {
   const host = path.join(root, "hosts", "claude-code"),
-    files = new Map();
-  const json = (value) => JSON.stringify(value, null, 2) + "\n";
+    files = new Map<string, string>();
+  const json = (value: unknown) => JSON.stringify(value, null, 2) + "\n";
   files.set(
     path.join(".claude-plugin", "plugin.json"),
     json({
@@ -157,7 +172,7 @@ function claudeCode(root, source, { personOnly, version }) {
     source.host("front-end.md"),
   );
   for (const name of PORTABLE_SKILLS)
-    files.set(path.join("skills", name, "SKILL.md"), source.skills.get(name));
+    files.set(path.join("skills", name, "SKILL.md"), source.skills.get(name)!);
   files.set(
     "README.md",
     `# Avoozl for Claude Code
@@ -190,8 +205,8 @@ export async function buildHosts({
   check = false,
 } = {}) {
   const source = readSource(root),
-    written = [],
-    drift = [];
+    written: string[] = [],
+    drift: string[] = [];
   const context = {
     personOnly: await personOnlyCommands(),
     version: JSON.parse(
@@ -230,6 +245,6 @@ if (
     if (!process.argv.includes("--check"))
       console.log(`Wrote ${files.length} host files.`);
   } catch (error) {
-    console.error(error.message);
+    console.error((error as Error).message);
     process.exitCode = 1;
   }
