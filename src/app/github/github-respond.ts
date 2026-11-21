@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { roleRun } from "../agents/role-table.ts";
 import { kirocrewRequest } from "../executors/kirocrew.ts";
 import { kirocrewSession } from "../executors/kirocrew.ts";
@@ -27,17 +26,81 @@ import {
   screenReply,
 } from "../content/content-rules.ts";
 import { asJob } from "./github-jobs.ts";
+import type { Store } from "../store/store.ts";
+import type { GitHubPolicy, RepositoryPolicy } from "./github-policy.ts";
+import type { OperationContext } from "../api/operations.ts";
+import type { RolesConfig } from "../agents/role-table.ts";
+
+// One stored response: an issue or discussion snapshot and its one reply.
+interface Response {
+  id: string;
+  kind?: string;
+  discussionId?: string;
+  repository: string;
+  number?: number;
+  url?: string;
+  title?: string;
+  body?: string;
+  snapshotHash?: string;
+  state: string;
+  taskId?: string | null;
+  endedAt?: string;
+  labelRemovedAt?: string;
+  [key: string]: unknown;
+}
+// A registered GitHub repository.
+type Config = { id: string; repositoryId?: string; [key: string]: unknown };
+type Checkout = {
+  root?: string;
+  github?: string | null;
+  worktreeRoot?: string;
+};
+// One discussion GitHub lists.
+interface Discussion {
+  id: string;
+  number: number;
+  url?: string;
+  title: string;
+  body: string;
+  closed?: boolean;
+  locked?: boolean;
+  isAnswered?: boolean;
+  category: string;
+  author?: string;
+}
+// The GitHub calls the responder makes.
+interface RespondGitHub {
+  repository(config: Config): Promise<{ private?: boolean } | null>;
+  addDiscussionComment(
+    discussionId: unknown,
+    body: string,
+    repository: string,
+  ): Promise<{ id?: unknown; html_url?: string } | null>;
+  createIssueComment(
+    config: Config,
+    number: unknown,
+    body: string,
+  ): Promise<{ id?: unknown; html_url?: string } | null>;
+  listDiscussions(config: Config): Promise<Discussion[]>;
+  permission(
+    config: Config,
+    login: string,
+  ): Promise<{ permission?: string } | null>;
+}
+// One workspace repository, as the responder reads it.
+type WorkspaceRepository = ReturnType<typeof workspaceRepositories>[number];
+type Seen = Map<string, Map<string, string>>;
 
 const RESPONDER_AGENT = "avoozl-responder";
 // GitHub refuses comments longer than 65,536 characters.
 const MAX_REPLY = 65536;
 
-const slotKey = (slot) =>
+const slotKey = (slot: string) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
 
 // One response per issue snapshot. Its ID is also the responder binding's
 // task ID, so a binding names exactly one snapshot.
-function responseId(issueId, snapshotHash) {
+function responseId(issueId: string, snapshotHash: string) {
   return (
     "respond-" +
     createHash("sha256")
@@ -52,14 +115,14 @@ function responseId(issueId, snapshotHash) {
 // and findings as {kind, line}, never the matched text.
 export { screenReply };
 
-function replyBody(value) {
+function replyBody(value: unknown): string {
   if (
     typeof value !== "string" ||
     !value.trim() ||
     value.length > MAX_REPLY ||
     /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)
   )
-    fail(`Write a reply of 1–${MAX_REPLY} printable characters.`);
+    return fail(`Write a reply of 1–${MAX_REPLY} printable characters.`);
   return value.trim();
 }
 
@@ -73,8 +136,8 @@ function replyBody(value) {
 const QUOTE_MIN = 20;
 const exec = promisify(execFile);
 
-function quoteCandidates(body) {
-  const lines = new Map();
+function quoteCandidates(body: string) {
+  const lines = new Map<string, number>();
   for (const [index, raw] of body.split("\n").entries()) {
     const line = raw
       .replace(/^\s*(?:>\s*)+/, "")
@@ -88,7 +151,11 @@ function quoteCandidates(body) {
 
 // The candidates found in a file under `root` that git does not ignore, or
 // with `tracked`, only in files the repository tracks.
-async function foundIn(root, candidates, { tracked = false } = {}) {
+async function foundIn(
+  root: string,
+  candidates: string[],
+  { tracked = false } = {},
+): Promise<Set<string>> {
   if (!root || !fs.existsSync(root) || !candidates.length) return new Set();
   let stdout = "";
   try {
@@ -108,26 +175,35 @@ async function foundIn(root, candidates, { tracked = false } = {}) {
   } catch (error) {
     // 1 is "no match". Anything else fails closed: every line counts as
     // found in another checkout, and as not found in the target.
-    if (error.code === 1 || tracked) return new Set();
+    if ((error as { code?: unknown }).code === 1 || tracked) return new Set();
     return new Set(candidates);
   }
   const text = stdout;
   return new Set(candidates.filter((line) => text.includes(line)));
 }
 
-async function privateQuotes(store, github, config, body) {
+async function privateQuotes(
+  store: Store,
+  github: RespondGitHub,
+  config: Config,
+  body: string,
+) {
   let visibility = "public";
   try {
     const remote = await github.repository(config);
     if (remote?.private === true) visibility = "private";
   } catch {}
   if (visibility === "private") return [];
-  const own =
-      config.repositoryId && store.get("repositories", config.repositoryId),
+  const own = config.repositoryId
+      ? store.get<Checkout & { id: string }>(
+          "repositories",
+          config.repositoryId,
+        )
+      : null,
     target = path.resolve(
       own?.root ||
         store
-          .list("repositories")
+          .list<Checkout & { id: string }>("repositories")
           .find((p) => p.github?.toLowerCase() === config.id.toLowerCase())
           ?.root ||
         "/nonexistent",
@@ -135,15 +211,15 @@ async function privateQuotes(store, github, config, body) {
     others = [
       ...new Set(
         store
-          .list("repositories")
+          .list<Checkout & { id: string }>("repositories")
           .map((p) => p.root && path.resolve(p.root))
-          .filter((root) => root && root !== target),
+          .filter((root): root is string => Boolean(root) && root !== target),
       ),
     ],
     lines = quoteCandidates(body),
     candidates = [...lines.keys()];
   if (!others.length || !candidates.length) return [];
-  const elsewhere = new Set();
+  const elsewhere = new Set<string>();
   for (const root of others)
     for (const line of await foundIn(root, candidates)) elsewhere.add(line);
   if (!elsewhere.size) return [];
@@ -154,24 +230,35 @@ async function privateQuotes(store, github, config, body) {
       kind: "text from another repository",
       line: lines.get(line),
     }))
-    .sort((a, b) => a.line - b.line);
+    .sort((a, b) => Number(a.line) - Number(b.line));
 }
 
 // This machine's directories a reply must not name.
-export function machineRoots(store, workspaceRoot) {
+export function machineRoots(
+  store: Store,
+  workspaceRoot: string | null | undefined,
+) {
   return [
     os.homedir(),
     workspaceRoot,
-    ...store.list("repositories").flatMap((p) => [p.root, p.worktreeRoot]),
+    ...store
+      .list<Checkout & { id: string }>("repositories")
+      .flatMap((p) => [p.root, p.worktreeRoot]),
   ].filter(Boolean);
 }
 
 // plans_post_reply: the bound responder session posts its one reply. The
 // issue comes from the caller's binding, never from the input.
-export async function postReply(store, github, input = {}, caller, options) {
+export async function postReply(
+  store: Store,
+  github: RespondGitHub,
+  input: { body?: unknown } = {},
+  caller: OperationContext["caller"],
+  options?: Parameters<typeof screenReply>[1],
+) {
   const own = callerSlot(caller);
   if (!own)
-    fail(
+    return fail(
       "plans_post_reply needs the calling session's identity from the Kiro Crew gateway.",
       403,
     );
@@ -180,12 +267,13 @@ export async function postReply(store, github, input = {}, caller, options) {
   );
   const response =
     binding?.role === "responder" &&
-    store.get("github_responses", binding.taskId);
-  if (!response) fail("Only a bound responder session may post a reply.", 403);
+    store.get<Response>("github_responses", binding.taskId);
+  if (!response)
+    return fail("Only a bound responder session may post a reply.", 403);
   if (response.state !== "open")
     fail("This issue snapshot already has its one reply.", 409);
-  const config = store.get("github_repositories", response.repository);
-  if (!config) fail("The GitHub repository is not registered.", 409);
+  const config = store.get<Config>("github_repositories", response.repository);
+  if (!config) return fail("The GitHub repository is not registered.", 409);
   const body = replyBody(input.body),
     findings = [
       ...screenReply(body, options),
@@ -217,8 +305,8 @@ export async function postReply(store, github, input = {}, caller, options) {
   );
   // Marked before the call: a crash after GitHub accepts it cannot post twice.
   store.transaction(() => {
-    const current = store.get("github_responses", response.id);
-    if (current.state !== "open")
+    const current = store.get<Response>("github_responses", response.id);
+    if (current?.state !== "open")
       fail("This issue snapshot already has its one reply.", 409);
     store.put("github_responses", { ...current, state: "posting" });
   });
@@ -235,7 +323,7 @@ export async function postReply(store, github, input = {}, caller, options) {
           body,
         );
   const replied = {
-    ...store.get("github_responses", response.id),
+    ...(store.get<Response>("github_responses", response.id) as Response),
     state: "replied",
     commentId: comment?.id ?? null,
     commentUrl: comment?.html_url ?? null,
@@ -247,7 +335,7 @@ export async function postReply(store, github, input = {}, caller, options) {
 }
 
 // A response whose session replied or ended takes no more dispatch.
-function endResponse(store, response) {
+function endResponse(store: Store, response: Response) {
   store.put("github_responses", {
     ...response,
     ...(response.state === "open" ? { state: "ended" } : {}),
@@ -255,7 +343,7 @@ function endResponse(store, response) {
   });
 }
 
-export function fence(text) {
+export function fence(text: unknown) {
   const longest = Math.max(
     2,
     ...[...String(text).matchAll(/`+/g)].map((m) => m[0].length),
@@ -263,7 +351,7 @@ export function fence(text) {
   return "`".repeat(longest + 1);
 }
 
-function responderBrief(record, { kind = "issue" } = {}) {
+function responderBrief(record: Response, { kind = "issue" } = {}) {
   const quoted = `Title: ${record.title}\n\n${record.body}`,
     mark = fence(quoted);
   return [
@@ -289,19 +377,19 @@ function responderBrief(record, { kind = "issue" } = {}) {
 // once the session replied or ended. `open: false` holds new responses and
 // dispatch; cleanup always runs. A tick with no change writes nothing.
 export async function respondStep(
-  store,
-  github,
-  workspaceRoot,
-  { open = true, config = {} } = {},
+  store: Store,
+  github: RespondGitHub,
+  workspaceRoot: string | null | undefined,
+  { open = true, config = {} }: { open?: boolean; config?: RolesConfig } = {},
 ) {
   const policy = readGitHubPolicy(workspaceRoot),
     bindings = listSessionBindings(store),
     repositories = workspaceRepositories(store),
-    dispatch = [];
+    dispatch: ReturnType<typeof kirocrewRequest>[] = [];
   const discussions = open
     ? await openDiscussionResponses(store, github, policy, repositories)
     : null;
-  for (const response of store.list("github_responses")) {
+  for (const response of store.list<Response>("github_responses")) {
     if (response.endedAt || response.labelRemovedAt) continue;
     const binding = bindings.find(
         (b) => b.role === "responder" && b.taskId === response.id,
@@ -311,7 +399,7 @@ export async function respondStep(
         discussionCurrent(discussions, response);
     if (
       response.state === "replied" ||
-      (binding && FINAL_STATUSES.has(binding.status)) ||
+      (binding && FINAL_STATUSES.has(String(binding.status))) ||
       (!binding && !current)
     ) {
       endResponse(store, response);
@@ -321,10 +409,15 @@ export async function respondStep(
     const checkout = repositories.find(
         (entry) =>
           entry.id ===
-            store.get("github_repositories", response.repository)
+            store.get<Config>("github_repositories", response.repository)
               ?.repositoryId || entry.github === response.repository,
       ),
-      repository = checkout ? store.get("repositories", checkout.id) : null,
+      repository = checkout
+        ? store.get<{ id: string; executor?: unknown }>(
+            "repositories",
+            checkout.id,
+          )
+        : null,
       run = roleRun("responder", { config, repository });
     // A `process` responder reads a detached copy of the base branch, which
     // Avoozl adds before it starts (NK2.2); a chat opens in the checkout.
@@ -356,8 +449,8 @@ export async function respondStep(
 
 // The detached copy a `process` responder reads: the checkout's base branch
 // head, at a folder of its own beside the checkout's other task worktrees.
-async function baseCopy(checkout, response) {
-  const root = checkout.localCheckout,
+async function baseCopy(checkout: WorkspaceRepository, response: Response) {
+  const root = String(checkout.localCheckout),
     commit = await git(root, [
       "rev-parse",
       await baseRef(root, checkout.baseBranch || "main"),
@@ -365,10 +458,10 @@ async function baseCopy(checkout, response) {
   return {
     repository: checkout.id,
     commit,
-    checkout: checkout.localCheckout,
+    checkout: root,
     worktree: path.join(
       checkout.worktreeRoot ||
-        path.join(path.dirname(checkout.localCheckout), ".avoozl-worktrees"),
+        path.join(path.dirname(root), ".avoozl-worktrees"),
       `avoozl-${response.id.replace(/[^A-Za-z0-9._-]/g, "-")}-respond`,
     ),
   };
@@ -380,26 +473,35 @@ async function baseCopy(checkout, response) {
 // response per snapshot of its title and body. Returns the snapshots seen,
 // by repository, so cleanup can end a response whose discussion changed.
 // A repository it cannot read is skipped this tick.
-async function openDiscussionResponses(store, github, policy, repositories) {
-  const seen = new Map();
-  for (const [id, rules] of Object.entries(policy.repositories || {})) {
-    if (!rules.discussions) continue;
-    const config = store.get("github_repositories", id),
+async function openDiscussionResponses(
+  store: Store,
+  github: RespondGitHub,
+  policy: GitHubPolicy,
+  repositories: WorkspaceRepository[],
+) {
+  const seen: Seen = new Map();
+  for (const [id, rules] of Object.entries(policy.repositories || {}) as [
+    string,
+    RepositoryPolicy,
+  ][]) {
+    const discussions = rules.discussions;
+    if (!discussions) continue;
+    const config = store.get<Config>("github_repositories", id),
       checkout = repositories.find(
         (entry) => entry.id === config?.repositoryId || entry.github === id,
       );
     if (!config || !checkout?.localCheckout) continue;
-    let list;
+    let list: Discussion[];
     try {
       list = await github.listDiscussions(config);
     } catch {
       continue;
     }
     const categories = new Set(
-        rules.discussions.categories.map((name) => name.toLowerCase()),
+        discussions.categories.map((name) => name.toLowerCase()),
       ),
-      held = new Map(),
-      eligible = new Map();
+      held = new Map<string, string>(),
+      eligible = new Map<string, string>();
     for (const discussion of list) {
       if (
         discussion.closed ||
@@ -414,7 +516,10 @@ async function openDiscussionResponses(store, github, policy, repositories) {
           author,
           (await github.permission(config, author))?.permission || "none",
         );
-      if (!actorAllowed(rules, author, held.get(author) ?? null).allowed)
+      if (
+        !actorAllowed(rules, author, (author && held.get(author)) ?? null)
+          .allowed
+      )
         continue;
       const snapshotHash = createHash("sha256")
           .update(`${discussion.title}\n\n${discussion.body}`)
@@ -444,9 +549,10 @@ async function openDiscussionResponses(store, github, policy, repositories) {
 
 // A discussion response stays current until a read of its repository shows
 // the discussion changed, was answered, or no longer qualifies.
-function discussionCurrent(seen, response) {
+function discussionCurrent(seen: Seen | null, response: Response) {
   const eligible = seen?.get(response.repository);
   return (
-    !eligible || eligible.get(response.discussionId) === response.snapshotHash
+    !eligible ||
+    eligible.get(response.discussionId as string) === response.snapshotHash
   );
 }
