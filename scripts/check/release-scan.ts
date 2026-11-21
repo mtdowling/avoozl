@@ -24,7 +24,7 @@ import {
   matchLine,
   parseTerms,
   PUBLISH_RULES,
-} from "../../src/app/content/content-rules.mjs";
+} from "../../src/app/content/content-rules.ts";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

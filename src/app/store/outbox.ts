@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fail } from "./store.ts";
-import { digest } from "../../model.mjs";
+import { digest } from "../../model.ts";
 
 // Publish pending Markdown projections from the outbox under root, and mark
 // each published row in SQLite. Operations calls this after every operation it

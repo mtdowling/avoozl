@@ -42,7 +42,7 @@ const REPO_ROOT = path.resolve(
   "..",
   "..",
 );
-const CLI = path.join(REPO_ROOT, "cli.mjs");
+const CLI = path.join(REPO_ROOT, "cli.ts");
 const PROXY_PORT = Number(process.env.MSR_PROXY_PORT || 18462);
 const which = (name) =>
   spawnSync(`command -v ${name}`, {
@@ -129,7 +129,7 @@ const withStore = async (use) => {
   }
 };
 const operations = async (store) => {
-  const { Operations } = await import("../../src/app/api/operations.mjs");
+  const { Operations } = await import("../../src/app/api/operations.ts");
   return new Operations(store, {
     workspaceRoot: P.ws,
     configDirectory: MACHINE.configDirectory,
@@ -259,7 +259,7 @@ async function setup() {
   const login = GITHUB ? JSON.parse(gh("api", "user")).login : null;
   const configFile = path.join(P.ws, ".avoozl.json");
   const config = JSON.parse(fs.readFileSync(configFile, "utf8"));
-  const { ROLES } = await import("../../src/app/agents/role-table.mjs");
+  const { ROLES } = await import("../../src/app/agents/role-table.ts");
   config.delivery = { ...(config.delivery || {}), retries: 1 };
   config.lanes = { local: 2 };
   // Every role the role table runs as a child, on this harness.
@@ -436,7 +436,7 @@ async function until(what, check, minutes) {
 
 async function liveProbes(minutes) {
   const { probeArgv, RUN_PROBES } = await import(
-    "../../src/app/sandbox-probes.mjs"
+    "../../src/app/sandbox-probes.ts"
   );
   const listener = net.createServer((socket) => socket.end());
   await new Promise((resolve) => listener.listen(0, "127.0.0.1", resolve));
@@ -516,7 +516,7 @@ async function untilTrue(what, check, minutes) {
 // Whether a child of this role has exited, on the machine's supervisor.
 async function childExited(role) {
   const { openSupervisorDatabase } = await import(
-    "../../src/app/executors/supervisor.mjs"
+    "../../src/app/executors/supervisor.ts"
   );
   const db = openSupervisorDatabase(MACHINE.stateDirectory);
   try {
@@ -536,7 +536,7 @@ async function childExited(role) {
 // could not, with the supervisor's reason.
 async function rolesOnHarness() {
   const { openSupervisorDatabase } = await import(
-    "../../src/app/executors/supervisor.mjs"
+    "../../src/app/executors/supervisor.ts"
   );
   const db = openSupervisorDatabase(MACHINE.stateDirectory);
   try {
@@ -570,7 +570,7 @@ function harnessVersion() {
 // One result per row: ok when every role it drives ran on `process`, FAIL when
 // one did not, skipped when the row cannot run offline or is not driven.
 async function rowResults(roles, { lineStopped }) {
-  const { rowFor } = await import("../../src/app/agents/role-table.mjs");
+  const { rowFor } = await import("../../src/app/agents/role-table.ts");
   const ran = new Set(
     Object.entries(roles)
       .filter(([, entry]) => entry.ran > 0)
@@ -596,7 +596,7 @@ async function rowResults(roles, { lineStopped }) {
 }
 
 async function prove() {
-  const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
+  const { sandboxKind } = await import("../../src/app/executors/sandbox.ts");
   if (AGENT !== "fake" && !sandboxKind())
     throw Error(
       "No sandbox here (inside another sandbox?). Run ms-roles from a terminal outside Kiro Crew.",
@@ -717,7 +717,7 @@ async function prove() {
     git(P.checkout, "commit", "-q", "-m", "Break the notes check");
     git(P.checkout, "push", "-q", "origin", "HEAD");
     event("step6.red-head");
-    const { openStops } = await import("../../src/app/flow/flow.mjs");
+    const { openStops } = await import("../../src/app/flow/flow.ts");
     await untilTrue(
       "step6.line",
       () => withStore(async (store) => openStops(store).length > 0),

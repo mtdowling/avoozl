@@ -347,7 +347,7 @@ export function toPolicy(form: SettingsForm): Policy {
 }
 
 // Required or optional, and what a blank field means, as the validator
-// (src/app/github/github-policy.mjs) treats it. `when` names the condition a "required" holds under.
+// (src/app/github/github-policy.ts) treats it. `when` names the condition a "required" holds under.
 export interface FieldRule {
   required: boolean
   when?: string

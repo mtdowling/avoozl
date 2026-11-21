@@ -3,7 +3,7 @@
 import { Store, privateFile } from "../store/store.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { help } from "../cli/command-help.mjs";
+import { help } from "../cli/command-help.ts";
 
 function runBackup({
   options,

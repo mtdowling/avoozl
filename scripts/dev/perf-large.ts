@@ -4,14 +4,14 @@
 //
 //   node scripts/dev/perf-large.ts [--specs 60] [--keep DIR]
 //
-// Builds the workspace from src/app/test/large-workspace.mjs in a temporary
+// Builds the workspace from src/app/test/large-workspace.ts in a temporary
 // folder (or DIR), prints one Markdown table, and removes the folder unless
 // --keep names it.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { StatementSync } from "node:sqlite";
-import { largeWorkspace } from "../../src/app/test/large-workspace.mjs";
+import { largeWorkspace } from "../../src/app/test/large-workspace.ts";
 
 const args = process.argv.slice(2),
   option = (name) => {

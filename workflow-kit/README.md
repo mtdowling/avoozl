@@ -223,7 +223,7 @@ with `revision: "redo-or-stop"` when they differ.
 
 ### Avoozl's adapter
 
-Avoozl's adapter is `src/app/test/workflow-kit-scenario.mjs`. It calls Avoozl's
+Avoozl's adapter is `src/app/test/workflow-kit-scenario.ts`. It calls Avoozl's
 own claim, lease, landing and tick code, and runs it against a bare local git
 repository with a fake GitHub API over it (`workflow-kit-world.mjs`). The fake
 API keeps pull requests, merges with `merged_by`, deletes a head branch when
@@ -241,7 +241,7 @@ nothing, and the stale holder scenario marks `rejectedPushes` with
 `judge(case, got)`, which compares a runner's answers with `expect` and returns
 `pass`, `fail`, `expected-fail` or `unexpected-pass` for each probe.
 
-Avoozl runs the kit in `src/app/test/workflow-kit.test.mjs` as part of its
+Avoozl runs the kit in `src/app/test/workflow-kit.test.ts` as part of its
 tests, and the same test fails when the scenarios page is out of date. Run
 `npm run kit:docs` to write it again. A probe with `expectFail` passes while Avoozl gets it wrong. The test
 fails once Avoozl gets it right, or once the named task is ticked in

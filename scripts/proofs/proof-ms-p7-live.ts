@@ -33,7 +33,7 @@ const REPO = path.resolve(
   "..",
   "..",
 );
-const CLI = path.join(REPO, "cli.mjs");
+const CLI = path.join(REPO, "cli.ts");
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
@@ -73,7 +73,7 @@ const P = {
 };
 const DB = path.join(P.ws, ".avoozl", "local", "workspace.sqlite");
 const { machineAvoozlPaths } = await import(
-  "../../src/app/settings/host-config.mjs"
+  "../../src/app/settings/host-config.ts"
 );
 const MACHINE = machineAvoozlPaths();
 if (!MACHINE.configDirectory.startsWith(CREW + path.sep))

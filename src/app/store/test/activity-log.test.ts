@@ -17,13 +17,13 @@ import {
   recordTickChanges,
   tickSnapshot,
 } from "../activity-log.ts";
-import { groupedCall } from "../../mcp/mcp-tools.mjs";
-import { classifyOperation } from "../../api/operation-table.mjs";
-import { Operations } from "../../api/operations.mjs";
+import { groupedCall } from "../../mcp/mcp-tools.ts";
+import { classifyOperation } from "../../api/operation-table.ts";
+import { Operations } from "../../api/operations.ts";
 import { Store } from "../store.ts";
-import { snapshot } from "../../test/fixtures.mjs";
-import { temporaryDirectory } from "../../test/temporary.mjs";
-import { leaf as fixtureLeaf } from "../../test/delivery-fixture.mjs";
+import { snapshot } from "../../test/fixtures.ts";
+import { temporaryDirectory } from "../../test/temporary.ts";
+import { leaf as fixtureLeaf } from "../../test/delivery-fixture.ts";
 
 const leaf = (id, extra = {}) =>
   fixtureLeaf(id, { repository: "r1", ...extra });

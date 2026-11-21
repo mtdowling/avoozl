@@ -1,21 +1,21 @@
 // @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import fs from "node:fs";
-import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
-import { serveKirocrew, serveWorkspace } from "../mcp/mcp-stdio.mjs";
-import { machineAvoozlPaths } from "../settings/host-config.mjs";
-import { machineStatus, serveStatus } from "../workspace/machine-status.mjs";
-import { reportByToken } from "../workers/report-match.mjs";
-import { LinkStore } from "../serve/serve-auth.mjs";
+import { startAppBackend } from "../executors/kirocrew/app-backend.ts";
+import { serveKirocrew, serveWorkspace } from "../mcp/mcp-stdio.ts";
+import { machineAvoozlPaths } from "../settings/host-config.ts";
+import { machineStatus, serveStatus } from "../workspace/machine-status.ts";
+import { reportByToken } from "../workers/report-match.ts";
+import { LinkStore } from "../serve/serve-auth.ts";
 import { Store } from "../store/store.ts";
-import { help } from "../cli/command-help.mjs";
+import { help } from "../cli/command-help.ts";
 import {
   approveHarnessByName,
   listHarnessDefinitions,
-} from "../executors/harness-definitions.mjs";
-import { agentSessionNote, cliRefusal } from "../mcp/mcp-policy.mjs";
+} from "../executors/harness-definitions.ts";
+import { agentSessionNote, cliRefusal } from "../mcp/mcp-policy.ts";
 import { probeHarness } from "../executors/harness-probe.ts";
-import { runCredentialHelper } from "../github/credential-helper.mjs";
+import { runCredentialHelper } from "../github/credential-helper.ts";
 
 // A `process` child never makes an owner link for the page (MS3.2).
 function refuseChild(name) {

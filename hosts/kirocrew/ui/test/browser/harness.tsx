@@ -1485,7 +1485,7 @@ if (query.get('page') === 'app' && query.get('flowtasks') === '1') {
 }
 // ?page=demo: the whole page on the made-up sample workspace. Its calls
 // answer from window.__DEMO (demo-replies.mjs, built from the sample in
-// src/app/test/demo-fixture.mjs); other calls answer as ?page=app does.
+// src/app/test/demo-fixture.ts); other calls answer as ?page=app does.
 const demo = (window as unknown as { __DEMO?: { replies: Record<string, unknown>; previews: Record<string, string> } }).__DEMO
 if (query.get('page') === 'demo' && demo) {
   answer('workspaces.list', () => ({ defaultWorkspace: 'sample', items: [{ id: 'sample', name: 'Recipe Box', served: true }] }))

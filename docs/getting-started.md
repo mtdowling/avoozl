@@ -122,7 +122,7 @@ realpath "$(command -v avoozl)"
 ```
 
 Below, `/usr/local/bin/node` stands for the first and
-`/path/to/avoozl/cli.mjs` for the second. Put your own in their place. The
+`/path/to/avoozl/cli.ts` for the second. Put your own in their place. The
 `PATH` line must reach `git`, `gh` and each harness program (`claude`,
 `codex`). No timer line holds a secret: model keys go in `machine.env`
 ([below](#model-access-for-unattended-agents)).
@@ -141,7 +141,7 @@ Save this as `~/Library/LaunchAgents/dev.avoozl.tick.plist`:
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/node</string>
-    <string>/path/to/avoozl/cli.mjs</string>
+    <string>/path/to/avoozl/cli.ts</string>
     <string>tick</string>
   </array>
   <key>EnvironmentVariables</key>
@@ -179,7 +179,7 @@ Description=One Avoozl tick
 [Service]
 Type=oneshot
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/local/bin/node /path/to/avoozl/cli.mjs tick
+ExecStart=/usr/local/bin/node /path/to/avoozl/cli.ts tick
 ```
 
 And this as `~/.config/systemd/user/avoozl-tick.timer`:
@@ -212,7 +212,7 @@ while you are logged out, run `loginctl enable-linger` once.
 Run `crontab -e` and add one line:
 
 ```text
-* * * * * PATH=/usr/local/bin:/usr/bin:/bin /usr/local/bin/node /path/to/avoozl/cli.mjs tick >> /tmp/avoozl-tick.log 2>&1
+* * * * * PATH=/usr/local/bin:/usr/bin:/bin /usr/local/bin/node /path/to/avoozl/cli.ts tick >> /tmp/avoozl-tick.log 2>&1
 ```
 
 ### From a chat

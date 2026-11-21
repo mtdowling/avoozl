@@ -1,14 +1,15 @@
+// @ts-nocheck: typing debt
 // The Insights view's numbers (simplify §D13): what Avoozl already keeps.
 // Task timing comes from the local telemetry store (telemetry_spans and
 // telemetry_points); each spec's burndown comes from the commits that changed
 // its task list on the specs branch. Reads only, and calls no GitHub API.
-import { branchTip, git } from "../git/git.mjs";
-import { catFiles } from "../git/git-approvals.mjs";
-import { specItems } from "../specs/spec-plans.mjs";
-import { ticksOf } from "../specs/spec-ticks.mjs";
-import { taskFile, taskText } from "../specs/spec-tasks.mjs";
-import { specsPath } from "../specs/specs-path.mjs";
-import { STAGES } from "../telemetry/stages.mjs";
+import { branchTip, git } from "../git/git.ts";
+import { catFiles } from "../git/git-approvals.ts";
+import { specItems } from "../specs/spec-plans.ts";
+import { ticksOf } from "../specs/spec-ticks.ts";
+import { taskFile, taskText } from "../specs/spec-tasks.ts";
+import { specsPath } from "../specs/specs-path.ts";
+import { STAGES } from "../telemetry/stages.ts";
 import { fail } from "../store/store.ts";
 
 const DAY = 24 * 60 * 60 * 1000;

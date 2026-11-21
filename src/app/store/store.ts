@@ -1,15 +1,12 @@
 // @ts-nocheck: typing debt
 import crypto from "node:crypto";
-import { reconcileSpecDependencies } from "../../spec-dependencies.mjs";
+import { reconcileSpecDependencies } from "../../spec-dependencies.ts";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
-import { summarizeErrors, validate } from "../../model.mjs";
-import {
-  TELEMETRY_SCHEMA,
-  pruneOnOpen,
-} from "../telemetry/sqlite-exporter.mjs";
-import { keepNamedEpics, ownLegacyEpics } from "../epics/epics.mjs";
+import { summarizeErrors, validate } from "../../model.ts";
+import { TELEMETRY_SCHEMA, pruneOnOpen } from "../telemetry/sqlite-exporter.ts";
+import { keepNamedEpics, ownLegacyEpics } from "../epics/epics.ts";
 
 export const canonical = (value) => JSON.stringify(normalize(value));
 function normalize(value) {

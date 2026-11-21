@@ -1,7 +1,7 @@
 // @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import fs from "node:fs";
-import { help } from "../cli/command-help.mjs";
+import { help } from "../cli/command-help.ts";
 
 export const commands = [
   {

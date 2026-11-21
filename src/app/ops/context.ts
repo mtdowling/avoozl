@@ -2,17 +2,17 @@
 // Epic context operations (epic-context EC2.3, EC4.5, EC9.4): the machine
 // block, a plugin ask's answer, and the Settings page's read. Changing any of
 // them is a person's act, refused for MCP, a bound session and a child.
-import { notOnMcp, person } from "../api/operation-policy.mjs";
-import { contentBinding } from "../content/content-rules.mjs";
-import { contextView, setAnswer } from "../context/plugin-context.mjs";
+import { notOnMcp, person } from "../api/operation-policy.ts";
+import { contentBinding } from "../content/content-rules.ts";
+import { contextView, setAnswer } from "../context/plugin-context.ts";
 import {
   checkReadsExist,
   readEpicContext,
   validateEpicContext,
   writeEpicContext,
-} from "../context/epic-context-config.mjs";
-import { recentContextSessions } from "../context/context-record.mjs";
-import { inspectPlugins, readPluginSettings } from "../plugins/plugins.mjs";
+} from "../context/epic-context-config.ts";
+import { recentContextSessions } from "../context/context-record.ts";
+import { inspectPlugins, readPluginSettings } from "../plugins/plugins.ts";
 import { fail } from "../store/store.ts";
 
 const refuseAgent = (context, what) => {

@@ -4,7 +4,7 @@ import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { matches, type TaskFilter } from './filters.ts'
 import type { DeliveryItem, DeliverySession, Graph, GraphTask, RemoteWorker } from './views-api.ts'
 import { summarize } from './in-flight-api.ts'
-import { laneOf as sharedLaneOf } from '../../../../src/delivery-lanes.mjs'
+import { laneOf as sharedLaneOf } from '../../../../src/delivery-lanes.ts'
 import { TONE } from './ui/tones.ts'
 
 export type LaneId = 'ready' | 'running' | 'reviewing' | 'needs-you' | 'waiting' | 'done'
@@ -112,7 +112,7 @@ function newest(item: DeliveryItem | null): string | null {
 }
 
 // Which lane a task is in: the shared rule the Avoozl state Project field
-// also uses (src/delivery-lanes.mjs).
+// also uses (src/delivery-lanes.ts).
 export const laneOf: (task: GraphTask | null, item: DeliveryItem | null) => LaneId = sharedLaneOf
 
 // A card's state for the shared filter: its lane, with Waiting split into

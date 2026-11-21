@@ -1,45 +1,45 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import os from "node:os";
-import { auditPlans } from "../../mcp.mjs";
+import { auditPlans } from "../../mcp.ts";
 import {
   CHECKS_UNCONFINED,
   checksUnconfinedAllowed,
   isolationSetting,
-} from "../workspace/check-isolation.mjs";
-import { detectCheckout, repositoryConfig } from "../git/git.mjs";
-import { expandHome } from "../workspace/folder-browse.mjs";
+} from "../workspace/check-isolation.ts";
+import { detectCheckout, repositoryConfig } from "../git/git.ts";
+import { expandHome } from "../workspace/folder-browse.ts";
 import {
   machineIdentity,
   prepareGitHubRepository,
-} from "../github/github-sync.mjs";
-import { requirePrivateRepository } from "../github/github.mjs";
-import { HARNESS_UNCONFINED } from "../executors/harness-definitions.mjs";
-import { machineAvoozlPaths } from "../settings/host-config.mjs";
-import { claimsOf, labelsOf } from "../settings/repository-settings.mjs";
-import { startTelemetry } from "../telemetry/index.mjs";
-import { startPluginUpdateChecks } from "../plugins/plugin-updates.mjs";
+} from "../github/github-sync.ts";
+import { requirePrivateRepository } from "../github/github.ts";
+import { HARNESS_UNCONFINED } from "../executors/harness-definitions.ts";
+import { machineAvoozlPaths } from "../settings/host-config.ts";
+import { claimsOf, labelsOf } from "../settings/repository-settings.ts";
+import { startTelemetry } from "../telemetry/index.ts";
+import { startPluginUpdateChecks } from "../plugins/plugin-updates.ts";
 import {
   ensureGlobalLocalIgnore,
   globalLocalIgnoreStatus,
-} from "../workspace/local-ignore.mjs";
-import { loadLayeredConfig } from "../settings/layered-config.mjs";
-import { chatBrief } from "../workers/epic-context.mjs";
+} from "../workspace/local-ignore.ts";
+import { loadLayeredConfig } from "../settings/layered-config.ts";
+import { chatBrief } from "../workers/epic-context.ts";
 import { fail } from "../store/store.ts";
-import { recordReleased, tick, tickHealth, tickLog } from "../tick/tick.mjs";
-import { planPage, recentIntegrations } from "../api/views.mjs";
+import { recordReleased, tick, tickHealth, tickLog } from "../tick/tick.ts";
+import { planPage, recentIntegrations } from "../api/views.ts";
 import {
   assertRepositoryRemovable,
   removeWorkspaceRepositoryRecords,
   workspaceRepositories,
-} from "../workspace/workspace-repositories.mjs";
+} from "../workspace/workspace-repositories.ts";
 import {
   configureWorkspaceRepository,
   publishWorkspaceRepository,
   syncWorkspaceRepository,
   workspaceRepositoryStatus,
-} from "../workspace/workspace-repository.mjs";
-import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+} from "../workspace/workspace-repository.ts";
+import { person, notOnMcp, routed } from "../api/operation-policy.ts";
 
 export const entries = [
   // Rebuild the database from git and GitHub (design §4.42).

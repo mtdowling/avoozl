@@ -2,11 +2,11 @@
 // Settings' plugin list and actions (§4.8, R34.9). Approval is a person's act
 // in Settings or the CLI: an agent session cannot approve a plugin, and no MCP
 // tool offers it. Operations.pluginOperation holds the work.
-import { contentBinding } from "../content/content-rules.mjs";
-import { person, routed } from "../api/operation-policy.mjs";
-import { setMapping } from "../plugins/plugin-checks.mjs";
-import { flipDecide, submitDecide } from "../plugins/check-decide.mjs";
-import { stageResults } from "../plugins/check-stages.mjs";
+import { contentBinding } from "../content/content-rules.ts";
+import { person, routed } from "../api/operation-policy.ts";
+import { setMapping } from "../plugins/plugin-checks.ts";
+import { flipDecide, submitDecide } from "../plugins/check-decide.ts";
+import { stageResults } from "../plugins/check-stages.ts";
 import { fail } from "../store/store.ts";
 
 async function pluginHandler({ name, input, context }) {

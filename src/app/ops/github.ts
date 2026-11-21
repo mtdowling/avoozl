@@ -1,22 +1,22 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
-import { repositoryGitHubRemote } from "../git/git.mjs";
+import { repositoryGitHubRemote } from "../git/git.ts";
 import {
   branchReviewRule,
   ruleBranch,
   seenCheckNames,
-} from "../github/github-branch-rules.mjs";
+} from "../github/github-branch-rules.ts";
 import {
   normalizeGitHubPolicy,
   policySection,
   requireDefaultBranches,
-} from "../github/github-policy.mjs";
+} from "../github/github-policy.ts";
 import {
   configureGitHubRepository,
   machineIdentity,
-} from "../github/github-sync.mjs";
+} from "../github/github-sync.ts";
 import { fail } from "../store/store.ts";
-import { person, routed } from "../api/operation-policy.mjs";
+import { person, routed } from "../api/operation-policy.ts";
 
 export const entries = [
   // Settings view (§8): the GitHub policy in `.avoozl.json`. Creates no

@@ -1,13 +1,13 @@
 // @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
-import { workspaceConfig } from "../settings/config.mjs";
-import { WorkspaceRegistry } from "../settings/host-config.mjs";
-import { machineStatus, roleProblems } from "../workspace/machine-status.mjs";
-import { workflowSkill } from "../cli/skill.mjs";
-import { workspaceStatus } from "../workspace/workspace-status.mjs";
-import { initializeWorkspace } from "../workspace/workspace.mjs";
-import { help } from "../cli/command-help.mjs";
-import { confirmHighRisk, refuseAgentYes } from "../cli/confirm-high-risk.mjs";
+import { workspaceConfig } from "../settings/config.ts";
+import { WorkspaceRegistry } from "../settings/host-config.ts";
+import { machineStatus, roleProblems } from "../workspace/machine-status.ts";
+import { workflowSkill } from "../cli/skill.ts";
+import { workspaceStatus } from "../workspace/workspace-status.ts";
+import { initializeWorkspace } from "../workspace/workspace.ts";
+import { help } from "../cli/command-help.ts";
+import { confirmHighRisk, refuseAgentYes } from "../cli/confirm-high-risk.ts";
 
 const CANCELLED = "Cancelled: nothing was written.";
 

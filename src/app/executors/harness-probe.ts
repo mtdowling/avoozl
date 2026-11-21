@@ -6,23 +6,23 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { redact } from "../github/github-credentials.mjs";
-import { withoutPushCredentials } from "../git/git.mjs";
+import { redact } from "../github/github-credentials.ts";
+import { withoutPushCredentials } from "../git/git.ts";
 import {
   harnessReads,
   harnessSecretReads,
   loadHarnessDefinition,
   seedHarnessHome,
-} from "./harness-definitions.mjs";
-import { findProgram, recordProbe } from "./harness-ready.mjs";
-import { readMachineEnv, withKeptValues } from "./machine-env.mjs";
+} from "./harness-definitions.ts";
+import { findProgram, recordProbe } from "./harness-ready.ts";
+import { readMachineEnv, withKeptValues } from "./machine-env.ts";
 import {
   catalogWorkspaceRoots,
   confineChild,
   sandboxKind,
   sandboxSecretPaths,
-} from "./sandbox.mjs";
-import { GIT_USER_CONFIG } from "./supervisor.mjs";
+} from "./sandbox.ts";
+import { GIT_USER_CONFIG } from "./supervisor.ts";
 
 const PROBE_TIMEOUT_MS = 120_000;
 const LONG_VALUE = /[A-Za-z0-9+/=_-]{32,}/g;

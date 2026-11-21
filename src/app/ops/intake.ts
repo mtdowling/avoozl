@@ -1,8 +1,8 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
-import { withWorkLock } from "../git/git.mjs";
-import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
-import { parseIssueReference } from "../tasks/issue-reference.mjs";
+import { withWorkLock } from "../git/git.ts";
+import { readGitHubPolicyOrNull } from "../github/github-policy.ts";
+import { parseIssueReference } from "../tasks/issue-reference.ts";
 import {
   confirmSnapshot,
   declaredSources,
@@ -14,10 +14,10 @@ import {
   startByPerson,
   submitItems,
   viewItem,
-} from "../intake/intake.mjs";
+} from "../intake/intake.ts";
 import { fail } from "../store/store.ts";
-import { WORKSPACE_LOCK } from "../tick/tick.mjs";
-import { person, routed } from "../api/operation-policy.mjs";
+import { WORKSPACE_LOCK } from "../tick/tick.ts";
+import { person, routed } from "../api/operation-policy.ts";
 
 async function intakeDeliverHandler({ name, input }) {
   const store = this.store;

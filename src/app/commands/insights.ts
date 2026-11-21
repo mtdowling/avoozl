@@ -1,7 +1,7 @@
 // `avoozl insights` and `avoozl retro list|read|save` (simplify §D13): the
 // Insights view's numbers as text, and the saved retros.
 import fs from "node:fs";
-import { help } from "../cli/command-help.mjs";
+import { help } from "../cli/command-help.ts";
 import { MAIN_WORDS, duration } from "../insights/format.ts";
 
 const show = (value: unknown) => console.log(JSON.stringify(value, null, 2));

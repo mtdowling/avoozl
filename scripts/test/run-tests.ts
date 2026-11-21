@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { machineAvoozlPaths } from "../../src/app/settings/host-config.mjs";
+import { machineAvoozlPaths } from "../../src/app/settings/host-config.ts";
 import { changedFiles, select } from "./select-tests.ts";
 import { allTestFiles, planFor, shardOf } from "./test-plan.ts";
 

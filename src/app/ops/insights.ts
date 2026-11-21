@@ -1,10 +1,10 @@
 // Insights (simplify §D13): the page's home view and `avoozl insights`, and
 // the saved retros the avoozl-retro skill writes. Every read here is local:
 // the store, the telemetry tables and git; no GitHub call.
-import { routed } from "../api/operation-policy.mjs";
-import { landingId } from "../flow/flow-line.mjs";
-import { openStops } from "../flow/flow.mjs";
-import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
+import { routed } from "../api/operation-policy.ts";
+import { landingId } from "../flow/flow-line.ts";
+import { openStops } from "../flow/flow.ts";
+import { readGitHubPolicyOrNull } from "../github/github-policy.ts";
 import {
   burndown,
   insightsDays,
@@ -12,12 +12,12 @@ import {
   telemetryNames,
 } from "../insights/insights.ts";
 import { listRetros, readRetro, saveRetro } from "../insights/retros.ts";
-import { specsBranch } from "../specs/specs-branch.mjs";
+import { specsBranch } from "../specs/specs-branch.ts";
 import { fail } from "../store/store.ts";
-import { loopFile, machineLoop } from "../tick/loop.mjs";
-import { readDeliveryPolicy } from "../tick/tick.mjs";
-import { claimsView } from "../workers/claims.mjs";
-import { nextView } from "../workers/runner.mjs";
+import { loopFile, machineLoop } from "../tick/loop.ts";
+import { readDeliveryPolicy } from "../tick/tick.ts";
+import { claimsView } from "../workers/claims.ts";
+import { nextView } from "../workers/runner.ts";
 
 // The line watch's last read of each repository's landing branch: passing
 // when every declared check was green on the head it read, stopped while a

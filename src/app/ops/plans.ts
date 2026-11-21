@@ -1,30 +1,30 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
-import { frontMatterCategory } from "../../front-matter.mjs";
-import { applyPlanMetadata } from "../../plan-model.mjs";
-import { approvedSpecDependency } from "../../spec-dependencies.mjs";
-import { resolveTaskId } from "../../task-identity.mjs";
+import { frontMatterCategory } from "../../front-matter.ts";
+import { applyPlanMetadata } from "../../plan-model.ts";
+import { approvedSpecDependency } from "../../spec-dependencies.ts";
+import { resolveTaskId } from "../../task-identity.ts";
 import {
   enforce as enforceContent,
   enforceSpec,
-} from "../content/content-rules.mjs";
-import { epicsView } from "../epics/epics-view.mjs";
-import { queuePublish } from "../specs/spec-publication.mjs";
-import { crossPlanEpics, epicOfPlan } from "../epics/epics.mjs";
-import { epicView, ownership, plansTableView } from "../api/page-views.mjs";
-import { approvePlan } from "../specs/spec-approval.mjs";
-import { specLinks } from "../tasks/scm-links.mjs";
+} from "../content/content-rules.ts";
+import { epicsView } from "../epics/epics-view.ts";
+import { queuePublish } from "../specs/spec-publication.ts";
+import { crossPlanEpics, epicOfPlan } from "../epics/epics.ts";
+import { epicView, ownership, plansTableView } from "../api/page-views.ts";
+import { approvePlan } from "../specs/spec-approval.ts";
+import { specLinks } from "../tasks/scm-links.ts";
 import {
   checkedItems,
   proposeSpecWork,
   saveSpecPlan,
   specCategory,
   specEpic,
-} from "../specs/spec-plans.mjs";
+} from "../specs/spec-plans.ts";
 import { fail } from "../store/store.ts";
-import { planPage } from "../api/views.mjs";
-import { person, routed } from "../api/operation-policy.mjs";
-import { taskFile } from "../specs/spec-tasks.mjs";
+import { planPage } from "../api/views.ts";
+import { person, routed } from "../api/operation-policy.ts";
+import { taskFile } from "../specs/spec-tasks.ts";
 
 // Epics span plans (Requirement 59): every approved epic and every epic
 // folder on disk not yet approved, each with computed progress.

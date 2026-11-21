@@ -14,7 +14,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // The machine's Avoozl folders, refused unless both are under `home`.
 export async function isolatedMachine(home) {
   const { machineAvoozlPaths } = await import(
-    "../../src/app/settings/host-config.mjs"
+    "../../src/app/settings/host-config.ts"
   );
   const machine = machineAvoozlPaths();
   for (const dir of [machine.configDirectory, machine.stateDirectory])
@@ -31,14 +31,14 @@ export async function installHarness(
   { unconfined = false } = {},
 ) {
   const { approveHarnessDefinition, harnessDefinitionHash } = await import(
-    "../../src/app/executors/harness-definitions.mjs"
+    "../../src/app/executors/harness-definitions.ts"
   );
   const dir = path.join(configDirectory, "harnesses");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${name}.json`), bytes);
   const hash = harnessDefinitionHash(Buffer.from(bytes));
   approveHarnessDefinition({ configDirectory, name, hash });
-  const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
+  const { sandboxKind } = await import("../../src/app/executors/sandbox.ts");
   if (unconfined && !sandboxKind())
     fs.writeFileSync(
       path.join(configDirectory, "harness-unconfined.json"),
@@ -72,7 +72,7 @@ export function proofRun({ tag, prefix, script, proxyPort }) {
   if (!["claude", "fake"].includes(agent))
     throw Error("--agent is claude or fake");
   const root = path.resolve(values.root);
-  const cli = path.join(repo, "cli.mjs");
+  const cli = path.join(repo, "cli.ts");
   const paths = {
     origin: path.join(root, "origin.git"),
     checkout: path.join(root, "app"),
@@ -281,18 +281,18 @@ export async function runBackend(
   { seconds, env, between = () => {} },
 ) {
   const { Store } = await import("../../src/app/store/store.ts");
-  const { Operations } = await import("../../src/app/api/operations.mjs");
+  const { Operations } = await import("../../src/app/api/operations.ts");
   const { prepareWorktree } = await import(
-    "../../src/app/delivery/delivery.mjs"
+    "../../src/app/delivery/delivery.ts"
   );
   const { drainProcessRequests } = await import(
-    "../../src/app/executors/process.mjs"
+    "../../src/app/executors/process.ts"
   );
   const { drainCheckRuns } = await import(
-    "../../src/app/delivery/check-runs.mjs"
+    "../../src/app/delivery/check-runs.ts"
   );
   const { openSupervisor } = await import(
-    "../../src/app/executors/supervisor.mjs"
+    "../../src/app/executors/supervisor.ts"
   );
   const supervise = () => {
     const sup = openSupervisor({
@@ -415,16 +415,16 @@ export async function preflightModel(
 ) {
   const { Store } = await import("../../src/app/store/store.ts");
   const { kirocrewRequest } = await import(
-    "../../src/app/executors/kirocrew.mjs"
+    "../../src/app/executors/kirocrew.ts"
   );
   const { enqueueSessionRequests } = await import(
-    "../../src/app/sessions/session-requests.mjs"
+    "../../src/app/sessions/session-requests.ts"
   );
   const { drainProcessRequests, processExecutor } = await import(
-    "../../src/app/executors/process.mjs"
+    "../../src/app/executors/process.ts"
   );
   const { childRecord, openSupervisor, openSupervisorDatabase } = await import(
-    "../../src/app/executors/supervisor.mjs"
+    "../../src/app/executors/supervisor.ts"
   );
   // One supervisor pass, as one tick runs it.
   const supervise = () => {
@@ -528,7 +528,7 @@ export function originFile(run, file) {
 
 // Claude Code needs sandbox-exec, which refuses to nest (inside Kiro Crew).
 export async function needSandbox(run, tag) {
-  const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
+  const { sandboxKind } = await import("../../src/app/executors/sandbox.ts");
   if (run.agent === "claude" && !sandboxKind())
     throw Error(
       `sandbox-exec cannot run here (inside another sandbox?). Run ${tag} from a terminal outside Kiro Crew.`,
