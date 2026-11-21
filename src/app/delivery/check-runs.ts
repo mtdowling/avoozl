@@ -21,6 +21,7 @@ import {
   checkApplies,
   repositoryChecks,
 } from "../workspace/repository-checks.ts";
+import type { RepositoryCheck } from "../workspace/repository-checks.ts";
 import { pluginChecksOf, pluginOptionsOf } from "../plugins/plugin-checks.ts";
 import { runPluginCheck } from "../plugins/plugin-check-run.ts";
 import { decideAnswer, decideNow } from "../plugins/check-decide.ts";
@@ -322,7 +323,7 @@ async function stageRange(repository: Repository, record: CheckRun) {
 // The decide answer a phase or branch check takes from its tasks: needed
 // when any task's answer was, pending while any is, else skipped. A task
 // with no answer at all counts as needed.
-function stageAnswer(store: Store, check: unknown, taskIds: string[]) {
+function stageAnswer(store: Store, check: RepositoryCheck, taskIds: string[]) {
   const answers = taskIds.map((id) =>
     decideAnswer(
       store,

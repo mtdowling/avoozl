@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { canonical, fail } from "../store/store.ts";
+import type { PluginCheck } from "../workspace/repository-checks.ts";
 import { contentBinding } from "../content/content-rules.ts";
 import { pluginCheckConflicts } from "../workspace/repository-checks.ts";
 import {
@@ -467,7 +468,7 @@ const mtime = (file) => {
 // The approved plugin checks of the workspace a store is bound to, loaded
 // once per run or view (at most every 2 seconds). An unbound store, or a
 // plugin setup that cannot be read, has none.
-export function pluginChecksOf(store) {
+export function pluginChecksOf(store): PluginCheck[] {
   const binding = contentBinding(store);
   if (!binding?.workspaceRoot) return [];
   const settingsFile = binding.pluginSettingsFile ?? pluginSettingsPath(),
