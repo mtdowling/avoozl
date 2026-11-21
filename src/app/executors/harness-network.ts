@@ -4,8 +4,8 @@
 // cookie; its fixed `setEnv`; and its own egress proxy, the one port its
 // sandbox opens. No value is logged.
 import { spawnSync } from "node:child_process";
-import { EXPORTED_AWS_KEYS } from "./harness-definitions.mjs";
-import { findProgram } from "./harness-ready.mjs";
+import { EXPORTED_AWS_KEYS } from "./harness-definitions.ts";
+import { findProgram } from "./harness-ready.ts";
 import { egressEnv, startEgressProxy } from "./egress-proxy.ts";
 
 const PROFILE_NAMES = ["AWS_PROFILE", "AWS_DEFAULT_PROFILE"];

@@ -15,7 +15,7 @@ import {
   startEgressProxy,
 } from "../egress-proxy.ts";
 import { harnessNetwork } from "../harness-network.ts";
-import { scratchRoot } from "./process-machine.mjs";
+import { scratchRoot } from "./process-machine.ts";
 
 // Send one CONNECT through the proxy; resolve to everything read back.
 function connect(port: number, target: string, extra = "") {
