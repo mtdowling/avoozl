@@ -507,7 +507,15 @@ export function graphView(store, data, input = {}, folders = []) {
 // open decisions on member tasks. Progress is computed, never stored. `spec`
 // is the epic folder as read from disk, or null; `members` is the folder's
 // list when no approved row exists. Writes nothing.
-export function epicView(store, data, { id, spec = null, members = null }) {
+export function epicView(
+  store,
+  data,
+  {
+    id,
+    spec = null,
+    members = null,
+  }: { id: string; spec?: unknown; members?: string[] | null },
+) {
   const row = crossPlanEpics(data).find((epic) => epic.id === id) || null;
   if (!row && !spec?.exists) fail(`No epic ${id}.`, 404);
   const plans = optionalList(store, "plans").filter((plan) => !plan.deletedAt),
@@ -1421,7 +1429,14 @@ const archiveFields = (plan) => ({
 // counts, what is ready, running or needs a person, and its last change.
 // `specs` is plan.specs's items, each with `modifiedAt` and `category`;
 // `stored` is every live stored plan. Writes nothing.
-export function plansTableView(store, data, { specs = [], stored = [] }) {
+export function plansTableView(
+  store,
+  data,
+  {
+    specs = [],
+    stored = [],
+  }: { specs?: unknown[]; stored?: unknown[]; categoryOf?: unknown },
+) {
   const graph = graphView(store, data, {}),
     state = new Map(graph.tasks.map((task) => [task.id, task.state]));
   const counts = (scope) => {
