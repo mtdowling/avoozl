@@ -1004,7 +1004,7 @@ Then
 
 - Probe `landing` is `{"action":"fast-forward-base","base":"client-v2","tick":"own-commit","mergeBase":false,"deleteClaimBranch":true}`.
 
-### A group two landings left open with every child ticked is ticked in its own commit
+### Two siblings land at the same time and leave their group open, so the runner ticks it in its own commit
 
 Rules: [3.2](github-workflow.md#3-order). Case: `group-box-left-open`.
 
@@ -2761,7 +2761,7 @@ Then
 
 ### Rule 3.2
 
-- [A group two landings left open with every child ticked is ticked in its own commit](#a-group-two-landings-left-open-with-every-child-ticked-is-ticked-in-its-own-commit)
+- [Two siblings land at the same time and leave their group open, so the runner ticks it in its own commit](#two-siblings-land-at-the-same-time-and-leave-their-group-open-so-the-runner-ticks-it-in-its-own-commit)
 - [The task below a parallel group is ready once every child is ticked](#the-task-below-a-parallel-group-is-ready-once-every-child-is-ticked)
 - [A parallel group's children are ready together, in file order](#a-parallel-groups-children-are-ready-together-in-file-order)
 - [Each broken rule is refused, and clean specs are not](#each-broken-rule-is-refused-and-clean-specs-are-not)

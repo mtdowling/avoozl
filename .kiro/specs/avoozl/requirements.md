@@ -2756,8 +2756,11 @@ box someone checked.
    spec's `tasks.md` on the base branch. It SHALL be one commit, not a
    follow-up. Only the landed task's mark character SHALL change: the rest of
    the file stays byte-identical. Avoozl SHALL write no other commit for it.
-9. A parent SHALL be ticked only when every child is ticked, and only as a
-   result of a child's tick.
+9. A parent SHALL be ticked only when every child is ticked, as a result of
+   a child's tick. When two children land on bases that lack each other's
+   tick and leave the parent open with every child ticked, the runner that
+   next reads the base after that merge SHALL tick the parent in a commit of
+   its own that changes only that box.
 10. A spec in a plans repository other than the code repository SHALL be
     ticked there as its own commit on that repository's base branch, after
     the code lands: fetched, built on the fetched head, pushed without force,
