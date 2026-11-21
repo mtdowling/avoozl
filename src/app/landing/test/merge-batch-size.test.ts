@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The merge batch size limit (mb-1.1): the D2 rule, the setting and the
 // store round trip.
 import assert from "node:assert/strict";
@@ -12,12 +11,13 @@ import {
   failureRate,
   recordBatch,
   sizeLimit,
+  type SizeRecord,
   sizeRecord,
 } from "../merge-batch-size.ts";
 import { normalizeGitHubPolicy } from "../../github/github-policy.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-const landedAll = (record, n, waiting) =>
+const landedAll = (record: SizeRecord, n: number, waiting: number) =>
   afterBatch(record, { landed: n, held: n, waiting });
 
 test("the limit starts at 1 and grows by one only when more members waited", () => {
@@ -44,16 +44,21 @@ test("a culprit halves the limit, rounding down, and the floor is 1", () => {
 test("the ceiling follows the measured failure rate, 10% assumed below 5 results", () => {
   assert.equal(failureRate(["culprit", "culprit"]), 0.1);
   assert.equal(ceiling([]), 7);
-  const rate = (culprits, landed) => [
-    ...Array(culprits).fill("culprit"),
-    ...Array(landed).fill("landed"),
+  const rate = (culprits: number, landed: number) => [
+    ...Array<"culprit">(culprits).fill("culprit"),
+    ...Array<"landed">(landed).fill("landed"),
   ];
   assert.equal(ceiling(rate(1, 19)), 14, "5% gives 14");
   assert.equal(ceiling(rate(4, 16)), 3, "20% gives 3");
   assert.equal(ceiling(rate(0, 20)), 16, "no failures stops at 16");
   assert.equal(ceiling(rate(10, 10)), 1, "never below 1");
   // The limit never rises above the ceiling.
-  const high = { limit: 9, results: rate(10, 10), alone: [] };
+  const high: SizeRecord = {
+    limit: 9,
+    results: rate(10, 10),
+    alone: [],
+    last: [],
+  };
   assert.equal(afterBatch(high, { held: 0, waiting: 0 }).limit, 1);
 });
 
@@ -98,7 +103,7 @@ test("the record survives a restart, and a culprit stays alone until it lands", 
 });
 
 test("landing.mergeBatch is auto or a whole number from 1 to 16", () => {
-  const policy = (mergeBatch) =>
+  const policy = (mergeBatch: unknown) =>
     normalizeGitHubPolicy({
       repositories: {
         "acme/app": {

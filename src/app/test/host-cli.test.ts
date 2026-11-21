@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -12,7 +11,7 @@ import { temporaryDirectory } from "./temporary.ts";
 
 const cli = fileURLToPath(new URL("../../../cli.ts", import.meta.url));
 
-function invoke(args, env) {
+function invoke(args: string[], env: NodeJS.ProcessEnv) {
   return JSON.parse(
     execFileSync(process.execPath, [cli, ...args], {
       encoding: "utf8",
@@ -21,19 +20,20 @@ function invoke(args, env) {
   );
 }
 
-function invokeFailure(args, env) {
+function invokeFailure(args: string[], env: NodeJS.ProcessEnv) {
   try {
     execFileSync(process.execPath, [cli, ...args], {
       encoding: "utf8",
       env: { ...process.env, ...env },
     });
   } catch (error) {
-    return String(error.stderr || error.message);
+    const failed = error as Error & { stderr?: string };
+    return String(failed.stderr || failed.message);
   }
   assert.fail(`Expected command to fail: ${args.join(" ")}`);
 }
 
-function offlineHostEnvironment(machine) {
+function offlineHostEnvironment(machine: string) {
   const env = {
       XDG_CONFIG_HOME: path.join(machine, "config"),
       XDG_STATE_HOME: path.join(machine, "state"),
