@@ -541,6 +541,21 @@ export function printResult(run, tag, pass) {
   );
 }
 
+// The git, gh, Avoozl CLI and sleep helpers a proof script runs with.
+export function proofCommands(cliPath) {
+  return {
+    git: (cwd, ...args) =>
+      execFileSync("git", args, { cwd, encoding: "utf8" }).trim(),
+    gh: (...args) => execFileSync("gh", args, { encoding: "utf8" }).trim(),
+    cli: (...args) =>
+      execFileSync(process.execPath, [cliPath, ...args], {
+        encoding: "utf8",
+        env: process.env,
+      }),
+    sleep,
+  };
+}
+
 // A throwaway test crew's dashboard API (live-harness.sh) through its saved
 // sign-in cookie. A session that has lapsed is refreshed once with the
 // cookie's refresh part, as the dashboard itself does.

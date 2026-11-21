@@ -32,7 +32,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { installHarness, isolatedMachine } from "./machine.mjs";
+import { installHarness, isolatedMachine, proofCommands } from "./machine.mjs";
 import { ROWS } from "./ms-roles-rows.mjs";
 import { realClaude, realCodex } from "./real-claude.mjs";
 
@@ -117,15 +117,7 @@ const event = (kind, data = {}) => {
   );
   console.log(`[ms-roles] ${kind} ${JSON.stringify(data)}`);
 };
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const gh = (...args) => execFileSync("gh", args, { encoding: "utf8" }).trim();
-const cli = (...args) =>
-  execFileSync(process.execPath, [CLI, ...args], {
-    encoding: "utf8",
-    env: process.env,
-  });
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const { git, gh, cli, sleep } = proofCommands(CLI);
 const withStore = async (use) => {
   const { Store } = await import("../../src/app/store/store.mjs");
   const store = new Store(DB);
