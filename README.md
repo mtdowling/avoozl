@@ -212,7 +212,7 @@ The [docs](docs/README.md) cover the rest:
   approvals, claims and landing
 - [Delivery](docs/delivery.md) for workers, checks, landing, and merge batches
 - [GitHub](docs/github.md) for repository roles and GitHub modes
-- [Flow](docs/flow.md) for Stop the line and the retro skill
+- [Flow](docs/flow.md) for Stop the line, Insights and the retro skill
 - [Agents and the CLI](docs/agents.md) for roles and models, MCP tools, and
   person-only actions
 - [Agent skills](docs/agent-skills.md) for the answer, review and triage skills

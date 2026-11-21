@@ -64,9 +64,7 @@ function Strip(props: { items: StripItem[]; onOpen: (item: StripItem) => void })
             data-strip-item={item.key}
           >
             <Box as="span" aria-hidden="true" w2 h2 rounded="full" shrink0 css-background-color={STRIP_TONE[item.tone]} />
-            <Box as="span" tone="muted">
-              {item.label}
-            </Box>
+            <Hint>{item.label}</Hint>
             <Box as="span" weight="semibold" tabularNums>
               {item.value}
             </Box>
@@ -129,9 +127,7 @@ function BarRow(props: { label: string; value: string; share: number; tone?: str
         <Box as="span" truncate>
           {props.label}
         </Box>
-        <Box as="span" tabularNums tone="muted">
-          {props.value}
-        </Box>
+        <Hint tabularNums>{props.value}</Hint>
       </Box>
       <Box h2 rounded="full" overflow="hidden" css-background={'mix-muted-12%-transparent'}>
         <Box hFull rounded="full" css-width={`${Math.round(Math.max(0.02, props.share) * 100)}%`} css-background-color={props.tone ?? TONE.accent} />
@@ -142,14 +138,14 @@ function BarRow(props: { label: string; value: string; share: number; tone?: str
 
 function Legend(props: { items: [string, string][] }) {
   return (
-    <Box flex flexWrap gap="3" size="xs" tone="muted">
+    <Hint as="div" flex flexWrap gap="3" size="xs">
       {props.items.map(([label, color]) => (
         <Box as="span" key={label} inlineFlex items="center" gap="1">
           <Box as="span" aria-hidden="true" w2 h2 rounded="full" css-background-color={color} />
           {label}
         </Box>
       ))}
-    </Box>
+    </Hint>
   )
 }
 
@@ -161,9 +157,7 @@ function Burndown(props: { spec: string; points: View['burndown'][number]['point
         <Box as="span" weight="medium" truncate>
           {props.spec}
         </Box>
-        <Box as="span" tone="muted" tabularNums>
-          max {max}
-        </Box>
+        <Hint tabularNums>max {max}</Hint>
       </Box>
       <Chart label={`${props.spec}: ${burndownLine(props.points)}`}>
         <SvgPath d={open} fill="none" strokeWidth={1.5} strokeDasharray="4 2" css-stroke={TONE.purpleOrAccent} />
@@ -204,9 +198,9 @@ function Retros(props: { items: RetroItem[] | null; onOpen: (item: RetroItem) =>
                   <Box as="span" truncate flex1 minW0>
                     {item.title}
                   </Box>
-                  <Box as="span" size="xs" tone="muted" tabularNums shrink0>
+                  <Hint size="xs" tabularNums shrink0>
                     {retroWhen(item.at)}
-                  </Box>
+                  </Hint>
                 </PlainButton>
               </li>
             ))}

@@ -360,11 +360,12 @@ follows them.
 
 ## D13. The page
 
-The page keeps six views. Each reads one or two operations and writes only
-through operations the CLI or MCP also reach.
+The page keeps seven views and opens on Insights. Each reads one or two
+operations and writes only through operations the CLI or MCP also reach.
 
 | View | What it is for | What it shows | Actions |
 | --- | --- | --- | --- |
+| Insights | See how work is going, read only | `insights.view`: a strip of the Needs you count, claims in flight, ready tasks, main's check state from the line watch and whether `loop` (Autopilot) is on, each linking to its view; each spec's burndown (open and ticked tasks) from the commits that changed its task list on the specs branch; tasks finished per day, lead time per task, time per stage, review rounds and rework from the local telemetry store; filters by spec, repository and 7, 30 or 90 days in the nav; saved retros newest first (`retro.list`), each opening in the file reader (`retro.read`) | Run a retro (Run in a chat with `avoozl-retro`) |
 | Specs | Read specs; approval stays an approver's commit on GitHub | spec list by category; a spec's tabs: Overview (its graph block rendered, counts), Tasks, one tab per file | Run in a chat: write a spec, review a spec |
 | Graph | See what is ready across specs | `graphOf` for a spec, an epic or all, with state colors and drill-in | Run in a chat: work this task |
 | In flight | See what runs now | each live session; each claim branch: task, holder, newest commit and age, check state on its head, pull request link; each lane on this machine: role, state, task; integration branch lag | Send message, Stop the line, Open or copy a lane's session, Land (when checked) |
@@ -380,12 +381,19 @@ branch, pull request, checks and landed commit.
 a Kiro Crew chat when the page runs inside Kiro Crew, else a process session
 of the worker harness. It reuses `chat-api.ts` and `design-chat.ts`.
 Edit spec seeds `avoozl-spec`, Review spec `avoozl-spec-review`, a task
-`avoozl-work`, and a Needs you item `avoozl`. On the standalone page the
+`avoozl-work`, a Needs you item `avoozl`, and Run a retro `avoozl-retro`. On the standalone page the
 session runs read-only as `assist`, on the worker's harness unless
 Settings › Models names one for `assist`.
 
 Everything else is a skill or an MCP call: writing and reviewing specs,
-retros, investigations, code review and Flow numbers.
+running retros, investigations, code review and Flow numbers.
+
+Insights calls no GitHub API: the strip reads the store, the burndown reads
+git history already fetched, and the charts read `telemetry_spans` and
+`telemetry_points`. `avoozl insights` prints the same numbers. A retro's
+report is saved by `retro.save`, the `avoozl-retro` skill's one write, as
+`.avoozl/local/retros/<YYYY-MM-DD-HHMM>-<scope>.md` (UTC); `avoozl retro list`
+and `avoozl retro read NAME` read them.
 
 ## D14. Module audit: `src/app`
 
@@ -433,6 +441,7 @@ Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
 
 | Group | Lines | Verdict | Files |
 | --- | ---: | --- | --- |
+| Insights | 546 | keep | `InsightsView`, `insights-api` |
 | Specs | 4685 | keep | `PlansView`, `plans-api`, `SpecGraph`, `EpicPanel`, `DocumentReader`, `markdown`, `spec-link`, `TaskRefs`, `files-api` |
 | Graph | 2952 | keep | `GraphView`, `graph-layout`, `FocusTree`, `focus-tree`, `EdgeList`, `drag-pan` |
 | In flight | 1891 | keep | `DeliveryView`, `DeliveryDetails`, `delivery-api`, `InFlight`, `InFlightClaims`, `in-flight-api` (from `dashboard-api`), `IntegrationBranches`, `WorkerLink`, `ReviewState`, `StopLine`, `line-api` (the stop-the-line part of `flow-api`) |
@@ -443,7 +452,7 @@ Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
 | Run in a chat | 133 | keep, reshaped | `chat-api`, `design-chat`, `panel-chat` |
 | Shell and shared parts | 6052 | keep | `App`, nav files, list-detail files, filters, `Picker`, refresh files, `WorkspaceView`, `WorkspacePill`, small parts |
 | Dashboards: Home, Landing queue | 2030 | cut | `DashboardView`, `HomeParts`, `StatTile`, `home-api`, `LandingQueueView`, `landing-queue-api`, `recap-api`, `release-api` |
-| Flow and Retros | 2754 | cut (skill `avoozl-retro`) | `FlowView`, `FlowCharts`, `FlowBuilds`, `FlowRail`, `FlowMemory`, `flow-api`, `RetrosView`, `CiFlow`, `PlanningFlow`, `builds-api`, `providers-api` |
+| Flow and Retros | 2754 | cut (skill `avoozl-retro`; Insights lists its saved reports) | `FlowView`, `FlowCharts`, `FlowBuilds`, `FlowRail`, `FlowMemory`, `flow-api`, `RetrosView`, `CiFlow`, `PlanningFlow`, `builds-api`, `providers-api` |
 | Plan review | 1310 | cut (skill `avoozl-spec-review`) | `ReviewView`, `review-view`, `PlanReviewDecision`, `PlanReviewSummary` |
 | Task extras | 1824 | cut | `TaskFiles`, `TaskNotes`, `notes-api`, `TaskSteps`, `TaskSummaryBox`, `Evidence`, `evidence-api`, `TaskForm`, `CitedFile` |
 | Setup tower | 2822 | cut | `Onboard`, `onboarding-api`, `SetupWizard`, `setup-api`, `setup-facts`, `Demo`, `demo-api`, `TemplateStart`, `PackImport`, `InstanceName`, `instance-api`, `WorkflowMap`, `workflow-map` |
@@ -452,7 +461,7 @@ Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
 | Side panel | 1200 | cut | `Panel`, `PanelParts`, `panel-api` |
 | Removed by in-flight work | 1976 | in flight | `MirrorSetup`, `mirror-setup-api`, `ForwardScreen`, `forward-api`, `SpecPullBox`, `SpecPullDecision`, `spec-pr-api`, `GitHubItemsView`, `github-items-api`, `TriageAgentView`, `TriageSetup` |
 
-The kept groups hold 26812 lines; the cut groups hold 15151.
+The kept groups hold 27358 lines; the cut groups hold 15151.
 
 ## D16. Example: a large rewrite on an integration branch
 

@@ -17,7 +17,8 @@ itself, and lands it. These pages say how to set it up and how each part works.
 - [Delivery](delivery.md): workers, checks, landing and merge batches.
 - [People and machines](scale-out.md): spec lanes per person, shared state
   in git, headless machines and harnesses per role.
-- [Flow](flow.md): when work pauses, Stop the line, and the retro skill.
+- [Flow](flow.md): when work pauses, Stop the line, Insights and the retro
+  skill.
 - [Telemetry](telemetry.md): task timing kept locally, and sent over
   OpenTelemetry when this machine's owner turns it on.
 - [Agents and the CLI](agents.md): roles and models, MCP tools and

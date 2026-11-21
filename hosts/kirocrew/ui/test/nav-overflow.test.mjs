@@ -200,7 +200,7 @@ test('every icon on Specs, in the nav and the phone menu draws a glyph', {
     [390, 844],
   ]) {
     await page.open(harness.url({ page: 'app', theme: 'light', needs: '3' }), { width, height })
-    await page.until(`Boolean(document.querySelector('[data-plans-list]')) || Boolean(document.querySelector('[data-top-rail-bar]'))`)
+    await page.until(`Boolean(document.querySelector('[data-insights]')) || Boolean(document.querySelector('[data-top-rail-bar]'))`)
     await wait(500)
     if (width < 768) {
       await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)

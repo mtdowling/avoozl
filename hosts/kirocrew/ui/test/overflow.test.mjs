@@ -8,6 +8,7 @@ import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 import { demoReplies, demoScript } from './browser/demo-replies.mjs'
+import { specs } from './browser/in-flight-nav.mjs'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the overflow test'
@@ -68,6 +69,7 @@ async function goto(name) {
 for (const dark of [false, true])
   test(`at 390 px ${dark ? 'dark' : 'light'}: nothing on Specs or Needs you is wider than its container`, { skip }, async () => {
     await start(dark)
+    await specs(page)
     await page.until(`Boolean(document.querySelector('[data-plans-list]'))`, 15000)
     assert.deepEqual(await page.evaluate(OVERFLOWS), [], 'Specs')
     await goto('Needs you')
