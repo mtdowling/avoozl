@@ -28,7 +28,7 @@ import { pluginOptionsOf } from "../plugins/plugin-checks.mjs";
 import { enqueueLanding } from "./landing-queue.mjs";
 import { privacyScan, verifiedEvidence } from "../landing/push-head.mjs";
 import { mergeBaseBack } from "../specs/spec-base.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { checkApplies } from "../workspace/repository-checks.mjs";
 import { commitSubject } from "./landing-config.mjs";
 

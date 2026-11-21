@@ -20,7 +20,7 @@ import {
   specCategory,
   specEpic,
 } from "../specs/spec-plans.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { planPage } from "../api/views.mjs";
 import { person, routed } from "../api/operation-policy.mjs";
 import { taskFile } from "../specs/spec-tasks.mjs";

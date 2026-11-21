@@ -9,7 +9,7 @@ import test from "node:test";
 import { deliveryPolicy } from "../delivery/delivery.mjs";
 import { drainCheckRuns } from "../delivery/check-runs.mjs";
 import { Operations } from "../api/operations.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { queryTasks } from "../../model.mjs";
 import { commitIn, fakeCrew, git } from "./fake-crew.mjs";
 import { snapshot } from "./fixtures.mjs";

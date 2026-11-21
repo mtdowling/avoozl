@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";

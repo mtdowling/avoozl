@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { Store, fail } from "../store/store.mjs";
+import { Store, fail } from "../store/store.ts";
 import { workspaceConfig } from "../settings/config.mjs";
 import { Operations } from "../api/operations.mjs";
 import { generateNamespace } from "../github/github-marker.mjs";

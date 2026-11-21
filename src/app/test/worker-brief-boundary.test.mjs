@@ -12,7 +12,7 @@ import {
 } from "../delivery/delivery.mjs";
 import { Operations } from "../api/operations.mjs";
 import { rolePrompt } from "../agents/prompts.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

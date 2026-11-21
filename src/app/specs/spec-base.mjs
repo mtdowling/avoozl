@@ -13,7 +13,7 @@
 //   forced here.
 import { branchRefs, branchTip, git } from "../git/git.mjs";
 import { branchNameProblem } from "../epics/integration-branch.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const SHA = /^[0-9a-f]{40}$/;
 const SPEC = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;

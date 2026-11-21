@@ -24,7 +24,7 @@ import {
 import { pluginSession } from "./plugin-session.mjs";
 import { jsonLines } from "./child-io.mjs";
 import { mappingHash, validateChecksPart } from "./plugin-checks.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import {
   contextHash,
   contextView,

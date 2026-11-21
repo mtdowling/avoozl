@@ -7,7 +7,7 @@
 // a link.
 import { execFile } from "node:child_process";
 import { check } from "../content/content-rules.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const SINK_KINDS = Object.freeze(["command", "webhook"]);
 export const COMMAND_SINK_KEYS = Object.freeze([

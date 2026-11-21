@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { digest } from "../../../model.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { integrateVerified } from "../../delivery/delivery.mjs";
 import { landDirect } from "../../landing/direct-landing.mjs";
 import { Operations } from "../../api/operations.mjs";

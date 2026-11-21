@@ -10,7 +10,7 @@ import {
   harnessDefinitionHash,
 } from "../executors/harness-definitions.mjs";
 import { Operations } from "../api/operations.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

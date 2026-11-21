@@ -22,7 +22,7 @@ import {
 import { enforce, findingText } from "../content/content-rules.mjs";
 import { readPluginSettings } from "../plugins/plugins.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
-import { canonical, fail } from "../store/store.mjs";
+import { canonical, fail } from "../store/store.ts";
 import { GITHUB_VIA, validateGitHubSource } from "../github/github-sources.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 

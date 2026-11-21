@@ -16,7 +16,7 @@ import {
 } from "../../delivery/delivery.mjs";
 import { mcpRefusal } from "../../mcp/mcp-policy.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { leaf as fixtureLeaf } from "../../test/delivery-fixture.mjs";

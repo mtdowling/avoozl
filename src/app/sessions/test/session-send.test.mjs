@@ -28,7 +28,7 @@ import {
 } from "../../executors/supervisor.mjs";
 import { drainProcessRequests } from "../../executors/process.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 
 function workspace(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-send-"));

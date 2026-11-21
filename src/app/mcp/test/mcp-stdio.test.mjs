@@ -10,7 +10,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { handleMcp } from "../mcp.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { Operations } from "../../api/operations.mjs";
 import { workspaceConfig } from "../../settings/config.mjs";
 import { ownMachineEnv } from "../../test/own-machine.mjs";

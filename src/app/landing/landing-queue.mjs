@@ -25,7 +25,7 @@
 import { withWorkLock } from "../git/git.mjs";
 import { openStops } from "../flow/flow.mjs";
 import { outputExcerpt } from "../delivery/verify.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { checkKey } from "../workspace/repository-checks.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;

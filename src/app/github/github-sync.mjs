@@ -3,7 +3,7 @@
 // issues.
 import { randomUUID } from "node:crypto";
 import os from "node:os";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { parseRepository } from "./github.mjs";
 
 export function machineIdentity(store) {

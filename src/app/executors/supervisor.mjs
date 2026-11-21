@@ -15,7 +15,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { withoutPushCredentials } from "../git/git.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import {

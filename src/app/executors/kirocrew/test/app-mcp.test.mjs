@@ -10,7 +10,7 @@ import { workspaceConfig } from "../../../settings/config.mjs";
 import { WorkspaceRegistry } from "../../../settings/host-config.mjs";
 import { Operations } from "../../../api/operations.mjs";
 import { enqueueSessionRequests } from "../../../sessions/session-requests.mjs";
-import { Store } from "../../../store/store.mjs";
+import { Store } from "../../../store/store.ts";
 import { initializeWorkspace } from "../../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../../test/temporary.mjs";
 import { runOwnMachine } from "../../../test/own-machine.mjs";

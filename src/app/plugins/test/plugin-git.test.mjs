@@ -25,7 +25,7 @@ import {
   updateNeedsYou,
 } from "../plugin-updates.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const FIXTURE = path.join(

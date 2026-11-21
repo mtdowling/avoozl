@@ -17,7 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { digest } from "../../model.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { TASK_KINDS } from "../../work-model.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import { specFolderPath, specsDirectory } from "./specs-path.mjs";

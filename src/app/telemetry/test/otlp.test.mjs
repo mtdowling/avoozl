@@ -1,7 +1,7 @@
 // ot-3.2: trace and metric bodies (OT7, OT8, §D7, §D9, OT14.4).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { BOUNDS, buildMetrics, buildTrace } from "../otlp.mjs";
 import { finishTask, point, registerExporter, span } from "../record.mjs";
 

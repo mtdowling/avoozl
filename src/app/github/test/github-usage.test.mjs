@@ -10,7 +10,7 @@ import path from "node:path";
 import test from "node:test";
 import { GitHubClient } from "../github.mjs";
 import { rateView, withSource, countFilePath } from "../github-rate.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const T0 = Date.parse("2026-11-15T10:00:00Z");

@@ -2,7 +2,7 @@ import { frontMatter } from "../../front-matter.mjs";
 import { digest } from "../../model.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { taskAuthority, taskRepository } from "../../work-model.mjs";
-import { recordActivity, recordOperation } from "../store/activity-log.mjs";
+import { recordActivity, recordOperation } from "../store/activity-log.ts";
 import { statusComplete } from "../../query.mjs";
 import {
   bindContentRules,
@@ -69,7 +69,7 @@ import {
   taskCodeChanges,
 } from "./operation-support.mjs";
 import { OPERATIONS } from "./operation-table.mjs";
-import { flushOutbox } from "../store/outbox.mjs";
+import { flushOutbox } from "../store/outbox.ts";
 import { processGrants, withJob } from "../github/github-jobs.mjs";
 import {
   credentialsNeedsYou,
@@ -138,7 +138,7 @@ import {
   baseTasks,
   tickCommits,
 } from "../specs/spec-ticks.mjs";
-import { canonical, fail } from "../store/store.mjs";
+import { canonical, fail } from "../store/store.ts";
 import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
 import { syncWorkspaceRepository } from "../workspace/workspace-repository.mjs";
 import { randomUUID } from "node:crypto";

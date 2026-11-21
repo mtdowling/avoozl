@@ -18,7 +18,7 @@ import { kirocrewSession, kirocrewDispatches } from "../executors/kirocrew.mjs";
 // leaves when `.avoozl.json` turns delivery on, and one verifier per worker
 // done report. On the cron it also reads and writes GitHub: completion,
 // broad-issue publishing, re-projection and the Project board.
-import { recordActivity, recordTickActivity } from "../store/activity-log.mjs";
+import { recordActivity, recordTickActivity } from "../store/activity-log.ts";
 import fs from "node:fs";
 import { crewSnapshot, machineFile } from "./crews.mjs";
 import { validateLanes } from "./lanes.mjs";
@@ -53,7 +53,7 @@ import {
   reconcileVerifications,
   summaryLine,
 } from "../delivery/delivery.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import {
   FINAL_STATUSES,
   listSessionBindings,

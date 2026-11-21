@@ -4,7 +4,7 @@
 // entry; nothing here decides whether a check applies.
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { canonical } from "../store/store.mjs";
+import { canonical } from "../store/store.ts";
 import { commandEvidence, git } from "../git/git.mjs";
 import { isolatedCheck } from "../workspace/check-isolation.mjs";
 import { checkResult, matchesPath } from "../delivery/verify.mjs";

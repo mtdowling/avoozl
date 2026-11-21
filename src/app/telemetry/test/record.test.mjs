@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import {
   dropSpan,
   exporters,

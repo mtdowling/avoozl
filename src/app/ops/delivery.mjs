@@ -20,7 +20,7 @@ import { lanesView, resumeLane } from "../sessions/lane-sessions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { processSessionDetails } from "../executors/process-view.mjs";
 import { landTask } from "../landing/land-task.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { laneWorkspace, readDeliveryPolicy } from "../tick/tick.mjs";
 import { allowProtectedPaths } from "../delivery/verify.mjs";
 import { machineLinks } from "../tick/crews.mjs";

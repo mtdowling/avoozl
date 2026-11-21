@@ -32,7 +32,7 @@ import { tickEntry } from "../specs/spec-ticks.mjs";
 import { sendConflictBack } from "./landing-conflicts.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
 import { finishLanded } from "./landed-work.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { landingSpecOf } from "../specs/labeled-issues.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
 import { pluginChecksOf } from "../plugins/plugin-checks.mjs";

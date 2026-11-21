@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import os from "node:os";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { EXECUTOR_CONTRACT } from "./executors.mjs";
 import { readMachineEnv } from "./machine-env.mjs";
 import { harnessStartProblem } from "./harness-ready.mjs";

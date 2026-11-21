@@ -14,8 +14,8 @@ import {
   crewHomeAvoozlDirectory,
 } from "./layered-config.mjs";
 import { workspaceConfig } from "./config.mjs";
-import { CatalogStore } from "../store/catalog-store.mjs";
-import { Store } from "../store/store.mjs";
+import { CatalogStore } from "../store/catalog-store.ts";
+import { Store } from "../store/store.ts";
 import {
   HOST_CONFIG_SCHEMA_URL,
   REPOSITORY_CONFIG_SCHEMA_URL,

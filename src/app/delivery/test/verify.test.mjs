@@ -9,7 +9,7 @@ import test from "node:test";
 import { checkRuns, drainCheckRuns, queueCheckRun } from "../check-runs.mjs";
 import { flowPolicy } from "../../flow/flow.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import {
   allowProtectedPaths,
   checkTimeout,

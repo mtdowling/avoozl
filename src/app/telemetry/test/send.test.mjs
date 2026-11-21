@@ -1,7 +1,7 @@
 // ot-3.3: queue, send and retry (OT10.2 to OT10.8, OT12.2 to OT12.6).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { readTelemetryConfig } from "../config.mjs";
 import { createQueue } from "../queue.mjs";
 import { finishTask, point, registerExporter, span } from "../record.mjs";

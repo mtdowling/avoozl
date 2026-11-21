@@ -5,7 +5,7 @@
 // on a prompt. `git push` is never allowed, in any spelling or through any
 // wrapper, and listing it is refused.
 import path from "node:path";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { fillHarnessArgv } from "./harness-definitions.mjs";
 
 // Programs that run another command given as arguments. Allowing one would

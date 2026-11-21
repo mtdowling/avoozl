@@ -69,7 +69,9 @@ export const nodeTestFiles = () =>
       "-co",
       "--exclude-standard",
       "src/*.test.mjs",
+      "src/*.test.ts",
       "src/app/*test/*.test.mjs",
+      "src/app/*test/*.test.ts",
     ]),
   ].sort();
 export const uiTestFiles = () =>
@@ -78,6 +80,7 @@ export const uiTestFiles = () =>
     "-co",
     "--exclude-standard",
     "hosts/kirocrew/ui/test/*.test.mjs",
+    "hosts/kirocrew/ui/test/*.test.ts",
   ]).sort();
 
 // The local files a module imports, by static import, re-export, or a
@@ -110,7 +113,8 @@ function closure(entry, cache = new Map()) {
 }
 
 // A test that starts a node process may run any file the command line loads.
-const STARTS_PROCESS = /process\.execPath|cli\.mjs|avoozl\.mjs|\bfork\s*\(/;
+const STARTS_PROCESS =
+  /process\.execPath|cli\.(mjs|ts)|avoozl\.mjs|\bfork\s*\(/;
 const SPAWN_ENTRIES = ["cli.mjs", "hosts/kirocrew/bin/avoozl.mjs"];
 
 const directImports = (file) => {
@@ -119,7 +123,7 @@ const directImports = (file) => {
     path.posix.join(path.posix.dirname(file), m[1]),
   );
 };
-const base = (f) => path.posix.basename(f).replace(/\.test\.mjs$/, "");
+const base = (f) => path.posix.basename(f).replace(/\.test\.(mjs|ts)$/, "");
 const pick = (names, files) =>
   files.filter((f) => IN_TEST_DIR.test(f) && names.includes(base(f)));
 
@@ -143,7 +147,7 @@ export function select(
     srcChanged = [];
   for (const f of changed) {
     if (out.full) break;
-    const isTest = /\.test\.mjs$/.test(f);
+    const isTest = /\.test\.(mjs|ts)$/.test(f);
     if (f === "scripts/test/run-tests.ts")
       full(`${f}: the selector or runner changed`);
     else if (/^scripts\/proofs\//.test(f)) {
@@ -174,9 +178,9 @@ export function select(
     } else if (f.startsWith("hosts/kirocrew/") && !/\.md$/.test(f))
       full(`${f}: app file`);
     else if (f.startsWith("prompts/")) full(`${f}: prompt read at run time`);
-    else if (/^src\/.+\.mjs$/.test(f)) srcChanged.push(f);
+    else if (/^src\/.+\.(mjs|ts)$/.test(f)) srcChanged.push(f);
     else if (f.startsWith("src/")) full(`${f}: non-module file under src`);
-    else if (f === "cli.mjs") srcChanged.push(f);
+    else if (f === "cli.mjs" || f === "cli.ts") srcChanged.push(f);
     else if (f.startsWith("examples/")) {
       for (const t of pick(READS.examples, all)) out.node.add(t);
       out.reasons.push(`${f}: example read by tests`);

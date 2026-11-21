@@ -8,7 +8,7 @@
 // per role, and only a person's **Run on** moves that role to a harness.
 import { ROLE_TABLE, rowFor } from "../agents/role-table.mjs";
 import { pendingSessionRequests } from "../sessions/session-requests.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { recordWaitingRoles } from "./waiting-roles.mjs";
 
 // Operations name the readers they call (the Operations context keys); a

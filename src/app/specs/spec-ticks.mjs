@@ -12,7 +12,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { git, remoteGit } from "../git/git.mjs";
 import { commitSubject } from "../landing/landing-config.mjs";
-import { recordActivity } from "../store/activity-log.mjs";
+import { recordActivity } from "../store/activity-log.ts";
 import { FINAL_STATUSES } from "../sessions/session-bindings.mjs";
 import { checkedItems, specItems } from "./spec-plans.mjs";
 import { linkDefinitions, specGroupOf } from "./order.mjs";

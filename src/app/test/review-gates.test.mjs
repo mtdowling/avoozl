@@ -16,7 +16,7 @@ import {
 } from "../delivery/delivery.mjs";
 import { drainCheckRuns } from "../delivery/check-runs.mjs";
 import { Operations } from "../api/operations.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { gitCheckout } from "./delivery-fixture.mjs";

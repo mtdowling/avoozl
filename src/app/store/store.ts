@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 import crypto from "node:crypto";
 import { reconcileSpecDependencies } from "../../spec-dependencies.mjs";
 import { DatabaseSync } from "node:sqlite";

@@ -9,7 +9,7 @@ import test from "node:test";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

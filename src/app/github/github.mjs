@@ -6,7 +6,7 @@ import {
   rateLimitError,
   resourceOf,
 } from "./github-rate.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { WritePacer } from "./github-pacer.mjs";
 import {
   tokenTransportAllowed,

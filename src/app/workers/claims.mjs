@@ -2,7 +2,7 @@
 // on a task. Creating it is the claim; GitHub's refs create call refuses a
 // second one with 422, so two runners never hold one task. The cache keeps
 // the branches each read saw, so a rebuilt cache finds every claim again.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { asJob, confirmStep } from "../github/github-jobs.mjs";
 import { git, remoteGit } from "../git/git.mjs";
 

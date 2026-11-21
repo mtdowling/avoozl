@@ -3,7 +3,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
 import { validateLinks } from "../api/direct-links.mjs";
 

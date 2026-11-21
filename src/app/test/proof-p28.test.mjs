@@ -14,7 +14,7 @@ import { snapshot } from "./fixtures.mjs";
 import { pathToFileURL } from "node:url";
 import { handleMcp } from "../mcp/mcp.mjs";
 import { Operations } from "../api/operations.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { writePluginSettings } from "../plugins/plugins.mjs";
 import {
   check,

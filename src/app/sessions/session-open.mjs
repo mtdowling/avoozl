@@ -14,7 +14,7 @@ import {
 import { enqueueSessionRequests } from "./session-requests.mjs";
 import { SEND_MAX_CHARS } from "./session-send.mjs";
 import { processSessionDetails } from "../executors/process-view.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const OPEN_KIND = "assist-session";
 const DEFAULT_ROLE = "assist";

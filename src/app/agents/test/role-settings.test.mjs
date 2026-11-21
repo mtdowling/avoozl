@@ -12,7 +12,7 @@ import {
 import { deliveryPolicy } from "../../delivery/delivery.mjs";
 import { RepositorySettings } from "../../settings/repository-settings.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 test("a role's auto model is no model", () => {

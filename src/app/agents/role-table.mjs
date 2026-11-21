@@ -7,7 +7,7 @@
 // the task's `session.harness` pin, then the role's saved harness, then the
 // repository's executor.
 import { decideOutput } from "../plugins/decide-output.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 // The executor a repository's sessions run on: its `executor` setting, else
 // `kirocrew` (R93.5; a repository opts in, as the Nupp compiler's does).

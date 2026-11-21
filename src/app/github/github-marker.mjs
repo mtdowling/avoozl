@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { COMPLETIONS, TASK_KINDS } from "../../work-model.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { secretReason } from "../workspace/workspace-repository.mjs";
 
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";

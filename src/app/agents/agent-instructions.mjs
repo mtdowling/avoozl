@@ -1,6 +1,6 @@
 import { taskEpic } from "../epics/epics.mjs";
 import { digest } from "../../model.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
   "all",

@@ -1,4 +1,4 @@
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import {
   startRequest,
   takeSessionRequest,

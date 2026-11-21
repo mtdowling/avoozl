@@ -4,7 +4,7 @@
 // reads the commit and runs the checks. The tick stays the one dispatcher: it
 // leaves a taken task alone because the ready query skips every task with a
 // live worker session (busyTaskIds), and a take is one.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { cliCommand } from "./report-command.mjs";
 import {
   busyTaskIds,

@@ -4,7 +4,7 @@
 // the default branch, it exists, and it is protected.
 import { parseRepository } from "../github/github.mjs";
 import { ruleBranch } from "../github/github-branch-rules.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { specFacts } from "../specs/spec-plans.mjs";
 import { specTasks } from "../specs/spec-tasks.mjs";
 

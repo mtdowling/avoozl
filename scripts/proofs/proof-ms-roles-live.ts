@@ -120,7 +120,7 @@ const event = (kind, data = {}) => {
 };
 const { git, gh, cli, sleep } = proofCommands(CLI);
 const withStore = async (use) => {
-  const { Store } = await import("../../src/app/store/store.mjs");
+  const { Store } = await import("../../src/app/store/store.ts");
   const store = new Store(DB);
   try {
     return await use(store);

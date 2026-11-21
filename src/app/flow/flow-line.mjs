@@ -21,7 +21,7 @@ import {
   putStop,
   stopScope,
 } from "./flow.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { taskRepository } from "../../work-model.mjs";
 import {
   INTERRUPTED,

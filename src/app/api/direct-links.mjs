@@ -7,7 +7,7 @@
 // IDs and the owner's machine settings, never from text a request supplied,
 // so no link can point off this page or at another host's path.
 import { randomBytes } from "node:crypto";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 export const APP_PATH = "/apps/avoozl";
 // An occurrence ID: 16 random bytes, base64url.

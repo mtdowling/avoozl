@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../../api/operations.mjs";
 import { readyCandidates } from "../../delivery/delivery.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { fixture } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 

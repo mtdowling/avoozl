@@ -18,7 +18,7 @@ import { chatModel, roleRun } from "../agents/role-table.mjs";
 import { waitsOnKirocrew } from "../tick/needs-kirocrew.mjs";
 import { statusComplete } from "../../model.mjs";
 import { taskRepository } from "../../work-model.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { recordSpan } from "../flow/flow.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
 import { pluginChecksOf } from "./plugin-checks.mjs";

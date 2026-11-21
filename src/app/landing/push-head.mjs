@@ -15,7 +15,7 @@ import { branchNameProblem } from "../epics/integration-branch.mjs";
 import { enforce, pushLines } from "../content/content-rules.mjs";
 import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
 import { privacyHits, privacyRules } from "../content/privacy.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const SHA = /^[0-9a-f]{40}$/;

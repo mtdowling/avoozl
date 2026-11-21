@@ -5,7 +5,7 @@
 // child's sandbox already hides, and its values are never logged or shown.
 import fs from "node:fs";
 import path from "node:path";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 export const machineEnvPath = (configDirectory) =>
   path.join(path.resolve(configDirectory), "machine.env");

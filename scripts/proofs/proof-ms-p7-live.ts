@@ -190,7 +190,7 @@ async function setup() {
     : { version: 1 };
   machine.loop = { run: ["specs"] };
   fs.writeFileSync(machineFile, JSON.stringify(machine, null, 2) + "\n");
-  const { Store } = await import("../../src/app/store/store.mjs");
+  const { Store } = await import("../../src/app/store/store.ts");
   const store = new Store(DB);
   try {
     store.put("repositories", {
@@ -220,7 +220,7 @@ const listSlots = () => {
 };
 
 async function state() {
-  const { Store } = await import("../../src/app/store/store.mjs");
+  const { Store } = await import("../../src/app/store/store.ts");
   const store = new Store(DB);
   try {
     const delivery = store.get("task_deliveries", TASK);

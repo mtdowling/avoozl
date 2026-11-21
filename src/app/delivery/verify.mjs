@@ -7,7 +7,7 @@
 import { PUBLISH_RULES, secretReason } from "../content/content-rules.mjs";
 import { baseRef, commandEvidence, git, taskGit } from "../git/git.mjs";
 import { checkOptions, prepareChecks } from "../workspace/check-isolation.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 // Protected by default in every repository (R86.6): CI workflows and the
 // worktree helper a person approved by hash (R83.4).

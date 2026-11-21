@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { GitHubClient, personOf } from "../github.mjs";
 import { RateState, readRate } from "../github-rate.mjs";
 import { WritePacer } from "../github-pacer.mjs";

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { drainCheckRuns } from "../../delivery/check-runs.mjs";
 import { workspaceConfig } from "../../settings/config.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.mjs";
 import { gitCheckout } from "../../test/delivery-fixture.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";

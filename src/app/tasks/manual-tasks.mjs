@@ -6,7 +6,7 @@
 import { statusComplete } from "../../model.mjs";
 import { isManual } from "../../work-model.mjs";
 import { recordSpan } from "../flow/flow.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const CHOICES = Object.freeze(["done", "skipped", "refused"]);
 

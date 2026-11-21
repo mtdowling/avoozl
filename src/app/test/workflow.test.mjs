@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { canonical } from "../store/store.mjs";
+import { canonical } from "../store/store.ts";
 import { Operations } from "../api/operations.mjs";
 import { repositoryConfig, git, integrateRun } from "../git/git.mjs";
 import {
@@ -12,7 +12,7 @@ import {
   recordedRun,
   validateRun,
 } from "./fixtures.mjs";
-import { flushOutbox } from "../store/outbox.mjs";
+import { flushOutbox } from "../store/outbox.ts";
 
 test("SQLite initialize round trips every record and unknown metadata", (t) => {
   const { store } = fixture(t);

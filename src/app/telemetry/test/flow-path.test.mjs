@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { gatewayUsageTurns } from "../../executors/kirocrew.mjs";
 import { listSpans, putStop, syncSpans, taskTiming } from "../../flow/flow.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { seedSpan, snapshot } from "../../test/fixtures.mjs";
 import { recordUsage } from "../usage.mjs";
 

@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { listActivity } from "../../store/activity-log.mjs";
+import { listActivity } from "../../store/activity-log.ts";
 import { conflictsView } from "../../api/page-views.mjs";
 import { tick, tickHealthPath } from "../tick.mjs";
 import {

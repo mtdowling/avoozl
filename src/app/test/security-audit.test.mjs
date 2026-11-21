@@ -103,7 +103,7 @@ test("a repository branch that starts with a dash is refused", (t) => {
 test("a new database and its folders are private; old ones are tightened", {
   skip: process.platform === "win32" && "Node maps no modes on Windows",
 }, async () => {
-  const { Store, privateFile } = await import("../store/store.mjs");
+  const { Store, privateFile } = await import("../store/store.ts");
   const mode = (file) => fs.statSync(file).mode & 0o777;
   const root = temporaryDirectory("avoozl-private-"),
     db = path.join(root, ".avoozl", "local", "workspace.sqlite");

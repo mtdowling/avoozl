@@ -7,7 +7,7 @@ import { sessionUrl } from "../tick/notifications.mjs";
 import { checkCommand } from "../workspace/repository-checks.mjs";
 import { promptVersions, roleTarget } from "../agents/prompts.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import path from "node:path";
 import { specFolderPath } from "../specs/specs-path.mjs";
 import { taskFile } from "../specs/spec-tasks.mjs";

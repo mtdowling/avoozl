@@ -8,7 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../../settings/config.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { tickWorkspace } from "../tick-pass.mjs";
 import {
