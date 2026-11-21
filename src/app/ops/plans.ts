@@ -79,6 +79,24 @@ function epicListHandler(this: Operations, { name, input }: OperationCall) {
   };
 }
 
+// The stored spec plan `id`, or a refusal: `only` says why only a spec
+// plan does this.
+function specPlan(store: Operations["store"], id: unknown, only: string) {
+  const plan = store.get<Plan>("plans", id);
+  if (!plan) return fail("Plan not found.", 404);
+  if (!plan.spec) fail(only, 409);
+  return plan;
+}
+
+// A draft edit's store, whether an agent sent it, and its stored plan.
+function draftPlan(ops: Operations, { input, context }: OperationCall) {
+  return {
+    store: ops.store,
+    agent: Boolean(context.caller || context.mcp),
+    plan: ops.store.get<Plan>("plans", input.id),
+  };
+}
+
 export const entries = [
   // The Epics screen (read only).
   {
@@ -218,11 +236,9 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler(this: Operations, { input, context }: OperationCall) {
-      const store = this.store;
-      const agent = Boolean(context.caller || context.mcp);
-
-      const plan = store.get<Plan>("plans", input.id);
+    handler(this: Operations, call: OperationCall) {
+      const { input } = call,
+        { store, agent, plan } = draftPlan(this, call);
       if (plan?.spec && input.text === undefined) {
         const spec = this.readSpec(plan.spec);
         if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
@@ -238,11 +254,9 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler(this: Operations, { input, context }: OperationCall) {
-      const store = this.store;
-      const agent = Boolean(context.caller || context.mcp);
-
-      const plan = store.get<Plan>("plans", input.id);
+    handler(this: Operations, call: OperationCall) {
+      const { input } = call,
+        { store, agent, plan } = draftPlan(this, call);
       if (plan?.spec && !input.fact) {
         if (agent && input.proposal && typeof input.proposal === "object")
           enforceContent(
@@ -305,12 +319,9 @@ export const entries = [
     github: "check-in",
     policy: routed,
     handler(this: Operations, { input }: OperationCall) {
-      const store = this.store;
-
-      const plan = store.get<Plan>("plans", input.id);
-      if (!plan) return fail("Plan not found.", 404);
-      if (!plan.spec) fail("Only a spec plan is linted.", 409);
-      return this.lintSpecPlan(plan);
+      return this.lintSpecPlan(
+        specPlan(this.store, input.id, "Only a spec plan is linted."),
+      );
     },
   },
 
@@ -320,11 +331,8 @@ export const entries = [
     github: "check-in",
     policy: routed,
     handler(this: Operations, { input }: OperationCall) {
-      const store = this.store;
-
-      const plan = store.get<Plan>("plans", input.id);
-      if (!plan) return fail("Plan not found.", 404);
-      if (!plan.spec) fail("Only a spec plan is approved.", 409);
+      const store = this.store,
+        plan = specPlan(store, input.id, "Only a spec plan is approved.");
       if (input.text !== undefined)
         fail("A spec plan is previewed from its stored revision.");
       const specQuality = this.lintSpecPlan(plan);
