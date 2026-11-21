@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The `process` executor and the Claude Code definition (R93.2, R93.5).
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -44,6 +43,16 @@ import {
 } from "../../tick/needs-harness.ts";
 import { snapshot } from "../../test/fixtures.ts";
 import { appStore, gitIn, machine, until } from "./process-machine.ts";
+import { found } from "../../test/view-shapes.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
+import type { RequestRow } from "../../sessions/session-requests.ts";
+
+// A report the fake operations recorded.
+interface Report {
+  name: string;
+  input: Record<string, unknown>;
+  context?: unknown;
+}
 
 const CLAUDE = fileURLToPath(
   new URL("../../../../examples/harnesses/claude-code.json", import.meta.url),
@@ -80,7 +89,7 @@ test("the Claude Code definition loads, never skips permissions, and fills", () 
     "--resume",
     values.session_uuid,
   ]);
-  assert.deepEqual(fillHarnessArgv(definition.model, values), [
+  assert.deepEqual(fillHarnessArgv(found(definition.model), values), [
     "--model",
     "sonnet",
   ]);
@@ -98,7 +107,7 @@ test("the Claude Code definition loads, never skips permissions, and fills", () 
     worktree: path.join(os.tmpdir(), "avoozl-claude-worktree"),
     tmp,
   });
-  assert.ok(access.writeRoots.includes(path.resolve(tmp)));
+  assert.ok(access.writeRoots?.includes(path.resolve(tmp)));
   assert.deepEqual(
     harnessPermission(definition, { permissionClass: "read" }).writeRoots,
     [],
@@ -182,7 +191,7 @@ test("start, status, send by resume, and stop through the executor", async (t) =
     fs.existsSync(path.join(worktree, "seen.txt"))
       ? fs.readFileSync(path.join(worktree, "seen.txt"), "utf8")
       : "";
-  const settle = (id) =>
+  const settle = (id: string) =>
     until(async () => {
       supervisor.pass();
       const status = await executor.status(id);
@@ -220,8 +229,8 @@ test("start, status, send by resume, and stop through the executor", async (t) =
     return /WAIT:/.test(seen());
   });
   assert.equal(await executor.send(id, "never delivered"), "accepted");
-  assert.equal(await executor.stop(id), "stopped");
-  assert.match(await settle(id), /^exited /);
+  assert.equal(await executor.stop?.(id), "stopped");
+  assert.match(String(await settle(id)), /^exited /);
   assert.doesNotMatch(seen(), /never delivered/);
 });
 
@@ -281,25 +290,35 @@ test("the drain hands process requests to the supervisor and records status", as
     prepareWorktree: async () => ({ path: worktree }),
   });
   assert.deepEqual(errors, []);
-  const bindings = store.list("session_bindings");
+  const bindings = store.list<SessionBinding>("session_bindings");
   assert.equal(bindings.length, 1);
   const [binding] = bindings;
   assert.equal(binding.executor, "process");
   assert.match(binding.slot, /^process-/);
   assert.equal(
-    store.list("session_requests").find((r) => r.executor === "kirocrew").state,
+    store
+      .list<RequestRow>("session_requests")
+      .find((r) => r.executor === "kirocrew")?.state,
     "pending",
   );
-  const reports = [];
+  const reports: Report[] = [];
   const ops = {
-    execute: async (name, input, _, context) => {
+    execute: async (
+      name: string,
+      input: Record<string, unknown>,
+      _: unknown,
+      context: unknown,
+    ) => {
       reports.push({ name, input, context });
     },
   };
   await until(async () => {
     supervisor.pass();
     await drainProcessRequests(store, { stateDirectory, ops });
-    return store.get("session_bindings", binding.slot).status === "closed";
+    return (
+      store.get<SessionBinding>("session_bindings", binding.slot)?.status ===
+      "closed"
+    );
   });
   // The result file is the session's report, matched by the supervisor's
   // record (R96.3), and made once.
@@ -334,7 +353,7 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
       harness: "fake-cli",
     },
   );
-  const start = (where, brief, attempt = 1) =>
+  const start = (where: string, brief: string, attempt = 1) =>
     enqueueSessionRequests(store, {
       starts: [
         {
@@ -348,9 +367,10 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
         },
       ],
     });
-  const reports = [];
+  const reports: Report[] = [];
   const ops = {
-    execute: async (name, input) => reports.push({ name, input }),
+    execute: async (name: string, input: Record<string, unknown>) =>
+      reports.push({ name, input }),
   };
   start(
     task,
@@ -361,14 +381,17 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
     ops,
     prepareWorktree: async () => ({ path: task }),
   });
-  const [binding] = store.list("session_bindings");
+  const [binding] = store.list<SessionBinding>("session_bindings");
   // The child's edit; the fake agent also writes its result file.
   fs.writeFileSync(path.join(task, "feature.txt"), "done\n");
   const before = run(task, "rev-parse", "HEAD");
   await until(async () => {
     supervisor.pass();
     await drainProcessRequests(store, { stateDirectory, ops });
-    return store.get("session_bindings", binding.slot).status === "closed";
+    return (
+      store.get<SessionBinding>("session_bindings", binding.slot)?.status ===
+      "closed"
+    );
   });
   const head = run(task, "rev-parse", "HEAD");
   assert.notEqual(head, before, "Avoozl made the commit");
@@ -394,12 +417,15 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
     2,
   );
   await drainProcessRequests(store, { stateDirectory, ops });
-  const [second] = store.list("session_bindings");
-  let errors = [];
+  const [second] = store.list<SessionBinding>("session_bindings");
+  let errors: { error: string }[] = [];
   await until(async () => {
     supervisor.pass();
     ({ errors } = await drainProcessRequests(store, { stateDirectory, ops }));
-    return store.get("session_bindings", second.slot).status === "closed";
+    return (
+      store.get<SessionBinding>("session_bindings", second.slot)?.status ===
+      "closed"
+    );
   });
   assert.match(errors[0].error, /not a task worktree/);
   assert.equal(run(checkout, "rev-list", "--count", "main"), "1");
@@ -409,12 +435,13 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
 test("the result file: done, blocked, and each bad shape", (t) => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-result-"));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
-  const write = (text) => {
+  const problem = () => readChildResult(folder).problem ?? "";
+  const write = (text: string) => {
     fs.mkdirSync(path.join(folder, ".avoozl"), { recursive: true });
     fs.rmSync(path.join(folder, RESULT_FILE), { force: true });
     fs.writeFileSync(path.join(folder, RESULT_FILE), text);
   };
-  assert.match(readChildResult(folder).problem, /no result file/);
+  assert.match(problem(), /no result file/);
   write('{"state": "done", "text": "Changed x."}');
   assert.deepEqual(readChildResult(folder), {
     state: "done",
@@ -423,13 +450,13 @@ test("the result file: done, blocked, and each bad shape", (t) => {
   write('{"state": "blocked", "text": "No key."}');
   assert.equal(readChildResult(folder).state, "blocked");
   write("not json");
-  assert.match(readChildResult(folder).problem, /not valid JSON/);
+  assert.match(problem(), /not valid JSON/);
   write('{"state": "finished"}');
-  assert.match(readChildResult(folder).problem, /must be/);
+  assert.match(problem(), /must be/);
   write('{"state": "done", "extra": 1}');
-  assert.match(readChildResult(folder).problem, /must be/);
+  assert.match(problem(), /must be/);
   write(JSON.stringify({ state: "done", text: "x".repeat(9000) }));
-  assert.match(readChildResult(folder).problem, /over 8192 bytes/);
+  assert.match(problem(), /over 8192 bytes/);
   if (process.platform !== "win32") {
     fs.rmSync(path.join(folder, RESULT_FILE));
     fs.writeFileSync(path.join(folder, "elsewhere.json"), '{"state":"done"}');
@@ -437,7 +464,7 @@ test("the result file: done, blocked, and each bad shape", (t) => {
       path.join(folder, "elsewhere.json"),
       path.join(folder, RESULT_FILE),
     );
-    assert.match(readChildResult(folder).problem, /is a symbolic link/);
+    assert.match(problem(), /is a symbolic link/);
   }
 });
 
@@ -447,7 +474,7 @@ test("the supervisor reads the exit code and result file; bad ones take the retr
     stateDirectory,
     repositoryFor: () => ({ harness: "fake-cli" }),
   });
-  const run = async (brief) => {
+  const run = async (brief: string) => {
     const id = await executor.start(
       "worker",
       "1.1",
@@ -465,7 +492,7 @@ test("the supervisor reads the exit code and result file; bad ones take the retr
       return {
         id,
         status: await executor.status(id),
-        result: childResult(db, id),
+        result: found(childResult(db, id), "the result"),
       };
     } finally {
       db.close();
@@ -520,9 +547,9 @@ test("a child's result becomes its session report; the text stays data", async (
     cwd: worktree,
     encoding: "utf8",
   }).stdout.trim();
-  const calls = [];
+  const calls: unknown[][] = [];
   const ops = {
-    execute: async (...args) => {
+    execute: async (...args: unknown[]) => {
       calls.push(args);
       return { ok: true };
     },
@@ -551,9 +578,10 @@ test("a child's result becomes its session report; the text stays data", async (
 
 test("a process worker's brief ends with the result file", () => {
   const steps = processSteps({ id: "7.1" });
-  assert.match(steps.at(-1), /\.avoozl\/result\.json/);
-  assert.match(steps.at(-1), /"state": "done"/);
-  assert.match(steps.at(-1), /"state": "blocked"/);
+  const last = found(steps.at(-1), "the last step");
+  assert.match(last, /\.avoozl\/result\.json/);
+  assert.match(last, /"state": "done"/);
+  assert.match(last, /"state": "blocked"/);
   assert.doesNotMatch(steps.join("\n"), /runner report|plans_report/);
   assert.match(steps.join("\n"), /Do not commit/);
 });
@@ -587,8 +615,11 @@ test("a write worker's done with nothing committed is refused", async (t) => {
     { root, defer },
     { root: checkout, baseBranch: "main" },
   );
-  const reports = [];
-  const ops = { execute: async (name, input) => reports.push(input) };
+  const reports: Record<string, unknown>[] = [];
+  const ops = {
+    execute: async (_name: string, input: Record<string, unknown>) =>
+      reports.push(input),
+  };
   const binding = {
     slot: "process-x",
     taskId: "sample-task",
@@ -612,7 +643,7 @@ test("a write worker's done with nothing committed is refused", async (t) => {
   gitIn(checkout, "add", "later.txt");
   gitIn(checkout, "commit", "-q", "-m", "Main moves on");
   await finishProcessSession(ops, binding, done, store);
-  assert.equal(reports.at(-1).kind, "blocked");
+  assert.equal(reports.at(-1)?.kind, "blocked");
   // With a commit of its own, done goes through with that commit.
   fs.writeFileSync(path.join(worktree, "feature.txt"), "done\n");
   gitIn(worktree, "add", "feature.txt");
@@ -630,7 +661,7 @@ test("a write worker's done with nothing committed is refused", async (t) => {
     { ...done, worktree: checkout },
     store,
   );
-  assert.equal(reports.at(-1).kind, "done");
+  assert.equal(reports.at(-1)?.kind, "done");
 });
 
 // R98.3, R98.4: a request that names a harness runs on it, not on its
@@ -663,7 +694,7 @@ test("a start's own harness wins over its repository's", async (t) => {
     prepareWorktree: async () => ({ path: worktree }),
   });
   assert.deepEqual(errors, []);
-  const [binding] = store.list("session_bindings");
+  const [binding] = store.list<SessionBinding>("session_bindings");
   const db = openSupervisorDatabase(stateDirectory);
   try {
     assert.equal(childRecord(db, binding.slot).harness, "fake-cli");
@@ -675,7 +706,7 @@ test("a start's own harness wins over its repository's", async (t) => {
 // nk-1.2 (NK3.1, NK3.2, NK3.4, NK5.5): one output file beside the result,
 // read once on exit with the role's limit and validator; a snapshot the
 // child cannot write; no write root over a git directory.
-const json = (text) => {
+const json = (text: string) => {
   const value = JSON.parse(text);
   if (!Array.isArray(value.findings)) throw Error("findings must be a list");
   return value;
@@ -688,7 +719,7 @@ test("a fake child's output file is read once with the role's limit and validato
     stateDirectory,
     repositoryFor: () => ({ harness: "fake-cli" }),
   });
-  const run = async (brief) => {
+  const run = async (brief: string) => {
     // The fake CLI writes beside its result, so it runs in the write class;
     // the output rules are the same for either.
     const id = await executor.start(
@@ -745,11 +776,11 @@ test("output names and files outside the rules are refused with the reason", (t)
   });
   for (const name of ["../a.json", "sub/a.json", ".hidden", ""])
     assert.match(
-      readChildOutput(folder, name, ROW.output).problem,
+      readChildOutput(folder, name, ROW.output).problem ?? "",
       /plain file name/,
     );
   assert.match(
-    readChildOutput(folder, "b.json", ROW.output).problem,
+    readChildOutput(folder, "b.json", ROW.output).problem ?? "",
     /not in the output folder/,
   );
   // A role with no output file refuses a result that names one.
@@ -763,7 +794,7 @@ test("output names and files outside the rules are refused with the reason", (t)
     path.join(folder, RESULT_FILE),
     JSON.stringify({ state: "done", output: "a.json", text: "x".repeat(9000) }),
   );
-  assert.match(readChildResult(folder).problem, /over 8192 bytes/);
+  assert.match(readChildResult(folder).problem ?? "", /over 8192 bytes/);
 });
 
 test("a child cannot write into its snapshot, and no write root holds a git directory", (t) => {
@@ -795,7 +826,7 @@ test("a child cannot write into its snapshot, and no write root holds a git dire
     tmp: path.join(os.tmpdir(), "avoozl-snapshot-tmp"),
   });
   assert.deepEqual(
-    read.writeRoots.filter((root) => root.startsWith(folder)),
+    read.writeRoots?.filter((root) => root.startsWith(folder)),
     [path.join(folder, ".avoozl")],
   );
   // A write root over a checkout is refused before start.
@@ -821,7 +852,7 @@ test("a definition with no resultAllow is refused for a read role and runs a wri
     stateDirectory,
     repositoryFor: () => ({ harness: "fake-cli" }),
   });
-  const run = async (role, permissionClass) => {
+  const run = async (role: string, permissionClass: string) => {
     const id = await executor.start(
       role,
       "1.1",
@@ -850,10 +881,11 @@ test("a definition with no resultAllow is refused for a read role and runs a wri
 });
 
 test("each shipped definition says which role classes a proof ran it in", () => {
-  for (const [name, proved, readRoles] of [
+  const shipped: [string, string[], RegExp | null][] = [
     ["claude-code", ["read", "write"], null],
     ["codex", ["write"], null],
-  ]) {
+  ];
+  for (const [name, proved, readRoles] of shipped) {
     const definition = parseHarnessDefinition(
       JSON.parse(
         fs.readFileSync(
@@ -866,7 +898,7 @@ test("each shipped definition says which role classes a proof ran it in", () => 
       ),
     );
     assert.deepEqual(definition.proved, proved, name);
-    if (readRoles) assert.match(readRoleProblem(definition), readRoles);
+    if (readRoles) assert.match(readRoleProblem(definition) ?? "", readRoles);
     else assert.equal(readRoleProblem(definition), null, name);
   }
   assert.throws(

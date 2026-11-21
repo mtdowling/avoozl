@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // Stale claims in Needs you (simplify sim-1.3, SM2.4, §D3): a claim branch
 // whose newest commit is older than `claims.staleHours` gives one Needs you
 // row for the spec issue's assignee; only a person deletes it, as the
 // high-risk claim-delete job behind the confirm and the CLI prompt.
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Store } from "../../store/store.ts";
 import { Operations } from "../../api/operations.ts";
 import { commands } from "../../commands/delivery.ts";
@@ -19,17 +18,27 @@ import { snapshot } from "../../test/fixtures.ts";
 import { mcpRefusal } from "../../mcp/mcp-policy.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import path from "node:path";
+import { commandContext } from "../../test/command-context.ts";
+import { found, type ConflictsView } from "../../test/view-shapes.ts";
+
+// Claim branch heads by repository, each with its age in hours.
+type Heads = Record<string, Record<string, number>>;
+// An operation the claim command asked for, with its input.
+type Asked = [string, { steps?: { job: string }[]; [key: string]: unknown }];
 
 const NOW = Date.parse("2026-11-20T12:00:00Z");
-const hoursAgo = (h) => new Date(NOW - h * 3600 * 1000).toISOString();
+const hoursAgo = (h: number) => new Date(NOW - h * 3600 * 1000).toISOString();
 
 // GitHub with claim branches whose heads have the given ages, recording
 // every commit read and every delete.
-function fakeGitHub(heads) {
-  const calls = { commit: [], delete: [] };
+function fakeGitHub(heads: Heads) {
+  const calls: { commit: string[]; delete: string[] } = {
+    commit: [],
+    delete: [],
+  };
   return {
     calls,
-    async branchesUnder(repository, prefix) {
+    async branchesUnder(repository: string, prefix: string) {
       return Object.entries(heads[repository] ?? {})
         .filter(([branch]) => branch.startsWith(prefix))
         .map(([branch, h]) => ({
@@ -37,20 +46,20 @@ function fakeGitHub(heads) {
           object: { sha: `${branch}@${h}` },
         }));
     },
-    async commit(repository, sha) {
+    async commit(_repository: string, sha: string) {
       calls.commit.push(sha);
       return {
         commit: { committer: { date: hoursAgo(Number(sha.split("@")[1])) } },
       };
     },
-    async deleteBranch(repository, branch) {
+    async deleteBranch(repository: string, branch: string) {
       calls.delete.push(`${repository} ${branch}`);
       return null;
     },
   };
 }
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const root = temporaryDirectory("avoozl-stale-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
@@ -64,7 +73,7 @@ function workspace(t) {
   return { root, store };
 }
 
-const HEADS = {
+const HEADS: Heads = {
   "o/app": {
     "avoozl/search/s-1": 10,
     "avoozl/search/s-2": 2,
@@ -158,7 +167,10 @@ test("claims.view lists every claim branch with its holder, head, age and whethe
       ],
     ],
   );
-  const { claims } = await ops.execute("claims.view", {});
+  const { claims } = await ops.execute<{ claims: unknown[] }>(
+    "claims.view",
+    {},
+  );
   assert.equal(claims.length, 4);
 });
 
@@ -167,7 +179,7 @@ test("Avoozl deletes no claim branch on its own: reads and Needs you leave them 
     github = fakeGitHub(HEADS),
     ops = new Operations(store, { workspaceRoot: root, github });
   await refreshClaims(store, github);
-  const view = await ops.execute("conflicts.view", {});
+  const view = await ops.execute<ConflictsView>("conflicts.view", {});
   assert.ok(view.items.some((item) => item.reason === "stale-claim"));
   assert.deepEqual(github.calls.delete, []);
 });
@@ -211,36 +223,31 @@ test("claim.delete is a person's: refused over MCP, and deletes only a claim bra
 });
 
 test("avoozl claim delete asks Allow? first, and deletes nothing without a yes", async () => {
-  const claim = commands.find((c) => c.command === "claim"),
-    calls = [],
-    localOrRequest = async (name, input) => {
+  const claim = found(commands.find((c) => c.command === "claim")),
+    calls: Asked[] = [],
+    answer = (name: string, input: Asked[1]) => {
       calls.push([name, input]);
       return name === "github.job.confirm"
         ? { grants: ["g1"] }
         : { deleted: input.branch };
     },
-    need = (value, usage) => {
-      if (!value) throw Error(usage);
-      return value;
-    },
-    args = (options) => ({
-      options,
-      positionals: ["delete", "o/app", "avoozl/search/s-1"],
-      localOrRequest,
-      need,
-      env: {},
-    });
+    args = (options: Record<string, true>) =>
+      commandContext({
+        options,
+        positionals: ["delete", "o/app", "avoozl/search/s-1"],
+        answer,
+      });
   const stdin = process.stdin.isTTY;
   process.stdin.isTTY = false;
   try {
     await assert.rejects(
-      claim.run(args({})),
+      async () => claim.run(args({})),
       /run in a terminal, or add --yes/,
     );
   } finally {
     process.stdin.isTTY = stdin;
   }
-  assert.deepEqual(calls, []);
+  assert.equal(calls.length, 0);
   const log = console.log,
     stderr = process.stderr.write;
   console.log = () => {};
@@ -255,7 +262,7 @@ test("avoozl claim delete asks Allow? first, and deletes nothing without a yes",
     calls.map(([name]) => name),
     ["github.job.confirm", "claim.delete"],
   );
-  assert.equal(calls[0][1].steps[0].job, "claim-delete");
+  assert.equal(calls[0]?.[1].steps?.[0]?.job, "claim-delete");
   assert.deepEqual(calls[1][1], {
     repository: "o/app",
     branch: "avoozl/search/s-1",

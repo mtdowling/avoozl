@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // Open chat on the standalone page (SW7): `session.open` makes a read-only
 // `process` session in the workspace root from a message, a person only.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { drainProcessRequests } from "../../executors/process.ts";
 import {
   approveHarnessDefinition,
@@ -19,8 +18,27 @@ import {
 import { roleFor } from "../session-open.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import type { RequestRow } from "../session-requests.ts";
+import type { SessionBinding } from "../session-bindings.ts";
 
-function machine(t, { approve = true, roles } = {}) {
+// session.open's preview, and what it and session.view answer.
+interface Preview {
+  role: string;
+  harness: string;
+  permissionClass: string;
+  available: boolean;
+  reason: string | null;
+}
+type Opened = { id: string };
+type View = { state: string; slot: string };
+
+function machine(
+  t: TestContext,
+  {
+    approve = true,
+    roles,
+  }: { approve?: boolean; roles?: Record<string, { harness: string }> } = {},
+) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
     workspaceRoot = path.join(root, "ws"),
@@ -55,9 +73,11 @@ function machine(t, { approve = true, roles } = {}) {
 
 test("with no approved harness the preview says so and Start starts nothing", async (t) => {
   const m = machine(t, { approve: false });
-  const preview = await m.ops.execute("session.open", { preview: true });
+  const preview = await m.ops.execute<Preview>("session.open", {
+    preview: true,
+  });
   assert.equal(preview.available, false);
-  assert.match(preview.reason, /No harness definition is approved/);
+  assert.match(preview.reason ?? "", /No harness definition is approved/);
   await assert.rejects(
     m.ops.execute("session.open", { message: "Help" }),
     /No harness definition is approved/,
@@ -67,7 +87,7 @@ test("with no approved harness the preview says so and Start starts nothing", as
 
 test("Start records one read-only process request in the workspace root with the message as its brief", async (t) => {
   const m = machine(t);
-  const preview = await m.ops.execute("session.open", {
+  const preview = await m.ops.execute<Preview>("session.open", {
     preview: true,
     agent: "avoozl-planner",
   });
@@ -86,11 +106,11 @@ test("Start records one read-only process request in the workspace root with the
     0,
     "a preview writes nothing",
   );
-  const opened = await m.ops.execute("session.open", {
+  const opened = await m.ops.execute<Opened>("session.open", {
     message: "Why was my plan refused?",
     agent: "avoozl-planner",
   });
-  const rows = m.store.list("session_requests");
+  const rows = m.store.list<RequestRow>("session_requests");
   assert.equal(rows.length, 1);
   assert.equal(rows[0].executor, "process");
   assert.equal(rows[0].state, "pending");
@@ -100,7 +120,7 @@ test("Start records one read-only process request in the workspace root with the
   assert.equal(rows[0].request.brief, "Why was my plan refused?");
   assert.equal(rows[0].request.harness, "fake-cli");
   assert.equal(
-    (await m.ops.execute("session.view", { id: opened.id })).state,
+    (await m.ops.execute<View>("session.view", { id: opened.id })).state,
     "queued",
   );
   // The drain starts the child with the assistant's prompt over the message.
@@ -109,7 +129,7 @@ test("Start records one read-only process request in the workspace root with the
     ops: m.ops,
   });
   assert.deepEqual(drained.errors, []);
-  const slot = m.store.list("session_bindings")[0].slot;
+  const slot = m.store.list<SessionBinding>("session_bindings")[0].slot;
   const db = openSupervisorDatabase(m.stateDirectory);
   try {
     const row = childRecord(db, slot);
@@ -126,20 +146,22 @@ test("Start records one read-only process request in the workspace root with the
   } finally {
     db.close();
   }
-  const view = await m.ops.execute("session.view", { id: opened.id });
+  const view = await m.ops.execute<View>("session.view", { id: opened.id });
   assert.equal(view.slot, slot);
   assert.ok(["working", "ended"].includes(view.state));
 });
 
 test("a message goes to the opened session with Send message", async (t) => {
   const m = machine(t);
-  const opened = await m.ops.execute("session.open", { message: "Hello" });
+  const opened = await m.ops.execute<Opened>("session.open", {
+    message: "Hello",
+  });
   await drainProcessRequests(m.store, {
     stateDirectory: m.stateDirectory,
     ops: m.ops,
   });
-  const { slot } = await m.ops.execute("session.view", { id: opened.id });
-  const sent = await m.ops.execute("session.send", {
+  const { slot } = await m.ops.execute<View>("session.view", { id: opened.id });
+  const sent = await m.ops.execute<{ state: string }>("session.send", {
     slot,
     text: "And this too",
   });
@@ -149,16 +171,20 @@ test("a message goes to the opened session with Send message", async (t) => {
 test("a harness picked for the role in Settings › Models is the one used, or refused when not approved", async (t) => {
   const named = machine(t, { roles: { assist: { harness: "fake-cli" } } });
   assert.equal(
-    (await named.ops.execute("session.open", { preview: true })).harness,
+    (await named.ops.execute<Preview>("session.open", { preview: true }))
+      .harness,
     "fake-cli",
   );
   const missing = machine(t, { roles: { assist: { harness: "other-cli" } } });
-  const refused = await missing.ops.execute("session.open", { preview: true });
+  const refused = await missing.ops.execute<Preview>("session.open", {
+    preview: true,
+  });
   assert.equal(refused.available, false);
-  assert.match(refused.reason, /other-cli.*not approved/);
+  assert.match(refused.reason ?? "", /other-cli.*not approved/);
   const crew = machine(t, { roles: { assist: { harness: "kirocrew" } } });
   assert.match(
-    (await crew.ops.execute("session.open", { preview: true })).reason,
+    (await crew.ops.execute<Preview>("session.open", { preview: true }))
+      .reason ?? "",
     /needs Kiro Crew/,
   );
 });
@@ -181,7 +207,9 @@ test("with no harness saved for assist, Run in a chat uses the worker's approved
     name: "worker-cli",
     hash: harnessDefinitionHash(Buffer.from(bytes)),
   });
-  const preview = await m.ops.execute("session.open", { preview: true });
+  const preview = await m.ops.execute<Preview>("session.open", {
+    preview: true,
+  });
   assert.deepEqual(
     [preview.role, preview.harness, preview.permissionClass],
     ["assist", "worker-cli", "read"],
@@ -211,7 +239,7 @@ test("session.open is person-only: MCP and an agent tool are refused", async (t)
   );
   await assert.rejects(
     m.ops.execute("session.open", { message: "Hi" }, undefined, {
-      caller: { slot: "x" },
+      caller: { sessionKey: "dashboard:x" },
     }),
     /Only a person opens a session/,
   );

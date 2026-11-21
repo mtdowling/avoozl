@@ -131,6 +131,25 @@ export async function bind(
   });
 }
 
+// Each task's worktree, prepared, with a session `slot-<id>` bound to it
+// for attempt 1, as the tick binds one. Answers each worktree path by task.
+export async function boundWorktrees(ops: Operations, ids: string[]) {
+  const paths: Record<string, string> = {};
+  for (const id of ids) {
+    paths[id] = (
+      await ops.execute<{ path: string }>("worktree.prepare", { taskId: id })
+    ).path;
+    await ops.execute("session.bind", {
+      taskId: id,
+      slot: `slot-${id}`,
+      attempt: 1,
+      source: "tick",
+      title: `avoozl:${id} Task ${id}`,
+    });
+  }
+  return paths;
+}
+
 // A worker attempt that commits `files` (path -> text) in the task's
 // worktree and reports done. Returns the commit.
 export async function workerDone(
