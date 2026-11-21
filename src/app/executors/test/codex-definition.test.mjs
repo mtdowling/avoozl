@@ -190,5 +190,15 @@ test("Codex takes no allow flag, cost field or spend cap", (t) => {
   const definition = approved(t);
   assert.deepEqual(harnessAllow(definition, [["npm", "test"]]), []);
   assert.equal(definition.cost, undefined);
-  assert.deepEqual(definition.keepEnv, ["OPENAI_API_KEY", "CODEX_API_KEY"]);
+  assert.deepEqual(definition.keepEnv, [
+    "OPENAI_API_KEY",
+    "CODEX_API_KEY",
+    "AWS_PROFILE",
+    "AWS_REGION",
+    "AWS_DEFAULT_REGION",
+    "AWS_CONFIG_FILE",
+    "AWS_SHARED_CREDENTIALS_FILE",
+  ]);
+  // Its Bedrock provider settings reach the child's own CODEX_HOME.
+  assert.deepEqual(definition.homeFiles, ["~/.codex/config.toml"]);
 });

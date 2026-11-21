@@ -47,8 +47,11 @@ export interface HarnessDefinition {
   model?: boolean
   // Why it cannot run a read-only role (it names no resultAllow), or null.
   readRoles?: string | null
-  // Why it cannot start on this machine's server (program or sign-in missing), or null.
+  // Why it cannot start on this machine's server (program missing, or its sign-in check failed), or null.
   startProblem?: string | null
+  // The file names a sign-in check, and its last answer at this hash, or null when none ran.
+  probes?: boolean
+  probe?: { ok: boolean; message: string | null; at: string } | null
   // The role classes a live proof ran it in.
   proved?: ('read' | 'write')[]
 }
@@ -100,6 +103,7 @@ export function modelsClient(api: AppApi) {
     get: (workspaceId: string) => run<ModelSettings>(workspaceId, 'models.settings.get'),
     save: (workspaceId: string, roles: RoleTable, expectedHash: string) => run<ModelSettings>(workspaceId, 'models.settings.update', { roles: toRoles(roles), expectedHash }),
     approveHarness: (workspaceId: string, name: string) => run<{ name: string; path: string; hash: string }>(workspaceId, 'harness.approve', { name }),
+    probeHarness: (workspaceId: string, name: string) => run<{ name: string; ok: boolean; message: string | null }>(workspaceId, 'harness.probe', { name }),
     list: () => api.get<unknown>('/api/models').then(parseModels),
   }
 }
@@ -135,6 +139,14 @@ export function roleProblem(role: Role, form: RoleTable, definitions: HarnessDef
 export function provedLine(d: HarnessDefinition): string {
   const proved = d.proved ?? []
   return (['read', 'write'] as const).map((c) => `${c}: ${proved.includes(c) ? 'proved' : 'not proved'}`).join(', ')
+}
+
+// What a definition's list entry says about its sign-in check. A failed
+// check shows as its start problem instead.
+export function probeLine(d: HarnessDefinition): string | null {
+  if (!d.probes || !d.approved) return null
+  if (!d.probe) return 'Sign-in not checked yet.'
+  return d.probe.ok ? `Sign-in checked ${d.probe.at.slice(0, 10)}.` : null
 }
 
 // The approval badge.

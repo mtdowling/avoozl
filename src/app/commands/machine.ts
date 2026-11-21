@@ -14,6 +14,7 @@ import {
   listHarnessDefinitions,
 } from "../executors/harness-definitions.mjs";
 import { agentSessionNote, cliRefusal } from "../mcp/mcp-policy.mjs";
+import { probeHarness } from "../executors/harness-probe.ts";
 import { runCredentialHelper } from "../github/credential-helper.mjs";
 
 // A `process` child never makes an owner link for the page (MS3.2).
@@ -144,11 +145,16 @@ export const commands = [
         "harness approve NAME",
         "Approve the harness file as it is now, by hash (a person only)",
       ),
+      help(
+        "machine",
+        "harness probe NAME",
+        "Check the harness signs in and answers, once (a model call)",
+      ),
     ],
     // Harness files belong to the machine, so no workspace is needed.
     run({ positionals, need }) {
-      const usage = "harness list | harness approve NAME",
-        { configDirectory } = machineAvoozlPaths();
+      const usage = "harness list | harness approve NAME | harness probe NAME",
+        { configDirectory, stateDirectory, catalogPath } = machineAvoozlPaths();
       if (positionals[0] === "list") {
         const found = listHarnessDefinitions(configDirectory);
         if (!found.length) console.log("No harness files on this machine.");
@@ -168,6 +174,17 @@ export const commands = [
           name: need(positionals[1], usage),
         });
         console.log(`Approved ${done.name}\n${done.path}\nsha256 ${done.hash}`);
+      } else if (positionals[0] === "probe") {
+        const refusal = cliRefusal("harness.probe", {});
+        if (refusal) throw Error(refusal);
+        const done = probeHarness({
+          configDirectory,
+          stateDirectory,
+          catalogPath,
+          name: need(positionals[1], usage),
+        });
+        console.log(done.ok ? `${done.name}: sign-in ok` : done.message);
+        if (!done.ok) process.exitCode = 1;
       } else throw Error(`Use ${usage}.`);
     },
   },

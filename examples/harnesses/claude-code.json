@@ -40,8 +40,18 @@
   ],
   "servedModel": { "from": "output", "field": "modelUsage" },
   "cost": { "from": "output", "field": "total_cost_usd", "per": "session" },
-  "keepEnv": ["ANTHROPIC_API_KEY"],
-  "reads": ["~/.claude", "~/.claude.json"],
+  "keepEnv": [
+    "ANTHROPIC_API_KEY",
+    "AWS_PROFILE",
+    "AWS_REGION",
+    "AWS_DEFAULT_REGION",
+    "AWS_CONFIG_FILE",
+    "AWS_SHARED_CREDENTIALS_FILE",
+    "CLAUDE_CODE_USE_BEDROCK"
+  ],
+  "reads": ["~/.claude", "~/.claude.json", "~/.aws"],
+  "homeFiles": ["~/.claude/settings.json"],
+  "probe": ["claude", "-p", "ok"],
   "tmpEnv": ["CLAUDE_CODE_TMPDIR"],
   "proved": ["read", "write"]
 }

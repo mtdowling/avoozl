@@ -115,6 +115,7 @@ export const APP_OPERATIONS = new Set([
   "models.settings.get",
   "models.settings.update",
   "harness.approve",
+  "harness.probe",
   "flow.settings.update",
   "telemetry.status",
   "telemetry.configure",

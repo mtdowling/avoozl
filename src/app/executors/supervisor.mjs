@@ -22,8 +22,10 @@ import {
   fillHarnessArgv,
   harnessPermission,
   harnessReads,
+  harnessSecretReads,
   loadHarnessDefinition,
   readRoleProblem,
+  seedHarnessHome,
 } from "./harness-definitions.mjs";
 import {
   catalogWorkspaceRoots,
@@ -628,7 +630,7 @@ function update(db, sessionId, fields) {
 }
 
 // Git's own user config under home, which a confined child still reads.
-const GIT_USER_CONFIG = [".gitconfig", path.join(".config", "git")];
+export const GIT_USER_CONFIG = [".gitconfig", path.join(".config", "git")];
 
 // Absolute paths a request names, or [].
 function absolutePaths(value, label) {
@@ -908,6 +910,7 @@ export function openSupervisor({
         fs.mkdirSync(values.tmp, { recursive: true, mode: 0o700 });
       if (lane && definition.home) {
         fs.mkdirSync(lane.home, { recursive: true, mode: 0o700 });
+        seedHarnessHome(definition, lane.home, env.HOME || os.homedir());
         if (definition.sessions && lane.keepSince && !lane.resume)
           pruneLaneSessions(lane.home, definition.sessions, lane.keepSince);
       }
@@ -928,7 +931,11 @@ export function openSupervisor({
             path.join(path.resolve(stateDirectory), "catalog.sqlite"),
           ),
         }),
-        readable: [promptFile, ...(contextMcp ? [contextMcp.file] : [])],
+        readable: [
+          promptFile,
+          ...(contextMcp ? [contextMcp.file] : []),
+          ...harnessSecretReads(definition, env.HOME || os.homedir()),
+        ],
         writable: [log],
         // Home is confined to the session's own folders, the harness's
         // config, git's user config and what the repository lists.

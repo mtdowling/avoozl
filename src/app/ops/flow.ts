@@ -14,6 +14,8 @@ import {
   approveHarnessByName,
   listHarnessDefinitions,
 } from "../executors/harness-definitions.mjs";
+import { probeHarness } from "../executors/harness-probe.ts";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { runOn } from "../tick/needs-kirocrew.mjs";
 import { fail } from "../store/store.ts";
 import path from "node:path";
@@ -96,6 +98,28 @@ export const entries = [
         fail("Only a person approves a harness, in the app or CLI.", 403);
       return approveHarnessByName({
         configDirectory: this.configDirectory,
+        name: input.name,
+      });
+    },
+  },
+  // Check again: run a harness's sign-in probe once, a model call, and keep
+  // the answer for its hash and machine.env.
+  {
+    name: "harness.probe",
+    class: "execute",
+    github: "check-in",
+    policy: person("Only a person runs a harness's sign-in check."),
+    handler({ input, context }) {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person checks a harness's sign-in, in the app or CLI.",
+          403,
+        );
+      const { stateDirectory, catalogPath } = machineAvoozlPaths();
+      return probeHarness({
+        configDirectory: this.configDirectory,
+        stateDirectory,
+        catalogPath,
         name: input.name,
       });
     },

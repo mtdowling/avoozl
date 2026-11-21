@@ -231,10 +231,25 @@ stopped is easy to see.
 A tick a timer runs does not have your shell's environment. Put the model
 keys a harness needs in `machine.env` in this machine's Avoozl config folder
 (`~/.config/avoozl/machine.env`), one `NAME=value` per line, readable only by
-you (`chmod 600`). A child gets only the names its harness definition lists
-in `keepEnv`. A sign-in that Claude Code keeps only in the macOS keychain is
-out of a sandboxed child's reach: use an API key, a cloud provider's
-short-lived credentials, or the repository's model proxy instead.
+you (`chmod 600`). A child gets the secret-looking names its harness
+definition lists in `keepEnv`, such as `ANTHROPIC_API_KEY` or `AWS_PROFILE`,
+and none is required. A sign-in that Claude Code keeps only in the macOS
+keychain is out of a sandboxed child's reach: use an API key, a cloud
+provider's credentials, or the repository's model proxy instead.
+
+For a cloud provider such as Amazon Bedrock, the example definitions copy
+`~/.claude/settings.json` or `~/.codex/config.toml` into the child's own
+home (`homeFiles`) and let it read `~/.aws` (`reads`). If the credential
+helper your settings name lives under your home folder, add its folder to
+`reads` too. The child's network is off, so it reaches the provider only
+through the repository's `sandbox.modelProxy`.
+
+Each example definition names a `probe`, a one-line prompt such as
+`claude -p ok`. **Check again** in **Settings › Models**, or
+`avoozl harness probe NAME`, runs it once in the same sandbox a
+worker gets. That is a model call, so Avoozl keeps the answer until the
+definition or `machine.env` changes and never runs it on its own. A failed
+probe shows the harness's own error, with secrets taken out.
 A harness program is looked up on `machine.env`'s `PATH`, then the
 server's, then your login shell's, so one installed for you is found. If it
 is still not found, set `PATH` in `machine.env` or give an absolute path in
@@ -251,6 +266,7 @@ new approval.
 ```sh
 avoozl harness list
 avoozl harness approve NAME
+avoozl harness probe NAME
 ```
 
 `list` shows each harness as approved, not approved, or changed since approval.

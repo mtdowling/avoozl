@@ -10,7 +10,7 @@ import os from "node:os";
 import { fail } from "../store/store.ts";
 import { EXECUTOR_CONTRACT } from "./executors.mjs";
 import { readMachineEnv } from "./machine-env.mjs";
-import { harnessStartProblem } from "./harness-ready.mjs";
+import { cachedProbe, harnessStartProblem } from "./harness-ready.mjs";
 
 const HARNESS_DIRECTORY = "harnesses";
 const HARNESS_APPROVALS = "harness-approvals.json";
@@ -70,7 +70,17 @@ const KEYS = new Set([
   "home",
   "label",
   "sessions",
+  // The argv that checks the harness can sign in and answer, run once per
+  // definition hash and machine.env (harness-probe.ts).
+  "probe",
+  // Files under home copied into a lane's or probe's own home before each
+  // start, such as Claude Code's ~/.claude/settings.json, so its provider
+  // settings reach the child.
+  "homeFiles",
 ]);
+// Files a definition may never copy into a child's home.
+const NEVER_COPIED =
+  /^~\/(?:\.ssh|\.aws|\.config\/gh|\.kiro|\.netrc|\.git-credentials|Library)(?:\/|$)|auth|credential|token|secret/i;
 // A harness home variable: its own *_HOME or *_DIR, never HOME itself.
 const HOME_NAME = /^[A-Z][A-Z0-9_]{0,58}_(?:HOME|DIR)$/;
 const ROLE_CLASSES = Object.freeze(["read", "write"]);
@@ -312,6 +322,30 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
       );
     definition.reads = Object.freeze([...value.reads]);
   }
+  if (value.probe !== undefined) {
+    definition.probe = argv(value.probe, "probe", source);
+    if (definition.probe.some((item) => item.includes("{")))
+      fail(`${source}: probe takes no placeholders.`);
+  }
+  if (value.homeFiles !== undefined) {
+    if (
+      !Array.isArray(value.homeFiles) ||
+      value.homeFiles.length > 20 ||
+      value.homeFiles.some(
+        (item) =>
+          typeof item !== "string" ||
+          !/^~\/[^/]/.test(item) ||
+          item.split("/").some((part) => part === ".." || part === ".") ||
+          NEVER_COPIED.test(item),
+      )
+    )
+      fail(
+        `${source}: homeFiles must be config files under home written as ~/..., such as ~/.claude/settings.json, and never a credential.`,
+      );
+    if (value.home === undefined)
+      fail(`${source}: homeFiles needs home, the folder they are copied to.`);
+    definition.homeFiles = Object.freeze([...value.homeFiles]);
+  }
   if (value.home !== undefined) {
     if (
       typeof value.home !== "string" ||
@@ -460,14 +494,14 @@ export function readRoleProblem(definition) {
     : `${definition?.name ?? "This harness"} names no resultAllow, so a read-only session cannot write its result file.`;
 }
 
-function startProblemOf(value, configDirectory) {
+function startProblemOf(value, configDirectory, probe) {
   let machineEnv = {};
   try {
     machineEnv = readMachineEnv(configDirectory);
   } catch (error) {
     return error.message;
   }
-  return harnessStartProblem(value, { machineEnv });
+  return harnessStartProblem(value, { machineEnv, probe });
 }
 
 export function listHarnessDefinitions(configDirectory) {
@@ -490,6 +524,9 @@ export function listHarnessDefinitions(configDirectory) {
         // A bad file lists without a model; a session refuses it.
       }
       const hash = harnessDefinitionHash(bytes);
+      // Read from the cache only: a probe is a model call, run only when a
+      // person asks (harness.probe).
+      const probe = cachedProbe(configDirectory, name, hash);
       return {
         name,
         path: path.join(directory, `${name}.json`),
@@ -499,7 +536,10 @@ export function listHarnessDefinitions(configDirectory) {
         model: value?.model !== undefined,
         readRoles: readRoleProblem({ name, resultAllow: value?.resultAllow }),
         // Why it cannot start on this machine's server, or null (MS5.3).
-        startProblem: startProblemOf(value, configDirectory),
+        startProblem: startProblemOf(value, configDirectory, probe),
+        // Whether it names a probe, and the last answer at this hash.
+        probes: Array.isArray(value?.probe),
+        probe,
         proved: Array.isArray(value?.proved)
           ? value.proved.filter((item) => ROLE_CLASSES.includes(item))
           : [],
@@ -687,3 +727,28 @@ export function harnessPermission(
 // config), resolved against `home`.
 export const harnessReads = (definition, home = os.homedir()) =>
   (definition?.reads ?? []).map((item) => path.join(home, item.slice(2)));
+
+// The harness reads a confined child gets past the secret denial, read only:
+// the AWS config folder alone, for a harness that signs in to a cloud
+// provider with the person's AWS profile (~/.aws in its reads).
+export const harnessSecretReads = (definition, home = os.homedir()) => {
+  const aws = path.join(home, ".aws");
+  return harnessReads(definition, home).filter(
+    (file) =>
+      (file === aws || file.startsWith(aws + path.sep)) && fs.existsSync(file),
+  );
+};
+
+// Copy the definition's homeFiles into `harnessHome`, the lane's or probe's
+// own home, so the child's provider settings (Claude Code's settings.json,
+// Codex's config.toml) are those of the person's home. A missing file is
+// skipped; each start copies again, so an edit reaches the next session.
+export function seedHarnessHome(definition, harnessHome, home = os.homedir()) {
+  for (const item of definition?.homeFiles ?? []) {
+    const from = path.join(home, item.slice(2));
+    if (!fs.statSync(from, { throwIfNoEntry: false })?.isFile()) continue;
+    const to = path.join(harnessHome, path.basename(from));
+    fs.copyFileSync(from, to);
+    fs.chmodSync(to, 0o600);
+  }
+}

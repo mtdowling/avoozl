@@ -129,8 +129,23 @@ environment. Two things then fail quietly: the harness program is not on
   `keepEnv` are passed to that child (V: `withKeptValues`,
   `src/app/executors/machine-env.mjs`). The file is outside every child's
   read roots because the whole Avoozl config folder is (R95.6).
+- Cloud sign-in: a definition's `homeFiles` are copied into the child's own
+  home (a lane's or the probe's) before each start, so Claude Code's
+  `settings.json` and Codex's `config.toml` carry their provider settings
+  to the child. A `reads` entry under `~/.aws` is the one secret folder a
+  child may read, read only, for an AWS profile (V: `harnessSecretReads`,
+  `src/app/executors/harness-definitions.mjs`).
+- Sign-in probe: the definition's `probe` argv (no placeholders) runs in a
+  fresh temp folder with a seeded home, the definition's `keepEnv`, `reads`
+  and the worker's sandbox, with the network off. Its answer is kept in
+  `harness-probes.json` in the machine config folder, keyed on the
+  definition hash and a hash of `machine.env`, and read by
+  `listHarnessDefinitions` (V: `probeHarness`,
+  `src/app/executors/harness-probe.ts`).
 - Readiness: one function per definition answers "can this start here?"
   and both `avoozl status` and Settings › Models show it per role (MS5.3).
+  It fails on a program not found or a failed cached probe, never on a
+  `keepEnv` name that is unset.
   The program is looked up as an absolute path, then on `machine.env`'s
   `PATH`, the server's `PATH`, and the person's login-shell `PATH`
   (`$SHELL -l -c /usr/bin/env`, a fixed argv, 3 second timeout, cached per

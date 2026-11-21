@@ -121,6 +121,8 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
       readRoles:
         "fake-cli names no resultAllow, so a read-only session cannot write its result file.",
       startProblem: null,
+      probes: false,
+      probe: null,
       proved: [],
     },
     {
@@ -133,6 +135,8 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
       readRoles:
         "other-cli names no resultAllow, so a read-only session cannot write its result file.",
       startProblem: null,
+      probes: false,
+      probe: null,
       proved: [],
     },
   ]);

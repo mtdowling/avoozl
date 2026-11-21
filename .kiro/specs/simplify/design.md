@@ -899,7 +899,9 @@ A sign-in the harness keeps in its default home (a Claude.ai login, a
 ChatGPT login for Codex) is not visible in a lane home, so a definition for
 such a machine sets no `home`, and its sessions stay where the harness keeps
 them. Sign-in by environment (an API key in `keepEnv`, or a managed
-provider) works with a lane home.
+provider) works with a lane home. The definition's `homeFiles`, such as
+`~/.claude/settings.json` or `~/.codex/config.toml`, are copied into the
+lane home before each start, so a cloud provider's settings reach it.
 
 A lane's start request names its lane, header and workspace. Each new task
 starts a new session (`--session-id` with an id Avoozl chose). A rework run
