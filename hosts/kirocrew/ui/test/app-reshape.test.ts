@@ -1,25 +1,22 @@
-// @ts-nocheck: typing debt
 // The reshaped page in a real Chrome (test/browser/harness.tsx ?page=app):
 // the nav row, Home's empty states, the Settings hub, no retired-worker
 // banner, and Needs you
 // holding what Conflicts and Intake used to. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the reshape test'
 
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
-const tab = (text) => `[...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const tab = (text: string) => `[...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 const tabs = `[...document.querySelectorAll('button[data-nav-head]')].map((b) => b.textContent.trim().replace(/\\d+$/, ''))`
 const open = (query = {}) => page.open(harness.url({ page: 'app', ...query }), { width: 1280, height: 800 })
-const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
+const click = (expression: string) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const text = `document.body.innerText`
 
 test('the nav row has Insights, Specs, Graph, In flight, Needs you, Activity and Settings, and no Trace', { skip }, async () => {

@@ -7,7 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
-import type { Harness } from './build.ts'
+import type { Harness, HarnessOptions } from './build.ts'
 
 export type { Harness }
 
@@ -311,9 +311,9 @@ export type Browser = Awaited<ReturnType<typeof launch>>
 export type Page = Awaited<ReturnType<Browser['page']>>
 
 // One harness and one browser page for a test file's tests.
-export async function startChrome(chrome: string) {
+export async function startChrome(chrome: string, options: HarnessOptions = {}) {
   const { buildHarness } = await import('./build.ts')
-  const harness = await buildHarness(),
+  const harness = await buildHarness(options),
     browser = await launch(chrome)
   return { harness, browser, page: await browser.page() }
 }

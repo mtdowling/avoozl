@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Archived plans are hidden until Show archived, and a review status with
 // nothing behind it is labeled plainly instead of drawn as in progress.
 import assert from 'node:assert/strict'
@@ -9,11 +8,13 @@ import { filterGraph, matches, readFilter } from '../src/filters.ts'
 import { deliveryLanes, doneStatus, laneOf } from '../src/delivery-api.ts'
 import { summarize } from '../src/in-flight-api.ts'
 import { settleActionOf, whyLine } from '../src/conflicts-api.ts'
-import { noSessionLabel, reviewRuns } from '../src/views-api.ts'
+import { noSessionLabel, reviewRuns, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask } from '../src/views-api.ts'
+import type { PlanRow } from '../src/plans-api.ts'
+import { storedPlan } from './graph-fixture.ts'
 
-const src = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const src = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-const row = (name, extra = {}) => ({
+const row = (name: string, extra: Partial<PlanRow> = {}): PlanRow => ({
   key: `plan:${name}`,
   kind: 'spec',
   name,
@@ -27,12 +28,11 @@ const row = (name, extra = {}) => ({
   status: 'approved',
   tasks: { total: 1, done: 0 },
   now: { ready: 0, running: 0, needsYou: 0 },
-  epics: 0,
   lastChange: null,
   ...extra,
 })
 
-const task = (id, extra = {}) => ({
+const task = (id: string, extra: Partial<GraphTask> = {}): GraphTask => ({
   id,
   title: id,
   epic: null,
@@ -50,7 +50,7 @@ const task = (id, extra = {}) => ({
   ...extra,
 })
 
-const item = (id, extra = {}) => ({
+const item = (id: string, extra: Partial<DeliveryItem> = {}): DeliveryItem => ({
   id,
   title: id,
   status: 'review',
@@ -79,7 +79,7 @@ test('Plans hides archived plans until Show archived', () => {
 })
 
 test('Graph and Delivery hide archived tasks unless Show archived or that plan is picked', () => {
-  const graph = {
+  const graph: Graph = {
     revision: 1,
     epics: [],
     statuses: [],
@@ -100,23 +100,20 @@ test('Graph and Delivery hide archived tasks unless Show archived or that plan i
     filterGraph(graph, { plan: 'plan:p' }).tasks.map((t) => t.id),
     ['b'],
   )
-  assert.equal(matches({ ...task('b'), wave: 1, planArchived: 'p' }, {}), false)
+  assert.equal(matches({ ...task('b'), state: 'ready', wave: 1, planArchived: 'p' }, {}), false)
   const stored = { getItem: () => JSON.stringify({ archived: true }) }
   assert.deepEqual(readFilter(stored, 'w'), { archived: true })
 })
 
 test('the Dashboard leaves archived work out of its counts but keeps live chats', () => {
-  const graph = { revision: 1, epics: [], statuses: [], repositories: [], total: 2, tasks: [task('a'), task('b', { planArchived: 'p' })], edges: [] }
-  const live = { slot: 'chat-1', role: 'worker', attempt: 1, title: null, status: 'running', statusAt: null, boundAt: null }
+  const graph: Graph = { revision: 1, epics: [], statuses: [], repositories: [], total: 2, tasks: [task('a'), task('b', { planArchived: 'p' })], edges: [] }
+  const live: DeliverySession = { slot: 'chat-1', role: 'worker', attempt: 1, title: null, status: 'running', statusAt: null, boundAt: null }
   const summary = summarize({
     graph,
     delivery: [item('b', { status: 'running', planArchived: 'p', sessions: [live] })],
     conflicts: [{ kind: 'decision', taskId: 'b', title: 'b', detail: 'x', planArchived: 'p' }],
     plans: {
-      items: [
-        { id: 'p', state: 'approved', archivedAt: 't' },
-        { id: 'q', state: 'approved' },
-      ],
+      items: [storedPlan('p', { state: 'approved', archivedAt: 't' }), storedPlan('q', { state: 'approved' })],
       total: 2,
     },
   })
@@ -130,7 +127,7 @@ test('a hand-set review is not drawn as reviewing and offers no settle action', 
   const byHand = task('h', { status: 'review', state: 'needs-you', handSetReview: true, nextAction: 'Owner decision: pick.' })
   assert.equal(laneOf(byHand, item('h', { handSetReview: true })), 'needs-you')
   assert.equal(laneOf(task('r', { status: 'review', state: 'running' }), item('r')), 'reviewing')
-  const graph = {
+  const graph: Graph = {
     revision: 1,
     epics: [],
     statuses: [
@@ -145,7 +142,7 @@ test('a hand-set review is not drawn as reviewing and offers no settle action', 
   const card = deliveryLanes(graph, [item('h', { handSetReview: true, nextAction: 'Owner decision: pick.' })])['needs-you'][0]
   assert.deepEqual([card.handSetReview, card.nextAction], [true, 'Owner decision: pick.'])
   assert.equal(doneStatus(graph), 'accepted')
-  const conflict = { kind: 'needs-human', reason: 'hand-set-review', taskId: 'h', title: 'h', detail: 'Status review was set by hand.', authority: 'local' }
+  const conflict: ConflictItem = { kind: 'needs-human', reason: 'hand-set-review', taskId: 'h', title: 'h', detail: 'Status review was set by hand.', authority: 'local' }
   assert.equal(settleActionOf(conflict), null)
   assert.equal(whyLine(conflict), 'Status review was set by hand.')
   assert.match(noSessionLabel('review'), /marked in review, but no review is running/)
@@ -216,8 +213,8 @@ test('the drawer shows review runs and the hand-set block', () => {
 })
 
 test('Running on the Dashboard is exactly the tasks In flight lists', () => {
-  const live = { slot: 'chat-1', role: 'worker', attempt: 1, title: null, status: 'running', statusAt: null, boundAt: null, link: '/chat/chat-1' }
-  const g = (tasks) => ({ revision: 1, epics: [], statuses: [], repositories: [], total: tasks.length, tasks, edges: [] })
+  const live: DeliverySession = { slot: 'chat-1', role: 'worker', attempt: 1, title: null, status: 'running', statusAt: null, boundAt: null, link: '/chat/chat-1' }
+  const g = (tasks: GraphTask[]): Graph => ({ revision: 1, epics: [], statuses: [], repositories: [], total: tasks.length, tasks, edges: [] })
   // A status:'review' task with no session: Running 0, In flight empty.
   const none = summarize({ graph: g([task('r', { status: 'review', state: 'running' })]), delivery: [item('r')], conflicts: [], plans: null })
   assert.deepEqual([none.counts.running, none.inFlight.length, none.counts['needs-you']], [0, 0, 1])

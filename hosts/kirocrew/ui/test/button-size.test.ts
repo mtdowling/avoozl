@@ -1,21 +1,18 @@
-// @ts-nocheck: typing debt
 // No button or icon button is taller than 28 px on any screen, at 390 and
 // 1280 px, light and dark. Kiro Crew's own buttons are about 24 px; there is no
 // bigger "tap target" size on a phone. Checked on the Home page, every Settings
 // section and the other tabs. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 import { openView } from './browser/in-flight-nav.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the button size test'
 
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 const MAX = 28
 // Buttons and links styled as buttons. A native
@@ -33,7 +30,7 @@ const SIZES = [
   { width: 390, height: 800, theme: 'dark', dark: true },
   { width: 1280, height: 900, theme: 'light', dark: false },
 ]
-const SCREENS = [
+const SCREENS: { name: string; query: Record<string, string>; view?: string; ready: string }[] = [
   { name: 'Insights', query: { page: 'app', basic: '1', insights: 'full' }, ready: `Boolean(document.querySelector('[data-retro]'))` },
   { name: 'Specs', query: { page: 'app', basic: '1' }, view: 'plans', ready: `Boolean(document.querySelector('[data-plans-list]'))` },
 ]
@@ -45,13 +42,13 @@ for (const size of SIZES) {
       await page.open(harness.url({ ...screen.query, theme: size.theme }), { width: size.width, height: size.height, dark: size.dark })
       if (screen.view) await openView(page, screen.view)
       await page.until(screen.ready)
-      assert.deepEqual(await page.evaluate(tall), [])
+      assert.deepEqual(await page.evaluate<string[]>(tall), [])
     })
 
   test(`no button on the other tabs and Settings sections is taller than ${MAX} px at ${size.width} px ${size.theme}`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', basic: '1', theme: size.theme }), { width: size.width, height: size.height, dark: size.dark })
     await page.until(`Boolean(document.querySelector('[data-insights]'))`)
-    const found = []
+    const found: string[] = []
     const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
     // On a phone the nav is behind the rail button; open it when it is shut.
     const openMenu = () =>
@@ -64,18 +61,18 @@ for (const size of SIZES) {
       await settle()
       // The nav itself, with this section open.
       await openMenu()
-      found.push(...(await page.evaluate(tall)).map((entry) => `nav at ${name}: ${entry}`))
-      const pages = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="${group}"] [data-nav-item]')].map((b) => b.dataset.navItem)`)
+      found.push(...(await page.evaluate<string[]>(tall)).map((entry) => `nav at ${name}: ${entry}`))
+      const pages = await page.evaluate<string[]>(`[...document.querySelectorAll('[data-nav-children="${group}"] [data-nav-item]')].map((b) => b.dataset.navItem)`)
       if (!pages.length) {
         // A plain section closes the phone's menu; measure the page.
-        found.push(...(await page.evaluate(tall)).map((entry) => `${name}: ${entry}`))
+        found.push(...(await page.evaluate<string[]>(tall)).map((entry) => `${name}: ${entry}`))
         continue
       }
       for (const key of pages) {
         await openMenu()
         await page.evaluate(`document.querySelector('[data-nav-item="${key}"]')?.click()`)
         await settle()
-        found.push(...(await page.evaluate(tall)).map((entry) => `${key}: ${entry}`))
+        found.push(...(await page.evaluate<string[]>(tall)).map((entry) => `${key}: ${entry}`))
       }
     }
     assert.deepEqual([...new Set(found)], [])

@@ -1,51 +1,26 @@
-// @ts-nocheck: typing debt
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { SMALL, countsLayout, countsStyles, summarize } from '../src/in-flight-api.ts'
+import { deliveryItem, deliverySession, graphEdge, graphTask, storedPlan } from './graph-fixture.ts'
+import type { DeliveryItem, DeliverySession, Graph, GraphTask } from '../src/views-api.ts'
 
-const task = (id, state, extra = {}) => ({
-  id,
-  title: id.toUpperCase(),
-  epic: 'e1',
-  kind: 'leaf',
-  authority: 'local',
-  route: 'local',
-  completion: 'merged',
-  repository: null,
-  status: null,
-  complete: state === 'done',
-  ready: state === 'ready',
-  state,
-  decision: null,
-  issue: null,
-  ...extra,
-})
+const task = (id: string, state: GraphTask['state'], extra: Partial<GraphTask> = {}) =>
+  graphTask(id, { title: id.toUpperCase(), epic: 'e1', completion: 'merged', status: null, complete: state === 'done', ready: state === 'ready', state, ...extra })
 
-const edge = (from, to) => ({ from, to, kind: 'requires', condition: null, blocking: true, satisfied: false })
+const edge = (from: string, to: string) => graphEdge(from, to)
 
-const delivery = (id, extra = {}) => ({
-  id,
-  title: id,
-  status: null,
-  complete: false,
-  repository: null,
-  sessions: [],
-  evidence: [],
-  integration: null,
-  pullRequests: [],
-  deliveries: [],
-  worktrees: [],
-  ...extra,
-})
+// Sessions name only what the test reads; the rest is unobserved.
+const delivery = (id: string, { sessions = [], ...extra }: Omit<Partial<DeliveryItem>, 'sessions'> & { sessions?: Partial<DeliverySession>[] } = {}) =>
+  deliveryItem(id, { title: id, status: null, sessions: sessions.map(deliverySession), ...extra })
 
 test('the dashboard puts what needs the owner first and orders ready work by wave', () => {
-  const graph = {
+  const graph: Graph = {
     revision: 1,
     epics: [{ id: 'e1', title: 'Epic one', count: 4 }],
     statuses: [],
     repositories: [],
     total: 5,
-    tasks: [task('a', 'done'), task('b', 'ready'), task('c', 'ready'), task('d', 'needs-you'), task('epic', 'waiting', { kind: 'epic' })],
+    tasks: [task('a', 'done'), task('b', 'ready'), task('c', 'ready'), task('d', 'needs-you'), task('epic', 'waiting', { kind: 'package' })],
     edges: [edge('a', 'c'), edge('c', 'b')],
   }
   const summary = summarize({
@@ -62,10 +37,7 @@ test('the dashboard puts what needs the owner first and orders ready work by wav
     ],
     plans: {
       total: 2,
-      items: [
-        { id: 'p', state: 'approved' },
-        { id: 'q', state: 'draft' },
-      ],
+      items: [storedPlan('p', { state: 'approved' }), storedPlan('q', { state: 'draft' })],
     },
   })
   assert.deepEqual(
@@ -110,7 +82,7 @@ test('In flight has one row per live agent chat, by role, newest activity first'
     tasks: [task('w', 'running'), task('p', 'running', { epic: null })],
     edges: [],
   }
-  const session = (slot, role, attempt, statusAt, extra = {}) => ({
+  const session = (slot: string, role: string, attempt: number, statusAt: string, extra: Partial<DeliverySession> = {}): DeliverySession => ({
     slot,
     role,
     attempt,
@@ -153,24 +125,8 @@ test('In flight has one row per live agent chat, by role, newest activity first'
 })
 
 test('Up next follows the tick dispatch order, and epics count their running chats', () => {
-  const leaf = (id, extra) => ({
-    id,
-    title: id,
-    epic: 'e1',
-    kind: 'leaf',
-    authority: 'local',
-    route: 'local',
-    completion: 'merged',
-    repository: null,
-    status: null,
-    complete: false,
-    ready: true,
-    state: 'ready',
-    decision: null,
-    issue: null,
-    ...extra,
-  })
-  const graph = {
+  const leaf = (id: string, extra: Partial<GraphTask>) => graphTask(id, { title: id, epic: 'e1', completion: 'merged', status: null, ready: true, state: 'ready', ...extra })
+  const graph: Graph = {
     revision: 1,
     epics: [{ id: 'e1', title: 'Epic one', count: 3 }],
     statuses: [],
@@ -179,20 +135,8 @@ test('Up next follows the tick dispatch order, and epics count their running cha
     tasks: [leaf('x', { order: 2 }), leaf('y', { order: 0 }), leaf('z', { order: 1, state: 'running', ready: false })],
     edges: [],
   }
-  const session = (slot, role) => ({ slot, role, attempt: 1, title: null, status: 'working', statusAt: null, boundAt: null })
-  const item = (id, sessions) => ({
-    id,
-    title: id,
-    status: null,
-    complete: false,
-    repository: null,
-    sessions,
-    evidence: [],
-    integration: null,
-    pullRequests: [],
-    deliveries: [],
-    worktrees: [],
-  })
+  const session = (slot: string, role: string) => deliverySession({ slot, role, status: 'working' })
+  const item = (id: string, sessions: DeliverySession[]) => deliveryItem(id, { title: id, status: null, sessions })
   const summary = summarize({ graph, delivery: [item('z', [session('a', 'worker'), session('b', 'checks')])], conflicts: [], plans: null })
   assert.deepEqual(
     summary.readyNext.map((t) => t.id),
@@ -219,13 +163,15 @@ test('the state buttons share the title line wide, wrap right medium, and grid s
   assert.equal(countsLayout(false, false), 'medium')
   assert.equal(countsLayout(false, true), 'small')
 
-  const wide = countsStyles('wide')
+  // Each layout's list style, read as plain style fields.
+  const list = (layout: Parameters<typeof countsStyles>[0]) => countsStyles(layout).list as Record<string, unknown>
+  const wide = { list: list('wide') }
   assert.equal(wide.list.flexWrap, 'wrap')
   assert.equal(wide.list.marginLeft, 'auto')
   assert.equal(wide.list.width, undefined)
 
   // Medium: a full-width line of its own, right-aligned, wrapping with even gaps.
-  const medium = countsStyles('medium')
+  const medium = { list: list('medium') }
   assert.equal(medium.list.width, '100%')
   assert.equal(medium.list.justifyContent, 'flex-end')
   assert.equal(medium.list.flexWrap, 'wrap')
@@ -265,7 +211,7 @@ test('a remote worker from a runner shows in In flight with its crew link', () =
   const summary = summarize({ graph: null, delivery: [], conflicts: [], plans: null, remote: [remote] })
   assert.equal(summary.inFlight.length, 1)
   const [row] = summary.inFlight
-  assert.equal(row.remote.host, 'box')
+  assert.equal(row.remote?.host, 'box')
   assert.equal(row.session.link, 'https://crew-b.example/chat?sid=chat-4')
   assert.equal(row.session.crew, 'crew-b')
   assert.equal(summarize({ graph: null, delivery: [], conflicts: [], plans: null }).inFlight.length, 0)

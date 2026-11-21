@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Activity tab (design §4.19, R71): its pure helpers and how the page
 // wires them.
 import assert from 'node:assert/strict'
@@ -6,10 +5,12 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { ACTIVITY_FILTER_STORE, SOURCE_LABELS, filterActive, filterChoices, activityParts, actorHref, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
 import { PAGE } from '../src/paging.ts'
+import type { ActivityRow } from '../src/activity-api.ts'
+import { memoryStorage } from './memory-storage.ts'
 
 const src = new URL('../src/', import.meta.url)
-const source = (name) => readFileSync(new URL(name, src), 'utf8')
-const row = (extra = {}) => ({
+const source = (name: string) => readFileSync(new URL(name, src), 'utf8')
+const row = (extra: Partial<ActivityRow> = {}): ActivityRow => ({
   seq: 1,
   at: '2026-11-13T00:00:00Z',
   source: 'local',
@@ -64,8 +65,7 @@ test('filter choices come from the log with their counts, and keep the one in us
   assert.deepEqual(filterChoices({ ...page, counts: undefined }, {}).actors, [{ value: 'owner', label: 'owner', count: 0 }])
   assert.equal(filterActive({}), false)
   assert.equal(filterActive({ actor: 'owner' }), true)
-  const store = new Map()
-  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
+  const storage = memoryStorage()
   ACTIVITY_FILTER_STORE.write(storage, 'w1', { source: 'mcp' })
   assert.deepEqual(ACTIVITY_FILTER_STORE.read(storage, 'w1'), { source: 'mcp' })
   assert.deepEqual(ACTIVITY_FILTER_STORE.read(storage, 'w2'), {})
@@ -104,17 +104,17 @@ test('the tab: its own nav entry and icon, the shared heading, filter panel and 
 
 // A fake clock so the 800 ms pause runs without waiting.
 function autosave(known = '') {
-  const sent = []
+  const sent: (number | null)[] = []
   let now = 0,
     next = 1
-  const timers = new Map()
+  const timers = new Map<number, { at: number; run: () => void }>()
   const box = retentionAutosave({
     save: (days) => sent.push(days),
-    setTimer: (run, ms) => (timers.set(next, { at: now + ms, run }), next++),
-    clearTimer: (id) => timers.delete(id),
+    setTimer: (run: () => void, ms: number) => (timers.set(next, { at: now + ms, run }), next++),
+    clearTimer: (id: number) => timers.delete(id),
   })
   box.reset(known)
-  const wait = (ms) => {
+  const wait = (ms: number) => {
     now += ms
     for (const [id, t] of [...timers]) if (t.at <= now) timers.delete(id), t.run()
   }
@@ -181,7 +181,7 @@ test('Keep activity has no Save button and saves on blur and Enter', () => {
 
 // The links in a row's summary, as [text, href] pairs.
 const known = ['o/app', 'nupp-lang/foo']
-const links = (extra, repositories = known) =>
+const links = (extra: Partial<ActivityRow>, repositories = known) =>
   activityParts(row({ repository: 'o/app', ...extra }), repositories)
     .filter((part) => part.href)
     .map((part) => [part.text, part.href])
@@ -230,7 +230,7 @@ test('pull request, issue and check rows link to GitHub', () => {
 })
 
 test('a GitHub login links to its profile, in the summary and the Who cell', () => {
-  const close = {
+  const close: Partial<ActivityRow> = {
     source: 'github',
     kind: 'github.close',
     actor: 'octo',
@@ -247,7 +247,7 @@ test('a GitHub login links to its profile, in the summary and the Who cell', () 
   assert.equal(actorHref(row(close), known), 'https://github.com/octo')
   assert.equal(actorHref(row({ ...close, source: 'local' }), known), null)
   assert.equal(actorHref(row(close), []), null)
-  const token = {
+  const token: Partial<ActivityRow> = {
     source: 'github',
     kind: 'github.token',
     actor: 'gh',
