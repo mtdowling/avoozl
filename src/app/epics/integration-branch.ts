@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The integration branch of an epic (RC16.1, design D21): the manifest names
 // it, and Avoozl only reads GitHub to check it. It creates no branch. The
 // check has four items, each ok or not: the name is usable, the branch is not
@@ -8,13 +7,14 @@ import { ruleBranch } from "../github/github-branch-rules.ts";
 import { fail } from "../store/store.ts";
 import { specFacts } from "../specs/spec-plans.ts";
 import { specTasks } from "../specs/spec-tasks.ts";
+import type { Store } from "../store/store.ts";
 
 const SYNC_SCHEDULES = ["weekly", "daily", "off"];
 const DEFAULT_SYNC = "weekly";
 
 // Why a branch name cannot be used, or null. A subset of git's ref rules,
 // stricter on purpose: letters, digits and . _ - / only.
-export function branchNameProblem(name) {
+export function branchNameProblem(name: unknown) {
   if (typeof name !== "string" || !name.trim())
     return "Name the integration branch, such as rewrite/my-epic.";
   if (name.length > 200)
@@ -31,7 +31,9 @@ export function branchNameProblem(name) {
 
 // The two manifest fields, or throws a message for the lint. A manifest with
 // neither field gives `null`, and nothing else changes for that epic.
-export function integrationOf(manifest) {
+export function integrationOf(
+  manifest: Record<string, unknown> | null,
+): { branch: string; sync: string } | null {
   const { integrationBranch: branch, integrationSync: sync } = manifest || {};
   if (branch === undefined) {
     if (sync !== undefined)
@@ -40,12 +42,16 @@ export function integrationOf(manifest) {
   }
   const problem = branchNameProblem(branch);
   if (problem) throw Error(`integrationBranch: ${problem}`);
-  if (sync !== undefined && !SYNC_SCHEDULES.includes(sync))
+  if (
+    sync !== undefined &&
+    (typeof sync !== "string" || !SYNC_SCHEDULES.includes(sync))
+  )
     throw Error(`integrationSync must be one of ${SYNC_SCHEDULES.join(", ")}.`);
-  return { branch, sync: sync ?? DEFAULT_SYNC };
+  return { branch: branch as string, sync: sync ?? DEFAULT_SYNC };
 }
 
-const LABELS = {
+type Item = "name" | "not-default" | "exists" | "protected";
+const LABELS: Record<Item, string> = {
   name: "Usable name",
   "not-default": "Not the default branch",
   exists: "Branch exists",
@@ -55,18 +61,27 @@ const LABELS = {
 // { repository, branch, defaultBranch, ready, missing: [id], items, error }.
 // A GitHub read that fails leaves the items that needed it not ok and puts the
 // reason in `error`. Read only.
+// The GitHub reads the check makes.
+interface BranchGitHub {
+  repository(repository: unknown): Promise<{ default_branch?: string } | null>;
+  branch(
+    repository: string,
+    branch: string,
+  ): Promise<{ protected?: boolean } | null>;
+}
+
 export async function checkIntegrationBranch(
-  github,
-  repository,
-  branch,
-  settings,
+  github: BranchGitHub,
+  repository: string,
+  branch: string,
+  settings?: unknown,
 ) {
   const problem = branchNameProblem(branch);
-  let def = null,
+  let def: string | null = null,
     exists = false,
     guarded = false,
     isDefault = false,
-    error = null;
+    error: string | null = null;
   if (!problem)
     try {
       def = await ruleBranch(github, repository, settings);
@@ -82,16 +97,16 @@ export async function checkIntegrationBranch(
         guarded = found?.protected === true;
       }
     } catch (reason) {
-      error = `GitHub could not be read: ${reason.message}`;
+      error = `GitHub could not be read: ${(reason as Error).message}`;
     }
   const settingsPage = `https://github.com/${repository}/settings/branches`,
-    ok = {
+    ok: Record<Item, boolean> = {
       name: !problem,
       "not-default": !problem && !error && !isDefault,
       exists: exists && !isDefault,
       protected: guarded && !isDefault,
     },
-    detail = {
+    detail: Record<Item, string> = {
       name: problem ?? `${branch} is a usable name.`,
       "not-default": isDefault
         ? `${branch} is the default branch. Name a separate branch for the rewrite.`
@@ -105,7 +120,7 @@ export async function checkIntegrationBranch(
         : (error ??
           `${branch} is not protected. Add a branch rule: ${settingsPage}`),
     },
-    items = Object.keys(LABELS).map((id) => ({
+    items = (Object.keys(LABELS) as Item[]).map((id) => ({
       id,
       label: LABELS[id],
       ok: ok[id],
@@ -123,7 +138,9 @@ export async function checkIntegrationBranch(
 }
 
 // Refuses a branch that is not ready, naming each reason.
-export function requireIntegrationBranch(check) {
+export function requireIntegrationBranch(
+  check: Awaited<ReturnType<typeof checkIntegrationBranch>>,
+) {
   if (!check.ready)
     fail(
       `Integration branch ${check.branch} in ${check.repository} is not ready. ${check.items
@@ -137,9 +154,15 @@ export function requireIntegrationBranch(check) {
 
 // The integration branch of the spec a plan was approved from, or null: no
 // field, no approval yet, or a value the lint already refuses.
-export function integrationBranchOf(store, plan) {
+export function integrationBranchOf(
+  store: Store,
+  plan: { approvalId?: string },
+) {
   try {
-    const files = store.get("approvals", plan.approvalId)?.files;
+    const files = store.get<{ id: string; files?: Record<string, string> }>(
+      "approvals",
+      plan.approvalId,
+    )?.files;
     return !files || !specTasks(files)
       ? null
       : (integrationOf(specFacts(files))?.branch ?? null);

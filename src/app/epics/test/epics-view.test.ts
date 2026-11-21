@@ -36,7 +36,8 @@ test("with no epics and no merges the views are empty, not broken", () => {
     read: () => ({ epics: [], tasks: [] }),
     list: () => [],
   };
-  assert.deepEqual(epicsView(store, { repositories: [] }), {
+  // A stand-in with only the reads the view makes.
+  assert.deepEqual(epicsView(store as unknown as Store, { repositories: [] }), {
     epics: [],
     unprojected: [],
   });

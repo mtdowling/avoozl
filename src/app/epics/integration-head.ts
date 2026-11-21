@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The head of an epic's integration branch (RC16.3, RC16.5, RC16.7, design
 // D21). Four records stay apart (AGENTS.md): plan approval, implementation (the
 // task pull requests), integration (a task's merge into the branch) and
@@ -14,26 +13,72 @@ import { openStops, putStop } from "../flow/flow.ts";
 import { queueNotifications } from "../tick/notifications.ts";
 import { statusComplete } from "../../model.ts";
 import { branchChecks, stageResults } from "../plugins/check-stages.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { SyncTarget } from "./integration-sync.ts";
 
 const META = "integrationHeads";
 const SYNC = "integrationSync";
-const keyOf = (repository, branch) => `${repository}@${branch}`;
+const keyOf = (repository: string, branch: string) => `${repository}@${branch}`;
 const SHA = /^[0-9a-f]{40}$/;
 
-const read = (store) => store.getMeta(META) ?? { entries: {}, landing: {} };
+// What the last read of one branch head found.
+type HeadEntry = {
+  head?: string;
+  base?: string;
+  behind?: number;
+  checks?: "red" | "green" | "pending";
+  tasksMerged?: number;
+  tasksTotal?: number;
+  readAt?: number;
+  acceptance?: { head: string; at: string } | null;
+  error?: string;
+};
+// A person's approval to land one head.
+type Landing = { head: string; approvedBy: unknown; at: string };
+type HeadMeta = {
+  entries: Record<string, HeadEntry>;
+  landing: Record<string, Landing>;
+};
+type Plan = { id: string; spec?: string; deletedAt?: string };
+type Check = { done?: boolean; ok?: boolean; [key: string]: unknown };
+// The GitHub reads a head step makes (with checksOf's and ruleBranch's).
+type HeadGitHub = {
+  branch(
+    repository: string,
+    branch: string,
+  ): Promise<{ commit?: { sha?: string } } | null>;
+  compareCommits(
+    repository: string,
+    base: string,
+    head: string,
+  ): Promise<{ ahead_by?: unknown } | null>;
+};
+type Policy = {
+  repositories?: Record<string, { requiredChecks?: string[] }>;
+} | null;
+
+const read = (store: Store): HeadMeta =>
+  store.getMeta<HeadMeta>(META) ?? { entries: {}, landing: {} };
 
 // Check state of one head: red when a finished check failed, green when every
 // check passed and each required one ran, else pending.
-function headState(checks, required) {
+function headState(checks: Check[], required: string[]) {
   if (checks.some((check) => check.done && !check.ok)) return "red";
   return green(checks, required) ? "green" : "pending";
 }
 
 // Opens or closes the stop that holds the epic's line. One stop per branch.
-function holdLine(store, target, plan, reason, now) {
+function holdLine(
+  store: Store,
+  target: SyncTarget,
+  plan: Plan,
+  reason: string | null,
+  now: number,
+) {
   const key = keyOf(target.repository, target.branch),
-    open = openStops(store).find((stop) => stop.branch === key);
+    open = openStops(store).find(
+      (stop: { branch?: string }) => stop.branch === key,
+    );
   if (!reason) {
     if (open)
       putStop(store, {
@@ -84,17 +129,20 @@ function holdLine(store, target, plan, reason, now) {
 // acceptance for a green head, and hold or release the line. A read failure
 // keeps the last entry and says so; it changes no stop.
 export async function headStep(
-  store,
-  github,
-  targets,
-  { policy, now = Date.now() } = {},
+  store: Store,
+  github: HeadGitHub | null,
+  targets: SyncTarget[],
+  { policy, now = Date.now() }: { policy?: Policy; now?: number } = {},
 ) {
-  const errors = [],
+  const errors: string[] = [],
     state = read(store),
-    next = { entries: {}, landing: state.landing },
-    syncs = store.getMeta(SYNC)?.entries ?? {},
+    next: HeadMeta = { entries: {}, landing: state.landing },
+    syncs =
+      store.getMeta<{
+        entries?: Record<string, { state?: string; base?: string }>;
+      }>(SYNC)?.entries ?? {},
     data = store.read(),
-    plans = store.list("plans");
+    plans = store.list<Plan>("plans");
   for (const target of targets) {
     const key = keyOf(target.repository, target.branch),
       before = state.entries[key],
@@ -106,7 +154,7 @@ export async function headStep(
     try {
       const found = await github.branch(target.repository, target.branch),
         head = found?.commit?.sha;
-      if (!SHA.test(head ?? ""))
+      if (!head || !SHA.test(head))
         throw Error("the branch head could not be read");
       const settings = policy?.repositories?.[target.repository],
         base = await ruleBranch(github, target.repository, settings),
@@ -117,7 +165,7 @@ export async function headStep(
         own = data.tasks.filter((task) => task.planId === plan.id),
         // The head's branch-stage plugin checks, run here and never posted
         // (plugin-checks D7, D8): pending until their run finishes.
-        checks = [
+        checks: Check[] = [
           ...remote,
           ...branchChecks(store, {
             github: target.repository,
@@ -130,7 +178,7 @@ export async function headStep(
         checkState = headState(checks, settings?.requiredChecks || []),
         merged = own.filter((task) => statusComplete(data, task.status)).length;
       // Acceptance names the head it covers. A task merge never sets it.
-      let acceptance = before?.acceptance ?? null;
+      let acceptance: HeadEntry["acceptance"] = before?.acceptance ?? null;
       if (checkState === "green" && acceptance?.head !== head)
         acceptance = { head, at: new Date(now).toISOString() };
       next.entries[key] = {
@@ -155,7 +203,8 @@ export async function headStep(
             : null,
         now,
       );
-    } catch (error) {
+    } catch (thrown) {
+      const error = thrown as Error;
       next.entries[key] = {
         ...(before ?? {}),
         error: error.message,
@@ -168,10 +217,11 @@ export async function headStep(
   return { errors };
 }
 
-const accepted = (entry) => entry?.acceptance?.head === entry?.head;
+const accepted = (entry: HeadEntry | undefined) =>
+  entry?.acceptance?.head === entry?.head;
 
 // One row per epic with a branch, for Trace, In flight and Progress.
-export function integrationView(store) {
+export function integrationView(store: Store) {
   const { entries, landing } = read(store),
     stages = stageResults(store);
   return {
@@ -204,7 +254,7 @@ export function integrationView(store) {
 
 // Ready to land: the head is green and accepted, the branch has caught up with
 // the default branch, and nobody has approved this head yet.
-const ready = (entry, approval) =>
+const ready = (entry: HeadEntry, approval: Landing | undefined) =>
   entry.checks === "green" &&
   accepted(entry) &&
   entry.behind === 0 &&
@@ -212,9 +262,9 @@ const ready = (entry, approval) =>
 
 // The Needs you rows: one asks a person to land a ready head; once approved
 // for this head, one says to merge it on GitHub.
-export function landingNeedsYou(store) {
+export function landingNeedsYou(store: Store) {
   const { entries, landing } = read(store);
-  const items = [];
+  const items: Record<string, unknown>[] = [];
   for (const [key, entry] of Object.entries(entries)) {
     const approval = landing[key],
       [repository, branch] = [
@@ -232,8 +282,8 @@ export function landingNeedsYou(store) {
         head: entry.head,
         link: `https://github.com/${repository}/compare/${entry.base}...${branch}`,
         title: `${branch} is ready to land in ${entry.base}`,
-        detail: `Its head ${entry.head.slice(0, 7)} is green and the branch has caught up with ${entry.base}. Approve this head, then merge it on GitHub yourself. Avoozl never merges the branch.`,
-        openedAt: entry.acceptance.at,
+        detail: `Its head ${String(entry.head).slice(0, 7)} is green and the branch has caught up with ${entry.base}. Approve this head, then merge it on GitHub yourself. Avoozl never merges the branch.`,
+        openedAt: entry.acceptance?.at,
       });
     else if (approval?.head === entry.head)
       items.push({
@@ -244,7 +294,7 @@ export function landingNeedsYou(store) {
         authority: "github",
         link: `https://github.com/${repository}/compare/${entry.base}...${branch}`,
         title: `${branch} is approved to land: merge it on GitHub`,
-        detail: `${approval.approvedBy} approved head ${entry.head.slice(0, 7)}. Avoozl does not merge it.`,
+        detail: `${approval.approvedBy} approved head ${String(entry.head).slice(0, 7)}. Avoozl does not merge it.`,
         openedAt: approval.at,
       });
   }
@@ -254,11 +304,16 @@ export function landingNeedsYou(store) {
 // A person approves landing one head. An older head is refused: the branch
 // moved since the row was shown. This records who and which head and does
 // nothing else; the merge into the default branch is a person's, on GitHub.
-export function landBranch(store, input = {}, { by, now = Date.now() } = {}) {
+export function landBranch(
+  store: Store,
+  input: { repository?: unknown; branch?: unknown; head?: unknown } = {},
+  { by, now = Date.now() }: { by?: unknown; now?: number } = {},
+) {
   const key = keyOf(String(input.repository ?? ""), String(input.branch ?? "")),
     state = read(store),
     entry = state.entries[key];
-  if (!entry?.head) fail("That integration branch has not been read yet.", 404);
+  if (!entry?.head)
+    return fail("That integration branch has not been read yet.", 404);
   if (input.head !== entry.head)
     fail(
       `The branch head is now ${entry.head.slice(0, 7)}, not ${String(input.head ?? "").slice(0, 7)}. Review it again.`,
@@ -273,7 +328,7 @@ export function landBranch(store, input = {}, { by, now = Date.now() } = {}) {
           : "This head is already approved.",
       409,
     );
-  const record = {
+  const record: Landing = {
     head: entry.head,
     approvedBy: by,
     at: new Date(now).toISOString(),
