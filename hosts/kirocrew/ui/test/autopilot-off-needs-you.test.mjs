@@ -1,9 +1,9 @@
-// Ready tasks wait while this machine has no loop: Needs you and Home show
-// one row that says so and where to turn Autopilot on, with no settle button.
+// Ready tasks wait while this machine has no loop: Needs you shows one row
+// that says so and where to turn Autopilot on, with no settle button.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { noActionReason, settleActionOf, whyLine } from '../src/conflicts-api.ts'
-import { summarize } from '../src/dashboard-api.ts'
+import { summarize } from '../src/in-flight-api.ts'
 
 const item = {
   kind: 'needs-human',
@@ -20,7 +20,7 @@ test('the autopilot-off row says what to do and offers no settle action', () => 
   assert.equal(whyLine(item), item.detail)
 })
 
-test("Home's Needs you lists the autopilot-off row", () => {
+test('the attention list keeps the autopilot-off row', () => {
   const summary = summarize({ graph: { tasks: [], epics: [], edges: [] }, delivery: [], conflicts: [item], plans: null })
   assert.deepEqual(
     summary.attention.map((entry) => [entry.kind, entry.title, entry.detail]),
