@@ -14,8 +14,13 @@ import { fileURLToPath } from "node:url";
 
 // The one address it binds. No setting changes it.
 export const EGRESS_BIND = "127.0.0.1";
-const EGRESS_MAIN = fileURLToPath(
-  new URL("./egress-proxy-main.ts", import.meta.url),
+// The proxy program beside this module: .ts in a checkout, .mjs in the
+// bundled app (build-kirocrew-app.ts).
+export const EGRESS_MAIN = fileURLToPath(
+  new URL(
+    `./egress-proxy-main${path.extname(import.meta.url)}`,
+    import.meta.url,
+  ),
 );
 const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 

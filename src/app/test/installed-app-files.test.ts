@@ -33,3 +33,22 @@ test("the installed bundle reads the shipped agent prompts and version", async (
       .version,
   );
 });
+
+// The egress proxy runs as its own process, started by path, so nothing
+// imports egress-proxy-main and the bundle must list it as an entry.
+test("the installed bundle has the egress proxy program it starts", async () => {
+  const { EGRESS_MAIN } = await import(
+    pathToFileURL(
+      path.join(
+        app,
+        "bin",
+        "lib",
+        "src",
+        "app",
+        "executors",
+        "egress-proxy.mjs",
+      ),
+    ).href
+  );
+  assert.ok(fs.existsSync(EGRESS_MAIN), EGRESS_MAIN);
+});
