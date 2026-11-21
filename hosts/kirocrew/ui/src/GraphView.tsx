@@ -44,7 +44,7 @@ import { FilterBar, useSharedFilter } from './FilterBar.tsx'
 import { filterChoices, filterGraph } from './filters.ts'
 import { IconLabel, SectionHeading, TipBtn, ViewHeading } from './ui/controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
-import { ArrowLeft, ExternalLink, Plus } from './icons.ts'
+import { ArrowLeft, ExternalLink } from './icons.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
@@ -211,9 +211,6 @@ function Details(props: { task: GraphTask; batch: GraphBatch | null; neighbors: 
             <>
               <TipBtn tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(task.id)}>
                 All details
-              </TipBtn>
-              <TipBtn tooltip="Add a draft task that waits on this one" onClick={() => drawer.addTask({ prerequisite: task.id })}>
-                Add a task after this
               </TipBtn>
             </>
           }

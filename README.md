@@ -72,8 +72,7 @@ machine.
 
 Agents write the code, and people keep the decisions.
 
-- An agent cannot approve a spec unless you grant it that from your own
-  terminal, and it cannot change a repository's checks.
+- An agent cannot approve a spec or change a repository's checks.
 - Avoozl never force pushes, merges with `--admin`, or skips a required check
   or review.
 - Checks run in a sandbox with the network off by default, and never see a
@@ -116,10 +115,6 @@ browser in. Claude Code users can load the plugin in `hosts/claude-code/`.
 
 ## Trying it out
 
-To look around before you set anything up, choose **Start demo** on the
-Avoozl page. It opens a made-up workspace in which nothing starts an agent or
-writes to GitHub, and **Exit demo** returns to your own.
-
 A workspace is a directory you own, separate from this checkout. Create one
 on the page under **Add or initialize a workspace**, or from the CLI:
 
@@ -134,8 +129,8 @@ repository with `avoozl repository configure ID --root PATH`, then run
 
 ## Delivering a spec
 
-Choose **New spec** on the Specs page, review the lint results and the task
-graph, then choose **Approve revision**. See
+Write the spec by hand, or ask a chat to with the `avoozl-spec` skill, then
+approve it. See
 [Write and approve a spec](docs/getting-started.md#write-and-approve-a-spec).
 
 Register the checkout the work changes, with its base branch, a folder for
@@ -217,7 +212,7 @@ The [docs](docs/README.md) cover the rest:
   approvals, claims and landing
 - [Delivery](docs/delivery.md) for workers, checks, landing, and merge batches
 - [GitHub](docs/github.md) for repository roles and GitHub modes
-- [Flow](docs/flow.md) for Stop the line and retros
+- [Flow](docs/flow.md) for Stop the line, Insights and the retro skill
 - [Agents and the CLI](docs/agents.md) for roles and models, MCP tools, and
   person-only actions
 - [Agent skills](docs/agent-skills.md) for the answer, review and triage skills
@@ -230,11 +225,10 @@ The [docs](docs/README.md) cover the rest:
   do
 - [Manual tasks](docs/manual-tasks.md) for steps only a person
   does
-- [Intake sources](docs/intake.md) for bringing in work from trackers and
-  scripts
+- [Intake sources](docs/intake.md) for bringing in work from scripts
 - [GitHub rate limit](docs/rate-limit.md) for the cache and write pacing
-- [Writing a plugin](docs/plugins.md) for intake sources, content rules, and
-  workflow templates
+- [Writing a plugin](docs/plugins.md) for content rules, GitHub sign-in,
+  checks and epic context
 - [Glossary](docs/glossary.md) for terms that look alike
 
 ## Development

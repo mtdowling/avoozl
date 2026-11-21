@@ -36,7 +36,17 @@
   "model": ["--model", "{model}"],
   "permission": { "write": "danger-full-access", "read": "danger-full-access" },
   "writeRoots": ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
-  "keepEnv": ["OPENAI_API_KEY", "CODEX_API_KEY"],
-  "reads": ["~/.codex"],
+  "keepEnv": [
+    "OPENAI_API_KEY",
+    "CODEX_API_KEY",
+    "AWS_PROFILE",
+    "AWS_REGION",
+    "AWS_DEFAULT_REGION",
+    "AWS_CONFIG_FILE",
+    "AWS_SHARED_CREDENTIALS_FILE"
+  ],
+  "reads": ["~/.aws"],
+  "homeFiles": ["~/.codex/config.toml"],
+  "probe": ["codex", "exec", "--skip-git-repo-check", "--color", "never", "ok"],
   "proved": ["write"]
 }

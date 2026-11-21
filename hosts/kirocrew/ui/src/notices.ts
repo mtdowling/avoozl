@@ -6,8 +6,8 @@
 import { itemKey } from './conflicts-api.ts'
 
 export const NOTICE_INTERVAL_MS = 60_000
-export const NOTICES_KEY = 'avoozl-notices'
-export const NOTICED_KEY = 'avoozl-noticed'
+const NOTICES_KEY = 'avoozl-notices'
+const NOTICED_KEY = 'avoozl-noticed'
 export const NOTICES_CHANGED = 'avoozl:notices-changed'
 const REMEMBER = 500
 

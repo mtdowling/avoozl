@@ -1,9 +1,11 @@
 // The Activity tab (design §4.19, R71): who did what in this workspace, from
 // the page, the CLI, MCP, GitHub and plugin sync, newest first, 100 rows at a
-// time. A task row opens the drawer; a GitHub row opens GitHub in a new tab.
+// time. A task row opens the drawer; a GitHub row opens GitHub in a new tab,
+// and each repository, number, SHA, branch, check and login in a row links to
+// GitHub when the workspace has that repository (activityParts).
 // Rows hold only IDs and Avoozl's own summaries; a row the content rules
 // caught says it was redacted.
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi } from './host.ts'
 import { EmptyState } from './ui/EmptyState'
 import Badge from './ui/Badge.tsx'
@@ -26,7 +28,8 @@ import {
   activityClient,
   filterActive,
   filterChoices,
-  githubItem,
+  activityParts,
+  actorHref,
   retentionAutosave,
   retentionInput,
   rowTarget,
@@ -51,7 +54,7 @@ function When({ at, now }: { at: string; now: number }) {
   )
 }
 
-function Summary({ row }: { row: ActivityRow }) {
+function Summary({ row, known }: { row: ActivityRow; known: string[] }) {
   if (row.redacted)
     return (
       <Box as="span" inlineFlex flexWrap items="center" gap="1.5" data-activity-redacted>
@@ -59,29 +62,47 @@ function Summary({ row }: { row: ActivityRow }) {
         <Hint>{row.summary}</Hint>
       </Box>
     )
-  const item = githubItem(row)
-  if (item)
-    return (
-      <Box as="span" css-overflow-wrap="anywhere">
-        {item.before}
-        <TextLink href={linkHref(item.href)} target="_blank" rel="noopener noreferrer" data-activity-item>
-          {item.text}
-        </TextLink>
-        {item.after}
-      </Box>
-    )
   return (
     <Box as="span" css-overflow-wrap="anywhere">
-      {row.summary}
+      {activityParts(row, known).map((part, index) =>
+        part.href ? (
+          <GithubLink key={index} url={part.href} data-activity-item>
+            {part.text}
+          </GithubLink>
+        ) : (
+          part.text
+        ),
+      )}
     </Box>
+  )
+}
+
+// A link to GitHub, in a new tab.
+function GithubLink({ url, children, ...rest }: { url: string; children: ReactNode } & Record<`data-${string}`, unknown>) {
+  return (
+    <TextLink href={linkHref(url)} target="_blank" rel="noopener noreferrer" {...rest}>
+      {children}
+    </TextLink>
+  )
+}
+
+// Who: a GitHub row's login links to its profile.
+function Who({ row, known }: { row: ActivityRow; known: string[] }) {
+  const href = actorHref(row, known)
+  return href ? (
+    <GithubLink url={href} data-activity-actor>
+      {row.actor}
+    </GithubLink>
+  ) : (
+    <>{row.actor ?? ''}</>
   )
 }
 
 // The target: a button that opens the task drawer, or a link that opens
 // GitHub in a new tab.
-function Target({ row }: { row: ActivityRow }) {
+function Target({ row, known }: { row: ActivityRow; known: string[] }) {
   const drawer = useTaskDrawer()
-  const target = rowTarget(row)
+  const target = rowTarget(row, known)
   if (!target) return <Hint>{row.targetId ?? ''}</Hint>
   if (target.kind === 'task')
     return (
@@ -90,13 +111,13 @@ function Target({ row }: { row: ActivityRow }) {
       </PlainButton>
     )
   return (
-    <TextLink href={linkHref(target.href)} target="_blank" rel="noopener noreferrer" data-activity-link>
+    <GithubLink url={target.href} data-activity-link>
       {row.targetId ?? 'Open on GitHub'}
-    </TextLink>
+    </GithubLink>
   )
 }
 
-function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
+function Table({ rows, now, known }: { rows: ActivityRow[]; now: number; known: string[] }) {
   return (
     <Box css-overflow-x="auto">
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-activity-table>
@@ -129,16 +150,16 @@ function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
                 {SOURCE_LABELS[row.source] ?? row.source}
               </Box>
               <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
-                {row.actor ?? ''}
+                <Who row={row} known={known} />
               </Box>
               <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-min-width="16rem">
-                <Summary row={row} />
+                <Summary row={row} known={known} />
                 <Hint as="div" size="xs">
                   {row.kind}
                 </Hint>
               </Box>
               <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
-                <Target row={row} />
+                <Target row={row} known={known} />
               </Box>
             </tr>
           ))}
@@ -149,18 +170,26 @@ function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
 }
 
 // Narrow screens: one stacked row per entry, same parts.
-function Stack({ rows, now }: { rows: ActivityRow[]; now: number }) {
+function Stack({ rows, now, known }: { rows: ActivityRow[]; now: number; known: string[] }) {
   return (
     <Box as="ul" flex flexCol data-activity-stack>
       {rows.map((row) => (
         <Box key={row.seq} as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" size="sm" firstBorderT0 data-activity-row={row.seq}>
-          <Summary row={row} />
+          <Summary row={row} known={known} />
           <Hint size="xs">
             <When at={row.at} now={now} /> · {SOURCE_LABELS[row.source] ?? row.source}
-            {row.actor ? ` · ${row.actor}` : ''} · {row.kind}
+            {row.actor ? (
+              <>
+                {' · '}
+                <Who row={row} known={known} />
+              </>
+            ) : (
+              ''
+            )}{' '}
+            · {row.kind}
           </Hint>
           <Box as="span" size="xs">
-            <Target row={row} />
+            <Target row={row} known={known} />
           </Box>
         </Box>
       ))}
@@ -326,6 +355,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
   const choices = filterChoices(page, filter)
   const setField = (change: Partial<ActivityFilter>) => setFilter({ ...filter, ...change })
   const rows = page?.items ?? []
+  const known = page?.repositories ?? []
 
   return (
     <Box aria-labelledby="avoozl-activity-title" as="section" flex flexCol gap="3.5">
@@ -415,9 +445,9 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
           />
         </Box>
       ) : narrow ? (
-        <Stack rows={rows} now={now} />
+        <Stack rows={rows} now={now} known={known} />
       ) : (
-        <Table rows={rows} now={now} />
+        <Table rows={rows} now={now} known={known} />
       )}
       {page && <ShowMore left={page.total - rows.length} onMore={() => void more()} />}
     </Box>

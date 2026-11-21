@@ -112,7 +112,7 @@ work. Avoozl turns an approved spec into landed code between them:
 | Worktrees and branches | Git in the target repository | Receipt: path, branch, base |
 | Pull requests and their checks | GitHub | Cache |
 | Avoozl's own check runs | SQLite: command, exit code, output tail, commit | **Authoritative** |
-| Landing record | Git: the landing commit and its trailers (§4.42) | Cache |
+| Landing record | Git: the tick commit (§4.42) | Cache |
 | Activity | SQLite append-only log, pointing at real sources | **Authoritative** |
 | Human decisions | SQLite | **Authoritative** |
 | Plugin approvals | Machine-local settings: id, version, content hash | Receipt |
@@ -694,6 +694,24 @@ stays the same. Refused: a URL with a user name and password or token in it
 resolves outside the checkout through a link, and a commit with no
 `avoozl-plugin.json` at `subdir`. Git's error text is shown with any URL
 credentials masked.
+
+**Update checks** (`plugin-updates.mjs`, R34.17). A timer in the process
+that runs the tick, never the tick itself, passes once an hour and checks
+each plugin whose last result is a day old or was made against an older pin,
+install or approval. A git plugin gets one `git ls-remote` with a 15-second
+limit: a branch reports its newest commit; a version tag reports the highest
+release tag with the same `v` prefix, or that the tag moved; a full commit is
+never newer. A package gets one GET of the registry's
+`/-/package/<name>/dist-tags`, no sign-in, against the installed
+`package.json` version. A folder compares its content hash with the approved
+one. Each result `{state, kind, current, latest, basis, checkedAt}` is kept
+in store meta `pluginUpdates`, a cache the next check makes again. `newer`
+shows as the plugin's badge and one Needs you row, `plugin-update:<id>`;
+`failed` shows on the plugin only. Check now (`plugin.updates.check`) checks
+at once. `"updateChecks": false` in `plugins.json`, written by
+`plugin.updates.configure`, turns the timer and the rows off. Both are a
+person's operations. A `ls-remote` to the GitHub git host counts under git
+in the GitHub call counts.
 
 **Manifest.** Each plugin ships `avoozl-plugin.json`:
 
@@ -1754,98 +1772,6 @@ worker pushed, so a flaky check that passes once resets it.
 | A bound and a same-check stop         | A worker that cannot fix a check should stop costing turns and ask once                       |
 | On by default                         | Delivery runs without a person; the switch exists for repositories with noisy bots            |
 
-### 4.14 Plugin bundles and settings packs
-
-Requirement 55. It replaces the
-separate config-pack idea: a team ships one plugin, and a pack is one of
-its parts.
-
-#### Facts
-
-| ID   | Fact                                                                                                                                                                                                                                                    | Source                                                                       |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| F117 | **Verified.** The plugin manifest named `kinds` (route, tracker, rules), and the loader starts a child process only for a kind the manifest declares; an `entry` was always required.                                                                   | `src/app/plugins/plugins.mjs` `validateManifest`, `pluginHost`                       |
-| F118 | **Verified.** Every setting a pack may set already has a validator that names the bad key: `normalizeGitHubPolicy` (repositories, project, epic type), `validateContentRules` (refuses rule-like keys), `deliveryPolicy` (review roles), `flowSection`. | `src/app/github/github-policy.mjs`, `content-rules.mjs`, `delivery.mjs`, `flow.mjs` |
-| F119 | **Verified.** A repository that names nobody counts people with write access (`DEFAULT_PERMISSION`), so a pack that sets a lower permission or adds actors widens who counts.                                                                           | `src/app/github/github-policy.mjs` `repositoryInput`                                |
-| F120 | **Verified.** A shared (`.avoozl.json`) entry may hold no absolute path, so a bundle reads machine paths from environment variables its config names.                                                                                                   | `src/app/settings/layered-config.mjs` `assertPortableRepositoryConfig`                |
-
-#### Shape
-
-```text
-plugin folder
-  avoozl-plugin.json  provides: [pack, rules, tracker, intake, route]
-                      kinds derived; capabilities.tracker lists poll for intake
-                      entry only when a part runs code
-  avoozl-pack.json    {description, settings}: settings only, checked by name
-  index.mjs           rules.ruleSets, tracker.*, tracker.poll, route.*
-
-Add plugin -> What step lists the parts and what the pack sets
-           -> Applies to: this computer, or shared (.avoozl.json)
-           -> Review: parts, hash, and the pack preview; Approve
-plugin card -> Preview and import pack
-           -> plugin.pack.preview: create | change | keep | skip, who-counts warnings
-           -> plugin.pack.import {previewHash, acceptLowered, confirmPublic}
-              approved plugin only; writes settings and packs.<id> provenance
-```
-
-`plugin.pack.preview` reads only and may run before approval, so a person
-can look first. `plugin.pack.import` is a person's act (an agent session
-gets 403), like approval. The tick never imports. The CLI has
-`plugins pack-preview` and `plugins pack-import`.
-
-#### Why each rule
-
-| Rule                                               | Reason                                                                              |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Pack runs no code; pack-only plugins have no entry | A team can share settings with nobody trusting code                                 |
-| One whitelist, then the existing validators        | Settings and packs refuse the same values with the same names                       |
-| Preview hash on import                             | The person imports what they saw, not what changed after                            |
-| Who-counts change needs acceptance                 | Lowering who can give orders must never be silent                                   |
-| `packs` provenance in `.avoozl.json`               | A reviewer of the commit sees where each setting came from                          |
-| No follow mode, no org minimums                    | After import the settings are the repository's own; nobody upstream can change them |
-| Intake is its own plugin kind's `poll`             | Reuses plugin consent, health, and isolation; Requirement 50 adds storage           |
-
-### 4.15 Onboard a repository
-
-Settings › Repository setup has one **Add repository** entry that runs these steps as follow-up setup.
-
-Requirement 58. Settings >
-Repositories gets **Onboard** beside Add repository: one stepped dialog,
-styled like Add plugin, that walks a folder to plans read from git (Requirement 58).
-Every step reuses an operation that already exists, except two new reads and
-one adopt write.
-
-| Step           | Operation                                                                                                 | Writes                       |
-| -------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Pick folder    | `onboarding.inspect` (detect, plus `.avoozl.json`, spec folders, already added, visibility)               | none                         |
-| Pick mode      | the mode cards, in the shared radio fold-out                                                              | none                         |
-| Check GitHub   | `github.setup` without `confirm`                                                                          | none                         |
-| Set up         | `github.setup` with `confirm`, `github.settings.update`, `repositories.configure`                         | each GitHub write asks first |
-| Pick approvers | `onboarding.authors`: the base branch's commit authors, most commits first, without the agent author     | none                         |
-| Import specs   | `plan.specs`, `onboarding.adopt {folder, specs, approvers}`                                               | plans, approvals, ticks      |
-| Leak scan      | `onboarding.scan`: content rules plus the public secret and path rules the release scan uses              | none                         |
-| Finish         | a summary and Approve in Plans for the drafts                                                             | none                         |
-
-`onboarding.authors` and `onboarding.scan` are `observe`. The leak scan runs
-only when the repository that holds the specs is public (single-repo mode,
-or this folder as the planning repository), and it names file, line, set and
-rule, never the matched text.
-
-`onboarding.adopt` is `protect`, a person's call from the app page. It
-checks that the folder is an added repository, then calls
-`Operations.readFromGit`, the one reader behind `workspace.rebuild`
-(§4.42), with the named specs, that folder as the only checkout, and
-`approverCheck` over the emails the person confirmed instead of the
-repository's own list. A spec that has a plan is skipped. The reader makes a
-plan per spec, approves it again as the author of the approver's commit,
-runs `applyBaseTicks` with `land`, which sets each done ticked task's
-`integration.commit` to its tick commit when it has no landing, then records
-landing trailers, Flow spans and retros. In a GitHub mode the dialog first
-adds the confirmed emails to that repository's `allowedActors` with
-`github.settings.update`, so later approvals check the same list. The flow
-makes no per-task issues and no per-task issue text. It starts no agent and
-pushes nothing.
-
 ### 4.16 Workflow templates, manual tasks, and task links and notes
 
 Requirement 61. A repeated kind
@@ -2084,153 +2010,6 @@ Each new SDK plan made this way can join one epic, such as an SDK target
 architecture epic, through the drawer's Epic field. The review's outcome
 note and links reach the cutover workers' briefs.
 
-### 4.18 Retro prompt and skill proposals
-
-Requirement 68. The retro of §4.11 can change settings and plans. Much of
-what slows a task is in what the worker is told, so it may also propose
-prompt and skill diffs. Proposals are on the Retros nav entry.
-
-```text
-retro brief ◀─ timing, receipts, prompt sections, skill texts
-     │
-     ▼ reply: settings │ plan │ prompt │ skill  (≤ 3, each with evidence)
-schema + base hash + locked sections + content rules (`proposal`)
-     │
-     ▼ Proposals view: a person approves each one
-prompt ─▶ override version N  (~/.config/avoozl/prompts/<workspace-id>.json)
-repo skill ─▶ one leaf via Deliver this ─▶ PR or local integrate
-external skill ─▶ note on the plugin card (nothing sent)
-     │
-     ▼ PDCA per version ─▶ kept │ undone
-```
-
-#### Facts
-
-| ID   | Fact                                                                                                                                                                                                                        | Source                                                                                   |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| F121 | **Verified.** Avoozl composes the worker brief and the reviewer role brief itself; each quotes earlier words with "data, not instructions" lines, and a review role's `focus` (1–300 characters) comes from `.avoozl.json`. | `src/app/delivery/delivery.mjs` `workerBrief`, `reviewBrief`, `deliveryPolicy`                    |
-| F122 | **Verified.** The retro and planner prompts ship in the app's agent files, and Kiro Crew loads an agent's prompt from the installed app; `retroPrompt()` reads the shipped file.                                            | `hosts/kirocrew/agents/avoozl-retro.json`, `avoozl-planner.json`; `src/app/flow/flow-retro.mjs` |
-| F123 | **Verified.** The Spec Builder steering text is one constant, written into a repository only after a person agrees and never over a changed copy.                                                                           | `src/app/specs/spec-steering.mjs` `STEERING_TEXT`                                              |
-| F124 | **Verified.** Content-rule boundaries are `plan`, `github`, `brief`, `diff`, and `intake` (opt-in); an unknown boundary is refused.                                                                                         | `src/app/content/content-rules.mjs` `BOUNDARIES`                                                 |
-| F125 | **Unknown.** Whether Kiro Crew lets an app replace an agent's prompt for one session. Until known, an agent-prompt override travels in the seed (below).                                                                    | Not checked live                                                                         |
-
-#### Prompt registry and locked sections
-
-Each built-in prompt is a list of named sections with the sha256 of its
-shipped text. The five targets are `brief.worker`, `brief.review`,
-`agent.planner`, `agent.retro`, and `steering.specs`. Sections marked
-locked are `untrusted-data`, `content-rules`, `who-counts`, `acceptance`
-(proof and acceptance wording), and `person-only`. A diff whose changed
-lines fall in a locked section is refused with the section's name. Every
-brief ends its locked sections with one line saying they outrank any skill
-the session loads, so a skill change cannot loosen them either.
-
-How an override reaches a session:
-
-| Target                         | Delivered as                                                                                                                                  |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `brief.worker`, `brief.review` | Avoozl composes the brief from the override's sections                                                                                        |
-| `agent.planner`, `agent.retro` | The shipped agent prompt stays; the seed carries each changed section whole, labeled as replacing the section of the same name (F125)         |
-| `steering.specs`               | The next steering file the New spec drawer writes; a copy equal to an older Avoozl text is offered again, a changed copy is left alone (F123) |
-
-#### Proposals
-
-```json
-{
-  "type": "prompt",
-  "target": "brief.worker",
-  "section": "steps",
-  "base": "sha256:…",
-  "diff": "@@ -3,1 +3,2 @@ …",
-  "metric": "first-pass rate",
-  "direction": "up",
-  "evidence": {
-    "runs": [
-      "4.1#1",
-      "4.2#2",
-      "4.3#1"
-    ],
-    "value": "50%",
-    "effect": "fewer rejections for a missing test"
-  }
-}
-```
-
-A `skill` proposal names `target: "repo:<repository>:<path>"` or
-`"external:<plugin or source>:<path>"` instead of a section. The brief
-holds every unlocked section of the five prompts, with hashes, and the text
-of at most 3 skills that runs in the window loaded, up to 8,000 characters
-each (shortcut: fixed caps, raise them if retros ask for skills they cannot
-see). The brief passes the content rules at `brief` as today. Each proposal
-then passes them at the new `proposal` boundary, which every rule set
-covers unless it narrows `boundaries`.
-
-Approve, by type (person only, 403 for everyone else):
-
-- **Prompt.** Writes override version N to the workspace's file under
-  `~/.config/avoozl/prompts/`, with the shipped section text, its hash, the
-  diff, the result's hash, the proposal, who and when. The override is per
-  workspace. Revert sets the active version back one step and is
-  recorded the same way.
-- **Repository skill.** An incoming item with source `retro` and the diff
-  as its snapshot, then one leaf through `intake.deliver` in that
-  repository, with the diff quoted as data and the repository's checks.
-  GitHub modes open a pull request; Local only integrates.
-- **External skill.** A "Suggested change" note on the plugin card in
-  Settings › Plugins (or in Flow when no plugin owns the file) with the
-  diff, evidence and **Copy**. Its PDCA starts only if a later pin loads a
-  skill whose hash differs.
-
-Each attempt records `prompts` (target to version ID, such as
-`brief.worker@3f2a91c0+o2`) and `skills` (target to sha256). Skill hashes
-come from tool calls that read a skill file (F91) when Avoozl can read
-them, else from an optional `skills` list in the worker's reports. The
-receipt and the Timing fold show both. PDCA compares the change's metric
-over `everyTasks` finished tasks on the old version with as many on the
-new one, and marks the window "mixed" when another change took effect in
-it.
-
-#### UI
-
-The Flow tab gets **Overview** (today's content), **Proposals**, and
-**Lessons** views.
-Proposals are on the Retros pill (§8.4).
-
-```text
-◔ Flow   Overview │ Proposals │ Lessons
-┌ Proposal · retro 4 · prompt brief.worker § steps (v3f2a91c0+o1) ───────┐
-│ - Run the checks.                                                       │
-│ + Run the checks. Add a test for each changed branch before done.       │
-│ evidence: 4.1#1, 4.2#2, 4.3#1 · first-pass rate 50% ↑ · cites L-7f3a     │
-│                                                    [Reject] [Approve]   │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Prompt versions ───────────────────────────────────────────────────────┐
-│ brief.worker  +o2 since Nov 12  PDCA: helped        [Revert]            │
-│ agent.retro   +o1  ⚠ built-in changed in 0.2.0 · rebase proposed        │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Lessons  Filters: Pattern [ci-wait ▾] Outcome [all ▾] Source [all ▾]    │
-│ L-7f3a  tests · npm · js  "Ask for a test per branch"  kept  0.85        │
-│         confirmed Nov 10 · from another workspace        [History]       │
-│ L-19c0  ci-wait · cargo   "Batch by files"  undone  did not work         │
-│ L-a4e2  review · py       stale: check `lint` removed                    │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-#### Why each choice
-
-| Choice                                       | Why                                                                                                   |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Diffs against a hashed base                  | A stale proposal fails instead of overwriting a newer text                                            |
-| Locked sections, and briefs outrank skills   | A speed review must not loosen what protects the owner                                                |
-| Overrides outside shipped files              | An update stays clean, and revert is one step                                                         |
-| Override per workspace                       | One workspace's evidence should not change another's prompts silently                                 |
-| Repo skill change as a leaf                  | It is code in someone's repository, so it gets checks and review                                      |
-| External skill as a note                     | Avoozl cannot edit a pinned plugin                                                                    |
-| Lessons on this Mac, summaries only          | Cross-workspace reuse without moving one workspace's text into another                                |
-| Undone and retired kept                      | Retros should not relearn what failed                                                                 |
-| Automatic marks, person edits                | Marks are reversible; changing what a lesson says is a judgment                                       |
-| Keep the override until a rebase is approved | Dropping it silently would undo a proven change                                                       |
-
 ### 4.19 Activity log and Activity tab
 
 Requirement 71. One table of who did what, from
@@ -2317,14 +2096,19 @@ read and saved by `activity.settings.get` and person-only
 `activity.settings.update` from the Activity tab's Keep activity field. Each
 `workspace.tick` calls `pruneActivity`. `activity.list {source, kind,
 actor, limit ≤ 100, offset}` answers `{items, total, sources, kinds,
-actors, retentionDays}` newest first, and is `plans_view` action
+actors, repositories, retentionDays}` newest first, each item with its
+`repository` (its task's, else the workspace's only one), and is `plans_view` action
 `activity`; the Dashboard's task timeline moves to action `recent`.
 
 The Activity tab (icon `History`) uses `ViewHeading`, the shared
 `FilterPanel` (Source, Kind, Actor), 100 rows per page with `ShowMore`,
 and a row per entry: time, source, actor, summary, target. A task target
-opens the drawer; a GitHub link opens with `target="_blank"
-rel="noopener noreferrer"` through `safeHref`. A redacted row says so.
+opens the drawer. Every GitHub thing in a row (repository, pull request
+and issue numbers, commit, branch, check run, login) is a link that
+`github-links.ts` builds from the row's `repository`, never from free
+text; each opens with `target="_blank" rel="noopener noreferrer"` through
+`linkHref`. With no GitHub repository the row is plain text. A redacted
+row says so.
 
 #### Why each choice
 
@@ -2335,160 +2119,6 @@ rel="noopener noreferrer"` through `safeHref`. A redacted row says so.
 | Redact, not refuse          | The row still shows something happened, without the text                 |
 | Diff snapshots in the tick  | One place sees every GitHub and plugin change without touching each step |
 | `key` on derived rows       | Two ticks, or two processes, record a change once                        |
-
-### 4.20 Provider health and switching models
-
-Health reads are in `provider-health.mjs`. Settings › Models sets the model of Avoozl's own chats. There is no manual switch.
-
-Requirement 72. A rate limit or an
-empty credit balance stalls every chat on that provider. Avoozl reads each
-session's usage turns and tool rows (§4.11), reads health from them, keeps
-new work off an out provider, and moves running chats with Kiro Crew's own
-model change. `out` is a hard check, and the settings are one low line and
-optional limits.
-
-```text
-GET /api/usage/turns ─▶ sums per provider and model in the window ─▶ limits?
-GET /api/chat/slots/<slot> rows ─▶ error kind (usage_limit, 429 …)    │
-                                                                       ▼
-                     provider_health: ok │ low │ out  (+ a person's marks)
-                         │                              │
-   new task / retry ◀────┘                              └──▶ running chat on out
-   out never offered; low stays                            POST /api/chat/slots/<slot>/model
-   an option                                               same session, next turn
-                                                                 │
-                                    provider_switches ◀──────────┘ ─▶ activity hook
-                                    Needs you: "<provider> is out"
-```
-
-#### Facts
-
-| ID   | Fact                                                                                                                                                                                                                                                                                                                                                                                                                                          | Where                                                                                                                                                         |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F126 | **Verified from source, not called live.** `POST /api/chat/slots/{slot}/model` with `{model}` changes one chat's model in place (`session/set_model`) and answers `{ok, model}`; while a turn runs it answers `deferred: true` and applies the pick when that turn ends. An app may call it on a slot it owns: the slot checkpoint admits the owner app, and an app grant is a prefix match, so `/api/chat/slots/avoozl_*` already covers it. | Kiro Crew `dashboard/chat_api/slot_model.py` `api_chat_slot_model`, `dashboard/slot_ownership.py`, `dashboard/token_auth_app_scope.py` `_api_pattern_matches` |
-| F127 | **Verified from source.** A failed turn leaves a row with role `error` and `meta.kind`, among them `usage_limit` (a spent plan allowance), `model_unavailable` (capacity or rollout refusal after the retry ladder) and `transient_retry`. Plain error rows have no kind, so Avoozl also reads a few words of the text, and stores only the kind.                                                                                             | Kiro Crew `dashboard/chat_utils_injected_rows.py`, `dashboard/chat_turn/recovery.py` `_terminal_error_meta`                                                   |
-| F128 | **Verified from source.** `GET /api/models` lists `model_name`, `display_name` and `description`, with no provider. Providers therefore come from the model ID's first word.                                                                                                                                                                                                                                                                  | Kiro Crew `dashboard/handlers/agents.py` `api_models`                                                                                                         |
-| F129 | **Verified live (Kiro Crew 0.12.2.4 test crew, port 5698, 2026-11-19).** The app backend can do the tick's Kiro Crew calls only with wider grants than `app.json` holds. With today's grants the app token gets 403 `{"code": "forbidden"}` ("app token not permitted for this endpoint") on `GET /api/chat/slots`, `GET /api/chat/folders`, `POST /api/chat/slots` and `POST /api/chat`. With `/api/chat` granted, it lists folders, creates a folder, opens a slot bound to an agent in a folder with a project directory, and sends with `POST /api/chat?ws=1` (`{ok, slot, mid}`, or `{ok, queued, queue_id}` when busy). `POST /api/chat/mode` `{mode: "trust"}` still answers 403 `session_approval_not_granted` until the manifest declares `permissions.sessionApproval` and the owner consents. That grant also lets the app send turns to, and set the mode of, every local chat the person opened. The token scope check is path-only: any grant that reaches `POST /api/chat` reaches the whole `/api/chat/*` tree, including `GET /api/chat/slots`, which lists the person's own chats with their titles. No Node cron exists: an app cron is a Python `script` or a `sh -c` `command`, which never runs on Windows. App backends start with the gateway and are restarted when they exit. App MCP `args` are not anchored to the install root except a relative `.py` launcher, so `bin/avoozl_mcp.py` stays. | Probe `node-tick-probe.mjs` against the test crew; Kiro Crew `dashboard/token_auth_app_scope.py` `_api_pattern_matches`, `chat_api/slot_approval.py` `deny_session_approval_caller`, `slot_ownership.py` `app_may_control_session`, `apps/permissions.py` `app_can_manage_session_approvals`, `cron_script_context.py`, `apps/bridges_mcp.py` `_resolve_app_launcher_arg`, `docs/cron-and-scheduling.md` |
-
-#### Settings
-
-Machine-local, `~/.config/avoozl/config.json` key `providers`, because
-limits and credits belong to that machine. `.avoozl.json` refuses the key
-(tick and settings validation):
-
-```json
-{
-  "providers": {
-    "lowPercent": 80,
-    "limits": {
-      "claude": {
-        "credits": 500
-      },
-      "model-a": {
-        "tokens": 2000000
-      }
-    }
-  }
-}
-```
-
-Both keys are optional. A limit key names a provider or a model; both are
-checked. The usage window is 5 hours and an error mark's cooldown 30
-minutes, both fixed. A model's provider is its ID's first word. The removed
-`cooldownMinutes`, `windowHours`, `groups` and `fallback` keys are refused
-with the migration's name.
-
-#### Health
-
-- **Record.** `provider_health` rows keyed `provider:<id>` or `model:<id>`:
-  `level`, `source` (`usage`, `error`, `person`), `kind`, `since`,
-  `lastErrorAt`, `until` (cooldown end), `to` (a person's replacement) and
-  `by`. A row at `ok` is deleted, so an empty table means no change
-  (R72.18).
-- **Usage.** After each usage read the backend sums the window per key and
-  writes or clears `usage` marks (R72.2). It never overrides a `person`
-  mark and never lowers an `error` `out`.
-- **Errors.** The backend's tool-row read for timing already fetches each
-  local worker session's new rows; it also hands them to the health check,
-  so no new request is made. Kind first, then the text's words (F127). The
-  model is the session's served model, else its requested one; a session on
-  `auto` marks nothing. `out of credits` marks the provider, since credits
-  are an account's; a rate limit marks the model (R72.3).
-- **Recovery.** On read, an `error` mark past `until` is dropped; a usage
-  turn on the model after `lastErrorAt` drops it too (R72.4).
-- **Facts, read live.** `providerFacts` gives one row per provider or model
-  with usage, a limit or a mark: level, percent of its limit (else credits
-  and tokens), why, and one line such as "claude: 85% used, low".
-
-shortcut: errors are read from local worker sessions only (the rows the
-timing read already has); reviewer errors are missed until an app-scoped roster carries them. Their usage still counts.
-
-#### New tasks and retries
-
-An `out` model is a hard check (§4.10): it is never offered, and a
-person's replacement for it is offered instead. A `low` model stays an
-option. The delivery model is the one choice: out takes the person's
-replacement, else the task waits.
-A retry keeps its model unless it is `out` (R72.6).
-
-#### Running chats
-
-After the reads, the backend looks at each live session the tick opened.
-Only `out` moves a running chat; `low` never does. On an `out` model it picks
-a target (R72.9: the person's replacement, then the models Kiro Crew lists, the first `ok`, else `low`) and calls F126. The binding's
-`model` becomes the target and its `switches` list gains `{from, to, at,
-by}`; the session, worktree and branch stay, so committed work is kept and
-the next turn runs on the new model (R72.8). A refusal is recorded on the
-binding and not retried for that model. The served-model gate reads
-`switches`: a chat Avoozl switched is judged by all its models (R72.11).
-
-#### Manual switch
-
-- `provider.switch.preview {from, to}` (observe): `from` is `{provider}`,
-  `{model}` or `{tasks: [...]}`. It lists the live chats it would move and
-  the ones it would skip with why (a reviewer whose writer runs on `to`),
-  and a hash of that list.
-- `provider.switch {from, to, alsoNewTasks, previewHash}` (person-only): 409
-  when the hash no longer matches; else it queues one `pending` switch per
-  chat (by the person) and, with `alsoNewTasks`, writes `person` marks with
-  `to` as the replacement. The backend applies pending switches on its next
-  pass, the same way as automatic ones (R72.14).
-- `provider.health.clear {id}` (person-only) undoes a mark.
-- `providers.view` (observe) gives settings, marks with levels, the last 50
-  switches and the live chats with their models.
-- `providers.settings.update {providers, expectedHash}` (person-only).
-
-#### Activity hook
-
-`provider-health.mjs` calls `onSwitchRecorded(store, entry)` once per
-finished switch record. It writes one activity row (§4.19) of kind
-`model.switch`, source `local`, actor `avoozl` or the person, the task as
-target, and the key `provider-switch:<id>` so a record is logged once. A
-row that cannot be written never loses the record in `provider_switches`
-(R72.10). `provider.switch`, `provider.health.clear` and
-`providers.settings.update` are recorded as local actions too.
-
-#### Page
-
-- **Switch model** in the Dashboard header and on the In flight card opens
-  one dialog: From (Provider, Model, or Tasks with a checkbox per running
-  task), To (models from `GET /api/models`), Also new tasks, the preview
-  list, and Switch. Health marks show above with Undo for a person's.
-- **Needs you** lists `out` marks from `conflicts.view` kind `provider-out`
-  (R72.16).
-- **Providers.** `lowPercent` and a credits limit per provider are read from
-  this machine's settings file (R72.17).
-
-#### Why each choice
-
-| Choice                                           | Why                                                                                       |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| Kiro Crew's model change, not a new session      | The chat keeps its context, worktree and commits, and Kiro Crew waits for the turn to end |
-| Health from reads Avoozl already makes           | No new request and no new grant                                                           |
-| Store the kind, not the text                     | Error text can hold prompts or paths                                                      |
-| Credits mark the provider, rate limits the model | Credits are an account's; a limit is often one model's                                    |
-| Person marks stay until undone                   | A timer would undo a person's decision                                                    |
-| Settings on this machine                         | Limits and reachable models differ per machine                                            |
 
 ### 4.21 Investigate before coding
 
@@ -2512,22 +2142,6 @@ The falsifier is role `falsifier`, chosen like a review role (§4.10) with
 `distinctFrom: model`. Its brief quotes the findings as untrusted data. One
 round per press of Investigate again; the attempt does not spend a retry.
 
-### 4.22 Evidence bundle
-
-Requirement 76. One bundle per task under
-`.avoozl/local/evidence/<task-id>/`: `bundle.json` (entries with kind,
-time, source and text) and attached files. Kinds: `findings`, `falsifier`,
-`decision`, `review`, `check`, `file`. Every entry passes the content rules
-and the secret screen first; a blocked entry is saved redacted. The drawer
-reads it through `task.evidence`. On GitHub one comment per pull request,
-found again by its marker, holds the text summary and is updated in place.
-Entries are screened at the `evidence` content boundary. A worker attaches
-files through `plans_report` `evidence: [{kind: "file", path, note?}]` and
-notes as `{kind: "note", text}`; a check entry may carry `logTail`.
-shortcut: GitHub's API cannot upload a file to a comment, so
-`github.evidence.attach` is not built and the comment names attached files
-only; upgrade if GitHub adds an upload API.
-
 ### 4.23 Bringing pull requests up to date
 
 Requirement 77. The tick remembers each base branch
@@ -2543,14 +2157,6 @@ The base head is the pull request's `baseRef` target, read in the same
 query. Locally, a verified task whose integration branch moved is merged
 forward in its worktree with a merge commit, which every role then judges
 again.
-
-### 4.24 Rules from repeated corrections
-
-Requirement 78. `corrections` rows {id, taskId, by,
-kind, summary, at}. The retro groups them by meaning (model) and needs two
-tasks per group to propose a rule. Approval makes one leaf, source `retro`,
-that edits `.kiro/steering/avoozl-rules.md`; it reaches the repository by
-the usual review and checks. PDCA watches the group after the rule lands.
 
 ### 4.25 Who merges a pull request
 
@@ -2569,7 +2175,7 @@ already shows it.
 **Setting.** `landingSettings` (`landing-config.mjs`) reads `pr` from the
 repository's landing block, then the workspace's top-level `landing.pr`,
 then `draft`. `validateLandingConfig` and the landing block validator in
-`github-policy.mjs` refuse any other value. Settings › Delivery shows the
+`github-policy.mjs` refuse any other value. Settings › Autopilot shows the
 workspace's value (`delivery.settings.update` with `landingPr`); a
 repository's Landing tab shows its own (`PrModeFields`), whose first
 choice is **The workspace's setting**. Both saves are person only.
@@ -2605,18 +2211,22 @@ feedback round.
 **One landing block per repository.**
 
 ```json
-"landing": { "pr": "draft" },
-"github": {
-  "repositories": {
-    "owner/name": {
-      "landing": {
-        "mode": "pr",
-        "pr": "ready",
-        "method": "squash"
-      },
-      "conflicts": {
-        "onSourceConflict": "fix",
-        "maxAttempts": 2
+{
+  "landing": {
+    "pr": "draft"
+  },
+  "github": {
+    "repositories": {
+      "owner/name": {
+        "landing": {
+          "mode": "pr",
+          "pr": "ready",
+          "method": "squash"
+        },
+        "conflicts": {
+          "onSourceConflict": "fix",
+          "maxAttempts": 2
+        }
       }
     }
   }
@@ -2959,8 +2569,13 @@ goes through it: `chatModel` and `roleHarness` for the chats, and the
 delivery policy's worker agent and model and its falsifier agent and model.
 A file that still sets an older key does not load; the error names the file
 and the key. Settings › Models reads and writes the table
-(`models.settings.get` and `models.settings.update`). Settings › Delivery
-has no Writer section.
+(`models.settings.get` and `models.settings.update`). Settings › Autopilot
+has no Writer section. Its Off and Autopilot picker goes through
+`delivery.settings.update`: Autopilot sends `turnOn` and `loop`, which
+writes the `delivery` block and this machine's `loop` (`writeMachineLoop`
+in `tick/loop.mjs`, checked by `validateLoop` first); Off sends
+`loop: null`. `conflicts.view` adds one `needs-human` row with reason
+`autopilot-off` while tasks are ready and `machineLoop` is null.
 
 Not in the table: `delivery.reviewers[]` keep their own `agent` and
 `model`, because each review role is a list entry with its own id and
@@ -2984,455 +2599,6 @@ link from `avoozl link`, for machines with no Kiro Crew.
 | 51    | Headless workers                        | A machine under launchd runs tasks with the CLI only; the base for §4.26's pull-based worker mode |
 | 52    | The manual path                         | `next`, `take` and `runner report` still work for a person                                       |
 
-### 4.29 Cross-model plan review
-
-Requirement 99. A second model reads each draft before
-the person approves it. Its findings and the planner's answers show in the
-Approve dialog. It never decides anything.
-
-```text
-draft revision stored (planner, Spec Builder import, From a goal, reload)
-  ─▶ mode? off: nothing │ ask: Needs you (Review | Skip) │ auto ─┐
-  ─▶ model check: reviewer named, writer known, the two differ ─┤
-       └─ fails ─▶ Review skipped + reason (Review anyway: person only)
-  ─▶ reviewer chat (read-only, reviewer model) ─▶ plans_submit_review
-  ─▶ planner chat: fixed <hash> | answered <reason>, per finding
-  ─▶ next round while rounds allow and the planner wrote a new revision
-  ─▶ Approve dialog: reviewed by M at H: N found, N fixed, N for you
-```
-
-| Setting               | Values                  | Default |
-| --------------------- | ----------------------- | ------- |
-| `models.planReviewer` | a model name, or `auto` | `auto`  |
-| `planReview.mode`     | `auto`, `ask`, `off`    | `auto`  |
-| `planReview.rounds`   | 1 to 3                  | 1       |
-
-With `models.planReviewer` unset, `auto` mode skips every review and says
-"Pick a Plan reviewer model in Settings › Models", so nothing runs on the
-same model by default.
-
-**Role.** `src/app/settings/chat-models.mjs` adds `planReviewer` to `MODEL_ROLES` and
-dispatch role `plan-review` to `DISPATCH_ROLE`. `validateModels` refuses a
-`planReviewer` equal to a named `planner`. `planReview` is validated with
-the other `.avoozl.json` blocks.
-
-**Writer model.** The model that wrote a revision is the model Kiro Crew
-reports for the session that wrote it: the planner chat's run
-(`actualModel`, as `plan.review.submit` already reads it), the From a goal
-planner chat, or the Spec Builder chat when Kiro Crew reports one. A reload
-of a folder a person edited has no writer model. The check runs before the
-chat opens and again when findings arrive: `plan.review.submit` refuses a
-spec finding from a session whose reported model equals the writer's.
-"Review anyway" is person only (the CLI and MCP policy refuse an agent) and
-sets `unproven: true` on the round.
-
-**Rounds.** One `review_rounds` row per round: `{id, planId, spec,
-revisionHash, pass, round, reviewerModel, writerModel, unproven, state
-(running | done | skipped), note, slot, commits: {repository: sha},
-startedAt, endedAt}`. A pass starts at a revision that did not come from
-the planner answering the pass's last round. The tick's `planReviewStep`
-runs after the new-plan import and the folder reload, and starts at most one
-round per plan per tick. A spec still settling (Requirement 65.6) waits.
-
-**Brief.** The reviewer opens on the planning repository's spec folder at
-the revision, plus a clean detached worktree per repository the task facts
-name at its default branch head, as reviews of a commit do (§4.10). The
-brief quotes the files as data, lists the other spec folders (name, state,
-hash) for `conflict` findings, and names the six kinds. The session is bound
-to the plan and revision (`run.review`), so `plans_submit_review` takes
-findings only for that revision. The worktrees are removed when the round
-ends.
-
-**Findings.** Stored as `review_threads` rows with `source: "plan-review"`,
-`roundId`, `kind`, `severity`, `file`, `line`, `statement` and `evidence`. The
-existing quote-anchored threads for text plans are unchanged. A spec finding
-is checked against the named file of that revision: the file must be in
-the hash, and the line in range. At most 50 findings per round, as today.
-
-**Answers.** After a round the tick sends the planner chat the findings as
-data. The planner reads them with `plans_plan_review` (`plan.review.findings`)
-and answers with `plans_answer_review` (`plan.review.answer`):
-`{planId, roundId, answers: [{id, action: fixed | answered, revisionHash?,
-text}]}`. A `fixed` answer names the hash the planner wrote; the next round
-reviews that hash. A person closes an open finding with
-`plan.review.dispose`.
-
-**Counts.** For the latest pass of a plan: found is every finding; fixed is
-every `fixed` answer whose hash was stored; for you is the rest that no
-person has closed. `plan.reviewSummary` returns `{state, reviewerModel,
-revisionHash, current, found, fixed, forYou, open: [...], note}`.
-`approvalChecks` carries it as `review`; approving never reads it.
-
-**Flow.** Planning spans are keyed by spec, not task: stages `plan-review`
-and `plan-answer` in their own table, and usage rows from those sessions are
-tagged with the spec. The Flow tab shows a Planning group per spec. Task
-flow efficiency does not read it.
-
-| Choice                                     | Why                                                                                                       |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Skip, not fall back, on an unproven pair   | A model tends to approve its own mistakes; a quiet same-model review reads as a check that did not happen |
-| Reuse `review_threads` and `review_rounds` | Already keyed by plan and hash, with a run bound to one revision                                          |
-| Never blocks approval                      | The person decides; a review is evidence, not a gate                                                      |
-| Default one round                          | Each round is a reviewer chat and a planner chat                                                          |
-| Keep the critique                          | It checks task facts against prose; this checks the plan against the code                                |
-
-Tests, with fake chats and fake model names:
-
-| Test                          | Shows                                                                                                                                     |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Different-model rule          | Same model, unset reviewer, unknown writer: skipped with a note and no chat; submit from a same-model session refused                     |
-| Findings keyed by hash        | A new revision gets a new round; old findings stay, marked older; the planner's fix revision is reviewed only while rounds remain         |
-| Review never changes approval | `plan.approve` gives the same result with no review, open findings, a skipped and a running review; no GitHub write                       |
-
-shortcut: the writer model comes from what Kiro Crew reports for a session;
-a Spec Builder draft is skipped until Spec Builder reports its chat's model.
-Upgrade when it does.
-
-### 4.30 Retrospectives catch steady CI waste
-
-Requirement 100. The retrospective's CI trigger in §4.11
-fires only on an outlier: one CI wait far over the repository's median. A
-cost that every pull request pays is the median, so it never fires. This
-section adds what each pull request changed, repeat runs, and fixed limits,
-counted over every pull request in the workspace's repositories.
-
-```text
-tick's GitHub check, per repository
-  ─▶ open pull request read (one GraphQL call, widened): files, createdAt,
-     check runs on the head commit with times, workflow run id and event
-  ─▶ workflow runs read (one REST call, ETag): runs since the window start
-  ─▶ pr_ci and ci_runs rows (task or other)
-  ─▶ steady waste: docs-only minutes │ CI wait share │ repeat run
-  ─▶ retro trigger (with or without finished tasks)
-  ─▶ brief: minutes by class, wait share, repeats, workflow files
-  ─▶ proposals: settings │ plan (repository + workflow + change) │ …
-  ─▶ PDCA: CI minutes per pull request by class, before and after
-```
-
-**File classes.** Each changed path takes the first class whose globs match,
-in this order. A path that matches none is `code`, so an unknown file never
-looks like waste. Globs use `globToRegex` in `src/app/flow/flow-ci.mjs`
-(`*` inside a folder, `**` across folders, a trailing `/` for a folder).
-
-| Class   | Default globs                                                                        |
-| ------- | ------------------------------------------------------------------------------------ |
-| `ci`    | `.github/`, `.gitlab-ci.yml`, `.circleci/`                                           |
-| `spec`  | `.kiro/specs/`                                                                       |
-| `tests` | `test/`, `tests/`, `**/test/**`, `**/tests/**`, `**/*.test.*`, `**/*_test.*`         |
-| `docs`  | `docs/`, `*.md`, `**/*.md`, `*.txt`, `LICENSE`                                       |
-| `other` | `package-lock.json`, `**/package-lock.json`, `*.lock`, `.gitignore`, `.editorconfig` |
-| `code`  | anything else                                                                        |
-
-`flow.ci.classes` replaces one class's list, for example
-`{"docs": ["docs/", "*.md"]}`; classes it does not name keep their defaults.
-A pull request is **docs-only** when its classes are all `spec` or `docs`.
-For grouping in Flow, a pull request belongs to its first class present in
-the order `code`, `tests`, `ci`, `other`, `spec`, `docs`.
-
-**Settings.** In the `flow` block, beside `retro`:
-
-| Setting                   | Values                   | Default |
-| ------------------------- | ------------------------ | ------- |
-| `flow.ci.windowDays`      | whole number 1 to 90     | 7       |
-| `flow.ci.docsOnlyMinutes` | whole number 1 to 100000 | 60      |
-| `flow.ci.waitShare`       | number 0.05 to 1         | 0.4     |
-| `flow.ci.minPullRequests` | whole number 1 to 1000   | 5       |
-| `flow.ci.classes`         | class to a list of globs | above   |
-
-`flowSection` in `src/app/flow/flow.mjs` adds `ci` to its groups and the four
-number keys to `FLOW_KEYS`; `classes` is checked as a record of known class
-names to lists of at most 50 strings. The default of 60 docs-only minutes
-fires on today's 3-OS matrix (about 25 minutes of jobs per spec-only pull
-request) after three such pull requests, and stays quiet once docs-only
-changes skip the suite (about 1 minute each).
-
-**What is read.** `openPullRequests` gains, per pull request, `createdAt`,
-`files(first:100){totalCount nodes{path}}`, and on the head commit's check
-rollup `contexts(first:100)` with each `CheckRun`'s `name`, `startedAt`,
-`completedAt` and `checkSuite{workflowRun{databaseId event workflow{resourcePath}}}`. The
-first page of the same query also reads, as `recent`, the 50 most recently
-updated closed pull requests with `createdAt`, `closedAt`, author, head and
-the same `files`. A pull request opened and merged between two checks, or
-closed before a workspace's first check, is never listed open, so without
-this it would be missed. A closed one never seen open gets a row; one seen
-open takes its exact `closedAt`.
-The workflow runs read is `GET /repos/{owner}/{repo}/actions/runs` with
-`per_page=100` and `created=>=` the window start, through the client's HTTP
-cache (`github_http_cache`), so an unchanged list is a 304. A run gives its
-id, workflow path, head commit, head branch, event, attempt, start, end and
-pull request numbers. GitHub leaves a run's pull request numbers empty once
-the pull request is merged, so a run links to its pull request by the run
-list, the head commit's check runs, the head commit, and then the head
-branch of a pull request open when the run started.
-
-**Call budget.**
-
-| Read                         | When                            | New calls                                             |
-| ---------------------------- | ------------------------------- | ----------------------------------------------------- |
-| Open pull requests (GraphQL) | already once per repo per check | 0; about 1 point per page today, about 3 when widened |
-| Workflow runs (REST, ETag)   | at most once per repo per check | ≤ 1 per repo per check; a 304 when unchanged          |
-
-With 2 repositories and a check every 5 minutes this is at most 24 REST
-calls an hour, most of them 304s, against 5,000 an hour. No call is made per
-pull request or per run.
-
-**Stored rows.**
-
-```text
-pr_ci(repository, number, task_id, author, classes, partial, created_at,
-      first_seen, last_seen, closed_at, ci_ms, wait_ms)
-ci_runs(repository, run_id, workflow, head_sha, event, attempt, pr_number,
-        started_at, ended_at, job_ms)
-```
-
-`job_ms` is the sum of the run's check run times on the head commit when the
-open pull request read saw them, and otherwise the run's own wall time,
-marked an estimate. A pull request's `ci_ms` sums its runs' `job_ms`; its
-`wait_ms` is the union of its runs' start-to-end spans, and its lead time is
-`created_at` to `closed_at`. Rows older than 90 days are removed by the tick.
-
-**Triggers.** Over the last `flow.ci.windowDays` days, per repository:
-
-| Trigger         | Fires when                                                                                       | Key                                 |
-| --------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------- |
-| Docs-only waste | `ci_ms` of docs-only pull requests > `docsOnlyMinutes`                                           | `waste:docs:<repo>:<window>`        |
-| CI wait share   | ≥ `minPullRequests` closed, and the sum of `wait_ms` > `waitShare` × the sum of their lead times | `waste:wait:<repo>:<window>`        |
-| Repeat run      | one workflow has two or more distinct run ids on one head commit                                 | `repeat:<repo>:<workflow>:<window>` |
-
-`<window>` is the window's start date, so each fires at most once a window.
-They are added to `triggers` in `src/app/flow/flow-retro.mjs` and are not spikes,
-so the one-hour gap does not hold them. A retrospective started only by them
-runs with no finished tasks; its task sections are empty.
-
-**Brief.** Per repository: CI minutes and pull request counts by class, split
-`task` and `other`; the wait share; each repeat run finding; and the workflow
-files seen in `ci_runs`. A `task` pull request names its task ID. An `other`
-pull request is its number, author and classes only. Nothing else about it
-enters the brief, and Avoozl reads no chat it did not open. The brief still
-passes content rules at `brief`.
-
-**Proposals and PDCA.** A `plan` proposal MAY add `repository` and
-`workflow` (a `.github/workflows/` path seen in `ci_runs`); `PLAN_FIELDS`
-gains both and validation refuses a workflow that was not seen. Approval
-opens a planner draft for one new task naming the workflow file and the
-change. `METRICS` gains `CI minutes per pull request`, and a proposal using
-it names a class (`all`, or one class). PDCA compares the mean `ci_ms` of the
-last `flow.retro.everyTasks` closed pull requests of that repository and
-class before approval with the same number closed after it, and keeps the
-10% rule of Requirement 47.7.
-
-**Flow tab.** A **CI** card per repository: minutes by class as bars, split
-task and other; the wait share against its limit; and a **Repeat runs** list
-of workflow, commits with repeats, extra runs and extra minutes. Settings ›
-Flow gets a **CI** group with the four number fields and the class globs
-shown read-only.
-
-**Tests.**
-
-| Test                      | Shows                                                                                                  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Classes from globs        | Defaults, the class order, `flow.ci.classes` replacing one class, an unmatched path is `code`, partial |
-| One read per check        | A fake client sees the same GraphQL call count as before and at most one runs read per repo per check  |
-| Not-modified reuse        | A 304 runs read reuses the cached list and records no new rows                                         |
-| Spec-only waste fires     | 10 spec-only pull requests with 25 CI minutes each fire docs-only waste once in the window             |
-| Repeat run fires          | Two runs of one workflow on one commit fire repeat run; attempt 2 of one run does not                  |
-| Steady, varied, no waste  | Code pull requests with 10 to 30 CI minutes, one run each, wait share under the limit: nothing fires   |
-| Outliers unchanged        | The Requirement 47.1 tests pass unchanged                                                              |
-| Other pull requests       | Counted in triggers; the brief holds number, author and classes only                                   |
-| CI plan proposal and PDCA | A proposal naming an unseen workflow is dropped; an approved one opens a draft; PDCA by class          |
-
-shortcut: one page of 100 runs per read; a repository with more runs in the
-window sees only the newest 100. Read more pages if Flow shows the cap hit.
-
-shortcut: 50 closed pull requests per check; a repository that closes more
-than 50 between two checks misses the oldest, and a new workspace sees only
-the newest 50 of its window. A pull request in neither list closes at the
-first check that no longer lists it open. Read a second page if that shows.
-
-### 4.31 Every build receipt, and a build breakdown for retrospectives
-
-Requirement 101. Build receipts keep
-one record per merged pull request: the last line of the first matching
-artifact. This section keeps every record of every artifact on the head
-commit, and adds a repository's own build report to Flow and the
-retrospective.
-
-```text
-tick's CI step (flow-ci.mjs ciStep), per repository with buildReceipts on
-  ─▶ workflow runs read (§4.30, already made): head commits and run states
-  ─▶ artifact list (one REST call, ETag, no name filter)
-  ─▶ new build-receipt* and report artifacts: one download each
-  ─▶ parseReceipts: every line ─▶ build_observations
-  ─▶ build-report adapter ─▶ build_breakdowns (when receipts.report is set)
-  ─▶ Flow: per pull request totals, phases, costliest phase; Trace: every line
-  ─▶ retroBrief: builds (phases, breakdowns by comparison key)
-  ─▶ PDCA: Build minutes per pull request │ Build part minutes, matching keys only
-```
-
-**By commit (R101.14).** Every commit that reaches the base branch (a direct
-push, a squash or merge commit, Avoozl's landing) has a `push` run there.
-`readReceipts` takes the head commit of each such run in `ci_runs` whose
-branch is the repository's `baseBranch` as one more head to settle, beside
-the merged pull requests' heads. It uses the same artifact list, so no call
-is added, and the same `receipt_artifacts` rows, so each artifact is
-downloaded once. `pr_ci` gains `mergeCommit` from the closed pull request
-read it already makes (`mergeCommit{oid}`); a push commit's observations
-carry the pull request whose `mergeCommit` it is. `observationsAtMain`
-gives one commit's CI: its own lines, else those of the pull request head
-that landed as it. Flow (`buildRows`) has one row per base-branch commit,
-shown by pull request number or short SHA. A task's builds
-(`observationsForTask`) are `observationsAtMain` of a person's `task.built`,
-else of `task.tickCommit`, else of `task.integration.commit`, else the lines
-naming the task.
-
-**Receipt line.** Version 1 stays, with three optional fields. A line
-without them still parses: `task` is null, `attempt` is 1 and `phase` is the
-command.
-
-```
-{
-  "v": 1,
-  "issue": 12,
-  "task": "7.2",
-  "attempt": 2,
-  "phase": "test",
-  "commit": "abc1234",
-  "command": "npm test",
-  "target": "macos-latest",
-  "start": "warm",
-  "ms": 41230,
-  "exit": 1,
-  "counters": {},
-  "at": "2026-11-16T10:00:00Z"
-}
-```
-
-`bin/build-receipt` gains `--task`, `--attempt` and `--phase`, with
-`AVOOZL_TASK`, `AVOOZL_ATTEMPT` and then `GITHUB_RUN_ATTEMPT` as fallbacks.
-`parseReceipts(text)` in `src/app/flow/build-receipt.mjs` returns
-`{ records, skipped }` for every line, with the same field checks
-`parseReceipt` does today; `parseReceipt` becomes its last record for any
-caller left. CI uploads `build-receipt-${{ matrix.os }}` from every job
-(`if: always()`), and the summary step prints every line.
-
-**Reading.** `build-receipt-read.mjs` moves from one receipt per pull
-request to artifacts. The artifact list is
-`GET /repos/{owner}/{repo}/actions/artifacts?per_page=100` with no `name`,
-through `github_http_cache`, so an unchanged list is a 304. An artifact is a
-receipt when its name is `build-receipt` or starts with `build-receipt-`, and
-a report when its name starts with `receipts.report.artifact`. It is read
-when its `workflow_run.head_sha` is the head commit of a merged pull request
-in `pr_ci` (which gains `head_sha` and `merged_at` from the same open and
-recent pull request read) and its id is not in `receipt_artifacts`. A pull
-request whose head commit runs in `ci_runs` are all complete and that has no
-matching artifact is stored as `none`. The reader runs from `ciStep`, not
-from `radar-flow.mjs`; Trace's `receiptFor` reads the stored rows and makes
-no call.
-
-**Call budget.**
-
-| Read           | When                                  | New calls                                    |
-| -------------- | ------------------------------------- | -------------------------------------------- |
-| Artifact list  | at most once per repository per check | ≤ 1; a 304 when unchanged                    |
-| Artifact files | once per artifact never read          | 1 each; 3 for a pull request on 3 platforms  |
-| Reports        | in a receipt field, or as artifacts   | 0 for a field; 1 per new artifact otherwise  |
-
-**Stored rows.**
-
-```text
-receipt_artifacts(repository, artifact_id, run_id, head_sha, name, kind,
-                  read_at, lines, skipped)
-build_observations(repository, pr_number, head_sha, run_id, task, attempt,
-                   command, target, seq, phase, start, ms, exit, failed,
-                   counters, at)
-build_breakdowns(repository, pr_number, head_sha, run_id, task, attempt,
-                 workload, engine, target, toolchain, cache, costs, parts,
-                 counters, at)
-```
-
-The `build_observations` key is repository, head commit, run, task,
-attempt, command, target and `seq`, the order among lines with the same
-key. `failed` is a non-zero `exit` or a run whose conclusion is not
-`success`. Rows older than 90 days are removed by the tick, as for `pr_ci`.
-The old `buildReceipts` metadata value is read once into
-`build_observations` and then removed.
-
-**Aggregation.** `buildView(rows)` replaces `receiptsView`:
-
-| Output           | From                                                                    |
-| ---------------- | ----------------------------------------------------------------------- |
-| Per pull request | total ms of every observation; ms per phase over targets; costliest phase; failed ms apart |
-| Per group        | median ms per phase, target and start, successful observations only     |
-| Per instance     | count, median and sum                                                   |
-
-Flow's receipts card shows the per pull request rows with the costliest
-phase named, and the medians per group. Trace lists every observation on
-the merged step, grouped by phase, failed ones marked.
-
-**Build report, version 1.** Documented in `docs/build-report.md`, which
-the task that builds the adapter adds.
-
-| Field       | Type                                            | Required |
-| ----------- | ----------------------------------------------- | -------- |
-| `format`    | `"avoozl.build-report"`                         | yes      |
-| `v`         | `1`                                             | yes      |
-| `workload`  | string, at most 80                              | yes      |
-| `engine`    | string, at most 80                              | yes      |
-| `target`    | string, at most 80                              | yes      |
-| `toolchain` | string, at most 120 (a toolchain or seed ID)    | yes      |
-| `cache`     | string, at most 32 (the cache mode)             | yes      |
-| `costs`     | `build`, `provisioning`, `cache`, `test`: ms    | yes      |
-| `parts`     | at most 32 of `{name, kind, ms}`, `kind` a cost | no       |
-| `counters`  | at most 16 names to numbers                     | no       |
-| `task`, `attempt`, `commit`, `at` | as in a receipt line      | no       |
-
-`receipts.report` in `.avoozl.json` is `{"field": "<name>"}`, an object at
-that field of each receipt line, or `{"artifact": "<prefix>"}`, artifacts
-whose files hold one report per line. With neither set, nothing is read.
-`src/app/flow/build-report.mjs` holds `parseBuildReport(value)` (a breakdown or
-a skip reason) and `comparisonKey(b)`: the five fields joined, or null when
-any is missing. Avoozl adds no budget, limit or profiler. A repository that
-wants those keeps them in its own tooling and writes the results into the
-report as parts or counters.
-
-**Retrospective.** `retroBrief` in `src/app/flow/flow-retro.mjs` adds
-`builds: buildBrief(store, repositories, { now })` beside `ci`. Per
-repository it holds the costliest phase of each pull request in the window,
-labeled `task` or `other` as in §4.30, and, per comparison key, the count,
-the latest and median of each cost and part, and the costliest part.
-Breakdowns with a null key are counted as `unmatched` and summarized
-nowhere else. With no observations and no breakdowns for a repository,
-`builds` omits it, so the brief is as it is today. `triggers` is unchanged:
-build data informs a retrospective but does not start one.
-
-`PLAN_FIELDS` gains `key` and `part`; validation refuses a key or part that
-is not in the brief. `METRICS` gains **Build minutes per pull request**
-(by phase, target and start) and **Build part minutes** (by comparison key
-and part). PDCA for either compares only matching groups, the last
-`flow.retro.everyTasks` before approval with the same number after it, and
-keeps the 10% rule. With fewer on either side it records
-`Not enough comparable builds` and no verdict.
-
-**Tests.**
-
-| Test                        | Shows                                                                                       |
-| --------------------------- | ------------------------------------------------------------------------------------------- |
-| Every line                  | A file with 4 lines keeps 4; a bad line is skipped and counted; an old line parses          |
-| Several phases, 3 platforms | 3 artifacts with build and test lines keep 6 observations for one pull request              |
-| Failed attempt kept         | Attempt 1 failed and attempt 2 passed: both kept, attempt 1 marked failed, out of medians   |
-| Costliest phase             | Flow names the phase with the most ms summed over targets                                   |
-| Calls                       | One list per check; a 304 reads nothing; one download per new artifact; next check 0         |
-| None remembered             | Complete runs with no artifact store `none`; a running run stores nothing yet               |
-| Report parse                | Field and artifact forms; an unknown version and a missing field are skipped and counted    |
-| Mismatched keys             | Breakdowns differing in any of the five fields, or missing one, are never compared          |
-| Breakdown in brief          | A retro brief holds the key, costs, parts and costliest part                                |
-| No reports                  | A repository with no reports: same brief and same call count as before                      |
-| Repository neutral          | Fixtures use made-up workload, engine and target names; the release scan finds nothing      |
-
-shortcut: one page of 100 artifacts per list; a repository that writes more
-than 100 between two checks misses the oldest. Read a second page if Flow
-shows the cap hit.
-
 ### 4.32 Working branches and spec issues
 
 Requirement 102, owner pivot. Git holds design, approvals, ticks and implementation. One issue per
@@ -3454,12 +2620,10 @@ Marks are outside the approved hash (`withoutMarks`, `src/app/specs/spec-plans.m
 A tick on the base branch completes the task; a tick on any other branch does not.
 Packages complete from their children.
 
-#### 4.32.2 A trailer identifies work
+#### 4.32.2 The tick identifies work
 
-Every landing commit Avoozl makes carries `Avoozl-Task: <id>@<definition>`
-(opaque where the plan is private), where the definition is a digest of the
-task's facts (`taskDefinition`, `src/app/specs/task-outcomes.mjs`). The trailer
-names the task a landing completed; the tick on the base branch completes it.
+A landing commit carries no trailer. The tick on the base branch names the
+task a landing completed and completes it.
 
 #### 4.32.3 Working branches
 
@@ -3628,156 +2792,6 @@ private plans on their own specs branch (§4.45). Repository layout
 determines visibility; fork location never chooses a different loop.
 Working heads and checkpoints may live in authorized forks in each layout.
 A tick reads and writes no task issue and ignores an old binding row.
-
-### 4.33 Review findings the owner can read and decide
-
-Requirement 104. Extends §4.29. The reviewer, the
-planner answer and the different-model rule are unchanged. This section
-changes what a finding holds, who closes it, and where a person reads it.
-
-```text
-round (revision H, reviewer model ≠ writer model)
-  ─▶ findings: severity, category, anchor {file, lines, quote, quoteHash}
-  ─▶ planner turn: fixed <H2> | answered <reason>
-  ─▶ person, on the document's tab: Accept | Reject | Defer | Resolve
-        Accept ─▶ next planner turn must fix it (no reviewer round counted)
-        Reject/Resolve ─▶ next reviewer round told; same quote+category dropped
-        Defer ─▶ follow-up row (no task, no issue)
-  ─▶ more rounds while planReview.rounds allows; then Review anyway (+1)
-  ─▶ Approve dialog: counts by severity and state, Open review link
-  ─▶ person approves the exact revision on screen
-```
-
-**Is this the review process?** Yes. Each round is bound to one revision
-hash. The reviewer finds, the planner fixes or answers, and the person
-decides what is left. It repeats while `planReview.rounds` allows, and
-Review anyway adds one round at a time. None of it approves or blocks.
-
-**Finding fields.** `review_threads` rows with `source: "plan-review"`
-gain:
-
-| Field        | Value                                                                |
-| ------------ | -------------------------------------------------------------------- |
-| `severity`   | `info`, `warn`, `blocker`; old values mapped on read (R104.1)       |
-| `kind`       | unchanged; shown as **Category**                                     |
-| `anchor`     | `{file, lineStart, lineEnd, quote, quoteHash}` at `revisionHash`     |
-| `decisions`  | append-only `[{action, by, at, revisionHash, note}]`                 |
-| `answer`     | unchanged (`fixed` with `revisionHash`, or `answered`)               |
-
-`file` and `line` stay for rows written before this phase; their anchor
-is `{file, lineStart: line, lineEnd: line}` with no quote, and they show
-at that line only at their own revision. No migration rewrites old rows.
-`quoteHash` is `sha256` of the quote with each whitespace run collapsed to
-one space, from `node:crypto`'s `createHash("sha256")`.
-
-**State.** Derived on read in one function, `findingState(thread, plan,
-running)`: the latest decision wins (`accepted`, `rejected`, `deferred`,
-`resolved`; `reopen` clears it), else the planner answer (`fixed`,
-`answered`), else `open`; `answered`, `open` and accepted-but-not-fixed
-read as `for you` once no round or planner turn runs. A `fixed` answer
-whose hash is not stored stays `for you`, as in §4.29.
-
-**Anchoring.** `anchorAt(thread, revision)` returns `{file, lineStart,
-lineEnd}` or `{moved: true}`. It searches the collapsed quote in the same
-file of the asked revision, mapping back to original line numbers. One
-match moves the anchor; none or several mark it moved. It is pure and run
-on read; the stored anchor never changes. The submit check reuses
-`lineFor` from `plan-reviews.mjs` on the file text.
-
-**Person actions.** One operation, `plan.review.finding.decide {id, action:
-accept | reject | defer | resolve | reopen, revisionHash, note?}`, is added
-to `PERSON_ONLY` in `mcp-policy.mjs`. `reject` needs a note. `defer` also
-writes a `review_followups` row `{id, planId, spec, findingId,
-revisionHash, note, by, at}`. `plan.review.dispose` maps its four
-dispositions onto this operation and becomes person-only too. CLI:
-`avoozl plan finding ID accept|reject|defer|resolve|reopen [--note TEXT]`,
-and `avoozl plan review SPEC` prints severity, state and anchor lines.
-`plans_plan_review` returns the new fields read-only; MCP has no decide.
-
-**Feeding the loop.** The planner answer brief (`plan-review-answers.mjs`)
-adds three data lists: accepted (must fix), rejected with reason, deferred.
-The reviewer brief (`plan-review-step.mjs`) adds rejected and resolved
-findings with reasons. `plan.review.submit` drops a finding whose `kind`
-and `quoteHash` match a rejected or resolved one in the same pass, and the
-round's `note` counts the drops. `planReviewStep` opens one planner answer
-turn for a plan with an accepted, unfixed finding and no running turn; the
-turn row has `trigger: "person"` and does not count against
-`planReview.rounds`. Review anyway (`plan.review.decide`, already
-person-only) starts one more reviewer round when the cap is reached. Its
-writer-model check is unchanged.
-
-**Review comments.** The findings show inline on each spec document's own
-tab, as review comments in a pull request's diff; there is no separate
-Review tab. A link from the spec header (Open review) and the Approve
-dialogs is `?view=review&plan=P&rev=H&file=F&finding=X&severity=S&state=X`:
-it opens document tab F (none: the first with an open finding) at
-revision H.
-
-| Part         | Behavior                                                                |
-| ------------ | ----------------------------------------------------------------------- |
-| Document tab | the file rendered by `Markdown.tsx`, at the review's revision           |
-| Thread       | the cards of a block, under the last rendered block the anchor touches  |
-| Card border  | `info` grey (`--border`), `warn` yellow (`--warning`), `blocker` red (`--danger`) |
-| Card body    | severity label, category, file:lines, claim, evidence, planner, history |
-| Card buttons | Accept, Reject (reason), Defer (note), Resolve; Reopen once decided     |
-| Select       | card click highlights the lines; text click selects its card            |
-| Moved        | listed above the text under **Moved or removed**                        |
-| Toggle       | Hide comments / Show comments with the count, kept in local storage     |
-| Filters      | severity and state chips with counts, kept in the address               |
-| Overview     | a Review card: rounds with their chats, and every finding as a link     |
-
-`blocks()` in `markdown.ts` already gives each block and list item its
-first source `line`. `Markdown.tsx` writes it as `data-source-line` on the
-rendered element; a block's range runs to the next block's line minus one,
-so the view maps line ranges to blocks without a second parser.
-`Markdown.tsx` takes an `after(line)` that renders a thread under a block
-(under a list item, as a bare item of the same list, the list numbering
-its items explicitly).
-Chat links use the round's `slot` and the planner answer receipt's `slot`
-through `linkHref`, as Review drafts' Open chat does; a binding that is
-gone shows Chat closed.
-
-`plan.review.view {planId, revisionHash?}` returns the three files at the
-revision and every finding of the plan's latest pass with `state`,
-`anchorAt` for that revision, decisions and chat links. It reads only the
-workspace database and the stored revision.
-
-**Approve dialogs.** `PlanReviewSummary.tsx` shows counts by severity and
-by state and an **Open review** link, and loses its close controls.
-`plan.reviewSummary` adds `bySeverity` and `byState`. While a dialog is
-open it re-reads `plan.reviewSummary` and the plan preview on the page's
-existing refresh. When the hash moves, the dialog swaps to the new
-revision and shows "Changed while open: H1 → H2", each changed file with
-`+added −removed` lines from a line diff of the two stored revisions, and
-findings that became fixed or moved. The Approve button resets and needs a
-new click. `plansClient.approve` returns `{changed: preview}` instead of
-throwing, and the dialog applies it as the same update. The batch dialog
-does this per entry. `plan.approve` still refuses a stale hash.
-
-| Choice                                    | Why                                                                      |
-| ----------------------------------------- | ------------------------------------------------------------------------ |
-| Quote plus hash, not line numbers alone   | Lines move with every edit; an exact quote finds the passage again       |
-| Compute anchors on read                   | One stored truth per revision; nothing to migrate when text moves        |
-| Person-only decisions                     | A finding for the person must not be closed by an agent                  |
-| Accept starts a planner turn, not a round | The person already judged it; a reviewer round would only repeat it      |
-| Defer makes no task                       | Tasks come from approved spec revisions only                             |
-| Dialog updates in place                   | The person keeps their place, and still approves only what is on screen  |
-
-Tests, with fake chats, fake model names and a fake GitHub:
-
-| Test                         | Shows                                                                                         |
-| ---------------------------- | --------------------------------------------------------------------------------------------- |
-| Severity mapping             | Old rows read as blocker, warn and info; a blocker approves the same as none                 |
-| Anchor survives edits        | Moved text keeps its finding at the new lines; deleted or duplicated text reads as moved     |
-| Quote refused                | A missing or ambiguous quote is refused at submit                                             |
-| Person-only decide           | MCP and agent sessions are refused for decide and dispose; a person's action records revision |
-| Accept feeds the planner     | One planner turn per plan per tick; it does not use up `planReview.rounds`                   |
-| Rejected is not repeated     | Same kind and quote hash in the same pass is dropped and counted                             |
-| Defer stays local            | A follow-up row, no task, zero GitHub calls                                                   |
-| Dialog updates in place      | A hash change mid-dialog shows the change and resets Approve; no thrown error                |
-
-shortcut: anchors search only the same file, so a passage moved to another
-file reads as moved. Upgrade if reviews of split files show it often.
 
 ### 4.34 A role per repository decides where tasks live
 
@@ -4058,21 +3072,6 @@ and parses again only when the hash changes. Ticks stay outside it.
 **No carry-over.** A revision with a new hash needs a normal approval, even
 when only its layout changed.
 
-**Removed.** `avoozl/manifest.json` and everything that read it from disk or
-wrote it, `spec-manifest.mjs` (the manifest drafted from marker bullets), the
-review tabs' manifest tab, and the marker bullets (`_Repository: x_`) the
-steering file taught. The planner prompt and the steering file teach
-`$` facts; each older steering text counts as an older Avoozl copy, kept as
-its sha256, so New spec offers the new one over it. Keys nothing reads, such as a task's `agent`,
-`model`, `size` and `budget`, are unknown facts now.
-
-**Conversion.** A one-off script folded each manifest into its `tasks.md` on
-a copy, the old and new parses were compared, and the manifests were deleted
-in the same change. It is not shipped as a command, and no disk reader
-accepts the old file. `spec-conversion.test.mjs` keeps the proof: a digest of
-the old reader's tasks for each spec, checked while the spec is unchanged
-since the conversion.
-
 **Tests.** `spec-facts.test.mjs`: each key, each refusal with its line,
 defaults and packages, an epic folder, a leftover manifest.
 `spec-plans.test.mjs` and the fixtures write `$` facts. A hash test: an
@@ -4187,22 +3186,6 @@ changes only marks, which `specHash` ignores, so it approves nothing new.
 The worker and planner prompts say to commit as the repository's identity,
 add no attribution, and never push spec edits to main.
 
-**Landing trailers.** `landing-trailers.mjs` `landingMetrics` reads a task's
-worker bindings, attempts, usage and Flow spans (at most 200) when it is
-queued to land, directly or by pull request. `landingMessage` writes them
-under its `Avoozl-Task:` line, one `Avoozl-Span: ID STAGE START END ROLE
-ATTEMPT SOURCE` line per span. A direct landing's merge commit carries
-it (`merge-batch.mjs`); a pull request landing passes it as the merge's
-`commit_message` (`landing-pulls.mjs`, `mergePullRequest`), so GitHub's
-squash commit on main carries the same block. A private task's public name
-gets no metrics. `landingsFromGit` reads them back.
-
-**Retros.** `retro-files.mjs` `writeRetroFiles`, on each tick, commits every
-finished retro not yet in git as `.kiro/retros/<id>.md` (a summary and the
-record as a `json avoozl-retro` block), authored by the agent, in one commit
-on main (`commitOnMain`, which `commitApproval` also uses). A retro a content
-rule matches at the `proposal` boundary stays out.
-
 **Intake.** The `source:` fact is stored as `intakeSource`; `startTask` ties
 an item whose link a task names to that task. `intake.submit` creates one
 issue per item in the source's GitHub repository with no labels
@@ -4215,8 +3198,8 @@ Onboard flow's adopt step (§4.15) runs the same function over one added
 repository's specs. It creates a plan per spec folder, approves each one whose current
 text matches an approver's commit (exact hash, or `sameSpecContent`) in
 dependency passes with `baseline` so ticked tasks start done (each at its
-tick commit as its landing commit), records one `task.landed` Activity row per landing trailer,
-puts back each trailer's Flow spans, and reads every retro file on main.
+tick commit as its landing commit). Start times, tries, models and Flow
+spans stay only in the database that recorded them.
 
 **Approvals on the tick.** A spec pull request an approver authored and
 GitHub merged, or an approver's push, approves with no click
@@ -4344,11 +3327,13 @@ client's cache (`github.cacheSeconds`, default 60), and an unchanged issue
 answers 304, which does not count against the rate limit. Every write goes
 through the write pacer (`github-pacer.mjs`).
 
-**No spec issue.** A spec nobody published has no shared record, so it
-drives on the workspace that has it and the page says "Not shared". Avoozl
-makes no issue for it: **Make the GitHub issues** or `avoozl spec publish`
-stays the person's act. The limit, in the docs: two machines that both hold
-an unpublished spec both drive it.
+**No spec issue.** A spec with no issue yet has no shared record, so it
+drives on the workspace that has it and the page says "Not shared". The tick
+publishes the issue of each approval this workspace adopts or makes, when
+this runner acts as the approver (`publishApproved`,
+`spec-publication.mjs`); **Make the GitHub issues** and `avoozl spec
+publish` retry it. The limit, in the docs: two machines that both hold an
+unpublished spec both drive it.
 
 **Privacy.** An assignee is a login on an issue the reader can already see,
 and it names no other item, so `source-backlinks.mjs` is unchanged.
@@ -4376,8 +3361,7 @@ and `commitApproval(..., {branch})` make Approve's commit there. Landing still
 targets each code repository's base.
 
 **Plans-repo mode.** The planning checkout holds `.avoozl.json` and is on
-the specs branch; code repositories land on their own base. This is Nupp's
-shape (`nupp-planning` on `avoozl-plans`, code in `nupp-lang/nupp`).
+the specs branch; code repositories land on their own base.
 
 ### 4.46 Avoozl reads git and GitHub
 
@@ -4998,8 +3982,8 @@ their new parent, the plan issue; nothing is closed or recreated.
 | Graph            | Top level: epics and **No epic**; drill to member plans                                                    | Plan drill-in: phases, then tasks; **No phase** last   |
 | Delivery         | Filter; row shows plan and phase                                                                           | Filter, enabled once a plan is picked                  |
 | Flow             | Filter                                                                                                     | Filter                                                 |
-| Dashboard        | **Progress by epic**: one row per epic over all member plans' tasks, plus **No epic**                      | —                                                      |
-| Plans            | Filter and an Epic column; epic folders listed with kind **Epic**                                          | —                                                      |
+| Dashboard        | **Progress by epic**: one row per epic over all member plans' tasks, plus **No epic**                      | None                                                      |
+| Plans            | Filter and an Epic column; epic folders listed with kind **Epic**                                          | None                                                      |
 | Plan left column | The plan's epic as a link to its epic page                                                                 | Phases with progress, replacing today's per-plan epics |
 | Epic page        | Goal, what done means, member plans with status and progress, open decisions, Edit and Discuss like a plan | Each member's phase counts                             |
 
@@ -5008,140 +3992,6 @@ Focus: task. The epic page is the Graph's epic drill-in with the epic's
 prose beside it, so no new top tab is added. The New plan drawer offers
 **Epic** (pick one) and **Phases**; the seed tells the planner to write the
 `epic:` key and the phase headings.
-
-**One-time rewrite** (task 21.7, done; it ran on `avoozl/manifest.json`
-files, before §4.40 moved task facts into `tasks.md`). No operation, CLI command or MCP action
-migrates a workspace: the owner is Avoozl's only user, so the owner's data
-is rewritten once and the old forms are errors from then on. Task 21.7
-writes a script, runs it, and keeps it in the task's report, not in `src/`.
-The script calls only existing operations (`plan.save`, `task.archive`,
-`task.update`, `flow.settings.update`) and edits spec files as local commits.
-
-1. Copy the workspace database and every spec repository to a temporary
-   folder and run the whole rewrite there first. Lint every plan.
-2. Back up the live SQLite file with its sha256, and record the path and
-   hash in the task's report.
-3. Each `epics` row that is neither a `doc:` epic nor backed by an epic
-   folder becomes a phase, with the same ID and title, of each plan whose
-   tasks use it: the plan's manifest gets `phase` values and a `phases`
-   object, saved as a new draft revision of that plan.
-4. Each task in a `doc:` epic whose source is a spec plan's `tasks.md`
-   takes that item's heading as its phase; any other goes to **No phase**.
-5. Each task whose plan record is gone is archived with `task.archive`,
-   reason "plan removed". Done tasks are archived the same way, so history
-   stays readable.
-6. Each manifest in the old form is rewritten: `kind: "epic"` to
-   `package`, per-entry `epic` to `phase`, `epics` to `phases`; an epic
-   folder gets the top-level `"kind": "epic"`, and its entries keep only
-   `plan` (renamed from `memberPlan`) and `summary`.
-7. Run it again; it finds nothing to change. Nothing is approved, no
-   session is started or stopped, nothing is written to GitHub, and
-   nothing is pushed. Rewritten plans come back as drafts for the owner to
-   approve; the next projection preview shows the GitHub side.
-
-The plans covered: Nupp's plans, including the rewrite epic folder and its
-native runtime plan, and Avoozl's own spec (which already uses headings
-only, so it should need no change).
-
-**Nupp example.** A planning repository holds a rewrite epic folder
-listing 21 member plans, each with `epic:` front-matter. Its manifest has
-`memberPlan` entries with `kind` and `repository` and no top-level kind.
-The native runtime plan's manifest gives each task an `epic` value `W1`–`W7`,
-and its `tasks.md` headings are "From design.md" and "Recorded only in the
-workspace database". After the build, both folders fail lint with
-`spec.epic-task-fields` and `spec.entry-epic` until task 21.7 rewrites
-them. After the rewrite the epic folder lists its 21 members, and the
-runtime plan's tasks group under phases W1–W7 (manifest values win over
-headings).
-
-### 6.10 Driver: one machine drives each spec
-
-Requirement 66 and §4.44. `src/app/workers/driver.mjs` decides;
-`driver-scope.mjs` answers from SQLite for every write loop.
-
-#### The lock: who is assigned
-
-In a GitHub mode the spec issue's single assignee drives the spec: the Avoozl
-whose `gh` login is that assignee. With no assignee on the spec issue, the epic
-issue's assignee stands in; a spec issue with several assignees never falls
-back to the epic. Several assignees read only everywhere and open one
-decision. Task-issue assignees keep their own meaning. In Local only mode this
-workspace drives every approved spec.
-
-The machine ID (`mch_` plus 16 base32 characters) and an optional label live
-in machine-local settings (`driver.json`). The label passes the `github`
-content-rule boundary and is never filled from the host name.
-
-#### Reading it in the tick
-
-The tick's driver step reads each approved spec's issue and writes the
-`drivers` row (state, reason, assignees). It reads the issue **again** right
-before each dispatch for the spec, before projection, and before each
-integrate or merge (`recheckDrivers`). A spec this workspace does not drive is
-read-only here: the tick refreshes its own cache and views, and nothing is
-dispatched, messaged, written to GitHub, integrated or merged for it
-(`driverGuard` refuses any GitHub write keyed to it). An unread issue reads
-only for that tick. Assignment is not atomic, so work started before the next
-read can overlap, at most one tick's worth.
-
-#### Page and Settings
-
-- The spec's own page and row show its driver: "Driver: you",
-  "Taken by octocat", "Driver: nobody" or "Driver: you · not shared".
-- A read-only spec shows a banner on its pages saying why, with a link to
-  the spec issue, where reassigning it moves the spec.
-- Settings › General › **This computer**: Machine label (optional) and the
-  machine ID shown small. These stay on this machine.
-- `driver.status` is readable on the page, in the CLI (`avoozl driver
-  status`) and over MCP; `driver.settings.update` is person-only.
-
-| Decision                                                    | Reason                                                                                             |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Spec issue assignee names the driver, the epic's as default | GitHub's own owner field, visible in every list and view, with history                             |
-| Exactly one assignee                                        | Several is not an answer; guessing is the bug                                                      |
-| Avoozl never reassigns                                      | Hand-off is a person's GitHub action                                                               |
-| Check again before each dispatch                            | Assignment is not atomic; this bounds the overlap to one tick                                      |
-| Age never moves the role                                    | A slow or asleep machine is not a gone one; the repository rule for workers applies to drivers too |
-
-### 6.11 Demo mode
-
-Demo mode has the sample, the fake GitHub, the badge, the bar and Exit demo, and no tour. **Start demo** is in the empty In flight box on Home.
-
-Requirement 82. `src/app/workspace/demo.mjs` builds the sample; the app backend
-serves it; `hosts/kirocrew/ui/src/Demo.tsx` shows it.
-
-**Sample.** `installDemo(root)` builds in `<root>.staging-*` and renames the
-folder into place; the `demo:sample` receipt marks it done. Built through
-the same `plan.create` and `plan.approve` path as a person's specs, but
-only inside the throwaway folder, so the data has the real shape. Single-
-repo mode on the fake `example/recipe-box`; specs live in its checkout.
-Machine settings (plugins) live in the sample folder, and its
-configuration home is the sample folder. The default root is one folder
-per user under the system temp folder.
-
-**Serving.** Machine operations `demo.start`, `demo.exit` and `demo.status`.
-Requests for workspace `@demo`, which no catalog ID can be, go to the
-sample. Reads run; every other operation is refused with 409, `demo: true`
-and a preview sentence. The sample's `Operations` get the fake GitHub and
-no notifier, crew reader, session stopper or driver. The backend's drain
-never reads the sample.
-
-**Page.** `host.ts` wraps the host's `useAppApi` and `useChatLauncher`. In
-the demo, Open chat shows a preview, only Avoozl commands and GETs reach
-the host, and `workspaces.*` answer with the sample alone. `Demo.tsx` holds
-the badge, the Demo bar with the last preview and Exit demo, and the tour
-card (the popover layer) whose steps (`demo-api.ts` `TOUR`) move the page.
-
-| Choice                                                        | Why                                                          |
-| ------------------------------------------------------------- | ------------------------------------------------------------ |
-| A separate folder, not example data in the person's workspace | Nothing to clean up in their database; exit is just a switch |
-| Preview by refusal at the backend                             | One gate covers every page action, current and future        |
-| Fake GitHub refuses unknown methods                           | A new write method fails closed                              |
-| `@demo` ID                                                    | Cannot collide with a catalog workspace                      |
-
-shortcut: the global Avoozl configuration file is still read beneath the
-sample's own (`loadLayeredConfig`); upgrade by passing the sample as home
-at each call site if a person's global file ever names repositories.
 
 ### 6.12 Security follow-ups
 
@@ -5260,236 +4110,6 @@ title of `avoozl:<task-id> …` (§4.6).
 opens a slot with the app SDK's chat navigation. Rediscovery by title covers a
 lost binding.
 
-### 8.1 Avoozl inside chat: MCP App views
-
-**Proposed, deferred to Phase 8.** The app page stays the main view. Kiro Crew renders MCP Apps (SEP-1865, revision 2026-01-26): a tool
-whose definition names a `ui://` resource shows that HTML as a live,
-sandboxed view in the chat, and the view can call the same server's tools
-(`serverTools`) and post text to the chat (`message`). **Verified** in Kiro Crew's
-`mcp-apps.md`; it requires the user to route the stdio server through the MCP
-gateway once in MCP Management.
-
-Avoozl's MCP server gives four tools a view:
-
-| Tool                    | View                                                     | Buttons (each calls an Avoozl tool) |
-| ----------------------- | -------------------------------------------------------- | ----------------------------------- |
-| `plans_graph`           | Ready, running, waiting (with blockers), needs you, done | Refresh; open a task's session      |
-| `plans_preview`         | Draft graph, critique findings, validation diagnostics   | Approve exact revision              |
-| `plans_project_preview` | Issues, sub-issues, and dependency links to be created   | Project                             |
-| `plans_decision`        | One open decision with its options                       | Each option                         |
-
-Rules:
-
-- Every write a button makes goes through the same operation and the same
-  expected hash or revision as the CLI and page, so a stale view is refused.
-- Views show only Avoozl's own data. Issue and pull-request text stays escaped.
-- A view is an addition, not the only path: every action also exists as a tool
-  the agent can call and in the app page.
-
-**Open (Inferred).** Whether an MCP server shipped inside a Kiro Crew app can be
-routed and render views is not documented; proof P8b checks it. If it cannot,
-the user adds the same server in Connections and routes it.
-
-**Spike.** A 200-line stdio server and one HTML view render the
-spike graph with Start, Accept, Fail, and Reopen buttons over the spike
-workspace (`avoozl-crewmode-spike/mcp-app`). **Verified** in a Kiro Crew chat
-after the user approved sharing in MCP Management and restarted: the view
-renders, and its buttons write and redraw it. Lessons:
-
-- Only the view's own tool should name the `ui://` resource. When the button's
-  tool also named it, the write landed but the view never redrew.
-- Each click took several seconds because the spike starts the CLI three
-  times (about 3 seconds each under load). The real server must call
-  operations in-process.
-- Reopening a task leaves its done dependents done; dependents not yet
-  started wait again.
-
-### 8.2 Set up GitHub wizard
-
-A **Set up GitHub** button in Settings runs one operation, `github.setup`,
-also exposed as CLI `avoozl github setup` and MCP tool
-`plans_github {action: "setup_preview"}`. It uses the token Avoozl already
-reads and stores no new secret (`src/app/github/github-setup.mjs`).
-
-**Flow.** The wizard reads first, builds one plan of writes, shows it, and
-writes only after one confirmation.
-
-| #   | Step                         | Reuse when                     | Create when missing |
-| --- | ---------------------------- | ------------------------------ | ------------------- |
-| 1   | Token                        | Scopes `repo` and `read:org` present | Nothing; shows the fix command |
-| 2   | Mode and planning repository | Named repository exists        | Plans-repo mode only: new repository, private |
-| 3   | Issues                       | `has_issues` is on             | Turns issues on in the repositories the mode needs |
-| 6   | Epic issue type              | Organization has `Epic`        | Created when the organization has issue types and the person may create one |
-| 8   | `.avoozl.json`               | —                              | One proposed diff; the person saves it through `github.settings.update` |
-
-**Rules.**
-
-- **Preview, then one confirmation.** The preview lists every GitHub write.
-  Nothing is written before the person confirms, and the confirm carries the
-  preview's hash: a GitHub change since the preview refuses it.
-- **Idempotent.** Each step matches by name and adds only what is missing. A
-  second run shows "Nothing to change".
-- **Never deletes or renames.** The wizard calls no delete endpoint and never
-  changes an existing object's name or visibility.
-- **Permission failures.** A step refused for permission is reported with its
-  fix, and every step that does not need it still runs. The wizard ends with
-  a checklist of what only a person can do on GitHub.
-
-### 8.4 Flow tab and Flow settings
-
-Requirement 48, §4.11. One tab
-answers "where does the time go, and what should change". It shows only
-graph and delivery timing; pull requests and CI runs stay on GitHub, and
-the tab links out to them. The icon is `Gauge` (check that the
-Kiro Crew host exports it, as `icons.ts` requires; else `Timer`), before the
-heading and on the nav tab.
-
-```text
-◔ Flow                                                  Workspace: example ▾
-Where delivery time goes, and what the last retro proposed.
-┌ Filters ───────────────────────────────────────────────────────────────┐
-│ Repository [all ▾]  Epic [all ▾]  Window [last 20 tasks ▾]  Stage [all ▾]│
-└────────────────────────────────────────────────────────────────────────┘
-┌ Lead time ────┐ ┌ Flow efficiency ┐ ┌ First-pass rate ┐ ┌ Time to fix ──┐
-│ 3 h 10 m      │ │ 34%             │ │ 70%             │ │ 42 m          │
-│ was 4 h 05 m  │ │ was 28%         │ │ was 60%         │ │ was 1 h 30 m  │
-└───────────────┘ └─────────────────┘ └─────────────────┘ └───────────────┘
-┌ Biggest bottleneck ────────────────────────────────────────────────────┐
-│ CI wait: 41% of lead time in example/app (median 23 min per task).      │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Time per task ─────────────────────────────────────────────────────────┐
-│ 4.1  ▇▇ queued ▇▇▇▇▇▇ coding ▇▇ tests ▇▇▇▇▇▇▇▇ ci-wait ▇ merge   2 h 40 m│
-│ 4.2  ▇ ▇▇▇▇ coding ▇▇▇▇▇▇ rework ▇▇ review ▇ merge          ⓘ   3 h 55 m│
-│ (coarse) marks bars built from reports, not tool calls                   │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Retros ────────────────────────────────────────────────────────────────┐
-│ Retro 3 · after 10 tasks · bottleneck ci-wait                            │
-│   Narrow stops (flow.stopTheLine.scope repo → dependents)  lead time ↓   │
-│   evidence: 7 of 10 tasks were small in 2 epics     [Reject] [Approve]   │
-│ Retro 2 · approved: local checks first on · PDCA: CI wait −38%, helped   │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-- **Metric cards.** Each shows the window's value and the previous window's.
-  A card with no data says what produces it ("Finish a task to see lead
-  time").
-- **Time per task.** One stacked bar per task, colored by stage, with a
-  legend; bars from phase markers or events are marked coarse. The info
-  icon opens the task drawer.
-- **Biggest bottleneck.** The stage with the most waiting or rework in the
-  window, from the same numbers, so it matches what a retrospective would
-  name.
-- **Retros.** Newest first, each with its bottleneck, proposals, and
-  **Approve** and **Reject** (Approve is not red; a "removes a check"
-  proposal asks a second time). Approved proposals show their PDCA result
-  when it is in. **Run a retro now** starts one by hand. Empty: "A retro runs
-  after 10 finished tasks."
-- **Task drawer.** A **Timing** fold after **Delivery**: the task's bar,
-  and each span's stage, length, and source.
-- **Dashboard banner.** While a stop is open, above every other section:
-  "Line stopped: `npm test` fails on `main` since `abc1234` (task 3.2).
-  Fix: 3.2.fix-1, running. 4 tasks paused." with **Open fix task** and
-  **Run anyway** (asks to confirm). Red, because new work is stopped. After
-  Run anyway the banner stays and says so.
-
-Settings gets one **Flow** group, laid out like the other groups (a heading
-and one short line per sub-group, plain labels with the raw key small,
-"(required)" or "(optional)" in plain text, defaults as placeholders):
-
-```text
-Flow
-How Avoozl measures delivery time and reacts to slow or broken work.
-┌ Timing ────────────────────────────────────────────────────────────────┐
-│ Always on. Avoozl records where each task's time goes; nothing to set.  │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Stop the line ─────────────────────────────────────────────────────────┐
-│ When a change breaks a check that passed, pause new work until it's fixed.│
-│ What to pause (optional)  ○ Tasks that build on it  ○ This repository    │
-│ flow.stopTheLine.scope    ○ Everything                                   │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Local checks first ────────────────────────────────────────────────────┐
-│ Run the checks here before any push, so CI only confirms.               │
-│ [x] Require a local pass before push (optional)   flow.localChecksFirst  │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Retro ─────────────────────────────────────────────────────────────────┐
-│ A review that finds the biggest slowdown and proposes one change.       │
-│ After this many tasks (optional) [ 10 ]  flow.retro.everyTasks           │
-│ Slow when over (optional) [ 3 ] × usual  flow.retro.slowFactor           │
-│ Model (optional) [ auto ▾ ]              flow.retro.model                │
-│ Instructions (optional) [                     ]  flow.retro.instructions │
-│ Saved on this machine only.                                              │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-The scope choice is a card picker in the page (three small cards, each
-saying what it pauses and when to pick it); the sketch shows it as radio
-buttons only for space. Local-only mode shows every Flow sub-group, because
-all of them apply to local delivery; the local-checks-first line says it
-matters only when sessions push.
-
-Requirement 68: the Flow tab gains
-**Proposals** and **Lessons** views, and Settings › Flow a **Lessons**
-sub-group, sketched in §4.18.
-
-Retros is its own nav pill after Flow, with two pages,
-**Retros** (every retro, newest first, with its scope, time, model and the
-proposals it made) and **Proposals** (§4.18's view, for every proposal). Each
-retro links to each of its proposals and each proposal links back. Flow keeps
-only its charts (Overview) and has no sub-pages. Flow's sort and filters sit
-in the left nav as rows and chips, as Specs' do: sort by newest, lead time or
-task; window and stage rows; repository, spec, phase and epic chips with
-counts. By day and By week stay on the Over time card. The old Flow Retros
-and Proposals links open the new pages. The retro's settings stay in
-Settings › Flow. Where §4.18 and §8.4 above say "the Flow tab gets
-Proposals", read the Retros pill's Proposals page.
-
-### 8.6 New plan
-
-**New spec** is in the Specs heading and opens a centered modal, starting From a goal.
-
-Requirement 57. The Plans page's New
-plan button opens a right drawer. Submit calls `plan.new`, a page-only
-operation (agents and MCP are refused). It checks the fields, runs content
-rules on the seed at the `brief` boundary, records the request and returns
-the seed. The page then opens a chat with the `avoozl-planner` agent in
-draft mode. After each tick, a requested folder that lints clean is stored
-as a draft plan. A folder that never lints clean stays pending and can be
-imported by hand.
-
-The modal starts with Blank or From template, and a template fills the seed
-(§4.16).
-
-**Spec Builder hand-off** (Requirement 65). The app holds the grant
-`/api/apps/spec-builder/specs`. Kiro Crew matches a
-grant as a path prefix for every method, so it also reaches approve,
-handoff, execute, task, stop and delete under it; Avoozl's page calls only
-`POST /api/apps/spec-builder/specs`, and a source scan test enforces that.
-
-1. Open in Spec Builder calls `plan.new` with `preview`. It checks the
-   fields and reads `.kiro/steering/avoozl-specs.md` in the spec root,
-   recording nothing.
-2. A missing file is shown in full in the drawer. **Add the file** writes
-   it (create-only, never over a copy); **Skip the file** puts the same
-   rules in the description. A present or changed copy is left alone.
-3. `plan.new` with `handoff: "spec-builder"` runs content rules on the
-   description, records the request and returns the create body: `name`,
-   `working_dir` (the spec root), `spec_type: "feature"` (quick skips
-   design.md) and `description`.
-4. The page posts it to Spec Builder, then opens `/spec-builder` through
-   the SDK's navigate. Spec Builder has no deep link; its page opens the
-   spec named by its own last-open entry, which Avoozl sets first.
-5. Spec Builder's seed tells its agent to write requirements.md,
-   design.md and tasks.md only, and appends the description as the user's
-   words. Its chat runs the default agent with the spec root as its
-   folder, and that agent's resources include `.kiro/steering/**/*.md`.
-6. The steering file asks Spec Builder for `$` fact bullets under each
-   item and front-matter defaults (§4.40). Each tick the folder lints and,
-   once clean, imports as a draft. Avoozl writes nothing into the folder.
-
-7. A refused create maps to words: `app_disabled` says to turn Spec
-   Builder on in Apps; an SDK grant refusal says to approve the update in
-   Apps › Updates; both offer the planner chat with the same fields.
-
 ### 8.7 Specs: the page's name
 
 Requirement 62. People write
@@ -5528,33 +4148,6 @@ short select.
   `aria-activedescendant`; the list is `role="listbox"` and each result is
   `role="option"` with `aria-selected`. The state shows as a small badge
   beside the title.
-
-### 8.10 Task files and diffs
-
-Requirement 81. The task drawer's Files fold
-(`TaskFiles.tsx`, `files-api.ts`) reads only when first opened.
-
-- **Where.** `task.files` and `task.diff` (`src/app/tasks/task-files.mjs`) find
-  the task's `task_worktrees` row. A worktree still on disk is read as is,
-  untracked files too; else the branch (`refs/heads/<branch>`, then
-  `origin/<branch>`) in the repository's checkout; else `mode: none`. The
-  base is the merge base of the head with the integration branch, else the
-  base branch. A task with no worktree shows its branch on GitHub.
-- **Reads.** `git diff --name-status -z -M` and `--numstat -z` give the
-  list; `ls-files` and `ls-tree` give Show all files. `task.diff` runs one
-  `git diff ... -- <path>` and builds an untracked file's diff itself after
-  an `lstat`. Every call is `execFile` with `--literal-pathspecs`,
-  `core.fsmonitor=false`, the gateway secrets stripped, `--end-of-options`
-  before refs, and `--` before paths.
-- **Paths.** A path must be relative with forward slashes and no `.`,
-  `..` or empty part, and must be one Git lists for the task (or in the
-  tree, which reads as unchanged). An untracked link is reported, never
-  read.
-- **Caps.** 3,000 files listed; a diff over 256 KB returns `tooLarge` with
-  its counts; binaries return `binary`. The page draws the first 1,500
-  lines with a button for the rest.
-- **Editor.** `kiro://file/<path>[:line]` or `vscode://file/<path>[:line]`,
-  picked on the fold and kept in the page's storage; Kiro by default.
 
 ## 13. Open-source release gates
 

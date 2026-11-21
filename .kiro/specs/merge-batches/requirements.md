@@ -15,9 +15,8 @@ batches are part of `direct` landing and size themselves.
 
 - **A fixed batch size fails most of the time.** If each change breaks the
   build with probability p, a batch of n passes with probability
-  (1 − p)^n. At p = 10% a batch of 10, the old default, passes 35% of the
-  time, and each failure costs a bisect. The size has to follow the
-  measured failure rate.
+  (1 − p)^n. At p = 10% a batch of 10 passes 35% of the time, and each
+  failure costs a bisect. The size has to follow the measured failure rate.
 - **One run for several changes.** GitLab's merge trains and GitHub's merge
   queue test each change on its own run. A merge batch tests several in one
   run.

@@ -1,0 +1,518 @@
+// Verify (design §4.26, R86.6, R86.7): what Avoozl checks on a worker's
+// commit before it lands. The diff against the task's base must stay inside
+// the task's declared `paths`; a diff that touches a protected path waits for
+// a person; each declared check runs with its own timeout, warm in the task
+// worktree when that worktree is at the commit. check-runs.mjs runs these
+// off the tick; delivery judges the record they leave.
+import { PUBLISH_RULES, secretReason } from "../content/content-rules.ts";
+import {
+  baseRef,
+  type CommandRecord,
+  commandEvidence,
+  git,
+  taskGit,
+} from "../git/git.ts";
+import { checkOptions, prepareChecks } from "../workspace/check-isolation.ts";
+import { fail, type Store } from "../store/store.ts";
+
+// A declared check: {name, argv}, a plugin check, or a bare argv.
+export type Check =
+  | string[]
+  | {
+      name: string;
+      argv: string[];
+      source?: string;
+      plugin?: { id: string };
+      timeoutSeconds?: number;
+    };
+// A declared check in its object form: a plugin check is one.
+export type PluginStep = Exclude<Check, string[]>;
+// One check's result.
+export interface CheckRecord {
+  name?: string;
+  command?: string;
+  exitCode?: number | null;
+  notRun?: string;
+  isolation?: unknown;
+  durationMs?: number;
+  tail?: string;
+}
+// The repository flow settings these rules read (flow.ts readFlowPolicy).
+interface FlowVerify {
+  verify?: {
+    protectedPaths?: readonly string[];
+    checkTimeouts?: Readonly<Record<string, unknown>>;
+    checkTimeoutSeconds?: number;
+  };
+}
+// A repository whose checks run (check-isolation.ts).
+interface CheckRepository {
+  id?: string;
+  root?: string;
+  baseBranch?: string;
+  isolation?: unknown;
+  checksEnv?: readonly string[];
+}
+// What a command run left, as a check reads it.
+type Ran = Pick<
+  CommandRecord,
+  "exitCode" | "signal" | "stdout" | "stderr" | "isolation"
+>;
+
+// Protected by default in every repository (R86.6): CI workflows and the
+// worktree helper a person approved by hash (R83.4).
+const DEFAULT_PROTECTED_PATHS = Object.freeze([
+  ".github/workflows/**",
+  "scripts/worktree",
+]);
+const LISTED = 50;
+const TAIL_LINES = 20;
+const TAIL_CHARS = 2000;
+const ALLOW = "protected-allow";
+
+const normal = (file: unknown) =>
+  String(file).replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
+
+function globSource(pattern: string) {
+  let out = "";
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === "*" && pattern[i + 1] === "*") {
+      i++;
+      if (pattern[i + 1] === "/") {
+        i++;
+        out += "(?:.*/)?";
+      } else out += ".*";
+    } else if (c === "*") out += "[^/]*";
+    else if (c === "?") out += "[^/]";
+    else out += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  }
+  return out;
+}
+
+// Whether a repository-relative file matches one path pattern: `*` and `?`
+// within one segment, `**` across segments, and a plain path names that file
+// or everything under that folder.
+export function matchesPath(pattern: unknown, file: unknown) {
+  const p = normal(pattern),
+    f = normal(file);
+  if (!p) return false;
+  if (!/[*?]/.test(p)) return f === p || f.startsWith(p + "/");
+  return new RegExp(`^${globSource(p)}(?:/.*)?$`).test(f);
+}
+
+const anyMatch = (patterns: readonly string[], file: string) =>
+  patterns.some((p) => matchesPath(p, file));
+
+// Every path the commit adds, changes or removes since it left `baseBranch`
+// (its local branch, else the remote's tracking copy), renames as both sides.
+export async function changedPaths(
+  root: string,
+  baseBranch: string,
+  head: string,
+) {
+  const base = await git(root, [
+      "merge-base",
+      await baseRef(root, baseBranch),
+      head,
+    ]),
+    out = await git(root, [
+      "diff",
+      "--name-only",
+      "--no-renames",
+      "-z",
+      base,
+      head,
+    ]);
+  return { base, paths: out.split("\0").filter(Boolean) };
+}
+
+// The two path rules over a changed list. A task with no declared paths has
+// no outside rule; protected paths always apply.
+export function pathVerdict(
+  changed: string[],
+  {
+    declared = [],
+    protectedPaths = [],
+  }: { declared?: string[]; protectedPaths?: readonly string[] },
+) {
+  const guarded = [...DEFAULT_PROTECTED_PATHS, ...protectedPaths];
+  return {
+    changed: changed.length,
+    outside: declared.length
+      ? changed.filter((f) => !anyMatch(declared, f)).slice(0, LISTED)
+      : [],
+    protected: changed.filter((f) => anyMatch(guarded, f)).slice(0, LISTED),
+  };
+}
+
+// The paths a run's head may touch: the task's own. A task that declares
+// none has no path rule.
+const declaredPaths = (task: { paths?: string[] }) => task.paths || [];
+
+// The path verdict for one run, with a person's allowance for this exact
+// commit applied: an allowed commit's protected paths no longer hold it.
+export async function verifyPaths(
+  store: Store,
+  {
+    task,
+    repository,
+    commit,
+    flow,
+  }: {
+    task: { id: string; paths?: string[] };
+    repository: CheckRepository;
+    commit: string;
+    flow?: FlowVerify | null;
+  },
+) {
+  const { base, paths } = await changedPaths(
+      String(repository.root),
+      repository.baseBranch || "main",
+      commit,
+    ),
+    verdict = pathVerdict(paths, {
+      declared: declaredPaths(task),
+      protectedPaths: flow?.verify?.protectedPaths || [],
+    }),
+    allowed = protectedAllowance(store, task.id, commit);
+  return {
+    base,
+    ...verdict,
+    ...(allowed && verdict.protected.length
+      ? { protected: [], allowed: verdict.protected }
+      : {}),
+    // Every changed path, which picks the checks a change runs; a record
+    // keeps the verdict without it.
+    files: paths,
+  };
+}
+
+// What a finished run's paths mean before its checks count, or null:
+// outside declared paths fails the writer's attempt; a protected path holds
+// the delivery for a person without spending an attempt.
+export function pathOutcome(
+  run:
+    | { paths?: { outside?: string[]; protected?: string[] } }
+    | null
+    | undefined,
+) {
+  const paths = run?.paths;
+  if (paths?.outside?.length)
+    return {
+      outcome: "rejected",
+      cause: `outside declared paths: ${paths.outside.join(", ")}`,
+    };
+  if (paths?.protected?.length)
+    return {
+      outcome: "protected",
+      cause: `touches protected paths: ${paths.protected.join(", ")}`,
+    };
+  return null;
+}
+
+// A check's own timeout in ms: `verify.checkTimeouts` by the check's name
+// (a key written as its command text still matches), else the caller's,
+// else `verify.checkTimeoutSeconds`.
+export function checkTimeout(
+  name: string,
+  flow: FlowVerify | null | undefined,
+  fallbackMs?: number,
+  command = name,
+) {
+  const timeouts = flow?.verify?.checkTimeouts,
+    own = timeouts?.[name] ?? timeouts?.[command];
+  if (typeof own === "number" && Number.isInteger(own)) return own * 1000;
+  if (typeof fallbackMs === "number" && Number.isInteger(fallbackMs))
+    return fallbackMs;
+  return (flow?.verify?.checkTimeoutSeconds ?? 1200) * 1000;
+}
+
+// One output line as it may be stored: a secret or a home path never is.
+function redactLine(line: string, dir: string) {
+  if (secretReason(line)) return "[redacted]";
+  if (
+    PUBLISH_RULES.some((r) => r.category === "secret" && r.pattern.test(line))
+  )
+    return "[redacted]";
+  return line
+    .split(dir)
+    .join(".")
+    .replace(/\/(?:Users|home)\/[^/\s]+\//g, "~/")
+    .replace(/\b[A-Za-z]:\\+Users\\+[^\\\s]+\\+/g, "~\\");
+}
+
+export function outputTail(text: unknown, dir = "\u0000") {
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim())
+    .slice(-TAIL_LINES)
+    .map((line) => redactLine(line, dir));
+  const tail = lines.join("\n");
+  return tail.length > TAIL_CHARS ? tail.slice(-TAIL_CHARS) : tail;
+}
+
+// The first line of a failed check's own text that names an error or a
+// failure, else its first line, redacted and cut to 200 characters; null
+// when the check carries no text. Reads only what the check already holds
+// (a GitHub check run's output, a status description, a local run's tail).
+export function firstErrorLine(...texts: unknown[]) {
+  const lines = texts
+    .flatMap((text) => String(text ?? "").split(/\r?\n/))
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const line =
+    lines.find((l) => /\b(error|fail(ed|ure|ing)?|exception)\b|✖/i.test(l)) ??
+    lines[0];
+  return line ? redactLine(line, "\u0000").slice(0, 200) : null;
+}
+
+// The last `lines` lines of output, redacted like a check's tail, for a log
+// excerpt sent back to a worker.
+export function outputExcerpt(text: unknown, dir = "\u0000", lines = 200) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim())
+    .slice(-lines)
+    .map((line) => redactLine(line, dir))
+    .join("\n");
+}
+
+// Why a check that ended without an exit code did not run (R38.1).
+function notRunCause(
+  result: Partial<Ran>,
+  elapsed: number,
+  timeoutMs: number | undefined,
+) {
+  if (result.signal && timeoutMs !== undefined && elapsed >= timeoutMs)
+    return `timed out after ${Math.round(timeoutMs / 1000)} s`;
+  if (result.signal) return `stopped by ${result.signal}`;
+  return (
+    String(result.stderr || "could not start")
+      .split("\n")[0]
+      .slice(0, 200) || "could not start"
+  );
+}
+
+// Each check (a {name, argv} or a bare argv) recorded as not run, for `why`.
+export const notRunChecks = (checks: Check[], why: string): CheckRecord[] =>
+  checks.map((check) => {
+    const argv = Array.isArray(check) ? check : check.argv;
+    return {
+      name: Array.isArray(check) ? argv.join(" ") : check.name,
+      command: argv.join(" "),
+      exitCode: null,
+      notRun: why,
+    };
+  });
+
+// Run each check in `dir`, one at a time, each with its own timeout. A
+// check is {name, argv}, or a bare argv named by its command. Each result
+// carries the check's name, for display its command, and the isolation it
+// ran under. With `repository`, its `prepare` runs first and each check runs
+// in the repository's isolation (check-isolation.mjs); a failed prepare runs
+// no check.
+export async function runEach(
+  dir: string,
+  checks: Check[],
+  {
+    timeoutFor,
+    run = commandEvidence,
+    env,
+    repository,
+    plugin,
+  }: {
+    timeoutFor: (name: string, command: string, ownSeconds?: number) => number;
+    run?: (
+      dir: string,
+      argv: string[],
+      options: Parameters<typeof commandEvidence>[2],
+    ) => Promise<CommandRecord>;
+    env?: readonly string[];
+    repository?: CheckRepository | null;
+    plugin?:
+      | ((
+          check: PluginStep,
+          dir: string,
+          timeoutMs: number,
+        ) => Promise<CheckRecord>)
+      | null;
+  },
+): Promise<CheckRecord[]> {
+  const out: CheckRecord[] = [],
+    notRunAll = (why: string) => notRunChecks(checks, why.slice(0, 300));
+  if (repository && checks.length) {
+    const ready = await prepareChecks(repository, dir, {
+      run: run === commandEvidence ? undefined : run,
+    });
+    if (ready && ready.exitCode !== 0)
+      return notRunAll(
+        `prepare failed: ${notRunCause(ready, 0, 1) || "exit " + ready.exitCode}`,
+      );
+  }
+  const isolate = repository
+    ? checkOptions(repository, dir).isolate
+    : undefined;
+  for (const check of checks) {
+    // A plugin check runs through `plugin(check, dir, timeoutMs)`
+    // (plugin-check-run.mjs): its own command, environment, network and
+    // listener watch (plugin-checks D4).
+    if (!Array.isArray(check) && check?.source === "plugin") {
+      out.push(
+        plugin
+          ? await plugin(
+              check,
+              dir,
+              timeoutFor(check.name, check.name, check.timeoutSeconds),
+            )
+          : {
+              name: check.name,
+              command: `plugin ${check.plugin?.id}`,
+              exitCode: null,
+              notRun: "plugin checks run only in Avoozl's check runs",
+            },
+      );
+      continue;
+    }
+    const argv = Array.isArray(check) ? check : check.argv,
+      command = argv.join(" "),
+      name = Array.isArray(check) ? command : check.name,
+      timeoutMs = timeoutFor(name, command),
+      started = Date.now(),
+      result = await run(dir, argv, { timeoutMs, env, isolate });
+    out.push({
+      name,
+      command,
+      ...checkResult(result, Date.now() - started, timeoutMs, dir),
+    });
+  }
+  return out;
+}
+
+// One finished command as a check result: the isolation it ran under, its
+// exit code or why it did not run, its time and its redacted tail.
+export function checkResult(
+  result: Partial<Ran>,
+  elapsed: number,
+  timeoutMs: number | undefined,
+  dir: string,
+) {
+  const tail = outputTail(
+    (result.stdout || "") + "\n" + (result.stderr || ""),
+    dir,
+  );
+  return {
+    ...(result.isolation !== undefined ? { isolation: result.isolation } : {}),
+    exitCode:
+      typeof result.exitCode === "number" && Number.isInteger(result.exitCode)
+        ? result.exitCode
+        : null,
+    ...(Number.isInteger(result.exitCode)
+      ? {}
+      : { notRun: notRunCause(result, elapsed, timeoutMs) }),
+    durationMs: elapsed,
+    ...(tail ? { tail } : {}),
+  };
+}
+
+// The task worktree, when checks may run warm in it: it is at `commit` and
+// has no tracked change a check could mix into the result. Null otherwise.
+export async function warmWorktree(
+  store: Store,
+  taskId: string,
+  commit: string,
+) {
+  const worktree = store.get<{
+    id: string;
+    path?: string;
+    repository?: string;
+  }>("task_worktrees", taskId);
+  if (!worktree?.path) return null;
+  try {
+    const path = worktree.path,
+      inTask = (args: string[]) =>
+        taskGit(path, args, {
+          checkout: store.get<{ id: string; root?: string }>(
+            "repositories",
+            worktree.repository,
+          )?.root,
+        }),
+      head = await inTask(["rev-parse", "HEAD"]),
+      dirty = await inTask(["status", "--porcelain", "--untracked-files=no"]);
+    return head === commit && !dirty ? worktree.path : null;
+  } catch {
+    return null;
+  }
+}
+
+function protectedAllowance(store: Store, taskId: string, commit: string) {
+  try {
+    return store.get("flow_records", `${ALLOW}:${taskId}:${commit}`) || null;
+  } catch {
+    return null;
+  }
+}
+
+// A person lets one exact commit's protected paths land (R86.6): the
+// delivery leaves its decision and the next tick checks that commit again.
+// Never a session's.
+// A delivery held for a person, as this check reads it.
+interface HeldDelivery {
+  id: string;
+  taskId: string;
+  state?: string;
+  commit?: string;
+  verifications?: { outcome?: string; commit?: string; cause?: string }[];
+  [key: string]: unknown;
+}
+
+export function allowProtectedPaths(
+  store: Store,
+  input: { reason?: unknown; taskId?: unknown } = {},
+  {
+    caller = null,
+    mcp = false,
+    local = false,
+  }: {
+    caller?: { sessionKey?: unknown } | null;
+    mcp?: boolean;
+    local?: boolean;
+  } = {},
+) {
+  if (mcp || caller?.sessionKey)
+    fail("Only a person lets a protected path land.", 403);
+  const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+  if (!reason || reason.length > 300)
+    fail("Say why in at most 300 characters.");
+  return store.transaction(() => {
+    const delivery = store.get<HeldDelivery>(
+      "task_deliveries",
+      String(input.taskId || ""),
+    );
+    if (!delivery) fail(`${input.taskId} has no delivery.`, 404);
+    const held = (delivery.verifications || []).findLast(
+      (v) => v.outcome === "protected",
+    );
+    if (
+      !held ||
+      delivery.state !== "decision" ||
+      held.commit !== delivery.commit
+    )
+      fail(`${delivery.taskId} is not held for a protected path.`, 409);
+    const at = new Date().toISOString(),
+      record = {
+        id: `${ALLOW}:${delivery.taskId}:${delivery.commit}`,
+        kind: ALLOW,
+        taskId: delivery.taskId,
+        commit: delivery.commit,
+        paths: held.cause,
+        reason,
+        by: local ? "cli" : "dashboard",
+        at,
+      };
+    store.put("flow_records", record);
+    const { cause: _cause, decisionNotifiedAt: _n, ...rest } = delivery;
+    store.put("task_deliveries", { ...rest, state: "done", updatedAt: at });
+    return record;
+  });
+}

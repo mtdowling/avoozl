@@ -9,7 +9,7 @@ import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 
 export type { WaitingSection }
-export const SECTIONS = WAITING_SECTIONS
+const SECTIONS = WAITING_SECTIONS
 
 // The section is picked in the left nav; this page shows only that one.
 // `decision` is a notice's link to one decision (direct-links D3).

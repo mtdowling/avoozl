@@ -3,8 +3,8 @@
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { matches, type TaskFilter } from './filters.ts'
 import type { DeliveryItem, DeliverySession, Graph, GraphTask, RemoteWorker } from './views-api.ts'
-import { summarize } from './dashboard-api.ts'
-import { laneOf as sharedLaneOf } from '../../../../src/delivery-lanes.mjs'
+import { summarize } from './in-flight-api.ts'
+import { laneOf as sharedLaneOf } from '../../../../src/delivery-lanes.ts'
 import { TONE } from './ui/tones.ts'
 
 export type LaneId = 'ready' | 'running' | 'reviewing' | 'needs-you' | 'waiting' | 'done'
@@ -22,7 +22,7 @@ export const LANES: { id: DrawnLaneId; label: string; tint: string }[] = [
 ]
 
 // The groups inside the In progress lane, in order, each with its cards.
-export const PROGRESS_GROUPS: { id: 'running' | 'reviewing'; label: string }[] = [
+const PROGRESS_GROUPS: { id: 'running' | 'reviewing'; label: string }[] = [
   { id: 'running', label: 'Running' },
   { id: 'reviewing', label: 'Reviewing' },
 ]
@@ -112,7 +112,7 @@ function newest(item: DeliveryItem | null): string | null {
 }
 
 // Which lane a task is in: the shared rule the Avoozl state Project field
-// also uses (src/delivery-lanes.mjs).
+// also uses (src/delivery-lanes.ts).
 export const laneOf: (task: GraphTask | null, item: DeliveryItem | null) => LaneId = sharedLaneOf
 
 // A card's state for the shared filter: its lane, with Waiting split into
@@ -239,9 +239,14 @@ export const RETRY_TIP = 'Starts a new attempt for this task.'
 
 export interface DeliverySettings {
   hash: string | null
+  // The workspace's `delivery` block is set.
   on: boolean
   // The workspace's landing.pr (R119); null when not set.
   landingPr: 'draft' | 'ready' | 'auto' | null
+  // This machine's `loop`; null when it sets none. Autopilot runs here
+  // only with both.
+  loop?: { run: string[]; every?: string; epics?: string[] } | null
+  loopError?: string
 }
 
 // One chip per value with its card count, in the order `options` gives.

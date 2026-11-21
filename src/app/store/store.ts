@@ -1,0 +1,725 @@
+import crypto from "node:crypto";
+import { reconcileSpecDependencies } from "../../spec-dependencies.ts";
+import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
+import path from "node:path";
+import { summarizeErrors, validate } from "../../model.ts";
+import { TELEMETRY_SCHEMA, pruneOnOpen } from "../telemetry/sqlite-exporter.ts";
+import { keepNamedEpics, ownLegacyEpics } from "../epics/epics.ts";
+import type { Snapshot } from "../../types.ts";
+
+// One stored record: an {id, body} row's body, read back as JSON. A caller
+// that knows the table names its shape with get<T>() and list<T>().
+export interface StoredRecord {
+  id: string;
+  [key: string]: unknown;
+}
+// A row as SQLite returns it.
+type SqlRow = Record<string, unknown>;
+// The snapshot as stored, with the metadata the workspace keeps beside it.
+export type StoredSnapshot = Snapshot & {
+  revision: number;
+  updatedAt?: string;
+  changelog?: { at: string; kind: string; summary: string }[];
+  epics?: { id?: string; planId?: unknown; [key: string]: unknown }[];
+};
+// An error that carries the HTTP status a caller answers with.
+export type StatusError = Error & { status: number; details?: unknown };
+
+export const canonical = (value: unknown) => JSON.stringify(normalize(value));
+function normalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalize);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((k) => [k, normalize((value as Record<string, unknown>)[k])]),
+    );
+  return value;
+}
+export function fail(message: string, status = 400): never {
+  throw Object.assign(Error(message), { status }) as StatusError;
+}
+// The `code` of a Node system error, or undefined.
+const codeOf = (error: unknown) => (error as NodeJS.ErrnoException)?.code;
+const stamp = () => new Date().toISOString();
+function writable(filename: string) {
+  try {
+    fs.accessSync(filename, fs.constants.W_OK);
+    return true;
+  } catch (error) {
+    return codeOf(error) === "ENOENT";
+  }
+}
+// Make `file` readable by its owner only, creating it empty first when it is
+// missing so it never exists with the process umask. A filesystem that cannot
+// hold modes (FAT, some network mounts) keeps what it has. On Windows Node
+// maps only the read-only flag, so this is a no-op there and the file keeps
+// the access of its folder (R83.3).
+export function privateFile(file: string) {
+  try {
+    fs.closeSync(fs.openSync(file, "a", 0o600));
+    fs.chmodSync(file, 0o600);
+  } catch (error) {
+    if (!["EPERM", "ENOTSUP", "EROFS", "EACCES"].includes(codeOf(error) ?? ""))
+      throw error;
+  }
+}
+
+// The private folders above a workspace database: `.avoozl`, and `.avoozl/local`
+// when the database sits there. A database named elsewhere with --db has none,
+// because its folder may be shared with other files.
+function privateFolders(filename: string) {
+  const folder = path.dirname(path.resolve(filename)),
+    parent = path.dirname(folder);
+  if (path.basename(folder) === ".avoozl") return [folder];
+  if (path.basename(folder) === "local" && path.basename(parent) === ".avoozl")
+    return [parent, folder];
+  return [];
+}
+
+// Tighten a workspace's folders and database files on open.
+function tightenWorkspace(filename: string) {
+  for (const folder of privateFolders(filename))
+    try {
+      fs.chmodSync(folder, 0o700);
+    } catch {}
+  for (const suffix of ["", "-wal", "-shm"])
+    if (fs.existsSync(filename + suffix))
+      try {
+        fs.chmodSync(filename + suffix, 0o600);
+      } catch {}
+}
+
+const DROPPED_TABLES = [
+  "runs",
+  "run_capabilities",
+  "surface_capabilities",
+  "provider_events",
+  "usage_counters",
+  "usage_samples",
+  "deliveries",
+  "requests",
+  "execution_targets",
+  "execution_jobs",
+  "team_checkpoints",
+  "review_requests",
+  "safety_incidents",
+  "safety_permits",
+  "safety_submissions",
+  "github_intake_capabilities",
+  "github_intake_generations",
+  "github_intake_deliveries",
+  "github_queue_repositories",
+  "github_queue_items",
+  "github_queue_associations",
+  "baseline",
+  "pr_ci",
+  "ci_runs",
+  "provider_health",
+  "provider_switches",
+  "corrections",
+  "receipt_artifacts",
+  "build_observations",
+  "build_breakdowns",
+  "planning_spans",
+  "planning_usage",
+  "flow_usage",
+  "flow_spans",
+  "flow_retros",
+  "review_threads",
+  "review_rounds",
+  "task_investigations",
+  "drivers",
+];
+
+// The tables of {id, body} rows; the read tables add the three with
+// columns of their own. A stored GitHub response is never removed.
+const BODY_TABLES = new Set([
+  "plans",
+  "repositories",
+  "receipts",
+  "batches",
+  "github_repositories",
+  "review_followups",
+  "extractions",
+  "plan_facts",
+  "session_bindings",
+  "session_requests",
+  "github_responses",
+  "task_worktrees",
+  "task_deliveries",
+  "github_linked_branches",
+  "app_notifications",
+  "plugin_health",
+  "content_decisions",
+  "content_allowances",
+  "content_reports",
+  "flow_records",
+  "flow_stops",
+  "pr_feedback",
+  "incoming_items",
+  "intake_sources",
+  "task_notes",
+  "landing_queue",
+  "github_items",
+]);
+const READ_TABLES = new Set([
+  ...BODY_TABLES,
+  "approvals",
+  "evidence",
+  "integration",
+]);
+const REMOVABLE_TABLES = new Set(
+  [...BODY_TABLES].filter((table) => table !== "github_responses"),
+);
+
+// Rename a stored record's `projectId` keys, at any depth, to `repositoryId`.
+function renameProjectIds(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(renameProjectIds);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key === "projectId" ? "repositoryId" : key,
+      renameProjectIds(child),
+    ]),
+  );
+}
+
+// Migration: a registered repository was once called a project. An older
+// database (one with a `projects` table) moves to the current names once, in
+// one transaction: the table becomes `repositories` and its owner/name field
+// `github`, the lock column `repository_id`, every stored `projectId` key
+// `repositoryId`, and `repository.*` events `repository.*`.
+function renameProjects(db: DatabaseSync) {
+  const tables = new Set(
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all()
+      .map((row) => String(row.name)),
+  );
+  if (!tables.has("projects")) return;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec("ALTER TABLE projects RENAME TO repositories");
+    for (const row of db.prepare("SELECT id, body FROM repositories").all()) {
+      const { repository, ...body } = JSON.parse(String(row.body));
+      if (repository !== undefined) body.github ??= repository;
+      db.prepare("UPDATE repositories SET body=? WHERE id=?").run(
+        JSON.stringify(body),
+        row.id,
+      );
+    }
+    if (
+      db
+        .prepare(
+          "SELECT 1 FROM pragma_table_info('work_locks') WHERE name='project_id'",
+        )
+        .get()
+    )
+      db.exec(
+        "ALTER TABLE work_locks RENAME COLUMN project_id TO repository_id",
+      );
+    // Stored JSON is in each table's `body`, and in meta's `value`.
+    for (const table of [...tables, "repositories"]) {
+      const column = table === "meta" ? "value" : "body";
+      if (
+        !db
+          .prepare("SELECT 1 FROM pragma_table_info(?) WHERE name=?")
+          .get(table, column)
+      )
+        continue;
+      const update = db.prepare(
+        `UPDATE "${table}" SET ${column}=? WHERE rowid=?`,
+      );
+      for (const row of db
+        .prepare(
+          `SELECT rowid AS id, ${column} AS value FROM "${table}" WHERE ${column} LIKE '%"projectId"%'`,
+        )
+        .all())
+        update.run(
+          JSON.stringify(renameProjectIds(JSON.parse(String(row.value)))),
+          Number(row.id),
+        );
+    }
+    if (tables.has("events"))
+      db.exec(
+        "UPDATE events SET kind='repository'||substr(kind,8) WHERE kind LIKE 'project.%'",
+      );
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export class Store {
+  filename: string;
+  readOnly: boolean;
+  db: DatabaseSync;
+  // Nesting depth of transaction(): 0 outside one.
+  depth = 0;
+  // The last read snapshot, and its rows as stored, while the revision holds.
+  cache: StoredSnapshot | null = null;
+  stored: { revision: number; rows: Map<string, string> } | null = null;
+  // Set by startTelemetry: ends the timer that holds this store.
+  telemetryStop?: () => void;
+  constructor(filename: string) {
+    if (filename !== ":memory:") {
+      // New `.avoozl` folders are private; any other new folder keeps the default.
+      for (const folder of privateFolders(filename))
+        fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
+      fs.mkdirSync(path.dirname(path.resolve(filename)), { recursive: true });
+    }
+    this.filename = filename;
+    // A database file the user made read-only is opened read-only, without
+    // the schema statements, so reading it never writes. Writes then fail.
+    this.readOnly = filename !== ":memory:" && !writable(filename);
+    if (filename !== ":memory:" && !this.readOnly) {
+      // A new database is created 0600 before SQLite opens it; an existing
+      // one is tightened (migration, R83.3).
+      if (!fs.existsSync(filename)) privateFile(filename);
+      tightenWorkspace(filename);
+    }
+    this.db = new DatabaseSync(filename, { readOnly: this.readOnly });
+    try {
+      // Before the first statement, so opening beside a writer waits for
+      // its lock instead of failing "database is locked".
+      this.db.exec("PRAGMA busy_timeout=5000;");
+      if (this.readOnly) return;
+      // An existing database gaining the activity log takes its current state
+      // as the tick's first snapshot, so old changes are not logged as new.
+      const activityLog = this.db
+        .prepare("SELECT 1 FROM sqlite_master WHERE name='activity_log'")
+        .get();
+      this.db.exec(
+        "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;",
+      );
+      renameProjects(this.db);
+      // Defer the write lock so reopening a complete schema can still read
+      // alongside a writer. New tables and indexes commit together.
+      this.db.exec("BEGIN");
+      this.db.exec(`
+   CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS entities(kind TEXT NOT NULL,id TEXT NOT NULL,ordinal INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(kind,id));
+   CREATE TABLE IF NOT EXISTS plans(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS approvals(id TEXT PRIMARY KEY,plan_id TEXT NOT NULL,hash TEXT NOT NULL,body TEXT NOT NULL,UNIQUE(plan_id,hash));
+   CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT,run_id TEXT,kind TEXT NOT NULL,at TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS events_run ON events(run_id,seq);
+   CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,path TEXT NOT NULL,text TEXT NOT NULL,expected_hash TEXT,state TEXT NOT NULL DEFAULT 'pending');
+   CREATE TABLE IF NOT EXISTS evidence(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS integration(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,state TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS work_locks(id TEXT PRIMARY KEY,repository_id TEXT NOT NULL,kind TEXT NOT NULL,pid INTEGER NOT NULL,token TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS review_followups(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS extractions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS plan_facts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS session_bindings(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS session_requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_responses(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS task_worktrees(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS task_deliveries(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_linked_branches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS app_notifications(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS plugin_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS content_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS content_allowances(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS content_reports(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS flow_records(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS flow_stops(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS pr_feedback(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS incoming_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS intake_sources(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS task_notes(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS landing_queue(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS activity_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,source TEXT NOT NULL,actor TEXT,kind TEXT NOT NULL,summary TEXT NOT NULL,target_id TEXT,link TEXT,redacted INTEGER NOT NULL DEFAULT 0,key TEXT UNIQUE);
+   CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log(at);
+   ${TELEMETRY_SCHEMA}
+    `);
+      this.db.exec("COMMIT");
+      pruneOnOpen(this.db);
+      if (!activityLog && this.initialized())
+        this.setMeta("activity.upgrade", true);
+      // Tables nothing writes to any more (past runs, teams, the safety gate,
+      // execution jobs, the GitHub queue and intake). Dropped once, when an
+      // older database still has one; a plain open stays read-only.
+      const present = new Set(
+        this.db
+          .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+          .all()
+          .map((row) => String(row.name)),
+      );
+      const stale = DROPPED_TABLES.filter((name) => present.has(name));
+      if (stale.length) {
+        this.db.exec("BEGIN IMMEDIATE");
+        for (const name of stale) this.db.exec(`DROP TABLE IF EXISTS ${name}`);
+        this.db.exec(
+          "DELETE FROM meta WHERE key LIKE 'runArchive:%' OR key IN ('baselineMetadata','import')",
+        );
+        this.db.exec("COMMIT");
+      }
+      // Ideas were removed (RC30.3): drop any stored idea. It writes only
+      // when one is left, so a plain open stays read-only.
+      const idea =
+        "FROM incoming_items WHERE json_extract(body,'$.record.kind')='idea'";
+      if (this.db.prepare(`SELECT 1 ${idea} LIMIT 1`).get())
+        this.db.exec(`DELETE ${idea}`);
+      // The public crew sign-off and audit were removed: drop their records
+      // and the stops they pulled. Writes only when one is left.
+      const publicMeta =
+          "FROM meta WHERE key IN ('publicSignoff','publicCrewAuditCursors','publicCrewAudit')",
+        publicStops =
+          "FROM flow_stops WHERE json_extract(body,'$.by.name')='public crew audit' OR json_extract(body,'$.reason')='Stop public crews was pressed.'";
+      if (
+        this.db.prepare(`SELECT 1 ${publicMeta} LIMIT 1`).get() ||
+        this.db.prepare(`SELECT 1 ${publicStops} LIMIT 1`).get()
+      ) {
+        this.db.exec("BEGIN IMMEDIATE");
+        this.db.exec(`DELETE ${publicMeta}`);
+        this.db.exec(`DELETE ${publicStops}`);
+        this.db.exec("COMMIT");
+      }
+    } catch (error) {
+      // SQLite can roll a transaction back itself after some failures.
+      try {
+        this.db.exec("ROLLBACK");
+      } catch {}
+      this.db.close();
+      throw error;
+    }
+    this.keepLegacyEpics();
+  }
+  // Epic rows from before Requirement 59 get their plan once, on open
+  // (design §6.9). Commit does the work. Writes
+  // only when there is something to do, so a plain open stays read-only. A
+  // snapshot that cannot be written as it is still opens; its next commit
+  // does the same.
+  keepLegacyEpics() {
+    if (this.readOnly) return;
+    const epics = this.getMeta<StoredSnapshot>("snapshot")?.epics;
+    if (!epics) return;
+    if (!epics.some((epic) => epic && typeof epic.planId !== "string")) return;
+    try {
+      this.mutate(
+        "Keep each epic from before Requirement 59, with its plan",
+        () => {},
+      );
+    } catch {}
+  }
+  transaction<T>(fn: () => T): T {
+    // A nested call is a savepoint, so an outer transaction can run several
+    // inner ones and still roll all of them back.
+    if (this.depth) {
+      const name = `nested_${this.depth}`;
+      this.db.exec(`SAVEPOINT ${name}`);
+      this.depth++;
+      try {
+        const result = fn();
+        this.db.exec(`RELEASE ${name}`);
+        return result;
+      } catch (error) {
+        this.db.exec(`ROLLBACK TO ${name}`);
+        this.db.exec(`RELEASE ${name}`);
+        throw error;
+      } finally {
+        this.depth--;
+        this.cache = null;
+      }
+    }
+    this.depth = 1;
+    try {
+      return this.outerTransaction(fn);
+    } finally {
+      this.depth = 0;
+    }
+  }
+  outerTransaction<T>(fn: () => T): T {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = fn();
+      this.db.exec("COMMIT");
+      this.cache = null;
+      return result;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      this.cache = null;
+      throw error;
+    }
+  }
+  // A meta value is whatever JSON its writer stored; the caller names it.
+  getMeta<T = unknown>(key: string): T | null {
+    const row = this.db.prepare("SELECT value FROM meta WHERE key=?").get(key);
+    return row ? JSON.parse(String(row.value)) : null;
+  }
+  // Every meta entry whose key starts with `prefix`, as [key, value].
+  metaEntries(prefix: string): [string, unknown][] {
+    return this.db
+      .prepare("SELECT key, value FROM meta WHERE substr(key, 1, ?) = ?")
+      .all(prefix.length, prefix)
+      .map((row) => [String(row.key), JSON.parse(String(row.value))]);
+  }
+  setMeta(key: string, value: unknown) {
+    this.db
+      .prepare(
+        "INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+      )
+      .run(key, JSON.stringify(value));
+  }
+  initialized() {
+    return Boolean(this.getMeta("snapshot"));
+  }
+  read(): StoredSnapshot {
+    const metadata = this.getMeta<StoredSnapshot>("snapshot");
+    if (!metadata)
+      fail(
+        "Initialize this Avoozl workspace first: run avoozl init PATH, then avoozl rebuild --workspace PATH.",
+        503,
+      );
+    if (this.cache?.revision === metadata.revision) return this.cache;
+    const data: StoredSnapshot = {
+        ...metadata,
+        tasks: [],
+        documents: {},
+        edges: [],
+      },
+      stored = new Map<string, string>();
+    for (const row of this.db
+      .prepare("SELECT * FROM entities ORDER BY kind,ordinal")
+      .all()) {
+      const value = JSON.parse(String(row.body));
+      stored.set(row.kind + "\0" + row.id, row.ordinal + "\0" + row.body);
+      // A row stored while the field was named `prose` loads as summary.
+      if (row.kind === "task") {
+        if (value.prose !== undefined) {
+          value.summary ??= value.prose;
+          delete value.prose;
+        }
+        // Every task runs its repository's checks; a row's own is ignored.
+        delete value.checks;
+        data.tasks.push(value);
+      } else if (row.kind === "document")
+        data.documents[String(row.id)] = value;
+      else if (row.kind === "edge") data.edges.push(value);
+    }
+    this.cache = data;
+    // Each row as it is on disk at this revision, so write() skips rows
+    // that did not change instead of running one statement per entity.
+    this.stored = { revision: metadata.revision, rows: stored };
+    return data;
+  }
+  write(data: StoredSnapshot) {
+    const errors = validate(data);
+    if (errors.length) fail(summarizeErrors(errors), 422);
+    const { tasks, documents, edges, ...metadata } = data,
+      known =
+        this.stored &&
+        this.stored.revision ===
+          this.getMeta<StoredSnapshot>("snapshot")?.revision
+          ? this.stored.rows
+          : null;
+    this.setMeta("snapshot", metadata);
+    this.stored = null;
+    const seen = new Set(),
+      upsert = this.db.prepare(
+        "INSERT INTO entities VALUES (?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET ordinal=excluded.ordinal,body=excluded.body WHERE body<>excluded.body OR ordinal<>excluded.ordinal",
+      );
+    for (const [kind, rows] of [
+      ["task", tasks.map((t) => [t.id, t])],
+      ["document", Object.entries(documents)],
+      ["edge", edges.map((e, i) => [e.id || "edge-" + i, e])],
+    ] as [string, [string, unknown][]][])
+      rows.forEach(([id, value], i) => {
+        const key = kind + "\0" + id,
+          body = JSON.stringify(value);
+        seen.add(key);
+        if (known?.get(key) !== i + "\0" + body) upsert.run(kind, id, i, body);
+      });
+    for (const row of this.db.prepare("SELECT kind,id FROM entities").all())
+      if (!seen.has(row.kind + "\0" + row.id))
+        this.db
+          .prepare("DELETE FROM entities WHERE kind=? AND id=?")
+          .run(String(row.kind), String(row.id));
+    this.cache = null;
+  }
+  commit(data: StoredSnapshot, summary: string, expectedRevision?: number) {
+    if (this.read().revision !== (expectedRevision ?? data.revision))
+      fail("Database changed. Reload and review before saving.", 409);
+    // No write drops an epic a stored task names, and each epic from
+    // before Requirement 59 has its plan before it is written (§6.9).
+    keepNamedEpics(data, this.read().epics || []);
+    ownLegacyEpics(data, this.list("plans"));
+    reconcileSpecDependencies(data, this.list("plans"), this.list("approvals"));
+    data.revision = this.read().revision + 1;
+    data.updatedAt = stamp();
+    data.changelog = [
+      { at: data.updatedAt, kind: "workspace", summary },
+      ...(data.changelog || []),
+    ].slice(0, 100);
+    this.write(data);
+    return data.revision;
+  }
+  mutate<T>(
+    summary: string,
+    fn: (data: StoredSnapshot) => T,
+    expectedRevision?: number,
+  ): T {
+    return this.transaction(() => {
+      const next = structuredClone(this.read());
+      if (expectedRevision !== undefined && next.revision !== expectedRevision)
+        fail("Database changed. Reload and review before saving.", 409);
+      const result = fn(next);
+      this.commit(next, summary);
+      return result;
+    });
+  }
+  // The first snapshot of a new workspace database.
+  initialize(snapshot: StoredSnapshot) {
+    this.transaction(() => {
+      this.write(snapshot);
+      this.setMeta("mode", "active");
+      this.ensureReportSecret();
+    });
+  }
+  // The secret behind CLI report tokens (R88.2). Made by initialize or a
+  // session binding, never while a brief is planned.
+  ensureReportSecret() {
+    if (!this.getMeta("report.secret"))
+      this.setMeta("report.secret", crypto.randomBytes(32).toString("hex"));
+  }
+  event(runId: string | null, kind: string, body: Record<string, unknown>) {
+    const at = stamp();
+    const result = this.db
+      .prepare("INSERT INTO events(run_id,kind,at,body) VALUES (?,?,?,?)")
+      .run(runId, kind, at, JSON.stringify(body));
+    return { seq: Number(result.lastInsertRowid), runId, kind, at, ...body };
+  }
+  events({
+    after = 0,
+    before,
+    runId,
+    limit = 500,
+    latest = false,
+  }: {
+    after?: number | string;
+    before?: number | string;
+    runId?: string;
+    limit?: number | string;
+    latest?: boolean;
+  } = {}) {
+    const backward = latest || before !== undefined,
+      where = ["seq>?"],
+      args: (string | number)[] = [Number(after) || 0];
+    if (runId) {
+      where.push("run_id=?");
+      args.push(runId);
+    }
+    if (before !== undefined) {
+      where.push("seq<?");
+      args.push(Number(before));
+    }
+    args.push(Math.max(1, Math.min(Number(limit) || 500, 1000)));
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM events WHERE " +
+          where.join(" AND ") +
+          " ORDER BY seq " +
+          (backward ? "DESC" : "ASC") +
+          " LIMIT ?",
+      )
+      .all(...args);
+    if (backward) rows.reverse();
+    return rows.map((r) => ({
+      seq: r.seq,
+      runId: r.run_id,
+      kind: r.kind,
+      at: r.at,
+      ...JSON.parse(String(r.body)),
+    }));
+  }
+  get<T = StoredRecord>(table: string, id: unknown): T | null {
+    if (!READ_TABLES.has(table)) fail("Unknown record type");
+    // A missing or non-text ID names no record; SQLite would throw on it.
+    if (typeof id !== "string" && typeof id !== "number") return null;
+    const row = this.db.prepare(`SELECT body FROM ${table} WHERE id=?`).get(id);
+    return row ? JSON.parse(String(row.body)) : null;
+  }
+  list<T = StoredRecord>(table: string): T[] {
+    if (!READ_TABLES.has(table)) fail("Unknown record type");
+    return this.db
+      .prepare(`SELECT body FROM ${table} ORDER BY rowid DESC`)
+      .all()
+      .map((r) => JSON.parse(String(r.body)));
+  }
+  put<T extends { id: string; [key: string]: unknown }>(
+    table: string,
+    item: T,
+  ): T {
+    const body = JSON.stringify(item);
+    if (BODY_TABLES.has(table))
+      this.db
+        .prepare(
+          `INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body`,
+        )
+        .run(item.id, body);
+    else if (table === "integration")
+      this.db
+        .prepare(
+          `INSERT INTO ${table} VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,body=excluded.body`,
+        )
+        .run(item.id, String(item.taskId), String(item.state), body);
+    else if (table === "approvals")
+      this.db
+        .prepare("INSERT INTO approvals VALUES (?,?,?,?)")
+        .run(item.id, String(item.planId), String(item.hash), body);
+    else if (table === "evidence")
+      this.db
+        .prepare("INSERT INTO evidence VALUES (?,?,?)")
+        .run(item.id, String(item.taskId), body);
+    else fail("Unknown record type");
+    return item;
+  }
+  remove(table: string, id: string) {
+    if (!REMOVABLE_TABLES.has(table)) fail("Unknown record type");
+    return (
+      this.db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id).changes > 0
+    );
+  }
+  // An in-memory copy for a dry run: writes to it never reach this database.
+  scratch() {
+    const copy = new Store(":memory:"),
+      tables = this.db
+        .prepare(
+          "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+        )
+        .all(),
+      present = new Set(
+        copy.db
+          .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+          .all()
+          .map((row) => String(row.name)),
+      );
+    copy.db.exec("PRAGMA foreign_keys=OFF");
+    for (const table of tables) {
+      const name = String(table.name);
+      if (!present.has(name)) copy.db.exec(String(table.sql));
+      const rows = this.db.prepare(`SELECT * FROM "${name}"`).all();
+      if (!rows.length) continue;
+      const columns = Object.keys(rows[0]),
+        insert = copy.db.prepare(
+          `INSERT OR REPLACE INTO "${name}" (${columns.map((c) => `"${c}"`).join(",")}) VALUES (${columns.map(() => "?").join(",")})`,
+        );
+      for (const row of rows)
+        insert.run(...columns.map((c) => row[c] as string | number | null));
+    }
+    copy.db.exec("PRAGMA foreign_keys=ON");
+    return copy;
+  }
+  close() {
+    this.telemetryStop?.();
+    this.db.close();
+  }
+}

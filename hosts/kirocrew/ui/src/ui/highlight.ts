@@ -12,7 +12,7 @@
 // Kept free of JSX so node can test it directly.
 import { prism, type Grammar, type PrismToken } from '../prism/languages.ts'
 
-export const TOKEN_TYPES = [
+const TOKEN_TYPES = [
   'comment',
   'string',
   'keyword',
@@ -35,7 +35,7 @@ export const TOKEN_TYPES = [
 // Longer blocks render plain: a grammar runs in the page's own thread.
 export const MAX_HIGHLIGHT = 20000
 
-export interface CustomGrammar {
+interface CustomGrammar {
   tokens: { type: string; pattern: string; flags?: string }[]
 }
 
@@ -85,7 +85,7 @@ export function registerLanguages(languages: Record<string, CustomGrammar>): str
   return [...custom.keys()]
 }
 
-export function grammarFor(lang: string | null): Grammar | null {
+function grammarFor(lang: string | null): Grammar | null {
   if (!lang) return null
   const name = lang.toLowerCase()
   return custom.get(name) ?? prism.languages[ALIASES[name] ?? name] ?? null

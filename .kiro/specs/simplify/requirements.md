@@ -230,9 +230,10 @@ runner needs, so that every other agent step is a skill any harness can run.
 
 #### Acceptance criteria
 
-1. The role table SHALL hold two roles: `worker` and `reviewer`. The reviewer
-   SHALL be on by default, and a repository SHALL turn it off with
-   `reviewers: []`.
+1. The role table SHALL hold five roles: `worker`, `reviewer`, `responder`,
+   `checkDecide` and `assist`. The reviewer SHALL be on by default, and a
+   repository SHALL turn it off with `reviewers: []`. A `roles` setting that
+   names another role SHALL be refused, naming it.
 2. Avoozl SHALL ship these skills: `avoozl-spec` (write a spec), `avoozl-work`
    (work a task), `avoozl-review` (review a pull request), `avoozl-spec-review`
    (review a spec), `avoozl-retro` (a retrospective over landed work) and
@@ -280,8 +281,9 @@ me, and hand everything else to a chat.
 
 #### Acceptance criteria
 
-1. The page SHALL have five views: Plans, Graph, In flight, Needs you and
-   Settings, as §D13 describes.
+1. The page SHALL have seven views: Insights, Specs, Graph, In flight,
+   Needs you, Activity and Settings, as §D13 describes, and SHALL open on
+   Insights.
 2. Each view SHALL read operations the CLI and MCP also reach, and SHALL write
    only through them.
 3. A "Run in a chat" action SHALL open a chat seeded with the matching skill
@@ -366,7 +368,7 @@ bullets that say when it is done, so that a spec reads as plain Markdown.
    sub-bullets under a leaf, one result each.
 2. A task only a person does SHALL end its title with `(**MANUAL**)`, in
    capitals, by the rules of the `(**PARALLEL**)` tag: it ends the title and
-   comes before any refs. It SHALL never be given to an agent, and a person
+   comes after any refs. It SHALL never be given to an agent, and a person
    SHALL tick it.
 3. A spec SHALL change one repository: its front matter's `repo`. A change
    across repositories SHALL be one spec per repository, linked from a

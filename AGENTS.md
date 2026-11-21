@@ -7,7 +7,7 @@ harnesses under its supervisor. It pushes and merges by each repository's
 `landing` setting, after checks pass on the exact head. UI, CLI, and MCP
 share operations. Each feature's operations are one table of
 `{name, class, policy, handler}` entries in `src/app/ops/` (the dispatcher, the
-class list and the MCP policy read `src/app/api/operation-table.mjs`), and each CLI
+class list and the MCP policy read `src/app/api/operation-table.ts`), and each CLI
 command is an entry `{command, help, run}` in `src/app/commands/`. Add an
 operation or command as one entry; never add it to a list elsewhere.
 Git and GitHub own everything that matters; SQLite is a cache that
@@ -27,7 +27,9 @@ Run `npm run format` (Biome) before committing; CI runs `npm run format:check`.
 Markdown is not auto-formatted.
 Read `.kiro/skills/writing-documentation/SKILL.md` before writing docs, specs,
 prompts or skills.
-Run `npm test` and `git diff --check` before landing. `npm run test:changed`
+Run `npm test`, `npm run typecheck`, `npm run typecheck:ui` and `git diff --check` before landing.
+Node runs `.ts` files directly (type stripping), so TypeScript stays erasable:
+no `enum`, `namespace` or parameter properties. `npm run test:changed`
 runs only the tests a change reaches, as CI does. The built page
 (`hosts/kirocrew/ui/dist`) is not in git; `npm run build` makes it. Do not add commit attribution
 or co-authors. Use short imperative commit messages.
@@ -38,6 +40,12 @@ by sharing the code (a helper, a loop, a table); do not suppress it or add
 an ignore. `npm run dup` checks the whole repo against
 `scripts/check/dup-baseline.json`; when a cleanup lowers the count, run
 `npm run dup -- --update` and commit the lower baseline.
+
+Type checking is strict. A file still marked `// @ts-nocheck` is typing
+debt; `npm run nocheck` fails unless the count of marked files equals
+`scripts/check/nocheck-baseline.json`. Never add a mark. When you type a
+file, remove its mark, run `npm run nocheck -- --update` and commit the
+lower baseline.
 
 Initialization creates an empty workspace. Example data is explicitly requested,
 transactional, and installed once. Preserve edits on retries. Never use example

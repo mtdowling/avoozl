@@ -1,4 +1,4 @@
-// Integration branches on the Dashboard (RC16.8): per epic with a branch, the
+// Integration branches on In flight (RC16.8): per epic with a branch, the
 // tasks merged into it, how far it is behind the default branch, and the state
 // of its head's checks. Read only. Nothing shows without a branch.
 import { useCallback, useMemo } from 'react'
@@ -7,7 +7,7 @@ import Badge, { type BadgeVariant } from './ui/Badge.tsx'
 import { SectionHeading } from './ui/controls.tsx'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
-import { branchLine, releaseClient } from './release-api.ts'
+import { branchLine, viewsClient } from './views-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 
@@ -15,7 +15,7 @@ const VARIANT: Record<string, BadgeVariant> = { green: 'success', red: 'danger',
 
 export default function IntegrationBranches(props: { workspaceId: string | null }) {
   const api = useAppApi()
-  const client = useMemo(() => releaseClient(api), [api])
+  const client = useMemo(() => viewsClient(api), [api])
   const load = useCallback((id: string) => client.branches(id), [client])
   const { value } = useRead(props.workspaceId, load)
   if (!value?.branches.length) return null

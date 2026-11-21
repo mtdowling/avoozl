@@ -1,20 +1,34 @@
 import { useCallback, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
-import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
 import { EmptyState } from './ui/EmptyState'
 import { FieldGroup } from './ui/FieldGroup.tsx'
 import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
 import Badge from './ui/Badge.tsx'
-import { CONTRACT_LABEL, canApprove, capabilityLine, runsAs, PLUGIN_PARTS, partsOf, pluginsClient, signInClaims, signInClashes, stateLabel, type PluginRow } from './plugins-api.ts'
+import {
+  CONTRACT_LABEL,
+  canApprove,
+  capabilityLine,
+  runsAs,
+  PLUGIN_PARTS,
+  partsOf,
+  pluginsClient,
+  signInClaims,
+  signInClashes,
+  stateLabel,
+  updateBadge,
+  updateLine,
+  type PluginRow,
+} from './plugins-api.ts'
 import { useRead } from './useRead.ts'
+import { Switch } from './ui/Switch'
 import { PluginChecksFacts } from './PluginChecks.tsx'
 import { ContextPartFacts } from './ContextPart.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
-import { BookOpen, MessagesSquare, Trash2 } from './icons.ts'
+import { MessagesSquare, Trash2 } from './icons.ts'
 import { useMedia } from './use-media.ts'
-import { DocumentReader } from './DocumentReader.tsx'
+import { GuideButton } from './GuideButton.tsx'
 import { DESIGN_PLUGIN_TIP, PLUGIN_GUIDE, PLUGIN_GUIDE_TIP, pluginDesignMessage } from './design-chat.ts'
 import pluginGuide from '../../../../docs/plugins.md?raw'
 import { ErrorText } from './ui/ErrorText'
@@ -83,6 +97,8 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
   const { row, busy, act, client, workspaceId } = props
   const status = stateLabel(row)
   const id = row.id ?? ''
+  const update = updateBadge(row.update)
+  const checked = updateLine(row.update)
   return (
     <FieldGroup
       level={4}
@@ -91,6 +107,11 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
         <>
           <Badge variant={status.attention ? 'warning' : undefined}>{status.label}</Badge>
           {row.health?.state === 'ok' ? <Badge>Healthy</Badge> : null}
+          {update ? (
+            <Badge variant="warning" data-plugin-update>
+              {update}
+            </Badge>
+          ) : null}
         </>
       }
     >
@@ -108,6 +129,11 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
           ) : null}
         </div>
       ) : null}
+      {checked ? (
+        <Hint as="p" size="xs" data-plugin-update-line>
+          {checked}
+        </Hint>
+      ) : null}
       <Parts row={row} />
       {row.checks && row.id ? <PluginChecksFacts plugin={row.id} part={row.checks} busy={busy} act={act} workspaceId={workspaceId} /> : null}
       {row.context && row.id ? <ContextPartFacts plugin={row.id} part={row.context} busy={busy} act={act} workspaceId={workspaceId} /> : null}
@@ -123,6 +149,11 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
           {row.git ? (
             <TipBtn tooltip="Fetch the ref's current commit. A new commit needs approval again." disabled={busy} onClick={() => act(() => client.update(workspaceId, id))}>
               {row.commit ? `Update from ${row.git.ref}` : `Fetch ${row.git.ref}`}
+            </TipBtn>
+          ) : null}
+          {row.update !== undefined && row.state !== 'disabled' ? (
+            <TipBtn tooltip="Ask whether a newer version exists. Fetches and installs nothing." disabled={busy} onClick={() => act(() => client.checkUpdates(workspaceId, id))}>
+              Check now
             </TipBtn>
           ) : null}
           {row.state === 'disabled' ? (
@@ -156,7 +187,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
 
 // Settings > Plugins (design §4.8, R34.9): every declared plugin with its
 // kinds, version, approval and health; Add plugin, approve, disable, remove.
-export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepositories }: { workspaceId: string; onOpenGitHub?: () => void; onOpenRepositories?: () => void }) {
+export default function PluginsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
   const client = useMemo(() => pluginsClient(api), [api])
   const load = useCallback((id: string) => client.list(id), [client])
@@ -164,7 +195,6 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
   const [acting, setActing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  const [guide, setGuide] = useState(false)
   const { openChat } = useChatLauncher()
   const design = () =>
     openChat({
@@ -191,13 +221,8 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
         <IconLabel icon={MessagesSquare} tooltip={DESIGN_PLUGIN_TIP} onClick={design}>
           Design a plugin
         </IconLabel>
-        <IconLabel icon={BookOpen} tooltip={PLUGIN_GUIDE_TIP} onClick={() => setGuide(true)}>
-          Plugin guide
-        </IconLabel>
+        <GuideButton workspaceId={workspaceId} document={PLUGIN_GUIDE} text={pluginGuide} tooltip={PLUGIN_GUIDE_TIP} label="Plugin guide" />
       </Row>
-      {guide ? (
-        <DocumentReader workspaceId={workspaceId} target={{ document: PLUGIN_GUIDE, lineStart: null, lineEnd: null }} text={pluginGuide} onClose={() => setGuide(false)} />
-      ) : null}
       {error ? <ErrorText size="xs">{error}</ErrorText> : null}
       {actionError ? <ErrorText size="xs">{actionError}</ErrorText> : null}
       {note ? (
@@ -243,6 +268,22 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
               }
             />
           ) : null}
+          {value?.updateChecks ? (
+            <Box mb="3" data-plugin-update-checks>
+              <Switch
+                checked={value.updateChecks.enabled}
+                onChange={(next) => act(() => client.configureUpdates(workspaceId, next))}
+                label="Check for plugin updates daily"
+                size="sm"
+                disabled={acting || busy}
+              >
+                Check for plugin updates daily
+              </Switch>
+              <Hint as="p" size="xs">
+                Asks each plugin's source once a day whether something newer exists. It never fetches or installs: you choose Update, review and approve.
+              </Hint>
+            </Box>
+          ) : null}
           <Stack gap={4}>
             {value?.plugins.map((row, i) => (
               <PluginCard key={`${row.id}-${row.source}-${i}`} row={row} busy={acting || busy} act={act} client={client} workspaceId={workspaceId} />
@@ -250,7 +291,6 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
           </Stack>
         </PairedCard>
       </PairedCards>
-      <IntakeSources workspaceId={workspaceId} plugins={value?.plugins ?? []} onOpenGitHub={onOpenGitHub} onOpenRepositories={onOpenRepositories} />
     </Stack>
   )
 }

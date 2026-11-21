@@ -543,40 +543,6 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
    front-matter SHALL produce a warning diagnostic with its file and line and
    SHALL NOT block approval. The Plans view SHALL group plans by category.
 
-### Requirement 32: GitHub setup wizard
-
-**User story:** As a maintainer, I want Avoozl to set up GitHub for me from
-its Settings view, so that I never configure repositories or issue types by
-hand.
-
-#### Acceptance criteria
-
-1. The Settings view SHALL offer a **Set up GitHub** flow that runs these
-   steps in order:
-   1. check the token and report each missing scope (`repo`, `read:org`)
-      with the exact command that adds it;
-   2. ask for the mode, plans-repo or single-repo, then pick or create the
-      planning repository (plans-repo mode), private by default;
-   3. turn on issues in each repository the mode needs;
-   6. create the `Epic` issue type when the organization allows it and has
-      none;
-   8. write the result into `.avoozl.json` through a reviewed change.
-2. The wizard SHALL preview every GitHub write before applying any, and the
-   person SHALL confirm once for the whole set.
-3. The wizard SHALL be idempotent: it SHALL reuse what exists and add only
-   what is missing. A second run on a finished setup SHALL write nothing.
-4. The wizard SHALL NOT delete or rename any repository or issue type.
-5. WHEN a step fails for lack of permission or scope THEN the wizard SHALL
-   report that step with the reason and the fix, and SHALL keep every other
-   step.
-6. The wizard SHALL end with a short checklist of the steps GitHub's API
-   cannot do, each with a link to the place to do it.
-7. The design SHALL mark each GitHub API limit the wizard relies on as
-   Verified or Inferred and cite GitHub's documentation.
-8. One proof SHALL run the wizard twice on a fresh test organization, user,
-   or repository: the first run creates everything and the second changes
-   nothing.
-
 ### Requirement 34: Plugin loading and trust
 
 Design §4.8.
@@ -637,7 +603,7 @@ the tick, so that private integrations stay out of the public repository.
     SHALL fetch only that commit, shallow, with the person's own git and
     credentials, with git hooks off, without submodules, and without running
     any package install or install script. The tick SHALL never fetch,
-    clone, or resolve a ref.
+    clone, or resolve a ref. Only Add and Update SHALL fetch plugin files.
 14. The approval of a git plugin SHALL bind to its commit as well as its
     version and content hash. WHEN Update resolves `ref` to a different
     commit THEN the plugin SHALL need a new approval before it loads.
@@ -650,6 +616,17 @@ the tick, so that private integrations stay out of the public repository.
     `avoozl-plugin` skill to plan a plugin and write its files, and Plugin
     guide, which shows the plugin guide in the full-file reader. The chat
     SHALL NOT approve a plugin or import a pack.
+17. At most once a day per plugin, and when a person chooses Check now,
+    Avoozl SHALL check whether something newer than this machine's copy
+    exists, outside any tick: for a git plugin with `git ls-remote` (a
+    branch's newest commit, a higher release tag, or a moved tag), for a
+    package with the registry's dist-tags, and for a folder by its content
+    hash against the approval. The check SHALL NOT fetch, unpack, install,
+    or approve anything, and SHALL NOT send a credential in a URL. WHEN
+    something is newer THEN Settings SHALL show it on the plugin and Needs
+    you SHALL hold one row for that plugin; a check that fails SHALL show
+    on the plugin only. A machine setting, on by default and changed only
+    by a person, SHALL turn the check off.
 
 ### Requirement 36: Review gates on a local delivery
 
@@ -1084,101 +1061,6 @@ every task keeps its own commit, checks, review and timing.
 3. Every task SHALL keep its own ID, acceptance, commit, timing and
    evidence.
 
-### Requirement 47: Retrospectives
-
-Design §4.11.
-
-**User story:** As the owner, I want Avoozl to stop now and then, look at
-where time went, and propose one change to how work runs, so that the
-process improves without my asking and without changing on its own.
-
-#### Acceptance criteria
-
-1. Avoozl SHALL start a retrospective WHEN `flow.retro.everyTasks` tasks
-   (default 10) have finished since the last one, WHEN a task's lead time
-   passes `flow.retro.slowFactor` (default 3) times the median lead time of
-   that repository's last 20 finished tasks (with at least 5 of them), WHEN
-   a task starts its third attempt, or WHEN one CI wait passes
-   `flow.retro.slowFactor` times that repository's median CI wait (with at
-   least 5 samples; 30 minutes without them).
-2. At most one retrospective SHALL run per workspace at a time. Triggers
-   during a running one SHALL fold into the next one, and a slow-task, retry,
-   or CI trigger within an hour of the last retrospective SHALL wait for the
-   next count trigger.
-3. A retrospective SHALL run as one local session of the tool-less
-   `avoozl-retro` agent on the model `roles.retro.model` (default `auto`,
-   Kiro Crew's default). Its brief SHALL hold the timing summary, line
-   stops, flaky checks, CI-only failures, and the results of earlier
-   proposals, and SHALL pass the content rules at the `brief` boundary
-   before it is sent.
-4. Its reply SHALL name the biggest bottleneck (the stage with the most
-   waiting or the most rework across the window) with its numbers, and up
-   to 3 proposals. Each proposal SHALL be typed as a settings change (file,
-   key, current value, new value) or a plan change (spec and the change in
-   words), and SHALL name the metric it should move, the expected
-   direction, and its evidence. Avoozl SHALL check the reply against a
-   schema and SHALL drop a proposal that fails it, recording why. A
-   proposal MAY also be typed `prompt` or `skill` (Requirement 68).
-5. A settings proposal SHALL be limited to keys the Settings page can edit.
-   Avoozl SHALL refuse proposals to change content rules, plugin trust or
-   approvals, trigger actors or minimum permission, crew trust, and tokens.
-   A proposal that removes a review role or a repository check SHALL be marked
-   "removes a check" and SHALL need a second confirmation.
-6. A retrospective SHALL never apply anything. Each proposal SHALL wait for
-   the owner's **Approve** or **Reject**. Approving a settings change SHALL
-   write it through the same validated operation as Settings, with an
-   expected revision. Approving a plan change SHALL open a planner draft for
-   it, which then needs plan approval like any other (Requirement 4.8).
-7. After an approved proposal, Avoozl SHALL record its metric over the last
-   `flow.retro.everyTasks` finished tasks, and again after that many more
-   (plan, do, check, act). WHEN the metric did not move at least 10% in the
-   expected direction THEN the next retrospective SHALL include a typed
-   proposal to revert the change, which the owner approves or rejects like
-   any other.
-8. The retrospective instructions (`flow.retro.instructions`, free text)
-   SHALL live only in machine-local settings. Validation SHALL refuse them
-   in `.avoozl.json`.
-9. A retrospective that fails, times out (default 10 minutes), or replies
-   with nothing valid SHALL be recorded as failed with its reason and SHALL
-   NOT stop the tick or delivery.
-
-### Requirement 48: Flow tab and Flow settings
-
-Design §4.11, §8.4.
-
-**User story:** As the owner, I want one tab that shows how delivery flows
-and what to change, and one settings group for the flow rules.
-
-#### Acceptance criteria
-
-1. The app SHALL have a top-level **Flow** tab with an icon before its name,
-   the same icon on its nav tab.
-2. The Flow tab SHALL show metric cards for lead time, flow efficiency,
-   first-pass rate, and time to fix over a chosen window, each beside the
-   previous window's value; a stacked time bar per task by stage; one
-   biggest-bottleneck callout; and the list of retrospectives with their
-   proposals, **Approve** and **Reject** buttons, and PDCA results.
-3. The Flow tab SHALL use the shared boxed filter panel (repository, epic,
-   window, stage) and SHALL be read-only except for Approve, Reject, and
-   starting a retrospective by hand.
-4. The task drawer SHALL have a **Timing** section with the task's stacked
-   bar, and each span's stage, length, and source.
-5. The Dashboard SHALL show the **Line stopped** banner of Requirement 44.9
-   above every other section while a stop is open.
-6. Settings SHALL have one **Flow** group with sub-groups **Timing**
-   (read-only explanation, no fields), **Stop the line** (scope), **Local
-   checks first** (on or off) and **Retro**
-   (every N tasks, slow factor, model, instructions). Each SHALL have a
-   heading and one short line, plain labels with the raw key shown small,
-   "(required)" or "(optional)" in plain text, and defaults as placeholders.
-   The instructions box SHALL say it is saved on this machine only.
-7. The `flow` settings SHALL live in `.avoozl.json` per workspace and MAY be
-   overridden per repository, except `flow.retro.instructions`, which is
-   machine-local only. A missing key SHALL mean its default.
-8. Edits SHALL go through the same validated operations as the CLI and MCP
-   tools (Requirement 20.4), with expected revisions, and each setting SHALL
-   live in one place only.
-
 ### Requirement 50: Incoming items from every source
 
 Design §4.12, §8.5.
@@ -1307,53 +1189,6 @@ over MCP.
     system", the fake plugin, the fake MCP caller), and the release leak
     scan (task 7.4) SHALL cover them.
 
-### Requirement 51: Archiving a plan, and review state shown plainly
-
-**User story:** As the owner, I want to put a plan away and bring it back
-later without losing anything, and I want a task marked "review" with no
-review behind it to say so, so that I never look for a review chat that does
-not exist.
-
-Delete (`plan.delete`) is the one-way path: it archives the plan's open task
-rows and keeps the plan only as history, and an approved plan cannot be
-restored. Archive is the reversible one. There is no separate "retire"
-action: retiring is what Delete does to a plan with an approved revision.
-
-#### Acceptance criteria
-
-2. WHEN a plan is archived THEN its open and running tasks SHALL be held
-   (no new dispatch: the ready rule SHALL leave them out), a running chat
-   SHALL be left alone, and each task outside the plan that waits on one of
-   them and has no open decision SHALL get a decision for the owner.
-   Nothing SHALL be deleted, task statuses SHALL NOT change, and the spec
-   folder SHALL NOT be touched. An archived plan SHALL NOT be approved
-   until it is unarchived.
-3. WHEN a plan is unarchived THEN Avoozl SHALL remove exactly the holds
-   archive added, and close only the decisions archive wrote that nobody
-   changed since. A task the person deferred by hand SHALL stay deferred.
-4. Avoozl SHALL record who archived or unarchived the plan and when, apart
-   from the plan's revision history, and the plan view SHALL show it.
-5. Archived plans and their tasks SHALL be hidden by default on Plans,
-   Graph, Delivery and the Dashboard counts. A Show archived filter SHALL
-   bring them back, each with an Archived badge; a filter that names the
-   plan SHALL show it too. A live chat under an archived plan SHALL stay in
-   the Dashboard's In flight list.
-6. The archive confirm SHALL say what happens and that Unarchive undoes it,
-   and its button SHALL NOT be red. An archived plan's page SHALL show a
-   banner with an Unarchive button.
-7. A task with status `review` and no session, run, delivery, review request
-   or pull-request review SHALL NOT be shown as in progress. Every view
-   SHALL label it "Waiting on your decision (set by hand, no review
-   running)", show its next action, and offer Discuss, Mark done and Back to
-   planned through `task.update` for a local task. It SHALL count as needing
-   the owner, as the runner already counts status `review`, with one item
-   per task when the task also has a decision. Avoozl SHALL NOT change the
-   task's status on its own.
-8. WHEN a review run exists THEN the drawer, the Delivery card and the
-   In flight card SHALL show the reviewer role, the model asked for and the
-   model used, the round, the verdict, and an Attach link to the reviewer
-   chat.
-
 ### Requirement 53: Agent and model per session
 
 Design §4.10 "Agent and model per session".
@@ -1446,85 +1281,6 @@ worker, so that the pull request gets fixed and merges without me.
     It SHALL be on by default, because delivery is meant to run without
     a person (Requirement 87).
 
-### Requirement 55: Plugin bundles and settings packs
-
-Design §4.14.
-
-**User story:** As a team lead, I want one shared plugin to carry our
-settings, our content rules, and our intake source, so that
-each repository mostly installs one plugin, and nothing in it changes a
-setting or runs until someone on that computer has seen it and approved it.
-
-#### Acceptance criteria
-
-1. A plugin manifest MAY list `provides`: any of `pack`, `rules`, and
-   `intake`, each once. Each part SHALL run as a code kind (Requirement
-   34.3): `rules` as `rules`, `intake` as `intake`; `pack` SHALL run as
-   nothing.
-   A manifest without `provides` SHALL keep working, each of its `kinds`
-   being one part. A manifest with both SHALL have `kinds` equal to the
-   kinds its parts need, or be refused naming the mismatch.
-2. One plugin SHALL be one install, pinned to one version, content hash,
-   and, for git, commit (Requirements 34.4, 34.13). Its approval SHALL list
-   every part, and Settings and the Add plugin review step SHALL show each
-   part in plain words.
-3. A pack SHALL hold settings only and SHALL never run code. A manifest
-   whose parts are only `pack` SHALL have no `entry` and SHALL be refused
-   if it names one; Avoozl SHALL start no process for it.
-4. The pack file (`avoozl-pack.json`, or the file the manifest names) SHALL
-   hold `description` and `settings`, and `settings` MAY set only:
-   per-repository `rules` (trigger `match` lines), `allowedActors` and
-   `minimumPermission` (who counts), `requiredChecks`, `priorityLabels`, and
-   `managedLabels`; `epicIssueType`; `contentRules` `sets` as references
-   only; `delivery` `reviewers` (review roles), `agent`, `model` and
-   `runner`; and `flow`. Every value
-   SHALL pass the validator Settings uses for that key. Any other key, a
-   credential-like key, or anything that could hold a content rule SHALL
-   be refused with an error naming the key, and the plugin SHALL show as
-   invalid and cannot be approved.
-5. Importing a pack SHALL be import mode only: no follow mode and no org
-   minimums. Avoozl SHALL first preview, against this repository's
-   `.avoozl.json`, each setting as create, change, keep, or skip (with the
-   reason it cannot apply here), with the old and new values, and write
-   nothing. Per-repository settings SHALL apply to the repositories the
-   person picks, all configured ones by default. Import SHALL then copy
-   the settings once, only for an approved plugin, and only for the exact
-   preview shown: a preview hash that no longer matches SHALL be refused.
-   The result SHALL still be a valid `.avoozl.json`.
-6. WHEN an import would let more people give orders than before on a
-   repository (a lower `minimumPermission` than the effective one, or
-   names added to `allowedActors`) THEN the preview SHALL say so on that
-   setting and above the list, and the import SHALL be refused unless the
-   person accepts that change.
-7. `.avoozl.json` `packs` SHALL record, per plugin, the version imported,
-   when and by whom, and the settings that came from it; a setting a later
-   pack sets SHALL move to that pack. WHEN the installed version differs
-   from the imported one THEN Settings SHALL offer the new version's
-   preview again; only a person imports it.
-8. The `rules` part SHALL supply rule sets at run time (Requirement 40.9),
-   so private terms are never stored in a public repository. The `intake`
-   part SHALL answer `poll` (Requirement 50.7). Each polled item SHALL be
-   checked as in Requirement 50.2: a bad item refused naming its field, the
-   others kept. Storing items and the pipeline stay with Requirement 50.
-9. A plugin **shared with the repo** SHALL put its entry in `.avoozl.json`
-   (Requirement 34.1) and SHALL still be approved on each computer.
-   Importing the pack of a plugin declared on this computer only SHALL
-   need the person to confirm that its id and settings go into
-   `.avoozl.json`.
-10. The plugin guide and the app's plugin skill SHALL describe bundles,
-    packs, and intake, with a sample bundle in the test tree that names no
-    private system or company.
-11. A pack and a repository entry MAY set `waitingLabels`: labels meaning the item waits on someone outside. A task
-    whose item carries one SHALL wait in **Blocked or waiting** with the
-    reason "Waiting on the author". Absent, nothing changes.
-12. A pack and a repository entry MAY set `priorityLabels`, an ordered
-    list. A
-    task's best priority label SHALL set its order inside Ready and Up
-    next, after a set rank, and SHALL never change its lane. Absent,
-    nothing changes. The sample pack sets `waitingLabels:
-["response-requested"]` and `priorityLabels: ["p0", "p1", "p2",
-"p3"]`.
-
 ### Requirement 56: Fewer MCP tools, every safe action
 
 **User story:** As the owner, I want a session to reach every safe Avoozl
@@ -1561,77 +1317,6 @@ nothing a person must decide can be done from a chat.
    the session.
 5. A grouped tool with a read-only name SHALL stay read only, so an agent
    allowed that name gains nothing.
-
-### Requirement 57: New plan from the Plans page
-
-**User story:** As the owner, I want to start a plan from a few fields on
-the Plans page, so that a planner drafts its spec folder by Avoozl's rules
-without my writing a prompt.
-
-#### Acceptance criteria
-
-1. The Specs page SHALL have a **New spec** button in its heading that opens
-   a centered modal with Name (the spec folder name), Category (pick or
-   type), Epic and Phases (Requirement 59.11), Repositories (checkboxes of
-   registered code repositories), What you want (required) and Links and
-   context (optional), starting Blank or From template (Requirement 61.7).
-   Cancel SHALL ask first when anything was typed.
-2. Avoozl SHALL refuse a name that is not a spec folder name, or that a
-   plan or spec folder already uses; a request with no registered
-   repository, no picked repository or no goal; and a seed that a content
-   rule blocks. A refused request SHALL record nothing.
-3. Submit SHALL open a planner chat seeded with the fields and Avoozl's
-   spec rules: the `.kiro/specs/<name>/` layout with requirements.md,
-   design.md and tasks.md with `$` fact bullets, the `category:`
-   front-matter, unique task IDs, the folder and the repositories. Submit
-   hands the request to Spec Builder (Requirement 65); the planner chat is
-   the fallback.
-4. The tick SHALL import the folder as a draft plan once it lints clean.
-   New plan SHALL never approve a plan, turn on Autopilot (delivery) or push.
-5. Every top button on the Plans page SHALL show an icon.
-
-### Requirement 58: Onboard a repository
-
-**User story:** As the owner, I want adding a repository to offer a guided
-Onboard flow, so that a repository goes from nothing to plans ready to
-approve without my running setup steps by hand.
-
-#### Acceptance criteria
-
-1. Settings › Repository setup SHALL offer **Onboard** (now the **Add repository** entry, #515), a stepped dialog with
-   Cancel on every step: pick folder, pick mode, check GitHub, set up,
-   pick approvers, import specs, leak scan, finish. A step that does not
-   apply SHALL be left out; a step already satisfied SHALL show as done and
-   MAY be skipped.
-2. Pick folder SHALL show the checkout, its remote, default branch,
-   `.avoozl.json`, `.kiro/specs` folders, and whether the workspace already
-   has it. No remote and a non-GitHub remote SHALL allow Local only only.
-3. Check GitHub SHALL be the read-only Set up GitHub preview, listing each
-   item as create, change or keep.
-4. WHEN the person cancels before Set up THEN nothing SHALL have been
-   written. In Set up each GitHub write SHALL ask first.
-5. Import specs SHALL list spec folders with their lint results and adopt
-   them from git with the reader `avoozl rebuild` uses (Requirement 114,
-   design §4.42), and no second reader: a spec whose current text a commit
-   on main by an approver touched SHALL come in approved; a task ticked
-   `[x]` on main SHALL come in done, with the commit that ticked it as its
-   landing commit; landing trailers and retro files SHALL be read back; and
-   every other spec SHALL come in as a draft. A spec that already has a plan
-   SHALL be left alone. An approval is the commit's author email on the
-   approvers list; the commit message plays no part.
-6. Pick approvers SHALL list the repository's commit authors on its base
-   branch, most commits first, leaving out Avoozl's own author. Nothing SHALL
-   be approved until the person has confirmed the list; an empty list SHALL
-   import every spec as a draft. In a GitHub mode the confirmed emails SHALL
-   be added to the repository's `allowedActors`.
-7. WHEN the repository that holds the specs is public THEN the leak
-   scan SHALL check the specs against the content rules and the public
-   secret and machine-path rules, name each finding by file and line only,
-   and hold the next step while any finding remains.
-8. The flow SHALL approve a plan only through the adopt step above, and for
-   no author the person left off the confirmed list. It SHALL never start an
-   agent or push. It SHALL make no per-task issue text: Avoozl makes no
-   per-task issues.
 
 ### Requirement 59: Epics span plans, phases sit inside plans
 
@@ -1983,176 +1668,6 @@ something wrong, so that nothing new builds on it while it is looked at.
 16. Each full stop SHALL be a stop in Flow like other pulls (criterion 11),
     marked full, with the sessions it stopped.
 
-### Requirement 65: New plan hands off to Spec Builder
-
-Design §8.6.
-
-**User story:** As the owner, I want New plan and Plan a goal to open
-Kiro Crew's Spec Builder on a new spec with Avoozl's rules, so that I
-review requirements, design and tasks phase by phase there, and Avoozl
-still gets a spec folder it can deliver.
-
-#### Acceptance criteria
-
-1. The app manifest SHALL grant `/api/apps/spec-builder/specs`. The grant
-   is a path prefix, so it also reaches Spec Builder's approve, handoff,
-   execute, task, stop and delete routes; the owner accepts that. Avoozl
-   SHALL call only the create route, and a test SHALL fail when any source
-   file names another Spec Builder route or builds one from the create
-   path.
-2. Avoozl SHALL ship a steering file, `.kiro/steering/avoozl-specs.md`,
-   that states the spec layout, the `category:` and `epic:` front-matter,
-   task ID format and uniqueness, phases as `##` headings, the `$` fact
-   bullets under each task and the front-matter defaults (Requirement 111),
-   and that no spec folder holds `avoozl/manifest.json`. Spec Builder's chat runs the default
-   agent in the spec's repository, which loads `.kiro/steering/**/*.md`.
-3. Before the hand-off, New plan SHALL check whether that file is in the
-   spec's repository. When it is missing, the drawer SHALL show its full
-   text and ask; it SHALL be written only on **Add the file**, and never
-   over an existing or changed copy. When the person skips it, the rules
-   SHALL go in the create call's description instead.
-4. Name, Category, Epic, Phases, Repositories, What you want and Links and
-   context SHALL go into the create call's description, after content
-   rules at the `brief` boundary. The create call SHALL use the spec's
-   repository as its working folder and the feature type. Avoozl SHALL then
-   open Spec Builder's page on that spec. A spec Spec Builder places
-   outside the folder Avoozl reads SHALL be named in the notice.
-5. **Plan a goal** in the header SHALL open the same drawer on the Plans
-   page.
-6. The tick SHALL lint the folder and import it as a draft plan once it
-   lints clean. Avoozl SHALL write nothing into the folder. Nothing SHALL
-   approve, start an agent or push.
-7. WHEN Spec Builder is turned off, the grant is not yet approved, or Spec
-   Builder is missing THEN the drawer SHALL say so in plain words, with how
-   to turn it on or approve the grant, and SHALL offer an Avoozl planner
-   chat with the same fields.
-
-### Requirement 66: One driver per spec
-
-Design §6.10 and §4.44.
-
-**User story:** As the owner, I want exactly one Avoozl to drive each spec
-at a time, named the way GitHub already names who owns an issue, so that
-two machines never dispatch, write GitHub or merge for the same spec.
-
-#### Acceptance criteria
-
-1. Each approved spec SHALL have at most one **driver**. In a GitHub mode
-   the driver SHALL be the spec issue's single assignee (Requirement 116):
-   the Avoozl whose `gh` login is that assignee drives the spec.
-2. WHEN the spec issue has no assignee THEN the epic issue's assignee SHALL
-   stand in, by the same rule; a spec issue with several assignees SHALL NOT
-   fall back to the epic. WHEN the result is several assignees THEN every
-   workspace SHALL read only for that spec, and Avoozl SHALL open one
-   decision naming the issue and its assignees.
-3. Avoozl SHALL never change an assignee. Handing a spec to someone SHALL be
-   pushing the branch, mentioning the spec issue in it and reassigning the
-   issue on GitHub; unassigning SHALL release the spec.
-4. The machine ID SHALL be `mch_` plus 16 lowercase base32 characters, made
-   once and kept in machine-local settings. A person MAY add a machine
-   label; it SHALL pass the `github` content-rule boundary (Requirement 40),
-   and Avoozl SHALL never fill it from the host name.
-5. The tick SHALL read each spec issue's assignees in its sync step, and
-   SHALL read them again right before each dispatch, before projection, and
-   before each integrate or merge for that spec. WHILE this workspace is not
-   the driver THEN the spec SHALL be read-only here: the tick MAY refresh
-   its own cache and views, and SHALL NOT dispatch, message a session, write
-   an issue, label, link or marker, close or
-   reopen an issue, revert an edit, integrate, merge, or write the spec
-   folder. Other specs SHALL tick as usual.
-6. Assignment is not atomic, so the docs SHALL say that a short overlap is
-   possible: work the old driver started before its next read of the issue.
-   The dispatch-time check SHALL bound it to what one tick started after
-   its last read.
-7. In Local only mode this workspace SHALL drive every approved spec.
-8. The driver's status SHALL be readable on the page, in the CLI
-   (`avoozl driver status`) and over MCP. Changing this computer's label
-   SHALL be person-only.
-9. A spec's own page and row SHALL show its driver: "Driver: you", or who
-   the spec issue is assigned to. The app header SHALL NOT show a driver or
-   read-only badge. A workspace that is not a spec's driver SHALL show a
-   read-only banner on that spec's pages saying why (someone else drives
-   it, nobody does, or several assignees) with a link to the spec issue.
-   Settings › General SHALL have a **This computer** group with Machine
-   label (optional) and the machine ID shown small.
-
-### Requirement 68: Retros propose prompt and skill changes
-
-Design §4.18.
-
-**User story:** As the owner, I want a retrospective to propose changes to
-the prompts and skills my workers run on, with the evidence for each, so that
-the way agents are told to work improves the same way settings do, and only
-when I say so.
-
-#### Acceptance criteria
-
-1. A retrospective proposal MAY also be typed `prompt` or `skill`. The
-   limit of 3 proposals per retrospective SHALL cover all types together.
-2. A `prompt` proposal SHALL target one built-in prompt: the worker brief
-   template (`brief.worker`), the reviewer role brief (`brief.review`), the
-   planner prompt (`agent.planner`), the retro prompt (`agent.retro`), or
-   the Spec Builder steering file text (`steering.specs`). Avoozl SHALL
-   keep each built-in prompt as named sections, each with a sha256 of its
-   shipped text.
-3. A `skill` proposal SHALL target one skill file a worker session loaded:
-   a repository skill (a file in a registered repository) or an external
-   skill (one shipped in a plugin or anywhere else outside a registered
-   repository).
-4. Every `prompt` and `skill` proposal SHALL be a unified diff against the
-   exact text the retrospective saw, with that text's sha256, and SHALL
-   carry evidence: the task IDs and attempts it is based on (at least 3),
-   the metric (one of Requirement 47.4's), its current value, and the
-   expected direction and effect. Avoozl SHALL drop a proposal whose diff
-   does not apply to that text, whose base hash is not the current one, or
-   whose evidence is missing, and SHALL record why.
-5. A proposal SHALL be refused, with the section named, WHEN its diff
-   touches a locked section of a built-in prompt. The locked sections SHALL
-   be: the untrusted-data framing, the content rules text, Who counts, proof
-   and acceptance wording, and person-only rules. Every brief SHALL say
-   that its locked sections outrank any skill a session loads.
-6. The content rules (Requirement 40) SHALL run on every proposal, its diff
-   and its evidence, at a new `proposal` boundary, before it is stored or
-   shown. A blocked proposal SHALL be dropped with the rule named and
-   without the matched text.
-7. A `prompt` or `skill` proposal SHALL never be applied by Avoozl or an
-   agent. A person SHALL approve each one; agent sessions, MCP, the app
-   token and plugins SHALL get 403 on approve and on revert.
-8. Approving a `prompt` proposal SHALL write a new version of a local
-   override for that prompt in the workspace's override file on this Mac,
-   under the Avoozl config directory, and SHALL NOT edit any file Avoozl
-   ships. Sessions started after approval SHALL use it; running sessions
-   SHALL be left alone.
-9. Each override version SHALL record its number, the shipped section text
-   and its sha256 it was made from, the diff, the result's sha256, the
-   proposal, and who approved it and when. **Revert** SHALL restore the
-   previous version (or the shipped text) in one click, SHALL be recorded
-   the same way, and SHALL itself be revertible.
-10. Approving a repository skill proposal SHALL create one leaf in that
-    repository through the same path as **Deliver this** (Requirement
-    50.15), with the diff as data in its brief and the repository's checks.
-    In a GitHub mode it SHALL open a pull request; in Local only it SHALL
-    integrate like any local leaf. The skill's new version SHALL count from
-    the commit that lands it.
-11. Approving an external skill proposal SHALL record a note for the
-    skill's owner on the plugin card (or in Flow when no plugin owns it),
-    with the diff, the evidence summary and **Copy**. Avoozl SHALL NOT edit
-    a pinned plugin or send the note anywhere.
-12. Each delivery attempt SHALL record which version of each built-in
-    prompt it used and the sha256 of each skill file it loaded (from tool
-    calls where Avoozl can read them, else from the worker's report). The
-    receipt and the Timing section SHALL show them.
-13. The PDCA check (Requirement 47.7) SHALL compare a `prompt` or `skill`
-    change's metric over the last `flow.retro.everyTasks` finished tasks
-    that used the previous version with the same number that used the new
-    one, and SHALL mark a window "mixed" when another change took effect in
-    it. WHEN it did not help THEN the next retrospective SHALL include a
-    typed proposal to revert it.
-14. The Flow tab SHALL have a **Proposals** view listing every proposal
-    with its type, target, base version, diff, evidence, **Approve** and
-    **Reject**, and per prompt the
-    versions in use with **Revert**.
-
 ### Requirement 71: Activity log and Activity tab
 
 Design §4.19.
@@ -2195,8 +1710,12 @@ what and when without reading chats, the tick log or GitHub.
 7. The page SHALL have an Activity tab: the shared heading, the shared
    filter panel with Source, Kind and Actor, 100 rows per page with the
    shared Show more, newest first. A row whose target is a task SHALL open
-   the task drawer. A row with a GitHub link SHALL open it in a new tab
-   with `target="_blank"` and `rel="noopener noreferrer"`.
+   the task drawer. Every GitHub thing in a row (repository, pull request
+   and issue numbers, commit, claim and integration branch, check run and
+   login) SHALL link to GitHub in a new tab with `target="_blank"` and
+   `rel="noopener noreferrer"`. Each URL SHALL be built from the row's
+   known GitHub repository, never from free text; a repository with no
+   GitHub remote SHALL show plain text.
 8. Avoozl SHALL expose one helper, `recordActivity`, that any part of
    Avoozl calls to add a row. It SHALL validate and screen the row as in
    criteria 4 and 5, and SHALL never make the action that called it
@@ -2206,85 +1725,6 @@ what and when without reading chats, the tick log or GitHub.
    of the `plans_view` MCP tool. The Dashboard's recent task events SHALL
    stay reachable as `plans_view` action `recent`.
    `activity.settings.update` SHALL be a person's only.
-
-### Requirement 72: Provider health and switching models
-
-Design §4.20.
-
-**User story:** As the owner, I want Avoozl to notice when a model provider
-runs low or runs out, keep new work off it, and move running chats to
-another model without losing their work, so that a rate limit or an empty
-credit balance does not stall delivery.
-
-#### Acceptance criteria
-
-1. Avoozl SHALL keep a **health level** for each provider and each model:
-   `ok`, `low`, or `out`. A model's level SHALL be the worse of its own and
-   its provider's. A model's provider SHALL be its ID up to its first `-`,
-   `/`, `.` or `:`. `auto` and an unnamed model SHALL have no provider and
-   SHALL always read `ok`.
-2. Avoozl SHALL mark health from usage reads: after each read it SHALL sum
-   the credits and the input plus output tokens of every turn in the last 5
-   hours per provider and per model, and compare each sum with that key's
-   `providers.limits` entry (`credits`, `tokens`). At or above 100% of a
-   limit the key SHALL be `out`; at or above `providers.lowPercent`
-   (default 80) it SHALL be `low`. A key with no limit SHALL never be
-   marked from usage. A usage mark SHALL clear by itself when a later read
-   finds the sum below the low line.
-3. Avoozl SHALL mark health from provider errors in the session rows it
-   already reads: a row of kind `usage_limit`, or text naming out of
-   credits, insufficient credits, a usage limit or a quota, SHALL mark the
-   model's provider `out`; a row of kind `model_unavailable`, or text
-   naming 429, a rate limit, too many requests or throttling, SHALL mark
-   the model `low`, and a second such row for a model already `low` from an
-   error inside its cooldown SHALL mark it `out`. Avoozl SHALL store the
-   kind and when, never the row's text.
-4. An error mark SHALL clear on a later success (a usage turn on that model
-   after the mark) or 30 minutes after its last error. A mark a person set SHALL clear only when a person
-   undoes it.
-5. A new task's worker SHALL never be offered an `out` model: it is a hard
-   check. A `low` model SHALL stay an option. For a model a
-   person marked out, the model the person switched it to SHALL be offered
-   instead. With no model left the task SHALL wait and say why; it SHALL
-   NOT open on an `out` model. A writer SHALL never be given a review
-   role's model this way (Requirement 53.4).
-6. A retry SHALL keep its last model unless that model is `out`; then it
-   SHALL pick as a new task does and say that the kept model is out.
-8. WHEN a running chat Avoozl opened is on an `out` model THEN Avoozl SHALL
-   switch that chat to a healthy model through Kiro Crew's per-chat model
-   change, in the same session, so the chat keeps its branch, worktree and
-   committed work. A chat with a turn running SHALL switch at the end of
-   that turn (Kiro Crew defers it). Avoozl SHALL NOT stop, restart or close
-   the chat.
-9. Only `out` SHALL switch a running chat; `low` SHALL affect new tasks only.
-   The new model SHALL be the person's replacement, else the first healthy
-   one among the models Kiro Crew lists,
-   never on the same provider when
-   the provider is `out`, never the writer's model for a review role whose
-   `distinctFrom` is `model`, and never a review role's model for a writer.
-   WHEN no model qualifies THEN Avoozl SHALL leave the chat on its model and
-   say so in Needs you.
-10. Avoozl SHALL record each switch: when, the chat, task, role, from and
-    to, who (`auto` or the person), the reason, and the result (`switched`,
-    `deferred`, `refused` with Kiro Crew's status, or `no target`). It SHALL
-    write each finished record to the activity log (Requirement 71) once,
-    as kind `model.switch`. A refused switch
-    SHALL NOT be retried for the same model of that chat.
-11. A review verdict's served-model check (Requirement 36.3) SHALL count
-    every model a switched chat ran on: a writer or reviewer that Avoozl
-    switched SHALL NOT be refused only because its model changed mid-session,
-    and a reviewer SHALL be refused when any of its models equals any of
-    the writer's.
-16. WHEN a provider or model is `out` THEN Needs you SHALL show one item for
-    it with the reason, how many chats were switched and to what, and any
-    chat left on it because no model qualified. The item SHALL go away when
-    the mark clears.
-17. Avoozl SHALL read this machine's `providers` settings
-    (`~/.config/avoozl/config.json`): `lowPercent` and a credits `limits`
-    entry per provider. Validation SHALL refuse a `providers` key in
-    `.avoozl.json`. Any other `providers` key SHALL be dropped.
-18. With no `providers` settings, no error rows and no manual marks,
-    dispatch SHALL behave exactly as before.
 
 ### Requirement 73: Searchable task and spec pickers
 
@@ -2347,34 +1787,6 @@ do not build on a wrong reading of the task.
    SHALL count in Flow's usage.
 7. With `mode: off`, dispatch SHALL behave exactly as before.
 
-### Requirement 76: Evidence bundle per task
-
-Design §4.22.
-
-**User story:** As a reviewer, I want one place that shows what a task
-found, decided and checked, so that I can review the change without
-reading the chat.
-
-#### Acceptance criteria
-
-1. Each task SHALL have one evidence bundle that Avoozl adds to as the task
-   runs: findings and the falsifier's reply (Requirement 75), decisions and
-   who answered them, review verdicts, check results with the tail of each
-   failing log, and files the worker attaches (screenshots or video) through
-   `plans_report` field `evidence`.
-2. The bundle SHALL be stored locally under the workspace's `.avoozl/local/`
-   folder, never in a tracked file, and SHALL pass the content rules and the
-   secret screen before it is saved. An attached file SHALL be at most 20 MB
-   and of an image or video type.
-3. The task drawer SHALL show the bundle as an Evidence section, newest
-   first.
-4. WHEN the task has a pull request THEN Avoozl SHALL keep one comment on it
-   with the bundle's text summary (no attached files unless
-   `github.evidence.attach` is true for the repository), checked at the
-   `github` boundary. Comments people leave on the pull request SHALL go to
-   the writer as pull request feedback does today (Requirement 54).
-5. The driver export (Requirement 66) SHALL carry the bundles.
-
 ### Requirement 77: Bring open pull requests up to date when main moves
 
 Design §4.23.
@@ -2400,49 +1812,6 @@ with the base branch, so that they do not sit in conflict.
    integration branch SHALL be merged forward the same way before its
    checks run.
 
-### Requirement 78: Rules from repeated corrections
-
-Design §4.24.
-
-**User story:** As the owner, I want the same correction I keep giving to
-become a written rule, so that I do not give it a third time.
-
-#### Acceptance criteria
-
-1. Avoozl SHALL record a **correction** when a person requests changes on
-   an agent's pull request, answers a decision by sending work back, or reverts
-   an integrated agent commit. It
-   SHALL store the person, the task, the time and a summary of at most 300
-   characters, after the content rules.
-2. The retro SHALL receive the corrections since the last retro. WHEN it
-   finds the same correction on two or more different tasks THEN it MAY
-   propose a rule: a short text with the corrections it rests on.
-3. An approved rule SHALL land as one leaf through `intake.deliver` (source
-   `retro`) that adds or edits `.kiro/steering/avoozl-rules.md` in the
-   repository, so it arrives as a pull request (or an integrated commit in
-   Local only mode). Approval SHALL be person only.
-4. A proposed rule SHALL never name another repository, a task ID, a path
-   outside the repository, or a person.
-5. Flow SHALL show corrections per week, and the PDCA check (Requirement
-   68.12) SHALL report whether the corrected thing happened again.
-
-### Requirement 79: Fix-work share in Flow
-
-Design §4.11.
-
-**User story:** As the owner, I want to see how much finished work was bug
-fixes, so that I can tell whether delivery is getting cleaner.
-
-#### Acceptance criteria
-
-1. A finished task SHALL count as fix work WHEN its spec is a bugfix spec
-   (`bugfix.md`), its `type` fact is `fix`, it is a stop-the-line fix
-   task, or its GitHub issue type is `Bug`.
-2. Flow SHALL show the fix-work share, fix tasks over finished tasks, as a
-   card and in the charts by day and by week, with the same filters as the
-   other metrics.
-3. The retro payload SHALL carry the share and its count.
-
 ### Requirement 80: Who merges a pull request
 
 Design §4.25.
@@ -2456,7 +1825,7 @@ want it to.
 1. `landing.pr` SHALL be the one setting for who merges a `pr` landing's
    pull requests: `draft` (the default), `ready` or `auto`. It MAY be set
    for the workspace at the top level of `.avoozl.json`, shown in
-   Settings › Delivery, and for one repository in its landing block, shown
+   Settings › Autopilot, and for one repository in its landing block, shown
    on its Landing tab, which wins. A repository that sets none SHALL say it
    uses the workspace's setting. Only a person SHALL change it. Settings
    SHALL show one line per choice.
@@ -2523,46 +1892,6 @@ task drawer, so that I can review a task without leaving Avoozl.
    settings that could read as an option SHALL never reach Git.
 6. File lists and diffs SHALL be capped in size, and tests SHALL show the
    path and argument rules failing without them.
-
-### Requirement 82: Demo mode
-
-Design §6.11.
-
-**User story:** As the owner, I want a demo I can show anyone, so that they
-see Avoozl working on made-up work while my own work, GitHub and agents
-stay untouched.
-
-#### Acceptance criteria
-
-1. WHEN a person presses Start demo THEN Avoozl SHALL open a made-up
-   sample workspace: one epic over three approved specs with phases, one
-   draft spec, tasks that are done, ready, running, in review, blocked and
-   done by a person, Intake items, an idea, Flow history with a closed stop,
-   two lessons, receipts and Activity rows. It SHALL hold no real or private
-   data. **Start demo** SHALL show only in the Dashboard's empty In flight
-   box while the workspace has never run a task (no session, evidence,
-   integration or completed task), and on the empty page with no workspace;
-   it SHALL NOT be in the page header. While the demo is on, the header keeps
-   its Demo badge and Exit demo.
-2. The sample SHALL be installed once, in its own temporary folder, built
-   in a staging folder and moved into place whole. A failed build SHALL
-   leave nothing. A second start SHALL reuse the sample and keep its edits.
-   A folder in the way SHALL never be overwritten. Installing SHALL never
-   approve a person's draft, start an agent or configure an execution
-   repository; the sample's draft stays a draft.
-3. In the demo every operation that is not a read SHALL change nothing and
-   SHALL answer with one sentence that says what it would do in a real
-   workspace. No dispatch, router, retro, responder or reviewer session
-   SHALL start, and the page SHALL open no Kiro Crew chat and call no host
-   route outside Avoozl's own commands and reads.
-4. The demo SHALL use a fake GitHub with an epic issue, sub-issues, pull requests and passing, failing and running checks. It SHALL
-   refuse every write, every raw call and every method it does not know.
-6. A Demo badge SHALL show in the header on every page while the demo is
-   on, and Settings SHALL list only the sample, never the machine's own
-   workspaces.
-7. One Exit demo button SHALL return to the person's own workspace. A test
-   SHALL hash the real workspace's database, configuration, the machine
-   catalog and settings before and after a demo and find them unchanged.
 
 ### Requirement 83: Security follow-ups from the PR 29 audit
 
@@ -2776,33 +2105,6 @@ instead of a stuck chat.
    task lands, and SHALL keep them for a task that did not land.
 7. The page SHALL have a Delivery page and a Files and diff view in the
    task drawer.
-
-### Requirement 89: One setup command
-
-Design §4.26.
-
-**User story:** As the owner, I want one command that shows what it will
-change in the repository settings and on GitHub and then does it, so that a new
-repository is ready to land in minutes.
-
-#### Acceptance criteria
-
-1. `avoozl setup REPO` SHALL preview every change, then apply it only after
-   `--yes` or a confirm on the page. A second run with nothing to change
-   SHALL say "Nothing to change" and write nothing.
-2. It SHALL write the repository config: root, base branch, checks, declared
-   protected paths, the worktree helper hash after the person read it, and
-   the landing setting.
-3. For a GitHub repository under `pr` it SHALL: update the branch ruleset to
-   require the named checks, adding only what is missing and never a second
-   rule of the same kind; set the allowed merge methods; set the CI variable
-   that tells CI an Avoozl run is landing; and post a commit status
-   `avoozl/verify` on each head Avoozl verified (`createCommitStatus`).
-4. Setup SHALL NOT create task labels, a Project, task issue types or task
-   issues. Spec issue publication SHALL be an explicit per-spec action,
-   separate from approval. Setup SHALL preview trusted source repositories,
-   optional forks and their push permissions separately from the target's
-   landing permissions, without creating another workflow mode.
 
 ### Requirement 92: Links to related GitHub items, and the landing queue
 
@@ -3051,7 +2353,16 @@ the last tick did.
    `falsifier` rows MAY also set `agent`. A missing key or `auto` keeps
    that role's default.
 6. Settings › Models SHALL be the only page that picks a role's harness,
-   agent or model. Settings › Delivery SHALL keep only delivery choices.
+   agent or model. Settings › Autopilot SHALL keep only delivery choices:
+   a picker of **Off** (you deliver) and **Autopilot** (Avoozl delivers),
+   each with its steps, and below it every Autopilot setting, shown and
+   saved while Autopilot is off, with this machine's `loop.run` and
+   `loop.every`. Autopilot SHALL show as on only when the `delivery` block
+   and this machine's `loop` are both set. Picking Autopilot SHALL write
+   both; picking Off SHALL remove this machine's `loop` only. Each SHALL ask
+   once and SHALL be a person's alone. While tasks are ready and this
+   machine has no `loop`, Home and Needs you SHALL show one row saying
+   Autopilot is off on this machine and how to turn it on.
 7. A file that sets any other key for a role's harness, agent or model
    SHALL NOT load, and the error SHALL name the file and the key: `models.<role>`,
    `harnesses.<role>`, `delivery.agent`, `delivery.model`,
@@ -3062,262 +2373,6 @@ the last tick did.
     model differs from a named planner model, and a review role with
     `distinctFrom: model` needs a named worker model that differs from its
     own.
-
-### Requirement 99: Cross-model plan review
-
-Design §4.29.
-
-**User story:** As the owner, I want every spec draft read by a second model
-before I approve it, with what it found and what the planner did about it
-in front of me when I approve, so that one model's blind spots do not reach
-the task graph unchecked.
-
-#### Acceptance criteria
-
-1. Settings › Models SHALL have a **Plan reviewer** role, saved as
-   `models.planReviewer` in `.avoozl.json`. Its value SHALL be a model name;
-   `auto` SHALL mean no reviewer model is set. Validation SHALL refuse a
-   `planReviewer` equal to a named `planner`.
-2. A review SHALL run only WHEN Avoozl can show that the reviewer's model
-   differs from the model that wrote the revision. The writer's model SHALL
-   be the model Kiro Crew reports for the drafting chat, or, for a revision
-   the planner chat made, the planner's reported model. WHEN the reviewer's
-   model is not set, the writer's model is unknown, or the two are the same
-   THEN Avoozl SHALL NOT start the review, SHALL mark the revision
-   **Review skipped** with the reason in plain words, and SHALL NOT run it on
-   the same model. A person MAY press **Review anyway** on an unknown writer
-   model; the round SHALL then record that the difference was not shown.
-3. WHEN a draft revision is stored (a planner chat, a Spec Builder import,
-   From a goal, or a reload of an edited folder) and `planReview.mode` is
-   `auto` THEN the tick SHALL open one read-only reviewer chat on the
-   reviewer's model for that exact revision. The chat SHALL read the spec
-   folder at that revision and a clean worktree of each repository the
-   task facts name, at the commit Avoozl records. Its only write SHALL be
-   its findings for its own plan revision.
-4. The reviewer's brief SHALL hold the spec files, the other specs in the
-   planning repository, and the code as data, not instructions, and SHALL
-   ask for these kinds of finding: `gap` (a need with no criterion or task),
-   `untestable` (a criterion no check or proof can show), `wrong-reference`
-   (a file, function, route or setting the code does not have, checked
-   against the code), `hidden-order` (an order stated in prose with no
-   `after` fact), `too-big` (a leaf that will not fit in one pull
-   request), and `conflict` (a clash with another spec). The brief SHALL
-   pass content rules at the `brief` boundary.
-5. Each finding SHALL have a kind, a severity (`blocking`, `important`,
-   `suggestion` or `question`), a file of the revision, a line, a claim and
-   its evidence. A `wrong-reference` finding SHALL name the path and commit
-   it read, or the search that found nothing. Avoozl SHALL refuse a finding
-   whose file is not in the revision or whose line is out of range, and
-   SHALL refuse findings from a session whose reported model equals the
-   writer's.
-6. Findings SHALL be stored per plan and revision hash. A revision with a
-   new hash SHALL get a fresh review, except a revision the planner made in
-   answer to the last round of the same pass. Findings of an older hash
-   SHALL stay readable and SHALL be shown as about an older revision.
-7. After each round the planner chat SHALL get the findings as data and
-   SHALL answer each one as `fixed` (naming the revision hash it wrote) or
-   `answered` (with its reason). WHEN `planReview.rounds` (default 1,
-   allowed 1 to 3) allows another round and the planner wrote a new
-   revision THEN the reviewer SHALL review that revision, with the earlier
-   findings and answers as data. A pass SHALL end after its last round.
-8. The Approve dialog, for one spec and for a batch, SHALL show for each
-   spec: reviewed by which model and at which revision, how many findings
-   were found, how many were fixed, and how many are for the person, and
-   SHALL list each open finding with its file, line, claim, evidence and
-   the planner's answer. It SHALL also show Review skipped, Review running,
-   Not reviewed, and Reviewed at an older revision. A person MAY close a
-   finding as resolved, accepted, rejected or deferred.
-9. A review SHALL NOT approve, SHALL NOT block approval, and SHALL NOT write
-   to GitHub. A plan with open findings, a skipped review or a running
-   review SHALL approve exactly as it would with none. Approval SHALL stay
-   person only.
-10. `planReview.mode` SHALL be `auto` (default), `ask` or `off`. With `ask`,
-    each new draft revision SHALL get one Needs you item with **Review** and
-    **Skip**. With `off`, no reviewer chat SHALL start and nothing else
-    SHALL change.
-11. `avoozl plan review SPEC` SHALL print the review of the spec's current
-    revision; `--start` SHALL start one (a person only, as Review anyway
-    does), and `--json` SHALL print it as JSON. The planner SHALL read
-    findings through an MCP tool and answer them through another; the
-    reviewer SHALL submit through `plans_submit_review`.
-12. Each reviewer and planner-answer chat SHALL count in Flow under
-    **Planning** for its spec: time and usage by role and model. These
-    SHALL NOT count toward any task's flow time.
-13. Source and tests SHALL NOT name a model or provider. Tests SHALL use
-    fake chats and fake model names.
-
-### Requirement 100: Retrospectives catch steady CI waste
-
-Design §4.30.
-
-**User story:** As the owner, I want the retrospective to notice CI time
-that is spent the same way on every pull request, such as the full test
-matrix on a spec-only change or two runs of one workflow on one commit, so
-that waste which is the usual case is caught, not hidden by the median.
-
-The outlier trigger of Requirement 47.1 fires only when one CI wait passes
-`flow.retro.slowFactor` times the median, so a cost that every pull request
-pays never fires it. These triggers catch that steady cost.
-
-#### Acceptance criteria
-
-1. For each pull request in a repository the workspace names, Avoozl SHALL
-   record its changed files as classes: `code`, `tests`, `spec`, `docs`,
-   `ci` and `other`. The paths SHALL come from the existing open pull
-   request read with no extra call. Each class SHALL have a default list of
-   globs, and `flow.ci.classes` in `.avoozl.json` (workspace or repository,
-   the repository's list winning) MAY replace a class's list. A path SHALL
-   take the first class that matches in the order `ci`, `spec`, `tests`,
-   `docs`, `other`; a path that matches none SHALL be `code`. WHEN GitHub
-   lists only part of a pull request's files THEN the pull request SHALL
-   also count as `code` and SHALL be marked partial.
-2. Avoozl SHALL count workflow runs per head commit per workflow. WHEN a
-   workflow has more than one run for the same commit THEN Avoozl SHALL
-   record a **repeat run** finding naming the repository, the workflow
-   file, the commit, the number of runs, their events (such as `push` and
-   `pull_request`) and the CI minutes of the extra runs. A re-run attempt of
-   the same run SHALL NOT count as another run.
-3. Avoozl SHALL start a retrospective on a **steady waste** trigger over the
-   last `flow.ci.windowDays` days (default 7) for a repository, WHEN either
-   (a) the CI minutes spent on pull requests whose classes are all `spec` or
-   `docs` pass `flow.ci.docsOnlyMinutes` (default 60), or (b) at least
-   `flow.ci.minPullRequests` (default 5) pull requests closed in the window
-   and their CI wait is more than `flow.ci.waitShare` (default 0.4) of their
-   lead time. A repeat run finding SHALL also be a trigger. Each SHALL fire
-   at most once per repository, kind and window. These triggers SHALL NOT
-   wait for the one-hour spike gap of Requirement 47.2. The outlier triggers
-   of Requirement 47.1 SHALL stay unchanged.
-4. These counts and triggers SHALL cover every pull request in the
-   workspace's repositories, not only Avoozl tasks, because people and other
-   chats share the same CI. A retrospective SHALL run on these triggers with
-   no finished tasks. The brief SHALL label each pull request `task` (with
-   its task ID) or `other` (with its number and author only), and SHALL NOT
-   hold the title, body, comments or transcript of an `other` pull request.
-   Avoozl SHALL NOT read the transcript of any chat it did not open.
-5. The brief SHALL hold, per repository: CI minutes by class, the CI wait
-   share of lead time, the repeat run findings, and the workflow file of
-   each run. The retrospective MAY propose a CI change as a `plan` proposal
-   that names the repository, the workflow file and the change in words.
-   Approving it SHALL open a planner draft for one new task, as for any plan
-   proposal (Requirement 47.6). The retrospective SHALL still only propose.
-   A new metric, **CI minutes per pull request**, SHALL be measured by class;
-   its PDCA check (Requirement 47.7) SHALL compare the last
-   `flow.retro.everyTasks` closed pull requests of that repository and class
-   before the change with the same number after it.
-6. Avoozl SHALL make no GitHub call for this beyond the existing open pull
-   request read per check and at most one workflow runs read per repository
-   per check. The workflow runs read SHALL send the cached ETag, so an
-   unchanged answer is a not-modified reply. Each call SHALL go through the
-   existing GitHub client and its rate counters.
-7. The Flow tab SHALL show CI minutes by class, task and other, and the
-   repeat runs with their workflow, commit count and extra minutes. Settings
-   › Flow SHALL edit `flow.ci.windowDays`, `flow.ci.docsOnlyMinutes`,
-   `flow.ci.waitShare` and `flow.ci.minPullRequests`, and SHALL show the
-   class globs read-only. These are screen changes: the task that builds
-   them SHALL ship before and after screenshots (phone and desktop, light and
-   dark) for the owner's approval before it merges.
-8. With no GitHub repository in the workspace, Avoozl SHALL make no read
-   for this and SHALL show **No pull requests read** in the Flow tab.
-
-### Requirement 101: Every build receipt, and a build breakdown for retrospectives
-
-Design §4.31.
-
-**User story:** As the owner, I want Avoozl to keep every build and test
-record a pull request's CI writes, failed attempts included, and to hand the
-retrospective a repository's own breakdown of where build time goes, so
-that the costliest step is visible and a change is judged only against
-builds that did the same work.
-
-#### Acceptance criteria
-
-1. **Every record.** For each merged pull request in a repository with
-   `buildReceipts` on, Avoozl SHALL read every artifact whose name is
-   `build-receipt` or starts with `build-receipt-`, from every workflow run
-   on the pull request's head commit, failed, cancelled and re-run attempts
-   included, and SHALL parse every line of each file. A line that does not
-   parse SHALL be skipped and counted; the other lines SHALL be kept.
-2. **Observations.** Each line SHALL be stored as its own observation,
-   keyed by repository, head commit, workflow run, task, attempt, command,
-   target and its order among lines with the same key. A failed attempt (a
-   non-zero exit, or a line from a run that failed) SHALL be kept and marked
-   failed. A version 1 line without the new fields SHALL still parse.
-3. **Wrapper.** `bin/build-receipt` SHALL also record `task` (from `--task`
-   or `AVOOZL_TASK`), `attempt` (from `--attempt`, `AVOOZL_ATTEMPT`, or
-   `GITHUB_RUN_ATTEMPT`, else 1) and `phase` (from `--phase`, else the
-   command). The CI job SHALL upload its file on every platform as
-   `build-receipt-<target>`, and the job summary SHALL show every line.
-4. **Summaries.** Flow SHALL show, per pull request, the total build time,
-   the time per phase summed over targets, and the costliest phase. Medians
-   per phase, target and cold or warm SHALL use every successful
-   observation. Failed attempts SHALL count in a pull request's total and be
-   shown apart, and SHALL NOT enter the success medians. Trace SHALL show
-   every observation on the merged step, grouped by phase. A before and
-   after comparison (PDCA, Requirement 47.7) SHALL compare one phase,
-   target and cold or warm at a time, over every matching observation.
-5. **Calls.** Avoozl SHALL make at most one artifact list call per
-   repository per check, sent with the cached ETag so an unchanged list is a
-   not-modified reply, and one download per artifact it has not read before.
-   A read artifact SHALL cost 0 on every later check. A merged pull request
-   whose head commit runs are all complete and have no receipt artifact
-   SHALL be remembered as having none. Each call SHALL count under `receipt`
-   in the GitHub usage counter.
-6. Receipts SHALL be read in the tick's CI step for every repository with
-   `buildReceipts` on.
-7. **Report format.** Avoozl SHALL define a documented, versioned build
-   report, `avoozl.build-report` version 1, with: `workload`, `engine`,
-   `target`, `toolchain` (a toolchain or seed ID), `cache` (the cache mode),
-   and a `costs` object of milliseconds for `build`, `provisioning`, `cache`
-   and `test`, plus optional `parts` and `counters`. A repository SHALL name
-   where its reports are in `receipts.report` of `.avoozl.json`: a field
-   inside each receipt line, or an artifact name prefix. A report with an
-   unknown version or a missing field SHALL be skipped and counted, never
-   guessed.
-8. **Repository neutral.** A small adapter SHALL turn a report into a
-   breakdown observation. Profiling, budgets and limits SHALL stay in the
-   repository that writes the reports; Avoozl SHALL only store, show and
-   compare. Avoozl source, tests and fixtures SHALL NOT name any real
-   repository's workloads, engines, targets, paths or tasks.
-9. **Comparable.** Two breakdowns SHALL be compared only when `workload`,
-   `engine`, `target`, `toolchain` and `cache` are all present and all
-   equal. A breakdown missing any of them SHALL be compared with nothing.
-10. **Retro brief.** The retrospective brief SHALL hold a `builds` field per
-    repository: per pull request the costliest phase from receipts, and per
-    comparison key the count, the latest and median cost of each cost and
-    part, and the costliest part. A retrospective MAY propose a `plan`
-    proposal that names the repository, the comparison key and the part.
-    The metric **Build part minutes** SHALL compare only breakdowns with the
-    proposal's key; with fewer than `flow.retro.everyTasks` on either side,
-    PDCA SHALL say **Not enough comparable builds** and give no verdict.
-11. A repository with no reports SHALL behave as today: no `builds`
-    breakdown, no extra call, and an unchanged brief apart from receipt
-    phases. A repository with `buildReceipts` off SHALL make no call for
-    this.
-12. The Flow and Trace changes are screen changes: the task that builds
-    them SHALL ship before and after screenshots (phone and desktop, light
-    and dark) for the owner's approval before it merges.
-13. **Tests** on a fake GitHub SHALL cover: a pull request with several
-    phases on 3 platforms keeps every record; a failed attempt is kept; the
-    costliest phase shows in Flow; one list per check and one download per
-    new artifact; mismatched keys are never compared; a retro brief includes
-    the breakdown; a repository with no reports behaves as today.
-14. **By commit on the base branch.** Avoozl SHALL read the receipt
-    artifacts of every commit that reaches the base branch, however it got
-    there (a direct push, a pull request's squash or merge commit, or
-    Avoozl's own landing), from that commit's `push` run on the base branch,
-    keyed by the commit, under the rules above: the same one artifact list
-    per check through the HTTP cache, one download per artifact never read
-    before, each call under `receipt`. A pull request head's receipts MAY
-    still be read, and SHALL count under the base-branch commit the pull
-    request landed as (its `mergeCommit`, from the same closed pull request
-    read), so a commit shows one CI time: its own push run's when it has
-    one, else its head's. Flow SHALL show one row per such commit, with the
-    pull request it landed, if any. A task's CI time SHALL be found from its
-    tick commit (Requirement 113.14), or a person's `Built:` line when there
-    is one; CI time SHALL NOT be written in `tasks.md`. Tests SHALL show a
-    direct push and a squash-merged pull request each with their CI under
-    their base-branch commit, a push on another branch not read, no artifact
-    read twice, and a task finding its CI by its tick commit.
 
 ### Requirement 102: Working branches and spec issues
 
@@ -3333,9 +2388,10 @@ issue per task or exposing private planning information.
    issue SHALL hold ownership (its assignee) and discussion; SQLite SHALL
    cache local execution. There SHALL be one issue per published spec and
    epic, never per task.
-2. Publish issue SHALL be an explicit per-spec act in its home repository,
-   independent of approval. Approval alone SHALL make no GitHub write.
-   A fork checkout SHALL NOT move the registered issue home or require fork
+2. The tick SHALL publish the spec issue in its home repository for each
+   approval this workspace adopts or makes, when this runner acts as the
+   approver (workflow v1 rule 8.1, github-native GN3); `avoozl spec
+   publish` SHALL stay a person's retry. A fork checkout SHALL NOT move the registered issue home or require fork
    issues.
 3. Unfinished checkpoints SHALL release nothing. A successor in any spec
    SHALL start once its prerequisite's tick reaches the base branch. Branch
@@ -3428,114 +2484,6 @@ issue per task or exposing private planning information.
     on that issue, and a fix without one in the workspace database. It SHALL
     run, be checked and land like any task, and **Make this a spec** SHALL
     turn a fix that grew into a spec folder holding its text.
-
-### Requirement 104: Review findings the owner can read and decide
-
-Design §4.33.
-
-**User story:** As the owner, I want to read each review finding next to
-the spec text it is about, see what the planner did with it, and decide
-the rest with one click each, so that a review round ends with every
-finding either fixed, answered, or decided by me at a known revision.
-
-#### Acceptance criteria
-
-1. Each finding SHALL have a severity of `info`, `warn` or `blocker`,
-   shown as a grey, yellow or red border and as a text label, so color is
-   never the only sign. Stored Requirement 99 values SHALL read as
-   `blocking` → `blocker`, `important` → `warn`, and `suggestion` and
-   `question` → `info`. A `blocker` SHALL NOT block or delay approval.
-2. Each finding SHALL have a category (one of the six kinds of
-   Requirement 99.4), an anchor, a body (its claim and evidence), and the
-   planner's response, if any.
-3. An anchor SHALL be the file of the reviewed revision, a line range,
-   the exact quoted text (at most 500 characters), and a quote hash
-   (SHA-256 of the quote with whitespace runs collapsed to one space).
-   Avoozl SHALL derive the line range from the quote and SHALL refuse a
-   finding whose quote does not occur exactly once in that file at that
-   revision.
-4. WHEN a finding is shown against a later revision THEN Avoozl SHALL look
-   for the same collapsed quote in the same file. Found once, the finding
-   SHALL show at the new lines. Found zero or more than once, it SHALL
-   show **Moved or removed** with its original file, lines and revision.
-   This SHALL be worked out on read and SHALL NOT change the stored
-   anchor.
-5. A finding's state SHALL be one of: `open` (no response yet), `fixed`
-   (the planner named a revision it stored), `answered` (the planner gave
-   a reason), `for you` (no round or planner turn is running, it is not
-   fixed, and no person has decided it), `accepted`, `rejected`,
-   `deferred` or `resolved`. A person's actions SHALL be **Accept** (agree;
-   the planner must fix it in its next revision), **Reject** (dismiss, with
-   a reason), **Defer** (keep as a follow-up) and **Resolve** (mark done),
-   plus **Reopen** to undo the last one. Each action SHALL be appended to
-   the finding with who, when, the revision hash on screen, and the note.
-   An accepted finding SHALL stay open for the planner until it is fixed.
-   Reject, Defer and Resolve SHALL close it.
-6. These actions SHALL be person-only: MCP and agent sessions SHALL be
-   refused, as for `plan.approve`. `plan.review.dispose` SHALL become
-   person-only with the same refusal. Planner answers stay on
-   `plans_answer_review`.
-7. A person's actions SHALL feed the planner's next turn on that spec, as
-   data: every accepted finding (to be answered `fixed` with a revision;
-   an `answered` reply keeps it for you), every rejected finding with its
-   reason (not to be brought back), and deferred ones as follow-ups. WHEN
-   a person accepts a finding and no planner turn is running for that plan
-   THEN the tick SHALL send the planner one answer turn with the accepted
-   findings, at most one per plan per tick. The next reviewer round SHALL
-   get rejected and resolved findings with their reasons, and Avoozl SHALL
-   drop a new finding in the same pass whose category and quote hash match
-   one of them, counting the drop in the round's note.
-8. Defer SHALL store a follow-up (finding, spec, note, who, when,
-   revision) in the workspace database and list it under **Follow-ups** on
-   the spec. It SHALL NOT create a task or an issue. A follow-up becomes a
-   task only through a spec revision a person approves.
-9. Each spec document's own tab (requirements, design, tasks and the
-   rest) SHALL show its findings inline, as review comments in a pull
-   request's diff: each finding card in a thread under the last rendered
-   block its anchor touches, in line order. There SHALL be no separate
-   Review tab that repeats the documents. Clicking a card SHALL highlight
-   the anchored lines; clicking highlighted text SHALL select its card.
-   Moved or removed findings SHALL be listed above the text. A toggle
-   with the file's finding count SHALL hide and show every inline card,
-   and the choice SHALL be kept in the browser. Filters by severity and by
-   state SHALL show counts and be kept in the page address.
-10. Each card SHALL show the severity label and border, category, file and
-    lines, body, the planner's response with a link to the fixing
-    revision, the history of person actions (who and at which revision),
-    and Accept, Reject, Defer and Resolve, or Reopen once decided. Reject
-    SHALL require a reason; Defer SHALL offer a note.
-11. The spec's Overview SHALL have a **Review** card: each round with
-    **Open review chat** (the round's reviewer session) and **Open planner
-    chat** (the planner session that answered), and every finding in one
-    list, each a link to its lines on its document's tab. A session that is gone SHALL show
-    "Chat closed" with no link. These links SHALL only open an existing
-    chat, never start one.
-12. Both Approve dialogs SHALL show, per spec, counts by severity and by
-    state (for example "2 blocker · 3 warn · 1 info · 1 for you") and an
-    **Open review** link to the findings at that revision, in place of
-    the inline finding list and its close controls.
-13. WHEN the revision changes while an Approve dialog is open THEN the
-    dialog SHALL NOT show "This revision changed. Reload it before
-    approving." It SHALL update in place to the new revision and say what
-    changed: the old and new hash, each file changed with lines added and
-    removed, and findings newly fixed or moved. Approve SHALL apply to the
-    revision on screen, and after an in-place update it SHALL need a fresh
-    click. An approve sent for the old hash SHALL produce this update, not
-    an error. The backend's refusal of a stale hash SHALL stay.
-14. This SHALL be the review loop. A reviewer round reviews one exact
-    revision and finds; the planner fixes or answers each finding; the
-    person decides the rest. `planReview.rounds` SHALL cap automatic
-    reviewer rounds; planner turns started by a person's Accept SHALL NOT
-    count. WHEN the cap is reached a person MAY press **Review anyway** to
-    start exactly one more round at the current revision, still under the
-    different-model rule of Requirement 99.2. Approval SHALL stay the
-    person's click at an exact revision; rounds, findings and actions SHALL
-    NOT approve or hold approval.
-15. This SHALL add no GitHub call. Findings, actions and follow-ups SHALL
-    stay in the workspace database.
-16. Tests SHALL use fake chats, fake model names and a fake GitHub that
-    records zero calls. Source and tests SHALL NOT name a model or
-    provider.
 
 ### Requirement 105: Where tasks live follows from each repository's role
 
@@ -3808,8 +2756,11 @@ box someone checked.
    spec's `tasks.md` on the base branch. It SHALL be one commit, not a
    follow-up. Only the landed task's mark character SHALL change: the rest of
    the file stays byte-identical. Avoozl SHALL write no other commit for it.
-9. A parent SHALL be ticked only when every child is ticked, and only as a
-   result of a child's tick.
+9. A parent SHALL be ticked only when every child is ticked, as a result of
+   a child's tick. When two children land on bases that lack each other's
+   tick and leave the parent open with every child ticked, the runner that
+   next reads the base after that merge SHALL tick the parent in a commit of
+   its own that changes only that box.
 10. A spec in a plans repository other than the code repository SHALL be
     ticked there as its own commit on that repository's base branch, after
     the code lands: fetched, built on the fetched head, pushed without force,
@@ -3870,9 +2821,6 @@ rebuilds its database from main and GitHub.
    reviewed revision, and push it without force. It SHALL refuse a person
    who is not an approver. When main already holds that exact text from a
    non-approver, it SHALL refuse and say to edit through a spec branch.
-6. Each landing commit SHALL carry, under each `Avoozl-Task:` trailer, the
-   task's `Avoozl-Started`, `Avoozl-Tries`, `Avoozl-Harness`, `Avoozl-Model`
-   and `Avoozl-Cost` when known.
 7. A task made from an intake item SHALL name it with a `source:` fact (its
    link), and Avoozl SHALL tie the item to that task instead of making a new
    one. An item pushed over MCP SHALL become
@@ -3884,16 +2832,11 @@ rebuilds its database from main and GitHub.
    only in layout, Requirement 111.6) as that commit's author, and record
    each landing commit's tasks in Activity. A full
    database SHALL be refused.
-9. Each landing commit SHALL also carry the task's Flow spans, and a pull
-    request landing's merge commit SHALL carry the same trailers, written by
-    Avoozl as the merge's commit message. Each finished retro SHALL be a
-    committed file under `.kiro/retros/`, authored by the agent identity,
-    and a rebuild SHALL restore the Flow spans and retros from git.
 11. Tests SHALL show: an author-only approval; an approval whose committer is
     someone else; an agent-authored edit with the owner as committer is no
     approval; and a scratch repository with approvals, a landed task and an intake-made task rebuilds to the same plans,
-    approvals, tasks, Flow spans and retros after its database is deleted;
-    and both a direct and a pull request landing write the trailers.
+    approvals and tasks after its database is deleted; and no direct or
+    pull request landing writes a trailer.
 
 12. The tick SHALL adopt an approval that
     reaches main with no click: a spec pull request an approver authored and
@@ -4024,9 +2967,8 @@ who has it and no two people drive one spec.
    driver SHALL close the spec issue as completed, once. A later revision
    SHALL NOT reopen it.
 5. An approved spec with no spec issue SHALL drive on this workspace and show
-   "Not shared", because no other machine can see who drives it. Avoozl SHALL
-   create no issue for it by itself: publishing stays a person's act
-   (**Make the GitHub issues**, `avoozl spec publish`, Requirement 102.2).
+   "Not shared", because no other machine can see who drives it, until the
+   tick publishes its issue (Requirement 102.2).
 6. Reading the assignee SHALL add no GitHub call. The tick SHALL read each
    spec issue with the conditional read it already makes, its rechecks SHALL
    share the client's cache, and an unchanged issue SHALL answer 304. The

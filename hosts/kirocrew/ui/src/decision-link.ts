@@ -4,7 +4,7 @@
 // reference grants nothing; conflicts.view resolves it. Kept free of JSX so
 // node can test it.
 
-export interface DecisionLink {
+interface DecisionLink {
   workspace: string | null
   decision: string
 }

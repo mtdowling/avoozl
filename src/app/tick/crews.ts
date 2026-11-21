@@ -1,0 +1,93 @@
+// The crew snapshot: `local` plus the Kiro Crew instances the app backend last
+// read, so a binding on a crew that stopped answering is not waited on.
+import { randomUUID, createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fail } from "../store/store.ts";
+import { globalAvoozlConfigPath } from "../settings/layered-config.ts";
+import { validateLinks } from "../api/direct-links.ts";
+import type { Store } from "../store/store.ts";
+
+// This machine's config.json, as JSON.
+export type MachineValue = { version?: number; [key: string]: unknown };
+
+const SNAPSHOT = "crews.snapshot";
+
+const record = (value: unknown): value is MachineValue =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+// ---------------------------------------------------------------------------
+// Machine-local settings: one JSON file this machine owns.
+
+const digest = (text: string) =>
+  createHash("sha256").update(text).digest("hex");
+
+export function machineFile(file: string = globalAvoozlConfigPath()): {
+  file: string;
+  value: MachineValue;
+  hash: string | null;
+} {
+  let text: string | null = null;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  let value: unknown = { version: 1 };
+  if (text !== null) {
+    try {
+      value = JSON.parse(text);
+    } catch (error) {
+      fail(
+        `${path.basename(file)} on this machine is invalid: ${(error as Error).message}`,
+        409,
+      );
+    }
+    if (!record(value))
+      fail(`${path.basename(file)} must hold a JSON object.`, 409);
+  }
+  return {
+    file,
+    value: value as MachineValue,
+    hash: text === null ? null : digest(text),
+  };
+}
+
+// Replace keys of the machine-local file, refusing a stale edit.
+export function writeMachineFile(
+  file: string,
+  mutate: (value: MachineValue) => void,
+  expectedHash?: string | null,
+) {
+  const before = machineFile(file);
+  if (expectedHash !== undefined && expectedHash !== before.hash)
+    fail("Settings on this machine changed; reload before saving.", 409);
+  const value = structuredClone(before.value);
+  value.version ??= 1;
+  mutate(value);
+  const text = JSON.stringify(value, null, 2) + "\n";
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  const pending = `${file}.${process.pid}.${randomUUID()}.pending`;
+  fs.writeFileSync(pending, text, { mode: 0o600 });
+  fs.renameSync(pending, file);
+  return { value, hash: digest(text) };
+}
+
+// Where this machine opens worker chats (`links`, direct-links D2), checked;
+// none when the file holds none or cannot be read.
+export function machineLinks(file = globalAvoozlConfigPath()) {
+  try {
+    return validateLinks(machineFile(file).value.links);
+  } catch {
+    return {};
+  }
+}
+
+// What the app backend (or a test driver) last read from Kiro Crew:
+// {instances: [{id, name}], headroom: {id: F80 fields}, agents: {id: [...]},
+// ready: {id: true|false} (the crew approves tools on its own, so a chat
+// would not stall on an approval), remoteDispatch, limits: {memoryGb,
+// diskGb}, mc10, readAt}. Absent on a
+// Kiro Crew that grants the app no instance read: then only `local` exists.
+export const crewSnapshot = (store: Store) =>
+  store.getMeta<Record<string, unknown>>(SNAPSHOT);

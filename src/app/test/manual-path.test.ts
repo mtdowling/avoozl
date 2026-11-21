@@ -1,0 +1,207 @@
+// Task 52.1 (R96.5, design §4.28): the manual path stays. A person at a
+// plain shell, with no Kiro Crew session, gateway or MCP, can run `avoozl
+// next`, `avoozl take` and `avoozl runner report`. One test per command;
+// each runs the real CLI as a child process.
+import assert from "node:assert/strict";
+import { execFileSync, spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import test, { type TestContext } from "node:test";
+import { fileURLToPath } from "node:url";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import { workspaceConfig } from "../settings/config.ts";
+import { globalAvoozlConfigPath } from "../settings/layered-config.ts";
+import { Operations } from "../api/operations.ts";
+import { Store } from "../store/store.ts";
+import { snapshot } from "./fixtures.ts";
+import { temporaryDirectory } from "./temporary.ts";
+
+const cli = fileURLToPath(new URL("../../../cli.ts", import.meta.url));
+const git = (cwd: string, ...args: string[]) =>
+  execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+
+// The runner's machine config lives here, for this process and the CLI.
+const config = temporaryDirectory("avoozl-manual-config-");
+delete process.env.KIROCREW_HOME;
+process.env.XDG_CONFIG_HOME = config;
+
+// A plain shell: no Kiro Crew, gateway, session or Avoozl variables.
+function plainEnv() {
+  const env: NodeJS.ProcessEnv = { ...process.env, XDG_CONFIG_HOME: config };
+  for (const name of Object.keys(env))
+    if (/^(AVOOZL|KIROCREW)(_|$)|^PORT$/.test(name)) delete env[name];
+  return env;
+}
+
+// What `avoozl next` and `avoozl take` print, for the fields read here.
+interface Row {
+  id: string;
+  repository?: string;
+  slot?: string;
+}
+interface CliOutput {
+  ready: Row[];
+  running: Row[];
+  finished: boolean;
+  binding: SessionBinding;
+  worktree: { branch: string; path: string };
+  report: string;
+}
+
+// Run the CLI as a person would; a refusal or crash fails the test with its
+// own message.
+function avoozl(root: string, ...args: string[]): CliOutput {
+  const result = spawnSync(
+    process.execPath,
+    [cli, ...args, "--workspace", root],
+    { encoding: "utf8", env: plainEnv(), cwd: root },
+  );
+  assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`);
+  return JSON.parse(result.stdout);
+}
+
+function repository(dir: string) {
+  fs.mkdirSync(dir);
+  git(dir, "init", "-b", "main");
+  git(dir, "config", "user.name", "Person");
+  git(dir, "config", "user.email", "person@example.com");
+  fs.writeFileSync(path.join(dir, "README.md"), "app\n");
+  git(dir, "add", ".");
+  git(dir, "commit", "-m", "Start");
+  return fs.realpathSync.native(dir);
+}
+
+function commit(worktree: string, file: string) {
+  fs.writeFileSync(path.join(worktree, file), "done\n");
+  git(worktree, "add", file);
+  git(
+    worktree,
+    "-c",
+    "user.name=Person",
+    "-c",
+    "user.email=person@example.com",
+    "commit",
+    "-m",
+    "Do the task",
+  );
+  return git(worktree, "rev-parse", "HEAD");
+}
+
+const leaf = (id: string) => ({
+  id,
+  title: "Task " + id,
+  kind: "leaf",
+  scope: "catalog",
+  status: "planned",
+  epic: "sample",
+  track: "catalog",
+  tags: [],
+  acceptance: ["Works."],
+  checks: [],
+  repository: "app",
+});
+
+// A workspace at the CLI's default database path. `avoozl` holds the
+// portable settings; the runner's repository paths are machine config.
+function workspace(
+  t: TestContext,
+  avoozl: Record<string, unknown>,
+  machine: Record<string, unknown>,
+) {
+  const root = temporaryDirectory("avoozl-manual-");
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({ version: 1, ...avoozl }),
+  );
+  const file = globalAvoozlConfigPath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ version: 1, ...machine }));
+  const { dbPath } = workspaceConfig({ workspace: root, env: {} });
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  const store = new Store(dbPath);
+  t.after(() => store.close());
+  return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
+}
+
+// The tick runs this workspace; a person takes tasks by hand beside it.
+function onTheTick(t: TestContext) {
+  const ws = workspace(t, { lanes: { local: 2 }, delivery: {} }, {});
+  ws.store.initialize({
+    ...snapshot(),
+    tasks: [leaf("a"), leaf("b")],
+    edges: [],
+  });
+  ws.store.put("repositories", {
+    id: "app",
+    root: repository(path.join(ws.root, "app")),
+    baseBranch: "main",
+  });
+  return ws;
+}
+
+const ids = (rows: Row[]) => rows.map((row) => row.id);
+const binding = (store: Store) =>
+  store.get<SessionBinding>("session_bindings", "manual-a-1");
+
+test("avoozl next lists ready work from a plain shell", (t) => {
+  const { root } = onTheTick(t);
+  const view = avoozl(root, "next");
+  assert.deepEqual(ids(view.ready), ["a", "b"]);
+  assert.equal(view.ready[0].repository, "app");
+  assert.deepEqual(view.running, []);
+  assert.equal(view.finished, false);
+});
+
+test("avoozl take gives a person the task and its worktree from a plain shell", (t) => {
+  const { root, store } = onTheTick(t);
+  const taken = avoozl(root, "take", "a");
+  assert.deepEqual(
+    [taken.binding.taskId, taken.binding.slot, taken.binding.conductor],
+    ["a", "manual-a-1", "cli"],
+  );
+  assert.equal(taken.worktree.branch, "avoozl/a");
+  assert.ok(fs.existsSync(taken.worktree.path));
+  // Taking holds: next shows it running, not ready, and a second take is
+  // refused with a message a person can act on.
+  const view = avoozl(root, "next");
+  assert.deepEqual(ids(view.ready), ["b"]);
+  assert.deepEqual(
+    view.running.map((row) => [row.id, row.slot]),
+    [["a", "manual-a-1"]],
+  );
+  const again = spawnSync(
+    process.execPath,
+    [cli, "take", "a", "--workspace", root],
+    { encoding: "utf8", env: plainEnv(), cwd: root },
+  );
+  assert.notEqual(again.status, 0);
+  assert.match(again.stderr, /not ready to start/);
+  assert.match(taken.report, /runner report a done/);
+  assert.equal(binding(store)?.report, undefined);
+});
+
+test("avoozl runner report finishes a task a person took from its worktree with no token", (t) => {
+  const { root, store } = onTheTick(t);
+  const taken = avoozl(root, "take", "a");
+  const head = commit(taken.worktree.path, "a.txt");
+  const report = (cwd: string, id: string) =>
+    spawnSync(
+      process.execPath,
+      [cli, "runner", "report", id, "done", "--workspace", root],
+      { encoding: "utf8", env: plainEnv(), cwd },
+    );
+  // Outside the worktree, or for a task nobody took, it is refused.
+  const outside = report(root, "a");
+  assert.notEqual(outside.status, 0);
+  assert.match(outside.stderr, /this task's worktree/);
+  assert.match(report(taken.worktree.path, "b").stderr, /No one has taken b/);
+  // From the worktree, the commit is read from HEAD.
+  const done = report(taken.worktree.path, "a");
+  assert.equal(done.status, 0, done.stderr);
+  assert.equal(JSON.parse(done.stdout).report.commit, head);
+  assert.equal(binding(store)?.report?.kind, "done");
+});

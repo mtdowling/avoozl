@@ -13,6 +13,7 @@ import { useRead } from './useRead.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { Modal } from './ui/Modal.tsx'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { SmallBtn, ViewHeading } from './ui/controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
@@ -211,7 +212,7 @@ export default function GraphPage(props: {
 
   return (
     <Stack aria-labelledby="avoozl-graph-title" as="section" gap={3} data-graph-page>
-      <NavSlotFor section="dashboard">
+      <NavSlotFor section="graph">
         <div role="group" aria-label="Graph filters" data-nav-filters="avoozl-graph" data-rail>
           <RailStyle />
           <RailBlock first id="graph-filters" icon={ListFilter} title="Graph">
@@ -514,13 +515,14 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
         css-background="transparent"
         flex
         wFull
-        cursorPointer
         items="baseline"
         gap="2.5"
         px="3.5"
         py="2.5"
         align="left"
+        {...DISCLOSURE}
       >
+        <DisclosureMark size={12} />
         <Box as="span" css-color={props.unlocked ? 'accent' : 'warn-muted'} flexNone size="12" weight="bold">
           {task.id}
         </Box>

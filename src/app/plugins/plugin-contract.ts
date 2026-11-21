@@ -1,0 +1,281 @@
+// The plugin contract (design §4.8, Requirement 34): the calls Avoozl
+// makes and the shape each reply must have. A plugin is outside code, so
+// every reply is checked here before anything reads it, and its text stays
+// untrusted data (quoted in briefs, escaped in views). A reply of the wrong
+// shape is a broken plugin, never a partial result.
+
+// Contract versions this Avoozl loads (R34.8). Changes inside a version only
+// add optional fields or capabilities.
+import { checkRuleSets } from "../content/content-rules.ts";
+import type { Item } from "../intake/intake.ts";
+
+export const SUPPORTED_CONTRACTS = [1];
+
+export class ContractError extends Error {}
+
+const MAX_TEXT = 20000;
+type Json = Record<string, unknown>;
+// A permission set: names to read, write or admin.
+type Permissions = Record<string, unknown>;
+
+function object(value: unknown, where: string): Json {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new ContractError(`${where} must be an object.`);
+  return value as Json;
+}
+
+function text(
+  value: unknown,
+  where: string,
+  options?: { max?: number; optional?: false },
+): string;
+function text(
+  value: unknown,
+  where: string,
+  options: { max?: number; optional: boolean },
+): string | null;
+function text(
+  value: unknown,
+  where: string,
+  {
+    max = MAX_TEXT,
+    optional = false,
+  }: { max?: number; optional?: boolean } = {},
+): string | null {
+  if (optional && (value === undefined || value === null)) return null;
+  if (typeof value !== "string" || !value.trim() || value.length > max)
+    throw new ContractError(`${where} must be text of 1-${max} characters.`);
+  return value;
+}
+
+// Only http and https links reach a view or brief; a `javascript:` or file
+// link from a plugin is refused.
+export function link(
+  value: unknown,
+  where: string,
+  options?: { optional?: true },
+): string | null;
+export function link(
+  value: unknown,
+  where: string,
+  options: { optional: false },
+): string;
+export function link(
+  value: unknown,
+  where: string,
+  { optional = true }: { optional?: boolean } = {},
+): string | null {
+  if (optional && (value === undefined || value === null)) return null;
+  let url: URL;
+  try {
+    url = new URL(text(value, where, { max: 2000 }));
+  } catch (error) {
+    if (error instanceof ContractError) throw error;
+    throw new ContractError(`${where} must be an http or https URL.`);
+  }
+  if (!["http:", "https:"].includes(url.protocol))
+    throw new ContractError(`${where} must be an http or https URL.`);
+  return url.href;
+}
+
+const actor = (value: unknown, where: string) =>
+  value === undefined || value === null
+    ? null
+    : text(value, where, { max: 200 });
+
+const ITEM_KINDS = ["issue", "pr", "review", "ticket"];
+const names = (value: unknown, where: string, max: number): string[] => {
+  if (value === undefined) return [];
+  if (
+    !Array.isArray(value) ||
+    value.length > max ||
+    value.some((v) => typeof v !== "string" || !v || v.length > 200)
+  )
+    throw new ContractError(
+      `${where} must be a list of at most ${max} names of 1-200 characters.`,
+    );
+  return value;
+};
+
+// One incoming item pushed over MCP (R50.1, R50.2), as untrusted data. The
+// source is the declared source's id, set by Avoozl, never by the caller.
+export function incomingItem(input: unknown, where = "item"): Item {
+  const value = object(input, where);
+  if (typeof value.kind !== "string" || !ITEM_KINDS.includes(value.kind))
+    throw new ContractError(
+      `${where} kind must be one of ${ITEM_KINDS.join(", ")}.`,
+    );
+  if (value.state !== "open" && value.state !== "closed")
+    throw new ContractError(`${where} state must be open or closed.`);
+  const fields = object(value.fields ?? {}, `${where} fields`);
+  if (Object.keys(fields).length > 50)
+    throw new ContractError(`${where} fields may hold at most 50 keys.`);
+  for (const [key, field] of Object.entries(fields))
+    if (
+      !["string", "number", "boolean"].includes(typeof field) ||
+      (typeof field === "string" && field.length > 2000)
+    )
+      throw new ContractError(
+        `${where} fields.${key} must be text of at most 2,000 characters, a number, or true or false.`,
+      );
+  const closed = value.state === "closed";
+  return {
+    id: text(value.id, `${where} id`, { max: 200 }),
+    link: link(value.link, `${where} link`, { optional: false }),
+    kind: value.kind,
+    title: text(value.title, `${where} title`, { max: 240 }),
+    body:
+      value.body === undefined || value.body === null || value.body === ""
+        ? ""
+        : text(value.body, `${where} body`),
+    labels: names(value.labels, `${where} labels`, 100),
+    author: actor(value.author, `${where} author`),
+    assignees: names(value.assignees, `${where} assignees`, 20),
+    state: value.state,
+    closeReason: closed
+      ? value.closeReason === "completed" || value.closeReason === "not_planned"
+        ? value.closeReason
+        : null
+      : null,
+    closedBy: closed ? actor(value.closedBy, `${where} closedBy`) : null,
+    closedAt: closed ? actor(value.closedAt, `${where} closedAt`) : null,
+    updatedAt: text(value.updatedAt, `${where} updatedAt`, { max: 64 }),
+    fields,
+    trigger: trigger(value.trigger, `${where} trigger`),
+  };
+}
+
+// The event that last changed what a rule would match: who acted and that
+// person's standing, which the plugin maps from its own system's roles.
+const STANDINGS = ["none", "read", "triage", "write", "maintain", "admin"];
+function trigger(input: unknown, where: string) {
+  if (input === undefined || input === null) return null;
+  const value = object(input, where);
+  if (
+    value.permission !== undefined &&
+    (typeof value.permission !== "string" ||
+      !STANDINGS.includes(value.permission))
+  )
+    throw new ContractError(
+      `${where} permission must be one of ${STANDINGS.join(", ")}.`,
+    );
+  return {
+    actor: actor(value.actor, `${where} actor`),
+    permission: (value.permission as string | undefined) ?? null,
+    eventId: actor(value.eventId, `${where} eventId`),
+    at: actor(value.at, `${where} at`),
+  };
+}
+
+// Rules kind (R40.9): one call, ruleSets, returning {sets: [{id, version,
+// rules: [{id, pattern}]}]}. The rules stay in memory (content-rules.mjs).
+// The calls a kind answers, each checking one reply.
+type Replies = Record<string, (reply: unknown, asked?: Permissions) => unknown>;
+
+const rulesReplies: Replies = {
+  ruleSets(reply) {
+    try {
+      return { sets: checkRuleSets(reply) };
+    } catch (error) {
+      throw new ContractError((error as Error).message);
+    }
+  },
+};
+
+export function checkReply(
+  kind: string,
+  method: string,
+  reply: unknown,
+  asked?: Permissions,
+) {
+  const check = (
+    kind === "rules"
+      ? rulesReplies
+      : kind === "credentials"
+        ? credentialsReplies
+        : null
+  )?.[method] as Replies[string] | undefined;
+  if (!check) throw new ContractError(`Unknown ${kind} call ${method}.`);
+  return check(reply, asked);
+}
+
+// Credentials kind (plugin-credentials §D5): one call, token. `asked` is the
+// permission set Avoozl asked for. A token is never put in an error.
+const LEVELS: Record<string, number> = { read: 1, write: 2, admin: 3 };
+const LOGIN = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/;
+export const credentialsReplies: Replies = {
+  token(input, asked = {}) {
+    const reply = object(input, "token reply");
+    for (const key of Object.keys(reply))
+      if (!["token", "expiresAt", "login", "person", "granted"].includes(key))
+        throw new ContractError(`token reply ${key} is not a reply field.`);
+    if (
+      typeof reply.token !== "string" ||
+      !/^[A-Za-z0-9_.~+/=-]{1,8192}$/.test(reply.token)
+    )
+      throw new ContractError(
+        "token reply token must be 1 to 8,192 characters of letters, digits and _ . ~ + / = -.",
+      );
+    let expiresAt: string | null = null;
+    if (reply.expiresAt !== null) {
+      const at =
+          typeof reply.expiresAt === "string"
+            ? Date.parse(reply.expiresAt)
+            : NaN,
+        now = Date.now();
+      if (!(at > now + 60_000 && at <= now + 24 * 3600_000))
+        throw new ContractError(
+          "token reply expiresAt must be null or a time 1 minute to 24 hours from now.",
+        );
+      expiresAt = new Date(at).toISOString();
+    }
+    const login = String(reply.login ?? "");
+    if (!LOGIN.test(login.replace(/\[bot\]$/, "")))
+      throw new ContractError("token reply login must be a GitHub login.");
+    if (
+      reply.person !== undefined &&
+      (typeof reply.person !== "string" || !LOGIN.test(reply.person))
+    )
+      throw new ContractError(
+        "token reply person must be a GitHub login of a person.",
+      );
+    const granted = reply.granted;
+    if (
+      granted !== "all" &&
+      (!granted ||
+        typeof granted !== "object" ||
+        Array.isArray(granted) ||
+        Object.entries(granted).some(
+          ([name, level]) =>
+            !/^[a-z_]{1,64}$/.test(name) || !LEVELS[String(level)],
+        ))
+    )
+      throw new ContractError(
+        'token reply granted must be "all" or a permission set.',
+      );
+    // Past the check above, `granted` is "all" or a permission set.
+    const set = granted as "all" | Permissions;
+    const missing = Object.entries(asked).filter(
+      ([name, level]) =>
+        set !== "all" && !(LEVELS[String(set[name])] >= LEVELS[String(level)]),
+    );
+    if (missing.length)
+      throw new ContractError(
+        `granted ${missing.map(([name]) => `${name}: ${(set as Permissions)[name] || "none"}`).join(", ")}; the job needs ${missing.map(([name, level]) => `${name}: ${level}`).join(", ")}.`,
+      );
+    const broader =
+      set === "all" ||
+      Object.entries(set).some(
+        ([name, level]) =>
+          !(LEVELS[String(asked[name])] >= LEVELS[String(level)]),
+      );
+    return {
+      token: reply.token,
+      expiresAt,
+      login,
+      person: reply.person ?? null,
+      granted: set,
+      broader,
+    };
+  },
+};

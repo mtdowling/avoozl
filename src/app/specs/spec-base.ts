@@ -1,0 +1,147 @@
+// The spec base a task starts from, and the base merged back after landing
+// (Requirement 87.7, 102.6 and 102.15, design §4.32.3 and §4.32.5, task
+// 41.5).
+//
+// - One resolver picks the branch for both Prepare and the spec's qualified
+//   reference, so the two always agree: the spec's working branch when it
+//   exists in the checkout, else a legacy integration branch (an epic's
+//   RC16 branch, then the repository's), else the target base.
+// - After a portion lands, the new target base comes back into the working
+//   branch as a merge commit with a guarded ref update. The working branch
+//   keeps its first-parent history, so verified but unlanded integrations
+//   stay; task checkpoint refs are never touched. Nothing is pushed or
+//   forced here.
+import { branchRefs, branchTip, git } from "../git/git.ts";
+import { branchNameProblem } from "../epics/integration-branch.ts";
+import { fail } from "../store/store.ts";
+
+const SHA = /^[0-9a-f]{40}$/;
+const SPEC = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
+
+// The spec's working branch, by its opaque id.
+export const workingBranch = (spec: string) => `avoozl/${spec}/work`;
+
+async function tip(root: string, branch: string) {
+  try {
+    return await git(root, [
+      "rev-parse",
+      "--verify",
+      "--quiet",
+      `refs/heads/${branch}^{commit}`,
+    ]);
+  } catch {
+    return null;
+  }
+}
+
+// {branch, commit, kind} with kind working | integration | base. `legacy`
+// lists integration branch names in priority order; unusable names are
+// skipped. A spec id that cannot name a branch has no working branch.
+export async function specBase(
+  root: string,
+  {
+    spec,
+    base,
+    legacy = [],
+  }: { spec?: unknown; base: string; legacy?: unknown[] },
+) {
+  const candidates = [
+    ...(typeof spec === "string" && SPEC.test(spec)
+      ? [{ branch: workingBranch(spec), kind: "working" }]
+      : []),
+    ...legacy
+      .filter(
+        (name): name is string =>
+          typeof name === "string" && !branchNameProblem(name),
+      )
+      .map((branch) => ({ branch, kind: "integration" })),
+    { branch: base, kind: "base" },
+  ];
+  for (const candidate of candidates) {
+    // The base may exist only as the remote's tracking copy (git.mjs).
+    const commit =
+      candidate.kind === "base"
+        ? (await branchTip(root, candidate.branch))?.commit
+        : await tip(root, candidate.branch);
+    if (commit) return { ...candidate, commit };
+  }
+  fail(
+    `The base branch ${base} does not exist in ${root}: neither ${branchRefs(base).join(" nor ")} exists.`,
+    409,
+  );
+}
+
+// Merges the landed target base into the spec's working branch with a merge
+// commit (parents: working head, landed base). A base already in the
+// branch is a no-op, so a retry is safe. A conflict refuses and leaves the
+// branch unchanged. `lock` wraps only the guarded ref move.
+export async function mergeBaseBack(
+  root: string,
+  {
+    spec,
+    landed,
+    base,
+    lock = (fn) => fn(),
+  }: {
+    spec?: unknown;
+    landed: string;
+    base?: string;
+    lock?: (fn: () => Promise<void>) => unknown;
+  },
+) {
+  if (!SHA.test(landed ?? "")) fail("Name the exact landed base commit.", 400);
+  if (typeof spec !== "string" || !SPEC.test(spec))
+    return { merged: false, reason: "no working branch" };
+  const branch = workingBranch(spec),
+    name = `refs/heads/${branch}`,
+    head = await tip(root, branch);
+  if (!head) return { branch, merged: false, reason: "no working branch" };
+  try {
+    await git(root, ["merge-base", "--is-ancestor", landed, head]);
+    return { branch, head, merged: false, reason: "already merged" };
+  } catch {}
+  let tree: string;
+  try {
+    tree = (
+      await git(root, [
+        "merge-tree",
+        "--write-tree",
+        "--no-messages",
+        head,
+        landed,
+      ])
+    ).split("\n")[0];
+  } catch (error) {
+    const files = [
+      ...new Set(
+        String((error as { stdout?: string }).stdout ?? "")
+          .split("\n")
+          .slice(1)
+          .map((line) => line.split("\t")[1])
+          .filter(Boolean),
+      ),
+    ];
+    return { branch, head, merged: false, conflict: files };
+  }
+  const merged = await git(root, [
+    "commit-tree",
+    tree,
+    "-p",
+    head,
+    "-p",
+    landed,
+    "-m",
+    `Merge landed ${base ?? "base"} at ${landed.slice(0, 12)} into ${branch}`,
+  ]);
+  await lock(async () => {
+    try {
+      await git(root, ["update-ref", name, merged, head]);
+    } catch {
+      fail(
+        `${branch} moved while Avoozl was merging the base back. Retry.`,
+        409,
+      );
+    }
+  });
+  return { branch, head: merged, previous: head, merged: true };
+}

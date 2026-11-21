@@ -2,7 +2,7 @@
 // are Kiro spec folders; approval is of one stored revision, named by the hash
 // of the folder's files. Keep this module free of JSX and runtime imports so
 // node can test it directly.
-import { unifiedDiff } from '../../../../src/app/agents/text-diff.mjs'
+import { unifiedDiff } from '../../../../src/app/agents/text-diff.ts'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { TaskOwner } from './views-api.ts'
@@ -78,7 +78,7 @@ export interface SpecPlan {
   links?: SpecLinks | null
 }
 
-// A GitHub link built from validated fields (src/app/tasks/scm-links.mjs).
+// A GitHub link built from validated fields (src/app/tasks/scm-links.ts).
 export interface ScmLink {
   kind: 'issue' | 'pull' | 'branch' | 'commit'
   repository: string
@@ -222,18 +222,7 @@ export function rowActions(row: PlanRow) {
     // plan (plan.create). It approves nothing and starts nothing.
     importable: row.kind === 'spec' && row.status === 'not imported' && Boolean(row.spec),
     scoped: Boolean(row.planId || row.spec),
-    // Only a stored plan can be deleted (plan.delete); a folder never imported has nothing to delete.
-    deletable: Boolean(row.planId),
-    // The same for archive (plan.archive); an archived one offers Unarchive.
-    archivable: Boolean(row.planId) && !row.archived,
-    unarchivable: Boolean(row.planId && row.archived),
   }
-}
-
-// The chat draft that changes one plan. The user reviews it before sending.
-export function changeMessage(row: PlanRow): string {
-  const target = `the existing spec folder .kiro/specs/${row.spec}/${row.planId ? ` (plan ${row.planId})` : ''}`
-  return `Use the Avoozl skill's "Plan a goal" steps 2 to 4 to change ${target}. Ask me what should change. Edit it in a planner session, critique it in a second isolated session, store the new revision, and show me the result. Do not approve it; I approve the exact revision in the Avoozl Specs view.`
 }
 
 export function plansClient(api: AppApi) {
@@ -256,15 +245,6 @@ export function plansClient(api: AppApi) {
     store: (workspaceId: string, spec: string) => run<SpecPlan>(workspaceId, 'plan.create', { spec }),
     reload: (workspaceId: string, id: string, expectedHash: string) => run<SpecPlan>(workspaceId, 'plan.save', { id, expectedHash }),
     preview,
-    // Archive a plan, or bring it back (plan.archive, plan.unarchive). Both
-    // are reversible and only a person calls them.
-    archive: (workspaceId: string, id: string) => run<{ id: string; held: number; running: number; decisions: number }>(workspaceId, 'plan.archive', { id }),
-    unarchive: (workspaceId: string, id: string) => run<{ id: string; released: number; decisions: number }>(workspaceId, 'plan.unarchive', { id }),
-    // What deleting a plan would do (plan.delete.preview); writes nothing.
-    deletePreview: (workspaceId: string, id: string) => run<DeletePreview>(workspaceId, 'plan.delete.preview', { id }),
-    // Delete it. A plan with an approved revision needs retire: true, sent
-    // only after the person confirmed the dialog that says what happens.
-    remove: (workspaceId: string, id: string, input: { retire: boolean; deleteSpecFolder: boolean }) => run<DeleteResult>(workspaceId, 'plan.delete', { id, ...input }),
     // Extra code-fence grammars the workspace names (.avoozl.json
     // highlight.languages), as data for highlight.ts.
     languages: (workspaceId: string) =>
@@ -290,16 +270,12 @@ export function plansClient(api: AppApi) {
         throw caught
       }
     },
-    // Make the GitHub issues (spec.publish, R102.2): the spec's issue and
-    // its epic's. A person's explicit act; approval never does it.
-    publish: (workspaceId: string, planId: string, repository: string | null) =>
-      run<{ home: string; repository?: string; number?: number }>(workspaceId, 'spec.publish', { planId, ...(repository ? { repository } : {}) }),
   }
 }
 
 export type PlansClient = ReturnType<typeof plansClient>
 
-export interface ApproveOneResult {
+interface ApproveOneResult {
   id: string
   hash: string
 }
@@ -319,41 +295,6 @@ export function revisionChange(from: { hash: string; files?: Record<string, stri
         })
       : []
   return { from: from.hash, to: to.hash, files }
-}
-
-export interface DeletePreview {
-  id: string
-  title: string
-  spec: string | null
-  retire: boolean
-  open: number
-  running: number
-  done: number
-  dependents: number
-  folder: { path: string; exists: boolean; dirty: boolean; reason?: string | null } | null
-}
-
-export interface DeleteResult {
-  id: string
-  retired: boolean
-  archived: number
-  archiveWhenEnded: number
-  decisions: number
-  removedFolder: string | null
-}
-
-const n = (count: number, one: string, many = one + 's') => `${count} ${count === 1 ? one : many}`
-
-// The confirm dialog's lines: what happens to each part, from the preview.
-export function deleteLines(p: DeletePreview): string[] {
-  if (!p.retire) return ['The draft is marked deleted. No task was made from it.', 'The spec stays in history.']
-  return [
-    `${n(p.open, 'open task')}: archived. Their rows stay as history.`,
-    `${n(p.running, 'running chat')}: left alone. Each task is archived when its chat ends.`,
-    `${n(p.done, 'done task')}: kept as they are.`,
-    `${n(p.dependents, 'task')} outside the spec that wait on it: each gets a decision for you.`,
-    'The spec is marked deleted and stays in history. There is no undo button.',
-  ]
 }
 
 export interface SpecDocuments {
@@ -472,19 +413,6 @@ export function sortRows(rows: PlanRow[], sort: SpecSort = 'name', dir: 'asc' | 
   // Ties fall back to the name, A to Z.
   return [...rows].sort((a, b) => (sort === 'name' ? sign * a.name.localeCompare(b.name) : sign * (key(a) - key(b)) || a.name.localeCompare(b.name)))
 }
-
-// The chat draft that discusses one plan is built by the backend
-// (chat.context with purpose discuss-plan); this is the seed it gets.
-export const discussSeed = (row: PlanRow) => ({ plan: row.key, purpose: 'discuss-plan' as const })
-
-// The archive confirm's lines. Archive is undone by Unarchive, so the
-// dialog says so and its button is not red.
-export const ARCHIVE_LINES = [
-  'Its open tasks stop starting. Running chats keep going.',
-  'Tasks in other specs that wait on it get a decision for you.',
-  'It is hidden on Specs, Graph, Delivery and the Dashboard. Show archived brings it back.',
-  'Nothing is deleted, and its spec folder is not touched. Unarchive undoes all of it.',
-]
 
 // One plan timeline entry as a line.
 export function planEventLine(entry: { action: string; by: string | null }): string {

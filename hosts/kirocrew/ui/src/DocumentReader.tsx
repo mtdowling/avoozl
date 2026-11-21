@@ -10,13 +10,13 @@ import { Markdown } from './ui/Markdown.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useMedia } from './use-media.ts'
 import { PROSE_MEASURE } from './PlansView.tsx'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { IconBtn, SectionHeading } from './ui/controls.tsx'
 import { Copy, FolderOpen } from './icons.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './ui/highlight.ts'
 import { plansClient } from './plans-api.ts'
-import { insideWorkspace, lineText, taskClient } from './task-api.ts'
-import { markCited } from './CitedFile.tsx'
+import { citedNodes, insideWorkspace, lineText, taskClient } from './task-api.ts'
 import { CitedStyle } from './ui/PageStyles'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
@@ -36,6 +36,41 @@ const PREFIX = 'avoozl-reader'
 
 // `text` shows a file bundled with the app (the Plugin guide) instead of
 // reading a workspace file; it has no folder to reveal.
+// The cited lines are marked for good: a tinted band and an accent bar on
+// the left, not a flash.
+const CITED_CLASS = 'avoozl-cited'
+
+// A rendered block's tag for citedNodes: Markdown draws headings as
+// role="heading" with aria-level, so they read as h1 to h6.
+function blockTag(node: HTMLElement): string {
+  return node.getAttribute('role') === 'heading' ? `h${node.getAttribute('aria-level') ?? '6'}` : node.tagName.toLowerCase()
+}
+
+// Mark the cited blocks under `root` and scroll `scroller` to the first.
+// Returns the first marked element, or null.
+export function markCited(root: HTMLElement, lineStart: number | null, lineEnd: number | null, still: boolean, scroller: HTMLElement | null = root) {
+  const nodes = [...root.querySelectorAll<HTMLElement>('[data-line]')]
+  for (const node of nodes) {
+    node.classList.remove(CITED_CLASS)
+    delete node.dataset.cited
+  }
+  const marked = citedNodes(
+    nodes.map((n) => ({ line: Number(n.dataset.line), tag: blockTag(n) })),
+    lineStart,
+    lineEnd,
+  ).map((i) => nodes[i])
+  for (const node of marked) {
+    node.classList.add(CITED_CLASS)
+    node.dataset.cited = 'true'
+  }
+  const first = marked[0] ?? null
+  if (first && scroller) {
+    const top = first.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 24
+    scroller.scrollTo?.({ top: Math.max(0, top), behavior: still ? 'auto' : 'smooth' })
+  }
+  return first
+}
+
 export function DocumentReader(props: { workspaceId: string; target: ReaderTarget; onClose: () => void; text?: string }) {
   const { workspaceId, target, onClose, text } = props
   const api = useAppApi()
@@ -72,7 +107,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
     }
   }, [api, tasks, workspaceId, target.document, text])
 
-  // Scroll to the cited lines and mark them for good (CitedFile's mark),
+  // Scroll to the cited lines and mark them for good (markCited),
   // the same blocks the drawer marks. Under reduced motion the jump is
   // instant.
   const toLine = useCallback(() => {
@@ -167,7 +202,8 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
         {headings.length > 0 &&
           (narrow ? (
             <Box as="details" css-border-color="border" border="b" px="4" py="2" size="sm">
-              <Box as="summary" cursorPointer weight="medium">
+              <Box as="summary" flex items="center" gap="1.5" weight="medium" {...DISCLOSURE}>
+                <DisclosureMark size={13} />
                 Outline
               </Box>
               <Outline headings={headings} onJump={jump} />

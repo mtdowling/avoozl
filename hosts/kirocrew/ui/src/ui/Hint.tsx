@@ -13,7 +13,7 @@ import { Box, type BoxProps } from './Box'
 const PX = { '9': 9, '10': 10, '11': 11, '12': 12, '12.5': 12.5, '13': 13 } as const
 type Named = 'xs' | 'sm' | 'base' | 'lg'
 
-export type HintProps = Omit<BoxProps, 'tone' | 'css-color' | 'css-font-size' | 'size'> & {
+type HintProps = Omit<BoxProps, 'tone' | 'css-color' | 'css-font-size' | 'size'> & {
   size?: Named | keyof typeof PX
   flush?: boolean
 }

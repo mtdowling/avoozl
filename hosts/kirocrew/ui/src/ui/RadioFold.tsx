@@ -10,10 +10,12 @@ import type { LucideIcon } from '../icons.ts'
 import { Hint } from '../ui/Hint'
 import { Stack } from '../ui/Stack'
 
-export interface RadioSection<K extends string> {
+interface RadioSection<K extends string> {
   key: K
   title: string
   line: string
+  // Shown under the line whether or not the choice is open.
+  preview?: ReactNode
   icon?: LucideIcon
   // Why this choice is off, shown in place of its body.
   disabled?: string | null
@@ -78,6 +80,7 @@ export function RadioFold<K extends string>(props: { name: string; label: string
                 <Hint id={`${id}-line`} size="sm">
                   {section.line}
                 </Hint>
+                {section.preview}
                 {section.disabled && <Hint size="xs">{section.disabled}</Hint>}
               </span>
             </label>

@@ -87,9 +87,12 @@ export function Tooltip(props: {
       onPointerLeave={(event) => event.pointerType !== 'touch' && control.leave()}
       onPointerDown={(event) => {
         const target = event.target as Element
+        const info = target.closest('[data-info-tip]') !== null
         const acts = target.closest(ACTS)
-        const informs = target.closest('[data-info-tip]') !== null || !acts || !event.currentTarget.contains(acts)
+        const informs = info || !acts || !event.currentTarget.contains(acts)
         if (event.pointerType === 'touch' && informs) control.tap()
+        // A click on an info icon opens its tip at once and keeps it open.
+        else if (info) control.focus(true)
         else control.hide()
       }}
       tabIndex={plain ? 0 : undefined}

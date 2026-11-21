@@ -45,7 +45,7 @@ resume:
 
 | Test | Passes when |
 | --- | --- |
-| `approved` | The task is in the approved revision of a spec, and that revision is on the specs branch. An `intake-` task and a fix fail. |
+| `approved` | The task is in the approved revision of a spec, and that revision is on the specs branch. An `intake-` task and a labeled issue fail. |
 | `approver` | The commit that approved that revision is by an allowed approver. |
 
 The tests read only Avoozl's records and git. A test that cannot be read
@@ -143,6 +143,22 @@ reaches GitHub only through content rules and the repository's landing rules.
 
 ## Setting it up
 
+Settings › Epic context has a form, **Extra context for your work**, for
+this machine's own context. With none set it says so and offers **Add
+context**. The form has these fields, each checked before Save and again by
+the backend, with any problem shown next to its field:
+
+| Field | What goes in it |
+| --- | --- |
+| Repos | `owner/name` or `owner/*`, one chip each. At least one. |
+| Folders to read | Folders a worker may read but not change. Each must exist on this machine when you save. |
+| Tools | MCP servers: a name, what it does, the command one argument per box, and the environment variable names it may read. Values are never stored. |
+| Content rules | Rule sets picked from the ones this machine has. |
+
+**View as JSON** shows the block Save writes, read-only. The same page lists
+each plugin's context part read-only by plugin name; a plugin's questions
+and tools are set in Settings › Plugins. From a terminal:
+
 ```text
 avoozl context set --json '{"repos": ["acme/*"], "reads": ["~/notes"]}'
 avoozl context show
@@ -152,7 +168,8 @@ avoozl plugins approve team-context --hash HASH
 ```
 
 Setting the block, answering a plugin's questions, mapping a server and
-approving are a person's acts. Settings › Epic context shows the block, each
-plugin's part with its state, and the last ten sessions that got context with
-their tests. See [the Context part](plugins.md#context-part) for the manifest.
-The proof run is `docs/evidence/ec-p1.md`.
+approving are a person's acts. The page's Save and `avoozl context set` are
+one operation, refused for the MCP tools, an agent session and a process
+child. Settings › Epic context also shows the last ten sessions that got
+context with their tests. See [the Context part](plugins.md#context-part) for
+the manifest. The proof run is `docs/evidence/ec-p1.md`.

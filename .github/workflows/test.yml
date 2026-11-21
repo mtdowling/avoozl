@@ -1,9 +1,9 @@
 name: Test
 # Pushes run only on main; a pull request runs once, from pull_request.
 # Main, the nightly run and a manual run test everything on all three
-# systems. A pull request runs the tests that scripts/test/select-tests.mjs picks
+# systems. A pull request runs the tests that scripts/test/select-tests.ts picks
 # for its changes: all of them on Linux, and on macOS and Windows only the
-# OS-sensitive ones (scripts/test/test-plan.mjs).
+# OS-sensitive ones (scripts/test/test-plan.ts).
 #
 # The plan job splits each system's tests into up to three shards
 # (.github/workflows/test-shards.yml). The three "test (<os>)" jobs at the
@@ -50,9 +50,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = pull_request ]; then
-            node scripts/test/test-plan.mjs --base HEAD~1 --github-output
+            node scripts/test/test-plan.ts --base HEAD~1 --github-output
           else
-            node scripts/test/test-plan.mjs --full --github-output
+            node scripts/test/test-plan.ts --full --github-output
           fi
       # A dispatch that names platforms runs only those systems: the others
       # get no shards, and their required check passes with nothing to run,
@@ -95,10 +95,35 @@ jobs:
       - run: npm ci --ignore-scripts
         if: steps.modules.outputs.cache-hit != 'true'
       - run: npm run format:check
-      - run: node scripts/check/check-no-images.mjs
-      - run: node scripts/check/spec-lint.mjs
+      - run: node scripts/check/check-no-images.ts
+      - run: node scripts/check/spec-lint.ts
+      - run: npm run typecheck
+      - run: npm run typecheck:ui
+      - run: npm run nocheck
 
-  # Copy/paste check (scripts/check/dup.mjs): fails when duplicated lines grow past
+  # Packs the npm package, installs it into an empty project and runs the
+  # installed command (scripts/check/pack-smoke.ts), on every change.
+  pack:
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms == '' || contains(inputs.platforms, 'linux-x64')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        id: node
+        with:
+          node-version: 26
+          cache: npm
+      - uses: actions/cache@v4
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --ignore-scripts
+        if: steps.modules.outputs.cache-hit != 'true'
+      - run: npm run pack:smoke
+
+  # Copy/paste check (scripts/check/dup.ts): fails when duplicated lines grow past
   # scripts/dup-baseline.json. Main and the nightly run only; a pull request
   # runs `npm run dup:changed` before it opens (AGENTS.md).
   dup:
@@ -151,7 +176,7 @@ jobs:
   # needs: the plan must pass, and every other job must pass or be skipped.
   test-ubuntu:
     name: test (ubuntu-latest)
-    needs: [plan, lint, linux]
+    needs: [plan, lint, pack, linux]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

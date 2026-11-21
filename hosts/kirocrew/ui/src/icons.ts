@@ -110,6 +110,8 @@ import {
 // Network and LayoutGrid match the Graph and Delivery row buttons.
 export const VIEW_ICONS = {
   dashboard: LayoutDashboard,
+  // Gauge is in the host's lucide-react export list (checked 2026-11-13).
+  insights: Gauge,
   plans: FileText,
   graph: Network,
   delivery: LayoutGrid,

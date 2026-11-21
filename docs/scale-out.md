@@ -38,7 +38,6 @@ database is a cache that every machine builds from the same commits:
 | Spec text | `.kiro/specs/<name>/` on main |
 | Approval | A commit on main that changes the spec's files, authored by an approver |
 | Task done | The tick in `tasks.md` on the spec's base branch |
-| Landing record | `Avoozl-Task:` trailers on the landing commit |
 | Who runs a spec | The spec issue's assignee on GitHub |
 | Who holds a task | Its claim branch on origin |
 
@@ -47,21 +46,10 @@ does one committed by hand. An approval counts on every machine that pulls
 main. For who counts as an approver, see
 [Approval](github-workflow.md#7-approval).
 
-Each landed task's trailers carry when its first worker started, its tries,
-its harness and model, its cost and its Flow spans:
-
-```text
-Avoozl-Task: 1.2
-Avoozl-Started: 2026-11-19T01:02:03.000Z
-Avoozl-Tries: 2
-Avoozl-Harness: kirocrew
-Avoozl-Model: claude-opus-5.5
-```
-
 A new machine, or a new coworker, clones the repository and runs
 `avoozl rebuild` on an empty database. It reads the spec folders, approves
-each spec whose current text an approver committed, and lists what landed
-from those trailers. See
+each spec whose current text an approver committed, and marks each ticked
+task done. See
 [Workspaces](workspaces.md#rebuilding-the-database) for the steps.
 
 ## Headless machines
@@ -100,7 +88,7 @@ in `.avoozl.json`:
     "worker": {
       "harness": "codex"
     },
-    "planner": {
+    "responder": {
       "harness": "claude-code"
     },
     "reviewer": {

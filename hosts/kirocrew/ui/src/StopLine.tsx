@@ -6,9 +6,13 @@
 // and a click outside change nothing.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppApi } from './host.ts'
+import { useTaskDrawer } from './drawer-context.ts'
+import { relativeTime } from './task-api.ts'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 import { Input } from './ui/Input'
-import { ICON, useConfirm } from './ui/controls.tsx'
-import { Pause, Play } from './icons.ts'
+import { ICON, IconLabel, useConfirm } from './ui/controls.tsx'
+import { CircleAlert, DetailsIcon, Pause, Play } from './icons.ts'
 import { Picker, taskItems } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { RadioFold } from './ui/RadioFold.tsx'
@@ -16,7 +20,21 @@ import { Tooltip } from './ui/Tooltip.tsx'
 import { NAV_ICON, SQUARE } from './LeftNav.tsx'
 import { Modal } from './ui/Modal.tsx'
 import { Button } from './ui/Button.tsx'
-import { FULL_STOP_WARNING, LINE_EVENT, MAX_REASON, PULL_KINDS, PULL_SCOPES, emptyPull, flowClient, lineChanged, toPull, type LineStop, type PullForm } from './flow-api.ts'
+import {
+  FULL_STOP_WARNING,
+  LINE_EVENT,
+  MAX_REASON,
+  PULL_KINDS,
+  PULL_SCOPES,
+  bannerText,
+  emptyPull,
+  flowClient,
+  lineChanged,
+  scopeText,
+  toPull,
+  type LineStop,
+  type PullForm,
+} from './line-api.ts'
 import { plansClient } from './plans-api.ts'
 import { viewsClient } from './views-api.ts'
 import { workspaceClient, errorMessage } from './workspace-api.ts'
@@ -41,7 +59,7 @@ interface Choices {
 // resume on the page (LINE_EVENT) reads at once.
 const LINE_READ_MS = 60000
 
-// The open stops, read through flow.view; [] until read or when it fails.
+// The open stops; [] until read or when it fails.
 export function useOpenStops(workspaceId: string | null) {
   const api = useAppApi()
   const flows = useMemo(() => flowClient(api), [api])
@@ -50,8 +68,8 @@ export function useOpenStops(workspaceId: string | null) {
     if (!workspaceId) return setStops([])
     let live = true
     const read = () =>
-      flows.view(workspaceId, { window: '10' }).then(
-        (view) => live && setStops((view.line ?? []).filter((stop) => !stop.closedAt)),
+      flows.stops(workspaceId).then(
+        (open) => live && setStops(open),
         () => undefined,
       )
     void read()
@@ -157,7 +175,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
   )
 }
 
-export function StopLineDialog(props: { workspaceId: string; onClose: () => void; onPulled: () => void }) {
+function StopLineDialog(props: { workspaceId: string; onClose: () => void; onPulled: () => void }) {
   const api = useAppApi()
   const flows = useMemo(() => flowClient(api), [api])
   const [form, setForm] = useState<PullForm>(emptyPull)
@@ -316,5 +334,109 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
         </ErrorText>
       )}
     </Modal>
+  )
+}
+
+// The red banner while a stop is open (R44.9), on every page.
+export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[]; workspaceId: string | null; onChanged?: () => void }) {
+  const api = useAppApi()
+  const client = useMemo(() => flowClient(api), [api])
+  const drawer = useTaskDrawer()
+  const confirm = useConfirm()
+  const [error, setError] = useState<string | null>(null)
+  if (!stops.length) return null
+  const runAnyway = async (stop: LineStop) => {
+    if (!workspaceId) return
+    const yes = await confirm({
+      title: 'Run anyway?',
+      body: `New work will start while ${stop.check ? `\`${stop.check}\`` : 'the line'} still fails on ${stop.branch}. The stop stays open and shows who ran anyway.`,
+      action: 'Run anyway',
+    })
+    if (!yes) return
+    try {
+      await client.runAnyway(workspaceId, stop.id)
+      onChanged?.()
+      lineChanged()
+    } catch (caught) {
+      setError(errorMessage(caught))
+    }
+  }
+  // A pulled stop closes only when a person presses Resume (R64.7).
+  const resume = async (stop: LineStop) => {
+    if (!workspaceId) return
+    const yes = await confirm({
+      title: stop.full ? 'Resume all agents?' : 'Resume the line?',
+      body: stop.full
+        ? `New work starts again everywhere, and each interrupted task starts again on its branch and model. The stop was pulled for: ${stop.reason ?? ''}`
+        : `New work starts again in ${scopeText(stop)}. The stop was pulled for: ${stop.reason ?? ''}`,
+      action: 'Resume',
+    })
+    if (!yes) return
+    try {
+      await client.resume(workspaceId, stop.id)
+      onChanged?.()
+      lineChanged()
+    } catch (caught) {
+      setError(errorMessage(caught))
+    }
+  }
+  return (
+    <Stack gap={2} data-line-banner>
+      {stops.map((stop) => (
+        <Box
+          key={stop.id}
+          role="alert"
+          css-border-color="danger"
+          css-background="mix-danger-10%-card"
+          flex
+          flexWrap
+          items="center"
+          gap="3"
+          rounded="lg"
+          border="all"
+          p="3"
+          size="sm"
+        >
+          <Glyph icon={CircleAlert} size={18} aria-hidden="true" css-color="danger" css-flex="none" />
+          <Box css-min-width="14rem" flex minW0 flex1 flexCol gap="0.5">
+            <Box as="span" css-overflow-wrap="anywhere">
+              {bannerText(stop)}
+            </Box>
+            {stop.manual && (
+              <Hint size="xs" data-line-pulled>
+                Pulled by {stop.by?.name ?? 'someone'}, {relativeTime(stop.openedAt, Date.now())}. Only a person can resume it.
+              </Hint>
+            )}
+            {stop.runAnyway && (
+              <Hint size="xs">
+                Run anyway by {stop.runAnyway.by}, {relativeTime(stop.runAnyway.at, Date.now())}.
+              </Hint>
+            )}
+          </Box>
+          <Row gap={2} align="start">
+            {stop.fixTaskId && (
+              <IconLabel icon={DetailsIcon} tooltip="Open the fix task's details in the drawer" onClick={() => drawer.openTask(stop.fixTaskId!)}>
+                Open fix task
+              </IconLabel>
+            )}
+            {stop.manual && (
+              <IconLabel icon={Play} tooltip="Start new work again in this scope; asks first" onClick={() => void resume(stop)}>
+                Resume
+              </IconLabel>
+            )}
+            {!stop.manual && !stop.runAnyway && (
+              <IconLabel icon={Play} tooltip="Resume new work while the check still fails; asks first" onClick={() => void runAnyway(stop)} variant="danger">
+                Run anyway
+              </IconLabel>
+            )}
+          </Row>
+        </Box>
+      ))}
+      {error && (
+        <ErrorText role="alert" size="sm">
+          {error}
+        </ErrorText>
+      )}
+    </Stack>
   )
 }

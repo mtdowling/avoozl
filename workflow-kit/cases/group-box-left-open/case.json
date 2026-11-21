@@ -1,0 +1,23 @@
+{
+  "title": "Two siblings land at the same time and leave their group open, so the runner ticks it in its own commit",
+  "rules": ["3.2"],
+  "runner": {
+    "login": "acme-alice",
+    "defaultBranch": "main"
+  },
+  "origin": {
+    "branches": ["main"],
+    "behind": []
+  },
+  "issues": {
+    "parser": ["acme-alice"]
+  },
+  "expect": {
+    "violations": {
+      "parser": ["3.2"]
+    },
+    "groupTicks": {
+      "parser": ["p-2"]
+    }
+  }
+}

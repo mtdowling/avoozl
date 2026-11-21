@@ -26,7 +26,7 @@ Avoozl does these:
 Avoozl does not do these:
 
 - Treat a label as an order.
-- Change code on its own outside a spec or a fix.
+- Change code on its own outside a spec or a labeled issue.
 - Triage issues or review other people's pull requests. Any agent runner can,
   with the [agent skills](agent-skills.md) Avoozl ships.
 - Approve, request changes or close for a person.
@@ -42,11 +42,10 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 - **Approvals** and **task completion** are commits on the specs branch. See
   [Approval](github-workflow.md#7-approval) and
   [Done tasks](github-workflow.md#18-done-tasks).
-- **Landings** are the trailers on the landing commits.
 - **Execution state** is the workspace database, rebuilt from the items above.
 
 A task never gets a GitHub issue. A spec can have one issue, whose assignee
-drives it, and a fix started from an issue keeps its record there. See
+drives it, and a labeled issue is its own one-task spec. See
 [workflow v1](github-workflow.md#2-tasks) for the task format and
 [Workspaces](workspaces.md#rebuilding-the-database) for rebuilding. See [People and machines](scale-out.md) for how several people's
 machines share this state.
@@ -55,14 +54,15 @@ machines share this state.
 
 Work starts in one of three ways.
 
-- **Fix.** Deliver this on an incoming issue, New fix, or `avoozl fix` creates one task with no
-  spec files. Starting it is the approval.
-- **Light spec.** New spec, Blank or From a goal, with one task. Approve records
-  the revision. With `landing: pr` Avoozl opens the pull request, waits for its
-  checks and reviews, and merges it.
-- **Epic.** Spec Builder writes requirements, design and tasks. Approve records
-  the revision. The tick releases ready tasks by capacity, phase and Stop the
-  line, and Avoozl runs, checks and lands each one.
+- **Labeled issue.** A writer labels and assigns an issue, and it becomes one
+  task with no spec files. The label is the approval.
+- **Light spec.** A spec with one task, written by hand or by a chat with the
+  `avoozl-spec` skill. A person approves it; see
+  [Approval](github-workflow.md#7-approval). With `landing: pr` Avoozl opens
+  the pull request, waits for its checks and reviews, and merges it.
+- **Epic.** The `avoozl-spec` skill writes requirements, design and tasks, and
+  a person approves them. The tick releases ready tasks by capacity, phase and
+  Stop the line, and Avoozl runs, checks and lands each one.
 
 ## Labels
 
@@ -72,36 +72,30 @@ No label is an order. The labels Avoozl reads are per-repository settings:
 | ------------------------------------------ | ---------------- | ----------------------------------------- |
 | Priority (ready tasks with it start first) | `priorityLabels` | A person                                  |
 | Waiting on the author (holds a task)       | `waitingLabels`  | A person                                  |
+| Spec issues this machine works             | `labels.require`, `labels.exclude` | A person                |
+| Stop a spec and the specs it links         | `labels.stop` (default `avoozl:stopped`) | A writer |
 
 ## Screens
 
-The nav has six entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
+The nav has seven entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`. The
+page opens on Insights.
 
-- **Dashboards:** Home, Graph, Delivery, Landing queue.
+- **Insights:** a read-only home. A strip of what waits (Needs you, in
+  flight, ready, main's checks, Autopilot), each spec's burndown, tasks
+  finished per day, lead time, time per stage, review rounds, rework and the
+  saved retros. See [Flow](flow.md#insights).
 - **Specs:** one list with status chips, and spec details with tabs.
+- **Graph:** the dependency graph of a spec, an epic or every spec.
+- **In flight:** live sessions, claim branches, this machine's lanes,
+  integration branches and the delivery columns.
 - **Needs you:** Decisions.
-- **Flow:** one page.
 - **Activity:** one page.
-- **Settings:** Workspaces, Repository setup, GitHub, Plugins, Content rules,
-  Flow, Models, Delivery.
+- **Settings:** Workspaces, Repository setup, GitHub, Plugins, Epic context,
+  Content rules, Flow, Models, Autopilot.
 
-## Deleting a plan
-
-`avoozl plan delete PLAN_ID_OR_SPEC_NAME` prints a preview and changes nothing.
-The preview shows the open tasks that would be archived, tasks already done,
-running chats (left alone), dependents, and the spec folder state. A spec name
-works in place of the ID. If two plans share the name, the command refuses and
-lists their IDs.
-
-- `--yes` deletes. A draft is marked deleted and kept.
-- `--retire` is needed with `--yes` for a plan that was ever approved, as the
-  page's Delete asks.
-- `--delete-spec-folder` also removes the spec folder. It is off by default,
-  and the command refuses when the folder has uncommitted changes.
-
-`avoozl plan restore PLAN_ID` brings a deleted plan back. Both commands are for
-a person, and MCP and chat callers are refused. The CLI runs them anywhere but
-a `process` child, and says so when it runs inside an agent session.
+**Run in a chat** on a spec, a task, a Needs you item or Run a retro opens a chat seeded
+with the matching skill and the item's IDs: a Kiro Crew chat inside Kiro Crew,
+and a process session on the standalone page.
 
 ## Agent prompts
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './ui/Tooltip.tsx'
-import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
+import { useAppApi, useNavigate } from './host.ts'
 import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import Badge from './ui/Badge.tsx'
@@ -10,14 +10,9 @@ import { useMedia } from './use-media.ts'
 import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
-import NewPlanDrawer from './NewPlanDrawer.tsx'
-import NewFixDrawer from './NewFixDrawer.tsx'
-import type { NewPlanForm } from './new-plan-api.ts'
-import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
+import { IconBtn, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, usePages, useRunInChat } from './ui/controls.tsx'
 import {
-  Archive,
-  CirclePlus,
-  ArchiveRestore,
   ArrowUpDown,
   CaseSensitive,
   Clock,
@@ -37,12 +32,10 @@ import {
   Pencil,
   Plus,
   RefreshCw,
-  Trash2,
   type LucideIcon,
 } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
-import { openSpecBuilder } from './spec-builder-api.ts'
 import { settingsClient } from './settings-api.ts'
 import { githubHref } from './repository-rows.ts'
 import { RailBlock, RailChips, RailDivider, RailRow, RailSortList, RailStyle, type RailSort } from './NavRail.tsx'
@@ -60,7 +53,6 @@ import { usePaneKeys } from './pane-keys.ts'
 import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './ui/Modal.tsx'
-import { Button } from './ui/Button.tsx'
 import { SpecGraph } from './SpecGraph.tsx'
 import { parseSpecTab, renderText, specTabLink } from './tabs.ts'
 import { Tabs } from './ui/Tabs.tsx'
@@ -72,17 +64,12 @@ import {
   checkDot,
   scmLinkText,
   type SpecLinks,
-  changeMessage,
-  discussSeed,
   documentTabs,
   filterRows,
   groupByCategory,
   location,
   plansClient,
-  deleteLines,
-  ARCHIVE_LINES,
   planEventLine,
-  type DeletePreview,
   type PlansClient,
   progressPercent,
   specChip,
@@ -111,13 +98,11 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Checkbox } from './ui/Checkbox'
-import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 import { FadeText } from './ui/FadeText'
 import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 import { PILL, cell } from './ui/looks/PlansView.ts'
-import { Glyph } from './ui/Glyph'
 import { TONE } from './ui/tones.ts'
 
 // Where a row's Graph button goes; the filter is the tabs'
@@ -596,7 +581,8 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
   const fold = (children: ReactNode) =>
     props.fold ? (
       <details data-phase-tasks-fold>
-        <Hint as="summary" cursorPointer size="sm">
+        <Hint as="summary" flex items="center" gap="1.5" size="sm" {...DISCLOSURE}>
+          <DisclosureMark size={13} />
           Show the task list ({leaves.length})
         </Hint>
         <Box mt="2">{children}</Box>
@@ -865,22 +851,12 @@ function PlanFilters(props: {
   )
 }
 
-const ARCHIVE_TIP = 'Archive this spec: its tasks stop starting and it is hidden. You can undo it.'
-const UNARCHIVE_TIP = 'Unarchive this spec: its tasks may start again and it shows everywhere.'
-
-// The Specs heading buttons, in the owner's order: New spec, then Refresh
-// last. New task lives in a spec's detail only (RC30.2). Refresh re-reads plan.table (the spec folders on disk and
-// the stored plans); it imports nothing.
+// The Specs heading's Refresh: it re-reads plan.table (the spec folders on
+// disk and the stored plans) and imports nothing.
 export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
-function PlansActions(props: { onNewPlan: () => void; onNewFix: () => void; onRefresh: () => void; busy: boolean }) {
+function PlansActions(props: { onRefresh: () => void; busy: boolean }) {
   return (
     <>
-      <IconLabel look={COMPACT} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
-        New spec
-      </IconLabel>
-      <IconLabel look={COMPACT} icon={CirclePlus} tooltip="One change with no spec files. Starting it approves it; it lands like any task." onClick={props.onNewFix}>
-        New fix
-      </IconLabel>
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
     </>
   )
@@ -894,9 +870,6 @@ function RowButtons(props: {
   onReview?: () => void
   onChange?: () => void
   onImport?: () => void
-  onDelete?: () => void
-  onArchive?: () => void
-  onUnarchive?: () => void
   busy?: boolean
 }) {
   const { row } = props
@@ -915,21 +888,7 @@ function RowButtons(props: {
       {props.onOpen && <IconBtn icon={DetailsIcon} label={`Open docs for ${row.name}`} tooltip="Open this spec's documents and tasks" onClick={props.onOpen} />}
       {actions.scoped && <IconBtn icon={Network} label={`Graph of ${row.name}`} tooltip="Show this spec's tasks in the Graph" onClick={() => props.onScope('graph')} />}
       {actions.review && props.onReview && <IconBtn icon={ClipboardCheck} label={`Review ${row.name}`} tooltip="Open this spec to check and approve it" onClick={props.onReview} />}
-      {props.onChange && <IconBtn icon={Pencil} label={`Change spec ${row.name}`} tooltip="Start a planner chat to change this spec" onClick={props.onChange} />}
-      {props.onArchive && actions.archivable && <IconBtn icon={Archive} label={`Archive ${row.name}`} tooltip={ARCHIVE_TIP} disabled={props.busy} onClick={props.onArchive} />}
-      {props.onUnarchive && actions.unarchivable && (
-        <IconBtn icon={ArchiveRestore} label={`Unarchive ${row.name}`} tooltip={UNARCHIVE_TIP} disabled={props.busy} onClick={props.onUnarchive} />
-      )}
-      {props.onDelete && actions.deletable && (
-        <IconBtn
-          icon={Trash2}
-          label={`Delete ${row.name}`}
-          tooltip="Delete this spec. You confirm first; it stays in history."
-          disabled={props.busy}
-          onClick={props.onDelete}
-          look={DANGER}
-        />
-      )}
+      {props.onChange && <IconBtn icon={Pencil} label={`Change spec ${row.name}`} tooltip="Run in a chat: the avoozl-spec skill revises this spec" onClick={props.onChange} />}
     </Box>
   )
 }
@@ -1037,36 +996,23 @@ const SPEC_CHIP_VARIANT: Record<Exclude<SpecChip, 'draft'>, 'success' | 'info' |
 // every other spec action. A divider runs under it.
 interface SpecActions {
   onEdit: () => void
-  onDiscuss: () => void
-  onNewTask: () => void
+  onReview: () => void
   onImport?: () => void
   onReload?: () => void
   onApprove?: () => void
   approveBlocker?: string | null
-  onSpecBuilder?: () => void
   onGraph?: () => void
   onFolder?: () => void
   github: string | null
-  onDelete?: () => void
-  onArchive?: () => void
-  onUnarchive?: () => void
-  onPublish?: () => void
 }
 
 // The primary action: Import a folder Avoozl has not stored; Approve a draft
-// that can be approved; Open in Spec Builder for a draft that cannot yet;
-// Make the GitHub issues for an approved spec that has none; Edit spec
-// otherwise.
-export function primaryAction(
-  row: Pick<PlanRow, 'status' | 'spec'>,
-  plan: { state: string } | null,
-  blocker: string | null,
-  publish = false,
-): 'import' | 'approve' | 'spec-builder' | 'publish' | 'edit' {
+// that can be approved; Edit spec otherwise. Approval publishes the spec's
+// issue.
+export function primaryAction(row: Pick<PlanRow, 'status' | 'spec'>, plan: { state: string } | null, blocker: string | null): 'import' | 'approve' | 'edit' {
   if (row.status === 'not imported') return 'import'
-  if (plan && (plan.state === 'draft' || row.status === 'changed')) return blocker === null ? 'approve' : row.spec ? 'spec-builder' : 'edit'
-  if (row.status === 'draft') return row.spec ? 'spec-builder' : 'edit'
-  return publish ? 'publish' : 'edit'
+  if (plan && (plan.state === 'draft' || row.status === 'changed')) return blocker === null ? 'approve' : 'edit'
+  return 'edit'
 }
 
 function specMeta(row: PlanRow, plan: (SpecPlan & { createdAt?: string; updatedAt?: string }) | null): ReactNode[] {
@@ -1104,24 +1050,12 @@ function specMeta(row: PlanRow, plan: (SpecPlan & { createdAt?: string; updatedA
 
 function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecActions; busy: boolean; flush: boolean }) {
   const { row, plan, actions } = props
-  const primary = primaryAction(row, plan, actions.approveBlocker ?? null, Boolean(actions.onPublish))
+  const primary = primaryAction(row, plan, actions.approveBlocker ?? null)
   const id = row.planId ?? row.spec ?? row.key
   const primaryButton = {
     import: { label: 'Import', icon: Download, tooltip: 'Store this folder as a draft spec. Approves and starts nothing.', onClick: actions.onImport },
     approve: { label: 'Approve', icon: ClipboardCheck, tooltip: `Approve revision ${shortHash(plan?.hash)}. Its ready tasks may then start.`, onClick: actions.onApprove },
-    'spec-builder': {
-      label: 'Open in Spec Builder',
-      icon: FileText,
-      tooltip: actions.approveBlocker ? `Not ready to approve: ${actions.approveBlocker}` : "Open this draft in Kiro Crew's Spec Builder",
-      onClick: actions.onSpecBuilder,
-    },
-    publish: {
-      label: 'Make the GitHub issues',
-      icon: CirclePlus,
-      tooltip: "Make this spec's issue and its epic's issue on GitHub. Approving never does this.",
-      onClick: actions.onPublish,
-    },
-    edit: { label: 'Edit spec', icon: Pencil, tooltip: 'Start a planner chat that drafts a change to the spec files', onClick: actions.onEdit },
+    edit: { label: 'Edit spec', icon: Pencil, tooltip: 'Run in a chat: the avoozl-spec skill revises this spec on a spec branch', onClick: actions.onEdit },
   }[primary]
   const PrimaryIcon = primaryButton.icon
   const titleRef = useDetailTitleRef()
@@ -1195,12 +1129,15 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
           <MoreMenu label="More spec actions" attrs={{ 'data-spec-more': '' }}>
             <SpecRailStyle />
             <Box css-gap="2" flex flexCol>
-              {primary !== 'edit' && <MenuItem icon={Pencil} label="Edit spec" tooltip="Start a planner chat that drafts a change to the spec files" onClick={actions.onEdit} />}
-              <MenuItem icon={MessagesSquare} label="Discuss spec" tooltip="Start a chat about this spec. It makes no edits." onClick={actions.onDiscuss} />
-              <Box data-new-task as="span" contents>
-                <MenuItem icon={Plus} label="New task" tooltip="Add a draft task from this spec. It waits for your review." onClick={actions.onNewTask} />
-              </Box>
-              {primary !== 'spec-builder' && actions.onSpecBuilder && <MenuItem icon={FileText} label="Open in Spec Builder" onClick={actions.onSpecBuilder} />}
+              {primary !== 'edit' && (
+                <MenuItem icon={Pencil} label="Edit spec" tooltip="Run in a chat: the avoozl-spec skill revises this spec on a spec branch" onClick={actions.onEdit} />
+              )}
+              <MenuItem
+                icon={MessagesSquare}
+                label="Review spec"
+                tooltip="Run in a chat: the avoozl-spec-review skill reviews this spec. It makes no edits."
+                onClick={actions.onReview}
+              />
               {primary !== 'approve' && actions.onApprove && plan?.state === 'draft' && (
                 <MenuItem
                   icon={ClipboardCheck}
@@ -1220,9 +1157,6 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
                 onClick={actions.onFolder}
               />
               <MenuItem icon={ExternalLink} label="Open on GitHub" tooltip={actions.github ? undefined : 'No GitHub repository holds this spec'} link={actions.github} />
-              {actions.onArchive && <MenuItem icon={Archive} label="Archive" tooltip={ARCHIVE_TIP} onClick={actions.onArchive} />}
-              {actions.onUnarchive && <MenuItem icon={ArchiveRestore} label="Unarchive" tooltip={UNARCHIVE_TIP} onClick={actions.onUnarchive} />}
-              {actions.onDelete && <MenuItem icon={Trash2} label="Delete" danger tooltip="Delete this spec. You confirm first; it stays in history." onClick={actions.onDelete} />}
             </Box>
           </MoreMenu>
         </Box>
@@ -1587,188 +1521,6 @@ function SpecRail(props: {
   )
 }
 
-// Archive plan: a plain confirm, not red, because Unarchive undoes it.
-export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
-  const { row, client, workspaceId } = props
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const run = async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      const done = await client.archive(workspaceId, row.planId!)
-      props.onDone(
-        `Archived ${row.name}. ${done.held} tasks held, ${done.running} running chats left alone, ${done.decisions} decisions opened. Show archived on Specs brings it back.`,
-      )
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    // Esc, Back and a click outside do what Cancel does.
-    <Modal
-      id="avoozl-archive-plan"
-      role="alertdialog"
-      width="32rem"
-      backLabel="Cancel"
-      dismissLabel="Cancel"
-      focusClose
-      attrs={{ 'data-archive-plan': true }}
-      title={`Archive the spec ${row.name}?`}
-      onDismiss={() => props.onDone(null)}
-      footer={
-        <>
-          <Btn type="button" primary data-archive-confirm {...COMPACT} disabled={busy} onClick={() => void run()}>
-            Archive spec
-          </Btn>
-        </>
-      }
-    >
-      <Box as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm">
-        {ARCHIVE_LINES.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </Box>
-      {error && (
-        <ErrorText role="alert" size="sm">
-          {error}
-        </ErrorText>
-      )}
-    </Modal>
-  )
-}
-
-// The banner an archived plan's page shows, with its Unarchive button.
-function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () => void }) {
-  const { archived } = props.row
-  if (!archived) return null
-  return (
-    <Box
-      role="status"
-      data-archived-banner
-      css-border-color="border"
-      css-background="mix-muted-10%-card-transparent"
-      mb="3"
-      flex
-      flexWrap
-      items="center"
-      gap="3"
-      rounded="lg"
-      border="all"
-      p="3"
-      size="sm"
-    >
-      <Glyph icon={Archive} size={18} aria-hidden="true" css-color="muted" />
-      <Box as="span" minW0 flex1>
-        <Box as="span" weight="medium">
-          This spec is archived.
-        </Box>{' '}
-        <Hint>
-          {archived.by ? `${archived.by} archived it` : 'Archived'}{' '}
-          <Tooltip text={archived.at}>
-            <span>{relativeTime(archived.at)}</span>
-          </Tooltip>
-          . Its tasks do not start, and it is hidden unless Show archived is on.
-        </Hint>
-      </Box>
-      <IconLabel look={COMPACT} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
-        Unarchive
-      </IconLabel>
-    </Box>
-  )
-}
-
-// Delete plan: the confirm names the plan, counts its tasks and says what
-// happens to each. The spec folder checkbox is off by default and removes
-// the folder from the working tree only, never committing or pushing.
-export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
-  const { row, client, workspaceId } = props
-  const [preview, setPreview] = useState<DeletePreview | null>(null)
-  const [folder, setFolder] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    client.deletePreview(workspaceId, row.planId!).then(setPreview, (caught) => setError(errorMessage(caught)))
-  }, [client, workspaceId, row.planId])
-  const run = async () => {
-    if (!preview) return
-    setBusy(true)
-    setError(null)
-    try {
-      const done = await client.remove(workspaceId, preview.id, { retire: preview.retire, deleteSpecFolder: folder })
-      props.onDone(
-        `Deleted ${preview.title}. ${done.retired ? `Archived ${done.archived}, ${done.archiveWhenEnded} when their chats end, ${done.decisions} decisions opened. ` : ''}${
-          done.removedFolder ? `Removed ${done.removedFolder} from the working tree; nothing was committed.` : ''
-        }`,
-      )
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(false)
-    }
-  }
-  const blocked = Boolean(folder && preview?.folder?.dirty)
-  return (
-    // Esc, Back and a click outside do what Cancel does.
-    <Modal
-      id="avoozl-delete-plan"
-      role="alertdialog"
-      width="32rem"
-      backLabel="Cancel"
-      dismissLabel="Cancel"
-      focusClose
-      attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }}
-      title={`Delete the spec ${preview?.title ?? row.name}?`}
-      onDismiss={() => props.onDone(null)}
-      footer={
-        <>
-          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} {...COMPACT}>
-            Delete spec
-          </Button>
-        </>
-      }
-    >
-      {!preview && !error && (
-        <Hint as="p" size="sm">
-          Counting its tasks…
-        </Hint>
-      )}
-      {preview && (
-        <Box as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm">
-          {deleteLines(preview).map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </Box>
-      )}
-      {preview?.folder?.exists && (
-        <Box as="label" flex flexCol gap="1" size="sm">
-          <Switch label="Also delete the spec folder from the repo" checked={folder} onChange={setFolder}>
-            Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
-          </Switch>
-          <Hint as="code" css-overflow-wrap="anywhere" pl="6" size="xs">
-            {preview.folder.path}
-          </Hint>
-          <Hint as="span" pl="6" size="xs">
-            Only the working tree. Avoozl never commits or pushes this.
-          </Hint>
-          {folder && preview.folder.dirty && (
-            <Box role="alert" as="span" pl="6" size="xs" tone="danger">
-              {preview.folder.reason}
-            </Box>
-          )}
-        </Box>
-      )}
-      {error && (
-        <ErrorText role="alert" size="sm">
-          {error}
-        </ErrorText>
-      )}
-    </Modal>
-  )
-}
-
 // How often an open Approve dialog reads the plan again.
 const DIALOG_POLL_MS = 3000
 
@@ -1922,7 +1674,9 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
                 aria-expanded={showDiff}
                 onClick={() => setShowDiff(!showDiff)}
                 data-revision-diff-toggle
+                {...DISCLOSURE}
               >
+                <DisclosureMark size={12} />
                 <code>{shortHash(plan.hash)}</code>
               </PlainButton>
             </Tooltip>
@@ -1969,18 +1723,14 @@ export default function PlansView(props: {
   workspaceId: string | null
   onScope?: (target: PlanTarget, filter: TaskFilter) => void
   onDrill?: (drill: Drill) => void
-  // Bumped by the header's Plan a goal: open the New plan drawer.
-  newPlanRequest?: { n: number; seed?: Partial<NewPlanForm> }
   // The rail's Repositories Edit: Settings › Repository setup.
   onOpenSettings?: (section: string) => void
 }) {
   const workspace = props.workspaceId
   const api = useAppApi()
-  const { openChat } = useChatLauncher()
   const plans = useMemo(() => plansClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const drawer = useTaskDrawer()
-  const chat = useAskChat(workspace)
   const phone = usePhone()
   const navigate = useNavigate()
   const reveal = useReveal()
@@ -2001,13 +1751,6 @@ export default function PlansView(props: {
     )
   }, [settings, workspace])
   const { scrolledOut, titleRef } = useTitleScrolledOut()
-  const [deleting, setDeleting] = useState<PlanRow | null>(null)
-  const [archiving, setArchiving] = useState<PlanRow | null>(null)
-  const [creating, setCreating] = useState<{ seed?: Partial<NewPlanForm> } | null>(null)
-  const [fixing, setFixing] = useState(false)
-  useEffect(() => {
-    if (props.newPlanRequest?.n) setCreating({ seed: props.newPlanRequest.seed })
-  }, [props.newPlanRequest])
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
   // Opening a plan is a Back step; Back from another tab reopens it.
@@ -2181,7 +1924,9 @@ export default function PlansView(props: {
   const scope = (target: PlanTarget, next: PlanRow) => props.onScope?.(target, { plan: rowPlanKey(next) })
   // Edit plan: a planner chat drafts the change to the spec files; adding a
   // task goes the same way, and comes back as a revision to approve.
-  const change = (next: PlanRow) => openChat({ message: changeMessage(next), autoSend: false })
+  const runInChat = useRunInChat()
+  const specName = (next: PlanRow) => next.spec ?? next.planId ?? next.name
+  const change = (next: PlanRow) => runInChat({ kind: 'spec', spec: specName(next), review: false })
   const act = (call: (workspaceId: string) => Promise<unknown>) => {
     if (!workspace) return
     const workspaceId = workspace
@@ -2194,24 +1939,7 @@ export default function PlansView(props: {
     })
   }
   const importRow = (next: PlanRow) => next.spec && act((workspaceId) => plans.store(workspaceId, next.spec!))
-  // Unarchive needs no confirm: it only undoes an archive.
-  const unarchive = (next: PlanRow) =>
-    next.planId &&
-    act(async (workspaceId) => {
-      const done = await plans.unarchive(workspaceId, next.planId!)
-      setNotice(`Unarchived ${next.name}. ${done.released} tasks may start again; ${done.decisions} decisions closed.`)
-      return { id: next.planId! }
-    })
   const rows = table ? filterRows(table.items, filter) : []
-  // Make the GitHub issues (R102.2): an approved spec with no spec issue yet,
-  // in a workspace that uses GitHub. Never automatic.
-  const publish = (next: PlanRow, repository: string | null) =>
-    next.planId &&
-    act(async (workspaceId) => {
-      const done = await plans.publish(workspaceId, next.planId!, repository)
-      setNotice(done.number ? `Made the GitHub issues for ${next.name}: ${done.repository}#${done.number}.` : `${next.name} has its issues already.`)
-      return { id: next.planId! }
-    })
   const specActions = (row: PlanRow): SpecActions => {
     const actions = rowActions(row)
     const blocker = approveBlocker(plan)
@@ -2220,20 +1948,14 @@ export default function PlansView(props: {
     const repoHref = githubHref(home)
     return {
       onEdit: () => change(row),
-      onDiscuss: () => void chat.ask(discussSeed(row)),
-      onNewTask: () => drawer.addTask(),
+      onReview: () => runInChat({ kind: 'spec', spec: specName(row), review: true }),
       onImport: actions.importable ? () => importRow(row) : undefined,
       onReload: plan?.disk.changed ? () => act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash)) : undefined,
       onApprove: plan && workspace ? () => setSingleApproval({ workspaceId: workspace, plan }) : undefined,
       approveBlocker: plan ? blocker : null,
-      onSpecBuilder: row.spec ? () => openSpecBuilder(row.spec!, navigate) : undefined,
       onGraph: actions.scoped ? () => scope('graph', row) : undefined,
       onFolder: table?.root && row.folder ? () => void reveal(`${table.root!.replace(/\/$/, '')}/${row.folder}`).then(setNotice) : undefined,
       github: repoHref && row.folder ? `${repoHref}/tree/HEAD/${row.folder}` : null,
-      onDelete: actions.deletable ? () => setDeleting(row) : undefined,
-      onArchive: actions.archivable ? () => setArchiving(row) : undefined,
-      onUnarchive: actions.unarchivable ? () => unarchive(row) : undefined,
-      onPublish: specHome && specHome.mode !== 'local' && plan?.state === 'approved' && !plan.links?.issue && workspace ? () => publish(row, home) : undefined,
     }
   }
 
@@ -2244,12 +1966,7 @@ export default function PlansView(props: {
   // The specs list column.
   const specList = (
     <Stack gap={3} data-plans-list-pane>
-      <ViewHeading
-        id="avoozl-plans-title"
-        view="plans"
-        phoneMenu
-        actions={<PlansActions onNewPlan={() => setCreating({})} onNewFix={() => setFixing(true)} onRefresh={() => workspace && void load(workspace)} busy={busy} />}
-      >
+      <ViewHeading id="avoozl-plans-title" view="plans" phoneMenu actions={<PlansActions onRefresh={() => workspace && void load(workspace)} busy={busy} />}>
         Specs
       </ViewHeading>
       {table && table.items.length > 0 && (
@@ -2309,7 +2026,6 @@ export default function PlansView(props: {
         css-position={phone ? undefined : 'relative'}
       >
         <Box id="avoozl-plan-main" css-gap="20" css-scroll-margin-top="48" flex minW0 flexCol>
-          <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
           {row.categoryProblem && (
             <Hint as="p" size="sm">
               <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
@@ -2354,63 +2070,14 @@ export default function PlansView(props: {
           }}
         />
       )}
-      {deleting && workspace && (
-        <DeletePlanDialog
-          workspaceId={workspace}
-          row={deleting}
-          client={plans}
-          onDone={(text) => {
-            setDeleting(null)
-            if (text === null) return
-            setSelected(null)
-            setNotice(text)
-            void load(workspace)
-          }}
-        />
-      )}
-      {archiving && workspace && (
-        <ArchivePlanDialog
-          workspaceId={workspace}
-          row={archiving}
-          client={plans}
-          onDone={(text) => {
-            setArchiving(null)
-            if (text === null) return
-            setNotice(text)
-            void load(workspace)
-          }}
-        />
-      )}
-      {creating && workspace && (
-        <NewPlanDrawer
-          workspaceId={workspace}
-          seed={creating.seed}
-          taken={(table?.items ?? []).flatMap((item) => [item.spec, item.planId]).filter((name): name is string => Boolean(name))}
-          categories={[...new Set((table?.items ?? []).map((item) => item.category).filter((name): name is string => Boolean(name)))].sort()}
-          epics={(table?.items ?? []).filter((item) => item.kind === 'epic' && item.spec).map((item) => ({ id: item.spec!, title: item.name }))}
-          onClose={(text) => {
-            setCreating(null)
-            if (text) setNotice(text)
-          }}
-        />
-      )}
-      {fixing && workspace && (
-        <NewFixDrawer
-          workspaceId={workspace}
-          onClose={(text) => {
-            setFixing(false)
-            if (text) setNotice(text)
-          }}
-        />
-      )}
       {notice && (
         <Hint role="status" as="p" size="sm">
           {notice}
         </Hint>
       )}
-      {(error || chat.error) && (
+      {error && (
         <ErrorText role="alert" size="sm">
-          {error ?? chat.error}
+          {error}
         </ErrorText>
       )}
       <Box role="status" as="p" srOnly>

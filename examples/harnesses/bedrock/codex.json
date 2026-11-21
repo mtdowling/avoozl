@@ -1,0 +1,66 @@
+{
+  "name": "codex",
+  "start": [
+    "codex",
+    "exec",
+    "--json",
+    "--color",
+    "never",
+    "-C",
+    "{worktree}",
+    "--sandbox",
+    "{permission}",
+    "-c",
+    "approval_policy=never"
+  ],
+  "resume": [
+    "codex",
+    "exec",
+    "--json",
+    "--color",
+    "never",
+    "-C",
+    "{worktree}",
+    "--sandbox",
+    "{permission}",
+    "-c",
+    "approval_policy=never",
+    "resume",
+    "--last",
+    "-"
+  ],
+  "attach": ["codex", "resume", "--last"],
+  "home": "CODEX_HOME",
+  "sessions": "sessions",
+  "promptFrom": "stdin",
+  "model": ["--model", "{model}"],
+  "permission": { "write": "danger-full-access", "read": "danger-full-access" },
+  "writeRoots": ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
+  "keepEnv": [
+    "OPENAI_API_KEY",
+    "CODEX_API_KEY",
+    "AWS_PROFILE",
+    "AWS_REGION",
+    "AWS_DEFAULT_REGION",
+    "AWS_CONFIG_FILE",
+    "AWS_SHARED_CREDENTIALS_FILE"
+  ],
+  "reads": ["~/.aws"],
+  "homeFiles": ["~/.codex/config.toml"],
+  "probe": ["codex", "exec", "--skip-git-repo-check", "--color", "never", "ok"],
+  "egress": [
+    "bedrock-mantle.*.api.aws",
+    "bedrock-runtime.*.amazonaws.com",
+    "sts.*.amazonaws.com",
+    "sts.amazonaws.com"
+  ],
+  "credentialExport": [
+    "aws",
+    "configure",
+    "export-credentials",
+    "--format",
+    "process"
+  ],
+  "setEnv": { "SSL_CERT_FILE": "/etc/ssl/cert.pem" },
+  "proved": ["write"]
+}

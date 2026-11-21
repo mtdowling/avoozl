@@ -49,8 +49,8 @@ merge, shown in chat and never committed.
 
 - [x] `sim-2.1` Order from the list and parallel groups [SM16.1, SM16.2, SM16.3, SM16.4, SM16.5, SM16.6, SM16.8, SM16.9] (§D19.1, §D19.3)
   - `waitsOf` in `src/app/specs/order.mjs` derives the waits, and the ready rule, ranking and lint read only it
-  - Tests: the owner's example in §D19 gives `ec-2.1`, then `ec-2.2`, then `ec-2.4` to `ec-2.7` with no wait among them, then `ec-2.8`; an untagged child group of a parallel group runs its children in order; the first item of a phase waits for the phase above; a group is never ready or claimed
-  - Tests: lint reports `group.box`, `parallel.size`, `parallel.leaf` and `parallel.tag` as §D19.3 says; the tag before refs parses; a spec that still has `$after` facts is read by them until `sim-2.2`
+  - Tests: the owner's example in §D19 runs its first two tasks in order, then the tasks of its parallel group with no wait among them, then the task after the group; an untagged child group of a parallel group runs its children in order; the first item of a phase waits for the phase above; a group is never ready or claimed
+  - Tests: lint reports `group.box`, `parallel.size`, `parallel.leaf` and `parallel.tag` as §D19.3 says; the tag after refs parses
 - [x] `sim-1.2` Rank ready tasks by three keys [SM3, SM17.4] (§D3.1)
   - `rankReady` in `src/app/specs/ranking.mjs` orders by downstream count, then longest chain, then file order, over the waits `waitsOf` derives, and a test covers each key breaking a tie left by the one before, including a task that opens a parallel group
   - `unblockCounts` lives only in `ranking.mjs`, and `spec-scheduler.mjs`, `runner.next` and the page read it; `pathsOverlap` and the paths hold are gone
@@ -74,7 +74,7 @@ merge, shown in chat and never committed.
   - Tests: lint reports every `$` bullet as `facts.removed-key`, `kind`, `epic`, `integrationBranch` and `integrationSync` as `frontmatter.removed-key`, and `frontmatter.repo`, `done.missing`, `group.bullets`, `manual.tag` and `manual.group` as §D19.3 says; a `(**MANUAL**)` leaf is never given to an agent
   - Every `$` read is gone, and spec lint shows 0 errors
   - `docs/github-workflow.md` ("Task facts", "Front matter", "Epics", "Ready tasks", "Next task", "Investigating first", "Labeled issues", "Manual tasks and gates", "Integration branches") describe tasks with no facts, plain done bullets, list order, the `(**PARALLEL**)` and `(**MANUAL**)` tags, one repository per spec, linked specs and integration branches named for their spec, list only the keys of SM17.4, and name no `$` fact
-- [ ] `sim-2.3` One graph builder with text and Mermaid output [SM8] (§D8)
+- [x] `sim-2.3` One graph builder with text and Mermaid output [SM8] (§D8)
   - `graphOf` in `src/app/specs/graph.mjs` feeds `graph.view`, `avoozl graph` and `plans_graph`, reads waits from `waitsOf`, and no other module reads tasks and edges for a graph
   - Tests: `avoozl graph` prints by phase in list order with state and indentation, a parallel group's title ending `(PARALLEL)` and a person's task ending `(MANUAL)`, in at most 80 columns and no escape codes; `--format mermaid` prints a `flowchart` with one subgraph per phase and per group and one edge per derived wait; IDs with `.` or `-` map to node IDs as §D8 says, and two colliding IDs get distinct node IDs; an epic or no name prints every member
   - `plans_graph` returns the same text and Mermaid as the CLI for the same scope
@@ -89,9 +89,9 @@ merge, shown in chat and never committed.
   - `avoozl-spec`, `avoozl-work`, `avoozl-spec-review`, `avoozl-retro` and `avoozl-investigate` are generated from `prompts/skills/<name>.md` beside the ones the triage removal ships, and `npm run check:hosts` fails when one differs from its source
   - `avoozl-spec` writes the spec in the §D20 format (no `$` facts, plain done bullets on every leaf, `(**PARALLEL**)` and `(**MANUAL**)` tags, one repository in front matter `repo`, spec links), and `avoozl-spec-review` checks a spec for that format, flags a same-name branch on origin that holds other work (§D21.1), and posts findings without editing; `avoozl-spec` runs `avoozl graph SPEC --write` and `avoozl spec lint SPEC`, and stops at a `spec/<name>` branch; `avoozl-work` claims with `avoozl next --claim`, reports with `avoozl runner report` and lands with `avoozl land`
   - Each skill reaches Avoozl only through the CLI or MCP tools, and a test checks every command or tool a skill names exists
-- [ ] `sim-3.2` Roles cut to worker and reviewer [SM10.1] (§D10)
-  - `ROLE_TABLE` holds `worker` and `reviewer`; the reviewer is on unless a repository sets `reviewers: []`; a `roles` setting that names another role is refused naming it
-  - `hosts/kirocrew/agents/` holds only `avoozl-reviewer`, and the prompts of cut roles are gone from `prompts/`
+- [x] `sim-3.2` Roles cut to five [SM10.1] (§D10)
+  - `ROLE_TABLE` holds `worker`, `reviewer`, `responder`, `checkDecide` and `assist` and the `roles` setting, and `chat-models.mjs` is gone; the reviewer is on unless a repository sets `reviewers: []`; a `roles` setting that names another role is refused naming it
+  - `hosts/kirocrew/agents/` holds `avoozl-reviewer`, `avoozl-responder` and `avoozl-check-decide`, and the verifier, planner and retro prompts are gone from `prompts/`
 
 ## Phase 4: Cuts
 
@@ -112,24 +112,24 @@ merge, shown in chat and never committed.
   - Evidence bundles, supersede, dedup, title repeat, task notes, task steps, task files and task summaries are gone from `src/app/tasks/`, with their operations, commands and MCP tools; lint's summary-repeats-title check goes, since a task has no summary
 - [x] `sim-4.7` Refuse the cut plugin parts [SM11] (§D11)
   - `PARTS` is `rules`, `credentials`, `checks` and `context`; a manifest listing `pack`, `intake`, `template` or `policy` is refused with "<part> is not a plugin part"; `plugin-pack.mjs` is gone
-- [ ] `sim-4.9` Cut GitHub extras [SM12.3, SM14.1] (§D14)
-  - `github-intake`, `github-respond`, `github-reviews`, `github-setup`, `github-sources`, `setup-landing`, `source-backlinks`, `landing-trailers`, `merge-path`, `landing-queue-view`, `intake/fix.mjs`, `mcp-views.mjs`, `panel-view.mjs`, `session-open.mjs` and `chat-models.mjs` are gone; the specs files §D14 marks cut are gone
+- [x] `sim-4.9` Cut GitHub extras [SM12.3, SM14.1] (§D14)
+  - `github-intake`, `github-reviews`, `github-setup`, `setup-landing`, `source-backlinks`, `landing-trailers`, `merge-path`, `landing-queue-view`, `intake/fix.mjs`, `mcp-views.mjs` and `panel-view.mjs` are gone, with the side panel; `gap-report.mjs` and `spec-changed.mjs` are gone; `github-sources`, `github-respond` and `session-open.mjs` stay, and `chat-models.mjs` goes with the roles cut (sim-3.2)
   - A test checks every person-only operation is still refused over MCP after the cuts
 
 ## Phase 5: The page
 
-- [ ] `sim-5.1` Five views [SM13.1, SM13.2, SM13.4] (§D13, §D15)
-  - The nav lists Plans, Graph, In flight, Needs you and Settings; In flight shows each claim branch with holder, session, head, checks and pull request, and each lane from `lanes.view` with its role, state, task and an Open action that opens the chat or copies the command (§D22.3); Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
+- [x] `sim-5.1` Six views [SM13.1, SM13.2, SM13.4] (§D13, §D15)
+  - The nav lists Specs, Graph, In flight, Needs you, Activity and Settings; In flight shows each claim branch with holder, session, head, checks and pull request, and each lane from `lanes.view` with its role, state, task and an Open action that opens the chat or copies the command (§D22.3); Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
   - Every group §D15 marks cut is gone with its API file and tests, and `npm run test:ui` passes
   - The owner has seen phone and desktop, light and dark screenshots of each view
-- [ ] `sim-5.2` Run in a chat [SM13.3] (§D13)
+- [x] `sim-5.2` Run in a chat [SM13.3] (§D13)
   - Run in a chat on a spec, task or Needs you item opens a Kiro Crew chat seeded with the skill name and IDs inside Kiro Crew, and a worker-harness process session on the standalone page; a test checks the seed for each item kind
 
 ## Phase 6: Docs and proof
 
-- [ ] `sim-6.1` Docs match the runner [SM1] (§D1)
+- [x] `sim-6.1` Docs match the runner [SM1] (§D1)
   - `docs/github-workflow.md`'s "Avoozl status" section lists nothing; `README.md` and `docs/` describe only kept parts, in the landing spec's terms; docs for cut features are gone
-- [ ] `sim-6.2` Live proof: two machines, one spec [SM1.1, SM2, SM4] (§D16)
+- [x] `sim-6.2` Live proof: two machines, one spec [SM1.1, SM2, SM4] (§D16)
   - A receipt in `docs/evidence/` shows two Avoozl workspaces with `loop` on a scratch repository and one spec of four tasks with one parallel group of two: the two parallel tasks claimed by different workspaces, each task claimed once, each landed with its tick in the same commit, one in `pr` mode as a draft a person merged, and the graph block linting clean before and after
 
 ## Phase 7: Lane sessions
@@ -142,6 +142,12 @@ merge, shown in chat and never committed.
   - Tests: a definition's `home` variable is set to `~/.avoozl/lanes/<workspace>/<lane>/` and that folder is a write root; Claude Code starts with `--session-id` and `--name`, Codex gets the header as its prompt's first line; a rework run resumes the task's session; the lane's older sessions are deleted when its next task starts, and no other file is
 - [x] `sim-7.3` `avoozl lanes` [SM20.7] (§D22.3)
   - `avoozl lanes` and the `lanes.view` operation list each lane's role, harness, state, task and open command or link, and `avoozl lane resume LANE` runs `lane.resume`
+
+## Phase 8: The old plan model
+
+- [x] `sim-4.10` Cut the old plan-document model [SM14.1] (§D14)
+  - `specs/plans.mjs`, `design-extraction.mjs`, `source-sync.mjs`, `plan-archive.mjs` and `plan-retire.mjs` are gone, with the old-plan lint in `plan-quality.mjs`, `avoozl generate`, the catalog's section review flags, plan archive and delete, and their operations, MCP tools and UI
+  - Approval follows workflow v1: an approver's commit on main approves a spec, and the code that records it lives in the spec modules
 
 <!-- avoozl:graph start -->
 ```mermaid
@@ -169,7 +175,7 @@ flowchart TD
   end
   subgraph s4["Phase 3: Roles and skills"]
     sim_3_1["sim-3.1 Skills generated from prompts/skills/"]
-    sim_3_2["sim-3.2 Roles cut to worker and reviewer"]
+    sim_3_2["sim-3.2 Roles cut to five"]
   end
   subgraph s5["Phase 4: Cuts"]
     sim_4_1["sim-4.1 Cut the plan review tower"]
@@ -182,7 +188,7 @@ flowchart TD
     sim_4_9["sim-4.9 Cut GitHub extras"]
   end
   subgraph s6["Phase 5: The page"]
-    sim_5_1["sim-5.1 Five views"]
+    sim_5_1["sim-5.1 Six views"]
     sim_5_2["sim-5.2 Run in a chat"]
   end
   subgraph s7["Phase 6: Docs and proof"]
@@ -193,6 +199,9 @@ flowchart TD
     sim_7_1["sim-7.1 Kiro Crew lane chats"]
     sim_7_2["sim-7.2 Process lane sessions"]
     sim_7_3["sim-7.3 avoozl lanes"]
+  end
+  subgraph s9["Phase 8: The old plan model"]
+    sim_4_10["sim-4.10 Cut the old plan-document model"]
   end
   sim_0 --> sim_1_1
   sim_1_1 --> sim_1_3
@@ -225,5 +234,6 @@ flowchart TD
   sim_6_2 --> sim_7_1
   sim_7_1 --> sim_7_2
   sim_7_2 --> sim_7_3
+  sim_7_3 --> sim_4_10
 ```
 <!-- avoozl:graph end -->

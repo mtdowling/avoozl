@@ -5,7 +5,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
-export interface McpCall {
+interface McpCall {
   tool: string
   args?: Record<string, unknown>
   id?: string
@@ -41,7 +41,7 @@ export interface PluginChecksPart {
   servers: { alias: string; about: string; mapping: { command: string[]; env: string[] } | null }[]
 }
 
-export type CheckResult = 'passed' | 'failed' | 'not run' | 'cached' | 'skipped' | 'deciding'
+type CheckResult = 'passed' | 'failed' | 'not run' | 'cached' | 'skipped' | 'deciding'
 export interface TaskPluginCheck {
   name: string
   plugin?: string
@@ -141,7 +141,6 @@ export function pluginChecksClient(api: AppApi) {
     // Run it (needed) or Skip it, for the task's current commit.
     flip: (workspaceId: string, taskId: string, check: string, plugin: string, needed: boolean, commit: string | null) =>
       run<unknown>('check.decide.flip', { taskId, check, plugin, needed, ...(commit ? { commit } : {}) }, workspaceId),
-    startPhaseFix: (workspaceId: string, runId: string) => run<{ taskId: string }>('check.phase.fix', { run: runId }, workspaceId),
     stages: (workspaceId: string) => run<{ phases: Record<string, StageRun>; branches: Record<string, StageRun> }>('plugin.checks.stages', {}, workspaceId),
   }
 }

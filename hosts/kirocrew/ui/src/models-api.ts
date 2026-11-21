@@ -1,24 +1,19 @@
 // Settings > Models: the one roles table (R98.6), each role's harness,
 // model and, for the worker, agent. Saved as `roles` in
-// .avoozl.json (src/app/settings/chat-models.mjs); a save drops the older `models`,
+// .avoozl.json (src/app/agents/role-table.ts); a save drops the older `models`,
 // `harnesses` and Delivery agent and model keys. Issue Radar crews pick
 // their own model. Free of JSX so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
-import { parseModels } from './flow-api.ts'
 
 // Every role, in page order. `agent` marks the roles whose agent is picked
 // here too, and `model` the roles whose model is.
 export const ROLES = [
   { key: 'worker', label: 'Worker', line: 'Codes each ready task. A task’s manifest may pin another.', agent: true, model: true },
-  { key: 'planner', label: 'Planner', line: 'Drafts specs from a GitHub planning label.', agent: false, model: true },
-  { key: 'retro', label: 'Retro', line: 'Finds the slowest step and proposes one change.', agent: false, model: true },
-  { key: 'checkDecide', label: 'Check decide', line: 'Answers whether a plugin check is needed for a task. Auto uses the planner’s model.', agent: false, model: true },
+  { key: 'checkDecide', label: 'Check decide', line: 'Answers whether a plugin check is needed for a task.', agent: false, model: true },
   // These pick only a harness and run on its agent's own model.
-  { key: 'verifier', label: 'Verifier', line: 'Checks each commit and reports a verdict.', agent: false, model: false },
-  { key: 'reviewer', label: 'Reviewers', line: 'Each review role a spec adds reads the commit and reports a verdict.', agent: false, model: false },
+  { key: 'reviewer', label: 'Reviewer', line: 'Reads each task’s head and tries to find what is wrong with it.', agent: false, model: false },
   { key: 'responder', label: 'Responder', line: 'Answers a labeled GitHub issue or discussion.', agent: false, model: false },
-  { key: 'taskSummary', label: 'Task summary', line: 'Writes the summary on a task’s Overview.', agent: false, model: false },
   { key: 'assist', label: 'Assistant', line: 'Answers from the page’s Open chat buttons when Kiro Crew is not running. Read-only.', agent: false, model: false },
 ] as const
 export type Role = (typeof ROLES)[number]['key']
@@ -28,17 +23,13 @@ export interface RoleRow {
   model?: string
 }
 export type RoleTable = Partial<Record<Role, RoleRow>>
-// What each role may do to files: the worker writes code and the planner
-// writes spec files; the others only read.
+// What each role may do to files: the worker writes code; the others only
+// read.
 export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = {
   worker: 'write',
-  planner: 'write',
-  retro: 'read',
   checkDecide: 'read',
-  verifier: 'read',
   reviewer: 'read',
   responder: 'read',
-  taskSummary: 'read',
   assist: 'read',
 }
 // The Kiro Crew chat; any other harness is a supervisor child.
@@ -56,8 +47,11 @@ export interface HarnessDefinition {
   model?: boolean
   // Why it cannot run a read-only role (it names no resultAllow), or null.
   readRoles?: string | null
-  // Why it cannot start on this machine's server (program or sign-in missing), or null.
+  // Why it cannot start on this machine's server (program missing, or its sign-in check failed), or null.
   startProblem?: string | null
+  // The file names a sign-in check, and its last answer at this hash, or null when none ran.
+  probes?: boolean
+  probe?: { ok: boolean; message: string | null; at: string } | null
   // The role classes a live proof ran it in.
   proved?: ('read' | 'write')[]
 }
@@ -109,6 +103,7 @@ export function modelsClient(api: AppApi) {
     get: (workspaceId: string) => run<ModelSettings>(workspaceId, 'models.settings.get'),
     save: (workspaceId: string, roles: RoleTable, expectedHash: string) => run<ModelSettings>(workspaceId, 'models.settings.update', { roles: toRoles(roles), expectedHash }),
     approveHarness: (workspaceId: string, name: string) => run<{ name: string; path: string; hash: string }>(workspaceId, 'harness.approve', { name }),
+    probeHarness: (workspaceId: string, name: string) => run<{ name: string; ok: boolean; message: string | null }>(workspaceId, 'harness.probe', { name }),
     list: () => api.get<unknown>('/api/models').then(parseModels),
   }
 }
@@ -144,4 +139,51 @@ export function roleProblem(role: Role, form: RoleTable, definitions: HarnessDef
 export function provedLine(d: HarnessDefinition): string {
   const proved = d.proved ?? []
   return (['read', 'write'] as const).map((c) => `${c}: ${proved.includes(c) ? 'proved' : 'not proved'}`).join(', ')
+}
+
+// What a definition's list entry says about its sign-in check. A failed
+// check shows as its start problem instead.
+export function probeLine(d: HarnessDefinition): string | null {
+  if (!d.probes || !d.approved) return null
+  if (!d.probe) return 'Sign-in not checked yet.'
+  return d.probe.ok ? `Sign-in checked ${d.probe.at.slice(0, 10)}.` : null
+}
+
+// The approval badge.
+export function approvalLabel(d: HarnessDefinition): string {
+  return d.approved ? 'hash approved' : d.changed ? 'changed since approval' : 'not approved'
+}
+
+// What the approval badge means, for its info tooltip.
+export function approvalTip(d: HarnessDefinition): string {
+  if (d.approved) return 'You approved this exact file. If it changes outside Avoozl, it won’t start until you approve it again.'
+  if (d.changed) return 'This file changed after you approved it. It won’t start until you approve it again.'
+  return 'You have not approved this file yet. It won’t start until you approve it.'
+}
+
+// What the proved line means, for its info tooltip.
+export const PROVED_TIP =
+  'The harness file says its sandbox was tested for read-only roles (reviewer) and editing roles (worker). This comes from the file, not a test run on this computer.'
+
+// Kiro Crew's /api/models answer, in any of the shapes its backends give:
+// a list, or {models: [...]}, of names or {model_name|id|model_id, display_name|name}.
+function parseModels(body: unknown): { value: string; label: string }[] {
+  const list = Array.isArray(body) ? body : Array.isArray((body as { models?: unknown })?.models) ? (body as { models: unknown[] }).models : []
+  const out: { value: string; label: string }[] = []
+  for (const entry of list) {
+    const row = entry as Record<string, unknown>
+    const value = typeof entry === 'string' ? entry : String(row?.model_name ?? row?.model_id ?? row?.id ?? '')
+    if (!value || value === 'auto' || out.some((o) => o.value === value)) continue
+    const label = typeof entry === 'string' ? entry : String(row?.display_name ?? row?.name ?? value)
+    out.push({ value, label })
+  }
+  return out
+}
+
+// The model choices for a picker: auto first, then Kiro Crew's, and a saved
+// value Kiro Crew no longer offers, kept and marked.
+export function modelOptions(models: { value: string; label: string }[], current: string) {
+  const options = [{ value: 'auto', label: 'auto (Kiro Crew picks)' }, ...models]
+  if (current && !options.some((o) => o.value === current)) options.push({ value: current, label: `${current} (not offered now)` })
+  return options
 }

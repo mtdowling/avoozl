@@ -39,7 +39,7 @@ export interface WriteRun {
 }
 
 // '312 of 1,740 writes, resumes at 14:00'.
-export function writeRunText(run: WriteRun): string {
+function writeRunText(run: WriteRun): string {
   const time = run.resumeAt ? new Date(run.resumeAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
   return `${run.done.toLocaleString('en-US')} of ${run.total.toLocaleString('en-US')} writes${time ? `, resumes at ${time}` : ''}`
 }
@@ -347,7 +347,7 @@ export function toPolicy(form: SettingsForm): Policy {
 }
 
 // Required or optional, and what a blank field means, as the validator
-// (src/app/github/github-policy.mjs) treats it. `when` names the condition a "required" holds under.
+// (src/app/github/github-policy.ts) treats it. `when` names the condition a "required" holds under.
 export interface FieldRule {
   required: boolean
   when?: string
@@ -392,7 +392,7 @@ export type CheckSources = Record<string, { source: string; at: string | null }>
 
 // "GitHub Actions · last run 2 days ago", "Required by GitHub branch rule",
 // or "Not seen on recent commits or open pull requests".
-export function checkWhere(name: string, sources: CheckSources, rule: boolean, now = Date.now()): string {
+function checkWhere(name: string, sources: CheckSources, rule: boolean, now = Date.now()): string {
   const seen = sources[name]
   const parts = []
   if (rule) parts.push('Required by GitHub branch rule')
@@ -602,7 +602,7 @@ export function tasksLiveLine(mode: string, planningRepository: string): string 
 // (delivery.mjs declaredChecks); every github.* setting is read only with a
 // GitHub mode (github-policy.mjs, github-sync.mjs). Content rules, plugins
 // and workspaces apply in every mode.
-export type SettingKey =
+type SettingKey =
   | 'planningRepository'
   | 'epicIssueType'
   | 'setupGitHub'
@@ -669,4 +669,30 @@ export const valueSource = (value: string, fallback: string, unit = '') =>
 // settings, so its title names that workspace. Workspaces lists the machine's.
 export function settingsTitle(tab: string, label: string, workspaceName?: string | null): string {
   return tab === 'workspaces' || !workspaceName ? label : `${workspaceName}: ${label}`
+}
+
+export interface SpecIssuesForm {
+  require: string
+  exclude: string
+  staleHours: string
+}
+
+// A repository's Spec issues panel (Settings > Repository setup > GitHub):
+// labels.require, labels.exclude and claims.staleHours as typed text.
+export const specIssuesForm = (repository: { labels?: { require?: string[]; exclude?: string[] } | null; claims?: { staleHours?: number } | null }): SpecIssuesForm => ({
+  require: (repository.labels?.require ?? []).join(', '),
+  exclude: (repository.labels?.exclude ?? []).join(', '),
+  staleHours: repository.claims?.staleHours === undefined ? '' : String(repository.claims.staleHours),
+})
+
+// Blank fields clear their key; a typed stale hours that is not a whole
+// number is sent as typed, so the backend's message names the setting.
+export function specIssuesInput(form: SpecIssuesForm) {
+  const require = splitList(form.require),
+    exclude = splitList(form.exclude),
+    hours = count(form.staleHours)
+  return {
+    labels: require || exclude ? { ...(require ? { require } : {}), ...(exclude ? { exclude } : {}) } : null,
+    claims: hours === undefined ? null : { staleHours: hours },
+  }
 }

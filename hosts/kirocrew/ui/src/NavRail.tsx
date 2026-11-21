@@ -95,10 +95,11 @@ export function RailSortList<K extends string>(props: { fields: RailSort<K>[]; s
   )
 }
 
-export interface RailChipItem {
+interface RailChipItem {
   value: string
   label: string
-  count: number
+  // Left out when the list has no count to show (Insights' filters).
+  count?: number
 }
 
 // A titled block of pills with a search icon that narrows them. Search is
@@ -183,13 +184,15 @@ export function RailChips(props: {
               type="button"
               data-rail-chip={item.value}
               aria-pressed={picked}
-              aria-label={`${item.label}, ${item.count}`}
+              aria-label={item.count === undefined ? item.label : `${item.label}, ${item.count}`}
               onClick={() => props.onPick(picked ? undefined : item.value)}
               css-background={tint(at, picked)}
             >
-              <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-flex-shrink="0" css-opacity={picked ? '0.9' : '0.6'}>
-                {item.count}
-              </Box>
+              {item.count !== undefined && (
+                <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-flex-shrink="0" css-opacity={picked ? '0.9' : '0.6'}>
+                  {item.count}
+                </Box>
+              )}
               <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">
                 {item.label}
               </Box>

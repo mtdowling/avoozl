@@ -1,0 +1,212 @@
+// Report by command line (R88.2, R88.3, design §4.26): a chat or a person runs
+// `avoozl runner report TASK done|blocked` from the task's worktree. Avoozl
+// matches the report to the task by the worktree path and by the report token
+// in the brief, so a report needs neither MCP sharing nor the gateway's
+// session identity.
+import crypto from "node:crypto";
+import { execFile } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fail } from "../store/store.ts";
+import { listSessionBindings } from "../sessions/session-bindings.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import type { Store } from "../store/store.ts";
+import type { Operations } from "../api/operations.ts";
+
+// A batch's binding names the tasks its leader reports for.
+type Bound = SessionBinding & { batch?: { tasks?: string[] } };
+type Worktree = { id: string; path?: string };
+
+const slotKey = (slot: string) =>
+  slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
+const SECRET = "report.secret";
+
+// The token is an HMAC of the task and attempt under a secret kept in the
+// store, so a brief built twice carries the same token, and a new attempt
+// gets a new one. The store keeps the secret, never a token. It reads only:
+// null means no secret exists yet, and the brief keeps the MCP report.
+// A role other than the worker gets its own token, so one role's token
+// never reports for another.
+export function issueReportToken(
+  store: Store,
+  {
+    taskId,
+    attempt = 1,
+    role = "worker",
+  }: { taskId: string; attempt?: number; role?: string },
+) {
+  const secret = store.getMeta<string>(SECRET);
+  if (!secret) return null;
+  return crypto
+    .createHmac("sha256", secret)
+    .update(
+      role === "worker"
+        ? `${taskId}\n${attempt}`
+        : `${taskId}\n${role}\n${attempt}`,
+    )
+    .digest("hex")
+    .slice(0, 48);
+}
+
+const real = (p: string) => {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return null;
+  }
+};
+
+// True when `cwd` is the worktree or inside it, after symlinks resolve.
+function inside(worktree: string, cwd: string) {
+  const root = real(worktree),
+    here = real(cwd);
+  if (!root || !here) return false;
+  const rel = path.relative(root, here);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+// The session binding a command-line report speaks for. Every refusal is a 403
+// with one fixed message per cause, and none echoes the token.
+export function matchCliReport(
+  store: Store,
+  {
+    taskId,
+    token,
+    cwd,
+    role = "worker",
+  }: { taskId?: unknown; token?: unknown; cwd: string; role?: string },
+) {
+  if (typeof taskId !== "string" || !taskId) return fail("Name the task.");
+  if (typeof token !== "string" || !/^[0-9a-f]{48}$/.test(token))
+    fail("The report token is missing or malformed.", 403);
+  // A batch's session is bound to its leader and reports for each member
+  // with the leader's token (WP4.1).
+  const binding = (listSessionBindings(store) as Bound[])
+    .filter(
+      (b) =>
+        b.role === role &&
+        (b.taskId === taskId || b.batch?.tasks?.includes(taskId)),
+    )
+    .sort((x, y) => (y.attempt || 0) - (x.attempt || 0))[0];
+  if (!binding || !store.getMeta(SECRET))
+    return fail("The report token does not match this task.", 403);
+  const want = Buffer.from(
+      issueReportToken(store, {
+        taskId: binding.taskId,
+        attempt: binding.attempt,
+        role,
+      }) ?? "",
+    ),
+    got = Buffer.from(token);
+  if (want.length !== got.length || !crypto.timingSafeEqual(want, got))
+    fail("The report token does not match this task.", 403);
+  // A read role owns no worktree; its token is its own role's, so it is
+  // matched by the token alone.
+  if (role !== "worker") return binding;
+  const worktree = store.get<Worktree>("task_worktrees", binding.taskId)?.path;
+  if (!worktree || !inside(worktree, cwd))
+    fail("Run the report from this task's worktree.", 403);
+  return binding;
+}
+
+// R96.5: a person who ran `avoozl take` holds no token; the local command
+// line already acts on the database. Matched by the worktree alone, and only
+// for a take this machine's command line made, so a tick-opened chat still
+// needs its token.
+function matchTakeReport(
+  store: Store,
+  { taskId, cwd }: { taskId?: unknown; cwd: string },
+) {
+  if (typeof taskId !== "string" || !taskId) return fail("Name the task.");
+  const binding = listSessionBindings(store)
+    .filter((b) => b.taskId === taskId && b.role === "worker")
+    .sort((x, y) => (y.attempt || 0) - (x.attempt || 0))[0];
+  if (!binding)
+    return fail(`No one has taken ${taskId}. Run avoozl take.`, 409);
+  if (binding.conductor !== "cli")
+    fail("This task's worker reports with the --token in its brief.", 403);
+  const worktree = store.get<Worktree>("task_worktrees", taskId)?.path;
+  if (!worktree || !inside(worktree, cwd))
+    fail("Run the report from this task's worktree.", 403);
+  return binding;
+}
+
+// The caller identity reportSession reads, built from the matched binding.
+export const cliReportCaller = (binding: { slot: string }) => ({
+  sessionKey: `dashboard:${slotKey(binding.slot)}`,
+});
+
+// `avoozl runner report TASK done|blocked [--token T]`, run from the
+// worktree; with no token it speaks for a command-line take. A review runs
+// it from its detached worktree with `--role review:<id>`, and a done one
+// names its verdict file with `--review FILE`. `ops` is an
+// Operations on this workspace's store. The commit of a done report is read
+// from the worktree's HEAD, never taken from the caller.
+export async function reportByToken(
+  store: Store,
+  ops: Operations,
+  {
+    taskId,
+    state,
+    token,
+    cwd,
+    text,
+    role = "worker",
+    review = null,
+  }: {
+    taskId?: unknown;
+    state?: unknown;
+    token?: unknown;
+    cwd: string;
+    text?: string;
+    role?: string;
+    review?: {
+      verdict?: unknown;
+      findings?: unknown;
+      closures?: unknown;
+      text?: unknown;
+    } | null;
+  },
+) {
+  if (typeof state !== "string" || !["done", "blocked"].includes(state))
+    fail("State is done or blocked.");
+  if (role !== "worker" && !/^review:[A-Za-z0-9._-]+$/.test(role))
+    fail("--role is worker or review:<id>.");
+  if (role !== "worker" && token === undefined)
+    fail("A review reports with the --token in its brief.", 403);
+  if (review && (role === "worker" || state !== "done"))
+    fail("--review goes with --role review:<id> and done.");
+  const binding =
+      token === undefined
+        ? matchTakeReport(store, { taskId, cwd })
+        : matchCliReport(store, { taskId, token, cwd, role }),
+    input =
+      state === "done"
+        ? {
+            taskId,
+            kind: "done",
+            // A review's verdict, findings and closures (reviewBrief); the
+            // commit is still read from the cwd's HEAD.
+            ...(review
+              ? {
+                  verdict: review.verdict,
+                  findings: review.findings,
+                  closures: review.closures,
+                  ...(review.text === undefined ? {} : { text: review.text }),
+                }
+              : {}),
+            commit: await new Promise<string>((resolve, reject) =>
+              execFile("git", ["rev-parse", "HEAD"], { cwd }, (error, out) =>
+                error ? reject(error) : resolve(out.trim()),
+              ),
+            ),
+          }
+        : {
+            taskId,
+            kind: "blocked",
+            text: text || "The worker reported blocked.",
+          };
+  return ops.execute("session.report", input, undefined, {
+    caller: cliReportCaller(binding),
+  });
+}

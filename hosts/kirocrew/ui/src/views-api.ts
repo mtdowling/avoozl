@@ -128,7 +128,7 @@ export function withDrafts(graph: Graph, show: boolean): Graph {
   return { ...graph, total: graph.total + drafts.tasks.length, tasks: [...graph.tasks, ...drafts.tasks], edges: [...graph.edges, ...drafts.edges] }
 }
 
-export interface GraphFilter {
+interface GraphFilter {
   epic?: string
   phase?: string
   repository?: string
@@ -140,7 +140,7 @@ export interface GraphFilter {
 
 // What a notice's link found (direct-links D3): its item is open (and
 // marked `linked`), closed, or unknown here.
-export interface DecisionTarget {
+interface DecisionTarget {
   state: 'open' | 'closed' | 'unknown'
   taskId?: string | null
   newer?: boolean
@@ -234,7 +234,7 @@ export interface ReviewRound {
   verdicts: RoundVerdict[]
 }
 
-// One task's link set from src/app/tasks/scm-links.mjs (R92.1-R92.3). URLs are
+// One task's link set from src/app/tasks/scm-links.ts (R92.1-R92.3). URLs are
 // built by the backend from validated fields; the page still passes each
 // through safeHref.
 export interface TaskLinks {
@@ -342,9 +342,11 @@ export interface ConflictItem extends TaskOwner {
   // conductor drove, held until a person lets the tick run it (WP1.3).
   // 'draft-pr': a draft pull request Avoozl opened, waiting for a person
   // to release it; 'pr-merge': one whose checks passed, waiting for a
-  // person to merge it (R119).
+  // person to merge it (R119). 'autopilot-off': ready tasks wait because
+  // this machine has no loop.
   reason?:
     | 'review'
+    | 'autopilot-off'
     | 'blocked'
     | 'crew-mode'
     | 'hand-set-review'
@@ -424,6 +426,57 @@ export interface EpicView {
   decisions: { taskId: string; title: string; decision: string; plan: string }[]
 }
 
+interface IntegrationBranch {
+  key: string
+  repository: string
+  branch: string
+  head: string | null
+  base: string | null
+  behind: number | null
+  checks: 'green' | 'red' | 'pending' | null
+  tasksMerged: number
+  tasksTotal: number
+  accepted: boolean
+  landing: { head: string; approvedBy: string; at: string } | null
+  error: string | null
+  readAt: number | null
+}
+
+// One line per branch: tasks merged, distance behind the default branch, and the head's checks.
+export function branchLine(row: IntegrationBranch): string {
+  const behind = row.behind === null ? 'distance unknown' : row.behind === 0 ? `level with ${row.base}` : `${row.behind} behind ${row.base}`
+  const checks = row.checks ? `head checks ${row.checks}` : 'head not read yet'
+  return `${row.tasksMerged} of ${row.tasksTotal} tasks merged · ${behind} · ${checks}${row.accepted ? ' · accepted' : ''}`
+}
+
+// One claim branch (claims.view, simplify §D3): its task, who holds it,
+// its head commit and age, and whether it is stale.
+export interface ClaimRow {
+  repository: string
+  branch: string
+  spec: string
+  task: string
+  title: string | null
+  holder: string
+  head: string | null
+  at: string | null
+  ageHours: number | null
+  stale: boolean
+}
+
+// One lane on this machine (lanes.view, simplify §D22.3). `open` is the
+// command or chat that opens its session.
+export interface LaneRow {
+  lane: string
+  role: string
+  header: string
+  harness: string | null
+  state: string
+  task: string | null
+  slot: string | null
+  open: string | null
+}
+
 export function viewsClient(api: AppApi) {
   const run = async <T>(operation: string, input: Record<string, unknown>, workspaceId: string, expectedRevision?: number) => {
     const reply = await api.post<{ result: T }>(COMMAND_PATH, {
@@ -438,6 +491,11 @@ export function viewsClient(api: AppApi) {
     // Send message on a `process` session (R98.2): queued for the supervisor.
     sendSession: (workspaceId: string, slot: string, text: string) =>
       run<{ id: string; state: 'queued'; slot: string; taskId: string }>('session.send', { slot, text }, workspaceId),
+    // Integration branches (RC16.8) and the person-only landing approval (RC16.6).
+    branches: (workspaceId: string) => run<{ branches: IntegrationBranch[] }>('integration.view', {}, workspaceId),
+    land: (workspaceId: string, repository: string, branch: string, head: string) => run<unknown>('integration.land', { repository, branch, head }, workspaceId),
+    claims: (workspaceId: string) => run<{ claims: ClaimRow[] }>('claims.view', {}, workspaceId).then((r) => r.claims),
+    lanes: (workspaceId: string) => run<{ lanes: LaneRow[] }>('lanes.view', {}, workspaceId).then((r) => r.lanes),
     graph: (workspaceId: string, filter: GraphFilter = {}) => {
       const input: Record<string, unknown> = {}
       for (const key of ['epic', 'phase', 'repository', 'status', 'plan', 'spec'] as const) if (filter[key]) input[key] = filter[key]
@@ -491,7 +549,7 @@ export function graphSummary(graph: Graph) {
 // GitHub, so anything else (javascript:, file:, data:) renders as plain text.
 // One portion in a landing queue, or one that landed (landing.view). Read
 // from Avoozl's own store; `url` is the pull request's GitHub page.
-export interface LandingRow {
+interface LandingRow {
   key: string
   base: string
   repository: string | null
@@ -499,7 +557,7 @@ export interface LandingRow {
   pr: number | null
   url: string | null
 }
-export interface LandingView {
+interface LandingView {
   queue: (LandingRow & { position: number; queuedAt: string | null; held: string })[]
   landed: (LandingRow & { at: string })[]
   landedThisWeek: number
@@ -582,7 +640,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
 // One review chat or verdict on a task, for the drawer, the Delivery card
 // and the In flight card: who reviews, the model asked for and the one
 // served, the round, the verdict, and the chat to attach to.
-export interface ReviewRun {
+interface ReviewRun {
   key: string
   role: string
   round: number

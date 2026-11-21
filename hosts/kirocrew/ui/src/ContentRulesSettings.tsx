@@ -37,9 +37,12 @@ import {
 } from './content-api.ts'
 import { SaveFooter } from './SaveFooter.tsx'
 import { CheckRow, Field, Marker, RawKey } from './ui/Field.tsx'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './ui/controls.tsx'
 import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
-import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
+import { CONTENT_RULES_GUIDE, CONTENT_RULES_GUIDE_TIP, DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
+import { GuideButton } from './GuideButton.tsx'
+import rulesGuide from '../../../../docs/content-rules.md?raw'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { useMedia } from './use-media.ts'
@@ -652,7 +655,7 @@ function TryIt({ rows }: { rows: TermRow[] }) {
 
 // What the page's one footer needs from the terms editor: whether it has
 // unsaved words, why it cannot save, and how to save or put them back.
-export interface TermsControl {
+interface TermsControl {
   save: () => Promise<boolean>
   discard: () => void
 }
@@ -982,7 +985,8 @@ allow ticket: \bacme-0000\b`
 function HowRulesWork() {
   return (
     <Box id={HELP_ID} as="details" css-border-color="border" rounded="lg" border="all" p="3" data-rules-help>
-      <Box as="summary" css-list-style="none" flex cursorPointer items="center" gap="2" size="sm" weight="semibold">
+      <Box as="summary" flex items="center" gap="2" size="sm" weight="semibold" {...DISCLOSURE}>
+        <DisclosureMark size={ICON} />
         <BookOpen size={ICON} aria-hidden="true" />
         How rules work
       </Box>
@@ -1115,6 +1119,7 @@ export default function ContentRulesSettings({ workspaceId }: { workspaceId: str
         <IconLabel icon={MessagesSquare} tooltip={DESIGN_RULES_TIP} onClick={design}>
           Design a rule set
         </IconLabel>
+        <GuideButton workspaceId={workspaceId} document={CONTENT_RULES_GUIDE} text={rulesGuide} tooltip={CONTENT_RULES_GUIDE_TIP} label="Content rules guide" />
       </Row>
       {error && <ErrorText size="xs">{error}</ErrorText>}
       {value?.error && <ErrorText size="xs">.avoozl.json contentRules is invalid, so every check blocks: {value.error}</ErrorText>}

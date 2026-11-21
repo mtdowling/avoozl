@@ -18,8 +18,5 @@
   "stops": ["client-v2"],
   "expect": {
     "ready": ["widget/w-1"]
-  },
-  "expectFail": {
-    "ready": "sim-6.1"
   }
 }

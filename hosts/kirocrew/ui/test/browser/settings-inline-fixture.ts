@@ -1,11 +1,11 @@
 // ?page=app&inline=1: a small stateful backend for the Settings pages that
-// edit in place (Delivery, Content rules, Plugins, Repository setup
+// edit in place (Autopilot, Content rules, Plugins, Repository setup
 // and Flow). Each update changes what the next get returns and moves the
 // hash on, so a test can edit a field, Save and read the page back. Every
 // write is recorded in window.__writes as { operation, input, workspaceId }.
 import { answer } from './stubs.tsx'
 
-type Body = { operation?: string; input?: Record<string, unknown>; workspaceId?: string }
+type Body = { operation?: string; input?: unknown; workspaceId?: string }
 const hashOf = (n: number) => `h${n}`
 
 export function installInlineFixture() {
@@ -21,14 +21,19 @@ export function installInlineFixture() {
     if (given !== hash()) throw new Error(`Stale: expected ${hash()}, got ${given}`)
   }
 
-  // Delivery
+  // Autopilot: ?autopilot=off starts it off (no delivery block, no loop).
   let landingPr: string | null = null
-  answer('delivery.settings.get', () => ({ hash: hash(), on: true, landingPr }))
+  let on = new URLSearchParams(location.search).get('autopilot') !== 'off'
+  let loop: Record<string, unknown> | null = on ? { run: ['specs'] } : null
+  answer('delivery.settings.get', () => ({ hash: hash(), on, landingPr, loop }))
   answer('delivery.settings.update', (body) => {
     stale(body)
-    landingPr = (body.input as { landingPr: string | null }).landingPr
+    const input = body.input as { landingPr?: string | null; turnOn?: boolean; loop?: Record<string, unknown> | null }
+    if (input.turnOn) on = true
+    if (input.landingPr !== undefined) landingPr = input.landingPr
+    if (input.loop !== undefined) loop = input.loop
     write(body)
-    return { hash: hash(), on: true, landingPr }
+    return { hash: hash(), on, landingPr, loop }
   })
   answer('GET /api/models', () => ({ models: [] }))
 

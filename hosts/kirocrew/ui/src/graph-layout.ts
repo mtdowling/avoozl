@@ -24,11 +24,11 @@
 // of JSX so node
 // can test it directly.
 import type { Graph, GraphTask } from './views-api.ts'
-import { NODE_STATES, nodeState as sharedNodeState } from '../../../../src/delivery-lanes.mjs'
+import { NODE_STATES, nodeState as sharedNodeState } from '../../../../src/delivery-lanes.ts'
 
 export type NodeState = 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred' | 'draft'
 
-// The words are shared with the CLI's `query` and `show` (src/delivery-lanes.mjs).
+// The words are shared with the CLI's `query` and `show` (src/delivery-lanes.ts).
 export const STATES: { id: NodeState; label: string }[] = NODE_STATES.map(([id, label]) => ({ id, label }))
 
 // Sizes in SVG pixels. The page draws with SPACING; `layoutGraph` takes
@@ -61,8 +61,8 @@ export const SPACING: Spacing = {
 // The scale falls off smoothly with the count (no step), and a wider canvas
 // allows a little more. Box sizes never change, so text stays readable, and
 // edges still route through the (wider) gutters.
-export const FEW_TASKS = 12
-export const MAX_EXTRA_GAP = 1.5
+const FEW_TASKS = 12
+const MAX_EXTRA_GAP = 1.5
 export function adaptiveSpacing(visible: number, width = 1100): Spacing {
   const few = (FEW_TASKS / (FEW_TASKS + Math.max(0, visible))) ** 2
   const room = Math.max(0.6, Math.min(1.4, width / 1100))
@@ -78,10 +78,10 @@ export const ASPECT = 1.8
 export const NODE_WIDTH = SPACING.nodeWidth
 export const NODE_HEIGHT = SPACING.nodeHeight
 export const COLUMN_GAP = SPACING.columnGap
-export const ROW_GAP = SPACING.rowGap
+const ROW_GAP = SPACING.rowGap
 export const MARGIN = SPACING.margin
-export const CLUSTER_LABEL = SPACING.clusterLabel
-export const CLUSTER_GAP = SPACING.clusterGap
+const CLUSTER_LABEL = SPACING.clusterLabel
+const CLUSTER_GAP = SPACING.clusterGap
 const DUMMY_HEIGHT = 2
 const SWEEPS = 12
 const PLACE_PASSES = 8
@@ -104,7 +104,7 @@ export interface LaidNode {
   loose?: boolean
 }
 
-export interface LaidEdge {
+interface LaidEdge {
   from: string
   to: string
   kind: string
@@ -114,7 +114,7 @@ export interface LaidEdge {
 }
 
 // One group's nodes in one column, drawn as a box behind them.
-export interface ClusterBox {
+interface ClusterBox {
   group: string | null
   title: string
   count: number
@@ -128,7 +128,7 @@ export interface ClusterBox {
 }
 
 // A heading over one group's unconnected tasks in the grid.
-export interface LooseGroup {
+interface LooseGroup {
   group: string | null
   title: string
   count: number
@@ -152,7 +152,7 @@ export interface Layout {
 }
 
 // Older backends send no `state`; the shared rule derives the same order
-// from the fields they do send (src/delivery-lanes.mjs).
+// from the fields they do send (src/delivery-lanes.ts).
 export const nodeState: (task: GraphTask) => NodeState = sharedNodeState
 
 // wave = 1 + the highest wave of what a task waits on (its blocking
@@ -341,7 +341,7 @@ function inversions(values: number[]): number {
   return count
 }
 
-export function countCrossings(layers: string[][], items: Map<string, Item>): number {
+function countCrossings(layers: string[][], items: Map<string, Item>): number {
   let total = 0
   for (let r = 0; r + 1 < layers.length; r++) {
     const below = new Map(layers[r + 1].map((id, i) => [id, i]))

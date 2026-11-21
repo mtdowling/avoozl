@@ -91,15 +91,23 @@ Branch rules and labels are the repository owner's to set on GitHub; Avoozl
 reads branch rules and follows them. Public and private repositories both
 work.
 
-## Fixes
+## Labeled issues
 
-No label is an order. A fix is one task with no spec files. Start one with
-**Deliver this** on an incoming issue, **New fix**, or
-`avoozl fix "TEXT" --repo ID`; starting it is the approval.
+A label alone is no order. An issue becomes one task when a writer labels it
+to pass the repository's `labels.require` and assigns it to this runner's
+login; that label is the approval. The task lands like any other and closes
+the issue.
 
 Avoozl does not triage issues or review other people's pull requests. Any
 agent runner, such as Issue Radar, can do that with the skills
 Avoozl ships; see [Agent skills](agent-skills.md).
+
+## Stopping a spec
+
+A writer stops a spec by adding the stop label to its spec issue. The default
+is `avoozl:stopped`, and `labels.stop` names another. A stop on a parent
+spec's issue stops every spec it links, and only a writer's removal clears it.
+See [Stopping a spec](github-workflow.md#10-stopping-a-spec).
 
 ## Pull-request reviews
 

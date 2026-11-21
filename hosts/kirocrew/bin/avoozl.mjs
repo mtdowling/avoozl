@@ -33,7 +33,7 @@ if (!rest.includes("--workspace") && !env.AVOOZL_WORKSPACE) {
 }
 
 // The backend refuses the page's requests when ui/dist was not built from the
-// ui/src installed beside it (src/app/serve/ui-bundle.mjs).
+// ui/src installed beside it (src/app/serve/ui-bundle.ts).
 if (command === "app-backend" && !rest.includes("--ui-dir"))
   rest.push("--ui-dir", fileURLToPath(new URL("../ui", import.meta.url)));
 

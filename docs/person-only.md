@@ -44,15 +44,6 @@ context plugin's questions (`avoozl plugins answer`), mapping its servers
 over MCP, for a bound session and in a `process` child. See
 [Epic context](epic-context.md).
 
-## Approval delegation
-
-Approval delegation lets an agent approve in its own name. A person runs
-`approval delegate NAME`. Then `plan approve ... --delegate NAME` and
-`plan.approve` with `delegate` work from an agent session and over MCP,
-approving as that person, and each receipt records the delegate and the grant.
-With no active grant the delegate is refused. Over MCP, granting and revoking
-are person-only.
-
 ## Unattended sessions
 
 An unattended `process` child, one a tick starts, gets `AVOOZL_CHILD`, and the
@@ -78,11 +69,17 @@ the tick wraps it in:
   the network, and `sandbox.modelProxy` for the proxy the agent reaches its
   model through. Every role gets `modelProxy`, even one that reads only its
   folder, such as the code review; only `network` is withheld from those.
+- A harness definition with `egress` gets its own proxy on `127.0.0.1`,
+  which tunnels only to the hosts listed there. Its sandbox opens that one
+  port, so those hosts are all it can reach.
 - Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
   `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git
   gets no credential helper. The names its harness definition lists in
   `keepEnv` are kept, with values from the tick's environment or this
   machine's `machine.env`, an owner-only file outside every child's reach.
+- `~/.aws` is hidden unless its harness definition lists it in `reads`;
+  then the child may read it, never write it, to sign in with your AWS
+  profile.
 - On Linux it gets an empty `$XDG_RUNTIME_DIR`, and the docker socket,
   podman's socket folder and the SSH agent socket are hidden, since a Unix
   socket on a read-only mount still connects.

@@ -1,7 +1,6 @@
 // The task drawer and the add/edit task form: the reads and writes they make,
 // and the pure rules behind them (cycle check, new IDs, what an edit sends).
 // Kept free of JSX so node can test it directly.
-import type { TaskTimingDetail } from './flow-api.ts'
 import type { TaskPluginChecks } from './plugin-checks-api.ts'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
@@ -68,8 +67,6 @@ export interface TaskDetail {
   delivery: DeliveryItem | null
   conflicts: ConflictItem[]
   timeline: { at: string; text: string }[]
-  // The Timing fold (§8.4): null until the task's first dispatch.
-  timing?: TaskTimingDetail | null
   // The Links box (R92.5, scm-links.mjs): from stored records only; older
   // backends omit it.
   links?: TaskScmLinks | null
@@ -271,7 +268,7 @@ export function citedNodes(nodes: { line: number; tag: string }[], start: number
   return marked
 }
 
-export interface ChangePreview {
+interface ChangePreview {
   route: 'github' | 'plan' | 'spec' | 'none'
   message: string
   link?: string | null
@@ -359,14 +356,14 @@ export function newTaskId(title: string, taken: ReadonlySet<string>): string {
   for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
 }
 
-export interface Prerequisite {
+interface Prerequisite {
   id: string
   kind: 'requires' | 'sequence'
   // The completion level a requires link waits for; '' for the task's own.
   condition: string
 }
 
-export interface TaskForm {
+interface TaskForm {
   id: string
   title: string
   summary: string
@@ -375,7 +372,7 @@ export interface TaskForm {
   prerequisites: Prerequisite[]
 }
 
-export const COMPLETION_LEVELS = ['merged-pr', 'integrated', 'released', 'answered']
+const COMPLETION_LEVELS = ['merged-pr', 'integrated', 'released', 'answered']
 
 const lines = (text: string) =>
   text

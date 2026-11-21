@@ -1,0 +1,39 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "cli.ts",
+    "cli.mjs",
+    "src/app/cli/postinstall.mjs",
+    "bin/*",
+    "hosts/kirocrew/bin/avoozl.mjs",
+    "hosts/claude-code/hooks/guard.ts",
+    "scripts/**/*.ts",
+    "workflow-kit/load.ts",
+    "src/**/test/**/*.ts",
+    "src/*.test.ts",
+    "src/app/executors/supervisor-child.ts",
+    "src/app/executors/context-broker-main.ts",
+    "src/app/executors/context-relay.ts",
+    "src/app/serve/serve-main.ts",
+    "src/app/plugins/plugin-child.ts",
+    "src/app/test/fixtures/**",
+    "hosts/kirocrew/ui/src/App.tsx",
+    "hosts/kirocrew/ui/src/Panel.tsx",
+    "hosts/kirocrew/ui/src/standalone/main.tsx",
+    "hosts/kirocrew/ui/src/standalone/kirocrew-only.ts",
+    "hosts/kirocrew/ui/test/**/*.{ts,tsx}",
+    "hosts/kirocrew/ui/*.config.ts"
+  ],
+  "project": [
+    "cli.ts",
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "workflow-kit/**/*.ts",
+    "hosts/**/*.{ts,tsx,mjs}"
+  ],
+  "ignore": [
+    "docs/**",
+    "hosts/kirocrew/bin/lib/**",
+    "hosts/kirocrew/ui/dist/**"
+  ]
+}

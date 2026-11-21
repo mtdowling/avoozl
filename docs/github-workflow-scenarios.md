@@ -260,7 +260,7 @@ Then
 
 - The newest lease of `parser/p-2` is `B`'s.
 - `parser/p-2` has the lease generations `1`, `2`.
-- GitHub rejects the pushes of `A`. Avoozl does not pass this yet.
+- GitHub rejects the pushes of `A`.
 
 ### An approved task text changes during a claim
 
@@ -1003,6 +1003,34 @@ When
 Then
 
 - Probe `landing` is `{"action":"fast-forward-base","base":"client-v2","tick":"own-commit","mergeBase":false,"deleteClaimBranch":true}`.
+
+### Two siblings land at the same time and leave their group open, so the runner ticks it in its own commit
+
+Rules: [3.2](github-workflow.md#3-order). Case: `group-box-left-open`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report problems side by side (**PARALLEL**)
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `violations`, `groupTicks`.
+
+Then
+
+- Probe `violations` is `{"parser":["3.2"]}`.
+- Probe `groupTicks` is `{"parser":["p-2"]}`.
 
 ### With no branch named for the spec, tasks land on the default branch
 
@@ -2482,8 +2510,42 @@ When
 
 Then
 
-- Probe `specIssues` is `{"lexer":3,"parser":1,"widget":null}`. Avoozl does not pass this yet.
-- Probe `duplicates` is `[4]`. Avoozl does not pass this yet.
+- Probe `specIssues` is `{"lexer":3,"parser":1,"widget":null}`.
+- Probe `duplicates` is `[4]`.
+
+### A holder of a stopped spec's task makes no push and does not land it
+
+Rules: [10.2](github-workflow.md#10-stopping-a-spec). Case: `stop-holder`.
+
+Given
+
+- The runner acts as `acme-alice`.
+- The default branch is `main`.
+- Origin holds the branches `main`, `avoozl/parser/p-2`.
+- The issue of spec `parser` is assigned to `acme-alice`.
+- The issue of spec `parser` has a stop label.
+- `graph` is `{"c1":[],"c2":["c1"]}`.
+- `heads` is `{"avoozl/parser/p-2":"c1"}`.
+- `land` is `{"task":"parser/p-2","checks":"pass","baseMoved":false,"mode":"direct"}`.
+- `push` is `{"branch":"avoozl/parser/p-2","by":[{"runner":"holder","head":"c2"}]}`.
+
+The tasks of `parser`:
+
+```markdown
+- [x] `p-1` Read the token table
+- [ ] `p-2` Report unknown tokens
+- [ ] `p-3` Recover after an unknown token
+```
+
+When
+
+- The runner answers `ready`, `push`, `landing`.
+
+Then
+
+- No task is ready.
+- Probe `push` is `{"holder":"held"}`.
+- Probe `landing` is `{"action":"hold"}`.
 
 ### A stop on a parent spec's issue makes the linked tasks not ready
 
@@ -2528,7 +2590,7 @@ When
 
 Then
 
-- The ready tasks are `widget/w-1`. Avoozl does not pass this yet.
+- The ready tasks are `widget/w-1`.
 
 ### Each broken rule is refused, and clean specs are not
 
@@ -2699,6 +2761,7 @@ Then
 
 ### Rule 3.2
 
+- [Two siblings land at the same time and leave their group open, so the runner ticks it in its own commit](#two-siblings-land-at-the-same-time-and-leave-their-group-open-so-the-runner-ticks-it-in-its-own-commit)
 - [The task below a parallel group is ready once every child is ticked](#the-task-below-a-parallel-group-is-ready-once-every-child-is-ticked)
 - [A parallel group's children are ready together, in file order](#a-parallel-groups-children-are-ready-together-in-file-order)
 - [Each broken rule is refused, and clean specs are not](#each-broken-rule-is-refused-and-clean-specs-are-not)
@@ -2821,6 +2884,7 @@ Then
 
 ### Rule 10.2
 
+- [A holder of a stopped spec's task makes no push and does not land it](#a-holder-of-a-stopped-specs-task-makes-no-push-and-does-not-land-it)
 - [A stop on a parent spec's issue makes the linked tasks not ready](#a-stop-on-a-parent-specs-issue-makes-the-linked-tasks-not-ready)
 
 ### Rule 12.1

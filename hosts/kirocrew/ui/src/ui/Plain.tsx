@@ -53,9 +53,9 @@ export const SvgText = forwardRef<SVGTextElement, Svg<SVGTextElement>>(function 
 })
 
 // An image or a video with the look props.
-export const PlainImg = forwardRef<HTMLImageElement, Plain<ImgHTMLAttributes<HTMLImageElement>>>(function PlainImg(props, ref) {
+const PlainImg = forwardRef<HTMLImageElement, Plain<ImgHTMLAttributes<HTMLImageElement>>>(function PlainImg(props, ref) {
   return <img ref={ref} {...lookProps(props)} />
 })
-export const PlainVideo = forwardRef<HTMLVideoElement, Plain<VideoHTMLAttributes<HTMLVideoElement>>>(function PlainVideo(props, ref) {
+const PlainVideo = forwardRef<HTMLVideoElement, Plain<VideoHTMLAttributes<HTMLVideoElement>>>(function PlainVideo(props, ref) {
   return <video ref={ref} {...lookProps(props)} />
 })

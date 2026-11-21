@@ -15,16 +15,20 @@ import { Field } from './ui/Field.tsx'
 import { FieldGroup } from './ui/FieldGroup.tsx'
 import { Picker } from './Picker.tsx'
 import { optionItems } from './picker.ts'
-import { SmallBtn } from './ui/controls.tsx'
+import { InfoTip, SmallBtn } from './ui/controls.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { modelOptions } from './flow-api.ts'
+import { modelOptions } from './models-api.ts'
 import {
   DEFAULT_AGENTS,
+  PROVED_TIP,
   ROLES,
+  approvalLabel,
+  approvalTip,
   ROLE_ACCESS,
   harnessTakesModel,
+  probeLine,
   provedLine,
   roleIsSet,
   roleProblem,
@@ -52,6 +56,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
   const [list, setList] = useState<{ value: string; label: string }[]>([])
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [checking, setChecking] = useState<string | null>(null)
   useEffect(() => {
     if (value) setForm(value.roles ?? {})
   }, [value])
@@ -103,6 +108,19 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
       setMessage({ error: errorMessage(caught) })
     }
   }
+  const probe = async (name: string) => {
+    setMessage(null)
+    setChecking(name)
+    try {
+      const done = await client.probeHarness(workspaceId, name)
+      await reload()
+      setMessage(done.ok ? { ok: `${done.name} signed in and answered.` } : { error: done.message ?? `${done.name} failed its sign-in check.` })
+    } catch (caught) {
+      setMessage({ error: errorMessage(caught) })
+    } finally {
+      setChecking(null)
+    }
+  }
   const problems = ROLES.map((role) => roleProblem(role.key, form, definitions)).filter(Boolean) as string[]
   const set = (role: Role, change: RoleRow) => setForm({ ...form, [role]: { ...form[role], ...change } })
   const pickHarness = (role: Role, picked: string) => {
@@ -120,7 +138,8 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           </Box>
           {definitions.map((d) => (
             <Box key={d.name} as="li" flex flexWrap items="center" gap="2" minW0 data-harness-definition={d.name}>
-              {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{d.approved ? 'hash approved' : d.changed ? 'changed since approval' : 'not approved'}</Badge>
+              {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{approvalLabel(d)}</Badge>
+              <InfoTip text={approvalTip(d)} label={`What ${approvalLabel(d)} means`} />
               {!d.approved && (
                 <SmallBtn onClick={() => approve(d.name)} attrs={{ 'data-approve-harness': d.name }}>
                   Approve
@@ -129,10 +148,21 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
               <Hint size="xs" data-harness-proved>
                 {provedLine(d)}
               </Hint>
+              <InfoTip text={PROVED_TIP} label="What read and write proved mean" />
               {d.startProblem && (
                 <ErrorText as="span" size="xs" data-harness-start-problem>
                   Cannot start on this machine: {d.startProblem}
                 </ErrorText>
+              )}
+              {probeLine(d) && (
+                <Hint size="xs" data-harness-probe>
+                  {probeLine(d)}
+                </Hint>
+              )}
+              {d.probes && d.approved && (
+                <SmallBtn onClick={() => void probe(d.name)} disabled={checking !== null} attrs={{ 'data-probe-harness': d.name }}>
+                  {checking === d.name ? 'Checking…' : 'Check again'}
+                </SmallBtn>
               )}
               {d.readRoles && (
                 <Hint size="xs" data-harness-read-roles>

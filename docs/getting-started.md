@@ -37,7 +37,6 @@ grants:
   and no others.
 - `/api/usage/turns` reads the model each of those sessions last ran on.
 - `/api/models` fills the model lists in Settings.
-- `/api/apps/spec-builder/specs` hands a new spec to Spec Builder.
 - `/api/reveal` shows a spec file in the file browser.
 
 An update that adds a grant waits until you approve it. To update, pull, then
@@ -108,8 +107,9 @@ On a machine without Kiro Crew, pick one of the timers below. Each runs
 catalog.
 
 A tick starts and lands work only on a machine whose `config.json` turns its
-`loop` on ([Delivery](delivery.md#the-server-loop)); without it, each tick
-still reads and caches.
+`loop` on; picking Autopilot in Settings › Autopilot writes it
+([Delivery](delivery.md#turning-autopilot-on)). Without it, each tick still
+reads and caches.
 
 An agent a tick starts keeps running after that tick exits; the next tick
 finds it again by its process and session, and reaps or resumes it. Two
@@ -124,7 +124,7 @@ realpath "$(command -v avoozl)"
 ```
 
 Below, `/usr/local/bin/node` stands for the first and
-`/path/to/avoozl/cli.mjs` for the second. Put your own in their place. The
+`/path/to/avoozl/cli.ts` for the second. Put your own in their place. The
 `PATH` line must reach `git`, `gh` and each harness program (`claude`,
 `codex`). No timer line holds a secret: model keys go in `machine.env`
 ([below](#model-access-for-unattended-agents)).
@@ -143,7 +143,7 @@ Save this as `~/Library/LaunchAgents/dev.avoozl.tick.plist`:
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/bin/node</string>
-    <string>/path/to/avoozl/cli.mjs</string>
+    <string>/path/to/avoozl/cli.ts</string>
     <string>tick</string>
   </array>
   <key>EnvironmentVariables</key>
@@ -181,7 +181,7 @@ Description=One Avoozl tick
 [Service]
 Type=oneshot
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-ExecStart=/usr/local/bin/node /path/to/avoozl/cli.mjs tick
+ExecStart=/usr/local/bin/node /path/to/avoozl/cli.ts tick
 ```
 
 And this as `~/.config/systemd/user/avoozl-tick.timer`:
@@ -214,7 +214,7 @@ while you are logged out, run `loginctl enable-linger` once.
 Run `crontab -e` and add one line:
 
 ```text
-* * * * * PATH=/usr/local/bin:/usr/bin:/bin /usr/local/bin/node /path/to/avoozl/cli.mjs tick >> /tmp/avoozl-tick.log 2>&1
+* * * * * PATH=/usr/local/bin:/usr/bin:/bin /usr/local/bin/node /path/to/avoozl/cli.ts tick >> /tmp/avoozl-tick.log 2>&1
 ```
 
 ### From a chat
@@ -233,12 +233,57 @@ stopped is easy to see.
 A tick a timer runs does not have your shell's environment. Put the model
 keys a harness needs in `machine.env` in this machine's Avoozl config folder
 (`~/.config/avoozl/machine.env`), one `NAME=value` per line, readable only by
-you (`chmod 600`). A child gets only the names its harness definition lists
-in `keepEnv`. A sign-in that Claude Code keeps only in the macOS keychain is
-out of a sandboxed child's reach: use an API key, a cloud provider's
-short-lived credentials, or the repository's model proxy instead.
-**Settings › Models** and `avoozl status` show a harness that cannot start
-here, and why.
+you (`chmod 600`). A child gets the secret-looking names its harness
+definition lists in `keepEnv`, such as `ANTHROPIC_API_KEY` or `AWS_PROFILE`,
+and none is required. A sign-in that Claude Code keeps only in the macOS
+keychain is out of a sandboxed child's reach: use an API key, a cloud
+provider's credentials, or the repository's model proxy instead.
+
+The example definitions copy `~/.claude/settings.json` or
+`~/.codex/config.toml` into the child's own home (`homeFiles`), so your
+provider settings reach it. If the program your definition runs lives under
+your home folder, add its folder to `reads`.
+
+A child's network is off. For Amazon Bedrock, use the definitions in
+`examples/harnesses/bedrock/`. Each names two more keys:
+
+```json
+{
+  "egress": [
+    "bedrock-runtime.*.amazonaws.com"
+  ],
+  "credentialExport": [
+    "aws",
+    "configure",
+    "export-credentials",
+    "--format",
+    "process"
+  ]
+}
+```
+
+Before each start, Avoozl runs `credentialExport` outside the sandbox, as
+you, and gives the child only the short-lived AWS keys it prints. The
+harness's own credential helper is left out of the copied settings. Avoozl
+also starts an egress proxy for the session on `127.0.0.1`. The child gets
+it as `HTTPS_PROXY`, and its sandbox opens only that port. The proxy
+tunnels only to the hosts in `egress`, where `*` stands for one label, and
+refuses the rest. Its log, `egress.log` in the session's folder, holds host
+names only. Swap in your own export command if your AWS sign-in uses
+another tool. On Linux the sandbox turns the network off whole, so `egress`
+works on macOS only.
+
+Each example definition names a `probe`, a one-line prompt such as
+`claude -p ok`. **Check again** in **Settings › Models**, or
+`avoozl harness probe NAME`, runs it once in the same sandbox a
+worker gets. That is a model call, so Avoozl keeps the answer until the
+definition or `machine.env` changes and never runs it on its own. A failed
+probe shows the harness's own error, with secrets taken out.
+A harness program is looked up on `machine.env`'s `PATH`, then the
+server's, then your login shell's, so one installed for you is found. If it
+is still not found, set `PATH` in `machine.env` or give an absolute path in
+the harness definition. **Settings › Models** and `avoozl status` show a
+harness that cannot start here, and why.
 
 
 ## Approve a harness
@@ -250,6 +295,7 @@ new approval.
 ```sh
 avoozl harness list
 avoozl harness approve NAME
+avoozl harness probe NAME
 ```
 
 `list` shows each harness as approved, not approved, or changed since approval.
@@ -288,18 +334,21 @@ and `tasks.md`:
   - An unknown key is reported with its path
 ```
 
-Choose **New spec** on the Specs page. Review the lint results and the graph,
-then choose **Approve revision**. For the task format and the commit that
-approves a spec, see [Tasks](github-workflow.md#2-tasks) and
+Write it by hand, or ask a chat to with the `avoozl-spec` skill, which lints
+it, writes its graph block and leaves it on a spec branch. `avoozl spec lint`
+checks a folder. For the task format and the commit that approves a spec, see
+[Tasks](github-workflow.md#2-tasks) and
 [Approval](github-workflow.md#7-approval).
 
 ## Deliver
 
 Register the checkout the work changes, with its base branch and its named
 checks, then set the repository's `landing` to `off`, `direct` or `pr`.
-Turn on this machine's loop with `"loop": {"run": ["specs"]}` in
-`~/.config/avoozl/config.json`; without it the tick starts nothing, and
-`avoozl next --claim` and `avoozl land TASK` run one task at a time. Avoozl
+Then pick **Autopilot** in **Settings › Autopilot**. That writes the
+`delivery` block to `.avoozl.json` and `"loop": {"run": ["specs"]}` to this
+machine's `~/.config/avoozl/config.json`. Without the loop the tick starts
+nothing, and **Needs you** says so while tasks are ready;
+`avoozl next --claim` and `avoozl land TASK` then run one task at a time. Avoozl
 pushes and merges only after its checks pass. See
 [Landing](github-workflow.md#16-landing) for the rules, [Delivery](delivery.md#the-server-loop)
 for the loop and the commands, and [Avoozl](overview.md) for what each page shows.

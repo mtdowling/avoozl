@@ -1,0 +1,93 @@
+import assert from "node:assert/strict";
+
+import fs from "node:fs";
+import type { AddressInfo } from "node:net";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { startAppBackend } from "../../executors/kirocrew/app-backend.ts";
+import { workspaceConfig } from "../../settings/config.ts";
+import { initializeWorkspace } from "../../workspace/workspace.ts";
+import { UPDATE_COMMAND, uiBundleProblem, writeUiStamp } from "../ui-bundle.ts";
+import { temporaryDirectory } from "../../test/temporary.ts";
+import { SECRET, sign } from "../../test/signed-principal.ts";
+
+const repoUi = fileURLToPath(
+  new URL("../../../../hosts/kirocrew/ui", import.meta.url),
+);
+
+// A ui folder with one source file and a built page.
+function uiFolder() {
+  const ui = path.join(temporaryDirectory(), "ui");
+  fs.mkdirSync(path.join(ui, "src", "views"), { recursive: true });
+  fs.mkdirSync(path.join(ui, "dist"));
+  fs.writeFileSync(path.join(ui, "src", "views", "Home.tsx"), "export {}\n");
+  fs.writeFileSync(path.join(ui, "dist", "index.mjs"), "export {}\n");
+  return ui;
+}
+
+test("a page built from the ui/src beside it passes; a stale or missing one names the fix", () => {
+  const ui = uiFolder();
+  assert.match(String(uiBundleProblem(ui)), /no built page/);
+  writeUiStamp(ui);
+  assert.equal(uiBundleProblem(ui), null);
+  // The install does not copy Finder's files, so they do not count.
+  fs.writeFileSync(path.join(ui, "src", ".DS_Store"), "x");
+  assert.equal(uiBundleProblem(ui), null);
+  // A pull changed the source after the last build.
+  fs.writeFileSync(path.join(ui, "src", "views", "Lanes.tsx"), "export {}\n");
+  const stale = String(uiBundleProblem(ui));
+  assert.match(stale, /out of date/);
+  assert.ok(stale.endsWith(UPDATE_COMMAND));
+  writeUiStamp(ui);
+  assert.equal(uiBundleProblem(ui), null);
+  fs.rmSync(path.join(ui, "dist", "index.mjs"));
+  assert.match(String(uiBundleProblem(ui)), /no built page/);
+});
+
+test("the build stamps the page it wrote", () => {
+  assert.equal(uiBundleProblem(repoUi), null);
+});
+
+test("the backend answers a stale page's requests with the update command", async (t) => {
+  const root = temporaryDirectory(),
+    served = path.join(root, "served"),
+    ui = uiFolder();
+  initializeWorkspace(served);
+  writeUiStamp(ui);
+  fs.writeFileSync(
+    path.join(ui, "src", "views", "Home.tsx"),
+    "export {} // new\n",
+  );
+  const server = startAppBackend({
+    config: workspaceConfig({
+      workspace: served,
+      env: { XDG_CONFIG_HOME: path.join(root, "config") },
+    }),
+    secret: SECRET,
+    registryOptions: {
+      configPath: path.join(root, "machine", "config.json"),
+      catalogPath: path.join(root, "machine", "catalog.sqlite"),
+    },
+    uiDir: ui,
+  });
+  t.after(() => server.close());
+  await new Promise((resolve) => server.once("listening", resolve));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+    body = JSON.stringify({ operation: "workspaces.list", input: {} }),
+    response = await fetch(base + "/api/command", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-KiroCrew-Principal": sign(body),
+      },
+      body,
+    });
+  assert.equal(response.status, 409);
+  assert.match(
+    ((await response.json()) as { error: string }).error,
+    /out of date.*npm run build && kirocrew app update avoozl/,
+  );
+  // Health stays up, so Kiro Crew keeps the backend running to say so.
+  assert.equal((await fetch(base + "/health")).status, 200);
+});

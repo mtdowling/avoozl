@@ -1,0 +1,86 @@
+// CLI commands of one kind: command, help lines and run.
+import { Store, privateFile } from "../store/store.ts";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  type Command,
+  type CommandContext,
+  help,
+} from "../cli/command-help.ts";
+
+function runBackup({
+  options,
+  requireDatabase,
+  requireLocalMaintenancePath,
+}: CommandContext) {
+  requireLocalMaintenancePath("Backup");
+  const dbPath = requireDatabase();
+  if (!options.output) throw Error("Choose --output for the SQLite backup.");
+  const store = new Store(dbPath);
+  try {
+    const target = path.resolve(String(options.output));
+    // Created 0600 first: VACUUM INTO accepts an empty file.
+    if (!fs.existsSync(target)) privateFile(target);
+    store.db.prepare("VACUUM INTO ?").run(target);
+    privateFile(target);
+    console.log("SQLite backup saved.");
+  } finally {
+    store.close();
+  }
+}
+
+export const commands: Command[] = [
+  {
+    command: "backup",
+    help: [
+      help(
+        "data",
+        "backup --workspace PATH --output FILE",
+        "Local-only; registered IDs are refused",
+      ),
+    ],
+    run: runBackup,
+  },
+  {
+    command: "OPERATION",
+    help: [
+      help(
+        "data",
+        "OPERATION --json JSON [--revision N] --workspace PATH",
+        "Run any application operation by name",
+      ),
+      help("data", "OPERATION --input FILE --workspace PATH", ""),
+    ],
+    async run({
+      options,
+      command,
+      dbPath,
+      input,
+      localOrRequest,
+      helpPointer,
+    }) {
+      if (!dbPath || !fs.existsSync(dbPath))
+        throw Error(
+          `${command} is not a command. ${helpPointer(command)} Operations need a workspace: avoozl init PATH, then use --workspace PATH.`,
+        );
+      try {
+        console.log(
+          JSON.stringify(
+            await localOrRequest(
+              command,
+              input(),
+              options.revision ? Number(options.revision) : undefined,
+            ),
+            null,
+            2,
+          ),
+        );
+      } catch (error) {
+        if (!/^Unknown operation /.test((error as Error).message)) throw error;
+        throw Error(
+          `Unknown command or operation ${command}. ${helpPointer(command)}`,
+        );
+      }
+    },
+  },
+];

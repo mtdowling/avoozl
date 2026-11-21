@@ -193,21 +193,49 @@ that unattended work does not fail on a missing login.
 #### Acceptance criteria
 
 1. A child's model access SHALL come only through its definition's `keepEnv`
-   names or the repository's `sandbox.modelProxy`, as today.
+   names, its `reads` and `homeFiles`, or the repository's
+   `sandbox.modelProxy`. `keepEnv` SHALL only pass names through: no name
+   in it is required for a harness to start.
 2. The tick SHALL take the values of `keepEnv` names from its own
    environment and then from the machine env file, `machine.env` in the
    machine config folder. On macOS and Linux the file SHALL be refused when
    anyone but the owner can read it. It SHALL be outside every child's read
    roots. Its values SHALL never be logged or shown.
 3. For each role, `avoozl status` and Settings › Models SHALL show a harness
-   that cannot start on this machine, and why: its program is not on the
-   tick's `PATH`, or none of its `keepEnv` names is set and no model proxy
-   is named. A request for it SHALL open one Needs you item, not repeat a
+   that cannot start on this machine, and why: its program is not found,
+   or its last sign-in probe failed. The probe SHALL run the definition's
+   `probe` argv once with the home, environment and sandbox a worker gets,
+   and its answer SHALL be cached per definition hash and `machine.env`.
+   Neither the tick nor a page read SHALL run it; a person runs it with
+   Check again in Settings › Models or `avoozl harness probe NAME`.
+   A failed probe SHALL show the harness's own error text, cut and with
+   every given value and anything shaped like a credential redacted, and
+   one line on how to fix it. A harness with no probe answer yet SHALL not
+   be held back. The
+   program SHALL be looked up, in order, as an absolute path in the
+   definition, on `machine.env`'s `PATH`, on the tick's `PATH`, then on the
+   person's login-shell `PATH` (read once per process; not on Windows). The
+   supervisor SHALL spawn the path that lookup finds, with the `PATH` it was
+   found on. A program found nowhere SHALL be named with each place looked
+   and the fix: set `PATH` in `machine.env`, or give an absolute path. A request for it SHALL open one Needs you item, not repeat a
    failed start.
 4. A login kept only in the macOS keychain is out of a child's reach, since
    the sandbox denies the keychain (V: `src/app/executors/sandbox.mjs`). The
    docs SHALL say to use an API key, a cloud provider's short-lived
    credentials in `machine.env`, or a model proxy.
+5. A definition with `egress` SHALL get its own egress proxy per session,
+   bound to 127.0.0.1 only, with no setting that widens it. The proxy SHALL
+   allow only CONNECT to port 443 of a listed host, where `*` stands for one
+   label and the last two labels are fixed. It SHALL refuse every other
+   request. It SHALL log host names only, never a header or tunnel byte.
+   The child SHALL get `HTTPS_PROXY` for it, and its sandbox SHALL open
+   only that loopback port beyond the repository's own. A definition with
+   `credentialExport` SHALL have that argv run outside the sandbox before
+   each start and each probe. The child SHALL get only the
+   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`
+   values that argv prints, without `AWS_PROFILE`. Its copied `homeFiles`
+   SHALL leave out the harness's own credential helper. No value SHALL be
+   logged, and a failed export SHALL name its exit, never its output.
 
 ### Requirement MS6: Every role on Claude Code, unattended
 

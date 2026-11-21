@@ -75,7 +75,7 @@ export function PrModeFields({ id, repository, set }: Part) {
         value={own ?? 'workspace'}
         onChange={(value) => set({ prMode: value === 'workspace' ? '' : value })}
         sections={[
-          { key: 'workspace', title: "The workspace's setting", line: "Not set on this repository: uses the workspace's landing.pr, set in Settings › Delivery." },
+          { key: 'workspace', title: "The workspace's setting", line: "Not set on this repository: uses the workspace's landing.pr, set in Settings › Autopilot." },
           ...PR_MODES.map((mode) => ({ key: mode, title: `${PR_MODE_TEXT[mode].title} (landing.pr: ${mode})`, line: PR_MODE_TEXT[mode].line })),
         ]}
       />

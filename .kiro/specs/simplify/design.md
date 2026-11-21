@@ -289,12 +289,17 @@ SPEC --write`. A start marker with no end marker, or two blocks, is
 
 ## D10. Roles and skills
 
-The role table keeps two rows:
+The role table (`agents/role-table.mjs`) has five rows. It also holds the
+`roles` setting each row reads (Settings › Models), and a `roles` entry that
+names any other role is refused, naming it.
 
 | Role | Runs | Access | On by default |
 | --- | --- | --- | --- |
 | `worker` | one task in its worktree on the claim branch | write | yes |
 | `reviewer` | the task's head, read-only, in rounds with the worker until it approves or `reviewRounds` runs out | read | yes; `reviewers: []` turns it off |
+| `responder` | one reply to a discussion or issue the GitHub policy names (`github-respond.mjs`) | read | no; only when the policy names discussions |
+| `checkDecide` | a plugin check's decide call, offline in a snapshot | read | only for a plugin check with a decide prompt |
+| `assist` | the standalone page's Open chat, in the workspace root | read | only when a person starts it |
 
 The reviewer is a separate session that never saw the worker's reasoning,
 with the adversarial prompt `prompts/reviewer.md`. On `changes-requested` the
@@ -303,17 +308,15 @@ reviewer judges each earlier finding against what changed. At `reviewRounds`
 (default 3) the task waits in Needs you with its open findings and does not
 land.
 
-Every other role becomes a skill or is cut:
-
-| Role today | Becomes | Source |
-| --- | --- | --- |
-| `planner`, `planAnswer` | skill `avoozl-spec` | `prompts/planner.md`, `prompts/plan-answer-read.md` |
-| `planReviewer` | skill `avoozl-spec-review` | `prompts/plan-review.md` |
-| `prReview` | skill `avoozl-review` | `prompts/code-review.md` |
-| `retro` | skill `avoozl-retro` | `prompts/retro.md` |
-| `falsifier` | skill `avoozl-investigate` | `prompts/falsifier.md` |
-| `verifier` | cut: Avoozl runs checks itself (`delivery/check-runs.mjs`) | |
-| `responder`, `taskSummary`, `assist` | cut | |
+Avoozl runs a commit's checks itself (`delivery/check-runs.mjs`), so no
+session judges checks; a repository with no checks is judged by its
+reviewers alone. Writing a spec, reviewing a spec or a pull request, a retro
+and an investigation are skills (`avoozl-spec`, `avoozl-spec-review`,
+`avoozl-review`, `avoozl-retro`, `avoozl-investigate`), and Avoozl starts no
+session for them. `hosts/kirocrew/agents/` holds `avoozl-reviewer`,
+`avoozl-responder` and `avoozl-check-decide`; `prompts/` holds `reviewer.md`,
+`responder.md`, `check-decide.md`, `assist.md`, and the `worker.md` and
+`review.md` brief sections.
 
 Skills are generated the way the triage removal branch generates
 `avoozl-answer`, `avoozl-review` and `avoozl-triage`: source in
@@ -357,16 +360,18 @@ follows them.
 
 ## D13. The page
 
-The page keeps five views. Each reads one or two operations and writes only
-through operations the CLI or MCP also reach.
+The page keeps seven views and opens on Insights. Each reads one or two
+operations and writes only through operations the CLI or MCP also reach.
 
 | View | What it is for | What it shows | Actions |
 | --- | --- | --- | --- |
-| Plans | Read specs; approval stays an approver's commit on GitHub | spec list by category; a spec's tabs: Overview (its graph block rendered, counts), Tasks, one tab per file | Run in a chat: write a spec, review a spec |
+| Insights | See how work is going, read only | `insights.view`: a strip of the Needs you count, claims in flight, ready tasks, main's check state from the line watch and whether `loop` (Autopilot) is on, each linking to its view; each spec's burndown (open and ticked tasks) from the commits that changed its task list on the specs branch; tasks finished per day, lead time per task, time per stage, review rounds and rework from the local telemetry store; filters by spec, repository and 7, 30 or 90 days in the nav; saved retros newest first (`retro.list`), each opening in the file reader (`retro.read`) | Run a retro (Run in a chat with `avoozl-retro`) |
+| Specs | Read specs; approval stays an approver's commit on GitHub | spec list by category; a spec's tabs: Overview (its graph block rendered, counts), Tasks, one tab per file | Run in a chat: write a spec, review a spec |
 | Graph | See what is ready across specs | `graphOf` for a spec, an epic or all, with state colors and drill-in | Run in a chat: work this task |
-| In flight | See what runs now | each claim branch: task, holder login, session link, newest commit, check state on its head, draft pull request link, integration branch lag | Stop session, Send message, Land (when checked) |
+| In flight | See what runs now | each live session; each claim branch: task, holder, newest commit and age, check state on its head, pull request link; each lane on this machine: role, state, task; integration branch lag | Send message, Stop the line, Open or copy a lane's session, Land (when checked) |
 | Needs you | See what waits on a person | failing checks on a claim head, stop the line, `(**MANUAL**)` tasks ready to do, stale claims, draft pull requests waiting for a person, a pull request closed unmerged, plugin approvals | Mark manual task done, Delete branch, Open on GitHub, Run in a chat |
-| Settings | Set this machine and each repository | repositories, landing mode, label filters, claim stale hours, harness per role, owner instructions per role, plugins, content rules, notifications, `loop` | Save, approve plugin |
+| Activity | See what happened | `activity.list` rows newest first: time, source, who, what, target; filters by source, kind and actor in the nav, with Keep activity (days) under them | Open task, open on GitHub |
+| Settings | Set this machine and each repository | repositories, landing mode, label filters and claim stale hours (a repository's Spec issues panel), harness per role, owner instructions per role, plugins, content rules, notifications, `loop` (Autopilot) | Save, approve plugin |
 
 The task drawer stays, smaller: title, done bullets, refs, waits-on and blocks
 links, claim
@@ -375,10 +380,20 @@ branch, pull request, checks and landed commit.
 "Run in a chat" opens a chat seeded with a skill name and the item's IDs:
 a Kiro Crew chat when the page runs inside Kiro Crew, else a process session
 of the worker harness. It reuses `chat-api.ts` and `design-chat.ts`.
+Edit spec seeds `avoozl-spec`, Review spec `avoozl-spec-review`, a task
+`avoozl-work`, a Needs you item `avoozl`, and Run a retro `avoozl-retro`. On the standalone page the
+session runs read-only as `assist`, on the worker's harness unless
+Settings › Models names one for `assist`.
 
 Everything else is a skill or an MCP call: writing and reviewing specs,
-retros, investigations, code review, Flow numbers, and Activity
-(`avoozl activity` stays on the CLI).
+running retros, investigations, code review and Flow numbers.
+
+Insights calls no GitHub API: the strip reads the store, the burndown reads
+git history already fetched, and the charts read `telemetry_spans` and
+`telemetry_points`. `avoozl insights` prints the same numbers. A retro's
+report is saved by `retro.save`, the `avoozl-retro` skill's one write, as
+`.avoozl/local/retros/<YYYY-MM-DD-HHMM>-<scope>.md` (UTC); `avoozl retro list`
+and `avoozl retro read NAME` read them.
 
 ## D14. Module audit: `src/app`
 
@@ -398,7 +413,7 @@ mirror removal or triage removal before this spec starts).
 | `executors/` | 6021 | 6021 | | | | |
 | `flow/` | 8186 | 2311 | 4151 | 1724 | | keep `flow-line.mjs` (stop the line), `flow-checks.mjs`, `flow.mjs` (shrinks to stop-the-line settings); `flow-retro.mjs`, `retro-files.mjs` become `avoozl-retro`; cut build receipts and reports, CI waste, corrections, usage, planning flow, provider health, retro chat, memory and operations |
 | `git/` | 1971 | 1698 | | | 273 | `repo-files.mjs` in flight |
-| `github/` | 8834 | 5816 | 2003 | 148 | 867 | cut `github-intake`, `github-respond`, `github-reviews`, `github-setup`, `github-sources`, `setup-landing`, `source-backlinks`; `pull-request-snapshot` becomes `avoozl-review`; `github-items`, `github-pages` in flight |
+| `github/` | 8834 | 5816 | 2003 | 148 | 867 | cut `github-intake`, `github-reviews`, `github-setup`, `setup-landing`, `source-backlinks`; keep `github-sources` (it connects a repository to GitHub) and `github-respond` (the responder); `pull-request-snapshot` becomes `avoozl-review`; `github-items`, `github-pages` in flight |
 | `intake/` | 3586 | | 350 | | 3236 | cut `fix.mjs`; intake and triage in flight |
 | `landing/` | 3106 | 2526 | 580 | | | cut `landing-queue-view`, `landing-trailers`, `merge-path`; merge batches stay for `direct` |
 | `mcp/` | 950 | 733 | 217 | | | cut `mcp-views.mjs` (in-chat views) |
@@ -407,10 +422,10 @@ mirror removal or triage removal before this spec starts).
 | `plugins/` | 2542 | 2189 | 353 | | | cut `plugin-pack.mjs` |
 | `reviews/` | 2748 | | 1711 | 1037 | | plan review tower cut; `plan-review-step.mjs` becomes `avoozl-spec-review`, `pr-review.mjs` becomes `avoozl-review` |
 | `serve/` | 705 | 705 | | | | |
-| `sessions/` | 1079 | 901 | 178 | | | cut `session-open.mjs` (the assist chat) |
-| `settings/` | 2902 | 2728 | 174 | | | cut `chat-models.mjs`; `repository-settings.mjs` drops cut keys and gains `labels`, `claims` |
-| `specs/` | 10213 | 3922 | 2263 | 1133 | 2895 | cut `design-extraction`, `gap-report`, `plan-archive`, `plan-retire`, `plans.mjs` (old plan files), `source-sync`, `spec-changed`, `task-outcomes`; `new-plan`, `spec-steering`, `templates` become `avoozl-spec`; approval and journal files in flight |
-| `store/` | 1722 | 1722 | | | | `activity-log.mjs` stays for `avoozl activity` |
+| `sessions/` | 1079 | 1079 | | | | keep `session-open.mjs`: the standalone page's Open chat |
+| `settings/` | 2902 | 2728 | 174 | | | cut `chat-models.mjs`; `role-table.mjs` reads the `roles` setting; `repository-settings.mjs` drops cut keys and gains `labels`, `claims` |
+| `specs/` | 10213 | 3922 | 2263 | 1133 | 2895 | cut `gap-report`, `spec-changed`, `task-outcomes`; the old plan-document model goes last (sim-4.10): `design-extraction`, `plan-archive`, `plan-retire`, `plans.mjs` (old plan files and the approval it holds), `source-sync`; `new-plan`, `spec-steering`, `templates` become `avoozl-spec`; approval and journal files in flight |
+| `store/` | 1722 | 1722 | | | | `activity-log.mjs` stays for Activity and `avoozl activity` |
 | `tasks/` | 2605 | 550 | 2055 | | | keep `manual-tasks`, `scm-links`, `issue-reference`; cut `evidence`, `supersede`, `task-dedup`, `task-files`, `task-notes`, `task-steps`, `task-summary`, `title-repeat` |
 | `tick/` | 2280 | 2280 | | | | the tick plans the loop pass (§D6) |
 | `workers/` | 5453 | 633 | 3027 | | 1793 | keep `runner`, `report-match`, `report-command`, `manual-take`, `worker-briefs`; cut `driver`, `driver-scope`, `working-heads`, `remote-runner`; grants, offers, results and driver generations in flight |
@@ -426,26 +441,27 @@ Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
 
 | Group | Lines | Verdict | Files |
 | --- | ---: | --- | --- |
-| Plans | 4685 | keep | `PlansView`, `plans-api`, `SpecGraph`, `EpicPanel`, `DocumentReader`, `markdown`, `spec-link`, `TaskRefs`, `files-api` |
+| Insights | 546 | keep | `InsightsView`, `insights-api` |
+| Specs | 4685 | keep | `PlansView`, `plans-api`, `SpecGraph`, `EpicPanel`, `DocumentReader`, `markdown`, `spec-link`, `TaskRefs`, `files-api` |
 | Graph | 2952 | keep | `GraphView`, `graph-layout`, `FocusTree`, `focus-tree`, `EdgeList`, `drag-pan` |
-| In flight | 1891 | keep | `DeliveryView`, `DeliveryDetails`, `delivery-api`, `IntegrationBranches`, `WorkerLink`, `ReviewState`, `StopLine` |
+| In flight | 1891 | keep | `DeliveryView`, `DeliveryDetails`, `delivery-api`, `InFlight`, `InFlightClaims`, `in-flight-api` (from `dashboard-api`), `IntegrationBranches`, `WorkerLink`, `ReviewState`, `StopLine`, `line-api` (the stop-the-line part of `flow-api`) |
+| Activity | 761 | keep | `ActivityView`, `activity-api`, `github-links` |
 | Needs you | 1903 | keep | `WaitingView`, `ConflictsView`, `conflicts-api`, `NeedsYouContext`, `needs-you-context`, `decision-link` |
-| Settings | 7614 | keep | `SettingsView`, `settings-api`, `RepositoriesSettings`, `RepositoryModals`, `repo-edit-tabs`, `repository-rows`, `LandingFields`, `ModelsSettings`, `models-api`, `PluginsSettings`, `plugins-api`, `AddPlugin`, `ContentRulesSettings`, `content-api`, `IsolationPanel`, `isolation-form`, `PromptInstructions`, `NoticesSettings`, `notices`, `FolderPicker`, `SaveFooter`, `FlowSettings` (stop the line only) |
+| Settings | 7614 | keep | `SettingsView`, `settings-api`, `RepositoriesSettings`, `RepositoryModals`, `repo-edit-tabs`, `repository-rows`, `LandingFields`, `ModelsSettings`, `models-api`, `PluginsSettings`, `plugins-api`, `AddPlugin`, `ContentRulesSettings`, `content-api`, `IsolationPanel`, `isolation-form`, `PromptInstructions`, `NoticesSettings`, `notices`, `FolderPicker`, `SaveFooter`, `FlowSettings` (stop the line only), `DeliverySettings` (Autopilot: it writes `loop`), `SpecIssuesPanel`, `PanelForm` |
 | Task drawer | 1582 | keep, smaller | `TaskDrawer`, `task-api`, `TaskScmLinks`, `drawer-context` |
 | Run in a chat | 133 | keep, reshaped | `chat-api`, `design-chat`, `panel-chat` |
 | Shell and shared parts | 6052 | keep | `App`, nav files, list-detail files, filters, `Picker`, refresh files, `WorkspaceView`, `WorkspacePill`, small parts |
-| Dashboards: Home, Landing queue | 2030 | cut | `DashboardView`, `dashboard-api`, `HomeParts`, `home-api`, `LandingQueueView`, `landing-queue-api`, `recap-api`, `release-api` |
-| Flow and Retros | 2754 | cut (skill `avoozl-retro`) | `FlowView`, `FlowCharts`, `FlowBuilds`, `FlowRail`, `FlowMemory`, `flow-api`, `RetrosView`, `CiFlow`, `PlanningFlow`, `builds-api`, `providers-api` |
-| Activity | 608 | cut (CLI `avoozl activity`) | `ActivityView`, `activity-api` |
+| Dashboards: Home, Landing queue | 2030 | cut | `DashboardView`, `HomeParts`, `StatTile`, `home-api`, `LandingQueueView`, `landing-queue-api`, `recap-api`, `release-api` |
+| Flow and Retros | 2754 | cut (skill `avoozl-retro`; Insights lists its saved reports) | `FlowView`, `FlowCharts`, `FlowBuilds`, `FlowRail`, `FlowMemory`, `flow-api`, `RetrosView`, `CiFlow`, `PlanningFlow`, `builds-api`, `providers-api` |
 | Plan review | 1310 | cut (skill `avoozl-spec-review`) | `ReviewView`, `review-view`, `PlanReviewDecision`, `PlanReviewSummary` |
 | Task extras | 1824 | cut | `TaskFiles`, `TaskNotes`, `notes-api`, `TaskSteps`, `TaskSummaryBox`, `Evidence`, `evidence-api`, `TaskForm`, `CitedFile` |
 | Setup tower | 2822 | cut | `Onboard`, `onboarding-api`, `SetupWizard`, `setup-api`, `setup-facts`, `Demo`, `demo-api`, `TemplateStart`, `PackImport`, `InstanceName`, `instance-api`, `WorkflowMap`, `workflow-map` |
 | New spec and fix drawers | 1575 | cut (skill `avoozl-spec`) | `NewPlanDrawer`, `new-plan-api`, `spec-builder-api`, `NewFixDrawer`, `fix-api`, `IntakeSources` |
-| Driver and delivery settings | 1028 | cut | `Driver`, `driver-api`, `DeliverySettings` |
+| Driver | 1028 | cut | `Driver`, `driver-api` |
 | Side panel | 1200 | cut | `Panel`, `PanelParts`, `panel-api` |
 | Removed by in-flight work | 1976 | in flight | `MirrorSetup`, `mirror-setup-api`, `ForwardScreen`, `forward-api`, `SpecPullBox`, `SpecPullDecision`, `spec-pr-api`, `GitHubItemsView`, `github-items-api`, `TriageAgentView`, `TriageSetup` |
 
-The kept groups hold 26812 lines; the cut groups hold 15151.
+The kept groups hold 27358 lines; the cut groups hold 15151.
 
 ## D16. Example: a large rewrite on an integration branch
 
@@ -526,8 +542,12 @@ operations have settled. Docs and the live proof close the spec.
    machine" (`epic-context` EC1).
 4. **The side panel is cut** (1200 lines); Needs you and In flight cover it,
    and a chat gets the same reads through `plans_query`.
-5. **The Activity page is cut.** `avoozl activity` and the activity log
-   stay, since GitHub history covers most of it.
+5. **Activity links every GitHub thing in a row**: repository, pull
+   request and issue numbers, commit, claim and integration branch, check
+   run and login. `github-links.ts` builds each URL from the row's known
+   GitHub repository, never from free text, and opens it in a new tab with
+   `rel="noopener noreferrer"`. A repository with no GitHub remote shows
+   plain text. It makes no GitHub call.
 
 ## D19. Order from the list
 
@@ -636,8 +656,8 @@ Specs no spec group links do not wait on each other.
 | `link.children` | A spec group has sub-items of its own |
 | `facts.removed-key` | Any `$after` fact, with the fix "order tasks by the list; tag a group `(**PARALLEL**)` for tasks that run side by side" |
 
-The tag ends the title and comes before any refs:
-``- [ ] `ec-2.3` Ways out (**PARALLEL**) [EC7] (§D6)``. A group keeps its ID,
+The tag ends the title and comes after any refs:
+``- [ ] `ec-2.3` Ways out [EC7] (§D6) (**PARALLEL**)``. A group keeps its ID,
 title and refs; it is never sent to a worker.
 
 ### D19.4 Rewriting the specs
@@ -888,7 +908,9 @@ A sign-in the harness keeps in its default home (a Claude.ai login, a
 ChatGPT login for Codex) is not visible in a lane home, so a definition for
 such a machine sets no `home`, and its sessions stay where the harness keeps
 them. Sign-in by environment (an API key in `keepEnv`, or a managed
-provider) works with a lane home.
+provider) works with a lane home. The definition's `homeFiles`, such as
+`~/.claude/settings.json` or `~/.codex/config.toml`, are copied into the
+lane home before each start, so a cloud provider's settings reach it.
 
 A lane's start request names its lane, header and workspace. Each new task
 starts a new session (`--session-id` with an id Avoozl chose). A rework run

@@ -12,7 +12,7 @@ import { nodeState, type LaidNode } from './graph-layout.ts'
 
 export type TreeRoot = { kind: 'task' | 'spec'; id: string }
 
-export const sameRoot = (a: TreeRoot | null | undefined, b: TreeRoot | null | undefined) => Boolean(a && b && a.kind === b.kind && a.id === b.id)
+const sameRoot = (a: TreeRoot | null | undefined, b: TreeRoot | null | undefined) => Boolean(a && b && a.kind === b.kind && a.id === b.id)
 
 // Where the Graph is: its tab, and for the Focus tree its root (null is
 // the default root).
@@ -58,7 +58,7 @@ const drawn = (edge: GraphEdge) => edge.blocking || edge.kind === 'sequence'
 
 // A live edge still holds its target back: its blocker is not done and, for
 // a blocking edge, its condition is not met.
-export function isLive(edge: GraphEdge, byId: Map<string, GraphTask>): boolean {
+function isLive(edge: GraphEdge, byId: Map<string, GraphTask>): boolean {
   if (!drawn(edge) || done(byId.get(edge.from))) return false
   return !edge.blocking || !edge.satisfied
 }
@@ -92,7 +92,7 @@ export function frontier(graph: Graph): { ready: FrontierItem[]; waiting: Fronti
 }
 
 // The tasks a root names: one task, or every task of one spec (its plan).
-export function rootTasks(graph: Graph, root: TreeRoot): string[] {
+function rootTasks(graph: Graph, root: TreeRoot): string[] {
   if (root.kind === 'task') return graph.tasks.some((t) => t.id === root.id) ? [root.id] : []
   return graph.tasks.filter((t) => (t.planId ?? null) === root.id || (t.spec ?? null) === root.id).map((t) => t.id)
 }
@@ -173,7 +173,7 @@ export function jumpTarget(graph: Graph, text: string): TreeRoot | null {
 // The drill history: each re-root is a step Back and Forward walk. `url`
 // marks the steps that pushed a host history entry, so Back uses the
 // browser's own Back for them and the URL stays in step.
-export interface Trail {
+interface Trail {
   list: GraphPlace[]
   url: boolean[]
   at: number

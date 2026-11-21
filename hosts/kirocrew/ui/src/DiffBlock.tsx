@@ -1,7 +1,15 @@
 // A unified diff, each line colored: added, removed, hunk header or context.
-import { diffLines } from './flow-api.ts'
 import { Box } from './ui/Box'
 import { TONE } from './ui/tones.ts'
+
+// A unified diff as lines to color: added, removed, hunk header or context.
+function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hunk' | 'same'; text: string }[] {
+  if (!diff) return []
+  return diff.split('\n').map((text) => ({
+    kind: text.startsWith('@@') ? 'hunk' : text.startsWith('+') ? 'add' : text.startsWith('-') ? 'del' : 'same',
+    text,
+  }))
+}
 
 const LINE = { add: TONE.successOrGreen, del: TONE.danger, hunk: TONE.muted, same: TONE.text } as const
 

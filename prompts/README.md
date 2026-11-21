@@ -13,17 +13,15 @@ The directory ships beside `src/`, in a checkout and in the installed app. The
 roles are the keys of the `roles` setting, and each file serves these roles:
 
 
-- `verifier.md` is the `verifier` role.
 - `reviewer.md` is the `reviewer` role, for review sessions.
-- `planner.md` is the `planner` role.
-- `retro.md` is the `retro` role.
 - `responder.md` is the `responder` role.
+- `check-decide.md` is the `checkDecide` role, a plugin check's decide call.
 - `assist.md` is the `assist` role, the page's chat when Kiro Crew is absent. It
   runs only as a process session.
 - `worker.md` and `review.md` are not a role's prompt. They are the "Steps"
   section of every worker brief and the "Review" section of every review brief.
 
-`src/app/agents/role-table.mjs` is the source for which role reads which file.
+`src/app/agents/role-table.ts` is the source for which role reads which file.
 
 ## Skills for any agent runner
 
@@ -49,5 +47,5 @@ different agents. It runs before `npm test`. Do not edit the generated JSON.
 
 A role that runs as a process harness (Claude Code, Codex, or another
 harness chosen in Settings > Models) has no agent file. Its brief starts with
-the same prompt file (`processBrief` in `src/app/executors/process.mjs`),
+the same prompt file (`processBrief` in `src/app/executors/process.ts`),
 then the task's brief, then how to finish.

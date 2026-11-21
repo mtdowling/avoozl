@@ -1,0 +1,467 @@
+// @ts-nocheck: typing debt
+// CLI commands of one kind: command, help lines and run.
+import { workspaceConfig } from "../settings/config.ts";
+import { WorkspaceRegistry } from "../settings/host-config.ts";
+import { machineStatus, roleProblems } from "../workspace/machine-status.ts";
+import { workflowSkill } from "../cli/skill.ts";
+import { workspaceStatus } from "../workspace/workspace-status.ts";
+import { initializeWorkspace } from "../workspace/workspace.ts";
+import { type Command, help } from "../cli/command-help.ts";
+import { confirmHighRisk, refuseAgentYes } from "../cli/confirm-high-risk.ts";
+
+const CANCELLED = "Cancelled: nothing was written.";
+
+export async function runWorkspace({
+  options,
+  positionals,
+  command,
+  requestedWorkspace,
+  requestedFrom,
+  config,
+  input,
+  machineStateDirectory,
+}) {
+  const action = command === "status" ? "status" : positionals[0] || "list";
+  const registry = new WorkspaceRegistry({
+    env: options.env || process.env,
+    ...(options["host-config"] ? { configPath: options["host-config"] } : {}),
+    ...(options.catalog ? { catalogPath: options.catalog } : {}),
+  });
+  const hostUrl =
+    registry.config.url || `http://127.0.0.1:${registry.config.port || 9428}`;
+  const live = async (pathname, { method = "GET", body } = {}) => {
+    if (registry.config.port === 0 && !registry.config.url) return null;
+    let response;
+    try {
+      response = await fetch(hostUrl + pathname, {
+        method,
+        ...(body === undefined
+          ? {}
+          : {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            }),
+        signal: AbortSignal.timeout(1000),
+      });
+    } catch {
+      return null;
+    }
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch {}
+    if (!response.ok)
+      throw Error(
+        payload.error ||
+          `The running Avoozl host rejected ${method} ${pathname}.`,
+      );
+    return Object.hasOwn(payload, "result") ? payload.result : payload;
+  };
+  try {
+    let result;
+    if (action === "list" || action === "status") {
+      result = (await live("/api/workspaces")) || registry.describe();
+      if (command === "status") {
+        // A workspace named on the command line or in the environment is
+        // reported first, whether or not this machine's catalog lists it.
+        // A registered ID names its root in the catalog this command reads.
+        const named =
+            typeof requestedWorkspace === "string" ? requestedWorkspace : null,
+          registered = named ? registry.config.workspaces[named] : null;
+        const machine = machineStatus({
+          stateDirectory: machineStateDirectory(),
+        });
+        result = {
+          ...(named
+            ? {
+                workspace: workspaceStatus({
+                  named,
+                  from: requestedFrom,
+                  config: registered
+                    ? workspaceConfig({
+                        ...options,
+                        workspace: registered.root,
+                      })
+                    : config,
+                  catalog: result,
+                }),
+              }
+            : {}),
+          ...result,
+          machine,
+          ...(named
+            ? { roleProblems: roleProblems(config, machine.harnesses) }
+            : {}),
+        };
+      }
+    } else if (action === "add") {
+      const provided = input();
+      const repositories =
+        provided.repositories ||
+        (options.repositories ? JSON.parse(options.repositories) : {});
+      const id = options.id || positionals[1] || provided.id;
+      const registration = {
+        id,
+        root: options.root || provided.root,
+        name: options.name || provided.name,
+        enabled:
+          options.inactive === true
+            ? false
+            : provided.enabled === undefined
+              ? true
+              : provided.enabled,
+        repositories,
+      };
+      result =
+        (await live("/api/workspaces", {
+          method: "POST",
+          body: registration,
+        })) || registry.add(id, registration);
+    } else if (action === "adopt") {
+      if (await live("/api/workspaces"))
+        throw Error(
+          "Workspace adoption is local-only. Stop the running Avoozl host before adopting an existing workspace.",
+        );
+      const provided = input(),
+        id = options.id || positionals[1] || provided.id;
+      result = registry.adopt(id, {
+        root: options.root || provided.root,
+        name: options.name || provided.name,
+        enabled:
+          options.inactive === true
+            ? false
+            : provided.enabled === undefined
+              ? true
+              : provided.enabled,
+        repositories:
+          provided.repositories ||
+          (options.repositories ? JSON.parse(options.repositories) : {}),
+      });
+    } else if (
+      ["remove", "start", "drain", "resume", "stop"].includes(action)
+    ) {
+      const id = options.id || positionals[1];
+      result = await live(
+        `/api/workspaces/${encodeURIComponent(id)}/lifecycle`,
+        { method: "POST", body: { action } },
+      );
+      if (!result) {
+        if (action === "remove") result = registry.remove(id);
+        else if (action === "drain") result = registry.drain(id);
+        else result = registry.setEnabled(id, action !== "stop");
+      }
+    } else if (action === "set-default") {
+      const id = options.id || positionals[1];
+      result =
+        (await live("/api/workspaces/default", {
+          method: "POST",
+          body: { workspaceId: id },
+        })) || registry.setDefault(id);
+    } else if (action === "rebuild") result = registry.rebuild();
+    else
+      throw Error(
+        "Choose workspace list, add, adopt, remove, start, drain, resume, stop, set-default, or rebuild.",
+      );
+    console.log(JSON.stringify(result, null, 2));
+  } finally {
+    registry.close();
+  }
+}
+function runTask({ command }) {
+  throw Error(
+    {
+      task: "Choose task done or task reopen.",
+      checks: "Choose checks run.",
+    }[command],
+  );
+}
+
+export const commands: Command[] = [
+  {
+    command: "init",
+    help: [
+      help(
+        "setup",
+        "init PATH [--name NAME] [--port 9428]",
+        "Create an empty workspace",
+        { usage: "init PATH", about: "Create an empty workspace" },
+      ),
+    ],
+    run({ options, positionals }) {
+      if (!positionals[0])
+        throw Error("Choose a workspace directory: avoozl init PATH.");
+      console.log(
+        JSON.stringify(
+          initializeWorkspace(positionals[0], {
+            name: options.name,
+            port: options.port,
+            documents: options.documents,
+            db: options.db,
+          }),
+          null,
+          2,
+        ),
+      );
+    },
+  },
+  {
+    command: "workspace",
+    help: [
+      help(
+        "setup",
+        "workspace list",
+        "The workspaces registered on this machine",
+      ),
+      help("setup", "workspace add ID --root PATH", ""),
+      help(
+        "setup",
+        "workspace adopt ID --root PATH",
+        "Adopt an existing stopped workspace in place",
+      ),
+      help(
+        "setup",
+        "workspace remove|start|drain|resume|stop|set-default ID",
+        "",
+      ),
+      help(
+        "setup",
+        "workspace rebuild",
+        "Rebuild the catalog from configuration",
+      ),
+    ],
+    run: runWorkspace,
+  },
+  {
+    command: "repository",
+    help: [
+      help(
+        "setup",
+        "repository configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]",
+        "",
+      ),
+    ],
+    async run({ options, positionals, input, localOrRequest }) {
+      const action = positionals[0],
+        provided = input();
+      if (action !== "configure") throw Error("Choose repository configure.");
+      console.log(
+        JSON.stringify(
+          await localOrRequest("repository.configure", {
+            ...provided,
+            id: options.id || positionals[1] || provided.id,
+            root: options.root || provided.root,
+            baseBranch: options.branch || provided.baseBranch,
+            worktreeRoot: options.worktrees || provided.worktreeRoot,
+          }),
+          null,
+          2,
+        ),
+      );
+    },
+  },
+  {
+    command: "github",
+    help: [
+      help(
+        "setup",
+        "github configure OWNER/REPO --repo ID [--assignee LOGIN]",
+        "",
+      ),
+      help(
+        "inspect",
+        "github status",
+        "Show repository and machine registration",
+      ),
+    ],
+    async run({ options, positionals, input, localOrRequest }) {
+      const action = positionals[0] || "status";
+      let operation, value;
+      if (action === "status") {
+        operation = "github.repositories";
+        value = {};
+      } else if (action === "configure") {
+        operation = "github.configure";
+        value = {
+          repository: options.repository || positionals[1],
+          repositoryId: options.repo,
+          assignee: options.assignee,
+          provider: options.provider,
+          model: options.model,
+          autoStart: options["auto-start"],
+          active: !options.inactive,
+        };
+      } else throw Error("Choose github status or configure.");
+      console.log(
+        JSON.stringify(await localOrRequest(operation, value), null, 2),
+      );
+    },
+  },
+  {
+    command: "workspace-repo",
+    help: [
+      help(
+        "setup",
+        "workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]",
+        "",
+      ),
+      help(
+        "setup",
+        "workspace-repo publish [--dry-run]",
+        "Safely publish portable planning state",
+      ),
+      help(
+        "setup",
+        "workspace-repo sync",
+        "Hydrate from the configured private repo",
+      ),
+      help(
+        "setup",
+        "workspace-repo status",
+        "Show portable repository revisions",
+      ),
+    ],
+    async run({ options, positionals, localOrRequest }) {
+      const action = positionals[0] || "status";
+      let operation, value;
+      if (action === "status") {
+        operation = "workspace.repository.status";
+        value = {};
+      } else if (action === "configure") {
+        operation = "workspace.repository.configure";
+        value = {
+          root: options.root || positionals[1],
+          remote: options.remote,
+          branch: options.branch,
+          directory: options.directory,
+        };
+      } else if (action === "publish") {
+        operation = "workspace.repository.publish";
+        value = {
+          dryRun: options["dry-run"],
+          message: options.message,
+        };
+      } else if (action === "sync") {
+        operation = "workspace.repository.sync";
+        value = {};
+      } else
+        throw Error(
+          "Choose workspace-repo status, configure, publish, or sync.",
+        );
+      console.log(
+        JSON.stringify(await localOrRequest(operation, value), null, 2),
+      );
+    },
+  },
+  {
+    command: "plugins",
+    help: [
+      help(
+        "setup",
+        "plugins [list]",
+        "Declared plugins, their approval and health",
+      ),
+      help(
+        "setup",
+        "plugins add ID --path DIR|--package NAME|--git URL --ref REF [--subdir DIR] [--contract 1] [--config JSON] [--repository [--confirm-public]]",
+        "",
+      ),
+      help(
+        "setup",
+        "plugins update ID",
+        "Resolve a git plugin's ref again and fetch that commit",
+      ),
+      help(
+        "setup",
+        "plugins approve ID --hash HASH [--commit SHA]",
+        "Approve the exact version, hash and commit `plugins list` shows",
+      ),
+      help(
+        "setup",
+        "plugins disable|enable|remove ID",
+        "Stop, restart, or remove a plugin; its tasks park as needs you",
+      ),
+      help(
+        "setup",
+        "plugins map ID ALIAS --command JSON [--env NAME]... | --remove",
+        "Map a checks plugin's MCP server alias to a local stdio server command; the plugin needs approving again",
+      ),
+    ],
+    async run({ options, positionals, localOrRequest, need }) {
+      // Settings' plugin actions at the command line (design §4.8). Approval
+      // names the hash `plugins list` showed, so a person approves what they saw.
+      const [action = "list", id, alias] = positionals,
+        calls = {
+          list: () => ["plugins.list", {}],
+          approve: () => [
+            "plugin.approve",
+            {
+              id,
+              hash: options.hash,
+              ...(options.commit ? { commit: options.commit } : {}),
+            },
+          ],
+          // A git plugin: resolve its ref again and fetch that commit.
+          update: () => ["plugin.update", { id }],
+          disable: () => ["plugin.disable", { id, disabled: true }],
+          enable: () => ["plugin.disable", { id, disabled: false }],
+          remove: () => ["plugin.remove", { id }],
+          // A checks plugin's server alias on this machine (plugin-checks
+          // PK10.2): an argv list, and the variable names it may read.
+          map: () => [
+            "plugin.map",
+            {
+              id,
+              alias,
+              ...(options.remove
+                ? { remove: true }
+                : {
+                    command: JSON.parse(options.command ?? "null"),
+                    ...(options.env ? { env: [options.env].flat() } : {}),
+                  }),
+            },
+          ],
+          add: () => [
+            "plugin.add",
+            {
+              scope: options.repository ? "repository" : "machine",
+              confirmPublic: Boolean(options["confirm-public"]),
+              entry: {
+                id,
+                ...(options.package ? { package: options.package } : {}),
+                ...(options.path ? { path: options.path } : {}),
+                ...(options.git ? { git: options.git, ref: options.ref } : {}),
+                ...(options.subdir ? { subdir: options.subdir } : {}),
+                contract: Number(options.contract ?? 1),
+                ...(options.config
+                  ? { config: JSON.parse(options.config) }
+                  : {}),
+              },
+            },
+          ],
+        };
+      if (!calls[action])
+        throw Error(
+          "Choose plugins list, add, update, approve, disable, enable, remove, or map.",
+        );
+      if (action !== "list") need(id, `plugins ${action} ID ...`);
+      console.log(
+        JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
+      );
+    },
+  },
+  {
+    command: "skill",
+    help: [
+      help(
+        "setup",
+        "skill --workspace PATH",
+        "Print the portable workflow skill",
+      ),
+    ],
+    run({ config }) {
+      process.stdout.write(workflowSkill(config));
+    },
+  },
+  { command: "task", help: [], run: runTask },
+  { command: "checks", help: [], run: runTask },
+];

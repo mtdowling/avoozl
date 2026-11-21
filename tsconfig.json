@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "paths": {
+      "@kirocrew/app-sdk": ["./hosts/kirocrew/ui/src/kirocrew-app-sdk.d.ts"]
+    }
+  },
+  "include": [
+    "cli.ts",
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "workflow-kit/**/*.ts"
+  ]
+}

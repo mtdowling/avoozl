@@ -2,29 +2,33 @@
   "name": "avoozl",
   "type": "module",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.18"
   },
   "scripts": {
     "build": "npm run build:kirocrew-app",
-    "build:kirocrew-app": "node scripts/bundle/build-kirocrew-app.mjs",
-    "build:hosts": "node scripts/build-hosts.mjs",
-    "check:hosts": "node scripts/build-hosts.mjs --check",
-    "postinstall": "node src/app/cli/link-global.mjs",
+    "build:kirocrew-app": "node scripts/bundle/build-kirocrew-app.ts",
+    "build:hosts": "node scripts/bundle/build-hosts.ts",
+    "check:hosts": "node scripts/bundle/build-hosts.ts --check",
+    "postinstall": "node src/app/cli/postinstall.mjs",
     "prepack": "npm run build",
-    "pretest": "node scripts/check/check-no-images.mjs && npm run check:hosts && npm run build",
-    "workspace": "node cli.mjs",
-    "test": "node scripts/test/run-tests.mjs",
-    "test:map": "node scripts/test/build-test-map.mjs",
-    "test:times": "node scripts/test/build-test-times.mjs",
+    "pretest": "node scripts/check/check-no-images.ts && npm run check:hosts && npm run build",
+    "workspace": "node cli.ts",
+    "test": "node scripts/test/run-tests.ts",
+    "test:map": "node scripts/test/build-test-map.ts",
+    "test:times": "node scripts/test/build-test-times.ts",
     "pretest:ci": "npm run check:hosts && npm run build",
-    "test:ci": "node scripts/test/run-tests.mjs --ui",
-    "test:changed": "node scripts/test/run-tests.mjs --changed",
-    "test:ui": "node --test --test-timeout=60000 hosts/kirocrew/ui/test/*.test.mjs",
-    "kit:docs": "node scripts/kit/scenarios-doc.mjs",
-    "dup": "node scripts/check/dup.mjs",
-    "dup:changed": "node scripts/check/dup.mjs --changed",
+    "test:ci": "node scripts/test/run-tests.ts --ui",
+    "test:changed": "node scripts/test/run-tests.ts --changed",
+    "pack:smoke": "node scripts/check/pack-smoke.ts",
+    "test:ui": "node --test --test-timeout=60000 hosts/kirocrew/ui/test/*.test.ts",
+    "kit:docs": "node scripts/kit/scenarios-doc.ts",
+    "dup": "node scripts/check/dup.ts",
+    "dup:changed": "node scripts/check/dup.ts --changed",
+    "nocheck": "node scripts/check/nocheck.ts",
     "format": "biome format --write",
-    "format:check": "biome format"
+    "format:check": "biome format",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:ui": "tsc --noEmit -p hosts/kirocrew/ui/tsconfig.json"
   },
   "dependencies": {
     "react": "^19.3.1"
@@ -33,10 +37,11 @@
   "description": "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.",
   "license": "MIT",
   "bin": {
-    "avoozl": "./cli.mjs"
+    "avoozl": "cli.mjs"
   },
   "files": [
     "cli.mjs",
+    "cli.ts",
     "src/",
     "examples/",
     "prompts/",
@@ -50,6 +55,7 @@
     "hosts/kirocrew/",
     "!src/**/test/",
     "!src/**/*.test.mjs",
+    "!src/**/*.test.ts",
     "!hosts/kirocrew/ui/test/"
   ],
   "devDependencies": {
@@ -57,6 +63,7 @@
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/query-core": "5.96.0",
     "@tanstack/react-query": "5.96.0",
+    "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "clsx": "2.1.1",

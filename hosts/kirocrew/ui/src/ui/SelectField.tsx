@@ -10,9 +10,9 @@
 // tooltip around a disabled field still hears the hover.
 import type { ComponentProps, CSSProperties } from 'react'
 
-export type SelectLook = 'field' | 'plain' | 'tight' | 'row' | 'compact'
+type SelectLook = 'field' | 'plain' | 'tight' | 'row' | 'compact'
 
-export type SelectFieldProps = Omit<ComponentProps<'select'>, 'className' | 'style' | 'ref'> & {
+type SelectFieldProps = Omit<ComponentProps<'select'>, 'className' | 'style' | 'ref'> & {
   look?: SelectLook
   width?: string
   maxWidth?: string

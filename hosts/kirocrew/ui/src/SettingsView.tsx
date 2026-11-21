@@ -62,6 +62,7 @@ import { EpicContextSettings } from './EpicContextSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import ModelsSettings from './ModelsSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
+import SpecIssuesPanel from './SpecIssuesPanel.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
@@ -100,7 +101,7 @@ export const SETTINGS_TABS = [
   { key: 'flow', label: 'Flow' },
   // Avoozl's own chats only.
   { key: 'models', label: 'Models' },
-  { key: 'delivery', label: 'Delivery' },
+  { key: 'delivery', label: 'Autopilot' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -115,7 +116,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   models: "Each role's harness, agent and model, in one place.",
-  delivery: 'Who merges pull requests for Avoozl worker chats. Agents and models are in Models.',
+  delivery: 'Whether Avoozl delivers ready tasks on its own, and who merges its pull requests. Agents and models are in Models.',
 }
 
 // Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).
@@ -584,19 +585,24 @@ function RepositoriesTab(props: {
     setMessage({ ok: true, text: `Added ${id}.` })
   }
   // The repository's own settings, inside its Edit dialog, on its open tab,
-  // with the Isolation panel under Landing for a registered checkout.
+  // with the Isolation panel under Landing and the Spec issues panel under
+  // GitHub for a registered checkout.
   const settingsFor = (
     row: RepositoryRow,
     view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void },
   ): EditSettings => {
     const own = repositorySettings(row, view)
-    if (view.tab !== 'landing' || !row.checkout) return own
+    if (!row.checkout || !['landing', 'github'].includes(view.tab)) return own
     return {
       ...own,
       body: (
         <>
           {own.body}
-          <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} repositoryId={row.checkout.id} value={row.checkout.isolation} />
+          {view.tab === 'landing' ? (
+            <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} repositoryId={row.checkout.id} value={row.checkout.isolation} />
+          ) : (
+            <SpecIssuesPanel key={row.checkout.id} workspaceId={props.workspaceId} repository={row.checkout} />
+          )}
         </>
       ),
     }
@@ -779,10 +785,10 @@ export const GITHUB_TABS = [
   { key: 'sync', label: 'Sync pace' },
   { key: 'calls', label: 'GitHub calls' },
 ] as const
-export type GitHubTab = (typeof GITHUB_TABS)[number]['key']
+type GitHubTab = (typeof GITHUB_TABS)[number]['key']
 const GITHUB_TAB_KEYS = GITHUB_TABS.map((tab) => tab.key)
 // The form keys each tab edits; GitHub calls edits none.
-export const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[]> = {
+const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[]> = {
   issues: ['epicIssueType'],
   sync: ['cacheSeconds', 'writesPerMinute', 'writesPerHour'],
   calls: [],
@@ -1037,7 +1043,7 @@ function SettingsBody(
         action={<Btn onClick={() => props.onTab('workspaces')}>Open Workspaces</Btn>}
       />
     )
-  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} onOpenRepositories={() => props.onTab('repositories')} />
+  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} />
   if (tab === 'context') return <EpicContextSettings workspaceId={workspaceId} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
@@ -1096,21 +1102,28 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
   )
 }
 
-const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
+// Number columns get a fixed width that fits the heading and its sort arrow.
+const USAGE_COLUMNS: { key: UsageKey; label: string; width?: number }[] = [
   { key: 'source', label: 'Source' },
-  { key: 'calls', label: 'Calls' },
-  { key: 'notModified', label: '304 (free)' },
-  { key: 'cached', label: 'Cached (free)' },
+  { key: 'calls', label: 'Calls', width: 96 },
+  { key: 'notModified', label: '304 (free)', width: 116 },
+  { key: 'cached', label: 'Cached (free)', width: 136 },
 ]
 
 // A real table: each heading is a button that sorts by it, and the th says
-// which way (aria-sort). Numbers sit right-aligned.
-export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof usageRows>; first?: string }) {
+// which way (aria-sort). Both tables (by source, by login) use one fixed
+// column grid, so their columns line up: the name takes what is left and
+// cuts off with its full text in a tooltip; numbers sit right-aligned in
+// fixed-width columns. A narrow screen scrolls the table sideways.
+const NAME_MIN = 120
+const TABLE_MIN = USAGE_COLUMNS.reduce((sum, col) => sum + (col.width ?? NAME_MIN), 0)
+const CELL = { 'css-padding': '4px-8px', 'css-white-space': 'nowrap', 'css-overflow': 'hidden', 'css-text-overflow': 'ellipsis' } as const
+function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof usageRows>; first?: string }) {
   const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
   const sorted = sortUsage(rows, sort)
   return (
     <Box css-overflow-x="auto">
-      <Box data-github-usage as="table" css-width="100%" css-border-collapse="collapse" css-font-size="14">
+      <Box data-github-usage as="table" css-width="100%" css-min-width={TABLE_MIN} css-table-layout="fixed" css-border-collapse="collapse" css-font-size="14">
         <thead>
           <tr>
             {USAGE_COLUMNS.map((col) => {
@@ -1122,8 +1135,9 @@ export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof
                   scope="col"
                   aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                   as="th"
+                  {...CELL}
+                  css-width={col.width}
                   css-text-align={right ? 'right' : 'left'}
-                  css-padding="4px-8px"
                   css-font-weight="500"
                   css-border-bottom="1px-solid-border"
                 >
@@ -1142,7 +1156,7 @@ export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof
                     onClick={() => setSort(nextUsageSort(sort, col.key))}
                   >
                     {col.key === 'source' ? first : col.label}
-                    <Hint aria-hidden="true" as="span" size="xs">
+                    <Hint aria-hidden="true" as="span" size="xs" css-display="inline-block" css-width="10">
                       {on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
                     </Hint>
                   </PlainButton>
@@ -1154,18 +1168,18 @@ export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof
         <tbody>
           {sorted.map((row) => (
             <tr key={row.source} data-usage-source={row.source}>
-              <Box as="td" css-padding="4px-8px">
-                {row.source}
-              </Box>
-              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
-                {row.calls}
-              </Box>
-              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
-                {row.notModified}
-              </Box>
-              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
-                {row.cached}
-              </Box>
+              {USAGE_COLUMNS.map((col) =>
+                col.key === 'source' ? (
+                  <Box key={col.key} as="td" {...CELL} title={row.source}>
+                    {row.source}
+                  </Box>
+                ) : (
+                  // The right padding matches the heading's arrow slot, so a number ends under its label.
+                  <Box key={col.key} as="td" {...CELL} css-padding-right={22} css-text-align="right" css-font-variant-numeric="tabular-nums">
+                    {row[col.key].toLocaleString('en-US')}
+                  </Box>
+                ),
+              )}
             </tr>
           ))}
         </tbody>

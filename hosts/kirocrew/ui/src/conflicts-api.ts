@@ -18,6 +18,9 @@ export function settleActionOf(item: ConflictItem): SettleAction | null {
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return null
   // The Crew Mode hold has its own button, Let the tick run it.
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
+  // Autopilot off is answered in Settings › Autopilot or the CLI.
+  if (item.kind === 'needs-human' && item.reason === 'autopilot-off') return null
+  if (item.kind === 'needs-human' && ANSWERED_ELSEWHERE.has(item.reason ?? '')) return null
   if (item.kind === 'needs-human') return item.reason === 'blocked' ? 'unblock' : 'reviewed'
   if (item.kind === 'decision') return 'settle'
   if (item.kind === 'untick') return 'reopen'
@@ -48,7 +51,7 @@ export const itemKey = (item: { kind?: string; taskId: string | null; field?: st
 
 // A review group's tasks the page may mark reviewed: GitHub and plugin rows
 // are reviewed where they live.
-export const reviewTargets = (item: ConflictItem) => (item.tasks ?? []).filter((task) => (task.authority ?? 'local') === 'local').map((task) => ({ taskId: task.id }))
+const reviewTargets = (item: ConflictItem) => (item.tasks ?? []).filter((task) => (task.authority ?? 'local') === 'local').map((task) => ({ taskId: task.id }))
 
 // What conflicts.settle is sent for an item: a review group sends its tasks.
 export const settleTargets = (item: ConflictItem): { taskId: string; slot?: string }[] =>
@@ -103,8 +106,12 @@ export function noActionReason(item: ConflictItem): string | null {
   return null
 }
 
-// Needs you rows whose detail says why and whose own buttons answer them.
-const OWN_ACTIONS = new Set(['draft-pr', 'pr-merge', 'stale-claim', 'pr-closed'])
+// Needs you rows whose detail says why and whose own buttons or detail
+// answer them.
+// A ready manual task is marked done in its drawer, a stopped line is
+// resumed from its banner, and a plugin is approved in Settings › Plugins.
+const ANSWERED_ELSEWHERE = new Set(['manual-ready', 'line-stopped', 'plugin-approval'])
+const OWN_ACTIONS = new Set(['draft-pr', 'pr-merge', 'stale-claim', 'pr-closed', 'autopilot-off', ...ANSWERED_ELSEWHERE])
 
 // The Conflicts kinds the Kind filter offers, each with its own test of an
 // item. 'all' is the filter's empty choice.
@@ -186,7 +193,7 @@ export interface ConflictFilter {
 }
 
 const DAY = 24 * 60 * 60 * 1000
-export const AGES: { value: string; label: string; ms: number }[] = [
+const AGES: { value: string; label: string; ms: number }[] = [
   { value: '1d', label: 'Older than a day', ms: DAY },
   { value: '7d', label: 'Older than a week', ms: 7 * DAY },
   { value: '30d', label: 'Older than 30 days', ms: 30 * DAY },

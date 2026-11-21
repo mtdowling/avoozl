@@ -29,15 +29,30 @@ worktrees, and its checks. Checkout paths are per machine, so they stay out of
 [Repository checks and isolation](checks.md)
 for checks, their environment, and the sandbox they run in.
 
-## Turning delivery on
+## Turning Autopilot on
 
-Delivery starts with a `delivery` block in `.avoozl.json`:
+Autopilot runs on a machine when two things are set: a `delivery` block in
+the workspace's `.avoozl.json`, and a `loop` in this machine's
+`~/.config/avoozl/config.json` (see [The server loop](#the-server-loop)):
 
 ```json
 {
   "delivery": {}
 }
 ```
+
+**Settings › Autopilot** sets both. The page picks **Off** (you take and land
+tasks yourself) or **Autopilot** (the tick starts and lands them), and asks
+once before either change. Only a person changes it; agents, MCP and the tick
+cannot. Picking Autopilot writes the `delivery` block when it is missing and
+writes `loop` to this machine's config, `{"run": ["specs"]}` unless you set
+the page's **Run** and **Every** fields first. Picking Off removes `loop` from
+this machine's config and keeps the `delivery` block, so other machines keep
+running. The page's other settings, such as who merges, show and save while
+Autopilot is off.
+
+When tasks are ready and this machine has no `loop`, **Needs you** says: "Autopilot is off on this machine, so ready tasks wait. Turn it on in
+Settings › Autopilot, or run avoozl next --claim."
 
 A runner starts a spec's tasks only when the spec issue, and every parent
 spec's issue, is assigned to its own login alone; a spec with no issue runs
@@ -49,8 +64,8 @@ nothing until a person chooses **Let the tick run it** in **Needs you**.
 ### The server loop
 
 The tick starts and lands work only on a machine whose own config turns the
-loop on. Put `loop` in `~/.config/avoozl/config.json`; `.avoozl.json` may not
-set it:
+loop on. Settings › Autopilot writes `loop` in `~/.config/avoozl/config.json`,
+or you can write it by hand; `.avoozl.json` may not set it:
 
 ```json
 {
@@ -137,7 +152,7 @@ and CLI file, so it needs neither `avoozl` on its `PATH` nor MCP sharing. The
 other chats need two steps in Kiro Crew, each done once:
 
 1. Share the MCP server. A worker that opens a pull request, and every
-   verifier and reviewer chat, reports with `plans_report`.
+   reviewer chat, reports with `plans_report`.
    Kiro Crew names the calling chat only to MCP servers it shares. Open **MCP
    Management**, find `avoozl:avoozl`, turn on sharing, and press **Approve
    sharing**. Then restart the gateway from **Settings › About › Restart
@@ -145,8 +160,8 @@ other chats need two steps in Kiro Crew, each done once:
    runs outside the chat sandbox, with your access.
 2. Set the chat folder. After the first tick, open the chat folder
    **Avoozl** › _repository ID_ in the sidebar and set its project directory
-   to the checkout. The planner and responder chats open there, and the
-   tick opens none of them until it is set.
+   to the checkout. The worker, reviewer and responder chats open there, and
+   the tick opens none of them until it is set.
 
 ## Workers and verification
 
@@ -157,9 +172,8 @@ choosing one. Sessions run on this machine.
 
 When a session reports done, Avoozl runs the checks itself on the exact commit
 in a clean worktree, with no model call. It then integrates the commit and
-releases the tasks that waited on it. A verifier session opens only when a
-task needs judgment: the repository has no checks, or it sets
-`verify: "agent"`.
+releases the tasks that waited on it. A repository with no checks is judged
+by its reviewers alone.
 
 Implementation, integration, and acceptance are separate steps, and each keeps
 its own record. Avoozl never replaces a worker only because its activity went
@@ -237,7 +251,7 @@ stays and the tick tries again.
 `landing.pr` says how Avoozl opens a `pr` repository's pull requests, and who
 merges them. Set it for the workspace at the top of `.avoozl.json`
 (`"landing": {"pr": "ready"}`), or for one repository in its landing block,
-which wins. Settings shows the workspace's in **Settings › Delivery**, and a
+which wins. Settings shows the workspace's in **Settings › Autopilot**, and a
 repository's on its **Landing** tab, where unset uses the workspace's. Only a
 person changes it; agents, MCP and the tick cannot. It is the only setting for
 who merges.
@@ -250,8 +264,7 @@ who merges.
 
 With `draft`:
 
-1. **Draft.** The **Landing queue** shows **Draft, waiting for you**, and
-   **Needs you** has one row for it. A person releases it: click **Ready for
+1. **Draft.** **Needs you** has one row for it. A person releases it: click **Ready for
    review** on GitHub, or press **Approve** on the row. Avoozl sees a GitHub
    click on its next read of the pull request, which it makes anyway, so it
    costs no extra GitHub call. **Approve** calls
@@ -299,8 +312,8 @@ pushed. A moved base means a new candidate and new checks.
 When the checks fail, Avoozl runs them again, finds the task that broke the
 batch, lands the tasks before it, and sends it back. The batch size starts at
 1, grows while batches land, and halves after a failure. `landing.mergeBatch`
-caps it, from 1 to 16. The **Landing queue** page shows the waiting tasks, the
-batch under test, recent batches, and the current size.
+caps it, from 1 to 16. Avoozl adds no trailer or attribution to a landing
+commit; its subject is `Land <task>`.
 
 A repository whose checks enforce a commit-message format can set
 `landing.commitPrefix`, such as `"chore: "`. Every subject Avoozl writes there

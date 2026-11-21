@@ -38,7 +38,11 @@ import type { Graph, RemoteWorker } from './views-api.ts'
 import { useSharedFilter } from './FilterBar.tsx'
 import { NO_GROUP, NO_REPOSITORY, filterActive, filterChoices, planKey, type TaskFilter } from './filters.ts'
 import { STATES } from './graph-layout.ts'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, usePages } from './ui/controls.tsx'
+import InFlightSessions from './InFlight.tsx'
+import { InFlightClaims, InFlightLanes } from './InFlightClaims.tsx'
+import IntegrationBranches from './IntegrationBranches.tsx'
 import { DetailsIcon, FileText, Folder, Layers, ListFilter, Pause, Play, RefreshCw, RotateCcw, X } from './icons.ts'
 import { chatClient } from './chat-api.ts'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
@@ -321,7 +325,7 @@ export function DeliveryBoard(props: {
                 size="sm"
                 weight="semibold"
                 data-lane-head
-                aria-expanded={!shut}
+                aria-expanded={single || narrow ? !shut : undefined}
                 onClick={() => {
                   const next = new Set(folded)
                   if (next.has(lane.id)) next.delete(lane.id)
@@ -329,8 +333,9 @@ export function DeliveryBoard(props: {
                   setFolded(next)
                 }}
                 disabled={!(single || narrow)}
+                {...(single || narrow ? DISCLOSURE : {})}
               >
-                {(single || narrow) && <span aria-hidden="true">{shut ? '▸' : '▾'}</span>}
+                {(single || narrow) && <DisclosureMark size={13} />}
                 <span aria-hidden="true" data-lane-dot />
                 {lane.label}
                 <Badge small variant={lane.id === 'needs-you' && cards.length ? 'warning' : undefined}>
@@ -389,7 +394,7 @@ function DeliveryFilters(props: { filter: TaskFilter; onChange: (filter: TaskFil
   const states = new Map<string, number>()
   for (const card of cards) states.set(card.state, (states.get(card.state) ?? 0) + 1)
   return (
-    <NavSlotFor section="dashboard">
+    <NavSlotFor section="delivery">
       <div role="search" aria-label="Filter delivery" data-nav-filters="avoozl-delivery" data-rail>
         <RailStyle />
         <RailBlock
@@ -580,8 +585,12 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
           )
         }
       >
-        Delivery
+        In flight
       </ViewHeading>
+      <InFlightSessions workspaceId={workspaceId} />
+      <InFlightClaims workspaceId={workspaceId} />
+      <InFlightLanes workspaceId={workspaceId} />
+      <IntegrationBranches workspaceId={workspaceId} />
       {(error || message) && (
         <Box role={error || !message?.ok ? 'alert' : 'status'} as="p" size="sm" tone={error || !message?.ok ? 'danger' : 'muted'}>
           {error ?? message?.text}

@@ -26,7 +26,7 @@ Five more skills drive Avoozl itself, through the `avoozl` CLI and the
 | `avoozl-spec` | Writes or revises a spec folder in the task list format, runs `avoozl spec lint` and `avoozl graph SPEC --write`, and stops at a `spec/<name>` branch for a person to approve. |
 | `avoozl-spec-review` | Reviews a spec for that format and for gaps, flags a branch on origin named for the spec that holds other work, and posts findings without editing. |
 | `avoozl-work` | Claims the next ready task with `avoozl next --claim`, does it on its claim branch, reports it with `avoozl runner report`, and lands it with `avoozl land`. |
-| `avoozl-retro` | Reads `avoozl flow`, names the biggest slowdown with its numbers, and proposes up to three settings or spec changes. Changes nothing. |
+| `avoozl-retro` | Reads `avoozl insights` and `avoozl flow`, names the biggest slowdown with its numbers, proposes up to three settings or spec changes, and saves the report with `retro.save`. Changes nothing else. |
 | `avoozl-investigate` | For a task whose bullets name a findings file: the worker writes the findings before the fix, and the reviewer tries to prove them wrong. |
 
 ## Where they come from

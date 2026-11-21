@@ -8,13 +8,6 @@
     "allow"
   ],
   [
-    "fix",
-    "spec"
-  ],
-  [
-    "fix"
-  ],
-  [
     "flow",
     "resume"
   ],
@@ -45,14 +38,6 @@
   [
     "plan",
     "approve"
-  ],
-  [
-    "plan",
-    "delete"
-  ],
-  [
-    "plan",
-    "restore"
   ],
   [
     "task",

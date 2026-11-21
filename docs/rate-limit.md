@@ -65,7 +65,7 @@ there is one notification per limit window.
 
 ## Refresh button
 
-The **Refresh** button on Home, Graph, Conflicts and Activity shows its
+The **Refresh** button on Graph, In flight, Needs you and Activity shows its
 countdown, `[↻ 32s]`, and reads again at 0. It pauses while the page is hidden.
 While limited it shows the time to the reset, `[↻ 18:51]`. Its tooltip has the
 details. **Settings › GitHub** shows the last remaining and reset numbers and

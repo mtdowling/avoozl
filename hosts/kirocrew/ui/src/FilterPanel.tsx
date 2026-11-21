@@ -10,6 +10,7 @@ import { Picker } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { ListFilter, X } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
+import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { ICON, IconBtn, TipBtn } from './ui/controls.tsx'
 import { useMedia } from './use-media.ts'
 import type { Option } from './filters.ts'
@@ -22,7 +23,7 @@ import { Box } from './ui/Box'
 import type { LookProps } from './ui/Box'
 import { PlainInput } from './ui/Plain'
 
-export type FilterField = (
+type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
   | { kind: 'select'; key: string; label: string; value: string; options: Option[]; onChange: (value: string) => void; disabled?: boolean; hint?: string }
   // A task or spec: the searchable picker (§8.9), with '' for All.
@@ -258,7 +259,8 @@ export function FilterPanel(props: {
       <div role="search" aria-label={props.label} data-filter-panel={props.id}>
         {narrow ? (
           <Stack gap={2}>
-            <Btn onClick={() => setOpen(!open)} aria-expanded={open}>
+            <Btn onClick={() => setOpen(!open)} aria-expanded={open} {...DISCLOSURE}>
+              <DisclosureMark size={13} />
               Filters{props.active ? ' (on)' : ''}
             </Btn>
             {open && fields}

@@ -129,13 +129,44 @@ environment. Two things then fail quietly: the harness program is not on
   `keepEnv` are passed to that child (V: `withKeptValues`,
   `src/app/executors/machine-env.mjs`). The file is outside every child's
   read roots because the whole Avoozl config folder is (R95.6).
+- Cloud sign-in: a definition's `homeFiles` are copied into the child's own
+  home (a lane's or the probe's) before each start, so Claude Code's
+  `settings.json` and Codex's `config.toml` carry their provider settings
+  to the child. A `reads` entry under `~/.aws` is the one secret folder a
+  child may read, read only, for an AWS profile (V: `harnessSecretReads`,
+  `src/app/executors/harness-definitions.mjs`).
+- Sign-in probe: the definition's `probe` argv (no placeholders) runs in a
+  fresh temp folder with a seeded home, the definition's `keepEnv`, `reads`
+  and the worker's sandbox and egress. Its answer is kept in
+  `harness-probes.json` in the machine config folder, keyed on the
+  definition hash and a hash of `machine.env`, and read by
+  `listHarnessDefinitions` (V: `probeHarness`,
+  `src/app/executors/harness-probe.ts`).
+- Egress (MS5.5): `harnessNetwork` runs the definition's
+  `credentialExport` and starts `egress-proxy-main.ts`, a detached process,
+  as the context broker is, since the child outlives the tick. The proxy
+  listens on 127.0.0.1 on a free port, writes the port to the session
+  folder, and ends when the run's exit file appears. The supervisor records
+  its pid in `egress.json` and stops it with the session's context. The
+  child gets `HTTPS_PROXY`, the exported keys and `setEnv`, and its sandbox
+  network gets `localhost:PORT` (V: `src/app/executors/egress-proxy.ts`,
+  `src/app/executors/harness-network.ts`).
 - Readiness: one function per definition answers "can this start here?"
   and both `avoozl status` and Settings › Models show it per role (MS5.3).
+  It fails on a program not found or a failed cached probe, never on a
+  `keepEnv` name that is unset.
+  The program is looked up as an absolute path, then on `machine.env`'s
+  `PATH`, the server's `PATH`, and the person's login-shell `PATH`
+  (`$SHELL -l -c /usr/bin/env`, a fixed argv, 3 second timeout, cached per
+  process, skipped on Windows). The supervisor spawns the file that lookup
+  returns and gives the child the `PATH` it was found on, so the check and
+  the spawn agree (V: `findProgram`, `src/app/executors/harness-ready.mjs`).
 
 **Roles.** `scripts/proofs/proof-ms-roles-live.mjs --harness NAME` drives the
 rows of `scripts/proofs/ms-roles-rows.mjs` on a scratch repository and prints
 one line per row; a test fails when a `ROLE_TABLE` row with `process: true`
-has no row there. The script runs `avoozl tick` every 10 seconds, each as its
+has no row there, or a row drives a role `ROLE_TABLE` does not have. The
+machine's `loop` is on, so the tick starts and lands the work. The script runs `avoozl tick` every 10 seconds, each as its
 own process, as a timer would, with no front end open.
 `scripts/proofs/run-ms-owner-proofs.mjs` runs it for ms-p2 and ms-p3 from the
 owner's terminal and drafts the receipts.
@@ -144,14 +175,10 @@ owner's terminal and drafts the receipts.
 | --- | --- | --- |
 | worker | one-file task | commit by Avoozl, landed |
 | verifier | a task in a repository with no checks | verdict (not driven: the scratch repository has checks, which Avoozl runs itself) |
-| reviewer | a review role a spec adds | verdict (not driven: the scratch spec adds none) |
-| falsifier | investigate first on | verdict on findings |
-| planner, plan answer | New plan request; one plan review finding | spec folder; answers |
-| plan reviewer | plan review on that spec, second model | findings |
-| retro | after the task lands (`flow.retro.everyTasks` 1) | reply |
-| responder | a reply request on an issue | posted reply |
-| task summary | a person asks for the landed task's summary | stored summary |
-| pull request review | a labeled pull request | stored review |
+| reviewer | the review role every repository gets | verdict |
+| planner | New plan request | spec folder that lints clean |
+| retro | a retrospective | reply (not driven: retros run as the `avoozl-retro` skill, so nothing starts a retro child) |
+| responder | a new discussion in the category the policy names | posted reply |
 | assist | Ask for help on the page | answer, no file |
 | check decide | a plugin check that needs a decision | answer (not driven: no plugin check is installed) |
 | (line watch) | a red head on main | the line stops; no session request |

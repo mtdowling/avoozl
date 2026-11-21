@@ -20,7 +20,7 @@ export function panes(phone: boolean, detailOpen: boolean) {
 
 // `startOpen`: the page was opened onto a particular detail (a link), so a
 // phone starts on it rather than on the list.
-export function useListDetail(startOpen = false) {
+function useListDetail(startOpen = false) {
   const phone = usePhone()
   const [detailOpen, setDetailOpen] = useState(startOpen)
   const openDetail = useCallback(() => setDetailOpen(true), [])

@@ -12,6 +12,7 @@ import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import { answer, Btn, Card, Refusal, replyFor, useAppApi } from './stubs.tsx'
 import { answerSignIn } from './signin-fixture.ts'
+import { InFlightRow } from '../../src/InFlight.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { SpecLinkContext } from '../../src/spec-link.ts'
 import { ConfirmProvider, DangerBtn, InfoTip } from '../../src/ui/controls.tsx'
@@ -22,33 +23,31 @@ import AddPlugin from '../../src/AddPlugin.tsx'
 import { Modal } from '../../src/ui/Modal.tsx'
 import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
-import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
+import PlansView from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import WorkspaceView from '../../src/WorkspaceView.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
-import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { LAYER } from '../../src/layers.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
+import { answerInsights } from './insights-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
-import { landingFixture } from './landing-fixture.ts'
 import { PrModeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/ManualTask.tsx'
 import { needsContextItems } from './needs-context-fixture.ts'
-import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
-import NewFixDrawer from '../../src/NewFixDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
-import AvoozlPanel from '../../src/Panel.tsx'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
+import type { HarnessDefinition } from '../../src/models-api.ts'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
-const state = ((window as unknown as { __harness: { closed: number; calls: { operation?: string; input?: unknown }[] } }).__harness = { closed: 0, calls: [] })
+type HarnessState = { closed: number; calls: { operation?: string; input?: unknown }[] }
+const state: HarnessState = ((window as unknown as { __harness: HarnessState }).__harness = { closed: 0, calls: [] })
 
 // A client whose every call never settles: dialogs stay on their first step.
 const idle = new Proxy({}, { get: () => () => new Promise(() => undefined) }) as never
@@ -258,8 +257,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'add-plugin': own('Add plugin', <AddPlugin workspaceId="w" client={idle} supported={[1]} onChanged={async () => undefined} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
-  'archive-plan': shown((close) => <ArchivePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
-  'delete-plan': shown((close) => <DeletePlanDialog workspaceId="w" row={row as never} client={idle} onDone={close} />),
   confirm: own(
     'Remove',
     <DangerBtn confirm={{ title: 'Remove avoozl?', body: 'Its settings go. The checkout stays.', action: 'Remove' }} onConfirm={() => undefined}>
@@ -271,25 +268,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'task-drawer': own('Open the dialog', <OpenTask />),
   'review-info': own('Open the dialog', <OpenReview />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onClose={close} onDone={close} />),
-  // The real page shows New spec over the whole page, not inside a card.
-  // New spec with nothing picked: categories and epics to choose from.
-  'new-spec': shown((close) =>
-    createPortal(
-      <div {...{ [APP_ATTR]: '' }}>
-        <NewPlanDrawer workspaceId="w" taken={[]} categories={['Platform', 'Search']} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} onClose={close} />
-      </div>,
-      document.body,
-    ),
-  ),
-  // New fix beside New spec (design §4.12).
-  'new-fix': shown((close) =>
-    createPortal(
-      <div {...{ [APP_ATTR]: '' }}>
-        <NewFixDrawer workspaceId="w" onClose={close} />
-      </div>,
-      document.body,
-    ),
-  ),
 }
 
 // One In flight row, for the title link test.
@@ -364,7 +342,7 @@ SCENARIOS['in-flight-pair'] = {
   render: () => (
     <ul style={{ maxWidth: 900 }}>
       <InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} />
-      <InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} onPickAgain={undefined} />
+      <InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} />
     </ul>
   ),
 }
@@ -390,33 +368,53 @@ function Scenario({ name }: { name: string }) {
 // ?page=app: the whole Avoozl page on one workspace with intake on, for
 // tests that move between tabs.
 // &long=1 names the workspace long enough to need cutting short, and adds a
-// second one to switch to.
+// second one to switch to. &configError=1 gives it a .avoozl.json that does
+// not load.
 answer('workspaces.list', () => ({
   defaultWorkspace: 'w',
   items: [
-    { id: 'w', name: query.get('long') === '1' ? 'Recipe box planning and the meal planner rewrite' : 'Harness', root: '/w', enabled: true, state: 'ready', served: true },
+    {
+      id: 'w',
+      name: query.get('long') === '1' ? 'Recipe box planning and the meal planner rewrite' : 'Harness',
+      root: '/w',
+      enabled: true,
+      state: 'ready',
+      served: true,
+      ...(query.get('configError')
+        ? { configError: 'Unknown setting "github.repositories.example/app.role" in repository Avoozl configuration at /w/.avoozl.json. Remove it.' }
+        : {}),
+    },
     ...(query.get('long') === '1' ? [{ id: 'w2', name: 'Avoozl', root: '/w2', enabled: true, state: 'ready', served: false }] : []),
   ],
 }))
 // Settings > Workspaces > Telemetry. &telemetry=STATUS picks what the status
-// operation says (off by default); the switch flips it on and off.
+// operation says (off by default); a save sets it from what was saved.
 let telemetryStatus = query.get('telemetry') ?? 'off'
+const exporting = () => !['off', 'no-endpoint'].includes(telemetryStatus)
+let telemetrySaved: { endpoint: string | null; protocol: string; headers: string[] } = exporting()
+  ? { endpoint: 'https://otlp.example:4318', protocol: 'http/json', headers: ['authorization'] }
+  : { endpoint: null, protocol: 'http/json', headers: [] }
 const telemetryView = () => ({
   status: telemetryStatus,
   failure: telemetryStatus === 'backing-off' ? 'http 503' : null,
-  endpoint: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? null : 'https://otlp.example:4318',
+  endpoint: exporting() ? 'https://otlp.example:4318' : null,
+  endpointFrom: exporting() ? 'machine' : null,
   protocol: telemetryStatus === 'protocol' ? 'grpc' : 'http/json',
-  headerNames: telemetryStatus === 'off' || telemetryStatus === 'no-endpoint' ? [] : ['authorization'],
+  headerNames: exporting() ? ['authorization'] : [],
+  missingHeaders: [],
+  saved: telemetrySaved,
   sent: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? 41 : 0,
   queued: telemetryStatus === 'backing-off' ? 3 : 0,
   dropped: 0,
   rejected: 0,
   lastSuccessAt: telemetryStatus === 'sending' || telemetryStatus === 'backing-off' ? '2026-11-20T03:12:09.000Z' : null,
-  local: { spans: 5120, points: 48210 },
+  local: { spans: 5120, points: 48210, days: 90, spanCap: 200000, pointCap: 1000000 },
 })
 answer('telemetry.status', telemetryView)
 answer('telemetry.configure', (body) => {
-  telemetryStatus = (body.input as { enabled?: boolean }).enabled ? 'no-endpoint' : 'off'
+  const input = body.input as { enabled?: boolean; endpoint?: string; headers?: string[] }
+  telemetrySaved = { ...telemetrySaved, endpoint: input.endpoint || null, headers: input.headers ?? telemetrySaved.headers }
+  telemetryStatus = input.enabled ? (input.endpoint ? 'sending' : 'no-endpoint') : 'off'
   return telemetryView()
 })
 
@@ -424,12 +422,6 @@ answer('telemetry.configure', (body) => {
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 // &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).
 if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
-
-answer('fix.start', () => ({ taskId: 'fix-1' }))
-
-// Dashboards › Landing queue: empty by default; &landing=1 has two bases
-// with every hold reason (landing-queue-shots.mjs).
-answer('landing.queue', () => (query.get('landing') === '1' ? landingFixture : { bases: [], readAt: '2026-11-17T12:00:00Z' }))
 
 function DeepLinkPage() {
   return (
@@ -467,6 +459,8 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
 // repository on the local Avoozl worker.
 if (query.get('page') === 'app') {
   const worker = query.get('worker') === '1'
+  // &insights=full: the Insights home with data; else every chart is empty.
+  answerInsights(query.get('insights') === 'full')
   // &needs=N: N open Needs you items, so the nav shows its count. Home's
   // other reads answer empty, so Home fills in.
   const needs = Number(query.get('needs') ?? 0)
@@ -505,6 +499,65 @@ if (query.get('page') === 'app') {
   if (!replyFor('plan.list')) answer('plan.list', () => ({ items: [] }))
   if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
   if (!replyFor('landing.view')) answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
+  // &claims=1: In flight's claim branches and lanes, one of each kind.
+  const claimsShown = query.get('claims') === '1'
+  answer('claims.view', () => ({
+    claims: claimsShown
+      ? [
+          {
+            repository: 'acme/recipe-box',
+            branch: 'avoozl/meal-planner/a1',
+            spec: 'meal-planner',
+            task: 'a1',
+            title: 'Task a1',
+            holder: 'this runner',
+            head: 'a1b2c3d4e5',
+            at: '2026-11-14T10:00:00Z',
+            ageHours: 2,
+            stale: false,
+          },
+          {
+            repository: 'acme/recipe-box',
+            branch: 'avoozl/meal-planner/a2',
+            spec: 'meal-planner',
+            task: 'a2',
+            title: 'Task a2',
+            holder: 'another runner',
+            head: 'f6e5d4c3b2',
+            at: '2026-11-13T08:00:00Z',
+            ageHours: 30,
+            stale: true,
+          },
+        ]
+      : [],
+  }))
+  answer('lanes.view', () => ({
+    lanes: claimsShown
+      ? [
+          {
+            lane: 'worker-1',
+            role: 'worker',
+            header: 'Worker 1',
+            harness: 'kirocrew',
+            state: 'busy',
+            task: 'a1',
+            slot: 'chat-1',
+            open: 'Kiro Crew chat "Worker 1" in Avoozl › harness',
+          },
+          { lane: 'reviewer-1', role: 'reviewer', header: 'Reviewer 1', harness: 'claude', state: 'free', task: null, slot: 'p-2', open: 'avoozl session attach p-2' },
+          {
+            lane: 'worker-2',
+            role: 'worker',
+            header: 'Worker 2',
+            harness: 'kirocrew',
+            state: 'paused',
+            task: null,
+            slot: null,
+            open: 'Resume in Needs you, or avoozl lane resume worker-2',
+          },
+        ]
+      : [],
+  }))
   // &home=empty: Home's CI read answers with no runs (only Home reads it).
   if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], flaky: [], ciOnly: [] }))
   // &roles=plans|single|local: Repository setup in each github.mode, the
@@ -832,6 +885,21 @@ if (query.get('page') === 'app' && query.get('crewmode') === '1') {
   }))
   answer('delivery.runner.release', () => ({ released: true }))
 }
+// &autopilotoff=1: ready tasks wait because this machine has no loop.
+if (query.get('page') === 'app' && query.get('autopilotoff') === '1')
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: [
+      {
+        kind: 'needs-human',
+        reason: 'autopilot-off',
+        id: 'autopilot-off',
+        taskId: null,
+        title: 'Autopilot is off on this machine, so ready tasks wait.',
+        detail: 'Turn it on in Settings › Autopilot, or run avoozl next --claim.',
+      },
+    ],
+  }))
 // &delivery=1: tasks in every Delivery lane across two epics and specs.
 if (query.get('page') === 'app' && query.get('delivery') === '1') {
   const at = '2026-11-16T09:00:00Z'
@@ -1419,7 +1487,7 @@ if (query.get('page') === 'app' && query.get('flowtasks') === '1') {
 }
 // ?page=demo: the whole page on the made-up sample workspace. Its calls
 // answer from window.__DEMO (demo-replies.mjs, built from the sample in
-// src/app/test/demo-fixture.mjs); other calls answer as ?page=app does.
+// src/app/test/demo-fixture.ts); other calls answer as ?page=app does.
 const demo = (window as unknown as { __DEMO?: { replies: Record<string, unknown>; previews: Record<string, string> } }).__DEMO
 if (query.get('page') === 'demo' && demo) {
   answer('workspaces.list', () => ({ defaultWorkspace: 'sample', items: [{ id: 'sample', name: 'Recipe Box', served: true }] }))
@@ -1612,13 +1680,23 @@ answer('workspaces.browse', (body) => {
 
 // The app shell answers too, so Settings › Models can be shot in place.
 if (query.get('page') === 'models' || query.get('page') === 'app') {
-  let settings = {
+  let settings: { filename: string; exists: boolean; hash: string; roles: Record<string, Record<string, string>>; harnessDefinitions: HarnessDefinition[] } = {
     filename: '.avoozl.json',
     exists: true,
     hash: 'models-before',
-    roles: { planner: { model: 'fake-writer' } } as Record<string, Record<string, string>>,
+    roles: { checkDecide: { model: 'fake-writer' } },
     harnessDefinitions: [
-      { name: 'claude-code', approved: true, model: true, readRoles: null, proved: ['read', 'write'] },
+      {
+        name: 'claude-code',
+        approved: true,
+        model: true,
+        readRoles: null,
+        proved: ['read', 'write'],
+        probes: true,
+        probe: { ok: false, message: null, at: '2026-11-21T06:00:00.000Z' },
+        startProblem:
+          'claude-code failed its sign-in check: Invalid API key · Please run /login. Check that claude-code is signed in for this machine\u2019s server (the names in its keepEnv, machine.env, and the folders its reads list for a credential helper), then Check again.',
+      },
       {
         name: 'codex',
         approved: false,
@@ -1635,6 +1713,12 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
     const { name } = body.input as { name: string }
     settings = { ...settings, harnessDefinitions: settings.harnessDefinitions.map((d) => (d.name === name ? { ...d, approved: true } : d)) }
     return { name, path: `/config/harnesses/${name}.json`, hash: 'a'.repeat(64) }
+  })
+  answer('harness.probe', (body) => {
+    const { name } = body.input as { name: string }
+    const probe = { ok: true, message: null, at: '2026-11-21T06:10:00.000Z' }
+    settings = { ...settings, harnessDefinitions: settings.harnessDefinitions.map((d) => (d.name === name ? { ...d, probe, startProblem: null } : d)) }
+    return { name, ...probe }
   })
   answer('models.settings.update', (body) => {
     state.calls.push(body)
@@ -1669,6 +1753,11 @@ const PAGES: Record<string, () => ReactNode> = {
           review: { calls: 5, notModified: 0, cached: 3 },
           setup: { calls: 2, notModified: 0, cached: 0 },
         },
+        // A long login and a large count, so the tests see both tables keep one column grid.
+        byLogin: {
+          mtdowling: { calls: 12480, notModified: 3021, cached: 118204 },
+          'avoozl-machine-server-dev-desktop-review-bot': { calls: 7, notModified: 0, cached: 0 },
+        },
       }}
     />
   ),
@@ -1691,7 +1780,7 @@ function IntakePage() {
       <NavHistoryProvider>
         <ConfirmProvider>
           <div data-intake-page style={{ padding: 16 }}>
-            <PluginsSettings workspaceId="w" onOpenGitHub={() => {}} onOpenRepositories={() => {}} />
+            <PluginsSettings workspaceId="w" />
           </div>
         </ConfirmProvider>
       </NavHistoryProvider>
@@ -1723,7 +1812,7 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
       kind: kinds[at % kinds.length],
       summary: `${kinds[at % kinds.length]} entry ${seq}`,
       targetId: null,
-      link: null,
+      link: null as string | null,
       redacted: false,
     }
   })
@@ -1745,7 +1834,7 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
     link: null,
     redacted: false,
   })
-  const all = [
+  const all: Array<Record<string, any>> = [
     tickRow(27, 2, 'tick.recovered', 'Tick works again after 5 failures'),
     tickRow(26, 1.5, 'tick.failed', 'Tick failed 5 times in a row: database is locked'),
     tickRow(25, 0.5, 'tick.stalled', 'Tick had not run for 42 min; it is running again'),
@@ -1753,6 +1842,32 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
   ]
   sources.push('tick')
   kinds.push('tick.failed', 'tick.recovered', 'tick.stalled')
+  // Rows of each GitHub kind, in a workspace whose repository is on GitHub.
+  const repositories = query.get('ghall') === '1' ? ['nupp-lang/foo'] : query.get('ghitems') === '1' ? ['nupp-lang/foo', 'nupp-lang/bar'] : []
+  if (query.get('ghall') === '1') {
+    const row = (seq: number, source: string, actor: string | null, kind: string, summary: string, extra = {}) => ({
+      ...tickRow(seq, 3 + (40 - seq) * -0.1, kind, summary),
+      source,
+      actor,
+      repository: 'nupp-lang/foo',
+      ...extra,
+    })
+    all.unshift(
+      row(40, 'tick', 'avoozl', 'task.landed', 'a1 landed at 0123456789ab after 2 tries', { targetId: 'a1', task: true }),
+      row(39, 'tick', null, 'task.ticked', 'a2 is done: ticked in tasks.md on avoozl/recipes/a2 at 89abcde', { targetId: 'a2', task: true }),
+      row(38, 'tick', 'mira@example.com', 'plan.approved', 'recipes approved by mira@example.com in commit 0123456789ab on rewrite-v3'),
+      row(37, 'github', 'octo-reviewer', 'github.check', 'Check test failed on pull request #12'),
+      row(36, 'github', 'octo-reviewer', 'github.close', "octo-reviewer closed a3's issue without merged code (completed); dependents released", {
+        targetId: 'a3',
+        task: true,
+        link: 'https://github.com/nupp-lang/foo/issues/31',
+      }),
+      row(35, 'github', null, 'github.pr-merged', 'Closing pull request merged for a4', { targetId: 'a4', link: 'https://github.com/nupp-lang/foo/pull/22' }),
+      row(34, 'github', null, 'intake.item', 'New pr nupp-lang/foo#12 from github'),
+      row(33, 'github', 'gh', 'github.token', 'New GitHub token from gh on github.com for land on nupp-lang/foo: signed in as mira, full access, no expiry.'),
+      row(32, 'github', 'octo-reviewer', 'github.handback', 'Crew Nova handed back issue #6: it needs a person'),
+    )
+  }
   const count = (key: 'source' | 'kind' | 'actor') => {
     const out: Record<string, number> = {}
     for (const row of all) out[row[key]] = (out[row[key]] ?? 0) + 1
@@ -1769,6 +1884,7 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
       actors: [...actors].sort(),
       counts: { source: count('source'), kind: count('kind'), actor: count('actor') },
       retentionDays: 30,
+      repositories,
     }
   })
   let keepDays = 30
@@ -1899,48 +2015,6 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
       disk: { folder: '.kiro/specs/byte-types/', exists: true, hash: at, changed: false, critique: null },
     }))
   }
-  // &publish=1: load-config is approved in a GitHub workspace and has no
-  // spec issue yet, so its header offers Make the GitHub issues (R118.7).
-  if (query.get('publish')) {
-    const hash = 'feedc0de'.repeat(8)
-    const files = { 'requirements.md': '# Load config\n\nRead config.json.\n', 'tasks.md': '- [ ] 1 Load config\n' }
-    let issue: { kind: 'issue'; repository: string; number: number; url: string } | null = null
-    answer('github.settings.get', () => ({ effective: { mode: 'plans-repo', planningRepository: 'acme/plans' } }))
-    answer('plan.get', () => ({
-      id: 'load-config',
-      spec: 'load-config',
-      title: 'Load config',
-      hash,
-      revision: 2,
-      state: 'approved',
-      files,
-      approvals: [{ id: 'a1', hash, at: '2026-11-19T12:00:00Z', approvedBy: 'mira@example.test' }],
-      history: [],
-      quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
-      disk: { folder: '.kiro/specs/load-config/', exists: true, hash, changed: false, critique: null },
-      links: { issue, workingBranches: [], pulls: [], sources: [] },
-    }))
-    answer('plan.spec.read', () => ({ name: 'load-config', folder: '.kiro/specs/load-config/', hash, documents: files }))
-    answer('plan.preview', () => ({ reviewedHash: hash, expectedRevision: 2, tasks: [], dependencies: [] }))
-    // The spec's folder summary, as plan.table gives it for every spec row.
-    const folder = {
-      name: 'load-config',
-      folder: '.kiro/specs/load-config/',
-      type: 'feature',
-      hash,
-      files: Object.keys(files),
-      counts: { error: 0, warning: 0, info: 0 },
-      taskCount: 1,
-      critique: null,
-      plan: { id: 'load-config', state: 'approved', hash, revision: 2, changed: false, approved: true },
-    }
-    answer('plan.table', () => ({ root: '/repo', problem: null, specs: [folder], revision: 7, items }))
-    answer('spec.publish', (body) => {
-      state.calls.push(body as never)
-      issue = { kind: 'issue', repository: 'acme/plans', number: 41, url: 'https://github.com/acme/plans/issues/41' }
-      return { home: 'github', existing: false, repository: 'acme/plans', number: 41 }
-    })
-  }
 }
 function SpecsPage() {
   return (
@@ -1949,20 +2023,6 @@ function SpecsPage() {
         <ConfirmProvider>
           <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
             <PlansView workspaceId="w" />
-          </TaskDrawerProvider>
-        </ConfirmProvider>
-      </NavHistoryProvider>
-    </div>
-  )
-}
-
-function HomePage() {
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
-      <NavHistoryProvider>
-        <ConfirmProvider>
-          <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
-            <DashboardView workspaceId="w" onNavigate={() => undefined} />
           </TaskDrawerProvider>
         </ConfirmProvider>
       </NavHistoryProvider>
@@ -2044,10 +2104,39 @@ function NeedsPage() {
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
 // &plugins=many|none: Settings > Plugins with eight plugins, or none.
-if (query.get('plugins')) {
+if (query.get('plugins') && query.get('plugins') !== 'updates') {
   const many = query.get('plugins') === 'many'
   const rows = Array.from({ length: 8 }, (_, i) => ({ ...PLUGINS[i % 2], id: `${PLUGINS[i % 2].id}-${i + 1}` }))
   answer('plugins.list', () => ({ supportedContracts: [1], plugins: many ? rows : [] }))
+}
+// &plugins=updates: Settings > Plugins after the daily update check found a
+// newer tag, a moved branch, and one source it couldn't reach.
+if (query.get('plugins') === 'updates') {
+  const at = new Date(Date.now() - 2 * 3600_000).toISOString()
+  const git = (id: string, ref: string, commit: string, update: Record<string, unknown>) => ({
+    ...PLUGINS[0],
+    id,
+    git: { url: `https://git.example.com/team/${id}.git`, ref },
+    commit,
+    version: ref.startsWith('v') ? ref.slice(1) : '1.4.0',
+    location: `~/.config/avoozl/plugins/git/${id}/${commit}`,
+    health: { state: 'ok', reason: null },
+    update: { checkedAt: at, ...update },
+  })
+  answer('plugins.list', () => ({
+    supportedContracts: [1],
+    updateChecks: { enabled: true },
+    plugins: [
+      git('team-rules', 'v1.0.0', '4f1c2e9a7b3d5f60812a4c6e8b0d2f4a6c8e0b1d', { state: 'newer', kind: 'tag', current: 'v1.0.0', latest: 'v1.2.0' }),
+      git('team-checks', 'main', '9a8b7c6d5e4f30211a2b3c4d5e6f708192a3b4c5', {
+        state: 'newer',
+        kind: 'commit',
+        current: '9a8b7c6d5e4f30211a2b3c4d5e6f708192a3b4c5',
+        latest: 'abc1234f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b',
+      }),
+      git('team-context', 'v2.1.0', '1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e', { state: 'failed', reason: 'git ls-remote failed: Could not resolve host: git.example.com' }),
+    ],
+  }))
 }
 // &rules=many|one: Settings > Content rules with fourteen rule sets, or one.
 if (query.get('rules')) {
@@ -2078,143 +2167,6 @@ if (query.get('rules')) {
   }))
 }
 
-// ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
-// window.__panel holds what the reads return, so a test can change it and see
-// the panel read again; window.__panelReads counts the reads and
-// window.__panelCalls records writes.
-type PanelData = { conflicts: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
-const panelWin = window as unknown as { __panel: PanelData; __panelReads: number; __panelCalls: unknown[] }
-const panelRow = (taskId: string, state: string, reason: string) => ({
-  taskId,
-  title: `Task ${taskId}`,
-  planId: 'search-v2',
-  spec: 'search-v2',
-  phase: 'one',
-  scope: null,
-  label: 'ready',
-  number: null,
-  url: null,
-  manual: false,
-  state,
-  reason,
-  used: 0,
-  capacity: 2,
-})
-if (page === 'panel') {
-  const full = query.get('state') !== 'empty'
-  panelWin.__panelReads = 0
-  panelWin.__panelCalls = []
-  panelWin.__panel = {
-    conflicts: full
-      ? [
-          {
-            kind: 'needs-human',
-            reason: 'crew',
-            taskId: null,
-            title: '#52 asks about the tokenizer',
-            detail: 'Tokenizer A or B? The agent is waiting for an answer.',
-            link: 'https://github.test/acme/recipe-box/issues/52',
-          },
-          { kind: 'stale-session', taskId: 'S9', title: 'A retired worker row', detail: 'must not show' },
-        ]
-      : [],
-    remote: full
-      ? [
-          {
-            host: 'box',
-            crewId: 'r1',
-            taskId: 'S5',
-            state: 'running',
-            chatKey: 'k',
-            status: 'working',
-            updatedAt: new Date().toISOString(),
-            attachUrl: 'https://box.test/chat?sid=k',
-            stale: false,
-            lastOkAt: null,
-          },
-        ]
-      : [],
-    queue: full ? [panelRow('S9', 'next', 'Waits on #52, then it is next.'), panelRow('S10', 'held', 'Held by the line.')] : [],
-    tasks: full ? [{ taskId: 'S4', title: 'Tokenizer', repository: 'acme/recipe-box', finishedAt: new Date(Date.now() - 3600000).toISOString() }] : [],
-    line: [],
-    specs: [
-      {
-        name: 'search-v2',
-        folder: '.kiro/specs/search-v2',
-        type: 'feature',
-        hash: 'h',
-        files: ['requirements.md', 'design.md', 'tasks.md'],
-        counts: { error: 0, warning: 1 },
-        taskCount: 12,
-        critique: null,
-        plan: { id: 'search-v2', state: 'draft', hash: 'h', revision: 1, changed: false, approved: false },
-      },
-    ],
-  }
-  const data = () => {
-    if (panelWin.__panel.fail) throw Object.assign(new Error('down'), { status: 500, body: '{"error":"down"}' })
-    return panelWin.__panel
-  }
-  answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
-  // ?places=1: two workspaces, Avoozl's (/w) and Nupp's (/n, whose code
-  // checkout is /src/nupp), and chats whose project folders sit in each.
-  if (query.get('places')) {
-    answer('workspaces.list', () => ({
-      defaultWorkspace: 'w',
-      items: [
-        { id: 'w', name: 'Avoozl plans', root: '/w', enabled: true, state: 'ready', served: true },
-        { id: 'nupp', name: 'Nupp plans with a long name', root: '/n', enabled: true, state: 'ready', served: false },
-      ],
-    }))
-    answer('repositories.list', (body) => ({
-      items:
-        (body as { workspaceId?: string }).workspaceId === 'nupp'
-          ? [{ id: 'nupp', name: 'nupp', localCheckout: '/src/nupp', github: 'o/nupp', baseBranch: 'main' }]
-          : [{ id: 'av', name: 'avoozl', localCheckout: '/src/avoozl', github: 'o/avoozl', baseBranch: 'main' }],
-    }))
-    answer('GET /api/chat/slots', () => [
-      { key: 'nupp-chat', project: '/src/nupp/compiler' },
-      { key: 'avoozl-chat', project: '/src/avoozl' },
-      { key: 'elsewhere-chat', project: '/srv/other' },
-    ])
-  }
-  // The one read the panel makes. A failed part is null, as in the backend.
-  const part = <T,>(read: () => T): T | null => {
-    try {
-      return read()
-    } catch {
-      return null
-    }
-  }
-  answer('panel.view', () => {
-    panelWin.__panelReads += 1
-    return {
-      readAt: new Date().toISOString(),
-      conflicts: part(() => data().conflicts),
-      remote: part(() => data().remote),
-      queue: part(() => ({ repositories: [{ repository: 'acme/recipe-box', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: data().queue }] })),
-      flow: part(() => ({ tasks: data().tasks, line: data().line })),
-      specs: part(() => data().specs),
-      instance: { id: 'inst-1', name: 'Kelp' },
-    }
-  })
-  // The line, read by the pause button: ?stopped=1 opens a stop; Resume closes it.
-  let panelStops = query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : []
-  answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [] }))
-  answer(
-    'flow.resume',
-    (body) => (panelWin.__panelCalls.push({ resume: (body.input as { stopId?: string }).stopId }), (panelStops = []), { stop: { id: 'l1', closedAt: new Date().toISOString() } }),
-  )
-  answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
-}
-// ?page=panel&real=1: the panel on the replies a real backend gave over the
-// sample workspace (window.__REAL_PANEL, panel-real.test.mjs), so a reply that
-// drifts from what the panel reads shows up here and not only in a live host.
-const realPanel = (window as unknown as { __REAL_PANEL?: Record<string, unknown> }).__REAL_PANEL
-if (page === 'panel' && query.get('real') === '1' && realPanel) {
-  answer('panel.view', () => realPanel['panel.view'])
-  answer('GET /api/apps/spec-builder/specs', () => ({ specs: ((realPanel['panel.view'] as { specs?: { name: string }[] }).specs ?? []).map((item) => ({ name: item.name })) }))
-}
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
   static getDerivedStateFromError(error: unknown) {
@@ -2245,15 +2197,6 @@ function LandingParts(props: { repository: RepositoryForm; set: (change: Partial
       <MergeMethodFields id="t" {...props} />
       <PrModeFields id="t" {...props} />
     </>
-  )
-}
-function PanelPage() {
-  return (
-    <div style={{ width: window.innerWidth <= 640 ? '100%' : 360, padding: 0, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <AvoozlPanel />
-      </HarnessBoundary>
-    </div>
   )
 }
 // &epiccontext=1: two tasks whose last session got epic context, and Settings ›
@@ -2300,13 +2243,36 @@ if (query.get('page') === 'app' && query.get('epiccontext') === '1') {
     { name: 'approver', passed: true },
     why ? { name: 'you-drive', passed: false, why } : { name: 'you-drive', passed: true },
   ]
+  // &epicmachine=none: this machine has no context of its own yet. A save
+  // is kept and recorded in window.__contextWrites; a folder whose path holds
+  // "missing" is refused as the backend refuses a folder that is not there.
+  let machine: unknown =
+    query.get('epicmachine') === 'none'
+      ? null
+      : {
+          repos: ['acme/*'],
+          reads: ['~/notes/acme-widgets'],
+          mcp: { docs: { about: 'The docs host', command: ['docs-mcp', '--stdio'], env: ['DOCS_TOKEN'] } },
+          contentSets: ['acme-terms'],
+        }
+  const contextWrites: unknown[] = ((window as unknown as { __contextWrites: unknown[] }).__contextWrites = [])
+  answer('context.machine.set', (body) => {
+    const value = (body as { input: { epicContext: { reads?: string[] } | null } }).input.epicContext
+    const at = value?.reads?.findIndex((read) => read.includes('missing')) ?? -1
+    if (value && at >= 0) throw new Error(`epicContext.reads.${at} ${value.reads![at]} is not a folder on this machine.`)
+    contextWrites.push(value)
+    machine = value
+    return { epicContext: value }
+  })
+  answer('content.rules', () => ({
+    error: null,
+    configHash: 'h1',
+    mode: 'single-repo',
+    builtins: [],
+    sets: ['acme-terms', 'team-words'].map((id) => ({ id, action: 'block', source: 'file', boundaries: null, repositories: null, plugin: null, available: true })),
+  }))
   answer('context.get', () => ({
-    machine: {
-      repos: ['acme/*'],
-      reads: ['~/notes/acme-widgets'],
-      mcp: { docs: { about: 'The docs host', command: ['docs-mcp'], env: ['DOCS_TOKEN'] } },
-      contentSets: ['acme-terms'],
-    },
+    machine,
     plugins: [{ id: 'team-context', version: '1.0.0', ...part }],
     sessions: [
       {
@@ -2362,14 +2328,10 @@ createRoot(document.getElementById('root')!).render(
     <SpecsPage />
   ) : page === 'tip' ? (
     <TipPage />
-  ) : page === 'panel' ? (
-    <PanelPage />
   ) : page === 'crews-rules' ? (
     <CrewsRulesPage />
   ) : intake ? (
     <IntakePage />
-  ) : page === 'home' ? (
-    <HomePage />
   ) : page === 'activity' ? (
     <ActivityPage />
   ) : page && page !== 'app' && page !== 'demo' ? (

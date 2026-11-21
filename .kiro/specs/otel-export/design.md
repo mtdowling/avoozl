@@ -240,35 +240,48 @@ instance ID in the state folder is kept.
 
 ## D6. The OTLP setting and the environment (OT4, OT5, OT6)
 
-The setting is one key in machine config:
+The setting is one object in machine config. The Telemetry form writes it:
 
 ```json
 {
   "telemetry": {
-    "enabled": true
+    "enabled": true,
+    "endpoint": "https://otlp.acme.example:4318",
+    "protocol": "http/json",
+    "headers": [
+      "authorization"
+    ]
   }
 }
 ```
 
-Everything else is the standard environment of the process that runs the
-tick:
+`headers` holds names only. Each value comes from the standard environment of
+the process that runs the tick, which also beats the saved endpoint and
+protocol:
 
 ```sh
-export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.acme.example:4318
 export OTEL_EXPORTER_OTLP_HEADERS="authorization=Bearer ${ACME_OTLP_TOKEN}"
 avoozl tick
 ```
 
-`config.mjs` returns `{enabled, endpoints, headerNames, headers, timeoutMs,
-protocol, status}`. `headers` stays inside `send.mjs`'s closure and is not part
-of any value `status()` returns.
+Header values come from the environment and not from the credentials plugin:
+that plugin hands out GitHub tokens per owner and host, and has no slot for
+an OTLP header.
+
+`config.mjs` returns `{enabled, endpoints, endpoint, endpointFrom, protocol,
+headerNames, missingHeaders, headers, timeoutMs, saved, status}`.
+`endpointFrom` is `environment`, `machine` or null. `saved` is the saved
+endpoint, protocol and header names, for the form. `headers` stays inside
+`send.mjs`'s closure and is not part of any value `status()` returns.
 
 | Case | `status` |
 | --- | --- |
 | No `telemetry` key, or `enabled` false | `off` |
-| Enabled, no endpoint | `no-endpoint` |
+| Enabled, no endpoint in the environment or the setting | `no-endpoint` |
 | Protocol is not `http/json` (an unset one is) | `protocol` |
 | Endpoint is `http` and the host is not loopback | `endpoint-not-allowed` |
+| `OTEL_EXPORTER_OTLP_HEADERS` is not name=value pairs | `bad-headers` |
+| A saved header name has no value in `OTEL_EXPORTER_OTLP_HEADERS` | `missing-headers` |
 | Otherwise | `ready`, then `sending` or `backing-off` |
 
 `startTelemetry` registers the SQLite exporter when the database opens. In the
@@ -278,8 +291,11 @@ it registers the OTLP exporter and sends; when the setting is off it
 unregisters the exporter and empties its queue. Any other process, such as a
 CLI call or the MCP server, records to SQLite only.
 
-`validateTelemetry(value)` sits beside `validateServe` and refuses a key other
-than `enabled` and a value that is not a boolean. `assertNoMachineKeys` in
+`validateTelemetry(value)` sits beside `validateServe`. It refuses a key
+other than the four above, an `enabled` that is not a boolean, an endpoint
+that OT12.1 refuses or that holds a user, password, query or fragment, a
+protocol other than `http/json`, and a `headers` entry that is not a header
+name. `assertNoMachineKeys` in
 `landing-config.mjs` gains `telemetry`, so a `.avoozl.json` that holds it
 fails with the file and the machine config path, as `serve` and
 `notifications` do. Plugin lint refuses a manifest key `telemetry`. The
@@ -288,7 +304,7 @@ table; `telemetry.status` is `observe`, and its MCP policy is `notOnMcp`
 because a chat has no use for it.
 
 The code that builds an agent process's environment drops every name that
-starts with `OTEL_` (OT6.6). A test starts a fake harness and reads its
+starts with `OTEL_` (OT6.8). A test starts a fake harness and reads its
 environment.
 
 ## D7. The trace (OT7)
@@ -465,10 +481,19 @@ loses the queue. The docs say so.
   "status": "backing-off",
   "failure": "http 503",
   "endpoint": "https://otlp.acme.example:4318",
+  "endpointFrom": "machine",
   "protocol": "http/json",
   "headerNames": [
     "authorization"
   ],
+  "missingHeaders": [],
+  "saved": {
+    "endpoint": "https://otlp.acme.example:4318",
+    "protocol": "http/json",
+    "headers": [
+      "authorization"
+    ]
+  },
   "sent": 41,
   "queued": 3,
   "dropped": 0,
@@ -476,7 +501,10 @@ loses the queue. The docs say so.
   "lastSuccessAt": "2025-11-20T03:12:09.000Z",
   "local": {
     "spans": 5120,
-    "points": 48210
+    "points": 48210,
+    "days": 90,
+    "spanCap": 200000,
+    "pointCap": 1000000
   }
 }
 ```
@@ -485,13 +513,39 @@ The endpoint is rebuilt from `URL.protocol`, `host` and `port`, so a user,
 password, path or query in the variable never shows. `failure` is one of
 `timeout`, `refused`, `tls`, `dns`, `http <status>`, built from the error's
 `code` and the status, never from its message. `local` holds `count(*)` of
-each table.
+each table, and the fixed retention and caps of §D5.
 
-**Settings** shows these fields in a titled box **Telemetry**. The switch
-calls `telemetry.configure`. The page reads `telemetry.status` through its
-usual query and adds no timer of its own. The CLI has
-`avoozl telemetry status|enable|disable`, as three entries in
-`src/app/commands/`.
+`telemetry.configure` takes any of `enabled`, `endpoint`, `protocol` and
+`headers`, writes the ones given and keeps the rest of the object and the
+file. An empty or null `endpoint` removes the key. It is the one person-only
+entry that writes the setting, so an agent, MCP and the tick cannot change
+it.
+
+**Settings** shows a titled box **Telemetry**:
+
+| Row | Shows |
+| --- | --- |
+| Local store | `On, always · 5,120 spans, 48,210 points · kept 90 days, at most 200,000 spans and 1,000,000 points` |
+| Status | `Recording locally · export off`, or the export's state (OT11.2) |
+| Endpoint, Protocol, Header names, counts, Last success | Only while export is on. Each header name says its value comes from `OTEL_EXPORTER_OTLP_HEADERS`, or that it is missing there |
+| Note | The environment beats what is saved; header values come only from the environment; a desktop-started process may not inherit a shell's variables |
+
+Its **Set up export** button (**Change export** when on) opens a dialog in
+three steps, styled like **Add plugin**:
+
+```mermaid
+flowchart LR
+  A["1. What is recorded"] --> B["2. Export: switch, endpoint, protocol, header names"]
+  B --> C["3. Review and save"]
+  C -->|Save| D["telemetry.configure"]
+```
+
+Step 2 refuses a header entry with `=` or `:` and an endpoint the server
+would refuse, so **Next** stays off until both are fixed. There is no test
+span button: the page's process may not run the exporter. The page reads
+`telemetry.status` when it opens and after a save, and adds no timer of its
+own. The CLI has `avoozl telemetry status|enable|disable`, as three entries
+in `src/app/commands/`.
 
 The box uses the components Settings already uses for other machine settings.
 The change needs phone and desktop, light and dark screenshots for the owner,
@@ -529,10 +583,11 @@ owner's. No setting hides these names (§D15).
 Transport (OT12): `https`, or `http` to loopback for a local collector. The
 system trust store decides certificate validity, and there is no setting that
 skips it. A redirect is a failure, so a header never goes to a host the
-owner did not name. The header names the owner sets are the only header
-beyond content type and user agent.
+owner did not name. The headers in `OTEL_EXPORTER_OTLP_HEADERS` are the only
+headers beyond content type and user agent.
 
-Credentials (OT6.3): the header values live in the process environment. They
+Credentials (OT6.4): the header values live in the process environment, and
+machine config holds only their names. They
 sit in a closure in `send.mjs`. No logger, status, error, state file or table
 receives them. A test sets a header value to a canary and greps the log, the
 state file, the status reply and every table.

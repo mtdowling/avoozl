@@ -2,7 +2,7 @@
 // `className` or `style`.
 import type { ComponentProps } from 'react'
 
-export type TextLinkProps = Omit<ComponentProps<'a'>, 'className' | 'style' | 'ref'>
+type TextLinkProps = Omit<ComponentProps<'a'>, 'className' | 'style' | 'ref'>
 
 export function TextLink(props: TextLinkProps) {
   return <a className="underline" {...props} />

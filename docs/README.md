@@ -17,7 +17,8 @@ itself, and lands it. These pages say how to set it up and how each part works.
 - [Delivery](delivery.md): workers, checks, landing and merge batches.
 - [People and machines](scale-out.md): spec lanes per person, shared state
   in git, headless machines and harnesses per role.
-- [Flow](flow.md): when work pauses, Stop the line, and retros.
+- [Flow](flow.md): when work pauses, Stop the line, Insights and the retro
+  skill.
 - [Telemetry](telemetry.md): task timing kept locally, and sent over
   OpenTelemetry when this machine's owner turns it on.
 - [Agents and the CLI](agents.md): roles and models, MCP tools and
@@ -32,7 +33,7 @@ itself, and lands it. These pages say how to set it up and how each part works.
   When and Then, with the rules it checks.
 - [Agent skills](agent-skills.md): the answer, review and triage skills any
   agent runner can use on issues and pull requests.
-- [Intake sources](intake.md): bringing in work from trackers and scripts.
+- [Intake sources](intake.md): bringing in work from scripts.
 - [GitHub rate limit](rate-limit.md): the cache and write pacing.
 
 ## Safety
@@ -47,8 +48,8 @@ itself, and lands it. These pages say how to set it up and how each part works.
 
 ## Extending
 
-- [Writing a plugin](plugins.md): intake sources, content rules and workflow
-  templates.
+- [Writing a plugin](plugins.md): content rules, GitHub sign-in, checks and
+  epic context.
 - [Epic context](epic-context.md): skills, read folders and MCP servers a
   worker gets on your own approved spec tasks.
 
