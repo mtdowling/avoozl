@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The left nav at 390 px (the phone's menu) and 1280 px, light and dark, in
 // a real Chrome: nothing in a nav pill or its open rows passes the pill's
 // edges, the Needs you count stays inside its pill, every open section's
@@ -6,23 +5,21 @@
 // A long workspace name and 12 Needs you items make it tight. Home sends
 // only its own reads. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
+import { test } from 'node:test'
 import { buildHarness, realLucide } from './browser/build.ts'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the nav overflow test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const wait = (ms = 250) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
 
 // Every element in a pill (a nav section or the workspace pill) whose box
 // passes the pill's inner edges, left or right.
-const OVERFLOWS = (width) => `(() => {
+const OVERFLOWS = (width: number) => `(() => {
   const out = []
   const name = (el) => el.tagName.toLowerCase() + ' "' + (el.textContent || '').trim().slice(0, 30) + '"'
   const pills = [...document.querySelectorAll('${scope(width)} [data-nav-section], ${scope(width)} [data-workspace-pill]')]
@@ -39,7 +36,7 @@ const OVERFLOWS = (width) => `(() => {
   return out.slice(0, 10)
 })()`
 
-const open = async (width, text) => {
+const open = async (width: number, text: string) => {
   await page.evaluate(
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(text)})); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`,
   )
@@ -68,13 +65,13 @@ for (const [width, height] of [
         return { first: first === pill, cut: name.scrollWidth > name.clientWidth, inMain: Boolean(document.querySelector('[data-main-top] [data-workspace-pill], [data-main-top] select')) }
       })()`)
       assert.deepEqual(pill, { first: true, cut: true, inMain: false })
-      const lefts = {}
+      const lefts: Record<string, number> = {}
       for (const section of ['Specs', 'Graph', 'In flight', 'Needs you', 'Settings']) {
         if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
           await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await open(width, section)
         assert.deepEqual(await page.evaluate(OVERFLOWS(width)), [], `${section} open`)
-        const left = await page.evaluate(
+        const left = await page.evaluate<number | null>(
           `(() => { const s = document.querySelector('${scope(width)} [data-nav-section][data-open]'); const row = s?.querySelector('[data-nav-children] > [data-nav-item]'); return row ? Math.round(row.getBoundingClientRect().left - s.getBoundingClientRect().left) : null })()`,
         )
         if (left !== null) lefts[section] = left
@@ -89,7 +86,7 @@ for (const [width, height] of [
     })
 
 // The app page with Activity open in the nav (the phone's menu at 390 px).
-const openActivity = async (width, height, dark) => {
+const openActivity = async (width: number, height: number, dark: boolean) => {
   await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '3', activity: '1' }), { width, height, dark })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   if (width < 768) {
@@ -112,7 +109,15 @@ for (const [width, height] of [
     test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity filters are rows and chips that line up, pills are 32 px`, { skip }, async () => {
       await openActivity(width, height, dark)
       await page.until(`document.querySelectorAll('${scope(width)} [data-nav-filters] [data-rail-chip]').length >= 3`)
-      const got = await page.evaluate(`(() => {
+      const got = await page.evaluate<{
+        selects: number
+        rowLefts: number[]
+        rowRights: number[]
+        heads: number[]
+        chips: number[]
+        keep: number
+        pressed: string | null
+      }>(`(() => {
         const rail = document.querySelector('${scope(width)} [data-nav-filters="avoozl-activity"]')
         const box = (el) => el.getBoundingClientRect()
         const rows = [...rail.querySelectorAll('[data-rail-source]')].map(box)
@@ -134,7 +139,7 @@ for (const [width, height] of [
       assert.deepEqual(got.chips, got.heads, `chips line up with the headers: ${JSON.stringify(got)}`)
       assert.equal(got.keep, got.heads[0], `Keep activity lines up with the headers: ${JSON.stringify(got)}`)
       assert.deepEqual(await page.evaluate(OVERFLOWS(width)), [], 'nothing passes the pill')
-      const heights = await page.evaluate(
+      const heights = await page.evaluate<{ heads: number[]; rows: number[]; workspace: number }>(
         `(() => { const nav = document.querySelector('${scope(width)}'); return { heads: [...new Set([...nav.querySelectorAll('[data-nav-head]')].map((h) => Math.round(h.getBoundingClientRect().height)))], rows: [...new Set([...nav.querySelectorAll('[data-nav-children] > [data-nav-item]')].map((h) => Math.round(h.getBoundingClientRect().height)))], workspace: Math.round(nav.querySelector('[data-workspace-pill]').getBoundingClientRect().height) } })()`,
       )
       assert.deepEqual(heights, { heads: [32], rows: heights.rows.length ? [32] : [], workspace: 32 })
@@ -163,7 +168,7 @@ for (const [width, height] of [
         await page.until(`Boolean(document.querySelector('[data-top-rail-list] [data-refresh]'))`)
         return
       }
-      const got = await page.evaluate(`(() => {
+      const got = await page.evaluate<{ count: number; inLine: boolean; pause: number }>(`(() => {
         const refresh = document.querySelectorAll('[data-refresh]')
         return { count: refresh.length, inLine: Boolean(refresh[0].closest('[data-main-actions]')), pause: document.querySelectorAll('[data-main-top] [data-stop-line]').length }
       })()`)
@@ -201,7 +206,7 @@ test('every icon on Specs, in the nav and the phone menu draws a glyph', {
       await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await wait(300)
     }
-    const count = await page.evaluate(`document.querySelectorAll('[data-shell] svg, [data-top-rail-list] svg').length`)
+    const count = await page.evaluate<number>(`document.querySelectorAll('[data-shell] svg, [data-top-rail-list] svg').length`)
     assert.ok(count > 5, `icons drawn at ${width}px (${count})`)
     assert.deepEqual(await page.evaluate(ICONS.replace("'[data-shell] svg'", "'[data-shell] svg, [data-top-rail-list] svg'")), [], `no empty or stand-in icon at ${width}px`)
   }

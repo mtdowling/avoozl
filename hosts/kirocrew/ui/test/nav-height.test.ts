@@ -1,28 +1,25 @@
-// @ts-nocheck: typing debt
 // The nav is as tall as the window, as Issue Radar's is: its bottom edge is the
 // window's bottom at 1280x800 and 390x844 (the phone's menu). The one open
 // pill takes the height the closed ones leave, so the pills end where the
 // brand row begins, and an open pill whose content is short shows its
 // background down to its bottom edge. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the nav height test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const wait = (ms = 250) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-const toggle = async (width, key) => {
+const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+const toggle = async (width: number, key: string) => {
   await page.evaluate(`document.querySelector('${scope(width)} [data-nav-group="${key}"]').click()`)
   await wait()
 }
 
-const MEASURE = (width) => `(() => {
+const MEASURE = (width: number) => `(() => {
   const nav = document.querySelector('${scope(width)}')
   const accordion = nav.querySelector('[data-nav-accordion]')
   const brand = nav.querySelector('[data-brand-card]')
@@ -34,10 +31,22 @@ const MEASURE = (width) => `(() => {
   return { navBottom: nav.getBoundingClientRect().bottom, view: innerHeight, accordionBottom: accordion.getBoundingClientRect().bottom, lastSection: Math.max(...sections), brandTop: brand.getBoundingClientRect().top, brandBottom: brand.getBoundingClientRect().bottom, open, scrollsNav: nav.scrollHeight > nav.clientHeight + 1 }
 })()`
 
+// The nav's edges, the window's height and each open pill.
+type Measure = {
+  navBottom: number
+  view: number
+  accordionBottom: number
+  lastSection: number
+  brandTop: number
+  brandBottom: number
+  open: { top: number; bottom: number; height: number; scrolls: boolean }[]
+  scrollsNav: boolean
+}
+
 for (const [width, height] of [
   [1280, 800],
   [390, 844],
-])
+] as [number, number][])
   for (const dark of [false, true])
     test(`at ${width}x${height} ${dark ? 'dark' : 'light'}: the nav reaches the window's bottom and the open pill fills the gap`, { skip }, async () => {
       await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '12', specs: '1', activity: '1' }), { width, height, dark })
@@ -49,7 +58,7 @@ for (const [width, height] of [
       await wait()
       for (const key of [null, 'settings']) {
         if (key) await toggle(width, key)
-        const m = await page.evaluate(MEASURE(width))
+        const m = await page.evaluate<Measure>(MEASURE(width))
         const label = key ? 'Settings open' : 'Dashboards open'
         assert.equal(m.open.length, 1, `${label}: one pill open`)
         assert.ok(Math.abs(m.navBottom - m.view) <= 1, `${label}: the nav ends at ${m.navBottom}, the window at ${m.view}`)
@@ -66,7 +75,7 @@ test('an open pill with little in it still fills its share, down to its bottom e
   await page.open(harness.url({ page: 'app', theme: 'light' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-left-nav] [data-nav-section][data-open]'))`)
   await wait()
-  const m = await page.evaluate(`(() => {
+  const m = await page.evaluate<{ pillBottom: number; contentBottom: number; bodyBottom: number }>(`(() => {
     const pill = document.querySelector('[data-left-nav] [data-nav-section][data-open]')
     const body = pill.querySelector('[data-nav-children]')
     const last = [...body.children].pop().getBoundingClientRect()

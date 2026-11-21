@@ -1,12 +1,23 @@
-// @ts-nocheck: typing debt
 // Settings > Models: the one roles table (R98.6, R98.7), a themed picker
 // per role, saved as `roles` in .avoozl.json. Switch model is gone.
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import { PROVED_TIP, ROLES, approvalLabel, approvalTip, harnessOptions, harnessTakesModel, provedLine, roleIsSet, roleProblem, toRoles } from '../src/models-api.ts'
+import {
+  PROVED_TIP,
+  ROLES,
+  approvalLabel,
+  approvalTip,
+  harnessOptions,
+  harnessTakesModel,
+  provedLine,
+  roleIsSet,
+  roleProblem,
+  toRoles,
+  type HarnessDefinition,
+} from '../src/models-api.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('every role is one row, and auto or blank fields leave a row out', () => {
   assert.deepEqual(
@@ -73,7 +84,7 @@ test('every role picks a harness: auto, the Kiro Crew chat, or this machine\u201
 // NK6: a definition that cannot write its result is not offered for a
 // read-only role, says why, and is still offered for a write role.
 test('a definition with no way to write its result is offered only for write roles', () => {
-  const defs = [
+  const defs: HarnessDefinition[] = [
     { name: 'claude-code', approved: true, readRoles: null, proved: ['read', 'write'] },
     { name: 'codex', approved: true, readRoles: 'codex names no resultAllow, so a read-only session cannot write its result file.', proved: ['write'] },
   ]
@@ -85,14 +96,14 @@ test('a definition with no way to write its result is offered only for write rol
     harnessOptions(defs, '', 'write').map((o) => o.value),
     ['auto', 'kirocrew', 'claude-code', 'codex'],
   )
-  assert.match(roleProblem('reviewer', { reviewer: { harness: 'codex' } }, defs), /codex names no resultAllow/)
+  assert.match(roleProblem('reviewer', { reviewer: { harness: 'codex' } }, defs) ?? '', /codex names no resultAllow/)
   assert.equal(roleProblem('worker', { worker: { harness: 'codex' } }, defs), null)
   assert.equal(provedLine(defs[0]), 'read: proved, write: proved')
   assert.equal(provedLine(defs[1]), 'read: not proved, write: proved')
 })
 
 test('a role is default until a harness, agent or model is set, and an unusable combo is a problem', () => {
-  const defs = [
+  const defs: HarnessDefinition[] = [
     { name: 'claude-code', approved: true, model: true },
     { name: 'plain-cli', approved: true, model: false },
   ]
@@ -105,11 +116,11 @@ test('a role is default until a harness, agent or model is set, and an unusable 
   assert.equal(harnessTakesModel('claude-code', defs), true)
   assert.equal(harnessTakesModel('kirocrew', defs), true)
   assert.equal(harnessTakesModel('auto', defs), true)
-  assert.match(roleProblem('checkDecide', { checkDecide: { model: 'm1', harness: 'plain-cli' } }, defs), /plain-cli takes no model/)
+  assert.match(roleProblem('checkDecide', { checkDecide: { model: 'm1', harness: 'plain-cli' } }, defs) ?? '', /plain-cli takes no model/)
   assert.equal(roleProblem('checkDecide', { checkDecide: { model: 'm1', harness: 'claude-code' } }, defs), null)
   assert.equal(roleProblem('checkDecide', { checkDecide: { model: 'auto', harness: 'plain-cli' } }, defs), null)
   assert.equal(roleProblem('worker', { worker: { agent: 'ok-agent' } }, defs), null)
-  assert.match(roleProblem('worker', { worker: { agent: 'bad agent!' } }, defs), /agent name/)
+  assert.match(roleProblem('worker', { worker: { agent: 'bad agent!' } }, defs) ?? '', /agent name/)
 })
 
 test('an unapproved harness has an Approve button that calls harness.approve', () => {

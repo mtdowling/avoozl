@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The nav row and its pages.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

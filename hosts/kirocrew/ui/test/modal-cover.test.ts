@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every modal covers the whole screen above every layer. In a real Chrome
 // (AVOOZL_CHROME, or an installed Chrome or Chromium), each modal opens on
 // the harness page (test/browser/harness.tsx): a host header with a high
@@ -7,8 +6,9 @@
 // its backdrop, never the page behind. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 // Runs without Chrome: every modal is the shared Modal, and every z-index
 // comes from the one ordered set in layers.ts.
@@ -32,17 +32,14 @@ test('every modal is the shared Modal and every z-index is a named layer', async
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal cover tests'
 const MODALS = ['add-plugin', 'repo-edit', 'confirm', 'file-viewer', 'stop-line', 'mark-done']
-const OPENERS = {
+const OPENERS: Record<string, string> = {
   'add-plugin': 'Add plugin',
   confirm: 'Remove',
   'stop-line': 'Stop the line',
 }
 
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 // The topmost modal (the element with aria-modal, which holds its backdrop
 // and its box) and what each probe point hits.
@@ -60,10 +57,10 @@ const PROBE = `(() => {
 const OPEN = `Boolean(document.querySelector('[aria-modal="true"]'))`
 const CLOSED = `!document.querySelector('[aria-modal="true"]')`
 
-const opener = (name) => OPENERS[name] ?? 'Open the dialog'
-const findOpener = (name) => `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(opener(name))})`
+const opener = (name: string) => OPENERS[name] ?? 'Open the dialog'
+const findOpener = (name: string) => `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(opener(name))})`
 
-async function load(name, { width = 1280, height = 800, dark = false, graph = false } = {}) {
+async function load(name: string, { width = 1280, height = 800, dark = false, graph = false } = {}) {
   await page.open(harness.url({ modal: name, theme: dark ? 'dark' : 'light' }), { width, height, dark })
   await page.until(`Boolean(${findOpener(name)})`)
   if (graph) {
@@ -78,17 +75,17 @@ async function load(name, { width = 1280, height = 800, dark = false, graph = fa
   }
 }
 
-async function open(name) {
+async function open(name: string) {
   await page.evaluate(`(() => { const b = ${findOpener(name)}; b.focus(); b.click(); return true })()`)
   await page.until(OPEN)
   // A frame for focus and layout to settle.
   await page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
 }
 
-async function covers(name, label) {
-  const points = await page.evaluate(PROBE)
+async function covers(name: string, label: string) {
+  const points = await page.evaluate<{ x: number; y: number; ok: boolean; hit: string }[] | null>(PROBE)
   assert.ok(points, `${name} ${label}: no modal open`)
-  const missed = points.filter((p) => !p.ok)
+  const missed = (points ?? []).filter((p) => !p.ok)
   assert.deepEqual(missed, [], `${name} ${label}: these points hit the page behind`)
 }
 
@@ -165,7 +162,7 @@ test('a tooltip inside a modal shows above it; the page tooltips stay under it',
   // Keyboard focus shows a tooltip at once: a key press, then focus.
   await page.key('Shift', 'ShiftLeft', 16)
   await page.evaluate(`(() => { [...document.querySelectorAll('[aria-modal="true"] button')].find((b) => b.getAttribute('aria-label') === 'Copy path').focus(); return true })()`)
-  const tip = await page.until(`(() => {
+  const tip = await page.until<{ inModal: boolean; z: string }>(`(() => {
     const tip = document.querySelector('[data-tooltip]')
     return tip && { inModal: Boolean(tip.closest('dialog[open]')), z: getComputedStyle(tip).zIndex }
   })()`)
