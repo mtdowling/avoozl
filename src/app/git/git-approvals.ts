@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Approvals live in git (design §4.42). An approval is a commit on the spec
 // repository's main branch that changes the spec's files and carries
 // evidence that an approver stands behind it (approverCheck): the approver
@@ -26,11 +25,60 @@ import {
 import { specsPath } from "../specs/specs-path.ts";
 import { fail } from "../store/store.ts";
 
-const lower = (value) => String(value ?? "").toLowerCase();
-const specPath = (root, spec) => `${specsPath(root)}/${specName(spec)}`;
+const lower = (value: unknown) => String(value ?? "").toLowerCase();
+const specPath = (root: string, spec: string) =>
+  `${specsPath(root)}/${specName(spec)}`;
+
+// What GitHub said about one commit (approverCheck's cache holds these).
+export interface CommitEvidence {
+  mergedBy: string | null;
+  signer: string | null;
+  pull?: number;
+  pushedBy?: string | null;
+}
+// The GitHub reads approverCheck makes.
+export interface ApprovalGitHub {
+  available?: () => boolean;
+  permission(
+    repository: string,
+    login: string,
+  ): Promise<{ permission?: string } | null>;
+  commitPullRequests(
+    repository: string,
+    commit: string,
+  ): Promise<{ number: number; merged_at?: string | null }[] | null>;
+  pullRequest(
+    repository: string,
+    number: number,
+  ): Promise<{
+    number?: number;
+    merged?: boolean;
+    merge_commit_sha?: string;
+    merged_by?: { login?: string } | null;
+  } | null>;
+  commit(
+    repository: string,
+    commit: string,
+  ): Promise<{
+    commit?: { verification?: { verified?: boolean } };
+    committer?: { login?: string } | null;
+    author?: { login?: string } | null;
+  } | null>;
+}
+export interface EvidenceCache {
+  get(commit: string): CommitEvidence | undefined;
+  set(commit: string, value: CommitEvidence): void;
+}
+// approverCheck's answer: (email, commit, login?) -> whether that author may
+// approve, with the evidence each accepted commit used.
+export type ApproverCheck = ((
+  email: string,
+  commit: string,
+  login?: string | null,
+) => Promise<boolean>) & { used: Map<string, string> };
 
 // The checkout's top folder, or null when `dir` is not in a git work tree.
-export async function gitTop(dir) {
+export async function gitTop(dir: string) {
   try {
     return await git(dir, ["rev-parse", "--show-toplevel"]);
   } catch {
@@ -40,7 +88,7 @@ export async function gitTop(dir) {
 
 // Who a commit made here now is authored by: git's own resolution of
 // user.name and user.email (and GIT_AUTHOR_*).
-export async function gitAuthor(root) {
+export async function gitAuthor(root: string) {
   const ident = await git(root, ["var", "GIT_AUTHOR_IDENT"]).catch(() => "");
   const match = /^(.*?)\s*<([^>]*)>/.exec(ident);
   if (!match || !match[2])
@@ -53,7 +101,7 @@ export async function gitAuthor(root) {
 
 // GitHub's private address for a login: 123+login@users.noreply.github.com
 // or login@users.noreply.github.com.
-export const noreplyLogin = (email) =>
+export const noreplyLogin = (email: unknown) =>
   /^(?:\d+\+)?([A-Za-z0-9-]+)@users\.noreply\.github\.com$/i.exec(
     String(email ?? ""),
   )?.[1] ?? null;
@@ -88,23 +136,35 @@ export function approverCheck({
   repositoryName = null,
   trust = "github",
   cache = null,
-}) {
-  const known = new Map(),
-    used = new Map(),
+}: {
+  repository?: { allowedActors?: string[]; minimumPermission?: string } | null;
+  localEmail?: string | null;
+  github?: ApprovalGitHub | null;
+  repositoryName?: string | null;
+  trust?: string;
+  cache?: EvidenceCache | null;
+}): ApproverCheck {
+  const known = new Map<string, unknown>(),
+    used = new Map<string, string>(),
     actors = (repository?.allowedActors || []).map(lower),
     askable = () => Boolean(github?.available?.() && repositoryName);
-  const loginAllowed = async (login) => {
+  // askable() holds only with a client and a repository name; a policy
+  // entry exists whenever a login is checked.
+  const gh = github as ApprovalGitHub,
+    name = repositoryName as string,
+    policy = repository as NonNullable<typeof repository>;
+  const loginAllowed = async (login: string): Promise<boolean> => {
     const key = `login:${lower(login)}`;
-    if (known.has(key)) return known.get(key);
+    if (known.has(key)) return known.get(key) as boolean;
     let allowed = false;
-    if (actors.includes(lower(login)) && !repository.minimumPermission)
+    if (actors.includes(lower(login)) && !policy.minimumPermission)
       allowed = true;
     else if (askable())
       try {
-        const held = repository.minimumPermission
-          ? (await github.permission(repositoryName, login))?.permission
+        const held = policy.minimumPermission
+          ? (await gh.permission(name, login))?.permission
           : null;
-        allowed = actorAllowed(repository, login, held).allowed;
+        allowed = actorAllowed(policy, login, held).allowed;
       } catch {
         allowed = false;
       }
@@ -114,24 +174,21 @@ export function approverCheck({
   // What GitHub says about one commit: who merged the pull request whose
   // merge commit it is (and its number, for spec issue publishing), and who
   // signed it with a verified signature.
-  const read = async (commit) => {
+  const read = async (commit: string): Promise<CommitEvidence> => {
     let found = cache?.get(commit);
     if (found) return found;
-    let mergedBy = null,
-      number = null;
-    for (const pull of (await github.commitPullRequests(
-      repositoryName,
-      commit,
-    )) ?? [])
+    let mergedBy: string | null = null,
+      number: number | null = null;
+    for (const pull of (await gh.commitPullRequests(name, commit)) ?? [])
       if (pull.merged_at) {
-        const full = await github.pullRequest(repositoryName, pull.number);
+        const full = await gh.pullRequest(name, pull.number);
         if (full?.merged && full.merge_commit_sha === commit) {
           mergedBy = full.merged_by?.login ?? null;
           number = full.number ?? pull.number;
           break;
         }
       }
-    const data = await github.commit(repositoryName, commit),
+    const data = await gh.commit(name, commit),
       signer = data?.commit?.verification?.verified
         ? (data.committer?.login ?? null)
         : null;
@@ -143,23 +200,28 @@ export function approverCheck({
     cache?.set(commit, found);
     return found;
   };
-  const proven = async (commit) => {
+  const proven = async (commit: string) => {
     if (!commit || !askable()) return null;
-    let found;
+    let found: CommitEvidence;
     try {
       found = await read(commit);
     } catch {
       return null;
     }
-    for (const [by, login] of [
+    const logins: [string, string | null | undefined][] = [
       ["merged_by", found.mergedBy],
       ["signature", found.signer],
       ["pushed", found.pushedBy],
-    ])
+    ];
+    for (const [by, login] of logins)
       if (login && (await loginAllowed(login))) return by;
     return null;
   };
-  const check = async (email, commit, login = null) => {
+  const check = async (
+    email: string,
+    commit: string,
+    login: string | null = null,
+  ) => {
     const key = lower(email);
     if (!key && !login) return false;
     if (!repository) {
@@ -168,7 +230,7 @@ export function approverCheck({
       return own;
     }
     if (login) return loginAllowed(login);
-    let by = null;
+    let by: string | null = null;
     if (trust === "github") by = await proven(commit);
     else if (key && actors.includes(key)) by = "branch-protection";
     else {
@@ -179,33 +241,35 @@ export function approverCheck({
         if (!known.has(cached))
           known.set(
             cached,
-            await github
-              .commit(repositoryName, commit)
+            await gh
+              .commit(name, commit)
               .then((data) => data?.author?.login ?? null)
               .catch(() => null),
           );
-        who = known.get(cached);
+        who = known.get(cached) as string | null;
       }
       if (who && (await loginAllowed(who))) by = "branch-protection";
     }
     if (by) used.set(commit, by);
     return Boolean(by);
   };
-  check.used = used;
-  return check;
+  return Object.assign(check, { used });
 }
 
 // A JSON file as a (get, set) cache of what GitHub returned for each commit
 // (approverCheck), so rebuilding a deleted database reads it back. Avoozl's
 // own approval commit is recorded here with `pushedBy`, the signed-in person
 // whose token pushed it.
-export function evidenceCache(workspaceRoot) {
+export function evidenceCache(workspaceRoot: string): EvidenceCache {
   const file = path.join(workspaceRoot, ".avoozl", "approval-evidence.json");
-  let data = null;
-  const load = () => {
+  let data: Record<string, CommitEvidence> | null = null;
+  const load = (): Record<string, CommitEvidence> => {
     if (!data)
       try {
-        data = JSON.parse(fs.readFileSync(file, "utf8"));
+        data = JSON.parse(fs.readFileSync(file, "utf8")) as Record<
+          string,
+          CommitEvidence
+        >;
       } catch {
         data = {};
       }
@@ -225,12 +289,15 @@ export function evidenceCache(workspaceRoot) {
 // workspace's specs.branch) or origin's default branch, fetched, when the
 // checkout has an origin; else that local branch or main, else the branch
 // checked out. {branch, head, remote}.
-export async function approvalBase(root, { branch: wanted = null } = {}) {
+export async function approvalBase(
+  root: string,
+  { branch: wanted = null }: { branch?: string | null } = {},
+): Promise<{ branch: string; head: string | null; remote: string | null }> {
   const remote = await git(root, ["remote", "get-url", "origin"]).then(
     () => "origin",
     () => null,
   );
-  let branch = null;
+  let branch: string;
   if (remote) {
     branch =
       wanted ||
@@ -279,11 +346,21 @@ export async function approvalBase(root, { branch: wanted = null } = {}) {
 // `replace` names folders whose spec files the commit replaces: one of them
 // the new files leave out is removed.
 async function commitOnMain(
-  root,
-  files,
-  { message, env = {}, replace = [], branch = null },
+  root: string,
+  given: Record<string, string | null>,
+  {
+    message,
+    env = {},
+    replace = [],
+    branch = null,
+  }: {
+    message: string;
+    env?: NodeJS.ProcessEnv;
+    replace?: string[];
+    branch?: string | null;
+  },
 ) {
-  files = { ...files };
+  const files = { ...given };
   const base = await approvalBase(root, { branch }),
     index = path.join(
       fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-main-")),
@@ -356,17 +433,19 @@ async function commitOnMain(
 // main already holds exactly this text, since git keeps no record of an
 // empty commit under a path. Returns {commit, author, branch}.
 export async function commitApproval(
-  root,
-  files,
-  { message, branch = null } = {},
+  root: string,
+  files: Record<string, Record<string, unknown>>,
+  { message, branch = null }: { message?: string; branch?: string | null } = {},
 ) {
   const specs = Object.keys(files),
     author = await gitAuthor(root);
-  const paths = {};
+  const paths: Record<string, string> = {};
   for (const spec of specs)
-    for (const file of revisionFiles(files[spec]))
-      if (typeof files[spec][file] === "string")
-        paths[`${specPath(root, spec)}/${file}`] = files[spec][file];
+    for (const file of revisionFiles(files[spec])) {
+      const text = files[spec][file];
+      if (typeof text === "string")
+        paths[`${specPath(root, spec)}/${file}`] = text;
+    }
   const made = await commitOnMain(root, paths, {
     replace: specs.map((spec) => specPath(root, spec)),
     branch,
@@ -387,7 +466,12 @@ export async function commitApproval(
 // The local branch follows the approval when it only moves forward. A
 // checked-out branch also has the spec paths of its index reset to the new
 // commit; the files in the work tree are never touched.
-async function moveLocal(root, branch, commit, paths) {
+async function moveLocal(
+  root: string,
+  branch: string,
+  commit: string,
+  paths: string[],
+) {
   const ref = `refs/heads/${branch}`,
     old = await git(root, ["rev-parse", "-q", "--verify", ref]).catch(() => "");
   if (old) {
@@ -411,12 +495,17 @@ async function moveLocal(root, branch, commit, paths) {
 }
 
 // `git args` with `text` on standard input; its trimmed output.
-function gitInput(root, args, text, env = process.env) {
+function gitInput(
+  root: string,
+  args: string[],
+  text: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = execFile("git", args, { cwd: root, env }, (error, stdout) =>
       error ? reject(error) : resolve(stdout.trim()),
     );
-    child.stdin.end(text);
+    child.stdin?.end(text);
   });
 }
 
@@ -428,13 +517,13 @@ export function catFiles(
 ): Promise<Map<string, string>> {
   return new Promise((resolve, reject) => {
     const child = spawn("git", ["cat-file", "--batch"], { cwd: root }),
-      chunks = [];
+      chunks: Buffer[] = [];
     child.stdout.on("data", (chunk) => chunks.push(chunk));
     child.on("error", reject);
     child.on("close", (code) => {
       if (code !== 0) return reject(Error(`git cat-file exited ${code}`));
       const out = Buffer.concat(chunks),
-        texts = new Map();
+        texts = new Map<string, string>();
       let at = 0;
       for (const object of objects) {
         const end = out.indexOf(10, at),
@@ -454,11 +543,32 @@ export function catFiles(
 // Every approval commit on `ref`, newest first: one entry per spec a commit
 // by an approver changed, with the spec's files and hash at that commit.
 // `allowed(email, commit)` decides each author once per commit.
+export interface ApprovalCommit {
+  spec: string;
+  commit: string;
+  email: string;
+  name: string;
+  at: string;
+  evidence: string | null;
+  files: Record<string, string>;
+  hash: string;
+}
+
 export async function approvalCommits(
-  root,
-  { allowed, ref = "HEAD", specs = null },
-) {
-  let log;
+  root: string,
+  {
+    allowed,
+    ref = "HEAD",
+    specs = null,
+  }: {
+    allowed: ((email: string, commit: string) => Promise<boolean>) & {
+      used?: Map<string, string>;
+    };
+    ref?: string;
+    specs?: string[] | null;
+  },
+): Promise<ApprovalCommit[]> {
+  let log: string;
   try {
     // Each commit's changes are its diff against its first parent (rule 7):
     // a merged pull request's merge commit lists the spec files it brought.
@@ -478,16 +588,16 @@ export async function approvalCommits(
   } catch {
     return [];
   }
-  const found = [],
+  const found: Omit<ApprovalCommit, "files" | "hash">[] = [],
     prefix = `${specsPath(root)}/`,
     // Every spec file name each spec's history touched. A file in a commit's
     // tree was added by a commit in this log, so these are all the names a
     // spec folder ever held.
-    names = new Map();
+    names = new Map<string, Set<string>>();
   for (const block of log.split("\x1e").filter((b) => b.trim())) {
     const [head, ...files] = block.split("\n"),
       [commit, email, name, at] = head.split("\x1f"),
-      touched = new Set();
+      touched = new Set<string>();
     for (const file of files) {
       if (!file.startsWith(prefix)) continue;
       const [spec, ...rest] = file.slice(prefix.length).split("/");
@@ -496,7 +606,7 @@ export async function approvalCommits(
       touched.add(spec);
       if (rest.length === 1 && isSpecFile(rest[0])) {
         if (!names.has(spec)) names.set(spec, new Set());
-        names.get(spec).add(rest[0]);
+        names.get(spec)!.add(rest[0]);
       }
     }
     if (!touched.size || !(await allowed(email, commit))) continue;
@@ -504,7 +614,7 @@ export async function approvalCommits(
     for (const spec of touched)
       found.push({ spec, commit, email, name, at, evidence });
   }
-  const object = (commit, spec, file) =>
+  const object = (commit: string, spec: string, file: string) =>
       `${commit}:${specPath(root, spec)}/${file}`,
     objects = found.flatMap(({ spec, commit }) =>
       [...(names.get(spec) ?? [])].map((file) => object(commit, spec, file)),
@@ -512,7 +622,7 @@ export async function approvalCommits(
     texts = objects.length ? await catFiles(root, objects) : new Map();
   return found
     .map((entry) => {
-      const files = {};
+      const files: Record<string, string> = {};
       for (const file of names.get(entry.spec) ?? []) {
         const text = texts.get(object(entry.commit, entry.spec, file));
         if (text !== undefined) files[file] = text;
@@ -521,5 +631,5 @@ export async function approvalCommits(
         ? { ...entry, files, hash: specHash(files) }
         : null;
     })
-    .filter(Boolean);
+    .filter((entry): entry is ApprovalCommit => entry !== null);
 }
