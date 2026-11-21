@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -10,6 +9,7 @@ import {
   synchronizeAgentInstructions,
   workflowCategory,
 } from "../agent-instructions.ts";
+import type { AgentInstruction } from "../agent-instructions.ts";
 
 import { fixture, snapshot } from "../../test/fixtures.ts";
 
@@ -73,6 +73,7 @@ test("workflow categories inherit and local overrides only disable configured ru
     ),
     ["shared-task-policy", "record-required-cleanup"],
   );
+  assert.ok(task.tags);
   task.tags.push("skip-follow-up");
   assert.deepEqual(
     matchingAgentInstructions(store.read(), "task.implement", task).map(
@@ -88,11 +89,10 @@ test("workflow categories inherit and local overrides only disable configured ru
   const refreshed = structuredClone(store.read());
   synchronizeAgentInstructions(refreshed, policy);
   store.write(refreshed);
+  // The rules the sync wrote into the stored snapshot.
+  const rules = store.read().agentInstructions as AgentInstruction[];
   assert.equal(
-    store
-      .read()
-      .agentInstructions.find((item) => item.id === "shared-task-policy")
-      .enabled,
+    rules.find((item) => item.id === "shared-task-policy")?.enabled,
     false,
   );
   assert.equal(
@@ -201,5 +201,5 @@ test("invalid, unknown, or duplicate Avoozl rules fail closed", () => {
     /Duplicate/,
   );
   assert.deepEqual(parseAgentInstructions({}), []);
-  assert.deepEqual(snapshot().agentInstructions, undefined);
+  assert.equal(Object.hasOwn(snapshot(), "agentInstructions"), false);
 });

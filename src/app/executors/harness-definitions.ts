@@ -198,8 +198,41 @@ function words(value, label, source) {
   return Object.freeze({ ...value });
 }
 
+// One validated harness definition; a loaded one also carries its hash.
+export interface HarnessDefinition {
+  name: string;
+  start: readonly string[];
+  resume: readonly string[];
+  permission: Readonly<Record<string, string>>;
+  writeRoots?: readonly string[];
+  allow?: readonly string[];
+  resultAllow?: readonly string[];
+  context?: { mcp: readonly string[] };
+  proved?: string[];
+  model?: readonly string[];
+  promptFrom?: "stdin" | "file";
+  keepEnv?: readonly string[];
+  tmpEnv?: readonly string[];
+  reads?: readonly string[];
+  probe?: readonly string[];
+  credentialExport?: readonly string[];
+  egress?: readonly string[];
+  setEnv?: Readonly<Record<string, string>>;
+  homeFiles?: readonly string[];
+  home?: string;
+  label?: readonly string[];
+  sessions?: string;
+  attach?: readonly string[];
+  servedModel?: { from: "output"; field: string };
+  cost?: Readonly<Record<string, string>>;
+  hash?: string;
+}
+
 // Validate one parsed definition. `source` names the file in every refusal.
-export function parseHarnessDefinition(value, { source = "harness" } = {}) {
+export function parseHarnessDefinition(
+  value: unknown,
+  { source = "harness" } = {},
+): Readonly<HarnessDefinition> {
   if (!record(value)) fail(`${source} must hold a JSON object.`);
   for (const key of Object.keys(value))
     if (!KEYS.has(key)) fail(`${source}: unknown key ${key}.`);
@@ -494,7 +527,13 @@ function readApprovals(configDirectory) {
 
 // Load and check one definition: a regular file, approved at its exact
 // hash, valid as a definition. Every refusal names the file.
-export function loadHarnessDefinition({ configDirectory, name }) {
+export function loadHarnessDefinition({
+  configDirectory,
+  name,
+}: {
+  configDirectory: string;
+  name: string;
+}): Readonly<HarnessDefinition & { hash: string }> {
   const file = harnessFile(configDirectory, name);
   requireRegularFile(file);
   const bytes = fs.readFileSync(file);

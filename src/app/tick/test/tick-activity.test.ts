@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The tick's own health in Activity and Needs you: a failure, a stall and a
 // recovery each leave a row, a run of identical failures is one row with a
 // count, a tick that works leaves nothing, and three failures open Needs you.
@@ -14,11 +13,15 @@ import {
   tickFailedItems,
 } from "../tick-activity.ts";
 import { fixture } from "../../test/fixtures.ts";
+import type { Store } from "../../store/store.ts";
 
-const at = (minutes) =>
+const at = (minutes: number) =>
   new Date(Date.UTC(2026, 10, 18, 3, minutes)).toISOString();
-const rows = (store) => listActivity(store, { source: "tick" }).items;
-const failed = (minutes, error = "database is locked\n    at open") => ({
+const rows = (store: Store) => listActivity(store, { source: "tick" }).items;
+const failed = (
+  minutes: number,
+  error = "database is locked\n    at open",
+) => ({
   at: at(minutes),
   outcome: "error",
   error,
@@ -87,8 +90,10 @@ test("a gap past the stall limit writes one stall row", (t) => {
 
 test("a real tick records its stall and failure from the health file", async (t) => {
   const { store } = fixture(t);
+  const health = tickHealthPath(store);
+  assert.ok(health);
   fs.writeFileSync(
-    tickHealthPath(store),
+    health,
     JSON.stringify({ at: "2026-11-18T01:00:00.000Z", outcome: "ok" }),
   );
   // With no workspace root this tick fails, which a real run records too.
@@ -108,7 +113,7 @@ test("three failures in a row open a Needs you item that a good tick clears", (t
     (entry) => entry.kind === "tick-failed",
   );
   assert.equal(item.title, "The tick failed 3 times in a row");
-  assert.match(item.detail, /^database is locked\./);
+  assert.match(String(item.detail), /^database is locked\./);
   noteTickRun(store, { at: at(10), outcome: "ok" }, null);
   assert.deepEqual(tickFailedItems(store), []);
 });

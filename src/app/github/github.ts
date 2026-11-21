@@ -323,6 +323,7 @@ export class GitHubClient {
     [key: string]: unknown;
   };
   onNoPerson?: (provider: string, owner: string) => unknown;
+  fetch: typeof fetch;
   gitUrl?: string;
   constructor({
     credentials,

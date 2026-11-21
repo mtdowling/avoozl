@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The `$schema` address Avoozl writes: it names the schema file in the public
 // repository, files that carry the retired avoozl.dev address load as
 // before, and a save moves them to the current one.
@@ -68,7 +67,6 @@ test("a workspace file with the retired address loads unchanged and moves on its
   t.after(() => store.close());
   new RepositorySettings(store, {
     workspaceRoot: root,
-    env,
   }).updateConversationSettings({ autoArchiveCompleted: false });
   const saved = JSON.parse(fs.readFileSync(filename, "utf8"));
   assert.equal(saved.$schema, REPOSITORY_CONFIG_SCHEMA_URL);

@@ -1,10 +1,10 @@
-// @ts-nocheck: typing debt
 // plugin-credentials pc-4.1 and pc-4.2: the token login and the person
 // login are kept apart, and limits, pacing and the answer cache are per
 // token login.
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { Store } from "../../store/store.ts";
 import { GitHubClient, personOf } from "../github.ts";
 import { RateState, readRate } from "../github-rate.ts";
@@ -18,7 +18,12 @@ import {
 import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-function workspace(t) {
+// A fetch the test expects no call to.
+const noFetch = async (): Promise<Response> => {
+  throw new Error("No fetch expected.");
+};
+
+function workspace(t: TestContext) {
   const root = temporaryDirectory("avoozl-logins-"),
     store = new Store(path.join(root, "w.sqlite"));
   t.after(() => store.close());
@@ -30,7 +35,7 @@ test("with a plugin, currentUser is the reply's login with no GET /user, and per
   const m = credentialsMachine({ plugins: [{}] });
   m.approve();
   const credentials = m.credentials(),
-    seen = [];
+    seen: string[] = [];
   t.after(() => credentials.close());
   const github = new GitHubClient({
     credentials,
@@ -50,7 +55,7 @@ test("with a plugin, currentUser is the reply's login with no GET /user, and per
   assert.deepEqual(seen, []);
   // gh and env: both are the GET /user login.
   const env = m.credentials({ AVOOZL_GITHUB_TOKEN: "env-token" }),
-    built = new GitHubClient({ credentials: env, fetch: async () => null });
+    built = new GitHubClient({ credentials: env, fetch: noFetch });
   await withJob("check-in", async () => {
     assert.equal((await built.currentUser("octo/tools")).login, "env-person");
     assert.equal(await built.personLogin("octo/tools"), "env-person");
@@ -63,7 +68,7 @@ test("a provider that names no person makes person steps wait with one Needs you
   m.approve();
   const credentials = m.credentials();
   t.after(() => credentials.close());
-  const github = new GitHubClient({ credentials, fetch: async () => null });
+  const github = new GitHubClient({ credentials, fetch: noFetch });
   github.onNoPerson = (provider, owner) =>
     recordNoPerson(store, { provider, owner });
   await withJob("check-in", async () => {
@@ -80,7 +85,7 @@ test("a login equal to the person's own changes no approval or grant decision", 
   // is shown and counted, never trusted.
   const github = new GitHubClient({
     credentials: fixedCredentials("t", "mtdowling", { person: "acme-dev" }),
-    fetch: async () => null,
+    fetch: noFetch,
   });
   await withJob("check-in", async () =>
     assert.equal(await personOf(github, "acme/api"), "acme-dev"),
@@ -140,7 +145,9 @@ test("a new token for the same login reads the cached answers", async (t) => {
   const calls = [],
     credentials = {
       ...fixedCredentials(),
-      async token(input) {
+      async token(
+        input: Parameters<ReturnType<typeof fixedCredentials>["token"]>[0],
+      ) {
         n += 1;
         return {
           ...(await fixedCredentials(`t${n}`).token(input)),

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Host-side git and file reads after any session: a task folder's `.git` file, hooks, fsmonitor and links written by a
 // worker change nothing on the host.
 import assert from "node:assert/strict";
@@ -16,7 +15,7 @@ import {
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { gitCheckout } from "../../test/delivery-fixture.ts";
 
-const gitIn = (cwd, ...args) =>
+const gitIn = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 function checkoutWithTask() {
@@ -93,7 +92,7 @@ test("a hook in the git directory and core.fsmonitor in its config do not run on
   gitIn(checkout, "config", "core.fsmonitor", `touch ${monitorRan}; false`);
   fs.writeFileSync(path.join(folder, "work.txt"), "x\n");
   const commit = await commitWorkerChanges(folder, "Work", { checkout });
-  assert.match(commit, /^[0-9a-f]{40}$/);
+  assert.match(commit ?? "", /^[0-9a-f]{40}$/);
   assert.equal(fs.existsSync(hookRan), false, "no hook ran");
   assert.equal(fs.existsSync(monitorRan), false, "no fsmonitor ran");
   assert.equal(gitIn(folder, "log", "-1", "--format=%s"), "Work");
@@ -125,17 +124,20 @@ test("a result or output file that is a link, or under a linked folder, is refus
     path.join(outside, "result.json"),
     path.join(folder, ".avoozl", "result.json"),
   );
-  assert.match(readChildResult(folder).problem, /symbolic link/);
+  assert.match(readChildResult(folder).problem ?? "", /symbolic link/);
   // The folder itself linked elsewhere.
   fs.rmSync(path.join(folder, ".avoozl"), { recursive: true });
   fs.symlinkSync(outside, path.join(folder, ".avoozl"));
-  assert.match(readChildResult(folder).problem, /\.avoozl is a symbolic link/);
+  assert.match(
+    readChildResult(folder).problem ?? "",
+    /\.avoozl is a symbolic link/,
+  );
   fs.rmSync(path.join(folder, ".avoozl"));
   fs.mkdirSync(path.join(folder, ".avoozl"));
   fs.symlinkSync(outside, path.join(folder, ".avoozl", "output"));
   fs.writeFileSync(path.join(outside, "answer.md"), "known_hosts");
   assert.match(
-    readChildOutput(folder, "answer.md", { limit: 1000 }).problem,
+    readChildOutput(folder, "answer.md", { limit: 1000 }).problem ?? "",
     /output is a symbolic link/,
   );
   // A plain file still reads.
@@ -155,8 +157,8 @@ test("every git call on a task folder in src/app goes through taskGit", () => {
   // another name is not found. The content rules' push hook reads the
   // folder's git directory with rev-parse and writes its worktree config,
   // which runs no program the folder names.
-  const found = [];
-  const walk = (dir) => {
+  const found: string[] = [];
+  const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const file = path.join(dir, entry.name);
       if (entry.isDirectory()) {
