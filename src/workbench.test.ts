@@ -26,7 +26,9 @@ function fixture() {
     ],
     epics: [{ id: "W1" }, { id: "W2" }],
     tracks: [{ id: "core" }],
-    documents: { "done/old.md": { historical: true } },
+    documents: {
+      "done/old.md": { path: "done/old.md", hash: "", historical: true },
+    },
     tasks: [
       task("done", { status: "accepted" }),
       task("ready"),

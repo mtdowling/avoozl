@@ -224,9 +224,10 @@ export function captureTask(data: Snapshot, input: CaptureInput) {
       updatedAt: now,
       capture: { submissionId: String(submissionId), at: now, context },
     };
-  if (input.distinctReason)
+  const reason = input.distinctReason;
+  if (reason)
     task.distinctFrom = Object.fromEntries(
-      duplicates.map((t) => [t.id, input.distinctReason]),
+      duplicates.map((t) => [t.id, reason]),
     );
   data.tasks.push(task);
   return { task, existing: false };

@@ -97,7 +97,7 @@ export function duplicateCandidates(
   for (const task of candidates) {
     if (
       task.id === own ||
-      (task.distinctFrom as Record<string, unknown> | undefined)?.[own] ||
+      task.distinctFrom?.[own] ||
       input.distinctFrom?.[task.id]
     )
       continue;

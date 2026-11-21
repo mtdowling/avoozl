@@ -112,6 +112,9 @@ export interface Task {
     order?: { actor: string; reason: string; closedAt: string };
     [key: string]: unknown;
   } | null;
+  evidence?: string[];
+  // Why this task is not a duplicate of each named task.
+  distinctFrom?: Record<string, string>;
   specDependencies?: SpecDependency[];
   pendingSpecDependencies?: SpecDependency[];
   [key: string]: unknown;
@@ -135,6 +138,8 @@ export interface Status {
 }
 
 export interface Document {
+  path: string;
+  hash: string;
   text?: string;
   historical?: boolean;
   plan?: { status?: string; [key: string]: unknown } | null;

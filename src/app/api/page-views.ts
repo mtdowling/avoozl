@@ -38,6 +38,8 @@ import { fail } from "../store/store.ts";
 import { linkSets } from "../tasks/scm-links.ts";
 import { epicRows } from "../epics/epic-rows.ts";
 import { taskLinks } from "../tasks/scm-links.ts";
+import type { Store } from "../store/store.ts";
+import type { Snapshot } from "../../types.ts";
 import { DEFAULT_SPECS_PATH } from "../specs/specs-path.ts";
 import {
   checkCommand,
@@ -299,7 +301,12 @@ export function withGraphState(store, data) {
 // `folders` are the spec folders on disk ([{name, spec}]). Tasks of the ones
 // not approved come back apart, in `drafts`, with state "draft": never
 // ready, never in `tasks`, so no reader of `tasks` counts or releases them.
-export function graphView(store, data, input = {}, folders = []) {
+export function graphView(
+  store: Store,
+  data: Snapshot,
+  input: Record<string, unknown> = {},
+  folders: { name: string; spec: unknown }[] = [],
+) {
   const epics = list(input.epic),
     phases = list(input.phase),
     repositories = list(input.repository),
@@ -938,7 +945,22 @@ function crewHoldText(task) {
     : `Issue #${hold.number} has Issue Radar's in-progress label "${hold.label}" but is no longer ready. Avoozl does not stop the crew; dependents wait until the label comes off or the task is ready again.`;
 }
 
-export function conflictsView(store, data) {
+// One Needs you item.
+export interface NeedsYouItem {
+  kind?: string;
+  id?: string;
+  taskId?: string | null;
+  [key: string]: unknown;
+}
+
+export function conflictsView(
+  store: Store,
+  data: Snapshot,
+): {
+  revision: number;
+  items: NeedsYouItem[];
+  target?: unknown;
+} {
   const live = liveSessions(store),
     claimed = claimedLeaves(store),
     archivedOf = archivedPlanOf(store);
@@ -1084,7 +1106,11 @@ export function taskDetailView(
   store,
   data,
   detail,
-  { plan = null, approved = false, destinations } = {},
+  {
+    plan = null,
+    approved = false,
+    destinations,
+  }: { plan?: unknown; approved?: boolean; destinations?: unknown } = {},
 ) {
   const id = detail.id,
     graph = graphView(store, data, {}),
