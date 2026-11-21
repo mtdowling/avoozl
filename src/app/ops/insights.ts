@@ -66,7 +66,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    async handler({ input }: any) {
+    async handler(this: any, { input }: any) {
       const store = this.store,
         filter = {
           days: insightsDays(input?.days),
@@ -76,7 +76,7 @@ export const entries = [
         };
       const next = nextView(store, {
           policy: readDeliveryPolicy(this.workspaceRoot),
-          github: readGitHubPolicyOrNull(this.workspaceRoot),
+          github: readGitHubPolicyOrNull(this.workspaceRoot) as any,
         }),
         needsYou = (await this.perform("conflicts.view", {})).items.length;
       let homes: any[] = [];
@@ -129,7 +129,7 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler({ input }: any) {
+    handler(this: any, { input }: any) {
       return saveRetro(requireRoot(this), input);
     },
   },
@@ -139,7 +139,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler() {
+    handler(this: any) {
       return listRetros(requireRoot(this));
     },
   },
@@ -149,7 +149,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }: any) {
+    handler(this: any, { input }: any) {
       return readRetro(requireRoot(this), input);
     },
   },

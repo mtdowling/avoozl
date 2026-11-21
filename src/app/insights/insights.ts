@@ -80,7 +80,9 @@ export function telemetryInsights(db: any, filter: InsightsFilter) {
       at: row.at,
       seconds: row.value,
     })),
-    sorted = lead.map((row: any) => row.seconds).sort((a, b) => a - b);
+    sorted = lead
+      .map((row: any) => row.seconds)
+      .sort((a: number, b: number) => a - b);
 
   const stage = scope(filter, "started_at", [
     "parent_span_id IS NOT NULL",
@@ -107,7 +109,7 @@ export function telemetryInsights(db: any, filter: InsightsFilter) {
   }).filter(Boolean);
 
   const review = scope(filter, "started_at", ["stage = 'review'"]);
-  const rounds = db
+  const rounds: number[] = db
     .prepare(
       `SELECT task_id AS taskId, COUNT(*) AS rounds FROM telemetry_spans WHERE ${review.where} GROUP BY task_id`,
     )

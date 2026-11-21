@@ -51,7 +51,7 @@ export function saveRetro(
   input: { scope?: unknown; text?: unknown },
   now = new Date(),
 ) {
-  const text = input?.text;
+  const text = input?.text as string;
   if (typeof text !== "string" || !text.trim())
     fail("A retro needs its report as Markdown text.", 400);
   if (Buffer.byteLength(text) > MAX_RETRO_BYTES)
@@ -107,7 +107,7 @@ export function listRetros(workspaceRoot: string) {
 
 // One saved retro by its file name, with its Markdown.
 export function readRetro(workspaceRoot: string, input: { name?: unknown }) {
-  const name = input?.name;
+  const name = input?.name as string;
   if (typeof name !== "string" || !FILE.test(name))
     fail("Name a saved retro, such as 2026-11-21-0930-workspace.md.", 400);
   const folder = retrosFolder(workspaceRoot);
