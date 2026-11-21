@@ -40,7 +40,7 @@ export type WorkspaceTarget = Partial<WorkspaceConfig> & {
 };
 // The optional Kiro Crew readers, by name.
 type Readers = Record<string, unknown> & {
-  notifier?: unknown;
+  notifier?: Operations["notifier"];
   sessionStopper?: unknown;
 };
 // One request the page sends.

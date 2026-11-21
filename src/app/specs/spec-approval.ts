@@ -124,6 +124,18 @@ export function approvePlan(
     declaredDependencies = [],
     // The approver's commit that holds this revision (§4.42), if any.
     approvalCommit = null,
+  }: {
+    id: unknown;
+    expectedHash?: unknown;
+    expectedRevision?: unknown;
+    approvedBy?: unknown;
+    evidence?: unknown;
+    operator?: unknown;
+    proposals?: unknown;
+    githubPolicy?: unknown;
+    baseline?: boolean;
+    declaredDependencies?: unknown[];
+    approvalCommit?: string | null;
   },
 ) {
   // Authorization is the reviewed hash and database revision below. Who

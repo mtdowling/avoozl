@@ -73,7 +73,7 @@ export interface EvidenceCache {
 // approve, with the evidence each accepted commit used.
 export type ApproverCheck = ((
   email: string,
-  commit: string,
+  commit: string | null,
   login?: string | null,
 ) => Promise<boolean>) & { used: Map<string, string> };
 
@@ -137,7 +137,10 @@ export function approverCheck({
   trust = "github",
   cache = null,
 }: {
-  repository?: { allowedActors?: string[]; minimumPermission?: string } | null;
+  repository?: {
+    allowedActors?: string[];
+    minimumPermission?: string | null;
+  } | null;
   localEmail?: string | null;
   github?: ApprovalGitHub | null;
   repositoryName?: string | null;
@@ -200,7 +203,7 @@ export function approverCheck({
     cache?.set(commit, found);
     return found;
   };
-  const proven = async (commit: string) => {
+  const proven = async (commit: string | null) => {
     if (!commit || !askable()) return null;
     let found: CommitEvidence;
     try {
@@ -219,14 +222,14 @@ export function approverCheck({
   };
   const check = async (
     email: string,
-    commit: string,
+    commit: string | null,
     login: string | null = null,
   ) => {
     const key = lower(email);
     if (!key && !login) return false;
     if (!repository) {
       const own = Boolean(localEmail) && key === lower(localEmail);
-      if (own) used.set(commit, "local");
+      if (own && commit) used.set(commit, "local");
       return own;
     }
     if (login) return loginAllowed(login);
@@ -250,7 +253,7 @@ export function approverCheck({
       }
       if (who && (await loginAllowed(who))) by = "branch-protection";
     }
-    if (by) used.set(commit, by);
+    if (by && commit) used.set(commit, by);
     return Boolean(by);
   };
   return Object.assign(check, { used });

@@ -58,7 +58,7 @@ function cachedClaims(store) {
 }
 
 // Task IDs whose claim branch the cache holds.
-export function claimedTaskIds(store, tasks) {
+export function claimedTaskIds(store, tasks?: { id: string }[]) {
   const branches = cachedClaims(store);
   if (!branches.size) return new Set();
   return new Set(

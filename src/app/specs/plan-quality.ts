@@ -233,7 +233,7 @@ export function lintPlan({
   plan?: LintedPlan;
   data?: Partial<Snapshot> & { repositories?: Repository[] };
   proposals: Proposal[];
-  declaredTasks?: Proposal[];
+  declaredTasks?: { id?: string; requires?: string[] }[];
 }) {
   const diagnostics: Diagnostic[] = [],
     tasks = proposals;
