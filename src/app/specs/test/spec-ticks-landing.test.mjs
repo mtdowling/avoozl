@@ -46,6 +46,8 @@ async function machine(
     store = new Store(path.join(w.root, `${name}.sqlite`));
   t.after(() => store.close());
   git(w.root, "clone", "-q", "-b", branch, origin, clone);
+  // The identity a tick commit needs where git has no global one (CI).
+  identity(clone);
   store.initialize({
     ...snapshot(),
     tasks: [leaf("t1"), leaf("t2")],
