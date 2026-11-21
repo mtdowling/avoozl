@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A repository's checks: the only checks there are. A repository's `checks`
 // maps a name to an argv array, or to {run: argv, paths: [glob, ...]}; a
 // check with paths runs only for a change that touches one of them. Tasks
@@ -14,16 +13,46 @@ export const CHECK_KEYS = Object.freeze(["run", "paths"]);
 const MAX_CHECKS = 50;
 const MAX_PATHS = 50;
 
-const isArgv = (value) =>
+// The part of a repository record its checks come from.
+interface CheckedRepository {
+  id?: string;
+  github?: string | null;
+  checks?: unknown;
+}
+
+// One check a change runs. A plugin check carries more (its step, MCP
+// mapping, environment and so on), which its runners read.
+export interface RepositoryCheck {
+  name: string;
+  argv: string[];
+  paths: string[] | null;
+  source: string;
+  stage: string;
+  [key: string]: unknown;
+}
+
+// An approved plugin check, as approvedPluginChecks makes it.
+export interface PluginCheck extends RepositoryCheck {
+  repos: string[];
+  plugin: { id: string; [key: string]: unknown };
+}
+
+// A check result or a declared check, keyed by name or by its command.
+interface Keyed {
+  name?: string;
+  command?: string;
+}
+
+const isArgv = (value: unknown): value is string[] =>
   Array.isArray(value) &&
   value.length > 0 &&
   value.every((part) => typeof part === "string" && part.length > 0);
 
-const record = (value) =>
+const record = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 // The stored setting after validation, as given. `label` names it in errors.
-export function checksSetting(value, label = "checks") {
+export function checksSetting(value: unknown, label = "checks") {
   if (value === undefined || value === null) return [];
   if (Array.isArray(value)) {
     if (!value.every(isArgv))
@@ -67,9 +96,15 @@ export function checksSetting(value, label = "checks") {
 
 // The repository's own checks as [{name, argv, paths}], in written order.
 // `paths` is null for a check that runs on every change.
-function ownChecks(repository) {
+function ownChecks(
+  repository: CheckedRepository | null | undefined,
+): RepositoryCheck[] {
   const value = repository?.checks,
-    own = (name, argv, paths = null) => ({
+    own = (
+      name: string,
+      argv: string[],
+      paths: string[] | null = null,
+    ): RepositoryCheck => ({
       name,
       argv: [...argv],
       paths,
@@ -82,17 +117,20 @@ function ownChecks(repository) {
   return Object.entries(value).flatMap(([name, entry]) => {
     if (isArgv(entry)) return [own(name, entry)];
     if (!record(entry) || !isArgv(entry.run)) return [];
-    return [
-      own(name, entry.run, entry.paths?.length ? [...entry.paths] : null),
-    ];
+    const paths = entry.paths as string[] | undefined;
+    return [own(name, entry.run, paths?.length ? [...paths] : null)];
   });
 }
 
 // The name a plugin check's `repos` globs match: owner/name, else the ID.
-export const repositoryName = (repository) =>
-  String(repository?.github || repository?.id || "").toLowerCase();
+export const repositoryName = (
+  repository: CheckedRepository | null | undefined,
+) => String(repository?.github || repository?.id || "").toLowerCase();
 
-const appliesTo = (check, repository) =>
+const appliesTo = (
+  check: PluginCheck,
+  repository: CheckedRepository | null | undefined,
+) =>
   check.repos.some((glob) =>
     matchesPath(glob.toLowerCase(), repositoryName(repository)),
   );
@@ -100,15 +138,18 @@ const appliesTo = (check, repository) =>
 // Plugin checks against one repository (plugin-checks D3, PK2.3, PK2.4):
 // those whose `repos` match, minus a name the repository's own checks
 // use (shadowed) and a name two plugins define (a clash, both held).
-export function pluginCheckConflicts(repository, plugins = []) {
+export function pluginCheckConflicts(
+  repository: CheckedRepository | null | undefined,
+  plugins: PluginCheck[] = [],
+) {
   const names = new Set(ownChecks(repository).map((check) => check.name)),
     mine = plugins.filter((check) => appliesTo(check, repository)),
-    owners = new Map();
+    owners = new Map<string, PluginCheck[]>();
   for (const check of mine)
     owners.set(check.name, [...(owners.get(check.name) ?? []), check]);
   return {
     kept: mine.filter(
-      (check) => !names.has(check.name) && owners.get(check.name).length === 1,
+      (check) => !names.has(check.name) && owners.get(check.name)?.length === 1,
     ),
     shadowed: mine
       .filter((check) => names.has(check.name))
@@ -127,7 +168,10 @@ export function pluginCheckConflicts(repository, plugins = []) {
 // apply to it, by plugin id and name. Each entry names its `source` and
 // `stage`. Every caller passes the plugin list; a caller that runs only
 // the repository's own commands says so with an empty list.
-export function repositoryChecks(repository, plugins) {
+export function repositoryChecks(
+  repository: CheckedRepository | null | undefined,
+  plugins: PluginCheck[] | null | undefined,
+): RepositoryCheck[] {
   return [
     ...ownChecks(repository),
     ...pluginCheckConflicts(repository, plugins ?? []).kept,
@@ -137,17 +181,20 @@ export function repositoryChecks(repository, plugins) {
 // Whether a check runs for a change that touches `files`: one without
 // paths always does; one with paths when a file matches one of them.
 // Without a file list every check runs.
-export const checkApplies = (check, files) =>
+export const checkApplies = (
+  check: { paths?: string[] | null },
+  files: string[] | null | undefined,
+) =>
   !check.paths ||
   !Array.isArray(files) ||
-  files.some((file) => check.paths.some((glob) => matchesPath(glob, file)));
+  files.some((file) => check.paths?.some((glob) => matchesPath(glob, file)));
 
 // The checks of one stage a change runs (`files`: its changed paths, or
 // null for all).
 export const selectedChecks = (
-  repository,
-  files = null,
-  plugins = [],
+  repository: CheckedRepository | null | undefined,
+  files: string[] | null = null,
+  plugins: PluginCheck[] = [],
   stage = "task",
 ) =>
   repositoryChecks(repository, plugins).filter(
@@ -155,16 +202,19 @@ export const selectedChecks = (
   );
 
 // The command text a check shows, for display.
-export const checkCommand = (check) => check.argv.join(" ");
+export const checkCommand = (check: { argv: string[] }) => check.argv.join(" ");
 
 // What a check result or a declared check is keyed by: its name, else the
 // command of a record written before checks had names.
-export const checkKey = (entry) =>
+export const checkKey = (entry: string | Keyed | null | undefined) =>
   (typeof entry === "string" ? entry : (entry?.name ?? entry?.command)) ?? null;
 
 // The result in `results` for one declared check, by name, falling back to
 // its command for a record written before checks had names.
-export const resultFor = (results, check) =>
+export const resultFor = <T extends Keyed>(
+  results: T[] | null | undefined,
+  check: { name: string; argv: string[] },
+) =>
   (results || []).find(
     (entry) =>
       checkKey(entry) === check.name ||

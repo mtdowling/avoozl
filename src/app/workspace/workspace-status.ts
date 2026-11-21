@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One workspace's own state, for `avoozl status` when a workspace is named
 // with --workspace or AVOOZL_WORKSPACE: what it is, where it is, whether this
 // machine's catalog lists it, and what its database holds. Read-only, like
@@ -6,8 +5,31 @@
 // so asking about a path that holds nothing leaves it holding nothing.
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import type { WorkspaceConfig } from "../settings/config.ts";
 
-const real = (target) => {
+// One workspace as the machine catalog lists it.
+interface CatalogWorkspace {
+  id: string;
+  root: string;
+  enabled?: boolean;
+  state?: string;
+}
+
+// A row of the read-only queries below; each names the columns it reads.
+interface Row {
+  value: string;
+  body: string;
+  n: number;
+}
+
+// A Kiro Crew role that waits, as needs-kirocrew keeps it.
+interface Waiting {
+  role: string;
+  since: string;
+  requests: unknown[];
+}
+
+const real = (target: string) => {
   try {
     return fs.realpathSync.native(target);
   } catch {
@@ -15,7 +37,7 @@ const real = (target) => {
   }
 };
 
-function savedIdentity(filename) {
+function savedIdentity(filename: string) {
   try {
     const saved = JSON.parse(fs.readFileSync(filename, "utf8"));
     return {
@@ -30,13 +52,13 @@ function savedIdentity(filename) {
 
 // The stored snapshot's revision and what the database holds, counted in
 // SQLite. A table an older database lacks counts as empty.
-function contents(database) {
+function contents(database: string) {
   const db = new DatabaseSync(database, { readOnly: true });
   try {
     db.exec("PRAGMA busy_timeout = 5000");
-    const rows = (sql) => {
+    const rows = (sql: string) => {
       try {
-        return db.prepare(sql).all();
+        return db.prepare(sql).all() as unknown as Row[];
       } catch {
         return [];
       }
@@ -44,15 +66,15 @@ function contents(database) {
     const snapshot = rows("SELECT value FROM meta WHERE key = 'snapshot'")[0];
     if (!snapshot) return null;
     const { revision = null, updatedAt = null } = JSON.parse(snapshot.value);
-    const byStatus = {};
+    const byStatus: Record<string, number> = {};
     for (const { body } of rows(
       "SELECT body FROM entities WHERE kind = 'task'",
     )) {
       const status = JSON.parse(body).status ?? "unknown";
       byStatus[status] = (byStatus[status] ?? 0) + 1;
     }
-    const count = (sql) => rows(sql)[0]?.n ?? 0;
-    const meta = (key) => {
+    const count = (sql: string) => rows(sql)[0]?.n ?? 0;
+    const meta = (key: string) => {
       const row = rows(`SELECT value FROM meta WHERE key = '${key}'`)[0];
       return row ? JSON.parse(row.value) : null;
     };
@@ -74,13 +96,13 @@ function contents(database) {
           typeof seenAt === "string" &&
           Date.now() - Date.parse(seenAt) < 600_000,
         seenAt: typeof seenAt === "string" ? seenAt : null,
-        waiting: Object.values(meta("needs-kirocrew.items") ?? {}).map(
-          (item) => ({
-            role: item.role,
-            since: item.since,
-            sessions: item.requests.length,
-          }),
-        ),
+        waiting: Object.values(
+          (meta("needs-kirocrew.items") ?? {}) as Record<string, Waiting>,
+        ).map((item) => ({
+          role: item.role,
+          since: item.since,
+          sessions: item.requests.length,
+        })),
       },
       notifications: {
         waiting: waiting.length,
@@ -110,7 +132,20 @@ function contents(database) {
 // environment variable). `config` is that workspace's resolved configuration.
 // `catalog` is the machine view `avoozl status` prints beside this: its
 // `workspaces` and `defaultWorkspace` say whether the workspace is registered.
-export function workspaceStatus({ named, from, config, catalog }) {
+export function workspaceStatus({
+  named,
+  from,
+  config,
+  catalog,
+}: {
+  named: string;
+  from: string;
+  config: WorkspaceConfig;
+  catalog: {
+    workspaces?: CatalogWorkspace[];
+    defaultWorkspace?: string | null;
+  };
+}) {
   const root = config.workspaceRoot,
     realRoot = real(root),
     configFile = [config.filename, config.legacyFilename].find(
@@ -156,7 +191,7 @@ export function workspaceStatus({ named, from, config, catalog }) {
   } catch (error) {
     return {
       ...status,
-      health: `The database at ${config.dbPath} could not be read: ${error.message}`,
+      health: `The database at ${config.dbPath} could not be read: ${(error as Error).message}`,
     };
   }
   if (!held)

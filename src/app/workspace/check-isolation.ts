@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One isolation setting per repository, used for its checks. A repository's
 // `isolation` is {run, network, readable, writable, prepare}:
 //
@@ -19,6 +18,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fail } from "../store/store.ts";
+import type { CommandRecord } from "../git/git.ts";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
 import {
@@ -42,56 +42,81 @@ const ISOLATION_RUNS = Object.freeze(["sandbox", "unconfined"]);
 export const CHECKS_UNCONFINED = "checks";
 const MAX_PATHS = 50;
 
-const record = (value) =>
+// A repository's isolation after validation, with its defaults.
+interface Isolation {
+  run: string;
+  network: string;
+  readable?: string[];
+  writable?: string[];
+  prepare?: string[];
+}
+
+// The part of a repository record its checks' isolation reads.
+interface IsolatedRepository {
+  id?: string;
+  isolation?: unknown;
+  checksEnv?: readonly string[];
+}
+
+type Env = NodeJS.ProcessEnv;
+
+const record = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
-const isArgv = (value) =>
+const isArgv = (value: unknown): value is string[] =>
   Array.isArray(value) &&
   value.length > 0 &&
   value.every((part) => typeof part === "string" && part.length > 0);
 
-function paths(value, label) {
+function paths(value: unknown, label: string) {
   if (value === undefined) return undefined;
   if (
     !Array.isArray(value) ||
     value.length > MAX_PATHS ||
     value.some((item) => typeof item !== "string" || !path.isAbsolute(item))
   )
-    fail(`${label} must be at most ${MAX_PATHS} absolute paths.`);
-  return value.map((item) => path.resolve(item));
+    return fail(`${label} must be at most ${MAX_PATHS} absolute paths.`);
+  return value.map((item: string) => path.resolve(item));
 }
 
 // The stored setting after validation. `label` names it in errors.
-export function isolationSetting(value, label = "isolation") {
-  if (value === undefined) return undefined;
-  if (!record(value)) fail(`${label} must be an object.`);
+export function isolationSetting(value: unknown, label = "isolation") {
+  return value === undefined ? undefined : validIsolation(value, label);
+}
+
+function validIsolation(value: unknown, label: string): Isolation {
+  if (!record(value)) return fail(`${label} must be an object.`);
   for (const key of Object.keys(value))
     if (!ISOLATION_KEYS.includes(key))
       fail(`Unknown isolation setting ${label}.${key}.`);
   const run = value.run ?? "sandbox";
-  if (!ISOLATION_RUNS.includes(run))
+  if (typeof run !== "string" || !ISOLATION_RUNS.includes(run))
     fail(`${label}.run must be sandbox or unconfined.`);
-  if (value.network !== undefined && !["off", "on"].includes(value.network))
+  const network = value.network === undefined ? "off" : value.network;
+  if (typeof network !== "string" || !["off", "on"].includes(network))
     fail(`${label}.network must be off or on.`);
-  if (value.prepare !== undefined && !isArgv(value.prepare))
+  const prepare = value.prepare;
+  if (prepare !== undefined && !isArgv(prepare))
     fail(`${label}.prepare must be command arguments.`);
   const readable = paths(value.readable, `${label}.readable`),
     writable = paths(value.writable, `${label}.writable`);
   return {
     run,
-    network: value.network ?? "off",
+    network,
     ...(readable ? { readable } : {}),
     ...(writable ? { writable } : {}),
-    ...(value.prepare ? { prepare: [...value.prepare] } : {}),
+    ...(prepare ? { prepare: [...prepare] } : {}),
   };
 }
 
 // A repository's isolation with its defaults.
-const isolationOf = (repository) =>
-  isolationSetting(repository?.isolation ?? {}, "isolation");
+const isolationOf = (repository: IsolatedRepository | null | undefined) =>
+  validIsolation(repository?.isolation ?? {}, "isolation");
 
 // Whether this machine lets checks run unconfined (the per-machine opt-in
 // file harness opt-ins use).
-export function checksUnconfinedAllowed(configDirectory) {
+export function checksUnconfinedAllowed(
+  configDirectory: string | null | undefined,
+) {
   if (!configDirectory) return false;
   const file = path.join(path.resolve(configDirectory), HARNESS_UNCONFINED);
   try {
@@ -105,7 +130,10 @@ export function checksUnconfinedAllowed(configDirectory) {
 
 // The repository's cache folder for its checks: under Avoozl's state area,
 // beside the state folder a check must not reach.
-function checkCacheDirectory(repositoryId, stateDirectory) {
+function checkCacheDirectory(
+  repositoryId: string | undefined,
+  stateDirectory: string | undefined,
+) {
   const state = stateDirectory ?? machineAvoozlPaths().stateDirectory;
   return path.join(
     path.dirname(path.resolve(state)),
@@ -120,15 +148,20 @@ function checkCacheDirectory(repositoryId, stateDirectory) {
 // `network` (true or false, never the repository's) and `readable` folders
 // (its plugin folder, read-only) (plugin-checks D4).
 export function isolatedCheck(
-  repository,
-  dir,
-  argv,
-  env,
+  repository: IsolatedRepository | null | undefined,
+  dir: string,
+  argv: string[],
+  env: Env,
   {
     kind = sandboxKind(),
     paths: machine = machineAvoozlPaths(),
     network,
     readable: extra = [],
+  }: {
+    kind?: ReturnType<typeof sandboxKind>;
+    paths?: ReturnType<typeof machineAvoozlPaths>;
+    network?: boolean;
+    readable?: string[];
   } = {},
 ) {
   const base = isolationOf(repository),
@@ -181,17 +214,33 @@ export function isolatedCheck(
 
 // The commandEvidence options for a repository check in `dir`: its
 // environment allowlist and its isolation.
-export const checkOptions = (repository, dir) => ({
+export const checkOptions = (
+  repository: IsolatedRepository | null | undefined,
+  dir: string,
+) => ({
   env: repository?.checksEnv,
-  isolate: (argv, env) => isolatedCheck(repository, dir, argv, env),
+  isolate: (argv: string[], env: Env) =>
+    isolatedCheck(repository, dir, argv, env),
 });
 
-const prepared = new Set();
+const prepared = new Set<string>();
 // Run the repository's `prepare` once per worktree and commit, outside
 // isolation, with the checks' environment allowlist. Returns null when
 // there is nothing to run (or it already ran here), else its result; a
 // failed prepare runs again next time.
-export async function prepareChecks(repository, dir, { run } = {}) {
+export async function prepareChecks(
+  repository: IsolatedRepository | null | undefined,
+  dir: string,
+  {
+    run,
+  }: {
+    run?: (
+      dir: string,
+      argv: string[],
+      options: { env?: readonly string[] },
+    ) => Promise<CommandRecord>;
+  } = {},
+) {
   const setting = isolationOf(repository);
   if (!setting.prepare) return null;
   const { commandEvidence, git } = await import("../git/git.ts"),
