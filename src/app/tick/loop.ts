@@ -60,7 +60,7 @@ export function validateLoop(value: unknown, source = "Avoozl configuration") {
 
 // This machine's config file: `configDirectory`'s when the caller has one
 // (tests, a scoped host), else the one the tick reads.
-export const loopFile = (configDirectory = null) =>
+export const loopFile = (configDirectory: string | null = null) =>
   configDirectory
     ? path.join(configDirectory, "config.json")
     : globalAvoozlConfigPath();

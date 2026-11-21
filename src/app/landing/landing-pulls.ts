@@ -526,10 +526,11 @@ function standingApprovals(
 
 // The queued portion of `key`, in a `pr` repository, or a refusal.
 // Which queued portion a person acts on.
-interface PortionRef {
-  repositoryId: string;
-  base: string;
-  key?: string;
+// The request's fields, checked by queuedPull.
+export interface PortionRef {
+  repositoryId?: unknown;
+  base?: unknown;
+  key?: unknown;
 }
 
 // The public name a lone task lands under, if it has one.
@@ -541,9 +542,13 @@ const publicName = (entry: QueueEntry) => {
 };
 
 function queuedPull(store: Store, { repositoryId, base, key }: PortionRef) {
+  if (typeof repositoryId !== "string" || !repositoryId)
+    return fail("A landing queue names its repository.", 400);
+  if (typeof base !== "string" || !base)
+    return fail("A landing queue names its base branch.", 400);
   const repository = store.get<{ id: string; github?: string | null }>(
       "repositories",
-      repositoryId ?? "",
+      repositoryId,
     ),
     entry = landingQueue(store, { repositoryId, base }).find(
       (e) => e.key === key,

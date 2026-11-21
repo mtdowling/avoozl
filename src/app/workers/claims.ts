@@ -330,7 +330,11 @@ export function claimsNeedsYou(store, now = Date.now()) {
 
 // A person's Delete branch: the claim branch only, in a registered
 // repository, as the high-risk claim-delete job.
-export async function deleteClaim(store, github, { repository, branch }) {
+export async function deleteClaim(
+  store,
+  github,
+  { repository, branch }: { repository?: unknown; branch?: unknown },
+) {
   const claim = parseClaimRef({ ref: `refs/heads/${branch ?? ""}` });
   if (!claim) fail("Name a claim branch: avoozl/<spec>/<task>.", 400);
   if (

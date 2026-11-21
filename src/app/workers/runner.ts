@@ -80,7 +80,10 @@ const phase = (binding, delivery) =>
           : "claimed";
 
 // plans_next / `avoozl next`: every local leaf, in exactly one bucket.
-export function nextView(store, { policy, github = null }) {
+export function nextView(
+  store,
+  { policy, github = null }: { policy: unknown; github?: unknown },
+) {
   const data = store.read(),
     delivery = effective(policy),
     bindings = listSessionBindings(store),
@@ -331,7 +334,19 @@ export async function claimDispatches(
 // repository has no GitHub name is not claimable this way.
 export async function claimNext(
   store,
-  { policy, github = null, client, workspaceRoot, linked = null },
+  {
+    policy,
+    github = null,
+    client,
+    workspaceRoot,
+    linked = null,
+  }: {
+    policy: unknown;
+    github?: unknown;
+    client?: unknown;
+    workspaceRoot?: string | null;
+    linked?: unknown;
+  },
 ) {
   const errors = [
       ...(await refreshClaims(store, client)),

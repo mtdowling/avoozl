@@ -144,7 +144,7 @@ function parsePolicy(text) {
 }
 
 // The workspace name a lane's header and folder carry (simplify §D22).
-export const laneWorkspace = (workspaceRoot) =>
+export const laneWorkspace = (workspaceRoot: string | null | undefined) =>
   workspaceRoot ? path.basename(path.resolve(workspaceRoot)) : null;
 
 // This machine's lanes (R6.3, simplify §D22): lanes.local or, with `key`,
