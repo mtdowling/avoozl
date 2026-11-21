@@ -901,7 +901,7 @@ Requirement 102, design §4.32.
   - Action: release ten tasks; move the base during one; make one check fail.
   - Failure means: a merge on an unchecked head, a second ruleset rule, or a force push.
   - Next decision: keep `pr` as the default for repositories with required checks.
-- [ ] `42.4` Review Avoozl repository settings against owner policy, after 42.3 [R87.8] (§4.26) (**MANUAL**)
+- [x] `42.4` Review Avoozl repository settings against owner policy, after 42.3 [R87.8] (§4.26) (**MANUAL**)
   - Review Avoozl repository settings against owner policy
   - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
 - [x] `56.8` GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7 [R102.13] (§4.32)
