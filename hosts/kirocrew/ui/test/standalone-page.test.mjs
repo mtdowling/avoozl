@@ -36,7 +36,7 @@ before(async () => {
   const { workspaceConfig } = await src('settings/config.mjs')
   const { initializeWorkspace } = await src('workspace/workspace.mjs')
   const { startServe } = await src('serve/serve-server.mjs')
-  const { Store } = await src('store/store.mjs')
+  const { Store } = await src('store/store.ts')
   const { approveHarnessDefinition, harnessDefinitionHash } = await src('executors/harness-definitions.mjs')
   machine = machineAvoozlPaths()
   root = path.join(scratch, 'ws')
@@ -159,7 +159,7 @@ test('a new Needs you item gives one notice, two give two, and a reload gives no
   // built from the test fixtures.
   const { snapshot } = await import('../../../../src/app/test/fixtures.mjs')
   const { workspaceConfig } = await src('settings/config.mjs')
-  const { Store } = await src('store/store.mjs')
+  const { Store } = await src('store/store.ts')
   const { WorkspaceRegistry } = await src('settings/host-config.mjs')
   const blocked = (id) => ({
     id,
