@@ -1,28 +1,31 @@
 #!/usr/bin/env node
-// Proof ms-p7 (machine-server MS12, design D5): the Kiro Crew cron keeps only
-// chat intents. On a throwaway test Kiro Crew with its own home and port, the
-// machine server runs the tick; the cron opens the task's chat, sends it the
-// message the tick released, and sets its trust mode again after the gateway
+// Proof ms-p7 (machine-server MS12, design D5): the Kiro Crew cron is the
+// machine's timer. On a throwaway test Kiro Crew with its own home and port,
+// the cron runs the tick pass, opens the task's lane chats, sends the
+// message the pass released, and sets trust mode again after the gateway
 // restarts. Nothing else is in the cron's runs.
 //
-//   node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR --port PORT setup
+//   node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR --port PORT --github OWNER/NAME setup
 //   node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR --port PORT watch
+//   node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR --port PORT cleanup
 //
-// `setup` makes a scratch repository with a bare remote, and a workspace in
-// the test crew's own Avoozl home with one task that investigates first.
-// Restart the test crew after it, so its app backend reads the workspace.
-// `watch` acts as the person at the test crew's dashboard: it answers the
-// chat's tool approval cards, chooses Go ahead on the findings (the message
-// the cron must send), restarts the gateway once the chat is open, and
-// writes the receipt data when the task lands. The real Kiro Crew is never
-// read or written.
-import { execFileSync } from "node:child_process";
+// `setup` makes a private scratch repository on GitHub with gh, a checkout
+// of it, a test-crew worker agent with shell tools, and a workspace in the
+// test crew's own Avoozl home with one task. Restart the test crew after it
+// (POST /api/restart), so its app backend reads the workspace. `watch` acts
+// as the person at the test crew's dashboard: it approves the spec, answers
+// the chats' tool approval cards, restarts the gateway while the worker's
+// chat has a turn running (so the chat goes quiet and the pass releases a
+// nudge, the message the cron must send), and writes the receipt data when
+// the task lands. `cleanup` checks the scratch repository holds only this
+// proof's commits, then deletes it. The real Kiro Crew is never read or
+// written.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { crewApi } from "./machine.mjs";
+import { crewApi, proofCommands } from "./machine.mjs";
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -30,19 +33,19 @@ const REPO = path.resolve(
   "..",
 );
 const CLI = path.join(REPO, "cli.mjs");
-const HARNESS = path.join(REPO, "scripts", "dev", "live-harness.sh");
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     root: { type: "string" },
     "harness-dir": { type: "string" },
-    port: { type: "string", default: "5711" },
-    minutes: { type: "string", default: "120" },
+    port: { type: "string", default: "5713" },
+    github: { type: "string" },
+    minutes: { type: "string", default: "90" },
   },
 });
 if (!values.root || !values["harness-dir"]) {
   console.error(
-    "Usage: node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR [--port PORT] setup|watch",
+    "Usage: node scripts/proofs/proof-ms-p7-live.mjs --root DIR --harness-dir DIR [--port PORT] [--github OWNER/NAME] setup|watch|cleanup",
   );
   process.exit(64);
 }
@@ -58,13 +61,14 @@ process.env.KIROCREW_HOME = CREW;
 const TAG = "msp7";
 const SPEC = `${TAG}-notes`;
 const TASK = `${TAG}-1`;
+const AGENT = "wp-worker";
 const P = {
-  origin: path.join(ROOT, "origin.git"),
   checkout: path.join(ROOT, "app"),
   ws: path.join(ROOT, "ws"),
   wt: path.join(ROOT, "wt"),
   events: path.join(ROOT, "events.jsonl"),
   report: path.join(ROOT, "report.json"),
+  repo: path.join(ROOT, "github-repo.txt"),
 };
 const DB = path.join(P.ws, ".avoozl", "local", "workspace.sqlite");
 const { machineAvoozlPaths } = await import(
@@ -80,24 +84,7 @@ const event = (kind, data = {}) => {
   fs.appendFileSync(P.events, JSON.stringify(line) + "\n");
   console.log(`[ms-p7] ${kind} ${JSON.stringify(data)}`);
 };
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const cli = (...args) =>
-  execFileSync(process.execPath, [CLI, ...args], {
-    encoding: "utf8",
-    env: process.env,
-  });
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const harness = (...args) =>
-  execFileSync("bash", [HARNESS, ...args], {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      AVOOZL_HARNESS_DIR: HARNESS_DIR,
-      AVOOZL_HARNESS_PORT: values.port,
-    },
-    timeout: 300_000,
-  });
+const { git, gh, cli, sleep } = proofCommands(CLI);
 
 const CHECK = `// Scratch check: each notes/*.txt holds one lowercase word and a newline.
 import fs from "node:fs";
@@ -111,7 +98,36 @@ for (const name of notes)
 console.log("ok");
 `;
 
+// A copy of the stock worker with shell and file tools, in the test crew
+// only (wp-p1): the stock agent cannot run the brief's commands.
+function writeWorkerAgent() {
+  const agents = path.join(CREW, "kiro", "agents"),
+    stock = JSON.parse(
+      fs.readFileSync(path.join(agents, "kirocrew-worker.json"), "utf8"),
+    ),
+    tools = ["fs_read", "fs_write", "execute_bash", "grep", "glob"];
+  const agent = {
+    ...stock,
+    name: AGENT,
+    description: "ms-p7 test-crew worker with shell and file tools.",
+    tools: [...new Set([...(stock.tools ?? []), ...tools])],
+  };
+  fs.writeFileSync(
+    path.join(agents, `${AGENT}.json`),
+    JSON.stringify(agent, null, 2) + "\n",
+  );
+}
+
 async function setup() {
+  const repo = values.github;
+  if (
+    !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]*(scratch|proof|throwaway)[A-Za-z0-9._-]*$/.test(
+      repo ?? "",
+    )
+  )
+    throw Error(
+      "--github must name a new OWNER/NAME with scratch or proof in its name.",
+    );
   if (fs.existsSync(ROOT) && fs.readdirSync(ROOT).length)
     throw Error(`${ROOT} is not empty; run once on a fresh root.`);
   for (const dir of [ROOT, P.wt]) fs.mkdirSync(dir, { recursive: true });
@@ -120,8 +136,12 @@ async function setup() {
     avoozl: git(REPO, "rev-parse", "HEAD"),
     avoozlHome: MACHINE.configDirectory,
   });
-  git(ROOT, "init", "-q", "--bare", "-b", "main", P.origin);
-  git(ROOT, "clone", "-q", P.origin, P.checkout);
+  gh("repo", "create", repo, "--private", "--description", "ms-p7 scratch");
+  fs.writeFileSync(P.repo, repo + "\n");
+  event("github.created", { repo });
+  fs.mkdirSync(P.checkout);
+  git(P.checkout, "init", "-q", "-b", "main");
+  git(P.checkout, "remote", "add", "origin", `https://github.com/${repo}.git`);
   git(P.checkout, "config", "user.name", "ms-p7 Scratch");
   git(P.checkout, "config", "user.email", "ms-p7@example.invalid");
   fs.writeFileSync(path.join(P.checkout, "README.md"), "ms-p7 scratch.\n");
@@ -144,6 +164,7 @@ async function setup() {
   git(P.checkout, "add", ".");
   git(P.checkout, "commit", "-q", "-m", "Start the scratch repository");
   git(P.checkout, "push", "-q", "origin", "main");
+  writeWorkerAgent();
   cli("init", P.ws, "--name", "ms-p7");
   cli("workspace", "add", TAG, "--root", P.ws);
   cli("workspace", "set-default", TAG);
@@ -152,15 +173,14 @@ async function setup() {
   config.delivery = {
     ...(config.delivery || {}),
     retries: 1,
-    investigate: { mode: "all", minConfidence: "high" },
-    // A Kiro Crew reviewer reports through MCP sharing, which this test crew
-    // has off; the proof is about the cron, so the task gets no review.
-    reviewers: [],
+    // A quiet chat is nudged a minute after its turn ends without a report:
+    // the gateway restart cuts the worker's turn, and the nudge is the
+    // message the cron must send. The default reviewer stays on.
+    quietMinutes: 1,
+    nudges: 3,
   };
-  config.lanes = { local: 2 };
-  // A copy of the stock worker with shell and file tools, in the test crew
-  // only (wp-p1): the stock agent cannot run the brief's commands.
-  config.roles = { worker: { harness: "kirocrew", agent: "wp-worker" } };
+  config.lanes = { local: 1, reviewers: 1 };
+  config.roles = { worker: { harness: "kirocrew", agent: AGENT } };
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n");
   // The tick starts and lands work only with this machine's loop on.
   const machineFile = path.join(CREW, "avoozl", "config.json");
@@ -187,30 +207,49 @@ async function setup() {
   } finally {
     store.close();
   }
-  event("setup.done", { task: TASK });
+  event("setup.done", { task: TASK, repo });
 }
 
 // The test crew's dashboard API through the harness's saved cookie.
 const api = (method, route, body) =>
   crewApi({ harnessDir: HARNESS_DIR, port: values.port }, method, route, body);
+const listSlots = () => {
+  const listed = api("GET", "/api/chat/slots");
+  return Array.isArray(listed) ? listed : (listed?.slots ?? []);
+};
 
 async function state() {
   const { Store } = await import("../../src/app/store/store.mjs");
   const store = new Store(DB);
   try {
+    const delivery = store.get("task_deliveries", TASK);
     return {
-      delivery: store.get("task_deliveries", TASK)?.state ?? null,
-      investigation: store.get("task_investigations", TASK)?.state ?? null,
+      delivery: delivery?.state ?? null,
+      verifications: (delivery?.verifications ?? []).map((v) => ({
+        role: v.role ?? "checks",
+        attempt: v.attempt,
+        outcome: v.outcome,
+        verdict: v.verdict,
+        cause: v.cause,
+      })),
       bindings: store.list("session_bindings").map((b) => ({
+        id: b.id,
         slot: b.slot,
         role: b.role,
+        lane: b.lane ?? null,
         status: b.status,
+        report: b.report?.kind ?? null,
         executor: b.executor ?? "kirocrew",
       })),
       sends: store
         .list("session_requests")
         .filter((r) => r.kind === "send")
-        .map((r) => ({ id: r.id, state: r.state, slot: r.request?.slot })),
+        .map((r) => ({
+          id: r.id,
+          state: r.state,
+          slot: r.request?.slot,
+          text: String(r.request?.text ?? "").slice(0, 120),
+        })),
     };
   } finally {
     store.close();
@@ -232,22 +271,12 @@ function cronRuns() {
   const runs = Array.isArray(history)
     ? history
     : (history.runs ?? history.items ?? []);
-  return {
-    job: job.id,
-    runs: runs.slice(0, 50).map((run) => {
-      const detail = api(
-        "GET",
-        `/api/crons/${encodeURIComponent(job.id)}/history/${encodeURIComponent(run.id ?? run.run_id)}`,
-      );
-      return { id: run.id ?? run.run_id, detail };
-    }),
-  };
+  return { job: job.id, runs: runs.slice(0, 200) };
 }
 
 // `avoozl plan approve` as the person at this machine: preview, then commit
 // the approval to main with the hash the preview printed.
 function approve() {
-  // The folder in the repository becomes a draft, as Avoozl's page adds it.
   try {
     cli(
       "plan.create",
@@ -277,21 +306,37 @@ function approve() {
   return true;
 }
 
+// The test crew's Restart, as the person presses it: the gateway restarts
+// itself, so no process here starts one.
+async function restartGateway() {
+  api("POST", "/api/restart");
+  await sleep(10_000);
+  for (let i = 0; i < 30; i++) {
+    try {
+      const slots = api("GET", "/api/chat/slots");
+      if (Array.isArray(slots) || Array.isArray(slots?.slots)) return true;
+    } catch {}
+    await sleep(5_000);
+  }
+  return false;
+}
+
 async function watch() {
   const end = Date.now() + Number(values.minutes) * 60_000,
     seen = new Set();
-  let decided = false,
-    approved = false,
+  let approved = false,
     restarted = false,
-    folderSet = false,
-    afterRestart = null;
+    afterRestart = null,
+    lastLog = "";
   while (Date.now() < end) {
     try {
-      // The chat's approval cards, answered as the person would.
-      const slots = api("GET", "/api/chat/slots");
-      for (const slot of Array.isArray(slots) ? slots : []) {
+      const s = await state();
+      const ours = new Set(s.bindings.map((b) => b.slot));
+      // The chats' approval cards, answered as the person would.
+      for (const slot of listSlots()) {
         const pending = slot.pending_approval_info;
-        if (!pending || !slot.key.includes(TAG)) continue;
+        if (!pending || !(ours.has(slot.key) || slot.key.includes(TAG)))
+          continue;
         const id = `${slot.key}#${pending.request_mid}`;
         if (seen.has(id)) continue;
         seen.add(id);
@@ -306,50 +351,31 @@ async function watch() {
           tool: String(pending.tool).slice(0, 80),
         });
       }
-      // The folder the tick made gets the checkout as its project folder.
-      if (!folderSet) {
-        const folders = JSON.parse(
-          fs.readFileSync(path.join(CREW, "folders.json"), "utf8"),
-        );
-        const list = Array.isArray(folders) ? folders : (folders.folders ?? []);
-        const folder = list.find((f) => f.name === "app" && !f.project_dir);
-        if (folder) {
-          api("PATCH", `/api/chat/folders/${folder.id}`, {
-            project_dir: fs.realpathSync.native(P.checkout),
-          });
-          folderSet = true;
-          event("folder", { id: folder.id });
-        }
-      }
       // The person approves the spec once the tick has read it as a draft.
       if (!approved) approved = approve();
-      const s = await state();
-      const worker = s.bindings.find((b) => b.role === "worker");
-      // The page's Go ahead on the findings: the tick releases a message.
-      if (!decided && s.investigation === "needs-you") {
-        const { Store } = await import("../../src/app/store/store.mjs");
-        const { Operations } = await import("../../src/app/api/operations.mjs");
-        const store = new Store(DB);
-        try {
-          await new Operations(store, { workspaceRoot: P.ws }).execute(
-            "investigation.decide",
-            { taskId: TASK, action: "go" },
-            undefined,
-            { local: true, person: true },
-          );
-        } finally {
-          store.close();
-        }
-        decided = true;
-        event("go-ahead", {});
+      const log = JSON.stringify(s);
+      if (log !== lastLog) {
+        event("state", s);
+        lastLog = log;
       }
-      // Once the chat is open, restart the gateway: trust must come back.
+      const worker = s.bindings.find((b) => b.role === "worker");
+      // While the worker's chat has a turn running, restart the gateway:
+      // the turn is cut, trust must come back, and the pass nudges the chat.
       if (!restarted && worker) {
-        event("restart.start", { slot: worker.slot });
-        harness("restart");
-        restarted = true;
-        afterRestart = Date.now();
-        event("restart.done", {});
+        const slot = listSlots().find((row) => row.key === worker.slot);
+        if (
+          worker.status === "working" ||
+          (slot && (slot.status === "working" || slot.busy || slot.running))
+        ) {
+          event("restart.start", {
+            slot: worker.slot,
+            status: slot?.status ?? worker.status,
+          });
+          const back = await restartGateway();
+          restarted = true;
+          afterRestart = Date.now();
+          event("restart.done", { back });
+        }
       }
       if (
         restarted &&
@@ -357,17 +383,22 @@ async function watch() {
         afterRestart &&
         Date.now() - afterRestart > 180_000
       ) {
-        const listed = api("GET", "/api/chat/slots");
-        const slots = Array.isArray(listed) ? listed : (listed?.slots ?? []);
-        const slot = slots.find((row) => row.key === worker.slot);
-        event("trust", { slot: worker.slot, trust: slot?.trust ?? null });
+        const slot = listSlots().find((row) => row.key === worker.slot);
+        event("trust", {
+          slot: worker.slot,
+          trust: slot?.trust ?? null,
+          mode: slot?.mode ?? null,
+        });
         afterRestart = null;
       }
       if (s.delivery === "integrated") {
         const report = {
           state: s,
           cron: cronRuns(),
-          base: git(P.origin, "log", "--format=%h %s", "main"),
+          trust: listSlots()
+            .filter((row) => ours.has(row.key))
+            .map((row) => ({ slot: row.key, trust: row.trust ?? null })),
+          main: git(P.checkout, "ls-remote", "origin", "main"),
         };
         fs.writeFileSync(P.report, JSON.stringify(report, null, 2));
         event("landed", { report: P.report });
@@ -381,7 +412,36 @@ async function watch() {
   event("timeout", await state());
 }
 
+// Delete the scratch repository after checking it holds only this proof's
+// commits: the start commit and what Avoozl landed for the task.
+function cleanup() {
+  const repo = fs.readFileSync(P.repo, "utf8").trim();
+  git(P.checkout, "fetch", "-q", "origin");
+  const log = git(
+    P.checkout,
+    "log",
+    "--format=%H %an <%ae> %s",
+    "origin/main",
+  ).split("\n");
+  const branches = git(P.checkout, "ls-remote", "--heads", "origin")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.split("refs/heads/")[1]);
+  event("cleanup.check", { repo, log, branches });
+  const theirs = log.filter(
+    (line) =>
+      !/ Start the scratch repository$/.test(line) &&
+      !line.includes(TASK) &&
+      !/ms-p7|Avoozl|avoozl/i.test(line),
+  );
+  if (theirs.length)
+    throw Error(`${repo} holds commits this proof did not make: ${theirs}`);
+  gh("repo", "delete", repo, "--yes");
+  event("github.deleted", { repo });
+}
+
 const command = positionals[0];
 if (command === "setup") await setup();
 else if (command === "watch") await watch();
-else throw Error("Name setup or watch.");
+else if (command === "cleanup") cleanup();
+else throw Error("Name setup, watch or cleanup.");

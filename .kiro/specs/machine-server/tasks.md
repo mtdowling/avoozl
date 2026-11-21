@@ -89,7 +89,7 @@ they never collide with the IDs of the other specs.
 - [ ] `ms-p7` Proof: the cron on a throwaway Kiro Crew, after ms-5.1 [MS12] (§D5)
   - Expected: (1) the chat opens, gets the message and keeps trust mode; (2) the cron history shows only open, send and trust calls besides the pass; (3) the task lands.
   - Expected result observed; receipt under `docs/evidence/`.
-  - Setup: the throwaway test Kiro Crew with its own home and this machine's `loop` on, an isolated workspace with one `kirocrew` task, and the cron as the only thing that runs the tick; `scripts/proofs/proof-ms-p7-live.mjs` sets it up and acts as the person. The chat drives the test crew's clicks itself.
-  - Action: (1) approve the task; (2) go ahead on its findings, which sends a message to its chat; (3) restart the test crew's gateway; (4) read the cron's run history.
+  - Setup: the throwaway test Kiro Crew with its own home and this machine's `loop` on, an isolated workspace with one `kirocrew` task, its worker and reviewer lanes, and a private scratch repository; the cron is the only thing that runs the tick; `scripts/proofs/proof-ms-p7-live.mjs` sets it up and acts as the person. The chat drives the test crew's clicks itself.
+  - Action: (1) approve the task; (2) restart the test crew's gateway while the worker's chat has a turn running, so the pass nudges the quiet chat, which sends a message to it; (3) read the cron's run history.
   - Failure means: the cron does work the pass should own, or a Kiro Crew machine needs another timer.
   - Next decision: none.
