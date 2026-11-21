@@ -14,7 +14,7 @@ import {
   configureGitHubRepository,
   machineIdentity,
 } from "../github/github-sync.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { person, routed } from "../api/operation-policy.mjs";
 
 export const entries = [

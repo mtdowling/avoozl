@@ -24,7 +24,7 @@ import {
   rateNeedsYou,
   rateView,
 } from "../github-rate.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const T0 = Date.parse("2026-11-14T18:00:00Z");

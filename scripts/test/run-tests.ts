@@ -102,8 +102,16 @@ if (shard && !(shard[0] >= 1 && shard[0] <= shard[1]))
 if ((shard || chromeOnly) && !system)
   throw Error("--shard and --chrome-only need --system");
 
-let nodeFiles = ["src/*.test.mjs", "src/app/**/test/*.test.mjs"],
-  uiFiles = ["hosts/kirocrew/ui/test/*.test.mjs"];
+let nodeFiles = [
+    "src/*.test.mjs",
+    "src/*.test.ts",
+    "src/app/**/test/*.test.mjs",
+    "src/app/**/test/*.test.ts",
+  ],
+  uiFiles = [
+    "hosts/kirocrew/ui/test/*.test.mjs",
+    "hosts/kirocrew/ui/test/*.test.ts",
+  ];
 if (system && !changed) ({ node: nodeFiles, ui: uiFiles } = allTestFiles());
 if (changed) {
   const sel = select(changedFiles(base));

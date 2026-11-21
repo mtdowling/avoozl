@@ -37,8 +37,8 @@ import {
   DEFAULT_RETENTION_DAYS,
   activityRetention,
   validateActivitySettings,
-} from "../store/activity-log.mjs";
-import { fail } from "../store/store.mjs";
+} from "../store/activity-log.ts";
+import { fail } from "../store/store.ts";
 import { checksSetting } from "../workspace/repository-checks.mjs";
 import { isolationSetting } from "../workspace/check-isolation.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";

@@ -9,7 +9,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { canonical, fail } from "../store/store.mjs";
+import { canonical, fail } from "../store/store.ts";
 import { contentBinding } from "../content/content-rules.mjs";
 import { pluginCheckConflicts } from "../workspace/repository-checks.mjs";
 import {

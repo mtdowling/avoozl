@@ -9,7 +9,7 @@ import {
   selectedChecks,
 } from "../workspace/repository-checks.mjs";
 import { changedPaths } from "../delivery/verify.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 async function recordDir(root) {
   const common = fs.realpathSync.native(

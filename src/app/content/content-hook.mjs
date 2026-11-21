@@ -17,7 +17,7 @@ import {
   pushLines,
   sha256,
 } from "./content-rules.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 
 const MAX_STDIN = 1024 * 1024;
 const WRAPPERS = new Set(["env", "command", "time", "sudo", "nohup", "exec"]);

@@ -22,7 +22,7 @@ import { drainProcessRequests, processBrief } from "../process.mjs";
 import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { initCheckout, openFakeSupervisor } from "./process-machine.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 
 const CLAUDE = fileURLToPath(
   new URL("../../../../examples/harnesses/claude-code.json", import.meta.url),

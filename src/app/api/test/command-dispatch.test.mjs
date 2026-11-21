@@ -8,7 +8,7 @@ import { commandContext, dispatchCommand } from "../command-dispatch.mjs";
 import { workspaceConfig } from "../../settings/config.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { SECRET, sign, isolatedEnv } from "../../test/signed-principal.mjs";
 
 const OWNER = { kind: "owner-session", ownerId: "local" };

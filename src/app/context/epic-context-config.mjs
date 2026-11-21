@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import {
   MAX,
   checkAbout,

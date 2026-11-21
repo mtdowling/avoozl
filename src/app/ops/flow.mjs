@@ -14,7 +14,7 @@ import {
   listHarnessDefinitions,
 } from "../executors/harness-definitions.mjs";
 import { runOn } from "../tick/needs-kirocrew.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import path from "node:path";
 import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 

@@ -6,8 +6,8 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { checkReply } from "../plugins/plugin-contract.mjs";
-import { recordActivity } from "../store/activity-log.mjs";
-import { fail } from "../store/store.mjs";
+import { recordActivity } from "../store/activity-log.ts";
+import { fail } from "../store/store.ts";
 import {
   PluginProcess,
   SECRET_VALUE,

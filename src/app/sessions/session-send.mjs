@@ -2,7 +2,7 @@
 // message is queued as a `send` session request. The backend's drain hands
 // it to the supervisor, which resumes the child with it once its current
 // run exits. Avoozl itself never types into a child.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { enqueueSessionRequests } from "./session-requests.mjs";
 
 export const SEND_MAX_CHARS = 8000;

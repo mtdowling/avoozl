@@ -1,7 +1,7 @@
 // GitHub sources (design §4.39, Requirement 110): a GitHub repository whose
 // issues may start work is one `intake.sources` entry with `via: "github"`,
 // beside plugin and MCP sources.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 export const GITHUB_VIA = "github";
 export const GITHUB_SOURCE_KEYS = Object.freeze([

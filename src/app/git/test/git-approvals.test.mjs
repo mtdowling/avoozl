@@ -14,9 +14,9 @@ import {
   commitApproval,
 } from "../git-approvals.mjs";
 import { listSpans } from "../../flow/flow.mjs";
-import { listActivity } from "../../store/activity-log.mjs";
+import { listActivity } from "../../store/activity-log.ts";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.mjs";
 import { specFiles, writeSpec } from "../../test/spec-fixture.mjs";
 import { OWNER, specCheckout as repo } from "../../test/spec-checkout.mjs";

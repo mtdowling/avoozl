@@ -1,6 +1,6 @@
 // Durable, executor-neutral starts and messages. A claim never expires by age.
 import { createHash, randomUUID } from "node:crypto";
-import { canonical, fail } from "../store/store.mjs";
+import { canonical, fail } from "../store/store.ts";
 
 const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");

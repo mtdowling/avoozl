@@ -1,4 +1,4 @@
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const REFERENCE =
   /^([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9._-]{1,100})#([1-9][0-9]{0,9})$/;

@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { deliveryView } from "../page-views.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";

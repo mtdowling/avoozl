@@ -2,7 +2,7 @@
 // the remote moved, and a pull request merge that GitHub refuses when its
 // head moved. Never forced.
 import { git, landingJob, remoteGit } from "../git/git.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 async function isAncestor(root, older, newer) {
   try {

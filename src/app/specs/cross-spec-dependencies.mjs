@@ -1,5 +1,5 @@
 import { parseSpec } from "./spec-plans.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 // Only stored revisions declare a foreign task. Reading another folder must
 // not create tasks or silently approve the folder's contents.

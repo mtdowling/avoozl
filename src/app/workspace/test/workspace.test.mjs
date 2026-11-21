@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { applicationRoot, workspaceConfig } from "../../settings/config.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "../../settings/config-schema.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { Operations } from "../../api/operations.mjs";
 import { createSpecPlan, readSpecFolder } from "../../specs/spec-plans.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";

@@ -5,7 +5,7 @@ import { person, notOnMcp } from "../api/operation-policy.mjs";
 import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
 import { validateTelemetry } from "../settings/telemetry-config.mjs";
 import { writeMachineFile } from "../tick/crews.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { telemetryHandle, telemetryStatus } from "../telemetry/index.mjs";
 

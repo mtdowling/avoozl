@@ -8,7 +8,7 @@ import test from "node:test";
 import { linePausedTaskIds, openStops } from "../flow.mjs";
 import { blockedNaming, watchLine } from "../flow-line.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { leaf as fixtureLeaf } from "../../test/delivery-fixture.mjs";

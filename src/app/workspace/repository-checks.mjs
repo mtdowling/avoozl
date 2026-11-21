@@ -3,7 +3,7 @@
 // check with paths runs only for a change that touches one of them. Tasks
 // never name checks. An older setting, a list of argv arrays, still loads:
 // each check is named by its argv joined with spaces and has no paths.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { matchesPath } from "../delivery/verify.mjs";
 
 export const CHECK_NAME = /^[a-z][a-z0-9-]{0,39}$/;

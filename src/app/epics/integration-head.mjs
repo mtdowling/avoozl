@@ -13,7 +13,7 @@ import { openStops, putStop } from "../flow/flow.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import { statusComplete } from "../../model.mjs";
 import { branchChecks, stageResults } from "../plugins/check-stages.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const META = "integrationHeads";
 const SYNC = "integrationSync";

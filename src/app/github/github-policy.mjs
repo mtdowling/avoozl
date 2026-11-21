@@ -5,7 +5,7 @@ import { LANDING_MODES, PR_MODES } from "../landing/landing-config.mjs";
 // order. Validation is deterministic; the one check that needs GitHub (base
 // branch) is `requireDefaultBranch`.
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { MAX_WRITES_PER_HOUR, MAX_WRITES_PER_MINUTE } from "./github-pacer.mjs";
 import { parseRepository } from "./github.mjs";
 

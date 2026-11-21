@@ -22,7 +22,7 @@ import {
 } from "../../settings/host-config.mjs";
 import { complete, handleMcp, kiroCrewCaller } from "../../mcp/mcp.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { callerSlot } from "../../delivery/delivery.mjs";
 import { dispatchMcp } from "../../../mcp.mjs";
 import { cronIntents } from "./cron-intents.mjs";

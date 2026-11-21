@@ -16,7 +16,7 @@ import {
   readPluginSettings,
   writePluginSettings,
 } from "./plugins.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 
 const META = "pluginUpdates";
 export const DAY_MS = 24 * 3600 * 1000;

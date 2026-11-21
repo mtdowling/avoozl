@@ -45,7 +45,7 @@ import {
   qualifiedRef,
   verifyRelationship,
 } from "../landing/push-head.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { firstErrorLine } from "../delivery/verify.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 import { landingQueue } from "./landing-queue.mjs";

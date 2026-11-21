@@ -1,6 +1,7 @@
+// @ts-nocheck: typing debt
 import fs from "node:fs";
 import path from "node:path";
-import { fail } from "./store.mjs";
+import { fail } from "./store.ts";
 import { digest } from "../../model.mjs";
 
 // Publish pending Markdown projections from the outbox under root, and mark

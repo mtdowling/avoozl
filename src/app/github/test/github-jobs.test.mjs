@@ -8,8 +8,8 @@ import path from "node:path";
 import test from "node:test";
 import { TABLES } from "../../api/operation-table.mjs";
 import { landingJob } from "../../git/git.mjs";
-import { Store } from "../../store/store.mjs";
-import { listActivity } from "../../store/activity-log.mjs";
+import { Store } from "../../store/store.ts";
+import { listActivity } from "../../store/activity-log.ts";
 import { GitHubClient } from "../github.mjs";
 import {
   GRANT_MS,

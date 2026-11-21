@@ -3,7 +3,7 @@
 // (source "tick"). A run of identical failures is one row whose count grows,
 // not one row per tick. A tick that works writes nothing. Three failures in
 // a row open a Needs you item that clears when a tick works.
-import { recordActivity, removeActivity } from "../store/activity-log.mjs";
+import { recordActivity, removeActivity } from "../store/activity-log.ts";
 
 const KEY = "tick.health";
 const MINUTE = 60_000;

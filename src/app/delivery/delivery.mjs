@@ -17,7 +17,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { issueReportToken } from "../workers/report-match.mjs";
 import { claimBranch, claimOf, claimedTaskIds } from "../workers/claims.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { fileURLToPath } from "node:url";
 import {
   contentBinding,

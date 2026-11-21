@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // The activity log (tasks 29.1–29.3, design §4.19, Requirement 71): one
 // table, one helper, screening and redaction, local actions, the tick's
 // GitHub and plugin events, retention and the MCP read. Every term and
@@ -15,11 +16,11 @@ import {
   recordTickActivity,
   recordTickChanges,
   tickSnapshot,
-} from "../activity-log.mjs";
+} from "../activity-log.ts";
 import { groupedCall } from "../../mcp/mcp-tools.mjs";
 import { classifyOperation } from "../../api/operation-table.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../store.mjs";
+import { Store } from "../store.ts";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { leaf as fixtureLeaf } from "../../test/delivery-fixture.mjs";

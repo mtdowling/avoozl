@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../settings/config.mjs";
 import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
 import { Operations } from "../api/operations.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

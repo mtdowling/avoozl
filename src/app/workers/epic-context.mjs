@@ -12,7 +12,7 @@ import { taskRepository } from "../../work-model.mjs";
 import { approvalCommits, approvalBase } from "../git/git-approvals.mjs";
 import { specItems } from "../specs/spec-plans.mjs";
 import { specsBranchSetting } from "../specs/specs-branch.mjs";
-import { recordActivity } from "../store/activity-log.mjs";
+import { recordActivity } from "../store/activity-log.ts";
 import { enforce } from "../content/content-rules.mjs";
 import { queueNotifications } from "../tick/notifications.mjs";
 import { repositoryMatches } from "../context/context-shape.mjs";

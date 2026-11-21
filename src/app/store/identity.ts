@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 import { randomUUID } from "node:crypto";
 
 // A stable per-workspace identity. Client-facing identifiers are namespaced by

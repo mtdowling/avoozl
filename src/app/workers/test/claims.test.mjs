@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { snapshot } from "../../test/fixtures.mjs";
 import { specCheckout } from "../../test/spec-checkout.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";

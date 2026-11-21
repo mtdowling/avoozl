@@ -11,7 +11,7 @@ import test from "node:test";
 import { drainProcessRequests } from "../process.mjs";
 import { parseHarnessDefinition } from "../harness-definitions.mjs";
 import { childRecord, openSupervisorDatabase } from "../supervisor.mjs";
-import { listActivity } from "../../store/activity-log.mjs";
+import { listActivity } from "../../store/activity-log.ts";
 import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
 import { FakeGitHub } from "../../test/fake-github.mjs";
 import { unapprove } from "../../test/epic-context-seed.mjs";

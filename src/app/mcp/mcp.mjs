@@ -1,5 +1,5 @@
 import { complete, validateMcpRequest } from "../../mcp.mjs";
-import { workspaceIdentity } from "../store/identity.mjs";
+import { workspaceIdentity } from "../store/identity.ts";
 import { classifyOperation } from "../api/operation-table.mjs";
 import { mcpRefusal, PERSON_ONLY } from "./mcp-policy.mjs";
 import { GROUPED_TOOLS, groupedCall, groupedToolList } from "./mcp-tools.mjs";

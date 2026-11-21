@@ -10,7 +10,7 @@ import path from "node:path";
 import test from "node:test";
 import { GitHubClient } from "../github.mjs";
 import { WritePacer, clampLimits } from "../github-pacer.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const MINUTE = 60 * 1000;

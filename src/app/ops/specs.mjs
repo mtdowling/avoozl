@@ -1,7 +1,7 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { planningIdentity } from "../github/github-marker.mjs";
 import { publishSpec } from "../specs/spec-publication.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { publishPlanningPullRequest } from "../workspace/workspace-repository.mjs";
 import { notOnMcp, person, routed } from "../api/operation-policy.mjs";
 import fs from "node:fs";

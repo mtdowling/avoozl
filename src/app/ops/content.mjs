@@ -8,7 +8,7 @@ import {
   writeTermsFile,
 } from "../content/content-rules.mjs";
 import { inspectPlugins } from "../plugins/plugins.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { person, routed } from "../api/operation-policy.mjs";
 
 // Settings > Content rules editing: a person only. Terms are private, so

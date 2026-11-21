@@ -8,7 +8,7 @@ import { Operations } from "../../../api/operations.mjs";
 import { listSessionBindings } from "../../../sessions/session-bindings.mjs";
 import { enqueueSessionRequests } from "../../../sessions/session-requests.mjs";
 import { workspaceConfig } from "../../../settings/config.mjs";
-import { Store } from "../../../store/store.mjs";
+import { Store } from "../../../store/store.ts";
 import { recordReleased, tickHealth } from "../../../tick/tick.mjs";
 import { initializeWorkspace } from "../../../workspace/workspace.mjs";
 import { temporaryDirectory } from "../../../test/temporary.mjs";

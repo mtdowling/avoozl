@@ -3,7 +3,7 @@
 // task does not stop the rest, and the reply says which and why. Task row
 // edits keep the authority lock (§3.2): a GitHub or plugin task's row is
 // refused, as task.update refuses it.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { taskAuthority } from "../../work-model.mjs";
 
 const ACTIONS = new Set([

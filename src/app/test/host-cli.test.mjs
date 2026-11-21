@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { workspaceConfig } from "../settings/config.mjs";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));

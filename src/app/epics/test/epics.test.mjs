@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { crossPlanEpics } from "../epics.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { Store } from "../../store/store.mjs";
+import { Store } from "../../store/store.ts";
 import { frontMatter } from "../../../front-matter.mjs";
 import {
   headingPhases,

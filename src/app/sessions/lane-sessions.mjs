@@ -3,7 +3,7 @@
 // long-lived session reused task after task. This module says which lanes
 // exist, which are free, and which a person closed; the executors open,
 // clear and bind the sessions.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { listSessionBindings } from "./session-bindings.mjs";
 
 const STATE = "lanes";

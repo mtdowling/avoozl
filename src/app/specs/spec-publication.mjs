@@ -7,7 +7,7 @@
 // from it stays. Publishing again writes nothing.
 //
 // shortcut: the home is the named or only configured repository.
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { epicOfPlan } from "../epics/epics.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 import { personOf } from "../github/github.mjs";

@@ -6,7 +6,7 @@
 // "Needs Kiro Crew" instead of throwing.
 import fs from "node:fs";
 import path from "node:path";
-import { Store } from "../store/store.mjs";
+import { Store } from "../store/store.ts";
 import { Operations } from "./operations.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-table.mjs";

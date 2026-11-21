@@ -8,7 +8,7 @@
 // The chat is the task's newest worker binding. Its rounds are counted on the
 // task's delivery record, so a restart or a re-queued portion keeps the count.
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { briefCell } from "../workers/worker-briefs.mjs";
 import { taskIds } from "./landing-queue.mjs";
 import { DEFAULT_CONFLICT_ROUNDS } from "./landing-config.mjs";

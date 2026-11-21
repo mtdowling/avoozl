@@ -17,7 +17,7 @@ import {
 } from "../sessions/session-bindings.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { inPlan } from "../api/page-views.mjs";
-import { fail } from "../store/store.mjs";
+import { fail } from "../store/store.ts";
 import { STAGES } from "../telemetry/stages.mjs";
 import * as telemetry from "../telemetry/record.mjs";
 import { listStageSpans } from "../telemetry/sqlite-exporter.mjs";
