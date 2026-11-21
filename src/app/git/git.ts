@@ -1339,7 +1339,7 @@ async function integrateUnlocked(
 export async function removeLandedTaskWorktree(
   store: Store,
   repository: Repository,
-  entry: IntegrationEntry,
+  entry: Pick<IntegrationEntry, "worktree" | "branch">,
   target: string,
   head: string,
 ) {
