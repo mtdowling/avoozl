@@ -1,39 +1,41 @@
-// @ts-nocheck: typing debt
 // The tick lands `direct` repositories on their remote (task 41.9). Real git (a
 // bare "origin" and a checkout) and real checks; nothing live.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { digest } from "../../../model.ts";
 import { Store } from "../../store/store.ts";
 import { integrateVerified } from "../../delivery/delivery.ts";
 import { landingQueue } from "../landing-queue.ts";
-import { landDirect } from "../direct-landing.ts";
+import { landDirect, type LandOptions } from "../direct-landing.ts";
 import { graphView } from "../../api/page-views.ts";
 import { cacheClaim, claimOf } from "../../workers/claims.ts";
 import { retryLanded } from "../landed-work.ts";
-import { Operations } from "../../api/operations.ts";
+import { Operations, type OperationContext } from "../../api/operations.ts";
 import { seedClaims, snapshot, verifiedTask } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found, storedRow } from "../../test/view-shapes.ts";
+import { partialFake } from "../../test/partial-fake.ts";
+import { git, leaf as fixtureLeaf } from "../../test/delivery-fixture.ts";
+import type { Task } from "../../../types.ts";
+
+// A task's delivery record, for the fields these tests read.
+type Delivery = { state: string; integratedCommit?: string };
+type LandGitHub = NonNullable<LandOptions["github"]>;
+type RetryGitHub = Parameters<typeof retryLanded>[1];
+// A message the landing step sends a session: its slot and text.
+function sent(message: unknown) {
+  assert.ok(message && typeof message === "object");
+  assert.ok("slot" in message && "text" in message);
+  assert.ok(typeof message.text === "string");
+  return { slot: message.slot, text: message.text };
+}
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
 
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const leaf = (id) => ({
-  id,
-  title: "Task " + id,
-  scope: "catalog",
-  status: "planned",
-  epic: "sample",
-  track: "catalog",
-  tags: [],
-  acceptance: [id + " works."],
-  repository: "app",
-  planId: "s",
-});
+const leaf = (id: string) =>
+  fixtureLeaf(id, { acceptance: [id + " works."], planId: "s" });
 // The check fails while the tree has a file named FAIL.
 const CHECK = [
   process.execPath,
@@ -41,7 +43,7 @@ const CHECK = [
   "process.exit(require('fs').existsSync('FAIL') ? 1 : 0)",
 ];
 
-async function workspace(t) {
+async function workspace(t: TestContext) {
   const root = temporaryDirectory("avoozl-directland-"),
     origin = path.join(root, "origin.git"),
     checkout = path.join(root, "app");
@@ -77,7 +79,8 @@ async function workspace(t) {
 
 const verified = verifiedTask;
 
-const step = (w) =>
+type World = Awaited<ReturnType<typeof workspace>>;
+const step = (w: World) =>
   landDirect(w.store, { workspaceRoot: w.root, rounds: 2, machine: {} });
 
 test("a verified task is queued, checked at the candidate and pushed by the tick", async (t) => {
@@ -96,11 +99,12 @@ test("a verified task is queued, checked at the candidate and pushed by the tick
   const landed = git(w.origin, "rev-parse", "main");
   assert.notEqual(landed, start);
   git(w.origin, "merge-base", "--is-ancestor", commit, landed);
-  const delivery = w.store.get("task_deliveries", "t1");
+  const delivery = storedRow<Delivery>(w.store, "task_deliveries", "t1");
   assert.equal(delivery.state, "integrated");
   assert.equal(delivery.integratedCommit, landed);
   assert.equal(
-    w.store.read().tasks.find((x) => x.id === "t1").integration.commit,
+    found(w.store.read().tasks.find((x: Task) => x.id === "t1")).integration
+      ?.commit,
     landed,
   );
   // The local base follows, and the task's worktree and branch are gone.
@@ -114,10 +118,12 @@ test("a verified task is queued, checked at the candidate and pushed by the tick
   // A Kiro Crew chat that reported done keeps its last read status, working:
   // the landed task is not drawn as running (P39 live).
   const state = () =>
-    graphView(w.store, w.store.read()).tasks.find((x) => x.id === "t1").state;
+    graphView(w.store, w.store.read()).tasks.find(
+      (x: { id: string }) => x.id === "t1",
+    )?.state;
   assert.equal(state(), "running");
   w.store.put("session_bindings", {
-    ...w.store.get("session_bindings", "slot-t1"),
+    ...storedRow(w.store, "session_bindings", "slot-t1"),
     report: { kind: "done", commit },
   });
   assert.notEqual(state(), "running");
@@ -130,10 +136,14 @@ test("a failed check at the candidate goes back to the chat and pushes nothing",
   await integrateVerified(w.store);
   const result = await step(w);
   assert.equal(result.messages.length, 1);
-  assert.equal(result.messages[0].slot, "slot-t1");
-  assert.match(result.messages[0].text, /landing candidate on main/);
-  assert.match(result.messages[0].text, /exit 1/);
-  assert.equal(w.store.get("task_deliveries", "t1").state, "running");
+  const message = sent(result.messages[0]);
+  assert.equal(message.slot, "slot-t1");
+  assert.match(message.text, /landing candidate on main/);
+  assert.match(message.text, /exit 1/);
+  assert.equal(
+    storedRow<Delivery>(w.store, "task_deliveries", "t1").state,
+    "running",
+  );
   assert.equal(git(w.origin, "rev-parse", "main"), start);
 });
 
@@ -146,7 +156,7 @@ test("a process worker sent back after landing is watched again and told to exit
   const w = await workspace(t),
     { commit } = verified(w, "t1", "FAIL");
   w.store.put("session_bindings", {
-    ...w.store.get("session_bindings", "slot-t1"),
+    ...storedRow(w.store, "session_bindings", "slot-t1"),
     status: "closed",
     source: "tick",
     executor: "process",
@@ -154,9 +164,10 @@ test("a process worker sent back after landing is watched again and told to exit
   });
   await integrateVerified(w.store);
   const result = await step(w);
-  assert.match(result.messages[0].text, /\.avoozl\/result\.json/);
-  assert.doesNotMatch(result.messages[0].text, /report done again/);
-  const reopened = w.store.get("session_bindings", "slot-t1");
+  const { text } = sent(result.messages[0]);
+  assert.match(text, /\.avoozl\/result\.json/);
+  assert.doesNotMatch(text, /report done again/);
+  const reopened = storedRow(w.store, "session_bindings", "slot-t1");
   assert.equal(reopened.report, undefined, "the done is set aside");
   assert.equal(reopened.status, "working", "the backend watches the resume");
 });
@@ -166,9 +177,9 @@ test("a chat sent back after landing is told to report done again", async (t) =>
   verified(w, "t1", "FAIL");
   await integrateVerified(w.store);
   const result = await step(w);
-  assert.match(result.messages[0].text, /report done again/);
+  assert.match(sent(result.messages[0]).text, /report done again/);
   assert.equal(
-    w.store.get("session_bindings", "slot-t1").status,
+    storedRow(w.store, "session_bindings", "slot-t1").status,
     "working",
     "a chat's own status is left alone",
   );
@@ -177,7 +188,7 @@ test("a chat sent back after landing is told to report done again", async (t) =>
 test("the tick lands a merge batch, then each landed member's ref is gone and the remote holds only main", async (t) => {
   const w = await workspace(t);
   w.store.put("repositories", {
-    ...w.store.get("repositories", "app"),
+    ...storedRow(w.store, "repositories", "app"),
     github: "acme/app",
   });
   const config = {
@@ -215,7 +226,7 @@ test("the tick lands a merge batch, then each landed member's ref is gone and th
 });
 
 // The spec's tasks.md in the code repository, so a landing ticks it there.
-function specInCode(w) {
+function specInCode(w: World) {
   const file = path.join(w.checkout, ".kiro/specs/s/tasks.md");
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, "# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 Second\n");
@@ -223,7 +234,7 @@ function specInCode(w) {
   git(w.checkout, "commit", "-qm", "Spec");
   git(w.checkout, "push", "-q", "origin", "main");
   w.store.put("plans", {
-    ...w.store.get("plans", "s"),
+    ...storedRow(w.store, "plans", "s"),
     mapping: { "s.1.1": "t1", "s.1.2": "t2" },
   });
 }
@@ -232,11 +243,14 @@ test("after a direct landing Avoozl deletes the claim branch it created, and no 
   const w = await workspace(t);
   specInCode(w);
   w.store.put("repositories", {
-    ...w.store.get("repositories", "app"),
+    ...storedRow(w.store, "repositories", "app"),
     github: "acme/app",
   });
-  const deleted = [],
-    github = { deleteBranch: async (_repo, branch) => deleted.push(branch) };
+  const deleted: string[] = [],
+    github = partialFake<LandGitHub>({
+      deleteBranch: async (_repo: string, branch: string) =>
+        deleted.push(branch),
+    });
   await seedClaims(w.store, { own: ["t1"], other: ["t2"] });
   verified(w, "t1");
   verified(w, "t2");
@@ -250,7 +264,10 @@ test("after a direct landing Avoozl deletes the claim branch it created, and no 
     });
   await step();
   await step();
-  assert.equal(w.store.get("task_deliveries", "t2").state, "integrated");
+  assert.equal(
+    storedRow<Delivery>(w.store, "task_deliveries", "t2").state,
+    "integrated",
+  );
   assert.match(
     git(w.origin, "show", "main:.kiro/specs/s/tasks.md"),
     /- \[x\] 1\.1 First/,
@@ -258,7 +275,7 @@ test("after a direct landing Avoozl deletes the claim branch it created, and no 
   );
   assert.deepEqual(deleted, ["avoozl/s/t1"]);
   assert.equal(claimOf(w.store, "acme/app", "t1"), null);
-  assert.equal(claimOf(w.store, "acme/app", "t2").branch, "avoozl/s/t2");
+  assert.equal(claimOf(w.store, "acme/app", "t2")?.branch, "avoozl/s/t2");
 });
 
 test("landed work keeps its own claim until its tick is known on the done branch, then a later pass deletes it (16.5)", async (t) => {
@@ -269,9 +286,14 @@ test("landed work keeps its own claim until its tick is known on the done branch
   git(w.checkout, "add", ".");
   git(w.checkout, "commit", "-qm", "Land t1 with its tick");
   const landed = git(w.checkout, "rev-parse", "HEAD"),
-    repository = { ...w.store.get("repositories", "app"), github: "acme/app" };
+    repository = {
+      ...storedRow(w.store, "repositories", "app"),
+      github: "acme/app",
+    };
   w.store.mutate("Landed", (data) => {
-    data.tasks.find((x) => x.id === "t1").integration = { commit: landed };
+    found(data.tasks.find((x: Task) => x.id === "t1")).integration = {
+      commit: landed,
+    };
   });
   cacheClaim(w.store, "acme/app", {
     spec: "s",
@@ -280,8 +302,11 @@ test("landed work keeps its own claim until its tick is known on the done branch
     sha: landed,
     own: true,
   });
-  const deleted = [],
-    github = { deleteBranch: async (_repo, branch) => deleted.push(branch) };
+  const deleted: string[] = [],
+    github = partialFake<RetryGitHub>({
+      deleteBranch: async (_repo: string, branch: string) =>
+        deleted.push(branch),
+    });
   // The done branch cannot be read: the claim stays, so nobody takes t1.
   w.store.put("repositories", {
     ...repository,
@@ -306,8 +331,13 @@ test("landed work keeps its own claim until its tick is known on the done branch
 test("avoozl land lands a claimed task now by its repository's mode, and refuses a task the caller did not claim", async (t) => {
   const w = await workspace(t),
     ops = new Operations(w.store, { workspaceRoot: w.root }),
-    land = (taskId, context) =>
-      ops.execute("runner.land", { taskId }, undefined, context);
+    land = (taskId: string, context: OperationContext) =>
+      ops.execute<{ state: string }>(
+        "runner.land",
+        { taskId },
+        undefined,
+        context,
+      );
   const { commit } = verified(w, "t1");
   verified(w, "t2");
   // Nobody here claimed it: the command line is refused, and so is another
@@ -323,7 +353,10 @@ test("avoozl land lands a claimed task now by its repository's mode, and refuses
   });
   assert.deepEqual(result, { task: "t1", mode: "direct", state: "integrated" });
   git(w.origin, "merge-base", "--is-ancestor", commit, "main");
-  assert.equal(w.store.get("task_deliveries", "t2").state, "verified");
+  assert.equal(
+    storedRow<Delivery>(w.store, "task_deliveries", "t2").state,
+    "verified",
+  );
   // At the command line, a task this machine claimed is taken on too: main
   // moved under it, so it is merged with main and checked again first.
   await seedClaims(w.store, { own: ["t2"] });
@@ -333,7 +366,7 @@ test("avoozl land lands a claimed task now by its repository's mode, and refuses
 test("a labeled issue landed directly is closed with a comment naming the landed commit", async (t) => {
   const w = await workspace(t);
   w.store.put("repositories", {
-    ...w.store.get("repositories", "app"),
+    ...storedRow(w.store, "repositories", "app"),
     github: "acme/app",
   });
   w.store.mutate("Issue task", (data) => {
@@ -343,15 +376,18 @@ test("a labeled issue landed directly is closed with a comment naming the landed
       labeledIssue: { repository: "acme/app", number: 12 },
     });
   });
-  const calls = [],
-    github = {
+  const calls: unknown[][] = [],
+    github = partialFake<LandGitHub>({
       deleteBranch: async () => null,
-      issue: async () => ({ state: "open" }),
-      createIssueComment: async (repo, number, body) =>
+      issue: async () => ({ state: "open", labels: [] }),
+      createIssueComment: async (repo: string, number: number, body: string) =>
         calls.push(["comment", repo, number, body]),
-      updateIssue: async (repo, number, input) =>
-        calls.push(["update", repo, number, input.state]),
-    };
+      updateIssue: async (
+        repo: string,
+        number: number,
+        input: Record<string, unknown>,
+      ) => calls.push(["update", repo, number, input.state]),
+    });
   verified(w, "issue-12");
   await integrateVerified(w.store);
   await landDirect(w.store, {

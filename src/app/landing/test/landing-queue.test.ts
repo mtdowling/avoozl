@@ -1,5 +1,5 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
+import type { Store } from "../../store/store.ts";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,14 +11,25 @@ import {
   landNext,
   landingQueue,
   pausedBy,
+  type LandingSteps,
+  type QueueEntry,
 } from "../landing-queue.ts";
 import { scratchUpstream } from "./scratch-upstream.ts";
 
 const Q = { repositoryId: "fixture", base: "main" };
 
+type Verdict = Awaited<ReturnType<LandingSteps["check"]>>;
+type Move = Parameters<LandingSteps["land"]>[0];
+// `check` judges the head portion's candidate; `land` replaces the guarded
+// fast-forward.
+interface StepOptions {
+  check?: (candidate: string, entry: QueueEntry) => Promise<Verdict>;
+  land?: (move: Move) => Promise<boolean>;
+}
+
 // A bare upstream, the landing checkout and a second clone that can move
 // the base behind the queue's back.
-async function repos(root) {
+async function repos(root: string) {
   const {
     upstream,
     dirs: { landing, other },
@@ -26,14 +37,19 @@ async function repos(root) {
   } = await scratchUpstream(root, ["landing", "other"]);
   const base = await head();
   // A task portion: one commit on its own branch from `from`.
-  const portion = async (name, file, text, from = base) => {
+  const portion = async (
+    name: string,
+    file: string,
+    text: string,
+    from = base,
+  ) => {
     await git(landing, ["checkout", "-q", "-B", name, from]);
     fs.writeFileSync(path.join(landing, file), text);
     await git(landing, ["add", "."]);
     await git(landing, ["commit", "-q", "-m", `Work on ${name}`]);
     return git(landing, ["rev-parse", "HEAD"]);
   };
-  const moveBase = async (file) => {
+  const moveBase = async (file: string) => {
     await git(other, ["pull", "-q", "--ff-only"]);
     fs.writeFileSync(path.join(other, file), "moved\n");
     await git(other, ["add", "."]);
@@ -46,12 +62,18 @@ async function repos(root) {
 
 // The direct-landing steps over real git: merge the portion with the current
 // base in the landing checkout, then a guarded fast-forward.
-function steps(r, { check = async () => ({ ok: true }), land } = {}) {
-  const log = { checked: [], landed: [] };
+function steps(
+  r: Awaited<ReturnType<typeof repos>>,
+  { check = async () => ({ ok: true }), land }: StepOptions = {},
+) {
+  const log: { checked: string[]; landed: string[] } = {
+    checked: [],
+    landed: [],
+  };
   return {
     log,
     readBase: r.head,
-    async prepare([entry], baseHead) {
+    async prepare([entry]: QueueEntry[], baseHead: string) {
       await git(r.landing, ["fetch", "-q", "origin", "main"]);
       let tree;
       try {
@@ -65,10 +87,12 @@ function steps(r, { check = async () => ({ ok: true }), land } = {}) {
           ])
         ).split("\n")[0];
       } catch (error) {
+        const stdout =
+          error instanceof Error && "stdout" in error ? error.stdout : "";
         return {
           conflict: [
             ...new Set(
-              String(error.stdout ?? "")
+              String(stdout ?? "")
                 .split("\n")
                 .slice(1)
                 .map((line) => line.split("\t")[1])
@@ -89,11 +113,11 @@ function steps(r, { check = async () => ({ ok: true }), land } = {}) {
       ]);
       return { candidate };
     },
-    async check(candidate, [entry]) {
+    async check(candidate: string, [entry]: QueueEntry[]) {
       log.checked.push(candidate);
       return check(candidate, entry);
     },
-    async land(input) {
+    async land(input: Move) {
       const pushed = await (land
         ? land(input)
         : guardedFastForward(r.landing, {
@@ -108,11 +132,11 @@ function steps(r, { check = async () => ({ ok: true }), land } = {}) {
   };
 }
 
-const locks = (store) =>
+const locks = (store: Store) =>
   store.db
     .prepare("SELECT kind FROM work_locks")
     .all()
-    .map((r) => r.kind);
+    .map((row) => row.kind);
 
 test("portions land one at a time in queue order; a waiting key is not queued twice", async (t) => {
   const { root, store } = fixture(t),
@@ -183,8 +207,8 @@ test("Stop the line pauses the queue and keeps its order", async (t) => {
   assert.equal(pausedBy(store, landingQueue(store, Q)[1]), null);
   // Resume: the same order lands.
   store.put("flow_stops", { ...stop, closedAt: new Date().toISOString() });
-  assert.equal((await landNext(store, Q, s)).entry.key, "one");
-  assert.equal((await landNext(store, Q, s)).entry.key, "two");
+  assert.equal((await landNext(store, Q, s)).entry?.key, "one");
+  assert.equal((await landNext(store, Q, s)).entry?.key, "two");
 });
 
 test("a stop pulled while checks run keeps the head queued and pushes nothing", async (t) => {
@@ -214,7 +238,7 @@ test("checks run outside the integration lock; only the ref move holds it", asyn
     r = await repos(root);
   const one = await r.portion("one", "one.txt", "1\n");
   enqueueLanding(store, { ...Q, key: "one", commit: one });
-  const seen = {};
+  const seen: { check?: unknown[]; land?: unknown[] } = {};
   const s = steps(r, {
     check: async () => {
       seen.check = locks(store);
@@ -247,7 +271,7 @@ test("a held validation lock makes the landing wait without losing its place", a
     r = await repos(root);
   const one = await r.portion("one", "one.txt", "1\n");
   enqueueLanding(store, { ...Q, key: "one", commit: one });
-  let release;
+  let release: (value?: unknown) => void = () => {};
   const held = withWorkLock(
     store,
     { id: "other-run", repositoryId: "fixture", kind: "validation" },
@@ -267,7 +291,7 @@ test("a concurrent base move cannot land an unchecked candidate", async (t) => {
     r = await repos(root);
   const one = await r.portion("one", "one.txt", "1\n");
   enqueueLanding(store, { ...Q, key: "one", commit: one, tasks: ["t1"] });
-  let moved;
+  let moved: string | undefined;
   const s = steps(r, {
     check: async () => {
       // While the checks run, another writer advances the base.
@@ -297,7 +321,7 @@ test("a base move after the re-read is refused by the guarded push", async (t) =
     r = await repos(root);
   const one = await r.portion("one", "one.txt", "1\n");
   enqueueLanding(store, { ...Q, key: "one", commit: one });
-  let moved;
+  let moved: string | undefined;
   const s = steps(r, {
     land: async (input) => {
       moved = await r.moveBase("late.txt");
@@ -332,11 +356,11 @@ test("a failed check or a conflict leaves the queue and the next portion goes on
   });
   const failed = await landNext(store, Q, s);
   assert.equal(failed.state, "failed");
-  assert.equal(failed.entry.checks[0].exitCode, 1);
+  assert.partialDeepStrictEqual(failed.entry, { checks: [{ exitCode: 1 }] });
   const conflict = await landNext(store, Q, s);
   assert.equal(conflict.state, "conflict");
-  assert.deepEqual(conflict.entry.files, ["a.txt"]);
-  assert.equal((await landNext(store, Q, s)).entry.key, "good");
+  assert.deepEqual(conflict.entry?.files, ["a.txt"]);
+  assert.equal((await landNext(store, Q, s)).entry?.key, "good");
   // A failed key queued again comes back at the end.
   enqueueLanding(store, { ...Q, key: "bad", commit: bad });
   assert.deepEqual(
