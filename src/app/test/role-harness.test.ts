@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings › Models picks a harness per role (R98.3, R98.4, design §4.28).
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -11,11 +10,22 @@ import {
   harnessDefinitionHash,
 } from "../executors/harness-definitions.ts";
 import { Operations } from "../api/operations.ts";
-import { Store } from "../store/store.ts";
+import { Store, type StatusError } from "../store/store.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 
-const leaf = (id, extra = {}) => ({
+// The planner's options these tests pass: the workspace configuration.
+interface PlanOptions {
+  config?: { roles: Record<string, { harness: string }> };
+}
+// models.settings.get and models.settings.update, as these tests read them.
+interface ModelSettings {
+  roles: Record<string, unknown>;
+  hash: string;
+  harnessDefinitions: unknown[];
+}
+
+const leaf = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   title: "Task " + id,
   kind: "leaf",
@@ -60,7 +70,7 @@ test("a worker runs on the saved harness, else its repository's", (t) => {
     root: temporaryDirectory("avoozl-r1-"),
   });
   const policy = deliveryPolicy({ lanes: { local: 5 }, delivery: {} });
-  const run = (options) =>
+  const run = (options: PlanOptions) =>
     Object.fromEntries(
       planReadyDispatches(store, policy, options).map((d) => [
         d.task,
@@ -72,8 +82,8 @@ test("a worker runs on the saved harness, else its repository's", (t) => {
   assert.deepEqual(run(saved), { plain: ["process", "claude-code"] });
   // A process worker's brief ends with the result file, as a repository on
   // process does; a chat's keeps the runner report.
-  const brief = (options) =>
-    planReadyDispatches(store, policy, options)[0].brief;
+  const brief = (options: PlanOptions) =>
+    planReadyDispatches(store, policy, options)[0].brief ?? "";
   assert.match(brief(saved), /result\.json/);
   assert.doesNotMatch(brief({}), /result\.json/);
   // A repository on process with nothing named keeps its own harness.
@@ -109,7 +119,7 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
     hash: harnessDefinitionHash(bytes),
   });
   const ops = new Operations(store, { workspaceRoot: root, configDirectory });
-  const before = await ops.execute("models.settings.get", {});
+  const before = await ops.execute<ModelSettings>("models.settings.get", {});
   assert.deepEqual(before.roles, { checkDecide: { model: "m1" } });
   assert.deepEqual(before.harnessDefinitions, [
     {
@@ -151,14 +161,14 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
       undefined,
       { mcp: true },
     ),
-    (e) => e.status === 403,
+    (e: StatusError) => e.status === 403,
   );
   const table = {
     checkDecide: { model: "m1" },
     worker: { harness: "fake-cli" },
     reviewer: { harness: "kirocrew" },
   };
-  const saved = await ops.execute("models.settings.update", {
+  const saved = await ops.execute<ModelSettings>("models.settings.update", {
     roles: table,
     expectedHash: before.hash,
   });
@@ -175,7 +185,7 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
     }),
     /harness name/,
   );
-  const cleared = await ops.execute("models.settings.update", {
+  const cleared = await ops.execute<ModelSettings>("models.settings.update", {
     roles: {},
     expectedHash: saved.hash,
   });
@@ -184,7 +194,8 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   // Without a machine config folder there is nothing to list.
   const bare = new Operations(store, { workspaceRoot: root });
   assert.deepEqual(
-    (await bare.execute("models.settings.get", {})).harnessDefinitions,
+    (await bare.execute<ModelSettings>("models.settings.get", {}))
+      .harnessDefinitions,
     [],
   );
 });

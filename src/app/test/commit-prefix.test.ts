@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A repository's landing.commitPrefix reaches every commit subject Avoozl
 // writes there: landing, merge-forward, tick and the sync merge.
 import assert from "node:assert/strict";
@@ -6,8 +5,9 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { rebaseForIntegration } from "../delivery/delivery.ts";
+import type { Repository } from "../git/git.ts";
 import { normalizeGitHubPolicy } from "../github/github-policy.ts";
 import { syncStep } from "../epics/integration-sync.ts";
 import {
@@ -20,15 +20,16 @@ import { specItems } from "../specs/spec-plans.ts";
 import { tickBranch } from "../specs/spec-ticks.ts";
 import { fixture } from "./fixtures.ts";
 import { writeSpec } from "./spec-fixture.ts";
+import { found } from "./view-shapes.ts";
 
 const PREFIX = "chore: ";
 // The rule a repository's check enforces: every subject starts with it.
-const follows = (subject) => subject.startsWith(PREFIX);
+const follows = (subject: string) => subject.startsWith(PREFIX);
 
-const sh = (cwd, ...args) =>
+const sh = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-function scratch(t) {
+function scratch(t: TestContext) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-prefix-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const root = path.join(dir, "root");
@@ -36,7 +37,7 @@ function scratch(t) {
   sh(root, "init", "-q", "-b", "main");
   sh(root, "config", "user.email", "test@example.com");
   sh(root, "config", "user.name", "Test");
-  const commit = (file, text, message) => {
+  const commit = (file: string, text: string, message: string) => {
     fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     fs.writeFileSync(path.join(root, file), text);
     sh(root, "add", ".");
@@ -72,7 +73,7 @@ test("landing commits carry the prefix, and without one keep Land KEY", async (t
       null,
       prefix,
     );
-    const subject = sh(root, "log", "-1", "--format=%s", candidate);
+    const subject = sh(root, "log", "-1", "--format=%s", found(candidate));
     assert.equal(subject, expected);
     if (prefix) assert.ok(follows(subject));
   }
@@ -93,7 +94,7 @@ test("the merge-forward commit carries the prefix", async (t) => {
     { path: tree, branch: "task/a" },
     head,
   );
-  assert.equal(moved.how, "merge");
+  assert.equal(moved?.how, "merge");
   assert.equal(
     sh(tree, "log", "-1", "--format=%s"),
     "chore: Merge main into task/a",
@@ -109,10 +110,10 @@ test("the tick commit carries the prefix", async (t) => {
     text = fs.readFileSync(path.join(spec, "tasks.md"), "utf8");
   commit(".kiro/specs/config/tasks.md", text, "Spec");
   sh(root, "push", "-q", "origin", "main");
-  const item = specItems("config", text).find((i) => i.key);
+  const item = found(specItems("config", text).find((i) => i.key));
   const out = await tickBranch(root, {
     branch: "main",
-    files: [{ spec: "config", ids: [item.id] }],
+    files: [{ spec: "config", ids: [found(item.id)] }],
     commitPrefix: PREFIX,
   });
   assert.ok(out.commit);
@@ -124,12 +125,12 @@ test("the tick commit carries the prefix", async (t) => {
 
 test("the sync merge on GitHub carries the prefix from the policy", async (t) => {
   const { store } = fixture(t),
-    merges = [],
+    merges: { message: string }[] = [],
     github = {
       available: () => true,
       repository: async () => ({ default_branch: "main" }),
       compareCommits: async () => ({ ahead_by: 1, behind_by: 0, files: [] }),
-      mergeBranch: async (_repo, input) => {
+      mergeBranch: async (_repo: string, input: { message: string }) => {
         merges.push(input);
         return { sha: "x" };
       },
@@ -147,7 +148,6 @@ test("the sync merge on GitHub carries the prefix from the policy", async (t) =>
     ],
     {
       policy: {
-        mode: "single-repo",
         repositories: {
           "example/code": {
             baseBranch: "main",
@@ -164,23 +164,24 @@ test("the sync merge on GitHub carries the prefix from the policy", async (t) =>
 test("the setting reaches the repository row, and removing it clears it", (t) => {
   const { store } = fixture(t);
   store.put("repositories", { id: "app", github: "acme/app", root: "/x" });
-  const config = (landing) => ({
+  const config = (landing: Record<string, unknown>) => ({
     github: { repositories: { "acme/app": { landing } } },
   });
+  const row = () => found(store.get<Repository>("repositories", "app"));
   applyLandingModes(store, config({ mode: "direct", commitPrefix: PREFIX }));
-  assert.equal(store.get("repositories", "app").commitPrefix, PREFIX);
-  assert.equal(store.get("repositories", "app").landing, "direct");
+  assert.equal(row().commitPrefix, PREFIX);
+  assert.equal(row().landing, "direct");
   assert.equal(
     landingSettings(config({ commitPrefix: PREFIX }), "acme/app").commitPrefix,
     PREFIX,
   );
   applyLandingModes(store, config({ mode: "direct" }));
-  assert.equal(store.get("repositories", "app").commitPrefix, undefined);
+  assert.equal(row().commitPrefix, undefined);
   assert.equal(landingSettings({}, "acme/app").commitPrefix, "");
 });
 
 test("commitPrefix is one line of at most 40 characters", () => {
-  const policy = (commitPrefix) =>
+  const policy = (commitPrefix: string) =>
     normalizeGitHubPolicy({
       repositories: {
         "acme/app": { baseBranch: "main", landing: { commitPrefix } },
