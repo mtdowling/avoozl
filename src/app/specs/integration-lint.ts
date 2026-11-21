@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // integration.foreign (simplify §D21.1): a branch on origin named for a spec
 // is that spec's integration branch, so its own commits must be the spec's
 // work. Each first-parent commit past the default branch must be a merge of
@@ -9,7 +8,7 @@ import { git } from "../git/git.ts";
 
 const TICK = /^\+\s*- \[x\] `([^`]+)`/gm;
 
-const ref = (root, name) =>
+const ref = (root: string, name: string): Promise<string | null> =>
   git(root, [
     "rev-parse",
     "--verify",
@@ -19,7 +18,14 @@ const ref = (root, name) =>
 
 // The commits on origin/<spec> that are not the spec's work: [{commit,
 // subject}].
-export async function foreignCommits(root, { spec, taskIds, defaultBranch }) {
+export async function foreignCommits(
+  root: string,
+  {
+    spec,
+    taskIds,
+    defaultBranch,
+  }: { spec: string; taskIds: Iterable<string>; defaultBranch: string },
+) {
   const [branch, base] = await Promise.all([
     ref(root, spec),
     ref(root, defaultBranch),

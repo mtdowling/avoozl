@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -65,7 +64,8 @@ test("a repository's removed key is refused by name", () => {
 });
 
 test("validation refuses each §4.4 violation", () => {
-  const app = (change) => {
+  type Repo = Record<string, unknown>;
+  const app = (change: (repo: Repo, value: Record<string, any>) => unknown) => {
     const value = example();
     change(value.repositories["example/app"], value);
     return value;
@@ -76,7 +76,7 @@ test("validation refuses each §4.4 violation", () => {
       { ...example(), planningRepository: undefined },
       /needs github.planningRepository/,
     ],
-    [app((repo) => delete repo.baseBranch), /default branch/],
+    [app((repo: Repo) => delete repo.baseBranch), /default branch/],
     [app((repo) => (repo.minimumPermission = "owner")), /must be one of/],
     [app((repo) => (repo.label = "agent:ready")), /Unknown setting/],
     // The base branch's own review rule replaced it.
@@ -121,7 +121,7 @@ test("a base branch other than the default branch is refused", () => {
 });
 
 test("a repository that names nobody defaults to write permission", () => {
-  const policy = (entry) =>
+  const policy = (entry: Record<string, unknown>) =>
     normalizeGitHubPolicy({
       mode: "single-repo",
       repositories: { "example/app": { baseBranch: "main", ...entry } },

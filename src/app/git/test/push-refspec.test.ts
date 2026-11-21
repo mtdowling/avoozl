@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every git push in the app source names one explicit refspec.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -14,7 +13,7 @@ test("no git push in the app source uses --mirror, --all, --tags or a wildcard",
   );
   const found = [];
   for (const entry of fs
-    .readdirSync(dir, { recursive: true })
+    .readdirSync(dir, { recursive: true, encoding: "utf8" })
     .filter(
       (n) => /\.(mjs|ts)$/.test(n) && !n.split(path.sep).includes("test"),
     )) {

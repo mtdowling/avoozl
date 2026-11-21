@@ -354,6 +354,11 @@ export function loadLayeredConfig({
   options = {},
   env = process.env,
   home = os.homedir(),
+}: {
+  workspaceRoot?: string | null;
+  options?: Record<string, unknown>;
+  env?: NodeJS.ProcessEnv;
+  home?: string;
 } = {}) {
   if (!workspaceRoot) throw Error("Choose a workspace root.");
   workspaceRoot = path.resolve(workspaceRoot);

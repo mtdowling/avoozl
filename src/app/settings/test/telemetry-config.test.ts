@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // ot-1.2: the machine setting (OT4.1, OT4.3, OT5.1, OT5.2, OT5.4).
 import assert from "node:assert/strict";
 import fs from "node:fs";

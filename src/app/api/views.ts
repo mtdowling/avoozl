@@ -1,9 +1,13 @@
-// @ts-nocheck: typing debt
-const bounded = (value, fallback = 40) =>
+import type { Store } from "../store/store.ts";
+
+const bounded = (value: unknown, fallback = 40) =>
   Math.max(1, Math.min(100, Number(value) || fallback));
-export function planPage(store, { offset = 0, limit = 40 } = {}) {
-  limit = bounded(limit);
-  offset = Math.max(0, Number(offset) || 0);
+export function planPage(
+  store: Store,
+  { offset = 0, limit = 40 }: { offset?: unknown; limit?: unknown } = {},
+) {
+  const size = bounded(limit),
+    skip = Math.max(0, Number(offset) || 0);
   const where =
     "json_extract(body,'$.deletedAt') IS NULL AND COALESCE(json_extract(body,'$.kind'),'plan')<>'conversation'";
   const items = store.db
@@ -14,16 +18,16 @@ export function planPage(store, { offset = 0, limit = 40 } = {}) {
  json_extract(body,'$.archivedAt') AS archivedAt
  FROM plans WHERE ${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`,
     )
-    .all(limit, offset);
+    .all(size, skip);
   return {
     items,
     total: store.db.prepare(`SELECT COUNT(*) n FROM plans WHERE ${where}`).get()
-      .n,
-    offset,
-    limit,
+      ?.n,
+    offset: skip,
+    limit: size,
   };
 }
-export function recentIntegrations(store) {
+export function recentIntegrations(store: Store) {
   return store.db
     .prepare(
       `SELECT id,task_id AS taskId,json_extract(body,'$.runId') AS runId,state,

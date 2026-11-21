@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Order from the list (simplify sim-2.1, §D19): waitsOf derives every wait
 // from the list, and lint checks the list's groups and tags.
 import assert from "node:assert/strict";
@@ -6,16 +5,16 @@ import test from "node:test";
 import { waitsOf } from "../order.ts";
 import { lintSpec, parseSpec } from "../spec-plans.ts";
 
-const spec = (tasks) => ({
+const spec = (tasks: string) => ({
   name: "ec",
   exists: true,
   files: { "tasks.md": tasks },
 });
-const pairs = (text) =>
+const pairs = (text: string) =>
   waitsOf("ec", text)
     .map(({ from, to }) => `${from}>${to}`)
     .sort();
-const codes = (text) =>
+const codes = (text: string) =>
   lintSpec({ spec: spec(text) })
     .diagnostics.filter(
       (item) =>

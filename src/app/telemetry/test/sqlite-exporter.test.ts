@@ -1,9 +1,8 @@
-// @ts-nocheck: typing debt
 // ot-1.1: the local tables and the SQLite exporter (OT2.1, OT2.2, OT2.6).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { point, span } from "../record.ts";
@@ -37,12 +36,13 @@ const sample = (extra = {}) => ({
   ...extra,
 });
 
-function open(t) {
+function open(t: TestContext) {
   const store = new Store(":memory:");
   t.after(() => store.close());
   return store;
 }
-const rows = (store, table) => store.db.prepare(`SELECT * FROM ${table}`).all();
+const rows = (store: Store, table: string) =>
+  store.db.prepare(`SELECT * FROM ${table}`).all();
 
 test("a span upserts by key, and an equal repeat changes nothing", (t) => {
   const store = open(t);
@@ -66,14 +66,14 @@ test("a point inserts by ID and ignores a repeat", (t) => {
   const [row, ...rest] = rows(store, "telemetry_points");
   assert.equal(rest.length, 0);
   assert.equal(row.value, 18200);
-  assert.deepEqual(JSON.parse(row.attrs), { direction: "input" });
+  assert.deepEqual(JSON.parse(String(row.attrs)), { direction: "input" });
 });
 
 test("a stage span's parent is set before its root exists", (t) => {
   const store = open(t);
   span(store, stage());
   const [row] = rows(store, "telemetry_spans");
-  assert.match(row.parent_span_id, /^[0-9a-f]{16}$/);
+  assert.match(String(row.parent_span_id), /^[0-9a-f]{16}$/);
   assert.notEqual(row.parent_span_id, row.span_id);
   assert.equal(
     rows(store, "telemetry_spans").some((r) => r.parent_span_id === null),

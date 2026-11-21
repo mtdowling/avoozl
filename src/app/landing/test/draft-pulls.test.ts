@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every pull request Avoozl opens says whether it is a draft (R119.1):
 // each `createPullRequest(` call in the application source sends `draft`,
 // `true` or from landing.pr, never GitHub's default.
@@ -14,7 +13,7 @@ const SRC = fileURLToPath(new URL("../../..", import.meta.url));
 // when they land.
 const REMOVED = ["app/mirror/", "app/specs/spec-approval.ts"];
 
-function sources(dir) {
+function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory())
@@ -26,7 +25,7 @@ function sources(dir) {
 }
 
 // The text of the call's arguments: from the open paren to its match.
-function argumentsAt(text, open) {
+function argumentsAt(text: string, open: number) {
   let depth = 0;
   for (let i = open; i < text.length; i += 1) {
     if (text[i] === "(") depth += 1;

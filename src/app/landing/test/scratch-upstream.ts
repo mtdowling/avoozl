@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A bare upstream whose main holds one commit (a.txt), and a clone of it
 // per name in `clones`, each with a fixture identity. `head()` reads the
 // upstream's main. Local scratch repositories under `root` only.
@@ -6,12 +5,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { git } from "../../git/git.ts";
 
-export async function scratchUpstream(root, clones) {
+export async function scratchUpstream(root: string, clones: string[]) {
   const seed = path.join(root, "seed"),
     upstream = path.join(root, "upstream.git"),
-    dirs = {};
+    dirs: Record<string, string> = {};
   fs.mkdirSync(seed);
-  const identity = async (dir) => {
+  const identity = async (dir: string) => {
     await git(dir, ["config", "user.name", "Fixture"]);
     await git(dir, ["config", "user.email", "fixture@example.invalid"]);
   };

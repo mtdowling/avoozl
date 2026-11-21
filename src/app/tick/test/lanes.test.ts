@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import { deliveryPolicy } from "../../delivery/delivery.ts";
@@ -29,7 +28,7 @@ test("lanes rejects a bad shape or value", () => {
 
 test("a saved lanes value is checked when config loads", () => {
   const root = temporaryDirectory("avoozl-lanes-");
-  const load = (lanes) => {
+  const load = (lanes: unknown) => {
     fs.writeFileSync(
       path.join(root, ".avoozl.json"),
       JSON.stringify({ version: 1, lanes }),

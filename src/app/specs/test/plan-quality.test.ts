@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import { lintPlan } from "../plan-quality.ts";
@@ -45,7 +44,8 @@ test("plan quality reports line diagnostics and cross-repository dependencies", 
   assert.equal(result.taskCount, 2);
   assert.equal(result.counts.error, 0);
   const crossRepository = result.diagnostics.find(
-    (item) => item.code === "task.cross-repository-dependency",
+    (item: { code: string }) =>
+      item.code === "task.cross-repository-dependency",
   );
   assert.equal(crossRepository.taskId, "client");
   assert.equal(crossRepository.relatedTaskId, "library");
@@ -66,8 +66,8 @@ test("plan quality blocks unknown repositories, references, and dependency cycle
   assert.deepEqual(
     new Set(
       result.diagnostics
-        .filter((item) => item.severity === "error")
-        .map((item) => item.code),
+        .filter((item: { severity: string }) => item.severity === "error")
+        .map((item: { code: string }) => item.code),
     ),
     new Set([
       "task.unknown-repository",
@@ -94,7 +94,7 @@ test("plan quality catches an existing duplicate before approval", () => {
     proposals: [library, client],
   });
   const duplicate = result.diagnostics.find(
-    (item) => item.code === "task.possible-duplicate",
+    (item: { code: string }) => item.code === "task.possible-duplicate",
   );
   assert.equal(result.canApprove, true);
   assert.equal(duplicate.severity, "warning");

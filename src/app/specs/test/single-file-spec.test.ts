@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A spec in one file: its `## Tasks` section is the task list, read the same
 // way tasks.md is (spec-tasks.mjs).
 import assert from "node:assert/strict";
@@ -55,8 +54,9 @@ Settings load from one file.
 Unknown keys never stop a load.
 `;
 
-const parse = (files) => parseSpec({ name: "config", exists: true, files });
-const shape = (files) =>
+const parse = (files: Record<string, string>) =>
+  parseSpec({ name: "config", exists: true, files });
+const shape = (files: Record<string, string>) =>
   parse(files).proposals.map((task) => ({
     id: task.id,
     title: task.title,
@@ -130,7 +130,7 @@ test("a tick writes the single file's own line", () => {
     SINGLE.replace("- [ ] `c-2`", "- [x] `c-2`"),
     "only the task's mark changes",
   );
-  const read = ticksOf("config", specTasks({ "config.md": text }).text);
+  const read = ticksOf("config", specTasks({ "config.md": text })?.text);
   assert.deepEqual([...read.ticked.keys()], ["c-2"]);
 });
 
@@ -165,7 +165,7 @@ test("a spec link may target a single file, and its definition is kept", () => {
   );
   // A reference definition below the section still reads.
   const file = `# Settings\n\n## Tasks\n\n- [ ] \`s-1\` Build [config]\n\n## Notes\n\n[config]: ../config/config.md\n`;
-  const text = specTasks({ "settings.md": file }).text;
+  const text = String(specTasks({ "settings.md": file })?.text);
   assert.equal(
     linkedSpecOf("settings", "Build [config]", linkDefinitions(text)),
     "config",

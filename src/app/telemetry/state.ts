@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The instance ID (spec otel-export, OT6.7, §D2): a random UUID made once per
 // machine and kept in `telemetry.json` in the state folder, outside SQLite, so
 // `avoozl rebuild` keeps it. A file that cannot be read gives a fresh ID.
@@ -8,7 +7,7 @@ import path from "node:path";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-export function instanceId(stateDirectory) {
+export function instanceId(stateDirectory: string) {
   const file = path.join(stateDirectory, "telemetry.json");
   try {
     const { instanceId: id } = JSON.parse(fs.readFileSync(file, "utf8"));
