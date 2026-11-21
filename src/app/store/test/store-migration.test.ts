@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
@@ -91,18 +90,18 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
   store = new Store(database);
   assert.equal(store.read().tasks[0].status, "accepted");
   assert.equal(
-    store.read().tasks[0].acceptanceEvidence.derivedFrom[0],
+    store.read().tasks[0]?.acceptanceEvidence?.derivedFrom?.[0],
     "evidence-migrated",
   );
-  assert.equal(store.read().tasks[0].github.nodeId, "ISSUE_node");
-  assert.equal(store.get("plans", "plan-migrated").revision, 2);
-  assert.equal(store.get("approvals", "approval-migrated").hash, "plan-hash");
-  assert.equal(store.get("evidence", "evidence-migrated").exitCode, 0);
+  assert.equal(store.read().tasks[0]?.github?.nodeId, "ISSUE_node");
+  assert.equal(store.get("plans", "plan-migrated")?.revision, 2);
+  assert.equal(store.get("approvals", "approval-migrated")?.hash, "plan-hash");
+  assert.equal(store.get("evidence", "evidence-migrated")?.exitCode, 0);
   assert.equal(
-    store.get("integration", "integration-migrated").commit,
+    store.get("integration", "integration-migrated")?.commit,
     "1234567890abcdef",
   );
-  assert.equal(store.get("receipts", "receipt-migrated").nodeId, "PR_node");
+  assert.equal(store.get("receipts", "receipt-migrated")?.nodeId, "PR_node");
   for (const table of postMainTables)
     assert.ok(
       store.db
@@ -120,9 +119,12 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
   store.close();
 
   store = new Store(backup);
-  assert.equal(store.read().tasks[0].acceptanceEvidence.acceptedBy, "operator");
   assert.equal(
-    store.get("evidence", "evidence-migrated").commit,
+    store.read().tasks[0]?.acceptanceEvidence?.acceptedBy,
+    "operator",
+  );
+  assert.equal(
+    store.get("evidence", "evidence-migrated")?.commit,
     "1234567890abcdef",
   );
   store.close();
@@ -185,7 +187,7 @@ test("opening an older database drops the tables nothing writes to and keeps the
       temporaryDirectory("avoozl-dropped-"),
       "store.sqlite",
     ),
-    tables = (store) =>
+    tables = (store: Store) =>
       new Set(
         store.db
           .prepare("SELECT name FROM sqlite_master WHERE type='table'")
@@ -207,7 +209,7 @@ test("opening an older database drops the tables nothing writes to and keeps the
   store = new Store(database);
   const present = tables(store);
   for (const name of DROPPED) assert.ok(!present.has(name), name);
-  assert.equal(store.get("plans", "kept").title, "Kept");
+  assert.equal(store.get("plans", "kept")?.title, "Kept");
   assert.equal(store.getMeta("runArchive:run-old"), null);
   assert.equal(store.getMeta("baselineMetadata"), null);
   assert.equal(store.getMeta("import"), null);
@@ -217,7 +219,7 @@ test("opening an older database drops the tables nothing writes to and keeps the
 
   // A second open has nothing to drop and still opens.
   store = new Store(database);
-  assert.equal(store.get("plans", "kept").title, "Kept");
+  assert.equal(store.get("plans", "kept")?.title, "Kept");
   store.close();
 });
 
@@ -256,11 +258,12 @@ test("an older database's projects become repositories once, with no old name le
   store.db
     .prepare("INSERT INTO work_locks VALUES (?,?,?,?,?)")
     .run("checks:app", "app", "checks", 1, "token");
-  for (const [table, body] of [
+  const older: [string, { id: string; [key: string]: unknown }][] = [
     ["github_repositories", { id: "o/app", projectId: "app" }],
     ["landing_queue", { id: "q", projectId: "app", base: "main" }],
     ["flow_stops", { id: "s", projectId: "app", by: { projectId: "app" } }],
-  ])
+  ];
+  for (const [table, body] of older)
     store.db
       .prepare(`INSERT INTO ${table} VALUES (?,?)`)
       .run(body.id, JSON.stringify(body));
@@ -273,7 +276,8 @@ test("an older database's projects become repositories once, with no old name le
     .prepare("SELECT name, sql FROM sqlite_master WHERE type='table'")
     .all();
   assert.ok(tables.some((row) => row.name === "repositories"));
-  for (const row of tables) assert.doesNotMatch(row.sql, /project/i, row.name);
+  for (const row of tables)
+    assert.doesNotMatch(String(row.sql), /project/i, String(row.name));
   assert.deepEqual(store.get("repositories", "app"), {
     id: "app",
     root: "/src/app",
@@ -281,11 +285,11 @@ test("an older database's projects become repositories once, with no old name le
   });
   assert.equal(
     store.db.prepare("SELECT repository_id FROM work_locks").get()
-      .repository_id,
+      ?.repository_id,
     "app",
   );
   assert.equal(store.read().tasks[0].repositoryId, "app");
-  assert.equal(store.get("github_repositories", "o/app").repositoryId, "app");
+  assert.equal(store.get("github_repositories", "o/app")?.repositoryId, "app");
   assert.deepEqual(store.getMeta("context"), { repositoryId: "app" });
   assert.deepEqual(
     store
@@ -297,12 +301,16 @@ test("an older database's projects become repositories once, with no old name le
   // No stored row keeps the old names.
   for (const { name } of tables) {
     const rows = store.db.prepare(`SELECT * FROM "${name}"`).all();
-    assert.doesNotMatch(JSON.stringify(rows), /projectId|"project\./, name);
+    assert.doesNotMatch(
+      JSON.stringify(rows),
+      /projectId|"project\./,
+      String(name),
+    );
   }
   store.close();
 
   // A second open has nothing to rename and keeps the rows.
   store = new Store(database);
-  assert.equal(store.get("repositories", "app").github, "o/app");
+  assert.equal(store.get("repositories", "app")?.github, "o/app");
   store.close();
 });

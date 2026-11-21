@@ -1,18 +1,24 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import path from "node:path";
-import { fail } from "./store.ts";
+import { fail, type Store } from "./store.ts";
 import { digest } from "../../model.ts";
 
 // Publish pending Markdown projections from the outbox under root, and mark
 // each published row in SQLite. Operations calls this after every operation it
 // executes when it is given a plans root. The root is made with the first
 // document published to it, so a workspace with none has no such folder.
-export function flushOutbox(store, root) {
-  const report = [];
+interface OutboxRow {
+  id: string;
+  path: string;
+  text: string;
+  expected_hash: string | null;
+}
+
+export function flushOutbox(store: Store, root: string) {
+  const report: { id: string; state: string; path: string }[] = [];
   for (const row of store.db
     .prepare("SELECT * FROM outbox WHERE state='pending' ORDER BY rowid")
-    .all()) {
+    .all() as unknown as OutboxRow[]) {
     const full = path.resolve(root, row.path);
     if (!full.startsWith(path.resolve(root) + path.sep))
       fail("Invalid document projection path.");

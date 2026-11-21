@@ -73,6 +73,11 @@ export interface Task {
     [key: string]: unknown;
   } | null;
   childrenComplete?: boolean;
+  acceptanceEvidence?: {
+    derivedFrom?: string[];
+    acceptedBy?: string;
+    [key: string]: unknown;
+  } | null;
   integration?: { commit?: string; at?: string; [key: string]: unknown } | null;
   intakeVerdict?: {
     state?: string;
