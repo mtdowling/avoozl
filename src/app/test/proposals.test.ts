@@ -1,5 +1,4 @@
-// @ts-nocheck: typing debt
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,17 +6,49 @@ import { fixture, markdown } from "./fixtures.ts";
 import { Operations } from "../api/operations.ts";
 import { handleMcp } from "../mcp/mcp.ts";
 import { readSpecFolder, specItems } from "../specs/spec-plans.ts";
+import type { StatusError } from "../store/store.ts";
 import { writeSpec } from "./spec-fixture.ts";
+import { found } from "./view-shapes.ts";
 
-const approve = (ops, plan, evidence = "Approved") =>
-  ops.execute("plan.approve", {
+// A stored spec plan, for the fields read here.
+interface SpecPlan {
+  id: string;
+  hash: string;
+  revision: number;
+  text: string;
+  state?: string;
+}
+// What plan.propose answers.
+interface Amended extends SpecPlan {
+  approved: boolean;
+  proposalId: string;
+  proposalCount: number;
+}
+// What plan.approve answers.
+interface Receipt {
+  hash: string;
+  taskIds: string[];
+}
+// The MCP tool list, for the fields read here.
+interface Tool {
+  name: string;
+  description: string;
+  annotations: { readOnlyHint: boolean };
+}
+
+const approve = (
+  ops: Operations,
+  plan: { id: string; hash: string },
+  evidence = "Approved",
+) =>
+  ops.execute<Receipt>("plan.approve", {
     id: plan.id,
     expectedHash: plan.hash,
     expectedRevision: ops.read().revision,
     approvedBy: "User",
     evidence,
   });
-const proposal = (overrides = {}) => ({
+const proposal = (overrides: Record<string, unknown> = {}) => ({
   id: "cache-invalidation",
   title: "Invalidate the stale cache entry",
   kind: "leaf",
@@ -28,22 +59,23 @@ const proposal = (overrides = {}) => ({
   ...overrides,
 });
 // A workspace with one stored spec plan, "config".
-async function specPlan(t) {
+async function specPlan(t: TestContext) {
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root }),
     directory = writeSpec(root, "config"),
-    plan = await ops.execute("plan.create", { spec: "config" });
-  return { root, store, ops, directory, plan };
+    plan = await ops.execute<SpecPlan>("plan.create", { spec: "config" });
+  const stored = () => found(store.get<SpecPlan>("plans", plan.id));
+  return { root, store, ops, directory, plan, stored };
 }
 
 test("a discovery on a spec plan adds a tasks.md item with its done bullets", async (t) => {
-  const { root, store, ops, directory, plan } = await specPlan(t);
+  const { root, store, ops, directory, plan, stored } = await specPlan(t);
   const receipt = await approve(ops, plan);
   const before = store.read().tasks.length;
-  const amended = await ops.execute("plan.propose", {
+  const amended = await ops.execute<Amended>("plan.propose", {
     id: plan.id,
     proposal: proposal(),
-    expectedHash: store.get("plans", plan.id).hash,
+    expectedHash: stored().hash,
   });
   // The proposal is design prose, not execution state.
   assert.equal(store.read().tasks.length, before);
@@ -91,7 +123,7 @@ test("a discovery on a spec plan adds a tasks.md item with its done bullets", as
 });
 
 test("approving the amended spec converts the proposal in one mapping", async (t) => {
-  const { store, ops, plan } = await specPlan(t);
+  const { store, ops, plan, stored } = await specPlan(t);
   const first = await approve(ops, plan);
   await ops.execute("task.update", {
     id: "config.1.2",
@@ -99,7 +131,7 @@ test("approving the amended spec converts the proposal in one mapping", async (t
     notes: "Prior evidence",
   });
   await ops.execute("plan.propose", { id: plan.id, proposal: proposal() });
-  const second = await approve(ops, store.get("plans", plan.id));
+  const second = await approve(ops, stored());
   assert.equal(first.taskIds.length, 3);
   assert.deepEqual(second.taskIds.sort(), [
     "cache-invalidation",
@@ -107,7 +139,9 @@ test("approving the amended spec converts the proposal in one mapping", async (t
     "config.1.1",
     "config.1.2",
   ]);
-  const added = store.read().tasks.find((t) => t.id === "cache-invalidation");
+  const added = found(
+    store.read().tasks.find((t) => t.id === "cache-invalidation"),
+  );
   assert.equal(added.status, "planned");
   assert.ok(
     store
@@ -117,25 +151,25 @@ test("approving the amended spec converts the proposal in one mapping", async (t
           e.from === "config.1.2" && e.to === added.id && e.kind === "requires",
       ),
   );
-  const kept = store.read().tasks.find((t) => t.id === "config.1.2");
+  const kept = found(store.read().tasks.find((t) => t.id === "config.1.2"));
   assert.equal(kept.status, "partial");
   assert.equal(kept.notes, "Prior evidence");
 });
 
 test("spec proposals are rejected by the task rules with no partial write", async (t) => {
-  const { ops, store, directory, plan } = await specPlan(t);
+  const { ops, directory, plan, stored } = await specPlan(t);
   const files = () =>
     ["tasks.md"].map((file) =>
       fs.readFileSync(path.join(directory, file), "utf8"),
     );
-  const rejects = async (value, message) => {
+  const rejects = async (value: unknown, message: RegExp) => {
     const before = files();
     await assert.rejects(
       ops.execute("plan.propose", { id: plan.id, proposal: value }),
       message,
     );
     assert.deepEqual(files(), before);
-    assert.equal(store.get("plans", plan.id).revision, plan.revision);
+    assert.equal(stored().revision, plan.revision);
   };
   await rejects(proposal({ id: "cache" }), /ID with a separator/);
   await rejects(proposal({ title: "" }), /title of 1–240 characters/);
@@ -151,7 +185,7 @@ test("spec proposals are rejected by the task rules with no partial write", asyn
 });
 
 test("a stale hash or a folder changed on disk refuses the proposal", async (t) => {
-  const { ops, store, directory, plan } = await specPlan(t);
+  const { ops, directory, plan, stored } = await specPlan(t);
   await ops.execute("plan.propose", {
     id: plan.id,
     proposal: proposal(),
@@ -163,7 +197,8 @@ test("a stale hash or a folder changed on disk refuses the proposal", async (t) 
       proposal: proposal({ id: "retry-budget", title: "Bound retries" }),
       expectedHash: plan.hash,
     }),
-    (error) => error.status === 409 && /Reload before proposing/.test(error),
+    (error: StatusError) =>
+      error.status === 409 && /Reload before proposing/.test(String(error)),
   );
   fs.appendFileSync(path.join(directory, "design.md"), "Edited by hand.\n");
   await assert.rejects(
@@ -174,14 +209,14 @@ test("a stale hash or a folder changed on disk refuses the proposal", async (t) 
     /changed on disk/,
   );
   // Without a hash, proposals on a current folder serialize and both land.
-  const current = store.get("plans", plan.id);
+  const current = stored();
   await ops.execute("plan.save", { id: plan.id, expectedHash: current.hash });
   await ops.execute("plan.propose", {
     id: plan.id,
     proposal: proposal({ id: "retry-budget", title: "Bound retries" }),
   });
   assert.deepEqual(
-    specItems("config", store.get("plans", plan.id).text).map((i) => i.id),
+    specItems("config", stored().text).map((i) => i.id),
     [
       "config.1",
       "config.1.1",
@@ -195,7 +230,9 @@ test("a stale hash or a folder changed on disk refuses the proposal", async (t) 
 test("the agent-facing surfaces route discoveries away from capture", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
-  const handoff = await ops.execute("handoff", { id: "sample-task" });
+  const handoff = await ops.execute<{ policy: string }>("handoff", {
+    id: "sample-task",
+  });
   assert.match(handoff.policy, /plan\.propose/);
   assert.match(handoff.policy, /record the evidence here/);
   assert.match(
@@ -203,7 +240,7 @@ test("the agent-facing surfaces route discoveries away from capture", async (t) 
     /do not capture discoveries as new request tasks/,
   );
   // In-scope findings stay on the task being worked.
-  const updated = await ops.execute("task.update", {
+  const updated = await ops.execute<{ evidence: string[] }>("task.update", {
     id: "sample-task",
     status: "partial",
     notes: "Fixed the adjacent typo in the same change.",
@@ -214,11 +251,13 @@ test("the agent-facing surfaces route discoveries away from capture", async (t) 
     store.read().tasks.some((t) => t.id.startsWith("request-")),
     false,
   );
-  const tools = (
-    await handleMcp({ jsonrpc: "2.0", id: 1, method: "tools/list" }, ops)
-  ).body.result.tools;
-  const intake = tools.find((x) => x.name === "plans_intake"),
-    plan = tools.find((x) => x.name === "plans_plan");
+  const reply = await handleMcp(
+      { jsonrpc: "2.0", id: 1, method: "tools/list" },
+      ops,
+    ),
+    { tools } = reply.body?.result as { tools: Tool[] };
+  const intake = found(tools.find((x) => x.name === "plans_intake")),
+    plan = found(tools.find((x) => x.name === "plans_plan"));
   assert.match(
     intake.description,
     /capture \(record a person's own request as untriaged\. Not a channel for work an agent discovered/,
