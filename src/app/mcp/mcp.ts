@@ -163,7 +163,8 @@ export { complete };
 
 export async function handleMcp(
   message: McpMessage | null | undefined,
-  ops: McpOperations,
+  // Null only lists the tools: every other call needs a workspace.
+  ops: McpOperations | null,
   {
     base,
     versionHeader,
@@ -187,7 +188,7 @@ export async function handleMcp(
       result: complete(message, result),
     },
   });
-  if (workspaceId && workspaceIdentity(ops.store) !== workspaceId)
+  if (workspaceId && ops && workspaceIdentity(ops.store) !== workspaceId)
     return ok({
       isError: true,
       content: [
@@ -199,6 +200,7 @@ export async function handleMcp(
     });
   const tools = [...groupedToolList(classifyOperation), ...WORKSPACE_TOOLS];
   if (message?.method === "tools/list") return ok({ tools });
+  if (!ops) throw Error("This MCP call needs a workspace.");
   const name = String(message?.params?.name);
   if (
     message?.method === "tools/call" &&
