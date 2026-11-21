@@ -38,7 +38,14 @@ async function tip(root, branch) {
 // {branch, commit, kind} with kind working | integration | base. `legacy`
 // lists integration branch names in priority order; unusable names are
 // skipped. A spec id that cannot name a branch has no working branch.
-export async function specBase(root, { spec, base, legacy = [] }) {
+export async function specBase(
+  root: string,
+  {
+    spec,
+    base,
+    legacy = [],
+  }: { spec?: unknown; base: string; legacy?: unknown[] },
+) {
   const candidates = [
     ...(typeof spec === "string" && SPEC.test(spec)
       ? [{ branch: workingBranch(spec), kind: "working" }]

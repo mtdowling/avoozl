@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -10,14 +9,14 @@ import { syncBase } from "../../landing/pr-landing.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-function git(root, ...args) {
+function git(root: string, ...args: string[]) {
   return execFileSync("git", args, {
     cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
 }
-const hasRef = (root, ref) => {
+const hasRef = (root: string, ref: string) => {
   try {
     git(root, "rev-parse", "--verify", "--quiet", ref);
     return true;
@@ -86,7 +85,7 @@ test("a base branch in neither place is refused naming both refs", async () => {
   const { clone } = cloneWithRemoteOnlyBase();
   await assert.rejects(
     repositoryConfig({ id: "nupp", root: clone, baseBranch: "missing" }),
-    (error) =>
+    (error: Error) =>
       error.message.includes("refs/heads/missing") &&
       error.message.includes("refs/remotes/origin/missing"),
   );
