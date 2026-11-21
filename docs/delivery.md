@@ -51,8 +51,7 @@ this machine's config and keeps the `delivery` block, so other machines keep
 running. The page's other settings, such as who merges, show and save while
 Autopilot is off.
 
-When tasks are ready and this machine has no `loop`, Home and **Needs you**
-say: "Autopilot is off on this machine, so ready tasks wait. Turn it on in
+When tasks are ready and this machine has no `loop`, **Needs you** says: "Autopilot is off on this machine, so ready tasks wait. Turn it on in
 Settings › Autopilot, or run avoozl next --claim."
 
 A runner starts a spec's tasks only when the spec issue, and every parent

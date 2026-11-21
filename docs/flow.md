@@ -15,8 +15,8 @@ override them.
 }
 ```
 
-**Settings › Flow** edits the same settings. The **Flow** page shows where the
-time went.
+**Settings › Flow** edits the same settings, and `avoozl flow` prints where
+the time went.
 
 ## Timing
 
@@ -36,7 +36,7 @@ presses **Run anyway**.
 
 ### Pulling the line by hand
 
-The red **Stop the line** icon in the heading of **Dashboards › Delivery**
+The red **Stop the line** icon in the heading of **In flight**
 stops new work for everything, one repository, one spec, or one task, with a
 one-line reason. A person can pull it, and so can an agent through MCP.
 Running sessions keep going, and only a person presses **Resume**.

@@ -1,17 +1,16 @@
 # Intake sources
 
-An intake source brings items from a tracker or a script into Avoozl, next to
-the issues and pull requests it reads from GitHub. Items are listed with their
-source and never start work by themselves.
+An intake source brings items from a script into Avoozl, next to the issues
+and pull requests it reads from GitHub. Items are listed with their source and
+never start work by themselves.
 
 ```sh
 avoozl intake list
 avoozl intake deliver script Q-17
 ```
 
-A plugin that provides `intake` is one kind of source, and anything you script
-through MCP is another. `avoozl intake list` and the `plans_intake` tool list
-every item with its source. `avoozl intake deliver SOURCE ID` and
+A source is anything you script through MCP. `avoozl intake list` and the
+`plans_intake` tool list every item with its source. `avoozl intake deliver SOURCE ID` and
 `avoozl intake plan SOURCE ID` turn an item into work, and only a person runs
 them.
 
@@ -71,13 +70,8 @@ avoozl intake submit --source script --file items.json
 
 An MCP caller is you, on this computer, but Avoozl cannot tell who wrote an item
 at its source, and a chat may be passing on text it read. So the items are
-listed and never start work by themselves. MCP cannot submit to `github` or to a
-plugin's source, and a close it reports holds the item's dependents for you to
+listed and never start work by themselves. MCP cannot submit to `github`, and a close it reports holds the item's dependents for you to
 decide.
 
 Avoozl writes nothing back to these sources. It deletes a closed item that no
 task holds 30 days after it closed.
-
-## See also
-
-- [Writing a plugin](plugins.md#intake-part) for a plugin that polls a tracker

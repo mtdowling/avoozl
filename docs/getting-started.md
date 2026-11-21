@@ -37,7 +37,6 @@ grants:
   and no others.
 - `/api/usage/turns` reads the model each of those sessions last ran on.
 - `/api/models` fills the model lists in Settings.
-- `/api/apps/spec-builder/specs` hands a new spec to Spec Builder.
 - `/api/reveal` shows a spec file in the file browser.
 
 An update that adds a grant waits until you approve it. To update, pull, then
@@ -290,9 +289,10 @@ and `tasks.md`:
   - An unknown key is reported with its path
 ```
 
-Choose **New spec** on the Specs page. Review the lint results and the graph,
-then choose **Approve revision**. For the task format and the commit that
-approves a spec, see [Tasks](github-workflow.md#2-tasks) and
+Write it by hand, or ask a chat to with the `avoozl-spec` skill, which lints
+it, writes its graph block and leaves it on a spec branch. `avoozl spec lint`
+checks a folder. For the task format and the commit that approves a spec, see
+[Tasks](github-workflow.md#2-tasks) and
 [Approval](github-workflow.md#7-approval).
 
 ## Deliver
@@ -302,7 +302,7 @@ checks, then set the repository's `landing` to `off`, `direct` or `pr`.
 Then pick **Autopilot** in **Settings › Autopilot**. That writes the
 `delivery` block to `.avoozl.json` and `"loop": {"run": ["specs"]}` to this
 machine's `~/.config/avoozl/config.json`. Without the loop the tick starts
-nothing, and Home and **Needs you** say so while tasks are ready;
+nothing, and **Needs you** says so while tasks are ready;
 `avoozl next --claim` and `avoozl land TASK` then run one task at a time. Avoozl
 pushes and merges only after its checks pass. See
 [Landing](github-workflow.md#16-landing) for the rules, [Delivery](delivery.md#the-server-loop)

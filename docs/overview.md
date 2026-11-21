@@ -56,12 +56,13 @@ Work starts in one of three ways.
 
 - **Labeled issue.** A writer labels and assigns an issue, and it becomes one
   task with no spec files. The label is the approval.
-- **Light spec.** New spec, Blank or From a goal, with one task. Approve records
-  the revision. With `landing: pr` Avoozl opens the pull request, waits for its
-  checks and reviews, and merges it.
-- **Epic.** Spec Builder writes requirements, design and tasks. Approve records
-  the revision. The tick releases ready tasks by capacity, phase and Stop the
-  line, and Avoozl runs, checks and lands each one.
+- **Light spec.** A spec with one task, written by hand or by a chat with the
+  `avoozl-spec` skill. A person approves it; see
+  [Approval](github-workflow.md#7-approval). With `landing: pr` Avoozl opens
+  the pull request, waits for its checks and reviews, and merges it.
+- **Epic.** The `avoozl-spec` skill writes requirements, design and tasks, and
+  a person approves them. The tick releases ready tasks by capacity, phase and
+  Stop the line, and Avoozl runs, checks and lands each one.
 
 ## Labels
 
@@ -71,18 +72,24 @@ No label is an order. The labels Avoozl reads are per-repository settings:
 | ------------------------------------------ | ---------------- | ----------------------------------------- |
 | Priority (ready tasks with it start first) | `priorityLabels` | A person                                  |
 | Waiting on the author (holds a task)       | `waitingLabels`  | A person                                  |
+| Spec issues this machine works             | `labels.require`, `labels.exclude` | A person                |
 
 ## Screens
 
 The nav has six entries, defined in `hosts/kirocrew/ui/src/nav-api.ts`:
 
-- **Dashboards:** Home, Graph, Delivery.
 - **Specs:** one list with status chips, and spec details with tabs.
+- **Graph:** the dependency graph of a spec, an epic or every spec.
+- **In flight:** live sessions, claim branches, this machine's lanes,
+  integration branches and the delivery columns.
 - **Needs you:** Decisions.
-- **Flow:** one page.
 - **Activity:** one page.
-- **Settings:** Workspaces, Repository setup, GitHub, Plugins, Content rules,
-  Flow, Models, Delivery.
+- **Settings:** Workspaces, Repository setup, GitHub, Plugins, Epic context,
+  Content rules, Flow, Models, Autopilot.
+
+**Run in a chat** on a spec, a task or a Needs you item opens a chat seeded
+with the matching skill and the item's IDs: a Kiro Crew chat inside Kiro Crew,
+and a process session on the standalone page.
 
 ## Deleting a plan
 

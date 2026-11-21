@@ -44,15 +44,6 @@ context plugin's questions (`avoozl plugins answer`), mapping its servers
 over MCP, for a bound session and in a `process` child. See
 [Epic context](epic-context.md).
 
-## Approval delegation
-
-Approval delegation lets an agent approve in its own name. A person runs
-`approval delegate NAME`. Then `plan approve ... --delegate NAME` and
-`plan.approve` with `delegate` work from an agent session and over MCP,
-approving as that person, and each receipt records the delegate and the grant.
-With no active grant the delegate is refused. Over MCP, granting and revoking
-are person-only.
-
 ## Unattended sessions
 
 An unattended `process` child, one a tick starts, gets `AVOOZL_CHILD`, and the
