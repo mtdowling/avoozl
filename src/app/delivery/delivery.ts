@@ -956,7 +956,11 @@ const reviewRoundsSince = (delivery, attempts) =>
 export function retryDelivery(
   store,
   input = {},
-  { caller = null, mcp = false, local = false } = {},
+  {
+    caller = null,
+    mcp = false,
+    local = false,
+  }: { caller?: unknown; mcp?: boolean; local?: boolean } = {},
 ) {
   const task = findTask(store, input.taskId),
     dismiss = input.dismiss ?? [];
