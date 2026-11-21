@@ -11,7 +11,7 @@ import { workspaceConfig } from "../settings/config.ts";
 import { Store } from "../store/store.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
 import { temporaryDirectory } from "./temporary.ts";
-import { sign } from "./write-path.ts";
+import { SECRET, sign } from "./signed-principal.ts";
 
 // Every read Home's page sends on first load: the shell, the nav, and each
 // Home card (DashboardView, IntegrationBranches, the setup cards).
@@ -111,7 +111,7 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
   }
   const server = startAppBackend({
     config,
-    secret: "secret",
+    secret: SECRET,
     notifier: null,
     slotReader: null,
     rowReader: null,
@@ -137,7 +137,7 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
     const start = performance.now();
     const reply = await real(`http://127.0.0.1:${address.port}/api/command`, {
       method: "POST",
-      headers: { "X-KiroCrew-Principal": sign(body, "secret") },
+      headers: { "X-KiroCrew-Principal": sign(body) },
       body,
       signal: AbortSignal.timeout(10_000),
     });
