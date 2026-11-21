@@ -1,11 +1,12 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { digest } from "../../model.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { GitHubClient } from "../github/github.ts";
+import type { Task } from "../../types.ts";
 import { secretReason } from "../content/content-rules.ts";
 import { requirePrivateRepository } from "../github/github.ts";
 import { synchronizeAgentInstructions } from "../agents/agent-instructions.ts";
@@ -16,8 +17,62 @@ import {
 } from "../settings/layered-config.ts";
 import { asJob } from "../github/github-jobs.ts";
 
+// The workspace repository a person configured (configureWorkspaceRepository).
+interface RepositoryConfig {
+  root: string;
+  remote: string;
+  branch: string;
+  directory: string;
+  configuredAt: string;
+  repository?: string;
+  repositoryNodeId?: string;
+}
+// A stored plan, as publication reads and writes it.
+type PlanRow = {
+  id: string;
+  kind?: string;
+  deletedAt?: string;
+  text: string;
+  hash?: string;
+  title?: string;
+  state?: string;
+  [key: string]: unknown;
+};
+// One portable task file's JSON, checked by importedTask.
+interface PortableTask {
+  schemaVersion?: unknown;
+  id?: unknown;
+  title?: unknown;
+  summary?: string;
+  acceptance?: unknown;
+  status?: string;
+  scope?: string;
+  phase?: Task["phase"];
+  track?: string;
+  tags?: string[];
+  resources?: unknown;
+  repositoryId?: string;
+  planId?: string;
+  planHash?: string;
+  approvedSource?: Task["approvedSource"];
+  github?: Task["github"];
+  archivedAt?: string | null;
+  requires?: string[];
+}
+// One portable report's JSON, checked by importedReport.
+type PortableReport = {
+  id?: unknown;
+  title?: unknown;
+  view?: unknown;
+  filters?: unknown;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+} | null;
+const messageOf = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
 // Each registered checkout's own .avoozl.json, read as a policy source.
-function readPolicy(filename, repositoryId = null) {
+function readPolicy(filename: string, repositoryId: string | null = null) {
   if (!fs.existsSync(filename)) return null;
   if (
     fs.lstatSync(filename).isSymbolicLink() ||
@@ -27,11 +82,12 @@ function readPolicy(filename, repositoryId = null) {
   const text = fs.readFileSync(filename, "utf8");
   if (Buffer.byteLength(text) > 512 * 1024)
     throw Error(`Avoozl policy is too large: ${filename}`);
-  let value;
+  // The policy file's JSON.
+  let value: Record<string, unknown> | null;
   try {
     value = JSON.parse(text);
   } catch (error) {
-    throw Error(`Could not parse ${filename}: ${error.message}`);
+    throw Error(`Could not parse ${filename}: ${messageOf(error)}`);
   }
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw Error(`Avoozl policy must contain a JSON object: ${filename}`);
@@ -49,18 +105,26 @@ function readPolicy(filename, repositoryId = null) {
   };
 }
 
-function configuredRepositoryInstructionSources(store, { exclude = [] } = {}) {
+function configuredRepositoryInstructionSources(
+  store: Store,
+  { exclude = [] }: { exclude?: string[] } = {},
+) {
   const excluded = new Set(exclude.map((filename) => path.resolve(filename))),
     candidates = store
-      .list("repositories")
+      .list<{ id: string; root?: string }>("repositories")
       .filter((repository) => repository.root)
       .map((repository) => ({
-        filename: path.join(path.resolve(repository.root), ".avoozl.json"),
+        filename: path.join(
+          path.resolve(String(repository.root)),
+          ".avoozl.json",
+        ),
         repositoryId: repository.id,
         primary: false,
       })),
-    seen = new Set(),
-    sources = [];
+    seen = new Set<string>(),
+    sources: (NonNullable<ReturnType<typeof readPolicy>> & {
+      primary: boolean;
+    })[] = [];
   for (const candidate of candidates) {
     const key = path.resolve(candidate.filename);
     if (seen.has(key) || excluded.has(key)) continue;
@@ -75,7 +139,11 @@ const exec = promisify(execFile);
 const allowedPath =
   /^(workspace\.json|designs\/[a-z][a-z0-9-]{2,80}\.(md|approval\.json)|tasks\/[a-z][a-z0-9-]{2,80}\.json|reviews\/[a-zA-Z0-9_.-]+\.json)$/;
 
-async function git(root, args, options = {}) {
+async function git(
+  root: string,
+  args: string[],
+  options: { raw?: boolean; env?: NodeJS.ProcessEnv } = {},
+): Promise<string> {
   const { raw = false, ...execOptions } = options;
   try {
     const stdout = (
@@ -88,25 +156,30 @@ async function git(root, args, options = {}) {
     ).stdout;
     return raw ? stdout : stdout.trim();
   } catch (error) {
-    error.message = (
-      error.stderr ||
-      error.stdout ||
-      error.message ||
-      "Git failed."
+    if (!(error instanceof Error)) throw error;
+    // Git's own words: the exec error carries its stderr and stdout.
+    const { stderr, stdout } = Object.assign({ stderr: "", stdout: "" }, error);
+    error.message = String(
+      stderr || stdout || error.message || "Git failed.",
     ).trim();
     throw error;
   }
 }
 
-async function gitInput(root, args, input, options = {}) {
-  return new Promise((resolve, reject) => {
+async function gitInput(
+  root: string,
+  args: string[],
+  input: string,
+  options: { env?: NodeJS.ProcessEnv } = {},
+) {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn("git", args, {
       cwd: root,
       env: options.env || process.env,
       stdio: ["pipe", "pipe", "pipe"],
     });
-    const stdout = [],
-      stderr = [];
+    const stdout: Buffer[] = [],
+      stderr: Buffer[] = [];
     child.stdout.on("data", (chunk) => stdout.push(chunk));
     child.stderr.on("data", (chunk) => stderr.push(chunk));
     child.on("error", reject);
@@ -120,7 +193,7 @@ async function gitInput(root, args, input, options = {}) {
   });
 }
 
-function cleanDirectory(value = ".avoozl") {
+function cleanDirectory(value: unknown = ".avoozl") {
   const normalized = String(value)
     .replaceAll("\\", "/")
     .replace(/^\/+|\/+$/g, "");
@@ -136,7 +209,7 @@ function cleanDirectory(value = ".avoozl") {
   return normalized;
 }
 
-function relativeFile(directory, name) {
+function relativeFile(directory: string, name: string) {
   if (!allowedPath.test(name))
     fail("Unexpected workspace publication path " + name + ".");
   return directory + "/" + name;
@@ -146,7 +219,7 @@ function relativeFile(directory, name) {
 // builtin:published-secrets of content-rules.mjs (design §4.9).
 export { secretReason };
 
-function scanWorkspacePublication(files) {
+function scanWorkspacePublication(files: Record<string, string>) {
   for (const [name, text] of Object.entries(files)) {
     if (!allowedPath.test(name))
       fail("Unexpected workspace publication path " + name + ".");
@@ -166,7 +239,7 @@ function scanWorkspacePublication(files) {
   };
 }
 
-function taskForPublication(store, task) {
+function taskForPublication(store: Store, task: Task) {
   const data = store.read();
   return {
     schemaVersion: 1,
@@ -200,9 +273,13 @@ function taskForPublication(store, task) {
   };
 }
 
-function workspacePublication(store) {
-  const repositories = store.list("github_repositories");
-  const files = {
+function workspacePublication(store: Store) {
+  const repositories = store.list<{
+    id: string;
+    repositoryId?: string;
+    label?: string;
+  }>("github_repositories");
+  const files: Record<string, string> = {
     "workspace.json":
       JSON.stringify(
         {
@@ -229,11 +306,19 @@ function workspacePublication(store) {
       ) + "\n",
   };
   for (const plan of store
-    .list("plans")
+    .list<PlanRow>("plans")
     .filter((item) => item.kind !== "conversation" && !item.deletedAt)) {
     files[`designs/${plan.id}.md`] = plan.text;
     const approval = store
-      .list("approvals")
+      .list<{
+        id: string;
+        planId?: string;
+        hash?: string;
+        approvedBy?: string;
+        evidence?: string;
+        at?: string;
+        taskIds?: string[];
+      }>("approvals")
       .find((item) => item.planId === plan.id && item.hash === plan.hash);
     if (approval)
       files[`designs/${plan.id}.approval.json`] =
@@ -258,7 +343,7 @@ function workspacePublication(store) {
   return files;
 }
 
-function githubRepositoryFromRemote(url) {
+function githubRepositoryFromRemote(url: unknown) {
   const value = String(url || "").trim();
   const match = value.match(
     /^(?:git@github\.com:|https:\/\/github\.com\/|ssh:\/\/git@github\.com\/)([^/]+)\/([^/]+?)(?:\.git)?$/,
@@ -266,12 +351,18 @@ function githubRepositoryFromRemote(url) {
   return match ? `${match[1]}/${match[2]}` : null;
 }
 
-export async function configureWorkspaceRepository(store, input, github) {
+export async function configureWorkspaceRepository(
+  store: Store,
+  input: Record<string, unknown>,
+  github: {
+    repository(name: string): Promise<{ private?: boolean; node_id?: string }>;
+  },
+) {
   const root = await checkoutRoot(input.root, "workspace repository root");
-  const config = {
+  const config: RepositoryConfig = {
     root,
-    remote: input.remote || "origin",
-    branch: input.branch || "avoozl-workspace",
+    remote: String(input.remote || "origin"),
+    branch: String(input.branch || "avoozl-workspace"),
     directory: cleanDirectory(input.directory),
     configuredAt: new Date().toISOString(),
   };
@@ -298,7 +389,7 @@ export async function configureWorkspaceRepository(store, input, github) {
   return config;
 }
 
-async function remoteHead(config, { fetch = true } = {}) {
+async function remoteHead(config: RepositoryConfig, { fetch = true } = {}) {
   if (fetch)
     await remoteGit(config.root, [
       "fetch",
@@ -306,7 +397,7 @@ async function remoteHead(config, { fetch = true } = {}) {
       config.remote,
       `+refs/heads/${config.branch}:refs/remotes/${config.remote}/${config.branch}`,
     ]).catch((error) => {
-      if (!/couldn't find remote ref|not found/i.test(error.message))
+      if (!/couldn't find remote ref|not found/i.test(messageOf(error)))
         throw error;
     });
   return git(config.root, [
@@ -316,8 +407,11 @@ async function remoteHead(config, { fetch = true } = {}) {
   ]).catch(() => "");
 }
 
-export async function publishWorkspaceRepository(store, input = {}) {
-  const config = store.getMeta("workspaceRepository");
+export async function publishWorkspaceRepository(
+  store: Store,
+  input: { dryRun?: unknown; targetBranch?: string; message?: string } = {},
+) {
+  const config = store.getMeta<RepositoryConfig>("workspaceRepository");
   if (!config) fail("Configure a workspace repository first.", 409);
   const files = workspacePublication(store),
     report = scanWorkspacePublication(files);
@@ -413,7 +507,7 @@ export async function publishWorkspaceRepository(store, input = {}) {
   }
 }
 
-async function readRemoteFiles(config, commit) {
+async function readRemoteFiles(config: RepositoryConfig, commit: string) {
   const prefix = config.directory + "/",
     listed = await git(config.root, [
       "ls-tree",
@@ -423,7 +517,7 @@ async function readRemoteFiles(config, commit) {
       "--",
       config.directory,
     ]),
-    files = {};
+    files: Record<string, string> = {};
   for (const full of listed.split("\n").filter(Boolean)) {
     if (!full.startsWith(prefix)) fail("Invalid workspace repository path.");
     const relative = full.slice(prefix.length);
@@ -437,7 +531,10 @@ async function readRemoteFiles(config, commit) {
   return files;
 }
 
-async function readRemoteAvoozlPolicy(config, commit) {
+async function readRemoteAvoozlPolicy(
+  config: RepositoryConfig,
+  commit: string,
+): Promise<{ text: string; value: Record<string, unknown> }> {
   const filename = ".avoozl.json",
     entry = await git(config.root, ["ls-tree", commit, "--", filename]);
   if (!entry) return { text: "", value: {} };
@@ -448,12 +545,13 @@ async function readRemoteAvoozlPolicy(config, commit) {
   });
   if (Buffer.byteLength(text) > 512 * 1024)
     fail("The planning repository .avoozl.json is too large.");
-  let value;
+  // The planning repository's .avoozl.json.
+  let value: Record<string, unknown> | null = null;
   try {
     value = JSON.parse(text);
   } catch (error) {
     fail(
-      `Could not parse the planning repository .avoozl.json: ${error.message}`,
+      `Could not parse the planning repository .avoozl.json: ${messageOf(error)}`,
     );
   }
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -465,10 +563,11 @@ async function readRemoteAvoozlPolicy(config, commit) {
   return { text, value };
 }
 
-function importedTask(value) {
+function importedTask(value: PortableTask | null): Task {
   if (
     value?.schemaVersion !== 1 ||
-    !/^[a-z][a-z0-9-]{2,80}$/.test(value.id || "") ||
+    typeof value.id !== "string" ||
+    !/^[a-z][a-z0-9-]{2,80}$/.test(value.id) ||
     typeof value.title !== "string" ||
     !Array.isArray(value.acceptance)
   )
@@ -496,14 +595,16 @@ function importedTask(value) {
   };
 }
 
-function importedReport(value) {
+function importedReport(value: PortableReport) {
   if (
     !value ||
     typeof value !== "object" ||
-    !/^report-[a-z0-9-]{4,80}$/.test(value.id || "") ||
+    typeof value.id !== "string" ||
+    !/^report-[a-z0-9-]{4,80}$/.test(value.id) ||
     typeof value.title !== "string" ||
     !value.title.trim() ||
     value.title.length > 160 ||
+    typeof value.view !== "string" ||
     !["overview", "tasks", "epics", "graph", "documents"].includes(
       value.view,
     ) ||
@@ -512,7 +613,8 @@ function importedReport(value) {
     Array.isArray(value.filters)
   )
     fail("Invalid portable report record.");
-  const filters = {};
+  const given = Object.fromEntries(Object.entries(value.filters)),
+    filters: Record<string, unknown> = {};
   for (const key of [
     "query",
     "scopes",
@@ -524,8 +626,8 @@ function importedReport(value) {
     "activity",
     "historical",
   ]) {
-    if (!Object.hasOwn(value.filters, key)) continue;
-    const filter = value.filters[key];
+    if (!Object.hasOwn(given, key)) continue;
+    const filter = given[key];
     if (
       key === "historical"
         ? typeof filter !== "boolean"
@@ -550,8 +652,8 @@ function importedReport(value) {
   };
 }
 
-export async function syncWorkspaceRepository(store) {
-  const config = store.getMeta("workspaceRepository");
+export async function syncWorkspaceRepository(store: Store) {
+  const config = store.getMeta<RepositoryConfig>("workspaceRepository");
   if (!config) fail("Configure a workspace repository first.", 409);
   const commit = await remoteHead(config);
   if (!commit) fail("The workspace branch does not exist yet.", 404);
@@ -560,14 +662,19 @@ export async function syncWorkspaceRepository(store) {
     repositoryPolicies = configuredRepositoryInstructionSources(store, {
       exclude: [path.join(config.root, ".avoozl.json")],
     }),
-    manifest = JSON.parse(files["workspace.json"] || "{}");
+    // The portable workspace.json.
+    manifest: { schemaVersion?: unknown; reports?: unknown } = JSON.parse(
+      files["workspace.json"] || "{}",
+    );
   if (manifest.schemaVersion !== 1)
     fail("Unsupported portable workspace schema.");
-  const previous = store.getMeta("workspaceImport") || { fileHashes: {} },
+  const previous = store.getMeta<{ fileHashes: Record<string, string> }>(
+      "workspaceImport",
+    ) || { fileHashes: {} },
     hashes = Object.fromEntries(
       Object.entries(files).map(([name, text]) => [name, digest(text)]),
     ),
-    conflicts = [];
+    conflicts: string[] = [];
   store.transaction(() => {
     const data = structuredClone(store.read());
     if (manifest.reports !== undefined) {
@@ -596,14 +703,17 @@ export async function syncWorkspaceRepository(store) {
       if (!design) continue;
       const id = design[1],
         hash = digest(text),
-        local = store.get("plans", id),
+        local = store.get<PlanRow>("plans", id),
         last = previous.fileHashes[name];
       if (local && local.hash !== hash && last && local.hash !== last) {
         conflicts.push(name);
         continue;
       }
       const approvalText = files[`designs/${id}.approval.json`],
-        approval = approvalText ? JSON.parse(approvalText) : null,
+        // The approval file's JSON.
+        approval: { hash?: string } | null = approvalText
+          ? JSON.parse(approvalText)
+          : null,
         now = new Date().toISOString();
       store.put("plans", {
         ...(local || {
@@ -625,7 +735,8 @@ export async function syncWorkspaceRepository(store) {
     }
     for (const [name, text] of Object.entries(files)) {
       if (!name.startsWith("tasks/")) continue;
-      const value = JSON.parse(text),
+      // A portable task file's JSON.
+      const value: PortableTask | null = JSON.parse(text),
         next = importedTask(value),
         local = data.tasks.find((task) => task.id === next.id),
         last = previous.fileHashes[name];
@@ -650,7 +761,7 @@ export async function syncWorkspaceRepository(store) {
             edge.portableWorkspace
           ),
       );
-      for (const from of value.requires || [])
+      for (const from of value?.requires || [])
         if (data.tasks.some((task) => task.id === from))
           data.edges.push({
             id: `${from}:requires:${next.id}`,
@@ -675,9 +786,13 @@ export async function syncWorkspaceRepository(store) {
       at: new Date().toISOString(),
       fileHashes: hashes,
     });
+    const source = data.agentInstructionSource;
     store.setMeta("agentInstructionSourceSnapshot", {
       path: ".avoozl.json",
-      hash: data.agentInstructionSource.hash,
+      hash:
+        source && typeof source === "object" && "hash" in source
+          ? source.hash
+          : undefined,
       revision: commit,
       text: policy.text,
       value: policy.value,
@@ -710,7 +825,7 @@ export async function syncWorkspaceRepository(store) {
   return { commit, files: Object.keys(files), conflicts: [] };
 }
 
-export function workspaceRepositoryStatus(store) {
+export function workspaceRepositoryStatus(store: Store) {
   return {
     configuration: store.getMeta("workspaceRepository"),
     publication: store.getMeta("workspacePublication"),
@@ -719,12 +834,12 @@ export function workspaceRepositoryStatus(store) {
 }
 
 export async function publishPlanningPullRequest(
-  store,
-  github,
+  store: Store,
+  github: GitHubClient,
   { planId }: { planId?: unknown },
 ) {
-  const plan = store.get("plans", planId),
-    config = store.getMeta("workspaceRepository");
+  const plan = store.get<PlanRow>("plans", planId),
+    config = store.getMeta<RepositoryConfig>("workspaceRepository");
   if (!plan || plan.state !== "approved")
     fail(
       "Approve the exact design revision before requesting team review.",
@@ -735,7 +850,7 @@ export async function publishPlanningPullRequest(
       "Planning pull requests require a configured private GitHub workspace repository.",
     );
   await requirePrivateRepository(github, config.repository);
-  const head = `avoozl/design-${plan.id}-${plan.hash.slice(0, 10)}`;
+  const head = `avoozl/design-${plan.id}-${String(plan.hash).slice(0, 10)}`;
   const existing = await github.listPullRequests(config.repository, {
     state: "all",
     head: `${config.repository.split("/")[0]}:${head}`,
@@ -756,7 +871,7 @@ export async function publishPlanningPullRequest(
         // Always a draft: a person releases it (R119.1).
         draft: true,
         body: `<!-- avoozl-planning-pr
-${JSON.stringify({ version: 1, planId: plan.id, planHash: plan.hash, commit: publication.commit })}
+${JSON.stringify({ version: 1, planId: plan.id, planHash: plan.hash, commit: "commit" in publication ? publication.commit : null })}
 -->
 Requests team review of the exact Avoozl design revision \`${plan.hash}\`. Merging authorizes projection of its task issues.`,
       },

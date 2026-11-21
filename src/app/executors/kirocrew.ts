@@ -1,44 +1,94 @@
-// @ts-nocheck: typing debt
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
 import {
   startRequest,
   takeSessionRequest,
   releaseSessionRequest,
   completeSessionRequest,
+  type RequestRow,
+  type SessionRequest,
 } from "../sessions/session-requests.ts";
 import { gatewayClient } from "./kirocrew/gateway-client.ts";
 // Sidebar position and project inheritance belong to this executor alone.
 
-const sidebarPath = (repository) => (repository ? `Avoozl/${repository}` : "");
+// Where a Kiro Crew session opens: its sidebar folder, whether it inherits
+// the folder's project directory, and its agent and mode.
+export interface KirocrewConfiguration {
+  folder: string;
+  project?: boolean;
+  agent?: string;
+  mode?: string;
+}
+// What one Kiro Crew slot read answers, as far as these readers look.
+interface SlotBody {
+  running?: unknown;
+  queue?: unknown;
+  served_model?: unknown;
+  model?: unknown;
+  model_withheld?: unknown;
+  messages?: unknown;
+  cursor?: unknown;
+  turns?: unknown;
+}
+type Gateway = NonNullable<ReturnType<typeof gatewayClient>>;
+// Who asks for a session request: a chat or cron session, or MCP.
+type Asker = {
+  caller?: { sessionKey?: string; slot?: string } | null;
+  mcp?: boolean;
+};
 
-export function kirocrewSession(repository, settings = {}) {
-  return { folder: settings.folder || sidebarPath(repository) };
+const sidebarPath = (repository: unknown) =>
+  repository ? `Avoozl/${String(repository)}` : "";
+
+export function kirocrewSession(
+  repository: string | null | undefined,
+  settings: object = {},
+) {
+  const folder = "folder" in settings ? settings.folder : undefined;
+  return {
+    folder: (typeof folder === "string" && folder) || sidebarPath(repository),
+  };
 }
 
-export function kirocrewDetachedSession(repository = null) {
+export function kirocrewDetachedSession(repository: string | null = null) {
   return { ...kirocrewSession(repository), project: false };
 }
 
 // Every lane chat of a workspace sits in one sidebar folder (simplify
 // §D22.1), with no project directory: each brief names its worktree.
-export const kirocrewLaneSession = (workspace) => ({
+export const kirocrewLaneSession = (workspace: string | null | undefined) => ({
   folder: sidebarPath(workspace),
   project: false,
 });
 
-export function kirocrewSessionSettings(value, label, validateName) {
+export function kirocrewSessionSettings<T>(
+  value: { folder?: unknown },
+  label: string,
+  validateName: (
+    value: unknown,
+    label: string,
+    options: { optional: boolean },
+  ) => T,
+) {
   return {
     folder: validateName(value.folder, `${label}.folder`, { optional: true }),
   };
 }
 
-const unset = (reading, folder) =>
-  Boolean(reading && typeof reading === "object") && reading[folder] === false;
+const unset = (reading: unknown, folder: string) =>
+  reading !== null &&
+  typeof reading === "object" &&
+  Object.entries(reading).some(
+    ([key, value]) => key === folder && value === false,
+  );
 
 // Keep the dispatch order. A dispatch whose chat folder has no project
 // directory waits and produces one owner notice per folder.
-export function kirocrewDispatches(store, dispatches, reading) {
-  const pending = new Set();
+export function kirocrewDispatches(
+  store: Store,
+  dispatches: SessionRequest[],
+  reading: unknown,
+) {
+  const pending = new Set<string>();
   for (let i = dispatches.length - 1; i >= 0; i--) {
     const dispatch = dispatches[i];
     if (dispatch.executor !== "kirocrew") continue;
@@ -53,7 +103,10 @@ export function kirocrewDispatches(store, dispatches, reading) {
   }
   return [...pending].map((folder) => {
     const id = folder.split("/").pop(),
-      checkout = store.get("repositories", id)?.root;
+      checkout = store.get<{ id: string; root?: string }>(
+        "repositories",
+        id ?? "",
+      )?.root;
     return {
       channel: "decision",
       title: `Set the project directory of chat folder ${folder.replaceAll("/", " › ")}`,
@@ -64,7 +117,7 @@ export function kirocrewDispatches(store, dispatches, reading) {
 }
 
 // The status of one slot from its GET /api/chat/slots/<slot> body.
-export function slotStatus(body) {
+export function slotStatus(body: SlotBody | null | undefined) {
   if (body?.running === true) return "working";
   if (Array.isArray(body?.queue) && body.queue.length) return "queued";
   return "idle";
@@ -74,13 +127,14 @@ export function slotStatus(body) {
 // shape, or null when Kiro Crew names no served model. The slot carries the
 // pinned model, the model the live session resolved to, and whether the pin
 // was withheld; it has no mid-session change flag.
-export function slotServed(body) {
+export function slotServed(body: SlotBody | null | undefined) {
   const model = body?.served_model;
   if (typeof model !== "string" || !model.trim()) return null;
   return {
-    requested: typeof body.model === "string" && body.model ? body.model : null,
+    requested:
+      typeof body?.model === "string" && body.model ? body.model : null,
     model,
-    withheld: body.model_withheld === true,
+    withheld: body?.model_withheld === true,
     changed: false,
   };
 }
@@ -92,7 +146,7 @@ export function slotServed(body) {
 export function gatewaySlotReader(env = process.env, request = fetch) {
   const client = gatewayClient(env, request);
   if (!client) return null;
-  return async (slot) => {
+  return async (slot: string) => {
     const response = await client.call(
       `/api/chat/slots/${encodeURIComponent(slot)}?limit=1`,
       { method: "GET" },
@@ -100,7 +154,8 @@ export function gatewaySlotReader(env = process.env, request = fetch) {
     if (response.status === 404) return "gone";
     if (!response.ok)
       throw Error(`Kiro Crew refused the session read (${response.status}).`);
-    const body = await response.json(),
+    // The gateway's JSON reply.
+    const body = (await response.json()) as SlotBody | null,
       status = slotStatus(body),
       served =
         slotServed(body) ??
@@ -111,13 +166,15 @@ export function gatewaySlotReader(env = process.env, request = fetch) {
 
 // Kiro Crew 0.12.2.4's one-slot read names no model; the app's own usage rows
 // do, one per finished turn. The last row is the model that ran last.
-async function usageServed(client, slot) {
+async function usageServed(client: Gateway, slot: string) {
   const response = await client.call(
     `/api/usage/turns?slot=${encodeURIComponent(slot)}&days=30`,
     { method: "GET" },
   );
   if (!response.ok) return null;
-  const turns = (await response.json())?.turns,
+  // The gateway's JSON reply.
+  const reply = (await response.json()) as SlotBody | null,
+    turns = reply?.turns,
     model = Array.isArray(turns) ? turns.at(-1)?.model : null;
   return typeof model === "string" && model.trim()
     ? { requested: null, model, withheld: false, changed: false }
@@ -130,7 +187,7 @@ async function usageServed(client, slot) {
 export function gatewaySessionStopper(env = process.env, request = fetch) {
   const client = gatewayClient(env, request);
   if (!client) return null;
-  return async (slot) => {
+  return async (slot: string) => {
     const response = await client.call(
       `/api/chat/slots/${encodeURIComponent(slot)}/stop`,
       {
@@ -156,13 +213,13 @@ export function gatewaySlotRows(env = process.env, request = fetch) {
   // The cursor is the one this reader returned last time, kept as stored.
   return async (slot: string, cursor: unknown = null) => {
     const query = new URLSearchParams({ limit: "200", cursor: "1" });
-    if (
-      cursor?.from !== undefined &&
-      cursor?.since !== undefined &&
-      cursor?.digest
-    )
+    const at: Record<string, unknown> =
+      cursor && typeof cursor === "object"
+        ? Object.fromEntries(Object.entries(cursor))
+        : {};
+    if (at.from !== undefined && at.since !== undefined && at.digest)
       for (const key of ["from", "since", "digest"])
-        query.set(key, String(cursor[key]));
+        query.set(key, String(at[key]));
     const response = await client.call(
       `/api/chat/slots/${encodeURIComponent(slot)}?${query}`,
       { method: "GET" },
@@ -170,7 +227,8 @@ export function gatewaySlotRows(env = process.env, request = fetch) {
     if (response.status === 404) return { rows: [], cursor: null, gone: true };
     if (!response.ok)
       throw Error(`Kiro Crew refused the session read (${response.status}).`);
-    const body = await response.json();
+    // The gateway's JSON reply.
+    const body = (await response.json()) as SlotBody | null;
     return {
       rows: Array.isArray(body?.messages) ? body.messages : [],
       cursor:
@@ -185,72 +243,94 @@ export function gatewaySlotRows(env = process.env, request = fetch) {
 export function gatewayUsageTurns(env = process.env, request = fetch) {
   const client = gatewayClient(env, request);
   if (!client) return null;
-  return async (slot) => {
+  return async (slot: string) => {
     const response = await client.call(
       `/api/usage/turns?slot=${encodeURIComponent(slot)}&days=30`,
       { method: "GET" },
     );
     if (!response.ok)
       throw Error(`Kiro Crew refused the usage read (${response.status}).`);
-    const body = await response.json();
+    // The gateway's JSON reply.
+    const body = (await response.json()) as SlotBody | null;
     return Array.isArray(body?.turns) ? body.turns : [];
   };
 }
 
 // Provider selection is kept outside neutral request objects and durable rows.
-const prepared = new WeakMap();
-const privateKey = (id) => `executor.kirocrew.${id}`;
-const selections = (store) => {
-  if (!prepared.has(store)) prepared.set(store, new Map());
-  return prepared.get(store);
+const prepared = new WeakMap<Store, Map<string, KirocrewConfiguration>>();
+const privateKey = (id: string) => `executor.kirocrew.${id}`;
+const selections = (store: Store) => {
+  let found = prepared.get(store);
+  if (!found) prepared.set(store, (found = new Map()));
+  return found;
 };
-const ROLE_AGENTS = {
+const ROLE_AGENTS: Record<string, string> = {
   worker: "kirocrew-worker",
   responder: "avoozl-responder",
   "check-decide": "avoozl-check-decide",
 };
 
-export function kirocrewRequest(store, legacy) {
+export function kirocrewRequest(
+  store: Store,
+  legacy: {
+    folder?: string;
+    project?: boolean;
+    agent?: string;
+    mode?: string;
+    [key: string]: unknown;
+  },
+) {
   const { folder, project, agent, mode, ...portable } = legacy;
   // The caller names the executor (NK1.2: a role's settings choose it, so
   // nothing here may default a request to `kirocrew`).
   if (!portable.executor)
-    fail(`The ${portable.role ?? "worker"} request names no executor.`, 500);
+    fail(
+      `The ${String(portable.role ?? "worker")} request names no executor.`,
+      500,
+    );
   const request = startRequest(portable);
   if (request.executor === "kirocrew")
     selections(store).set(request.id, {
       folder: folder ?? "",
       ...(project === undefined ? {} : { project }),
-      agent: agent ?? ROLE_AGENTS[request.role] ?? "",
+      agent: agent ?? ROLE_AGENTS[request.role ?? ""] ?? "",
       ...(mode ? { mode } : {}),
     });
   return request;
 }
 
-export function kirocrewConfiguration(store, request) {
-  const queued = store.get("session_requests", request.id),
+export function kirocrewConfiguration(
+  store: Store,
+  request: Partial<SessionRequest>,
+): KirocrewConfiguration {
+  const id = String(request.id ?? "");
+  const queued = store.get<RequestRow>("session_requests", id),
     active =
-      queued?.kind === "start" && ["claimed", "bound"].includes(queued.state)
+      queued?.kind === "start" &&
+      ["claimed", "bound"].includes(queued.state ?? "")
         ? queued.request
         : request,
-    configuration = selections(store).get(request.id) ??
-      store.getMeta(privateKey(request.id)) ?? {
+    configuration = selections(store).get(id) ??
+      store.getMeta<KirocrewConfiguration>(privateKey(id)) ?? {
         folder:
           active.worktree && active.repository
             ? sidebarPath(active.repository)
             : "",
         ...(active.worktree && active.repository ? {} : { project: false }),
-        agent: ROLE_AGENTS[active.role] ?? "",
+        agent: ROLE_AGENTS[active.role ?? ""] ?? "",
       };
   return configuration;
 }
 
-export function persistKirocrewConfiguration(store, request) {
+export function persistKirocrewConfiguration(
+  store: Store,
+  request: SessionRequest,
+) {
   if (request.executor !== "kirocrew") return;
-  const current = store.get("session_requests", request.id);
+  const current = store.get<RequestRow>("session_requests", request.id);
   if (
     current?.kind === "start" &&
-    ["claimed", "bound"].includes(current.state)
+    ["claimed", "bound"].includes(current.state ?? "")
   ) {
     selections(store).delete(request.id);
     return;
@@ -262,17 +342,23 @@ export function persistKirocrewConfiguration(store, request) {
   selections(store).delete(request.id);
 }
 
-export const kirocrewConsumer = (context = {}) =>
+export const kirocrewConsumer = (context: Asker = {}) =>
   context.caller?.sessionKey ?? context.caller?.slot ?? "local-executor";
-function nativeConsumer(context) {
+function nativeConsumer(context: Asker) {
   const consumer = kirocrewConsumer(context);
   if (context.mcp && !consumer.startsWith("cron:"))
     fail("Only the native executor cron may consume session requests.", 403);
   return consumer;
 }
 
-export function takeKirocrewRequest(store, input, context = {}, eligible) {
-  const taken = takeSessionRequest(store, input, {
+export function takeKirocrewRequest(
+  store: Store,
+  input: Record<string, unknown>,
+  context: Asker = {},
+  eligible?: NonNullable<Parameters<typeof takeSessionRequest>[2]>["eligible"],
+) {
+  // Request input: takeSessionRequest compares each field it reads.
+  const taken = takeSessionRequest(store, input as { id: string }, {
     executor: "kirocrew",
     consumer: nativeConsumer(context),
     eligible,
@@ -281,31 +367,61 @@ export function takeKirocrewRequest(store, input, context = {}, eligible) {
     ? { ...taken, configuration: kirocrewConfiguration(store, taken.request) }
     : null;
 }
-export function releaseKirocrewRequest(store, input, context = {}) {
-  return releaseSessionRequest(store, input, {
-    executor: "kirocrew",
-    consumer: nativeConsumer(context),
-  });
+export function releaseKirocrewRequest(
+  store: Store,
+  input: Record<string, unknown>,
+  context: Asker = {},
+) {
+  // Request input: the claim check compares each field it reads.
+  return releaseSessionRequest(
+    store,
+    input as Parameters<typeof releaseSessionRequest>[1],
+    {
+      executor: "kirocrew",
+      consumer: nativeConsumer(context),
+    },
+  );
 }
-export function completeKirocrewRequest(store, input, context = {}) {
-  return completeSessionRequest(store, input, {
-    executor: "kirocrew",
-    consumer: nativeConsumer(context),
-  });
+export function completeKirocrewRequest(
+  store: Store,
+  input: Record<string, unknown>,
+  context: Asker = {},
+) {
+  // Request input: the claim check compares each field it reads.
+  return completeSessionRequest(
+    store,
+    input as Parameters<typeof completeSessionRequest>[1],
+    {
+      executor: "kirocrew",
+      consumer: nativeConsumer(context),
+    },
+  );
 }
-export function kirocrewExplicitSession(store, request) {
-  const old = store.getMeta(`executor.kirocrew.intent.${request.id}`);
+export function kirocrewExplicitSession(store: Store, request: SessionRequest) {
+  const old = store.getMeta<{ agent?: string }>(
+    `executor.kirocrew.intent.${request.id}`,
+  );
   return {
-    agent: old?.agent ?? request.agent ?? ROLE_AGENTS[request.role] ?? "",
+    agent:
+      old?.agent ??
+      (typeof request.agent === "string" ? request.agent : undefined) ??
+      ROLE_AGENTS[request.role ?? ""] ??
+      "",
   };
 }
-export function saveKirocrewIntent(store, id, input) {
+export function saveKirocrewIntent(
+  store: Store,
+  id: string,
+  input: { agent?: unknown },
+) {
   if (
     typeof input.agent !== "string" ||
     !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(input.agent)
   )
     fail("Choose an agent name of letters, digits, '.', '_', ':', or '-'.");
-  const before = store.getMeta(`executor.kirocrew.intent.${id}`);
+  const before = store.getMeta<{ agent?: string }>(
+    `executor.kirocrew.intent.${id}`,
+  );
   if (before && before.agent !== input.agent)
     fail("This task already requests a session on another agent.", 409);
   if (!before)
