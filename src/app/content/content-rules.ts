@@ -562,6 +562,12 @@ export function bindContentRules(
     timeoutMs = CHECK_TIMEOUT_MS,
     // {hostname, username} in place of this machine's own (tests only).
     machine = null,
+  }: {
+    workspaceRoot?: string | null;
+    configFile?: string;
+    pluginSettingsFile?: string | null;
+    timeoutMs?: number;
+    machine?: { hostname: string; username: string } | null;
   } = {},
 ) {
   const previous = bound.get(store);

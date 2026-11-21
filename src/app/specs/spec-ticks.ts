@@ -329,7 +329,21 @@ export async function tickOpenGroups(
 
 export async function tickBranch(
   root,
-  { branch, files, remote = "origin", tries = 5, env, commitPrefix = "" },
+  {
+    branch,
+    files,
+    remote = "origin",
+    tries = 5,
+    env,
+    commitPrefix = "",
+  }: {
+    branch: string;
+    files: { spec: string; ids: string[]; file?: string; groups?: unknown }[];
+    remote?: string;
+    tries?: number;
+    env?: NodeJS.ProcessEnv;
+    commitPrefix?: string;
+  },
 ) {
   for (let attempt = 1; ; attempt++) {
     await remoteGit(root, ["fetch", "--quiet", remote, branch], { env });

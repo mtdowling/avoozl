@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Status review with nothing behind it (set by hand, as in the old Nupp
 // import) is shown as needing the owner, not as a review in progress. A
 // review with a reviewer session stays in progress and keeps its session.
@@ -6,8 +5,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Operations } from "../api/operations.ts";
 import { fixture } from "./fixtures.ts";
+import {
+  type ConflictsView,
+  type DeliveryView,
+  found,
+  type GraphView,
+} from "./view-shapes.ts";
 
-const task = (id, extra = {}) => ({
+const task = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   title: id,
   scope: "catalog",
@@ -39,16 +44,20 @@ test("a hand-set review needs the owner; a real one keeps its reviewer", async (
     }),
   );
   const ops = new Operations(store, { workspaceRoot: root });
-  const graph = await ops.execute("graph.view", {});
-  const node = (id) => graph.tasks.find((x) => x.id === id);
+  const graph = await ops.execute<GraphView>("graph.view", {});
+  const node = (id: string) =>
+    found(
+      graph.tasks.find((x) => x.id === id),
+      id,
+    );
   assert.equal(node("by-hand").handSetReview, true);
   assert.equal(node("by-hand").state, "needs-you");
   assert.equal(node("by-hand").nextAction, "Owner decision: pick one.");
   assert.equal(node("reviewed").handSetReview, false);
   assert.notEqual(node("reviewed").state, "needs-you");
 
-  const conflicts = await ops.execute("conflicts.view", {});
-  const item = conflicts.items.find((x) => x.taskId === "by-hand");
+  const conflicts = await ops.execute<ConflictsView>("conflicts.view", {});
+  const item = found(conflicts.items.find((x) => x.taskId === "by-hand"));
   assert.equal(item.kind, "needs-human");
   assert.equal(item.reason, "hand-set-review");
   assert.match(
@@ -60,17 +69,17 @@ test("a hand-set review needs the owner; a real one keeps its reviewer", async (
     false,
   );
 
-  const delivery = await ops.execute("delivery.view", {});
-  const card = delivery.items.find((x) => x.id === "reviewed");
+  const delivery = await ops.execute<DeliveryView>("delivery.view", {});
+  const card = found(delivery.items.find((x) => x.id === "reviewed"));
   assert.equal(card.sessions[0].role, "reviewer");
   assert.equal(card.handSetReview, false);
   assert.equal(
-    delivery.items.find((x) => x.id === "by-hand").handSetReview,
+    delivery.items.find((x) => x.id === "by-hand")?.handSetReview,
     true,
   );
   // Nothing about the task row changed.
   assert.equal(
-    store.read().tasks.find((x) => x.id === "by-hand").status,
+    store.read().tasks.find((x) => x.id === "by-hand")?.status,
     "review",
   );
 });
@@ -105,8 +114,12 @@ test("Running means a live session: a closed one, or none, is not running", asyn
     });
   });
   const ops = new Operations(store, { workspaceRoot: root });
-  const graph = await ops.execute("graph.view", {});
-  const node = (id) => graph.tasks.find((x) => x.id === id);
+  const graph = await ops.execute<GraphView>("graph.view", {});
+  const node = (id: string) =>
+    found(
+      graph.tasks.find((x) => x.id === id),
+      id,
+    );
   assert.deepEqual(
     ["orphan", "ended", "live"].map((id) => [
       node(id).state,
@@ -118,9 +131,9 @@ test("Running means a live session: a closed one, or none, is not running", asyn
       ["running", null],
     ],
   );
-  const conflicts = await ops.execute("conflicts.view", {});
+  const conflicts = await ops.execute<ConflictsView>("conflicts.view", {});
   assert.match(
-    conflicts.items.find((x) => x.taskId === "orphan").detail,
+    found(conflicts.items.find((x) => x.taskId === "orphan")).detail,
     /Marked running, but no session is running/,
   );
 });

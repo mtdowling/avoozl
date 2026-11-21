@@ -1,14 +1,22 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../api/operations.ts";
 import { createSpecPlan, readSpecFolder } from "../specs/spec-plans.ts";
 import { fixture } from "./fixtures.ts";
 import { writeSpec, syntheticSpecFiles } from "./spec-fixture.ts";
+import { found, type TickResult } from "./view-shapes.ts";
 
-function workspace(t) {
+// A plan row, for the fields these tests read.
+interface PlanRow {
+  id: string;
+  hash: string;
+  state: string;
+}
+type Workspace = ReturnType<typeof workspace>;
+
+function workspace(t: TestContext) {
   const { root, store } = fixture(t);
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -21,7 +29,7 @@ function workspace(t) {
   });
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
-const leaf = (summary, requires = []) => ({
+const leaf = (summary: string, requires: string[] = []) => ({
   kind: "leaf",
   repository: "app",
   summary,
@@ -31,7 +39,11 @@ const leaf = (summary, requires = []) => ({
   checks: ["node --check src/example.mjs"],
   acceptance: ["The synthetic task produces its expected result."],
 });
-function draft(w, spec, entries) {
+function draft(
+  w: Workspace,
+  spec: string,
+  entries: Record<string, ReturnType<typeof leaf>>,
+) {
   writeSpec(w.root, spec, syntheticSpecFiles(entries));
   return createSpecPlan(
     w.store,
@@ -39,15 +51,15 @@ function draft(w, spec, entries) {
     readSpecFolder(w.root, spec),
   );
 }
-async function approve(w, id) {
-  const plan = w.store.get("plans", id);
+async function approve(w: Workspace, id: string) {
+  const plan = found(w.store.get<PlanRow>("plans", id), id);
   return w.ops.execute("plan.approve", {
     id,
     expectedHash: plan.hash,
     expectedRevision: w.store.read().revision,
   });
 }
-async function pending(t) {
+async function pending(t: TestContext) {
   const w = workspace(t);
   draft(w, "source", { "source-step": leaf("Build source foundation") });
   draft(w, "consumer", {
@@ -83,7 +95,7 @@ test("session.request and legacy run.start cannot execute a pending consumer", a
     );
     assert.equal(w.store.list("session_requests").length, 0);
   }
-  assert.equal(w.store.get("plans", "source").state, "draft");
+  assert.equal(w.store.get<PlanRow>("plans", "source")?.state, "draft");
   assert.equal(
     w.store.read().tasks.some((task) => task.id === "source-step"),
     false,
@@ -98,7 +110,7 @@ test("an explicit session cannot bypass a pending prerequisite through another t
   await approve(w, "last");
   assert.equal(
     w.store.read().tasks.find((task) => task.id === "last-step")
-      .pendingSpecDependencies,
+      ?.pendingSpecDependencies,
     undefined,
   );
   for (const role of ["worker", "responder"])
@@ -117,11 +129,12 @@ test("a queued request is rechecked once its source completes", async (t) => {
     /not ready/,
   );
   w.store.mutate("Synthetic source completes", (data) => {
-    data.tasks.find((task) => task.id === "source-step").status = "accepted";
+    found(data.tasks.find((task) => task.id === "source-step")).status =
+      "accepted";
   });
   await w.ops.execute("session.request", request());
   assert.equal(
-    (await w.ops.execute("workspace.tick")).dispatch.some(
+    (await w.ops.execute<TickResult>("workspace.tick")).dispatch.some(
       (row) => row.task === "consumer-step",
     ),
     true,
@@ -147,10 +160,11 @@ test("an old queued request cannot bypass a newly uncompleted dependency", async
   });
   await w.ops.execute("session.request", request("sample-task"));
   w.store.mutate("Synthetic source reopens", (data) => {
-    data.tasks.find((task) => task.id === "done-source").status = "planned";
+    found(data.tasks.find((task) => task.id === "done-source")).status =
+      "planned";
   });
   assert.equal(
-    (await w.ops.execute("workspace.tick")).dispatch.some(
+    (await w.ops.execute<TickResult>("workspace.tick")).dispatch.some(
       (row) => row.task === "sample-task",
     ),
     false,

@@ -1,16 +1,38 @@
-// @ts-nocheck: typing debt
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fixture, recordedRun, validateRun } from "./fixtures.ts";
 import { Operations } from "../api/operations.ts";
-import { git, createWorktree, integrateRun, withWorkLock } from "../git/git.ts";
+import {
+  git,
+  createWorktree,
+  integrateRun,
+  type IntegrationEntry,
+  type Repository,
+  withWorkLock,
+} from "../git/git.ts";
+import type { StatusError } from "../store/store.ts";
+
+type Run = Awaited<ReturnType<typeof recordedRun>>;
+// One evidence row, as the checks record it.
+interface Evidence {
+  id: string;
+  phase: string;
+  runId: string;
+  commit: string;
+  exitCode: number | null;
+}
+// A work-lock refusal: a 409 that says another holder has the lock.
+type Contention = StatusError & { contention?: boolean };
 
 // A repository checkout, a validated run on sample-task, and a second run left
 // working, recorded as the removed agent host left them. Validation passes while check.mjs exits 0; rewriting it to exit 1
 // makes the revalidation after rebase fail at the moment of integration.
-async function repository(t, { extraTask = "dependent-task" } = {}) {
+async function repository(
+  t: TestContext,
+  { extraTask = "dependent-task" } = {},
+) {
   const { store, root } = fixture(t),
     repo = path.join(root, "repo");
   fs.mkdirSync(repo);
@@ -34,21 +56,26 @@ async function repository(t, { extraTask = "dependent-task" } = {}) {
     root: repo,
     checks: [[process.execPath, "check.mjs"]],
   });
-  const commit = async (run, file, text) => {
+  const commit = async (run: Run, file: string, text: string) => {
     fs.writeFileSync(path.join(run.worktree, file), text);
     await git(run.worktree, ["add", "."]);
     await git(run.worktree, ["commit", "-m", "Work in " + run.id]);
   };
-  const start = (input) =>
+  const start = (input: { id: string; taskId: string }) =>
     recordedRun(store, { repositoryId: "fixture", ...input });
-  return { store, repo, check, start, ops, commit };
+  const fixtureRepository = () => {
+    const found = store.get<Repository>("repositories", "fixture");
+    assert.ok(found);
+    return found;
+  };
+  return { store, repo, check, start, ops, commit, fixtureRepository };
 }
 
 test("run worktrees inherit the execution repository Git identity", async (t) => {
-  const { store } = await repository(t);
+  const { store, fixtureRepository } = await repository(t);
   const worktree = await createWorktree(
     store,
-    store.get("repositories", "fixture"),
+    fixtureRepository(),
     "run-identity",
   );
   assert.equal(
@@ -111,7 +138,7 @@ test("integration lands while another run on the repository is still working", a
     true,
   );
   const revalidation = store
-    .list("evidence")
+    .list<Evidence>("evidence")
     .filter((e) => e.phase === "integration" && e.runId === landing.id);
   assert.equal(store.list("evidence").length, before + revalidation.length);
   assert.equal(revalidation.length, 1);
@@ -142,11 +169,13 @@ test("revalidation failure after rebase refuses the merge and leaves the entry r
   const base = await git(repo, ["rev-parse", "HEAD"]);
   await assert.rejects(
     integrateRun(store, { id: run.id, expectedCommit: validation.commit }),
-    (error) =>
-      error.status === 409 && /did not pass acceptance checks/.test(error),
+    (error: StatusError) =>
+      error.status === 409 &&
+      /did not pass acceptance checks/.test(String(error)),
   );
-  assert.equal(store.get("integration", run.id).state, "ready");
-  assert.equal(store.get("integration", run.id).integratedCommit, undefined);
+  const entry = store.get<IntegrationEntry>("integration", run.id);
+  assert.equal(entry?.state, "ready");
+  assert.equal(entry?.integratedCommit, undefined);
   assert.equal(await git(repo, ["rev-parse", "HEAD"]), base);
   assert.equal(fs.existsSync(path.join(repo, "stale.txt")), false);
   assert.equal(store.read().tasks[0].integration, undefined);
@@ -159,7 +188,7 @@ test("revalidation failure after rebase refuses the merge and leaves the entry r
 });
 
 test("the repository work lock still serializes integration against itself and validation", async (t) => {
-  const { store, start, commit } = await repository(t);
+  const { store, start, commit, fixtureRepository } = await repository(t);
   const run = await start({
     id: "run-locked",
     taskId: "sample-task",
@@ -167,9 +196,9 @@ test("the repository work lock still serializes integration against itself and v
   await commit(run, "locked.txt", "locked");
   const validation = await validateRun(store, run);
   assert.equal(validation.passed, true);
-  let release;
-  const held = new Promise((resolve) => {
-    release = resolve;
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = () => resolve();
   });
   const integrating = withWorkLock(
     store,
@@ -182,18 +211,19 @@ test("the repository work lock still serializes integration against itself and v
   );
   // A second integration, a validation, and a new run's worktree all wait for
   // the lock rather than racing the merge.
-  const contends = async (promise) =>
+  const contends = async (promise: Promise<unknown>) =>
     await promise.then(
       () => null,
-      (error) => error,
+      (error: Contention) => error,
     );
   for (const attempt of [
     integrateRun(store, { id: run.id, expectedCommit: validation.commit }),
     validateRun(store, run),
-    createWorktree(store, store.get("repositories", "fixture"), "run-racing"),
+    createWorktree(store, fixtureRepository(), "run-racing"),
   ]) {
     const error = await contends(attempt);
-    assert.equal(error?.status, 409);
+    assert.ok(error);
+    assert.equal(error.status, 409);
     assert.equal(error.contention, true);
     assert.match(error.message, /already owns this work/);
   }
@@ -210,8 +240,8 @@ test("the repository work lock still serializes integration against itself and v
     store,
     { id: "validation:other", repositoryId: "fixture", kind: "validation" },
     () =>
-      new Promise((resolve) => {
-        release = resolve;
+      new Promise<void>((resolve) => {
+        release = () => resolve();
       }),
   );
   const refused = await contends(

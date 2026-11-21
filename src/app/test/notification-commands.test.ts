@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Command and webhook sinks (without-kirocrew nk-6.2, NK7.2 to NK7.5): set
 // only in the machine file, run without a shell, https or loopback only, and
 // a small payload with a link that is not a Kiro Crew path.
@@ -17,14 +16,24 @@ import {
 } from "../tick/notification-sinks.ts";
 import {
   deliverNotifications,
+  type NotificationPayload,
+  type NotificationRow,
   queueNotifications,
+  type Sink,
 } from "../tick/notifications.ts";
 import { bindContentRules } from "../content/content-rules.ts";
 import { Store } from "../store/store.ts";
 import { fixture } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 
-const machine = (root, value) => {
+// Delivers to the sinks and returns each sink's record.
+async function deliver(store: Store, sinks: Sink[]) {
+  const result = await deliverNotifications(store, sinks);
+  assert.ok("sinks" in result, JSON.stringify(result));
+  return result;
+}
+
+const machine = (root: string, value: Record<string, unknown>) => {
   const config = path.join(root, "config");
   fs.mkdirSync(path.join(config, "avoozl"), { recursive: true });
   fs.writeFileSync(
@@ -46,7 +55,7 @@ test("notifications.sinks in .avoozl.json is refused, naming the machine file", 
   );
   assert.throws(
     () => loadLayeredConfig({ workspaceRoot: root, env, home: root }),
-    (error) =>
+    (error: Error) =>
       /notifications is set in .*\.avoozl\.json/.test(error.message) &&
       error.message.includes(path.join(env.XDG_CONFIG_HOME, "avoozl")),
   );
@@ -60,18 +69,20 @@ test("a webhook to plain http on another host is refused when the configuration 
   });
   assert.throws(
     () => loadLayeredConfig({ workspaceRoot: root, env, home: root }),
-    (error) =>
+    (error: Error) =>
       /must be https/.test(error.message) && !error.message.includes("s3cr3t"),
   );
   for (const url of [
     "https://hooks.example.test/x",
     "http://127.0.0.1:8080/x",
     "http://localhost/x",
-  ])
-    assert.equal(
-      validateNotifications({ sinks: [{ kind: "webhook", url }] }).sinks[0].url,
-      new URL(url).href,
-    );
+  ]) {
+    const [sink] = validateNotifications({
+      sinks: [{ kind: "webhook", url }],
+    }).sinks;
+    assert.ok(sink.kind === "webhook");
+    assert.equal(sink.url, new URL(url).href);
+  }
   assert.throws(
     () =>
       validateNotifications({
@@ -97,7 +108,7 @@ test("a title with shell characters reaches the command as one argument", async 
   const { sinks } = validateNotifications({
     sinks: [{ kind: "command", argv: [process.execPath, script] }],
   });
-  const result = await deliverNotifications(store, sinkPushers(sinks));
+  const result = await deliver(store, sinkPushers(sinks));
   assert.equal(result.sinks[0].sent, 1, JSON.stringify(result));
   const [args] = fs
     .readFileSync(out, "utf8")
@@ -129,22 +140,26 @@ test("the payload holds only channel, title, ID, time and link, and no Kiro Crew
       resume: "Open the chat.",
     },
   ]);
-  const seen = [];
+  const seen: Record<string, unknown>[] = [];
   const server = http.createServer((request, response) => {
     let body = "";
-    request.on("data", (chunk) => (body += chunk));
+    request.on("data", (chunk: Buffer) => (body += chunk));
     request.on("end", () => {
       seen.push(JSON.parse(body));
       response.end("ok");
     });
   });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) =>
+    server.listen(0, "127.0.0.1", () => resolve()),
+  );
   t.after(() => server.close());
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
   const { sinks } = validateNotifications({
     sinks: [
       {
         kind: "webhook",
-        url: `http://127.0.0.1:${server.address().port}/hook`,
+        url: `http://127.0.0.1:${address.port}/hook`,
       },
     ],
   });
@@ -184,7 +199,7 @@ test("a webhook that fails names the sink, never its URL", async (t) => {
       },
     ],
   });
-  const result = await deliverNotifications(
+  const result = await deliver(
     store,
     sinkPushers(sinks, {
       request: async () => {
@@ -221,18 +236,27 @@ test("a title that matches a content rule is held back", (t) => {
     workspaceRoot: root,
     configFile: path.join(root, "config", "config.json"),
   });
-  const row = { task: "a", queuedAt: "2026-11-18T00:00:00.000Z" };
-  const held = sinkPayload(
-    { channel: "decision", title: "Decide the Bluebird launch" },
-    row,
-    { store },
-  );
+  const notice = (title: string): NotificationPayload => ({
+    channel: "decision",
+    title,
+    body: "",
+    url: "",
+    group_key: "",
+  });
+  const row: NotificationRow = {
+    id: "n1",
+    task: "a",
+    slot: null,
+    payload: notice("Decide a"),
+    queuedAt: "2026-11-18T00:00:00.000Z",
+  };
+  const held = sinkPayload(notice("Decide the Bluebird launch"), row, {
+    store,
+  });
   assert.doesNotMatch(held.title, /Bluebird/);
   assert.match(held.title, /held by a content rule/);
   assert.equal(held.id, "a");
-  const plain = sinkPayload({ channel: "decision", title: "Decide a" }, row, {
-    store,
-  });
+  const plain = sinkPayload(notice("Decide a"), row, { store });
   assert.equal(plain.title, "Decide a");
 });
 

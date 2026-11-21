@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Large-workspace hot spots, each checked against the old way computed here:
 // the same answer, with fewer statements or less work. No time limits.
 import assert from "node:assert/strict";
@@ -11,16 +10,22 @@ import { readyAt } from "../flow/flow.ts";
 import { duplicateCandidates, titleIndex } from "../../task-identity.ts";
 import { largeWorkspace } from "./large-workspace.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import { found } from "./view-shapes.ts";
 
 // Statements run while fn runs, by SQL text.
-function statements(fn) {
-  const seen = [],
-    originals = {};
-  for (const method of ["all", "get", "run", "iterate"]) {
-    originals[method] = StatementSync.prototype[method];
-    StatementSync.prototype[method] = function (...values) {
+type Method = "all" | "get" | "run" | "iterate";
+type Run = (this: StatementSync, ...values: unknown[]) => unknown;
+function statements<T>(fn: () => T) {
+  // The four run methods, swapped for ones that log their SQL first.
+  const methods = StatementSync.prototype as unknown as Record<Method, Run>;
+  const seen: string[] = [],
+    originals: Partial<Record<Method, Run>> = {};
+  for (const method of ["all", "get", "run", "iterate"] as const) {
+    const original = methods[method];
+    originals[method] = original;
+    methods[method] = function (...values) {
       seen.push(this.sourceSQL);
-      return originals[method].apply(this, values);
+      return original.apply(this, values);
     };
   }
   try {
@@ -30,7 +35,7 @@ function statements(fn) {
   }
 }
 
-let built;
+let built: Awaited<ReturnType<typeof largeWorkspace>>;
 test.before(async () => {
   built = await largeWorkspace(path.join(temporaryDirectory(), "ws"), {
     specs: 4,
@@ -50,7 +55,7 @@ test("a mutation writes only the rows it changed", () => {
     target = data.tasks[0].id;
   const { seen } = statements(() =>
     store.mutate("Retitle one task", (draft) => {
-      draft.tasks.find((t) => t.id === target).title =
+      found(draft.tasks.find((t) => t.id === target)).title =
         "Retitled synthetic task";
     }),
   );
@@ -65,7 +70,7 @@ test("a mutation writes only the rows it changed", () => {
     const expected = structuredClone(store.read());
     assert.deepEqual(reopened.read(), expected);
     assert.equal(
-      reopened.read().tasks.find((t) => t.id === target).title,
+      reopened.read().tasks.find((t) => t.id === target)?.title,
       "Retitled synthetic task",
     );
   } finally {
