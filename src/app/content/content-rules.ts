@@ -1597,7 +1597,10 @@ const REPLY_PATHS = [
 const escapeText = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // Every finding as {kind, line}; never the matched text.
-export function screenReply(body, { roots = [] } = {}) {
+export function screenReply(
+  body,
+  { roots = [] }: { roots?: (string | null | undefined)[] } = {},
+) {
   const own = [...new Set(roots.filter((root) => root && root.length > 1))].map(
       (root) => [
         "absolute path",

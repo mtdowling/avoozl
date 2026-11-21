@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { resolveTaskId } from "../../task-identity.ts";
 import { prepareWorktree, reportSession } from "../delivery/delivery.ts";
@@ -28,6 +27,7 @@ import { readDeliveryPolicy } from "../tick/tick.ts";
 import { workspaceRepositories } from "../workspace/workspace-repositories.ts";
 import path from "node:path";
 import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
   // A run start is a dispatch request, and an extraction opens a record
@@ -37,7 +37,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       if (
@@ -49,10 +49,10 @@ export const entries = [
       return requestSession(
         store,
         {
-          taskId: resolveTaskId(this.read(), input.taskId),
+          taskId: resolveTaskId(this.read(), String(input.taskId)),
           repository: input.repository,
           agent: input.agent,
-          role: input.role,
+          role: typeof input.role === "string" ? input.role : undefined,
           executor: input.executor,
           model: input.model,
           permissionClass: input.permissionClass,
@@ -67,7 +67,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return store.transaction(() => {
         const result = bindSession(store, input, {
@@ -83,11 +83,17 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       markKirocrewSeen(store);
-      return takeKirocrewRequest(store, input, context, (request, queued) =>
-        sessionStartHold(store, request, queued),
+      return takeKirocrewRequest(
+        store,
+        input,
+        context,
+        (
+          request: Parameters<typeof sessionStartHold>[1],
+          queued?: Parameters<typeof sessionStartHold>[2],
+        ) => sessionStartHold(store, request, queued),
       );
     },
   },
@@ -97,7 +103,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return releaseKirocrewRequest(store, input, context);
     },
@@ -108,7 +114,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return completeKirocrewRequest(store, input, context);
     },
@@ -119,7 +125,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return rediscoverSessions(store, input);
     },
@@ -130,7 +136,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return requestSession(store, input, workspaceRepositories(store));
     },
@@ -141,7 +147,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return recordSessionStatus(store, input);
     },
@@ -153,7 +159,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person sends a message to a process session."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.caller || context.mcp)
@@ -171,15 +177,17 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person opens a session, in the Avoozl page."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.caller || context.mcp)
         fail("Only a person opens a session, in the Avoozl page.", 403);
+      const workspaceRoot =
+        this.workspaceRoot ?? fail("Opening a session needs a workspace.", 409);
       return openSession(store, input, {
-        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
-        configDirectory: this.configDirectory,
-        workspaceRoot: this.workspaceRoot,
+        config: loadLayeredConfig({ workspaceRoot }).config,
+        configDirectory: this.machineFolder(),
+        workspaceRoot,
       });
     },
   },
@@ -191,11 +199,11 @@ export const entries = [
     policy: notOnMcp(
       "The standalone page's process view of a session it opened; agents have the worker tools.",
     ),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return viewOpened(store, input, {
         ...machineAvoozlPaths(),
-        configDirectory: this.configDirectory,
+        configDirectory: this.machineFolder(),
       });
     },
   },
@@ -205,7 +213,7 @@ export const entries = [
     class: "execute",
     github: "respond",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return postReply(store, this.github, input, context.caller, {
         roots: machineRoots(store, this.workspaceRoot),
@@ -217,7 +225,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    async handler({ input, context }) {
+    async handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       // `skills` was the files a session loaded, for retro proposals.
@@ -236,7 +244,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return prepareWorktree(store, input);
     },

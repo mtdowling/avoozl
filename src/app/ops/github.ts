@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { repositoryGitHubRemote } from "../git/git.ts";
 import {
@@ -13,10 +12,12 @@ import {
 } from "../github/github-policy.ts";
 import {
   configureGitHubRepository,
+  type SetupInput,
   machineIdentity,
 } from "../github/github-sync.ts";
 import { fail } from "../store/store.ts";
 import { person, routed } from "../api/operation-policy.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
   // Settings view (§8): the GitHub policy in `.avoozl.json`. Creates no
@@ -28,7 +29,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return this.githubSettings();
     },
   },
@@ -39,7 +40,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const repository = input.repository;
       if (
         typeof repository !== "string" ||
@@ -61,7 +62,7 @@ export const entries = [
         return {
           repository,
           labels: null,
-          error: `GitHub could not be read: ${error.message}`,
+          error: `GitHub could not be read: ${(error as Error).message}`,
         };
       }
     },
@@ -73,7 +74,7 @@ export const entries = [
     class: "observe",
     github: "rules-read",
     policy: routed,
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const repository = input.repository;
       if (
         typeof repository !== "string" ||
@@ -94,15 +95,19 @@ export const entries = [
         };
       try {
         const branch = await ruleBranch(this.github, repository, {
-          baseBranch: input.baseBranch || null,
+          baseBranch:
+            typeof input.baseBranch === "string"
+              ? input.baseBranch || null
+              : null,
         });
+        if (!branch) throw Error(`${repository} has no base branch to read.`);
         // Each part stands alone: a review rule GitHub refuses to show must
         // not hide the check names, or the other way round.
         const [reviewRule, checks] = await Promise.allSettled([
           branchReviewRule(this.github, repository, branch),
           seenCheckNames(this.github, repository, branch),
         ]);
-        const why = (part) =>
+        const why = (part: PromiseSettledResult<unknown>) =>
           part.status === "rejected"
             ? `GitHub could not be read: ${part.reason?.message || part.reason}`
             : null;
@@ -122,7 +127,7 @@ export const entries = [
           branch: null,
           reviewRule: null,
           checks: null,
-          error: `GitHub could not be read: ${error.message}`,
+          error: `GitHub could not be read: ${(error as Error).message}`,
         };
       }
     },
@@ -133,14 +138,14 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       try {
         const policy = normalizeGitHubPolicy(policySection(input.github));
         if (this.github?.available?.())
           await requireDefaultBranches(policy, this.github);
         return { valid: true, error: null, policy };
       } catch (error) {
-        return { valid: false, error: error.message, policy: null };
+        return { valid: false, error: (error as Error).message, policy: null };
       }
     },
   },
@@ -153,7 +158,7 @@ export const entries = [
     class: "protect",
     github: null,
     policy: person("Only a person allows a high-risk GitHub step."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (!context.person)
         fail(
           "Only a person allows a high-risk GitHub step, in the Avoozl page or the CLI.",
@@ -179,7 +184,7 @@ export const entries = [
     policy: person(
       "Only a person changes GitHub settings, including Who counts.",
     ),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const policy = normalizeGitHubPolicy(policySection(input.github));
       if (this.github?.available?.())
         await requireDefaultBranches(policy, this.github);
@@ -195,7 +200,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return repositoryGitHubRemote(store, input);
     },
@@ -206,7 +211,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person connects a repository to GitHub."),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       this.configuration?.assertWritable();
@@ -221,7 +226,8 @@ export const entries = [
         execution = await configureGitHubRepository(
           store,
           this.github,
-          configuration,
+          // The request's fields, which prepareGitHubRepository checks.
+          configuration as SetupInput,
         );
       this.configuration?.updateGitHubIssueIntake(execution);
       return { repository: detected.repository, execution };
@@ -233,14 +239,15 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person changes GitHub setup."),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       this.configuration?.assertWritable();
       const configured = await configureGitHubRepository(
         store,
         this.github,
-        input,
+        // The request's fields, which prepareGitHubRepository checks.
+        input as SetupInput,
       );
       this.configuration?.updateGitHubIssueIntake(configured);
       return configured;
@@ -252,7 +259,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return {
         available: this.github.available(),
