@@ -1681,7 +1681,17 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
     hash: 'models-before',
     roles: { checkDecide: { model: 'fake-writer' } } as Record<string, Record<string, string>>,
     harnessDefinitions: [
-      { name: 'claude-code', approved: true, model: true, readRoles: null, proved: ['read', 'write'] },
+      {
+        name: 'claude-code',
+        approved: true,
+        model: true,
+        readRoles: null,
+        proved: ['read', 'write'],
+        probes: true,
+        probe: { ok: false, message: null, at: '2026-11-21T06:00:00.000Z' },
+        startProblem:
+          'claude-code failed its sign-in check: Invalid API key · Please run /login. Check that claude-code is signed in for this machine\u2019s server (the names in its keepEnv, machine.env, and the folders its reads list for a credential helper), then Check again.',
+      },
       {
         name: 'codex',
         approved: false,
@@ -1698,6 +1708,12 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
     const { name } = body.input as { name: string }
     settings = { ...settings, harnessDefinitions: settings.harnessDefinitions.map((d) => (d.name === name ? { ...d, approved: true } : d)) }
     return { name, path: `/config/harnesses/${name}.json`, hash: 'a'.repeat(64) }
+  })
+  answer('harness.probe', (body) => {
+    const { name } = body.input as { name: string }
+    const probe = { ok: true, message: null, at: '2026-11-21T06:10:00.000Z' }
+    settings = { ...settings, harnessDefinitions: settings.harnessDefinitions.map((d) => (d.name === name ? { ...d, probe, startProblem: null } : d)) }
+    return { name, ...probe }
   })
   answer('models.settings.update', (body) => {
     state.calls.push(body)

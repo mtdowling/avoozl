@@ -325,8 +325,8 @@ test("reads names the harness's own config under home, and nothing else", () => 
     );
   // The shipped definitions name their config.
   for (const [name, expected] of [
-    ["claude-code", ["~/.claude", "~/.claude.json"]],
-    ["codex", ["~/.codex"]],
+    ["claude-code", ["~/.claude", "~/.claude.json", "~/.aws"]],
+    ["codex", ["~/.aws"]],
   ])
     assert.deepEqual(
       JSON.parse(
