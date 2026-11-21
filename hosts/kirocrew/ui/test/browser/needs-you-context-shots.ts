@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of Needs you > Decisions (harness ?page=app&needsctx=1):
 // the list, then items open (a question, a review group, a ready pull
 // request, a stop on failed checks, an item with no
@@ -10,9 +9,10 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import path from 'node:path'
 import { startShots } from './shots.ts'
+import type { Page } from './chrome.ts'
 
 const { out, harness, browser } = await startShots('needs-you-context-shots.mjs <out dir>')
-const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const wait = (page: Page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 // Item kinds, in the order the fixture lists them.
 const PICKS = {
   decision: 'decision:',
@@ -42,7 +42,7 @@ try {
       }
       await page.until(`Boolean(document.querySelector('[data-conflict-list]'))`, 30000)
       await wait(page, 500)
-      const shoot = async (name) => {
+      const shoot = async (name: string) => {
         await wait(page, 500)
         const file = path.join(out, `${name}-${width}-${theme}.png`)
         await page.screenshot(file)

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of a repository's Edit dialog (Settings > Repository setup),
 // one per tab, in the full app shell on fake data (harness
 // ?page=app&roles=plans). 1280 and 390 px, light and dark:
@@ -12,49 +11,31 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { head, item, menu, startShots } from './shots.ts'
 
-const [out, ...only] = process.argv.slice(2)
-if (!out) {
-  console.error('Usage: repo-edit-tabs-shots.mjs <out dir> [name...]')
-  process.exit(2)
-}
-const chrome = findChrome()
-if (!chrome) {
-  console.error('No Chrome found; set AVOOZL_CHROME.')
-  process.exit(1)
-}
-fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: await shotCss() })
-const browser = await launch(chrome)
+const { out, harness, browser } = await startShots('repo-edit-tabs-shots.mjs <out dir> [name...]')
+const only = process.argv.slice(3)
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-  const menu = (width) =>
-    width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
-  const head = (width) =>
-    `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
-  const item = (width) =>
-    `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].find((x) => x.textContent.trim() === 'Repository setup'); if (b) b.click(); return Boolean(b) })()`
-  const click = (selector, text) =>
+  const click = (selector: string, text: string) =>
     `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => !x.disabled && (x.getAttribute('aria-label') || x.textContent).trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
-  const tab = (key) => `(() => { document.querySelector('[data-repository-edit] [role=tab][data-tab="${key}"]')?.click(); return true })()`
-  const shots = [
+  const tab = (key: string) => `(() => { document.querySelector('[data-repository-edit] [role=tab][data-tab="${key}"]')?.click(); return true })()`
+  const shots: [string, string[]][] = [
     ['before', []],
     ['general', [tab('general')]],
     ['landing', [tab('landing')]],
     ['github', [tab('github')]],
     // The Isolation panel under Landing, scrolled into view.
     ['isolation', [tab('landing')]],
-  ].filter(([name]) => (only.length ? only.includes(name) : name !== 'before'))
+  ]
+  const picked = shots.filter(([name]) => (only.length ? only.includes(name) : name !== 'before'))
   for (const theme of ['light', 'dark'])
     for (const width of [1280, 390])
-      for (const [name, extra] of shots) {
+      for (const [name, extra] of picked) {
         await page.open(harness.url({ page: 'app', basic: '1', theme, roles: 'plans' }), { width, height: 900, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
-        for (const step of [menu(width), head(width), item(width), click('[data-repository-list] button', 'Edit recipe-box'), ...extra]) {
+        for (const step of [menu(width), head(width), item(width, 'Repository setup'), click('[data-repository-list] button', 'Edit recipe-box'), ...extra]) {
           await settle()
           await page.evaluate(step)
         }

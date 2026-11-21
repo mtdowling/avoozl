@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Two screenshots' left 340 px side by side, each under a caption, as one
 // PNG: node test/browser/side-by-side.mjs <out.png> <left.png> <left caption> <right.png> <right caption>
 // AVOOZL_CHROME names the browser.
@@ -19,9 +18,9 @@ if (!chrome) {
   console.error('No Chrome found; set AVOOZL_CHROME.')
   process.exit(1)
 }
-const esc = (text) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)
-const image = (file) => `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`
-const pane = (file, caption) => `<figure><figcaption>${esc(caption)}</figcaption><div class="crop"><img src="${image(file)}"></div></figure>`
+const esc = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)
+const image = (file: string) => `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`
+const pane = (file: string, caption: string) => `<figure><figcaption>${esc(caption)}</figcaption><div class="crop"><img src="${image(file)}"></div></figure>`
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'avoozl-sbs-'))
 const html = path.join(dir, 'index.html')
 fs.writeFileSync(

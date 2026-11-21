@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the task details Timeline box inside the full app (harness
 // ?page=app): desktop 1280 and phone 390, light and dark, The viewport is tall
 // so the whole drawer shows. The task opens from Home's Needs you row
@@ -13,22 +12,22 @@ import path from 'node:path'
 import { startShots } from './shots.ts'
 
 const { out, harness, browser } = await startShots('task-timeline-shots.mjs <out dir>')
-const HEIGHT = { 1280: 1700, 390: 2300 }
-const button = (text) =>
+const HEIGHT: Record<number, number> = { 1280: 1700, 390: 2300 }
+const button = (text: string) =>
   `[...document.querySelectorAll('button, a')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}) || b.getAttribute('aria-label') === ${JSON.stringify(text)})`
 // Waits for the button, then clicks it in the same step, so a re-render in
 // between can't drop it.
-const press = (text) => `(() => { const b = ${button(text)}; b?.click(); return Boolean(b) })()`
+const press = (text: string) => `(() => { const b = ${button(text)}; b?.click(); return Boolean(b) })()`
 try {
   const page = await browser.page()
   const settle = (ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-  const open = async (width, theme) => {
+  const open = async (width: number, theme: string) => {
     await page.open(harness.url({ page: 'app', needs: '1', theme }), { width, height: HEIGHT[width], dark: theme === 'dark' })
     await page.until(press('Details for Item 1'), 10000)
     await page.until(`Boolean(document.querySelector('#avoozl-drawer-title'))`, 10000)
     await settle(800)
   }
-  const shoot = async (name) => {
+  const shoot = async (name: string) => {
     const file = path.join(out, `${name}.png`)
     await page.screenshot(file)
     console.log(file)

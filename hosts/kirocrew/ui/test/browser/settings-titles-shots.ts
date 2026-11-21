@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Settings page titles in the full app
 // shell on fake data (harness ?page=app&roles=...): desktop (1280 px) and
 // phone (390 px), light and dark: <out>/<name>-<width>-<theme>.png.

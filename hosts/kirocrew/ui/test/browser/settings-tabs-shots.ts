@@ -10,8 +10,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildHarness, shotCss } from './build.ts'
 import { findChrome, launch } from './chrome.ts'
+import { head, lastItem, menu } from './shots.ts'
 
-// [name, nav label, inner tab, extra harness query].
 // Each page: shot name, Settings item, a tab inside it, and extra harness query.
 export type SettingsShot = [string, string, (string | null)?, Record<string, string>?]
 export const SETTINGS_PAGES: SettingsShot[] = [
@@ -38,14 +38,6 @@ export async function shootSettings(out: string, only: string[], pages: Settings
   try {
     const page = await browser.page()
     const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-    const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-    const menu = (width: number) =>
-      width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
-    const head = (width: number) =>
-      `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
-    // The last match, in case another section has a page of the same name.
-    const item = (width: number, text: string) =>
-      `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
     const tab = (key: string) => `(() => { const b = document.querySelector('[role=tablist] [data-tab=${JSON.stringify(key)}]'); if (b) b.click(); return true })()`
     const all = pages
     const shots = only.length ? all.filter(([name]) => only.includes(name)) : all
@@ -60,7 +52,7 @@ export async function shootSettings(out: string, only: string[], pages: Settings
             ghfull: '1',
             ...extra,
           })
-          const steps = [menu(width), head(width), item(width, label)]
+          const steps = [menu(width), head(width), lastItem(width, label)]
           if (inner) steps.push(tab(inner))
           const open = async (height: number) => {
             await page.open(url, { ...size, height })

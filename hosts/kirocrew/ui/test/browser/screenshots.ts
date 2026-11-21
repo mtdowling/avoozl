@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of each modal open on the harness page, at 320, 768 and 1280
 // px wide, light and dark: <out>/<modal>-<width>-<theme>.png.
 //
@@ -18,7 +17,7 @@ const SIZES = [
   [768, 1024],
   [1280, 800],
 ]
-const OPENERS = { 'add-plugin': 'Add plugin', confirm: 'Remove', 'stop-line': 'Stop the line' }
+const OPENERS: Record<string, string> = { 'add-plugin': 'Add plugin', confirm: 'Remove', 'stop-line': 'Stop the line' }
 const ALL = ['add-plugin', 'repo-edit', 'confirm', 'file-viewer', 'stop-line', 'crew', 'task-drawer', 'mark-done']
 
 const [out, ...asked] = process.argv.slice(2)

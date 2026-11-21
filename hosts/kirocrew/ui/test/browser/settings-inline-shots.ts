@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the Settings pages that edit in place, inside the full app
 // shell (?page=app&inline=1), at 1280 and 390 px, light and dark. Each shot
 // has one field edited, so the Save and Discard footer shows.
@@ -22,9 +21,12 @@ if (!chrome) {
   console.error('No Chrome found; set AVOOZL_CHROME.')
   process.exit(1)
 }
-const set = (selector, value) =>
+const set = (selector: string, value: string) =>
   `(() => { const el = document.querySelector(${JSON.stringify(selector)}); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
-const PAGES = {
+// Each page: its nav label, an input id to wait for (or a `wait`
+// expression), and an edit to make before the second shot.
+type Shot = { label: string; edit: string | null } & ({ ready: string } | { ready: null; wait: string })
+const PAGES: Record<string, Shot> = {
   delivery: { label: 'Autopilot', ready: null, wait: 'Boolean(document.querySelector(\'[data-radio-fold="avoozl-delivery-pr"]\'))', edit: null },
   models: { label: 'Models', ready: null, wait: "Boolean(document.querySelector('[data-models-settings]'))", edit: null },
   content: {
@@ -41,11 +43,11 @@ const names = asked.length ? asked : Object.keys(PAGES)
 fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
-const click = (selector, text) =>
+const click = (selector: string, text: string) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 try {
   const page = await browser.page()
-  const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+  const wait = (ms: number) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
   for (const name of names) {
     const spec = PAGES[name]
     for (const width of [1280, 390])
@@ -63,7 +65,7 @@ try {
         if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
           await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(300)
-        await page.until(spec.ready ? `Boolean(document.getElementById(${JSON.stringify(spec.ready)}))` : spec.wait)
+        await page.until(spec.ready !== null ? `Boolean(document.getElementById(${JSON.stringify(spec.ready)}))` : spec.wait)
         if (spec.edit) {
           await page.evaluate(spec.edit)
           await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)

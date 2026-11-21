@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-page screenshots of the real app on fake data (harness ?page=app),
 // one per top tab and Settings tab, at 1280 px wide, light and dark:
 // <out>/<name>-<theme>.png.
@@ -14,29 +13,32 @@ const TABS = ['Dashboard', 'Specs', 'Graph', 'Delivery', 'Flow', 'Conflicts', 'I
 const SETTINGS = ['Workspaces', 'Repositories', 'Plugins', 'Content rules', 'Flow', 'Autopilot']
 
 const { out, harness, browser } = await startShots('app-shots.mjs <out dir>')
-const slug = (s) => s.toLowerCase().replace(/[^a-z]+/g, '-')
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z]+/g, '-')
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 300))')
-  const click = (text, scope = 'document') =>
+  const click = (text: string, scope = 'document') =>
     `(() => { const b = [...${scope}.querySelectorAll('button')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
+  // The page `visit` last opened and its steps, so a shot can reopen it taller.
+  let lastUrl = ''
+  let lastSteps: string[] = []
   for (const theme of ['light', 'dark']) {
     const size = { width: 1280, height: 800, dark: theme === 'dark' }
-    const shoot = async (name) => {
+    const shoot = async (name: string) => {
       await settle()
-      const height = Math.min(4000, Math.ceil(await page.evaluate('document.documentElement.scrollHeight')))
-      await page.open(page.lastUrl, { ...size, height })
+      const height = Math.min(4000, Math.ceil(await page.evaluate<number>('document.documentElement.scrollHeight')))
+      await page.open(lastUrl, { ...size, height })
       await page.until(`Boolean(document.querySelector('[data-top-row]'))`)
-      for (const step of page.lastSteps) await page.evaluate(step)
+      for (const step of lastSteps) await page.evaluate(step)
       await settle()
       const file = path.join(out, `${name}-${theme}.png`)
       await page.screenshot(file)
       console.log(file)
     }
-    const visit = async (name, steps) => {
-      page.lastUrl = harness.url({ page: 'app', basic: '1', theme })
-      page.lastSteps = steps
-      await page.open(page.lastUrl, size)
+    const visit = async (name: string, steps: string[]) => {
+      lastUrl = harness.url({ page: 'app', basic: '1', theme })
+      lastSteps = steps
+      await page.open(lastUrl, size)
       await page.until(`Boolean(document.querySelector('[data-top-row]'))`)
       for (const step of steps) await page.evaluate(step)
       await shoot(name)
