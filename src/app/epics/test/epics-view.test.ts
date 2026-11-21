@@ -7,6 +7,7 @@ import { classifyOperation } from "../../api/operation-table.ts";
 import { APP_OPERATIONS } from "../../executors/kirocrew/app-backend.ts";
 import { demoOperations, installDemo } from "../../test/demo-fixture.ts";
 import { epicsView } from "../epics-view.ts";
+import type { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -36,7 +37,8 @@ test("with no epics and no merges the views are empty, not broken", () => {
     read: () => ({ epics: [], tasks: [] }),
     list: () => [],
   };
-  assert.deepEqual(epicsView(store, { repositories: [] }), {
+  // A stand-in with only the reads the view makes.
+  assert.deepEqual(epicsView(store as unknown as Store, { repositories: [] }), {
     epics: [],
     unprojected: [],
   });

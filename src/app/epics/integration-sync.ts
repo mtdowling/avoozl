@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Bringing the default branch into an epic's integration branch on a schedule
 // (RC16.6, design D21). GitHub's own merge call makes one merge commit on the
 // branch and moves it forward the ordinary way. Nothing here rewrites
@@ -14,48 +13,92 @@ import { ruleBranch } from "../github/github-branch-rules.ts";
 import { asJob } from "../github/github-jobs.ts";
 import { conflictRow, sharedFiles } from "../specs/integration-base.ts";
 import { specTasks } from "../specs/spec-tasks.ts";
+import type { Store } from "../store/store.ts";
 
 const META = "integrationSync";
 const DAY = 24 * 60 * 60 * 1000;
-const EVERY = { daily: DAY, weekly: 7 * DAY };
-const keyOf = (repository, branch) => `${repository}@${branch}`;
+const EVERY: Record<string, number> = { daily: DAY, weekly: 7 * DAY };
+const keyOf = (repository: string, branch: string) => `${repository}@${branch}`;
+
+type Plan = {
+  id: string;
+  spec?: string;
+  approvalId?: string;
+  deletedAt?: string;
+};
+// The GitHub policy fields the sync reads.
+type Policy = {
+  repositories?: Record<
+    string,
+    { landing?: { commitPrefix?: string }; [key: string]: unknown }
+  >;
+} | null;
+export type SyncTarget = {
+  spec?: string;
+  repository: string;
+  branch: string;
+  sync: string;
+};
+type Entry = {
+  state: "ok" | "conflict" | "error";
+  lastAt?: number;
+  error?: string;
+  files?: string[];
+  base?: string;
+};
+type SyncMeta = { entries: Record<string, Entry>; problems: string };
+// The GitHub calls the sync makes (with ruleBranch's and sharedFiles').
+type SyncGitHub = {
+  compareCommits(
+    repository: string,
+    base: string,
+    head: string,
+  ): Promise<{ ahead_by?: number }>;
+};
+type Notice = { channel: string; title: string; text: string };
 
 // The facts of the spec a plan was approved from, or null.
-function planManifest(store, plan) {
-  const files = store.get("approvals", plan?.approvalId)?.files;
+function planManifest(store: Store, plan: Plan) {
+  const files = store.get<{ id: string; files?: Record<string, string> }>(
+    "approvals",
+    plan?.approvalId,
+  )?.files;
   return !files || !specTasks(files) ? null : specFacts(files);
 }
 
 // { targets: [{spec, repository, branch, sync}], problems: [text] } from the
 // approved plans whose manifest names an integration branch. The repository
 // is the one the epic's leaf tasks name; it is never guessed from two.
-export function syncTargets(store, policy) {
-  const targets = [],
-    problems = [],
+export function syncTargets(store: Store, policy: Policy) {
+  const targets: SyncTarget[] = [],
+    problems: string[] = [],
     registered = Object.keys(policy?.repositories || {});
   const plans = store
-    .list("plans")
+    .list<Plan>("plans")
     .filter((plan) => plan.approvalId && !plan.deletedAt)
     .sort((a, b) => String(a.spec).localeCompare(String(b.spec)));
   for (const plan of plans) {
-    let manifest, wanted;
+    let manifest: Record<string, unknown> | null, wanted;
     try {
       manifest = planManifest(store, plan);
       wanted = integrationOf(manifest);
     } catch (error) {
-      problems.push(`${plan.spec}: ${error.message}`);
+      problems.push(`${plan.spec}: ${(error as Error).message}`);
       continue;
     }
-    if (!wanted) continue;
+    if (!wanted || !manifest) continue;
+    type Leaf = { kind?: string; repository?: string } | null;
     const named = [
       ...new Set(
-        Object.values(manifest.tasks || {})
+        (Object.values(manifest.tasks || {}) as Leaf[])
           .filter((entry) => entry?.kind !== "package" && entry?.repository)
           // A leaf names a repository ID or an owner/name; policy keys are owner/names.
           .map(
             (entry) =>
-              store.list("repositories").find((p) => p.id === entry.repository)
-                ?.github ?? entry.repository,
+              store
+                .list<{ id: string; github?: string }>("repositories")
+                .find((p) => p.id === entry!.repository)?.github ??
+              (entry!.repository as string),
           ),
       ),
     ];
@@ -84,15 +127,19 @@ export function syncTargets(store, policy) {
 // files, base}. A conflict or an error is looked at again on each tick; an
 // ok entry waits for its schedule.
 export async function syncStep(
-  store,
-  github,
-  targets,
-  { policy, now = Date.now(), problems = [] } = {},
+  store: Store,
+  github: SyncGitHub | null,
+  targets: SyncTarget[],
+  {
+    policy,
+    now = Date.now(),
+    problems = [],
+  }: { policy?: Policy; now?: number; problems?: string[] } = {},
 ) {
-  const notify = [],
-    errors = [],
-    old = store.getMeta(META) ?? { entries: {}, problems: "" },
-    next = { entries: {}, problems: problems.join("\n") };
+  const notify: Notice[] = [],
+    errors: string[] = [],
+    old = store.getMeta<SyncMeta>(META) ?? { entries: {}, problems: "" },
+    next: SyncMeta = { entries: {}, problems: problems.join("\n") };
   if (next.problems && next.problems !== old.problems) errors.push(...problems);
   for (const target of targets) {
     const { repository, branch, sync } = target,
@@ -100,7 +147,7 @@ export async function syncStep(
       before = old.entries?.[key];
     if (sync === "off" || !github) continue;
     next.entries[key] = before ?? { state: "ok" };
-    const say = (text) => {
+    const say = (text: string) => {
       if (before?.error !== text) errors.push(`${key}: ${text}`);
       next.entries[key] = { ...next.entries[key], error: text };
     };
@@ -131,7 +178,7 @@ export async function syncStep(
       }
       // A conflict is not tried again before its schedule comes round.
       if (wasConflict && !due) {
-        next.entries[key] = { ...before, error: undefined };
+        next.entries[key] = { ...before!, error: undefined };
         continue;
       }
       try {
@@ -145,7 +192,7 @@ export async function syncStep(
         });
         next.entries[key] = { state: "ok", lastAt: now, base };
       } catch (error) {
-        if (error.status !== 409) throw error;
+        if ((error as { status?: number }).status !== 409) throw error;
         const files = await sharedFiles(github, repository, branch, base).catch(
           () => before?.files ?? [],
         );
@@ -158,7 +205,7 @@ export async function syncStep(
           });
       }
     } catch (error) {
-      say(`GitHub could not be read: ${error.message}`);
+      say(`GitHub could not be read: ${(error as Error).message}`);
     }
   }
   store.setMeta(META, next);
@@ -166,8 +213,8 @@ export async function syncStep(
 }
 
 // The Needs you rows the last step left standing.
-export function syncNeedsYou(store) {
-  return Object.entries(store.getMeta(META)?.entries ?? {})
+export function syncNeedsYou(store: Store) {
+  return Object.entries(store.getMeta<SyncMeta>(META)?.entries ?? {})
     .filter(([, entry]) => entry.state === "conflict")
     .map(([key, entry]) =>
       conflictRow(

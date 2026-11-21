@@ -107,6 +107,13 @@ export function branchChecks(
     tasks = [],
     plugins = pluginChecksOf(store),
     now = Date.now(),
+  }: {
+    github: string;
+    branch: string;
+    head: string;
+    tasks?: string[];
+    plugins?: unknown;
+    now?: number;
   },
 ) {
   const repository = store
@@ -201,7 +208,10 @@ function fixText(run) {
 
 // What the Epics page shows beside a phase or a branch head (PK4.6): the
 // newest run per phase and per branch, with each check's result.
-export function stageResults(store) {
+export function stageResults(store): {
+  phases: Record<string, unknown>;
+  branches: Record<string, unknown>;
+} {
   const out = { phases: {}, branches: {} };
   for (const run of runs(store)) {
     const scope = run.scope;
