@@ -55,10 +55,10 @@ export interface Task {
   completion?: unknown;
   source?: SourceRef | null;
   sourceReferences?: SourceRef[];
-  approvedSource?: { text?: string } | null;
+  approvedSource?: { text?: string; hash?: string } | null;
   activity?: Activity | null;
   activityHistory?: Activity[];
-  dispatch?: { ready?: boolean } | null;
+  dispatch?: { ready?: boolean; state?: string; reason?: string } | null;
   manual?: boolean;
   manualDone?: { choice?: string; at?: string; [key: string]: unknown } | null;
   repository?: string | null;
@@ -76,6 +76,24 @@ export interface Task {
   createdAt?: string;
   updatedAt?: string;
   labeledIssue?: { repository?: string; number?: number } | null;
+  labelRank?: number;
+  // The intake item a task came from (src/app/intake/intake.ts).
+  intake?: {
+    source: string;
+    id: string;
+    link: string;
+    kind?: string;
+    labels: string[];
+    snapshotHash: string;
+    snapshotTitle: string;
+    rule: string | null;
+    actor: string | null;
+    eventId: string | null;
+    by: string;
+    confirmedHash?: string;
+    confirmedAt?: string;
+  };
+  intakeHold?: { key: string; actor: string | null; decision: string };
   acceptanceEvidence?: {
     derivedFrom?: string[];
     acceptedBy?: string;
