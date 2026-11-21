@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every skill reaches Avoozl only through the CLI and MCP tools (simplify
 // SM10.4, §D10): each `avoozl ...` command a skill names is a usage line of
 // `avoozl help`, and each `plans_*` tool it names is a tool the MCP server
@@ -18,10 +17,10 @@ const skills = fs
 
 // The literal words a usage line starts with: `runner report TASK_ID ...`
 // is `runner report`.
-const words = (usage) =>
+const words = (usage: string) =>
   usage
     .split(" ")
-    .filter((word, i, all) =>
+    .filter((_word, i, all) =>
       all.slice(0, i + 1).every((w) => /^[a-z][a-z-]*$/.test(w)),
     )
     .join(" ");
@@ -53,7 +52,8 @@ test("every avoozl command and plans_ tool a skill names exists", () => {
 });
 
 test("the runner skills name the claim, report, land, lint and graph calls", () => {
-  const text = (name) => skills.find(([file]) => file === `${name}.md`)[1];
+  const text = (name: string) =>
+    String(skills.find(([file]) => file === `${name}.md`)?.[1]);
   for (const call of [
     "avoozl next --claim",
     "avoozl runner report TASK done",

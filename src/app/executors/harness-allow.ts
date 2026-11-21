@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The per-repository command allow-list for unattended children (R94.4c,
 // design §4.28). Repository config names its build and test commands
 // (`sandbox.allowCommands`, each an argv list); they reach the harness's
@@ -44,7 +43,7 @@ const GIT = new Set(["git", "hub"]);
 // shell operators, quotes, globs or substitution.
 const PLAIN = /^[A-Za-z0-9_.=:/@+,%-]+$/;
 
-const program = (token) =>
+const program = (token: string) =>
   path
     .basename(token.replace(/\\/g, "/"))
     .toLowerCase()
@@ -54,27 +53,28 @@ const program = (token) =>
 // its own is not seen here; the sandbox (47.10) and Avoozl's own commit
 // after exit are the real guard, as a child's git directory is out of reach.
 // Why one argv list cannot be allowed, or null when it can.
-export function allowCommandRefusal(command) {
+export function allowCommandRefusal(command: unknown): string | null {
   if (!Array.isArray(command) || !command.length)
     return "must be a nonempty argv list of strings";
   if (command.some((token) => typeof token !== "string" || !token))
     return "must hold only nonempty strings";
-  const bad = command.find((token) => !PLAIN.test(token));
+  const words = command as string[];
+  const bad = words.find((token) => !PLAIN.test(token));
   if (bad !== undefined)
     return `holds ${JSON.stringify(bad)}; use plain words with no spaces, quotes or shell operators`;
-  if (command.some((token) => /push/i.test(token)))
+  if (words.some((token) => /push/i.test(token)))
     return "pushes; git push is never allowed for an unattended child";
-  const name = program(command[0]);
+  const name = program(words[0]);
   if (WRAPPERS.has(name))
-    return `runs ${command[0]}, which can run any command, git push included`;
+    return `runs ${words[0]}, which can run any command, git push included`;
   if (GIT.has(name)) {
     // A prefix with no fixed subcommand would cover `git push`; so would
     // config or alias options that rename one.
-    const sub = command.slice(1).find((token) => !token.startsWith("-"));
+    const sub = words.slice(1).find((token) => !token.startsWith("-"));
     if (!sub) return "allows every git subcommand, git push included";
     if (
-      command.some((token) => /^(-c|--config-env|--exec-path)/.test(token)) ||
-      command.some((token) => /^alias\./i.test(token))
+      words.some((token) => /^(-c|--config-env|--exec-path)/.test(token)) ||
+      words.some((token) => /^alias\./i.test(token))
     )
       return "sets git config or aliases, which can reach git push";
   }
@@ -83,15 +83,15 @@ export function allowCommandRefusal(command) {
 
 // Validate a repository's `sandbox.allowCommands`.
 export function sandboxAllowCommands(
-  value,
+  value: unknown,
   { source = "sandbox.allowCommands" } = {},
-) {
+): readonly (readonly string[])[] {
   if (value === undefined) return [];
   if (!Array.isArray(value)) fail(`${source} must be a list of argv lists.`);
   return value.map((command, index) => {
     const refusal = allowCommandRefusal(command);
     if (refusal) fail(`${source}[${index}] ${refusal}.`);
-    return Object.freeze([...command]);
+    return Object.freeze([...(command as string[])]);
   });
 }
 
@@ -99,7 +99,10 @@ export function sandboxAllowCommands(
 // template with each repository command as one argument, words joined by a
 // space. Checked again here so no path around the config check can pass a
 // push through.
-export function harnessAllow(definition, commands) {
+export function harnessAllow(
+  definition: { allow?: unknown },
+  commands: unknown,
+): string[] {
   if (!definition.allow) return [];
   const allowed = sandboxAllowCommands(commands);
   return fillHarnessArgv(definition.allow, {

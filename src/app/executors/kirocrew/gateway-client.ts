@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Calls from the app backend to the Kiro Crew gateway, on the app's own
 // token. The backend is the only Avoozl process that holds the app secret.
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -35,13 +34,15 @@ export function gatewayClient(env = process.env, request = fetch) {
       `${origin}/api/apps/${encodeURIComponent(app)}/token`,
       { method: "POST", headers: { "X-App-Secret": secret } },
     );
-    const value = await response.json().catch(() => ({}));
+    const value = (await response.json().catch(() => ({}))) as {
+      token?: unknown;
+    };
     if (!response.ok || typeof value.token !== "string")
       throw Error(`Kiro Crew refused the app token (${response.status}).`);
     return value.token;
   };
   return {
-    async call(route, init = {}) {
+    async call(route: string, init: RequestInit = {}) {
       for (let attempt = 0; ; attempt++) {
         const token = (held.token ||= await exchange());
         const join = route.includes("?") ? "&" : "?",

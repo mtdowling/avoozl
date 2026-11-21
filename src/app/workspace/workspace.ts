@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import path from "node:path";
 import { Store, fail } from "../store/store.ts";
@@ -9,7 +8,7 @@ import { REPOSITORY_CONFIG_SCHEMA_URL } from "../settings/config-schema.ts";
 import { specsDirectory } from "../specs/specs-path.ts";
 import { shellQuote } from "../executors/process-view.ts";
 
-const portable = (relative) => relative.split(path.sep).join("/");
+const portable = (relative: string) => relative.split(path.sep).join("/");
 
 export function emptySnapshot(name = "My workspace") {
   return {
@@ -46,7 +45,7 @@ const DEFAULT_PORT = 9428,
 
 // Whether a database file exists and holds a snapshot. A missing file is
 // not created.
-function hasSnapshot(dbPath) {
+function hasSnapshot(dbPath: string) {
   if (!fs.existsSync(dbPath)) return false;
   const store = new Store(dbPath);
   try {
@@ -57,13 +56,13 @@ function hasSnapshot(dbPath) {
 }
 
 // The refusal for a workspace with no snapshot, naming what to run.
-export function initializeFirst(root) {
+export function initializeFirst(root: string) {
   const where = shellQuote(root);
   return `Initialize this Avoozl workspace first: run avoozl init ${where}, then avoozl rebuild --workspace ${where}.`;
 }
 
 export function initializeWorkspace(
-  root,
+  root: string,
   {
     name = "My workspace",
     port = DEFAULT_PORT,
@@ -104,7 +103,7 @@ export function initializeWorkspace(
   }
   fs.mkdirSync(config.workspaceRoot, { recursive: true });
   // Forward slashes: .avoozl.json is shared, and every platform reads them.
-  const relative = (target) =>
+  const relative = (target: string) =>
       portable(path.relative(path.dirname(config.filename), target)),
     dbPath = relative(config.dbPath),
     documentsRoot = relative(config.plansRoot);

@@ -20,23 +20,23 @@ const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../..",
 );
-const skill = (name) =>
+const skill = (name: string) =>
   fs.readFileSync(
     path.join(root, "hosts", "kirocrew", "skills", name, "SKILL.md"),
     "utf8",
   );
-const section = (text, heading) => {
+const section = (text: string, heading: string) => {
   const start = text.indexOf(`## ${heading}\n`);
   assert.notEqual(start, -1, heading);
   const end = text.indexOf("\n## ", start + 1);
   return text.slice(start, end === -1 ? undefined : end);
 };
 // The first backticked cell of each table row in a section, header excluded.
-const firstColumn = (text) =>
+const firstColumn = (text: string) =>
   [...text.matchAll(/^\|[^|\n]*?\|\s*`([^`]+)`\s*\|$|^\|\s*`([^`]+)`\s*\|/gm)]
     .map((m) => m[1] ?? m[2])
     .filter(Boolean);
-const lastColumn = (text) =>
+const lastColumn = (text: string) =>
   [...text.matchAll(/^\|.*\|\s*`([a-z]+)`\s*\|$/gm)].map((m) => m[1]);
 
 test("avoozl-plugin lists the parts, kinds and contract versions the loader accepts", () => {
@@ -45,12 +45,12 @@ test("avoozl-plugin lists the parts, kinds and contract versions the loader acce
     lastColumn(section(text, "Pick the parts")).sort(),
     [...PARTS].sort(),
   );
-  const kinds = /The code kinds are (.+?)\./.exec(text)[1];
+  const kinds = /The code kinds are (.+?)\./.exec(text)?.[1];
   assert.deepEqual(
     [...kinds.matchAll(/`([a-z]+)`/g)].map((m) => m[1]).sort(),
     [...KINDS].sort(),
   );
-  const contracts = /supports contract version (.+?)\./.exec(text)[1];
+  const contracts = /supports contract version (.+?)\./.exec(text)?.[1];
   assert.deepEqual(
     [...contracts.matchAll(/`(\d+)`/g)].map((m) => Number(m[1])),
     SUPPORTED_CONTRACTS,

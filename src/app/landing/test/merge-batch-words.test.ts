@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // MB1.5: the words "train" and "integrator" do not appear on the page, in
 // the CLI help, in README.md or in docs/*.md. Dated records under
 // docs/research and docs/evidence are not checked.
@@ -16,15 +15,15 @@ const repo = path.join(
 const WORDS = /\b(trains?|integrators?)\b/i;
 
 // Lines of `text` that hold a retired word, with their numbers.
-export const retiredWords = (text) =>
+export const retiredWords = (text: string) =>
   text
     .split("\n")
-    .map((line, i) => [i + 1, line])
+    .map((line, i): [number, string] => [i + 1, line])
     .filter(([, line]) => WORDS.test(line));
 
-const files = (dir, pattern) =>
+const files = (dir: string, pattern: RegExp) =>
   fs
-    .readdirSync(path.join(repo, dir), { recursive: true })
+    .readdirSync(path.join(repo, dir), { recursive: true, encoding: "utf8" })
     .filter((name) => pattern.test(name) && !name.includes("node_modules"))
     .map((name) => path.join(dir, name));
 
@@ -43,7 +42,11 @@ test("the page, the help, the README and the docs do not say train or integrator
       file,
     );
   assert.ok(HELP_GROUPS.length > 3);
-  assert.deepEqual(retiredWords(helpText("all")), [], "avoozl help all");
+  assert.deepEqual(
+    retiredWords(String(helpText("all"))),
+    [],
+    "avoozl help all",
+  );
 });
 
 test("the check finds a planted word", () => {

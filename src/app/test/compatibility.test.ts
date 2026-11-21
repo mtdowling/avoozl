@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // No backward compatibility until Avoozl has other users (AGENTS.md): only
 // AVOOZL_* variables and the `avoozl` command, the narrow plans_* tools a
 // role names, and an unknown top-level settings key is a load error.
@@ -17,8 +16,8 @@ const root = fileURLToPath(new URL("../../../", import.meta.url)),
   cli = path.join(root, "cli.ts");
 
 // A child environment with no Avoozl-family variable from this machine.
-function cleanEnv(dir, extra = {}) {
-  const env = {
+function cleanEnv(dir: string, extra = {}) {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     XDG_CONFIG_HOME: path.join(dir, "config"),
     XDG_STATE_HOME: path.join(dir, "state"),
@@ -29,7 +28,7 @@ function cleanEnv(dir, extra = {}) {
   return { ...env, ...extra };
 }
 
-function setup(name) {
+function setup(name: string) {
   const dir = temporaryDirectory("avoozl-compat-"),
     workspace = path.join(dir, "workspace");
   initializeWorkspace(workspace, { name });
@@ -66,7 +65,9 @@ test("the stdio MCP server lists no old plan-file tool", () => {
     .split("\n")
     .map((line) => JSON.parse(line))
     .find((message) => message.id === 2);
-  const names = new Set(listed.result.tools.map((tool) => tool.name));
+  const names = new Set(
+    listed.result.tools.map((tool: { name: string }) => tool.name),
+  );
   for (const name of [
     "plans_query",
     "plans_get_task",
@@ -102,7 +103,8 @@ test("only AVOOZL_* variables name the workspace and its paths", () => {
       workspace,
       name,
     );
-  const db = (env) => workspaceConfig({ workspace, env: cleanEnv(dir, env) });
+  const db = (env: NodeJS.ProcessEnv) =>
+    workspaceConfig({ workspace, env: cleanEnv(dir, env) });
   assert.equal(
     db({ AVOOZL_DB: "a.sqlite" }).dbPath,
     path.resolve(workspace, "a.sqlite"),
@@ -124,7 +126,7 @@ test("an unknown top-level key fails to load, naming the file and key", () => {
   fs.writeFileSync(file, JSON.stringify({ ...value, ahpPort: 9765 }));
   assert.throws(
     () => workspaceConfig({ workspace, env: {} }),
-    (error) =>
+    (error: Error) =>
       error.message.includes('"ahpPort"') && error.message.includes(file),
   );
 });
