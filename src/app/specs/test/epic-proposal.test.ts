@@ -1,19 +1,20 @@
-// @ts-nocheck: typing debt
 // rc-17.2 and rc-17.3: a cross-repository proposal is a parent spec (an epic
 // folder) with one sub-spec per repository. Local files and fake data only.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import { lintSpec, readSpecFolder, taskToken } from "../spec-plans.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { writeSpec } from "../../test/spec-fixture.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import type { PlanDraft } from "../../test/view-shapes.ts";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-const leaf = (extra = {}) => ({
+const leaf = (extra: Record<string, unknown> = {}) => ({
   kind: "leaf",
   summary: "Do it.",
   acceptance: ["It works."],
@@ -22,17 +23,19 @@ const leaf = (extra = {}) => ({
   ...extra,
 });
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const { root, store } = fixture(t);
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 
 // A sub-spec for one repository, a member of `parent`.
 function sub(
-  root,
-  name,
-  repository,
-  entries = { "sub-1": leaf({ repository }) },
+  root: string,
+  name: string,
+  repository: string,
+  entries: Record<string, ReturnType<typeof leaf>> = {
+    "sub-1": leaf({ repository }),
+  },
 ) {
   writeSpec(root, name, {
     "requirements.md": `---\nepic: parent\n---\n# ${name}\n\nThe goal.\n`,
@@ -42,7 +45,7 @@ function sub(
     "avoozl/manifest.json": JSON.stringify({ tasks: entries }, null, 2),
   });
 }
-function parent(root, members, entryExtra = {}) {
+function parent(root: string, members: string[], entryExtra = {}) {
   writeSpec(root, "parent", {
     "requirements.md": "# Parent\n\nShared requirements: R1 and R2.\n",
     "design.md": "# Design\n\nOne sub-spec per repository.\n",
@@ -62,7 +65,7 @@ function parent(root, members, entryExtra = {}) {
     ),
   });
 }
-const errors = (quality) =>
+const errors = (quality: ReturnType<typeof lintSpec>) =>
   quality.diagnostics.filter((d) => d.severity === "error");
 
 test("two sub-specs approve separately", async (t) => {
@@ -78,7 +81,7 @@ test("two sub-specs approve separately", async (t) => {
   sub(root, "repo-b", "repo-b", { "b-1": leaf({ repository: "repo-b" }) });
   const approvals = [];
   for (const spec of ["repo-a", "repo-b"]) {
-    const plan = await ops.execute("plan.create", {
+    const plan = await ops.execute<PlanDraft>("plan.create", {
       spec,
       context: { repositoryId: "code" },
     });

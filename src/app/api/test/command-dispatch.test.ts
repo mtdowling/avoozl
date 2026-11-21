@@ -1,9 +1,9 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { startAppBackend } from "../../executors/kirocrew/app-backend.ts";
 import { commandContext, dispatchCommand } from "../command-dispatch.ts";
 import { workspaceConfig } from "../../settings/config.ts";
@@ -12,10 +12,23 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 import { Store } from "../../store/store.ts";
 import { SECRET, sign, isolatedEnv } from "../../test/signed-principal.ts";
 
+// What either server answers: a status and a JSON body.
+interface Reply {
+  status: number;
+  body: { result?: unknown; error?: string };
+}
+
+// A reply's result object.
+function resultOf(reply: Reply): Record<string, unknown> {
+  const { result } = reply.body;
+  assert.ok(result && typeof result === "object");
+  return Object.fromEntries(Object.entries(result));
+}
+
 const OWNER = { kind: "owner-session", ownerId: "local" };
 
 // One workspace served two ways over the same database.
-async function both(t) {
+async function both(t: TestContext) {
   const root = temporaryDirectory(),
     served = path.join(root, "served"),
     home = path.join(root, "home"),
@@ -35,14 +48,14 @@ async function both(t) {
       slotReader: null,
       rowReader: null,
       usageReader: null,
-      modelSwitcher: null,
-      modelReader: null,
-      crewReader: null,
       sessionStopper: null,
     });
   t.after(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));
-  const base = `http://127.0.0.1:${server.address().port}`,
+  const address = server.address();
+  if (!address || typeof address === "string")
+    throw Error("The backend has no port.");
+  const base = `http://127.0.0.1:${address.port}`,
     context = commandContext({
       host: "standalone",
       config,
@@ -50,7 +63,7 @@ async function both(t) {
       registryOptions,
     });
   t.after(() => context.close());
-  const viaBackend = async (value, kind) => {
+  const viaBackend = async (value: unknown, kind?: string): Promise<Reply> => {
     const body = JSON.stringify(value),
       response = await fetch(base + "/api/command", {
         method: "POST",
@@ -60,10 +73,12 @@ async function both(t) {
         },
         body,
       });
-    return { status: response.status, body: await response.json() };
+    // The endpoint's JSON reply.
+    const parsed = (await response.json()) as Reply["body"];
+    return { status: response.status, body: parsed };
   };
-  const direct = (request) =>
-    dispatchCommand({ principal: OWNER, request, context });
+  const direct = (request: Parameters<typeof dispatchCommand>[0]["request"]) =>
+    dispatchCommand({ principal: OWNER, request, context }) as Promise<Reply>;
   return { viaBackend, direct };
 }
 
@@ -71,7 +86,7 @@ test("one write and one observe operation give the same result through both serv
   const { viaBackend, direct } = await both(t);
   const observe = { operation: "workspaces.list" },
     hash = async () =>
-      (await direct({ operation: "activity.settings.get" })).body.result.hash,
+      resultOf(await direct({ operation: "activity.settings.get" })).hash,
     write = async () => ({
       operation: "activity.settings.update",
       input: { retentionDays: 30, expectedHash: await hash() },
@@ -82,11 +97,11 @@ test("one write and one observe operation give the same result through both serv
   assert.deepEqual(b, a);
   const seen = await viaBackend(observe),
     through = await direct(observe);
-  assert.equal(seen.body.result.host, "kirocrew");
-  assert.equal(through.body.result.host, "standalone");
+  assert.equal(resultOf(seen).host, "kirocrew");
+  assert.equal(resultOf(through).host, "standalone");
   assert.deepEqual(
-    { ...through.body.result, host: undefined },
-    { ...seen.body.result, host: undefined },
+    { ...resultOf(through), host: undefined },
+    { ...resultOf(seen), host: undefined },
   );
 });
 
@@ -136,7 +151,7 @@ test("a page read refuses an uninitialized workspace and init then fixes it", as
     });
   const refused = await view();
   assert.equal(refused.status, 503);
-  assert.match(refused.body.error, /avoozl init .*avoozl rebuild/);
+  assert.match(refused.body.error ?? "", /avoozl init .*avoozl rebuild/);
   assert.equal(fs.existsSync(config.dbPath), false);
   // A schema with no snapshot, as an older read left behind.
   new Store(config.dbPath).close();
