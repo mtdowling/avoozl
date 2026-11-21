@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The pieces the machine `epicContext` block and a plugin's `context` part
 // share (epic-context EC2.1, EC3.2): repositories, read folders, an MCP
 // server's command and content rule set IDs. Each check names the key that
@@ -21,12 +20,16 @@ export const MAX = Object.freeze({
   sets: 20,
 });
 
-export const record = (value) =>
+export const record = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 // Refuse a key that is not in `known`, naming it. A credential-like key is
 // said to be one, as a plugin's config says.
-export function onlyKeys(value, known, where) {
+export function onlyKeys(
+  value: unknown,
+  known: string[],
+  where: string,
+): asserts value is Record<string, unknown> {
   if (!record(value)) fail(`${where} must be an object.`);
   for (const key of Object.keys(value))
     if (!known.includes(key))
@@ -37,7 +40,7 @@ export function onlyKeys(value, known, where) {
       );
 }
 
-export function checkRepos(value, where) {
+export function checkRepos(value: unknown, where: string): string[] {
   if (
     !Array.isArray(value) ||
     value.length < 1 ||
@@ -56,14 +59,14 @@ export function checkRepos(value, where) {
 
 // A folder: absolute, or under `~/`. `{ask:NAME}` placeholders are allowed
 // only before they are filled (`filled: false`).
-export function folderProblem(text, { filled = true } = {}) {
-  if (typeof text !== "string" || !text || text.length > 1000)
+export function folderProblem(value: unknown, { filled = true } = {}) {
+  if (typeof value !== "string" || !value || value.length > 1000)
     return "must be a folder path of 1 to 1000 characters";
   const ask = /\{ask:[A-Za-z][A-Za-z0-9]{0,39}\}/g;
   // A path that starts with a placeholder is absolute once it is filled; the
   // answer is checked when it is given.
-  const open = !filled && /^\{ask:/.test(text);
-  if (!filled) text = text.replace(ask, "x");
+  const open = !filled && /^\{ask:/.test(value);
+  const text = filled ? value : value.replace(ask, "x");
   if (/[\u0000-\u001f]/.test(text)) return "must hold no control characters";
   if (!open && !(text.startsWith("~/") || path.isAbsolute(text)))
     return "must be absolute or start with ~/";
@@ -71,7 +74,11 @@ export function folderProblem(text, { filled = true } = {}) {
   return null;
 }
 
-export function checkFolders(value, where, { max = MAX.reads } = {}) {
+export function checkFolders(
+  value: unknown,
+  where: string,
+  { max = MAX.reads } = {},
+): string[] {
   if (!Array.isArray(value) || value.length > max)
     fail(`${where} must list up to ${max} folders.`);
   value.forEach((entry, i) => {
@@ -81,13 +88,16 @@ export function checkFolders(value, where, { max = MAX.reads } = {}) {
   return [...value];
 }
 
-export function checkAbout(value, where) {
+export function checkAbout(
+  value: unknown,
+  where: string,
+): asserts value is string {
   if (typeof value !== "string" || !value.trim() || value.length > 200)
     fail(`${where}.about must be 1 to 200 characters.`);
 }
 
 // An argv list. A single shell string is refused.
-export function checkCommand(value, where) {
+export function checkCommand(value: unknown, where: string): string[] {
   if (typeof value === "string")
     fail(
       `${where}.command must be an argument list, not a shell string. Write ["program", "arg"].`,
@@ -109,7 +119,7 @@ export function checkCommand(value, where) {
   return [...value];
 }
 
-export function checkEnvNames(value, where) {
+export function checkEnvNames(value: unknown, where: string): string[] {
   if (
     !Array.isArray(value) ||
     value.length > 50 ||
@@ -119,14 +129,14 @@ export function checkEnvNames(value, where) {
   return [...value];
 }
 
-export function checkAlias(alias, where) {
+export function checkAlias(alias: string, where: string) {
   if (!ALIAS.test(alias))
     fail(
       `${where} alias ${alias} is not a name. Use lowercase letters, digits and dashes, starting with a letter.`,
     );
 }
 
-export function checkContentSets(value, where) {
+export function checkContentSets(value: unknown, where: string): string[] {
   if (
     !Array.isArray(value) ||
     value.length > MAX.sets ||
@@ -139,8 +149,11 @@ export function checkContentSets(value, where) {
 
 // Whether a repository (its GitHub owner/name and its registered ID) is one
 // of `repos`. A repository with no GitHub remote matches only by its ID.
-export function repositoryMatches(repos, { github = null, id = null }) {
-  const lower = (text) => String(text).toLowerCase();
+export function repositoryMatches(
+  repos: string[],
+  { github = null, id = null }: { github?: string | null; id?: string | null },
+) {
+  const lower = (text: unknown) => String(text).toLowerCase();
   return repos.some((pattern) => {
     if (!pattern.includes("/")) return id !== null && pattern === id;
     if (!github) return false;
