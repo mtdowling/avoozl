@@ -40,6 +40,9 @@ export const APP_OPERATIONS = new Set([
   "chat.context",
   "graph.view",
   "delivery.view",
+  // In flight's claim branches and this machine's lanes (simplify §D13).
+  "claims.view",
+  "lanes.view",
   "conflicts.view",
   "radar.releasequeue",
   "epics.view",

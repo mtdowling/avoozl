@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { MAX_SHOWN, optionItems, pickIndex, pickKey, pickLabel, pickMatches } from '../src/picker.ts'
-import { FULL_STOP_WARNING, PULL_KINDS, bannerText, emptyPull, toPull } from '../src/flow-api.ts'
+import { FULL_STOP_WARNING, PULL_KINDS, bannerText, emptyPull, toPull } from '../src/line-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 

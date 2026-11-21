@@ -59,6 +59,9 @@ export interface Repository {
   // How its checks run (Settings > Repository setup > Landing); older
   // backends omit it.
   isolation?: Partial<Isolation> | null
+  // Spec issue label filters and claim stale hours (simplify §D3, §D5).
+  labels?: { require?: string[]; exclude?: string[] } | null
+  claims?: { staleHours?: number } | null
 }
 
 export interface DetectedCheckout {

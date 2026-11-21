@@ -567,6 +567,26 @@ test("creating repository JSON materializes already-applied non-secret settings"
   assert.deepEqual(configuration.metadata().pending, []);
 });
 
+test("a saved repository row keeps its claims and labels in .avoozl.json", (t) => {
+  const { root, store } = fixture(t),
+    configuration = new RepositorySettings(store, { workspaceRoot: root });
+  configuration.updateExecutionRepository({
+    id: "kept",
+    root: path.join(root, "code"),
+    baseBranch: "main",
+    checks: [],
+    claims: { staleHours: 6 },
+    labels: { require: ["avoozl"] },
+  });
+  const saved = JSON.parse(
+    fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
+  ).repositories.kept;
+  assert.deepEqual(
+    [saved.claims, saved.labels],
+    [{ staleHours: 6 }, { require: ["avoozl"] }],
+  );
+});
+
 test("repository removal clears persisted configuration and records the action", async (t) => {
   const { root, store } = fixture(t),
     configuration = new RepositorySettings(store, { workspaceRoot: root }),

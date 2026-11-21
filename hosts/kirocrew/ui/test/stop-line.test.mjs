@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { MAX_REASON, PULL_SCOPES, bannerText, emptyPull, scopeText, toPull } from '../src/flow-api.ts'
+import { MAX_REASON, PULL_SCOPES, bannerText, emptyPull, scopeText, toPull } from '../src/line-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
@@ -66,7 +66,7 @@ test('the In flight heading has the Stop the line icon with a stopped state, and
   assert.match(dialog, /\{stopped \? 'Line stopped' : 'Stop the line'\}/)
   assert.match(dialog, /\{\.\.\.\(stopped \? STOPPED : FILL\)\}\s*css-padding="4px-6px"/)
   assert.match(dialog, /<Box as="span" srOnly>\s*\{stopped \? 'Line stopped' : 'Stop the line'\}\s*<\/Box>/)
-  assert.match(dialog, /filter\(\(stop\) => !stop\.closedAt\)/)
+  assert.match(source('line-api.ts'), /filter\(\(stop\) => !stop\.closedAt\)/)
   assert.match(dialog, /lineChanged\(\)/)
   assert.match(banner, /onChanged\?\.\(\)\n\s*lineChanged\(\)/)
   assert.match(dialog, /<RadioFold/, 'scope is a radio fold-out group')

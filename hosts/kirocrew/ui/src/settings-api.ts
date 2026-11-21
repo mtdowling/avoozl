@@ -670,3 +670,29 @@ export const valueSource = (value: string, fallback: string, unit = '') =>
 export function settingsTitle(tab: string, label: string, workspaceName?: string | null): string {
   return tab === 'workspaces' || !workspaceName ? label : `${workspaceName}: ${label}`
 }
+
+export interface SpecIssuesForm {
+  require: string
+  exclude: string
+  staleHours: string
+}
+
+// A repository's Spec issues panel (Settings > Repository setup > GitHub):
+// labels.require, labels.exclude and claims.staleHours as typed text.
+export const specIssuesForm = (repository: { labels?: { require?: string[]; exclude?: string[] } | null; claims?: { staleHours?: number } | null }): SpecIssuesForm => ({
+  require: (repository.labels?.require ?? []).join(', '),
+  exclude: (repository.labels?.exclude ?? []).join(', '),
+  staleHours: repository.claims?.staleHours === undefined ? '' : String(repository.claims.staleHours),
+})
+
+// Blank fields clear their key; a typed stale hours that is not a whole
+// number is sent as typed, so the backend's message names the setting.
+export function specIssuesInput(form: SpecIssuesForm) {
+  const require = splitList(form.require),
+    exclude = splitList(form.exclude),
+    hours = count(form.staleHours)
+  return {
+    labels: require || exclude ? { ...(require ? { require } : {}), ...(exclude ? { exclude } : {}) } : null,
+    claims: hours === undefined ? null : { staleHours: hours },
+  }
+}

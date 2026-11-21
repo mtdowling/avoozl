@@ -19,7 +19,7 @@ import { InfoTip, SmallBtn } from './ui/controls.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { modelOptions } from './flow-api.ts'
+import { modelOptions } from './models-api.ts'
 import {
   DEFAULT_AGENTS,
   PROVED_TIP,

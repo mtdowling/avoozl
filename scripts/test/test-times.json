@@ -30,7 +30,6 @@
     "hosts/kirocrew/ui/test/host-classes.test.mjs": 260,
     "hosts/kirocrew/ui/test/in-flight-links.test.mjs": 510,
     "hosts/kirocrew/ui/test/in-flight-process.test.mjs": 523,
-    "hosts/kirocrew/ui/test/intake-sources.test.mjs": 502,
     "hosts/kirocrew/ui/test/list-detail.test.mjs": 322,
     "hosts/kirocrew/ui/test/manual-notes.test.mjs": 365,
     "hosts/kirocrew/ui/test/markdown.test.mjs": 361,

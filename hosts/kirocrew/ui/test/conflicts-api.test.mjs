@@ -12,6 +12,9 @@ test('every kind gets an action or a plain reason why it has none', () => {
     [item('stale-session', 's', { slot: 'slot-1' }), 'dismiss', null],
     [item('stale-session', 'g', { slot: 'slot-2', authority: 'github' }), 'dismiss', null],
     [item('needs-human', 'g', { reason: 'review', authority: 'github' }), null, /github owns/],
+    [item('needs-human', 'm', { reason: 'manual-ready' }), null, null],
+    [item('needs-human', 'l', { reason: 'line-stopped', authority: 'avoozl' }), null, null],
+    [item('needs-human', 'p', { reason: 'plugin-approval', authority: 'avoozl' }), null, null],
   ]
   for (const [entry, action, reason] of cases) {
     assert.equal(settleActionOf(entry), action, `${entry.kind} ${entry.taskId}`)

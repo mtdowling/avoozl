@@ -111,7 +111,7 @@ function helperHash(value, id) {
 // `claims.staleHours` (simplify §D3): hours without a commit before a claim
 // branch shows as stale.
 export const CLAIMS_KEYS = Object.freeze(["staleHours"]);
-function claimsOf(value, id) {
+export function claimsOf(value, id) {
   if (
     !record(value) ||
     Object.keys(value).some((key) => !CLAIMS_KEYS.includes(key))
@@ -129,7 +129,7 @@ function claimsOf(value, id) {
 // `labels.require` and `labels.exclude` (simplify §D5): label names on a
 // spec issue, read by label-filters.mjs.
 export const LABELS_KEYS = Object.freeze(["require", "exclude"]);
-function labelsOf(value, id) {
+export function labelsOf(value, id) {
   if (
     !record(value) ||
     Object.keys(value).some((key) => !LABELS_KEYS.includes(key))
@@ -302,7 +302,8 @@ function executorInput(value, id) {
   return out;
 }
 
-// The executor settings of a stored repository, as saved.
+// The executor, isolation, claim and label settings of a stored
+// repository, as saved.
 const executorSettings = (repository) => ({
   ...(repository.executor ? { executor: repository.executor } : {}),
   ...(repository.harness ? { harness: repository.harness } : {}),
@@ -311,6 +312,12 @@ const executorSettings = (repository) => ({
     : {}),
   ...(repository.isolation
     ? { isolation: structuredClone(repository.isolation) }
+    : {}),
+  ...(Object.keys(repository.claims ?? {}).length
+    ? { claims: structuredClone(repository.claims) }
+    : {}),
+  ...(Object.keys(repository.labels ?? {}).length
+    ? { labels: structuredClone(repository.labels) }
     : {}),
 });
 

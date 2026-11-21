@@ -50,6 +50,10 @@ const tools = {
     actions: {
       graph: ["graph.view", "the dependency graph, optionally one plan"],
       delivery: ["delivery.view", "delivery columns"],
+      claims: [
+        "claims.view",
+        "every claim branch: task, holder, head, age and whether it is stale",
+      ],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
       log: ["workspace.tick.log", "recent tick log"],
       health: ["workspace.tick.health", "tick health"],

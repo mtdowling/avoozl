@@ -426,6 +426,57 @@ export interface EpicView {
   decisions: { taskId: string; title: string; decision: string; plan: string }[]
 }
 
+export interface IntegrationBranch {
+  key: string
+  repository: string
+  branch: string
+  head: string | null
+  base: string | null
+  behind: number | null
+  checks: 'green' | 'red' | 'pending' | null
+  tasksMerged: number
+  tasksTotal: number
+  accepted: boolean
+  landing: { head: string; approvedBy: string; at: string } | null
+  error: string | null
+  readAt: number | null
+}
+
+// One line per branch: tasks merged, distance behind the default branch, and the head's checks.
+export function branchLine(row: IntegrationBranch): string {
+  const behind = row.behind === null ? 'distance unknown' : row.behind === 0 ? `level with ${row.base}` : `${row.behind} behind ${row.base}`
+  const checks = row.checks ? `head checks ${row.checks}` : 'head not read yet'
+  return `${row.tasksMerged} of ${row.tasksTotal} tasks merged · ${behind} · ${checks}${row.accepted ? ' · accepted' : ''}`
+}
+
+// One claim branch (claims.view, simplify §D3): its task, who holds it,
+// its head commit and age, and whether it is stale.
+export interface ClaimRow {
+  repository: string
+  branch: string
+  spec: string
+  task: string
+  title: string | null
+  holder: string
+  head: string | null
+  at: string | null
+  ageHours: number | null
+  stale: boolean
+}
+
+// One lane on this machine (lanes.view, simplify §D22.3). `open` is the
+// command or chat that opens its session.
+export interface LaneRow {
+  lane: string
+  role: string
+  header: string
+  harness: string | null
+  state: string
+  task: string | null
+  slot: string | null
+  open: string | null
+}
+
 export function viewsClient(api: AppApi) {
   const run = async <T>(operation: string, input: Record<string, unknown>, workspaceId: string, expectedRevision?: number) => {
     const reply = await api.post<{ result: T }>(COMMAND_PATH, {
@@ -440,6 +491,11 @@ export function viewsClient(api: AppApi) {
     // Send message on a `process` session (R98.2): queued for the supervisor.
     sendSession: (workspaceId: string, slot: string, text: string) =>
       run<{ id: string; state: 'queued'; slot: string; taskId: string }>('session.send', { slot, text }, workspaceId),
+    // Integration branches (RC16.8) and the person-only landing approval (RC16.6).
+    branches: (workspaceId: string) => run<{ branches: IntegrationBranch[] }>('integration.view', {}, workspaceId),
+    land: (workspaceId: string, repository: string, branch: string, head: string) => run<unknown>('integration.land', { repository, branch, head }, workspaceId),
+    claims: (workspaceId: string) => run<{ claims: ClaimRow[] }>('claims.view', {}, workspaceId).then((r) => r.claims),
+    lanes: (workspaceId: string) => run<{ lanes: LaneRow[] }>('lanes.view', {}, workspaceId).then((r) => r.lanes),
     graph: (workspaceId: string, filter: GraphFilter = {}) => {
       const input: Record<string, unknown> = {}
       for (const key of ['epic', 'phase', 'repository', 'status', 'plan', 'spec'] as const) if (filter[key]) input[key] = filter[key]

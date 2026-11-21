@@ -21,6 +21,8 @@ export function workspaceRepositories(store) {
       isolation: repository.isolation
         ? structuredClone(repository.isolation)
         : null,
+      labels: repository.labels ? structuredClone(repository.labels) : null,
+      claims: repository.claims ? structuredClone(repository.claims) : null,
       queue: {
         enabled: false,
         issues: false,

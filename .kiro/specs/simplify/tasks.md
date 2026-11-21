@@ -118,8 +118,8 @@ merge, shown in chat and never committed.
 
 ## Phase 5: The page
 
-- [ ] `sim-5.1` Six views [SM13.1, SM13.2, SM13.4] (§D13, §D15)
-  - The nav lists Plans, Graph, In flight, Needs you, Activity and Settings; In flight shows each claim branch with holder, session, head, checks and pull request, and each lane from `lanes.view` with its role, state, task and an Open action that opens the chat or copies the command (§D22.3); Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
+- [x] `sim-5.1` Six views [SM13.1, SM13.2, SM13.4] (§D13, §D15)
+  - The nav lists Specs, Graph, In flight, Needs you, Activity and Settings; In flight shows each claim branch with holder, session, head, checks and pull request, and each lane from `lanes.view` with its role, state, task and an Open action that opens the chat or copies the command (§D22.3); Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
   - Every group §D15 marks cut is gone with its API file and tests, and `npm run test:ui` passes
   - The owner has seen phone and desktop, light and dark screenshots of each view
 - [ ] `sim-5.2` Run in a chat [SM13.3] (§D13)

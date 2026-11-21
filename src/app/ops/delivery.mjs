@@ -15,7 +15,7 @@ import { deliverNotifications } from "../tick/notifications.mjs";
 import { stampPrompts } from "../api/operation-support.mjs";
 import { deliveryView } from "../api/page-views.mjs";
 import { claimNext, nextView } from "../workers/runner.mjs";
-import { deleteClaim } from "../workers/claims.mjs";
+import { claimsView, deleteClaim } from "../workers/claims.mjs";
 import { lanesView, resumeLane } from "../sessions/lane-sessions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { processSessionDetails } from "../executors/process-view.mjs";
@@ -240,6 +240,16 @@ export const entries = [
         laneLimit:
           readDeliveryPolicy(this.workspaceRoot).delivery?.concurrency ?? null,
       };
+    },
+  },
+  // The claim branches in flight (simplify §D13), from the cache.
+  {
+    name: "claims.view",
+    class: "observe",
+    github: "check-in",
+    policy: routed,
+    handler({}) {
+      return { claims: claimsView(this.store) };
     },
   },
   // This machine's lanes (simplify §D22.3): each lane's role, harness,

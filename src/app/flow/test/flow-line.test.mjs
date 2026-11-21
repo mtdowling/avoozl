@@ -5,7 +5,12 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { linePausedTaskIds } from "../flow.mjs";
-import { findCulprit, heldByStop, watchLine } from "../flow-line.mjs";
+import {
+  findCulprit,
+  heldByStop,
+  lineNeedsYou,
+  watchLine,
+} from "../flow-line.mjs";
 import { runLocalChecks } from "../flow-checks.mjs";
 import { deliveryWorkspace, git, leaf } from "../../test/delivery-fixture.mjs";
 
@@ -93,6 +98,17 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   assert.equal(stop.culprit, "a1");
   assert.equal(stop.commit, red);
   assert.equal(stop.fixTaskId, "a1.fix-1");
+  // Needs you has one row for the stop (simplify §D13).
+  assert.deepEqual(
+    lineNeedsYou(s.store).map((item) => [item.reason, item.taskId, item.title]),
+    [
+      [
+        "line-stopped",
+        "a1.fix-1",
+        "Line stopped: node check.mjs fails on main",
+      ],
+    ],
+  );
   const fix = s.store.read().tasks.find((x) => x.id === "a1.fix-1");
   assert.match(fix.summary, /revert the culprit commit/);
   assert.match(
@@ -127,6 +143,7 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   assert.match(resumed.notify[0].title, /Line green/);
   const closed = s.store.get("flow_stops", stop.id);
   assert.ok(closed.closedAt && closed.timeToFixMs >= 0);
+  assert.deepEqual(lineNeedsYou(s.store), []);
   assert.equal(linePausedTaskIds(s.store).size, 0);
   assert.equal(
     s.store.read().tasks.find((x) => x.id === "a1").integration.commit,

@@ -47,6 +47,8 @@ import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { highlightLanguages } from "../settings/highlight-languages.mjs";
 import { landingNeedsYou } from "../epics/integration-head.mjs";
 import { pluginCheckNeedsYou } from "../plugins/plugin-checks.mjs";
+import { pluginApprovalNeedsYou } from "../plugins/plugins.mjs";
+import { lineNeedsYou } from "../flow/flow-line.mjs";
 import { contextNeedsYou } from "../workers/epic-context.mjs";
 import {
   phaseNeedsYou,
@@ -355,7 +357,8 @@ export const entries = [
           detail:
             "Turn it on in Settings › Autopilot, or run avoozl next --claim.",
         });
-      view.items.push(...landingNeedsYou(store));
+      view.items.push(...landingNeedsYou(store), ...lineNeedsYou(store, data));
+      view.items.push(...pluginApprovalNeedsYou(this.pluginOptions));
       view.items.push(...pluginCheckNeedsYou(store), ...contextNeedsYou(store));
       view.items.push(...phaseNeedsYou(store));
       view.items.push(...requiredCheckNeedsYou(store));

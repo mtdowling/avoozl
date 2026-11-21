@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
-import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
 import { EmptyState } from './ui/EmptyState'
 import { FieldGroup } from './ui/FieldGroup.tsx'
@@ -188,7 +187,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
 
 // Settings > Plugins (design §4.8, R34.9): every declared plugin with its
 // kinds, version, approval and health; Add plugin, approve, disable, remove.
-export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepositories }: { workspaceId: string; onOpenGitHub?: () => void; onOpenRepositories?: () => void }) {
+export default function PluginsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
   const client = useMemo(() => pluginsClient(api), [api])
   const load = useCallback((id: string) => client.list(id), [client])
@@ -298,7 +297,6 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
           </Stack>
         </PairedCard>
       </PairedCards>
-      <IntakeSources workspaceId={workspaceId} plugins={value?.plugins ?? []} onOpenGitHub={onOpenGitHub} onOpenRepositories={onOpenRepositories} />
     </Stack>
   )
 }

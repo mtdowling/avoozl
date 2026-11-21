@@ -161,8 +161,6 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
   assert.match(workspaces, /<WorkspaceView/)
   assert.doesNotMatch(workspaces, /ThisComputer/)
   assert.doesNotMatch(workspaces, /PolicyEditor|WorkspaceGitHub|RateBlock|SetupWizard/)
-  // The Plugins link to the GitHub settings opens the GitHub page.
-  assert.match(settings, /onOpenGitHub=\{\(\) => props\.onTab\('github'\)\}/)
   // Any other tab, GitHub included, is the PolicyEditor with one Save bar.
   assert.match(settings, /<PolicyEditor workspaceId=\{workspaceId\} tab=\{tab\}/)
   // GitHub calls is a tab of the GitHub page.

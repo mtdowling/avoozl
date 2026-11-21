@@ -2,8 +2,8 @@
 // repository's checks run: in the sandbox (the default, network off), or
 // not sandboxed. It saves on its own with repository.configure,
 // which only a person may call.
-import { useMemo, useState } from 'react'
-import { useAppApi } from './host.ts'
+import { useMemo } from 'react'
+import { PanelMessage, usePanelForm } from './PanelForm.tsx'
 import { FieldGroup } from './ui/FieldGroup.tsx'
 import { Btn } from './ui/Btn'
 import { Box } from './ui/Box'
@@ -12,7 +12,6 @@ import { Input } from './ui/Input'
 import { SelectField } from './ui/SelectField'
 import { Checkbox } from './ui/Checkbox'
 import { PlainTextarea } from './ui/Plain'
-import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
 import { RUN_CHOICES, isolationForm, isolationInput, isolationProblem, type Isolation, type IsolationForm } from './isolation-form.ts'
 
 function Lines(props: { id: string; value: string; onChange: (value: string) => void; mark: string }) {
@@ -36,38 +35,21 @@ function Lines(props: { id: string; value: string; onChange: (value: string) => 
 }
 
 export default function IsolationPanel(props: { workspaceId: string; repositoryId: string; value: Partial<Isolation> | null | undefined }) {
-  const api = useAppApi()
-  const [saved, setSaved] = useState<IsolationForm>(isolationForm(props.value))
-  const [form, setForm] = useState<IsolationForm>(saved)
-  const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
-  const [saving, setSaving] = useState(false)
+  const { form, set, save, saving, message, dirty } = usePanelForm<IsolationForm>({
+    workspaceId: props.workspaceId,
+    repositoryId: props.repositoryId,
+    initial: isolationForm(props.value),
+    input: (form) => ({ isolation: isolationInput(form) }),
+  })
   const problem = isolationProblem(form)
-  const dirty = JSON.stringify(form) !== JSON.stringify(saved)
   const hint = useMemo(() => RUN_CHOICES.find((choice) => choice.value === form.run)?.hint, [form.run])
-  const set = (change: Partial<IsolationForm>) => {
-    setForm({ ...form, ...change })
-    setMessage(null)
-  }
-  const save = async () => {
-    if (problem) return
-    setSaving(true)
-    try {
-      await api.post(COMMAND_PATH, { operation: 'repository.configure', input: { id: props.repositoryId, isolation: isolationInput(form) }, workspaceId: props.workspaceId })
-      setSaved(form)
-      setMessage({ ok: 'Saved.' })
-    } catch (error) {
-      setMessage({ error: errorMessage(error) })
-    } finally {
-      setSaving(false)
-    }
-  }
   const id = `avoozl-isolation-${props.repositoryId}`
   return (
     <FieldGroup
       title="Isolation"
       blurb="How Avoozl runs this repository's checks. The network is off unless you turn it on."
       actions={
-        <Btn size="sm" disabled={!dirty || Boolean(problem) || saving} onClick={save} data-isolation-save>
+        <Btn size="sm" disabled={!dirty || Boolean(problem) || saving} onClick={() => !problem && void save()} data-isolation-save>
           {saving ? 'Saving…' : 'Save isolation'}
         </Btn>
       }
@@ -109,16 +91,7 @@ export default function IsolationPanel(props: { workspaceId: string; repositoryI
             {problem}
           </Box>
         )}
-        {message?.ok && (
-          <Hint as="p" m0 size="xs" role="status">
-            {message.ok}
-          </Hint>
-        )}
-        {message?.error && (
-          <Box as="p" m0 size="xs" tone="danger" role="alert">
-            {message.error}
-          </Box>
-        )}
+        <PanelMessage message={message} />
       </Box>
     </FieldGroup>
   )

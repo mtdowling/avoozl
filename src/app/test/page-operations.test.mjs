@@ -76,7 +76,8 @@ test("the owner may run every operation the app page sends", () => {
     "flow.settings.update",
     "content.terms.get",
     "plugins.list",
-    "intake.sources",
+    "claims.view",
+    "lanes.view",
     "repositories.list",
     "workspaces.list",
   ])

@@ -8,7 +8,12 @@ import { Store } from "../../store/store.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { commands } from "../../commands/delivery.mjs";
 import { JOBS } from "../../github/github-jobs.mjs";
-import { claimsNeedsYou, refreshClaims, staleClaims } from "../claims.mjs";
+import {
+  claimsNeedsYou,
+  claimsView,
+  refreshClaims,
+  staleClaims,
+} from "../claims.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { mcpRefusal } from "../../mcp/mcp-policy.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
@@ -101,6 +106,59 @@ test("a claim branch older than its repository's staleHours (default 24) gives o
   const read = github.calls.commit.length;
   await refreshClaims(store, github);
   assert.equal(github.calls.commit.length, read);
+});
+
+test("claims.view lists every claim branch with its holder, head, age and whether it is stale", async (t) => {
+  const { root, store } = workspace(t),
+    github = fakeGitHub(HEADS),
+    ops = new Operations(store, { workspaceRoot: root, github });
+  await refreshClaims(store, github);
+  assert.deepEqual(
+    claimsView(store, NOW).map((c) => [
+      c.repository,
+      c.branch,
+      c.holder,
+      c.head,
+      c.ageHours,
+      c.stale,
+    ]),
+    [
+      [
+        "o/web",
+        "avoozl/other/w-2",
+        "another runner",
+        "avoozl/other/w-2@30",
+        30,
+        true,
+      ],
+      [
+        "o/app",
+        "avoozl/search/s-1",
+        "another runner",
+        "avoozl/search/s-1@10",
+        10,
+        true,
+      ],
+      [
+        "o/app",
+        "avoozl/search/s-2",
+        "another runner",
+        "avoozl/search/s-2@2",
+        2,
+        false,
+      ],
+      [
+        "o/web",
+        "avoozl/search/w-1",
+        "another runner",
+        "avoozl/search/w-1@10",
+        10,
+        false,
+      ],
+    ],
+  );
+  const { claims } = await ops.execute("claims.view", {});
+  assert.equal(claims.length, 4);
 });
 
 test("Avoozl deletes no claim branch on its own: reads and Needs you leave them all", async (t) => {

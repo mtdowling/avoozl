@@ -258,6 +258,36 @@ export function staleClaims(store, now = Date.now()) {
   return stale.sort((a, b) => a.staleAt.localeCompare(b.staleAt));
 }
 
+// In flight's claim rows (simplify §D13): every cached claim branch, with
+// its task, who holds it, its head and age, and whether it is stale. Reads
+// the cache only.
+// shortcut: the holder is this runner or another one; name the login once
+// the claims read records each branch's pusher.
+export function claimsView(store, now = Date.now()) {
+  const all = store.getMeta(META) || {},
+    stale = new Set(staleClaims(store, now).map((claim) => claim.branch)),
+    titles = new Map(store.read().tasks.map((task) => [task.id, task.title]));
+  return Object.entries(all)
+    .flatMap(([repository, claims]) =>
+      claims.map((claim) => {
+        const at = Date.parse(claim.at ?? "");
+        return {
+          repository,
+          branch: claim.branch,
+          spec: claim.spec,
+          task: claim.task,
+          title: titles.get(claim.task) ?? null,
+          holder: claim.own ? "this runner" : "another runner",
+          head: claim.sha ?? null,
+          at: claim.at ?? null,
+          ageHours: Number.isFinite(at) ? Math.floor((now - at) / HOUR) : null,
+          stale: stale.has(claim.branch),
+        };
+      }),
+    )
+    .sort((a, b) => a.branch.localeCompare(b.branch));
+}
+
 // One Needs you row per stale claim, for the spec issue's assignee to act
 // on. Only a person deletes the branch, through the high-risk confirm; Avoozl never
 // deletes another runner's claim branch on its own.

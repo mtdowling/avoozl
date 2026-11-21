@@ -102,6 +102,19 @@ test("a manual leaf is never ready; once its blockers hold it waits in Needs you
     [["sdk.2", "manual", "Waiting for a person: Review with team"]],
   );
   assert.equal(next.ready.length, 0);
+  // Needs you lists it with what to do (simplify §D13).
+  const rows = (await ops.execute("conflicts.view", {})).items.filter(
+    (item) => item.reason === "manual-ready",
+  );
+  assert.deepEqual(
+    rows.map((item) => [item.taskId, item.detail]),
+    [
+      [
+        "sdk.2",
+        "This manual task is ready. Do it, then Mark done in its drawer.",
+      ],
+    ],
+  );
   assert.deepEqual(ours(next.waiting), ["sdk.3"]);
 });
 

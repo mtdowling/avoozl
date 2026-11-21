@@ -365,12 +365,12 @@ through operations the CLI or MCP also reach.
 
 | View | What it is for | What it shows | Actions |
 | --- | --- | --- | --- |
-| Plans | Read specs; approval stays an approver's commit on GitHub | spec list by category; a spec's tabs: Overview (its graph block rendered, counts), Tasks, one tab per file | Run in a chat: write a spec, review a spec |
+| Specs | Read specs; approval stays an approver's commit on GitHub | spec list by category; a spec's tabs: Overview (its graph block rendered, counts), Tasks, one tab per file | Run in a chat: write a spec, review a spec |
 | Graph | See what is ready across specs | `graphOf` for a spec, an epic or all, with state colors and drill-in | Run in a chat: work this task |
-| In flight | See what runs now | each claim branch: task, holder login, session link, newest commit, check state on its head, draft pull request link, integration branch lag | Stop session, Send message, Land (when checked) |
+| In flight | See what runs now | each live session; each claim branch: task, holder, newest commit and age, check state on its head, pull request link; each lane on this machine: role, state, task; integration branch lag | Send message, Stop the line, Open or copy a lane's session, Land (when checked) |
 | Needs you | See what waits on a person | failing checks on a claim head, stop the line, `(**MANUAL**)` tasks ready to do, stale claims, draft pull requests waiting for a person, a pull request closed unmerged, plugin approvals | Mark manual task done, Delete branch, Open on GitHub, Run in a chat |
 | Activity | See what happened | `activity.list` rows newest first: time, source, who, what, target; filters by source, kind and actor in the nav, with Keep activity (days) under them | Open task, open on GitHub |
-| Settings | Set this machine and each repository | repositories, landing mode, label filters, claim stale hours, harness per role, owner instructions per role, plugins, content rules, notifications, `loop` | Save, approve plugin |
+| Settings | Set this machine and each repository | repositories, landing mode, label filters and claim stale hours (a repository's Spec issues panel), harness per role, owner instructions per role, plugins, content rules, notifications, `loop` (Autopilot) | Save, approve plugin |
 
 The task drawer stays, smaller: title, done bullets, refs, waits-on and blocks
 links, claim
@@ -429,22 +429,22 @@ Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
 
 | Group | Lines | Verdict | Files |
 | --- | ---: | --- | --- |
-| Plans | 4685 | keep | `PlansView`, `plans-api`, `SpecGraph`, `EpicPanel`, `DocumentReader`, `markdown`, `spec-link`, `TaskRefs`, `files-api` |
+| Specs | 4685 | keep | `PlansView`, `plans-api`, `SpecGraph`, `EpicPanel`, `DocumentReader`, `markdown`, `spec-link`, `TaskRefs`, `files-api` |
 | Graph | 2952 | keep | `GraphView`, `graph-layout`, `FocusTree`, `focus-tree`, `EdgeList`, `drag-pan` |
-| In flight | 1891 | keep | `DeliveryView`, `DeliveryDetails`, `delivery-api`, `IntegrationBranches`, `WorkerLink`, `ReviewState`, `StopLine` |
+| In flight | 1891 | keep | `DeliveryView`, `DeliveryDetails`, `delivery-api`, `InFlight`, `InFlightClaims`, `in-flight-api` (from `dashboard-api`), `IntegrationBranches`, `WorkerLink`, `ReviewState`, `StopLine`, `line-api` (the stop-the-line part of `flow-api`) |
 | Activity | 761 | keep | `ActivityView`, `activity-api`, `github-links` |
 | Needs you | 1903 | keep | `WaitingView`, `ConflictsView`, `conflicts-api`, `NeedsYouContext`, `needs-you-context`, `decision-link` |
-| Settings | 7614 | keep | `SettingsView`, `settings-api`, `RepositoriesSettings`, `RepositoryModals`, `repo-edit-tabs`, `repository-rows`, `LandingFields`, `ModelsSettings`, `models-api`, `PluginsSettings`, `plugins-api`, `AddPlugin`, `ContentRulesSettings`, `content-api`, `IsolationPanel`, `isolation-form`, `PromptInstructions`, `NoticesSettings`, `notices`, `FolderPicker`, `SaveFooter`, `FlowSettings` (stop the line only) |
+| Settings | 7614 | keep | `SettingsView`, `settings-api`, `RepositoriesSettings`, `RepositoryModals`, `repo-edit-tabs`, `repository-rows`, `LandingFields`, `ModelsSettings`, `models-api`, `PluginsSettings`, `plugins-api`, `AddPlugin`, `ContentRulesSettings`, `content-api`, `IsolationPanel`, `isolation-form`, `PromptInstructions`, `NoticesSettings`, `notices`, `FolderPicker`, `SaveFooter`, `FlowSettings` (stop the line only), `DeliverySettings` (Autopilot: it writes `loop`), `SpecIssuesPanel`, `PanelForm` |
 | Task drawer | 1582 | keep, smaller | `TaskDrawer`, `task-api`, `TaskScmLinks`, `drawer-context` |
 | Run in a chat | 133 | keep, reshaped | `chat-api`, `design-chat`, `panel-chat` |
 | Shell and shared parts | 6052 | keep | `App`, nav files, list-detail files, filters, `Picker`, refresh files, `WorkspaceView`, `WorkspacePill`, small parts |
-| Dashboards: Home, Landing queue | 2030 | cut | `DashboardView`, `dashboard-api`, `HomeParts`, `home-api`, `LandingQueueView`, `landing-queue-api`, `recap-api`, `release-api` |
+| Dashboards: Home, Landing queue | 2030 | cut | `DashboardView`, `HomeParts`, `StatTile`, `home-api`, `LandingQueueView`, `landing-queue-api`, `recap-api`, `release-api` |
 | Flow and Retros | 2754 | cut (skill `avoozl-retro`) | `FlowView`, `FlowCharts`, `FlowBuilds`, `FlowRail`, `FlowMemory`, `flow-api`, `RetrosView`, `CiFlow`, `PlanningFlow`, `builds-api`, `providers-api` |
 | Plan review | 1310 | cut (skill `avoozl-spec-review`) | `ReviewView`, `review-view`, `PlanReviewDecision`, `PlanReviewSummary` |
 | Task extras | 1824 | cut | `TaskFiles`, `TaskNotes`, `notes-api`, `TaskSteps`, `TaskSummaryBox`, `Evidence`, `evidence-api`, `TaskForm`, `CitedFile` |
 | Setup tower | 2822 | cut | `Onboard`, `onboarding-api`, `SetupWizard`, `setup-api`, `setup-facts`, `Demo`, `demo-api`, `TemplateStart`, `PackImport`, `InstanceName`, `instance-api`, `WorkflowMap`, `workflow-map` |
 | New spec and fix drawers | 1575 | cut (skill `avoozl-spec`) | `NewPlanDrawer`, `new-plan-api`, `spec-builder-api`, `NewFixDrawer`, `fix-api`, `IntakeSources` |
-| Driver and delivery settings | 1028 | cut | `Driver`, `driver-api`, `DeliverySettings` |
+| Driver | 1028 | cut | `Driver`, `driver-api` |
 | Side panel | 1200 | cut | `Panel`, `PanelParts`, `panel-api` |
 | Removed by in-flight work | 1976 | in flight | `MirrorSetup`, `mirror-setup-api`, `ForwardScreen`, `forward-api`, `SpecPullBox`, `SpecPullDecision`, `spec-pr-api`, `GitHubItemsView`, `github-items-api`, `TriageAgentView`, `TriageSetup` |
 

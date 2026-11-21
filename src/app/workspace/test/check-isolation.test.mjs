@@ -211,3 +211,34 @@ test("repository.configure with {id, isolation} changes only how its checks run"
     /Repository not found/,
   );
 });
+
+test("repository.configure with {id, labels, claims} sets the spec issue filters and stale hours, and null clears them", async (t) => {
+  const { store, ops } = deliveryWorkspace(t, {
+    prefix: "avoozl-labels-configure-",
+    repository: { landing: "direct", checks: { test: ["npm", "test"] } },
+  });
+  await ops.execute("repository.configure", {
+    id: "app",
+    labels: { require: ["avoozl"], exclude: ["wip"] },
+    claims: { staleHours: 6 },
+  });
+  const stored = store.get("repositories", "app");
+  assert.deepEqual(
+    [stored.labels, stored.claims, stored.landing],
+    [{ require: ["avoozl"], exclude: ["wip"] }, { staleHours: 6 }, "direct"],
+  );
+  await assert.rejects(
+    ops.execute("repository.configure", {
+      id: "app",
+      claims: { staleHours: 0 },
+    }),
+    /claims.staleHours must be a number 1–720/,
+  );
+  await ops.execute("repository.configure", {
+    id: "app",
+    labels: null,
+    claims: null,
+  });
+  const cleared = store.get("repositories", "app");
+  assert.deepEqual([cleared.labels, cleared.claims], [null, null]);
+});

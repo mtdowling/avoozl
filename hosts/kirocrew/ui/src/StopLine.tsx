@@ -34,7 +34,7 @@ import {
   toPull,
   type LineStop,
   type PullForm,
-} from './flow-api.ts'
+} from './line-api.ts'
 import { plansClient } from './plans-api.ts'
 import { viewsClient } from './views-api.ts'
 import { workspaceClient, errorMessage } from './workspace-api.ts'
@@ -59,7 +59,7 @@ interface Choices {
 // resume on the page (LINE_EVENT) reads at once.
 const LINE_READ_MS = 60000
 
-// The open stops, read through flow.view; [] until read or when it fails.
+// The open stops; [] until read or when it fails.
 export function useOpenStops(workspaceId: string | null) {
   const api = useAppApi()
   const flows = useMemo(() => flowClient(api), [api])
@@ -68,8 +68,8 @@ export function useOpenStops(workspaceId: string | null) {
     if (!workspaceId) return setStops([])
     let live = true
     const read = () =>
-      flows.view(workspaceId, { window: '10' }).then(
-        (view) => live && setStops((view.line ?? []).filter((stop) => !stop.closedAt)),
+      flows.stops(workspaceId).then(
+        (open) => live && setStops(open),
         () => undefined,
       )
     void read()

@@ -48,7 +48,6 @@ import { linkHref } from './views-api.ts'
 import { optionItems } from './picker.ts'
 import { ItemContextBlock, SpecLink } from './NeedsYouContext.tsx'
 import { specOfItem } from './needs-you-context.ts'
-import { releaseClient } from './release-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
@@ -190,7 +189,7 @@ export function ConflictActions(props: {
           busy={busy}
           onLand={() =>
             run(async () => {
-              await releaseClient(api).land(workspaceId, item.repository!, item.branch!, item.head!)
+              await viewsClient(api).land(workspaceId, item.repository!, item.branch!, item.head!)
               return { ok: true, text: `${item.branch} is approved to land. Merge it on GitHub.` }
             })
           }

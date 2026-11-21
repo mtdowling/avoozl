@@ -941,6 +941,23 @@ export function conflictsView(store, data) {
         detail: `${noSessionLine(orphan)}.${task.nextAction ? ` Next: ${task.nextAction}` : ""}`,
       });
   }
+  // Ready manual tasks wait for a person to do them (R61.11).
+  const manual = manualWaitingIds(
+    data,
+    workspaceRepositories(store).map((entry) => entry.id),
+  );
+  for (const id of manual) {
+    const task = byId.get(id);
+    if (!task || complete(task.status)) continue;
+    items.push({
+      kind: "needs-human",
+      taskId: id,
+      ...ownership(task),
+      title: task.title ?? id,
+      reason: "manual-ready",
+      detail: "This manual task is ready. Do it, then Mark done in its drawer.",
+    });
+  }
   items.push(...reviewGroups(store, data));
   for (const binding of optionalList(store, "session_bindings")) {
     const task = byId.get(binding.taskId);

@@ -907,8 +907,26 @@ export function resumeStop(store, input = {}, { by, now = Date.now() } = {}) {
   });
 }
 
-// The Dashboard banner (R44.9): each open stop with its fix task's state
-// and how many tasks it pauses.
+// One Needs you row per open stop (simplify §D13). Its actions are the
+// banner's: Resume, Run anyway, or the fix task.
+export function lineNeedsYou(store, data = store.read()) {
+  return lineBanner(store, data).map((stop) => ({
+    kind: "needs-human",
+    reason: "line-stopped",
+    id: `line-stopped:${stop.id}`,
+    taskId: stop.fixTaskId ?? null,
+    authority: "avoozl",
+    title: stop.manual
+      ? `Line stopped by ${stop.by?.name ?? "someone"}`
+      : stop.check
+        ? `Line stopped: ${stop.check} fails on ${stop.branch}`
+        : "Line stopped",
+    detail: `${stop.reason ? `${stop.reason}. ` : ""}${stop.paused} task${stop.paused === 1 ? "" : "s"} paused.${stop.fixTaskId ? ` Fix: ${stop.fixTaskId}, ${stop.fixState}.` : ""}`,
+  }));
+}
+
+// The banner (R44.9): each open stop with its fix task's state and how
+// many tasks it pauses.
 export function lineBanner(store, data = store.read()) {
   return openStops(store).map((stop) => {
     const fix = data.tasks.find((t) => t.id === stop.fixTaskId),

@@ -20,6 +20,7 @@ import {
   validateEntry,
   validateManifest,
   writePluginSettings,
+  pluginApprovalNeedsYou,
 } from "../plugins.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { readDeliveryPolicy } from "../../tick/tick.mjs";
@@ -174,6 +175,11 @@ test("approval is per id, version and content hash, on this machine only", () =>
   let [plugin] = inspectPlugins(options);
   assert.equal(plugin.state, "unapproved");
   assert.equal(plugin.hash, contentHash(folder));
+  // Needs you lists it until it is approved (simplify §D13).
+  assert.deepEqual(
+    pluginApprovalNeedsYou(options).map((item) => [item.id, item.reason]),
+    [["plugin-approval:fake-probe", "plugin-approval"]],
+  );
   assert.deepEqual(plugin.kinds, ["rules"]);
   // A stale hash is refused: the person approves what they were shown.
   assert.throws(
@@ -182,6 +188,7 @@ test("approval is per id, version and content hash, on this machine only", () =>
   );
   plugin = approve(options);
   assert.equal(plugin.state, "approved");
+  assert.deepEqual(pluginApprovalNeedsYou(options), []);
   assert.equal(
     readPluginSettings(options.settingsFile).approvals["fake-probe"].hash,
     plugin.hash,

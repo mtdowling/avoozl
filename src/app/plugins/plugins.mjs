@@ -727,6 +727,29 @@ export function inspectPlugins(options) {
   );
 }
 
+// One Needs you row per declared plugin waiting for this machine's
+// approval (simplify §D13); a person approves it in Settings › Plugins.
+export function pluginApprovalNeedsYou(options) {
+  if (!options?.workspaceRoot) return [];
+  let plugins;
+  try {
+    plugins = inspectPlugins(options);
+  } catch {
+    return [];
+  }
+  return plugins
+    .filter((plugin) => ["unapproved", "changed"].includes(plugin.state))
+    .map((plugin) => ({
+      kind: "needs-human",
+      reason: "plugin-approval",
+      id: `plugin-approval:${plugin.id}`,
+      taskId: null,
+      authority: "avoozl",
+      title: `Plugin ${plugin.id} waits for approval`,
+      detail: `${plugin.reason} Approve it in Settings › Plugins.`,
+    }));
+}
+
 // A /proc/net/tcp{,6} address ("0100007F:1F90") as lsof prints it
 // ("127.0.0.1:8080", "[::1]:8080"). The address is 32-bit words in host
 // byte order; shortcut: assumes a little-endian host, as every Linux

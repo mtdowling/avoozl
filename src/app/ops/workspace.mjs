@@ -15,6 +15,7 @@ import {
 import { requirePrivateRepository } from "../github/github.mjs";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { claimsOf, labelsOf } from "../settings/repository-settings.mjs";
 import { startTelemetry } from "../telemetry/index.mjs";
 import { startPluginUpdateChecks } from "../plugins/plugin-updates.mjs";
 import {
@@ -452,22 +453,33 @@ export const entries = [
           );
         return isolation;
       };
-      // {id, isolation} alone changes only how a registered repository's
-      // checks run (Settings > Repository setup > Landing).
+      // {id} with isolation, labels or claims changes only those keys of a
+      // registered repository (Settings > Repository setup): how its checks
+      // run, its spec issue label filters, its claim stale hours. Null
+      // clears labels or claims.
       const keys = Object.keys(input).filter((key) => input[key] !== undefined);
       if (
-        keys.includes("isolation") &&
-        keys.every((key) => ["id", "isolation"].includes(key))
+        keys.length > 1 &&
+        keys.every((key) =>
+          ["id", "isolation", "labels", "claims"].includes(key),
+        )
       ) {
-        const existing = store.get("repositories", String(input.id || ""));
+        const id = String(input.id || ""),
+          existing = store.get("repositories", id);
         if (!existing) fail("Repository not found.", 404);
-        const isolation = allowIsolation(
-          isolationSetting(input.isolation, "isolation"),
-        );
+        const change = {};
+        if (keys.includes("isolation"))
+          change.isolation = allowIsolation(
+            isolationSetting(input.isolation, "isolation"),
+          );
+        if (keys.includes("labels"))
+          change.labels = input.labels && labelsOf(input.labels, id);
+        if (keys.includes("claims"))
+          change.claims = input.claims && claimsOf(input.claims, id);
         this.configuration?.assertWritable();
         const configured = store.put("repositories", {
           ...existing,
-          isolation,
+          ...change,
         });
         this.configuration?.updateExecutionRepository(configured);
         return configured;

@@ -41,6 +41,7 @@ import { STATES } from './graph-layout.ts'
 import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, usePages } from './ui/controls.tsx'
 import InFlightSessions from './InFlight.tsx'
+import { InFlightClaims, InFlightLanes } from './InFlightClaims.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import { DetailsIcon, FileText, Folder, Layers, ListFilter, Pause, Play, RefreshCw, RotateCcw, X } from './icons.ts'
 import { chatClient } from './chat-api.ts'
@@ -587,6 +588,8 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
         In flight
       </ViewHeading>
       <InFlightSessions workspaceId={workspaceId} />
+      <InFlightClaims workspaceId={workspaceId} />
+      <InFlightLanes workspaceId={workspaceId} />
       <IntegrationBranches workspaceId={workspaceId} />
       {(error || message) && (
         <Box role={error || !message?.ok ? 'alert' : 'status'} as="p" size="sm" tone={error || !message?.ok ? 'danger' : 'muted'}>

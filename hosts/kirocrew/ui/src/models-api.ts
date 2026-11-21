@@ -5,7 +5,6 @@
 // their own model. Free of JSX so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
-import { parseModels } from './flow-api.ts'
 
 // Every role, in page order. `agent` marks the roles whose agent is picked
 // here too, and `model` the roles whose model is.
@@ -153,3 +152,26 @@ export function approvalTip(d: HarnessDefinition): string {
 // What the proved line means, for its info tooltip.
 export const PROVED_TIP =
   'The harness file says its sandbox was tested for read-only roles (reviewer) and editing roles (worker). This comes from the file, not a test run on this computer.'
+
+// Kiro Crew's /api/models answer, in any of the shapes its backends give:
+// a list, or {models: [...]}, of names or {model_name|id|model_id, display_name|name}.
+export function parseModels(body: unknown): { value: string; label: string }[] {
+  const list = Array.isArray(body) ? body : Array.isArray((body as { models?: unknown })?.models) ? (body as { models: unknown[] }).models : []
+  const out: { value: string; label: string }[] = []
+  for (const entry of list) {
+    const row = entry as Record<string, unknown>
+    const value = typeof entry === 'string' ? entry : String(row?.model_name ?? row?.model_id ?? row?.id ?? '')
+    if (!value || value === 'auto' || out.some((o) => o.value === value)) continue
+    const label = typeof entry === 'string' ? entry : String(row?.display_name ?? row?.name ?? value)
+    out.push({ value, label })
+  }
+  return out
+}
+
+// The model choices for a picker: auto first, then Kiro Crew's, and a saved
+// value Kiro Crew no longer offers, kept and marked.
+export function modelOptions(models: { value: string; label: string }[], current: string) {
+  const options = [{ value: 'auto', label: 'auto (Kiro Crew picks)' }, ...models]
+  if (current && !options.some((o) => o.value === current)) options.push({ value: current, label: `${current} (not offered now)` })
+  return options
+}

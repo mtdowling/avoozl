@@ -62,6 +62,7 @@ import { EpicContextSettings } from './EpicContextSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import ModelsSettings from './ModelsSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
+import SpecIssuesPanel from './SpecIssuesPanel.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
@@ -584,19 +585,24 @@ function RepositoriesTab(props: {
     setMessage({ ok: true, text: `Added ${id}.` })
   }
   // The repository's own settings, inside its Edit dialog, on its open tab,
-  // with the Isolation panel under Landing for a registered checkout.
+  // with the Isolation panel under Landing and the Spec issues panel under
+  // GitHub for a registered checkout.
   const settingsFor = (
     row: RepositoryRow,
     view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void },
   ): EditSettings => {
     const own = repositorySettings(row, view)
-    if (view.tab !== 'landing' || !row.checkout) return own
+    if (!row.checkout || !['landing', 'github'].includes(view.tab)) return own
     return {
       ...own,
       body: (
         <>
           {own.body}
-          <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} repositoryId={row.checkout.id} value={row.checkout.isolation} />
+          {view.tab === 'landing' ? (
+            <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} repositoryId={row.checkout.id} value={row.checkout.isolation} />
+          ) : (
+            <SpecIssuesPanel key={row.checkout.id} workspaceId={props.workspaceId} repository={row.checkout} />
+          )}
         </>
       ),
     }
@@ -1037,7 +1043,7 @@ function SettingsBody(
         action={<Btn onClick={() => props.onTab('workspaces')}>Open Workspaces</Btn>}
       />
     )
-  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} onOpenRepositories={() => props.onTab('repositories')} />
+  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} />
   if (tab === 'context') return <EpicContextSettings workspaceId={workspaceId} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />

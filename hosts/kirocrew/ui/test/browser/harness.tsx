@@ -496,6 +496,65 @@ if (query.get('page') === 'app') {
   if (!replyFor('plan.list')) answer('plan.list', () => ({ items: [] }))
   if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
   if (!replyFor('landing.view')) answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
+  // &claims=1: In flight's claim branches and lanes, one of each kind.
+  const claimsShown = query.get('claims') === '1'
+  answer('claims.view', () => ({
+    claims: claimsShown
+      ? [
+          {
+            repository: 'acme/recipe-box',
+            branch: 'avoozl/meal-planner/a1',
+            spec: 'meal-planner',
+            task: 'a1',
+            title: 'Task a1',
+            holder: 'this runner',
+            head: 'a1b2c3d4e5',
+            at: '2026-11-14T10:00:00Z',
+            ageHours: 2,
+            stale: false,
+          },
+          {
+            repository: 'acme/recipe-box',
+            branch: 'avoozl/meal-planner/a2',
+            spec: 'meal-planner',
+            task: 'a2',
+            title: 'Task a2',
+            holder: 'another runner',
+            head: 'f6e5d4c3b2',
+            at: '2026-11-13T08:00:00Z',
+            ageHours: 30,
+            stale: true,
+          },
+        ]
+      : [],
+  }))
+  answer('lanes.view', () => ({
+    lanes: claimsShown
+      ? [
+          {
+            lane: 'worker-1',
+            role: 'worker',
+            header: 'Worker 1',
+            harness: 'kirocrew',
+            state: 'busy',
+            task: 'a1',
+            slot: 'chat-1',
+            open: 'Kiro Crew chat "Worker 1" in Avoozl › harness',
+          },
+          { lane: 'reviewer-1', role: 'reviewer', header: 'Reviewer 1', harness: 'claude', state: 'free', task: null, slot: 'p-2', open: 'avoozl session attach p-2' },
+          {
+            lane: 'worker-2',
+            role: 'worker',
+            header: 'Worker 2',
+            harness: 'kirocrew',
+            state: 'paused',
+            task: null,
+            slot: null,
+            open: 'Resume in Needs you, or avoozl lane resume worker-2',
+          },
+        ]
+      : [],
+  }))
   // &home=empty: Home's CI read answers with no runs (only Home reads it).
   if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], flaky: [], ciOnly: [] }))
   // &roles=plans|single|local: Repository setup in each github.mode, the
