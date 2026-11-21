@@ -49,13 +49,15 @@ type Policy =
   | undefined;
 // One row of a list; a ready row names its task.
 type Row = Record<string, unknown>;
-// The GitHub calls a claim makes.
-type ClaimClient = Parameters<typeof catchUp>[1] &
+// The GitHub calls a claim makes, and those claimNext adds to read the
+// spec issues first.
+type BranchClient = Parameters<typeof catchUp>[1] & {
+  branch(repository: string, name: string): Promise<unknown>;
+};
+type ClaimClient = BranchClient &
   NonNullable<Parameters<typeof readLabelFilters>[1]> &
   NonNullable<Parameters<typeof readSpecAssignees>[1]> &
-  NonNullable<Parameters<typeof readLabeledIssues>[1]> & {
-    branch(repository: string, name: string): Promise<unknown>;
-  };
+  NonNullable<Parameters<typeof readLabeledIssues>[1]>;
 // One cached read per key.
 const memo = <T>(seen: Map<string, T>, key: string, read: () => T): T => {
   const known = seen.get(key);
@@ -303,7 +305,7 @@ export function nextView(
 // call of the function this returns.
 type Linked = Parameters<typeof integrationBase>[1]["linked"];
 
-function claimBase(store: Store, client: ClaimClient, linked: Linked) {
+function claimBase(store: Store, client: BranchClient, linked: Linked) {
   const branches = new Map<string, Promise<boolean>>(),
     caughtUp = new Map<string, ReturnType<typeof catchUp>>(),
     exists = (repository: string) => (name: string) =>
@@ -350,7 +352,7 @@ export async function claimDispatches<
   D extends { task?: string; role?: string },
 >(
   store: Store,
-  client: ClaimClient,
+  client: BranchClient,
   dispatches: D[],
   { linked = null }: { linked?: Linked } = {},
 ) {
