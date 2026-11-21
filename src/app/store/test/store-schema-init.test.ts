@@ -7,8 +7,8 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { Store } from "../store.ts";
-import { snapshot } from "../../test/fixtures.mjs";
-import { temporaryDirectory } from "../../test/temporary.mjs";
+import { snapshot } from "../../test/fixtures.ts";
+import { temporaryDirectory } from "../../test/temporary.ts";
 
 const filename = () =>
   path.join(temporaryDirectory("avoozl-schema-"), "workspace.sqlite");

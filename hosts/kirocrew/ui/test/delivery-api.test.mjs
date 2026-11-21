@@ -289,7 +289,7 @@ test('all four lanes share one row above phone width; a phone stacks them', () =
 })
 
 test('the lane rule is the shared one', async () => {
-  const shared = await import('../../../../src/delivery-lanes.mjs')
+  const shared = await import('../../../../src/delivery-lanes.ts')
   assert.equal(laneOf, shared.laneOf)
   assert.equal(shared.laneOf({ state: 'deferred' }, null), 'waiting')
 })

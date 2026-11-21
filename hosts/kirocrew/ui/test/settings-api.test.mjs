@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
 import { emptyRepository, settingsClient, splitList, toForm, toPolicy } from '../src/settings-api.ts'
-import { normalizeGitHubPolicy, policySection } from '../../../../src/app/github/github-policy.mjs'
+import { normalizeGitHubPolicy, policySection } from '../../../../src/app/github/github-policy.ts'
 
 const POLICY = {
   mode: 'single-repo',

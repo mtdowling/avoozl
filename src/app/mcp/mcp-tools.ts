@@ -1,0 +1,328 @@
+// @ts-nocheck: typing debt
+// Avoozl's grouped MCP tools (R56): one tool per thing a session acts on, each
+// with an `action` naming one existing operation. The authority class of each
+// operation (operation-table.mjs) is unchanged, and person-only operations
+// (mcp-policy.mjs) have no action here and are refused under any name.
+//
+// Each action is [operation, hint] or [operation, hint, shape], where `shape`
+// rewrites the input before the call (a GitHub setup preview never confirms).
+const tools = {
+  plans_workspace: {
+    summary: "The workspace, read only.",
+    actions: {
+      get: [
+        "workspace",
+        "repositories, plan drafts, run history, integration queue, GitHub state",
+      ],
+      describe: ["client.describe", "client contract and operations"],
+      configuration: ["configuration.get", "the saved .avoozl.json settings"],
+      flow_settings: ["flow.settings.get", "flow settings"],
+      activity_settings: [
+        "activity.settings.get",
+        "how many days the activity log keeps rows",
+      ],
+      delivery_settings: [
+        "delivery.settings.get",
+        "the writer agent and model and pull request feedback settings",
+      ],
+      conversation_settings: [
+        "conversations.settings.get",
+        "conversation settings",
+      ],
+      trash: ["trash", "deleted plans and runs"],
+      local_ignore: [
+        "local.ignore.status",
+        "whether Avoozl files are ignored locally",
+      ],
+    },
+  },
+  plans_maintain: {
+    summary: "Workspace upkeep: the tick, local ignore lines.",
+    actions: {
+      tick: ["workspace.tick", "run one bounded tick"],
+      fix_local_ignore: [
+        "local.ignore.fix",
+        "add the missing local ignore lines",
+      ],
+    },
+  },
+  plans_view: {
+    summary: "Read-only views of the graph and its delivery.",
+    actions: {
+      graph: ["graph.view", "the dependency graph, optionally one plan"],
+      delivery: ["delivery.view", "delivery columns"],
+      claims: [
+        "claims.view",
+        "every claim branch: task, holder, head, age and whether it is stale",
+      ],
+      flow: ["flow.view", "lead time, stages, bottlenecks"],
+      insights: [
+        "insights.view",
+        "the Insights numbers: {days?: 7|30|90, spec?, repo?}",
+      ],
+      log: ["workspace.tick.log", "recent tick log"],
+      health: ["workspace.tick.health", "tick health"],
+      activity: [
+        "activity.list",
+        "the activity log: {source?, kind?, actor?, offset?}, 100 rows a page",
+      ],
+      recent: ["activity.recent", "recent task events"],
+      queue: ["queue", "ready work, resource conflicts, queued integration"],
+      next: ["runner.next", "what a Crew Mode conductor does next"],
+      query: ["query", "search tasks"],
+    },
+  },
+  plans_plan: {
+    summary:
+      "Plans and their Kiro spec folders. Approval is a person's: an approver's commit on main, or Approve in the app.",
+    actions: {
+      list: ["plan.list", "stored plans"],
+      table: ["plan.table", "plans grouped with progress"],
+      epics: ["epic.list", "epics across plans with computed progress"],
+      epic: [
+        "epic.get",
+        "one epic: goal, what done means, member plans, decisions: {id}",
+      ],
+      specs: ["plan.specs", "spec folders on disk"],
+      get: ["plan.get", "one plan, its revisions and receipts"],
+      read_spec: ["plan.spec.read", "a spec folder's documents"],
+      lint: ["plan.lint", "deterministic checks on a stored revision"],
+      preview: ["plan.preview", "the tasks approval would publish"],
+      create: ["plan.create", "store a spec folder as a draft: {spec}"],
+      save: [
+        "plan.save",
+        "reload a spec folder as the next draft: {id, expectedHash}",
+      ],
+      propose: [
+        "plan.propose",
+        "propose adjacent work as a draft, not executable until approved",
+      ],
+      classify: ["plan.classify", "set plan metadata"],
+    },
+  },
+  plans_task: {
+    summary: "One task: read it, change it, deliver it.",
+    actions: {
+      get: ["task.get", "one task"],
+      detail: ["task.detail", "the task drawer's detail"],
+      sessions: ["task.sessions", "its Kiro Crew sessions"],
+      handoff: ["handoff", "design, dependencies, runs and evidence"],
+      preview_change: ["task.change.preview", "what an update would change"],
+      update: [
+        "task.update",
+        "metadata, status (deferred pauses) or dependencies",
+      ],
+      archive: ["task.archive", "archive, only when the user permits"],
+      unarchive: ["task.unarchive", "undo archive"],
+      start: ["task.start", "Start now"],
+      retry: [
+        "delivery.retry",
+        "resume a stopped delivery, when the person asks",
+      ],
+      integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
+      accept: ["task.accept", "record acceptance evidence"],
+      activity: ["activity", "an activity lease"],
+    },
+  },
+  plans_executor: {
+    summary:
+      "Private Kiro Crew executor transport; process requests are never taken here.",
+    actions: {
+      take: [
+        "executor.kirocrew.take",
+        "claim one native request by id and version",
+      ],
+      release: [
+        "executor.kirocrew.release",
+        "release only after a definitive before-open refusal",
+      ],
+      complete: [
+        "executor.kirocrew.complete",
+        "complete a claimed message as sent or refused",
+      ],
+    },
+  },
+  plans_session: {
+    summary: "Executor sessions working on tasks.",
+    actions: {
+      bind: ["session.bind", "bind a slot to a task"],
+      rediscover: ["session.rediscover", "rebuild lost bindings from titles"],
+      request: ["session.request", "ask the tick to open a session"],
+      start: ["run.start", "dispatch a task: {taskId, repository, agent}"],
+      status: ["session.status", "record a session's status"],
+      report: ["session.report", "report on your bound task"],
+      worktree: ["worktree.prepare", "create or return the leaf's worktree"],
+      checks: ["flow.checks.run", "run declared checks at HEAD"],
+      stop_line: [
+        "flow.stop",
+        "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
+      ],
+      reply: ["reply.post", "post a responder's one reply"],
+    },
+  },
+  plans_conflicts: {
+    summary:
+      "Conflicts and open decisions. Choosing a GitHub conflict winner is a person's, in the app.",
+    actions: {
+      view: ["conflicts.view", "open conflicts and decisions"],
+      settle: [
+        "conflicts.settle",
+        "reviewed, unblock, dismiss, settle, reopen or keep items",
+      ],
+    },
+  },
+  plans_intake: {
+    summary:
+      "A person's requests, saved searches, and incoming items from intake sources. Plan this and Deliver this are a person's, in the app.",
+    actions: {
+      capture: [
+        "task.capture",
+        "record a person's own request as untriaged. Not a channel for work an agent discovered: use plans_plan propose",
+      ],
+      submit: ["intent.submit", "submit an intent"],
+      get: ["intent.get", "read an intent"],
+      submit_items: [
+        "intake.submit",
+        "send 1-100 items to an mcp intake source: {source, items}",
+      ],
+      items: [
+        "intake.list",
+        "incoming items: {source?, kind?, state?, untriaged?, offset?}",
+      ],
+      item: ["intake.view", "one incoming item: {source, id}"],
+      sources: [
+        "intake.sources",
+        "declared intake sources and their read state",
+      ],
+    },
+  },
+  plans_document: {
+    summary: "Workspace documents and reports.",
+    actions: {
+      get: ["document.get", "one document"],
+      update: ["document.update", "update a document"],
+      save_report: ["report.save", "save a report"],
+      save_retro: [
+        "retro.save",
+        "save a retro report as Markdown: {scope, text}",
+      ],
+      retros: ["retro.list", "saved retros, newest first"],
+      read_retro: ["retro.read", "one saved retro: {name}"],
+    },
+  },
+  plans_github: {
+    summary:
+      "GitHub reads. Setup writes and settings are a person's, in the app.",
+    actions: {
+      landing_queue: [
+        "landing.view",
+        "what waits to land on each base branch, in order and why, and what landed lately",
+      ],
+      integration_branches: [
+        "integration.view",
+        "each integration branch: tasks merged, commits behind the default branch, head checks, acceptance and landing approval",
+      ],
+      epics: [
+        "epics.view",
+        "epics, specs and phases: gate, release count and held reasons, and specs not on GitHub yet",
+      ],
+      release_queue: [
+        "radar.releasequeue",
+        "the Release queue, empty since labels stopped releasing work",
+      ],
+      integration_branch: [
+        "radar.integrationbranch",
+        "check an epic's integration branch: exists, protected, not the default",
+      ],
+      repositories: ["github.repositories", "registered GitHub repositories"],
+      labels: ["github.repository.labels", "a repository's labels"],
+      inspect: ["github.repository.inspect", "branch rules and checks"],
+      settings: ["github.settings.get", "GitHub settings"],
+      validate: ["github.settings.validate", "check GitHub settings"],
+      detect_repository: [
+        "github.repository.detect",
+        "find a registered repository's GitHub remote",
+      ],
+      publish: ["planning.publish", "publish an approved plan"],
+      reconcile: ["planning.reconcile", "reconcile planning pull requests"],
+    },
+  },
+  plans_repos: {
+    summary:
+      "Registered repositories, read only. Adding or removing one is a person's, in the app.",
+    actions: {
+      list: ["repositories.list", "registered repositories"],
+      detect: [
+        "repositories.detect",
+        "what Add repository would register, and the kind of repository it looks like",
+      ],
+      status: ["workspace.repository.status", "the workspace repository"],
+    },
+  },
+  plans_plugins: {
+    summary:
+      "Plugins, read only. Adding, approving or removing one is a person's, in the app.",
+    actions: {
+      list: ["plugins.list", "installed plugins"],
+      preview: ["plugin.preview", "what a plugin source holds"],
+      check_stages: [
+        "plugin.checks.stages",
+        "the phase and branch plugin check results on this machine",
+      ],
+    },
+  },
+  plans_content: {
+    summary: "Content rules. Terms and Allow once are a person's, in the app.",
+    actions: {
+      rules: ["content.rules", "rule sets and their state"],
+      check: ["content.check", "check text against the rules"],
+    },
+  },
+};
+
+export const GROUPED_TOOLS = tools;
+
+// tools/list entries.
+export function groupedToolList(classify) {
+  return Object.entries(tools).map(([name, tool]) => {
+    const actions = Object.keys(tool.actions);
+    return {
+      name,
+      description: `${tool.summary} Actions: ${actions
+        .map((action) => `${action} (${tool.actions[action][1]})`)
+        .join("; ")}.`,
+      inputSchema: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: actions },
+          input: { type: "object", additionalProperties: true },
+          expectedRevision: { type: "integer" },
+        },
+        required: ["action"],
+        additionalProperties: false,
+      },
+      annotations: {
+        readOnlyHint: actions.every(
+          (action) => classify(tool.actions[action][0]) === "observe",
+        ),
+      },
+    };
+  });
+}
+
+// The operation and input a grouped call names, or {error}.
+export function groupedCall(name, args = {}) {
+  const tool = tools[name];
+  if (!tool) return null;
+  const actions = Object.keys(tool.actions),
+    action = args.action;
+  if (typeof action !== "string" || !Object.hasOwn(tool.actions, action))
+    return {
+      error: `${action === undefined ? "Name an action" : `Unknown action ${JSON.stringify(action)}`} for ${name}. Choose one of: ${actions.join(", ")}.`,
+    };
+  const [operation, , shape] = tool.actions[action],
+    input = args.input ?? {};
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    return { error: "input must be an object." };
+  return { operation, input: shape ? shape(input) : input };
+}

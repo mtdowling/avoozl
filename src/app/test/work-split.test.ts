@@ -1,0 +1,33 @@
+// @ts-nocheck: typing debt
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import { SCOPE_RULE, SCOPE_STATEMENT, TAGLINE } from "../../work-split.ts";
+
+// rc-13.1: one source string; the README and Set up show the same words.
+const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+const flat = (path) => read(path).replace(/\s+/g, " ");
+
+test("the statement takes specs of any size, a light one as one pull request", () => {
+  assert.match(SCOPE_STATEMENT, /any size/);
+  assert.match(SCOPE_STATEMENT, /one task becomes one pull request/);
+  assert.match(SCOPE_STATEMENT, /ordered tasks across repositories/);
+  assert.match(SCOPE_RULE, /starts from a spec you approved/);
+  assert.doesNotMatch(SCOPE_STATEMENT + SCOPE_RULE, /not an Avoozl job/);
+});
+
+test("one pitch: the package, the app, AGENTS.md and help say the tagline", () => {
+  assert.equal(JSON.parse(read("../../../package.json")).description, TAGLINE);
+  assert.equal(
+    JSON.parse(read("../../../hosts/kirocrew/app.json")).description,
+    TAGLINE,
+  );
+  assert.ok(flat("../../../AGENTS.md").includes(TAGLINE));
+  assert.match(read("../cli/cli-help.ts"), /from "\.\.\/\.\.\/work-split\.ts"/);
+});
+
+test("the README shows the same words", () => {
+  const readme = read("../../../README.md").replace(/\s+/g, " ");
+  assert.ok(readme.includes(SCOPE_STATEMENT));
+  assert.ok(readme.includes(SCOPE_RULE));
+});

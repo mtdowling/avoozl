@@ -1,6 +1,6 @@
 // Calls and pure helpers for stopping the line: the banner, the Stop the
 // line dialog and Settings > Flow (design §8.4, R64). The backend
-// (src/app/flow/flow-line.mjs) decides every stop; this module only formats
+// (src/app/flow/flow-line.ts) decides every stop; this module only formats
 // and checks. Keep it free of JSX and runtime imports so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'

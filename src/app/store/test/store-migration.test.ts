@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { Store } from "../store.ts";
-import { snapshot } from "../../test/fixtures.mjs";
-import { temporaryDirectory } from "../../test/temporary.mjs";
+import { snapshot } from "../../test/fixtures.ts";
+import { temporaryDirectory } from "../../test/temporary.ts";
 
 const postMainTables = ["github_repositories"];
 

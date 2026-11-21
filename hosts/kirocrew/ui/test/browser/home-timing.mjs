@@ -24,9 +24,9 @@ const HOP = Number(process.env.HOP_MS ?? 50),
   GITHUB = Number(process.env.GITHUB_MS ?? 400)
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
 const load = (file) => import(pathToFileURL(path.join(repo, file)).href)
-const { workspaceConfig } = await load('src/app/settings/config.mjs')
+const { workspaceConfig } = await load('src/app/settings/config.ts')
 const { Store } = await load('src/app/store/store.ts')
-const { Operations } = await load('src/app/api/operations.mjs')
+const { Operations } = await load('src/app/api/operations.ts')
 
 let fetches = 0
 globalThis.fetch = async () => {

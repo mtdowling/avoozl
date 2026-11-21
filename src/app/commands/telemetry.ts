@@ -1,6 +1,6 @@
 // @ts-nocheck: typing debt
 // `avoozl telemetry status|enable|disable` (spec otel-export, OT11.7).
-import { help } from "../cli/command-help.mjs";
+import { help } from "../cli/command-help.ts";
 
 const show = (value) => console.log(JSON.stringify(value, null, 2));
 

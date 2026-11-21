@@ -84,7 +84,7 @@ function kirocrew(root, source) {
 
 // The words of each `avoozl` command only a person may run: its help says so.
 async function personOnlyCommands() {
-  const { COMMANDS } = await import("../../src/app/cli/cli-commands.mjs");
+  const { COMMANDS } = await import("../../src/app/cli/cli-commands.ts");
   const prefixes = new Set();
   for (const entry of COMMANDS)
     for (const line of entry.help ?? [])

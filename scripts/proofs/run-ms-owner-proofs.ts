@@ -495,7 +495,7 @@ async function frontEndCheck(run) {
 // ran on `process`, so no Kiro Crew took part.
 async function noKiroCrewCheck(runRoot, report) {
   const { machineAvoozlPaths } = await import(
-    "../../src/app/settings/host-config.mjs"
+    "../../src/app/settings/host-config.ts"
   );
   const home = path.join(runRoot, "home");
   const { configDirectory } = machineAvoozlPaths({
@@ -650,7 +650,7 @@ async function main() {
     `Proofs: ${run.proofs.join(", ")}${run.dryRun ? " (dry run: no model)" : ""}`,
   );
   if (!run.dryRun) {
-    const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
+    const { sandboxKind } = await import("../../src/app/executors/sandbox.ts");
     const problems = [
       !sandboxKind() &&
         "No sandbox here (inside another sandbox?). Run this from your own Terminal, not from a Kiro Crew chat.",

@@ -1,13 +1,13 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
-import { loopFile, machineLoop } from "../tick/loop.mjs";
-import { applyActivity } from "../../activity.mjs";
-import { captureTask } from "../../capture.mjs";
-import { dispatchMcp } from "../../mcp.mjs";
-import { digest, queryTasks, statusComplete } from "../../model.mjs";
-import { requireDistinctTask, resolveTaskId } from "../../task-identity.mjs";
-import { COMPLETIONS } from "../../work-model.mjs";
-import { isPlanInventory, taskSignals } from "../../workbench-model.mjs";
+import { loopFile, machineLoop } from "../tick/loop.ts";
+import { applyActivity } from "../../activity.ts";
+import { captureTask } from "../../capture.ts";
+import { dispatchMcp } from "../../mcp.ts";
+import { digest, queryTasks, statusComplete } from "../../model.ts";
+import { requireDistinctTask, resolveTaskId } from "../../task-identity.ts";
+import { COMPLETIONS } from "../../work-model.ts";
+import { isPlanInventory, taskSignals } from "../../workbench-model.ts";
 import {
   DEFAULT_RETENTION_DAYS,
   listActivity,
@@ -16,42 +16,42 @@ import {
 import {
   matchingAgentInstructions,
   toggleAgentInstruction,
-} from "../agents/agent-instructions.mjs";
-import { describeWorkspace } from "../api/client.mjs";
-import { settleConflicts } from "../delivery/conflict-actions.mjs";
+} from "../agents/agent-instructions.ts";
+import { describeWorkspace } from "../api/client.ts";
+import { settleConflicts } from "../delivery/conflict-actions.ts";
 import {
   busyTaskIds,
   readyCandidates,
   startNow,
-} from "../delivery/delivery.mjs";
-import { diskNeedsYou } from "../workspace/disk-space.mjs";
-import { updateNeedsYou } from "../plugins/plugin-updates.mjs";
-import { resolveDecision } from "../api/direct-links.mjs";
-import { machineLinks } from "../tick/crews.mjs";
-import { withWorkLock } from "../git/git.mjs";
-import { paceNeedsYou } from "../github/github-pacer.mjs";
-import { rateNeedsYou } from "../github/github-rate.mjs";
-import { credentialsNeedsYou } from "../github/github-credentials.mjs";
-import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
-import { highlightLanguages } from "../settings/highlight-languages.mjs";
-import { landingNeedsYou } from "../epics/integration-head.mjs";
-import { pluginCheckNeedsYou } from "../plugins/plugin-checks.mjs";
-import { pluginApprovalNeedsYou } from "../plugins/plugins.mjs";
-import { lineNeedsYou } from "../flow/flow-line.mjs";
-import { contextNeedsYou } from "../workers/epic-context.mjs";
+} from "../delivery/delivery.ts";
+import { diskNeedsYou } from "../workspace/disk-space.ts";
+import { updateNeedsYou } from "../plugins/plugin-updates.ts";
+import { resolveDecision } from "../api/direct-links.ts";
+import { machineLinks } from "../tick/crews.ts";
+import { withWorkLock } from "../git/git.ts";
+import { paceNeedsYou } from "../github/github-pacer.ts";
+import { rateNeedsYou } from "../github/github-rate.ts";
+import { credentialsNeedsYou } from "../github/github-credentials.ts";
+import { listHarnessDefinitions } from "../executors/harness-definitions.ts";
+import { highlightLanguages } from "../settings/highlight-languages.ts";
+import { landingNeedsYou } from "../epics/integration-head.ts";
+import { pluginCheckNeedsYou } from "../plugins/plugin-checks.ts";
+import { pluginApprovalNeedsYou } from "../plugins/plugins.ts";
+import { lineNeedsYou } from "../flow/flow-line.ts";
+import { contextNeedsYou } from "../workers/epic-context.ts";
 import {
   phaseNeedsYou,
   requiredCheckNeedsYou,
-} from "../plugins/check-stages.mjs";
-import { syncNeedsYou } from "../epics/integration-sync.mjs";
-import { graphMermaid, graphText, storeGraph } from "../specs/graph.mjs";
-import { integrationNeedsYou } from "../specs/integration-base.mjs";
-import { claimsNeedsYou, closedPullNeedsYou } from "../workers/claims.mjs";
-import { lanesNeedsYou } from "../sessions/lane-sessions.mjs";
-import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
-import { needsKirocrewItems } from "../tick/needs-kirocrew.mjs";
-import { needsHarnessItems } from "../tick/needs-harness.mjs";
-import { addItemContext } from "../api/needs-you-context.mjs";
+} from "../plugins/check-stages.ts";
+import { syncNeedsYou } from "../epics/integration-sync.ts";
+import { graphMermaid, graphText, storeGraph } from "../specs/graph.ts";
+import { integrationNeedsYou } from "../specs/integration-base.ts";
+import { claimsNeedsYou, closedPullNeedsYou } from "../workers/claims.ts";
+import { lanesNeedsYou } from "../sessions/lane-sessions.ts";
+import { completeManual, reopenManual } from "../tasks/manual-tasks.ts";
+import { needsKirocrewItems } from "../tick/needs-kirocrew.ts";
+import { needsHarnessItems } from "../tick/needs-harness.ts";
+import { addItemContext } from "../api/needs-you-context.ts";
 import {
   claimedOrNone,
   kiroCrewSessions,
@@ -60,7 +60,7 @@ import {
   refuseSpecText,
   reviewRoles,
   validationAt,
-} from "../api/operation-support.mjs";
+} from "../api/operation-support.ts";
 import {
   activityView,
   chatContext,
@@ -69,13 +69,13 @@ import {
   helpMessage,
   taskDetailView,
   withGraphState,
-} from "../api/page-views.mjs";
-import { conversationSettings } from "../settings/repository-settings.mjs";
+} from "../api/page-views.ts";
+import { conversationSettings } from "../settings/repository-settings.ts";
 import { fail } from "../store/store.ts";
-import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
-import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
+import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.ts";
+import { workspaceRepositories } from "../workspace/workspace-repositories.ts";
 import { randomUUID } from "node:crypto";
-import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.ts";
 
 // Manual tasks (§4.16).
 function taskManualCompleteHandler({ name, input, context }) {

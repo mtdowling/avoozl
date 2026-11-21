@@ -9,11 +9,11 @@ import {
   harnessDefinitionHash,
   listHarnessDefinitions,
   parseHarnessDefinition,
-} from "../harness-definitions.mjs";
-import { cachedProbe } from "../harness-ready.mjs";
+} from "../harness-definitions.ts";
+import { cachedProbe } from "../harness-ready.ts";
 import { probeError, probeHarness } from "../harness-probe.ts";
-import { sandboxKind } from "../sandbox.mjs";
-import { scratchRoot } from "./process-machine.mjs";
+import { sandboxKind } from "../sandbox.ts";
+import { scratchRoot } from "./process-machine.ts";
 
 // A fake CLI: prints the kept names it sees and whether its seeded home
 // holds settings.json, then exits with FAKE_EXIT.

@@ -1,12 +1,12 @@
 // @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
-import { validate } from "../../model.mjs";
+import { validate } from "../../model.ts";
 import { Store } from "../store/store.ts";
 import fs from "node:fs";
-import { help } from "../cli/command-help.mjs";
+import { help } from "../cli/command-help.ts";
 import { runWorkspace } from "./setup.ts";
-import { credentialsProblems } from "../github/github-credentials.mjs";
-import { pluginSettingsPath } from "../plugins/plugins.mjs";
+import { credentialsProblems } from "../github/github-credentials.ts";
+import { pluginSettingsPath } from "../plugins/plugins.ts";
 
 async function runEpics({ positionals, command, localOrRequest }) {
   console.log(

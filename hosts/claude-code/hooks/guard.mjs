@@ -17,14 +17,14 @@ const PERSON_ONLY = JSON.parse(
   fs.readFileSync(path.join(here, "person-only.json"), "utf8"),
 );
 
-// The words after each `avoozl` (or `avoozl.mjs`, `cli.mjs`) in a shell line.
+// The words after each `avoozl` (or `avoozl.mjs`, `cli.ts`) in a shell line.
 export function avoozlCalls(line) {
   const words = String(line)
     .split(/[\s;&|()`]+/)
     .map((word) => word.replace(/^['"]|['"]$/g, ""));
   const calls = [];
   words.forEach((word, index) => {
-    if (/(^|\/)(avoozl|avoozl\.mjs|cli\.mjs)$/.test(word))
+    if (/(^|\/)(avoozl|avoozl\.mjs|cli\.(mjs|ts))$/.test(word))
       calls.push(words.slice(index + 1).filter((w) => !w.startsWith("-")));
   });
   return calls;

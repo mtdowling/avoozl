@@ -2,13 +2,13 @@
 // The OTLP exporter's status and its machine setting (spec otel-export, OT5,
 // OT11, §D6, §D11).
 import path from "node:path";
-import { person, notOnMcp } from "../api/operation-policy.mjs";
-import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
-import { validateTelemetry } from "../settings/telemetry-config.mjs";
-import { writeMachineFile } from "../tick/crews.mjs";
+import { person, notOnMcp } from "../api/operation-policy.ts";
+import { globalAvoozlConfigPath } from "../settings/layered-config.ts";
+import { validateTelemetry } from "../settings/telemetry-config.ts";
+import { writeMachineFile } from "../tick/crews.ts";
 import { fail } from "../store/store.ts";
-import { machineAvoozlPaths } from "../settings/host-config.mjs";
-import { telemetryHandle, telemetryStatus } from "../telemetry/index.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.ts";
+import { telemetryHandle, telemetryStatus } from "../telemetry/index.ts";
 
 const configDirectory = (operations) =>
   operations.configDirectory ?? machineAvoozlPaths().configDirectory;

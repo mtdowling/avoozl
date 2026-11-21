@@ -29,18 +29,18 @@ if (!receipt) {
   process.exit(2);
 }
 
-const World = await imp("executors/test/epic-context-world.mjs");
-const { seedApproval, setDriver } = await imp("test/epic-context-seed.mjs");
+const World = await imp("executors/test/epic-context-world.ts");
+const { seedApproval, setDriver } = await imp("test/epic-context-seed.ts");
 const { listActivity } = await imp("store/activity-log.ts");
-const { contextView, contextSources } = await imp("context/plugin-context.mjs");
-const { contextChip } = await imp("context/context-record.mjs");
-const { enforce } = await imp("content/content-rules.mjs");
-const { loadLayeredConfig } = await imp("settings/layered-config.mjs");
-const { contextMachine } = await imp("context/test/context-fixture.mjs");
-const { taskEvidence } = await imp("tasks/evidence.mjs");
-const { drainProcessRequests } = await imp("executors/process.mjs");
-const { enqueueSessionRequests } = await imp("sessions/session-requests.mjs");
-const { FakeGitHub } = await imp("test/fake-github.mjs");
+const { contextView, contextSources } = await imp("context/plugin-context.ts");
+const { contextChip } = await imp("context/context-record.ts");
+const { enforce } = await imp("content/content-rules.ts");
+const { loadLayeredConfig } = await imp("settings/layered-config.ts");
+const { contextMachine } = await imp("context/test/context-fixture.ts");
+const { taskEvidence } = await imp("tasks/evidence.ts");
+const { drainProcessRequests } = await imp("executors/process.ts");
+const { enqueueSessionRequests } = await imp("sessions/session-requests.ts");
+const { FakeGitHub } = await imp("test/fake-github.ts");
 
 const cleanups = [];
 const t = { after: (fn) => cleanups.push(fn) };

@@ -1,16 +1,16 @@
 // @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
-import { planningIdentity } from "../github/github-marker.mjs";
-import { publishSpec } from "../specs/spec-publication.mjs";
+import { planningIdentity } from "../github/github-marker.ts";
+import { publishSpec } from "../specs/spec-publication.ts";
 import { fail } from "../store/store.ts";
-import { publishPlanningPullRequest } from "../workspace/workspace-repository.mjs";
-import { notOnMcp, person, routed } from "../api/operation-policy.mjs";
+import { publishPlanningPullRequest } from "../workspace/workspace-repository.ts";
+import { notOnMcp, person, routed } from "../api/operation-policy.ts";
 import fs from "node:fs";
 import path from "node:path";
-import { withGraphBlock } from "../specs/graph.mjs";
-import { lintSpec } from "../specs/spec-plans.mjs";
-import { specTasks } from "../specs/spec-tasks.mjs";
-import { specsDirectory } from "../specs/specs-path.mjs";
+import { withGraphBlock } from "../specs/graph.ts";
+import { lintSpec } from "../specs/spec-plans.ts";
+import { specTasks } from "../specs/spec-tasks.ts";
+import { specsDirectory } from "../specs/specs-path.ts";
 
 export const entries = [
   // Spec lint on the folders on disk (simplify §D9): one spec, or every

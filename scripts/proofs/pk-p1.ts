@@ -63,16 +63,16 @@ const port = server.address().port;
 
 // ---- The workspace and the scratch repository ---------------------------
 const { Store } = await imp("store/store.ts");
-const { Operations } = await imp("api/operations.mjs");
-const { snapshot } = await imp("test/fixtures.mjs");
-const plugins = await imp("plugins/plugins.mjs");
-const pluginChecks = await imp("plugins/plugin-checks.mjs");
-const { runPluginCheck } = await imp("plugins/plugin-check-run.mjs");
+const { Operations } = await imp("api/operations.ts");
+const { snapshot } = await imp("test/fixtures.ts");
+const plugins = await imp("plugins/plugins.ts");
+const pluginChecks = await imp("plugins/plugin-checks.ts");
+const { runPluginCheck } = await imp("plugins/plugin-check-run.ts");
 const { checkRuns, drainCheckRuns, runChecksAt } = await imp(
-  "delivery/check-runs.mjs",
+  "delivery/check-runs.ts",
 );
-const { queuePhaseChecks } = await imp("plugins/check-stages.mjs");
-const { localCheckResult } = await imp("plugins/check-stages.mjs");
+const { queuePhaseChecks } = await imp("plugins/check-stages.ts");
+const { localCheckResult } = await imp("plugins/check-stages.ts");
 
 const bare = path.join(root, "remote", "api.git"),
   checkout = path.join(root, "api");
@@ -540,7 +540,7 @@ try {
     alias: "review",
     command: [
       process.execPath,
-      src("test/fixtures/fake-review-mcp.mjs"),
+      src("test/fixtures/fake-review-mcp.ts"),
       "--log",
       log,
       "--running-ms",
@@ -568,8 +568,8 @@ try {
       "-e",
       `
     const { Store } = await import(${JSON.stringify(src("store/store.ts"))});
-    const { Operations } = await import(${JSON.stringify(src("api/operations.mjs"))});
-    const { drainCheckRuns } = await import(${JSON.stringify(src("delivery/check-runs.mjs"))});
+    const { Operations } = await import(${JSON.stringify(src("api/operations.ts"))});
+    const { drainCheckRuns } = await import(${JSON.stringify(src("delivery/check-runs.ts"))});
     const store = new Store(${JSON.stringify(storeFile)});
     new Operations(store, { workspaceRoot: ${JSON.stringify(root)}, pluginSettingsFile: ${JSON.stringify(settingsFile)} });
     await drainCheckRuns(store);
@@ -644,7 +644,7 @@ try {
     alias: "review",
     command: [
       process.execPath,
-      src("test/fixtures/fake-review-mcp.mjs"),
+      src("test/fixtures/fake-review-mcp.ts"),
       "--log",
       log,
     ],
