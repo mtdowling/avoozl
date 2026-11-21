@@ -43,6 +43,10 @@ export const APP_OPERATIONS = new Set([
   // In flight's claim branches and this machine's lanes (simplify §D13).
   "claims.view",
   "lanes.view",
+  // Insights and its saved retros (simplify §D13).
+  "insights.view",
+  "retro.list",
+  "retro.read",
   "conflicts.view",
   "radar.releasequeue",
   "epics.view",
