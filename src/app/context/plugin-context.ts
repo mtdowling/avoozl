@@ -31,7 +31,7 @@ export interface ContextServer {
   about: string;
   command: string[];
 }
-interface Skill {
+export interface Skill {
   name: string;
   description: string;
   folder: string;
@@ -67,7 +67,7 @@ export interface ContextPlugin {
   state?: string;
   location?: string;
 }
-interface PluginOptions {
+export interface PluginOptions {
   settingsFile: string;
   workspaceRoot?: string | null;
   [key: string]: unknown;
