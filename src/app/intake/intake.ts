@@ -873,7 +873,20 @@ export function withPolicy(source: Source, githubPolicy: GitHubPolicy): Source {
 export async function submitItems(
   sources: Map<string, Source>,
   githubPolicy: GitHubPolicy,
-  github: { available?: () => boolean } | null | undefined,
+  github:
+    | {
+        available?: () => boolean;
+        createIssue(
+          repository: string,
+          issue: { title: string; body: string; [key: string]: unknown },
+        ): Promise<{
+          number?: number;
+          html_url?: string;
+          [key: string]: unknown;
+        }>;
+      }
+    | null
+    | undefined,
   input: { source?: unknown; items?: unknown } = {},
 ) {
   const id = input.source;

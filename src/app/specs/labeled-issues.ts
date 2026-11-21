@@ -29,7 +29,16 @@ interface Issue {
 interface IssueGitHub extends LabelReader {
   listIssues?(repository: string, options: { state: string }): Promise<Issue[]>;
   issueEvents?(repository: string, number: number): Promise<IssueEvent[]>;
-  [key: string]: unknown;
+  createIssueComment(
+    repository: string,
+    number: number,
+    body: string,
+  ): Promise<unknown>;
+  updateIssue(
+    repository: string,
+    number: number,
+    patch: Record<string, unknown>,
+  ): Promise<unknown>;
 }
 type Repository = {
   id: string;

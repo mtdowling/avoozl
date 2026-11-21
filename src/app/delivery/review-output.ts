@@ -159,7 +159,13 @@ function due(store: Store, since: string) {
 export async function postReviewOutput(
   store: Store,
   github:
-    | { createIssueComment?: unknown; [key: string]: unknown }
+    | {
+        createIssueComment?(
+          repository: string,
+          number: number,
+          body: string,
+        ): Promise<unknown>;
+      }
     | null
     | undefined,
   { now }: { now?: number } = {},
@@ -176,7 +182,10 @@ export async function postReviewOutput(
   }
   const tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
     errors: { repository: string; error: string }[] = [],
-    writer = asJob("review-output", github),
+    writer = asJob(
+      "review-output",
+      github as Required<NonNullable<typeof github>>,
+    ),
     checked = Boolean(contentBinding(store)?.workspaceRoot);
   for (const item of due(store, since)) {
     const task = tasks.get(item.taskId),
