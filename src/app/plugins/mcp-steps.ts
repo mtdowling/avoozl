@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // MCP steps (plugin-checks D13, PK10): a fixed program of tool calls on a
 // local stdio MCP server, which Avoozl runs itself with no model in the
 // loop. The manifest fixes every tool, argument name and the order (start,
@@ -6,6 +5,8 @@
 // is a child of the check runner, started for one check and stopped after
 // it, with the check environment basics plus its mapping's `env` names.
 import { spawn } from "node:child_process";
+import type { ChildProcessByStdio } from "node:child_process";
+import type { Readable, Writable } from "node:stream";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,33 +20,85 @@ const CALL_MS = 60_000;
 const MAX_LINE = 4 * 1024 * 1024;
 const MAX_FILE = 65536;
 
+type Values = Record<string, string | undefined>;
+// The manifest's fixed program of tool calls.
+interface McpStep {
+  server: string;
+  start: { tool: string; args?: unknown; id?: string };
+  poll?: {
+    tool: string;
+    args?: unknown;
+    everySeconds?: number;
+    until: { path: string; in: unknown[] };
+  };
+  result: { path: string; text?: string; pass: unknown[] };
+}
+// One MCP check, as approvedPluginChecks makes it.
+interface McpCheck {
+  mcp: McpStep;
+  plugin: { folder: string };
+  mapping: { command: string[]; env?: string[] };
+}
+// Where and how one step runs.
+interface StepContext {
+  root: string;
+  values?: Values;
+  timeoutMs?: number;
+  mcpId?: unknown;
+  onMcpId?: (id: string) => void;
+  onBroken?: (reason: string) => void;
+  checkListeners?: (pid: number) => Promise<string[]>;
+  secondMs?: number;
+}
+// What a step leaves: its exit code, output tail or why it did not run.
+interface StepResult {
+  exitCode: number | null;
+  tail?: string;
+  notRun?: string;
+  violation?: string;
+  durationMs?: number;
+}
+// A tool reply, as MCP shapes it.
+type ToolResult = {
+  isError?: boolean;
+  structuredContent?: unknown;
+  content?: ({ type?: string; text?: unknown } | null)[];
+} | null;
+type Waiting = {
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+  timer: NodeJS.Timeout;
+};
+
 // One string with `{name}` placeholders replaced; a name with no value is
 // refused, so a step never runs with a hole in it.
-export function fillText(text, values) {
-  return String(text).replace(/\{([a-z_]+)\}/g, (_whole, name) => {
+export function fillText(text: unknown, values: Values) {
+  return String(text).replace(/\{([a-z_]+)\}/g, (_whole, name: string) => {
     if (values[name] === undefined)
       throw Error(`{${name}} has no value for this run`);
-    return values[name];
+    return values[name] as string;
   });
 }
 
 // The value at a `$.key[0]` path, or undefined.
-export function readPath(value, at) {
-  let current = value;
+export function readPath(value: unknown, at: unknown) {
+  let current: unknown = value;
   for (const [, key, index] of String(at)
     .slice(1)
     .matchAll(/\.([A-Za-z_][A-Za-z0-9_-]*)|\[(\d+)\]/g)) {
     if (current === null || typeof current !== "object") return undefined;
-    current = key !== undefined ? current[key] : current[Number(index)];
+    const here = current as Record<string, unknown>;
+    current = key !== undefined ? here[key] : here[Number(index)];
   }
   return current;
 }
 
-const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const same = (a: unknown, b: unknown) =>
+  JSON.stringify(a) === JSON.stringify(b);
 
 // A tool reply's JSON: its structuredContent, else the first text item
 // parsed, else undefined.
-function replyValue(result) {
+function replyValue(result: ToolResult): unknown {
   if (result?.structuredContent !== undefined) return result.structuredContent;
   const text = (result?.content ?? []).find((item) => item?.type === "text");
   if (typeof text?.text !== "string") return undefined;
@@ -57,10 +110,14 @@ function replyValue(result) {
 }
 
 // Fill a step's arguments: placeholders inside strings only, keys never.
-function fillArgs(value, values, readFile) {
+function fillArgs(
+  value: unknown,
+  values: Values,
+  readFile: (name: string) => string,
+): unknown {
   if (typeof value === "string")
     return fillText(
-      value.replace(/\{file:([^{}]+)\}/g, (_, name) => readFile(name)),
+      value.replace(/\{file:([^{}]+)\}/g, (_, name: string) => readFile(name)),
       values,
     );
   if (Array.isArray(value))
@@ -76,15 +133,15 @@ function fillArgs(value, values, readFile) {
 }
 
 // A JSON-RPC client over the server's stdio.
-function client(child) {
+function client(child: ChildProcessByStdio<Writable, Readable, null>) {
   let next = 1,
-    broken = null;
-  const pending = new Map(),
-    fail = (reason) => {
+    broken: string | null = null;
+  const pending = new Map<unknown, Waiting>(),
+    fail = (reason: string) => {
       broken ||= reason;
       for (const waiting of pending.values()) {
         clearTimeout(waiting.timer);
-        waiting.reject(Error(broken));
+        waiting.reject(Error(String(broken)));
       }
       pending.clear();
     };
@@ -102,7 +159,11 @@ function client(child) {
       child.kill("SIGKILL");
     },
     onLine: (line) => {
-      let message;
+      let message: {
+        id?: unknown;
+        error?: { message?: unknown };
+        result?: unknown;
+      } | null;
       try {
         message = JSON.parse(line);
       } catch {
@@ -110,9 +171,9 @@ function client(child) {
       }
       const waiting = pending.get(message?.id);
       if (!waiting) return;
-      pending.delete(message.id);
+      pending.delete(message?.id);
       clearTimeout(waiting.timer);
-      if (message.error)
+      if (message?.error)
         waiting.reject(
           Object.assign(
             Error(
@@ -121,7 +182,7 @@ function client(child) {
             { mcp: true },
           ),
         );
-      else waiting.resolve(message.result);
+      else waiting.resolve(message?.result);
     },
   });
   return {
@@ -129,12 +190,12 @@ function client(child) {
       return broken;
     },
     fail,
-    notify(method, params) {
+    notify(method: string, params: unknown) {
       child.stdin.write(
         JSON.stringify({ jsonrpc: "2.0", method, params }) + "\n",
       );
     },
-    request(method, params, ms = CALL_MS) {
+    request(method: string, params: unknown, ms = CALL_MS): Promise<unknown> {
       if (broken) return Promise.reject(Error(broken));
       const id = next++;
       return new Promise((resolve, reject) => {
@@ -151,8 +212,11 @@ function client(child) {
   };
 }
 
-const notRun = (why) => ({ exitCode: null, notRun: why.slice(0, 300) });
-const failed = (why, extra = {}) => ({
+const notRun = (why: string): StepResult => ({
+  exitCode: null,
+  notRun: why.slice(0, 300),
+});
+const failed = (why: string, extra = {}): StepResult => ({
   exitCode: 1,
   tail: outputTail(why),
   ...extra,
@@ -162,18 +226,24 @@ const failed = (why, extra = {}) => ({
 // mcpId (a task id from before a restart), onMcpId(id), onBroken(reason),
 // checkListeners, secondMs (tests shorten a second)}. Returns a result
 // entry {exitCode, tail?, notRun?, durationMs}.
-export async function runMcpStep(check, context) {
+export async function runMcpStep(
+  check: McpCheck,
+  context: StepContext,
+): Promise<StepResult> {
   const started = Date.now(),
     step = check.mcp,
     second = context.secondMs ?? 1000,
     deadline = started + (context.timeoutMs ?? 1_200_000),
     scratch = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-mcp-")),
-    values = { ...context.values };
-  let child = null,
+    values: Values = { ...context.values };
+  let child: ChildProcessByStdio<Writable, Readable, null> | null = null,
     stopWatch = () => {},
-    violation = null,
+    violation: string | null = null,
     exited = false;
-  const done = (result) => ({ ...result, durationMs: Date.now() - started });
+  const done = (result: StepResult): StepResult => ({
+    ...result,
+    durationMs: Date.now() - started,
+  });
   try {
     if (/\{diff_path\}/.test(JSON.stringify(step))) {
       if (!values.base || !values.commit)
@@ -185,27 +255,28 @@ export async function runMcpStep(check, context) {
       );
       values.diff_path = file;
     }
-    const readFile = (name) =>
+    const readFile = (name: string) =>
       fs
         .readFileSync(path.join(check.plugin.folder, name), "utf8")
         .slice(0, MAX_FILE);
     const [command, ...args] = check.mapping.command;
-    child = spawn(command, args, {
+    const server = spawn(command, args, {
       cwd: scratch,
       env: checkEnvironment(process.env, check.mapping.env ?? []),
       stdio: ["pipe", "pipe", "ignore"],
       windowsHide: true,
     });
-    child.on("exit", () => {
+    child = server;
+    server.on("exit", () => {
       exited = true;
       stopWatch();
     });
-    const rpc = client(child);
-    if (child.pid)
-      stopWatch = watchListeners(child.pid, {
+    const rpc = client(server);
+    if (server.pid)
+      stopWatch = watchListeners(server.pid, {
         checkListeners: context.checkListeners ?? listeningSockets,
         gone: () => exited,
-        onHit: (reason) => {
+        onHit: (reason: string) => {
           violation = `the MCP server ${reason}`;
           rpc.fail(violation);
         },
@@ -224,13 +295,16 @@ export async function runMcpStep(check, context) {
         clientInfo: { name: "avoozl", version: "1" },
       });
       rpc.notify("notifications/initialized", {});
-      const tools = new Set();
-      let cursor;
+      const tools = new Set<unknown>();
+      let cursor: unknown;
       for (let page = 0; page < 20; page++) {
-        const listed = await rpc.request(
+        const listed = (await rpc.request(
           "tools/list",
           cursor ? { cursor } : {},
-        );
+        )) as {
+          tools?: ({ name?: unknown } | null)[];
+          nextCursor?: unknown;
+        } | null;
         for (const tool of listed?.tools ?? []) tools.add(tool?.name);
         cursor = listed?.nextCursor;
         if (!cursor) break;
@@ -244,15 +318,16 @@ export async function runMcpStep(check, context) {
         );
     } catch (error) {
       return done(
-        broken() ?? notRun(`server ${step.server}: ${error.message}`),
+        broken() ??
+          notRun(`server ${step.server}: ${(error as Error).message}`),
       );
     }
-    const call = async (tool, args) => {
-      const result = await rpc.request(
+    const call = async (tool: string, args: unknown) => {
+      const result = (await rpc.request(
         "tools/call",
         { name: tool, arguments: fillArgs(args ?? {}, values, readFile) },
         Math.max(1, Math.min(CALL_MS, deadline - Date.now())),
-      );
+      )) as ToolResult;
       if (result?.isError) {
         const text = replyValue(result);
         throw Object.assign(
@@ -270,7 +345,7 @@ export async function runMcpStep(check, context) {
       return value;
     };
     try {
-      let last;
+      let last: unknown;
       if (context.mcpId !== undefined && context.mcpId !== null) {
         values.id = String(context.mcpId);
       } else {
@@ -296,7 +371,7 @@ export async function runMcpStep(check, context) {
               ),
             );
           await new Promise((resolve) => setTimeout(resolve, wait));
-          if (violation) return done(broken());
+          if (violation) return done(broken() as StepResult);
           last = await call(step.poll.tool, step.poll.args);
           const state = readPath(last, step.poll.until.path);
           if (step.poll.until.in.some((value) => same(value, state))) break;
@@ -318,7 +393,8 @@ export async function runMcpStep(check, context) {
       const passed = step.result.pass.some((value) => same(value, verdict));
       return done({ exitCode: passed ? 0 : 1, ...(tail ? { tail } : {}) });
     } catch (error) {
-      if (broken()) return done(broken());
+      const why = broken();
+      if (why) return done(why);
       // The check's own timeout cut the call short.
       if (Date.now() >= deadline - 5)
         return done(
@@ -326,15 +402,16 @@ export async function runMcpStep(check, context) {
             `timed out after ${Math.round((Date.now() - started) / 1000)} s`,
           ),
         );
-      return done(failed(error.message));
+      return done(failed((error as Error).message));
     }
   } finally {
     stopWatch();
     // The server must be gone before its working folder goes: Windows
     // keeps a running process's folder locked.
     if (child && !exited) {
-      const gone = new Promise((resolve) => child.once("exit", resolve));
-      child.kill("SIGKILL");
+      const running = child;
+      const gone = new Promise((resolve) => running.once("exit", resolve));
+      running.kill("SIGKILL");
       await Promise.race([gone, new Promise((r) => setTimeout(r, 5000))]);
     }
     fs.rmSync(scratch, {
