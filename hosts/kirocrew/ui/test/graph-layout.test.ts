@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Runs under node's type stripping: `node --test hosts/kirocrew/ui/test`.
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -20,39 +19,17 @@ import {
   waves,
   zoomAt,
 } from '../src/graph-layout.ts'
+import { graphEdge, graphOf, graphTask } from './graph-fixture.ts'
+import type { Graph, GraphEdge, GraphTask } from '../src/views-api.ts'
 
-const task = (id, extra = {}) => ({
-  id,
-  title: 'Task ' + id,
-  group: 'e1',
-  kind: 'leaf',
-  authority: 'local',
-  route: 'local',
-  completion: 'integrated',
-  repository: null,
-  status: 'planned',
-  complete: false,
-  ready: false,
-  decision: null,
-  issue: null,
-  ...extra,
-})
-const edge = (from, to, extra = {}) => ({
-  from,
-  to,
-  kind: 'requires',
-  condition: null,
-  blocking: true,
-  satisfied: false,
-  ...extra,
-})
+const task = (id: string, extra: Partial<GraphTask> = {}) => graphTask(id, { group: 'e1', ...extra })
+const edge = (from: string, to: string, extra: Partial<GraphEdge> = {}) => graphEdge(from, to, extra)
 
 // e1: a -> b -> d, a -> c -> d; e2: x waits on b; a supports edge is ignored.
-const graph = {
-  revision: 1,
+const graph: Graph = graphOf({
   groups: [
-    { id: 'e1', title: 'First', count: 4 },
-    { id: 'e2', title: 'Second', count: 1 },
+    { id: 'e1', title: 'First' },
+    { id: 'e2', title: 'Second' },
   ],
   statuses: [],
   repositories: [],
@@ -78,13 +55,18 @@ const graph = {
     edge('b', 'x'),
     edge('a', 'loose', { kind: 'supports', blocking: false }),
   ],
-}
+})
 
-const column = (n) => (n - 1) * (NODE_WIDTH + COLUMN_GAP) + MARGIN
+// Every group the tasks name, all folded.
+const groupsOf = (tasks: GraphTask[]) => new Set(tasks.flatMap((t) => (t.group ? [t.group] : [])))
+
+const column = (n: number) => (n - 1) * (NODE_WIDTH + COLUMN_GAP) + MARGIN
 
 // True when segment p-q enters the inside of the box (Liang-Barsky clip).
 // Touching an edge, as a route does at its own ends, does not count.
-function entersBox([x1, y1], [x2, y2], box, inset = 0.5) {
+type Point = number[]
+type Layout = ReturnType<typeof layoutGraph>
+function entersBox([x1, y1]: Point, [x2, y2]: Point, box: { x: number; y: number }, inset = 0.5) {
   const left = box.x + inset
   const right = box.x + NODE_WIDTH - inset
   const top = box.y + inset
@@ -111,7 +93,7 @@ function entersBox([x1, y1], [x2, y2], box, inset = 0.5) {
   return t1 - t0 > 1e-9
 }
 
-function assertClean(layout) {
+function assertClean(layout: Layout) {
   for (const e of layout.edges)
     for (let i = 0; i + 1 < e.points.length; i++)
       for (const node of layout.nodes) assert.ok(!entersBox(e.points[i], e.points[i + 1], node), `edge ${e.from}->${e.to} segment ${i} passes under ${node.id}`)
@@ -219,6 +201,7 @@ test('routes leave the source on the right and reach the target on the left', ()
   const layout = layoutGraph(chain)
   const at = Object.fromEntries(layout.nodes.map((n) => [n.id, n]))
   const long = layout.edges.find((e) => e.from === 'a' && e.to === 'd')
+  assert.ok(long, 'the a to d edge is drawn')
   assert.deepEqual(long.points[0], [at.a.x + NODE_WIDTH, at.a.y + NODE_HEIGHT / 2])
   assert.deepEqual(long.points.at(-1), [at.d.x, at.d.y + NODE_HEIGHT / 2])
   // It spans columns, so it runs out, along a row gutter, and in.
@@ -242,6 +225,7 @@ test('a chain runs straight across', () => {
 test('a collapsed epic is one node and its edges join without self loops', () => {
   const layout = layoutGraph(graph, new Set(['e1']))
   const epic = layout.nodes.find((n) => n.id === 'group:e1')
+  assert.ok(epic, 'the epic is one node')
   assert.deepEqual(epic.members, { total: 4, done: 1 })
   // The most urgent member state colors it: c is running.
   assert.equal(epic.state, 'running')
@@ -249,7 +233,7 @@ test('a collapsed epic is one node and its edges join without self loops', () =>
     layout.edges.map(({ from, to, kind, satisfied }) => ({ from, to, kind, satisfied })),
     [{ from: 'group:e1', to: 'x', kind: 'requires', satisfied: false }],
   )
-  assert.equal(layout.clusters.find((c) => c.group === 'e1').collapsed, true)
+  assert.equal(layout.clusters.find((c) => c.group === 'e1')?.collapsed, true)
 })
 
 test('a merged edge is met only when every edge it stands for is met', () => {
@@ -274,7 +258,7 @@ test('a Nupp-sized graph has no edge under a node and fewer crossings than the n
   const looseRows = new Set(layout.nodes.filter((n) => n.loose).map((n) => n.y))
   const looseCount = layout.nodes.filter((n) => n.loose).length
   assert.ok(looseCount > 0 && looseRows.size < looseCount)
-  const folded = layoutGraph(big, new Set(big.tasks.map((t) => t.group)))
+  const folded = layoutGraph(big, groupsOf(big.tasks))
   assert.equal(folded.nodes.length, 7)
   assertClean(folded)
 })
@@ -340,7 +324,7 @@ test('fit shrinks a wide layout to the box and never enlarges a small one', () =
 })
 
 // Every segment is level or upright, and none runs through a cell.
-function assertOrthogonal(layout) {
+function assertOrthogonal(layout: Layout) {
   for (const e of layout.edges)
     for (let i = 0; i + 1 < e.points.length; i++) {
       const [[x1, y1], [x2, y2]] = [e.points[i], e.points[i + 1]]
@@ -361,7 +345,7 @@ test('a tall wave wraps into more columns, bringing the shape nearer the canvas'
   const fan = { ...graph, tasks, edges: tasks.slice(1).map((t) => edge('s', t.id)) }
   const wrapped = layoutGraph(fan)
   const tall = layoutGraph(fan, new Set(), { rows: 60 })
-  const off = (l) => Math.abs(Math.log(l.width / l.height / ASPECT))
+  const off = (l: Layout) => Math.abs(Math.log(l.width / l.height / ASPECT))
   assert.ok(wrapped.rows < 60)
   assert.ok(off(wrapped) < off(tall), `${wrapped.width}x${wrapped.height} vs ${tall.width}x${tall.height}`)
   // The wave's tasks share rows across its columns, all after the source.
@@ -385,7 +369,7 @@ test("an epic's tasks in a column form one block", () => {
 
 test('unconnected collapsed epics share one grid instead of one row each', () => {
   const tasks = Array.from({ length: 30 }, (_, i) => task(`t${i}`, { group: `e${i}` }))
-  const layout = layoutGraph({ ...graph, groups: [], tasks, edges: [] }, new Set(tasks.map((t) => t.group)))
+  const layout = layoutGraph({ ...graph, groups: [], tasks, edges: [] }, groupsOf(tasks))
   assert.ok(new Set(layout.nodes.map((n) => n.y)).size < 30)
   assert.equal(layout.loose.length, 0)
   assertClean(layout)

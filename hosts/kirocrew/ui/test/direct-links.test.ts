@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Direct links on the page (spec direct-links): a notice's decision link is
 // read once and checked, each attempt opens its own chat or says why not,
 // and only Kiro Crew's own routes or http(s) are ever an href.

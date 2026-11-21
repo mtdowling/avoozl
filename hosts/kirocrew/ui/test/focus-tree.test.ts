@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Graph's Frontier and Focus tree (FocusTree.tsx, focus-tree.ts): what
 // unlocked, one task's or spec's live chain, drilling in, Back and Forward,
 // the ?tree= link, keyboard moves, the item modal, and no read beyond the
@@ -6,12 +5,20 @@
 // (AVOOZL_CHROME), skipped without one.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
+import type { GraphPlace } from '../src/focus-tree.ts'
 
 const tree = await import('../src/focus-tree.ts')
 const { chainsGraph } = await import('./browser/graph-chains.ts')
-const source = (file) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
+// A tree the graph has for `root`.
+const focus = (...args: Parameters<typeof tree.focusTree>) => {
+  const found = tree.focusTree(...args)
+  assert.ok(found, `a tree for ${args[1].kind} ${args[1].id}`)
+  return found
+}
+const source = (file: string) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
 
 test('Frontier: newly unlocked has every blocker met; waiting has one still open', () => {
   const { ready, waiting } = tree.frontier(chainsGraph)
@@ -31,7 +38,7 @@ test('Frontier: newly unlocked has every blocker met; waiting has one still open
     ['S4', 'S5', 'S6', 'Y2', 'Y3', 'B3', 'B5'],
   )
   assert.deepEqual(
-    waiting.find((f) => f.task.id === 'Y3').waitingOn.map((t) => t.id),
+    waiting.find((f) => f.task.id === 'Y3')?.waitingOn.map((t) => t.id),
     ['Y2', 'S5'],
   )
   // B4 waits only by sequence order, and Y1 on nothing: in neither list.
@@ -53,26 +60,26 @@ test('a draft task is never newly unlocked, and drafts fold in only with the tog
   )
   assert.ok(!waiting.some((f) => f.task.id === 'M1'))
   assert.ok(waiting.some((f) => f.task.id === 'M2'))
-  const m2 = tree.focusTree(shown, { kind: 'task', id: 'M2' })
+  const m2 = focus(shown, { kind: 'task', id: 'M2' })
   assert.deepEqual(m2.graph.tasks.map((t) => t.id).sort(), ['M1', 'M2', 'M3', 'M4', 'S3'])
 })
 
 test('a task tree is its live chain up and down, with met blockers as ghosts', () => {
-  const s3 = tree.focusTree(chainsGraph, { kind: 'task', id: 'S3' })
+  const s3 = focus(chainsGraph, { kind: 'task', id: 'S3' })
   assert.deepEqual(s3.graph.tasks.map((t) => t.id).sort(), ['B3', 'B4', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'Y3'])
   assert.deepEqual([...s3.ghosts].sort(), ['S1', 'S2'])
   assert.equal(s3.live, 6)
-  assert.ok(s3.graph.edges.find((e) => e.from === 'S1').satisfied, 'a met edge is drawn faded')
-  assert.equal(s3.graph.edges.find((e) => e.from === 'B3').kind, 'sequence', 'sequence order stays dashed')
+  assert.ok(s3.graph.edges.find((e) => e.from === 'S1')?.satisfied, 'a met edge is drawn faded')
+  assert.equal(s3.graph.edges.find((e) => e.from === 'B3')?.kind, 'sequence', 'sequence order stays dashed')
   // Re-rooting changes what is shown: Y3's chain has Y1 and Y2, not S6.
-  const y3 = tree.focusTree(chainsGraph, { kind: 'task', id: 'Y3' })
+  const y3 = focus(chainsGraph, { kind: 'task', id: 'Y3' })
   assert.deepEqual(y3.graph.tasks.map((t) => t.id).sort(), ['B3', 'B4', 'S3', 'S4', 'S5', 'Y1', 'Y2', 'Y3'])
   assert.equal(y3.live, 7)
   assert.equal(tree.focusTree(chainsGraph, { kind: 'task', id: 'nope' }), null)
 })
 
 test('a spec tree roots on every task of the spec', () => {
-  const billing = tree.focusTree(chainsGraph, { kind: 'spec', id: 'billing' })
+  const billing = focus(chainsGraph, { kind: 'spec', id: 'billing' })
   assert.deepEqual([...billing.roots].sort(), ['B1', 'B2', 'B3', 'B4', 'B5'])
   for (const id of ['Y3', 'Y2', 'S5'])
     assert.ok(
@@ -96,7 +103,7 @@ test("links round-trip, and only Kiro Crew's app route pushes browser entries", 
     { tab: 'focus', root: { kind: 'spec', id: 'search v2&x' } },
     { tab: 'frontier', root: null },
     { tab: 'all', root: null },
-  ])
+  ] as GraphPlace[])
     assert.ok(tree.samePlace(tree.parseGraphLink(tree.placeLink(place)), place), JSON.stringify(place))
   assert.equal(tree.parseGraphLink('?tree=evil:x'), null)
   assert.equal(tree.parseGraphLink('?graph=nope'), null)
@@ -106,9 +113,9 @@ test("links round-trip, and only Kiro Crew's app route pushes browser entries", 
 })
 
 test('the trail walks Back and Forward, a new step drops what was ahead, and the browser lands on the nearest', () => {
-  const a = { tab: 'frontier', root: null }
-  const b = { tab: 'focus', root: { kind: 'task', id: 'S3' } }
-  const c = { tab: 'focus', root: { kind: 'task', id: 'Y3' } }
+  const a: GraphPlace = { tab: 'frontier', root: null }
+  const b: GraphPlace = { tab: 'focus', root: { kind: 'task', id: 'S3' } }
+  const c: GraphPlace = { tab: 'focus', root: { kind: 'task', id: 'Y3' } }
   let t = tree.visit(tree.visit(tree.visit(tree.EMPTY_TRAIL, a), b, true), c, true)
   assert.equal(t.at, 2)
   assert.equal(tree.visit(t, c), t, 'the same place is no step')
@@ -149,11 +156,8 @@ test('the Graph reads only graph.view: no new call, GitHub or otherwise', () => 
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Graph tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 async function openGraph(width = 1280) {
   await page.open(harness.url({ page: 'app', graph: 'chains' }), { width, height: 900, dark: false })
@@ -163,7 +167,7 @@ async function openGraph(width = 1280) {
   await page.evaluate(`(window.__ops = [], document.querySelector('[data-nav-group="graph"]').click(), true)`)
   await page.until(`Boolean(document.querySelector('[data-frontier]'))`)
 }
-const rooted = (id) => page.until(`document.querySelector('[data-focus-tree]')?.dataset.focusTree === ${JSON.stringify(id)}`)
+const rooted = (id: string) => page.until(`document.querySelector('[data-focus-tree]')?.dataset.focusTree === ${JSON.stringify(id)}`)
 
 test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, async () => {
   await openGraph()
@@ -224,7 +228,7 @@ test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, a
   // One graph.view read for the Graph itself, plus the task details' own
   // reads each of the two times they opened (TaskDrawer.tsx). The others are
   // Refresh's rate and the nav's own counts, which every page change reads (App.tsx).
-  const ops = await page.evaluate('window.__ops')
+  const ops = await page.evaluate<string[]>('window.__ops')
   const detailReads = ['task.detail']
   assert.equal(ops.filter((op) => op === 'graph.view').length, 1 + 2, ops.join(','))
   assert.equal(ops.filter((op) => op === 'task.detail').length, 2, ops.join(','))
@@ -259,8 +263,8 @@ test('which press pans: middle anywhere, left off a control, never touch', async
 })
 
 // A point in the tree's scroll box: on empty space, or on a card's middle.
-const spot = (card) =>
-  page.evaluate(`(() => {
+const spot = async (card?: string) => {
+  const at = await page.evaluate<{ x: number; y: number } | null>(`(() => {
     const box = document.querySelector('[data-tree-scroll]').getBoundingClientRect()
     const card = ${JSON.stringify(card ?? null)}
     if (card) {
@@ -280,8 +284,12 @@ const spot = (card) =>
       for (let x = Math.floor(box.right) - 16; x > box.left + 8; x -= 6) if (clear(x, y)) return { x, y }
     return null
   })()`)
-const scrolled = () => page.evaluate(`(() => { const b = document.querySelector('[data-tree-scroll]'); return { left: b.scrollLeft, top: b.scrollTop } })()`)
-const cursorAt = (x, y) => page.evaluate(`getComputedStyle(document.elementFromPoint(${x}, ${y})).cursor`)
+  assert.ok(at, card ? `card ${card} is in sight` : 'an empty spot in the tree box')
+  return at
+}
+const scrolled = () =>
+  page.evaluate<{ left: number; top: number }>(`(() => { const b = document.querySelector('[data-tree-scroll]'); return { left: b.scrollLeft, top: b.scrollTop } })()`)
+const cursorAt = (x: number, y: number) => page.evaluate<string>(`getComputedStyle(document.elementFromPoint(${x}, ${y})).cursor`)
 
 test('drag to pan the Focus tree: left on empty space, middle anywhere; a drag never drills', { skip }, async () => {
   // A box smaller than the spec's tree, so it overflows both ways.
@@ -342,7 +350,7 @@ test('drag to pan the Focus tree: left on empty space, middle anywhere; a drag n
   await page.evaluate(`document.querySelector('[data-graph-tab="all"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-graph-view] [data-node="B2"]'))`)
   // Any task node whose middle is in sight on the canvas.
-  const node = await page.evaluate(`(() => {
+  const node = await page.evaluate<{ id: string; x: number; y: number } | null>(`(() => {
     for (const n of document.querySelectorAll('[data-graph-view] [data-node]')) {
       const r = n.getBoundingClientRect()
       const at = { id: n.dataset.node, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }

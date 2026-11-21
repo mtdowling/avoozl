@@ -1,17 +1,17 @@
-// @ts-nocheck: typing debt
 // Forms and modals that group fields use the one shared FormSection: a
 // heading, then the fields, with no box. Groups after the first get a top
 // border in the theme's border color. The browser tests are skipped when no
 // Chrome is found.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
-const slice = (text, from, to) => text.slice(text.indexOf(from), to ? text.indexOf(to, text.indexOf(from) + from.length) : undefined)
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const slice = (text: string, from: string, to?: string) => text.slice(text.indexOf(from), to ? text.indexOf(to, text.indexOf(from) + from.length) : undefined)
 // One top-level function, up to the next one.
-const fn = (text, name) => {
+const fn = (text: string, name: string) => {
   const at = text.indexOf(name)
   const next = text.slice(at + name.length).search(/\n(export )?(default )?(function|const) /)
   return next < 0 ? text.slice(at) : text.slice(at, at + name.length + next)
@@ -36,13 +36,10 @@ test('the repository, workspace and plugin dialogs group fields with FormSection
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the form section tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 300))')
-const press = (selector, text) =>
+const press = (selector: string, text: string) =>
   page.evaluate(
     `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => (x.getAttribute('aria-label') || x.textContent).trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`,
   )
@@ -50,7 +47,9 @@ const press = (selector, text) =>
 // Inside a dialog: its sections, which have a top border, and every box
 // around a group: an element with a border on all four sides that holds
 // fields or a heading. Bordered controls and chips hold neither.
-const LAYOUT = (dialog) => `(() => {
+// Each form section (title, top border, nested) and each boxed element.
+type Layout = { sections: { title: string; top: string; nested: boolean }[]; boxes: string[] }
+const LAYOUT = (dialog: string) => `(() => {
   const root = document.querySelector(${JSON.stringify(dialog)})
   const sections = [...root.querySelectorAll('[data-form-section]')].map((s) => ({ title: s.dataset.formSection, top: getComputedStyle(s).borderTopWidth, nested: Boolean(s.parentElement.closest('[data-form-section]')) }))
   const body = root.querySelector('[data-modal-body]')
@@ -76,7 +75,7 @@ test('the repository Edit modal is FormSections with no bordered boxes inside', 
   assert.equal(await press('[data-repository-list] button:not([disabled])', 'Edit '), true, 'a row has Edit')
   await page.until(`Boolean(document.querySelector('[data-repository-edit] [data-form-section]'))`)
   await settle()
-  const { sections, boxes } = await page.evaluate(LAYOUT('[data-repository-edit]'))
+  const { sections, boxes } = await page.evaluate<Layout>(LAYOUT('[data-repository-edit]'))
   const top = sections.filter((s) => !s.nested)
   // The General tab opens first.
   assert.deepEqual(
@@ -91,7 +90,7 @@ test('the repository Edit modal is FormSections with no bordered boxes inside', 
   await page.until(`!document.querySelector('[data-repository-edit]')`)
   assert.equal(await press('[data-repository-list] button', 'View '), true)
   await page.until(`Boolean(document.querySelector('[data-repository-view] [data-form-section]'))`)
-  const view = await page.evaluate(LAYOUT('[data-repository-view]'))
+  const view = await page.evaluate<Layout>(LAYOUT('[data-repository-view]'))
   assert.equal(view.sections[0].title, 'Repository')
   assert.deepEqual(view.boxes, [])
 })

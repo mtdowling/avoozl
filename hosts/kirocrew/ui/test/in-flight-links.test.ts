@@ -1,15 +1,16 @@
-// @ts-nocheck: typing debt
 // In flight's PR and branch chips (R92.6, R92.9, task 44.4): the check dot's
 // words, and in a real Chrome (harness ?page=app&links=1) new-tab links and
 // chips that fit a 390 px row. The browser part is skipped when no Chrome is
 // found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
+import { test } from 'node:test'
 import { checkDot } from '../src/in-flight-api.ts'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 import { inFlight } from './browser/in-flight-nav.ts'
 
-const checks = (extra = {}) => ({ state: 'pass', dot: 'pass', head: 'a'.repeat(40), ageMs: 4 * 60000, current: true, url: null, ...extra })
+type Checks = Parameters<typeof checkDot>[0]
+const checks = (extra: Partial<Checks> = {}): Checks => ({ state: 'pass', dot: 'pass', head: 'a'.repeat(40), ageMs: 4 * 60000, current: true, url: null, ...extra })
 
 test('the check dot: a theme color per state, grey and said for an older head', () => {
   assert.deepEqual(checkDot(checks()), { dot: 'pass', color: 'var(--ok)', label: 'Checks pass on aaaaaaa · read 4 min ago' })
@@ -25,18 +26,17 @@ test('the check dot: a theme color per state, grey and said for an older head', 
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the In flight chips browser test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 for (const width of [1280, 390])
   test(`each In flight row has PR and branch chips that open a new tab and fit at ${width} px`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', links: '1' }), { width, height: 900 })
     await inFlight(page)
     await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 5`, 30000)
-    const chips = await page.evaluate(`[...document.querySelectorAll('[data-in-flight-row]')].map((row) => {
+    const chips = await page.evaluate<
+      { pr: string | null; dot: string | null; background: string | null; branch: string | null; links: string[]; fits: boolean; chipsHigh: number }[]
+    >(`[...document.querySelectorAll('[data-in-flight-row]')].map((row) => {
       const box = row.getBoundingClientRect(), pr = row.querySelector('[data-pr-chip]'), branch = row.querySelector('[data-branch-chip]')
       const right = (el) => el ? el.getBoundingClientRect().right : 0
       return {
@@ -69,7 +69,7 @@ for (const width of [1280, 390])
     assert.equal(await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), true)
     // The chips never set a row's narrowest width: a long branch name must
     // not push a grid card wider than a phone (its min-content is the row's).
-    const narrowest = await page.evaluate(`(() => {
+    const narrowest = await page.evaluate<number>(`(() => {
       const list = document.querySelector('[data-in-flight-row]').parentElement, before = list.style.width
       list.style.width = 'min-content'
       const widths = [...list.querySelectorAll('[data-in-flight-row]')].map((row) => row.getBoundingClientRect().width)

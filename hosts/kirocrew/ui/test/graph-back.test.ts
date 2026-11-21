@@ -1,17 +1,22 @@
-// @ts-nocheck: typing debt
 // The Graph's way back out: drill -> back -> back restores each level, the
 // mouse back button and Alt+Left or Cmd+[ go back, and Esc never does.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { backLabel, drillCrumbs, drillLabel, isBackButton, isBackKey, popDrill, pushDrill, pushFilter } from '../src/graph-layout.ts'
+import { backLabel, drillCrumbs, drillLabel, isBackButton, isBackKey, popDrill, pushDrill, pushFilter, type Drill, type DrillEntry } from '../src/graph-layout.ts'
 
 const graph = readFileSync(new URL('../src/GraphView.tsx', import.meta.url), 'utf8')
-const v = (x) => ({ x, y: 0, scale: 1 })
+const v = (x: number) => ({ x, y: 0, scale: 1 })
+// A step back that the stack has.
+const pop = (...args: Parameters<typeof popDrill>) => {
+  const popped = popDrill(...args)
+  assert.ok(popped, 'a level to go back to')
+  return popped
+}
 
 test('drill, drill, back, back restores each level with its view and selection', () => {
-  const epic = { kind: 'epic', id: 'W1', title: 'Core execution' }
-  const focus = { kind: 'focus', id: 'W1.3', title: 'W1.3' }
+  const epic: Drill = { kind: 'epic', id: 'W1', title: 'Core execution' }
+  const focus: Drill = { kind: 'focus', id: 'W1.3', title: 'W1.3' }
   let stack = pushDrill([], { drill: null, view: v(1), selected: null }, epic)
   stack = pushDrill(stack, { drill: epic, view: v(2), selected: 'W1.3' }, focus)
   assert.deepEqual(
@@ -19,14 +24,14 @@ test('drill, drill, back, back restores each level with its view and selection',
     ['All tasks', 'Core execution'],
   )
   assert.equal(backLabel(stack), 'Back to Core execution')
-  let popped = popDrill(stack)
+  let popped = pop(stack)
   assert.deepEqual(popped.entry, { drill: epic, view: v(2), selected: 'W1.3' })
-  popped = popDrill(popped.stack)
+  popped = pop(popped.stack)
   assert.deepEqual(popped.entry, { drill: null, view: v(1), selected: null })
   assert.equal(popDrill(popped.stack), null, 'nothing past the top')
   assert.equal(backLabel([]), null)
   // A crumb jumps straight to its level.
-  assert.equal(popDrill(stack, 0).entry.drill, null)
+  assert.equal(pop(stack, 0).entry.drill, null)
   // Going to the top by other means clears the stack.
   assert.deepEqual(pushDrill(stack, { drill: focus, view: v(3), selected: null }, null), [])
   assert.equal(drillLabel(focus), 'Focus: W1.3')
@@ -51,9 +56,9 @@ test('the mouse back button and Alt+Left or Cmd+[ go back; Esc does not', () => 
 })
 
 test('a filter change inside a drill is one Back step; typing a search is one step', () => {
-  const epic = { kind: 'epic', id: 'W1', title: 'Core execution' }
+  const epic: Drill = { kind: 'epic', id: 'W1', title: 'Core execution' }
   let stack = pushDrill([], { drill: null, view: v(1), selected: null }, epic)
-  const here = { drill: epic, view: v(2), selected: null }
+  const here: DrillEntry = { drill: epic, view: v(2), selected: null }
   // At the top level a filter change is not a step.
   assert.equal(pushFilter([], { drill: null, view: v(1), selected: null }, {}, { state: 'ready' }).length, 0)
   stack = pushFilter(stack, here, {}, { state: 'ready' })
@@ -70,7 +75,7 @@ test('a filter change inside a drill is one Back step; typing a search is one st
   assert.equal(pushFilter(stack, here, { q: 'x' }, { q: 'x' }).length, 3)
   // Filter steps add no crumbs: All tasks, then the epic as the current level.
   assert.deepEqual(drillCrumbs(stack, epic), [{ at: 0, label: 'All tasks' }])
-  const popped = popDrill(stack)
+  const popped = pop(stack)
   assert.deepEqual(popped.entry.filter, { state: 'ready' })
   assert.deepEqual(popped.entry.drill, epic)
   assert.match(graph, /onChange=\{changeFilter\}/)

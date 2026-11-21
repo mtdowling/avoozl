@@ -1,38 +1,22 @@
-// @ts-nocheck: typing debt
 // Proof P36's page parts (Requirement 59.10, 59.15): the Graph levels All >
 // Epic > Plan > Phase with their groups, the Epic and Phase filters, the
 // Dashboard's Progress by epic, and the sub-issue cap shown only in GitHub
 // modes. The backend parts are in src/app/test/proof-p36.test.mjs.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { drillGraph, drillInto, drillLabel, groupGraph, layoutGraph } from '../src/graph-layout.ts'
+import { drillGraph, drillInto, drillLabel, groupGraph, layoutGraph, type Drill } from '../src/graph-layout.ts'
 import { NO_GROUP, filterChoices, filterGraph } from '../src/filters.ts'
 import { summarize } from '../src/in-flight-api.ts'
 import { visibleSettings } from '../src/settings-api.ts'
+import { graphTask } from './graph-fixture.ts'
+import type { Graph, GraphTask } from '../src/views-api.ts'
 
-const task = (id, planId, epic, phase, state = 'waiting') => ({
-  id,
-  title: 'Task ' + id,
-  epic,
-  planId,
-  spec: planId,
-  phase,
-  kind: 'leaf',
-  authority: 'local',
-  route: 'local',
-  completion: 'integrated',
-  repository: null,
-  status: null,
-  complete: state === 'done',
-  ready: false,
-  state,
-  decision: null,
-  issue: null,
-})
+const task = (id: string, planId: string, epic: string | null, phase: GraphTask['phase'], state: GraphTask['state'] = 'waiting') =>
+  graphTask(id, { title: 'Task ' + id, epic, planId, spec: planId, phase, status: null, complete: state === 'done', state })
 
 const W1 = { id: 'w1', title: 'W1: core' }
 const LOADER = { id: 'loader', title: 'Loader' }
-const graph = {
+const graph: Graph = {
   revision: 1,
   epics: [{ id: 'rewrite', title: 'Rewrite', count: 4, plans: ['alpha', 'beta'] }],
   plans: [
@@ -62,8 +46,8 @@ const graph = {
   edges: [],
 }
 
-const groups = (g) => g.groups.map((entry) => [entry.id, entry.title])
-const members = (g) => Object.fromEntries(g.tasks.map((t) => [t.id, t.group]))
+const groups = (g: Graph) => (g.groups ?? []).map((entry) => [entry.id, entry.title])
+const members = (g: Graph) => Object.fromEntries(g.tasks.map((t) => [t.id, t.group]))
 
 test('P36 (3): the Graph opens at epics, then plans, then phases, then tasks', () => {
   // All: epics and No epic.
@@ -103,7 +87,7 @@ test('P36 (3): the Graph opens at epics, then plans, then phases, then tasks', (
   assert.equal(drillInto(phase, 'loader', 'Loader'), null)
   assert.deepEqual([epic, plan, phase].map(drillLabel), ['Rewrite', 'Plan alpha', 'Loader'])
   // No epic drills to the plans in no epic.
-  const none = { kind: 'epic', id: null, title: 'No epic' }
+  const none: Drill = { kind: 'epic', id: null, title: 'No epic' }
   assert.deepEqual(
     drillGraph(graph, none).tasks.map((t) => t.id),
     ['gamma.1'],

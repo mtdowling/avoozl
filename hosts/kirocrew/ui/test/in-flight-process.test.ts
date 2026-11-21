@@ -1,12 +1,12 @@
-// @ts-nocheck: typing debt
 // In flight for a `process` session (R98.1, task 50.1): the status words,
 // and in a real Chrome (harness ?page=app&process=1) the log tail, the cost
 // and a copyable attach command in place of a chat link. The browser part is
 // skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
+import { test } from 'node:test'
 import { processLine } from '../src/in-flight-api.ts'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 import { inFlight } from './browser/in-flight-nav.ts'
 
 const details = (extra = {}) => ({ harness: 'claude-code', state: 'running', exitCode: null, run: 1, logTail: null, cost: null, attach: null, ...extra })
@@ -21,11 +21,8 @@ test('the status words: harness, state, the run when resumed, cost when known', 
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the In flight browser test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 test('a process row shows its log tail and cost, and Attach copies the command', { skip }, async () => {
   await page.open(harness.url({ page: 'app', process: '1' }), { width: 1280, height: 900 })

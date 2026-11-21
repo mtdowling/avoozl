@@ -1,15 +1,15 @@
-// @ts-nocheck: typing debt
 // plugin-credentials pc-4.3 and the confirm of pc-2.1, from fixtures.
 // Runs under node's type stripping: `node --test hosts/kirocrew/ui/test`.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-import { highRisk, loginRows, permissionsLine, signInLine } from '../src/settings-api.ts'
-import { PLUGIN_PARTS, pluginsClient, signInClaims, signInClashes } from '../src/plugins-api.ts'
+import { highRisk, loginRows, permissionsLine, signInLine, type HighRiskStep, type SignIn } from '../src/settings-api.ts'
+import { PLUGIN_PARTS, pluginsClient, signInClaims, signInClashes, type PluginRow } from '../src/plugins-api.ts'
 import { viewsClient } from '../src/views-api.ts'
+import { fakeApi } from './fake-api.ts'
 
 const NOW = Date.parse('2026-11-19T12:00:00Z')
-const acme = {
+const acme: SignIn = {
   host: 'github.com',
   provider: 'acme-github',
   owners: ['acme', 'acme-labs'],
@@ -20,7 +20,7 @@ const acme = {
   broader: [],
   expiresAt: new Date(NOW + 41 * 60000).toISOString(),
 }
-const gh = { ...acme, provider: 'gh', owners: 'other', login: 'mtdowling', person: 'mtdowling', granted: 'all', expiresAt: null }
+const gh: SignIn = { ...acme, provider: 'gh', owners: 'other', login: 'mtdowling', person: 'mtdowling', granted: 'all', expiresAt: null }
 
 test('Settings › GitHub shows one sign-in line per provider in use', () => {
   assert.equal(signInLine(acme, NOW), 'github.com · acme, acme-labs: signed in through acme-github as acme-bot[bot] (per-job permissions) · token good for 41 min')
@@ -52,21 +52,31 @@ test('Plugins, the approval view and Add plugin say who the plugin signs Avoozl 
   assert.deepEqual(signInClaims({ id: 'acme-github', credentials: { hosts: ['github.com'], owners: ['acme', 'acme-labs'] } }), [
     'acme-github will sign Avoozl in to github.com for acme, acme-labs. Every GitHub call Avoozl makes there for them will use its tokens.',
   ])
-  const row = (id, owners) => ({ id, source: 'machine', state: 'approved', reason: null, health: null, approval: {}, credentials: { hosts: ['github.com'], owners } })
+  const row = (id: string, owners: string[]): PluginRow => ({
+    id,
+    source: 'machine',
+    state: 'approved',
+    reason: null,
+    health: null,
+    approval: { version: '1.0.0', hash: 'h', approvedAt: '2026-11-19T00:00:00Z' },
+    credentials: { hosts: ['github.com'], owners },
+  })
   assert.deepEqual(signInClashes([row('a', ['acme']), row('b', ['ACME']), row('c', ['octo'])]), [{ host: 'github.com', plugins: ['a', 'b'] }])
   assert.deepEqual(signInClashes([row('a', ['acme']), row('c', ['octo'])]), [])
 })
 
 test('Use this one picks through plugin.credentials.pick', async () => {
-  const sent = []
-  const api = { post: async (path, body) => (sent.push([path, body]), { result: { host: 'github.com', id: 'a' } }) }
+  const { api, calls } = fakeApi(() => ({ host: 'github.com', id: 'a' }))
   await pluginsClient(api).pick('w1', 'github.com', 'a')
-  assert.deepEqual(sent, [[COMMAND_PATH, { operation: 'plugin.credentials.pick', input: { host: 'github.com', id: 'a' }, workspaceId: 'w1' }]])
+  assert.deepEqual(
+    calls.map(({ path, body }) => [path, body]),
+    [[COMMAND_PATH, { operation: 'plugin.credentials.pick', input: { host: 'github.com', id: 'a' }, workspaceId: 'w1' }]],
+  )
 })
 
 // A fixture preview of a high-risk write: the confirm names the repository,
 // the action and each permission, then allows it before the write.
-const step = {
+const step: HighRiskStep = {
   job: 'landing-setup',
   target: 'acme/api',
   action: 'Add the avoozl-required-check ruleset',
@@ -78,13 +88,10 @@ const step = {
 test('the confirm lists the repository, the action and the exact permissions, and Allow comes first', async () => {
   assert.equal(permissionsLine(step), 'landing-setup asks GitHub for administration: write, metadata: read, statuses: write, variables: write on acme/api')
   assert.deepEqual(highRisk([step, { ...step, risk: 'low' }]), [step])
-  const sent = []
-  const api = {
-    post: async (_path, body) => {
-      sent.push(body.operation)
-      return { result: body.operation === 'github.job.confirm' ? { grants: ['g1'] } : {} }
-    },
-  }
-  await viewsClient(api).needsYouAction('w1', { label: 'Create labels', operation: 'github.labels.create', input: { repository: 'acme/api' }, confirm: [step] })
-  assert.deepEqual(sent, ['github.job.confirm', 'github.labels.create'])
+  const { api, calls } = fakeApi((body) => (body.operation === 'github.job.confirm' ? { grants: ['g1'] } : {}))
+  await viewsClient(api).needsYouAction('w1', { label: 'Resume', operation: 'lane.resume', input: { slot: 's1' }, confirm: [step] })
+  assert.deepEqual(
+    calls.map(({ body }) => body.operation),
+    ['github.job.confirm', 'lane.resume'],
+  )
 })

@@ -1,25 +1,22 @@
-// @ts-nocheck: typing debt
 // Settings › Flow in the app shell (harness ?page=app&flow=1): there is no
 // Batching box (R108.8) and no native dropdown, and Save sits last in a
 // footer that stays in view. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Settings › Flow layout tests'
 
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
-const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector, text) =>
+const wait = (ms: number) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const click = (selector: string, text: string) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 
-async function openFlowSettings(width) {
+async function openFlowSettings(width: number) {
   await page.open(harness.url({ page: 'app', basic: '1', flow: '1' }), { width, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
@@ -39,6 +36,7 @@ async function openFlowSettings(width) {
   await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
 }
 
+type Read = { selects: number; batching: boolean; footerInView: boolean; buttons: string[]; lastButton?: string; lastPrimary?: boolean }
 const READ = `(() => {
   const root = document.querySelector('[data-flow-settings]')
   const r = (el) => el.getBoundingClientRect()
@@ -57,7 +55,7 @@ const READ = `(() => {
 for (const width of [390, 1280])
   test(`Settings › Flow keeps a Save footer at ${width} px`, { skip }, async () => {
     await openFlowSettings(width)
-    const before = await page.evaluate(READ)
+    const before = await page.evaluate<Read>(READ)
     assert.equal(before.selects, 0, 'no native dropdown')
     assert.equal(before.batching, false, 'no Batching box')
     assert.deepEqual(before.buttons, ['Discard', 'Save'])
@@ -68,5 +66,5 @@ for (const width of [390, 1280])
       `(() => { for (let el = document.querySelector('[data-flow-settings]'); el; el = el.parentElement) if (el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight / 2; window.scrollTo(0, document.documentElement.scrollHeight / 2); return true })()`,
     )
     await wait(100)
-    assert.ok((await page.evaluate(READ)).footerInView, 'the footer stays in view while the groups scroll')
+    assert.ok((await page.evaluate<Read>(READ)).footerInView, 'the footer stays in view while the groups scroll')
   })

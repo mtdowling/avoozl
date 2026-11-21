@@ -1,13 +1,13 @@
-// @ts-nocheck: typing debt
 // Waits on and Blocks are bulleted lists from one shared part (EdgeList), one
 // task per item, each a link; an empty list is not drawn. The page check runs
 // in a real Chrome (AVOOZL_CHROME) and is skipped without one.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('every Waits on and Blocks list uses the shared EdgeList, with no inline or comma list left', () => {
   const list = source('EdgeList.tsx')
@@ -29,11 +29,8 @@ test('every Waits on and Blocks list uses the shared EdgeList, with no inline or
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the edge list page test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 test('page: task details list Waits on and Blocks as bullets, one link per task', { skip }, async () => {
   await page.open(harness.url({ modal: 'task-drawer', theme: 'light' }), { width: 1280, height: 900 })
