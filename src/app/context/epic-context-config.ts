@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The machine `epicContext` block (epic-context EC2): extra reads and MCP
 // servers for the owner's own repositories, written only in this machine's
 // config.json by a person. A repository file, a layered workspace config
@@ -21,13 +20,23 @@ import {
 } from "./context-shape.ts";
 
 const EPIC_CONTEXT_KEYS = ["repos", "reads", "mcp", "contentSets"];
+
+export interface EpicContext {
+  repos: string[];
+  reads?: string[];
+  contentSets?: string[];
+  mcp?: Record<string, { about: string; command: string[]; env?: string[] }>;
+}
 const SERVER_KEYS = ["about", "command", "env"];
 
 // Throws a message naming the key that is wrong. Returns the checked block.
-export function validateEpicContext(value, source = "epicContext") {
+export function validateEpicContext(
+  value: unknown,
+  source = "epicContext",
+): EpicContext {
   onlyKeys(value, EPIC_CONTEXT_KEYS, source);
   if (value.repos === undefined) fail(`${source}.repos is required.`);
-  const checked = { repos: checkRepos(value.repos, source) };
+  const checked: EpicContext = { repos: checkRepos(value.repos, source) };
   if (value.reads !== undefined)
     checked.reads = checkFolders(value.reads, `${source}.reads`);
   if (value.contentSets !== undefined)
@@ -35,13 +44,13 @@ export function validateEpicContext(value, source = "epicContext") {
   if (value.mcp !== undefined) {
     if (!record(value.mcp) || Object.keys(value.mcp).length > MAX.mcp)
       fail(`${source}.mcp must map up to ${MAX.mcp} aliases to servers.`);
-    checked.mcp = {};
+    const servers: NonNullable<EpicContext["mcp"]> = (checked.mcp = {});
     for (const [alias, server] of Object.entries(value.mcp)) {
       const where = `${source}.mcp.${alias}`;
       checkAlias(alias, `${source}.mcp`);
       onlyKeys(server, SERVER_KEYS, where);
       checkAbout(server.about, where);
-      checked.mcp[alias] = {
+      servers[alias] = {
         about: server.about,
         command: checkCommand(server.command, where),
         ...(server.env !== undefined
@@ -55,7 +64,10 @@ export function validateEpicContext(value, source = "epicContext") {
 
 // A save from Settings or `avoozl context set` names only folders that are
 // there now; a folder that goes missing later is left out at session start.
-export function checkReadsExist(value, home = os.homedir()) {
+export function checkReadsExist(
+  value: { reads?: string[] } | null | undefined,
+  home = os.homedir(),
+) {
   (value?.reads ?? []).forEach((read, i) => {
     const folder = read.startsWith("~/")
       ? path.join(home, read.slice(2))
@@ -71,12 +83,12 @@ export function checkReadsExist(value, home = os.homedir()) {
   });
 }
 
-const machineConfigFile = (configDirectory) =>
+const machineConfigFile = (configDirectory: string) =>
   path.join(configDirectory, "config.json");
 
 // This machine's block, or null. A file that cannot be read or checked
 // gives null, so no context is given from it.
-export function readEpicContext(configDirectory) {
+export function readEpicContext(configDirectory: string) {
   try {
     const file = JSON.parse(
       fs.readFileSync(machineConfigFile(configDirectory), "utf8"),
@@ -91,13 +103,14 @@ export function readEpicContext(configDirectory) {
 
 // `avoozl context set`: replace the block (null removes it), keeping every
 // other key of config.json.
-export function writeEpicContext(configDirectory, value) {
+export function writeEpicContext(configDirectory: string, value: unknown) {
   const checked = value === null ? null : validateEpicContext(value);
   const file = machineConfigFile(configDirectory);
-  let current = { version: 1 };
+  let current: Record<string, unknown> = { version: 1 };
   try {
     current = JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch (error) {
+  } catch (thrown) {
+    const error = thrown as NodeJS.ErrnoException;
     if (error.code !== "ENOENT")
       fail(`Could not read ${file}: ${error.message}`, 409);
   }

@@ -5,7 +5,7 @@ const REFERENCE =
 
 export function parseIssueReference(value: unknown) {
   const match = typeof value === "string" ? REFERENCE.exec(value) : null;
-  if (!match || match[2] === "." || match[2]!.includes(".."))
+  if (!match || match[2] === "." || match[2].includes(".."))
     fail("Name the issue as owner/repo#number.", 64);
-  return { owner: match[1]!, repo: match[2]!, number: Number(match[3]) };
+  return { owner: match[1], repo: match[2], number: Number(match[3]) };
 }
