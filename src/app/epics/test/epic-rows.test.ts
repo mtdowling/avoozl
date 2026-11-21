@@ -1,8 +1,7 @@
-// @ts-nocheck: typing debt
 // Epic lifecycle rows and approval evidence (Requirement 59.1, 102.18,
 // design §4.32.6). Temporary workspaces and fakes only.
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../../api/operations.ts";
 import {
   epicMembers,
@@ -23,7 +22,7 @@ const leaf = {
   completion: "integrated",
 };
 
-function plan(root, name, summary = "Do it.") {
+function plan(root: string, name: string, summary = "Do it.") {
   writeSpec(root, name, {
     "requirements.md": `---\nepic: launch\n---\n# Plan ${name}\n\nThe goal.\n`,
     "tasks.md": "# Tasks\n\n- [ ] 1 Build it\n",
@@ -34,7 +33,11 @@ function plan(root, name, summary = "Do it.") {
 }
 
 // An epic folder with one row per [plan, step]; `checked` rows carry [x].
-function epic(root, rows, { checked = false } = {}) {
+function epic(
+  root: string,
+  rows: [string, string?][],
+  { checked = false } = {},
+) {
   writeSpec(root, "launch", {
     "requirements.md": "# Epic launch\n\nShip it.\n",
     "design.md": "# Design\n",
@@ -51,11 +54,11 @@ function epic(root, rows, { checked = false } = {}) {
   });
 }
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const { root, store } = fixture(t);
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
-const lint = (ops, name) =>
+const lint = (ops: Operations, name: string) =>
   lintSpec({
     spec: readSpecFolder(ops.workspaceRoot, name),
     plan: { id: name },

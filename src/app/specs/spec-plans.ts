@@ -1011,6 +1011,14 @@ export function lintSpec({
   retitled = [],
   namespace = null,
   declaredTasks = [],
+}: {
+  spec: { files: Record<string, unknown>; [key: string]: unknown };
+  plan?: Record<string, unknown>;
+  data?: Record<string, unknown>;
+  approved?: unknown;
+  retitled?: string[];
+  namespace?: unknown;
+  declaredTasks?: unknown[];
 }) {
   const data = { tasks: [], ...given },
     parsed = parseSpec(spec),

@@ -1,9 +1,9 @@
-// @ts-nocheck: typing debt
 // Send message on a `process` session (R98.2, design §4.28): a person's
 // message is queued as a `send` session request. The backend's drain hands
 // it to the supervisor, which resumes the child with it once its current
 // run exits. Avoozl itself never types into a child.
-import { fail } from "../store/store.ts";
+import { fail, type Store } from "../store/store.ts";
+import type { SessionBinding } from "./session-bindings.ts";
 import { enqueueSessionRequests } from "./session-requests.ts";
 
 export const SEND_MAX_CHARS = 8000;
@@ -12,22 +12,26 @@ export const SEND_MAX_CHARS = 8000;
 // queues a send (session.send is person-only), so the line is Avoozl's own.
 export const PERSON_MESSAGE_HEAD =
   "From the person who runs this task, sent with Send message on the Avoozl page:";
-export const personMessage = (text) => `${PERSON_MESSAGE_HEAD}\n\n${text}`;
+export const personMessage = (text: string) =>
+  `${PERSON_MESSAGE_HEAD}\n\n${text}`;
 const FINISHED = new Set(["closed", "lost", "gone"]);
 
 // session.send: {slot, text}. Returns the queued request's id and state.
-export function queueSessionSend(store, input = {}) {
+export function queueSessionSend(
+  store: Store,
+  input: { slot?: unknown; text?: unknown } = {},
+) {
   const slot = input.slot;
   if (typeof slot !== "string" || !slot) fail("Name the session.", 422);
   const text = typeof input.text === "string" ? input.text.trim() : "";
   if (!text) fail("Write a message to send.", 422);
   if (text.length > SEND_MAX_CHARS)
     fail(`A message is at most ${SEND_MAX_CHARS} characters.`, 422);
-  const binding = store.get("session_bindings", slot);
-  if (!binding) fail(`No session ${slot}.`, 404);
+  const binding = store.get<SessionBinding>("session_bindings", slot);
+  if (!binding) return fail(`No session ${slot}.`, 404);
   if (binding.executor !== "process")
     fail("Send message here is for process sessions; open the chat.", 409);
-  if (FINISHED.has(binding.status))
+  if (FINISHED.has(String(binding.status)))
     fail(`Session ${slot} has ended; it takes no messages.`, 409);
   const {
     sends: [request],
