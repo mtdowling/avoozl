@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The MCP broker and relay (epic-context ec-2.3): one socket per session,
 // a token and an alias to get in, the real server started outside any
 // sandbox on the first connection, the evidence a call leaves, and the stop.
@@ -9,7 +8,11 @@ import net from "node:net";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { createBroker } from "../context-broker.ts";
+import {
+  createBroker,
+  type BrokerCall,
+  type BrokerViolation,
+} from "../context-broker.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
 const RELAY = fileURLToPath(new URL("../context-relay.ts", import.meta.url));
@@ -17,7 +20,7 @@ const posix = process.platform !== "win32";
 const skip = !posix && "the broker uses a Unix socket";
 
 // A server with one tool; it records its pid and environment names.
-function fakeServer(folder, { listen = false } = {}) {
+function fakeServer(folder: string, { listen = false } = {}) {
   const file = path.join(folder, `server-${listen ? "listen" : "plain"}.mjs`);
   fs.writeFileSync(
     file,
@@ -40,13 +43,13 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
 }
 
 // A relay process, as a harness starts it; resolves with its lines.
-function relay(socket, token, alias) {
+function relay(socket: string, token: string, alias: string) {
   const child = spawn(
     process.execPath,
     [RELAY, "--socket", socket, "--token", token, "--alias", alias],
     { stdio: ["pipe", "pipe", "pipe"] },
   );
-  const lines = [];
+  const lines: string[] = [];
   let buffer = "";
   child.stdout.on("data", (chunk) => {
     buffer += chunk;
@@ -59,14 +62,14 @@ function relay(socket, token, alias) {
   const next = async () => {
     for (let i = 0; i < 200 && !lines.length; i++)
       await new Promise((r) => setTimeout(r, 25));
-    return lines.shift();
+    return lines.shift() ?? "";
   };
-  const call = (message) =>
+  const call = (message: Record<string, unknown>) =>
     child.stdin.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n");
   return { child, call, next, exited };
 }
 
-const gone = (pid) => {
+const gone = (pid: number) => {
   try {
     process.kill(pid, 0);
     return false;
@@ -79,7 +82,7 @@ test("the socket sits in a private folder and each call leaves a record without 
   skip,
 }, async (t) => {
   const folder = temporaryDirectory("avoozl-broker-"),
-    calls = [],
+    calls: BrokerCall[] = [],
     broker = createBroker({ onCall: (entry) => calls.push(entry) });
   t.after(() => broker.closeAll());
   const { socket, token } = broker.open({
@@ -142,7 +145,7 @@ test("a wrong token, an alias the session was not given and another session's so
     b = broker.open({ session: "process-b", servers });
   assert.notEqual(a.token, b.token);
   assert.notEqual(a.socket, b.socket);
-  const refused = async (socket, token, alias) => {
+  const refused = async (socket: string, token: string, alias: string) => {
     const r = relay(socket, token, alias);
     r.call({ id: 1, method: "tools/call", params: { name: "ask" } });
     await r.exited;
@@ -192,7 +195,7 @@ test("a server that opens a listener is stopped and reported", {
   skip: skip || (process.platform === "darwin" && "lsof lists differently"),
 }, async (t) => {
   const folder = temporaryDirectory("avoozl-broker-"),
-    violations = [],
+    violations: BrokerViolation[] = [],
     broker = createBroker({
       onViolation: (value) => violations.push(value),
       listenerMs: 100,

@@ -66,8 +66,8 @@ export function postedText(text: unknown) {
 
 // Who the current operation writes for: "person", "agent", "avoozl" (the
 // tick) or "unknown". Operations.execute sets it around each operation.
-const actors = new AsyncLocalStorage<string>();
-export const asActor = <T>(actor: string, run: () => T) =>
+const actors = new AsyncLocalStorage<string | null>();
+export const asActor = <T>(actor: string | null, run: () => T) =>
   actors.run(actor, run);
 export const currentActor = () => actors.getStore() ?? null;
 // Whether a post goes out as written: only for a person. An unknown actor is

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { defaultJob, fixedCredentials } from "../../test/github-credentials.ts";
 // rc-16.4: the scheduled merge of the default branch into an epic's
 // integration branch (RC16.6, design D21), with a fake GitHub that models the
@@ -10,6 +9,18 @@ import { GitHubClient } from "../../github/github.ts";
 import { syncNeedsYou, syncStep, syncTargets } from "../integration-sync.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { factsFiles } from "../../test/spec-fixture.ts";
+import type { Store } from "../../store/store.ts";
+import {
+  compared,
+  recordMerge,
+  type BranchSides,
+  type Merge,
+} from "./branch-fake.ts";
+
+// The fake GitHub's state.
+interface Fake extends BranchSides {
+  missing: boolean;
+}
 
 const REPO = "example/code";
 const BRANCH = "rewrite/x";
@@ -23,8 +34,8 @@ const policy = {
 // `fresh`: commits on main the branch lacks. `own`: commits on the branch main
 // lacks. `conflict`: the merge cannot be made. `mainFiles` / `branchFiles`:
 // files each side changed. The only write the fake has is mergeBranch.
-function fake(state = {}) {
-  const s = {
+function fake(state: Partial<Fake> = {}) {
+  const s: Fake = {
     fresh: 0,
     own: 0,
     conflict: false,
@@ -36,25 +47,16 @@ function fake(state = {}) {
   const github = {
     s,
     reads: 0,
-    merges: [],
+    merges: [] as Merge[],
     available: () => true,
     repository: async () => ({ default_branch: "main" }),
-    compareCommits: async (_repo, base, head) => {
+    compareCommits: async (_repo: string, base: string, head: string) => {
       github.reads++;
       if (s.missing) throw Object.assign(Error("Not Found"), { status: 404 });
-      const fromMain = base === BRANCH && head === "main";
-      return {
-        ahead_by: fromMain ? s.fresh : s.own,
-        behind_by: fromMain ? s.own : s.fresh,
-        files: (fromMain ? s.mainFiles : s.branchFiles).map((filename) => ({
-          filename,
-        })),
-      };
+      return compared(s, BRANCH, base, head);
     },
-    mergeBranch: async (_repo, input) => {
-      github.merges.push(input);
-      if (s.conflict)
-        throw Object.assign(Error("Merge conflict"), { status: 409 });
+    mergeBranch: async (_repo: string, input: Merge) => {
+      recordMerge(github.merges, s, input);
       if (!s.fresh) return null;
       s.fresh = 0;
       s.own++;
@@ -64,15 +66,19 @@ function fake(state = {}) {
   return github;
 }
 
-const target = (extra = {}) => ({
+const target = (extra: Record<string, unknown> = {}) => ({
   spec: "rewrite",
   repository: REPO,
   branch: BRANCH,
   sync: "weekly",
   ...extra,
 });
-const run = (store, github, targets = [target()], now = T0) =>
-  syncStep(store, github, targets, { policy, now });
+const run = (
+  store: Store,
+  github: ReturnType<typeof fake>,
+  targets = [target()],
+  now = T0,
+) => syncStep(store, github, targets, { policy, now });
 
 test("a branch behind main gets one merge commit through GitHub's merge call", async (t) => {
   const { store } = fixture(t),
@@ -199,7 +205,12 @@ test("an unreadable GitHub leaves the standing row and merges nothing", async (t
   assert.match(step.errors[0], /offline/);
 });
 
-function plan(store, spec, manifest, extra = {}) {
+function plan(
+  store: Store,
+  spec: string,
+  manifest: Parameters<typeof factsFiles>[0],
+  extra = {},
+) {
   store.put("approvals", {
     id: `approval-${spec}`,
     planId: spec,
@@ -213,13 +224,13 @@ function plan(store, spec, manifest, extra = {}) {
     ...extra,
   });
 }
-const leaf = (repository) => ({
+const leaf = (repository?: string) => ({
   kind: "leaf",
   ...(repository ? { repository } : {}),
 });
 
 test("the real client merges with POST /merges and compares with a slash in the branch", async () => {
-  const seen = [];
+  const seen: [string | undefined, string, unknown][] = [];
   const client = defaultJob(
     "integration",
     new GitHubClient({
@@ -227,7 +238,7 @@ test("the real client merges with POST /merges and compares with a slash in the 
       apiUrl: "https://api.example.test",
       fetch: async (url, init) => {
         const u = new URL(url);
-        seen.push([init.method, u.pathname, init.body]);
+        seen.push([init?.method, u.pathname, init?.body]);
         return u.pathname.endsWith("/merges")
           ? new Response("", { status: 200 })
           : new Response(JSON.stringify({ ahead_by: 0 }), { status: 200 });
@@ -248,7 +259,7 @@ test("the real client merges with POST /merges and compares with a slash in the 
     `/repos/${REPO}/compare/rewrite/x...main`,
   ]);
   assert.deepEqual(seen[1].slice(0, 2), ["POST", `/repos/${REPO}/merges`]);
-  assert.deepEqual(JSON.parse(seen[1][2]), {
+  assert.deepEqual(JSON.parse(String(seen[1][2])), {
     base: BRANCH,
     head: "main",
     commit_message: "m",

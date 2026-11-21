@@ -1,11 +1,14 @@
-// @ts-nocheck: typing debt
 // Harness definition files load only from machine config, as argv lists
 // with known placeholders, at an approved hash (R94.1-R94.3, §4.28).
 import test from "node:test";
+import type { StatusError } from "../../store/store.ts";
+
+// Patches and the text each refusal names, typed for the loops below.
+const patches = (list: [Record<string, unknown>, string][]) => list;
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { temporaryDirectory } from "../../test/temporary.ts";
 import {
   approveHarnessDefinition,
   fillHarnessArgv,
@@ -41,13 +44,10 @@ const example = () => ({
   cost: { from: "output", field: "total_cost_usd" },
 });
 
-function machine(t) {
-  const configDirectory = fs.mkdtempSync(
-    path.join(os.tmpdir(), "avoozl-harness-"),
-  );
-  t.after(() => fs.rmSync(configDirectory, { recursive: true, force: true }));
+function machine() {
+  const configDirectory = temporaryDirectory("avoozl-harness-");
   fs.mkdirSync(path.join(configDirectory, "harnesses"));
-  const write = (value, name = "example-cli") => {
+  const write = (value: unknown, name = "example-cli") => {
     const file = path.join(configDirectory, "harnesses", name + ".json");
     fs.writeFileSync(file, JSON.stringify(value, null, 2));
     return harnessDefinitionHash(fs.readFileSync(file));
@@ -55,8 +55,8 @@ function machine(t) {
   return { configDirectory, write };
 }
 
-test("an approved definition loads with its hash", (t) => {
-  const { configDirectory, write } = machine(t);
+test("an approved definition loads with its hash", () => {
+  const { configDirectory, write } = machine();
   const hash = write(example());
   approveHarnessDefinition({ configDirectory, name: "example-cli", hash });
   const loaded = loadHarnessDefinition({
@@ -68,14 +68,14 @@ test("an approved definition loads with its hash", (t) => {
   assert.deepEqual(loaded.permission, example().permission);
 });
 
-test("an unapproved or changed definition does not load", (t) => {
-  const { configDirectory, write } = machine(t);
+test("an unapproved or changed definition does not load", () => {
+  const { configDirectory, write } = machine();
   const first = write(example());
   const load = () =>
     loadHarnessDefinition({ configDirectory, name: "example-cli" });
   assert.throws(
     load,
-    (error) =>
+    (error: StatusError) =>
       error.status === 409 &&
       error.message.includes(first) &&
       !error.message.includes("differs"),
@@ -89,7 +89,7 @@ test("an unapproved or changed definition does not load", (t) => {
   const second = write({ ...example(), resume: ["example-cli", "--continue"] });
   assert.throws(
     load,
-    (error) =>
+    (error: StatusError) =>
       error.status === 409 &&
       error.message.includes(second) &&
       error.message.includes("differs"),
@@ -97,7 +97,7 @@ test("an unapproved or changed definition does not load", (t) => {
 });
 
 test("loading refuses shell strings and shell commands", () => {
-  const cases = [
+  const cases: [unknown, RegExp][] = [
     ["example-cli --cwd {worktree}", /shell string/],
     [["example-cli --cwd", "{worktree}"], /holds spaces/],
     [["sh", "-c", "example-cli {worktree}"], /runs a shell/],
@@ -135,11 +135,11 @@ test("an old spendCap key loads and is ignored", () => {
     ...example(),
     spendCap: ["--max-cost", "{budget_usd}"],
   });
-  assert.equal(definition.spendCap, undefined);
+  assert.equal("spendCap" in definition, false);
 });
 
 test("loading refuses permission-skipping values", () => {
-  for (const [patch, value] of [
+  for (const [patch, value] of patches([
     [
       { permission: { write: "bypassPermissions", read: "read-only" } },
       "bypassPermissions",
@@ -152,10 +152,10 @@ test("loading refuses permission-skipping values", () => {
       { start: ["example-cli", "--dangerously-skip-permissions"] },
       "--dangerously-skip-permissions",
     ],
-  ])
+  ]))
     assert.throws(
       () => parseHarnessDefinition({ ...example(), ...patch }),
-      (error) =>
+      (error: Error) =>
         error.message.includes(value) &&
         /skips permissions/.test(error.message),
     );
@@ -183,7 +183,7 @@ test("a permission class may turn the inner sandbox off; nothing else may", () =
       }),
     /permission\.read is danger-full-access, so writeRoots must name/,
   );
-  for (const [patch, value] of [
+  for (const [patch, value] of patches([
     [
       { permission: { write: "--sandbox=danger-full-access", read: "x" } },
       "danger-full-access",
@@ -201,10 +201,10 @@ test("a permission class may turn the inner sandbox off; nothing else may", () =
       },
       "--dangerously-bypass-approvals-and-sandbox",
     ],
-  ])
+  ]))
     assert.throws(
       () => parseHarnessDefinition({ ...example(), ...patch }),
-      (error) =>
+      (error: Error) =>
         error.message.includes(value) &&
         /skips permissions/.test(error.message),
     );
@@ -233,8 +233,8 @@ test("loading refuses bad shapes", () => {
     );
 });
 
-test("the file name must match and be a regular file", (t) => {
-  const { configDirectory, write } = machine(t);
+test("the file name must match and be a regular file", () => {
+  const { configDirectory, write } = machine();
   const hash = write(example(), "other-cli");
   approveHarnessDefinition({ configDirectory, name: "other-cli", hash });
   assert.throws(
@@ -258,8 +258,8 @@ test("the file name must match and be a regular file", (t) => {
   );
 });
 
-test("definitions inside a repository are refused", (t) => {
-  const { configDirectory, write } = machine(t);
+test("definitions inside a repository are refused", () => {
+  const { configDirectory, write } = machine();
   fs.mkdirSync(path.join(configDirectory, ".git"));
   const hash = write(example());
   assert.throws(
@@ -294,7 +294,7 @@ test("filling argv keeps one argument per value", () => {
     ],
   );
   assert.deepEqual(
-    fillHarnessArgv(definition.writeRoots, {
+    fillHarnessArgv(definition.writeRoots ?? [], {
       worktree: "/w",
       tmp: "/t",
       repository_cache_dirs: ["/c1", "/c2"],
@@ -351,7 +351,7 @@ test("a definition names its lane home variable, session label and session folde
     sessions: "projects",
   });
   assert.deepEqual(
-    [parsed.home, [...parsed.label], parsed.sessions],
+    [parsed.home, [...(parsed.label ?? [])], parsed.sessions],
     ["CLAUDE_CONFIG_DIR", ["--name", "{lane_header}"], "projects"],
   );
   for (const [value, message] of [
