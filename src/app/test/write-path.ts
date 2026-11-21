@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Shared helpers for the single-write-path tests. Each caller runs as a real
 // `cli.ts` process with write-trace.mjs preloaded, so the trace records every
 // SQLite row change and whether an Operations call was on the stack.
@@ -7,6 +6,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import type { TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Store } from "../store/store.ts";
 import { temporaryDirectory } from "./temporary.ts";
@@ -15,9 +15,17 @@ const cli = fileURLToPath(new URL("../../../cli.ts", import.meta.url));
 // --import takes a URL; a bare D:\ path reads as the scheme "d:".
 const hook = new URL("./write-trace.ts", import.meta.url).href;
 const SECRET = "test-proxy-secret";
+// One row change the trace recorded.
+interface TraceWrite {
+  sql: string;
+  operations: boolean;
+  stack: string[];
+}
+// What setup gives a test.
+type WriteContext = ReturnType<typeof setup>;
 
-function isolatedEnv(root, extra = {}) {
-  const env = {
+function isolatedEnv(root: string, extra: NodeJS.ProcessEnv = {}) {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     XDG_CONFIG_HOME: path.join(root, "config"),
     // A tick through `avoozl mcp` or the CLI keeps its machine state here.
@@ -40,7 +48,7 @@ export function setup({ deny = false } = {}) {
       AVOOZL_WRITE_TRACE: trace,
       ...(deny ? { AVOOZL_DENY_OPERATIONS: "1" } : {}),
     });
-  const avoozl = (args, input) => {
+  const avoozl = (args: string[], input?: string) => {
     const result = spawnSync(process.execPath, [cli, ...args], {
       encoding: "utf8",
       env,
@@ -48,20 +56,20 @@ export function setup({ deny = false } = {}) {
     });
     return result;
   };
-  const writes = () =>
+  const writes = (): TraceWrite[] =>
     fs.existsSync(trace)
       ? fs
           .readFileSync(trace, "utf8")
           .trim()
           .split("\n")
           .filter(Boolean)
-          .map((line) => JSON.parse(line))
+          .map((line) => JSON.parse(line) as TraceWrite)
       : [];
   return { root, workspace, trace, env, avoozl, writes };
 }
 
 // Every row of every table, to prove a refused call wrote nothing.
-export function dump(dbPath) {
+export function dump(dbPath: string) {
   const store = new Store(dbPath);
   try {
     return Object.fromEntries(
@@ -69,7 +77,7 @@ export function dump(dbPath) {
         .prepare("SELECT name FROM sqlite_master WHERE type='table'")
         .all()
         .map(({ name }) => [
-          name,
+          String(name),
           store.db.prepare(`SELECT * FROM "${name}"`).all(),
         ]),
     );
@@ -78,10 +86,10 @@ export function dump(dbPath) {
   }
 }
 
-export const dbPath = (workspace) =>
+export const dbPath = (workspace: string) =>
   path.join(workspace, ".avoozl/local/workspace.sqlite");
 
-export function assertInsideOperations(writes, label) {
+export function assertInsideOperations(writes: TraceWrite[], label: string) {
   assert.ok(writes.length > 0, `${label} wrote through the traced path`);
   const outside = writes.filter((write) => !write.operations);
   assert.deepEqual(outside, [], `${label} wrote SQLite outside Operations`);
@@ -103,7 +111,7 @@ const tasks = () => [
 
 // Starts a fresh workspace through the CLI itself, then adds one task here,
 // outside the traced process.
-export function seed(context) {
+export function seed(context: WriteContext) {
   const { workspace, avoozl } = context,
     result = avoozl(["init", workspace]);
   assert.equal(result.status, 0, result.stderr);
@@ -117,8 +125,8 @@ export function seed(context) {
 
 // Each CLI process is slow to start, so tests that do not check init copy
 // one seeded workspace instead of running it again.
-let template;
-export function seeded(context) {
+let template: string | undefined;
+export function seeded(context: WriteContext) {
   template ??= (() => {
     const base = setup();
     seed(base);
@@ -128,7 +136,7 @@ export function seeded(context) {
 }
 
 // name is "tool.action" for a grouped tool.
-export const mcpLine = (id, name, input) =>
+export const mcpLine = (id: number, name: string, input: unknown) =>
   JSON.stringify({
     jsonrpc: "2.0",
     id,
@@ -141,7 +149,7 @@ export const mcpLine = (id, name, input) =>
     },
   });
 
-function sign(body) {
+function sign(body: string) {
   const claim = {
       issuedAt: Math.floor(Date.now() / 1000),
       kind: "owner-session",
@@ -167,7 +175,7 @@ function sign(body) {
 
 // Starts `cli.ts app-backend` on 127.0.0.1 and returns a signed
 // owner-session command sender.
-export async function startBackend(t, context) {
+export async function startBackend(t: TestContext, context: WriteContext) {
   const child = spawn(
     process.execPath,
     [
@@ -191,7 +199,7 @@ export async function startBackend(t, context) {
     await exited;
   });
   let output = "";
-  const port = await new Promise((resolve, reject) => {
+  const port = await new Promise<number>((resolve, reject) => {
     child.stdout.on("data", (chunk) => {
       output += chunk;
       const match = output.match(/listening on 127\.0\.0\.1:(\d+)/);
@@ -199,7 +207,7 @@ export async function startBackend(t, context) {
     });
     child.once("exit", () => reject(Error("app backend exited: " + output)));
   });
-  return async (value) => {
+  return async (value: unknown) => {
     const body = JSON.stringify(value);
     return fetch(`http://127.0.0.1:${port}/api/command`, {
       method: "POST",

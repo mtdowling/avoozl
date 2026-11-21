@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import path from "node:path";
 import { specItems, taskToken } from "../specs/spec-plans.ts";
@@ -11,13 +10,31 @@ import { specItems, taskToken } from "../specs/spec-plans.ts";
 // so `requires` is not written. A tasks.md written with `$` bullets is turned
 // into the same form.
 const MANIFEST = "avoozl/manifest.json";
+// A spec folder's files by name; null leaves a file out.
+type SpecFiles = Record<string, string | null>;
+// One task's facts in the fixture shorthand.
+interface FixtureTask {
+  kind?: string;
+  summary?: string;
+  requires?: string[];
+  acceptance?: string[];
+  checks?: string[];
+  completion?: string;
+  manual?: boolean;
+  repository?: string;
+}
+// The fixture shorthand's manifest.
+interface FixtureManifest {
+  version?: number;
+  tasks?: Record<string, FixtureTask>;
+}
 
 // tasks.md text with `$done`, `$manual` and `$repo` bullets in list form,
 // and every other `$` bullet dropped.
-export function listForm(text) {
+export function listForm(text: string) {
   const rows = text.split("\n"),
-    out = [],
-    repos = new Set();
+    out: string[] = [],
+    repos = new Set<string>();
   for (const row of rows) {
     const fact = /^(\s*)[-*+] \$([A-Za-z]+):\s*(.*)$/.exec(row);
     if (!fact) {
@@ -26,10 +43,10 @@ export function listForm(text) {
     }
     const [, indent, key, value] = fact;
     if (key === "done") out.push(`${indent}- ${value}`);
-    else if (key === "repo") repos.add(value.trim());
-    else if (key === "manual" && value.trim() === "true")
+    else if (key === "repo") repos.add(String(value).trim());
+    else if (key === "manual" && value?.trim() === "true")
       for (let at = out.length - 1; at >= 0; at--)
-        if (/^\s*[-*+] \[[ xX~-]\] /.test(out[at])) {
+        if (/^\s*[-*+] \[[ xX~-]\] /.test(out[at] ?? "")) {
           out[at] = `${out[at]} (**MANUAL**)`;
           break;
         }
@@ -37,7 +54,7 @@ export function listForm(text) {
   return withRepo(out.join("\n"), repos);
 }
 
-function withRepo(text, repos) {
+function withRepo(text: string, repos: Set<string>) {
   if (repos.size !== 1 || /^---\n[\s\S]*?\nrepo:/m.test(text)) return text;
   const [repo] = repos;
   return text.startsWith("---\n")
@@ -45,7 +62,10 @@ function withRepo(text, repos) {
     : `---\nrepo: ${repo}\n---\n${text}`;
 }
 
-export function withFacts(files) {
+// Text files stay text; a null (left out) stays null.
+export function withFacts<T extends string | null>(
+  files: Record<string, T>,
+): Record<string, T | string> {
   const tasks = files["tasks.md"];
   if (
     files[MANIFEST] === undefined ||
@@ -53,20 +73,20 @@ export function withFacts(files) {
     typeof tasks !== "string" ||
     /^\s*[-*+] \$[A-Za-z][A-Za-z0-9]*:/m.test(tasks)
   ) {
-    const { [MANIFEST]: _gone, ...rest } = files;
+    const { [MANIFEST]: _gone, ...rest }: Record<string, T | string> = files;
     if (typeof rest["tasks.md"] === "string")
       rest["tasks.md"] = listForm(rest["tasks.md"]);
     return rest;
   }
-  const facts = JSON.parse(files[MANIFEST]),
+  const facts = JSON.parse(files[MANIFEST]) as FixtureManifest,
     entries = facts.tasks ?? {},
-    repos = new Set(),
+    repos = new Set<string>(),
     items = new Map(
       specItems("x", tasks)
         .filter((item) => item.key)
         .map((item) => [item.line, item]),
     ),
-    out = [],
+    out: string[] = [],
     groups = new Set(
       specItems("x", tasks)
         .map((item) => item.parent?.key)
@@ -81,19 +101,19 @@ export function withFacts(files) {
         next.length - next.trimStart().length >
           row.length - row.trimStart().length &&
         /^\s*[-*+] (?!\[[ xX~-]\] )/.test(next),
-      entry = item && !own && entries[item.key];
-    if (!entry) {
+      entry = item?.key && !own ? entries[item.key] : undefined;
+    if (!item || !entry) {
       out.push(row);
       return;
     }
-    const indent = " ".repeat(/^\s*/.exec(row)[0].length + 2);
+    const indent = " ".repeat(row.length - row.trimStart().length + 2);
     out.push(entry.manual ? `${row} (**MANUAL**)` : row);
     if (groups.has(item.key)) return;
     if (entry.repository) repos.add(entry.repository);
     for (const result of entry.acceptance ?? [])
       out.push(`${indent}- ${result}`);
   });
-  const { [MANIFEST]: _gone, ...rest } = files;
+  const { [MANIFEST]: _gone, ...rest }: Record<string, T | string> = files;
   rest["tasks.md"] = withRepo(out.join("\n"), repos);
   return rest;
 }
@@ -148,7 +168,10 @@ export const legacySpecFiles = () => ({
 
 // A synthetic spec's files: one tasks.md item per entry (ticked when its ID
 // is in `checked`), with the entries as its facts.
-export const syntheticSpecFiles = (entries, checked = []) => ({
+export const syntheticSpecFiles = (
+  entries: Record<string, FixtureTask>,
+  checked: string[] = [],
+) => ({
   "requirements.md": "# Synthetic requirements\n\nStatus: Draft\n",
   "design.md": "# Synthetic design\n\nStatus: Draft\n",
   "tasks.md":
@@ -164,7 +187,11 @@ export const syntheticSpecFiles = (entries, checked = []) => ({
 });
 
 // Write a spec folder under root; a file set to null is left out.
-export function writeSpec(root, name, overrides = {}) {
+export function writeSpec(
+  root: string,
+  name: string,
+  overrides: SpecFiles = {},
+) {
   const directory = path.join(root, ".kiro", "specs", name),
     files = withFacts({ ...legacySpecFiles(), ...overrides });
   fs.mkdirSync(path.join(directory, "avoozl"), { recursive: true });
@@ -175,16 +202,18 @@ export function writeSpec(root, name, overrides = {}) {
 
 // A tasks.md text with the facts of `manifest` (the fixture's by default)
 // folded in, for tests that rewrite tasks.md on disk.
-export const tasksWithFacts = (tasks, manifest = legacySpecFiles()[MANIFEST]) =>
-  withFacts({ "tasks.md": tasks, [MANIFEST]: manifest })["tasks.md"];
+export const tasksWithFacts = (
+  tasks: string,
+  manifest: string = legacySpecFiles()[MANIFEST],
+) => withFacts({ "tasks.md": tasks, [MANIFEST]: manifest })["tasks.md"];
 
 // The fixture's tasks.md line of a text.
-export const lineIn = (text, needle) =>
+export const lineIn = (text: string, needle: string) =>
   text.slice(0, text.indexOf(needle)).split("\n").length;
 
 // A files object for a manifest-shaped value: one tasks.md item per task key,
 // each with its Facts bullet. For tests that store approvals directly.
-export const factsFiles = (manifest) =>
+export const factsFiles = (manifest: FixtureManifest) =>
   withFacts({
     "tasks.md": Object.keys(manifest.tasks ?? {})
       .map((key) => `- [ ] ${taskToken(key)} Task ${key}\n`)
