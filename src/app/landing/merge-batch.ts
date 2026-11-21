@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Direct landing in merge batches (Requirements MB1 to MB6; 87.1, 87.2,
 // 87.4, 87.9, 102.13 and 102.15). Plugs the git and check steps into the
 // per-base landing queue (landing-queue.mjs).
@@ -26,20 +25,72 @@ import { runCheckAt } from "../flow/flow-line.ts";
 import { runChecksAt } from "../delivery/check-runs.ts";
 import { runPluginCheck } from "../plugins/plugin-check-run.ts";
 import { pluginOptionsOf } from "../plugins/plugin-checks.ts";
-import { enqueueLanding } from "./landing-queue.ts";
+import {
+  type CheckResult,
+  enqueueLanding,
+  type LandingSteps,
+  type QueueEntry,
+} from "./landing-queue.ts";
 import { privacyScan, verifiedEvidence } from "./push-head.ts";
 import { mergeBaseBack } from "../specs/spec-base.ts";
-import { fail } from "../store/store.ts";
-import { checkApplies } from "../workspace/repository-checks.ts";
+import { fail, type Store } from "../store/store.ts";
+import {
+  checkApplies,
+  type RepositoryCheck,
+} from "../workspace/repository-checks.ts";
 import { commitSubject } from "./landing-config.ts";
 
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
 
+// A queued member as stacking reads it.
+type Member = Pick<QueueEntry, "key" | "commit">;
+// What stacking members gives: the candidate and the head after each
+// member, or the conflicted files and the member that hit them.
+type Stacked =
+  | { candidate: string | undefined; heads: (string | undefined)[] }
+  | { conflict: string[]; key: string };
+// The steps for one landing checkout (see directSteps).
+interface DirectOptions {
+  root: string;
+  url: string;
+  branch: string;
+  repository: string;
+  checks?: (string[] | RepositoryCheck)[];
+  unionPaths?: string[];
+  tickOf?: ((dir: string, entry: QueueEntry) => unknown) | null;
+  commitPrefix?: string;
+  env?: NodeJS.ProcessEnv;
+  machine?: { hostname?: string; username?: string } | null;
+  configFile?: string;
+  checksEnv?: string[];
+  repositoryId: string;
+  isolation?: unknown;
+  run?: typeof runCheckAt;
+  scan?: typeof privacyScan;
+  store?: Store | null;
+}
+
 // Queues one verified portion for direct landing. Refuses a commit without
 // passing evidence for exactly it, and a portion that names no task.
 export function queuePortion(
-  store,
-  { repositoryId, base, spec, commit, tasks, evidence, key },
+  store: Store,
+  {
+    repositoryId,
+    base,
+    spec,
+    commit,
+    tasks,
+    evidence,
+    key,
+  }: {
+    repositoryId: string;
+    base: string;
+    spec?: string | null;
+    commit: string;
+    tasks?: ({ task?: string } | null)[];
+    evidence?: Parameters<typeof verifiedEvidence>[0];
+    key?: string;
+  },
 ) {
   const problem = verifiedEvidence(evidence, commit);
   if (problem)
@@ -55,14 +106,15 @@ export function queuePortion(
     base,
     spec,
     commit,
-    tasks: tasks.map(({ task }) => ({ task })),
+    // Each names its task (checked above).
+    tasks: tasks.map((t) => ({ task: String(t?.task) })),
     key: key ?? `${spec}.${commit.slice(0, 12)}`,
   });
 }
 
 // Both sides of a conflicted path, appended: `git merge-file --union`.
-async function unionMerge(dir, file) {
-  const stage = async (n) => {
+async function unionMerge(dir: string, file: string) {
+  const stage = async (n: number) => {
     try {
       return await git(dir, ["show", `:${n}:${file}`]);
     } catch {
@@ -87,31 +139,31 @@ async function unionMerge(dir, file) {
 // A waiting member is a local ref in the checkout that lands, at its
 // verified commit. `refs/avoozl/` is not under `refs/heads/`, so a plain
 // push never sends it and no CI runs on it (MB6).
-export const memberRef = (key) =>
+export const memberRef = (key: unknown) =>
   `refs/avoozl/land/${String(key).replace(/[^A-Za-z0-9._-]/g, "_")}`;
 
-export const holdMember = (root, entry) =>
+export const holdMember = (root: string, entry: Member) =>
   git(root, ["update-ref", memberRef(entry.key), entry.commit]);
 
-export const dropMember = (root, entry) =>
+export const dropMember = (root: string, entry: Pick<Member, "key">) =>
   git(root, ["update-ref", "-d", memberRef(entry.key)]).catch(() => {});
 
 // Stacks each member, in order, on `baseHead` in a fresh detached landing
 // worktree. {candidate, heads} or {conflict: files, key}; `heads[i]` is the
 // stack after member i. The worktree is removed before returning; its
 // commits stay in `root`.
-export async function stackMembers(
-  root,
-  entries,
-  baseHead,
-  unionPaths = [],
-  tickOf = null,
+export async function stackMembers<E extends Member>(
+  root: string,
+  entries: E[],
+  baseHead: string,
+  unionPaths: string[] = [],
+  tickOf: ((dir: string, entry: E) => unknown) | null = null,
   commitPrefix = "",
-) {
+): Promise<Stacked> {
   const union = new Set(unionPaths),
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-landing-")),
     // How many commits the stack has after each member.
-    made = [];
+    made: number[] = [];
   try {
     await git(root, ["worktree", "add", "--detach", "--quiet", dir, baseHead]);
     for (const entry of entries) {
@@ -155,7 +207,7 @@ export async function stackMembers(
       // The landing commit ticks its own task (Requirement 113.8): one commit.
       await tickOf?.(dir, entry);
       await git(dir, ["commit", "--quiet", "--cleanup=strip", "-m", message]);
-      made[made.length - 1] += 1;
+      made[made.length - 1] = (made.at(-1) ?? 0) + 1;
     }
     // Each landing commit is the first parent of the next one's, so this
     // one call names the head after every member.
@@ -213,36 +265,40 @@ export function directSteps({
   scan = privacyScan,
   // The workspace, for plugin checks' cache and decide records.
   store = null,
-}) {
+}: DirectOptions): LandingSteps {
   if (!checks.length) fail("Direct landing needs at least one check.", 400);
   const own = { id: repositoryId, root, checksEnv, isolation },
-    pluginAt = async (check, candidate, baseHead, fresh) => {
-      const { checks: [result] = [] } = await runChecksAt(
-        own,
-        candidate,
-        [check],
-        {
-          timeoutFor: (_name, _command, seconds) => (seconds ?? 1200) * 1000,
-          plugin: (entry, dir, timeoutMs) =>
-            runPluginCheck(entry, {
-              store,
-              repository: own,
-              root,
-              dir,
-              commit: candidate,
-              base: baseHead,
-              repo: repository.startsWith("local/") ? repositoryId : repository,
-              timeoutMs,
-              fresh,
-              pluginOptions: store ? pluginOptionsOf(store) : null,
-            }),
-        },
-      );
+    pluginAt = async (
+      check: RepositoryCheck,
+      candidate: string,
+      baseHead: string,
+      fresh: boolean,
+    ) => {
+      const {
+        checks: [result],
+      } = await runChecksAt(own, candidate, [check], {
+        timeoutFor: (_name, _command, seconds) => (seconds ?? 1200) * 1000,
+        plugin: (entry, dir, timeoutMs) =>
+          // approvedPluginChecks built the plugin block runPluginCheck reads.
+          runPluginCheck(entry as Parameters<typeof runPluginCheck>[0], {
+            store,
+            repository: own,
+            root,
+            dir,
+            commit: candidate,
+            base: baseHead,
+            repo: repository.startsWith("local/") ? repositoryId : repository,
+            timeoutMs,
+            fresh,
+            pluginOptions: store ? pluginOptionsOf(store) : null,
+          }),
+      });
+      if (!result) return fail(`The check ${check.name} gave no result.`, 500);
       const { tail, ...rest } = result;
       return { ...rest, ...(result.exitCode !== 0 && tail ? { tail } : {}) };
     };
   // A bare argv list is a check named by its command, with no paths.
-  checks = checks.map((check) =>
+  const named = checks.map((check) =>
     Array.isArray(check)
       ? { name: check.join(" "), argv: check, paths: null }
       : check,
@@ -251,20 +307,22 @@ export function directSteps({
     // A bisect step stacks a prefix of members already stacked on the same
     // base. The earlier stack's head after that prefix is the same
     // candidate, so it is used again instead of stacked again.
-    stacked = new Map(),
-    stackId = (baseHead, entries) =>
+    stacked = new Map<string, string>(),
+    stackId = (baseHead: string, entries: QueueEntry[]) =>
       [baseHead, ...entries.map((e) => `${e.key}@${e.commit}`)].join(" ");
   return {
     async readBase() {
       return (
-        await remoteGit(
-          root,
-          ["ls-remote", "--heads", url, `refs/heads/${branch}`],
-          {
-            env: environment,
-          },
-        )
-      ).split(/\s+/)[0];
+        (
+          await remoteGit(
+            root,
+            ["ls-remote", "--heads", url, `refs/heads/${branch}`],
+            {
+              env: environment,
+            },
+          )
+        ).split(/\s+/)[0] ?? ""
+      );
     },
     async prepare(entries, baseHead) {
       const known = stacked.get(stackId(baseHead, entries));
@@ -281,16 +339,18 @@ export function directSteps({
         tickOf,
         commitPrefix,
       );
-      result.heads?.forEach((head, i) =>
-        stacked.set(stackId(baseHead, entries.slice(0, i + 1)), head),
-      );
+      if ("heads" in result)
+        result.heads.forEach((head, i) => {
+          if (head)
+            stacked.set(stackId(baseHead, entries.slice(0, i + 1)), head);
+        });
       return result;
     },
     // `only` names the checks to run again (a rerun or a bisect step); the
     // content scan is one of them. Every selected check runs, so the failing
     // ones are all known.
     async check(candidate, entries, baseHead, only) {
-      const wanted = (name) => !only || only.includes(name);
+      const wanted = (name: string | null) => !only || only.includes(name);
       // The outgoing data first: everything the base lacks.
       const hits = wanted("content scan")
         ? await scan(root, {
@@ -314,7 +374,7 @@ export function directSteps({
         };
       // Every check whose paths a member's change touches, and every check
       // without paths: the candidate's diff from the base is every member's.
-      let files = null;
+      let files: string[] | null = null;
       try {
         files = (
           await git(root, ["diff", "--name-only", "-z", baseHead, candidate])
@@ -322,12 +382,12 @@ export function directSteps({
           .split("\0")
           .filter(Boolean);
       } catch {}
-      const out = [];
-      for (const check of checks) {
+      const out: CheckResult[] = [];
+      for (const check of named) {
         if (!wanted(check.name) || !checkApplies(check, files)) continue;
         // A task-stage plugin check runs on the candidate too (PK4.1); a
         // rerun or bisect step runs it fresh, past the cache (PK5.4).
-        if (check.source === "plugin") {
+        if ("source" in check && check.source === "plugin") {
           out.push(await pluginAt(check, candidate, baseHead, Boolean(only)));
           continue;
         }
@@ -362,7 +422,7 @@ export function directSteps({
     // The landed base comes back into each spec's working branch in `root`
     // as a merge commit; unlanded integrations and checkpoints stay.
     async afterLand({ entries, candidate }) {
-      const out = [];
+      const out: Record<string, unknown>[] = [];
       for (const spec of [...new Set(entries.map((e) => e.spec))])
         out.push({
           spec,

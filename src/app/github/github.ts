@@ -504,7 +504,7 @@ export class GitHubClient {
   // The token's login (for a plugin, the reply's `login`, with no call:
   // GET /user fails for installation tokens). `value` names the repository
   // or owner whose provider is meant; without it, this machine's built-in.
-  async currentUser(value) {
+  async currentUser(value?: unknown) {
     const auth = await this.credentials.token({
       ...targetOf(value),
       job: currentJob() || "check-in",
@@ -1564,7 +1564,11 @@ export class GitHubClient {
   }
 
   // `repository` names the discussion's repository for the token.
-  async addDiscussionComment(discussionId, body, repository = null) {
+  async addDiscussionComment(
+    discussionId,
+    body,
+    repository: string | null = null,
+  ) {
     const data = await this.graphql(
         `mutation($input:AddDiscussionCommentInput!){addDiscussionComment(input:$input){comment{id url}}}`,
         { input: { discussionId, body } },

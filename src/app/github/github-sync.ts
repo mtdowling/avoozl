@@ -15,7 +15,7 @@ interface SetupClient {
   ): Promise<{ node_id: string; private?: boolean }>;
   currentUser(): Promise<{ login: string }>;
 }
-type SetupInput = {
+export type SetupInput = {
   repository?: string;
   id?: string;
   repositoryId: string;

@@ -27,13 +27,18 @@ import { openStops } from "../flow/flow.ts";
 import { stoppedSpecIds } from "../specs/label-filters.ts";
 import { outputExcerpt } from "../delivery/verify.ts";
 import { fail, type Store } from "../store/store.ts";
+import type { Notice } from "../tick/notifications.ts";
 import { checkKey } from "../workspace/repository-checks.ts";
 
 const SHA = /^[0-9a-f]{40}$/;
 const TABLE = "landing_queue";
 
 // A task is its ID, or {task, definition} when it lands with an intent.
-export type QueuedTask = string | { task: string; definition?: unknown };
+// A pull request's task may also carry its public name and the issue it
+// closes (pr-landing.ts).
+export type QueuedTask =
+  | string
+  | { task: string; definition?: unknown; public?: string; closes?: number };
 // One check result a landing verdict carries.
 export interface CheckResult {
   name?: string;
@@ -59,8 +64,13 @@ export interface QueueEntry {
   commit: string;
   tasks: QueuedTask[];
   spec: string | null;
-  source?: unknown;
+  // A pull request portion's head: its repository and branch.
+  source?: { repository: string; branch: string } | null;
   pr?: number;
+  // The merge commit someone else's merge left (observed landing).
+  mergeCommit?: string | null;
+  // A person's Merge in Avoozl for this head (landing-pulls.ts).
+  mergeApproved?: { commit: string; by?: string; at?: string };
   seq: number;
   state: string;
   queuedAt: string;
@@ -189,7 +199,7 @@ export function enqueueLanding(
     commit: string;
     tasks?: QueuedTask[];
     spec?: string | null;
-    source?: unknown;
+    source?: QueueEntry["source"];
     pr?: number | null;
   },
   { now = Date.now() } = {},
@@ -386,6 +396,28 @@ export function* queueHeads(
         tries: typeof rounds === "function" ? rounds(repository) : rounds,
       };
   }
+}
+
+// The failure notice for a queue head that could not land `how`, once per
+// head and cause (kept in the store's meta under `seenKey`), not once per
+// tick. Null when this cause was already told.
+export function landingFailure(
+  store: Store,
+  seenKey: string,
+  head: QueueEntry,
+  error: Error,
+  how: string,
+): Notice | null {
+  const seen = store.getMeta<Record<string, string>>(seenKey) ?? {},
+    cause = `${head.commit}:${error.message}`;
+  if (seen[head.id] === cause) return null;
+  store.setMeta(seenKey, { ...seen, [head.id]: cause });
+  return {
+    channel: "failure",
+    task: head.key,
+    title: `Avoozl could not land ${head.key} ${how}`,
+    text: error.message,
+  };
 }
 
 export function withdrawLanding(

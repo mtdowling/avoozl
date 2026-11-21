@@ -690,7 +690,11 @@ const MAX_REASON = 200;
 export function pullCord(
   store,
   input = {},
-  { by, now = Date.now(), full = false } = {},
+  {
+    by,
+    now = Date.now(),
+    full = false,
+  }: { by?: unknown; now?: number; full?: boolean } = {},
 ) {
   const reason = typeof input.reason === "string" ? input.reason.trim() : "";
   if (!reason) fail("Give a reason for stopping the line.");
@@ -773,7 +777,11 @@ export function pullCord(
 export async function pullFullStop(
   store,
   input = {},
-  { by, stopSession, now = Date.now() } = {},
+  {
+    by,
+    stopSession,
+    now = Date.now(),
+  }: { by?: unknown; stopSession?: unknown; now?: number } = {},
 ) {
   if (typeof stopSession !== "function")
     fail(
@@ -871,7 +879,11 @@ const stopTarget = (stop) =>
 
 // flow.resume: a person closes a pulled stop (R64.7). Agents are refused
 // before this is called; an automatic stop keeps its own rules (R64.8).
-export function resumeStop(store, input = {}, { by, now = Date.now() } = {}) {
+export function resumeStop(
+  store,
+  input = {},
+  { by, now = Date.now() }: { by?: unknown; now?: number } = {},
+) {
   return store.transaction(() => {
     const stop = store.get("flow_stops", input.stopId);
     if (!stop) fail("Line stop not found.", 404);
