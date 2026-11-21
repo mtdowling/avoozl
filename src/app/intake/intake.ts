@@ -67,7 +67,8 @@ export type ItemRow = {
   source: string;
   itemId: string;
   record: Item & { source: string };
-  hash: string;
+  // A row the open items read made has no hash until intake reads it.
+  hash?: string;
   via?: string;
   asserted?: { author?: unknown; trigger?: unknown };
   firstSeenAt?: string;
