@@ -23,7 +23,7 @@ import {
 } from "./plugins.ts";
 
 export const STAGES = Object.freeze(["task", "phase", "branch"]);
-export const DEFINITION_KEYS = Object.freeze([
+const DEFINITION_KEYS = Object.freeze([
   "repos",
   "paths",
   "run",
@@ -42,7 +42,7 @@ const MAX_CHECKS = 20;
 const MAX_GLOBS = 50;
 const MAX_FILE = 64 * 1024;
 // `$` then `.key` or `[index]` parts: no filter or wildcard can run.
-export const REPLY_PATH = /^\$(?:\.[A-Za-z_][A-Za-z0-9_-]*|\[\d+\])*$/;
+const REPLY_PATH = /^\$(?:\.[A-Za-z_][A-Za-z0-9_-]*|\[\d+\])*$/;
 const PLACEHOLDER = /\{([a-z_]+)(?::([^{}]+))?\}/g;
 const RUN_FILLS = ["commit", "base", "repo"];
 const MCP_FILLS = ["commit", "base", "repo", "diff_path"];
@@ -51,7 +51,7 @@ const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 // A relative file inside the plugin folder: no `..`, not absolute, there.
-export function pluginFile(folder, file, where, { ext } = {}) {
+function pluginFile(folder, file, where, { ext } = {}) {
   if (
     typeof file !== "string" ||
     !file.trim() ||

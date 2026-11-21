@@ -23,7 +23,7 @@ import { Box } from './ui/Box'
 import type { LookProps } from './ui/Box'
 import { PlainInput } from './ui/Plain'
 
-export type FilterField = (
+type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
   | { kind: 'select'; key: string; label: string; value: string; options: Option[]; onChange: (value: string) => void; disabled?: boolean; hint?: string }
   // A task or spec: the searchable picker (§8.9), with '' for All.

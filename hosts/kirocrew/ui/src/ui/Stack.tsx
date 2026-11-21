@@ -7,7 +7,7 @@ export type Gap = 0 | 1 | 2 | 3 | 4
 // Whole class names, so the stylesheet scan and Kiro Crew's own stylesheet both see them.
 export const GAP: Record<Gap, string> = { 0: '', 1: 'gap-1', 2: 'gap-2', 3: 'gap-3', 4: 'gap-4' }
 
-export type StackProps = Omit<ComponentProps<'div'>, 'className' | 'style' | 'ref'> & {
+type StackProps = Omit<ComponentProps<'div'>, 'className' | 'style' | 'ref'> & {
   as?: 'div' | 'section' | 'ul' | 'ol' | 'li' | 'header' | 'footer' | 'form' | 'span'
   gap?: Gap
 }

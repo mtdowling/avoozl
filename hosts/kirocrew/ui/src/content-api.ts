@@ -62,7 +62,7 @@ export const BOUNDARY_HINTS: Record<string, string> = {
 
 export const BOUNDARIES = Object.keys(BOUNDARY_LABELS)
 // What a set with no `boundaries` list checks: all but intake.
-export const DEFAULT_BOUNDARIES = BOUNDARIES.filter((b) => b !== 'intake')
+const DEFAULT_BOUNDARIES = BOUNDARIES.filter((b) => b !== 'intake')
 
 // The `contentRules.sets` keys, each with whether it must be set.
 export const SET_FIELDS: { key: string; required: boolean; text: string }[] = [
@@ -89,7 +89,7 @@ export function scopeLabel(set: ContentRuleSet): string {
 // (BUILTIN_SETS, findPlanningLeak, screenReply, secretReason) and its
 // callers. Every example is made up.
 
-export interface BuiltinInfo {
+interface BuiltinInfo {
   name: string
   protects: string
   where: string
@@ -234,7 +234,7 @@ const ALLOW_NAME = /^allow(?:\s+(.*))?$/i
 
 const sourceOf = (match: TermKind, value: string) => (match === 'word' ? escapeTerm(value.trim()) : value.trim())
 
-export function rowLine(row: TermRow): string {
+function rowLine(row: TermRow): string {
   if (row.kind === 'blank') return ''
   if (row.kind === 'note') return `# ${row.text}`
   if (row.kind === 'raw') return row.text
@@ -297,7 +297,7 @@ export function nextRuleName(rows: TermRow[]): string {
   return `rule-${n}`
 }
 
-export interface TryHit {
+interface TryHit {
   line: number
   start: number
   end: number

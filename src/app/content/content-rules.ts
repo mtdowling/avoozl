@@ -488,7 +488,7 @@ function termsFileFor(id, { workspaceRoot, configFile }) {
 // a work tree that Git does not ignore, is refused (R40.2).
 // Git run inside a hook inherits GIT_DIR and friends, which would point every
 // command at the pushing repository; each command here names its own folder.
-export function gitEnvironment() {
+function gitEnvironment() {
   const env = { ...process.env };
   for (const name of [
     "GIT_DIR",
@@ -609,7 +609,7 @@ function registeredRepositories(store, policy) {
 
 // Every configured set with its rules, or why it is unavailable. Terms files
 // are read on each call, so an added or removed file applies at once.
-export function resolveSets(store) {
+function resolveSets(store) {
   const binding = contentBinding(store);
   if (!binding?.workspaceRoot) return { sets: [], error: null };
   let policy, rules;
@@ -892,7 +892,7 @@ export function writeTermsFile(store, { id, text } = {}) {
 const CONTEXT_BOUNDARIES = new Set(["diff", "github", "brief"]);
 
 // The rule set IDs the task's last epic-context session was given.
-export const taskContentSets = (store, taskId) => {
+const taskContentSets = (store, taskId) => {
   const last = taskId ? store.getMeta("epicContext")?.tasks?.[taskId] : null;
   return last?.given ? (last.contentSets ?? []) : [];
 };
@@ -2041,11 +2041,7 @@ export function pushedCommits(stdin) {
 
 // Avoozl's own write at a boundary (§4.9): true when it may go ahead. A
 // block opens a decision and queues its notification; nothing is written.
-export function allowWrite(
-  store,
-  input,
-  { taskId = null, source = null } = {},
-) {
+function allowWrite(store, input, { taskId = null, source = null } = {}) {
   if (
     !contentBinding(store)?.workspaceRoot &&
     !PRIVATE_BOUNDARIES.has(input.boundary)

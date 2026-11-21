@@ -19,7 +19,7 @@ type NetworkDefinition = {
 
 // Run the export and read its credential_process JSON ({AccessKeyId, ...},
 // at the top or under Credentials). A failure names the exit, never output.
-export function exportCredentials(
+function exportCredentials(
   definition: NetworkDefinition,
   { env, machineEnv }: { env: NodeJS.ProcessEnv; machineEnv: object },
 ): Record<string, string> {

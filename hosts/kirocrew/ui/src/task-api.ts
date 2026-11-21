@@ -268,7 +268,7 @@ export function citedNodes(nodes: { line: number; tag: string }[], start: number
   return marked
 }
 
-export interface ChangePreview {
+interface ChangePreview {
   route: 'github' | 'plan' | 'spec' | 'none'
   message: string
   link?: string | null
@@ -356,14 +356,14 @@ export function newTaskId(title: string, taken: ReadonlySet<string>): string {
   for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
 }
 
-export interface Prerequisite {
+interface Prerequisite {
   id: string
   kind: 'requires' | 'sequence'
   // The completion level a requires link waits for; '' for the task's own.
   condition: string
 }
 
-export interface TaskForm {
+interface TaskForm {
   id: string
   title: string
   summary: string
@@ -372,7 +372,7 @@ export interface TaskForm {
   prerequisites: Prerequisite[]
 }
 
-export const COMPLETION_LEVELS = ['merged-pr', 'integrated', 'released', 'answered']
+const COMPLETION_LEVELS = ['merged-pr', 'integrated', 'released', 'answered']
 
 const lines = (text: string) =>
   text

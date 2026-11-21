@@ -19,7 +19,7 @@ export interface CatalogWorkspace {
 }
 
 // A person's edit of one workspace (workspaces.update). Fields left out stay.
-export interface WorkspaceEdit {
+interface WorkspaceEdit {
   id: string
   name?: string
   root?: string
@@ -73,7 +73,7 @@ export interface DetectedCheckout {
   id: string | null
 }
 
-export interface NewWorkspace {
+interface NewWorkspace {
   id: string
   root: string
   name?: string
@@ -151,7 +151,7 @@ export function pickDefault(list: WorkspaceList, current: string | null): string
 // always opens on the Dashboard, and a tab saved by an older page is ignored.
 export const PAGE_STATE_KEY = 'avoozl.page'
 
-export interface PageState {
+interface PageState {
   workspaceId: string | null
 }
 

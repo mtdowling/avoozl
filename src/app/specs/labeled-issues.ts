@@ -15,7 +15,7 @@ import { issuePasses, labelFilters } from "./label-filters.ts";
 
 const lower = (value) => String(value ?? "").toLowerCase();
 const SPEC_MARK = /<!-- avoozl[:-](spec|epic)[ :]/i;
-export const issueTaskId = (number) => `issue-${number}`;
+const issueTaskId = (number) => `issue-${number}`;
 
 // A labeled issue lands like a spec's task. It has no spec, so the "spec" a
 // landing entry names is the task's plan, or the task itself.

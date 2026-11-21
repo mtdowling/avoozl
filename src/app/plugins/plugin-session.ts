@@ -8,7 +8,7 @@
 // moving. The next tick tries again.
 import { checkReply } from "./plugin-contract.ts";
 
-export class PluginUnavailable extends Error {
+class PluginUnavailable extends Error {
   constructor(id, reason) {
     super(`Plugin ${id} is unavailable: ${reason}`);
     this.pluginId = id;
@@ -83,17 +83,6 @@ export function pluginSession(connect, { close = async () => {} } = {}) {
     close,
   };
   return session;
-}
-
-// The tick's health receipt per plugin, for Settings and every view that
-// shows a parked task. Written only when the state or reason changed.
-export function recordHealth(store, report, at = new Date().toISOString()) {
-  for (const row of report) {
-    const stored = store.get("plugin_health", row.id);
-    if (stored && stored.state === row.state && stored.reason === row.reason)
-      continue;
-    store.transaction(() => store.put("plugin_health", { ...row, since: at }));
-  }
 }
 
 export function pluginHealth(store) {

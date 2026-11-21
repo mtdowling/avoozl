@@ -27,8 +27,8 @@ import { decideOutput } from "./decide-output.ts";
 
 export { decideOutput };
 
-export const DECIDE_KIND = "check-decide";
-export const DECIDE_ROLE = "check-decide";
+const DECIDE_KIND = "check-decide";
+const DECIDE_ROLE = "check-decide";
 const FLIP_KIND = "check-decide-flip";
 const AGENT = "avoozl-check-decide";
 const INPUT_LIMIT = 200 * 1024;

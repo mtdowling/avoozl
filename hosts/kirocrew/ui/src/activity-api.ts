@@ -38,7 +38,7 @@ export interface ActivityPage {
   repositories?: string[]
 }
 
-export interface ActivitySettings {
+interface ActivitySettings {
   hash: string | null
   retentionDays: number
   default: number
@@ -76,7 +76,7 @@ export const filterActive = (filter: ActivityFilter) => Boolean(filter.source ||
 // The filter's choices, each with its row count: the values the log holds,
 // with the one in use kept so a filter never points at a choice that
 // vanished. Sources keep the log's order of labels; kinds and people sort.
-export interface ActivityChoice {
+interface ActivityChoice {
   value: string
   label: string
   count: number
@@ -96,7 +96,7 @@ export function filterChoices(page: ActivityPage | null, filter: ActivityFilter)
 // one, and the link is built for the row's known repository (or an
 // owner/name the workspace has), never from the text's own URL. A row with
 // no known repository, or a redacted one, stays text. No call to GitHub.
-export interface ActivityPart {
+interface ActivityPart {
   text: string
   href?: string
 }
@@ -189,7 +189,7 @@ export function retentionInput(text: string): { days: number | null; error?: str
   return { days }
 }
 
-export const KEEP_SAVE_DELAY_MS = 800
+const KEEP_SAVE_DELAY_MS = 800
 
 // Keep activity saves by itself. `change` runs on each keystroke and saves
 // once after `delay` ms of quiet; `flush` (blur, Enter) saves at once. Only a

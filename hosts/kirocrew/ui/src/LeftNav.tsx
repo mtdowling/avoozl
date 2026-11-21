@@ -18,7 +18,7 @@ import type { LookProps } from './ui/Box'
 // elevated surface, a hairline border and a small shadow. The top card's
 // border is the stronger one. Buttons in them keep Kiro Crew's compact size
 // (28px at most) on every screen: there is no tall tap size.
-export const NAV_CARD = {
+const NAV_CARD = {
   'css-border': '1px-solid-border',
   'css-border-radius': '12',
   'css-background': 'bg-elevated',

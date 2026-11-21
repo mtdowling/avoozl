@@ -8,7 +8,10 @@ import test from "node:test";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { temporaryDirectory } from "../../test/temporary.ts";
-import { harnessDefinitionHash } from "../../executors/harness-definitions.ts";
+import {
+  harnessDefinitionHash,
+  listHarnessDefinitions,
+} from "../../executors/harness-definitions.ts";
 import { OPERATIONS } from "../operation-table.ts";
 import { Operations } from "../operations.ts";
 import { fixture } from "../../test/fixtures.ts";
@@ -30,7 +33,7 @@ function setup(t) {
 
 const states = async (ops) =>
   Object.fromEntries(
-    (await ops.execute("harness.list")).map((d) => [
+    listHarnessDefinitions(ops.configDirectory).map((d) => [
       d.name,
       d.approved ? "approved" : d.changed ? "changed" : "not approved",
     ]),

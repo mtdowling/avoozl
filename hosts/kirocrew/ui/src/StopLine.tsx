@@ -175,7 +175,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
   )
 }
 
-export function StopLineDialog(props: { workspaceId: string; onClose: () => void; onPulled: () => void }) {
+function StopLineDialog(props: { workspaceId: string; onClose: () => void; onPulled: () => void }) {
   const api = useAppApi()
   const flows = useMemo(() => flowClient(api), [api])
   const [form, setForm] = useState<PullForm>(emptyPull)

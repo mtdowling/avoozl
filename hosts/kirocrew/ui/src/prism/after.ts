@@ -12,7 +12,7 @@ export interface PrismToken {
   content: string | PrismToken | (string | PrismToken)[]
   alias?: string | string[]
 }
-export interface PrismApi {
+interface PrismApi {
   languages: Record<string, Grammar>
   tokenize(text: string, grammar: Grammar): (string | PrismToken)[]
 }

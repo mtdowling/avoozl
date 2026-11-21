@@ -4,7 +4,7 @@
 // nav can also collapse to a thin bar; a list column never closes. Kept free
 // of JSX so node can test it.
 
-export interface ColumnSpec {
+interface ColumnSpec {
   key: string
   initial: number
   min: number
@@ -67,7 +67,7 @@ export function stepWidth(width: number, key: string): number | null {
 }
 
 // Up and Down move a focused panel divider 16 px: Up makes the panel taller.
-export function stepHeight(height: number, key: string): number | null {
+function stepHeight(height: number, key: string): number | null {
   return key === 'ArrowUp' ? height + 16 : key === 'ArrowDown' ? height - 16 : null
 }
 

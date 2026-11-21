@@ -655,7 +655,7 @@ function TryIt({ rows }: { rows: TermRow[] }) {
 
 // What the page's one footer needs from the terms editor: whether it has
 // unsaved words, why it cannot save, and how to save or put them back.
-export interface TermsControl {
+interface TermsControl {
   save: () => Promise<boolean>
   discard: () => void
 }

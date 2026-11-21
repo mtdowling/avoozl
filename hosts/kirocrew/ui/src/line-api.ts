@@ -78,7 +78,7 @@ export interface PullForm {
   taskId: string
   reason: string
 }
-export interface PullInput {
+interface PullInput {
   scope: PullScope
   reason: string
   full?: boolean

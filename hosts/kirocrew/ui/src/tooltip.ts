@@ -2,10 +2,10 @@
 // where it goes. Kept free of JSX and the DOM so node can test it.
 
 export const TOOLTIP_DELAY = 300
-export const TOOLTIP_GAP = 6
+const TOOLTIP_GAP = 6
 export const TOOLTIP_MARGIN = 6
 
-export interface Rect {
+interface Rect {
   top: number
   left: number
   width: number

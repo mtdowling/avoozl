@@ -55,7 +55,7 @@ const WORDS: Record<string, string> = {
   sending: 'exporting',
 }
 const FAILURES = ['timeout', 'refused', 'tls', 'dns']
-export const LOCAL_WORDS = 'Recording locally'
+const LOCAL_WORDS = 'Recording locally'
 
 // The status as a person reads it: local recording first, then the export.
 // A failure is one of its kinds and never the error's own words, so nothing

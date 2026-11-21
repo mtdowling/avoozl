@@ -10,7 +10,7 @@ const FILE =
   /^(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})-([a-z0-9][a-z0-9-]{0,59})(?:-(\d+))?\.md$/;
 const SCOPE = /^[a-z0-9][a-z0-9-]{0,59}$/;
 // A report is a page of Markdown; anything larger is not a retro.
-export const MAX_RETRO_BYTES = 200_000;
+const MAX_RETRO_BYTES = 200_000;
 
 export const retrosFolder = (workspaceRoot: string) =>
   path.join(workspaceRoot, ".avoozl", "local", "retros");

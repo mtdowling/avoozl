@@ -11,12 +11,12 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { machineEnvPath } from "./machine-env.ts";
 
-export const probeCachePath = (configDirectory) =>
+const probeCachePath = (configDirectory) =>
   path.join(path.resolve(configDirectory), "harness-probes.json");
 
 // A probe answer holds for one definition hash and one machine.env, since
 // each probe is a model call: a changed file or machine.env needs a new one.
-export function probeKey(configDirectory, hash) {
+function probeKey(configDirectory, hash) {
   let bytes = "";
   try {
     bytes = fs.readFileSync(machineEnvPath(configDirectory));

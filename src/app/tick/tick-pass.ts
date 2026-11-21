@@ -134,7 +134,7 @@ export function machineSinks(file) {
 
 // Every enabled workspace in turn, or `paths.roots`; one failure never stops
 // the rest.
-export async function tickCatalog(paths) {
+async function tickCatalog(paths) {
   const results = [];
   let sinks = paths.sinks;
   if (!sinks)

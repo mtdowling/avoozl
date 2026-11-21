@@ -17,7 +17,7 @@ const META = "labels.specs";
 const WRITERS = new Set(PERMISSIONS.slice(PERMISSIONS.indexOf("write")));
 const lower = (value) => String(value ?? "").toLowerCase();
 
-export const STOP_LABEL = "avoozl:stopped";
+const STOP_LABEL = "avoozl:stopped";
 
 // A repository's two lists, empty when it sets none, and its stop label.
 export const labelFilters = (repository) => ({
@@ -62,7 +62,7 @@ export async function issuePasses(issue, events, filters, permission) {
 // not clear the stop.
 // shortcut: a writer stands in for an approver; read the approvers when a
 // repository names approvers apart from writers.
-export async function issueStopped(events, stop, permission) {
+async function issueStopped(events, stop, permission) {
   let stopped = false;
   for (const event of events ?? []) {
     if (lower(event?.label?.name) !== lower(stop)) continue;

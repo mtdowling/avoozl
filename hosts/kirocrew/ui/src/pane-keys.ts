@@ -16,11 +16,11 @@ export function paneTop(key: string, top: number, height: number, scrollHeight: 
   return null
 }
 
-export const takesTyping = (el: Element | null) =>
+const takesTyping = (el: Element | null) =>
   Boolean(el && (el.matches('input, textarea, select') || (el as HTMLElement).isContentEditable || el.closest('[contenteditable=""], [contenteditable="true"]')))
 
 // The nearest pane at or above `el`, inside `root`, that scrolls up and down.
-export function scrollPane(el: Element | null, root: Element): HTMLElement | null {
+function scrollPane(el: Element | null, root: Element): HTMLElement | null {
   for (let at = el; at && root.contains(at); at = at.parentElement) {
     const style = getComputedStyle(at)
     if (/(auto|scroll)/.test(style.overflowY) && at.scrollHeight > at.clientHeight + 1) return at as HTMLElement

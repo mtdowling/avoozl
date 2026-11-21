@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS telemetry_points_task
   ON telemetry_points(task_id, name);
 `;
 
-export const SPAN_COLUMNS = [
+const SPAN_COLUMNS = [
   "span_id",
   "key",
   "trace_id",
@@ -75,7 +75,7 @@ export const SPAN_COLUMNS = [
   "first_pass",
   "attempts",
 ];
-export const POINT_COLUMNS = [
+const POINT_COLUMNS = [
   "id",
   "name",
   "kind",

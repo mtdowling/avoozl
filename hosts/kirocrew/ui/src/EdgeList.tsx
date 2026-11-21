@@ -4,7 +4,7 @@ import { PlainButton } from './ui/Plain'
 // A task's Waits on or Blocks list: a bulleted list, one task per item, each
 // task a link that opens it. The one list part for task details, the Graph's
 // side panel and the Graph's item modal. An empty list draws nothing.
-export interface EdgeItem {
+interface EdgeItem {
   id: string
   // The link text: the task's title, or its id.
   text: string

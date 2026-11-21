@@ -16,7 +16,7 @@ import { passReply, tickCall } from "./mcp-tick.ts";
 // One JSON-RPC message per line of `input`: `answer` returns the reply, or
 // null for none. A line that does not parse, or an answer that throws, gets
 // an error reply.
-export async function eachMessage(
+async function eachMessage(
   answer,
   { input = process.stdin, output = process.stdout } = {},
 ) {

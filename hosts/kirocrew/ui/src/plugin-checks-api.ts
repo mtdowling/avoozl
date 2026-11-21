@@ -5,7 +5,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
-export interface McpCall {
+interface McpCall {
   tool: string
   args?: Record<string, unknown>
   id?: string
@@ -41,7 +41,7 @@ export interface PluginChecksPart {
   servers: { alias: string; about: string; mapping: { command: string[]; env: string[] } | null }[]
 }
 
-export type CheckResult = 'passed' | 'failed' | 'not run' | 'cached' | 'skipped' | 'deciding'
+type CheckResult = 'passed' | 'failed' | 'not run' | 'cached' | 'skipped' | 'deciding'
 export interface TaskPluginCheck {
   name: string
   plugin?: string

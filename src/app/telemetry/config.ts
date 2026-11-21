@@ -59,7 +59,7 @@ function signalEndpoint(own, shared, path) {
 
 // The endpoint as scheme, host and port only: never a user, password, path or
 // query (OT6.6).
-export function showEndpoint(endpoint) {
+function showEndpoint(endpoint) {
   try {
     const url = new URL(endpoint);
     return `${url.protocol}//${url.host}`;
@@ -69,7 +69,7 @@ export function showEndpoint(endpoint) {
 }
 
 // The saved setting, or {} when there is none or it cannot be read.
-export function readTelemetrySetting(configDirectory) {
+function readTelemetrySetting(configDirectory) {
   try {
     const file = path.join(configDirectory, "config.json");
     const { telemetry } = JSON.parse(fs.readFileSync(file, "utf8"));

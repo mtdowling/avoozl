@@ -31,7 +31,7 @@ import {
 const exec = promisify(execFile);
 // The file that holds a spec's tasks, as a path in the checkout at `root`.
 // `files` is the spec's stored files, which name it (spec-tasks.mjs).
-export const tasksPath = (root, name, files) =>
+const tasksPath = (root, name, files) =>
   `${specsPath(root)}/${name}/${taskFile(files)}`;
 const short = (commit) => String(commit ?? "").slice(0, 12);
 
@@ -117,7 +117,7 @@ export function tickedText(
 // and so on up. Returns the IDs it ticked.
 // shortcut: only a parent on the same specs branch is ticked; a parent
 // elsewhere waits for its own tick commit.
-export async function tickParents(dir, spec, seen = new Set([spec])) {
+async function tickParents(dir, spec, seen = new Set([spec])) {
   const folder = path.join(dir, specsPath(dir)),
     // A folder's task file, its whole text and its task text, or null.
     read = (name) => {
@@ -171,7 +171,7 @@ export async function tickParents(dir, spec, seen = new Set([spec])) {
 }
 
 // The IDs tasks.md names for these task IDs: the plan's mapping, backwards.
-export const itemIdsOf = (plan, taskIds) =>
+const itemIdsOf = (plan, taskIds) =>
   Object.entries(plan?.mapping ?? {})
     .filter(([, taskId]) => taskIds.includes(taskId))
     .map(([id]) => id);

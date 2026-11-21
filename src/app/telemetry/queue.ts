@@ -3,7 +3,7 @@
 // items, an item being one trace or up to 100 points. When it is full the
 // oldest item goes. Nothing here does I/O.
 export const MAX_ITEMS = 500;
-export const POINTS_PER_ITEM = 100;
+const POINTS_PER_ITEM = 100;
 
 export function createQueue(max = MAX_ITEMS) {
   const items = [];

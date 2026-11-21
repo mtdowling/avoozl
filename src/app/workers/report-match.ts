@@ -95,7 +95,7 @@ export function matchCliReport(store, { taskId, token, cwd, role = "worker" }) {
 // line already acts on the database. Matched by the worktree alone, and only
 // for a take this machine's command line made, so a tick-opened chat still
 // needs its token.
-export function matchTakeReport(store, { taskId, cwd }) {
+function matchTakeReport(store, { taskId, cwd }) {
   if (typeof taskId !== "string" || !taskId) fail("Name the task.");
   const binding = listSessionBindings(store)
     .filter((b) => b.taskId === taskId && b.role === "worker")

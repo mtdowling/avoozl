@@ -95,7 +95,7 @@ export function RailSortList<K extends string>(props: { fields: RailSort<K>[]; s
   )
 }
 
-export interface RailChipItem {
+interface RailChipItem {
   value: string
   label: string
   // Left out when the list has no count to show (Insights' filters).

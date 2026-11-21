@@ -225,7 +225,7 @@ export function refuseSpecText(store, task, input) {
   throw error;
 }
 
-export function repositoryBase(store, task, repositoryId) {
+function repositoryBase(store, task, repositoryId) {
   if (typeof task.github?.url === "string") {
     try {
       const url = new URL(task.github.url);
@@ -250,7 +250,7 @@ export function repositoryBase(store, task, repositoryId) {
     : "";
 }
 
-export function taskLocalChanges(store, task, repositoryId, repositoryUrl) {
+function taskLocalChanges(store, task, repositoryId, repositoryUrl) {
   const repository = store.get("repositories", repositoryId);
   if (!repository) return null;
   return {

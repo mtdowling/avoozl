@@ -77,16 +77,6 @@ export const entries = [
       };
     },
   },
-  // The harness files on this machine and whether each is approved.
-  {
-    name: "harness.list",
-    class: "observe",
-    github: "check-in",
-    policy: notOnMcp("Harness files are this machine's; a chat has no use."),
-    handler({}) {
-      return listHarnessDefinitions(this.configDirectory);
-    },
-  },
   // Approving a harness file lets a program run on this machine.
   {
     name: "harness.approve",

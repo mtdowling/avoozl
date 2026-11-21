@@ -54,7 +54,7 @@ export function RawKey({ name }: { name: string }) {
 }
 
 // One muted help line, with the id a control names in aria-describedby.
-export function FieldHelp({ id, children, kind = 'help' }: { id?: string; children: ReactNode; kind?: 'help' | 'default' }) {
+function FieldHelp({ id, children, kind = 'help' }: { id?: string; children: ReactNode; kind?: 'help' | 'default' }) {
   return (
     <Hint id={id} size="xs" data-field-help={kind === 'help' ? '' : undefined} data-field-default={kind === 'default' ? '' : undefined}>
       {children}
@@ -162,7 +162,7 @@ export function CheckRow(props: { id?: string; label: ReactNode; checked: boolea
 }
 
 // Fields on a grid: as many columns as fit, each at least `min`.
-export function FieldGrid({ children, min = '13rem', align }: { children: ReactNode; min?: string; align?: boolean }) {
+function FieldGrid({ children, min = '13rem', align }: { children: ReactNode; min?: string; align?: boolean }) {
   return (
     <Box
       data-field-grid

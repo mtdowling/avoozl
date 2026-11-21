@@ -95,7 +95,7 @@ const HUNK = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
 // Parse a unified diff body into hunks; null when it is not one. File
 // headers (`---`, `+++`) are skipped.
-export function parseDiff(diff: unknown): Hunk[] | null {
+function parseDiff(diff: unknown): Hunk[] | null {
   if (typeof diff !== "string" || !diff.trim() || diff.length > 100_000)
     return null;
   const hunks: Hunk[] = [];

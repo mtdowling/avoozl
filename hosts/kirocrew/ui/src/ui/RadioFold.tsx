@@ -10,7 +10,7 @@ import type { LucideIcon } from '../icons.ts'
 import { Hint } from '../ui/Hint'
 import { Stack } from '../ui/Stack'
 
-export interface RadioSection<K extends string> {
+interface RadioSection<K extends string> {
   key: K
   title: string
   line: string

@@ -13,7 +13,7 @@ const TLS =
   /^(ERR_TLS|ERR_SSL|CERT_|UNABLE_TO_|DEPTH_ZERO|SELF_SIGNED|HOSTNAME_MISMATCH)/;
 
 // What went wrong, as a kind and never the error's own words.
-export function failureKind(error) {
+function failureKind(error) {
   const code = String(error?.cause?.code ?? error?.code ?? "");
   if (error?.name === "TimeoutError" || error?.name === "AbortError")
     return "timeout";

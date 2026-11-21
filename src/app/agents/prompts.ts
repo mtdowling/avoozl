@@ -202,24 +202,6 @@ export function promptState(file, shipped = shippedPrompts()) {
   return out;
 }
 
-// Every full text a target had: the shipped one and each override version,
-// oldest first, for "a copy equal to an older Avoozl text".
-export function historicTexts(file, target, shipped = shippedPrompts()) {
-  const sections = parseSections(shipped[target], target),
-    entry = file ? readOverrides(file).targets[target] : null,
-    out = [shipped[target]];
-  for (const version of entry?.versions || [])
-    out.push(
-      joinSections(
-        sections.map((s) => {
-          const own = version.sections?.[s.name];
-          return own && !s.locked ? { ...s, body: own.text } : s;
-        }),
-      ),
-    );
-  return [...new Set(out)];
-}
-
 // ---------------------------------------------------------- the changes
 
 // Why a diff to one section cannot stand, or null. `state` is the current

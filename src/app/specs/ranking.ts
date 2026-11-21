@@ -25,7 +25,7 @@ export function unblockCounts(edges, open) {
 }
 
 // The longest chain of open tasks below each task, counting the tasks on it.
-export function chainLengths(edges, open) {
+function chainLengths(edges, open) {
   const next = new Map();
   for (const edge of edges)
     next.set(edge.from, [...(next.get(edge.from) ?? []), edge.to]);

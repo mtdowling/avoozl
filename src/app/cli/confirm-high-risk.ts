@@ -6,7 +6,7 @@
 import readline from "node:readline";
 import { agentSession } from "../mcp/mcp-policy.ts";
 
-export const confirmText = (steps) =>
+const confirmText = (steps) =>
   steps
     .map(
       (step) =>

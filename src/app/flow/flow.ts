@@ -50,12 +50,12 @@ export const FLOW_DEFAULTS = Object.freeze({
     checkTimeouts: Object.freeze({}),
   }),
 });
-export const SCOPES = Object.freeze(["dependents", "repo", "all"]);
+const SCOPES = Object.freeze(["dependents", "repo", "all"]);
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 // The settings Settings > Flow edits, each with how it is checked.
-export const FLOW_KEYS = Object.freeze({
+const FLOW_KEYS = Object.freeze({
   "stopTheLine.scope": (v) =>
     SCOPES.includes(v) || `one of ${SCOPES.join(", ")}`,
   localChecksFirst: (v) => typeof v === "boolean" || "true or false",
@@ -122,7 +122,7 @@ export function flowSection(value, where = "flow") {
   return structuredClone(value);
 }
 
-export function readKey(value, key) {
+function readKey(value, key) {
   return key
     .split(".")
     .reduce((v, part) => (record(v) ? v[part] : undefined), value);
@@ -809,7 +809,7 @@ function windowMetrics(timings, stops, culprits, size) {
 // Who pulled a stop, as Flow's Line stops list says it: the person's name,
 // or for an agent session its role and task when Avoozl bound it ("worker
 // for a1"), else "agent chat <slot>". An automatic stop has none.
-export function stopWho(store, stop) {
+function stopWho(store, stop) {
   if (!stop.manual || !stop.by) return null;
   if (stop.by.kind !== "agent") return stop.by.name;
   const slot = String(stop.by.name).split(":").pop(),
@@ -1137,7 +1137,7 @@ export const lineFirstIds = (store) =>
 
 // The workspace's `.avoozl.json`, for a read outside the tick; an absent or
 // invalid file reads as {}, so its flow settings are the defaults.
-export function readFlowConfig(workspaceRoot) {
+function readFlowConfig(workspaceRoot) {
   try {
     const value = JSON.parse(
       fs.readFileSync(path.join(workspaceRoot, ".avoozl.json"), "utf8"),

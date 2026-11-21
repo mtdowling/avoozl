@@ -172,7 +172,7 @@ function headOf(node) {
   };
 }
 
-export function feedbackOf(node) {
+function feedbackOf(node) {
   if (!node) return null;
   const who = (entry) => entry?.author?.login || null,
     contexts =
@@ -313,7 +313,7 @@ const INTERNAL = new Set([
 ]);
 
 // Files read in one GraphQL query.
-export const BLOB_CHUNK = 100;
+const BLOB_CHUNK = 100;
 
 export class GitHubClient {
   constructor({

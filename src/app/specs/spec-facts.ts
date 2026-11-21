@@ -32,12 +32,12 @@ const ONE_LINE = (key) =>
 
 // No fact is read: every `$key:` bullet is gone (REMOVED_FACTS).
 const KEYS = {};
-export const FACT_KEYS = Object.keys(KEYS);
+const FACT_KEYS = Object.keys(KEYS);
 
 const GONE = "Avoozl no longer reads it; delete this line.";
 // Facts that are gone, and what to do with a line that still has one. Each
 // is the lint error `facts.removed-key` at its line.
-export const REMOVED_FACTS = {
+const REMOVED_FACTS = {
   done: "Write the result as a plain bullet under the task: delete `$done:` and keep the text.",
   after:
     "Order tasks by the list; tag a group `(**PARALLEL**)` for tasks that run side by side. Delete this line.",
@@ -95,10 +95,10 @@ const DEFAULTS = {
   repo: { as: "repository", type: "text" },
 };
 const SPEC_KEYS = [];
-export const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
+const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
 // Front-matter keys the list form removed (simplify §D20): the lint error
 // `frontmatter.removed-key`.
-export const REMOVED_SPEC_FRONT = {
+const REMOVED_SPEC_FRONT = {
   kind: "A spec is a list of tasks; a parent links its member specs from task titles. Delete this line.",
   epic: "A parent spec links its member specs from task titles. Delete this line.",
   integrationBranch:
@@ -108,7 +108,7 @@ export const REMOVED_SPEC_FRONT = {
 };
 // Front-matter keys that are gone. `phase-<id>` and `batch-<id>` are matched
 // by their prefix.
-export const REMOVED_FRONT = {
+const REMOVED_FRONT = {
   completion:
     "A task completes when it lands, and a person's task ends its title with `(**MANUAL**)`; delete this line.",
   ship: "The repository's landing setting says how work ships; delete this line.",
@@ -154,15 +154,6 @@ function split(value) {
     else parts[parts.length - 1] += char;
   }
   return parts.map((part) => part.trim()).filter(Boolean);
-}
-
-// A path as a task's Files note writes it, such as `src/a.nupp` (new): the
-// backticks, a note in parentheses after it and a sentence's closing period
-// are not part of the path.
-function pathOf(item) {
-  const text = item.trim().replace(/([^./])\.$/, "$1"),
-    quoted = /^`([^`]+)`(?:\s*\([^)]*\))?$/.exec(text);
-  return quoted ? quoted[1] : text.replace(/\s+\([^)]*\)$/, "");
 }
 
 // Read one key: `inline` is the text after the colon, `nested` the child
@@ -545,22 +536,9 @@ export function itemBullets(text, items) {
   return out;
 }
 
-// A task's summary as bullets under its item at column `indent`: lines that
-// are already bullets stay as written, and other text becomes one bullet.
-export function summaryLines(summary, { indent = 2 } = {}) {
-  const text = typeof summary === "string" ? summary.trim() : "";
-  if (!text) return [];
-  const pad = " ".repeat(indent);
-  return /^[-*+][ \t]/.test(text)
-    ? text.split(/\r?\n/).map((line) => pad + line)
-    : text
-        .split(/\r?\n/)
-        .map((line, at) => (at ? `${pad}  ${line}` : `${pad}- ${line}`));
-}
-
 // `entry` with each key of `fill` placed before the first key of `entry` that
 // ORDER ranks after it.
-export function withDefaults(entry, fill) {
+function withDefaults(entry, fill) {
   const out = [],
     pending = Object.entries(fill).sort(
       ([a], [b]) => rank(ORDER, a) - rank(ORDER, b),
@@ -609,36 +587,3 @@ const FACT_OF = Object.fromEntries(
 
 // The fact name a parsed key is written as, such as repo for repository.
 export const factName = (key) => FACT_OF[key] ?? key;
-
-// The fact bullets for one entry in the manifest's key names, as lines at
-// column `indent`. `kind` is left out: nesting says it. A short list of plain items is
-// one bullet; any other list, and `done` always, is one bullet per item.
-export function factsLines(entry, { indent = 2 } = {}) {
-  const pad = `${" ".repeat(indent)}- $`,
-    out = [],
-    keys = Object.keys(entry);
-  for (const key of keys) {
-    if (key === "kind") continue;
-    const fact = FACT_OF[key],
-      value = entry[key];
-    if (!fact) throw Error(`"${key}" is not a task fact.`);
-    const spec = KEYS[fact],
-      line = (text) => {
-        if (/[\r\n]/.test(text))
-          throw Error(`${fact} must be one line of text.`);
-        return text;
-      };
-    if (spec.type === "list") {
-      const items = value;
-      if (
-        fact === "done" ||
-        items.some((item) => !item || /,/.test(item)) ||
-        items.join(", ").length > 80
-      ) {
-        if (!items.length && fact !== "done") out.push(`${pad}${fact}:`);
-        for (const item of items) out.push(`${pad}${fact}: ${line(item)}`);
-      } else out.push(`${pad}${fact}: ${items.join(", ")}`);
-    } else out.push(`${pad}${fact}: ${line(String(value))}`);
-  }
-  return out;
-}

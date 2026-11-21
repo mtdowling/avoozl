@@ -131,7 +131,7 @@ export function validateProposal(item) {
 // One revision of the design document. An amended approved plan no longer
 // matches its approval receipt, so its tasks require review until the next
 // explicit approval. A spec plan's revision is its folder's files and hash.
-export function writeRevision(store, plan, text, summary, spec = null) {
+function writeRevision(store, plan, text, summary, spec = null) {
   plan.history.push({
     revision: plan.revision,
     hash: plan.hash,
@@ -180,19 +180,14 @@ export function hasFactsBlocks(text) {
 
 // The old facts file. Nothing reads it; a leftover one is a lint error.
 export const MANIFEST = "avoozl/manifest.json";
-export const CRITIQUE = "avoozl/critique.md";
+const CRITIQUE = "avoozl/critique.md";
 // Kiro's files, in the order a revision hash reads them. Only tasks.md is
 // required. Every other Markdown file directly in the folder is spec text:
 // hashed after these, sorted by name, and read by workers. The critique is
 // about a revision, so it is read beside it and never changes it.
-export const KIRO_FILES = [
-  "requirements.md",
-  "bugfix.md",
-  "design.md",
-  "tasks.md",
-];
+const KIRO_FILES = ["requirements.md", "bugfix.md", "design.md", "tasks.md"];
 // At most this many spec files in one folder.
-export const MAX_SPEC_FILES = 50;
+const MAX_SPEC_FILES = 50;
 
 // Whether a file name directly in a spec folder is part of the spec.
 export const isSpecFile = (file) =>
@@ -249,7 +244,7 @@ function statusIndex(lines) {
 // The text the revision hash reads: no Status line. Avoozl writes none
 // (approval is a commit, git-approvals.mjs); a person's own stays outside
 // the hash.
-export function withoutStatus(text) {
+function withoutStatus(text) {
   const lines = String(text).split("\n"),
     at = statusIndex(lines);
   if (at < 0) return text;

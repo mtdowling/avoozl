@@ -9,7 +9,7 @@ export type LaneId =
   | "needs-you"
   | "waiting"
   | "done";
-export type LaneNodeState =
+type LaneNodeState =
   | "done"
   | "needs-you"
   | "deferred"
@@ -18,7 +18,7 @@ export type LaneNodeState =
   | "waiting"
   | "draft";
 
-export interface LaneTask {
+interface LaneTask {
   state?: LaneNodeState | null;
   complete?: boolean;
   decision?: string | null;

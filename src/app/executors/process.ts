@@ -68,7 +68,7 @@ function withDatabase(stateDirectory, use) {
 // The loopback ports a session may reach: the repository's model proxy for
 // every role, and its network too unless the role reads only its folder
 // (NK2.2). Without the proxy an offline role could never reach its model.
-export function sessionNetwork(sandbox, offline) {
+function sessionNetwork(sandbox, offline) {
   const ports = (value) => (Array.isArray(value) ? value : []);
   const list = [
     ...new Set([
@@ -209,10 +209,7 @@ export function processBrief(role, brief, { allowCommands } = {}) {
 // The repository a process session runs in: its task's repository, else the
 // repository the request names, else the repository whose checkout is the
 // session's folder.
-export function sessionRepository(
-  store,
-  { task: taskId, repository, worktree },
-) {
+function sessionRepository(store, { task: taskId, repository, worktree }) {
   const task = store.read().tasks.find((t) => t.id === taskId);
   const id = taskRepository(task) || repository;
   if (id) return store.get("repositories", id) ?? null;
@@ -290,7 +287,7 @@ async function removeDetached(checkout, worktree) {
 // committed in, never a main checkout. The commit then goes through Verify
 // like any worker's (declared and protected paths, checks). Returns the
 // commit, or null when nothing changed.
-export async function commitChildWork(binding, worktree, checkout) {
+async function commitChildWork(binding, worktree, checkout) {
   if (!checkout)
     throw Error(
       `Avoozl has no checkout for ${worktree}, so it does not commit there.`,

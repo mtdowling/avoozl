@@ -49,10 +49,7 @@ function readPolicy(filename, repositoryId = null) {
   };
 }
 
-export function configuredRepositoryInstructionSources(
-  store,
-  { exclude = [] } = {},
-) {
+function configuredRepositoryInstructionSources(store, { exclude = [] } = {}) {
   const excluded = new Set(exclude.map((filename) => path.resolve(filename))),
     candidates = store
       .list("repositories")
@@ -149,7 +146,7 @@ function relativeFile(directory, name) {
 // builtin:published-secrets of content-rules.mjs (design §4.9).
 export { secretReason };
 
-export function scanWorkspacePublication(files) {
+function scanWorkspacePublication(files) {
   for (const [name, text] of Object.entries(files)) {
     if (!allowedPath.test(name))
       fail("Unexpected workspace publication path " + name + ".");

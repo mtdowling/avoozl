@@ -45,7 +45,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 // A tool reply's JSON: its structuredContent, else the first text item
 // parsed, else undefined.
-export function replyValue(result) {
+function replyValue(result) {
   if (result?.structuredContent !== undefined) return result.structuredContent;
   const text = (result?.content ?? []).find((item) => item?.type === "text");
   if (typeof text?.text !== "string") return undefined;
@@ -57,7 +57,7 @@ export function replyValue(result) {
 }
 
 // Fill a step's arguments: placeholders inside strings only, keys never.
-export function fillArgs(value, values, readFile) {
+function fillArgs(value, values, readFile) {
   if (typeof value === "string")
     return fillText(
       value.replace(/\{file:([^{}]+)\}/g, (_, name) => readFile(name)),

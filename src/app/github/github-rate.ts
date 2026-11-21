@@ -43,7 +43,7 @@ const PRUNE_EVERY = 50;
 // a crew chat through bin/gh-counted. Unmarked code reads as "other".
 const sources = new AsyncLocalStorage();
 export const withSource = (source, fn) => sources.run(source, fn);
-export const currentSource = () => sources.getStore() || "other";
+const currentSource = () => sources.getStore() || "other";
 export const sourceOfOperation = (name) =>
   /^tick\b/.test(name)
     ? "tick"

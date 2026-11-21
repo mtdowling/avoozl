@@ -16,7 +16,7 @@ const HOST: Record<BadgeVariant, { variant: 'ok' | 'err' | 'warn' | 'aim' | 'mut
   wave: { variant: 'aim' },
 }
 
-export function hostBadge(variant?: BadgeVariant) {
+function hostBadge(variant?: BadgeVariant) {
   return (variant && HOST[variant]) || { variant: 'muted' as const }
 }
 

@@ -785,10 +785,10 @@ export const GITHUB_TABS = [
   { key: 'sync', label: 'Sync pace' },
   { key: 'calls', label: 'GitHub calls' },
 ] as const
-export type GitHubTab = (typeof GITHUB_TABS)[number]['key']
+type GitHubTab = (typeof GITHUB_TABS)[number]['key']
 const GITHUB_TAB_KEYS = GITHUB_TABS.map((tab) => tab.key)
 // The form keys each tab edits; GitHub calls edits none.
-export const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[]> = {
+const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[]> = {
   issues: ['epicIssueType'],
   sync: ['cacheSeconds', 'writesPerMinute', 'writesPerHour'],
   calls: [],
@@ -1118,7 +1118,7 @@ const USAGE_COLUMNS: { key: UsageKey; label: string; width?: number }[] = [
 const NAME_MIN = 120
 const TABLE_MIN = USAGE_COLUMNS.reduce((sum, col) => sum + (col.width ?? NAME_MIN), 0)
 const CELL = { 'css-padding': '4px-8px', 'css-white-space': 'nowrap', 'css-overflow': 'hidden', 'css-text-overflow': 'ellipsis' } as const
-export function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof usageRows>; first?: string }) {
+function UsageTable({ rows, first = 'Source' }: { rows: ReturnType<typeof usageRows>; first?: string }) {
   const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
   const sorted = sortUsage(rows, sort)
   return (

@@ -20,7 +20,7 @@ import {
   record,
 } from "./context-shape.ts";
 
-export const EPIC_CONTEXT_KEYS = ["repos", "reads", "mcp", "contentSets"];
+const EPIC_CONTEXT_KEYS = ["repos", "reads", "mcp", "contentSets"];
 const SERVER_KEYS = ["about", "command", "env"];
 
 // Throws a message naming the key that is wrong. Returns the checked block.
@@ -71,7 +71,7 @@ export function checkReadsExist(value, home = os.homedir()) {
   });
 }
 
-export const machineConfigFile = (configDirectory) =>
+const machineConfigFile = (configDirectory) =>
   path.join(configDirectory, "config.json");
 
 // This machine's block, or null. A file that cannot be read or checked

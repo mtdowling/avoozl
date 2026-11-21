@@ -51,7 +51,7 @@ export const itemKey = (item: { kind?: string; taskId: string | null; field?: st
 
 // A review group's tasks the page may mark reviewed: GitHub and plugin rows
 // are reviewed where they live.
-export const reviewTargets = (item: ConflictItem) => (item.tasks ?? []).filter((task) => (task.authority ?? 'local') === 'local').map((task) => ({ taskId: task.id }))
+const reviewTargets = (item: ConflictItem) => (item.tasks ?? []).filter((task) => (task.authority ?? 'local') === 'local').map((task) => ({ taskId: task.id }))
 
 // What conflicts.settle is sent for an item: a review group sends its tasks.
 export const settleTargets = (item: ConflictItem): { taskId: string; slot?: string }[] =>
@@ -193,7 +193,7 @@ export interface ConflictFilter {
 }
 
 const DAY = 24 * 60 * 60 * 1000
-export const AGES: { value: string; label: string; ms: number }[] = [
+const AGES: { value: string; label: string; ms: number }[] = [
   { value: '1d', label: 'Older than a day', ms: DAY },
   { value: '7d', label: 'Older than a week', ms: 7 * DAY },
   { value: '30d', label: 'Older than 30 days', ms: 30 * DAY },

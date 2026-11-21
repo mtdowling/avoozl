@@ -20,7 +20,7 @@ export const EDIT_TAB_FIELDS: Record<EditTab, readonly (keyof RepositoryForm)[]>
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
-export interface EditState {
+interface EditState {
   // The saved entry, or null when the repository has none.
   saved: RepositoryForm | null
   // The edited entry, or null while untouched.

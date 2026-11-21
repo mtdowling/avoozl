@@ -15,7 +15,7 @@ export const BOUNDS = [
 const EXPORTABLE = new Set(FIELDS.export);
 
 // The instruments (OT8.1): name, kind, unit and the attributes each carries.
-export const INSTRUMENTS = {
+const INSTRUMENTS = {
   "avoozl.task.lead_time": {
     kind: "histogram",
     unit: "s",
@@ -78,7 +78,7 @@ function attributes(values) {
 }
 
 // The ID Avoozl sends: the machine's instance ID and the span's key (§D7).
-export const sendSpanId = (instance, key) =>
+const sendSpanId = (instance, key) =>
   crypto
     .createHash("sha256")
     .update(`${instance}\n${key}`)

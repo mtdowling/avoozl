@@ -2,7 +2,7 @@
 // paragraph) or `xs`; the element is a paragraph unless `as` names a span.
 import type { ComponentProps, ElementType } from 'react'
 
-export type ErrorTextProps = Omit<ComponentProps<'p'>, 'className' | 'style' | 'ref'> & {
+type ErrorTextProps = Omit<ComponentProps<'p'>, 'className' | 'style' | 'ref'> & {
   as?: 'p' | 'span' | 'div'
   size?: 'xs' | 'sm'
   flush?: boolean

@@ -8,7 +8,7 @@
 import type { HTMLAttributes, MouseEvent, ReactNode } from 'react'
 import { Toggle } from './Toggle'
 
-export type SwitchProps = Omit<HTMLAttributes<HTMLSpanElement>, 'className' | 'style' | 'onChange' | 'children'> & {
+type SwitchProps = Omit<HTMLAttributes<HTMLSpanElement>, 'className' | 'style' | 'onChange' | 'children'> & {
   checked: boolean
   onChange(checked: boolean): void
   label: string

@@ -105,7 +105,6 @@ const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const BRANCH_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,150}$/;
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const MAX_REPORT = 4000;
-const MINUTE = 60_000;
 
 export const DELIVERY_DEFAULTS = Object.freeze({
   concurrency: 1,
@@ -1224,7 +1223,7 @@ export function reconcileDeliveries(
 // Plan order: lower rank first (unset ranks last, as the workbench orders
 // them), then graph order: depth along blocking edges, so leaves nearer the
 // front of the graph go first, then plan order.
-export function graphOrder(data) {
+function graphOrder(data) {
   const prerequisites = new Map();
   for (const edge of data.edges)
     if (["requires", "sequence"].includes(edge.kind))
@@ -1432,7 +1431,7 @@ export function processSteps(
 // Where a task's own text came from when someone outside wrote it: an
 // issue's author (R10.6) or an intake source (R50.2). It names no
 // repository, so a plans-repo brief cannot leak the planning one (R28.7).
-export function outsideSource(task) {
+function outsideSource(task) {
   if (task?.github?.origin === "issue") return "a GitHub issue";
   if (task?.intake) return "an incoming item";
   return null;
@@ -1633,7 +1632,7 @@ export function readyCandidates(
 // back the existing session for a name it already has, so every attempt after
 // the first names its attempt; the attempt goes before the label so the cut
 // at 200 characters keeps it.
-export function sessionTitle(taskId, attempt, label) {
+function sessionTitle(taskId, attempt, label) {
   return `avoozl:${taskId}${attempt > 1 ? ` attempt ${attempt}` : ""} ${label}`
     .trim()
     .slice(0, 200);
@@ -1645,17 +1644,6 @@ export function sessionTitle(taskId, attempt, label) {
 function withRules(store, brief, target) {
   const rules = currentPrompts()[target]?.text?.trim();
   return rules ? `${brief}\n\n${rules}` : brief;
-}
-
-// The tasks `task` waits on, each by its newest replacement.
-function blockerTasks(data, task) {
-  const byId = new Map(data.tasks.map((t) => [t.id, t]));
-  return data.edges
-    .filter(
-      (e) => e.to === task.id && ["requires", "sequence"].includes(e.kind),
-    )
-    .map((e) => byId.get(e.from))
-    .filter(Boolean);
 }
 
 // The spec a task came from, as context: every file of its folder is spec
@@ -1682,7 +1670,7 @@ export function leafBrief(store, data, leaf, options = {}) {
 // The executor a worker runs on: its task's `session.harness` pin (R98.4),
 // else the worker harness saved in Settings › Models (R98.3), else its
 // repository's executor (R93.5). Returns {executor, harness?}.
-export function workerExecutor(task, repository, config) {
+function workerExecutor(task, repository, config) {
   return roleRun("worker", { config, task, repository });
 }
 

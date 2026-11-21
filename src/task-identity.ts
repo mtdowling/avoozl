@@ -18,7 +18,7 @@ export function taskSourceRefs(task) {
   }
   return [...refs.values()];
 }
-export function normalizedTaskTitle(title) {
+function normalizedTaskTitle(title) {
   return String(title || "")
     .normalize("NFKC")
     .replace(/[^\p{L}\p{N}\s]/gu, "")

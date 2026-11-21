@@ -6,7 +6,7 @@
 // header values only ever come from that environment. It is a machine
 // setting, so `.avoozl.json` may not hold it (landing-config.mjs).
 export const TELEMETRY_KEYS = ["enabled", "endpoint", "protocol", "headers"];
-export const TELEMETRY_PROTOCOLS = ["http/json"];
+const TELEMETRY_PROTOCOLS = ["http/json"];
 export const HEADER_NAME = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 

@@ -312,7 +312,7 @@ async function refuseOutsideLinks(worktree, inTask) {
 }
 // Refuse when any commit in from..to adds, changes or removes a path under
 // `.avoozl/`; the worker may have committed one itself.
-export async function refuseAvoozlPaths(worktree, from, to, { checkout }) {
+async function refuseAvoozlPaths(worktree, from, to, { checkout }) {
   const files = [
     ...new Set(
       (
@@ -451,7 +451,7 @@ async function configureWorktreeIdentity(root, worktree) {
 // How a repository lands verified work (R87.1). Unset keeps the local
 // fast-forward. shortcut: R87.1's default `off` until setup writes another
 // is not applied, so existing workspaces keep landing; upgrade with 42.7.
-export const LANDINGS = Object.freeze(["direct", "pr", "off"]);
+const LANDINGS = Object.freeze(["direct", "pr", "off"]);
 export async function repositoryConfig({
   id,
   root,

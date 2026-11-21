@@ -14,7 +14,7 @@ import { JOBS } from "./github-jobs.ts";
 const LOOPBACK = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
 
 // git's request lines (`key=value`) as an object.
-export function parseRequest(text) {
+function parseRequest(text) {
   const request = {};
   for (const line of String(text).split("\n")) {
     const at = line.indexOf("=");

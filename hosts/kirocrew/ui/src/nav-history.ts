@@ -22,7 +22,7 @@ export interface Step {
 }
 
 const LAYERS: ReadonlySet<StepKind> = new Set(['drawer', 'modal', 'confirm'])
-export const isLayer = (kind: StepKind) => LAYERS.has(kind)
+const isLayer = (kind: StepKind) => LAYERS.has(kind)
 
 export interface NavHistory {
   steps(): readonly Step[]
@@ -45,7 +45,7 @@ function lastOf<T>(list: readonly T[], test: (item: T) => boolean): T | undefine
   return undefined
 }
 
-export function createNavHistory(): NavHistory {
+function createNavHistory(): NavHistory {
   let list: Step[] = []
   let next = 1
   const sinceTab = () => {

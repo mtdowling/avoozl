@@ -268,7 +268,7 @@ export const GRAPH_START = "<!-- avoozl:graph start -->";
 export const GRAPH_END = "<!-- avoozl:graph end -->";
 
 // The block text for one spec's tasks.md.
-export function graphBlock(name, text, linked = null) {
+function graphBlock(name, text, linked = null) {
   const mermaid = graphMermaid(
     graphOf([{ name, text: withoutGraphBlock(text) }], { linked }),
   );
@@ -294,7 +294,7 @@ function findBlock(text) {
 }
 
 // tasks.md without its graph block (and the blank line before it).
-export function withoutGraphBlock(text) {
+function withoutGraphBlock(text) {
   const found = findBlock(text);
   if (!found || found.problem) return text;
   const rows = text.split("\n"),

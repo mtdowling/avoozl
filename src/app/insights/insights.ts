@@ -53,7 +53,7 @@ const quantile = (values: number[], q: number) =>
   values.length ? values[Math.max(0, Math.ceil(q * values.length) - 1)] : null;
 
 // One day per entry, oldest first, ending today (UTC).
-export function dayKeys({ days, now = Date.now() }: InsightsFilter) {
+function dayKeys({ days, now = Date.now() }: InsightsFilter) {
   return Array.from({ length: days }, (_, i) =>
     new Date(now - (days - 1 - i) * DAY).toISOString().slice(0, 10),
   );
@@ -170,7 +170,7 @@ export function telemetryNames(db: any) {
 }
 
 // Leaf tasks open and ticked in one version of a task list.
-export function taskCounts(name: string, file: string, text: string) {
+function taskCounts(name: string, file: string, text: string) {
   const list = taskText(file, text) ?? "",
     items = specItems(name, list).filter((item: any) => item.key),
     parents = new Set(
@@ -234,7 +234,7 @@ async function taskListChanges(
   return changes;
 }
 
-export interface BurndownSpec {
+interface BurndownSpec {
   name: string;
   root: string;
   files: Record<string, string>;

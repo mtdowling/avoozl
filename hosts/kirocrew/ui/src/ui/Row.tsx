@@ -4,7 +4,7 @@
 import type { ComponentProps, ElementType } from 'react'
 import { GAP, type Gap } from './Stack'
 
-export type RowProps = Omit<ComponentProps<'div'>, 'className' | 'style' | 'ref'> & {
+type RowProps = Omit<ComponentProps<'div'>, 'className' | 'style' | 'ref'> & {
   as?: 'div' | 'section' | 'ul' | 'ol' | 'header' | 'footer' | 'span'
   gap?: Gap
   wrap?: boolean

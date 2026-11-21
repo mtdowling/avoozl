@@ -19,7 +19,7 @@ const slotOf = (slot) =>
 // Whether this caller claimed `taskId`: a session bound to it, or with no
 // session (the command line) a claim branch this machine created or a task
 // it took by hand.
-export function claimedBy(store, taskId, { caller = null, local = false }) {
+function claimedBy(store, taskId, { caller = null, local = false }) {
   const bindings = listSessionBindings(store).filter(
     (b) => b.taskId === taskId,
   );
