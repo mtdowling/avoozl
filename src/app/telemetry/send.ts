@@ -1,9 +1,13 @@
-// @ts-nocheck: typing debt
 // Posts queued traces and points to the OTLP endpoint (spec otel-export,
 // OT10, OT12, §D10). One request at a time, no redirect, retries with
 // backoff, and counters that live in memory. The header values live in this
 // closure and reach no status, log or error.
-import { buildMetrics, buildTrace } from "./otlp.ts";
+import { buildMetrics, buildTrace, type SendContext } from "./otlp.ts";
+import type { readTelemetryConfig } from "./config.ts";
+import type { createQueue, QueueItem } from "./queue.ts";
+
+type Signal = { body: unknown; url: string; units: number; done: boolean };
+type Batch = { items: QueueItem[]; attempts: number; signals: Signal[] };
 
 const BATCH_ITEMS = 20;
 const ATTEMPTS = 5;
@@ -13,7 +17,10 @@ const TLS =
   /^(ERR_TLS|ERR_SSL|CERT_|UNABLE_TO_|DEPTH_ZERO|SELF_SIGNED|HOSTNAME_MISMATCH)/;
 
 // What went wrong, as a kind and never the error's own words.
-function failureKind(error) {
+function failureKind(thrown: unknown) {
+  const error = thrown as
+    | { name?: string; code?: unknown; cause?: { code?: unknown } }
+    | undefined;
   const code = String(error?.cause?.code ?? error?.code ?? "");
   if (error?.name === "TimeoutError" || error?.name === "AbortError")
     return "timeout";
@@ -25,7 +32,7 @@ function failureKind(error) {
 }
 
 // Seconds, or a date, as milliseconds from `now`.
-function retryAfter(value, now) {
+function retryAfter(value: string | null | undefined, now: number) {
   if (!value) return null;
   const seconds = Number(value);
   if (Number.isFinite(seconds)) return Math.max(0, seconds) * 1000;
@@ -42,21 +49,30 @@ export function createSender({
   random = Math.random,
   version = "unknown",
   log = () => {},
+}: {
+  config: ReturnType<typeof readTelemetryConfig>;
+  context: SendContext;
+  queue: ReturnType<typeof createQueue>;
+  fetchImpl?: typeof fetch;
+  now?: () => number;
+  random?: () => number;
+  version?: string;
+  log?: (line: string) => void;
 }) {
   const { headers, timeoutMs, endpoints } = config;
   const counts = { sent: 0, dropped: 0, rejected: 0 };
-  let lastSuccessAt = null;
-  let lastFailure = null;
+  let lastSuccessAt: string | null = null;
+  let lastFailure: string | null = null;
   let nextAt = 0;
-  let batch = null;
+  let batch: Batch | null = null;
   let inflight = false;
   try {
     log(
-      `OpenTelemetry export to ${new URL(endpoints.traces ?? endpoints.metrics).host}`,
+      `OpenTelemetry export to ${new URL(String(endpoints.traces ?? endpoints.metrics)).host}`,
     );
   } catch {}
 
-  async function post(url, body) {
+  async function post(url: string, body: unknown) {
     const response = await fetchImpl(url, {
       method: "POST",
       headers: {
@@ -73,15 +89,23 @@ export function createSender({
     return response;
   }
 
-  function newBatch() {
+  function newBatch(): Batch | null {
     const items = queue.take(BATCH_ITEMS);
     if (!items.length) return null;
     const traces = items
-      .filter((item) => item.type === "trace")
-      .map((item) => buildTrace(item.trace, context))
-      .filter(Boolean);
-    const points = items.flatMap((item) => item.points ?? []);
-    const signal = (body, url, units) =>
+      .flatMap((item) => (item.type === "trace" ? [item.trace] : []))
+      .map((trace) =>
+        buildTrace(trace as Parameters<typeof buildTrace>[0], context),
+      )
+      .filter((body) => body !== null);
+    const points = items.flatMap((item) =>
+      item.type === "points" ? item.points : [],
+    ) as Parameters<typeof buildMetrics>[0];
+    const signal = (
+      body: unknown,
+      url: string | null,
+      units: number,
+    ): Signal | null =>
       body && url ? { body, url, units, done: false } : null;
     return {
       items,
@@ -95,12 +119,12 @@ export function createSender({
           traces.length,
         ),
         signal(buildMetrics(points, context), endpoints.metrics, points.length),
-      ].filter(Boolean),
+      ].filter((found): found is Signal => found !== null),
     };
   }
 
   function finish() {
-    queue.remove(batch.items);
+    if (batch) queue.remove(batch.items);
     batch = null;
   }
 
@@ -114,14 +138,14 @@ export function createSender({
         if (!batch) return;
         for (const signal of batch.signals) {
           if (signal.done) continue;
-          let response;
+          let response: Response | undefined;
           try {
             response = await post(signal.url, signal.body);
           } catch (error) {
             lastFailure = failureKind(error);
           }
           const status = response?.status;
-          if (status >= 200 && status < 300) {
+          if (status !== undefined && status >= 200 && status < 300) {
             signal.done = true;
             counts.sent += signal.units;
             lastSuccessAt = new Date(now()).toISOString();
@@ -156,7 +180,7 @@ export function createSender({
       }
     },
     // Items lost to a full queue.
-    dropped(units) {
+    dropped(units: number) {
       counts.dropped += units;
     },
     status: () => ({

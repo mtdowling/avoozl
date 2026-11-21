@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test, { type TestContext } from "node:test";
+import test from "node:test";
+import { open, rows } from "./memory-store.ts";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { point, span } from "../record.ts";
@@ -35,14 +36,6 @@ const sample = (extra = {}) => ({
   attrs: { direction: "input" },
   ...extra,
 });
-
-function open(t: TestContext) {
-  const store = new Store(":memory:");
-  t.after(() => store.close());
-  return store;
-}
-const rows = (store: Store, table: string) =>
-  store.db.prepare(`SELECT * FROM ${table}`).all();
 
 test("a span upserts by key, and an equal repeat changes nothing", (t) => {
   const store = open(t);

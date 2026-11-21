@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // ot-3.1: the environment and the endpoint check (OT6, OT12.1, OT12.5).
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -16,7 +15,8 @@ function machine(enabled = true) {
   );
   return directory;
 }
-const read = (env, enabled) => readTelemetryConfig(machine(enabled), env);
+const read = (env: NodeJS.ProcessEnv, enabled?: boolean) =>
+  readTelemetryConfig(machine(enabled), env);
 
 test("a shared endpoint gets the signal paths and a signal endpoint does not", () => {
   const shared = read({

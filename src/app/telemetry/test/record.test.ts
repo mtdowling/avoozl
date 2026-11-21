@@ -1,9 +1,9 @@
-// @ts-nocheck: typing debt
 // ot-1.3: the recording API and the allowlist (OT1, OT9.1, OT9.3, OT9.4, OT13).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { open, rows } from "./memory-store.ts";
 import { fileURLToPath } from "node:url";
 import { Store } from "../../store/store.ts";
 import {
@@ -35,13 +35,6 @@ const sample = (extra = {}) => ({
   at: "2025-11-20T03:04:00.000Z",
   ...extra,
 });
-
-function open(t) {
-  const store = new Store(":memory:");
-  t.after(() => store.close());
-  return store;
-}
-const rows = (store, table) => store.db.prepare(`SELECT * FROM ${table}`).all();
 
 test("a field or a value outside the allowlist is refused and nothing is written", (t) => {
   const store = open(t);
@@ -76,7 +69,7 @@ test("a field or a value outside the allowlist is refused and nothing is written
 
 test("an equal repeat reaches no other exporter, and a change does", (t) => {
   const store = open(t);
-  const seen = [];
+  const seen: unknown[] = [];
   registerExporter(store, {
     name: "fake",
     onSpan: (row) => seen.push(["span", row.key]),
@@ -171,7 +164,7 @@ test("finishTask records the root, the lead time, the stage times and one finish
   assert.equal(finishTask(store, done), true);
   const root = rows(store, "telemetry_spans").find(
     (r) => r.name === "avoozl.task",
-  );
+  )!;
   assert.equal(root.started_at, "2025-11-20T03:00:00.000Z");
   assert.equal(root.ended_at, done.finishedAt);
   assert.equal(root.outcome, "landed");
@@ -179,7 +172,7 @@ test("finishTask records the root, the lead time, the stage times and one finish
   assert.equal(root.attempts, 2);
   const points = Object.fromEntries(
     rows(store, "telemetry_points").map((r) => [
-      r.id.split(":").slice(1).join(":"),
+      String(r.id).split(":").slice(1).join(":"),
       r,
     ]),
   );
@@ -205,13 +198,13 @@ test("a manual task has outcome done and no first_pass", (t) => {
   });
   const root = rows(store, "telemetry_spans").find(
     (r) => r.name === "avoozl.task",
-  );
+  )!;
   assert.equal(root.outcome, "done");
   assert.equal(root.first_pass, null);
   const finished = rows(store, "telemetry_points").find(
     (r) => r.name === "avoozl.tasks.finished",
-  );
-  assert.deepEqual(JSON.parse(finished.attrs), { outcome: "done" });
+  )!;
+  assert.deepEqual(JSON.parse(String(finished.attrs)), { outcome: "done" });
 });
 
 test("the telemetry folder imports nothing from the flow folder", () => {
