@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test, { type TestContext } from "node:test";
+import test from "node:test";
+import { open, rows } from "./memory-store.ts";
 import { fileURLToPath } from "node:url";
 import { Store } from "../../store/store.ts";
 import {
@@ -34,14 +35,6 @@ const sample = (extra = {}) => ({
   at: "2025-11-20T03:04:00.000Z",
   ...extra,
 });
-
-function open(t: TestContext) {
-  const store = new Store(":memory:");
-  t.after(() => store.close());
-  return store;
-}
-const rows = (store: Store, table: string) =>
-  store.db.prepare(`SELECT * FROM ${table}`).all();
 
 test("a field or a value outside the allowlist is refused and nothing is written", (t) => {
   const store = open(t);
