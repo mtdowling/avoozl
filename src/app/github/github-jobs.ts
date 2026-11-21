@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The GitHub jobs (plugin-credentials §D6, §D7): every GitHub call runs
 // inside one named job, and a token is asked for that job's permission set
 // only. A job is bound where work starts (an operation entry, a tick step,
@@ -9,6 +8,33 @@ import { createHash } from "node:crypto";
 
 const r = "read",
   w = "write";
+
+// A permission set: GitHub's permission names to read, write or admin.
+export type Permissions = Record<string, string>;
+// One GitHub job.
+export interface Job {
+  description: string;
+  risk: string;
+  permissions: Permissions;
+}
+// A person's Allow for one high-risk step.
+export interface Grant {
+  id: string;
+  job: string;
+  target: string;
+  permissionsHash: string;
+  at: number;
+  used: boolean;
+  usedFor?: unknown;
+}
+// One high-risk step a person confirms.
+interface Step {
+  job: string;
+  target: string;
+  permissionsHash?: string;
+  action?: string;
+  [key: string]: unknown;
+}
 
 // Permission names checked on 2026-11-19 against GitHub's "Create an
 // installation access token for an app" and "Permissions required for
@@ -23,8 +49,11 @@ const r = "read",
 // statuses (the avoozl/verify status on each head it verified, a write
 // PC13.1 does not count as high risk). board-sync and comment-delete have
 // no row: no code calls the Projects methods or deletes a comment.
-const repo = (permissions) => ({ metadata: r, ...permissions });
-export const JOBS = Object.freeze({
+const repo = (permissions: Permissions): Permissions => ({
+  metadata: r,
+  ...permissions,
+});
+export const JOBS: Readonly<Record<string, Job>> = Object.freeze({
   "check-in": {
     description: "Read issues, pull requests, files and checks",
     risk: "low",
@@ -119,20 +148,17 @@ export const JOBS = Object.freeze({
   },
 });
 
-const LEVEL = { read: 1, write: 2, admin: 3 };
+const LEVEL: Record<string, number> = { read: 1, write: 2, admin: 3 };
 
-export function jobOf(name) {
-  const job = JOBS[name];
-  if (!job) {
-    const error = Error(`${name} is not a GitHub job.`);
-    error.status = 500;
-    throw error;
-  }
+export function jobOf(name: string): Job {
+  const job = Object.hasOwn(JOBS, name) ? JOBS[name] : undefined;
+  if (!job)
+    throw Object.assign(Error(`${name} is not a GitHub job.`), { status: 500 });
   return job;
 }
 
 // `{metadata: "read", ...}` as one stable text, for cache keys and hashes.
-export const permissionText = (permissions) =>
+export const permissionText = (permissions: Permissions) =>
   Object.entries(permissions)
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([name, level]) => `${name}: ${level}`)
@@ -140,30 +166,37 @@ export const permissionText = (permissions) =>
 
 // ---- Binding a job ------------------------------------------------------
 
-const scope = new AsyncLocalStorage();
+const scope = new AsyncLocalStorage<{
+  job: string | null;
+  grants: Grant[];
+}>();
 
 // Runs `fn` as `job`. `grants` are a person's Allows for high-risk steps
 // (D7); an inner job keeps the outer scope's grants, which each name the one
 // job and target they serve.
-export function withJob(job, fn, grants = currentGrants()) {
+export function withJob<T>(
+  job: string | null,
+  fn: () => T,
+  grants: Grant[] = currentGrants(),
+): T {
   if (job !== null) jobOf(job);
   return scope.run({ job, grants }, fn);
 }
 export const currentJob = () => scope.getStore()?.job ?? null;
-export const currentGrants = () => scope.getStore()?.grants ?? [];
+export const currentGrants = (): Grant[] => scope.getStore()?.grants ?? [];
 
 // `github` whose every method runs as `job`: a write site names its job
 // (a step that does two jobs runs the second in its own, §D6).
-export function asJob(job, github) {
+export function asJob<T extends object>(job: string, github: T): T {
   jobOf(job);
   // A client made from this one with Object.create keeps its own methods:
   // calls run with the object they were made on.
   const proxy = new Proxy(github, {
     get(target, prop, receiver) {
-      const value = target[prop],
+      const value = (target as Record<PropertyKey, unknown>)[prop],
         self = receiver === proxy ? target : receiver;
       return typeof value === "function"
-        ? (...args) => {
+        ? (...args: unknown[]) => {
             const result = withJob(job, () => value.apply(self, args));
             return result === target ? proxy : result;
           }
@@ -177,7 +210,7 @@ export function asJob(job, github) {
 
 // The permission one REST call needs, from its method and path, in
 // GitHub's own names ("Permissions required for GitHub Apps").
-export function restNeeds(method, pathname) {
+export function restNeeds(method: string, pathname: string): Permissions {
   const level = method === "GET" ? r : w,
     p = pathname.split("?")[0];
   if (p === "/user" || p.startsWith("/user/") || p.startsWith("/users/"))
@@ -191,7 +224,7 @@ export function restNeeds(method, pathname) {
   const match = /^\/repos\/[^/]+\/[^/]+(\/.*)?$/.exec(p);
   if (!match) return { administration: level };
   const rest = match[1] || "";
-  const rules = [
+  const rules: [RegExp, Permissions | null][] = [
     [/^$/, level === r ? { metadata: r } : { administration: w }],
     [/^\/collaborators/, { metadata: r }],
     [/^\/(rulesets|rules)\b/, level === r ? { metadata: r } : null],
@@ -222,7 +255,7 @@ export function restNeeds(method, pathname) {
 }
 
 // GraphQL fields and mutations Avoozl uses, and what each needs.
-const GRAPHQL_MUTATIONS = {
+const GRAPHQL_MUTATIONS: Record<string, Permissions> = {
   addBlockedBy: { issues: w },
   removeBlockedBy: { issues: w },
   addDiscussionComment: { discussions: w },
@@ -231,7 +264,7 @@ const GRAPHQL_MUTATIONS = {
   createLinkedBranch: { contents: w, issues: w },
   markPullRequestReadyForReview: { pull_requests: w },
 };
-const GRAPHQL_READS = [
+const GRAPHQL_READS: [RegExp, Permissions][] = [
   [/\bpullRequests?\b|\bissueOrPullRequest\b/, { pull_requests: r }],
   [/\bissues?\b|\bissueOrPullRequest\b|\bsearch\b/, { issues: r }],
   [/\bdiscussions?\b/, { discussions: r }],
@@ -240,7 +273,7 @@ const GRAPHQL_READS = [
   [/\bobject\(|\bref\(|\bhistory\b|\bTree\b|\bBlob\b/, { contents: r }],
 ];
 
-export function graphqlNeeds(query) {
+export function graphqlNeeds(query: unknown): Permissions {
   const text = String(query || "");
   const mutation = /^\s*mutation\b[^{]*\{\s*([A-Za-z]+)/.exec(text);
   if (mutation)
@@ -249,14 +282,14 @@ export function graphqlNeeds(query) {
         [`unknown mutation ${mutation[1]}`]: w,
       }
     );
-  const needs = { metadata: r };
+  const needs: Permissions = { metadata: r };
   for (const [pattern, add] of GRAPHQL_READS)
     if (pattern.test(text)) Object.assign(needs, add);
   return needs;
 }
 
 // What the job lacks of `needs`, as "name: level" texts.
-export function missingFrom(permissions, needs) {
+export function missingFrom(permissions: Permissions, needs: Permissions) {
   return Object.entries(needs)
     .filter(
       ([name, level]) =>
@@ -266,7 +299,7 @@ export function missingFrom(permissions, needs) {
 }
 
 // PC11.7: a token goes over https, or http to a loopback address.
-export function tokenTransportAllowed(url) {
+export function tokenTransportAllowed(url: string) {
   try {
     const { protocol, hostname } = new URL(url);
     return (
@@ -284,7 +317,7 @@ export function tokenTransportAllowed(url) {
 export const GRANT_MS = 10 * 60 * 1000;
 
 // What the page showed for one high-risk step: the hash it sends back.
-export function permissionsHash({ job, target }) {
+export function permissionsHash({ job, target }: Step) {
   return createHash("sha256")
     .update(
       JSON.stringify({
@@ -297,7 +330,7 @@ export function permissionsHash({ job, target }) {
 }
 
 // One step the confirm shows: {job, target, action, permissions, hash}.
-export function confirmStep({ job, target, action }) {
+export function confirmStep({ job, target, action }: Step) {
   const entry = jobOf(job);
   return {
     job,
@@ -312,14 +345,16 @@ export function confirmStep({ job, target, action }) {
 
 // The grants a person's Allow made, in this process's memory only.
 export class Grants {
-  constructor({ now = Date.now } = {}) {
+  now: () => number;
+  held: Map<string, Grant>;
+  constructor({ now = Date.now }: { now?: () => number } = {}) {
     this.now = now;
     this.held = new Map();
   }
   // Checks each step against the job table now; a changed table or target
   // refuses (PC13.4).
-  allow(steps) {
-    const made = [];
+  allow(steps: (Step & { permissionsHash: string })[]) {
+    const made: Grant[] = [];
     for (const step of steps) {
       if (jobOf(step.job).risk !== "high")
         fail409(`${step.job} is not a high-risk job; it needs no confirm.`);
@@ -327,7 +362,7 @@ export class Grants {
         fail409(
           `What you allowed for ${step.job} on ${step.target} changed since it was shown. Look again and allow it again.`,
         );
-      const grant = {
+      const grant: Grant = {
         id: createHash("sha256")
           .update(`${step.permissionsHash}|${this.now()}|${Math.random()}`)
           .digest("hex")
@@ -344,8 +379,8 @@ export class Grants {
     return made;
   }
   // The live grants of these ids; expired ones are forgotten.
-  get(ids = []) {
-    const found = [];
+  get(ids: string[] = []) {
+    const found: Grant[] = [];
     for (const grant of this.held.values())
       if (this.now() - grant.at > GRANT_MS) this.held.delete(grant.id);
       else if (ids.includes(grant.id)) found.push(grant);
@@ -357,15 +392,18 @@ export class Grants {
 // and the confirm and the apply must see the same ones.
 export const processGrants = new Grants();
 
-function fail409(message) {
-  const error = Error(message);
-  error.status = 409;
-  throw error;
+function fail409(message: string): never {
+  throw Object.assign(Error(message), { status: 409 });
 }
 
 // A grant serves one step once (PC13.4): the first call under it spends it
 // for its job scope, and that scope keeps it for the rest of its calls.
-export function useGrant(grants, job, target, now = Date.now()) {
+export function useGrant(
+  grants: Grant[] | null | undefined,
+  job: string,
+  target: unknown,
+  now = Date.now(),
+) {
   const wanted = String(target || "").toLowerCase(),
     here = scope.getStore();
   const grant = (grants || []).find(
@@ -373,7 +411,7 @@ export function useGrant(grants, job, target, now = Date.now()) {
       g.job === job &&
       g.target === wanted &&
       now - g.at <= GRANT_MS &&
-      g.permissionsHash === permissionsHash({ job, target }) &&
+      g.permissionsHash === permissionsHash({ job, target: wanted }) &&
       (!g.used || g.usedFor === here),
   );
   if (!grant) return false;

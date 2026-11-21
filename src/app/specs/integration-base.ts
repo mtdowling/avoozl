@@ -30,7 +30,10 @@ interface CatchUpGitHub {
     base: string,
     head: string,
   ): Promise<{ ahead_by?: number; files?: { filename: string }[] }>;
-  [key: string]: unknown;
+  mergeBranch(
+    repository: string,
+    merge: { base: string; head: string; message: string },
+  ): Promise<unknown>;
 }
 
 // The spec and each spec that links it, innermost first, over a

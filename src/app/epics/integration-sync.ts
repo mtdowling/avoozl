@@ -54,6 +54,10 @@ type SyncGitHub = {
     base: string,
     head: string,
   ): Promise<{ ahead_by?: number }>;
+  mergeBranch(
+    repository: string,
+    merge: { base: string; head: string; message: string },
+  ): Promise<unknown>;
 };
 type Notice = { channel: string; title: string; text: string };
 
