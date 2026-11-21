@@ -239,9 +239,14 @@ export const RETRY_TIP = 'Starts a new attempt for this task.'
 
 export interface DeliverySettings {
   hash: string | null
+  // The workspace's `delivery` block is set.
   on: boolean
   // The workspace's landing.pr (R119); null when not set.
   landingPr: 'draft' | 'ready' | 'auto' | null
+  // This machine's `loop`; null when it sets none. Autopilot runs here
+  // only with both.
+  loop?: { run: string[]; every?: string; epics?: string[] } | null
+  loopError?: string
 }
 
 // One chip per value with its card count, in the order `options` gives.

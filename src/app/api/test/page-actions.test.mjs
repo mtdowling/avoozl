@@ -288,10 +288,10 @@ test("conflicts.settle marks reviewed, unblocks, settles and dismisses, refusing
     { action: "dismiss", items: [{ taskId: "b", slot: "slot-b-1" }] },
     ops.read().revision,
   );
-  const left = (await ops.execute("conflicts.view", {})).items.map((item) => [
-    item.kind,
-    item.tasks?.map((task) => task.id),
-  ]);
+  // This machine has no loop here; autopilot-settings.test.mjs covers that row.
+  const left = (await ops.execute("conflicts.view", {})).items
+    .filter((item) => item.reason !== "autopilot-off")
+    .map((item) => [item.kind, item.tasks?.map((task) => task.id)]);
   assert.deepEqual(left, [["review", ["g"]]]);
   const d = ops.read().tasks.find((task) => task.id === "d");
   assert.equal(d.decision, undefined);

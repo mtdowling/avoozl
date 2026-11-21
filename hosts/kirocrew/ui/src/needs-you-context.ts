@@ -28,6 +28,7 @@ export function askLine(item: ConflictItem): string {
       return 'Assign the spec issue to exactly one person on GitHub; that person drives it.'
     case 'needs-human':
       if (item.reason === 'blocked') return 'Unblock the task, or leave it blocked.'
+      if (item.reason === 'autopilot-off') return 'Turn on Autopilot in Settings › Autopilot, or run avoozl next --claim to take one task.'
       if (item.reason === 'crew-mode') return "Choose Let the tick run it. Avoozl then starts this workspace's ready tasks; until then it starts none."
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
       if (item.reason === 'disk') return 'Free space on that volume. The work resumes by itself on the next tick.'

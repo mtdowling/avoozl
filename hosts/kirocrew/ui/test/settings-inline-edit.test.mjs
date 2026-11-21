@@ -35,8 +35,8 @@ const footer = () => page.evaluate(`Boolean(document.querySelector('[data-save-f
 const writes = () => page.evaluate(`window.__writes.map((w) => ({ operation: w.operation, input: w.input, workspaceId: w.workspaceId }))`)
 const press = (label) => page.evaluate(click('[data-save-footer] button', label))
 
-async function openPage(label, width = 1280, theme = 'light') {
-  await page.open(harness.url({ page: 'app', basic: '1', inline: '1', theme }), { width, height: 800, dark: theme === 'dark' })
+async function openPage(label, width = 1280, theme = 'light', query = {}) {
+  await page.open(harness.url({ page: 'app', basic: '1', inline: '1', theme, ...query }), { width, height: 800, dark: theme === 'dark' })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
@@ -55,8 +55,8 @@ async function openPage(label, width = 1280, theme = 'light') {
 }
 
 for (const width of [1280, 390]) {
-  test(`Delivery edits in place at ${width} px: Discard, Save with the hash`, { skip }, async () => {
-    await openPage('Delivery', width)
+  test(`Autopilot edits in place at ${width} px: Discard, Save with the hash`, { skip }, async () => {
+    await openPage('Autopilot', width)
     assert.equal(await footer(), false, 'no footer before a change')
     const radio = (mode) => `document.querySelector('[data-radio-fold="avoozl-delivery-pr"] input[value="${mode}"]')`
     await page.until(`Boolean(${radio('ready')})`)
@@ -74,6 +74,54 @@ for (const width of [1280, 390]) {
     assert.equal(call.input.landingPr, 'auto')
     assert.equal(call.input.expectedHash, 'h1')
     await page.until(`${radio('auto')}.checked && !document.querySelector('[data-save-footer] [data-save]')`)
+    assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'no sideways scroll')
+    assert.deepEqual(page.errors, [])
+  })
+
+  test(`Autopilot off at ${width} px: every setting shows and saves; on writes the loop, off removes it`, { skip }, async () => {
+    await openPage('Autopilot', width, 'light', { autopilot: 'off' })
+    const choice = (mode) => `document.querySelector('[data-radio-fold="avoozl-autopilot"] input[value="${mode}"]')`
+    const pr = (mode) => `document.querySelector('[data-radio-fold="avoozl-delivery-pr"] input[value="${mode}"]')`
+    await page.until(`Boolean(${choice('off')})`)
+    assert.equal(await page.evaluate(`${choice('off')}.checked`), true, 'Off is picked')
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-autopilot-steps]').length`), 2, 'both flows show')
+    assert.match(await page.evaluate(`document.querySelector('[data-autopilot-off-note]').textContent`), /Used when Autopilot is on\./)
+    // Who merges saves while off, and turns nothing on.
+    await page.evaluate(`${pr('ready')}.click()`)
+    await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
+    await press('Save')
+    await page.until(`window.__writes.length === 1`)
+    assert.deepEqual((await writes())[0].input, { expectedHash: 'h1', landingPr: 'ready' })
+    await page.until(`${pr('ready')}.checked && document.querySelector('[data-delivery-settings]').dataset.autopilot === 'off'`)
+    // Picking Autopilot asks; Cancel writes nothing and keeps Off.
+    await page.evaluate(`${choice('autopilot')}.click()`)
+    await page.until(`Boolean(document.querySelector('[data-confirm-dialog]'))`)
+    await page.key('Escape')
+    await page.until(`!document.querySelector('[data-confirm-dialog]')`)
+    assert.equal(await page.evaluate(`window.__writes.length`), 1, 'Cancel writes nothing')
+    assert.equal(await page.evaluate(`${choice('off')}.checked`), true, 'Cancel keeps Off')
+    // Yes turns it on with one write, carrying the loop typed while off.
+    await set('#avoozl-loop-every', '2m')
+    assert.equal(await page.evaluate("Boolean(document.querySelector('[data-save-footer] [data-save]'))"), false, 'a loop edit while off is no save')
+    await page.evaluate(`${choice('autopilot')}.click()`)
+    await page.until(`Boolean(document.querySelector('[data-confirm-dialog]'))`)
+    await page.evaluate(`[...document.querySelectorAll('[data-confirm-dialog] button')].find((b) => b.textContent.trim() === 'Turn on Autopilot').click()`)
+    await page.until(`window.__writes.length === 2`)
+    assert.deepEqual((await writes())[1].input, { delivery: {}, expectedHash: 'h2', turnOn: true, loop: { run: ['specs'], every: '2m' } })
+    await page.until(`${choice('autopilot')}.checked && !document.querySelector('[data-autopilot-off-note]')`)
+    // While on, a loop edit saves through the footer.
+    await set('#avoozl-loop-every', '5m')
+    await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
+    await press('Save')
+    await page.until(`window.__writes.length === 3`)
+    assert.deepEqual((await writes())[2].input, { expectedHash: 'h3', loop: { run: ['specs'], every: '5m' } })
+    // Off removes this machine's loop, after asking.
+    await page.evaluate(`${choice('off')}.click()`)
+    await page.until(`Boolean(document.querySelector('[data-confirm-dialog]'))`)
+    await page.evaluate(`[...document.querySelectorAll('[data-confirm-dialog] button')].find((b) => b.textContent.trim() === 'Turn off Autopilot').click()`)
+    await page.until(`window.__writes.length === 4`)
+    assert.deepEqual((await writes())[3].input, { expectedHash: 'h4', loop: null })
+    await page.until(`${choice('off')}.checked`)
     assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'no sideways scroll')
     assert.deepEqual(page.errors, [])
   })

@@ -218,7 +218,10 @@ test("review shows once per plan, with a badge, and not as needs-you", async (t)
       ["stuck", "needs-you", false],
     ],
   );
-  const items = (await ops.execute("conflicts.view", {})).items;
+  // This machine has no loop here; autopilot-settings.test.mjs covers that row.
+  const items = (await ops.execute("conflicts.view", {})).items.filter(
+    (item) => item.reason !== "autopilot-off",
+  );
   assert.deepEqual(
     items.map((item) => [item.kind, item.taskId, item.tasks?.map((x) => x.id)]),
     [
@@ -240,9 +243,9 @@ test("review shows once per plan, with a badge, and not as needs-you", async (t)
   );
   assert.equal(result.settled.length, 2);
   assert.deepEqual(
-    (await ops.execute("conflicts.view", {})).items.map(
-      (item) => item.id ?? item.taskId,
-    ),
+    (await ops.execute("conflicts.view", {})).items
+      .filter((item) => item.reason !== "autopilot-off")
+      .map((item) => item.id ?? item.taskId),
     ["stuck", "review:spec:b"],
   );
 });

@@ -999,8 +999,8 @@ export class RepositorySettings {
     return this.readActivitySettings();
   }
 
-  // Settings > Delivery: the workspace's landing.pr (R119.1). Other delivery
-  // keys are kept as they are.
+  // Settings > Autopilot: whether the delivery block is set, and the
+  // workspace's landing.pr (R119.1). Other delivery keys are kept as they are.
   readDeliverySettings() {
     const file = this.readFile(),
       delivery = record(file.value.delivery) ? file.value.delivery : {};
@@ -1022,8 +1022,8 @@ export class RepositorySettings {
   }
 
   // `turnOn: true` writes an empty `delivery` section first (every key at
-  // its default), so Settings > Delivery can turn delivery on with one save.
-  // `landingPr` sets the workspace's landing.pr; null removes it.
+  // its default), so Settings > Autopilot can turn Autopilot on with one
+  // save. `landingPr` sets the workspace's landing.pr; null removes it.
   updateDeliverySettings({ delivery, expectedHash, turnOn, landingPr } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
@@ -1053,7 +1053,7 @@ export class RepositorySettings {
     if (!record(value.delivery) && turnOn === true) value.delivery = {};
     if (!record(value.delivery))
       fail(
-        "Delivery is off in .avoozl.json; turn it on before changing these.",
+        "Autopilot is off in .avoozl.json; turn it on before changing these.",
         409,
       );
     const next = { ...value.delivery };

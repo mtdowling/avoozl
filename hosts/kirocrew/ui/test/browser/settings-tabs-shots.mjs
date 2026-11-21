@@ -16,7 +16,7 @@ export const SETTINGS_PAGES = [
   ['github', 'GitHub'],
   ['github-sync', 'GitHub', 'sync'],
   ['github-repository', 'GitHub', 'repository'],
-  ['delivery', 'Delivery'],
+  ['delivery', 'Autopilot'],
   ['flow', 'Flow', null, { flow: '1' }],
   ['content', 'Content rules'],
   ['plugins', 'Plugins'],

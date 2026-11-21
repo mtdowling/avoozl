@@ -29,15 +29,31 @@ worktrees, and its checks. Checkout paths are per machine, so they stay out of
 [Repository checks and isolation](checks.md)
 for checks, their environment, and the sandbox they run in.
 
-## Turning delivery on
+## Turning Autopilot on
 
-Delivery starts with a `delivery` block in `.avoozl.json`:
+Autopilot runs on a machine when two things are set: a `delivery` block in
+the workspace's `.avoozl.json`, and a `loop` in this machine's
+`~/.config/avoozl/config.json` (see [The server loop](#the-server-loop)):
 
 ```json
 {
   "delivery": {}
 }
 ```
+
+**Settings › Autopilot** sets both. The page picks **Off** (you take and land
+tasks yourself) or **Autopilot** (the tick starts and lands them), and asks
+once before either change. Only a person changes it; agents, MCP and the tick
+cannot. Picking Autopilot writes the `delivery` block when it is missing and
+writes `loop` to this machine's config, `{"run": ["specs"]}` unless you set
+the page's **Run** and **Every** fields first. Picking Off removes `loop` from
+this machine's config and keeps the `delivery` block, so other machines keep
+running. The page's other settings, such as who merges, show and save while
+Autopilot is off.
+
+When tasks are ready and this machine has no `loop`, Home and **Needs you**
+say: "Autopilot is off on this machine, so ready tasks wait. Turn it on in
+Settings › Autopilot, or run avoozl next --claim."
 
 A runner starts a spec's tasks only when the spec issue, and every parent
 spec's issue, is assigned to its own login alone; a spec with no issue runs
@@ -49,8 +65,8 @@ nothing until a person chooses **Let the tick run it** in **Needs you**.
 ### The server loop
 
 The tick starts and lands work only on a machine whose own config turns the
-loop on. Put `loop` in `~/.config/avoozl/config.json`; `.avoozl.json` may not
-set it:
+loop on. Settings › Autopilot writes `loop` in `~/.config/avoozl/config.json`,
+or you can write it by hand; `.avoozl.json` may not set it:
 
 ```json
 {
@@ -236,7 +252,7 @@ stays and the tick tries again.
 `landing.pr` says how Avoozl opens a `pr` repository's pull requests, and who
 merges them. Set it for the workspace at the top of `.avoozl.json`
 (`"landing": {"pr": "ready"}`), or for one repository in its landing block,
-which wins. Settings shows the workspace's in **Settings › Delivery**, and a
+which wins. Settings shows the workspace's in **Settings › Autopilot**, and a
 repository's on its **Landing** tab, where unset uses the workspace's. Only a
 person changes it; agents, MCP and the tick cannot. It is the only setting for
 who merges.

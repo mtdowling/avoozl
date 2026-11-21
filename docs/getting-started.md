@@ -106,8 +106,9 @@ one of the timers below. Each runs `avoozl tick` once a minute for every
 enabled workspace in this machine's catalog.
 
 A tick starts and lands work only on a machine whose `config.json` turns its
-`loop` on ([Delivery](delivery.md#the-server-loop)); without it, each tick
-still reads and caches.
+`loop` on; picking Autopilot in Settings › Autopilot writes it
+([Delivery](delivery.md#turning-autopilot-on)). Without it, each tick still
+reads and caches.
 
 An agent a tick starts keeps running after that tick exits; the next tick
 finds it again by its process and session, and reaps or resumes it. Two
@@ -298,9 +299,11 @@ approves a spec, see [Tasks](github-workflow.md#2-tasks) and
 
 Register the checkout the work changes, with its base branch and its named
 checks, then set the repository's `landing` to `off`, `direct` or `pr`.
-Turn on this machine's loop with `"loop": {"run": ["specs"]}` in
-`~/.config/avoozl/config.json`; without it the tick starts nothing, and
-`avoozl next --claim` and `avoozl land TASK` run one task at a time. Avoozl
+Then pick **Autopilot** in **Settings › Autopilot**. That writes the
+`delivery` block to `.avoozl.json` and `"loop": {"run": ["specs"]}` to this
+machine's `~/.config/avoozl/config.json`. Without the loop the tick starts
+nothing, and Home and **Needs you** say so while tasks are ready;
+`avoozl next --claim` and `avoozl land TASK` then run one task at a time. Avoozl
 pushes and merges only after its checks pass. See
 [Landing](github-workflow.md#16-landing) for the rules, [Delivery](delivery.md#the-server-loop)
 for the loop and the commands, and [Avoozl](overview.md) for what each page shows.

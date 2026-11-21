@@ -18,6 +18,8 @@ export function settleActionOf(item: ConflictItem): SettleAction | null {
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return null
   // The Crew Mode hold has its own button, Let the tick run it.
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
+  // Autopilot off is answered in Settings › Autopilot or the CLI.
+  if (item.kind === 'needs-human' && item.reason === 'autopilot-off') return null
   if (item.kind === 'needs-human') return item.reason === 'blocked' ? 'unblock' : 'reviewed'
   if (item.kind === 'decision') return 'settle'
   if (item.kind === 'untick') return 'reopen'
@@ -103,8 +105,9 @@ export function noActionReason(item: ConflictItem): string | null {
   return null
 }
 
-// Needs you rows whose detail says why and whose own buttons answer them.
-const OWN_ACTIONS = new Set(['draft-pr', 'pr-merge', 'stale-claim', 'pr-closed'])
+// Needs you rows whose detail says why and whose own buttons or detail
+// answer them.
+const OWN_ACTIONS = new Set(['draft-pr', 'pr-merge', 'stale-claim', 'pr-closed', 'autopilot-off'])
 
 // The Conflicts kinds the Kind filter offers, each with its own test of an
 // item. 'all' is the filter's empty choice.

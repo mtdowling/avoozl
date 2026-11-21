@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Screenshots for the one landing block (design §4.25), in the full app shell
 // on fake data: a repository's Edit › Landing tab scrolled to its Who merges
-// and Conflicts sections, and Settings › Delivery.
+// and Conflicts sections, and Settings › Autopilot.
 // 1280 and 390 px, light and dark: <out>/<name>-<width>-<theme>.png. Keep
 // the files outside git.
 //
@@ -45,7 +45,7 @@ try {
   const shots = [
     ['landing-top', 'Repository setup', [click('[data-repository-list] button', 'Edit recipe-box'), tab('landing')]],
     ['landing-merges', 'Repository setup', [click('[data-repository-list] button', 'Edit recipe-box'), tab('landing'), scrollTo('Who merges')]],
-    ['delivery', 'Delivery', []],
+    ['delivery', 'Autopilot', []],
   ].filter(([name]) => !only.length || only.includes(name))
   for (const theme of ['light', 'dark'])
     for (const width of [1280, 390])
