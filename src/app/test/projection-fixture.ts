@@ -1,19 +1,34 @@
-// @ts-nocheck: typing debt
 // A scratch workspace for GitHub projection tests: fake GitHub, an approved
 // spec plan and the merged approval recorded.
 import fs from "node:fs";
 import path from "node:path";
+import type { TestContext } from "node:test";
 import { Operations } from "../api/operations.ts";
 import { fixture } from "./fixtures.ts";
-import { FakeGitHub } from "./fake-github.ts";
+import { FakeGitHub, type FakeIssue } from "./fake-github.ts";
 import { writeSpec } from "./spec-fixture.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import type { PlanDraft } from "./view-shapes.ts";
 
 const NAMESPACE = "avz_testtesttesttest";
 export const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 export const MARKER_LINE = /^<!-- avoozl v=1 .* -->$/m;
 
-export async function workspace(t, { mode, coder, blockTerm, radar }) {
+export type ProjectionWorkspace = Awaited<ReturnType<typeof workspace>>;
+
+export async function workspace(
+  t: TestContext,
+  {
+    mode,
+    blockTerm,
+    radar,
+  }: {
+    mode: string;
+    coder?: string;
+    blockTerm?: string;
+    radar?: Record<string, unknown>;
+  },
+) {
   const { store } = fixture(t),
     github = new FakeGitHub(),
     root = temporaryDirectory();
@@ -67,11 +82,11 @@ export async function workspace(t, { mode, coder, blockTerm, radar }) {
 
 // An approved spec plan.
 export async function approvedSpec(
-  { store, ops, root },
-  { overrides = {} } = {},
+  { store, ops, root }: ProjectionWorkspace,
+  { overrides = {} }: { overrides?: Record<string, string> } = {},
 ) {
   writeSpec(root, "config", overrides);
-  const plan = await ops.execute("plan.create", {
+  const plan = await ops.execute<PlanDraft>("plan.create", {
     spec: "config",
     prompt: "Load config",
     context: { repositoryId: "code" },
@@ -84,16 +99,16 @@ export async function approvedSpec(
   return { plan, approved };
 }
 
-export const leaves = (github) =>
+export const leaves = (github: FakeGitHub) =>
   github.created.filter((issue) => /"kind":"leaf"/.test(issue.body));
-export const markersOf = (issue) => [
+export const markersOf = (issue: FakeIssue) => [
   ...issue.body.matchAll(/<!-- avoozl v=1 .* -->/g),
 ];
 
 // A spec of one package with three small leaves that may batch (1.1, 1.2,
 // 1.3) and a fourth that needs 1.1. Task IDs in the store are `config.<n>`.
 export const BATCH_SPEC = (() => {
-  const leaf = (summary, extra = {}) => ({
+  const leaf = (summary: string, extra: Record<string, unknown> = {}) => ({
     kind: "leaf",
     summary,
     acceptance: [summary + " works."],
@@ -132,7 +147,7 @@ export const BATCH_SPEC = (() => {
 export const BATCH = ["config.1.1", "config.1.2", "config.1.3"];
 
 // GitHub merges a pull request that says `Closes #N` and closes the issue.
-export function mergeAndClose(github, issue) {
+export function mergeAndClose(github: FakeGitHub, issue: FakeIssue) {
   const pull = {
     number: 100 + issue.number,
     url: `https://example.test/example/code/pull/${100 + issue.number}`,
@@ -149,7 +164,7 @@ export function mergeAndClose(github, issue) {
   };
   github.checkRuns = () => Promise.resolve([]);
   github.commitStatus = () => Promise.resolve({ state: "success" });
-  github.issueLinks = (_repository, number) =>
+  github.issueLinks = (_repository: unknown, number: number) =>
     Promise.resolve({
       nodeId: "issue-" + number,
       linkedBranches: [],

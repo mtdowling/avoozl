@@ -322,6 +322,12 @@ export class GitHubClient {
     fetch: fetchImpl = globalThis.fetch,
     timeoutMs = 30000,
     gitUrl = process.env.AVOOZL_GIT_URL,
+  }: {
+    credentials?: unknown;
+    apiUrl?: string;
+    fetch?: typeof fetch;
+    timeoutMs?: number;
+    gitUrl?: string;
   } = {}) {
     // Read guards forward this identity, so wrapped and direct readers share.
     this[SNAPSHOT_CLIENT] = {};
