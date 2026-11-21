@@ -1,15 +1,36 @@
-// @ts-nocheck: typing debt
 // References to a different spec are declarations until that spec's owner
 // approves its task. No foreign executable row is created to satisfy a link.
-export const hasPendingSpecDependencies = (task) =>
+import type { Snapshot, SpecDependency, Task } from "./types.ts";
+
+// The spec that owns a task and the receipt of its approval.
+interface Owner {
+  id: string;
+  spec?: string;
+  approvalId?: string;
+  deletedAt?: unknown;
+  archivedAt?: unknown;
+}
+interface Receipt {
+  id: string;
+  hash?: string;
+  taskIds?: string[];
+}
+
+export const hasPendingSpecDependencies = (task: Task | null | undefined) =>
   (task?.pendingSpecDependencies || []).some(
     (entry) => entry?.kind !== "supports",
   );
 
-export function approvedSpecDependency(ref, target, owner, receipt) {
+export function approvedSpecDependency(
+  ref: SpecDependency,
+  target: Task | undefined,
+  owner: Owner | undefined,
+  receipt: Receipt | undefined,
+) {
+  if (!target || !owner) return false;
   return (
-    target?.planId === ref.planId &&
-    owner?.spec === ref.spec &&
+    target.planId === ref.planId &&
+    owner.spec === ref.spec &&
     !owner.deletedAt &&
     !owner.archivedAt &&
     receipt?.hash === target.planHash &&
@@ -17,17 +38,21 @@ export function approvedSpecDependency(ref, target, owner, receipt) {
   );
 }
 
-export function reconcileSpecDependencies(data, plans, approvals) {
+export function reconcileSpecDependencies(
+  data: Snapshot,
+  plans: Owner[],
+  approvals: Receipt[],
+) {
   const owners = new Map(plans.map((plan) => [plan.id, plan])),
     receipts = new Map(approvals.map((receipt) => [receipt.id, receipt])),
     tasks = new Map(data.tasks.map((task) => [task.id, task]));
   for (const task of data.tasks) {
     if (!Array.isArray(task.specDependencies)) continue;
-    const pending = [];
+    const pending: SpecDependency[] = [];
     for (const ref of task.specDependencies) {
       const target = tasks.get(ref.taskId),
-        owner = owners.get(ref.planId),
-        receipt = owner && receipts.get(owner.approvalId),
+        owner = owners.get(ref.planId ?? ""),
+        receipt = owner && receipts.get(owner.approvalId ?? ""),
         approved = approvedSpecDependency(ref, target, owner, receipt);
       const id = `${ref.taskId}:${ref.kind}:${task.id}`;
       data.edges = data.edges.filter(
@@ -48,32 +73,32 @@ export function reconcileSpecDependencies(data, plans, approvals) {
           reason: "Approved cross-spec dependency",
         });
     }
-    if (pending.length && task.github?.number) {
-      const error = Error(
-        `Approve referenced spec owners before changing projected task ${task.id}.`,
+    if (
+      pending.length &&
+      (task.github as { number?: number } | undefined)?.number
+    )
+      throw Object.assign(
+        Error(
+          `Approve referenced spec owners before changing projected task ${task.id}.`,
+        ),
+        { status: 409 },
       );
-      error.status = 409;
-      throw error;
-    }
     if (pending.length) task.pendingSpecDependencies = pending;
     else delete task.pendingSpecDependencies;
   }
   // Resolution can join two formerly separate components. Check both edge
   // kinds before a transaction commits, rather than leave a latent cycle.
-  const graph = new Map(),
-    active = new Set(),
-    seen = new Set();
+  const graph = new Map<string, string[]>(),
+    active = new Set<string>(),
+    seen = new Set<string>();
   for (const edge of data.edges)
     if (["requires", "sequence"].includes(edge.kind)) {
       if (!graph.has(edge.from)) graph.set(edge.from, []);
-      graph.get(edge.from).push(edge.to);
+      graph.get(edge.from)!.push(edge.to);
     }
-  function visit(id) {
-    if (active.has(id)) {
-      const error = Error(`Dependency cycle ${id}`);
-      error.status = 409;
-      throw error;
-    }
+  function visit(id: string) {
+    if (active.has(id))
+      throw Object.assign(Error(`Dependency cycle ${id}`), { status: 409 });
     if (seen.has(id)) return;
     active.add(id);
     for (const to of graph.get(id) || []) visit(to);

@@ -1,9 +1,45 @@
-// @ts-nocheck: typing debt
 import { randomUUID } from "node:crypto";
 import { resolveTaskId, requireDistinctTask } from "./task-identity.ts";
+import type { Snapshot, Task } from "./types.ts";
+
+// The page's state when a person captured a prompt.
+interface CaptureContext {
+  filters?: Record<string, unknown>;
+  selected?: string;
+  document?: string;
+  revision?: number;
+  stripOrder?: string;
+  view?: string;
+  taskIds?: unknown[];
+  visualization?: string;
+  tour?: string;
+  step?: number;
+  url?: unknown;
+  camera?: Record<string, unknown>;
+}
+interface CaptureInput {
+  prompt?: unknown;
+  submissionId?: unknown;
+  context?: CaptureContext;
+  reuseTaskId?: string;
+  distinctReason?: string;
+}
+interface Submission {
+  submissionId: string;
+  prompt: string;
+  at: string;
+  context: CaptureContext;
+}
+type Captured = Task & {
+  prompt?: string;
+  capture?: { submissionId?: string; context?: CaptureContext; at?: string };
+  captureSubmissions?: Submission[];
+  contextDocuments?: string[];
+};
+type View = { id: string };
 
 // Capture intent and references. A selection is context, never a dependency.
-export function captureTask(data, input) {
+export function captureTask(data: Snapshot, input: CaptureInput) {
   if (
     typeof input.prompt !== "string" ||
     !input.prompt.trim() ||
@@ -15,24 +51,26 @@ export function captureTask(data, input) {
     !/^[a-zA-Z0-9-]{8,80}$/.test(input.submissionId)
   )
     throw Error("A submission ID is required.");
-  const previous = data.tasks.find(
+  const tasks = data.tasks as Captured[],
+    submissionId = input.submissionId;
+  const previous = tasks.find(
     (t) =>
-      t.capture?.submissionId === input.submissionId ||
-      t.captureSubmissions?.some((c) => c.submissionId === input.submissionId),
+      t.capture?.submissionId === submissionId ||
+      t.captureSubmissions?.some((c) => c.submissionId === submissionId),
   );
   if (previous) {
     const prompt =
       previous.capture?.submissionId === input.submissionId
         ? previous.prompt
-        : previous.captureSubmissions.find(
-            (c) => c.submissionId === input.submissionId,
-          ).prompt;
+        : previous.captureSubmissions?.find(
+            (c) => c.submissionId === submissionId,
+          )?.prompt;
     if (prompt !== input.prompt.trim())
       throw Error("This submission ID already belongs to another prompt.");
     return { task: previous, existing: true };
   }
-  const c = input.context || {},
-    filters = {};
+  const c: CaptureContext = input.context || {},
+    filters: Record<string, string> = {};
   for (const key of [
     "scope",
     "q",
@@ -41,13 +79,14 @@ export function captureTask(data, input) {
     "track",
     "tag",
     "relation",
-  ])
-    if (typeof c.filters?.[key] === "string" && c.filters[key].length <= 2000)
-      filters[key] = c.filters[key];
-  const selected = data.tasks.find(
-      (t) => t.id === resolveTaskId(data, c.selected),
+  ]) {
+    const value = c.filters?.[key];
+    if (typeof value === "string" && value.length <= 2000) filters[key] = value;
+  }
+  const selected = tasks.find(
+      (t) => t.id === resolveTaskId(data, c.selected ?? ""),
     ),
-    document = data.documents[c.document] ? c.document : null;
+    document = c.document && data.documents[c.document] ? c.document : null;
   // A captured task has no plan, so it shows under No plan; the document
   // it came from is provenance only, never a group (Requirement 59.6).
   const compatible =
@@ -59,7 +98,7 @@ export function captureTask(data, input) {
     : filters.scope === "runtime"
       ? "runtime"
       : compatible?.scope || "catalog";
-  const track = data.tracks.some((t) => t.id === filters.track)
+  const track = (data.tracks ?? []).some((t) => t.id === filters.track)
     ? filters.track
     : compatible?.track || "catalog";
   const contextDocuments = [
@@ -68,21 +107,21 @@ export function captureTask(data, input) {
         document,
         compatible?.source?.document,
         ...(compatible?.contextDocuments || []),
-      ].filter((id) => id && data.documents[id]),
+      ].filter((id): id is string => Boolean(id && data.documents[id])),
     ),
   ];
   const prompt = input.prompt.trim(),
     title =
       prompt
         .split("\n")
-        .find((s) => s.trim())
+        .find((s) => s.trim())!
         .trim()
         .replace(/^#+\s*/, "")
         .slice(0, 240) || "New request";
   const reuse = input.reuseTaskId
-    ? data.tasks.find((t) => t.id === resolveTaskId(data, input.reuseTaskId))
+    ? tasks.find((t) => t.id === resolveTaskId(data, input.reuseTaskId!))
     : !input.distinctReason
-      ? data.tasks.find(
+      ? tasks.find(
           (t) =>
             t.prompt === prompt &&
             resolveTaskId(data, t.capture?.context?.selected || "") ===
@@ -98,7 +137,7 @@ export function captureTask(data, input) {
     reuse.captureSubmissions = [
       ...(reuse.captureSubmissions || []),
       {
-        submissionId: input.submissionId,
+        submissionId: String(submissionId),
         prompt,
         at: new Date().toISOString(),
         context: c,
@@ -110,49 +149,56 @@ export function captureTask(data, input) {
     title,
     distinctReason: input.distinctReason,
   });
-  const context = {
-    revision: Number.isInteger(c.revision) ? c.revision : data.revision,
-    stripOrder: c.stripOrder === "progress" ? "progress" : "chronological",
-    view: [
-      "strip",
-      "epics",
-      "graph",
-      "tasks",
-      "activity",
-      "documents",
-      "report",
-    ].includes(c.view)
-      ? c.view
-      : "strip",
-    filters,
-    selected: selected?.id || "",
-    document,
-    taskIds: Array.isArray(c.taskIds)
-      ? [
-          ...new Set(
-            c.taskIds.filter((id) => data.tasks.some((t) => t.id === id)),
-          ),
-        ].slice(0, 500)
-      : [],
-    visualization: data.presentation?.views?.some(
-      (v) => v.id === c.visualization,
-    )
-      ? c.visualization
-      : "",
-    tour: data.presentation?.tours?.some((t) => t.id === c.tour) ? c.tour : "",
-    step: Number.isInteger(c.step) ? Math.max(0, c.step) : 0,
+  const presentation = (data.presentation ?? {}) as {
+    views?: View[];
+    tours?: View[];
   };
+  const context: Record<string, unknown> & { camera?: Record<string, number> } =
+    {
+      revision: Number.isInteger(c.revision) ? c.revision : data.revision,
+      stripOrder: c.stripOrder === "progress" ? "progress" : "chronological",
+      view: [
+        "strip",
+        "epics",
+        "graph",
+        "tasks",
+        "activity",
+        "documents",
+        "report",
+      ].includes(c.view ?? "")
+        ? c.view
+        : "strip",
+      filters,
+      selected: selected?.id || "",
+      document,
+      taskIds: Array.isArray(c.taskIds)
+        ? [
+            ...new Set(
+              c.taskIds.filter((id) => tasks.some((t) => t.id === id)),
+            ),
+          ].slice(0, 500)
+        : [],
+      visualization: presentation.views?.some((v) => v.id === c.visualization)
+        ? c.visualization
+        : "",
+      tour: presentation.tours?.some((t) => t.id === c.tour) ? c.tour : "",
+      step: Number.isInteger(c.step) ? Math.max(0, c.step!) : 0,
+    };
   if (
     typeof c.url === "string" &&
     c.url.startsWith("/?") &&
     c.url.length < 12000
   )
     context.url = c.url;
-  context.camera = {};
-  for (const key of ["stripScale", "stripCenter", "epicZoom"])
-    if (Number.isFinite(c.camera?.[key])) context.camera[key] = c.camera[key];
+  const camera: Record<string, number> = {};
+  for (const key of ["stripScale", "stripCenter", "epicZoom"]) {
+    const value = c.camera?.[key];
+    if (typeof value === "number" && Number.isFinite(value))
+      camera[key] = value;
+  }
+  context.camera = camera;
   const now = new Date().toISOString(),
-    task = {
+    task: Captured = {
       id: "request-" + randomUUID().slice(0, 12),
       title,
       summary: prompt,
@@ -176,7 +222,7 @@ export function captureTask(data, input) {
       needsReview: false,
       createdAt: now,
       updatedAt: now,
-      capture: { submissionId: input.submissionId, at: now, context },
+      capture: { submissionId: String(submissionId), at: now, context },
     };
   if (input.distinctReason)
     task.distinctFrom = Object.fromEntries(

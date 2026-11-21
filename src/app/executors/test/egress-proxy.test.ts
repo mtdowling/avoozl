@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // The egress proxy (MS5.5): loopback only, CONNECT only to the listed
 // hosts, host names only in its log; and a child of a definition with
 // `egress` and `credentialExport` gets the proxy and the exported keys.

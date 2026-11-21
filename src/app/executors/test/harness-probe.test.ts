@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // The sign-in probe (MS5.3): run once in the worker's sandbox, its answer
 // cached per definition hash and machine.env, its failure shown redacted.
 import assert from "node:assert/strict";

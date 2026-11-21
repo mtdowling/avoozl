@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { hasPendingSpecDependencies } from "./spec-dependencies.ts";
 import { taskEpic } from "./app/epics/epics.ts";
 import { resolveTaskId, taskSourceRefs } from "./task-identity.ts";
@@ -10,7 +9,38 @@ import {
   taskKind,
   taskRepository,
 } from "./work-model.ts";
-function wantsArchived(options) {
+import type { Edge, Snapshot, Task } from "./types.ts";
+
+// The filters queryTasks takes from a page, the CLI or MCP.
+export interface QueryOptions {
+  scope?: string;
+  node?: string;
+  relation?: string;
+  status?: string;
+  epic?: string;
+  track?: string;
+  tag?: string;
+  q?: string;
+  historical?: boolean | string;
+  activity?: string;
+  now?: number;
+  manual?: boolean;
+  claimed?: Set<string>;
+  repositories?: string[];
+  stacked?: Map<string, string>;
+  [key: string]: unknown;
+}
+interface QueryIndex {
+  lines: Map<string, string[]>;
+  tasks: Map<string, string>;
+  byId: Map<string, Task>;
+  complete: Set<string>;
+  prerequisites: Map<string, Edge[]>;
+  aliases?: Map<string, string[]>;
+}
+type Direction = "both" | "upstream" | "downstream" | string;
+
+function wantsArchived(options: QueryOptions) {
   return (
     options.historical === true ||
     options.historical === "true" ||
@@ -20,15 +50,15 @@ function wantsArchived(options) {
     )
   );
 }
-const indexes = new WeakMap();
-function queryIndex(data) {
+const indexes = new WeakMap<Snapshot, QueryIndex>();
+function queryIndex(data: Snapshot): QueryIndex {
   let index = indexes.get(data);
   if (!index) {
-    const prerequisites = new Map();
+    const prerequisites = new Map<string, Edge[]>();
     for (const e of data.edges)
       if (["requires", "sequence"].includes(e.kind)) {
         if (!prerequisites.has(e.to)) prerequisites.set(e.to, []);
-        prerequisites.get(e.to).push(e);
+        prerequisites.get(e.to)!.push(e);
       }
     index = {
       lines: new Map(),
@@ -43,17 +73,18 @@ function queryIndex(data) {
   }
   return index;
 }
-const matches = (value, choices) =>
+const matches = (value: unknown, choices: string) =>
   choices.split("|").includes(String(value || "").toLowerCase());
-function searchable(data, t) {
+function searchable(data: Snapshot, t: Task): string {
   const index = queryIndex(data);
-  if (index.tasks.has(t.id)) return index.tasks.get(t.id);
+  const known = index.tasks.get(t.id);
+  if (known !== undefined) return known;
   if (!index.aliases) {
-    index.aliases = new Map();
+    index.aliases = new Map<string, string[]>();
     for (const alias of Object.keys(data.taskAliases || {})) {
       const id = resolveTaskId(data, alias);
       if (!index.aliases.has(id)) index.aliases.set(id, []);
-      index.aliases.get(id).push(alias);
+      index.aliases.get(id)!.push(alias);
     }
   }
   const contexts = taskSourceRefs(t).map((ref) => {
@@ -66,7 +97,7 @@ function searchable(data, t) {
       lines = (data.documents[ref.document].text || "").split("\n");
       index.lines.set(ref.document, lines);
     }
-    return lines.slice(ref.lineStart - 1, ref.lineEnd).join(" ");
+    return lines.slice((ref.lineStart ?? 1) - 1, ref.lineEnd).join(" ");
   });
   const value = [
     t.title,
@@ -89,14 +120,19 @@ function searchable(data, t) {
   return value;
 }
 
-export function statusComplete(data, id) {
-  return queryIndex(data).complete.has(id);
+export function statusComplete(data: Snapshot, id: string | undefined) {
+  return id !== undefined && queryIndex(data).complete.has(id);
 }
-const graphIndexes = new WeakMap();
+interface GraphIndex {
+  length: number;
+  incoming: Map<string, Edge[]>;
+  outgoing: Map<string, Edge[]>;
+}
+const graphIndexes = new WeakMap<Snapshot, GraphIndex>();
 export function graphNeighbors(
-  data,
-  id,
-  direction = "both",
+  data: Snapshot,
+  id: string,
+  direction: Direction = "both",
   transitive = false,
 ) {
   let index = graphIndexes.get(data);
@@ -109,8 +145,8 @@ export function graphNeighbors(
     for (const edge of data.edges) {
       if (!index.incoming.has(edge.to)) index.incoming.set(edge.to, []);
       if (!index.outgoing.has(edge.from)) index.outgoing.set(edge.from, []);
-      index.incoming.get(edge.to).push(edge);
-      index.outgoing.get(edge.from).push(edge);
+      index.incoming.get(edge.to)!.push(edge);
+      index.outgoing.get(edge.from)!.push(edge);
     }
     graphIndexes.set(data, index);
   }
@@ -121,9 +157,9 @@ export function graphNeighbors(
     const current = queue[at],
       edges = [
         ...(direction !== "downstream"
-          ? index.incoming.get(current) || []
+          ? index!.incoming.get(current) || []
           : []),
-        ...(direction !== "upstream" ? index.outgoing.get(current) || [] : []),
+        ...(direction !== "upstream" ? index!.outgoing.get(current) || [] : []),
       ];
     for (const edge of edges) {
       if (direction !== "both" && edge.kind !== "requires") continue;
@@ -136,8 +172,14 @@ export function graphNeighbors(
   }
   return found;
 }
-export function queryTasks(data, options = {}) {
-  options = { ...options, node: resolveTaskId(data, options.node) };
+export function queryTasks(data: Snapshot, options: QueryOptions = {}) {
+  options = {
+    ...options,
+    node:
+      options.node === undefined
+        ? undefined
+        : resolveTaskId(data, options.node),
+  };
   const scope = options.scope || "runtime",
     index = queryIndex(data);
   let rows = data.tasks.filter((t) => scope === "all" || t.scope === scope);
@@ -154,12 +196,13 @@ export function queryTasks(data, options = {}) {
   else if (options.status === "remaining")
     rows = rows.filter((t) => !statusComplete(data, t.status));
   else if (options.status)
-    rows = rows.filter((t) => matches(t.status, options.status));
+    rows = rows.filter((t) => matches(t.status, options.status!));
   // A task's epic is its plan's (Requirement 59.2).
   if (options.epic)
-    rows = rows.filter((t) => matches(taskEpic(data, t), options.epic));
-  if (options.track) rows = rows.filter((t) => matches(t.track, options.track));
-  if (options.tag) rows = rows.filter((t) => t.tags?.includes(options.tag));
+    rows = rows.filter((t) => matches(taskEpic(data, t), options.epic!));
+  if (options.track)
+    rows = rows.filter((t) => matches(t.track, options.track!));
+  if (options.tag) rows = rows.filter((t) => t.tags?.includes(options.tag!));
   if (options.node && options.relation) {
     const ids = graphNeighbors(data, options.node, options.relation, true);
     rows = rows.filter((t) => ids.has(t.id));
@@ -192,7 +235,10 @@ export function queryTasks(data, options = {}) {
       rows = rows.filter((t) =>
         key === "tag"
           ? t.tags?.some((x) => matches(x, value))
-          : matches(key === "epic" ? taskEpic(data, t) : t[key], value),
+          : matches(
+              key === "epic" ? taskEpic(data, t) : t[key as keyof Task],
+              value,
+            ),
       );
     else if (key === "inflight")
       rows = rows.filter(
@@ -233,12 +279,14 @@ export function queryTasks(data, options = {}) {
             // A claimed leaf (a live session, or a delivery under way) and a
             // leaf that reached its own completion are not ready again.
             !options.claimed?.has(t.id) &&
-            !completionReached(t, undefined, (status) =>
-              index.complete.has(status),
+            !completionReached(
+              t,
+              undefined,
+              (status) => status !== undefined && index.complete.has(status),
             ) &&
             (!options.repositories ||
               !taskRepository(t) ||
-              options.repositories.includes(taskRepository(t))) &&
+              options.repositories.includes(taskRepository(t)!)) &&
             // A blocker with an open decision (a crew needing a person, a
             // stale claim, a held completion) holds its dependents too. An
             // edge from a superseded task is judged by its replacement.
@@ -250,8 +298,11 @@ export function queryTasks(data, options = {}) {
                 return !from.decision;
               return (
                 !from?.decision &&
-                completionReached(from, e.condition, (status) =>
-                  index.complete.has(status),
+                completionReached(
+                  from,
+                  e.condition,
+                  (status) =>
+                    status !== undefined && index.complete.has(status),
                 )
               );
             })) ===

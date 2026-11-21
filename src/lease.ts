@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One lease module for activity leases (src/activity.ts) and the landing
 // lease (src/app/landing-lease.mjs). A lease is a record held by one
 // session; it is renewed with its lease ID and expires when not renewed.
@@ -6,17 +5,37 @@
 // own any bounds (activity keeps 5-240 minutes).
 import { randomUUID } from "./task-identity.ts";
 
-const iso = (ms) => new Date(ms).toISOString();
+// One lease as stored: who holds it, until when, and how long it lasts.
+export interface LeaseRecord {
+  state: string;
+  leaseId: string;
+  sessionId: string;
+  holder?: unknown;
+  startedAt: string;
+  heartbeatAt: string;
+  expiresAt: string;
+  seconds: number;
+  endedAt?: string;
+  [key: string]: unknown;
+}
+type Renewed =
+  | { changed: true; record?: undefined }
+  | { changed?: undefined; record: LeaseRecord };
 
-function checkSeconds(seconds) {
-  if (!Number.isInteger(seconds) || seconds < 1)
+const iso = (ms: number) => new Date(ms).toISOString();
+
+function checkSeconds(seconds: unknown): asserts seconds is number {
+  if (typeof seconds !== "number" || !Number.isInteger(seconds) || seconds < 1)
     throw Error("A lease lasts a whole number of seconds, at least 1.");
 }
 
 // none | active | stale | ended. A record that is not active (paused,
 // finished, ended) reports as `ended`; an active one past its expiry is
 // `stale`, never silently active.
-export function leaseState(record, now = Date.now()) {
+export function leaseState(
+  record: Pick<LeaseRecord, "state" | "expiresAt"> | null | undefined,
+  now = Date.now(),
+) {
   if (!record) return "none";
   if (record.state !== "active") return "ended";
   return Number.isFinite(Date.parse(record.expiresAt)) &&
@@ -30,18 +49,33 @@ export function leaseState(record, now = Date.now()) {
 // its lease ID and renews it. On none, stale or ended it makes a new record
 // and returns the one it replaced as `replaced`.
 export function takeLease(
-  record,
-  { sessionId, holder, seconds, now = Date.now(), ...extra },
-) {
+  record: LeaseRecord | null | undefined,
+  {
+    sessionId,
+    holder,
+    seconds,
+    now = Date.now(),
+    ...extra
+  }: {
+    sessionId: unknown;
+    holder?: unknown;
+    seconds: unknown;
+    now?: number;
+    [key: string]: unknown;
+  },
+):
+  | { busy: true; record: LeaseRecord; replaced?: undefined }
+  | { busy?: undefined; record: LeaseRecord; replaced?: undefined }
+  | { busy?: undefined; record: LeaseRecord; replaced: LeaseRecord | null } {
   checkSeconds(seconds);
   if (typeof sessionId !== "string" || !sessionId)
     throw Error("A lease names the session that holds it.");
   const state = leaseState(record, now);
-  if (state === "active") {
+  if (state === "active" && record) {
     if (record.sessionId !== sessionId) return { busy: true, record };
     return {
       record: renewLease(record, { leaseId: record.leaseId, seconds, now })
-        .record,
+        .record!,
     };
   }
   return {
@@ -62,7 +96,14 @@ export function takeLease(
 
 // Extends the lease from `now`. {changed: true} when the lease ID is not
 // the record's: someone else holds it or it was replaced.
-export function renewLease(record, { leaseId, seconds, now = Date.now() }) {
+export function renewLease(
+  record: LeaseRecord | null | undefined,
+  {
+    leaseId,
+    seconds,
+    now = Date.now(),
+  }: { leaseId: unknown; seconds?: unknown; now?: number },
+): Renewed {
   if (!record || !leaseId || record.leaseId !== leaseId)
     return { changed: true };
   seconds ??= record.seconds;
@@ -81,9 +122,13 @@ export function renewLease(record, { leaseId, seconds, now = Date.now() }) {
 
 // Ends the lease (state `ended`, or `paused` / `finished` for an activity).
 export function endLease(
-  record,
-  { leaseId, now = Date.now(), state = "ended" },
-) {
+  record: LeaseRecord | null | undefined,
+  {
+    leaseId,
+    now = Date.now(),
+    state = "ended",
+  }: { leaseId: unknown; now?: number; state?: string },
+): Renewed {
   if (!record || !leaseId || record.leaseId !== leaseId)
     return { changed: true };
   return { record: { ...record, state, endedAt: iso(now) } };

@@ -1,14 +1,19 @@
-// @ts-nocheck: typing debt
-const PLAN_STATUSES = {
+import type { Snapshot } from "./types.ts";
+
+const PLAN_STATUSES: Record<string, string> = {
   done: "DONE",
   "not-started": "NOT STARTED",
   started: "STARTED",
   abandoned: "ABANDONED",
 };
-export function applyPlanMetadata(data, id, patch) {
+export function applyPlanMetadata(
+  data: Snapshot,
+  id: string,
+  patch: Record<string, unknown>,
+) {
   const doc = data.documents[id];
   if (!doc) throw Error("Document not indexed");
-  const next = { ...doc.plan };
+  const next: Record<string, unknown> = { ...doc.plan };
   for (const key of ["status", "category", "targetBranch", "progressPercent"])
     if (Object.hasOwn(patch, key)) {
       const value = patch[key];
@@ -16,7 +21,7 @@ export function applyPlanMetadata(data, id, patch) {
         delete next[key];
         continue;
       }
-      if (key === "status" && !Object.hasOwn(PLAN_STATUSES, value))
+      if (key === "status" && !Object.hasOwn(PLAN_STATUSES, String(value)))
         throw Error("Unknown plan status");
       if (
         ["category", "targetBranch"].includes(key) &&
@@ -25,7 +30,10 @@ export function applyPlanMetadata(data, id, patch) {
         throw Error(key + " must be text up to 160 characters");
       if (
         key === "progressPercent" &&
-        (!Number.isFinite(value) || value < 0 || value > 100)
+        (typeof value !== "number" ||
+          !Number.isFinite(value) ||
+          value < 0 ||
+          value > 100)
       )
         throw Error("Progress must be between 0 and 100");
       next[key] = value;

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // avoozl tick watchdog: stale and failed ticks are problems; a fresh one
 // is not. It only reads.
 import assert from "node:assert/strict";
@@ -13,12 +12,12 @@ import { temporaryDirectory } from "./app/test/temporary.ts";
 const cli = fileURLToPath(new URL("../cli.ts", import.meta.url));
 
 const now = Date.parse("2026-11-15T12:00:00Z");
-const at = (minutes) => new Date(now - minutes * 60_000).toISOString();
+const at = (minutes: number) => new Date(now - minutes * 60_000).toISOString();
 
 test("a fresh ok tick is healthy; old, failed or missing ones are not", () => {
   assert.equal(tickProblem({ at: at(2), outcome: "ok" }, { now }), null);
   assert.match(
-    tickProblem({ at: at(25), outcome: "ok" }, { now }),
+    tickProblem({ at: at(25), outcome: "ok" }, { now }) ?? "",
     /last ran 25 min ago/,
   );
   assert.equal(
@@ -26,10 +25,10 @@ test("a fresh ok tick is healthy; old, failed or missing ones are not", () => {
     null,
   );
   assert.match(
-    tickProblem({ at: at(1), outcome: "error", error: "boom" }, { now }),
+    tickProblem({ at: at(1), outcome: "error", error: "boom" }, { now }) ?? "",
     /failed: boom/,
   );
-  assert.match(tickProblem(null, { now }), /no tick health/);
+  assert.match(tickProblem(null, { now }) ?? "", /no tick health/);
 });
 
 test("it reads the workspace's tick-health.json", () => {
@@ -49,9 +48,9 @@ test("avoozl tick watchdog reports a stale tick and exits 1", () => {
       ...process.env,
       XDG_CONFIG_HOME: temporaryDirectory("avoozl-watchdog-config-"),
     },
-    run = (...args) =>
+    run = (...args: string[]) =>
       spawnSync(process.execPath, [cli, ...args], { encoding: "utf8", env }),
-    watch = (...args) =>
+    watch = (...args: string[]) =>
       run("tick", "watchdog", "--workspace", root, "--dry-run", ...args);
   assert.equal(run("init", root, "--name", "t").status, 0);
   fs.writeFileSync(
