@@ -13,7 +13,11 @@ import { lastPasses } from "../executors/tick-passes.ts";
 import type { RolesConfig } from "../agents/role-table.ts";
 
 type ChildRow = Record<string, unknown>;
-type Harness = { name: string; approved?: boolean; startProblem?: string };
+type Harness = {
+  name: string;
+  approved?: boolean;
+  startProblem?: string | null;
+};
 
 const COLUMNS = `session_id, role, task, harness, state, pid, exit_code,
   error, requested_at, updated_at`;

@@ -38,7 +38,7 @@ test("a saved lanes value is checked when config loads", () => {
       env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
     }).config;
   };
-  assert.equal(load({ local: 2 }).lanes.local, 2);
+  assert.equal(load({ local: 2 }).lanes?.local, 2);
   assert.throws(() => load({ local: 99 }), /lanes\.local/);
 });
 

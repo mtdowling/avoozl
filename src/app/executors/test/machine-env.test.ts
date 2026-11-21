@@ -1,10 +1,10 @@
-// @ts-nocheck: typing debt
 // machine.env and harness readiness (MS5): the file's rules, what a child
 // gets, and why a harness cannot start here.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { TestContext } from "node:test";
 import test from "node:test";
 import {
   findProgram,
@@ -18,7 +18,7 @@ import {
 } from "../machine-env.ts";
 import { sandboxEnv, sandboxSecretPaths } from "../sandbox.ts";
 
-function config(t) {
+function config(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-machine-env-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   return root;
@@ -45,7 +45,7 @@ test("a bad line is refused naming the line and never its value", (t) => {
   });
   assert.throws(
     () => readMachineEnv(dir),
-    (error) =>
+    (error: Error) =>
       /line 2/.test(error.message) && !error.message.includes("secret-value"),
   );
 });
@@ -57,7 +57,7 @@ test("a file others can read is refused on macOS and Linux", (t) => {
   fs.chmodSync(machineEnvPath(dir), 0o640);
   assert.throws(
     () => readMachineEnv(dir),
-    (error) =>
+    (error: Error) =>
       /can be read by other users/.test(error.message) &&
       !error.message.includes("hidden-value"),
   );
@@ -96,9 +96,11 @@ test("a harness that cannot start says why: no program, or a failed sign-in prob
   const value = { start: [process.execPath], keepEnv: ["MODEL_KEY"] };
   const env = { PATH: path.dirname(process.execPath) };
   assert.match(
-    harnessStartProblem(
-      { ...value, start: ["no-such-agent-cli"] },
-      { env, loginPath: () => null },
+    String(
+      harnessStartProblem(
+        { ...value, start: ["no-such-agent-cli"] },
+        { env, loginPath: () => null },
+      ),
     ),
     /no-such-agent-cli was not found on the server's PATH\. Set PATH in machine\.env/,
   );
@@ -118,7 +120,7 @@ test("a harness that cannot start says why: no program, or a failed sign-in prob
 });
 
 // A folder holding one executable named `name`, on no PATH the test has.
-function programFolder(t, name) {
+function programFolder(t: TestContext, name: string) {
   const folder = config(t);
   const file = path.join(folder, name);
   fs.writeFileSync(file, "#!/bin/sh\nexit 0\n", { mode: 0o755 });

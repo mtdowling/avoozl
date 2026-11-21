@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Task 41.5: Prepare and qualified-ref resolution agree on the spec base,
 // and a landed base merges back into the working branch.
 import assert from "node:assert/strict";
@@ -9,11 +8,12 @@ import test from "node:test";
 
 import { mergeBaseBack, workingBranch } from "../spec-base.ts";
 
-const checkpointBranch = (spec, task) => `avoozl/${spec}/task/${task}`;
+const checkpointBranch = (spec: string, task: string) =>
+  `avoozl/${spec}/task/${task}`;
 
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 function repo() {
@@ -30,7 +30,12 @@ function repo() {
 }
 
 // A commit on a new branch from `from`, writing `files`.
-function commitOn(checkout, branch, from, files) {
+function commitOn(
+  checkout: string,
+  branch: string,
+  from: string,
+  files: Record<string, string>,
+) {
   git(checkout, "checkout", "-q", "-B", branch, from);
   for (const [file, text] of Object.entries(files))
     fs.writeFileSync(path.join(checkout, file), text);
