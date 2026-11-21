@@ -3,7 +3,6 @@
 // review sessions would. One test per rule; each lists the nearby inputs it
 // checks.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -21,6 +20,7 @@ import { Store, type StatusError } from "../store/store.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { gitCheckout } from "./delivery-fixture.ts";
+import { commitIn, git } from "./fake-crew.ts";
 import { loopOn } from "./fixtures.ts";
 import { found, type GraphView } from "./view-shapes.ts";
 
@@ -74,10 +74,6 @@ const deliveryOf = (store: Store, id = "w1") =>
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
-
-function git(cwd: string, ...args: string[]) {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-}
 
 const CHECK = "git status";
 const leaf = (id: string, extra: Record<string, unknown> = {}): Task => ({
@@ -202,19 +198,6 @@ const report = (
     undefined,
     as(slot),
   );
-
-async function commitIn(
-  worktree: string,
-  file: string,
-  text: string,
-  message: string,
-) {
-  fs.mkdirSync(path.dirname(path.join(worktree, file)), { recursive: true });
-  fs.writeFileSync(path.join(worktree, file), text);
-  git(worktree, "add", ".");
-  git(worktree, "commit", "-m", message);
-  return git(worktree, "rev-parse", "HEAD");
-}
 
 async function writer(
   env: Env,
