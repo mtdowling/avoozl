@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A person-only operation runs from the CLI, inside an agent session too,
 // and says so in the record; only a supervisor child is refused (R83.1,
 // R95.5).
@@ -41,14 +40,14 @@ test("an agent session runs a person-only operation and is noted", () => {
 test("a supervisor child is refused (R95.5)", () => {
   const child = { AVOOZL_CHILD: "1", AVOOZL_CHILD_SESSION: "process-1" };
   const refused = cliRefusal("plan.approve", {}, { env: child });
-  assert.match(refused, /supervisor started \(process-1\)/);
+  assert.match(String(refused), /supervisor started \(process-1\)/);
   assert.equal(cliRefusal("session.report", {}, { env: child }), null);
 });
 
 test("the CLI runs plan.approve in an agent session and refuses it in a child", () => {
   const workspace = temporaryDirectory("avoozl-person-only-");
   initializeWorkspace(workspace, { name: "t" });
-  const run = (extra, env) =>
+  const run = (extra: string[], env: NodeJS.ProcessEnv) =>
     spawnSync(
       process.execPath,
       [
@@ -94,7 +93,7 @@ test("a child whose sandbox hides the machine config still gets the refusal", {
   fs.writeFileSync(config, JSON.stringify({ version: 1 }));
   fs.chmodSync(config, 0o000);
   try {
-    const run = (env) =>
+    const run = (env: NodeJS.ProcessEnv) =>
       spawnSync(
         process.execPath,
         [cli, "verify", "allow", "t1", "--reason", "x"],

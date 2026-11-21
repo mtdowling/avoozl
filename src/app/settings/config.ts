@@ -47,7 +47,23 @@ export function operatorName({ configured, workspaceRoot } = {}) {
 const rootOf = (options, env) =>
   path.resolve(options.workspace || env.AVOOZL_WORKSPACE || process.cwd());
 
-export function workspaceConfig(options = {}) {
+export interface WorkspaceConfig {
+  workspaceRoot: string;
+  filename: string;
+  legacyFilename?: string;
+  configured: boolean;
+  configFiles: { global: string; repository: string; [key: string]: unknown };
+  configSources: unknown;
+  configWithoutRepository: unknown;
+  name: string;
+  operator: string;
+  dbPath: string;
+  plansRoot: string;
+  port: number;
+  endpoint: string;
+}
+
+export function workspaceConfig(options = {}): WorkspaceConfig {
   const env = options.env || process.env;
   const workspaceRoot = rootOf(options, env);
   const loaded = loadLayeredConfig({
@@ -90,7 +106,9 @@ export function workspaceConfig(options = {}) {
 // root and the refusal as `configError`. The app backend and MCP server
 // start with it and refuse that workspace's operations with the same
 // message, so one bad key does not take the page down.
-export function readWorkspaceConfig(options = {}) {
+export function readWorkspaceConfig(
+  options = {},
+): WorkspaceConfig | { workspaceRoot: string; configError: string } {
   try {
     return workspaceConfig(options);
   } catch (error) {

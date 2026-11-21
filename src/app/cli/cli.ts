@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 import { findCommand } from "./cli-commands.ts";
 import { PROGRAM, helpCommands, helpPointer, helpText } from "./cli-help.ts";
-import { readWorkspaceConfig, workspaceConfig } from "../settings/config.ts";
+import {
+  readWorkspaceConfig,
+  type WorkspaceConfig,
+  workspaceConfig,
+} from "../settings/config.ts";
 import { loadHostConfig, machineAvoozlPaths } from "../settings/host-config.ts";
 import {
   agentSession,
@@ -16,15 +19,16 @@ import fs from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2),
-  options = {},
-  positionals = [];
+  options: Record<string, string | true | undefined> = {},
+  positionals: string[] = [];
 let command = "help",
   hasCommand = false;
 try {
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "-h") options.help = true;
-    else if (args[i].startsWith("--")) {
-      const key = args[i].slice(2);
+    const arg = args[i]!;
+    if (arg === "-h") options.help = true;
+    else if (arg.startsWith("--")) {
+      const key = arg.slice(2);
       if (
         [
           "start",
@@ -64,31 +68,32 @@ try {
       else if (
         key === "json" &&
         ["runner", "review", "plan"].includes(args[0]) &&
-        (args[i + 1] === undefined || args[i + 1].startsWith("--"))
+        (args[i + 1] === undefined || args[i + 1]!.startsWith("--"))
       )
         options.json = true;
       // `plugins add --repository` is a bare flag; elsewhere it takes a value.
       else if (
         key === "repository" &&
-        (args[i + 1] === undefined || args[i + 1].startsWith("--"))
+        (args[i + 1] === undefined || args[i + 1]!.startsWith("--"))
       )
         options[key] = true;
       else {
-        if (args[i + 1] === undefined || args[i + 1].startsWith("--"))
+        if (args[i + 1] === undefined || args[i + 1]!.startsWith("--"))
           throw Error("Missing value for --" + key);
         options[key] = args[++i];
       }
     } else if (!hasCommand) {
-      command = args[i];
+      command = arg;
       hasCommand = true;
-    } else positionals.push(args[i]);
+    } else positionals.push(arg);
   }
   // `avoozl COMMAND --help` and `avoozl --help` are `avoozl help [COMMAND]`.
   if (options.help && command !== "help") {
     positionals.unshift(...(hasCommand ? [command] : []));
     command = "help";
   }
-  const env = options.env || process.env;
+  // `--env NAME` is a plugins map flag, never an environment.
+  const env = process.env;
   // The CLI acts on the workspace database itself, and so does each agent's
   // `avoozl mcp` (machine-server MS10.4); no command reaches a server.
   if (options.url !== undefined || process.env.AVOOZL_URL !== undefined)
@@ -120,7 +125,11 @@ try {
   // configuration does not load, and refuse its work with that message
   // (readWorkspaceConfig); every other command refuses it at once.
   const entry = command === "help" ? null : findCommand(command, positionals);
-  const config = (
+  // A configuration that did not load has only its root and configError.
+  const config: Partial<WorkspaceConfig> & {
+      workspaceRoot: string;
+      configError?: string;
+    } = (
       !entry || entry.startsWithBadConfig
         ? readWorkspaceConfig
         : workspaceConfig
@@ -128,22 +137,28 @@ try {
     { dbPath, endpoint } = config;
   const requireDatabase = () => {
     if (config.configError) throw Error(config.configError);
-    if (!fs.existsSync(dbPath))
+    if (!dbPath || !fs.existsSync(dbPath))
       throw Error(initializeFirst(config.workspaceRoot));
+    return dbPath;
   };
-  const requireLocalMaintenancePath = (action) => {
+  const requireLocalMaintenancePath = (action: string) => {
     if (!registeredWorkspaceId) return;
     throw Error(
       `${action} is a local-only maintenance operation and cannot use registered workspace ID ${registeredWorkspaceId}. Pass the workspace root path explicitly.`,
     );
   };
-  const input = () =>
-    options.input
-      ? JSON.parse(fs.readFileSync(options.input, "utf8"))
-      : options.json
-        ? JSON.parse(options.json)
+  const text = (value: string | true | undefined) =>
+    typeof value === "string" ? value : undefined;
+  const input = () => {
+    const file = text(options.input),
+      json = text(options.json);
+    return file
+      ? JSON.parse(fs.readFileSync(file, "utf8"))
+      : json
+        ? JSON.parse(json)
         : {};
-  const localOperations = (store) =>
+  };
+  const localOperations = (store: Store) =>
     new Operations(store, {
       operator: config.operator,
       workspaceRoot: config.workspaceRoot,
@@ -152,7 +167,11 @@ try {
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
-  const localOrRequest = async (operation, input = {}, expectedRevision) => {
+  const localOrRequest = async <T = unknown>(
+    operation: string,
+    input: Record<string, unknown> = {},
+    expectedRevision?: number,
+  ): Promise<T> => {
     // Person-only operations are refused only in a supervisor child (R95.5).
     const refusal = cliRefusal(operation, input, { env: process.env });
     if (refusal) throw Error(refusal);
@@ -163,10 +182,9 @@ try {
       if (operation === "plan.approve" && input.evidence === undefined)
         input = { ...input, evidence: note };
     }
-    requireDatabase();
-    const store = new Store(dbPath);
+    const store = new Store(requireDatabase());
     try {
-      return await localOperations(store).execute(
+      return await localOperations(store).execute<T>(
         operation,
         input,
         expectedRevision,
@@ -184,9 +202,9 @@ try {
   // A required positional or option, refused with its usage when missing.
   const machineStateDirectory = () =>
     path.resolve(
-      options["state-directory"] ?? machineAvoozlPaths().stateDirectory,
+      text(options["state-directory"]) ?? machineAvoozlPaths().stateDirectory,
     );
-  const need = (value, usage) => {
+  const need = (value: string | true | undefined, usage: string) => {
     if (value === undefined || value === true || value === "")
       throw Error("Usage: avoozl " + usage);
     return value;
@@ -202,7 +220,7 @@ try {
       );
     console.log(text);
   } else {
-    await entry.run({
+    await entry!.run({
       options,
       positionals,
       command,
@@ -222,7 +240,8 @@ try {
       helpPointer,
     });
   }
-} catch (error) {
+} catch (thrown) {
+  const error = thrown as Error;
   console.error(error.message);
   // A refusal over how a command was written names that command's help.
   if (
