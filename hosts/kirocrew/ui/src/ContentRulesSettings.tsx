@@ -40,7 +40,9 @@ import { CheckRow, Field, Marker, RawKey } from './ui/Field.tsx'
 import { DISCLOSURE, DisclosureMark } from './ui/Disclosure.tsx'
 import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './ui/controls.tsx'
 import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
-import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
+import { CONTENT_RULES_GUIDE, CONTENT_RULES_GUIDE_TIP, DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
+import { GuideButton } from './GuideButton.tsx'
+import rulesGuide from '../../../../docs/content-rules.md?raw'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { useMedia } from './use-media.ts'
@@ -1117,6 +1119,7 @@ export default function ContentRulesSettings({ workspaceId }: { workspaceId: str
         <IconLabel icon={MessagesSquare} tooltip={DESIGN_RULES_TIP} onClick={design}>
           Design a rule set
         </IconLabel>
+        <GuideButton workspaceId={workspaceId} document={CONTENT_RULES_GUIDE} text={rulesGuide} tooltip={CONTENT_RULES_GUIDE_TIP} label="Content rules guide" />
       </Row>
       {error && <ErrorText size="xs">{error}</ErrorText>}
       {value?.error && <ErrorText size="xs">.avoozl.json contentRules is invalid, so every check blocks: {value.error}</ErrorText>}
