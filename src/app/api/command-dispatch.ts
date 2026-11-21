@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One dispatch for both servers that run the Avoozl page's operations: the
 // Kiro Crew app backend (app-backend.mjs) and the standalone page. The caller
 // authenticates and passes the principal; this module authorizes the
@@ -11,7 +10,10 @@ import { Store } from "../store/store.ts";
 import { Operations } from "./operations.ts";
 import { CLIENT_OPERATIONS } from "./client.ts";
 import { classifyOperation } from "./operation-table.ts";
-import { readWorkspaceConfig } from "../settings/config.ts";
+import {
+  readWorkspaceConfig,
+  type WorkspaceConfig,
+} from "../settings/config.ts";
 import {
   machineAvoozlPaths,
   WorkspaceRegistry,
@@ -24,6 +26,32 @@ import { expandHome, listFolders } from "../workspace/folder-browse.ts";
 
 export const NEEDS_KIROCREW = "Needs Kiro Crew";
 import { requiredReader } from "../tick/needs-kirocrew.ts";
+
+// The caller the backend authenticated (app-backend.ts verifyPrincipal).
+interface Principal {
+  kind: string;
+  ownerId?: string;
+}
+// A workspace to open: its loaded configuration, or why it did not load.
+// A configuration that did not load has only its root and configError.
+export type WorkspaceTarget = Partial<WorkspaceConfig> & {
+  workspaceRoot: string;
+  configError?: string;
+};
+// The optional Kiro Crew readers, by name.
+type Readers = Record<string, unknown> & {
+  notifier?: unknown;
+  sessionStopper?: unknown;
+};
+// One request the page sends.
+interface CommandRequest {
+  operation?: unknown;
+  input?: unknown;
+  expectedRevision?: number;
+  workspaceId?: unknown;
+}
+// An error that carries the HTTP status it answers with.
+type StatusError = Error & { status?: unknown; decisions?: unknown };
 
 // The page also runs the tick, reads its health, reads the Graph,
 // Delivery and Conflicts views, edits the GitHub settings, and runs Set up GitHub. The cron and agents reach `workspace.tick`
@@ -159,7 +187,7 @@ const MACHINE_OPERATIONS = new Map([
 // Action-level authorization. The dashboard owner may call any app operation.
 // App tokens and agent tools are authenticated but act for no person, so they
 // may only observe; their writes go through the MCP server.
-export function principalAllows(principal, operation) {
+export function principalAllows(principal: Principal, operation: string) {
   const kind =
     MACHINE_OPERATIONS.get(operation) ||
     (APP_OPERATIONS.has(operation) ? classifyOperation(operation) : null);
@@ -170,16 +198,14 @@ export function principalAllows(principal, operation) {
   return false;
 }
 
-export const offered = (operation) =>
+export const offered = (operation: string) =>
   MACHINE_OPERATIONS.has(operation) || APP_OPERATIONS.has(operation);
 
-function badRequest(message, status = 400) {
-  const error = Error(message);
-  error.status = status;
-  return error;
+function badRequest(message: string, status = 400) {
+  return Object.assign(Error(message), { status });
 }
 
-function sameDirectory(a, b) {
+function sameDirectory(a: string, b: string) {
   try {
     return fs.realpathSync.native(a) === fs.realpathSync.native(b);
   } catch {
@@ -189,7 +215,13 @@ function sameDirectory(a, b) {
 
 // Workspace list, add, init, stop and remove over the machine catalog. Registry errors are
 // path and identity validation for the owner's own input, so they return 400.
-function machineOperation(registry, config, operation, input, home) {
+function machineOperation(
+  registry: WorkspaceRegistry,
+  config: WorkspaceTarget,
+  operation: string,
+  input: Record<string, unknown>,
+  home: string,
+) {
   try {
     if (operation === "workspaces.browse") return listFolders(input.path, home);
     registry.reload();
@@ -198,10 +230,12 @@ function machineOperation(registry, config, operation, input, home) {
         defaultWorkspace: registry.config.defaultWorkspace || null,
         items: registry.list().map((workspace) => {
           // A configuration that does not load is the page's banner.
-          const { configError } = readWorkspaceConfig({
-            workspace: workspace.root,
-            env: { ...process.env, AVOOZL_WORKSPACE: workspace.root },
-          });
+          const loaded = readWorkspaceConfig({
+              workspace: workspace.root,
+              env: { ...process.env, AVOOZL_WORKSPACE: workspace.root },
+            }),
+            configError =
+              "configError" in loaded ? loaded.configError : undefined;
           return {
             ...workspace,
             served: sameDirectory(workspace.root, config.workspaceRoot),
@@ -221,7 +255,7 @@ function machineOperation(registry, config, operation, input, home) {
       const id = String(input.id || "").trim();
       if (!registry.config.workspaces[id])
         throw badRequest(`Workspace ${id || "(none)"} is not registered.`, 404);
-      const change = {};
+      const change: { name?: string; root?: string } = {};
       if (input.name !== undefined) change.name = String(input.name);
       if (input.root !== undefined) change.root = expandHome(input.root, home);
       let result = registry.update(id, change);
@@ -244,14 +278,19 @@ function machineOperation(registry, config, operation, input, home) {
     if (operation === "workspaces.init") initializeWorkspace(root, { name });
     return registry.add(id, { root, name });
   } catch (error) {
-    if (!Number.isInteger(error.status)) error.status = 400;
+    const failed = error as StatusError;
+    if (!Number.isInteger(failed.status)) failed.status = 400;
     throw error;
   }
 }
 
 // Operations that cannot run without one Kiro Crew reader, from the one
 // table of what needs Kiro Crew (needs-kirocrew.mjs).
-function missingReader(context, operation, input) {
+function missingReader(
+  context: Readers,
+  operation: string,
+  input: Record<string, unknown>,
+) {
   const needed = requiredReader(operation);
   // Only a full stop reaches Kiro Crew chats; a plain stop is Avoozl's own.
   if (
@@ -273,22 +312,29 @@ export function commandContext({
   registryOptions = {},
   home,
   follow = () => {},
+}: {
+  host: string;
+  config: WorkspaceTarget;
+  readers?: Readers;
+  registryOptions?: Record<string, unknown>;
+  home: string;
+  follow?: () => void;
 }) {
-  let registry = null;
-  const opened = new Map(),
+  let registry: WorkspaceRegistry | null = null;
+  const opened = new Map<string, { store: Store; ops: Operations }>(),
     machine = () => (registry ||= new WorkspaceRegistry(registryOptions));
   // A request names a catalog workspace by ID, or uses the served workspace.
   // Only registered roots are opened; the caller never supplies a path here.
-  const workspaceFor = (workspaceId) => {
+  const workspaceFor = (workspaceId: unknown): WorkspaceTarget => {
     if (workspaceId === undefined || workspaceId === null) return config;
     if (typeof workspaceId !== "string")
       throw badRequest("Choose a workspace ID.");
-    let root, name;
+    let root: string | undefined, name: string | undefined;
     try {
       machine().reload();
       ({ root, name } = machine().get(workspaceId));
     } catch (error) {
-      throw badRequest(error.message, 404);
+      throw badRequest((error as Error).message, 404);
     }
     const found = readWorkspaceConfig({
       workspace: root,
@@ -298,16 +344,17 @@ export function commandContext({
     return name ? { ...found, name } : found;
   };
   // One store and Operations per workspace root, opened on first use.
-  const operations = (target) => {
+  const operations = (target: WorkspaceTarget) => {
     // A workspace whose configuration does not load refuses with its error.
     if (target.configError) throw badRequest(target.configError, 409);
-    let entry = opened.get(target.dbPath);
+    const dbPath = target.dbPath ?? "";
+    let entry = opened.get(dbPath);
     if (!entry) {
       // A missing database is refused before opening, so a read never
       // creates the file `avoozl init` then refuses.
-      if (!fs.existsSync(target.dbPath))
+      if (!dbPath || !fs.existsSync(dbPath))
         throw badRequest(initializeFirst(target.workspaceRoot), 503);
-      const store = new Store(target.dbPath);
+      const store = new Store(dbPath);
       if (!store.initialized()) {
         store.close();
         throw badRequest(initializeFirst(target.workspaceRoot), 503);
@@ -326,7 +373,7 @@ export function commandContext({
           backgroundReads: true,
         }),
       };
-      opened.set(target.dbPath, entry);
+      opened.set(dbPath, entry);
     }
     return entry;
   };
@@ -349,7 +396,15 @@ export function commandContext({
 
 // Run one request for an authenticated principal. Returns `{ status, body }`
 // and never throws: an error becomes its status and message.
-export async function dispatchCommand({ principal, request, context }) {
+export async function dispatchCommand({
+  principal,
+  request,
+  context,
+}: {
+  principal: Principal;
+  request: CommandRequest | null;
+  context: ReturnType<typeof commandContext>;
+}) {
   try {
     const {
       operation,
@@ -361,21 +416,24 @@ export async function dispatchCommand({ principal, request, context }) {
       return {
         status: 403,
         body: {
-          error: offered(operation)
-            ? "This caller may not run that operation."
-            : // A page newer than its backend sends operations this build
-              // lacks; the installed app copies bin/lib as last built.
-              `This Avoozl backend does not offer ${String(operation).slice(0, 80)}. The installed backend may be older than its page: run npm run build:kirocrew-app, then kirocrew app update avoozl.`,
+          error:
+            typeof operation === "string" && offered(operation)
+              ? "This caller may not run that operation."
+              : // A page newer than its backend sends operations this build
+                // lacks; the installed app copies bin/lib as last built.
+                `This Avoozl backend does not offer ${String(operation).slice(0, 80)}. The installed backend may be older than its page: run npm run build:kirocrew-app, then kirocrew app update avoozl.`,
         },
       };
     if (!input || typeof input !== "object" || Array.isArray(input))
       return { status: 400, body: { error: "Send input as a JSON object." } };
+    // Checked above: a JSON object.
+    const fields = input as Record<string, unknown>;
     if (MACHINE_OPERATIONS.has(operation)) {
       const result = machineOperation(
         context.machine(),
         context.config,
         operation,
-        input,
+        fields,
         context.home,
       );
       if (MACHINE_OPERATIONS.get(operation) === "write") context.follow();
@@ -390,14 +448,14 @@ export async function dispatchCommand({ principal, request, context }) {
         },
       };
     }
-    const needs = missingReader(context, operation, input);
+    const needs = missingReader(context, operation, fields);
     if (needs)
       return { status: 409, body: { error: needs, needsKiroCrew: true } };
     const { ops } = context.operations(context.workspaceFor(workspaceId));
     // Only the owner session writes (principalAllows): it is the person.
     const result = await ops.execute(
       operation,
-      input,
+      fields,
       expectedRevision,
       principal.kind === "owner-session" ? { person: true } : {},
     );
@@ -405,11 +463,14 @@ export async function dispatchCommand({ principal, request, context }) {
       status: 200,
       body: { result },
     };
-  } catch (error) {
-    const status =
-      Number.isInteger(error.status) && error.status >= 400
-        ? error.status
-        : 500;
+  } catch (thrown) {
+    const error = thrown as StatusError,
+      status =
+        typeof error.status === "number" &&
+        Number.isInteger(error.status) &&
+        error.status >= 400
+          ? error.status
+          : 500;
     if (status === 500) console.error(error);
     return {
       status,

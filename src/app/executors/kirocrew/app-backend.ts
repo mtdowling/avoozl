@@ -8,7 +8,11 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { commandContext, dispatchCommand } from "../../api/command-dispatch.ts";
+import {
+  commandContext,
+  dispatchCommand,
+  type WorkspaceTarget,
+} from "../../api/command-dispatch.ts";
 
 export {
   APP_OPERATIONS,
@@ -57,9 +61,7 @@ interface Principal {
   requestId: string;
 }
 // A workspace the backend drains notices for.
-interface Drainable {
-  dbPath: string;
-}
+type Drainable = WorkspaceTarget & { dbPath: string };
 
 // One cache per backend process: each accepted request ID is refused again
 // until its freshness window closes. A full cache refuses rather than evicting
@@ -216,7 +218,7 @@ export function startAppBackend({
   // from other source, or none, gets only a sentence saying to rebuild.
   uiDir = null,
 }: {
-  config: unknown;
+  config: WorkspaceTarget;
   port?: number;
   secret?: string;
   registryOptions?: Record<string, unknown>;

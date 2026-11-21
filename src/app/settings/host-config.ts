@@ -453,6 +453,10 @@ function adoptDatabaseIdentity(store, id) {
 }
 
 export class WorkspaceRegistry {
+  configPath: string;
+  catalogPath: string;
+  config: ReturnType<typeof normalizeHostConfig>;
+  catalog: CatalogStore;
   constructor(options = {}) {
     const loaded = loadHostConfig(options);
     this.configPath = loaded.configPath;
@@ -552,7 +556,20 @@ export class WorkspaceRegistry {
     return candidate;
   }
 
-  add(id, { root, name, enabled = true, repositories = {} } = {}) {
+  add(
+    id: string,
+    {
+      root,
+      name,
+      enabled = true,
+      repositories = {},
+    }: {
+      root?: string;
+      name?: string;
+      enabled?: boolean;
+      repositories?: Record<string, unknown>;
+    } = {},
+  ) {
     assertWorkspaceId(id);
     if (this.config.workspaces[id])
       throw Error(`Workspace ${id} is already registered.`);
