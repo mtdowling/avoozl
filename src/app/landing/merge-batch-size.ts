@@ -168,13 +168,19 @@ export function recordBatch(
 // The merge batch being tested now, for the Landing queue page: {members,
 // step, since}, or null when none runs. Plain data in the store's meta.
 const NOW = "mergeBatchNow";
+// The batch under test: its member keys, its step and since when.
+export interface Testing {
+  members: string[];
+  step: string;
+  since: string;
+}
 export function setTesting(
   store: Store,
   { repositoryId, base }: Base,
-  value: unknown,
+  value: Testing | null,
 ) {
   store.transaction(() => {
-    const all = store.getMeta<ByBase<unknown>>(NOW) ?? {},
+    const all = store.getMeta<ByBase<Testing>>(NOW) ?? {},
       mine = { ...(all[repositoryId] ?? {}) };
     if (value) mine[base] = value;
     else delete mine[base];
@@ -183,4 +189,4 @@ export function setTesting(
 }
 
 export const testingNow = (store: Store, { repositoryId, base }: Base) =>
-  store.getMeta<ByBase<unknown>>(NOW)?.[repositoryId]?.[base] ?? null;
+  store.getMeta<ByBase<Testing>>(NOW)?.[repositoryId]?.[base] ?? null;
