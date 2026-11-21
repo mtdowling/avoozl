@@ -3,20 +3,8 @@ import { loopFile, machineLoop } from "../tick/loop.mjs";
 import { applyActivity } from "../../activity.mjs";
 import { captureTask } from "../../capture.mjs";
 import { dispatchMcp } from "../../mcp.mjs";
-import {
-  blocks,
-  digest,
-  matchSection,
-  planOwned,
-  queryTasks,
-  reviewSettled,
-  statusComplete,
-} from "../../model.mjs";
-import {
-  requireDistinctTask,
-  resolveTaskId,
-  taskSourceRefs,
-} from "../../task-identity.mjs";
+import { digest, queryTasks, statusComplete } from "../../model.mjs";
+import { requireDistinctTask, resolveTaskId } from "../../task-identity.mjs";
 import { COMPLETIONS } from "../../work-model.mjs";
 import { isPlanInventory, taskSignals } from "../../workbench-model.mjs";
 import {
@@ -1089,24 +1077,10 @@ export const entries = [
           if (doc.hash !== input.expectedHash) fail("Document changed.", 409);
           if (typeof input.text !== "string" || input.text.length > 1000000)
             fail("Document text is required.");
-          const oldHash = doc.hash,
-            before = blocks(doc.text || ""),
-            after = blocks(input.text);
+          const oldHash = doc.hash;
           doc.text = input.text;
           doc.hash = digest(input.text);
           doc.modifiedAt = new Date().toISOString();
-          // Only tasks whose own section changed need review.
-          for (const task of data.tasks.filter(
-            (t) =>
-              !reviewSettled(data, t) &&
-              taskSourceRefs(t).some(
-                (ref) =>
-                  ref.document === doc.id &&
-                  !planOwned(t, ref) &&
-                  matchSection(ref, before, after).changed,
-              ),
-          ))
-            task.needsReview = true;
           store.db
             .prepare(
               "INSERT INTO outbox(id,path,text,expected_hash) VALUES (?,?,?,?)",

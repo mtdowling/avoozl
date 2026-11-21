@@ -203,7 +203,6 @@
     "src/app/test/repositories-detect.test.mjs": 366,
     "src/app/settings/test/repository-settings.test.mjs": 1658,
     "src/app/test/retired-execution-paths.test.mjs": 1128,
-    "src/app/test/review-flags.test.mjs": 709,
     "src/app/test/review-gates.test.mjs": 2798,
     "src/app/test/review-state.test.mjs": 574,
     "src/app/test/role-harness.test.mjs": 643,

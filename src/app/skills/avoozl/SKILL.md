@@ -116,7 +116,7 @@ facts without rewriting or publishing the design document. Review amendments
 before extracting changed scope; preserve existing task identities and
 evidence.
 
-After a plan edit, reconcile affected task records and design links in the same work. The running server watches source changes. If it is stopped, run `{{CLI}} generate`. Source-review flags require review, not automatic clearing.
+After a plan edit, reconcile affected task records and design links in the same work.
 
 ## Agent sessions and reconnects
 

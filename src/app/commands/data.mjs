@@ -1,6 +1,5 @@
 // CLI commands of one kind: command, help lines and run.
 import { Store, privateFile } from "../store/store.mjs";
-import { generate } from "./support.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { help } from "../cli/command-help.mjs";
@@ -38,13 +37,6 @@ export const commands = [
       ),
     ],
     run: runBackup,
-  },
-  {
-    command: "generate",
-    help: [help("data", "generate --workspace PATH", "Reindex Markdown")],
-    run({ config }) {
-      console.log(JSON.stringify(generate(config).stats, null, 2));
-    },
   },
   {
     command: "OPERATION",

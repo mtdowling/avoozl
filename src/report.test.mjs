@@ -4,8 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { blocks, queryTasks, validate } from "./model.mjs";
-import { syncPlans } from "./catalog.mjs";
+import { queryTasks, validate } from "./model.mjs";
 const minimal = () => ({
   schemaVersion: 1,
   revision: 1,
@@ -36,26 +35,17 @@ function fixture() {
     "# Runtime\n\n### W1. Execution\n\n- [ ] Make compiler work\n  Exact context with posix_spawn.\n",
   );
   const d = minimal();
-  syncPlans(d, root, { initial: true });
-  const t = d.tasks[0];
-  t.id = "compiler";
-  t.status = "partial";
-  t.scope = "runtime";
-  t.epic = "W1";
-  t.track = "frontend";
+  d.tasks.push({
+    id: "compiler",
+    title: "Make compiler work",
+    summary: "Exact context with posix_spawn.",
+    status: "partial",
+    scope: "runtime",
+    epic: "W1",
+    track: "frontend",
+  });
   return { root, data: d };
 }
-test("stable checklist keys distinguish repeated headings and survive inserted prose", () => {
-  const original =
-    "# Plan\n## First\n- [ ] Same task\n## Second\n- [ ] Same task";
-  const a = blocks(original),
-    b = blocks("Intro\n" + original);
-  assert.equal(new Set(a.map((x) => x.key)).size, 2);
-  assert.deepEqual(
-    a.map((x) => x.key),
-    b.map((x) => x.key),
-  );
-});
 test("queries search full context and follow only prerequisite directions", () => {
   const f = fixture();
   try {

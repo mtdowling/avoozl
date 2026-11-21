@@ -9,12 +9,69 @@ import { secretReason } from "../content/content-rules.mjs";
 import { requirePrivateRepository } from "../github/github.mjs";
 import { synchronizeAgentInstructions } from "../agents/agent-instructions.mjs";
 import { checkoutRoot, remoteGit } from "../git/git.mjs";
-import { configuredRepositoryInstructionSources } from "../specs/source-sync.mjs";
 import {
   assertPortableRepositoryConfig,
   assertSafeConfig,
 } from "../settings/layered-config.mjs";
 import { asJob } from "../github/github-jobs.mjs";
+
+// Each registered checkout's own .avoozl.json, read as a policy source.
+function readPolicy(filename, repositoryId = null) {
+  if (!fs.existsSync(filename)) return null;
+  if (
+    fs.lstatSync(filename).isSymbolicLink() ||
+    !fs.statSync(filename).isFile()
+  )
+    throw Error(`Avoozl policy must be a regular file: ${filename}`);
+  const text = fs.readFileSync(filename, "utf8");
+  if (Buffer.byteLength(text) > 512 * 1024)
+    throw Error(`Avoozl policy is too large: ${filename}`);
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    throw Error(`Could not parse ${filename}: ${error.message}`);
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw Error(`Avoozl policy must contain a JSON object: ${filename}`);
+  if (value.version !== 1)
+    throw Error(`Unsupported Avoozl policy version: ${filename}`);
+  assertSafeConfig(value, `Avoozl policy at ${filename}`);
+  assertPortableRepositoryConfig(value, `Avoozl policy at ${filename}`);
+  return {
+    path: filename,
+    repositoryId,
+    value,
+    text,
+    revision: null,
+    hash: digest(text),
+  };
+}
+
+export function configuredRepositoryInstructionSources(
+  store,
+  { exclude = [] } = {},
+) {
+  const excluded = new Set(exclude.map((filename) => path.resolve(filename))),
+    candidates = store
+      .list("repositories")
+      .filter((repository) => repository.root)
+      .map((repository) => ({
+        filename: path.join(path.resolve(repository.root), ".avoozl.json"),
+        repositoryId: repository.id,
+        primary: false,
+      })),
+    seen = new Set(),
+    sources = [];
+  for (const candidate of candidates) {
+    const key = path.resolve(candidate.filename);
+    if (seen.has(key) || excluded.has(key)) continue;
+    seen.add(key);
+    const source = readPolicy(key, candidate.repositoryId);
+    if (source) sources.push({ ...source, primary: candidate.primary });
+  }
+  return sources;
+}
 
 const exec = promisify(execFile);
 const allowedPath =

@@ -90,18 +90,6 @@ test("a new workspace has the documented layout and no default-valued keys", asy
   } finally {
     store.close();
   }
-  const { stdout } = await exec(process.execPath, [
-    path.join(applicationRoot, "cli.mjs"),
-    "generate",
-    "--workspace",
-    root,
-  ]);
-  assert.deepEqual(JSON.parse(stdout), {
-    added: 0,
-    changed: 0,
-    removed: 0,
-    newTasks: 0,
-  });
   assert.equal(fs.existsSync(path.join(root, "plans")), false);
 });
 
@@ -225,23 +213,4 @@ test("a named operation runs in process when no server is running", async (t) =>
     "9",
   ]);
   assert.deepEqual(JSON.parse(stdout).items, []);
-});
-
-test("source changes preserve portable document IDs across filesystem separators", async (t) => {
-  const root = temporary(t);
-  initializeWorkspace(root);
-  const config = workspaceConfig({ workspace: root });
-  fs.mkdirSync(path.join(config.plansRoot, "design"), { recursive: true });
-  fs.writeFileSync(
-    path.join(config.plansRoot, "design", "plan.md"),
-    "# Design\n\n[Next](next.md)\n",
-  );
-  const store = new Store(config.dbPath);
-  t.after(() => store.close());
-  const { reconcileSource } = await import("../../specs/source-sync.mjs");
-  reconcileSource(store, config.plansRoot, "design\\plan.md");
-  const doc = store.read().documents["design/plan.md"];
-  assert.equal(doc.id, "design/plan.md");
-  assert.deepEqual(doc.links, ["design/next.md"]);
-  assert.equal(store.read().documents["design\\plan.md"], undefined);
 });
