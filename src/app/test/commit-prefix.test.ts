@@ -65,15 +65,15 @@ test("landing commits carry the prefix, and without one keep Land KEY", async (t
     sh(root, "checkout", "-q", "main");
     const entry = { key: "a", commit: member, tasks: [] };
     await holdMember(root, entry);
-    const { candidate } = await stackMembers(
+    const stacked = await stackMembers(root, [entry], base, [], null, prefix);
+    assert.ok("candidate" in stacked, "the member stacks without a conflict");
+    const subject = sh(
       root,
-      [entry],
-      base,
-      [],
-      null,
-      prefix,
+      "log",
+      "-1",
+      "--format=%s",
+      found(stacked.candidate),
     );
-    const subject = sh(root, "log", "-1", "--format=%s", found(candidate));
     assert.equal(subject, expected);
     if (prefix) assert.ok(follows(subject));
   }
