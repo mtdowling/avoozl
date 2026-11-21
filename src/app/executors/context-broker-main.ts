@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One session's MCP broker as its own process (epic-context D6):
 //   node context-broker-main.mjs <spec-file>
 // The tick that starts a `process` child exits long before the child does,

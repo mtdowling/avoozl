@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The MCP broker (epic-context EC7, D6): one Unix socket per session,
 // outside every sandbox, served by that session's own broker process
 // (context-broker-main.mjs). A relay (context-relay.mjs)
@@ -11,6 +10,8 @@
 // plugin marked broken (PK7.5).
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
+import type { ChildProcessByStdio } from "node:child_process";
+import type { Readable, Writable } from "node:stream";
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -21,7 +22,43 @@ import { listeningSockets } from "../plugins/plugins.ts";
 
 const MAX_LINE = 4 * 1024 * 1024;
 const HELLO_MS = 5000;
-const same = (a, b) =>
+
+// One tool call, for the session's evidence.
+export interface BrokerCall {
+  session: string;
+  alias: string;
+  tool: string;
+  at: string;
+  ms: number;
+  bytes: number;
+  error?: string;
+}
+
+// A server that opened a listener.
+export interface BrokerViolation {
+  session: string;
+  alias: string;
+  plugin: string | null;
+  reason: string;
+}
+
+// One server a session may start, by its alias.
+interface BrokerServer {
+  command: string[];
+  env?: string[];
+  plugin?: string | null;
+}
+
+// One open session: its socket folder, servers, token and connections.
+interface SessionState {
+  folder: string;
+  servers: Record<string, BrokerServer>;
+  token: string;
+  sockets: Set<net.Socket>;
+  server: net.Server;
+}
+
+const same = (a: string, b: string) =>
   a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 // `onCall(entry)` gets {session, alias, tool, at, ms, bytes, error?} for
@@ -32,14 +69,22 @@ export function createBroker({
   onViolation = () => {},
   checkListeners = listeningSockets,
   listenerMs = 2000,
+}: {
+  onCall?: (entry: BrokerCall) => void;
+  onViolation?: (violation: BrokerViolation) => void;
+  checkListeners?: (pid: number) => Promise<unknown>;
+  listenerMs?: number;
 } = {}) {
-  const sessions = new Map();
+  const sessions = new Map<string, SessionState>();
 
-  const serve = (session, state, socket) => {
-    let child = null,
+  const serve = (session: string, state: SessionState, socket: net.Socket) => {
+    let child: ChildProcessByStdio<Writable, Readable, null> | null = null,
       exited = false,
       stopWatch = () => {};
-    const pending = new Map();
+    const pending = new Map<
+      unknown,
+      { tool: string; at: number; bytes: number }
+    >();
     const end = () => {
       stopWatch();
       if (child && !exited) child.kill("SIGKILL");
@@ -54,16 +99,16 @@ export function createBroker({
     jsonLines(socket, {
       maxLine: MAX_LINE,
       onOverflow: end,
-      onLine: (line) => {
+      onLine: (line: string) => {
         if (!hello) {
           clearTimeout(timer);
-          let value;
+          let value: { alias?: string; token?: unknown } | null;
           try {
             value = JSON.parse(line);
           } catch {
             return end();
           }
-          const server = state.servers[value?.alias];
+          const server = state.servers[String(value?.alias)];
           if (
             typeof value?.token !== "string" ||
             !same(value.token, state.token) ||
@@ -71,7 +116,7 @@ export function createBroker({
           )
             return end();
           hello = true;
-          start(value.alias, server);
+          start(String(value?.alias), server);
           return;
         }
         // The method and tool name only, for the record.
@@ -88,29 +133,30 @@ export function createBroker({
       },
     });
 
-    function start(alias, server) {
+    function start(alias: string, server: BrokerServer) {
       const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-mcp-"));
       const [program, ...args] = server.command;
-      child = spawn(program, args, {
+      const started = spawn(program, args, {
         cwd: scratch,
         env: checkEnvironment(process.env, server.env ?? []),
         stdio: ["pipe", "pipe", "ignore"],
         windowsHide: true,
       });
-      child.on("error", end);
-      child.on("exit", () => {
+      child = started;
+      started.on("error", end);
+      started.on("exit", () => {
         exited = true;
         stopWatch();
         fs.rmSync(scratch, { recursive: true, force: true });
         socket.end();
       });
-      child.stdin.on("error", () => {});
-      if (child.pid)
-        stopWatch = watchListeners(child.pid, {
+      started.stdin.on("error", () => {});
+      if (started.pid)
+        stopWatch = watchListeners(started.pid, {
           checkListeners,
           everyMs: listenerMs,
           gone: () => exited,
-          onHit: (reason) => {
+          onHit: (reason: string) => {
             onViolation({
               session,
               alias,
@@ -120,10 +166,10 @@ export function createBroker({
             end();
           },
         });
-      jsonLines(child.stdout, {
+      jsonLines(started.stdout, {
         maxLine: MAX_LINE,
         onOverflow: end,
-        onLine: (line) => {
+        onLine: (line: string) => {
           try {
             const message = JSON.parse(line),
               call = pending.get(message?.id);
@@ -150,7 +196,7 @@ export function createBroker({
     }
   };
 
-  const close = (session) => {
+  const close = (session: string) => {
     const state = sessions.get(session);
     if (!state) return;
     sessions.delete(session);
@@ -164,14 +210,24 @@ export function createBroker({
     // {command, env, plugin?}. Returns {socket, token}. A session opened
     // before (a resume) is closed first, so its token changes. `socket` and
     // `token` may be given, the socket in a `0700` folder of its own.
-    open({ session, servers, socket, token }) {
+    open({
+      session,
+      servers,
+      socket,
+      token,
+    }: {
+      session: string;
+      servers: Record<string, BrokerServer>;
+      socket?: string;
+      token?: string;
+    }) {
       close(session);
       const folder = socket
         ? path.dirname(socket)
         : fs.mkdtempSync(path.join(os.tmpdir(), "avz-"));
       socket ??= path.join(folder, "mcp.sock");
       fs.chmodSync(folder, 0o700);
-      const state = {
+      const state: SessionState = {
         folder,
         servers: { ...servers },
         token: token ?? randomBytes(24).toString("hex"),
@@ -188,6 +244,6 @@ export function createBroker({
     },
     close,
     closeAll: () => [...sessions.keys()].forEach(close),
-    has: (session) => sessions.has(session),
+    has: (session: string) => sessions.has(session),
   };
 }

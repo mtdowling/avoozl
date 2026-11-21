@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What the Kiro Crew cron's `plans_maintain tick` call returns after the tick
 // pass it runs (MS12.1, design D5): record the sessions it observed, then
 // return the `kirocrew` starts and messages the pass released, and the chats
@@ -14,15 +13,16 @@ import {
   listSessionBindings,
 } from "../../sessions/session-bindings.ts";
 import { readReleased, recordRoster, sessionList } from "../../tick/tick.ts";
+import type { Store } from "../../store/store.ts";
 
-export function cronIntents(store, input = {}) {
+export function cronIntents(store: Store, input: { sessions?: unknown } = {}) {
   const roster = sessionList(input.sessions);
   if (roster) recordRoster(store, roster);
   const released = readReleased(store);
   const pending = pendingSessionRequests(store, "kirocrew");
   return {
     observe: listSessionBindings(store)
-      .filter((b) => !FINAL_STATUSES.has(b.status))
+      .filter((b) => !FINAL_STATUSES.has(String(b.status)))
       .map(({ id, slot, taskId, role, lane, title }) => ({
         slot,
         taskId,

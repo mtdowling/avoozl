@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The session boundary: implementations own all provider-specific details.
 // Keep its data contract readable by adapters running in other languages.
 import contract from "../../executor-contract.json" with { type: "json" };
@@ -13,7 +12,36 @@ for (const value of Object.values(contract)) {
 export const EXECUTOR_CONTRACT = Object.freeze(contract);
 const EXIT_STATUS = new RegExp(contract.exitStatusPattern);
 
-function text(value, name, { nullable = false, empty = false } = {}) {
+// Token and cost use of one session.
+type Usage = { tokens?: number; cost?: number };
+
+// The checked session boundary createExecutor returns.
+export interface Executor {
+  start(
+    role: string,
+    task: string,
+    worktree: string | null,
+    brief: string,
+    model: string | null,
+    permissionClass: string,
+  ): Promise<string>;
+  send(sessionId: string, message: string): Promise<string>;
+  status(sessionId: string): Promise<string>;
+  stop?(sessionId: string): Promise<string>;
+  usage?(sessionId: string): Promise<Usage | null>;
+}
+
+// What an implementation gives: each call may answer at once or later, and
+// createExecutor checks every answer.
+type Implementation = {
+  [Method in keyof Executor]-?: (...args: (string | null)[]) => unknown;
+};
+
+function text(
+  value: unknown,
+  name: string,
+  { nullable = false, empty = false } = {},
+) {
   if (nullable && value === null) return value;
   if (typeof value !== "string" || (!empty && !value.trim()))
     throw new TypeError(
@@ -22,14 +50,14 @@ function text(value, name, { nullable = false, empty = false } = {}) {
   return value;
 }
 
-export function executorStatus(value) {
+export function executorStatus(value: unknown): string {
   if (
-    contract.statusValues.includes(value) ||
+    (typeof value === "string" && contract.statusValues.includes(value)) ||
     (typeof value === "string" &&
       EXIT_STATUS.test(value) &&
       Number.isSafeInteger(Number(value.slice("exited ".length))))
   )
-    return value;
+    return value as string;
   throw new TypeError(
     "Executor status must be working, idle, exited <code>, or gone.",
   );
@@ -37,22 +65,25 @@ export function executorStatus(value) {
 
 // Calls may be synchronous or asynchronous. Rejections stay rejections; a
 // failed observation must never be converted into evidence that a session is gone.
-export function createExecutor(implementation) {
+export function createExecutor(
+  implementation: Partial<Implementation> &
+    Pick<Implementation, "start" | "send" | "status">,
+): Readonly<Executor> {
   if (!implementation || typeof implementation !== "object")
     throw new TypeError("An executor implementation is required.");
   for (const method of ["start", "send", "status"])
-    if (typeof implementation[method] !== "function")
+    if (typeof implementation[method as keyof Implementation] !== "function")
       throw new TypeError(`Executor ${method} must be a function.`);
   for (const method of Object.keys(contract.optional))
     if (
-      implementation[method] !== undefined &&
-      typeof implementation[method] !== "function"
+      implementation[method as keyof Implementation] !== undefined &&
+      typeof implementation[method as keyof Implementation] !== "function"
     )
       throw new TypeError(
         `Executor ${method} must be a function when present.`,
       );
 
-  const executor = {
+  const executor: Executor = {
     async start(role, task, worktree, brief, model, permissionClass) {
       text(role, "role");
       text(task, "task");
@@ -71,13 +102,13 @@ export function createExecutor(implementation) {
           permissionClass,
         ),
         "sessionId",
-      );
+      ) as string;
     },
     async send(sessionId, message) {
       text(sessionId, "sessionId");
       text(message, "text", { empty: true });
       const result = await implementation.send(sessionId, message);
-      if (!contract.sendValues.includes(result))
+      if (typeof result !== "string" || !contract.sendValues.includes(result))
         throw new TypeError("Executor send must return accepted or refused.");
       return result;
     },
@@ -86,18 +117,19 @@ export function createExecutor(implementation) {
       return executorStatus(await implementation.status(sessionId));
     },
   };
-  if (implementation.stop)
+  const { stop, usage } = implementation;
+  if (stop)
     executor.stop = async (sessionId) => {
       text(sessionId, "sessionId");
-      const result = await implementation.stop(sessionId);
+      const result = await stop.call(implementation, sessionId);
       if (result !== contract.stopValue)
         throw new TypeError("Executor stop must return stopped.");
-      return result;
+      return result as string;
     };
-  if (implementation.usage)
+  if (usage)
     executor.usage = async (sessionId) => {
       text(sessionId, "sessionId");
-      const result = await implementation.usage(sessionId);
+      const result = await usage.call(implementation, sessionId);
       if (result === null) return null;
       if (!result || typeof result !== "object" || Array.isArray(result))
         throw new TypeError(
@@ -108,6 +140,7 @@ export function createExecutor(implementation) {
         throw new TypeError("Executor usage may contain only tokens and cost.");
       for (const [key, value] of Object.entries(result))
         if (
+          typeof value !== "number" ||
           !Number.isFinite(value) ||
           value < 0 ||
           (key === "tokens" && !Number.isSafeInteger(value))
@@ -115,7 +148,7 @@ export function createExecutor(implementation) {
           throw new TypeError(
             `Executor usage ${key} must be a nonnegative ${key === "tokens" ? "integer" : "number"}.`,
           );
-      return { ...result };
+      return { ...(result as Usage) };
     };
   return Object.freeze(executor);
 }

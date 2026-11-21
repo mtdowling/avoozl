@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Whether a harness can start on this machine's server, and why not (MS5.3):
 // its program is not found, or its last sign-in probe failed. One function,
 // read by `avoozl status`, Settings › Models and the Needs you item a
@@ -11,20 +10,36 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { machineEnvPath } from "./machine-env.ts";
 
-const probeCachePath = (configDirectory) =>
+// A sign-in probe's answer.
+export interface Probe {
+  ok: boolean;
+  message: string | null;
+  at?: string;
+}
+
+// Where a program is and the PATH it was found on, or why it is not found.
+type Found =
+  | { file: string; path?: string; problem?: undefined }
+  | { file?: undefined; path?: undefined; problem: string };
+
+type Env = NodeJS.ProcessEnv | Record<string, string | undefined>;
+
+const probeCachePath = (configDirectory: string) =>
   path.join(path.resolve(configDirectory), "harness-probes.json");
 
 // A probe answer holds for one definition hash and one machine.env, since
 // each probe is a model call: a changed file or machine.env needs a new one.
-function probeKey(configDirectory, hash) {
-  let bytes = "";
+function probeKey(configDirectory: string, hash: string) {
+  let bytes: string | Buffer = "";
   try {
     bytes = fs.readFileSync(machineEnvPath(configDirectory));
   } catch {}
   return `${hash}:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-function readProbes(configDirectory) {
+function readProbes(
+  configDirectory: string,
+): Record<string, Partial<Probe> & { key?: string }> {
   try {
     const value = JSON.parse(
       fs.readFileSync(probeCachePath(configDirectory), "utf8"),
@@ -39,7 +54,11 @@ function readProbes(configDirectory) {
 
 // The cached probe of harness `name` at `hash`: {ok, message, at}, or null
 // when none ran for this hash and machine.env.
-export function cachedProbe(configDirectory, name, hash) {
+export function cachedProbe(
+  configDirectory: string | null | undefined,
+  name: string,
+  hash: string | null | undefined,
+): Probe | null {
   if (!configDirectory || !hash) return null;
   const entry = readProbes(configDirectory)[name];
   return entry?.key === probeKey(configDirectory, hash)
@@ -47,7 +66,12 @@ export function cachedProbe(configDirectory, name, hash) {
     : null;
 }
 
-export function recordProbe(configDirectory, name, hash, result) {
+export function recordProbe(
+  configDirectory: string,
+  name: string,
+  hash: string,
+  result: Probe,
+) {
   const file = probeCachePath(configDirectory);
   const all = {
     ...readProbes(configDirectory),
@@ -61,7 +85,11 @@ export function recordProbe(configDirectory, name, hash, result) {
   fs.renameSync(temporary, file);
 }
 
-function inDirectory(program, pathEnv, platform) {
+function inDirectory(
+  program: string,
+  pathEnv: string | undefined,
+  platform: NodeJS.Platform,
+) {
   const names =
     platform === "win32"
       ? ["", ".exe", ".cmd", ".bat"].map((suffix) => program + suffix)
@@ -85,14 +113,17 @@ function inDirectory(program, pathEnv, platform) {
 // (~/.local/bin, Homebrew). The command is fixed text, never built from
 // input. Null on Windows, or when $SHELL is not an absolute path or the
 // shell fails.
-const loginPaths = new Map();
+const loginPaths = new Map<string, string | null>();
 export function loginShellPath({
   env = process.env,
   platform = process.platform,
-} = {}) {
+}: {
+  env?: Env;
+  platform?: NodeJS.Platform;
+} = {}): string | null {
   const shell = env.SHELL;
   if (platform === "win32" || !shell || !path.isAbsolute(shell)) return null;
-  if (loginPaths.has(shell)) return loginPaths.get(shell);
+  if (loginPaths.has(shell)) return loginPaths.get(shell) ?? null;
   const result = spawnSync(shell, ["-l", "-c", "/usr/bin/env"], {
     encoding: "utf8",
     timeout: 3000,
@@ -113,20 +144,27 @@ export function loginShellPath({
 // absolute path in the definition; machine.env's PATH; the server's PATH;
 // the person's login-shell PATH.
 export function findProgram(
-  program,
+  program: string,
   {
     env = process.env,
     machineEnv = {},
     platform = process.platform,
     loginPath = () => loginShellPath({ env, platform }),
+  }: {
+    env?: Env;
+    machineEnv?: Record<string, string | undefined>;
+    platform?: NodeJS.Platform;
+    loginPath?: () => string | null;
   } = {},
-) {
+): Found {
   if (path.isAbsolute(program))
     return fs.existsSync(program)
       ? { file: program, path: env.PATH }
       : { problem: `${program} does not exist on this machine.` };
-  const places = [
-    ...(machineEnv.PATH ? [["machine.env's PATH", machineEnv.PATH]] : []),
+  const places: [string, string | undefined][] = [
+    ...(machineEnv.PATH
+      ? [["machine.env's PATH", machineEnv.PATH] as [string, string]]
+      : []),
     ["the server's PATH", env.PATH],
   ];
   for (const [, pathEnv] of places) {
@@ -153,16 +191,22 @@ export function findProgram(
 // can start. `probe` is its cached sign-in probe, or null when none ran: an
 // unchecked harness is not held back.
 export function harnessStartProblem(
-  value,
+  value: { start?: unknown } | null | undefined,
   {
     env = process.env,
     machineEnv = {},
     probe = null,
     platform = process.platform,
     loginPath,
+  }: {
+    env?: Env;
+    machineEnv?: Record<string, string | undefined>;
+    probe?: Probe | null;
+    platform?: NodeJS.Platform;
+    loginPath?: () => string | null;
   } = {},
 ) {
-  const program = Array.isArray(value?.start) ? value.start[0] : null;
+  const program = Array.isArray(value?.start) ? value?.start[0] : null;
   if (typeof program !== "string" || !program) return null;
   const found = findProgram(program, { env, machineEnv, platform, loginPath });
   if (found.problem) return found.problem;

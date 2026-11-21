@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The standalone page's server (standalone-web SW9), kept up by each tick
 // when the machine file has `serve.enabled`. The tick starts it detached and
 // records its pid and start time in `page.json`; a later tick finds it again
@@ -22,7 +21,14 @@ const SERVE_MAIN = fileURLToPath(
   ),
 );
 
-const readJson = (file) => {
+// What page.json records of the running page.
+interface PageRecord {
+  pid: number;
+  started: unknown;
+  port: number;
+}
+
+const readJson = (file: string): PageRecord | null => {
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
   } catch {
@@ -36,6 +42,11 @@ export function hostPage({
   configDirectory,
   env = process.env,
   startTime = processStartTime,
+}: {
+  stateDirectory: string;
+  configDirectory: string;
+  env?: NodeJS.ProcessEnv;
+  startTime?: typeof processStartTime;
 }) {
   const paths = supervisorPaths(stateDirectory),
     record = path.join(paths.root, "page.json"),
@@ -74,7 +85,7 @@ export function hostPage({
   return { pid, port: config.port };
 }
 
-function launchPosix(args, log, env) {
+function launchPosix(args: string[], log: string, env: NodeJS.ProcessEnv) {
   const out = fs.openSync(log, "a", 0o600);
   let child;
   try {
@@ -95,9 +106,9 @@ function launchPosix(args, log, env) {
 // page started directly would hold the tick caller's stdout open and that
 // caller would wait on it. Start-Process starts it through the shell, which
 // passes no handle; the page writes its own log (--log).
-function launchWindows(args, env) {
-  const quote = (value) => `"${value.replaceAll('"', '\\"')}"`;
-  const literal = (value) => `'${value.replaceAll("'", "''")}'`;
+function launchWindows(args: string[], env: NodeJS.ProcessEnv) {
+  const quote = (value: string) => `"${value.replaceAll('"', '\\"')}"`;
+  const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
   const command = [
     "Start-Process -WindowStyle Hidden -PassThru",
     `-FilePath ${literal(process.execPath)}`,

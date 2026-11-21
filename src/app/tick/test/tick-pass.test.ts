@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `avoozl tick` is one pass and an exit (MS1, MS2), driven through the real
 // CLI on an isolated machine, and the source rules of MS1.2.
 import assert from "node:assert/strict";
@@ -6,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { loopLockPaths, tryLock } from "../../executors/pass-lock.ts";
 import { workspaceConfig } from "../../settings/config.ts";
@@ -15,12 +14,15 @@ import { ownMachineEnv } from "../../test/own-machine.ts";
 const CLI = fileURLToPath(new URL("../../../../cli.ts", import.meta.url));
 const SRC = fileURLToPath(new URL("../../../", import.meta.url));
 
-function machine(t) {
+// One parsed `avoozl tick` result line.
+type Ticked = { root?: string; tick?: string; skipped?: string };
+
+function machine(t: TestContext) {
   const root = fs.realpathSync.native(
     fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-tick-")),
   );
   const env = ownMachineEnv(root);
-  const run = (args, extra = {}) =>
+  const run = (args: string[], extra: Record<string, string> = {}) =>
     spawnSync(process.execPath, [CLI, ...args], {
       env: { ...env, ...extra },
       encoding: "utf8",
@@ -49,11 +51,11 @@ function machine(t) {
   return { root, env, run, workspaces };
 }
 
-const ticked = (out) =>
-  JSON.parse(out)
+const ticked = (out: string) =>
+  (JSON.parse(out) as Ticked[])
     .filter((result) => result.root)
     .map((result) => [
-      path.basename(result.root),
+      path.basename(String(result.root)),
       result.tick ?? result.skipped,
     ])
     .sort();
@@ -78,11 +80,12 @@ test("avoozl tick passes every enabled workspace once, records it for status, an
   const status = m.run(["status"]);
   assert.equal(status.status, 0, status.stderr);
   const passes = JSON.parse(status.stdout).machine.passes;
-  assert.deepEqual(passes.map((pass) => path.basename(pass.root)).sort(), [
-    "one",
-    "two",
-  ]);
-  for (const pass of passes) assert.ok(Date.parse(pass.at) >= begun - 1000);
+  const roots = (passes as { root: string; at: string }[]).map((pass) =>
+    path.basename(pass.root),
+  );
+  assert.deepEqual(roots.sort(), ["one", "two"]);
+  for (const pass of passes as { at: string }[])
+    assert.ok(Date.parse(pass.at) >= begun - 1000);
 });
 
 test("avoozl tick --workspace passes only that workspace", (t) => {
@@ -97,11 +100,12 @@ test("a tick that overlaps another skips the workspace the other holds", (t) => 
   const held = tryLock(
     loopLockPaths(workspaceConfig({ workspace: m.workspaces[0] }).dbPath).lock,
   );
+  assert.ok(held.held);
   try {
     const tick = m.run(["tick"]);
     assert.equal(tick.status, 0, tick.stderr);
     const [one, two] = ticked(tick.stdout);
-    assert.match(one[1], /Another tick .* runs this workspace's pass/);
+    assert.match(String(one[1]), /Another tick .* runs this workspace's pass/);
     assert.deepEqual(two, ["two", "ran"]);
   } finally {
     held.close();
@@ -133,8 +137,8 @@ test("a process child is refused link", (t) => {
 // MS1.2: the tick pass is the only caller of the drains, and nothing runs
 // the tick on a timer of its own.
 test("only the tick pass drains requests, and nothing runs the tick on a timer", () => {
-  const files = [];
-  const walk = (directory) => {
+  const files: string[] = [];
+  const walk = (directory: string) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
       if (entry.isDirectory()) {
@@ -143,8 +147,8 @@ test("only the tick pass drains requests, and nothing runs the tick on a timer",
     }
   };
   walk(SRC);
-  const rel = (file) => path.relative(SRC, file).replaceAll("\\", "/");
-  const callers = (pattern) =>
+  const rel = (file: string) => path.relative(SRC, file).replaceAll("\\", "/");
+  const callers = (pattern: RegExp) =>
     files
       .filter((file) => pattern.test(fs.readFileSync(file, "utf8")))
       .map(rel);

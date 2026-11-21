@@ -616,7 +616,12 @@ function commandText(input) {
   return "";
 }
 
-export function ingestToolRows(store, binding, rows, { checks = [] } = {}) {
+export function ingestToolRows(
+  store,
+  binding,
+  rows,
+  { checks = [] }: { checks?: unknown[] } = {},
+) {
   if (!isRunner(binding) || binding.attempt > 1 || !Array.isArray(rows))
     return 0;
   const tools = rows
