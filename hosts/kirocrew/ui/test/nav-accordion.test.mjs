@@ -109,7 +109,7 @@ for (const [width, height, scope] of [
     }
     await menu()
     assert.deepEqual(await openPills(scope), ['plans'], 'Plans alone')
-    for (const key of ['delivery', 'waiting', 'plans']) {
+    for (const key of ['delivery', 'activity', 'waiting', 'plans']) {
       await go(key)
       assert.deepEqual(await openPills(scope), [key], `after going to ${key}, only its pill is open`)
     }

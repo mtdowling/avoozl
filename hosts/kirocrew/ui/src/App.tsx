@@ -21,6 +21,7 @@ import { TABS, WAITING_SECTIONS, tabLabel, type Tab, type WaitingSection } from 
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import DeliveryView from './DeliveryView.tsx'
+import ActivityView from './ActivityView.tsx'
 import { VIEW_ICONS } from './icons.ts'
 import { LineBanner, useOpenStops } from './StopLine.tsx'
 import SettingsView, { GITHUB_TABS, SETTINGS_TABS, type SettingsTab } from './SettingsView'
@@ -254,8 +255,8 @@ function AvoozlPage() {
   // A stopped line shows its banner on every page.
   const stops = useOpenStops(active)
   // Radar's nav model: Needs you and Settings open in the nav to their
-  // sub-pages; Plans, Graph and In flight open to their filters (a slot the
-  // page fills).
+  // sub-pages; Plans, Graph, In flight and Activity open to their filters (a
+  // slot the page fills).
   const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
     waiting: WAITING_SECTIONS.map((x) => ({
       key: x.key,
@@ -268,7 +269,7 @@ function AvoozlPage() {
     key: t.key,
     text: t.label,
     children: kids[t.key],
-    slot: t.key === 'plans' || t.key === 'graph' || t.key === 'delivery',
+    slot: t.key === 'plans' || t.key === 'graph' || t.key === 'delivery' || t.key === 'activity',
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label: <NavLabel view={t.key} text={t.label} count={t.key === 'waiting' ? waitingCount : 0} />,
   }))
@@ -393,6 +394,8 @@ function AvoozlPage() {
                       />
                     ) : tab === 'delivery' ? (
                       <DeliveryView workspaceId={active} />
+                    ) : tab === 'activity' ? (
+                      <ActivityView workspaceId={active} />
                     ) : (
                       <SettingsView
                         workspaceId={active}

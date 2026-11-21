@@ -29,7 +29,8 @@ test('every drawer section is a SectionBox, open at first, inside the shared tab
 })
 
 test('every place that opens task details uses the one drawer', () => {
-  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'InFlight.tsx', 'ConflictsView.tsx', 'FocusTree.tsx']) assert.match(source(name), /drawer\.openTask\(/, name)
+  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'InFlight.tsx', 'ConflictsView.tsx', 'ActivityView.tsx', 'FocusTree.tsx'])
+    assert.match(source(name), /drawer\.openTask\(/, name)
   // Only the drawer and Needs you's history read a task's detail.
   for (const name of ['GraphView.tsx', 'PlansView.tsx', 'InFlight.tsx']) assert.doesNotMatch(source(name), /tasks\.detail\(/, name)
 })

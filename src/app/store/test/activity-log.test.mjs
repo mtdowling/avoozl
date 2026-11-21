@@ -380,6 +380,42 @@ test("activity.list counts each source, kind and actor over the whole log", asyn
   assert.deepEqual(read.counts.actor, { octo: 1 });
 });
 
+test("activity.list gives each row its known GitHub repository, none in local mode", async (t) => {
+  const { store, ops } = setup(t);
+  recordActivity(store, {
+    source: "tick",
+    kind: "task.landed",
+    summary: "a1 landed at 0123456789ab",
+    targetId: "a1",
+  });
+  recordActivity(store, { source: "local", kind: "dispatch", summary: "x" });
+  // No GitHub remote: no repositories, so the page shows text.
+  let read = await ops.execute("activity.list", {});
+  assert.deepEqual(read.repositories, []);
+  assert.deepEqual(
+    read.items.map((row) => row.repository),
+    [null, null],
+  );
+  // One remote: every row uses it.
+  store.put("repositories", { id: "r1", github: "o/app" });
+  read = await ops.execute("activity.list", {});
+  assert.deepEqual(read.repositories, ["o/app"]);
+  assert.deepEqual(
+    read.items.map((row) => row.repository),
+    ["o/app", "o/app"],
+  );
+  // Two: a task row uses its task's; the rest have none. A malformed
+  // owner/name is never offered.
+  store.put("repositories", { id: "r2", github: "../evil" });
+  store.put("github_repositories", { id: "o/plans" });
+  read = await ops.execute("activity.list", {});
+  assert.deepEqual(read.repositories, ["o/app", "o/plans"]);
+  assert.deepEqual(
+    Object.fromEntries(read.items.map((row) => [row.kind, row.repository])),
+    { "task.landed": "o/app", dispatch: null },
+  );
+});
+
 test("the tick's snapshot diff records each GitHub and intake change once", (t) => {
   const { store } = setup(t);
   const before = tickSnapshot(store);

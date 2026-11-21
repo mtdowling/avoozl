@@ -39,7 +39,7 @@ const SIZES = [
   { width: 1280, height: 900, theme: 'light', dark: false },
 ]
 const SCREENS = [{ name: 'Specs', query: { page: 'app', basic: '1' }, ready: `Boolean(document.querySelector('[data-plans-list]'))` }]
-const TABS = ['Graph', 'In flight', 'Needs you', 'Settings']
+const TABS = ['Graph', 'In flight', 'Needs you', 'Activity', 'Settings']
 
 for (const size of SIZES) {
   for (const screen of SCREENS)

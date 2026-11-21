@@ -360,7 +360,7 @@ follows them.
 
 ## D13. The page
 
-The page keeps five views. Each reads one or two operations and writes only
+The page keeps six views. Each reads one or two operations and writes only
 through operations the CLI or MCP also reach.
 
 | View | What it is for | What it shows | Actions |
@@ -369,6 +369,7 @@ through operations the CLI or MCP also reach.
 | Graph | See what is ready across specs | `graphOf` for a spec, an epic or all, with state colors and drill-in | Run in a chat: work this task |
 | In flight | See what runs now | each claim branch: task, holder login, session link, newest commit, check state on its head, draft pull request link, integration branch lag | Stop session, Send message, Land (when checked) |
 | Needs you | See what waits on a person | failing checks on a claim head, stop the line, `(**MANUAL**)` tasks ready to do, stale claims, draft pull requests waiting for a person, a pull request closed unmerged, plugin approvals | Mark manual task done, Delete branch, Open on GitHub, Run in a chat |
+| Activity | See what happened | `activity.list` rows newest first: time, source, who, what, target; filters by source, kind and actor in the nav, with Keep activity (days) under them | Open task, open on GitHub |
 | Settings | Set this machine and each repository | repositories, landing mode, label filters, claim stale hours, harness per role, owner instructions per role, plugins, content rules, notifications, `loop` | Save, approve plugin |
 
 The task drawer stays, smaller: title, done bullets, refs, waits-on and blocks
@@ -380,8 +381,7 @@ a Kiro Crew chat when the page runs inside Kiro Crew, else a process session
 of the worker harness. It reuses `chat-api.ts` and `design-chat.ts`.
 
 Everything else is a skill or an MCP call: writing and reviewing specs,
-retros, investigations, code review, Flow numbers, and Activity
-(`avoozl activity` stays on the CLI).
+retros, investigations, code review and Flow numbers.
 
 ## D14. Module audit: `src/app`
 
@@ -413,7 +413,7 @@ mirror removal or triage removal before this spec starts).
 | `sessions/` | 1079 | 1079 | | | | keep `session-open.mjs`: the standalone page's Open chat |
 | `settings/` | 2902 | 2728 | 174 | | | cut `chat-models.mjs`; `role-table.mjs` reads the `roles` setting; `repository-settings.mjs` drops cut keys and gains `labels`, `claims` |
 | `specs/` | 10213 | 3922 | 2263 | 1133 | 2895 | cut `gap-report`, `spec-changed`, `task-outcomes`; the old plan-document model goes last (sim-4.10): `design-extraction`, `plan-archive`, `plan-retire`, `plans.mjs` (old plan files and the approval it holds), `source-sync`; `new-plan`, `spec-steering`, `templates` become `avoozl-spec`; approval and journal files in flight |
-| `store/` | 1722 | 1722 | | | | `activity-log.mjs` stays for `avoozl activity` |
+| `store/` | 1722 | 1722 | | | | `activity-log.mjs` stays for Activity and `avoozl activity` |
 | `tasks/` | 2605 | 550 | 2055 | | | keep `manual-tasks`, `scm-links`, `issue-reference`; cut `evidence`, `supersede`, `task-dedup`, `task-files`, `task-notes`, `task-steps`, `task-summary`, `title-repeat` |
 | `tick/` | 2280 | 2280 | | | | the tick plans the loop pass (§D6) |
 | `workers/` | 5453 | 633 | 3027 | | 1793 | keep `runner`, `report-match`, `report-command`, `manual-take`, `worker-briefs`; cut `driver`, `driver-scope`, `working-heads`, `remote-runner`; grants, offers, results and driver generations in flight |
@@ -432,6 +432,7 @@ Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
 | Plans | 4685 | keep | `PlansView`, `plans-api`, `SpecGraph`, `EpicPanel`, `DocumentReader`, `markdown`, `spec-link`, `TaskRefs`, `files-api` |
 | Graph | 2952 | keep | `GraphView`, `graph-layout`, `FocusTree`, `focus-tree`, `EdgeList`, `drag-pan` |
 | In flight | 1891 | keep | `DeliveryView`, `DeliveryDetails`, `delivery-api`, `IntegrationBranches`, `WorkerLink`, `ReviewState`, `StopLine` |
+| Activity | 761 | keep | `ActivityView`, `activity-api`, `github-links` |
 | Needs you | 1903 | keep | `WaitingView`, `ConflictsView`, `conflicts-api`, `NeedsYouContext`, `needs-you-context`, `decision-link` |
 | Settings | 7614 | keep | `SettingsView`, `settings-api`, `RepositoriesSettings`, `RepositoryModals`, `repo-edit-tabs`, `repository-rows`, `LandingFields`, `ModelsSettings`, `models-api`, `PluginsSettings`, `plugins-api`, `AddPlugin`, `ContentRulesSettings`, `content-api`, `IsolationPanel`, `isolation-form`, `PromptInstructions`, `NoticesSettings`, `notices`, `FolderPicker`, `SaveFooter`, `FlowSettings` (stop the line only) |
 | Task drawer | 1582 | keep, smaller | `TaskDrawer`, `task-api`, `TaskScmLinks`, `drawer-context` |
@@ -439,7 +440,6 @@ Every file in `hosts/kirocrew/ui/src/` (`.tsx` and `.ts`), grouped by view:
 | Shell and shared parts | 6052 | keep | `App`, nav files, list-detail files, filters, `Picker`, refresh files, `WorkspaceView`, `WorkspacePill`, small parts |
 | Dashboards: Home, Landing queue | 2030 | cut | `DashboardView`, `dashboard-api`, `HomeParts`, `home-api`, `LandingQueueView`, `landing-queue-api`, `recap-api`, `release-api` |
 | Flow and Retros | 2754 | cut (skill `avoozl-retro`) | `FlowView`, `FlowCharts`, `FlowBuilds`, `FlowRail`, `FlowMemory`, `flow-api`, `RetrosView`, `CiFlow`, `PlanningFlow`, `builds-api`, `providers-api` |
-| Activity | 608 | cut (CLI `avoozl activity`) | `ActivityView`, `activity-api` |
 | Plan review | 1310 | cut (skill `avoozl-spec-review`) | `ReviewView`, `review-view`, `PlanReviewDecision`, `PlanReviewSummary` |
 | Task extras | 1824 | cut | `TaskFiles`, `TaskNotes`, `notes-api`, `TaskSteps`, `TaskSummaryBox`, `Evidence`, `evidence-api`, `TaskForm`, `CitedFile` |
 | Setup tower | 2822 | cut | `Onboard`, `onboarding-api`, `SetupWizard`, `setup-api`, `setup-facts`, `Demo`, `demo-api`, `TemplateStart`, `PackImport`, `InstanceName`, `instance-api`, `WorkflowMap`, `workflow-map` |
@@ -529,8 +529,12 @@ operations have settled. Docs and the live proof close the spec.
    machine" (`epic-context` EC1).
 4. **The side panel is cut** (1200 lines); Needs you and In flight cover it,
    and a chat gets the same reads through `plans_query`.
-5. **The Activity page is cut.** `avoozl activity` and the activity log
-   stay, since GitHub history covers most of it.
+5. **Activity links every GitHub thing in a row**: repository, pull
+   request and issue numbers, commit, claim and integration branch, check
+   run and login. `github-links.ts` builds each URL from the row's known
+   GitHub repository, never from free text, and opens it in a new tab with
+   `rel="noopener noreferrer"`. A repository with no GitHub remote shows
+   plain text. It makes no GitHub call.
 
 ## D19. Order from the list
 

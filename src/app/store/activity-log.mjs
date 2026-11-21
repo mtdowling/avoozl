@@ -238,6 +238,54 @@ export function listActivity(
   };
 }
 
+const GITHUB_REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
+const githubName = (value) =>
+  typeof value === "string" &&
+  GITHUB_REPOSITORY.test(value) &&
+  !value.split("/").some((part) => part === "." || part === "..")
+    ? value
+    : null;
+
+// The GitHub repositories the page may link to, from settings only (a
+// checkout's GitHub remote and the configured GitHub repositories), never
+// from row text, and each row's own: its task's repository, else the only
+// one. A workspace with no GitHub remote gets none, so its rows stay text.
+export function withGithubRepositories(store, page, tasks = []) {
+  const list = (table) => {
+    try {
+      return store.list(table);
+    } catch {
+      return [];
+    }
+  };
+  const checkouts = new Map(
+    list("repositories").map((r) => [r.id, githubName(r.github)]),
+  );
+  const repositories = [
+    ...new Set(
+      [
+        ...checkouts.values(),
+        ...list("github_repositories").map((r) => githubName(r.id)),
+      ].filter(Boolean),
+    ),
+  ].sort();
+  const only = repositories.length === 1 ? repositories[0] : null;
+  const ofTask = new Map(
+    tasks.map((task) => [
+      task.id,
+      checkouts.get(task.repository ?? task.repositoryId) ?? null,
+    ]),
+  );
+  return {
+    ...page,
+    repositories,
+    items: page.items.map((row) => ({
+      ...row,
+      repository: (row.targetId && ofTask.get(row.targetId)) || only,
+    })),
+  };
+}
+
 // `activity.retentionDays` from a `.avoozl.json` value, or the default.
 export function activityRetention(config) {
   const days = config?.activity?.retentionDays;
