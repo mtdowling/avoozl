@@ -16,8 +16,10 @@ import { captureTask } from "../../capture.ts";
 import { ContractError, incomingItem } from "../plugins/plugin-contract.ts";
 import {
   actorAllowed,
+  type GitHubPolicy as Policy,
   legacyRepositoryPolicy,
   priorityRank,
+  type RepositoryPolicy,
 } from "../github/github-policy.ts";
 import { enforce, findingText } from "../content/content-rules.ts";
 import { readPluginSettings } from "../plugins/plugins.ts";
@@ -79,13 +81,6 @@ export type ItemRow = {
   history: Record<string, unknown>[];
 };
 // The repository settings a source's labels and closes are judged by.
-type RepositoryPolicy = {
-  waitingLabels?: string[];
-  priorityLabels?: string[];
-  allowedActors?: string[];
-  minimumPermission?: string | null;
-  [key: string]: unknown;
-};
 export type Source = {
   id: string;
   via: string;
@@ -108,10 +103,7 @@ export interface IntakeOptions {
   workspaceRoot?: string | null;
   settingsFile?: string;
 }
-type GitHubPolicy = {
-  mode?: unknown;
-  repositories?: Record<string, RepositoryPolicy>;
-} | null;
+type GitHubPolicy = Policy | null;
 type Notice = { channel: string; task: string; title: string; text: string };
 // How a task was started from an item.
 type How = {

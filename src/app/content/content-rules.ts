@@ -1271,7 +1271,10 @@ export function settleUnavailable(store) {
 export function allowOnce(
   store,
   { id, reason, rule } = {},
-  { operator = "", caller = null } = {},
+  {
+    operator = "",
+    caller = null,
+  }: { operator?: string; caller?: unknown } = {},
 ) {
   if (caller)
     fail(
