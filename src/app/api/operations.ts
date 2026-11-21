@@ -204,6 +204,8 @@ export class Operations {
   workspaceRoot: string | null;
   plansRoot: string | null;
   configDirectory: string | null;
+  // The served workspace's settings watcher, when there is one.
+  configuration: RepositorySettings | null;
   github: GitHubClient;
   pluginOptions: { workspaceRoot: string | null; settingsFile: string };
   constructor(

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { withWorkLock } from "../git/git.ts";
 import { readGitHubPolicyOrNull } from "../github/github-policy.ts";
@@ -18,8 +17,12 @@ import {
 import { fail } from "../store/store.ts";
 import { WORKSPACE_LOCK } from "../tick/tick.ts";
 import { person, routed } from "../api/operation-policy.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
-async function intakeDeliverHandler({ name, input }) {
+async function intakeDeliverHandler(
+  this: Operations,
+  { name, input }: OperationCall,
+) {
   const store = this.store;
 
   const action = name === "intake.deliver" ? "deliver" : "plan",
@@ -38,7 +41,10 @@ async function intakeDeliverHandler({ name, input }) {
   );
 }
 
-function intakeSourceAddHandler({ name, input }) {
+function intakeSourceAddHandler(
+  this: Operations,
+  { name, input }: OperationCall,
+) {
   if (!this.pluginOptions.workspaceRoot)
     fail("Intake sources need a workspace root.", 409);
   return {
@@ -57,7 +63,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       return submitItems(
         sourceMap(this.pluginOptions, this.store),
         readGitHubPolicyOrNull(this.workspaceRoot),
@@ -71,7 +77,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return listItems(store, input);
     },
@@ -82,7 +88,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return viewItem(store, input);
     },
@@ -93,13 +99,14 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
 
       const counts = sourceCounts(store),
         none = { total: 0, untriaged: 0, lastAt: null },
         policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+        same = (a: unknown, b: unknown) =>
+          String(a).toLowerCase() === String(b).toLowerCase();
       return {
         sources: declaredSources(this.pluginOptions, store).map(
           ({ id, scope, entry, error, source }) => {
@@ -143,7 +150,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person confirms an incoming item's changed text."),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
         confirmSnapshot(store, input),

@@ -401,7 +401,7 @@ export class GitHubClient {
 
   // True when a provider is chosen for the owner (plugin-credentials §D3):
   // false only when two plugins clash or a claiming plugin is unusable.
-  available(value) {
+  available(value?: unknown): boolean {
     return this.credentials.available?.(ownerOf(value)) ?? true;
   }
 

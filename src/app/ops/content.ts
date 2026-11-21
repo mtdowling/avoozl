@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import {
   allowOnce,
@@ -11,10 +10,14 @@ import {
 import { inspectPlugins } from "../plugins/plugins.ts";
 import { fail } from "../store/store.ts";
 import { person, routed } from "../api/operation-policy.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
 // Settings > Content rules editing: a person only. Terms are private, so
 // a session can neither read nor write them.
-function contentTermsGetHandler({ name, input, context }) {
+function contentTermsGetHandler(
+  this: Operations,
+  { name, input, context }: OperationCall,
+) {
   const store = this.store;
 
   if (context.caller || context.mcp)
@@ -41,7 +44,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
 
       let configHash = null;
@@ -83,7 +86,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person allows a blocked write once."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return allowOnce(store, input, {
         operator: this.operator,
@@ -97,7 +100,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person reads a matched line."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.caller || context.mcp)
@@ -114,8 +117,8 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
-      return this.contentCheck(input, context);
+    handler(this: Operations, { input }: OperationCall) {
+      return this.contentCheck(input);
     },
   },
 ];

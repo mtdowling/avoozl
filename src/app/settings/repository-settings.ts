@@ -1108,7 +1108,10 @@ export class RepositorySettings {
   // Settings > Content rules: replace `contentRules.sets`. `options` are the
   // plugin ids a set may name, so a save never leaves a policy the guard
   // reads as invalid (which would block every write).
-  updateContentRules({ sets, expectedHash } = {}, { pluginIds = null } = {}) {
+  updateContentRules(
+    { sets, expectedHash }: { sets?: unknown; expectedHash?: unknown } = {},
+    { pluginIds = null }: { pluginIds?: string[] | null } = {},
+  ) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
