@@ -284,7 +284,10 @@ export function tickedHead(
   root,
   entry,
   commit,
-  { env, commitPrefix = "" } = {},
+  {
+    env,
+    commitPrefix = "",
+  }: { env?: NodeJS.ProcessEnv; commitPrefix?: string } = {},
 ) {
   return inDetached(root, commit, async (dir) => {
     await tickEntry(store, dir, entry);

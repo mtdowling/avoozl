@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Pull request landing from a target repository or a fork (Requirements
 // 87.3, 87.4, 91.2, 102.8 and 102.18, design §4.32.3a, §4.32.5 and §4.32.6,
 // task 42.1). Plugs into the per-base landing queue (landing-queue.mjs).
@@ -49,10 +48,102 @@ import {
 import { fail } from "../store/store.ts";
 import { firstErrorLine } from "../delivery/verify.ts";
 import { asJob } from "../github/github-jobs.ts";
-import { landingQueue } from "./landing-queue.ts";
+import {
+  type CheckResult,
+  type LandingSteps,
+  landingQueue,
+  type QueueEntry,
+} from "./landing-queue.ts";
+import type { Store } from "../store/store.ts";
 
-const lower = (value) => String(value).toLowerCase();
+const lower = (value: unknown) => String(value).toLowerCase();
 const PASS = new Set(["success", "neutral", "skipped"]);
+
+// A pull request as the REST API returns it, in the fields read here.
+interface Pull {
+  number: number;
+  state?: string;
+  draft?: boolean;
+  title?: string;
+  node_id?: string;
+  merged_at?: string | null;
+  merge_commit_sha?: string | null;
+  mergeable?: boolean | null;
+  merged_by?: { login?: string } | null;
+  head?: { sha?: string; ref?: string; repo?: { full_name?: string } | null };
+}
+// One check run or commit status on a head.
+interface CheckRun {
+  name?: string;
+  status?: string;
+  conclusion?: string | null;
+  output?: { summary?: string; text?: string; title?: string } | null;
+}
+// One required check's state at a head.
+interface HeadCheck {
+  command: string;
+  conclusion: string;
+  pending: boolean;
+  local?: boolean;
+  firstError?: string | null;
+}
+// A protection or ruleset entry naming required checks.
+interface CheckRule {
+  type?: string;
+  parameters?: { required_status_checks?: { context?: string }[] };
+}
+// The GitHub calls pull request landing makes.
+// Its own reads come first, so their return shapes win over the narrower
+// ones the shared helpers declare.
+export type PullGitHub = {
+  pullRequest(repository: string, number: number): Promise<Pull | null>;
+  listPullRequests(
+    repository: string,
+    query: Record<string, unknown>,
+  ): Promise<Pull[]>;
+  branchRules(repository: string, branch: string): Promise<CheckRule[]>;
+  branch(
+    repository: string,
+    branch: string,
+  ): Promise<{
+    protection?: {
+      required_status_checks?: {
+        contexts?: string[];
+        checks?: { context?: string }[];
+      };
+    };
+  } | null>;
+  checkRuns(repository: string, commit: string): Promise<CheckRun[]>;
+  commitStatus(
+    repository: string,
+    commit: string,
+  ): Promise<{
+    statuses: { context?: string; state: string; description?: string }[];
+  }>;
+  branchHead(repository: string, branch: string): Promise<{ oid: string }>;
+  pullRequestReviews(
+    repository: string,
+    number: number,
+  ): Promise<
+    { state?: string; user?: { login?: string } | null; commit_id?: string }[]
+  >;
+  createPullRequest(
+    repository: string,
+    request: Record<string, unknown>,
+  ): Promise<Pull>;
+  markPullRequestReadyForReview(nodeId: string | undefined): Promise<unknown>;
+} & Parameters<typeof verifyRelationship>[0] &
+  Parameters<typeof landingRights>[0] &
+  Parameters<typeof branchReviewRule>[0] &
+  Parameters<typeof headGuardedMerge>[0];
+// The plugin checks this machine provides for required names (D8).
+interface LocalChecks {
+  names: string[];
+  result: (
+    name: string,
+    commit: string,
+  ) => { conclusion: string; firstError?: string };
+}
 
 // The pull request for an entry: by number, else the open one for its head
 // branch and base. A fork's head is `owner:branch`. A fork in the target's
@@ -61,9 +152,15 @@ const PASS = new Set(["success", "neutral", "skipped"]);
 // base and matched by head repository and branch.
 // shortcut: that listing reads every pull request on the base; keep the
 // number on the queue entry when a busy repository lands from such forks.
-async function findPull(github, target, entry, base) {
+async function findPull(
+  github: PullGitHub,
+  target: string,
+  entry: QueueEntry,
+  base: string,
+): Promise<Pull | null> {
   if (entry.pr) return github.pullRequest(target, entry.pr);
-  const { repository, branch } = entry.source,
+  const { repository, branch } =
+      entry.source ?? fail(`${entry.key} has no source branch.`, 400),
     owner = repository.split("/")[0],
     sameOwner =
       lower(repository) !== lower(target) &&
@@ -85,12 +182,17 @@ async function findPull(github, target, entry, base) {
   return open ?? found.find((pull) => pull.merged_at) ?? null;
 }
 
-async function requiredChecks(github, target, base, declared) {
+async function requiredChecks(
+  github: PullGitHub,
+  target: string,
+  base: string,
+  declared: string[],
+) {
   const names = new Set(declared),
     [rules, remote] = await Promise.all([
       asJob("rules-read", github)
         .branchRules(target, base)
-        .catch(() => []),
+        .catch((): CheckRule[] => []),
       github.branch(target, base).catch(() => null),
     ]);
   for (const rule of rules || [])
@@ -136,8 +238,24 @@ export function pullSteps({
   store,
   commitPrefix = "",
   pr = "draft",
-}) {
-  const refOf = (entry, base, commit = entry.commit) => {
+}: {
+  github: PullGitHub;
+  registry: Parameters<typeof verifyRelationship>[2];
+  root: string;
+  target: string;
+  base: string;
+  login: string;
+  checks?: string[];
+  local?: LocalChecks;
+  method?: string;
+  env?: NodeJS.ProcessEnv;
+  machine?: { hostname?: string; username?: string } | null;
+  configFile?: string;
+  store?: Store | null;
+  commitPrefix?: string;
+  pr?: string;
+}): LandingSteps {
+  const refOf = (entry: QueueEntry, base: string, commit = entry.commit) => {
     if (!entry.source?.repository || !entry.source?.branch)
       fail(`${entry.key} has no source repository and branch.`, 400);
     return qualifiedRef({
@@ -145,10 +263,17 @@ export function pullSteps({
       target: { repository: target, base },
     });
   };
-  let current = null; // the pull request the last prepare settled on
+  // The pull request the last prepare settled on, and its checks once passed.
+  let current: {
+    pull: Pull;
+    ref: ReturnType<typeof qualifiedRef> & { pr: number };
+    passed?: { name: string; conclusion: string }[];
+  } | null = null;
+  const settled = () =>
+    current ?? fail("No pull request was prepared for this step.", 500);
   // Every required check at `candidate`: its result, whether it is still
   // pending, and whether it failed.
-  const headChecks = async (candidate, branch) => {
+  const headChecks = async (candidate: string, branch: string) => {
     const required = await requiredChecks(github, target, branch, [
       ...declared,
       ...local.names,
@@ -158,7 +283,7 @@ export function pullSteps({
       github.checkRuns(target, candidate),
       github.commitStatus(target, candidate),
     ]);
-    const results = required.map((name) => {
+    const results = required.map((name): HeadCheck => {
         // A plugin check's result is this machine's, on this exact head;
         // a GitHub check of the same name does not count.
         if (local.names.includes(name)) {
@@ -197,18 +322,16 @@ export function pullSteps({
       }),
       // A required name nothing here provides, with every other check
       // done: no machine here can run it (PK6.4). It waits.
-      settled = results.every((r) => !r.pending || r.conclusion === "missing");
+      every = results.every((r) => !r.pending || r.conclusion === "missing");
     return {
       required,
       results: results.map((r) =>
-        r.conclusion === "missing" && settled && declared.includes(r.command)
+        r.conclusion === "missing" && every && declared.includes(r.command)
           ? { ...r, conclusion: "unprovided" }
           : r,
       ),
     };
   };
-  const passing = (r) =>
-    !r.pending && (PASS.has(r.conclusion) || r.conclusion === "success");
   return {
     async readBase() {
       return (await github.branchHead(target, base)).oid;
@@ -229,6 +352,7 @@ export function pullSteps({
       };
     },
     async prepare([entry], baseHead) {
+      if (!entry) return fail("Pull request landing takes one portion.", 500);
       const ref = refOf(entry, entry.base);
       await verifyRelationship(github, ref, registry);
       let pull = await findPull(github, target, entry, entry.base);
@@ -240,7 +364,7 @@ export function pullSteps({
         const rights = await landingRights(github, ref, login);
         if (!rights.checkpoint)
           fail(
-            `Pull request #${pull.number} is not at ${entry.commit.slice(0, 12)} and Avoozl cannot write ${entry.source.repository}.`,
+            `Pull request #${pull.number} is not at ${entry.commit.slice(0, 12)} and Avoozl cannot write ${entry.source?.repository}.`,
             409,
           );
         await pushHead(root, ref.source, registry, {
@@ -265,7 +389,7 @@ export function pullSteps({
         pull = await asJob("land", github).createPullRequest(target, {
           title: commitSubject(
             commitPrefix,
-            `Land ${entry.tasks.length === 1 && entry.tasks[0].public ? entry.tasks[0].public : entry.key}`,
+            `Land ${publicName(entry) ?? entry.key}`,
           ),
           head:
             fork && !sameOwner
@@ -276,7 +400,9 @@ export function pullSteps({
           // landing.pr draft opens a draft a person releases (R119.1).
           draft: pr === "draft",
           body: entry.tasks
-            .flatMap((t) => (t.closes ? [`Closes #${t.closes}`] : []))
+            .flatMap((t) =>
+              typeof t === "object" && t.closes ? [`Closes #${t.closes}`] : [],
+            )
             .join("\n"),
         });
       }
@@ -295,14 +421,16 @@ export function pullSteps({
       return { candidate: entry.commit, pr: pull.number };
     },
     async check(candidate, [entry]) {
-      const { pull } = current,
+      if (!entry) return fail("Pull request landing takes one portion.", 500);
+      const now = settled(),
+        { pull } = now,
         { required, results } = await headChecks(candidate, entry.base);
       if (!required.length)
         return {
           ok: false,
           checks: [{ command: "no required check", exitCode: 1 }],
         };
-      const shown = results.map(
+      const shown: CheckResult[] = results.map(
           ({ command, conclusion, pending, firstError }) => {
             const ok = PASS.has(conclusion) || conclusion === "success";
             return {
@@ -324,14 +452,14 @@ export function pullSteps({
       if (pull.draft) return { wait: true, reason: "draft", checks: shown };
       if (results.some((r) => r.pending))
         return { wait: true, reason: "checks", checks: shown };
-      current.passed = results.map((r) => ({
+      now.passed = results.map((r) => ({
         name: r.command,
         conclusion: r.conclusion,
       }));
       // Standing reviews on this exact head, by the repository's own rule.
       const rule = await branchReviewRule(github, target, entry.base);
       if (rule.hidden) return { wait: true, reason: "review", checks: shown };
-      let approvers = [];
+      let approvers: string[] = [];
       if (rule.approvals) {
         approvers = standingApprovals(
           await github.pullRequestReviews(target, pull.number),
@@ -355,7 +483,7 @@ export function pullSteps({
     // Merges only with merge rights; otherwise the next observe() records
     // the maintainer's merge and nothing is written here.
     async land({ entry, candidate }) {
-      const { pull, ref } = current;
+      const { pull, ref } = settled();
       if (pull.draft) return false; // never a draft (R119.2)
       const rights = await landingRights(github, ref, login);
       if (rights.land !== "merge") return false;
@@ -372,8 +500,15 @@ export function pullSteps({
 // or CHANGES_REQUESTED review counts, on `head` unless the rule keeps
 // approvals across pushes (`standing`). GitHub's own rule decides who may
 // approve when the merge is made.
-function standingApprovals(reviews, head, { standing = false } = {}) {
-  const latest = new Map();
+function standingApprovals(
+  reviews: Awaited<ReturnType<PullGitHub["pullRequestReviews"]>> | null,
+  head: string,
+  { standing = false } = {},
+) {
+  const latest = new Map<
+    string,
+    { login: string; state: string; commit?: string }
+  >();
   for (const review of reviews ?? []) {
     const state = String(review?.state ?? "").toUpperCase(),
       login = review?.user?.login;
@@ -390,21 +525,46 @@ function standingApprovals(reviews, head, { standing = false } = {}) {
 }
 
 // The queued portion of `key`, in a `pr` repository, or a refusal.
-function queuedPull(store, { repositoryId, base, key }) {
-  const repository = store.get("repositories", repositoryId ?? ""),
+// Which queued portion a person acts on.
+interface PortionRef {
+  repositoryId: string;
+  base: string;
+  key?: string;
+}
+
+// The public name a lone task lands under, if it has one.
+const publicName = (entry: QueueEntry) => {
+  const [only] = entry.tasks;
+  return entry.tasks.length === 1 && typeof only === "object" && only.public
+    ? only.public
+    : null;
+};
+
+function queuedPull(store: Store, { repositoryId, base, key }: PortionRef) {
+  const repository = store.get<{ id: string; github?: string | null }>(
+      "repositories",
+      repositoryId ?? "",
+    ),
     entry = landingQueue(store, { repositoryId, base }).find(
       (e) => e.key === key,
     );
   if (!repository?.github || !entry)
-    fail(`${key ?? "That portion"} is not waiting to land.`, 404);
-  if (!entry.pr) fail(`${key} has no pull request yet.`, 409);
-  return { repository, entry };
+    return fail(`${key ?? "That portion"} is not waiting to land.`, 404);
+  if (!entry.pr) return fail(`${key} has no pull request yet.`, 409);
+  return {
+    repository: { ...repository, github: repository.github },
+    entry: { ...entry, pr: entry.pr },
+  };
 }
 
 // Merge in Avoozl (R119.3): a person's go-ahead for the exact head whose
 // checks and reviews passed. The next tick checks that head again and
 // merges it, guarded by the head. A person's only (`landing.merge`).
-export function approveMerge(store, at, { commit, by }) {
+export function approveMerge(
+  store: Store,
+  at: PortionRef,
+  { commit, by }: { commit: string; by?: string },
+) {
   const { entry } = queuedPull(store, at);
   if (
     entry.waiting?.reason !== "merge" ||
@@ -417,7 +577,8 @@ export function approveMerge(store, at, { commit, by }) {
     );
   store.transaction(() =>
     store.put("landing_queue", {
-      ...store.get("landing_queue", entry.id),
+      ...(store.get<QueueEntry>("landing_queue", entry.id) ??
+        fail(`${entry.key} left the queue.`, 409)),
       mergeApproved: { commit, by, at: new Date().toISOString() },
     }),
   );
@@ -428,7 +589,11 @@ export function approveMerge(store, at, { commit, by }) {
 // marked ready for review on GitHub. A person's only (the `landing.ready`
 // operation). It only marks it ready; landing.pr says who merges. Returns
 // {pr, released}; `released` is false when it was already ready.
-export async function releaseDraft(store, github, at) {
+export async function releaseDraft(
+  store: Store,
+  github: Pick<PullGitHub, "pullRequest" | "markPullRequestReadyForReview">,
+  at: PortionRef,
+) {
   const { repository, entry } = queuedPull(store, at),
     pull = await github.pullRequest(repository.github, entry.pr);
   if (pull?.state !== "open")
