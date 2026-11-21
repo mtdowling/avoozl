@@ -197,10 +197,10 @@ export async function readLabeledIssues(
 // landed commit. Returns whether it is closed.
 export async function closeLanded(
   github: IssueGitHub,
-  task: { labeledIssue?: LabeledIssue } | null | undefined,
+  task: { labeledIssue?: unknown } | null | undefined,
   commit: string,
 ) {
-  const issue = task?.labeledIssue;
+  const issue = task?.labeledIssue as LabeledIssue | undefined;
   if (!issue) return false;
   // Closed already (an earlier pass, or by hand): nothing more to write.
   if (

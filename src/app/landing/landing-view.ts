@@ -1,21 +1,34 @@
-// @ts-nocheck: typing debt
 // What waits to land and what landed (Home's Landing queue and Recently
 // landed, task home-radar-layout). Read from the landing queue table only:
 // no GitHub call, no git, so Home never waits on either.
 import { pausedBy, taskIds } from "./landing-queue.ts";
+import type { Store } from "../store/store.ts";
+
+// One landing queue row, as this view reads it.
+interface QueueEntry {
+  id: string;
+  repositoryId: string;
+  base: string;
+  state: string;
+  seq: number;
+  pr?: unknown;
+  queuedAt?: string;
+  finishedAt?: string;
+  [key: string]: unknown;
+}
 
 const TABLE = "landing_queue";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const LANDED_LIMIT = 20;
 
-const prHref = (repository, pr) =>
+const prHref = (repository: string | null, pr: number | null) =>
   repository && Number.isInteger(pr) && /^[\w.-]+\/[\w.-]+$/.test(repository)
     ? `https://github.com/${repository}/pull/${pr}`
     : null;
 
 // Why a queued portion has not landed yet: a stop pauses it, the head
 // lands on the next tick, and the rest wait behind the portions before them.
-function heldReason(store, entry, position) {
+function heldReason(store: Store, entry: QueueEntry, position: number) {
   const stop = pausedBy(store, entry);
   if (stop?.label) return "Paused: a stop label is on its spec issue.";
   if (stop)
@@ -24,31 +37,39 @@ function heldReason(store, entry, position) {
   return position === 1 ? "Behind 1 portion." : `Behind ${position} portions.`;
 }
 
-export function landingView(store, data, { now = Date.now() } = {}) {
+export function landingView(
+  store: Store,
+  data: { tasks?: { id: string; title?: string }[] } | null | undefined,
+  { now = Date.now() } = {},
+) {
   const titles = new Map(
     (data?.tasks ?? []).map((t) => [t.id, t.title ?? t.id]),
   );
   const repositories = new Map(
-    store.list("repositories").map((p) => [p.id, p.github ?? null]),
+    store
+      .list<{ id: string; github?: string | null }>("repositories")
+      .map((p) => [p.id, p.github ?? null]),
   );
-  const row = (entry) => {
+  const row = (entry: QueueEntry) => {
     const repository = repositories.get(entry.repositoryId) ?? null,
-      pr = Number.isInteger(entry.pr) ? entry.pr : null;
+      pr = Number.isInteger(entry.pr) ? (entry.pr as number) : null;
     return {
       key: entry.id,
       base: entry.base,
       repository,
-      tasks: taskIds(entry).map((id) => ({ id, title: titles.get(id) ?? id })),
+      tasks: (taskIds(entry) as string[]).map((id) => ({
+        id,
+        title: titles.get(id) ?? id,
+      })),
       pr,
       url: prHref(repository, pr),
     };
   };
-  const entries = store.list(TABLE);
-  const lines = new Map();
+  const entries = store.list<QueueEntry>(TABLE);
+  const lines = new Map<string, QueueEntry[]>();
   for (const entry of entries.filter((e) => e.state === "queued")) {
     const key = `${entry.repositoryId}\0${entry.base}`;
-    if (!lines.has(key)) lines.set(key, []);
-    lines.get(key).push(entry);
+    lines.set(key, [...(lines.get(key) ?? []), entry]);
   }
   const queue = [...lines.values()].flatMap((line) =>
     line
@@ -62,13 +83,13 @@ export function landingView(store, data, { now = Date.now() } = {}) {
   );
   const landed = entries
     .filter((e) => e.state === "landed" && e.finishedAt)
-    .sort((a, b) => b.finishedAt.localeCompare(a.finishedAt));
+    .sort((a, b) => String(b.finishedAt).localeCompare(String(a.finishedAt)));
   const since = new Date(now - WEEK_MS).toISOString();
   return {
     queue,
     landed: landed
       .slice(0, LANDED_LIMIT)
       .map((entry) => ({ ...row(entry), at: entry.finishedAt })),
-    landedThisWeek: landed.filter((e) => e.finishedAt >= since).length,
+    landedThisWeek: landed.filter((e) => String(e.finishedAt) >= since).length,
   };
 }

@@ -17,6 +17,7 @@
 //
 // shortcut: a landed task's worktree is kept and batches do not land by
 // pull request; upgrade with the worktree cleanup after landing (40.4).
+import type { LandOptions } from "./direct-landing.ts";
 import { personOf } from "../github/github.ts";
 import { baseRef, branchTip, git, remoteGit } from "../git/git.ts";
 import {
@@ -333,7 +334,7 @@ export async function landPullRequests(
     configFile,
     config = null,
     only = null,
-  } = {},
+  }: LandOptions = {},
 ) {
   const notify = [],
     messages = [],

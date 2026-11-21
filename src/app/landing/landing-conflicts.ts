@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A landing conflict goes back to the same worker chat (Requirement 87.6,
 // design §4.26 Land, task 41.4). When the merge of the base into a portion
 // conflicts (landNext state "conflict", landing-queue.mjs), the task's own
@@ -13,6 +12,24 @@ import { fail } from "../store/store.ts";
 import { briefCell } from "../workers/worker-briefs.ts";
 import { taskIds } from "./landing-queue.ts";
 import { DEFAULT_CONFLICT_ROUNDS } from "./landing-config.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import type { Store } from "../store/store.ts";
+import type { Notice } from "../tick/notifications.ts";
+
+// A worker binding with the rounds it was sent back.
+type Bound = SessionBinding & { returned?: unknown[] };
+// One attempt a delivery records.
+type Attempt = { attempt: number; [key: string]: unknown };
+// A task's delivery record, as these rounds read it.
+interface Delivery {
+  id: string;
+  attempts?: Attempt[];
+  returnedAttempts?: Attempt[];
+  landingConflicts?: unknown[];
+  [key: string]: unknown;
+}
+// The commit a portion conflicted with, in a merge batch.
+type Against = { commit: string; key?: string } | null;
 
 export { DEFAULT_CONFLICT_ROUNDS };
 const MAX_FILES = 50;
@@ -23,7 +40,12 @@ const MAX_FILES = 50;
 // recorded as usual. A `process` session reads as working again, so the
 // backend watches the run the message resumes and reads its result file.
 // Returns the delivery to write.
-export function reopenAttempt(store, delivery, binding, at) {
+export function reopenAttempt(
+  store: Store,
+  delivery: Delivery,
+  binding: Bound,
+  at: string,
+) {
   const { report, ...open } = binding,
     closed = (delivery.attempts ?? []).filter(
       (a) => a.attempt === binding.attempt,
@@ -47,15 +69,31 @@ export function reopenAttempt(store, delivery, binding, at) {
 // How a worker finishes the round it was sent back. A `process` child only
 // edits and ends with its result file; Avoozl commits after it exits
 // (R94.4a, R96.1). A chat commits and reports done again.
-export const roundFinish = (binding) =>
+export const roundFinish = (
+  binding: { executor?: string } | null | undefined,
+) =>
   briefCell(binding?.executor === "process" ? "process" : "kirocrew", "round")
     .cell.finish;
 
 // The message for the worker chat. File names are repository data, so they
 // sit in a fenced block the chat is told to read as data.
 export function conflictMessage(
-  taskId,
-  { files, base, round, rounds, finish = roundFinish(null), against = null },
+  taskId: string,
+  {
+    files,
+    base,
+    round,
+    rounds,
+    finish = roundFinish(null),
+    against = null,
+  }: {
+    files: string[];
+    base: string;
+    round: number;
+    rounds: number;
+    finish?: string;
+    against?: Against;
+  },
 ) {
   const shown = files.slice(0, MAX_FILES),
     more = files.length - shown.length;
@@ -75,7 +113,7 @@ export function conflictMessage(
   ].join("\n");
 }
 
-const workerOf = (store, taskId) =>
+const workerOf = (store: Store, taskId: string): Bound | undefined =>
   listSessionBindings(store)
     .filter((b) => b.role === "worker" && b.taskId === taskId)
     .sort((a, b) => b.attempt - a.attempt)[0];
@@ -85,20 +123,30 @@ const workerOf = (store, taskId) =>
 // the delivery back to running; no round left, or no chat to send to, gives a
 // Needs you notice and a delivery in decision. Returns {messages, notify}.
 export function sendConflictBack(
-  store,
-  result,
+  store: Store,
+  result: {
+    state?: string;
+    entry?: {
+      key: string;
+      base: string;
+      baseHead?: string;
+      files?: string[];
+      against?: Against;
+      [key: string]: unknown;
+    };
+  } | null,
   { rounds = DEFAULT_CONFLICT_ROUNDS, now = Date.now() } = {},
 ) {
   if (result?.state !== "conflict" || !result.entry)
-    fail("Only a landing conflict goes back to a worker chat.", 400);
+    return fail("Only a landing conflict goes back to a worker chat.", 400);
   const { entry } = result,
     files = entry.files ?? [],
     at = new Date(now).toISOString(),
-    messages = [],
-    notify = [];
+    messages: { slot: string; task: string; text: string }[] = [],
+    notify: Notice[] = [];
   store.transaction(() => {
-    for (const taskId of taskIds(entry)) {
-      const delivery = store.get("task_deliveries", taskId);
+    for (const taskId of taskIds(entry) as string[]) {
+      const delivery = store.get<Delivery>("task_deliveries", taskId);
       if (!delivery) continue;
       const used = delivery.landingConflicts ?? [],
         binding = workerOf(store, taskId),

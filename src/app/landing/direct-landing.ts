@@ -70,6 +70,21 @@ export function queueDirect(store, { delivery, repository, task, at }) {
 }
 
 // One step for each `direct` repository's queue. Returns {notify, messages}.
+// What a landing pass is given: the GitHub client, where it runs, and
+// `only`, one repository to land.
+export interface LandOptions {
+  github?: unknown;
+  workspaceRoot?: string;
+  rounds?: unknown;
+  now?: number;
+  env?: NodeJS.ProcessEnv;
+  machine?: unknown;
+  configFile?: string;
+  run?: unknown;
+  config?: unknown;
+  only?: string | null;
+}
+
 export async function landDirect(
   store,
   {
@@ -83,7 +98,7 @@ export async function landDirect(
     run,
     config,
     only = null,
-  } = {},
+  }: LandOptions = {},
 ) {
   const notify = [],
     messages = [],

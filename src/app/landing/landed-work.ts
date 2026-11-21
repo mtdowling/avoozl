@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Landed work (workflow v1 rule 16.5, simplify SM4.1): once a task's work is
 // on the base, its tick goes on the done branch if it is missing, in its own
 // commit (a plans repository's specs branch), and then the claim branch this
@@ -8,13 +7,27 @@ import { tickPlansRepo } from "../specs/spec-ticks.ts";
 import { cachedOwnClaims, deleteOwnClaim } from "../workers/claims.ts";
 import { landingAction } from "./landing-action.ts";
 import { closeLanded, landingSpecOf } from "../specs/labeled-issues.ts";
+import type { Store } from "../store/store.ts";
+import type { Repository } from "../git/git.ts";
+
+// One landed entry: its spec and its tasks.
+type Entry = { spec: unknown; tasks: { task: string }[] };
+// Where the landing runs.
+type Where = { workspaceRoot?: string; env?: NodeJS.ProcessEnv };
+type GitHub = Parameters<typeof closeLanded>[0];
 
 // One landed entry ({spec, tasks}) at `candidate`, the commit on the base.
 // Returns whether its tick is on the done branch.
 export async function finishLanded(
-  store,
-  github,
-  { repository, entry, candidate, workspaceRoot, env },
+  store: Store,
+  github: GitHub,
+  {
+    repository,
+    entry,
+    candidate,
+    workspaceRoot,
+    env,
+  }: Where & { repository: Repository; entry: Entry; candidate: string },
 ) {
   const tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
     issues = entry.tasks
@@ -52,19 +65,27 @@ export async function finishLanded(
 
 // Every own claim whose task has landed but whose claim branch is still
 // here: its tick or its delete did not go through. Each is finished again.
-export async function retryLanded(store, github, { workspaceRoot, env } = {}) {
+export async function retryLanded(
+  store: Store,
+  github: GitHub,
+  { workspaceRoot, env }: Where = {},
+) {
   const tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
-    repositories = store.list("repositories");
+    repositories = store.list<Repository>("repositories");
   let finished = 0;
-  for (const claim of cachedOwnClaims(store)) {
+  for (const claim of cachedOwnClaims(store) as {
+    task: string;
+    repository: string;
+  }[]) {
     const task = tasks.get(claim.task),
       repository = repositories.find((r) => r.github === claim.repository);
-    if (!task?.integration?.commit || !repository) continue;
+    const commit = task?.integration?.commit;
+    if (!task || !commit || !repository) continue;
     if (
       await finishLanded(store, github, {
         repository,
         entry: { spec: landingSpecOf(task), tasks: [{ task: task.id }] },
-        candidate: task.integration.commit,
+        candidate: commit,
         workspaceRoot,
         env,
       })

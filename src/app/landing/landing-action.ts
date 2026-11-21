@@ -28,9 +28,9 @@ export function landingAction({
   done = null,
   stopped = false,
 }: {
-  mode: "direct" | "pr" | "off" | string;
+  mode?: "direct" | "pr" | "off" | string;
   pr?: string;
-  checks: boolean;
+  checks?: boolean;
   baseMoved?: boolean;
   landed?: boolean;
   base: string;
