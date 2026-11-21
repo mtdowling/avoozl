@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The one-time conversion of this repository's specs from
 // avoozl/manifest.json to Facts bullets (Requirement 111.10). Before the
 // conversion, the old reader parsed each spec; the fixture keeps a digest of
@@ -19,13 +18,19 @@ import {
 } from "../specs/spec-plans.ts";
 
 const root = path.resolve(fileURLToPath(import.meta.url), "../../../..");
-const before = JSON.parse(
+// What the old reader made of one spec: digests and a count.
+interface Conversion {
+  files: string;
+  count: number;
+  proposals: string;
+}
+const before: Record<string, Conversion> = JSON.parse(
   fs.readFileSync(
     new URL("./fixtures/spec-conversion.json", import.meta.url),
     "utf8",
   ),
 );
-const sha = (text) => createHash("sha256").update(text).digest("hex");
+const sha = (text: string) => createHash("sha256").update(text).digest("hex");
 
 test("no spec folder in this repository keeps a manifest", () => {
   for (const name of listSpecFolders(root))

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One intake list (Requirement 110, design §4.39): GitHub sources in
 // `intake.sources`. Temporary workspaces only.
 import assert from "node:assert/strict";
@@ -28,7 +27,7 @@ const FILE = {
     },
   },
 };
-const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
+const read = (file: string) => JSON.parse(fs.readFileSync(file, "utf8"));
 
 test("source ids use source id letters and stay unique", () => {
   assert.equal(githubSourceId("Big_Org/my.repo"), "github-big-org-my-repo");
@@ -47,7 +46,14 @@ test("a write upserts and removes by repository", () => {
   writeGitHubSources(value, {
     upsert: {
       repository: "example/app",
-      settings: { repositoryId: "app", assignee: "riley" },
+      settings: {
+        repositoryId: "app",
+        assignee: "riley",
+        enabled: true,
+        autoStart: false,
+        provider: null,
+        model: null,
+      },
     },
   });
   assert.deepEqual(Object.keys(value.intake.sources), ["github-example-app"]);
@@ -90,7 +96,7 @@ test("Intake sources lists GitHub sources; poll and submit never see them", (t) 
       ["tickets", "machine", false],
     ],
   );
-  assert.match(rows[1].error, /Repository setup/);
+  assert.match(rows[1]?.error ?? "", /Repository setup/);
   assert.deepEqual([...sourceMap(options).keys()], ["tickets"]);
   // A GitHub source is changed in Repository setup, never here.
   assert.throws(

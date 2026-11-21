@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt, see the commit message
 // The real Claude Code and Codex binaries, for the live proofs that run them
 // under the supervisor's sandbox. The toolbox keeps each at
 // ~/.toolbox/tools/<tool>/<version>/<name> (hundreds of MB). Its bin/<name>
@@ -9,7 +8,7 @@ import path from "node:path";
 
 // A file this big is the real binary, not a launcher.
 export const REAL_CLAUDE_BYTES = 50_000_000;
-const isReal = (file) => {
+const isReal = (file: string) => {
   try {
     const stat = fs.statSync(file);
     return stat.isFile() && stat.size > REAL_CLAUDE_BYTES;
@@ -21,8 +20,13 @@ const isReal = (file) => {
 // For a path the person named or found on PATH: the file itself when it is
 // the real binary, the one a wrapper's bin/ folder sits beside, else the
 // newest installed version under `home`. Null when none is found.
-function realBinary(candidate, home, tool, name) {
-  const found = [];
+function realBinary(
+  candidate: string | null | undefined,
+  home: string,
+  tool: string,
+  name: string,
+) {
+  const found: string[] = [];
   if (candidate) {
     let file = candidate;
     try {
@@ -45,9 +49,11 @@ function realBinary(candidate, home, tool, name) {
   return real ? fs.realpathSync(real) : null;
 }
 
-export const realClaude = (candidate, home) =>
-  realBinary(candidate, home, "claude-code", "claude");
-export const realCodex = (candidate, home) =>
+export const realClaude = (
+  candidate: string | null | undefined,
+  home: string,
+) => realBinary(candidate, home, "claude-code", "claude");
+export const realCodex = (candidate: string | null | undefined, home: string) =>
   realBinary(candidate, home, "codex", "codex");
 
 // The two Claude Code binaries a live proof needs (as P59 to P61 and nk-p1):
@@ -56,7 +62,15 @@ export const realCodex = (candidate, home) =>
 // toolbox shim on PATH; `child` is the real binary the sandboxed child runs
 // under the isolated HOME, where the shim and the wrapper both fail. `named` is
 // what SWP1_CLAUDE names, `onPath` what `command -v claude` finds.
-export function claudeBinaries({ named, onPath, home }) {
+export function claudeBinaries({
+  named,
+  onPath,
+  home,
+}: {
+  named?: string | null;
+  onPath?: string | null;
+  home: string;
+}) {
   return {
     exportWith: named || onPath || null,
     child: realClaude(named || onPath || null, home),
