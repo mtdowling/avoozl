@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The OTLP exporter's status and its machine setting (spec otel-export, OT5,
 // OT11, §D6, §D11).
 import path from "node:path";
@@ -9,8 +8,9 @@ import { writeMachineFile } from "../tick/crews.ts";
 import { fail } from "../store/store.ts";
 import { machineAvoozlPaths } from "../settings/host-config.ts";
 import { telemetryHandle, telemetryStatus } from "../telemetry/index.ts";
+import type { Operations } from "../api/operations.ts";
 
-const configDirectory = (operations) =>
+const configDirectory = (operations: Operations) =>
   operations.configDirectory ?? machineAvoozlPaths().configDirectory;
 
 export const entries = [
@@ -21,7 +21,7 @@ export const entries = [
     policy: notOnMcp(
       "A chat has no use for the export's status; Settings and the CLI show it.",
     ),
-    handler() {
+    handler(this: Operations) {
       return telemetryStatus(this.store, {
         configDirectory: configDirectory(this),
       });
@@ -35,12 +35,17 @@ export const entries = [
     // Writes the keys the input names and keeps the rest: `enabled`,
     // `endpoint` (null or "" removes it), `protocol` and `headers` (names
     // only). Header values are never taken.
-    async handler({ input }) {
+    async handler(
+      this: Operations,
+      { input }: { input?: Record<string, unknown> | null },
+    ) {
       const given = Object.keys(input ?? {}).filter(
-        (key) => input[key] !== undefined,
+        (key) => input?.[key] !== undefined,
       );
       if (!given.length) fail("Name a telemetry setting to change.", 400);
-      const patch = Object.fromEntries(given.map((key) => [key, input[key]]));
+      const patch: Record<string, unknown> = Object.fromEntries(
+        given.map((key) => [key, input?.[key]]),
+      );
       if (patch.endpoint === "" || patch.endpoint === null)
         patch.endpoint = undefined;
       validateTelemetry(patch);
@@ -48,7 +53,10 @@ export const entries = [
         ? path.join(this.configDirectory, "config.json")
         : globalAvoozlConfigPath();
       writeMachineFile(file, (value) => {
-        const telemetry = { ...value.telemetry, ...patch };
+        const telemetry: Record<string, unknown> = {
+          ...(value.telemetry as Record<string, unknown> | undefined),
+          ...patch,
+        };
         for (const key of Object.keys(telemetry))
           if (telemetry[key] === undefined) delete telemetry[key];
         value.telemetry = telemetry;

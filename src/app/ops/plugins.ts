@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings' plugin list and actions (§4.8, R34.9). Approval is a person's act
 // in Settings or the CLI: an agent session cannot approve a plugin, and no MCP
 // tool offers it. Operations.pluginOperation holds the work.
@@ -8,8 +7,12 @@ import { setMapping } from "../plugins/plugin-checks.ts";
 import { flipDecide, submitDecide } from "../plugins/check-decide.ts";
 import { stageResults } from "../plugins/check-stages.ts";
 import { fail } from "../store/store.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
-async function pluginHandler({ name, input, context }) {
+async function pluginHandler(
+  this: Operations,
+  { name, input, context }: OperationCall,
+) {
   const result = await this.pluginOperation(name, input, context);
   // A plugin change reloads rules plugins on the next operation.
   if (!["plugins.list", "plugin.preview"].includes(name))
@@ -36,14 +39,18 @@ const writes = [
 // A checks plugin's server mapping (plugin-checks PK10.3): a person's act
 // only, refused over MCP and for an app token. A changed mapping leaves the
 // plugin's approval stale.
-function mapHandler({ input, context }) {
+function mapHandler(this: Operations, { input, context }: OperationCall) {
   if (context.caller || context.mcp)
     fail("Only a person maps a plugin's server, in Settings or the CLI.", 403);
   const options = this.pluginOptions;
   if (!options?.workspaceRoot) fail("Plugins need a workspace root.", 409);
   const plugin = setMapping(options, input ?? {});
   contentBinding(this.store)?.plugins.clear();
-  const { manifest: _m, entry: _e, ...shown } = plugin;
+  const {
+    manifest: _m,
+    entry: _e,
+    ...shown
+  } = plugin as Record<string, unknown>;
   return shown;
 }
 
@@ -76,7 +83,7 @@ export const entries = [
     github: null,
     class: "execute",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       return submitDecide(this.store, input, context.caller);
     },
   },
@@ -85,7 +92,7 @@ export const entries = [
     github: null,
     class: "protect",
     policy: person("Only a person runs or skips a plugin check."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail("Only a person runs or skips a plugin check.", 403);
       return flipDecide(this.store, input, {
@@ -100,7 +107,7 @@ export const entries = [
     github: null,
     class: "observe",
     policy: routed,
-    handler() {
+    handler(this: Operations) {
       return stageResults(this.store);
     },
   },
