@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One dispatcher (worker-paths WP1): the tick is the only code that starts a
 // worker, and a person's manual claim the only other way a task gets one. A
 // Crew Mode workspace is held until a person lets the tick run it.
@@ -6,14 +5,15 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 import { deliveryPolicy } from "../delivery/delivery.ts";
 import { Operations } from "../api/operations.ts";
-import { Store } from "../store/store.ts";
+import { Store, type StatusError } from "../store/store.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { loopOn } from "./fixtures.ts";
+import type { ConflictsView, TickResult } from "./view-shapes.ts";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
@@ -25,8 +25,8 @@ const REQUEST = /\b(kirocrewRequest|startRequest|enqueueSessionRequests)\(/g;
 
 // The modules whose source asks for a session with role worker: a request
 // call whose argument, up to its closing parenthesis, names that role.
-function workerDispatchers(files) {
-  const found = [];
+function workerDispatchers(files: [string, string][]) {
+  const found: string[] = [];
   for (const [name, text] of files) {
     for (const match of text.matchAll(REQUEST)) {
       let depth = 0,
@@ -46,11 +46,13 @@ function workerDispatchers(files) {
 
 const sources = () =>
   fs
-    .readdirSync(APP, { recursive: true })
+    .readdirSync(APP, { recursive: true, encoding: "utf8" })
     .map((name) => name.split(path.sep).join("/"))
     .filter((name) => /\.(mjs|ts)$/.test(name) && !/(^|\/)test\//.test(name))
-    .map((name) => [name, path.join(APP, name)])
-    .map(([name, file]) => [name, fs.readFileSync(file, "utf8")]);
+    .map((name): [string, string] => [
+      name,
+      fs.readFileSync(path.join(APP, name), "utf8"),
+    ]);
 
 test("only the tick's planner writes a session request with role worker", () => {
   const found = workerDispatchers(sources());
@@ -65,7 +67,7 @@ test("only the tick's planner writes a session request with role worker", () => 
 });
 
 test("the check fails on a planted second dispatcher", () => {
-  const planted = [
+  const planted: [string, string][] = [
     ...sources(),
     [
       "second.mjs",
@@ -92,10 +94,10 @@ test('"runner": "tick" loads and is ignored; any other value is refused', () => 
   );
 });
 
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-function workspace(t, delivery) {
+function workspace(t: TestContext, delivery: Record<string, unknown>) {
   const root = temporaryDirectory("avoozl-held-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -136,9 +138,9 @@ function workspace(t, delivery) {
   return {
     root,
     ops,
-    tick: () => ops.execute("workspace.tick", { sessions: [] }),
+    tick: () => ops.execute<TickResult>("workspace.tick", { sessions: [] }),
     needsYou: async () =>
-      (await ops.execute("conflicts.view", {})).items.filter(
+      (await ops.execute<ConflictsView>("conflicts.view", {})).items.filter(
         (item) => item.reason === "crew-mode",
       ),
   };
@@ -171,7 +173,7 @@ test("Let the tick run it is a person's; it removes the key and the next tick st
         undefined,
         context,
       ),
-      (e) => e.status === 403,
+      (e: StatusError) => e.status === 403,
     );
   await w.ops.execute("delivery.runner.release", { expectedHash: item.hash });
   const file = JSON.parse(
@@ -190,6 +192,6 @@ test("a stale hash is refused", async (t) => {
   const w = workspace(t, { runner: "crew-mode" });
   await assert.rejects(
     w.ops.execute("delivery.runner.release", { expectedHash: "0".repeat(64) }),
-    (e) => e.status === 409,
+    (e: StatusError) => e.status === 409,
   );
 });
