@@ -35,9 +35,23 @@ export interface SessionBinding {
   statusAt?: string;
   served?: unknown;
   interrupted?: unknown;
-  report?: { kind?: string; at?: string; commit?: string } | null;
+  report?: {
+    kind?: string;
+    at?: string;
+    commit?: string;
+    review?: { verdict?: string };
+  } | null;
+  // The epic context a worker's brief carried (briefContext).
+  epicContext?: {
+    mode: string;
+    sources?: unknown;
+    items?: unknown;
+    tests?: EpicContextTest[];
+  };
   [key: string]: unknown;
 }
+// One epic-context test result (epic-context.ts).
+type EpicContextTest = { name: string; passed: boolean; why?: string };
 // What a caller asks to bind; every field is checked here.
 export type BindInput = {
   executor?: string;
@@ -114,7 +128,7 @@ function briefContext(
         given?: boolean;
         sources?: unknown;
         items?: unknown;
-        tests?: unknown;
+        tests?: EpicContextTest[];
       }
     >;
   }>("epicContext")?.tasks?.[taskId];

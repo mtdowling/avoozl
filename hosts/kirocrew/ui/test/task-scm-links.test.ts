@@ -1,13 +1,12 @@
-// @ts-nocheck: typing debt
 // The task Links box's words (R92.3, R92.5): check state names its head and
 // age, and a read for another head never reads as the current one.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { checksLine, scmLabel } from '../src/task-api.ts'
+import { checksLine, scmLabel, type ScmChecks } from '../src/task-api.ts'
 
 const NOW = Date.parse('2026-11-13T10:00:00Z')
-const checks = (over = {}) => ({
+const checks = (over: Partial<ScmChecks> = {}): ScmChecks => ({
   state: 'pass',
   head: 'a'.repeat(40),
   readAt: '2026-11-13T09:55:00Z',

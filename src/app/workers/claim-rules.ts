@@ -6,7 +6,7 @@
 type Graph = Record<string, string[]>;
 
 // One action a runner describes, by kind, with the facts its rule reads.
-interface Action {
+export interface Action {
   kind: string;
   checks?: string;
   specText?: boolean;
@@ -25,7 +25,7 @@ interface Action {
 }
 
 // The task text a lease records and the approved text now.
-interface TaskText {
+export interface TaskText {
   title?: unknown;
   acceptance?: unknown;
 }

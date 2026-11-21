@@ -9,17 +9,18 @@ import { checkCommand } from "../workspace/repository-checks.ts";
 import { promptVersions, roleTarget } from "../agents/prompts.ts";
 import { listSessionBindings } from "../sessions/session-bindings.ts";
 import { fail } from "../store/store.ts";
+import type { Store } from "../store/store.ts";
 import path from "node:path";
 import { specFolderPath } from "../specs/specs-path.ts";
 import { taskFile } from "../specs/spec-tasks.ts";
 
 // Claimed leaves for a readiness query. A read-only database from before the
 // session tables reads as having no claims.
-export function claimedOrNone(store) {
+export function claimedOrNone(store: Store): Set<string> {
   try {
     return busyTaskIds(store);
   } catch {
-    return new Set();
+    return new Set<string>();
   }
 }
 

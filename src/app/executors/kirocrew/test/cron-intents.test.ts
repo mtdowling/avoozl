@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Kiro Crew cron's tick call (MS1.3, MS12.1): it starts this machine's
 // tick pass, records what the cron observed, and returns what an earlier pass
 // released without waiting for repository work.
@@ -6,9 +5,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { McpMessage } from "../../../../mcp.ts";
 import { Operations } from "../../../api/operations.ts";
 import { listSessionBindings } from "../../../sessions/session-bindings.ts";
-import { enqueueSessionRequests } from "../../../sessions/session-requests.ts";
+import {
+  enqueueSessionRequests,
+  type RequestRow,
+  type SessionRequest,
+} from "../../../sessions/session-requests.ts";
 import { workspaceConfig } from "../../../settings/config.ts";
 import { WorkspaceRegistry } from "../../../settings/host-config.ts";
 import { Store } from "../../../store/store.ts";
@@ -17,8 +21,23 @@ import { initializeWorkspace } from "../../../workspace/workspace.ts";
 import { temporaryDirectory } from "../../../test/temporary.ts";
 import { createAppMcp } from "../app-mcp.ts";
 import { ownMachineEnv } from "../../../test/own-machine.ts";
+import { found } from "../../../test/view-shapes.ts";
 
-const tickCall = (input, cron = true) => ({
+type StartPass = NonNullable<
+  NonNullable<Parameters<typeof createAppMcp>[0]>["startPass"]
+>;
+type StartPassOptions = Parameters<StartPass>[0];
+type ToolReply = {
+  result: { content: { text: string }[]; isError?: boolean };
+};
+type RoutedRequest = RequestRow & { _avoozlWorkspaceId: string };
+type ClaimedStart = {
+  request: SessionRequest;
+  claimToken: string;
+  recovered?: boolean;
+};
+
+const tickCall = (input: Record<string, unknown>, cron = true) => ({
   jsonrpc: "2.0",
   id: 1,
   method: "tools/call",
@@ -31,7 +50,12 @@ const tickCall = (input, cron = true) => ({
   },
 });
 
-const cronCall = (id, name, action, input) => ({
+const cronCall = (
+  id: number,
+  name: string,
+  action: string,
+  input: Record<string, unknown>,
+): McpMessage => ({
   jsonrpc: "2.0",
   id,
   method: "tools/call",
@@ -65,7 +89,7 @@ async function scratch() {
     title: "task-2",
   });
   await ops.execute("session.bind", { taskId: "task-2", slot: "slot-2" });
-  const start = (task) => ({
+  const start = (task: string) => ({
     executor: "kirocrew",
     role: "worker",
     task,
@@ -84,15 +108,18 @@ async function scratch() {
 }
 
 const answer = async (
-  { config, env },
-  input,
+  { config, env }: Awaited<ReturnType<typeof scratch>>,
+  input: Record<string, unknown>,
   cron = true,
-  startPass = () => 123,
+  startPass: StartPass = () => 123,
 ) => {
   const mcp = createAppMcp({ fallback: config, env, startPass });
   try {
-    const reply = await mcp.handle(tickCall(input, cron));
-    return JSON.parse(reply.result.content[0].text);
+    // A JSON-RPC reply: the tool's answer is its first text content.
+    const reply = (await mcp.handle(tickCall(input, cron))) as {
+      result: { content: { text: string }[] };
+    } | null;
+    return JSON.parse(found(reply).result.content[0].text);
   } finally {
     mcp.close();
   }
@@ -100,7 +127,7 @@ const answer = async (
 
 test("the cron starts a machine pass, returns released work, and records observations", async () => {
   const w = await scratch();
-  const started = [];
+  const started: StartPassOptions[] = [];
   try {
     // Nothing is released until a tick says so.
     let intents = await answer(w, {}, true, (options) => {
@@ -110,8 +137,8 @@ test("the cron starts a machine pass, returns released work, and records observa
     assert.deepEqual(intents.dispatch, []);
     assert.equal(started.length, 1);
     assert.equal(
-      started[0].stateDirectory,
-      path.join(w.env.XDG_STATE_HOME, "avoozl"),
+      found(started[0]).stateDirectory,
+      path.join(found(w.env.XDG_STATE_HOME, "machine state home"), "avoozl"),
     );
 
     recordReleased(w.store, { dispatch: [w.request], messages: [] });
@@ -127,14 +154,14 @@ test("the cron starts a machine pass, returns released work, and records observa
       },
     );
     assert.deepEqual(
-      intents.dispatch.map((d) => d.id),
+      intents.dispatch.map((d: { id: string }) => d.id),
       [w.request.id],
     );
     assert.deepEqual(intents.observe, [
       { slot: "slot-2", taskId: "task-2", role: "worker" },
     ]);
     const bound = listSessionBindings(w.store).find((b) => b.slot === "slot-2");
-    assert.equal(bound.status, "idle");
+    assert.equal(bound?.status, "idle");
     assert.equal(started.length, 2);
     // This workspace is not in the machine's catalog, so no tick ran on it.
     assert.equal(tickHealth(w.store).lastRun, null);
@@ -145,7 +172,7 @@ test("the cron starts a machine pass, returns released work, and records observa
 
 test("the same cron recovers its claimed start after a process restart", async () => {
   const w = await scratch();
-  let mcp;
+  let mcp: ReturnType<typeof createAppMcp> | undefined;
   try {
     recordReleased(w.store, { dispatch: [w.request], messages: [] });
     mcp = createAppMcp({
@@ -156,7 +183,9 @@ test("the same cron recovers its claimed start after a process restart", async (
     const first = await mcp.handle(
       cronCall(1, "plans_maintain", "tick", { cron: true }),
     );
-    const firstBody = JSON.parse(first.result.content[0].text);
+    const firstBody = JSON.parse(
+      found((first as ToolReply | null)?.result.content[0]).text,
+    ) as { dispatch: RoutedRequest[] };
     assert.ok(Array.isArray(firstBody.dispatch), JSON.stringify(firstBody));
     const [request] = firstBody.dispatch;
     const claimed = await mcp.handle(
@@ -165,7 +194,9 @@ test("the same cron recovers its claimed start after a process restart", async (
         version: request.version,
       }),
     );
-    const original = JSON.parse(claimed.result.content[0].text);
+    const original = JSON.parse(
+      found((claimed as ToolReply | null)?.result.content[0]).text,
+    ) as ClaimedStart;
 
     // A completed pass no longer releases this already-claimed row. The next
     // invocation by its owning cron still receives it and its original token.
@@ -173,9 +204,12 @@ test("the same cron recovers its claimed start after a process restart", async (
     const again = await mcp.handle(
       cronCall(3, "plans_maintain", "tick", { cron: true }),
     );
-    const [recoveredRequest] = JSON.parse(
-      again.result.content[0].text,
+    const [recoveredRequest] = (
+      JSON.parse(
+        found((again as ToolReply | null)?.result.content[0]).text,
+      ) as { dispatch: RoutedRequest[] }
     ).dispatch;
+    assert.ok(recoveredRequest);
     assert.equal(recoveredRequest.id, request.id);
     const recovered = await mcp.handle(
       cronCall(4, "plans_executor", "take", {
@@ -183,7 +217,9 @@ test("the same cron recovers its claimed start after a process restart", async (
         version: recoveredRequest.version,
       }),
     );
-    const body = JSON.parse(recovered.result.content[0].text);
+    const body = JSON.parse(
+      found((recovered as ToolReply | null)?.result.content[0]).text,
+    ) as ClaimedStart;
     assert.equal(body.claimToken, original.claimToken);
     assert.equal(body.recovered, true);
   } finally {
@@ -197,7 +233,9 @@ test("a chat's tick call runs one pass for its own workspace", async () => {
   try {
     const results = await answer(w, {}, false);
     assert.deepEqual(
-      results.filter((r) => r.root).map((r) => [r.root, r.tick]),
+      results
+        .filter((r: { root?: string }) => r.root)
+        .map((r: { root: string; tick: string }) => [r.root, r.tick]),
       [[w.config.workspaceRoot, "ran"]],
     );
     assert.notEqual(tickHealth(w.store).lastRun, null);
@@ -209,9 +247,9 @@ test("a chat's tick call runs one pass for its own workspace", async () => {
 test("the cron returns and routes intents for every enabled workspace", async () => {
   const dir = temporaryDirectory("avoozl-cron-workspaces-"),
     env = ownMachineEnv(path.join(dir, "machine")),
-    roots = new Map(),
-    stores = new Map();
-  let mcp;
+    roots = new Map<string, string>(),
+    stores = new Map<string, Store>();
+  let mcp: ReturnType<typeof createAppMcp> | undefined;
   try {
     const registry = new WorkspaceRegistry({ env });
     try {
@@ -256,9 +294,12 @@ test("the cron returns and routes intents for every enabled workspace", async ()
       recordReleased(store, { dispatch: starts, messages: [] });
     }
 
-    const started = [];
+    const started: StartPassOptions[] = [];
     mcp = createAppMcp({
-      fallback: workspaceConfig({ workspace: roots.get("alpha"), env }),
+      fallback: workspaceConfig({
+        workspace: found(roots.get("alpha"), "alpha workspace"),
+        env,
+      }),
       env,
       startPass(options) {
         started.push(options);
@@ -268,16 +309,18 @@ test("the cron returns and routes intents for every enabled workspace", async ()
     const warm = await mcp.handle(
       cronCall(0, "plans_task", "sessions", { id: "shared-task" }),
     );
-    assert.equal(warm.result.isError, undefined);
+    assert.equal((warm as ToolReply | null)?.result.isError, undefined);
     const tick = await mcp.handle(tickCall({}));
-    const intents = JSON.parse(tick.result.content[0].text);
+    const intents = JSON.parse(
+      found((tick as ToolReply | null)?.result.content[0]).text,
+    ) as { dispatch: RoutedRequest[] };
     assert.equal(started.length, 1);
     assert.deepEqual(
       intents.dispatch.map((request) => request._avoozlWorkspaceId).sort(),
       ["alpha", "beta"],
     );
 
-    const claims = new Map();
+    const claims = new Map<string, ClaimedStart>();
     for (const [index, request] of intents.dispatch.entries()) {
       const workspaceId = request._avoozlWorkspaceId;
       const take = await mcp.handle(
@@ -287,17 +330,22 @@ test("the cron returns and routes intents for every enabled workspace", async ()
           _avoozlWorkspaceId: workspaceId,
         }),
       );
-      assert.equal(take.result.isError, undefined);
-      const claimed = JSON.parse(take.result.content[0].text);
+      assert.equal((take as ToolReply | null)?.result.isError, undefined);
+      const claimed = JSON.parse(
+        found((take as ToolReply | null)?.result.content[0]).text,
+      ) as ClaimedStart;
       claims.set(workspaceId, claimed);
       assert.equal(claimed.request.title, `avoozl:shared-task ${workspaceId}`);
       assert.equal(
-        stores.get(workspaceId).get("session_requests", request.id).state,
+        found(stores.get(workspaceId), `${workspaceId} store`).get<RequestRow>(
+          "session_requests",
+          request.id,
+        )?.state,
         "claimed",
       );
     }
 
-    const beta = claims.get("beta");
+    const beta = found(claims.get("beta"), "beta claim");
     const bind = await mcp.handle(
       cronCall(4, "plans_session", "bind", {
         taskId: "shared-task",
@@ -313,13 +361,19 @@ test("the cron returns and routes intents for every enabled workspace", async ()
         _avoozlWorkspaceId: "beta",
       }),
     );
-    assert.equal(bind.result.isError, undefined);
+    assert.equal((bind as ToolReply | null)?.result.isError, undefined);
     assert.equal(
-      stores.get("beta").get("session_bindings", "beta-slot").taskId,
+      found(stores.get("beta"), "beta store").get<{ taskId: string }>(
+        "session_bindings",
+        "beta-slot",
+      )?.taskId,
       "shared-task",
     );
     assert.equal(
-      stores.get("alpha").get("session_bindings", "beta-slot"),
+      found(stores.get("alpha"), "alpha store").get(
+        "session_bindings",
+        "beta-slot",
+      ),
       null,
     );
   } finally {

@@ -1,7 +1,6 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { retryDelivery } from "../delivery/delivery.ts";
-import { integrateRun } from "../git/git.ts";
+import { type IntegrateInput, integrateRun } from "../git/git.ts";
 import { readGitHubPolicyOrNull } from "../github/github-policy.ts";
 import {
   checkIntegrationBranch,
@@ -32,14 +31,15 @@ import {
   writeMachineLoop,
 } from "../tick/loop.ts";
 import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
 // This machine's loop for Settings › Autopilot; a file that cannot be read
 // says why instead.
-function machineLoopSettings(operations) {
+function machineLoopSettings(operations: Operations) {
   try {
     return { loop: readMachineLoop(loopFile(operations.configDirectory)) };
   } catch (error) {
-    return { loop: null, loopError: error.message };
+    return { loop: null, loopError: (error as Error).message };
   }
 }
 
@@ -51,7 +51,7 @@ export const entries = [
     class: "execute",
     github: "worker-grants",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const options = {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
@@ -73,7 +73,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person takes a task by hand."),
-    async handler({ input, context }) {
+    async handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.local !== true || context.caller || context.mcp)
@@ -98,7 +98,7 @@ export const entries = [
     class: "execute",
     github: "land",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (typeof input?.taskId !== "string" || !input.taskId)
         fail("Name the task: {taskId}.", 400);
       return landTask(this.store, input.taskId, {
@@ -120,8 +120,8 @@ export const entries = [
     class: "protect",
     github: "claim-delete",
     policy: person("Only a person deletes a claim branch."),
-    handler({ input }) {
-      return deleteClaim(this.store, this.github, input ?? {});
+    handler(this: Operations, { input }: OperationCall) {
+      return deleteClaim(this.store, this.github, input);
     },
   },
   // Let the tick run it (WP1.3): a person's, from the page or the CLI.
@@ -130,7 +130,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person lets the tick run this workspace."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail("Only a person lets the tick run this workspace.", 403);
       const file = this.settingsFile();
@@ -146,7 +146,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return {
         ...this.settingsFile().readDeliverySettings(),
         ...machineLoopSettings(this),
@@ -159,7 +159,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person changes delivery settings."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail(
           "Only a person changes delivery settings, in the Avoozl page.",
@@ -187,7 +187,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person lets a commit's protected paths land."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return allowProtectedPaths(store, input, {
         caller: context.caller,
@@ -202,7 +202,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       return retryDelivery(store, input, {
         caller: context.caller,
@@ -217,7 +217,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: notOnMcp("The tick delivers notifications itself."),
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return deliverNotifications(store, this.notifier);
     },
@@ -228,7 +228,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return {
         ...deliveryView(store, this.read(), {
@@ -249,7 +249,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return { claims: claimsView(this.store) };
     },
   },
@@ -260,7 +260,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: notOnMcp("A person reads the lanes with avoozl lanes or the page."),
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const policy = readDeliveryPolicy(this.workspaceRoot).delivery;
       if (!policy) return { lanes: [] };
       const paths = machineAvoozlPaths();
@@ -268,10 +268,15 @@ export const entries = [
         lanes: lanesView(
           this.store,
           policy,
-          laneWorkspace(this.workspaceRoot),
+          // A lane header names the workspace as text, null included.
+          String(laneWorkspace(this.workspaceRoot)),
           {
-            attach: (slot) =>
-              processSessionDetails([slot], paths).get(slot)?.attach ?? null,
+            attach: (slot) => {
+              const attach = processSessionDetails([slot], paths).get(
+                slot,
+              )?.attach;
+              return typeof attach === "string" ? attach : null;
+            },
           },
         ),
       };
@@ -283,7 +288,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person resumes a closed lane."),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       return resumeLane(this.store, input ?? {});
     },
   },
@@ -294,7 +299,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler() {
+    handler(this: Operations) {
       return { repositories: [] };
     },
   },
@@ -307,7 +312,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return integrationView(store);
     },
@@ -318,7 +323,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return landingView(store, this.read());
     },
@@ -334,14 +339,14 @@ export const entries = [
     class: "execute",
     github: "land",
     policy: person("Only a person releases a draft pull request."),
-    async handler({ input, context }) {
+    async handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail(
           "Only a person releases a draft pull request, in the Avoozl page or on GitHub.",
           403,
         );
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      return releaseDraft(this.store, this.github, input ?? {});
+      return releaseDraft(this.store, this.github, input);
     },
   },
   // Merge on a released pull request whose checks passed on the exact head
@@ -352,15 +357,15 @@ export const entries = [
     class: "protect",
     github: null,
     policy: person("Only a person merges a pull request Avoozl opened."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail(
           "Only a person merges a pull request Avoozl opened, in the Avoozl page or on GitHub.",
           403,
         );
-      const { commit, ...at } = input ?? {};
+      const { commit, ...at } = input;
       return approveMerge(this.store, at, {
-        commit,
+        commit: String(commit),
         by: context.local ? "cli" : this.operator || "dashboard",
       });
     },
@@ -371,7 +376,7 @@ export const entries = [
     class: "execute",
     github: "integration",
     policy: person("Only a person approves landing an integration branch."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.caller || context.mcp)
@@ -390,21 +395,18 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        entry = policy?.repositories?.[input.repository];
+        repository = String(input.repository ?? ""),
+        branch = String(input.branch ?? ""),
+        entry = policy?.repositories?.[repository];
       if (!input.repository || !input.branch)
         fail("Name the repository and the integration branch.", 400);
       if (!entry)
         fail(`${input.repository} is not a registered repository.`, 404);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
       return requireIntegrationBranch(
-        await checkIntegrationBranch(
-          this.github,
-          input.repository,
-          input.branch,
-          entry,
-        ),
+        await checkIntegrationBranch(this.github, repository, branch, entry),
       );
     },
   },
@@ -414,10 +416,11 @@ export const entries = [
     class: "protect",
     github: "integration",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
-      return integrateRun(store, input);
+      // The request's fields; integrateRun refuses an unknown run.
+      return integrateRun(store, input as IntegrateInput);
     },
   },
 ];

@@ -58,7 +58,7 @@ function cachedClaims(store) {
 }
 
 // Task IDs whose claim branch the cache holds.
-export function claimedTaskIds(store, tasks) {
+export function claimedTaskIds(store, tasks?: { id: string }[]) {
   const branches = cachedClaims(store);
   if (!branches.size) return new Set();
   return new Set(
@@ -330,7 +330,11 @@ export function claimsNeedsYou(store, now = Date.now()) {
 
 // A person's Delete branch: the claim branch only, in a registered
 // repository, as the high-risk claim-delete job.
-export async function deleteClaim(store, github, { repository, branch }) {
+export async function deleteClaim(
+  store,
+  github,
+  { repository, branch }: { repository?: unknown; branch?: unknown },
+) {
   const claim = parseClaimRef({ ref: `refs/heads/${branch ?? ""}` });
   if (!claim) fail("Name a claim branch: avoozl/<spec>/<task>.", 400);
   if (
@@ -464,7 +468,11 @@ export async function resumeClaim(
 // head before it, so it is not a fast-forward and is rejected. A rejected
 // takeover reads the head again and pushes on top of it. Returns the
 // takeover commit.
-export async function pushTakeover(root, branch, { env, tries = 3 } = {}) {
+export async function pushTakeover(
+  root,
+  branch,
+  { env, tries = 3 }: { env?: NodeJS.ProcessEnv; tries?: number } = {},
+) {
   const options = env ? { env } : {};
   for (let attempt = 1; ; attempt++) {
     await remoteGit(root, ["fetch", "-q", "origin", branch], options);

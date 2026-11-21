@@ -1,10 +1,10 @@
-// @ts-nocheck: typing debt
 // rc-16.3, rc-16.5 and rc-16.6: whole-head checks and acceptance on an epic's
 // integration branch, the stop that holds the epic's line, and the one
 // person-approved landing. Fake GitHub only: the fake has no call that merges
 // the branch into main, so a test would fail if the code tried.
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { linePausedTaskIds, openStops } from "../../flow/flow.ts";
 import {
   landBranch,
@@ -14,10 +14,14 @@ import {
 } from "../integration-head.ts";
 import { Operations } from "../../api/operations.ts";
 import { fixture } from "../../test/fixtures.ts";
+import type { Store, StatusError } from "../../store/store.ts";
+
+// One check run on the fake head.
+type Run = { name: string; status: string; conclusion?: string };
 
 const REPO = "example/code";
 const BRANCH = "rewrite/x";
-const sha = (n) => String(n).repeat(40).slice(0, 40);
+const sha = (n: number) => String(n).repeat(40).slice(0, 40);
 const policy = {
   mode: "single-repo",
   repositories: {
@@ -34,8 +38,10 @@ const target = {
   sync: "weekly",
 };
 
-function fake(state = {}) {
-  const s = { head: sha(1), checks: [], behind: 0, ...state };
+function fake(
+  state: Partial<{ head: string; checks: Run[]; behind: number }> = {},
+) {
+  const s = { head: sha(1), checks: [] as Run[], behind: 0, ...state };
   return {
     s,
     available: () => true,
@@ -49,14 +55,17 @@ function fake(state = {}) {
 const pass = { name: "build", status: "completed", conclusion: "success" };
 const fail = { name: "build", status: "completed", conclusion: "failure" };
 
-function workspace(t) {
+function workspace(t: TestContext) {
   const { store } = fixture(t);
   store.put("plans", { id: "rewrite", spec: "rewrite", state: "approved" });
   return store;
 }
-const step = (store, github, now = Date.now()) =>
-  headStep(store, github, [target], { policy, now });
-const view = (store) => integrationView(store).branches[0];
+const step = (
+  store: Store,
+  github: ReturnType<typeof fake>,
+  now = Date.now(),
+) => headStep(store, github, [target], { policy, now });
+const view = (store: Store) => integrationView(store).branches[0];
 
 test("a green head records acceptance naming it; a task merge moves the head and leaves it open", async (t) => {
   const store = workspace(t),
@@ -134,7 +143,7 @@ test("a read failure keeps the last entry, says so, and changes no stop", async 
   const result = await step(store, github);
   assert.equal(result.errors.length, 1);
   assert.equal(view(store).checks, "red");
-  assert.match(view(store).error, /down/);
+  assert.match(view(store).error ?? "", /down/);
   assert.equal(openStops(store).length, 1);
 });
 
@@ -159,7 +168,7 @@ test("landing: a row when the head is green and caught up, an approval for that 
   assert.equal(record.approvedBy, "dashboard");
   assert.equal(view(store).landing.head, head);
   // The row now says to merge it on GitHub; a second approval is refused.
-  assert.match(landingNeedsYou(store)[0].title, /merge it on GitHub/);
+  assert.match(String(landingNeedsYou(store)[0].title), /merge it on GitHub/);
   assert.throws(
     () =>
       landBranch(
@@ -185,7 +194,8 @@ test("an approval for an older head is refused, and a moved head needs a new one
         { repository: REPO, branch: BRANCH, head: old },
         { by: "dashboard" },
       ),
-    (error) => error.status === 409 && /Review it again/.test(error.message),
+    (error: StatusError) =>
+      error.status === 409 && /Review it again/.test(error.message),
   );
   landBranch(
     store,
@@ -225,11 +235,17 @@ test("landing is a person's: refused over MCP and for an agent, allowed for the 
     /person/,
   );
   await assert.rejects(
-    ops.execute("integration.land", input, undefined, { caller: "s" }),
+    ops.execute("integration.land", input, undefined, {
+      caller: { sessionKey: "s" },
+    }),
     /person/,
   );
   assert.equal(view(store).landing, null);
-  assert.equal((await ops.execute("integration.view", {})).branches.length, 1);
+  assert.equal(
+    (await ops.execute<{ branches: unknown[] }>("integration.view", {}))
+      .branches.length,
+    1,
+  );
   await ops.execute("integration.land", input);
   assert.equal(view(store).landing.head, input.head);
 });

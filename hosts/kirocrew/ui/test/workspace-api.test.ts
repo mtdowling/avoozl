@@ -1,22 +1,10 @@
-// @ts-nocheck: typing debt
 // Runs under node's type stripping: `node --test hosts/kirocrew/ui/test`.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH, errorMessage, workspaceClient } from '../src/workspace-api.ts'
+import { fakeApi } from './fake-api.ts'
 
 // A stand-in for the host's useAppApi() that records each POST.
-function fakeApi(reply) {
-  const calls = []
-  return {
-    calls,
-    api: {
-      post: async (path, body) => {
-        calls.push({ path, body })
-        return { result: reply(body) }
-      },
-    },
-  }
-}
 
 test('workspace client sends each operation to the backend command route', async () => {
   const { api, calls } = fakeApi((body) => (body.operation === 'repositories.list' ? { items: [{ id: 'app' }] } : { ok: body.operation }))
@@ -52,9 +40,10 @@ test('errors show the backend sentence, else the status', () => {
 
 test('pickDefault keeps a live choice and falls back to the served workspace', async () => {
   const { pickDefault } = await import('../src/workspace-api.ts')
+  const workspace = (id: string, served = false) => ({ id, name: id, root: `/w/${id}`, enabled: true, state: 'ready', served })
   const list = {
     defaultWorkspace: 'b',
-    items: [{ id: 'a' }, { id: 'b' }, { id: 'c', served: true }],
+    items: [workspace('a'), workspace('b'), workspace('c', true)],
   }
   assert.equal(pickDefault(list, 'a'), 'a')
   assert.equal(pickDefault(list, 'gone'), 'c')
@@ -63,8 +52,8 @@ test('pickDefault keeps a live choice and falls back to the served workspace', a
 
 test('page state round-trips and survives bad or blocked storage', async () => {
   const { PAGE_STATE_KEY, readPageState, writePageState } = await import('../src/workspace-api.ts')
-  const store = new Map()
-  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
+  const store = new Map<string, string>()
+  const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) }
   writePageState(storage, { workspaceId: 'w1' })
   assert.deepEqual(readPageState(storage), { workspaceId: 'w1' })
   store.set(PAGE_STATE_KEY, '{not json')
@@ -81,7 +70,7 @@ test('page state round-trips and survives bad or blocked storage', async () => {
 test('a tab saved by any earlier page is not restored, so the page opens on the Dashboard', async () => {
   const { PAGE_STATE_KEY, readPageState } = await import('../src/workspace-api.ts')
   for (const tab of ['workspace', 'settings', 'graph']) {
-    const storage = { getItem: (k) => (k === PAGE_STATE_KEY ? JSON.stringify({ tab, workspaceId: 'w1' }) : null) }
+    const storage = { getItem: (k: string) => (k === PAGE_STATE_KEY ? JSON.stringify({ tab, workspaceId: 'w1' }) : null) }
     assert.deepEqual(readPageState(storage), { workspaceId: 'w1' })
   }
 })

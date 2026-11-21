@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The left nav and the top card follow Issue Radar's sidebar, measured on a
 // Kiro Crew host (2026-11-15): a 42 px top card (its repository) on a desktop,
 // cards with 12 px corners, rows with 8 px corners and 13 px text. Every
@@ -8,17 +7,15 @@
 // dark, on the harness page.
 // Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Radar heights test'
 
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 // Radar's own headers are 38 px and its items 32 px; ours are 32 px: a 28 px
 // row with 2px more above and below (the owner's ask, 2026-11-16).
@@ -29,7 +26,20 @@ for (const theme of ['light', 'dark']) {
     await page.open(harness.url({ app: '1', theme }), { width: 1280, height: 800, dark: theme === 'dark' })
     await page.until(`Boolean(document.querySelector('[data-brand-card]') && document.querySelector('[data-nav-section]'))`)
     const read = () =>
-      page.evaluate(`(() => {
+      page.evaluate<{
+        cards: number
+        cardRadius: number[]
+        cardBorder: number[]
+        heads: number[]
+        headFont: number[]
+        headCase: string[]
+        items: number[]
+        itemRadius: number[]
+        itemFont: number[]
+        open: string[]
+        chevrons: number
+        order: string[]
+      }>(`(() => {
       const cards = [...document.querySelectorAll('[data-nav-section]')]
       const heads = cards.map((c) => c.querySelector('[data-nav-head]'))
       const cs = (el) => getComputedStyle(el)
@@ -49,7 +59,7 @@ for (const theme of ['light', 'dark']) {
         order: [...document.querySelectorAll('[data-left-nav] [data-nav-accordion], [data-left-nav] [data-nav-line], [data-left-nav] [data-brand-card]')].map((el) => el.hasAttribute('data-nav-accordion') ? 'nav' : el.hasAttribute('data-nav-line') ? 'line' : 'brand'),
       }
     })()`)
-    const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+    const click = (selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
     // Settings opens in the nav, with its sections as items.
     await click('[data-nav-group="settings"]')
     await page.until(`Boolean(document.querySelector('[data-nav-children="settings"]'))`)
@@ -76,7 +86,7 @@ for (const theme of ['light', 'dark']) {
   test(`at 390 px ${theme} the phone's top card: a 28 px button with the page name and the open-the-list icon`, { skip }, async () => {
     await page.open(harness.url({ app: '1', theme }), { width: 390, height: 844, dark: theme === 'dark' })
     await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
-    const got = await page.evaluate(`(() => {
+    const got = await page.evaluate<{ height: number; radius: number; iconAtRight: boolean }>(`(() => {
       const bar = document.querySelector('[data-top-rail-bar]')
       const icon = bar.lastElementChild.getBoundingClientRect(), r = bar.getBoundingClientRect()
       return { height: Math.round(r.height), radius: parseFloat(getComputedStyle(bar).borderTopLeftRadius), iconAtRight: r.right - icon.right < 16 }

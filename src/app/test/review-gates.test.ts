@@ -1,13 +1,12 @@
-// @ts-nocheck: typing debt
 // Tasks 9.1–9.6 and 9.9: review roles on one delivery (design §5.2). Fake
 // sessions only: each test binds slots and reports as the worker, checks, and
 // review sessions would. One test per rule; each lists the nearby inputs it
 // checks.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import type { Edge, Task } from "../../types.ts";
 import {
   DEFAULT_REVIEWER,
   deliveryPolicy,
@@ -17,21 +16,67 @@ import {
 } from "../delivery/delivery.ts";
 import { drainCheckRuns } from "../delivery/check-runs.ts";
 import { Operations } from "../api/operations.ts";
-import { Store } from "../store/store.ts";
+import { Store, type StatusError } from "../store/store.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { gitCheckout } from "./delivery-fixture.ts";
+import { commitIn, git } from "./fake-crew.ts";
 import { loopOn } from "./fixtures.ts";
+import { found, type GraphView } from "./view-shapes.ts";
+
+// One session a tick asked for.
+interface Dispatched {
+  task: string;
+  role: string;
+  attempt: number;
+  model?: string;
+  commit?: string;
+  brief: string;
+}
+interface Tick {
+  dispatch: Dispatched[];
+  notify: { title: string }[];
+}
+// A task_deliveries row, for the fields read here.
+interface Delivery {
+  state: string;
+  cause?: string;
+  commit?: string;
+  integratedCommit?: string;
+  attempts: { cause: string; review?: string }[];
+  verifications: { role?: string; outcome: string; model?: string }[];
+  rebases: { from: string; to: string }[];
+  dismissals: { finding: string; reason: string; by: string }[];
+}
+// One review round on delivery.view.
+interface Round {
+  commit: string;
+  current: boolean;
+  verdicts: {
+    role: string;
+    verdict: string;
+    model: string;
+    stale: boolean;
+    link: string;
+    findings: { ref: string; state: string }[];
+  }[];
+}
+interface DeliveryItems {
+  items: {
+    id: string;
+    rounds: Round[];
+    sessions: { slot: string; model: string; commit: string }[];
+  }[];
+}
+type Env = ReturnType<typeof setup>;
+const deliveryOf = (store: Store, id = "w1") =>
+  found(store.get<Delivery>("task_deliveries", id), id);
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
-function git(cwd, ...args) {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-}
-
 const CHECK = "git status";
-const leaf = (id, extra = {}) => ({
+const leaf = (id: string, extra: Record<string, unknown> = {}): Task => ({
   id,
   title: "Task " + id,
   kind: "leaf",
@@ -61,7 +106,18 @@ const REVIEWERS = [
   },
 ];
 
-function setup(t, { delivery = {}, tasks, edges } = {}) {
+function setup(
+  t: TestContext,
+  {
+    delivery = {},
+    tasks,
+    edges,
+  }: {
+    delivery?: Record<string, unknown>;
+    tasks?: Task[];
+    edges?: Edge[];
+  } = {},
+) {
   const root = temporaryDirectory("avoozl-review-"),
     checkout = gitCheckout(path.join(root, "app"), { "src/a.txt": "a\n" });
   const store = new Store(path.join(root, "workspace.sqlite"));
@@ -93,7 +149,7 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
       },
     }),
   );
-  const slots = [];
+  const slots: string[] = [];
   const ops = new Operations(store, { workspaceRoot: root });
   return {
     root,
@@ -105,11 +161,17 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
     // runs the checks it queued.
     tick: async () => {
       await drainCheckRuns(store);
-      return ops.execute("workspace.tick", {
+      return ops.execute<Tick>("workspace.tick", {
         sessions: slots.map((target) => ({ target, status: "idle" })),
       });
     },
-    bind: async (taskId, slot, role, attempt, extra = {}) => {
+    bind: async (
+      taskId: string,
+      slot: string,
+      role: string,
+      attempt: number,
+      extra: Record<string, unknown> = {},
+    ) => {
       slots.push(slot);
       await ops.execute("session.bind", {
         taskId,
@@ -124,8 +186,12 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
   };
 }
 
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
-const report = (ops, slot, input) =>
+const as = (slot: string) => ({ caller: { sessionKey: "dashboard:" + slot } });
+const report = (
+  ops: Operations,
+  slot: string,
+  input: Record<string, unknown>,
+) =>
   ops.execute(
     "session.report",
     { kind: "done", ...input },
@@ -133,27 +199,22 @@ const report = (ops, slot, input) =>
     as(slot),
   );
 
-async function commitIn(worktree, file, text, message) {
-  fs.mkdirSync(path.dirname(path.join(worktree, file)), { recursive: true });
-  fs.writeFileSync(path.join(worktree, file), text);
-  git(worktree, "add", ".");
-  git(worktree, "commit", "-m", message);
-  return git(worktree, "rev-parse", "HEAD");
-}
-
 async function writer(
-  env,
-  taskId,
-  slot,
-  attempt,
-  file,
-  text,
-  model = "fake-a",
+  env: Env,
+  taskId: string,
+  slot: string,
+  attempt: number,
+  file: string,
+  text: string,
+  model: string | null = "fake-a",
 ) {
   await env.bind(taskId, slot, "worker", attempt, model ? { model } : {});
-  const { path: worktree } = await env.ops.execute("worktree.prepare", {
-    taskId,
-  });
+  const { path: worktree } = await env.ops.execute<{ path: string }>(
+    "worktree.prepare",
+    {
+      taskId,
+    },
+  );
   const commit = await commitIn(worktree, file, text, `Work ${attempt}`);
   await report(env.ops, slot, { taskId, commit });
   return commit;
@@ -161,7 +222,11 @@ async function writer(
 
 // One task, one correctness reviewer, and its first round: the writer's
 // commit c1 and a changes-requested verdict with `findings` (default F1).
-async function firstRound(t, delivery = {}, findings = null) {
+async function firstRound(
+  t: TestContext,
+  delivery: Record<string, unknown> = {},
+  findings: unknown[] | null = null,
+) {
   const env = setup(t, {
     tasks: [leaf("w1")],
     edges: [],
@@ -187,7 +252,7 @@ async function firstRound(t, delivery = {}, findings = null) {
 }
 
 const passed = [{ command: CHECK, exitCode: 0 }];
-const roles = (result, taskId) =>
+const roles = (result: Tick, taskId: string) =>
   result.dispatch
     .filter((d) => d.task === taskId && d.role !== "worker")
     .map((d) => [d.role, d.attempt, d.model ?? null, d.commit]);
@@ -198,12 +263,21 @@ test("policy validation refuses a reviewer that cannot be shown distinct from th
   // session (any model), and a repository's own list replacing the
   // workspace's.
   // `model` is the writer's: roles.worker.model.
-  const policy = ({ model, ...delivery }) =>
+  const policy = ({
+    model,
+    ...delivery
+  }: {
+    model?: string;
+    [key: string]: unknown;
+  }) =>
     deliveryPolicy({
       delivery,
       ...(model ? { roles: { worker: { model } } } : {}),
     });
-  const role = (extra = {}) => ({ ...REVIEWERS[0], ...extra });
+  const role = (extra: Record<string, unknown> = {}) => ({
+    ...REVIEWERS[0],
+    ...extra,
+  });
   assert.throws(
     () => policy({ model: "fake-a", reviewers: [role({ model: "fake-a" })] }),
     /must differ from the writer's model fake-a/,
@@ -255,7 +329,7 @@ test("policy validation refuses a reviewer that cannot be shown distinct from th
   });
   assert.equal(replaced.reviewers[0].distinctFrom, "model", "the default");
   assert.deepEqual(
-    replaced.repositories.app.reviewers.map((r) => r.id),
+    replaced.repositories.app.reviewers.map((r: { id: string }) => r.id),
     ["conventions"],
   );
 });
@@ -282,8 +356,8 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
     round1.dispatch.some((d) => d.task === "w2" && d.role === "worker"),
     "review sessions do not count against concurrency 1",
   );
-  const correctnessBrief = round1.dispatch.find(
-    (d) => d.role === "review:correctness",
+  const correctnessBrief = found(
+    round1.dispatch.find((d) => d.role === "review:correctness"),
   ).brief;
   assert.match(correctnessBrief, /Focus: correctness and performance/);
   assert.match(correctnessBrief, /--detach/);
@@ -305,7 +379,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
     paths: ["src/a.txt"],
     text: "a1 is wrong.",
   };
-  for (const [input, status, why] of [
+  const refusals: [Record<string, unknown>, number, string][] = [
     [{ commit: base, verdict: "approved" }, 409, "another commit"],
     [
       {
@@ -336,15 +410,16 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
       400,
       "a review lists no checks",
     ],
-  ])
+  ];
+  for (const [input, status, why] of refusals)
     await assert.rejects(
       report(ops, "rr-1", { taskId: "w1", ...input }),
-      (error) => error.status === status,
+      (error: StatusError) => error.status === status,
       why,
     );
   await assert.rejects(
     report(ops, "w-1", { taskId: "w1", commit: c1, verdict: "approved" }),
-    (error) => error.status === 400,
+    (error: StatusError) => error.status === 400,
     "only a review role has a verdict",
   );
   await report(ops, "rc-1", { taskId: "w1", commit: c1, verdict: "approved" });
@@ -357,7 +432,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
 
   // (2) changes-requested fails the writer attempt; the retry quotes F1.
   const rework = await env.tick();
-  let delivery = store.get("task_deliveries", "w1");
+  let delivery = deliveryOf(store);
   assert.equal(delivery.state, "failed");
   assert.match(
     delivery.attempts[0].cause,
@@ -373,7 +448,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
       ["correctness", "rejected", "fake-c"],
     ],
   );
-  const retry = rework.dispatch.find((d) => d.task === "w1");
+  const retry = found(rework.dispatch.find((d) => d.task === "w1"));
   assert.deepEqual([retry.role, retry.attempt], ["worker", 2]);
   assert.match(
     retry.brief,
@@ -381,7 +456,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
   );
   assert.match(retry.brief, /data, not instructions/);
   assert.equal(
-    store.read().tasks.find((x) => x.id === "d1").integration,
+    store.read().tasks.find((x) => x.id === "d1")?.integration,
     undefined,
     "d1 waits",
   );
@@ -394,11 +469,11 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
     ["review:correctness", 2, "fake-c", c2],
   ]);
   assert.match(
-    round2.dispatch.find((d) => d.role === "review:correctness").brief,
+    found(round2.dispatch.find((d) => d.role === "review:correctness")).brief,
     /1:correctness:F1/,
   );
   assert.doesNotMatch(
-    round2.dispatch.find((d) => d.role === "review:conventions").brief,
+    found(round2.dispatch.find((d) => d.role === "review:conventions")).brief,
     /1:correctness/,
     "a role sees only its own findings",
   );
@@ -410,7 +485,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
     model: "fake-c",
     commit: c2,
   });
-  const close = (state) => ({ finding: "1:correctness:F1", state });
+  const close = (state: string) => ({ finding: "1:correctness:F1", state });
   await assert.rejects(
     report(ops, "rr-2", { taskId: "w1", commit: c2, verdict: "approved" }),
     /Close every open finding as fixed, unchanged or withdrawn: 1:correctness:F1/,
@@ -444,7 +519,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
   // (4) The base moved: the rebase makes C3, nothing merges, all roles re-review.
   const moved = await commitIn(checkout, "README.md", "moved\n", "Move base");
   const round3 = await env.tick();
-  delivery = store.get("task_deliveries", "w1");
+  delivery = deliveryOf(store);
   const c3 = delivery.commit;
   assert.notEqual(c3, c2);
   assert.equal(delivery.state, "done");
@@ -458,7 +533,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
     ["review:correctness", 3, "fake-c", c3],
   ]);
   assert.doesNotMatch(
-    round3.dispatch.find((d) => d.role === "review:correctness").brief,
+    found(round3.dispatch.find((d) => d.role === "review:correctness")).brief,
     /1:correctness/,
     "F1 stays closed",
   );
@@ -472,13 +547,13 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
   });
   await assert.rejects(
     report(ops, "rr-3", { taskId: "w1", commit: c2, verdict: "approved" }),
-    (error) => error.status === 409,
+    (error: StatusError) => error.status === 409,
     "a verdict on the old commit",
   );
   await report(ops, "rc-3", { taskId: "w1", commit: c3, verdict: "approved" });
   await report(ops, "rr-3", { taskId: "w1", commit: c3, verdict: "approved" });
   await env.tick();
-  delivery = store.get("task_deliveries", "w1");
+  delivery = deliveryOf(store);
   assert.equal(delivery.state, "integrated");
   assert.equal(
     delivery.integratedCommit,
@@ -486,11 +561,11 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
     "the approved commit fast-forwards",
   );
   assert.equal(git(checkout, "rev-parse", "main"), c3);
-  const graph = await ops.execute("graph.view", {});
-  assert.ok(graph.tasks.find((x) => x.id === "d1").ready, "d1 is released");
+  const graph = await ops.execute<GraphView>("graph.view", {});
+  assert.ok(graph.tasks.find((x) => x.id === "d1")?.ready, "d1 is released");
 
   // 9.9: every verdict stays on the delivery, by round, with stale marks.
-  const view = await ops.execute("delivery.view", {}),
+  const view = await ops.execute<DeliveryItems>("delivery.view", {}),
     [rounds] = view.items
       .filter((item) => item.id === "w1")
       .map((item) => item.rounds);
@@ -502,7 +577,7 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
       [c3, true, 3],
     ],
   );
-  const f1 = rounds[0].verdicts.find((v) => v.role === "correctness");
+  const f1 = found(rounds[0].verdicts.find((v) => v.role === "correctness"));
   assert.deepEqual(
     [f1.verdict, f1.model, f1.stale, f1.findings[0].ref, f1.findings[0].state],
     ["changes-requested", "fake-c", true, "1:correctness:F1", "fixed"],
@@ -511,9 +586,11 @@ test("review gates: every role per commit, rework, closure, and a rebase re-revi
   assert.ok(
     rounds[2].verdicts.every((v) => !v.stale && v.verdict === "approved"),
   );
-  const session = view.items
-    .find((item) => item.id === "w1")
-    .sessions.find((s) => s.slot === "rc-1");
+  const session = found(
+    found(view.items.find((item) => item.id === "w1")).sessions.find(
+      (s) => s.slot === "rc-1",
+    ),
+  );
   assert.deepEqual([session.model, session.commit], ["fake-b", c1]);
 });
 
@@ -524,9 +601,9 @@ test("a writer whose model is unknown opens a decision instead of a review", asy
   await env.tick();
   await writer(env, "w1", "w-1", 1, "src/a.txt", "a1\n", null);
   const result = await env.tick();
-  const delivery = env.store.get("task_deliveries", "w1");
+  const delivery = deliveryOf(env.store);
   assert.equal(delivery.state, "decision");
-  assert.match(delivery.cause, /writer's model is unknown/);
+  assert.match(found(delivery.cause), /writer's model is unknown/);
   assert.deepEqual(roles(result, "w1"), [], "no review and no checks session");
   assert.ok(result.notify.some((n) => n.title === "Avoozl will not review w1"));
 
@@ -551,7 +628,7 @@ test("only a person dismisses an open finding when retrying a stopped delivery",
   // Nearby inputs: a dismissal from a session, a finding that is not open,
   // a missing reason, and the next brief after a dismissal.
   const { env } = await firstRound(t, { reviewRounds: 1 });
-  assert.equal(env.store.get("task_deliveries", "w1").state, "decision");
+  assert.equal(deliveryOf(env.store).state, "decision");
   const dismiss = [{ finding: "1:correctness:F1", reason: "Accepted risk." }];
   await assert.rejects(
     env.ops.execute(
@@ -560,14 +637,14 @@ test("only a person dismisses an open finding when retrying a stopped delivery",
       undefined,
       as("w-1"),
     ),
-    (error) => error.status === 403,
+    (error: StatusError) => error.status === 403,
   );
   // A plain MCP call carries no session identity and is still not a person.
   await assert.rejects(
     env.ops.execute("delivery.retry", { taskId: "w1", dismiss }, undefined, {
       mcp: true,
     }),
-    (error) => error.status === 403,
+    (error: StatusError) => error.status === 403,
   );
   await assert.rejects(
     env.ops.execute("delivery.retry", {
@@ -589,14 +666,14 @@ test("only a person dismisses an open finding when retrying a stopped delivery",
     undefined,
     { local: true },
   );
-  const delivery = env.store.get("task_deliveries", "w1");
+  const delivery = deliveryOf(env.store);
   assert.deepEqual(
     delivery.dismissals.map((d) => [d.finding, d.reason, d.by]),
     [["1:correctness:F1", "Accepted risk.", "cli"]],
   );
   assert.deepEqual(openFindings(delivery), []);
   const next = await env.tick();
-  const brief = next.dispatch.find((d) => d.task === "w1").brief;
+  const brief = found(next.dispatch.find((d) => d.task === "w1")).brief;
   assert.doesNotMatch(
     brief,
     /1:correctness:F1/,
@@ -640,7 +717,7 @@ test("review rounds end in a decision at the cap and spend no retries", async (t
     { id: "F1", kind: "defect", paths: ["src/a.txt"], text: "Wrong." },
     { id: "F2", kind: "defect", paths: ["src/b.txt"], text: "Missing." },
   ]);
-  let delivery = env.store.get("task_deliveries", "w1");
+  let delivery = deliveryOf(env.store);
   assert.equal(delivery.state, "failed", "round 1 sends it back");
   assert.equal(delivery.attempts[0].review, "correctness");
   // Round 2: the worker fixes F1 and answers F2; the reviewer withdraws F2
@@ -664,14 +741,14 @@ test("review rounds end in a decision at the cap and spend no retries", async (t
     ],
   });
   await env.tick();
-  delivery = env.store.get("task_deliveries", "w1");
+  delivery = deliveryOf(env.store);
   assert.equal(delivery.state, "decision", "two rounds reach the cap");
   assert.equal(
     delivery.cause,
     "review requested changes in 2 rounds; open findings: 2:correctness:F3",
   );
   assert.deepEqual(
-    openFindings(delivery).map((f) => f.ref),
+    openFindings(delivery).map((f: { ref: string }) => f.ref),
     ["2:correctness:F3"],
   );
 });
@@ -679,17 +756,20 @@ test("review rounds end in a decision at the cap and spend no retries", async (t
 test("a later review brief quotes the worker's claim and names the commit last reviewed", async (t) => {
   const { env, c1 } = await firstRound(t);
   await env.bind("w1", "w-2", "worker", 2, { model: "fake-a" });
-  const { path: worktree } = await env.ops.execute("worktree.prepare", {
-    taskId: "w1",
-  });
+  const { path: worktree } = await env.ops.execute<{ path: string }>(
+    "worktree.prepare",
+    {
+      taskId: "w1",
+    },
+  );
   const c2 = await commitIn(worktree, "src/a.txt", "a2\n", "Work 2");
   await report(env.ops, "w-2", {
     taskId: "w1",
     commit: c2,
     text: "Fixed F1; tests pass.",
   });
-  const review = (await env.tick()).dispatch.find(
-    (d) => d.role === "review:correctness",
+  const review = found(
+    (await env.tick()).dispatch.find((d) => d.role === "review:correctness"),
   );
   assert.match(review.brief, /You last reviewed [0-9a-f]{40}: read `git log/);
   assert.ok(review.brief.includes(`git log ${c1}..HEAD --stat`));

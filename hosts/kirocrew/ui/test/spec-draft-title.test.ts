@@ -1,22 +1,21 @@
-// @ts-nocheck: typing debt
 // A draft spec's row has no Draft badge: its title is in the muted theme
 // color (AA contrast in light and dark), the word Draft stays for screen
 // readers and as a tooltip, and a legend line explains the grey. Other
 // badges stay. Real Chrome; skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 // WCAG contrast of each title's color on the backdrop behind it (opaque
 // ancestor backgrounds mixed from the first opaque one down).
+// Each spec row as drawn: its name, chip, title and how it reads.
+type Row = { name: string; chip: string; draftTitle: boolean; tooltip: string | null; hidden: boolean; pillText: boolean; ratio: number; color: string }
 const READ = `(() => {
   const rgb = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 } }
   const lum = ({ r, g, b }) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
@@ -42,7 +41,7 @@ for (const theme of ['light', 'dark'])
   test(`draft rows show a muted title with no badge, AA contrast, and a legend (${theme})`, { skip }, async () => {
     await page.open(harness.url({ page: 'specs', theme }), { width: 1280, height: 900, dark: theme === 'dark' })
     await page.until(`Boolean(document.querySelector('[data-spec-list] [data-plan-row]'))`)
-    const rows = await page.evaluate(READ)
+    const rows = await page.evaluate<Row[]>(READ)
     const drafts = rows.filter((r) => r.chip === 'draft')
     const others = rows.filter((r) => r.chip !== 'draft')
     assert.ok(drafts.length > 0, 'the fixture has drafts')
@@ -66,7 +65,7 @@ for (const theme of ['light', 'dark'])
     // The selected row's tint keeps the contrast too.
     await page.evaluate(`document.querySelector('[data-plan-row][data-spec-chip="draft"]').click()`)
     await page.evaluate('new Promise((r) => setTimeout(r, 300))')
-    const picked = (await page.evaluate(READ)).find((r) => r.chip === 'draft')
-    assert.ok(picked.ratio >= 4.5, `selected title contrast ${picked.ratio}`)
+    const picked = (await page.evaluate<Row[]>(READ)).find((r) => r.chip === 'draft')
+    assert.ok(picked && picked.ratio >= 4.5, `selected title contrast ${picked?.ratio}`)
     assert.deepEqual(page.errors, [])
   })

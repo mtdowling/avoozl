@@ -1,9 +1,9 @@
-// @ts-nocheck: typing debt
 // Pushing a landing's exact commit (push-head.mjs): relationships, forks,
 // the content scan and no push credentials for agents. Every repository here
 // is a local scratch repository: an upstream, two forks and a checkout.
 // Nothing reaches GitHub.
 import test from "node:test";
+import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -20,13 +20,14 @@ import {
   verifyRelationship,
 } from "../push-head.ts";
 
-const checkpointBranch = (spec, task) => `avoozl/${spec}/task/${task}`;
+const checkpointBranch = (spec: string, task: string) =>
+  `avoozl/${spec}/task/${task}`;
 
 // Made-up names only.
 const MACHINE = { hostname: "made-up-host", username: "madeupuser" };
 const SPEC = "5f1c0e7a9b2d4c68";
 
-async function scratch(t) {
+async function scratch(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-heads-"));
   t.after(() =>
     fs.rmSync(root, {
@@ -36,8 +37,8 @@ async function scratch(t) {
       retryDelay: 100,
     }),
   );
-  const at = (name) => path.join(root, name);
-  const identity = async (dir) => {
+  const at = (name: string) => path.join(root, name);
+  const identity = async (dir: string) => {
     await git(dir, ["config", "user.name", "Fixture"]);
     await git(dir, ["config", "user.email", "fixture@example.invalid"]);
   };
@@ -69,13 +70,18 @@ async function scratch(t) {
     "bob/app": { url: at("bob.git"), parent: "acme/app" },
   });
   // A contributor's own clone of a fork, to push work there as a person.
-  const contributor = async (name, fork) => {
+  const contributor = async (name: string, fork: string) => {
     const dir = at(name);
     await git(root, ["clone", "-q", at(fork), dir]);
     await identity(dir);
     return dir;
   };
-  const commit = async (dir, file, text, message = `Change ${file}`) => {
+  const commit = async (
+    dir: string,
+    file: string,
+    text: string,
+    message = `Change ${file}`,
+  ) => {
     fs.writeFileSync(path.join(dir, file), text);
     await git(dir, ["add", "."]);
     await git(dir, ["commit", "-q", "-m", message]);
@@ -86,7 +92,7 @@ async function scratch(t) {
 }
 
 const target = { repository: "acme/app", base: "main" };
-const ref = (repository, branch, commit) =>
+const ref = (repository: string, branch: string, commit: string) =>
   qualifiedRef({ source: { repository, branch, commit }, target });
 
 test("relationships: same repository, registered fork, GitHub fork, else refused", async () => {
@@ -98,7 +104,7 @@ test("relationships: same repository, registered fork, GitHub fork, else refused
     }),
     sha = "c".repeat(40),
     github = {
-      repository: async (name) =>
+      repository: async (name: string) =>
         name === "carol/app"
           ? { fork: true, parent: { full_name: "acme/app" } }
           : { fork: false },
@@ -168,7 +174,7 @@ test("a fork contributor checkpoints with no upstream copy and no upstream write
   );
   // Source push rights and target merge rights are separate.
   const github = {
-    permission: async (repository) => ({
+    permission: async (repository: string) => ({
       permission: repository === "alice/app" ? "admin" : "read",
     }),
   };

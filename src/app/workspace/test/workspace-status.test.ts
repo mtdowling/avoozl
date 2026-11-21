@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `avoozl status` with a workspace named by --workspace or AVOOZL_WORKSPACE
 // reports that workspace, registered on this machine or not, beside the
 // machine view. Naming a workspace is never ignored.
@@ -19,16 +18,18 @@ const CLI = fileURLToPath(new URL("../../../../cli.ts", import.meta.url));
 // A machine with an offline host (port 0) and no workspace in its environment.
 function machine() {
   const root = temporaryDirectory("avoozl-workspace-status-"),
+    home = path.join(root, "home"),
+    config = path.join(root, "config"),
     env = { ...process.env };
   for (const key of Object.keys(env))
     if (/^(AVOOZL|KIROCREW)(_|$)/.test(key)) delete env[key];
   Object.assign(env, {
-    HOME: path.join(root, "home"),
-    XDG_CONFIG_HOME: path.join(root, "config"),
+    HOME: home,
+    XDG_CONFIG_HOME: config,
     XDG_STATE_HOME: path.join(root, "state"),
   });
-  fs.mkdirSync(env.HOME, { recursive: true });
-  const hostFile = path.join(env.XDG_CONFIG_HOME, "avoozl", "config.json");
+  fs.mkdirSync(home, { recursive: true });
+  const hostFile = path.join(config, "avoozl", "config.json");
   fs.mkdirSync(path.dirname(hostFile), { recursive: true });
   fs.writeFileSync(
     hostFile,
@@ -37,7 +38,7 @@ function machine() {
   return { root, env };
 }
 
-function cli(env, ...args) {
+function cli(env: NodeJS.ProcessEnv, ...args: string[]) {
   const run = spawnSync(process.execPath, [CLI, ...args], {
     env,
     encoding: "utf8",
@@ -47,7 +48,7 @@ function cli(env, ...args) {
 }
 
 // An initialized workspace holding the fixture's one planned task.
-function workspace(root, name) {
+function workspace(root: string, name: string) {
   const directory = path.join(root, name);
   initializeWorkspace(directory, { name: "Status fixture", port: 0 });
   const store = new Store(workspaceConfig({ workspace: directory }).dbPath);
@@ -97,11 +98,12 @@ test("status says a named workspace is registered, by path, by ID and from the e
     enabled: true,
     state: "closed",
   };
-  for (const [args, extra, from, named] of [
+  const cases: [string[], Record<string, string>, string, string][] = [
     [["--workspace", directory], {}, "--workspace", directory],
     [["--workspace", "status-fixture"], {}, "--workspace", "status-fixture"],
     [[], { AVOOZL_WORKSPACE: directory }, "AVOOZL_WORKSPACE", directory],
-  ]) {
+  ];
+  for (const [args, extra, from, named] of cases) {
     const status = cli({ ...env, ...extra }, "status", ...args);
     assert.equal(status.workspace.named, named);
     assert.equal(status.workspace.from, from);

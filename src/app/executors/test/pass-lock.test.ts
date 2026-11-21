@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The pass locks (MS2, design D3): an operating-system lock, so eight ticks
 // at once leave one holder and a killed holder frees it.
 import assert from "node:assert/strict";
@@ -6,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
+import type { TestContext } from "node:test";
 import { loopLockPaths, takeLock, tryLock } from "../pass-lock.ts";
 
 const LOCK = new URL("../pass-lock.ts", import.meta.url).href;
@@ -29,9 +29,9 @@ if (taken.held) {
 }
 `;
 
-function scratch(t) {
+function scratch(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-lock-"));
-  const children = [];
+  const children: ChildProcess[] = [];
   t.after(async () => {
     for (const child of children) child.kill("SIGKILL");
     await Promise.all(
@@ -50,14 +50,14 @@ function scratch(t) {
     });
   });
   fs.writeFileSync(path.join(root, "starter.mjs"), STARTER);
-  const start = (state, barrier) => {
+  const start = (state: string, barrier: string) => {
     const child = spawn(
       process.execPath,
       [path.join(root, "starter.mjs"), state, barrier],
       { stdio: ["pipe", "pipe", "inherit"] },
     );
     children.push(child);
-    child.line = new Promise((resolve) => {
+    const line = new Promise<string>((resolve) => {
       let out = "";
       child.stdout.on("data", (chunk) => {
         out += chunk;
@@ -65,7 +65,7 @@ function scratch(t) {
       });
       child.once("exit", () => resolve(out.trim() || "exited"));
     });
-    return child;
+    return Object.assign(child, { line });
   };
   return { root, start };
 }
@@ -115,7 +115,7 @@ test("two state folders on one workspace leave one pass lock holder, named by it
   const b = takeLock(paths, { pid: 2, stateDirectory: "b" }, { tries: 1 });
   assert.equal(a.held, true);
   assert.equal(b.held, false);
-  assert.equal(b.holder.stateDirectory, "a");
+  assert.equal(b.holder?.stateDirectory, "a");
   a.close();
   const c = takeLock(paths, { pid: 2, stateDirectory: "b" });
   assert.equal(c.held, true);

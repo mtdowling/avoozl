@@ -14,7 +14,9 @@ export interface CheckReader {
   checkRuns(
     repository: string,
     sha: string,
-  ): Promise<{ name: string; status: string; conclusion: string }[] | null>;
+  ): Promise<
+    { name: string; status: string; conclusion?: string | null }[] | null
+  >;
   commitStatus(
     repository: string,
     sha: string,
@@ -35,7 +37,7 @@ export async function checksOf(
     ...(runs || []).map((run) => ({
       name: run.name,
       done: run.status === "completed",
-      ok: run.status === "completed" && FINE.has(run.conclusion),
+      ok: run.status === "completed" && FINE.has(run.conclusion ?? ""),
     })),
     ...(status?.statuses || []).map((entry) => ({
       name: entry.context,

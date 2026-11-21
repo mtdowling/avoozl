@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings explains itself: a blurb per group and tab, Required/Optional
 // markers from the validator's rules, the mode cards, the checks list, and
 // the branch review rule. No DOM renderer here (react-dom is not a
@@ -21,7 +20,7 @@ import {
   toggleCheck,
 } from '../src/settings-api.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const settings = source('SettingsView.tsx')
 
 test('every Settings group and repository tab renders its blurb', () => {
@@ -42,9 +41,9 @@ test('Save is blocked with a clear message while a required setting is missing',
     repositories: { 'o/app': { baseBranch: 'main' } },
   })
   assert.equal(missingRequired(form), null)
-  assert.match(missingRequired({ ...form, mode: 'plans-repo' }), /planning repository/)
+  assert.match(missingRequired({ ...form, mode: 'plans-repo' }) ?? '', /planning repository/)
   form.repositories[0].baseBranch = ''
-  assert.match(missingRequired(form), /o\/app needs its default branch/)
+  assert.match(missingRequired(form) ?? '', /o\/app needs its default branch/)
   assert.equal(missingRequired({ ...form, mode: '' }), null)
   assert.match(settings, /const missing = missingRequired\(form\)/)
   assert.match(settings, /problem=\{missing\}/)
@@ -88,13 +87,13 @@ test('no mode is Local only', () => {
 })
 
 test('each mode shows only the settings it reads, and Local only keeps the rest', () => {
-  const local = visibleSettings('local')
+  const local: ReadonlySet<string> = visibleSettings('local')
   for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'setupGitHub', 'planningRepository']) assert.ok(!local.has(key), key)
   for (const key of ['landingBranch', 'workerChats', 'reviewerChats', 'localChecks']) assert.ok(local.has(key), key)
   const single = visibleSettings('single-repo')
   assert.ok(!single.has('planningRepository'))
   assert.ok(single.has('setupGitHub'))
-  const plans = visibleSettings('plans-repo')
+  const plans: ReadonlySet<string> = visibleSettings('plans-repo')
   assert.ok(plans.has('planningRepository') && !plans.has('issueRadarCrews'))
   assert.equal(LOCAL_HIDDEN_LINE, 'Labels, checks and reviews only apply to GitHub modes.')
   const form = toForm({ mode: 'local', planningRepository: 'o/plans', project: { owner: 'o', number: 2 }, repositories: { 'o/app': {} } })
@@ -260,7 +259,7 @@ test('the GitHub calls breakdown is its own section with a sortable real table',
 })
 
 // The body of one function in SettingsView.tsx, by its first line.
-const body = (start) => {
+const body = (start: string) => {
   const at = settings.indexOf(start)
   return settings.slice(at, settings.indexOf('\n}\n', at))
 }

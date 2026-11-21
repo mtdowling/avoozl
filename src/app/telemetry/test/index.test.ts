@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // ot-3.4: register the exporter beside the tick (OT4.2, OT4.4, OT6.8, OT7.2,
 // OT10.1, OT10.7).
 import assert from "node:assert/strict";
@@ -6,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { sandboxEnv } from "../../executors/sandbox.ts";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
@@ -13,10 +13,10 @@ import { exporters, finishTask, point, span } from "../record.ts";
 import { startTelemetry, telemetryStatus } from "../index.ts";
 import { startCollector } from "./fake-collector.ts";
 
-function setup(t, enabled) {
+function setup(t: TestContext, enabled?: boolean) {
   const configDirectory = temporaryDirectory("avoozl-config-");
   const stateDirectory = temporaryDirectory("avoozl-state-");
-  const write = (value) =>
+  const write = (value: unknown) =>
     fs.writeFileSync(
       path.join(configDirectory, "config.json"),
       JSON.stringify(value),
@@ -26,8 +26,8 @@ function setup(t, enabled) {
   t.after(() => store.close());
   return { store, configDirectory, stateDirectory, write };
 }
-const names = (store) => exporters(store).map((e) => e.name);
-const record = (store, id) => {
+const names = (store: Store) => exporters(store).map((e) => e.name);
+const record = (store: Store, id: string) => {
   span(store, {
     key: `${id}:1:coding`,
     taskId: id,
@@ -52,7 +52,7 @@ test("with the setting off nothing is registered and no connection opens", async
   const collector = await startCollector(t);
   const s = setup(t);
   const env = { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url };
-  const handle = startTelemetry({ store: s.store, ...s, env });
+  const handle = startTelemetry({ ...s, env });
   t.after(() => handle.stop());
   record(s.store, "a1");
   await handle.flush();
@@ -69,7 +69,7 @@ test("turning it on registers the exporter and sees only later records; off empt
     OTEL_EXPORTER_OTLP_ENDPOINT: collector.url,
     OTEL_EXPORTER_OTLP_HEADERS: "x-team=blue",
   };
-  const handle = startTelemetry({ store: s.store, ...s, env });
+  const handle = startTelemetry({ ...s, env });
   t.after(() => handle.stop());
   record(s.store, "before");
   s.write({ telemetry: { enabled: true } });
@@ -80,7 +80,15 @@ test("turning it on registers the exporter and sees only later records; off empt
   await handle.flush();
   const traces = collector.requests.filter((r) => r.url === "/v1/traces");
   assert.equal(traces.length, 1);
-  const spans = traces[0].body.resourceSpans[0].scopeSpans[0].spans;
+  // The OTLP JSON the collector received.
+  const body = traces[0].body as {
+    resourceSpans: {
+      scopeSpans: {
+        spans: { attributes: { value: { stringValue?: string } }[] }[];
+      }[];
+    }[];
+  };
+  const spans = body.resourceSpans[0].scopeSpans[0].spans;
   assert.ok(spans[0].attributes.some((a) => a.value.stringValue === "after"));
   assert.equal(handle.status().status, "sending");
   assert.equal(handle.status().sent > 0, true);
@@ -109,7 +117,7 @@ test("a collector that never answers leaves recording unchanged and raises nothi
     OTEL_EXPORTER_OTLP_ENDPOINT: collector.url,
     OTEL_EXPORTER_OTLP_TIMEOUT: "200",
   };
-  const handle = startTelemetry({ store: s.store, ...s, env });
+  const handle = startTelemetry({ ...s, env });
   t.after(() => handle.stop());
   const started = Date.now();
   record(s.store, "a1");
@@ -123,7 +131,7 @@ test("a collector that never answers leaves recording unchanged and raises nothi
 
 test("a status with no endpoint, a bad protocol or a remote http endpoint sends nothing", async (t) => {
   const s = setup(t, true);
-  for (const [env, status] of [
+  const cases: [Record<string, string>, string][] = [
     [{}, "no-endpoint"],
     [
       {
@@ -136,8 +144,9 @@ test("a status with no endpoint, a bad protocol or a remote http endpoint sends 
       { OTEL_EXPORTER_OTLP_ENDPOINT: "http://x.example" },
       "endpoint-not-allowed",
     ],
-  ]) {
-    const handle = startTelemetry({ store: s.store, ...s, env });
+  ];
+  for (const [env, status] of cases) {
+    const handle = startTelemetry({ ...s, env });
     record(s.store, status);
     await handle.step();
     assert.equal(handle.status().status, status);
@@ -153,7 +162,7 @@ test("an agent process gets no OTEL_ variable", () => {
     OTEL_EXPORTER_OTLP_HEADERS: "authorization=CANARY",
     OTEL_SERVICE_NAME: "x",
   });
-  const seen = JSON.parse(
+  const seen: string[] = JSON.parse(
     execFileSync(
       process.execPath,
       ["-e", "console.log(JSON.stringify(Object.keys(process.env)))"],
@@ -168,8 +177,8 @@ test("an agent process gets no OTEL_ variable", () => {
 
 test("the tick, workers, checks and landing import only the recording API", () => {
   const root = path.resolve(import.meta.dirname, "../..");
-  const files = [];
-  const walk = (dir) => {
+  const files: string[] = [];
+  const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory() && entry.name !== "test") walk(full);

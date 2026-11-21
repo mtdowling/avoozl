@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The page says spec, not plan (R62, design §8.7). This reads every page
 // source file, collects its JSX text and its string literals that read as
 // words (a space, or a capital first letter), and fails on any `plan` or
@@ -45,7 +44,7 @@ export const ALLOWED = new Map([
 ])
 
 // Drop `${...}` (nesting included): those are code, not words.
-function dropInterpolations(value) {
+function dropInterpolations(value: string) {
   let out = ''
   for (let i = 0; i < value.length; i++) {
     if (value[i] === '$' && value[i + 1] === '{') {
@@ -65,7 +64,7 @@ function dropInterpolations(value) {
 
 const CODE = /=>|===|&&|\|\||\bconst |\bexport |\bfunction |\breturn\b|\?\./
 
-function strip(text) {
+function strip(text: string) {
   return text
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '')
@@ -74,7 +73,7 @@ function strip(text) {
 }
 
 // String literals and JSX text that read as words.
-export function phrases(text) {
+export function phrases(text: string) {
   const body = strip(text)
   const found = []
   const jsx = []
@@ -90,7 +89,7 @@ export function phrases(text) {
   )
 }
 
-export const offending = (value) => {
+export const offending = (value: string) => {
   let rest = value
   for (const phrase of ALLOWED.keys()) rest = rest.split(phrase).join(' ')
   return /\bplans?\b/i.test(rest)

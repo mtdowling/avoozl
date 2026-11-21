@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The host's SegmentedControl shows a label only on the selected segment when
 // `compact` is set, and animates the selected pill between every control that
 // shares a `layoutId`. Avoozl's segments have text and no icons, so `compact`

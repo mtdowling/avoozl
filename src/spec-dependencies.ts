@@ -22,7 +22,7 @@ export const hasPendingSpecDependencies = (task: Task | null | undefined) =>
   );
 
 export function approvedSpecDependency(
-  ref: SpecDependency,
+  ref: Pick<SpecDependency, "planId" | "spec">,
   target: Task | undefined,
   owner: Owner | undefined,
   receipt: Receipt | undefined,

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Avoozl's reference adapter for the workflow kit's scenarios. A scenario is
 // a list of steps, each `{runner, do, ...args, expect?}`, and `do` is one of
 // STEPS. This adapter runs each step with Avoozl's own code against a bare
@@ -24,7 +23,17 @@ import {
   headGuardedMerge,
 } from "../landing/guarded-push.ts";
 import { tickBranch } from "../specs/spec-ticks.ts";
-import { claim, linkedOf, ready, specsOf } from "./workflow-kit-adapter.ts";
+import type { Case } from "../../../workflow-kit/load.ts";
+import {
+  claim,
+  type KitCase,
+  linkedOf,
+  MetaStore,
+  ready,
+  type Specs,
+  specsOf,
+} from "./workflow-kit-adapter.ts";
+import { found } from "./view-shapes.ts";
 import { GIT_ENV, REPOSITORY, World, gitSync } from "./workflow-kit-world.ts";
 
 // The adapter contract: what a runner does for each `do`.
@@ -40,35 +49,59 @@ export const STEPS = [
   "deleteBranch",
 ];
 
-const taskParts = (task) => task.split("/");
-const generationOf = (ref) => Number(ref.split("/").pop());
+const taskParts = (task: string) => task.split("/");
+const generationOf = (ref: string) => Number(ref.split("/").pop());
+
+// A runner's cache: the claim rows Avoozl keeps, and the one repository.
+class RunnerStore extends MetaStore {
+  list(kind: string) {
+    return kind === "repositories" ? [{ github: REPOSITORY }] : [];
+  }
+}
+type Runner = ReturnType<typeof runnerState>;
+// A step's arguments, as the case lists them.
+interface StepArgs {
+  task?: string;
+  branch?: string;
+  afterHours?: number;
+  files?: Record<string, string>;
+  mode?: string;
+  pr?: string;
+  checks?: string;
+  interrupt?: string;
+}
+// What a step answers: the probes its `expect` may name.
+type StepResult = Record<string, unknown>;
+const taskOfArgs = (args: StepArgs) => found(args.task, "task");
 
 // What a runner holds between steps: the checkout it works in, the ready
 // list and leases it last read, and the task text its lease recorded.
-function runnerState(world, name, login, defaultBranch) {
-  const meta = new Map();
+function runnerState(
+  world: World,
+  name: string,
+  login: string,
+  defaultBranch: string,
+) {
   return {
     name,
     login,
     root: world.clone(name),
     github: world.github(name, login),
-    ready: [],
-    leases: {},
-    recorded: {},
-    claimed: undefined,
+    ready: [] as string[],
+    leases: {} as Record<string, number[]>,
+    recorded: {} as Record<string, { title?: unknown; acceptance?: unknown }>,
+    claimed: undefined as string | null | undefined,
     paused: false,
-    pushes: [],
-    store: {
-      getMeta: (key) => meta.get(key),
-      setMeta: (key, value) => meta.set(key, value),
-      list: (kind) => (kind === "repositories" ? [{ github: REPOSITORY }] : []),
-    },
+    pushes: [] as string[],
+    store: new RunnerStore(),
     defaultBranch,
   };
 }
 
-export async function scenario(testCase) {
-  const defaultBranch = testCase.runner.defaultBranch,
+export async function scenario(read: Case) {
+  // The case.json shape is the kit's contract; the reader keeps it as JSON.
+  const testCase = read as KitCase,
+    defaultBranch = testCase.runner.defaultBranch,
     world = new World({
       files: testCase.files,
       branches: testCase.origin.branches,
@@ -102,7 +135,7 @@ export async function scenario(testCase) {
         }
         return files;
       },
-      view = (asLogin) => ({
+      view = (asLogin: string) => ({
         runner: { login: asLogin, defaultBranch, specsBranch },
         origin: {
           branches: world.branches(),
@@ -110,7 +143,7 @@ export async function scenario(testCase) {
         },
         issues: testCase.issues,
       }),
-      sync = (runner, branch) => {
+      sync = (runner: Runner, branch: string) => {
         gitSync(runner.root, ["fetch", "-q", "origin"]);
         gitSync(runner.root, [
           "checkout",
@@ -120,7 +153,7 @@ export async function scenario(testCase) {
           `origin/${branch}`,
         ]);
       },
-      taskOf = (files, task) => {
+      taskOf = (files: Record<string, string>, task: string) => {
         const [spec, id] = taskParts(task);
         return parseSpec({
           name: spec,
@@ -132,7 +165,7 @@ export async function scenario(testCase) {
       env = GIT_ENV;
 
     // The branch a task's work lands on, and the one that gets its tick.
-    const placeOf = async (task) => {
+    const placeOf = async (task: string) => {
       const [spec] = taskParts(task),
         specs = specsOf(treeOf()),
         base = await integrationBase(spec, {
@@ -153,7 +186,7 @@ export async function scenario(testCase) {
       };
     };
 
-    const tick = (runner, branch, task) => {
+    const tick = (runner: Runner, branch: string, task: string) => {
       const [spec, id] = taskParts(task);
       return tickBranch(runner.root, {
         branch,
@@ -163,7 +196,7 @@ export async function scenario(testCase) {
     };
 
     // A claim that is gone after landing: its leases go with it (20.5).
-    const finish = (runner, task) =>
+    const finish = (runner: Runner, task: string) =>
       deleteOwnClaim(
         runner.store,
         runner.github,
@@ -171,7 +204,10 @@ export async function scenario(testCase) {
         taskParts(task)[1],
       ).catch(() => false);
 
-    const OPS = {
+    const OPS: Record<
+      string,
+      (runner: Runner, args: StepArgs) => Promise<StepResult>
+    > = {
       next: async (runner) => {
         const files = treeOf(),
           list = await ready(view(runner.login), specsOf(files));
@@ -195,7 +231,7 @@ export async function scenario(testCase) {
             },
           );
         } catch (error) {
-          if (error.status !== 409) throw error;
+          if ((error as { status?: number }).status !== 409) throw error;
         }
         if (!claimed) {
           runner.claimed = null;
@@ -203,7 +239,7 @@ export async function scenario(testCase) {
         }
         const { id, planId } = claimed.task,
           key = `${planId}/${id}`,
-          item = taskOf(files, key);
+          item = found(taskOf(files, key), key);
         runner.claimed = key;
         runner.recorded[key] = {
           title: item.title,
@@ -225,7 +261,8 @@ export async function scenario(testCase) {
       },
 
       readLeases: async (runner, args) => {
-        const [spec, id] = taskParts(args.task),
+        const task = taskOfArgs(args),
+          [spec, id] = taskParts(task),
           refs = await runner.github.branchesUnder(
             REPOSITORY,
             `avoozl-lease/${spec}/${id}/`,
@@ -233,12 +270,13 @@ export async function scenario(testCase) {
           generations = refs
             .map((item) => generationOf(item.ref))
             .sort((a, b) => a - b);
-        runner.leases[args.task] = generations;
+        runner.leases[task] = generations;
         return { generations };
       },
 
       takeOver: async (runner, args) => {
-        const [spec, id] = taskParts(args.task),
+        const task = taskOfArgs(args),
+          [spec, id] = taskParts(task),
           hours = args.afterHours ?? 0,
           refs = await runner.github.branchesUnder(
             REPOSITORY,
@@ -258,9 +296,9 @@ export async function scenario(testCase) {
             sha: world.head(branch),
           });
         if (taken.holder) {
-          const item = taskOf(treeOf(), args.task);
-          runner.claimed = args.task;
-          runner.recorded[args.task] = {
+          const item = found(taskOf(treeOf(), task), task);
+          runner.claimed = task;
+          runner.recorded[task] = {
             title: item.title,
             acceptance: item.acceptance,
           };
@@ -271,7 +309,7 @@ export async function scenario(testCase) {
       },
 
       push: async (runner, args) => {
-        const branch = args.branch ?? claimBranch(asTask(args.task));
+        const branch = args.branch ?? claimBranch(asTask(taskOfArgs(args)));
         // A claim branch is pushed from the runner's own checkout, as it last
         // read it. Any other branch is read fresh.
         if (args.branch || !hasLocal(runner.root, branch)) sync(runner, branch);
@@ -303,14 +341,16 @@ export async function scenario(testCase) {
       },
 
       land: async (runner, args) => {
-        const { task } = args,
+        const task = taskOfArgs(args),
           [spec, id] = taskParts(task),
           branch = claimBranch({ id, planId: spec }),
           mode = args.mode ?? testCase.landing?.mode ?? "direct",
           { base, done } = await placeOf(task),
           current = taskOf(treeOf(), task);
         // Rule 15.10: a changed task text is neither landed nor ticked.
-        if (taskRevision(runner.recorded[task], current) !== "land")
+        if (
+          taskRevision(runner.recorded[task], found(current, task)) !== "land"
+        )
           return { action: "none", revision: "redo-or-stop" };
         gitSync(runner.root, ["fetch", "-q", "origin"]);
         const decide = () =>
@@ -347,7 +387,7 @@ export async function scenario(testCase) {
           await tick(runner, branch, task);
         gitSync(runner.root, ["fetch", "-q", "origin"]);
         const candidate = world.head(branch);
-        const result = { action: plan.action };
+        const result: StepResult = { action: plan.action };
         if (plan.action === "fast-forward-base") {
           result.landed = await guardedFastForward(runner.root, {
             url: world.origin,
@@ -383,7 +423,7 @@ export async function scenario(testCase) {
       },
 
       recover: async (runner, args) => {
-        const { task } = args,
+        const task = taskOfArgs(args),
           [spec, id] = taskParts(task),
           branch = claimBranch({ id, planId: spec }),
           { base, done } = await placeOf(task),
@@ -396,7 +436,8 @@ export async function scenario(testCase) {
           ),
           head = world.has(branch) ? world.head(branch) : pull?.headSha,
           landed =
-            Boolean(first && head) &&
+            first !== undefined &&
+            head !== undefined &&
             landedWork({
               graph: world.graph(),
               start: first.object.sha,
@@ -415,13 +456,13 @@ export async function scenario(testCase) {
         // Landed work whose tick is missing: tick it on the done branch in
         // its own commit, then delete its claim branch and leases (16.5).
         gitSync(runner.root, ["fetch", "-q", "origin"]);
-        await tick(runner, plan.base, task);
+        await tick(runner, found(plan.base), task);
         if (plan.deleteClaimBranch) await finish(runner, task);
         return { action: plan.action, landed: true };
       },
 
       mergePr: async (runner, args) => {
-        const [spec, id] = taskParts(args.task),
+        const [spec, id] = taskParts(taskOfArgs(args)),
           branch = claimBranch({ id, planId: spec }),
           pull = world.openPull(branch);
         if (!pull) throw new Error(`${args.task} has no open pull request`);
@@ -436,7 +477,7 @@ export async function scenario(testCase) {
       },
 
       deleteBranch: async (runner, args) => {
-        const branch = args.branch ?? claimBranch(asTask(args.task));
+        const branch = args.branch ?? claimBranch(asTask(taskOfArgs(args)));
         return deleteClaim(runner.store, runner.github, {
           repository: REPOSITORY,
           branch,
@@ -444,14 +485,14 @@ export async function scenario(testCase) {
       },
     };
 
-    for (const [index, step] of testCase.steps.entries()) {
+    for (const [index, step] of (testCase.steps ?? []).entries()) {
       const where = `step ${index + 1} (${step.runner} ${step.do})`,
         runner = runners.get(step.runner),
         { runner: _runner, do: action, expect, pause, ...args } = step;
       assert.ok(runner, `${where}: ${step.runner} is not one of the runners`);
       assert.ok(STEPS.includes(action), `${where}: ${action} is not a step`);
       runner.paused = false;
-      const result = await OPS[action](runner, args);
+      const result = await OPS[action](runner, args as StepArgs);
       for (const [key, want] of Object.entries(expect ?? {}))
         assert.deepEqual(result[key], want, `${where}: ${key}`);
       runner.paused = Boolean(pause);
@@ -471,7 +512,7 @@ export async function scenario(testCase) {
   }
 }
 
-const hasLocal = (root, branch) => {
+const hasLocal = (root: string, branch: string) => {
   try {
     gitSync(root, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`]);
     return true;
@@ -480,12 +521,12 @@ const hasLocal = (root, branch) => {
   }
 };
 
-const asTask = (task) => {
+const asTask = (task: string) => {
   const [planId, id] = taskParts(task);
   return { planId, id };
 };
 
-const isAncestor = (world, older, newer) => {
+const isAncestor = (world: World, older: string, newer: string) => {
   try {
     world.git(["merge-base", "--is-ancestor", older, newer]);
     return true;
@@ -495,10 +536,18 @@ const isAncestor = (world, older, newer) => {
 };
 
 // The state the scenario ends in, for each probe its `then` lists.
-async function probes(testCase, world, runners, { ready: readyList, treeOf }) {
-  const out = {},
+async function probes(
+  testCase: KitCase,
+  world: World,
+  runners: Map<string, Runner>,
+  {
+    ready: readyList,
+    treeOf,
+  }: { ready: () => Promise<string[]>; treeOf: () => Record<string, string> },
+) {
+  const out: Record<string, unknown> = {},
     want = Object.keys(testCase.then);
-  const lease = (task) => {
+  const lease = (task: string) => {
     const [spec, id] = taskParts(task);
     return world
       .refs(`avoozl-lease/${spec}/${id}/`)
@@ -506,7 +555,7 @@ async function probes(testCase, world, runners, { ready: readyList, treeOf }) {
   };
   if (want.includes("leaseHolder"))
     out.leaseHolder = Object.fromEntries(
-      Object.keys(testCase.then.leaseHolder).map((task) => {
+      Object.keys(testCase.then.leaseHolder ?? {}).map((task) => {
         const newest = lease(task).at(-1);
         return [
           task,
@@ -518,7 +567,7 @@ async function probes(testCase, world, runners, { ready: readyList, treeOf }) {
     );
   if (want.includes("leases"))
     out.leases = Object.fromEntries(
-      Object.keys(testCase.then.leases).map((task) => [
+      Object.keys(testCase.then.leases ?? {}).map((task) => [
         task,
         lease(task).map((item) => generationOf(item.ref)),
       ]),
@@ -546,12 +595,14 @@ async function probes(testCase, world, runners, { ready: readyList, treeOf }) {
         {
           state: pull.merged ? "merged" : "open",
           mergedBy: pull.mergedBy ?? null,
-          verified: pull.merged ? world.signed.has(pull.mergeCommit) : false,
+          verified: pull.merged
+            ? world.signed.has(found(pull.mergeCommit))
+            : false,
         },
       ]),
     );
   if (want.includes("ticked")) {
-    const specs = specsOf(treeOf());
+    const specs: Specs = specsOf(treeOf());
     out.ticked = Object.entries(specs)
       .flatMap(([name, files]) => {
         const parsed = parseSpec({

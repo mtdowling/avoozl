@@ -334,7 +334,11 @@ const githubName = (value: unknown) =>
 export function withGithubRepositories(
   store: Store,
   page: ActivityPage,
-  tasks: { id: string; repository?: string; repositoryId?: string }[] = [],
+  tasks: {
+    id: string;
+    repository?: string | null;
+    repositoryId?: string | null;
+  }[] = [],
 ) {
   const list = (table: string) => {
     try {

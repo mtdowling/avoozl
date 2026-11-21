@@ -1,15 +1,17 @@
-// @ts-nocheck: typing debt
 // Task details are a tabbed page (the shared bar of Tabs.tsx) with a cached AI
 // summary on Overview. The logic checks run anywhere; the page checks run in
 // a real Chrome (AVOOZL_CHROME) and are skipped without one.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 import { readTab, tabKey, tabLink } from '../src/tabs.ts'
 import { TASK_TAB_KEYS, TASK_TAB_PARAM, tabHasData, visibleTabs } from '../src/task-api.ts'
+import { deliveryItem } from './graph-fixture.ts'
+import { taskDetail } from './task-detail-fixture.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('the open tab is kept in the address, and arrow keys move between the tabs', () => {
   assert.deepEqual(TASK_TAB_KEYS, ['overview', 'timeline', 'links', 'work', 'review', 'details'])
@@ -26,15 +28,15 @@ test('the open tab is kept in the address, and arrow keys move between the tabs'
 })
 
 test('one rule for no data: a tab or section with none is not drawn, and says nothing', () => {
-  const detail = (extra = {}) => ({ steps: [], timeline: [], delivery: null, task: {}, ...extra })
+  const detail = (extra: Parameters<typeof taskDetail>[0] = {}) => taskDetail(extra)
   assert.equal(tabHasData('timeline', detail(), 0), false)
   assert.equal(tabHasData('timeline', detail({ timeline: [{ at: 'x', text: 'y' }] }), 0), true)
   assert.equal(tabHasData('work', detail(), 0), false)
-  assert.equal(tabHasData('work', detail({ delivery: { sessions: [] } }), 0), true)
+  assert.equal(tabHasData('work', detail({ delivery: deliveryItem('t') }), 0), true)
   assert.equal(tabHasData('review', detail(), 0), false)
   assert.equal(tabHasData('review', detail(), 2), true)
   assert.equal(tabHasData('review', detail({ task: { handSetReview: true } }), 0), true)
-  for (const tab of ['overview', 'links', 'details']) assert.equal(tabHasData(tab, detail(), 0), true, tab)
+  for (const tab of ['overview', 'links', 'details'] as const) assert.equal(tabHasData(tab, detail(), 0), true, tab)
   assert.deepEqual(
     visibleTabs(detail(), 0).map((t) => t.key),
     ['overview', 'links', 'details'],
@@ -50,13 +52,10 @@ test('one rule for no data: a tab or section with none is not drawn, and says no
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the task tabs page test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
-const open = async (summary, width = 1280, extra = {}) => {
+const open = async (summary: string, width = 1280, extra: Record<string, string> = {}) => {
   await page.open(harness.url({ modal: 'task-drawer', theme: 'light', summary, ...extra }), { width, height: 900 })
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
@@ -104,12 +103,13 @@ test('page: a section with no data renders nothing, with no empty line in its pl
 })
 
 test('page: no task has Edit, and a spec task line opens the spec', { skip }, async () => {
+  // Each button's words.
   const buttons = `[...document.querySelectorAll('button')].map((b) => b.textContent.trim())`
   await open('ready')
-  assert.equal((await page.evaluate(buttons)).includes('Edit'), false, 'a task has no Edit')
+  assert.equal((await page.evaluate<string[]>(buttons)).includes('Edit'), false, 'a task has no Edit')
   assert.equal(await page.evaluate(`document.querySelector('[data-task-from-spec]')`), null)
   await open('ready', 1280, { plan: 'spec' })
-  assert.equal((await page.evaluate(buttons)).includes('Edit'), false)
+  assert.equal((await page.evaluate<string[]>(buttons)).includes('Edit'), false)
   assert.equal(
     await page.evaluate(`document.querySelector('[data-task-from-spec]').textContent`),
     'Its title, description and steps come from spec Team rollout. Change them there.',

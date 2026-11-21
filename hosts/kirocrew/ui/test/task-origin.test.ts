@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Where a task came from: the source line text and the excerpt the drawer
 // reads from the file, with the task's own lines marked.
 import assert from 'node:assert/strict'
@@ -71,8 +70,10 @@ test('the reader finds the block that holds a cited line', async () => {
       ['heading', 14],
     ],
   )
+  const list = found[2]
+  if (list.kind !== 'list') throw Error(`block 2 is a ${list.kind}`)
   assert.deepEqual(
-    found[2].items.map((i) => i.line),
+    list.items.map((i) => i.line),
     [6, 7],
   )
   // List items render after their list, so a line picks the item.

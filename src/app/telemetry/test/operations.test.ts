@@ -1,17 +1,22 @@
-// @ts-nocheck: typing debt
 // ot-4.1: operations and CLI (OT5.3, OT5.5, OT11.7, OT11.8).
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { OPERATIONS } from "../../api/operation-table.ts";
-import { Operations } from "../../api/operations.ts";
+import { Operations, type OperationContext } from "../../api/operations.ts";
+import type { StatusError } from "../../store/store.ts";
+import type { telemetryStatus } from "../index.ts";
+
+// What telemetry.status and telemetry.configure answer.
+type Status = ReturnType<typeof telemetryStatus>;
 import { GROUPED_TOOLS } from "../../mcp/mcp-tools.ts";
 import { fixture } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-function setup(t) {
+function setup(t: TestContext) {
   const { root, store } = fixture(t);
   const configDirectory = path.join(root, "machine-config");
   fs.mkdirSync(configDirectory, { recursive: true });
@@ -24,10 +29,14 @@ function setup(t) {
 
 test("telemetry.configure is person-only and telemetry.status is not on MCP", async (t) => {
   const { ops, file } = setup(t);
-  for (const context of [{ mcp: true }, { caller: { role: "worker" } }])
+  const contexts: OperationContext[] = [
+    { mcp: true },
+    { caller: { sessionKey: "worker-session" } },
+  ];
+  for (const context of contexts)
     await assert.rejects(
       ops.execute("telemetry.configure", { enabled: true }, undefined, context),
-      (error) => error.status === 403,
+      (error: StatusError) => error.status === 403,
     );
   assert.equal(fs.existsSync(file), false);
   assert.equal(OPERATIONS.get("telemetry.configure").policy.kind, "person");
@@ -49,7 +58,9 @@ test("configure writes only telemetry.enabled and keeps the other keys", async (
       serve: { port: 4000 },
     }),
   );
-  const on = await ops.execute("telemetry.configure", { enabled: true });
+  const on = await ops.execute<Status>("telemetry.configure", {
+    enabled: true,
+  });
   assert.equal(on.status, "no-endpoint");
   assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")), {
     version: 1,
@@ -57,7 +68,9 @@ test("configure writes only telemetry.enabled and keeps the other keys", async (
     serve: { port: 4000 },
     telemetry: { enabled: true },
   });
-  const off = await ops.execute("telemetry.configure", { enabled: false });
+  const off = await ops.execute<Status>("telemetry.configure", {
+    enabled: false,
+  });
   assert.equal(off.status, "off");
   assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")).telemetry, {
     enabled: false,
@@ -70,7 +83,7 @@ test("configure writes only telemetry.enabled and keeps the other keys", async (
 
 test("configure saves the endpoint, protocol and header names, never a value", async (t) => {
   const { ops, file } = setup(t);
-  const saved = await ops.execute("telemetry.configure", {
+  const saved = await ops.execute<Status>("telemetry.configure", {
     enabled: true,
     endpoint: "https://otlp.example:4318",
     protocol: "http/json",
@@ -83,24 +96,25 @@ test("configure saves the endpoint, protocol and header names, never a value", a
     protocol: "http/json",
     headers: ["authorization"],
   });
-  await ops.execute("telemetry.configure", { enabled: false });
+  await ops.execute<Status>("telemetry.configure", { enabled: false });
   assert.equal(
     JSON.parse(fs.readFileSync(file, "utf8")).telemetry.endpoint,
     "https://otlp.example:4318",
     "turning it off keeps the rest",
   );
-  await ops.execute("telemetry.configure", { endpoint: "" });
+  await ops.execute<Status>("telemetry.configure", { endpoint: "" });
   assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")).telemetry, {
     enabled: false,
     protocol: "http/json",
     headers: ["authorization"],
   });
-  for (const input of [
+  const inputs: Record<string, unknown>[] = [
     {},
     { headers: ["authorization=Bearer x"] },
     { endpoint: "https://u:p@otlp.example" },
     { token: "x" },
-  ])
+  ];
+  for (const input of inputs)
     await assert.rejects(ops.execute("telemetry.configure", input));
   assert.ok(!fs.readFileSync(file, "utf8").includes("Bearer"));
 });
@@ -108,7 +122,7 @@ test("configure saves the endpoint, protocol and header names, never a value", a
 test("status holds the status, the counts and the local rows, never a header value or a path", async (t) => {
   const { ops, file } = setup(t);
   fs.writeFileSync(file, JSON.stringify({ telemetry: { enabled: true } }));
-  const status = await ops.execute("telemetry.status", {});
+  const status = await ops.execute<Status>("telemetry.status", {});
   assert.deepEqual(Object.keys(status).sort(), [
     "dropped",
     "endpoint",
@@ -136,7 +150,7 @@ test("status holds the status, the counts and the local rows, never a header val
 
 test("the CLI prints the status and writes the setting", () => {
   const machine = temporaryDirectory("avoozl-telemetry-cli-");
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     HOME: path.join(machine, "home"),
     XDG_CONFIG_HOME: path.join(machine, "config"),
@@ -154,7 +168,7 @@ test("the CLI prints the status and writes the setting", () => {
     encoding: "utf8",
     cwd: machine,
   });
-  const run = (...args) =>
+  const run = (...args: string[]) =>
     execFileSync(
       process.execPath,
       [cli, "telemetry", ...args, "--workspace", workspace],
@@ -182,8 +196,8 @@ test("the CLI prints the status and writes the setting", () => {
 
 test("no prompt, brief or skill names the setting", () => {
   const root = path.resolve(import.meta.dirname, "../../../..");
-  const files = [];
-  const walk = (dir) => {
+  const files: string[] = [];
+  const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);

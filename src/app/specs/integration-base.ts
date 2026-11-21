@@ -108,7 +108,7 @@ const keyOf = (repository: string, branch: string) => `${repository}@${branch}`;
 // claim on it. Returns {merged} or {conflict: files}; a conflict is kept in
 // the cache for Needs you until a later merge goes in.
 export async function catchUp(
-  store: Store,
+  store: Pick<Store, "getMeta" | "setMeta">,
   github: CatchUpGitHub,
   {
     repository,

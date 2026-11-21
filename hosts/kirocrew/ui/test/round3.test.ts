@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Round 3 of the owner's feedback: confirm steps, the shared filter bar,
 // highlighting with a custom language, Conflicts helpers, icons and the
 // accordion. No DOM renderer here (react-dom is not a dependency), so wiring
@@ -11,9 +10,11 @@ import { outline } from '../src/markdown.ts'
 import { bulkAction, confirmSettle, liveChats, tabCounts, whyLine } from '../src/conflicts-api.ts'
 import { itemRef } from '../src/chat-api.ts'
 import { drillGraph, nodeClick } from '../src/graph-layout.ts'
+import { deliveryItem, deliverySession, graphEdge, graphOf, graphTask } from './graph-fixture.ts'
+import type { ConflictItem, DeliverySession } from '../src/views-api.ts'
 
 const src = new URL('../src/', import.meta.url)
-const source = (name) => readFileSync(new URL(name, src), 'utf8')
+const source = (name: string) => readFileSync(new URL(name, src), 'utf8')
 const views = readdirSync(src).filter((name) => name.endsWith('.tsx'))
 
 // Every button whose words delete, discard or cannot be undone in one click.
@@ -106,7 +107,7 @@ test('a fence in a custom language highlights from its JSON grammar; an unknown 
     broken: { tokens: [{ type: 'keyword', pattern: '(' }] },
   })
   assert.deepEqual(loaded, ['nupp'])
-  const tokens = highlight('fn main() -- entry\n  let x = 42', 'nupp')
+  const tokens = highlight('fn main() -- entry\n  let x = 42', 'nupp') ?? []
   const typed = tokens.filter((t) => typeof t !== 'string').map((t) => [t.types.at(-1), t.content.join('')])
   assert.deepEqual(typed, [
     ['keyword', 'fn'],
@@ -120,13 +121,13 @@ test('a fence in a custom language highlights from its JSON grammar; an unknown 
   assert.equal(highlight('x'.repeat(MAX_HIGHLIGHT + 1), 'nupp'), null)
   assert.equal(toGrammar({ tokens: [{ type: 'keyword', pattern: '[' }] }), null)
   // Bundled languages work under their fence aliases.
-  assert.ok(highlight('const a = 1', 'ts').some((t) => typeof t !== 'string' && t.types.includes('keyword')))
+  assert.ok((highlight('const a = 1', 'ts') ?? []).some((t) => typeof t !== 'string' && t.types.includes('keyword')))
   // Colors are theme variables and never the warning yellow.
-  assert.match(tokenStyle(['keyword']).color, /^var\(--tile-purple/)
+  assert.match(tokenStyle(['keyword']).color ?? '', /^var\(--tile-purple/)
   assert.equal(tokenStyle(['comment']).fontStyle, 'italic')
   assert.doesNotMatch(source('ui/highlight.ts'), /--warn/)
   // The global Prism the grammars need is put back afterwards.
-  assert.equal(globalThis.Prism, undefined)
+  assert.equal('Prism' in globalThis, false)
 })
 
 test('headings get anchors for the plan outline, and prose has a readable measure', () => {
@@ -165,7 +166,7 @@ test('the spec view keeps its details in a box on the Overview tab, with Edit an
 })
 
 test('Conflicts: tab counts, a plain why, bulk only for one kind, attach to a live chat', () => {
-  const item = (kind, taskId, extra = {}) => ({ kind, taskId, title: taskId, detail: 'd', authority: 'local', issue: null, ...extra })
+  const item = (kind: string, taskId: string, extra = {}) => ({ kind, taskId, title: taskId, detail: 'd', authority: 'local', issue: null, ...extra })
   const items = [item('needs-human', 'a', { reason: 'review' }), item('needs-human', 'b', { reason: 'review' }), item('decision', 'c')]
   assert.deepEqual(tabCounts(items), { all: 3, decision: 1, 'needs-human': 2, other: 0 })
   assert.match(whyLine(items[0]), /waits for your review/)
@@ -173,7 +174,7 @@ test('Conflicts: tab counts, a plain why, bulk only for one kind, attach to a li
   assert.equal(bulkAction(items.slice(0, 3)), null)
   assert.equal(bulkAction([items[2]]), null, 'a decision needs its own answer')
   assert.deepEqual(itemRef(item('tracker-conflict', 'g', { field: 'title' })), { kind: 'tracker-conflict', taskId: 'g', field: 'title' })
-  const delivery = (id, sessions) => ({ id, sessions })
+  const delivery = (id: string, sessions: Partial<DeliverySession>[]) => deliveryItem(id, { sessions: sessions.map(deliverySession) })
   const chats = liveChats([
     delivery('a', [
       { slot: 'r', role: 'security', attempt: 1, status: 'working' },
@@ -190,20 +191,11 @@ test('Conflicts: tab counts, a plain why, bulk only for one kind, attach to a li
 })
 
 test('drill-in shows one epic, or one task with everything up and down its chain', () => {
-  const task = (id, epic) => ({ id, title: id, epic, kind: 'leaf', state: 'waiting' })
-  const graph = {
-    revision: 1,
-    epics: [],
-    statuses: [],
-    repositories: [],
-    total: 5,
+  const task = (id: string, epic: string) => graphTask(id, { title: id, epic, state: 'waiting' })
+  const graph = graphOf({
     tasks: [task('a', 'e1'), task('b', 'e1'), task('c', 'e2'), task('d', 'e2'), task('z', 'e3')],
-    edges: [
-      { from: 'a', to: 'b', blocking: true },
-      { from: 'b', to: 'c', blocking: true },
-      { from: 'c', to: 'd', blocking: true },
-    ],
-  }
+    edges: [graphEdge('a', 'b'), graphEdge('b', 'c'), graphEdge('c', 'd')],
+  })
   assert.deepEqual(
     drillGraph(graph, { kind: 'epic', id: 'e1', title: 'E1' }).tasks.map((t) => t.id),
     ['a', 'b'],
@@ -234,8 +226,8 @@ test('icons sit on buttons, and every icon is one the host module has', () => {
 
 test('a stale claim and a closed pull request say why in their own words, and carry their own buttons', async () => {
   const { noActionReason } = await import('../src/conflicts-api.ts')
-  for (const reason of ['stale-claim', 'pr-closed']) {
-    const item = { kind: 'needs-human', reason, authority: 'github', taskId: null, title: 't', detail: 'Delete the branch to make it ready.' }
+  for (const reason of ['stale-claim', 'pr-closed'] as const) {
+    const item: ConflictItem = { kind: 'needs-human', reason, authority: 'github', taskId: null, title: 't', detail: 'Delete the branch to make it ready.' }
     assert.equal(whyLine(item), item.detail, reason)
     assert.equal(noActionReason(item), null, reason)
   }

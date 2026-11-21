@@ -27,7 +27,8 @@ export interface LandingConfig {
       { landing?: unknown; conflicts?: { maxAttempts?: number } }
     >;
   };
-  landing?: { pr?: string; unionPaths?: unknown };
+  // validateLandingConfig checks unionPaths is a list of paths.
+  landing?: { pr?: string; unionPaths?: string[] };
   repositories?: Record<string, unknown>;
   machine?: unknown;
 }

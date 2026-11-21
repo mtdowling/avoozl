@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium), on
 // the harness page (test/browser/harness.tsx): the app shell (no top bars; the
 // workspace pill first in the nav; no Plan a goal and no Stop the line on the
@@ -22,7 +21,7 @@ const settle = () => state.page.evaluate('new Promise((r) => requestAnimationFra
 // The shell's own controls: the top line on a desktop, the menu on a phone
 // (open it first). Neither has Plan a goal or Stop the line.
 const SHELL = '[data-main-top], [data-left-nav], [data-top-rail-list], [data-phone-header]'
-const openMenu = async (width) => {
+const openMenu = async (width: number) => {
   if (width >= 768) return
   await state.page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await state.page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
@@ -44,7 +43,7 @@ for (const [width, height] of [
           `Boolean(document.querySelector('[data-main-top]') && document.querySelector('[data-workspace-pill]:not([disabled])') || (${width} < 768 && document.querySelector('[data-top-rail-bar]')))`,
         )
         await settle()
-        const closed = await state.page.evaluate(`(() => {
+        const closed = await state.page.evaluate<{ switchModel: boolean; moreButtons: number; logoBar: boolean; selectorFirst: boolean; sideways: boolean }>(`(() => {
           const pane = document.querySelector('[data-host-pane]')
           const main = document.querySelector('[data-shell-main]')
           return {
@@ -62,11 +61,11 @@ for (const [width, height] of [
         assert.equal(closed.selectorFirst, true, 'the workspace pill starts the nav, not the main column')
         assert.equal(closed.sideways, false, 'no sideways scroll')
         if (width < 768) {
-          const header = await state.page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
+          const header = await state.page.evaluate<number>(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
           assert.ok(header <= 56, `the phone header is one row (${header})`)
         }
         await openMenu(width)
-        const top = await state.page.evaluate(`(() => {
+        const top = await state.page.evaluate<{ stop: boolean; plan: boolean; texts: string[] }>(`(() => {
           const shell = [...document.querySelectorAll('${SHELL}')]
           const visible = []
           const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
@@ -94,7 +93,18 @@ for (const [width, height] of [
 test('the brand line sits under the nav: one line, no box, the logo left and the version right', { skip }, async () => {
   await state.page.open(state.harness.url({ app: '1' }), { width: 1280, height: 800 })
   await state.page.until(`Boolean(document.querySelector('[data-brand-card] [data-avoozl-version]'))`)
-  const got = await state.page.evaluate(`(() => {
+  const got = await state.page.evaluate<{
+    oneLine: boolean
+    order: boolean
+    logoLeft: boolean
+    versionRight: boolean
+    noBox: boolean
+    apart: boolean
+    below: boolean
+    leftOfMain: boolean
+    version: string
+    tagline: boolean
+  }>(`(() => {
     const nav = document.querySelector('[data-nav-card]'), brand = document.querySelector('[data-brand-card]'), main = document.querySelector('[data-shell-main]')
     const box = (el) => el.getBoundingClientRect()
     const logo = brand.querySelector('svg'), version = brand.querySelector('[data-avoozl-version]')
@@ -162,7 +172,7 @@ test('In flight rows line up: titles, and Details, start at the same x in every 
   for (const width of [1280, 768]) {
     await state.page.open(state.harness.url({ modal: 'in-flight-pair' }), { width, height: 800 })
     await state.page.until(`document.querySelectorAll('[data-in-flight-row]').length === 2`)
-    const cols = await state.page.evaluate(`(() => {
+    const cols = await state.page.evaluate<Record<'role' | 'title' | 'actions' | 'right', number[]> & { sideways: boolean }>(`(() => {
       const rows = [...document.querySelectorAll('[data-in-flight-row]')]
       const x = (el) => Math.round(el.getBoundingClientRect().left)
       return {
@@ -173,7 +183,7 @@ test('In flight rows line up: titles, and Details, start at the same x in every 
         sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       }
     })()`)
-    for (const key of ['role', 'title', 'actions', 'right']) assert.equal(cols[key][0], cols[key][1], `${key} lines up at ${width}px`)
+    for (const key of ['role', 'title', 'actions', 'right'] as const) assert.equal(cols[key][0], cols[key][1], `${key} lines up at ${width}px`)
     assert.equal(cols.sideways, false, `no sideways scroll at ${width}px`)
   }
 })
@@ -189,7 +199,7 @@ test('Keep activity sits with the Activity filters in the nav, under the open Ac
     await state.page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
     await state.page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
     await state.page.until(`Boolean(document.querySelector('${scope} [data-section="Keep activity"]'))`)
-    const keep = await state.page.evaluate(`(() => {
+    const keep = await state.page.evaluate<{ inPanel: boolean; notInPage: boolean; sideways: boolean; inputInside: boolean }>(`(() => {
       const section = document.querySelector('${scope} [data-section="Keep activity"]')
       const panel = document.querySelector('${scope} [data-nav-section="activity"] [data-filter-panel="avoozl-activity"]')
       return {
@@ -236,13 +246,13 @@ test('a hovered nav item changes color, the selected one stays different, and ke
     await state.page.evaluate(`document.querySelector('[data-nav-group="settings"]').click()`)
     await state.page.until(`Boolean(document.querySelector('[data-nav-item="settings/models"]'))`)
     await settle()
-    const read = (key) =>
-      state.page.evaluate(
+    const read = (key: string) =>
+      state.page.evaluate<{ bg: string; color: string; weight: string; outline: string }>(
         `(() => { const el = document.querySelector('[data-nav-item="${key}"]'), s = getComputedStyle(el); return { bg: s.backgroundColor, color: s.color, weight: s.fontWeight, outline: s.outlineStyle } })()`,
       )
     const before = await read('settings/models')
     const selected = await read('settings/workspaces')
-    const box = await state.page.evaluate(
+    const box = await state.page.evaluate<number[]>(
       `(() => { document.querySelector('[data-nav-item="settings/models"]').scrollIntoView({ block: 'center' }); const r = document.querySelector('[data-nav-item="settings/models"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`,
     )
     await state.page.hover(box[0], box[1])
@@ -257,7 +267,7 @@ test('a hovered nav item changes color, the selected one stays different, and ke
     await state.page.evaluate(`document.querySelector('[data-nav-item="settings/plugins"]').focus()`)
     assert.equal((await read('settings/plugins')).outline, 'solid', 'keyboard focus shows a ring')
     // A section header changes color on hover too.
-    const head = await state.page.evaluate(
+    const head = await state.page.evaluate<number[]>(
       `(() => { const r = document.querySelector('[data-nav-group="waiting"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`,
     )
     const headBefore = await state.page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="waiting"]')).color`)

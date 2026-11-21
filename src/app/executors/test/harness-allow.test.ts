@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The per-repository allow-list for unattended children; git push is never
 // allowed (R94.4c, §4.28).
 import test from "node:test";
@@ -10,7 +9,7 @@ import {
 } from "../harness-allow.ts";
 import { parseHarnessDefinition } from "../harness-definitions.ts";
 
-const definition = (allow) =>
+const definition = (allow?: string[]) =>
   parseHarnessDefinition({
     name: "example-cli",
     start: ["example-cli", "--cwd", "{worktree}"],
@@ -73,7 +72,7 @@ test("git push is refused in every spelling, even when listed", () => {
 });
 
 test("wrappers, bare git and git config that could reach a push are refused", () => {
-  for (const [command, pattern] of [
+  const cases: [string[], RegExp][] = [
     [["sh", "-c", "git"], /can run any command/],
     [["/bin/bash"], /can run any command/],
     [["env", "git", "status"], /can run any command/],
@@ -86,7 +85,8 @@ test("wrappers, bare git and git config that could reach a push are refused", ()
     [["git", "-c", "alias.ship=log", "ship"], /config or aliases/],
     [["git", "--config-env=alias.s=X", "s"], /config or aliases/],
     [["git", "-c", "core.pager=cat", "log"], /config or aliases/],
-  ])
+  ];
+  for (const [command, pattern] of cases)
     assert.match(
       allowCommandRefusal(command) || "",
       pattern,
@@ -95,7 +95,7 @@ test("wrappers, bare git and git config that could reach a push are refused", ()
 });
 
 test("allow commands are plain argv lists", () => {
-  for (const [value, pattern] of [
+  const cases: [unknown, RegExp][] = [
     ["npm test", /list of argv lists/],
     [["npm test"], /nonempty argv list/],
     [[[]], /nonempty argv list/],
@@ -104,7 +104,8 @@ test("allow commands are plain argv lists", () => {
     [[["npm", "test;git"]], /shell operators/],
     [[["npm", "$(x)"]], /shell operators/],
     [[["npm", "*"]], /shell operators/],
-  ])
+  ];
+  for (const [value, pattern] of cases)
     assert.throws(
       () => sandboxAllowCommands(value),
       pattern,

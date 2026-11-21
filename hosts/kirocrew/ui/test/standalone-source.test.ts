@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The standalone page builds on Kiro Crew's own source at a pin (SW12). These
 // tests check the pin, the fetch, the paths and names the build depends on, the
 // package versions, and that no view knows about the standalone build (SW1).
@@ -19,25 +18,32 @@ const pin = readPin()
 const source = () => fetchKiroCrewUi()
 
 // Export names of a TypeScript file (values and types).
-export function exportNames(file) {
+export function exportNames(file: string) {
   const { program } = parseSync(file, fs.readFileSync(file, 'utf8'), {
     lang: file.endsWith('x') ? 'tsx' : 'ts',
   })
-  const names = new Set()
+  const names = new Set<string>()
+  // A binding or export name: an identifier, or a string for `export { x as 'y' }`.
+  const nameOf = (id: unknown) => {
+    const named = id as { name?: string; value?: string } | null
+    return named?.name ?? named?.value
+  }
+  const add = (name: string | undefined) => name && names.add(name)
   for (const node of program.body) {
     if (node.type === 'ExportDefaultDeclaration') names.add('default')
     if (node.type !== 'ExportNamedDeclaration') continue
     const declaration = node.declaration
-    if (declaration?.type === 'VariableDeclaration') for (const item of declaration.declarations) names.add(item.id.name)
-    else if (declaration?.id) names.add(declaration.id.name)
-    for (const specifier of node.specifiers) names.add(specifier.exported.name ?? specifier.exported.value)
+    if (declaration?.type === 'VariableDeclaration') for (const item of declaration.declarations) add(nameOf(item.id))
+    else if (declaration?.id) add(nameOf(declaration.id))
+    for (const specifier of node.specifiers) add(nameOf(specifier.exported))
   }
   return names
 }
 
 // Every Kiro Crew path and export the build depends on (SW12.4). A release
 // that moves one fails on its line here and nowhere else.
-export const CONTRACT = {
+// The paths that must exist, and the names each file must export.
+export const CONTRACT: { paths: string[]; exports: Record<string, string[]> } = {
   paths: [
     'LICENSE',
     'NOTICE',
@@ -58,8 +64,8 @@ export const CONTRACT = {
   },
 }
 
-export function contractProblems(folder, contract = CONTRACT) {
-  const problems = []
+export function contractProblems(folder: string, contract = CONTRACT) {
+  const problems: string[] = []
   for (const entry of contract.paths) if (!fs.existsSync(path.join(folder, entry))) problems.push(`missing path ${entry}`)
   for (const [file, wanted] of Object.entries(contract.exports)) {
     const full = path.join(folder, file)
@@ -81,9 +87,9 @@ test('the pin names a release, a commit and a digest', () => {
 
 test('the pin is not older than the Kiro Crew the app asks for (SW12.8)', () => {
   const minimum = JSON.parse(fs.readFileSync(path.join(root, 'hosts', 'kirocrew', 'app.json'), 'utf8')).minKiroCrewVersion
-  const parts = (version) => version.replace(/^v/, '').split('.').map(Number)
+  const parts = (version: string) => version.replace(/^v/, '').split('.').map(Number)
   const [a, b] = [parts(pin.tag), parts(minimum)]
-  const at = a.findIndex((n, index) => n !== b[index])
+  const at = a.findIndex((n: number, index: number) => n !== b[index])
   assert.ok(at < 0 || a[at] > b[at], `pin ${pin.tag} is older than ${minimum}`)
 })
 
@@ -115,7 +121,7 @@ test('a source that cannot be had fails saying so', () => {
 
 test("the build script builds Kiro Crew's bundles before the standalone page and still stamps them", () => {
   const script = fs.readFileSync(path.join(root, 'scripts', 'bundle', 'build-kirocrew-app.ts'), 'utf8')
-  const at = (text) => script.indexOf(text)
+  const at = (text: string) => script.indexOf(text)
   assert.ok(at('writeUiStamp(ui)') > 0)
   assert.ok(at('buildStandalone(') > at('writeUiStamp(ui)'))
   assert.match(script, /standaloneError/)
@@ -154,9 +160,10 @@ test('the contract test names a moved path or export', () => {
 
 // Packages the page takes from Kiro Crew's lockfile (SW12.5): each installed
 // version must equal the version the pin's own lockfile resolves.
-const ALIASES = { react18: 'react', 'react-dom18': 'react-dom' }
-export function versionProblems(lock, installed) {
-  const problems = []
+const ALIASES: Record<string, string> = { react18: 'react', 'react-dom18': 'react-dom' }
+// `lock` is a package-lock.json; `installed` maps each bundled package to its version.
+export function versionProblems(lock: { packages: Record<string, { version?: string }> }, installed: Record<string, unknown>) {
+  const problems: string[] = []
   for (const [name, version] of Object.entries(installed)) {
     const lockName = ALIASES[name] ?? name
     const wanted = lock.packages[`node_modules/${lockName}`]?.version
@@ -180,11 +187,11 @@ test('the version test fails on a package that differs', () => {
 
 // SW1.7: nothing under standalone/ may export a name the SDK exports, and no
 // view may import a Kiro Crew file by path.
-export function sdkNames(folder) {
+export function sdkNames(folder: string) {
   return new Set([...exportNames(path.join(folder, 'website/src/app-sdk/index.ts')), ...exportNames(path.join(folder, 'website/src/kirocrew-ui/index.ts'))])
 }
-export function clashes(dir, names) {
-  const found = []
+export function clashes(dir: string, names: Set<string>) {
+  const found: string[] = []
   for (const name of fs.readdirSync(dir))
     if (/\.tsx?$/.test(name)) for (const exported of exportNames(path.join(dir, name))) if (names.has(exported) && exported !== 'default') found.push(`${name} exports ${exported}`)
   return found
@@ -201,9 +208,9 @@ test('the clash check finds a planted export', () => {
 })
 
 // A view reaches Kiro Crew only through @kirocrew/app-sdk, never by path.
-export function pathImports(dir) {
+export function pathImports(dir: string) {
   const found = []
-  for (const name of fs.readdirSync(dir, { recursive: true }))
+  for (const name of fs.readdirSync(dir, { recursive: true, encoding: 'utf8' }))
     if (/\.tsx?$/.test(name) && !name.startsWith(`standalone${path.sep}`)) {
       const text = fs.readFileSync(path.join(dir, name), 'utf8')
       for (const match of text.matchAll(/from\s+['"]([^'"]+)['"]/g))
@@ -219,7 +226,7 @@ test('no view imports a Kiro Crew file by path (SW1.2)', () => {
 test('no view tests which build it runs in (SW1.2); the host comes from workspaces.list (SW10.3)', () => {
   const dir = path.join(ui, 'src')
   const found = []
-  for (const name of fs.readdirSync(dir, { recursive: true }))
+  for (const name of fs.readdirSync(dir, { recursive: true, encoding: 'utf8' }))
     if (/\.tsx?$/.test(name) && !name.startsWith(`standalone${path.sep}`)) {
       const text = fs.readFileSync(path.join(dir, name), 'utf8')
       if (/__[A-Z_]*STANDALONE|isStandalone|import\.meta\.env|process\.env/.test(text)) found.push(name)

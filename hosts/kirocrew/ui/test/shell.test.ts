@@ -1,11 +1,11 @@
-// @ts-nocheck: typing debt
 // The three-column shell (follows Kiro Crew's list-detail pattern). Column
 // widths clamp and are remembered; the left nav collapses to a thin bar with
 // vertical text and comes back; a desktop has the nav, a phone the hamburger.
 // Browser parts run in a real Chrome (AVOOZL_CHROME), skipped without one.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const { NAV, LIST, clampWidth, listSpec, readFlag, readWidth, stepWidth, writeFlag, writeWidth } = await import('../src/columns.ts')
 
@@ -17,7 +17,7 @@ test('widths clamp, step by 16 px and are kept per column, the default unstored'
   assert.equal(stepWidth(200, 'ArrowLeft'), 184)
   assert.equal(stepWidth(200, 'Tab'), null)
   const saved = new Map()
-  const storage = { getItem: (k) => saved.get(k) ?? null, setItem: (k, v) => saved.set(k, v), removeItem: (k) => saved.delete(k) }
+  const storage = { getItem: (k: string) => saved.get(k) ?? null, setItem: (k: string, v: string) => void saved.set(k, v), removeItem: (k: string) => void saved.delete(k) }
   const specs = listSpec('specs')
   assert.equal(readWidth(storage, specs), LIST.initial)
   writeWidth(storage, specs, 420)
@@ -33,16 +33,17 @@ test('widths clamp, step by 16 px and are kept per column, the default unstored'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the shell tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 120))')
-const box = (sel) =>
-  page.evaluate(
+// The element's box, which a test needs on the page.
+const box = async (sel: string) => {
+  const found = await page.evaluate<{ left: number; top: number; width: number; height: number } | null>(
     `(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height } })()`,
   )
+  assert.ok(found, sel + ' is on the page')
+  return found
+}
 
 for (const dark of [false, true]) {
   const theme = dark ? 'dark' : 'light'

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings page titles: pages of the selected workspace name it, the machine's
 // own page does not.
 import assert from 'node:assert/strict'

@@ -316,7 +316,21 @@ export function tickedHead(
 // waits for the next read. Returns the IDs it ticked.
 export async function tickOpenGroups(
   root,
-  { branch, spec, files, text, env, commitPrefix = "" },
+  {
+    branch,
+    spec,
+    files,
+    text,
+    env,
+    commitPrefix = "",
+  }: {
+    branch: string;
+    spec: string;
+    files?: Record<string, string>;
+    text: string;
+    env?: NodeJS.ProcessEnv;
+    commitPrefix?: string;
+  },
 ) {
   if (!tickedText(spec, text, [], TASKS_FILE, { groups: true }).ticked.length)
     return [];

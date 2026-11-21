@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { loopFile, machineLoop } from "../tick/loop.ts";
 import { applyActivity } from "../../activity.ts";
@@ -76,9 +75,16 @@ import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.ts";
 import { workspaceRepositories } from "../workspace/workspace-repositories.ts";
 import { randomUUID } from "node:crypto";
 import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
+import type { Store } from "../store/store.ts";
+import type { Task } from "../../types.ts";
+import type { McpMessage } from "../../mcp.ts";
 
 // Manual tasks (§4.16).
-function taskManualCompleteHandler({ name, input, context }) {
+function taskManualCompleteHandler(
+  this: Operations,
+  { name, input, context }: OperationCall,
+) {
   const store = this.store;
 
   if (context.caller || context.mcp)
@@ -86,14 +92,17 @@ function taskManualCompleteHandler({ name, input, context }) {
       "Only a person marks a manual task done or reopens it, in the Avoozl page or the CLI.",
       403,
     );
-  const taskId = resolveTaskId(this.read(), input.taskId),
+  const taskId = resolveTaskId(this.read(), String(input.taskId ?? "")),
     by = context.local ? "cli" : this.operator || "person";
   return name === "task.manual.complete"
     ? completeManual(store, { ...input, taskId }, { by })
     : reopenManual(store, { taskId }, { by });
 }
 
-function taskArchiveHandler({ name, input, expectedRevision }) {
+function taskArchiveHandler(
+  this: Operations,
+  { name, input, expectedRevision }: OperationCall,
+) {
   const store = this.store;
   return store.mutate(
     (name === "task.archive" ? "Archive " : "Restore ") + input.id,
@@ -129,7 +138,26 @@ function taskArchiveHandler({ name, input, expectedRevision }) {
 
 // Whether any task is ready; an older read-only database that lacks the
 // session tables has none to start.
-function hasReady(store) {
+// The request fields task.update reads; each is checked before use.
+interface TaskUpdateInput {
+  id: string;
+  create?: boolean;
+  title?: string;
+  distinctReason?: string;
+  requires?: (string | { task: string; condition: string })[];
+  sequence?: string[];
+  integration?: {
+    commit: string;
+    at: string;
+    branch: string;
+    repo: string;
+    evidence: string[];
+  };
+  needsReview?: boolean;
+  [key: string]: unknown;
+}
+
+function hasReady(store: Store) {
   try {
     return readyCandidates(store).length > 0;
   } catch (error) {
@@ -144,7 +172,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return describeWorkspace(store);
     },
@@ -155,7 +183,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: notOnMcp("App page rendering only."),
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return highlightLanguages(this.workspaceRoot);
     },
   },
@@ -165,7 +193,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return activityView(store, this.read(), input);
     },
@@ -176,10 +204,10 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
-      let all = [];
+      let all: Task[] = [];
       try {
         all = this.read().tasks;
       } catch {}
@@ -208,7 +236,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return this.settingsFile().readActivitySettings();
     },
   },
@@ -218,7 +246,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person changes how long activity is kept."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail("Only a person changes how long activity is kept.", 403);
       const written = this.settingsFile().updateActivitySettings(input);
@@ -232,7 +260,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return startNow(store, input, {
         policy: readDeliveryPolicy(this.workspaceRoot),
@@ -245,7 +273,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: notOnMcp("App page rendering only."),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       // Ask for help (§8.9): the page's own words and settings.
       if (input.purpose === "help") return { message: helpMessage(input) };
       return chatContext(this.store, this.read(), input);
@@ -257,11 +285,11 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       // Draft spec folders, display only; none when specs cannot be read.
-      let folders = [];
+      let folders: { name: string; spec: unknown }[] = [];
       try {
         folders = this.specHomes().homes.map(({ spec }) => ({
           name: spec.name,
@@ -273,10 +301,10 @@ export const entries = [
       // The one graph builder's text and Mermaid (simplify §D8), which the
       // CLI and plans_graph print. An older read-only database that lacks
       // session tables gets the view alone.
-      let printed = {};
+      let printed: { text?: string; mermaid?: string } = {};
       try {
         const graph = storeGraph(store, {
-          scope: input?.spec ?? null,
+          scope: typeof input.spec === "string" ? input.spec : null,
           linked: this.linkedSpecs(),
           ready: new Set(readyCandidates(store).map((task) => task.id)),
           busy: busyTaskIds(store),
@@ -298,7 +326,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       const data = this.read(),
@@ -384,11 +412,11 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       const data = this.read(),
-        detail = this.detail(input.id),
+        detail = this.detail(String(input.id)),
         plan = detail.planId ? store.get("plans", detail.planId) : null;
       return taskDetailView(store, data, detail, {
         plan: plan && !plan.deletedAt ? plan : null,
@@ -405,7 +433,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       return this.previewTaskChange(input);
     },
   },
@@ -415,7 +443,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return settleConflicts(store, input, expectedRevision);
     },
@@ -428,7 +456,7 @@ export const entries = [
     policy: notOnMcp(
       "Whole-database read; plans_view and plans_task read what a session needs.",
     ),
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return this.read();
     },
   },
@@ -438,7 +466,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return conversationSettings(store);
     },
@@ -449,7 +477,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person changes workspace settings."),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return this.configuration
         ? this.configuration.updateConversationSettings(input).settings
@@ -470,7 +498,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       // Each row says the state the page shows for it, beside its status.
@@ -488,9 +516,9 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
-      return withGraphState(store, this.read())(this.detail(input.id));
+      return withGraphState(store, this.read())(this.detail(String(input.id)));
     },
   },
 
@@ -499,10 +527,10 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return store.mutate(
-        "Save report " + (input.title || ""),
+        "Save report " + String(input.title || ""),
         (data) => {
           if (
             input.id !== undefined &&
@@ -518,9 +546,10 @@ export const entries = [
             fail("Report title must contain 1–160 characters.");
           if (
             input.view !== undefined &&
-            !["overview", "tasks", "epics", "graph", "documents"].includes(
-              input.view,
-            )
+            (typeof input.view !== "string" ||
+              !["overview", "tasks", "epics", "graph", "documents"].includes(
+                input.view,
+              ))
           )
             fail("Unknown report view.");
           if (
@@ -530,7 +559,9 @@ export const entries = [
               Array.isArray(input.filters))
           )
             fail("Report filters must be an object.");
-          const filters = {};
+          // Request input, an object or absent as checked above.
+          const given = (input.filters || {}) as Record<string, unknown>,
+            filters: Record<string, unknown> = {};
           for (const key of [
             "query",
             "scopes",
@@ -542,8 +573,8 @@ export const entries = [
             "activity",
             "historical",
           ]) {
-            if (!Object.hasOwn(input.filters || {}, key)) continue;
-            const value = input.filters[key];
+            if (!Object.hasOwn(given, key)) continue;
+            const value = given[key];
             if (
               key === "historical"
                 ? typeof value !== "boolean"
@@ -558,10 +589,10 @@ export const entries = [
               fail("Invalid report filter " + key + ".");
             filters[key] = structuredClone(value);
           }
-          data.savedSearches ??= [];
+          const saved = (data.savedSearches ??= []);
           const now = new Date().toISOString(),
             existing = input.id
-              ? data.savedSearches.find((item) => item.id === input.id)
+              ? saved.find((item) => item.id === input.id)
               : null,
             record = {
               id: existing?.id || "report-" + randomUUID().slice(0, 12),
@@ -572,9 +603,8 @@ export const entries = [
               updatedAt: now,
             };
           if (input.id && !existing) fail("Saved report not found.", 404);
-          if (existing)
-            data.savedSearches[data.savedSearches.indexOf(existing)] = record;
-          else data.savedSearches.push(record);
+          if (existing) saved[saved.indexOf(existing)] = record;
+          else saved.push(record);
           return record;
         },
         expectedRevision,
@@ -587,7 +617,7 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: person("Only a person deletes a report."),
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return store.mutate(
         "Delete report " + input.id,
@@ -597,7 +627,7 @@ export const entries = [
             (item) => item.id === input.id,
           );
           if (!existing) fail("Saved report not found.", 404);
-          data.savedSearches = data.savedSearches.filter(
+          data.savedSearches = (data.savedSearches ?? []).filter(
             (item) => item.id !== input.id,
           );
           return existing;
@@ -612,11 +642,18 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: notOnMcp("App page rendering only."),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
-      const source = store.read().agentInstructionSource,
-        snapshot = store.getMeta("agentInstructionSourceSnapshot");
+      // The source a sync recorded in the snapshot JSON.
+      const source = store.read().agentInstructionSource as
+          | { path?: string; hash?: string }
+          | undefined,
+        snapshot = store.getMeta<{
+          path?: string;
+          hash?: string;
+          sources?: { repositoryId?: string }[];
+        }>("agentInstructionSourceSnapshot");
       if (!source)
         fail("No .avoozl.json instructions have been synchronized.", 404);
       if (
@@ -648,14 +685,18 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person changes workspace settings."),
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return store.mutate(
         (input.enabled ? "Enable " : "Disable ") +
           "agent instruction " +
           input.id,
         (data) =>
-          toggleAgentInstruction(data, input.id, Boolean(input.enabled)),
+          toggleAgentInstruction(
+            data,
+            String(input.id),
+            Boolean(input.enabled),
+          ),
         expectedRevision,
       );
     },
@@ -680,7 +721,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return {
         plans: store
@@ -697,7 +738,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       const task = this.read().tasks.find((t) => t.id === input.id);
@@ -718,8 +759,8 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
-      const doc = this.read().documents[input.id];
+    handler(this: Operations, { input }: OperationCall) {
+      const doc = this.read().documents[String(input.id)];
       if (!doc) fail("Document not found.", 404);
       return doc;
     },
@@ -730,7 +771,7 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return store.mutate(
         "Capture prompt",
@@ -745,7 +786,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       return this.submitIntent(input, expectedRevision);
     },
   },
@@ -755,7 +796,7 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       const receipt = store.get("receipts", "intent:" + input.submissionId);
@@ -769,28 +810,33 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
-      const store = this.store;
+    handler(this: Operations, call: OperationCall) {
+      const store = this.store,
+        { expectedRevision } = call,
+        // Request input, checked field by field below.
+        input = call.input as TaskUpdateInput;
 
       const reviewers = reviewRoles(readDeliveryPolicy(this.workspaceRoot));
       return store.mutate(
         "Update " + input.id,
         (data) => {
-          let task = data.tasks.find((t) => t.id === input.id);
-          if (!task) {
+          let found = data.tasks.find((t) => t.id === input.id);
+          if (!found) {
             if (!input.create || !/^[a-z][a-z0-9-]{2,80}$/.test(input.id || ""))
               fail("Task not found.", 404);
             requireDistinctTask(data, { ...input, id: input.id });
-            task = {
+            found = {
               id: input.id,
+              title: "",
               scope: "catalog",
               kind: "task",
               status: "planned",
               track: "catalog",
               tags: [],
             };
-            data.tasks.push(task);
+            data.tasks.push(found);
           }
+          const task = found;
           refuseGateBypass(data, task, input, reviewers);
           refuseSpecText(store, task, input);
           if (
@@ -801,12 +847,11 @@ export const entries = [
               ...input,
               id: task.id,
             });
-            if (input.distinctReason?.trim())
+            const reason = input.distinctReason?.trim();
+            if (reason)
               task.distinctFrom = {
                 ...task.distinctFrom,
-                ...Object.fromEntries(
-                  candidates.map((t) => [t.id, input.distinctReason.trim()]),
-                ),
+                ...Object.fromEntries(candidates.map((t) => [t.id, reason])),
               };
           }
           for (const key of [
@@ -887,7 +932,7 @@ export const entries = [
                 task[key].some((v) => typeof v !== "string"))
             )
               fail(key + " must be a list of strings.");
-          if (!data.tracks.some((t) => t.id === task.track))
+          if (!(data.tracks ?? []).some((t) => t.id === task.track))
             fail("Unknown track.");
           if (input.requires !== undefined) {
             // Each entry is a task ID, or {task, condition} naming the
@@ -1005,7 +1050,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return store.mutate(
         "Report activity",
@@ -1020,12 +1065,12 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
       return store.mutate(
         "Edit " + input.id,
         (data) => {
-          const doc = data.documents[input.id];
+          const doc = data.documents[String(input.id)];
           if (!doc) fail("Document not found.", 404);
           if (doc.hash !== input.expectedHash) fail("Document changed.", 409);
           if (typeof input.text !== "string" || input.text.length > 1000000)
@@ -1051,7 +1096,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
 
       // Acceptance evidence that already exists should not have to be retyped:
@@ -1065,12 +1110,12 @@ export const entries = [
             if (!task) fail("Task not found.", 404);
             if (!task.integration && !input.componentOnly)
               fail("Record integration before whole-head acceptance.");
-            const recorded = input.evidence?.trim()
-              ? null
-              : validationAt(store, data, task);
+            const given =
+                typeof input.evidence === "string" ? input.evidence.trim() : "",
+              recorded = given ? null : validationAt(store, data, task);
             task.acceptanceEvidence = {
               at: new Date().toISOString(),
-              evidence: input.evidence?.trim() || recorded?.summary || "",
+              evidence: given || recorded?.summary || "",
               ...(recorded?.evidenceIds.length
                 ? { derivedFrom: recorded.evidenceIds }
                 : {}),
@@ -1093,8 +1138,8 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
-      const task = this.detail(input.id);
+    handler(this: Operations, { input }: OperationCall) {
+      const task = this.detail(String(input.id));
       return {
         task,
         design: task.documents,
@@ -1119,7 +1164,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       const data = this.read(),
@@ -1188,8 +1233,14 @@ export const entries = [
     policy: notOnMcp(
       "The MCP server's own protocol methods (initialize, ping, view resources) in src/mcp.mjs.",
     ),
-    handler({ input }) {
-      return dispatchMcp(input.message, { versionHeader: input.versionHeader });
+    handler(this: Operations, { input }: OperationCall) {
+      // Request input: dispatchMcp checks the message before reading it.
+      return dispatchMcp(input.message as McpMessage, {
+        versionHeader:
+          typeof input.versionHeader === "string"
+            ? input.versionHeader
+            : undefined,
+      });
     },
   },
 ];

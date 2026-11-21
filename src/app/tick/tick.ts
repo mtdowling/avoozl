@@ -144,7 +144,7 @@ function parsePolicy(text) {
 }
 
 // The workspace name a lane's header and folder carry (simplify §D22).
-export const laneWorkspace = (workspaceRoot) =>
+export const laneWorkspace = (workspaceRoot: string | null | undefined) =>
   workspaceRoot ? path.basename(path.resolve(workspaceRoot)) : null;
 
 // This machine's lanes (R6.3, simplify §D22): lanes.local or, with `key`,
@@ -270,7 +270,10 @@ const releasedPath = (store) => {
   return health ? path.join(path.dirname(health), "tick-released.json") : null;
 };
 
-export function recordReleased(store, { dispatch, messages }) {
+export function recordReleased(
+  store,
+  { dispatch, messages }: Pick<TickResult, "dispatch" | "messages">,
+) {
   const file = releasedPath(store);
   if (!file) return;
   const temporary = `${file}.${process.pid}.tmp`;
@@ -1056,8 +1059,17 @@ async function runTick(
   }
 }
 
+// What one tick pass returns: its notices, chat messages and dispatches.
+export interface TickResult {
+  skipped?: boolean;
+  notify?: { channel: string; title: string; text: string; task?: string }[];
+  messages?: unknown[];
+  dispatch?: unknown[];
+  [key: string]: unknown;
+}
+
 // Every other GitHub read of the tick runs as check-in.
-export const tick = (store, options) =>
+export const tick = (store, options): Promise<TickResult> =>
   withSource("tick", () =>
     withJob(
       "check-in",

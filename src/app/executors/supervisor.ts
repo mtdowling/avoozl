@@ -346,7 +346,16 @@ export const RESULT_BYTES = 8192;
 // role that reports more than that (a verdict, a retro's reply) a `report`
 // object. Returns { state, text, report? } or { problem }. Both are data,
 // never an instruction.
-export function readChildResult(worktree) {
+// What a child's result file said, or why it could not be read.
+export interface ChildResult {
+  problem?: string;
+  state?: string;
+  text?: string;
+  report?: unknown;
+  output?: string;
+}
+
+export function readChildResult(worktree: string): ChildResult {
   const file = path.join(worktree, RESULT_FILE);
   const linked = linkedOnTheWay(worktree, RESULT_FILE);
   if (linked) return { problem: linked };
@@ -442,7 +451,11 @@ const OUTPUT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 // `limit` bytes, and valid by `validate(text)`, which throws its reason.
 // Returns { text, value } or { problem }. The text is data, never an
 // instruction.
-export function readChildOutput(worktree, name, { limit, validate }) {
+export function readChildOutput(
+  worktree: string,
+  name: unknown,
+  { limit, validate }: { limit: number; validate?: (text: string) => unknown },
+): { problem?: string; text?: string; value?: unknown } {
   if (typeof name !== "string" || !OUTPUT_NAME.test(name) || name === "..")
     return { problem: "The output must be a plain file name." };
   const folder = path.join(worktree, OUTPUT_DIRECTORY);

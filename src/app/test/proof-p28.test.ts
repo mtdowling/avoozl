@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Proof P28: content rules with fake terms and a fake rules plugin (tasks.md
 // Phase 10, design §4.9, Requirement 40). An isolated temporary workspace,
 // a sample git repository, fake sessions (fake-crew.mjs), three rule sets
@@ -10,12 +9,13 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { snapshot } from "./fixtures.ts";
 import { pathToFileURL } from "node:url";
 import { handleMcp } from "../mcp/mcp.ts";
 import { Operations } from "../api/operations.ts";
-import { Store } from "../store/store.ts";
+import { Store, type StatusError } from "../store/store.ts";
+import type { NotificationRow } from "../tick/notifications.ts";
 import { writePluginSettings } from "../plugins/plugins.ts";
 import {
   check,
@@ -23,19 +23,38 @@ import {
   enforce,
   loadRulePlugins,
 } from "../content/content-rules.ts";
-import { commitIn, fakeCrew, git } from "./fake-crew.ts";
+import {
+  commitIn,
+  fakeCrew,
+  git,
+  type Script,
+  type SessionContext,
+} from "./fake-crew.ts";
 import { writeSpec } from "./spec-fixture.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { loopOn } from "./fixtures.ts";
+import { found, type PlanDraft, type PlanPreview } from "./view-shapes.ts";
+
+// One content decision, for the fields read here.
+interface ContentDecision {
+  id: string;
+  state: string;
+  kind: string;
+  set: string;
+  rules: string[];
+  boundary: string;
+  target: string;
+  line: number;
+}
+// A blocked GitHub write's error.
+type Blocked = StatusError & { contentBlocked?: boolean };
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
 // This machine's own Git settings (a global ignore file) stay out.
-process.env.GIT_CONFIG_GLOBAL = path.join(
-  process.env.XDG_CONFIG_HOME,
-  "gitconfig",
-);
+const XDG = found(process.env.XDG_CONFIG_HOME, "XDG_CONFIG_HOME");
+process.env.GIT_CONFIG_GLOBAL = path.join(XDG, "gitconfig");
 fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "");
 
 const FIXTURE = path.join(import.meta.dirname, "fixtures", "plugins");
@@ -45,7 +64,7 @@ const CHECK_FILE = "scripts/validate.mjs",
   CHECK = CHECK_ARGV.join(" ");
 const A = "p28.1",
   B = "p28.2";
-const aliases = { [A]: "a", [B]: "b" };
+const aliases: Record<string, string> = { [A]: "a", [B]: "b" };
 // Every blocking term, plain and encoded. `fileshare/teams` belongs to the
 // report set, whose content is written by design, so it is not here.
 const TERMS = [
@@ -57,7 +76,7 @@ const TERMS = [
   /repository[- ]?x\b/i,
 ];
 
-const leaf = (summary, extra = {}) => ({
+const leaf = (summary: string, extra: Record<string, unknown> = {}) => ({
   kind: "leaf",
   repository: "app",
   summary,
@@ -67,7 +86,7 @@ const leaf = (summary, extra = {}) => ({
   ...extra,
 });
 
-const tasksMd = (note) =>
+const tasksMd = (note: string) =>
   ["# Tasks", "", note, "", "- [ ] 1 Write a", "- [ ] 2 Write b on a", ""].join(
     "\n",
   );
@@ -91,7 +110,7 @@ const spec = (note = "Plain words only.") => ({
   ),
 });
 
-function policy(extra = {}) {
+function policy(extra: Record<string, unknown> = {}) {
   return JSON.stringify({
     version: 1,
     lanes: { local: 1 },
@@ -108,7 +127,7 @@ function policy(extra = {}) {
   });
 }
 
-async function workspace(t) {
+async function workspace(t: TestContext) {
   const root = temporaryDirectory("avoozl-p28-"),
     checkout = path.join(root, "app"),
     remote = temporaryDirectory("avoozl-p28-remote-"),
@@ -130,7 +149,7 @@ async function workspace(t) {
   // machine's settings.
   const pathsFile = path.join(outside, "fake-paths.txt");
   fs.writeFileSync(pathsFile, "share: \\bfileshare/teams\\b\n");
-  const config = path.join(process.env.XDG_CONFIG_HOME, "avoozl");
+  const config = path.join(XDG, "avoozl");
   fs.mkdirSync(config, { recursive: true });
   fs.writeFileSync(
     path.join(config, "config.json"),
@@ -178,7 +197,10 @@ async function workspace(t) {
     pluginSettingsFile,
     operator: "owner",
   });
-  const listed = await ops.execute("plugins.list", {});
+  const listed = await ops.execute<{ plugins: { hash: string }[] }>(
+    "plugins.list",
+    {},
+  );
   await ops.execute("plugin.approve", {
     id: "fake-rules",
     hash: listed.plugins[0].hash,
@@ -200,13 +222,16 @@ async function workspace(t) {
 }
 
 const planner = { caller: { sessionKey: "dashboard:planner-1" }, mcp: true };
-const openDecisions = (store, kind) =>
+const openDecisions = (store: Store, kind?: string) =>
   store
-    .list("content_decisions")
+    .list<ContentDecision>("content_decisions")
     .filter((d) => d.state === "open" && (!kind || d.kind === kind));
 
-async function approve(ops) {
-  const preview = await ops.execute("plan.preview", { id: "p28" });
+async function approve(ops: Operations) {
+  const preview = await ops.execute<PlanPreview & { reviewedHash: string }>(
+    "plan.preview",
+    { id: "p28" },
+  );
   return ops.execute("plan.approve", {
     id: "p28",
     expectedHash: preview.reviewedHash,
@@ -215,9 +240,9 @@ async function approve(ops) {
 }
 
 const passed = [{ command: CHECK, exitCode: 0 }];
-const defaults = (role) =>
+const defaults = (role: string): Script =>
   role === "worker"
-    ? async ({ session, worktree, report }) => {
+    ? async ({ session, worktree, report }: SessionContext) => {
         const commit = commitIn(
           await worktree(),
           `src/${session.alias}.txt`,
@@ -228,9 +253,9 @@ const defaults = (role) =>
         return commit;
       }
     : role === "verifier"
-      ? ({ session, report }) =>
+      ? ({ session, report }: SessionContext) =>
           report({ commit: session.commit, checks: passed })
-      : ({ session, report }) =>
+      : ({ session, report }: SessionContext) =>
           report({ commit: session.commit, verdict: "approved" });
 
 // Real Git, worktrees, a pre-push hook that runs the CLI and a rules plugin
@@ -243,7 +268,17 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
     { root, store, ops, terms, checkout } = env;
 
   // Settings shows each set, its source kind and availability, never a rule.
-  const rules = await ops.execute("content.rules", {});
+  const rules = await ops.execute<{
+    sets: {
+      id: string;
+      source: string;
+      available: boolean;
+      action: string;
+      termsFrom?: string;
+      version?: string;
+    }[];
+    builtins: unknown[];
+  }>("content.rules", {});
   assert.deepEqual(
     rules.sets.map((s) => [s.id, s.source, s.available, s.action]),
     [
@@ -264,7 +299,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
   });
   await assert.rejects(
     ops.execute("plan.create", { spec: "p28" }, undefined, planner),
-    (error) =>
+    (error: StatusError) =>
       error.status === 422 &&
       /fake-terms rule codename at p28\/design\.md line 3/.test(
         error.message,
@@ -281,7 +316,9 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
   // content.match diagnostic and a decision. Allow once, approve again.
   writeSpec(root, "p28", spec("Codename zorblat stays internal."));
   await ops.execute("plan.create", { spec: "p28" });
-  const lint = await ops.execute("plan.lint", { id: "p28" });
+  const lint = await ops.execute<{
+    diagnostics: { code: string; file?: string; lineStart: number }[];
+  }>("plan.lint", { id: "p28" });
   assert.ok(
     lint.diagnostics.some(
       (d) =>
@@ -303,7 +340,9 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
     ],
     ["fake-terms", ["codename"], "plan", "p28/tasks.md", 6],
   );
-  const shown = await ops.execute("content.show", { id: blocked.id });
+  const shown = await ops.execute<{ text: string }>("content.show", {
+    id: blocked.id,
+  });
   assert.equal(shown.text, "Codename zorblat stays internal.");
   await assert.rejects(
     ops.execute(
@@ -312,9 +351,11 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
       undefined,
       planner,
     ),
-    (error) => error.status === 403,
+    (error: StatusError) => error.status === 403,
   );
-  const allowed = await ops.execute("content.allow", {
+  const allowed = await ops.execute<{
+    allowances: { by: string; reason: string; contentHash: string }[];
+  }>("content.allow", {
     id: blocked.id,
     reason: "The codename is public after launch.",
   });
@@ -324,11 +365,15 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
   );
   assert.match(allowed.allowances[0].contentHash, /^[0-9a-f]{64}$/);
   await approve(ops);
-  assert.ok(store.list("content_allowances").every((a) => a.usedAt));
+  assert.ok(
+    store
+      .list<{ usedAt?: string }>("content_allowances")
+      .every((a) => a.usedAt),
+  );
 
   // (5) Worker a adds a line naming the fake host: done is refused in-call,
   // the hook stops the push, and the fixed commit is accepted and lands.
-  let pushed = null;
+  let pushed: ReturnType<typeof spawnSync> | null = null;
   const crew = fakeCrew(ops, {
     aliases,
     defaults,
@@ -343,7 +388,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
         );
         await refused(
           { commit: bad },
-          (error) =>
+          (error: Error) =>
             /fake-terms rule host at src\/a\.txt line 1/.test(error.message) &&
             !/build7/.test(error.message),
         );
@@ -366,9 +411,10 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
     [["a", "worker"]],
   );
   await crew.play();
-  assert.notEqual(pushed.status, 0, "the hook stopped the push");
-  assert.match(pushed.stderr, /fake-terms rule host/);
-  assert.doesNotMatch(pushed.stderr, /build7/);
+  const push = found<ReturnType<typeof spawnSync>>(pushed);
+  assert.notEqual(push.status, 0, "the hook stopped the push");
+  assert.match(String(push.stderr), /fake-terms rule host/);
+  assert.doesNotMatch(String(push.stderr), /build7/);
   assert.equal(
     spawnSync("git", ["config", "--get", "core.hooksPath"], { cwd: checkout })
       .status,
@@ -377,14 +423,14 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
   );
   for (
     let i = 0;
-    i < 4 && !store.read().tasks.find((x) => x.id === A).integration;
+    i < 4 && !store.read().tasks.find((x) => x.id === A)?.integration;
     i++
   ) {
     await crew.tick();
     await crew.play((s) => s.alias === "a");
   }
   await crew.tick();
-  assert.ok(store.read().tasks.find((x) => x.id === A).integration, "a lands");
+  assert.ok(store.read().tasks.find((x) => x.id === A)?.integration, "a lands");
   assert.equal(
     git(checkout, "show", "main:hosts.txt"),
     "legacy build7.corp.example",
@@ -396,15 +442,22 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
   // notification.
   const bWorker = crew.find("b", "worker", 1);
   assert.ok(bWorker, "b's brief was sent");
-  assert.match(bWorker.brief, /fileshare\/teams/);
-  const delivery = await ops.execute("delivery.view", {});
+  assert.match(String(bWorker.brief), /fileshare\/teams/);
+  const delivery = await ops.execute<{
+    contentReports: {
+      set: string;
+      rule: string;
+      boundary: string;
+      taskId: string;
+    }[];
+  }>("delivery.view", {});
   assert.deepEqual(
     delivery.contentReports.map((r) => [r.set, r.rule, r.boundary, r.taskId]),
     [["fake-paths", "share", "brief", B]],
   );
   assert.equal(
     store
-      .list("app_notifications")
+      .list<NotificationRow>("app_notifications")
       .filter((n) => /fake-paths reported/.test(n.payload.title)).length,
     1,
   );
@@ -415,17 +468,16 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
     saved = fs.readFileSync(file, "utf8");
   fs.rmSync(file);
   await assert.rejects(
-    crew.find("b", "worker", 1) &&
-      ops.execute(
-        "session.report",
-        {
-          kind: "done",
-          taskId: B,
-          commit: git(checkout, "rev-parse", "main"),
-        },
-        undefined,
-        { caller: { sessionKey: "dashboard:" + bWorker.slot } },
-      ),
+    ops.execute(
+      "session.report",
+      {
+        kind: "done",
+        taskId: B,
+        commit: git(checkout, "rev-parse", "main"),
+      },
+      undefined,
+      { caller: { sessionKey: "dashboard:" + bWorker.slot } },
+    ),
     /fake-terms is unavailable \(no terms file/,
   );
   for (const input of [
@@ -434,7 +486,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
   ])
     assert.equal(enforce(store, input).ok, false);
   const done = await crew.tick();
-  assert.ok(done.policy, "the tick finished");
+  assert.ok("policy" in done && done.policy, "the tick finished");
   assert.deepEqual(
     openDecisions(store, "unavailable").map((d) => d.set),
     ["fake-terms"],
@@ -444,7 +496,9 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
   await crew.tick();
   assert.deepEqual(openDecisions(store, "unavailable"), [], "settled");
   git(root, "add", "-f", file);
-  assert.match(describeSets(store).sets[0].reason, /refused: Git tracks it/);
+  const tracked = describeSets(store).sets[0];
+  assert.ok("reason" in tracked);
+  assert.match(String(tracked.reason), /refused: Git tracks it/);
   git(root, "rm", "-q", "--cached", file);
   assert.equal(describeSets(store).sets[0].available, true);
   // The plugin crashes: only its set is unavailable.
@@ -458,7 +512,9 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
       ["fake-plugin-set", false],
     ],
   );
-  assert.match(describeSets(store).sets[2].reason, /fake-rules/);
+  const crashed = describeSets(store).sets[2];
+  assert.ok("reason" in crashed);
+  assert.match(String(crashed.reason), /fake-rules/);
   fs.rmSync(env.crashFile);
   await loadRulePlugins(store, ops.plugins);
   // The plugin's own rule, from memory only.
@@ -467,7 +523,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
       boundary: "github",
       target: "t",
       text: "Project X launch",
-    }).findings.map((f) => [f.set, f.rule, f.version]),
+    }).findings.map((f) => [f.set, f.rule, "version" in f ? f.version : null]),
     [["fake-plugin-set", "repository", "1.0.0"]],
   );
   // A slow rule times out in about two seconds; its set fails closed.
@@ -492,7 +548,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
 
   // (2, end) The person changes the allowed line: blocked again.
   writeSpec(root, "p28", spec("The zorblat launch moves later."));
-  const plan = store.get("plans", "p28");
+  const plan = found(store.get<PlanDraft>("plans", "p28"));
   await ops.execute("plan.save", { id: "p28", expectedHash: plan.hash });
   await assert.rejects(approve(ops), /content\.match/);
   assert.equal(openDecisions(store, "match").length, 1);
@@ -528,7 +584,8 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
     ops,
   );
   // There is no MCP tool for it under any name.
-  assert.match(reply.body.error.message, /Unknown tool/);
+  const answer = reply.body as { error: { message: string } };
+  assert.match(answer.error.message, /Unknown tool/);
 
   // (11) No blocking term, plain or encoded, in Avoozl's own records or in
   // the landed history. `plans` and `approvals` hold the plan text a person
@@ -589,12 +646,12 @@ test("P28 (3), (7): a GitHub issue write and a reply naming a fake term", async 
   const { store, ops } = await workspace(t);
   // (3) An issue title holding an encoded term is not written; the next
   // issue is.
-  const created = [];
+  const created: string[] = [];
   assert.equal(typeof ops.github, "object");
   const { guardGitHub } = await import("../content/content-rules.ts");
   const client = guardGitHub(
     {
-      createIssue: async (_c, input) => {
+      createIssue: async (_c: string, input: { title: string }) => {
         created.push(input.title);
         return { number: created.length };
       },
@@ -606,12 +663,12 @@ test("P28 (3), (7): a GitHub issue write and a reply naming a fake term", async 
       title: "Ship zorbl&#97;t",
       body: '<!-- avoozl-task\n{"taskId":"p28.1"}\n-->',
     }),
-    (error) => error.contentBlocked,
+    (error: Blocked) => Boolean(error.contentBlocked),
   );
   await client.createIssue("example/app", { title: "Ship b", body: "" });
   assert.deepEqual(created, ["Ship b"]);
   const [issue] = store
-    .list("content_decisions")
+    .list<ContentDecision>("content_decisions")
     .filter((d) => d.boundary === "github");
   assert.deepEqual(
     [issue.set, issue.target, issue.line],
@@ -628,7 +685,7 @@ test("P28 (3), (7): a GitHub issue write and a reply naming a fake term", async 
         { boundary: "github", target: "reply:r1", text: "The zorblat fix" },
         { mode: "refuse" },
       ),
-    (error) => error.status === 422,
+    (error: StatusError) => error.status === 422,
   );
   assert.equal(store.list("content_decisions").length, before);
 });

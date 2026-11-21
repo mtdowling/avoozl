@@ -1,14 +1,14 @@
-// @ts-nocheck: typing debt
 // Task details show every section at once: each a bordered, titled box
 // whose header button folds it (aria-expanded; Enter and Space work), all
 // open at first. The source check runs anywhere; the page check runs in a
 // real Chrome (AVOOZL_CHROME, or an installed one) and is skipped without.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('every drawer section is a SectionBox, open at first, inside the shared tab bar', () => {
   const drawer = source('TaskDrawer.tsx')
@@ -37,11 +37,8 @@ test('every place that opens task details uses the one drawer', () => {
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the task details page test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 const BOXES = `[...document.querySelectorAll('[data-section-box]')].map((box) => {
   const button = box.querySelector('h3 > button[aria-expanded]')
@@ -59,7 +56,7 @@ test('page: every tab shows its sections, each header folds by click and by keyb
     await page.evaluate(`document.querySelector('[data-tab="${tab}"]').click()`)
     await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === '${tab}'`)
     await page.until(`${JSON.stringify(ids)}.every((id) => document.querySelector('[data-section-box="' + id + '"]'))`)
-    const boxes = await page.evaluate(BOXES)
+    const boxes = await page.evaluate<{ id: string; title: string; expanded: string | null; hidden: boolean | null }[]>(BOXES)
     assert.deepEqual(
       boxes.map((b) => b.id),
       ids,
@@ -74,8 +71,8 @@ test('page: every tab shows its sections, each header folds by click and by keyb
       const sel = JSON.stringify(`[data-section-toggle="${id}"]`)
       await page.evaluate(`document.querySelector(${sel}).click()`)
       await page.until(`document.querySelector(${sel}).getAttribute('aria-expanded') === 'false'`)
-      const now = await page.evaluate(BOXES)
-      assert.equal(now.find((b) => b.id === id).hidden, true, `${id} body hides`)
+      const now = await page.evaluate<{ id: string; title: string; expanded: string | null; hidden: boolean | null }[]>(BOXES)
+      assert.equal(now.find((b) => b.id === id)?.hidden, true, `${id} body hides`)
       assert.ok(
         now.filter((b) => b.id !== id).every((b) => b.expanded === 'true'),
         `${id} closed another box`,
@@ -98,7 +95,7 @@ test('page: the Links box shows branch, PR, checks, landed and issue from the st
   await page.evaluate(`document.querySelector('[data-tab="links"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-section-box="task-links"] [data-scm-links]'))`)
   await page.until(`document.querySelectorAll('[data-section-box="task-links"] a').length >= 4`)
-  const read = await page.evaluate(`(() => {
+  const read = await page.evaluate<{ rows: Record<string, string>; anchors: string[][]; worktreeLinked: boolean; dot: string }>(`(() => {
     const box = document.querySelector('[data-section-box="task-links"]')
     const scm = box.querySelector('[data-scm-links]')
     const rows = Object.fromEntries([...scm.querySelectorAll('dt')].map((dt) => [dt.textContent.trim(), dt.nextElementSibling.textContent.trim()]))
