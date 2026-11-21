@@ -33,7 +33,7 @@ const NAME = /^[a-z][a-z0-9-]{0,39}$/;
 const ASK = /^[A-Za-z][A-Za-z0-9]{0,39}$/;
 const PLACEHOLDER = /\{ask:([^{}]*)\}/g;
 const MAX_SKILL = 64 * 1024;
-export const DEFAULT_SERVERS = "mcp/servers.json";
+const DEFAULT_SERVERS = "mcp/servers.json";
 
 const insidePath = (folder, file) => {
   const full = path.resolve(folder, file),
@@ -58,7 +58,7 @@ function frontMatter(text) {
 
 // Every regular file of a skill folder with its SHA-256, so a copy at session
 // start can be checked against the approved files. A link is refused.
-export function skillFiles(folder, where = folder) {
+function skillFiles(folder, where = folder) {
   const found = [];
   const walk = (directory) => {
     for (const item of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -255,7 +255,7 @@ export function readContextPart(manifest, folder) {
 }
 
 // `{ask:NAME}` filled with the answers; a name with no answer stays.
-export const fillAsk = (text, answers) =>
+const fillAsk = (text, answers) =>
   text.replace(PLACEHOLDER, (whole, name) => answers?.[name] ?? whole);
 
 // The questions a context part still needs answered, and the aliases it
@@ -285,7 +285,7 @@ export const contextHash = (settings, id) =>
 
 // A mapping's command replaces the plugin's. The server's `env` names are
 // this machine's alone.
-export const serverFor = (server, mapping) => ({
+const serverFor = (server, mapping) => ({
   about: server.about,
   command: mapping?.command ?? server.command,
   env: mapping?.env ?? [],

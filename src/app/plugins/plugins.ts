@@ -35,7 +35,7 @@ import {
 const PLUGIN_MANIFEST = "avoozl-plugin.json";
 const RESERVED_IDS = new Set(["local", "github"]);
 export const KINDS = ["rules"];
-export const CAPABILITIES = { rules: [] };
+const CAPABILITIES = { rules: [] };
 // The parts one plugin may bundle (simplify SM11), and the code kind each
 // runs as. `credentials` hands Avoozl GitHub tokens (plugin-credentials §D1)
 // from its own entry, in a child apart from the plugin's other code.
@@ -246,7 +246,7 @@ function readRepositoryPolicy(workspaceRoot) {
 // Every declared plugin with where it came from. An entry that does not
 // validate, or an id declared twice, is kept with its error so Settings can
 // show it; it never loads.
-export function declaredPlugins({ workspaceRoot, settingsFile }) {
+function declaredPlugins({ workspaceRoot, settingsFile }) {
   const found = [];
   const add = (entries, source) =>
     entries.forEach((entry, i) => {
@@ -499,7 +499,7 @@ export function contentHash(folder) {
 // What Settings shows and the loader decides on, for one declared plugin.
 // state: invalid | missing | unsupported | disabled | unapproved | changed |
 // approved.
-export function inspectPlugin(declared, options, settings) {
+function inspectPlugin(declared, options, settings) {
   const { entry, source, error } = declared,
     base = { id: entry?.id ?? null, source, entry };
   if (error) return { ...base, state: "invalid", reason: error };

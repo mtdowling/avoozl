@@ -36,7 +36,7 @@ export const ISOLATION_KEYS = Object.freeze([
   "writable",
   "prepare",
 ]);
-export const ISOLATION_RUNS = Object.freeze(["sandbox", "unconfined"]);
+const ISOLATION_RUNS = Object.freeze(["sandbox", "unconfined"]);
 // The key in harness-unconfined.json that lets checks run unconfined on
 // this machine.
 export const CHECKS_UNCONFINED = "checks";
@@ -86,7 +86,7 @@ export function isolationSetting(value, label = "isolation") {
 }
 
 // A repository's isolation with its defaults.
-export const isolationOf = (repository) =>
+const isolationOf = (repository) =>
   isolationSetting(repository?.isolation ?? {}, "isolation");
 
 // Whether this machine lets checks run unconfined (the per-machine opt-in
@@ -105,7 +105,7 @@ export function checksUnconfinedAllowed(configDirectory) {
 
 // The repository's cache folder for its checks: under Avoozl's state area,
 // beside the state folder a check must not reach.
-export function checkCacheDirectory(repositoryId, stateDirectory) {
+function checkCacheDirectory(repositoryId, stateDirectory) {
   const state = stateDirectory ?? machineAvoozlPaths().stateDirectory;
   return path.join(
     path.dirname(path.resolve(state)),

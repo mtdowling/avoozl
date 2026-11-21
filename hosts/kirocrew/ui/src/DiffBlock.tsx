@@ -3,7 +3,7 @@ import { Box } from './ui/Box'
 import { TONE } from './ui/tones.ts'
 
 // A unified diff as lines to color: added, removed, hunk header or context.
-export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hunk' | 'same'; text: string }[] {
+function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hunk' | 'same'; text: string }[] {
   if (!diff) return []
   return diff.split('\n').map((text) => ({
     kind: text.startsWith('@@') ? 'hunk' : text.startsWith('+') ? 'add' : text.startsWith('-') ? 'del' : 'same',

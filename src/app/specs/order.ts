@@ -8,13 +8,13 @@ import path from "node:path";
 import { headingPhases, specItems } from "./spec-plans.ts";
 import { LINK_DEFINITION, SPEC_TEXT, specTasks } from "./spec-tasks.ts";
 
-export const PARALLEL_TAG = "(**PARALLEL**)";
+const PARALLEL_TAG = "(**PARALLEL**)";
 const TAGGED = /\(\*\*PARALLEL\*\*\)$/;
 
 export const isParallel = (title) => TAGGED.test(String(title ?? "").trim());
 
 // A person's task (§D20): its title ends with `(**MANUAL**)`, before refs.
-export const MANUAL_TAG = "(**MANUAL**)";
+const MANUAL_TAG = "(**MANUAL**)";
 const MANUAL = /\s*\(\*\*MANUAL\*\*\)$/;
 export const isManual = (title) => MANUAL.test(String(title ?? "").trim());
 export const withoutManual = (title) =>

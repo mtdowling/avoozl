@@ -275,7 +275,7 @@ export function plansClient(api: AppApi) {
 
 export type PlansClient = ReturnType<typeof plansClient>
 
-export interface ApproveOneResult {
+interface ApproveOneResult {
   id: string
   hash: string
 }

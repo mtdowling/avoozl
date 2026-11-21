@@ -372,7 +372,7 @@ export function pullSteps({
 // or CHANGES_REQUESTED review counts, on `head` unless the rule keeps
 // approvals across pushes (`standing`). GitHub's own rule decides who may
 // approve when the merge is made.
-export function standingApprovals(reviews, head, { standing = false } = {}) {
+function standingApprovals(reviews, head, { standing = false } = {}) {
   const latest = new Map();
   for (const review of reviews ?? []) {
     const state = String(review?.state ?? "").toUpperCase(),

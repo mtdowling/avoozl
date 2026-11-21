@@ -61,7 +61,7 @@ export function queuePortion(
 }
 
 // Both sides of a conflicted path, appended: `git merge-file --union`.
-export async function unionMerge(dir, file) {
+async function unionMerge(dir, file) {
   const stage = async (n) => {
     try {
       return await git(dir, ["show", `:${n}:${file}`]);

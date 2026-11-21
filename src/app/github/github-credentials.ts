@@ -33,7 +33,7 @@ export const BUILT_IN = ["env", "gh"];
 
 // The GitHub host Avoozl talks to: github.com for api.github.com, else the
 // host (and port) of AVOOZL_GIT_URL or GITHUB_API_URL.
-export function githubHost(apiUrl, gitUrl) {
+function githubHost(apiUrl, gitUrl) {
   if (/^https:\/\/api\.github\.com\/?$/.test(apiUrl || "")) return "github.com";
   try {
     return new URL(gitUrl || apiUrl).host.toLowerCase();
@@ -42,7 +42,7 @@ export function githubHost(apiUrl, gitUrl) {
   }
 }
 
-export class CredentialError extends Error {
+class CredentialError extends Error {
   constructor(message, { status = 503, key = null, provider = null } = {}) {
     super(message);
     this.status = status;
@@ -67,7 +67,7 @@ const lower = (value) => String(value || "").toLowerCase();
 // The plugins that claim `owner` on `host` (D3 step 1), from this machine's
 // plugins.json. A plugin with no approval here claims nothing; a disabled
 // one neither. A changed, missing or broken one still claims.
-export function claimsFor(plugins, host, owner) {
+function claimsFor(plugins, host, owner) {
   const wanted = lower(owner);
   return plugins.filter((plugin) => {
     if (plugin.source !== "machine" || plugin.state === "disabled")
@@ -116,7 +116,7 @@ export function pickCredentials(options, { host, id } = {}) {
 }
 
 // The provider for one owner (D3): {provider, plugin} or {refusal}.
-export function chooseProvider({ plugins, settings, host, owner, env }) {
+function chooseProvider({ plugins, settings, host, owner, env }) {
   const claims = owner ? claimsFor(plugins, host, owner) : [];
   if (claims.length > 1) {
     const picked = settings.credentialsPick?.[host];

@@ -91,7 +91,7 @@ async function childrenOf(pids) {
 
 // `pid` and every process under it. Linux and Windows read the whole
 // table once; macOS asks pgrep per process.
-export async function processTree(pid) {
+async function processTree(pid) {
   const whole = process.platform === "linux" || process.platform === "win32",
     table = whole ? await childrenOf([]) : null,
     out = [pid];

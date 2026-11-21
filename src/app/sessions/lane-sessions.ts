@@ -15,7 +15,7 @@ const STATE = "lanes";
 const CLOSED = new Set(["closed", "lost", "gone"]);
 
 // The lane a dispatch role runs on, or null for a role with no lanes.
-export const laneRole = (role) =>
+const laneRole = (role) =>
   role === "worker" ? "worker" : /^review:/.test(role) ? "reviewer" : null;
 
 // The fixed header of a lane's session (SM20.2).
@@ -24,7 +24,7 @@ export function laneHeader(workspace, role, n, count) {
 }
 
 // Every lane of this machine for one workspace, worker lanes first.
-export function laneList(policy, workspace) {
+function laneList(policy, workspace) {
   const lanes = [];
   for (const [role, count] of [
     ["worker", policy?.concurrency ?? 0],
@@ -40,7 +40,7 @@ export function laneList(policy, workspace) {
   return lanes;
 }
 
-export const laneStates = (store) => store.getMeta(STATE) ?? {};
+const laneStates = (store) => store.getMeta(STATE) ?? {};
 
 // The newest binding each lane holds, by lane id.
 function laneBindings(bindings) {
@@ -74,7 +74,7 @@ function laneRequests(store, bindings) {
 // binding's attempt (a worker's attempt, or a review's verification), with
 // or without a report. A quiet review the tick failed after its nudges has
 // no report of its own, and must still free the lane.
-export function holdsLane(store, binding) {
+function holdsLane(store, binding) {
   if (!binding || binding.interrupted || CLOSED.has(binding.status))
     return false;
   const delivery = store.get("task_deliveries", binding.taskId);

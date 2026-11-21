@@ -21,7 +21,7 @@ import { TONE } from './ui/tones.ts'
 // Session statuses after which a session will not move again.
 const ENDED = new Set(['closed', 'lost'])
 
-export interface Attention {
+interface Attention {
   key: string
   kind: string
   // Null for a review group, which carries its tasks in `group`.
@@ -38,7 +38,7 @@ export interface Attention {
 // What a Needs you title opens: a review group's list of tasks, the task's
 // drawer (it shows the task's conflicts and decisions), or, for an item
 // with no task, the tab where it is settled.
-export type AttentionTarget = { kind: 'review' } | { kind: 'task'; id: string } | { kind: 'tab'; tab: 'waiting' }
+type AttentionTarget = { kind: 'review' } | { kind: 'task'; id: string } | { kind: 'tab'; tab: 'waiting' }
 
 export function attentionTarget(item: Attention): AttentionTarget {
   if (item.group) return { kind: 'review' }
@@ -54,7 +54,7 @@ export function attentionTip(item: Attention): string {
   return 'Open it in Needs you'
 }
 
-export interface RunningTask {
+interface RunningTask {
   id: string
   title: string
   sessions: DeliverySession[]
@@ -135,7 +135,7 @@ export interface Progress {
   running: number
 }
 
-export interface DashboardSummary {
+interface DashboardSummary {
   attention: Attention[]
   counts: Record<NodeState, number>
   running: RunningTask[]
@@ -362,7 +362,7 @@ export function summarize(input: {
 // own line under the title, right-aligned and wrapping with even gaps;
 // small (≤480 px) is an even two-column grid of 32 px tall buttons whose
 // labels shorten before a long count can push the row.
-export type CountsLayout = 'wide' | 'medium' | 'small'
+type CountsLayout = 'wide' | 'medium' | 'small'
 export const SMALL = '(max-width: 480px)'
 
 export function countsLayout(wide: boolean, small: boolean): CountsLayout {

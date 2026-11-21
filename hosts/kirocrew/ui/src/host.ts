@@ -11,7 +11,7 @@ export { useChatLauncher, useNavigate }
 const SHARED_READS = new Set(['conflicts.view', 'delivery.view', 'flow.view', 'github.settings.get', 'repositories.list'])
 type HostApi = ReturnType<typeof useHostApi>
 const shared = new WeakMap<object, HostApi>()
-export function shareReads(api: HostApi): HostApi {
+function shareReads(api: HostApi): HostApi {
   const had = shared.get(api)
   if (had) return had
   const flight = new Map<string, Promise<unknown>>()

@@ -9,8 +9,8 @@ import { git, remoteGit } from "../git/git.ts";
 
 const PREFIX = "avoozl/";
 const META = "claims.branches";
-export const CLAIM_REFUSALS = 10;
-export const ALL_CLAIMED = "every ready task is claimed";
+const CLAIM_REFUSALS = 10;
+const ALL_CLAIMED = "every ready task is claimed";
 
 // The spec a task belongs to: its plan, which is named for its spec folder.
 // A task with no spec claims under its own ID, as a labeled issue does.
@@ -20,7 +20,7 @@ export const claimBranch = (task) => `${PREFIX}${taskSpec(task)}/${task.id}`;
 
 // `refs/heads/avoozl/<spec>/<task>` as {spec, task, branch, sha}; any other
 // name under avoozl/ is not a claim.
-export function parseClaimRef(ref) {
+function parseClaimRef(ref) {
   const match = /^refs\/heads\/avoozl\/([^/]+)\/([^/]+)$/.exec(ref?.ref ?? "");
   return match
     ? {
@@ -33,13 +33,13 @@ export function parseClaimRef(ref) {
 }
 
 // Every claim branch of one GitHub repository, from one matching-refs read.
-export async function readClaims(github, repository) {
+async function readClaims(github, repository) {
   const refs = await github.branchesUnder(repository, PREFIX);
   return (Array.isArray(refs) ? refs : []).map(parseClaimRef).filter(Boolean);
 }
 
 // Replace the cached claims of the repositories read; others keep theirs.
-export function cacheClaims(store, byRepository) {
+function cacheClaims(store, byRepository) {
   const current = store.getMeta(META) || {},
     next = { ...current, ...byRepository };
   // Written only when a read changed it, so a read that finds the same
@@ -49,7 +49,7 @@ export function cacheClaims(store, byRepository) {
 }
 
 // The cached claim branch names, across repositories.
-export function cachedClaims(store) {
+function cachedClaims(store) {
   return new Set(
     Object.values(store.getMeta(META) || {}).flatMap((claims) =>
       claims.map((claim) => claim.branch),
@@ -118,7 +118,7 @@ async function headTime(github, repository, sha) {
 }
 
 // Drop one claim branch from the cache, once it is gone from origin.
-export function forgetClaim(store, repository, branch) {
+function forgetClaim(store, repository, branch) {
   const all = store.getMeta(META) || {};
   if (!all[repository]) return;
   store.setMeta(META, {
@@ -399,7 +399,7 @@ export async function claimFirst(github, candidates, { baseOf }) {
 
 // Leases (workflow rule 15.5): `avoozl-lease/<spec>/<task>/<generation>`,
 // created at most once, say which runner may push to a claim branch.
-export const leaseRef = (task, generation) =>
+const leaseRef = (task, generation) =>
   `avoozl-lease/${taskSpec(task)}/${task.id}/${generation}`;
 
 // The highest generation whose lease ref exists for a task, or 0 (15.5).
@@ -428,7 +428,7 @@ export async function takeLease(github, repository, task, generation, sha) {
 
 // Whether a lease is stale (workflow rule 15.6): its lease commit and the
 // claim branch's newest commit are both older than the stale hours.
-export const leaseStale = (lease, claimAgeHours, staleHours) =>
+const leaseStale = (lease, claimAgeHours, staleHours) =>
   lease.ageHours > staleHours && claimAgeHours > staleHours;
 
 // Resume a claim (15.7): with no lease, or a newest one (the highest

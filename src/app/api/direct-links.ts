@@ -21,7 +21,7 @@ const CREW_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 // this after the alert is a newer occurrence.
 const SLACK_MS = 2000;
 
-export const newDecisionId = () => randomBytes(16).toString("base64url");
+const newDecisionId = () => randomBytes(16).toString("base64url");
 
 // The page path that opens one decision: dashboard-relative, so Kiro Crew
 // and the standalone page resolve it against their own address.

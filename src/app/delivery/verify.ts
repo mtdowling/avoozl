@@ -195,7 +195,7 @@ export function outputExcerpt(text, dir = "\u0000", lines = 200) {
 }
 
 // Why a check that ended without an exit code did not run (R38.1).
-export function notRunCause(result, elapsed, timeoutMs) {
+function notRunCause(result, elapsed, timeoutMs) {
   if (result.signal && elapsed >= timeoutMs)
     return `timed out after ${Math.round(timeoutMs / 1000)} s`;
   if (result.signal) return `stopped by ${result.signal}`;

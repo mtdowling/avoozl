@@ -40,7 +40,7 @@ export const TABS_CSS = `[data-tabs]{display:flex;flex:none;width:100%;min-width
 [data-tabs][data-tabs-look=heading]>[role=tab][aria-selected=true]{box-shadow:none}
 @media (prefers-reduced-motion:reduce){[data-tabs]>[role=tab]{transition:none}}`
 
-export interface TabItem<T extends string = string> {
+interface TabItem<T extends string = string> {
   key: T
   label: string
   // Unsaved changes on this tab: a dot after the label.
@@ -52,8 +52,8 @@ export interface TabItem<T extends string = string> {
 }
 
 // `id` prefixes the ids: <id>-<key> for a tab, <id>-panel for its panel.
-export const tabId = (id: string, key: string) => `${id}-${key.replace(/\W/g, '-')}`
-export const panelId = (id: string) => `${id}-panel`
+const tabId = (id: string, key: string) => `${id}-${key.replace(/\W/g, '-')}`
+const panelId = (id: string) => `${id}-panel`
 
 export function Tabs<T extends string>(props: {
   id: string

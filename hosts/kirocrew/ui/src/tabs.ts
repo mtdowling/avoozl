@@ -33,7 +33,7 @@ export function dirtyTabs<F extends object, T extends string>(form: F, saved: F,
 
 // The spec page's tabs in the address: the spec id plus tab=T, and the
 // Overview is the spec id alone.
-export interface SpecPlace {
+interface SpecPlace {
   plan: string
   tab: string
 }

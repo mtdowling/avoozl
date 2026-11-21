@@ -167,7 +167,7 @@ export const PROVED_TIP =
 
 // Kiro Crew's /api/models answer, in any of the shapes its backends give:
 // a list, or {models: [...]}, of names or {model_name|id|model_id, display_name|name}.
-export function parseModels(body: unknown): { value: string; label: string }[] {
+function parseModels(body: unknown): { value: string; label: string }[] {
   const list = Array.isArray(body) ? body : Array.isArray((body as { models?: unknown })?.models) ? (body as { models: unknown[] }).models : []
   const out: { value: string; label: string }[] = []
   for (const entry of list) {

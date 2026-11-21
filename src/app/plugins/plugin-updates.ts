@@ -20,7 +20,7 @@ import {
 import { fail } from "../store/store.ts";
 
 const META = "pluginUpdates";
-export const DAY_MS = 24 * 3600 * 1000;
+const DAY_MS = 24 * 3600 * 1000;
 const PASS_MS = 3600 * 1000;
 const FIRST_PASS_MS = 60 * 1000;
 const TIMEOUT_MS = 15_000;
@@ -44,7 +44,7 @@ export function setUpdateChecks(settingsFile, enabled) {
 }
 
 // {prefix, parts, pre} for a version or tag name, or null.
-export function parseVersion(text) {
+function parseVersion(text) {
   const match = SEMVER.exec(String(text));
   if (!match) return null;
   return {
@@ -56,7 +56,7 @@ export function parseVersion(text) {
 
 // Positive when `a` is newer than `b`. A release is newer than its own
 // prerelease; prereleases compare as text.
-export function compareVersions(a, b) {
+function compareVersions(a, b) {
   for (let i = 0; i < 3; i++)
     if (a.parts[i] !== b.parts[i]) return a.parts[i] - b.parts[i];
   if (a.pre === b.pre) return 0;
@@ -227,7 +227,7 @@ const basisOf = (plugin) =>
       ? plugin.version
       : plugin.approval?.hash;
 
-export const readUpdates = (store) => {
+const readUpdates = (store) => {
   try {
     return store.getMeta(META) || {};
   } catch {

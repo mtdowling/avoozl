@@ -204,7 +204,7 @@ export class WritePacer {
 
 // ---- The run record ---------------------------------------------------
 
-export const readRun = (store) => {
+const readRun = (store) => {
   try {
     return store.getMeta(RUN);
   } catch {

@@ -39,7 +39,7 @@ export interface WriteRun {
 }
 
 // '312 of 1,740 writes, resumes at 14:00'.
-export function writeRunText(run: WriteRun): string {
+function writeRunText(run: WriteRun): string {
   const time = run.resumeAt ? new Date(run.resumeAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
   return `${run.done.toLocaleString('en-US')} of ${run.total.toLocaleString('en-US')} writes${time ? `, resumes at ${time}` : ''}`
 }
@@ -392,7 +392,7 @@ export type CheckSources = Record<string, { source: string; at: string | null }>
 
 // "GitHub Actions · last run 2 days ago", "Required by GitHub branch rule",
 // or "Not seen on recent commits or open pull requests".
-export function checkWhere(name: string, sources: CheckSources, rule: boolean, now = Date.now()): string {
+function checkWhere(name: string, sources: CheckSources, rule: boolean, now = Date.now()): string {
   const seen = sources[name]
   const parts = []
   if (rule) parts.push('Required by GitHub branch rule')
@@ -602,7 +602,7 @@ export function tasksLiveLine(mode: string, planningRepository: string): string 
 // (delivery.mjs declaredChecks); every github.* setting is read only with a
 // GitHub mode (github-policy.mjs, github-sync.mjs). Content rules, plugins
 // and workspaces apply in every mode.
-export type SettingKey =
+type SettingKey =
   | 'planningRepository'
   | 'epicIssueType'
   | 'setupGitHub'

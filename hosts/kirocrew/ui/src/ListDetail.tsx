@@ -37,7 +37,7 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
 
 // The sticky row alone, for a page that draws its own big title: pass that
 // title's `titleRef` (useTitleScrolledOut) and `scrolledOut`.
-export function DetailBar(props: { backLabel: string; onBack: () => void; title: string; scrolledOut: boolean; actions?: ReactNode }) {
+function DetailBar(props: { backLabel: string; onBack: () => void; title: string; scrolledOut: boolean; actions?: ReactNode }) {
   return (
     <Box data-detail-bar css-position="sticky" css-top="0" css-z-index={LAYER.sticky} css-display="flex" css-align-items="center" css-gap="8" css-background="bg">
       <ListDetailBack label={props.backLabel} onBack={props.onBack} />

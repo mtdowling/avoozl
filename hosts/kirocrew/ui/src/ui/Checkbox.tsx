@@ -7,7 +7,7 @@
 // `indeterminate` through it).
 import { forwardRef, type ComponentProps } from 'react'
 
-export type CheckboxProps = Omit<ComponentProps<'input'>, 'type' | 'className' | 'style' | 'ref'> & { drop?: 2 | 3 | 4 }
+type CheckboxProps = Omit<ComponentProps<'input'>, 'type' | 'className' | 'style' | 'ref'> & { drop?: 2 | 3 | 4 }
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox({ drop, ...rest }, ref) {
   return <input ref={ref} type="checkbox" style={drop ? { marginTop: drop } : undefined} {...rest} />

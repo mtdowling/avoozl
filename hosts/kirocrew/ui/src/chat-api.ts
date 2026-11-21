@@ -69,14 +69,14 @@ export function runSeed(target: RunTarget): string {
   return `Use the avoozl skill to look at the Needs you item with ${ids.join(', ')}. Explain why it needs me and what each choice would do, then recommend one. Change nothing until I say.`
 }
 
-export interface ActivityItem {
+interface ActivityItem {
   at: string
   text: string
   taskId: string
   title: string
 }
 
-export interface StartResult {
+interface StartResult {
   taskId: string
   full: boolean
   running: number

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 
 // The fade runs over the last 2.5em of the clipped text, theme-free: a mask
 // only changes opacity, so it reads in light and dark.
-export const FADE_TEXT_CSS = `[data-fade-text]{display:flex;align-items:baseline;min-width:0;max-width:100%;overflow:hidden}
+const FADE_TEXT_CSS = `[data-fade-text]{display:flex;align-items:baseline;min-width:0;max-width:100%;overflow:hidden}
 [data-fade-text]>[data-fade-text-body]{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap}
 [data-fade-text][data-clipped]>[data-fade-text-body]{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 2.5em),rgb(0 0 0 / .1));mask-image:linear-gradient(to right,#000 calc(100% - 2.5em),rgb(0 0 0 / .1))}
 [data-fade-text]>[data-fade-text-more]{flex:none}`

@@ -37,7 +37,7 @@ const slotKey = (slot) =>
 
 // One response per issue snapshot. Its ID is also the responder binding's
 // task ID, so a binding names exactly one snapshot.
-export function responseId(issueId, snapshotHash) {
+function responseId(issueId, snapshotHash) {
   return (
     "respond-" +
     createHash("sha256")

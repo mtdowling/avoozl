@@ -23,7 +23,7 @@ async function recordDir(root) {
 // makes: a check with paths only when the commit's diff against the base
 // touches one. `dir` is a checkout that holds the commit. A diff that
 // cannot be read picks every check.
-export async function commitChecks(repository, commit, dir = repository.root) {
+async function commitChecks(repository, commit, dir = repository.root) {
   try {
     const { paths } = await changedPaths(
       dir,

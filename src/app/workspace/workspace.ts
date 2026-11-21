@@ -46,7 +46,7 @@ const DEFAULT_PORT = 9428,
 
 // Whether a database file exists and holds a snapshot. A missing file is
 // not created.
-export function hasSnapshot(dbPath) {
+function hasSnapshot(dbPath) {
   if (!fs.existsSync(dbPath)) return false;
   const store = new Store(dbPath);
   try {

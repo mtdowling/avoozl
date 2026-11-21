@@ -7,7 +7,7 @@ import { Hint } from './ui/Hint'
 // Set from the root package.json by the build (vite.config.ts); absent when a
 // test loads the source directly.
 declare const __AVOOZL_VERSION__: string | undefined
-export const AVOOZL_VERSION = typeof __AVOOZL_VERSION__ === 'string' ? __AVOOZL_VERSION__ : null
+const AVOOZL_VERSION = typeof __AVOOZL_VERSION__ === 'string' ? __AVOOZL_VERSION__ : null
 
 export function BrandCard(props: { workspaceId: string | null; boxed?: boolean }) {
   // The brand row, desktop and phone alike: one line, no box, as Issue Radar

@@ -35,7 +35,7 @@ export const NO_GROUP = '(none)'
 
 // What a filter reads from a task; Delivery cards without a graph row
 // supply the same fields.
-export interface Filterable {
+interface Filterable {
   id: string
   title: string
   epic: string | null
@@ -72,7 +72,7 @@ export const filterActive = (filter: TaskFilter) =>
 
 // Archived plans' tasks are hidden unless Show archived is on, or the
 // filter names that plan (a click on its Graph or Delivery button).
-export const archivedShown = (task: Pick<Filterable, 'planArchived'>, filter: TaskFilter) => !task.planArchived || Boolean(filter.archived || filter.plan)
+const archivedShown = (task: Pick<Filterable, 'planArchived'>, filter: TaskFilter) => !task.planArchived || Boolean(filter.archived || filter.plan)
 
 export function matches(task: Filterable, filter: TaskFilter): boolean {
   const text = filter.q?.trim().toLowerCase() ?? ''
@@ -93,7 +93,7 @@ export function matches(task: Filterable, filter: TaskFilter): boolean {
   )
 }
 
-export const filterable = (task: GraphTask, wave: number): Filterable => ({
+const filterable = (task: GraphTask, wave: number): Filterable => ({
   id: task.id,
   title: task.title,
   epic: task.epic,

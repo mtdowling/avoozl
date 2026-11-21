@@ -28,7 +28,7 @@ function FlowBox({ children }: { children: React.ReactNode }) {
   )
 }
 
-export const FLOW_SCOPE_CARDS = [
+const FLOW_SCOPE_CARDS = [
   { key: 'dependents', title: 'Tasks that build on it', line: "Pause the culprit's dependents; unrelated work keeps moving.", when: 'most of the time (the default).' },
   { key: 'repo', title: 'This repository', line: 'Pause every task in the repository that broke.', when: 'one repository shares a lot of code across tasks.' },
   { key: 'all', title: 'Everything', line: 'Pause every task in the workspace.', when: 'repositories depend on each other.' },

@@ -33,4 +33,4 @@ export function useRead<T>(workspaceId: string | null, load: (id: string) => Pro
   return { value, error, busy, reload }
 }
 
-export const REFRESH_AGAIN_MS = 3000
+const REFRESH_AGAIN_MS = 3000

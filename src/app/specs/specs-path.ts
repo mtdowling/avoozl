@@ -83,14 +83,3 @@ export const specsDirectory = (root) => path.join(root, specsPath(root));
 // One spec folder as a repository path with a trailing slash, such as
 // `.kiro/specs/<name>/`.
 export const specFolderPath = (root, name) => `${specsPath(root)}/${name}/`;
-
-// The specs path of a repository read over GitHub: its registered checkout's
-// setting (by ID or `owner/name`), else the default.
-export function specsPathOf(store, repository) {
-  const root = store
-    ?.list?.("repositories")
-    .find(
-      (entry) => entry.id === repository || entry.github === repository,
-    )?.root;
-  return specsPath(root ?? null);
-}

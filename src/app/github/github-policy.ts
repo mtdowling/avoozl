@@ -56,7 +56,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
   landing: ["mode", "pr", "method", "mergeBatch", "commitPrefix"],
 });
 // Who counts when a repository names nobody.
-export const DEFAULT_PERMISSION = "write";
+const DEFAULT_PERMISSION = "write";
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -169,7 +169,7 @@ function repositoryInput(value, id, mode) {
 
 // `github` (unset): an approval needs GitHub's evidence. `branch-protection`
 // is the declaration that only approvers can push to the specs branch.
-export const APPROVAL_TRUSTS = ["github", "branch-protection"];
+const APPROVAL_TRUSTS = ["github", "branch-protection"];
 function approvalTrustInput(value, label) {
   if (value != null && !APPROVAL_TRUSTS.includes(value))
     fail(`${label}.approvalTrust must be github or branch-protection.`);
@@ -194,12 +194,7 @@ function conflictsInput(value, label) {
 
 // How a pull request lands: `squash` (one commit per pull request on the base) or `merge`.
 export const MERGE_METHODS = Object.freeze(["squash", "merge"]);
-export const MERGE_METHOD_DEFAULT = "squash";
-// GitHub's repository setting for each method, and its name on screen.
-export const MERGE_METHOD_SETTING = Object.freeze({
-  squash: { key: "allow_squash_merge", name: "Allow squash merging" },
-  merge: { key: "allow_merge_commit", name: "Allow merge commits" },
-});
+const MERGE_METHOD_DEFAULT = "squash";
 // `landing` {mode, pr, method, mergeBatch, commitPrefix}, unset values null and
 // the method defaulted. Null reads as unset, so a normalized policy
 // normalizes to itself.

@@ -74,7 +74,7 @@ export function validateGitHubSource(value, where) {
 }
 
 // The source entry `settings` are written as.
-export function sourceEntry(repository, value) {
+function sourceEntry(repository, value) {
   return {
     via: GITHUB_VIA,
     repository,

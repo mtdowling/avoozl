@@ -59,7 +59,7 @@ const loopOf = (form: LoopForm): Loop => {
 const sameLoop = (a: Loop | null | undefined, b: Loop) => JSON.stringify(loopOf(loopForm(a))) === JSON.stringify(b)
 
 // Each choice: its title, one line, and the steps a task takes.
-export const AUTOPILOT_MODES: Record<Mode, { title: string; line: string; steps: string[] }> = {
+const AUTOPILOT_MODES: Record<Mode, { title: string; line: string; steps: string[] }> = {
   off: {
     title: 'Off: you deliver',
     line: 'Avoozl lists ready tasks and runs the checks when you report one done.',

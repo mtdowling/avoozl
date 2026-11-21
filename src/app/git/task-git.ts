@@ -28,7 +28,7 @@ const real = (file) => fs.realpathSync.native(file);
 
 let emptyHooks = null;
 // One empty folder per process: no hook is found there.
-export function emptyHooksFolder() {
+function emptyHooksFolder() {
   if (emptyHooks && fs.existsSync(emptyHooks)) return emptyHooks;
   const made = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-no-hooks-"));
   emptyHooks = made;
@@ -36,7 +36,7 @@ export function emptyHooksFolder() {
   return made;
 }
 // The config every host git call on a task folder carries.
-export const noHookConfig = () => [
+const noHookConfig = () => [
   "-c",
   `core.hooksPath=${emptyHooksFolder()}`,
   "-c",
@@ -59,7 +59,7 @@ async function checkoutCommonDir(checkout) {
 
 // The git directory of `folder`, checked against `checkout`'s own records,
 // or a refusal naming why.
-export async function taskGitDir(folder, checkout) {
+async function taskGitDir(folder, checkout) {
   if (typeof checkout !== "string" || !checkout)
     fail(`Avoozl needs the repository checkout to run git in ${folder}.`);
   let root;

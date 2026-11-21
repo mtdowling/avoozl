@@ -185,7 +185,7 @@ const HARNESS = /^[a-z][a-z0-9-]{0,60}$/;
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
-export const isHarnessName = (value) =>
+const isHarnessName = (value) =>
   typeof value === "string" && HARNESS.test(value);
 // The fields a row may set, by role.
 export const ROLE_FIELDS = Object.freeze(["harness", "model"]);

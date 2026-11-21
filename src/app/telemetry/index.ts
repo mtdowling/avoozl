@@ -21,7 +21,7 @@ const FLUSH_MS = 5000;
 
 // The words of Settings and the CLI, by status, with the state a registered
 // exporter is in replacing `ready`.
-export function telemetryStatusReply(store, config, active) {
+function telemetryStatusReply(store, config, active) {
   const sender = active?.sender.status();
   return {
     status: sender && config.status === "ready" ? sender.state : config.status,

@@ -20,7 +20,6 @@ import {
 import {
   checkApplies,
   repositoryChecks,
-  selectedChecks,
 } from "../workspace/repository-checks.ts";
 import { pluginChecksOf, pluginOptionsOf } from "../plugins/plugin-checks.ts";
 import { runPluginCheck } from "../plugins/plugin-check-run.ts";
@@ -41,12 +40,6 @@ export { outputTail };
 
 export const CHECK_TIMEOUT_MS = 20 * 60_000;
 const KIND = "check-run";
-
-// The checks a commit runs: the repository's, keeping a check with paths
-// only when `files` (the commit's diff against the base) touches one.
-// Without a file list, every check. Tasks never name checks.
-export const declaredArgv = (_task, repository, files = null) =>
-  selectedChecks(repository, files);
 
 export const checkRuns = (store) => {
   try {

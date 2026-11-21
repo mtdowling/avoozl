@@ -18,11 +18,11 @@ const SINCE = "review-output.since";
 const posted = (key) => `review-output:${key}`;
 const short = (sha) => String(sha ?? "").slice(0, 12);
 
-export const reviewMarker = (taskId, round, kind) =>
+const reviewMarker = (taskId, round, kind) =>
   `<!-- avoozl:review task=${taskId} round=${round} kind=${kind} -->`;
 
 // The comment for one review round: its verdict, then each finding.
-export function reviewComment(binding) {
+function reviewComment(binding) {
   const { report } = binding,
     { verdict, findings } = report.review;
   return [
@@ -45,7 +45,7 @@ export function reviewComment(binding) {
 
 // The comment for one run of Avoozl's own checks that failed: each failing
 // check's command and the tail of its output.
-export function checksComment(run) {
+function checksComment(run) {
   const failing = run.checks.filter((c) => c.exitCode !== 0);
   return [
     reviewMarker(run.taskId, run.attempt, "checks"),

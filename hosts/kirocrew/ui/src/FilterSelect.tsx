@@ -3,7 +3,7 @@ import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
 
 // The label column of an inline filter: wide enough for a one-word label.
-export const INLINE_LABEL = '4rem'
+const INLINE_LABEL = '4rem'
 
 export function FilterSelect(props: {
   id: string

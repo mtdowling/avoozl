@@ -128,7 +128,7 @@ export function withDrafts(graph: Graph, show: boolean): Graph {
   return { ...graph, total: graph.total + drafts.tasks.length, tasks: [...graph.tasks, ...drafts.tasks], edges: [...graph.edges, ...drafts.edges] }
 }
 
-export interface GraphFilter {
+interface GraphFilter {
   epic?: string
   phase?: string
   repository?: string
@@ -140,7 +140,7 @@ export interface GraphFilter {
 
 // What a notice's link found (direct-links D3): its item is open (and
 // marked `linked`), closed, or unknown here.
-export interface DecisionTarget {
+interface DecisionTarget {
   state: 'open' | 'closed' | 'unknown'
   taskId?: string | null
   newer?: boolean
@@ -426,7 +426,7 @@ export interface EpicView {
   decisions: { taskId: string; title: string; decision: string; plan: string }[]
 }
 
-export interface IntegrationBranch {
+interface IntegrationBranch {
   key: string
   repository: string
   branch: string
@@ -549,7 +549,7 @@ export function graphSummary(graph: Graph) {
 // GitHub, so anything else (javascript:, file:, data:) renders as plain text.
 // One portion in a landing queue, or one that landed (landing.view). Read
 // from Avoozl's own store; `url` is the pull request's GitHub page.
-export interface LandingRow {
+interface LandingRow {
   key: string
   base: string
   repository: string | null
@@ -557,7 +557,7 @@ export interface LandingRow {
   pr: number | null
   url: string | null
 }
-export interface LandingView {
+interface LandingView {
   queue: (LandingRow & { position: number; queuedAt: string | null; held: string })[]
   landed: (LandingRow & { at: string })[]
   landedThisWeek: number
@@ -640,7 +640,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
 // One review chat or verdict on a task, for the drawer, the Delivery card
 // and the In flight card: who reviews, the model asked for and the one
 // served, the round, the verdict, and the chat to attach to.
-export interface ReviewRun {
+interface ReviewRun {
   key: string
   role: string
   round: number

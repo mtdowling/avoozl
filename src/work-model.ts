@@ -17,8 +17,7 @@ export const COMPLETIONS = [
 ];
 const SOURCE = /^(?:local|github)$/;
 
-export const isSource = (value) =>
-  typeof value === "string" && SOURCE.test(value);
+const isSource = (value) => typeof value === "string" && SOURCE.test(value);
 
 // shortcut: a row approved before Requirement 59 may still say "epic"; it
 // reads as the package it now is until its plan's next approval rewrites

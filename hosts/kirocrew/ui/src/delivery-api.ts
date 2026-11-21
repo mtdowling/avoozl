@@ -22,7 +22,7 @@ export const LANES: { id: DrawnLaneId; label: string; tint: string }[] = [
 ]
 
 // The groups inside the In progress lane, in order, each with its cards.
-export const PROGRESS_GROUPS: { id: 'running' | 'reviewing'; label: string }[] = [
+const PROGRESS_GROUPS: { id: 'running' | 'reviewing'; label: string }[] = [
   { id: 'running', label: 'Running' },
   { id: 'reviewing', label: 'Reviewing' },
 ]

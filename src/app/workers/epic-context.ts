@@ -29,7 +29,7 @@ import {
 } from "../github/github-policy.ts";
 import { specTasks } from "../specs/spec-tasks.ts";
 
-export const TESTS = Object.freeze(["approved", "approver"]);
+const TESTS = Object.freeze(["approved", "approver"]);
 const RECENT = 10;
 
 // ---- The two tests (EC1, D2) ------------------------------------------
@@ -43,7 +43,7 @@ const passes = (name) => ({ name, passed: true });
 
 // What the git side needs, from the Operations that own it: where a plan's
 // spec checkout is, and who approves in it. Tests pass their own.
-export const gateDeps = (ops) => ({
+const gateDeps = (ops) => ({
   workspaceRoot: ops.workspaceRoot,
   checkout: (plan) => ops.approvalCheckout(plan),
   approverOf: (root) => ops.approverOf(root),
@@ -347,7 +347,7 @@ function approvedSkills(skills, place) {
 
 // A chat names the approved plugin files where they are: it runs as the
 // person and reads what it likes (EC8).
-export const checkedSkills = (skills) =>
+const checkedSkills = (skills) =>
   approvedSkills(skills, (skill) => path.join(skill.folder, "SKILL.md"));
 
 // The brief section (EC6.3): skills and reads, and the MCP aliases a

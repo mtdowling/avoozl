@@ -278,7 +278,7 @@ export async function approvalBase(root, { branch: wanted = null } = {}) {
 //
 // `replace` names folders whose spec files the commit replaces: one of them
 // the new files leave out is removed.
-export async function commitOnMain(
+async function commitOnMain(
   root,
   files,
   { message, env = {}, replace = [], branch = null },

@@ -10,7 +10,7 @@ import { ChevronRight } from '../icons.ts'
 
 export const DISCLOSURE = { 'data-disclosure': '' } as const
 
-export const CSS_DisclosureStyle = `[data-disclosure]{cursor:pointer;list-style:none;border-radius:4px}
+const CSS_DisclosureStyle = `[data-disclosure]{cursor:pointer;list-style:none;border-radius:4px}
 summary[data-disclosure]::-webkit-details-marker{display:none}
 summary[data-disclosure]::marker{content:''}
 [data-disclosure-mark]{display:inline-flex;flex:none;align-items:center;color:var(--muted);transition:transform .12s,color .12s}

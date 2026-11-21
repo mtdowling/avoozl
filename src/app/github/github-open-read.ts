@@ -7,17 +7,15 @@
 // with the item keys the search returned.
 import { itemKey, itemRows } from "../intake/intake.ts";
 
-export const OPEN_READ_INTERVAL_MS = 10 * 60 * 1000;
+const OPEN_READ_INTERVAL_MS = 10 * 60 * 1000;
 const PAGE_SIZE = 100;
 // GitHub search returns at most 1,000 results, so 10 pages read every item
 // it will give; past that `truncated` says so.
 const PAGES = 10;
 const EMPTY = { version: 1, repositories: {} };
 
-const lower = (value) => String(value).toLocaleLowerCase();
-
 // One GitHub search line for a repository's open items.
-export const searchQuery = (repository) => `repo:${repository} is:open`;
+const searchQuery = (repository) => `repo:${repository} is:open`;
 
 const SEARCH = `query($q: String!, $first: Int!, $after: String) {
   search(query: $q, type: ISSUE, first: $first, after: $after) {
@@ -94,7 +92,7 @@ function item(node) {
 }
 
 // Every page of one search GitHub returns, read only.
-export async function readOpenItems(github, query) {
+async function readOpenItems(github, query) {
   const items = [];
   let after = null,
     total = 0,
@@ -121,9 +119,8 @@ export async function readOpenItems(github, query) {
 const sourceId = (repository) => `github:${repository}`;
 const githubKey = (repository, number) =>
   itemKey("github", `${repository}#${number}`);
-const key = (repository, number) => `${lower(repository)}#${number}`;
 
-export function readCache(store) {
+function readCache(store) {
   const cache = structuredClone(EMPTY);
   try {
     const rows = new Map(itemRows(store).map((row) => [row.id, row]));

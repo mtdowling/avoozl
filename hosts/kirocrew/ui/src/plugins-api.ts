@@ -56,7 +56,7 @@ export interface PluginUpdate {
   checkedAt: string
 }
 
-export interface PluginList {
+interface PluginList {
   supportedContracts: number[]
   plugins: PluginRow[]
   credentialsPick?: Record<string, string>

@@ -74,7 +74,7 @@ const EPIC_MARK = /<!-- avoozl:epic ([A-Za-z0-9][A-Za-z0-9._-]{0,159}) -->/;
 // shortcut: the association stands in for a permission read; read
 // permissions when a team counts a role that has no association.
 const WRITER_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
-export const writerIssue = (issue) =>
+const writerIssue = (issue) =>
   WRITER_ASSOCIATIONS.has(String(issue.author_association ?? "").toUpperCase());
 
 // Rule 8.2 over a repository's issues: each spec's issue is the oldest open

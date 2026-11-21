@@ -32,7 +32,7 @@ import { asJob } from "../github/github-jobs.ts";
 const RESERVED_SOURCES = Object.freeze(["github", "local", "retro"]);
 const SUBMIT_LIMIT = 100;
 const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
-export const WAITING_REASON = "Waiting on the author";
+const WAITING_REASON = "Waiting on the author";
 const SOURCE_ID = /^[a-z][a-z0-9-]{0,60}$/;
 export const SOURCE_KEYS = [
   "via",
@@ -46,7 +46,7 @@ const record = (value) =>
 const lower = (value) => String(value).toLocaleLowerCase();
 
 export const itemKey = (source, id) => `${source}\0${id}`;
-export const intakeTaskId = (source, id) =>
+const intakeTaskId = (source, id) =>
   "intake-" + digest(itemKey(source, id)).slice(0, 16);
 
 // ---------------------------------------------------------------------------
@@ -313,23 +313,12 @@ export function editSource(
 
 const hashOf = (value) => digest(canonical(value));
 
-function putIfChanged(store, table, row) {
-  const current = store.get(table, row.id);
-  if (current && canonical(current) === canonical(row)) return false;
-  store.transaction(() => store.put(table, row));
-  return true;
-}
-
 export function sourceRow(store, id) {
   try {
     return store.get("intake_sources", id);
   } catch {
     return null;
   }
-}
-
-function saveSourceRow(store, row) {
-  return putIfChanged(store, "intake_sources", row);
 }
 
 export function itemRows(store) {
@@ -346,7 +335,7 @@ export function itemRows(store) {
 
 // The labels and assignees an item has: the item's own, plus `<field>:<value>`
 // labels from `labelFields` and an assignee from `assigneeField` (R50.11).
-export function matchView(item, source) {
+function matchView(item, source) {
   const labels = [...item.labels],
     assignees = [...item.assignees];
   for (const field of source?.labelFields || []) {
@@ -365,7 +354,7 @@ export function matchView(item, source) {
 // ---------------------------------------------------------------------------
 // Tasks.
 
-export function ensureInbox(data) {
+function ensureInbox(data) {
   if (!data.tracks.some((track) => track.id === "catalog"))
     data.tracks.push({ id: "catalog", label: "General" });
 }
@@ -434,12 +423,12 @@ function intakeLink(row, how) {
   };
 }
 
-export function setDispatch(task, ready, state, reason) {
+function setDispatch(task, ready, state, reason) {
   task.dispatch = { ...(task.dispatch || {}), ready, state, reason };
 }
 
 // A leaf for the item, or an inbox task for the planner (task.capture).
-export function startTask(store, row, source, action, how) {
+function startTask(store, row, source, action, how) {
   const taskId = intakeTaskId(row.source, row.itemId);
   let created = null;
   store.mutate(`Take in ${row.source} ${row.itemId}`, (data) => {
@@ -478,7 +467,7 @@ export function startTask(store, row, source, action, how) {
   return created;
 }
 
-export function patchTask(store, taskId, summary, fn) {
+function patchTask(store, taskId, summary, fn) {
   const current = store.read().tasks.find((task) => task.id === taskId);
   if (!current) return false;
   const next = structuredClone(current);

@@ -674,56 +674,6 @@ export const entries = [
     policy: routed,
     handler: taskArchiveHandler,
   },
-  // Saved views and presentations are display configuration. Deleting one
-  // removes that configuration only: tasks, plans and evidence are untouched.
-  {
-    name: "visualization.delete",
-    class: "protect",
-    github: "check-in",
-    policy: person("Only a person deletes a visualization."),
-    handler({ input, expectedRevision }) {
-      const store = this.store;
-
-      if (typeof input.id !== "string" || !input.id)
-        fail("Name the saved view to delete.");
-      const tours = input.kind === "tour",
-        list = tours ? "tours" : "views",
-        label = tours ? "presentation" : "view";
-      let removed = null;
-      store.mutate(
-        "Delete saved " + label,
-        (data) => {
-          data.presentation ??= {};
-          data.presentation[list] ??= [];
-          removed =
-            data.presentation[list].find((v) => v.id === input.id) || null;
-          if (!removed) fail("Saved " + label + " not found.", 404);
-          data.presentation[list] = data.presentation[list].filter(
-            (v) => v.id !== input.id,
-          );
-          if (data.presentation.activeVisualization?.id === input.id)
-            delete data.presentation.activeVisualization;
-          if (data.presentation.activeTour?.id === input.id)
-            delete data.presentation.activeTour;
-          // A presentation step cannot point at a view that no longer exists.
-          if (!tours) {
-            const kept = [];
-            for (const tour of data.presentation.tours || []) {
-              tour.steps = (tour.steps || []).filter(
-                (step) => step.viewId !== input.id,
-              );
-              if (tour.steps.length) kept.push(tour);
-              else if (data.presentation.activeTour?.id === tour.id)
-                delete data.presentation.activeTour;
-            }
-            if (data.presentation.tours) data.presentation.tours = kept;
-          }
-        },
-        expectedRevision,
-      );
-      return { id: input.id, kind: label, title: removed?.title || input.id };
-    },
-  },
 
   {
     name: "trash",

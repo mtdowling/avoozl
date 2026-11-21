@@ -16,7 +16,7 @@ import { decisionPath, decisionReference } from "../api/direct-links.ts";
 // app.json notifications.channels ids. The Intake tab's channel keeps its
 // first id, `untriaged`, so a person's channel settings carry over; `intake`
 // is accepted as its other name.
-export const CHANNELS = new Set(["decision", "failure", "untriaged"]);
+const CHANNELS = new Set(["decision", "failure", "untriaged"]);
 const CHANNEL_ALIASES = new Map([["intake", "untriaged"]]);
 const MAX_TITLE = 200;
 const MAX_BODY = 2000;

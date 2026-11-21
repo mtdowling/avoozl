@@ -10,7 +10,7 @@ export interface PickItem {
 // At most this many results render; the rest are counted.
 export const MAX_SHOWN = 50
 
-export interface PickIndex {
+interface PickIndex {
   items: PickItem[]
   ids: string[]
   text: string[]
@@ -44,11 +44,11 @@ export function pickMatches(index: PickIndex, query: string, limit = MAX_SHOWN):
 }
 
 // What one key does to an open or closed list of `count` results.
-export interface PickState {
+interface PickState {
   open: boolean
   active: number
 }
-export type PickAction = { kind: 'move'; state: PickState } | { kind: 'pick'; index: number } | { kind: 'close' } | { kind: 'clear' } | { kind: 'none' }
+type PickAction = { kind: 'move'; state: PickState } | { kind: 'pick'; index: number } | { kind: 'close' } | { kind: 'clear' } | { kind: 'none' }
 
 export function pickKey(state: PickState, key: string, count: number): PickAction {
   const last = count - 1

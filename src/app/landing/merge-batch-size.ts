@@ -5,8 +5,8 @@
 // result, and the keys of culprits that must land alone. It is plain data
 // in the store's meta, so a restart keeps it and the Landing queue page
 // reads it.
-export const MAX_LIMIT = 16;
-export const WINDOW = 20;
+const MAX_LIMIT = 16;
+const WINDOW = 20;
 const MIN_RESULTS = 5;
 const ASSUMED_RATE = 0.1;
 const META = "mergeBatchSize";
