@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The spec base a task starts from, and the base merged back after landing
 // (Requirement 87.7, 102.6 and 102.15, design §4.32.3 and §4.32.5, task
 // 41.5).
@@ -20,9 +19,9 @@ const SHA = /^[0-9a-f]{40}$/;
 const SPEC = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
 
 // The spec's working branch, by its opaque id.
-export const workingBranch = (spec) => `avoozl/${spec}/work`;
+export const workingBranch = (spec: string) => `avoozl/${spec}/work`;
 
-async function tip(root, branch) {
+async function tip(root: string, branch: string) {
   try {
     return await git(root, [
       "rev-parse",
@@ -51,7 +50,10 @@ export async function specBase(
       ? [{ branch: workingBranch(spec), kind: "working" }]
       : []),
     ...legacy
-      .filter((name) => typeof name === "string" && !branchNameProblem(name))
+      .filter(
+        (name): name is string =>
+          typeof name === "string" && !branchNameProblem(name),
+      )
       .map((branch) => ({ branch, kind: "integration" })),
     { branch: base, kind: "base" },
   ];
@@ -74,8 +76,18 @@ export async function specBase(
 // branch is a no-op, so a retry is safe. A conflict refuses and leaves the
 // branch unchanged. `lock` wraps only the guarded ref move.
 export async function mergeBaseBack(
-  root,
-  { spec, landed, base, lock = (fn) => fn() },
+  root: string,
+  {
+    spec,
+    landed,
+    base,
+    lock = (fn) => fn(),
+  }: {
+    spec?: unknown;
+    landed: string;
+    base?: string;
+    lock?: (fn: () => Promise<void>) => unknown;
+  },
 ) {
   if (!SHA.test(landed ?? "")) fail("Name the exact landed base commit.", 400);
   if (typeof spec !== "string" || !SPEC.test(spec))
@@ -88,7 +100,7 @@ export async function mergeBaseBack(
     await git(root, ["merge-base", "--is-ancestor", landed, head]);
     return { branch, head, merged: false, reason: "already merged" };
   } catch {}
-  let tree;
+  let tree: string;
   try {
     tree = (
       await git(root, [
@@ -102,7 +114,7 @@ export async function mergeBaseBack(
   } catch (error) {
     const files = [
       ...new Set(
-        String(error.stdout ?? "")
+        String((error as { stdout?: string }).stdout ?? "")
           .split("\n")
           .slice(1)
           .map((line) => line.split("\t")[1])

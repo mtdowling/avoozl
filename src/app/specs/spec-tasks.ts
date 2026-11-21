@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Where a spec's tasks are. A spec folder holds its task list in tasks.md, or
 // in the `## Tasks` section of its one other Markdown file. Every reader of
 // the task list (the parser, lint, ticks, landing, rebuild and the page) asks
@@ -22,7 +21,7 @@ export const SPEC_TEXT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\.md$/;
 
 // The 1-based line of each `## Tasks` heading outside fences, and the line
 // after the section ends: {start, end}, or null when there is none.
-export function tasksSection(text) {
+export function tasksSection(text: unknown) {
   if (typeof text !== "string") return null;
   const lines = text.split("\n");
   let fenced = false,
@@ -42,7 +41,7 @@ export function tasksSection(text) {
 // Every file of `files` that holds a task list: tasks.md, then each other
 // spec file with a `## Tasks` section, by name. More than one is a lint
 // error (spec-plans.mjs parseSpec).
-export function taskFiles(files = {}) {
+export function taskFiles(files: Record<string, string> = {}) {
   return [
     ...(files[TASKS_FILE] === undefined ? [] : [TASKS_FILE]),
     ...Object.keys(files)
@@ -57,10 +56,11 @@ export function taskFiles(files = {}) {
 }
 
 // The file that holds the tasks: tasks.md when no file does.
-export const taskFile = (files = {}) => taskFiles(files)[0] ?? TASKS_FILE;
+export const taskFile = (files: Record<string, string> = {}) =>
+  taskFiles(files)[0] ?? TASKS_FILE;
 
 // The task text of `file` (see the top of this file).
-export function taskText(file, text) {
+export function taskText(file: string, text: string) {
   if (file === TASKS_FILE || typeof text !== "string") return text;
   const section = tasksSection(text);
   if (!section) return "";
@@ -85,7 +85,7 @@ export function taskText(file, text) {
 }
 
 // {file, text} for the spec's task list, or null when it has none.
-export function specTasks(files = {}) {
+export function specTasks(files: Record<string, string> = {}) {
   const file = taskFiles(files)[0];
   return file === undefined
     ? null
@@ -94,7 +94,12 @@ export function specTasks(files = {}) {
 
 // `text` with `lines` added as the task list's last lines: the end of
 // tasks.md, or the end of the `## Tasks` section. `eol` ends each line.
-export function addTaskLines(file, text, lines, eol = "\n") {
+export function addTaskLines(
+  file: string,
+  text: string,
+  lines: string[],
+  eol = "\n",
+) {
   const added = lines.map((line) => line + eol).join("");
   if (file === TASKS_FILE)
     return text + (text && !text.endsWith("\n") ? eol : "") + added;

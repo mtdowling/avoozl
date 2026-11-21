@@ -148,9 +148,7 @@ export function workspaceStatus({
 }) {
   const root = config.workspaceRoot,
     realRoot = real(root),
-    configFile = [config.filename, config.legacyFilename].find(
-      (filename) => filename && fs.existsSync(filename),
-    ),
+    configFile = fs.existsSync(config.filename) ? config.filename : undefined,
     registration = (catalog.workspaces || []).find(
       (workspace) =>
         workspace.id === named ||

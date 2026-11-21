@@ -8,6 +8,7 @@
 // sync has a conflict, and asks one person to land the branch. Avoozl never
 // merges the branch into the default branch: no code path here writes to it.
 import { checksOf, green } from "../delivery/check-reads.ts";
+import type { CheckReader, HeadCheck } from "../delivery/check-reads.ts";
 import { ruleBranch } from "../github/github-branch-rules.ts";
 import { openStops, putStop } from "../flow/flow.ts";
 import { queueNotifications } from "../tick/notifications.ts";
@@ -40,9 +41,9 @@ type HeadMeta = {
   landing: Record<string, Landing>;
 };
 type Plan = { id: string; spec?: string; deletedAt?: string };
-type Check = { done?: boolean; ok?: boolean; [key: string]: unknown };
+type Check = HeadCheck & { [key: string]: unknown };
 // The GitHub reads a head step makes (with checksOf's and ruleBranch's).
-type HeadGitHub = {
+type HeadGitHub = CheckReader & {
   branch(
     repository: string,
     branch: string,

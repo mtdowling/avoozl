@@ -1381,7 +1381,11 @@ export const EDIT_ONLY_STEP =
 // The steps that finish a local leaf: its own worktree, a commit, a report.
 // Task 4.7 passes its own plans-repo steps (push avoozl/<task-id>, open one
 // pull request, enable auto-merge) to workerBrief instead.
-export function localSteps(task, repository, { cliReport = null } = {}) {
+export function localSteps(
+  task,
+  repository,
+  { cliReport = null }: { cliReport?: unknown } = {},
+) {
   const report = `{"input": {"taskId": "${task.id}", "kind": "done"}}`,
     // R88.2: report by command line from the worktree, no MCP sharing needed.
     // The worktree is outside the workspace, so the command names it (P50:
@@ -1413,7 +1417,10 @@ export function localSteps(task, repository, { cliReport = null } = {}) {
 // `allowCommands`, the repository's sandbox list, names what its shell may run.
 export function processSteps(
   task,
-  { branch = `avoozl/${task.id}`, allowCommands } = {},
+  {
+    branch = `avoozl/${task.id}`,
+    allowCommands,
+  }: { branch?: string; allowCommands?: string[] } = {},
 ) {
   return [
     `1. Work only in the current folder, the worktree of task ${task.id} on branch ${branch}. Do not run cd; name every file by its path from this folder.`,

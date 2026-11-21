@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -15,8 +14,8 @@ export const applicationRoot = fileURLToPath(
 // reads spent seconds here with the backend's event loop stopped.
 // shortcut: a changed user.name shows after a restart, as the open
 // Operations' operator already did.
-const gitUserNames = new Map();
-function gitUserName(workspaceRoot) {
+const gitUserNames = new Map<string, string>();
+function gitUserName(workspaceRoot: string) {
   if (gitUserNames.has(workspaceRoot)) return gitUserNames.get(workspaceRoot);
   let name = "";
   try {
@@ -33,8 +32,14 @@ function gitUserName(workspaceRoot) {
 
 // Who operates this workspace. Provenance of the records it mints, not an
 // authorization check: approval authority comes from the reviewed hashes.
-export function operatorName({ configured, workspaceRoot } = {}) {
-  let name = configured;
+export function operatorName({
+  configured,
+  workspaceRoot,
+}: {
+  configured?: unknown;
+  workspaceRoot?: string;
+} = {}) {
+  let name = typeof configured === "string" ? configured : undefined;
   if (!name?.trim() && workspaceRoot && fs.existsSync(workspaceRoot))
     name = gitUserName(path.resolve(workspaceRoot));
   if (!name?.trim())
@@ -44,13 +49,22 @@ export function operatorName({ configured, workspaceRoot } = {}) {
   return (name || "").trim().slice(0, 200) || "Local operator";
 }
 // The root a command names with --workspace or AVOOZL_WORKSPACE, else here.
-const rootOf = (options, env) =>
+// What a command passes: its flags, which may name the workspace, port and
+// home, and the environment.
+export interface ConfigOptions {
+  workspace?: string;
+  env?: NodeJS.ProcessEnv;
+  home?: string;
+  port?: unknown;
+  [key: string]: unknown;
+}
+
+const rootOf = (options: ConfigOptions, env: NodeJS.ProcessEnv) =>
   path.resolve(options.workspace || env.AVOOZL_WORKSPACE || process.cwd());
 
 export interface WorkspaceConfig {
   workspaceRoot: string;
   filename: string;
-  legacyFilename?: string;
   configured: boolean;
   configFiles: { global: string; repository: string; [key: string]: unknown };
   configSources: unknown;
@@ -63,7 +77,7 @@ export interface WorkspaceConfig {
   endpoint: string;
 }
 
-export function workspaceConfig(options = {}): WorkspaceConfig {
+export function workspaceConfig(options: ConfigOptions = {}): WorkspaceConfig {
   const env = options.env || process.env;
   const workspaceRoot = rootOf(options, env);
   const loaded = loadLayeredConfig({
@@ -74,7 +88,7 @@ export function workspaceConfig(options = {}): WorkspaceConfig {
     }),
     saved = loaded.config,
     filename = loaded.files.repository;
-  const relative = (value) => path.resolve(workspaceRoot, value);
+  const relative = (value: string) => path.resolve(workspaceRoot, value);
   const port = Number(options.port ?? saved.port ?? 9428);
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw Error("Choose a port from 0 to 65535.");
@@ -85,7 +99,6 @@ export function workspaceConfig(options = {}): WorkspaceConfig {
   return {
     workspaceRoot,
     filename,
-    legacyFilename: loaded.files.legacy,
     configured: loaded.localConfigured,
     configFiles: loaded.files,
     configSources: loaded.sources,
@@ -107,14 +120,14 @@ export function workspaceConfig(options = {}): WorkspaceConfig {
 // start with it and refuse that workspace's operations with the same
 // message, so one bad key does not take the page down.
 export function readWorkspaceConfig(
-  options = {},
+  options: ConfigOptions = {},
 ): WorkspaceConfig | { workspaceRoot: string; configError: string } {
   try {
     return workspaceConfig(options);
   } catch (error) {
     return {
       workspaceRoot: rootOf(options, options.env || process.env),
-      configError: error.message,
+      configError: (error as Error).message,
     };
   }
 }

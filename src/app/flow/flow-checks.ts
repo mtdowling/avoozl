@@ -1,10 +1,10 @@
-// @ts-nocheck: typing debt
 // A worker's own check run (design §4.11, Requirement 45): the repository's
 // checks in its worktree, each with its command, exit code and duration. The
 // run leaves a record in the repository's git directory.
 import fs from "node:fs";
 import path from "node:path";
 import { commandEvidence, git } from "../git/git.ts";
+import type { Repository } from "../git/git.ts";
 import {
   checkCommand,
   selectedChecks,
@@ -12,7 +12,7 @@ import {
 import { changedPaths } from "../delivery/verify.ts";
 import { fail } from "../store/store.ts";
 
-async function recordDir(root) {
+async function recordDir(root: string) {
   const common = fs.realpathSync.native(
     path.resolve(root, await git(root, ["rev-parse", "--git-common-dir"])),
   );
@@ -23,7 +23,11 @@ async function recordDir(root) {
 // makes: a check with paths only when the commit's diff against the base
 // touches one. `dir` is a checkout that holds the commit. A diff that
 // cannot be read picks every check.
-async function commitChecks(repository, commit, dir = repository.root) {
+async function commitChecks(
+  repository: Repository,
+  commit: string,
+  dir = repository.root,
+) {
   try {
     const { paths } = await changedPaths(
       dir,
@@ -38,7 +42,17 @@ async function commitChecks(repository, commit, dir = repository.root) {
 
 // flow.checks.run: run the checks the worktree's HEAD picks and record the
 // result. Returns the entries for the done report.
-export async function runLocalChecks({ cwd, root, repository, env }) {
+export async function runLocalChecks({
+  cwd,
+  root,
+  repository,
+  env,
+}: {
+  cwd: string;
+  root: string;
+  repository: Repository;
+  env?: readonly string[];
+}) {
   if (!selectedChecks(repository).length)
     fail("This repository has no checks.", 409);
   const top = await git(cwd, ["rev-parse", "--show-toplevel"]).catch(
@@ -52,7 +66,13 @@ export async function runLocalChecks({ cwd, root, repository, env }) {
     fail("Commit your change first: checks are recorded for a commit.", 409);
   const commit = await git(cwd, ["rev-parse", "HEAD"]),
     checks = await commitChecks(repository, commit, cwd),
-    entries = [];
+    entries: {
+      name: string;
+      command: string;
+      exitCode: number | null;
+      durationMs: number;
+      commit: string;
+    }[] = [];
   for (const check of checks) {
     const started = Date.now(),
       result = await commandEvidence(cwd, check.argv, { env });
