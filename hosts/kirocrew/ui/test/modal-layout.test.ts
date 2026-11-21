@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every Avoozl modal has Issue Radar's Add crew layout: a fixed header (the
 // title and a Close button) over a divider, a body that scrolls on its own,
 // and a fixed footer on a darker surface with a divider above it, its buttons
@@ -7,8 +6,9 @@
 // Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 // Without Chrome: no modal builds its own header or button row inside the
 // shared Modal's body; each passes `title` (and `footer`).
@@ -23,16 +23,33 @@ test('every use of the shared Modal passes a title', () => {
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal layout tests'
 const MODALS = ['add-plugin', 'repo-edit', 'confirm', 'file-viewer', 'stop-line', 'mark-done']
-const OPENERS = { 'add-plugin': 'Add plugin', confirm: 'Remove', 'stop-line': 'Stop the line' }
-const opener = (name) => OPENERS[name] ?? 'Open the dialog'
-const findOpener = (name) => `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(opener(name))})`
+const OPENERS: Record<string, string> = { 'add-plugin': 'Add plugin', confirm: 'Remove', 'stop-line': 'Stop the line' }
+const opener = (name: string) => OPENERS[name] ?? 'Open the dialog'
+const findOpener = (name: string) => `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(opener(name))})`
 
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
+// The dialog's box, header, body and footer as drawn.
+type Read = {
+  width: number
+  height: number
+  vh: number
+  vw: number
+  left: number
+  top: number
+  title: string
+  headerDivider: string
+  headerHeight: number
+  closeAria: string | null
+  closeSize: number[]
+  closeInHeader: boolean
+  bodyScrolls: boolean
+  bodyBetween: boolean
+  footer: { divider: string; bg: string; boxBg: string; justify: string; bottomFlush: boolean; lastRight: number } | null
+  tallButtons: string[]
+  sideways: boolean
+}
 const READ = `(() => {
   const box = [...document.querySelectorAll('[data-modal-box]')].at(-1)
   const q = (s) => box.querySelector(s)
@@ -61,14 +78,14 @@ for (const name of MODALS)
     [1280, 800, true],
     [390, 844, false],
     [390, 844, true],
-  ])
+  ] as [number, number, boolean][])
     test(`${name} has the header, scrolling body and footer layout at ${width} px ${dark ? 'dark' : 'light'}`, { skip }, async () => {
       await page.open(harness.url({ modal: name, theme: dark ? 'dark' : 'light' }), { width, height, dark })
       await page.until(`Boolean(${findOpener(name)})`)
       await page.evaluate(`${findOpener(name)}.click()`)
       await page.until(`Boolean(document.querySelector('[data-modal-box]'))`)
       await page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
-      const got = await page.evaluate(READ)
+      const got = await page.evaluate<Read>(READ)
       assert.ok(got.title.length > 0, 'a title')
       assert.equal(got.headerDivider, '1px', 'a divider under the header')
       assert.equal(got.closeAria, 'Close')

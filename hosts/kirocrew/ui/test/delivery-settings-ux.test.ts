@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings > Autopilot: who merges is landing.pr.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

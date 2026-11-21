@@ -208,6 +208,16 @@ export class Operations {
   configuration: RepositorySettings | null;
   github: GitHubClient;
   pluginOptions: { workspaceRoot: string | null; settingsFile: string };
+  // Kiro Crew's readers, when the app backend runs inside Kiro Crew.
+  notifier: unknown;
+  sessionStopper: unknown;
+  // This process's high-risk GitHub grants (github-jobs.ts).
+  grants: typeof processGrants;
+  // github.cacheSeconds, read at most every five seconds.
+  cachePolicy: {
+    at: number;
+    policy: ReturnType<typeof readGitHubPolicyOrNull>;
+  } | null;
   constructor(
     store: Store,
     {
@@ -1327,6 +1337,13 @@ export class Operations {
   }
   // The repository `.avoozl.json`. The app backend runs without a settings
   // watcher, so it writes through a RepositorySettings of its own.
+  // This machine's Avoozl config folder, which a harness or session needs.
+  machineFolder(): string {
+    return (
+      this.configDirectory ??
+      fail("This workspace has no machine config folder.", 409)
+    );
+  }
   settingsFile() {
     if (this.configuration) return this.configuration;
     if (!this.workspaceRoot)

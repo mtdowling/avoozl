@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A list column's filters are one line at every width: compact fields with
 // no labels above them, the less-used filters behind one small filter icon,
 // and the status text (the count, Refresh) at the right end of the same
@@ -6,14 +5,15 @@
 // light and dark, on the harness page; skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('Needs you shows its count once, at the right end of the filter row', () => {
   const view = source('ConflictsView.tsx')
-  assert.equal(view.match(/\{matching\.length\} of \{items\.length\}/g).length, 1)
+  assert.equal(view.match(/\{matching\.length\} of \{items\.length\}/g)?.length, 1)
   assert.match(view, /shown\.length < matching\.length \? `\$\{shown\.length\} shown of \$\{matching\.length\}` : ''/)
   assert.match(view, /key: 'q'[^\n]*primary: true/)
   assert.match(view, /key: 'kind'[^\n]*primary: true/)
@@ -26,18 +26,15 @@ test('Needs you shows its count once, at the right end of the filter row', () =>
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the filter row test'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 for (const width of [390, 1280])
   for (const theme of ['light', 'dark'])
     test(`the filter row is one line, its buttons at most 28 px, its status at the right end, at ${width} px ${theme}`, { skip }, async () => {
       await page.open(harness.url({ modal: 'filter-row', theme }), { width, height: 800, dark: theme === 'dark' })
       await page.until(`Boolean(document.querySelector('[data-filter-row]'))`)
-      const got = await page.evaluate(`(() => {
+      const got = await page.evaluate<{ height: number; oneLine: boolean; statusRight: number; controls: number[]; labels: number; sideways: boolean }>(`(() => {
         const row = document.querySelector('[data-filter-row]'), box = row.getBoundingClientRect()
         const kids = [...row.children].map((el) => el.getBoundingClientRect())
         const status = row.querySelector('[data-filter-status]').getBoundingClientRect()
@@ -64,14 +61,14 @@ for (const width of [390, 1280])
       await page.evaluate(`document.querySelector('[data-filter-more] [data-more-button]').click()`)
       await page.until(`Boolean(document.querySelector('[data-more-panel] select'))`)
       assert.equal(await page.evaluate(`document.querySelectorAll('[data-more-panel] select').length`), 4)
-      assert.ok((await page.evaluate(`document.querySelector('[data-filter-row]').getBoundingClientRect().height`)) <= 28)
+      assert.ok((await page.evaluate<number>(`document.querySelector('[data-filter-row]').getBoundingClientRect().height`)) <= 28)
     })
 
 for (const width of [390, 1280])
   test(`Needs you shows its count exactly once, at the right end of the filter line, at ${width} px`, { skip }, async () => {
     await page.open(harness.url({ page: 'needs' }), { width, height: 800 })
     await page.until(`Boolean(document.querySelector('[data-filter-panel="avoozl-conflicts"][data-filter-row]'))`)
-    const got = await page.evaluate(`(() => {
+    const got = await page.evaluate<{ n: number; inStatus: boolean; rowHeight: number }>(`(() => {
       const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden' }
       const has = (el) => /\\b4 of 4\\b/.test(el.textContent)
       // The smallest elements that read 4 of 4 (React splits the numbers into their own text nodes).

@@ -1,30 +1,27 @@
-// @ts-nocheck: typing debt
 // Modal footer buttons: a form modal says Cancel, a view modal says Close,
 // the destructive button is the theme's danger variant (background and text
 // set together, readable in light and dark), and the main action sits
 // rightmost. Runs in a real Chrome (AVOOZL_CHROME); skipped without one.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal button tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 const TOP = `[...document.querySelectorAll('dialog[data-modal]')].at(-1)`
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
-const open = async (modal, opener, theme = 'light') => {
+const open = async (modal: string, opener: string, theme = 'light') => {
   await page.open(harness.url({ modal, theme }), { width: 1280, height: 800, dark: theme === 'dark' })
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(opener)}))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(opener)}).click()`)
   await page.until(`Boolean(${TOP})`)
   await settle()
 }
-const footer = () => page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-footer] button')].map((b) => b.textContent.trim())`)
+const footer = () => page.evaluate<string[]>(`[...${TOP}.querySelectorAll('[data-modal-footer] button')].map((b) => b.textContent.trim())`)
 
 test('a form modal says Cancel and a view modal says Close', { skip }, async () => {
   await open('repo-edit', 'Open the dialog')
@@ -37,7 +34,7 @@ for (const theme of ['light', 'dark'])
   test(`the destructive button is the danger variant, readable in ${theme}`, { skip }, async () => {
     await open('confirm', 'Remove', theme)
     assert.deepEqual(await footer(), ['Cancel', 'Remove'], 'Cancel left of the main action')
-    const danger = await page.evaluate(`(() => {
+    const danger = await page.evaluate<{ text: string; background: string; ratio: number; danger: string } | null>(`(() => {
       const button = ${TOP}.querySelector('[data-modal-footer] [data-variant="danger"]')
       if (!button) return null
       const rgb = (value) => value.match(/[\\d.]+/g).slice(0, 3).map(Number)
@@ -54,7 +51,7 @@ for (const theme of ['light', 'dark'])
 
 test('the main action is the primary variant at the far right', { skip }, async () => {
   await open('mark-done', 'Open the dialog')
-  const last = await page.evaluate(
+  const last = await page.evaluate<{ text: string; primary: boolean }>(
     `(() => { const all = [...${TOP}.querySelectorAll('[data-modal-footer] button')]; const b = all.at(-1); return { text: b.textContent.trim(), primary: b.hasAttribute('data-primary') || b.dataset.variant === 'primary' } })()`,
   )
   assert.equal(last.text, 'Mark done')

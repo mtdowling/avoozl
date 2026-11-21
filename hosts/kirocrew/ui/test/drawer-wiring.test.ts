@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The page has no DOM renderer in its tests (react-dom is not a dependency),
 // so these check the drawer's wiring in the source: every view opens it, it
 // closes on Escape, the close button and the backdrop, it moves focus in and
@@ -7,7 +6,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('Graph nodes, In flight rows and Conflicts items open the drawer', () => {
   for (const name of ['GraphView.tsx', 'InFlight.tsx', 'ConflictsView.tsx']) assert.match(source(name), /drawer\.openTask\(/, name)

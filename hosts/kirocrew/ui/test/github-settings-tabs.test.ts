@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings › GitHub as tabs (harness ?page=app&roles=single&ghfull=1): one
 // full-width tab bar, one tab per group, arrow keys, the open tab in the
 // address (?github=<tab>) for a pasted link and the browser's Back, the
@@ -6,24 +5,22 @@
 // that scrolls sideways on a phone. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 import { dirtyTabs, readTab, tabKey, tabLink } from '../src/tabs.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the GitHub settings tabs tests'
 
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
-const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector, text) =>
+const wait = (ms: number) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const click = (selector: string, text: string) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
 
-async function openGitHub(width, extra = {}) {
+async function openGitHub(width: number, extra: Record<string, string> = {}) {
   await page.open(harness.url({ page: 'app', roles: 'single', ghfull: '1', ...extra }), { width, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   if (extra.github) return page.until(`Boolean(document.querySelector('[data-tabs="avoozl-github-tab"]'))`)
@@ -40,6 +37,28 @@ async function openGitHub(width, extra = {}) {
   await page.until(`Boolean(document.querySelector('[data-tabs="avoozl-github-tab"]'))`)
 }
 
+// The GitHub tab bar and its panel as drawn.
+type Read = {
+  keys: string[]
+  labels: string[]
+  selected: string[]
+  tabIndex: number[]
+  focused: string | null
+  dots: string[]
+  panel: string | null
+  labelledBy: string | null | undefined
+  sections: string[]
+  barWidth: number
+  rowWidth: number
+  tabWidths: number[]
+  tabsSpan: number
+  divider: string
+  filled: string
+  plain: string
+  scrolls: string
+  barScroll: boolean
+  pageOverflow: boolean
+}
 const READ = `(() => {
   const bar = document.querySelector('[data-tabs="avoozl-github-tab"]')
   const tabs = [...bar.querySelectorAll('[role=tab]')]
@@ -84,7 +103,7 @@ test('tab logic: keys wrap, the address names a tab, a dirty tab is one whose ke
 
 test('one full-width tab per group, arrow keys move between them', { skip }, async () => {
   await openGitHub(1280)
-  let m = await page.evaluate(READ)
+  let m = await page.evaluate<Read>(READ)
   assert.deepEqual(m.keys, ['issues', 'sync', 'calls'])
   assert.deepEqual(m.labels, ['Epic issues', 'Sync pace', 'GitHub calls'])
   assert.deepEqual(m.selected, ['issues'])
@@ -101,37 +120,37 @@ test('one full-width tab per group, arrow keys move between them', { skip }, asy
   assert.equal(m.divider, '0px')
   await page.evaluate(`document.querySelector('[data-tab="issues"]').focus()`)
   await page.key('ArrowRight', 'ArrowRight', 39)
-  m = await page.evaluate(READ)
+  m = await page.evaluate<Read>(READ)
   assert.deepEqual(m.selected, ['sync'])
   assert.equal(m.focused, 'sync')
   assert.deepEqual(m.sections, ['Sync pace'])
   await page.key('End', 'End', 35)
-  m = await page.evaluate(READ)
+  m = await page.evaluate<Read>(READ)
   assert.deepEqual(m.selected, ['calls'])
   assert.ok(m.sections.includes('GitHub calls'))
   await page.key('Home', 'Home', 36)
-  assert.deepEqual((await page.evaluate(READ)).selected, ['issues'])
+  assert.deepEqual((await page.evaluate<Read>(READ)).selected, ['issues'])
 })
 
 test('Back (Alt+Left) returns to the tab before', { skip }, async () => {
   await openGitHub(1280)
   assert.ok(await page.evaluate(click('[role=tab]', 'Sync pace')))
   assert.ok(await page.evaluate(click('[role=tab]', 'GitHub calls')))
-  assert.deepEqual((await page.evaluate(READ)).selected, ['calls'])
+  assert.deepEqual((await page.evaluate<Read>(READ)).selected, ['calls'])
   const back = `(document.querySelector('[data-tab="calls"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })), true)`
   await page.evaluate(back)
   await wait(50)
-  assert.deepEqual((await page.evaluate(READ)).selected, ['sync'])
+  assert.deepEqual((await page.evaluate<Read>(READ)).selected, ['sync'])
 })
 
 test('the address opens a tab, and the browser moving the address moves the tab', { skip }, async () => {
   await openGitHub(1280, { github: 'sync' })
-  let m = await page.evaluate(READ)
+  let m = await page.evaluate<Read>(READ)
   assert.deepEqual(m.selected, ['sync'])
   assert.ok(m.sections.includes('Sync pace'))
   await page.evaluate(`(history.pushState(null, '', location.search.replace(/github=sync/, 'github=calls')), dispatchEvent(new PopStateEvent('popstate')), true)`)
   await wait(50)
-  assert.deepEqual((await page.evaluate(READ)).selected, ['calls'])
+  assert.deepEqual((await page.evaluate<Read>(READ)).selected, ['calls'])
   await page.evaluate(`(history.back(), true)`)
   await page.until(`document.querySelector('[role=tab][aria-selected=true]')?.dataset.tab === 'sync'`)
 })
@@ -139,16 +158,16 @@ test('the address opens a tab, and the browser moving the address moves the tab'
 test('a tab with unsaved changes shows a dot until Save or Discard', { skip }, async () => {
   await openGitHub(1280)
   assert.ok(await page.evaluate(click('[role=tab]', 'Sync pace')))
-  assert.deepEqual((await page.evaluate(READ)).dots, [])
+  assert.deepEqual((await page.evaluate<Read>(READ)).dots, [])
   await page.evaluate(
     `(() => { const input = document.getElementById('avoozl-settings-writes-minute'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '30'); input.dispatchEvent(new Event('input', { bubbles: true })); return true })()`,
   )
   await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
-  let m = await page.evaluate(READ)
+  let m = await page.evaluate<Read>(READ)
   assert.deepEqual(m.dots, ['sync'])
   // The one Save bar stays on every tab, and so does the dot.
   assert.ok(await page.evaluate(click('[role=tab]', 'Epic issues')))
-  m = await page.evaluate(READ)
+  m = await page.evaluate<Read>(READ)
   assert.deepEqual(m.dots, ['sync'])
   assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-save-footer] [data-save]'))`))
   await page.evaluate(`document.querySelector('[data-save-footer] [data-discard]').click()`)
@@ -157,7 +176,7 @@ test('a tab with unsaved changes shows a dot until Save or Discard', { skip }, a
 
 test('on a phone the bar may scroll sideways and the page does not', { skip }, async () => {
   await openGitHub(390)
-  const m = await page.evaluate(READ)
+  const m = await page.evaluate<Read>(READ)
   assert.equal(m.scrolls, 'auto')
   assert.equal(m.pageOverflow, false)
   assert.ok(await page.evaluate(click('[role=tab]', 'GitHub calls')))
@@ -172,7 +191,7 @@ test('on a phone the bar may scroll sideways and the page does not', { skip }, a
 // Every Settings page with fields draws them with the shared row, and no
 // page keeps its own label, marker or raw-key markup.
 test('each settings page uses the shared field row', () => {
-  const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+  const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
   const pages = ['SettingsView.tsx', 'FlowSettings.tsx', 'ContentRulesSettings.tsx', 'LandingFields.tsx']
   for (const name of pages) {
     const text = source(name)

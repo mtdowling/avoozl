@@ -1,12 +1,14 @@
 // The harness's Needs you items (&needsctx=1): one of each kind that carries
 // context, and one with no evidence. Every name is fake. Older pages ignore
 // `context`, so the same items draw the "before" shots.
+import type { ConflictItem } from '../../src/views-api.ts'
+
 const at = (minutes: number) => new Date(Date.now() - minutes * 60000).toISOString()
 const spec = { planId: 'p_search', name: 'recipe-search', title: 'Recipe search' }
 const source = { path: '.kiro/specs/recipe-search/tasks.md', lineStart: 14, lineEnd: 18 }
 const next = (id: string, title: string) => ({ id, title })
 
-export const needsContextItems = [
+export const needsContextItems: ConflictItem[] = [
   {
     kind: 'decision',
     taskId: 'search.3',

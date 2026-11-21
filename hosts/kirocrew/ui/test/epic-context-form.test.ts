@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings › Epic context's form for this machine's own context: the pure
 // draft helpers under node, then the page in Chrome (?page=app&epiccontext=1):
 // the empty state, a mistake shown next to its field, a backend refusal shown
@@ -50,11 +49,11 @@ test('a backend refusal maps to the field it names', () => {
 const state = harnessPage('epic context form')
 const { skip } = state
 
-const wait = (ms) => state.page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const has = (selector) => state.page.evaluate(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)
-const text = (selector) => state.page.evaluate(`document.querySelector(${JSON.stringify(selector)})?.textContent ?? ''`)
-const click = (selector) => state.page.evaluate(`(() => { const b = document.querySelector(${JSON.stringify(selector)}); if (b) b.click(); return Boolean(b) })()`)
-const type = async (selector, value) => {
+const wait = (ms: number) => state.page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const has = (selector: string) => state.page.evaluate<boolean>(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)
+const text = (selector: string) => state.page.evaluate<string>(`document.querySelector(${JSON.stringify(selector)})?.textContent ?? ''`)
+const click = (selector: string) => state.page.evaluate(`(() => { const b = document.querySelector(${JSON.stringify(selector)}); if (b) b.click(); return Boolean(b) })()`)
+const type = async (selector: string, value: string) => {
   await state.page.evaluate(
     `(() => { const el = document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`,
   )

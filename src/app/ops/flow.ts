@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { taskRepository } from "../../work-model.ts";
 import { runLocalChecks } from "../flow/flow-checks.ts";
@@ -20,6 +19,8 @@ import { runOn } from "../tick/needs-kirocrew.ts";
 import { fail } from "../store/store.ts";
 import path from "node:path";
 import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
+import type { Repository } from "../git/git.ts";
 
 export const entries = [
   // Local checks first (R45): run the declared checks in a worktree and
@@ -29,12 +30,15 @@ export const entries = [
     class: "execute",
     github: "ci-receipts",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       const task = this.read().tasks.find((t) => t.id === input.taskId);
       if (!task) fail("Task not found.", 404);
-      const repository = store.get("repositories", taskRepository(task) || "");
+      const repository = store.get<Repository>(
+        "repositories",
+        taskRepository(task) || "",
+      );
       if (!repository?.root)
         fail(`Task ${task.id} names no local checkout.`, 409);
       if (typeof input.cwd !== "string" || !path.isAbsolute(input.cwd))
@@ -53,7 +57,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       const data = this.read(),
@@ -69,7 +73,7 @@ export const entries = [
     policy: notOnMcp(
       "Settings › Models reads the chat models; a chat has no use for them.",
     ),
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return {
         ...this.settingsFile().readModelSettings(),
         // This machine's harness definitions a role may pick (R98.3).
@@ -83,7 +87,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person approves a program to run on this machine."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail("Only a person approves a harness, in the app or CLI.", 403);
       return approveHarnessByName({
@@ -99,7 +103,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person runs a harness's sign-in check."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail(
           "Only a person checks a harness's sign-in, in the app or CLI.",
@@ -107,10 +111,10 @@ export const entries = [
         );
       const { stateDirectory, catalogPath } = machineAvoozlPaths();
       return probeHarness({
-        configDirectory: this.configDirectory,
+        configDirectory: this.machineFolder(),
         stateDirectory,
         catalogPath,
-        name: input.name,
+        name: String(input.name),
       });
     },
   },
@@ -121,7 +125,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person chooses the harness a waiting role runs on."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.caller || context.mcp)
@@ -129,12 +133,16 @@ export const entries = [
           "Only a person chooses where a role runs, in the Avoozl app.",
           403,
         );
-      return runOn(store, input, {
-        settings: this.settingsFile(),
-        approved: listHarnessDefinitions(this.configDirectory)
-          .filter((d) => d.approved)
-          .map((d) => d.name),
-      });
+      return runOn(
+        store,
+        { role: String(input.role), harness: String(input.harness) },
+        {
+          settings: this.settingsFile(),
+          approved: listHarnessDefinitions(this.configDirectory)
+            .filter((d) => d.approved)
+            .map((d) => d.name),
+        },
+      );
     },
   },
 
@@ -143,7 +151,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person changes chat models."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       if (context.caller || context.mcp)
         fail("Only a person changes chat models, in Settings.", 403);
       const written = this.settingsFile().updateModelSettings(input);
@@ -157,7 +165,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler() {
+    handler(this: Operations) {
       return this.settingsFile().readFlowSettings();
     },
   },
@@ -167,7 +175,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person changes flow settings."),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const written = this.settingsFile().updateFlowSettings(input);
       this.configuration?.reload();
       return written;
@@ -180,7 +188,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person presses Run anyway."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.caller || context.mcp)
@@ -203,7 +211,7 @@ export const entries = [
       "Only a person stops all agents.",
       (input) => input?.full === true,
     ),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       if (input.full === true) {
         if (context.caller || context.mcp)
@@ -236,7 +244,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: person("Only a person resumes a pulled stop."),
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (context.caller || context.mcp)

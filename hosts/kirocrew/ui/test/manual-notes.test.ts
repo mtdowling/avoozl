@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Manual tasks on the page: the calls name their operations, a manual task
 // is tagged Manual in Needs you and on its Delivery card, and the drawers
 // hold the new parts.
@@ -6,54 +5,35 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { manualClient } from '../src/manual-api.ts'
+import { fakeApi } from './fake-api.ts'
+import { graphOf, graphTask } from './graph-fixture.ts'
+import type { GraphTask } from '../src/views-api.ts'
 import { summarize } from '../src/in-flight-api.ts'
 import { deliveryLanes } from '../src/delivery-api.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('each call names its operation', async () => {
-  const sent = []
-  const api = { post: async (_path, body) => (sent.push(body), { result: {} }) }
+  const { api, calls } = fakeApi()
   const client = manualClient(api)
   await client.markDone('w', 't', 'skipped')
   await client.reopen('w', 't')
   assert.deepEqual(
-    sent.map((body) => body.operation),
+    calls.map(({ body }) => body.operation),
     ['task.manual.complete', 'task.manual.reopen'],
   )
-  assert.deepEqual(sent[0].input, { taskId: 't', choice: 'skipped' })
+  assert.deepEqual(calls[0].body.input, { taskId: 't', choice: 'skipped' })
 })
 
-const graphTask = (id, extra = {}) => ({
-  id,
-  title: `Task ${id}`,
-  epic: null,
-  kind: 'leaf',
-  authority: 'local',
-  route: 'local',
-  completion: 'integrated',
-  repository: 'code',
-  status: 'planned',
-  complete: false,
-  ready: false,
-  decision: null,
-  issue: null,
-  ...extra,
-})
+const task = (id: string, extra: Partial<GraphTask> = {}) => graphTask(id, { repository: 'code', ...extra })
 
 test('a manual task waiting for a person is tagged Manual in Needs you and on its card', () => {
-  const graph = {
-    revision: 1,
-    epics: [],
-    statuses: [],
-    repositories: [],
-    total: 2,
-    edges: [],
+  const graph = graphOf({
     tasks: [
-      graphTask('review', { manual: true, state: 'needs-you', needsYou: { reason: 'Waiting for a person: Review with team', manual: true } }),
-      graphTask('cutover', { state: 'waiting' }),
+      task('review', { manual: true, state: 'needs-you', needsYou: { reason: 'Waiting for a person: Review with team', manual: true } }),
+      task('cutover', { state: 'waiting' }),
     ],
-  }
+  })
   const summary = summarize({ graph, delivery: [], conflicts: [], plans: null })
   const manual = summary.attention.find((item) => item.kind === 'manual')
   assert.deepEqual(manual && { taskId: manual.taskId, detail: manual.detail }, { taskId: 'review', detail: 'Waiting for a person: Review with team' })
@@ -62,7 +42,7 @@ test('a manual task waiting for a person is tagged Manual in Needs you and on it
     lanes['needs-you'].map((card) => [card.id, card.manual]),
     [['review', true]],
   )
-  assert.equal(lanes.waiting.find((card) => card.id === 'cutover').manual, false)
+  assert.equal(lanes.waiting.find((card) => card.id === 'cutover')?.manual, false)
 })
 
 test('the drawer has Links and Mark done, and no notes', () => {

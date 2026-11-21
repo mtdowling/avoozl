@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Heading rows measured in a real browser: each title's vertical center
 // against the buttons on its line. Needs a page that serves the app (a
 // screenshot harness with stand-ins for the host SDK, whose tab buttons
@@ -16,7 +15,7 @@ import test from 'node:test'
 
 const url = process.env.AVOOZL_UI_URL
 const chrome = process.env.AVOOZL_CHROME
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // For each visible heading, the buttons in its row on the same line, and
 // the largest distance between their centers and the heading's.
@@ -54,10 +53,11 @@ test('heading titles and their buttons share one vertical center', { timeout: 12
     { stdio: 'ignore' },
   )
   t.after(() => proc.kill('SIGKILL'))
-  let targets = []
+  let targets: { type: string; webSocketDebuggerUrl: string }[] = []
   for (let i = 0; i < 50 && !targets.length; i++) {
     try {
-      targets = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).filter((x) => x.type === 'page')
+      const listed: typeof targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json()
+      targets = listed.filter((x) => x.type === 'page')
     } catch {}
     if (!targets.length) await sleep(200)
   }
@@ -65,14 +65,17 @@ test('heading titles and their buttons share one vertical center', { timeout: 12
   await new Promise((resolve) => ws.addEventListener('open', resolve))
   t.after(() => ws.close())
   let id = 0
-  const pending = new Map()
+  // A DevTools reply; Runtime.evaluate's value is all this reads.
+  type Reply = { id?: number; result?: { result?: { value?: string } } }
+  const pending = new Map<number, (reply: Reply) => void>()
   ws.addEventListener('message', (event) => {
-    const msg = JSON.parse(String(event.data))
-    if (msg.id && pending.has(msg.id)) pending.get(msg.id)(msg), pending.delete(msg.id)
+    const msg: Reply = JSON.parse(String(event.data))
+    const resolve = msg.id ? pending.get(msg.id) : undefined
+    if (msg.id && resolve) resolve(msg), pending.delete(msg.id)
   })
-  const send = (method, params = {}) => new Promise((resolve) => (pending.set(++id, resolve), ws.send(JSON.stringify({ id, method, params }))))
-  const evaluate = async (expression) => (await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result?.result?.value
-  const off = []
+  const send = (method: string, params = {}) => new Promise<Reply>((resolve) => (pending.set(++id, resolve), ws.send(JSON.stringify({ id, method, params }))))
+  const evaluate = async (expression: string) => (await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result?.result?.value
+  const off: string[] = []
   let measured = 0
   for (const width of [375, 768, 1280])
     for (const tab of ['flow', 'plans', 'conflicts', 'delivery']) {
@@ -81,7 +84,8 @@ test('heading titles and their buttons share one vertical center', { timeout: 12
       await sleep(1200)
       await evaluate(`document.querySelector('[data-seg=${tab}]')?.click()`)
       await sleep(900)
-      for (const row of JSON.parse((await evaluate(MEASURE)) ?? '[]')) {
+      const rows: { title: string; worst: number }[] = JSON.parse((await evaluate(MEASURE)) ?? '[]')
+      for (const row of rows) {
         measured += 1
         if (row.worst > 1) off.push(`${tab} at ${width}px: "${row.title}" is ${row.worst.toFixed(1)}px off its buttons`)
       }

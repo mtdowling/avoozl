@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The page's one Back history: tabs, inner tabs, an opened plan, the
 // Graph's drill levels, drawers, modals and confirms, forward and back,
 // with scroll and selection put back, Esc on the topmost layer, and an
@@ -6,20 +5,20 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { changePage, createNav, keyAction, recordChange, settleScroll, typing } from '../src/nav-history.ts'
+import { changePage, createNav, keyAction, recordChange, settleScroll, typing, type Place } from '../src/nav-history.ts'
 
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 // Frames run at once, so a restore settles inside the test.
-const now = (step) => step()
+const now = (step: () => void) => step()
 
 // A page like App.tsx: its place, the views' remembered state, a scroller.
 function page() {
   const nav = createNav(now)
   const scroller = { scrollTop: 0 }
   nav.scroller.current = scroller
-  const place = { tab: 'dashboard', settingsTab: 'workspaces', focus: null, drill: null }
-  const apply = (next) => Object.assign(place, Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined)))
-  const go = (next) => changePage(nav, { ...place }, next, apply, (before, newTab) => (newTab ? `Back to ${before.tab}` : 'Back to the previous Settings section'))
+  const place: Place = { tab: 'dashboard', settingsTab: 'workspaces', focus: null, drill: null }
+  const apply = (next: Partial<Place>) => Object.assign(place, Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined)))
+  const go = (next: Partial<Place>) => changePage(nav, { ...place }, next, apply, (before, newTab) => (newTab ? `Back to ${before.tab}` : 'Back to the previous Settings section'))
   return { nav, scroller, place, go }
 }
 
@@ -92,7 +91,7 @@ test('an opened plan comes back when Back returns to its tab, then Back closes i
 
 test('a deep link opens the new tab on its inner view; Back returns without it', () => {
   const { nav, place } = page()
-  const go = (next, open) =>
+  const go = (next: Partial<Place>, open?: Record<string, unknown>) =>
     changePage(
       nav,
       { ...place },
@@ -122,7 +121,7 @@ test('a deep link opens the new tab on its inner view; Back returns without it',
 test('the Graph keeps its drill stack and the page history in step', () => {
   const { nav, go } = page()
   go({ tab: 'graph' })
-  const graph = []
+  const graph: string[] = []
   const back = () => {
     graph.pop()
     nav.history.sync('graph', graph.length, make)
@@ -154,7 +153,7 @@ test('the Graph keeps its drill stack and the page history in step', () => {
 
 test('drawers and modals: Back closes the newest, Esc the topmost layer', () => {
   const { nav, go } = page()
-  const events = []
+  const events: string[] = []
   go({ tab: 'graph' })
   let linked = ['task-a']
   const drawer = nav.history.push({
@@ -185,7 +184,7 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   const { nav } = page()
   let open = true
   let answer = false
-  const asked = []
+  const asked: string[] = []
   // A dialog's dismiss: ask, then discard only on yes.
   const dismiss = () => {
     asked.push('Discard your changes?')
@@ -224,7 +223,7 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
 
 test('the keys and the mouse back button: ours only with a step and from the page', () => {
   const { nav } = page()
-  const key = (event, inside = true) => keyAction(event, inside, nav.history)
+  const key = (event: Parameters<typeof keyAction>[0], inside = true) => keyAction(event, inside, nav.history)
   assert.equal(key({ key: 'ArrowLeft', altKey: true }), null, 'no step: Kiro Crew has it')
   nav.history.push({ kind: 'tab', label: 'Back', back: () => undefined })
   assert.equal(key({ key: 'ArrowLeft', altKey: true }), 'back')
@@ -255,19 +254,21 @@ test('focus returns to the opener, and a restore waits for the view to grow', ()
   assert.match(wiring, /if \(opener\?\.isConnected && \(!now \|\| now === document\.body\)\) opener\.focus\(\)/)
   // A view still loading is short; the scroll is set again each frame.
   let height = 100
+  // A scroller that cannot scroll past its content's height.
+  let top = 0
   const element = {
     get scrollTop() {
-      return this.top ?? 0
+      return top
     },
-    set scrollTop(value) {
-      this.top = Math.min(value, height)
+    set scrollTop(value: number) {
+      top = Math.min(value, height)
     },
   }
-  const frames = []
+  const frames: (() => void)[] = []
   settleScroll(element, 400, (step) => frames.push(step))
   assert.equal(element.scrollTop, 100)
   height = 1000
-  frames.shift()()
+  frames.shift()?.()
   assert.equal(element.scrollTop, 400)
   assert.equal(frames.length, 0, 'it stops once there')
   // Reduced motion: every restore is instant, with no smooth scrolling.

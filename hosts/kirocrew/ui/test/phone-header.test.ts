@@ -1,37 +1,27 @@
-// @ts-nocheck: typing debt
 // The page's phone chrome, after Kiro Crew's phone layout. In a real Chrome
 // (AVOOZL_CHROME, or an installed Chrome or Chromium) on the sample workspace, at
 // 390 and 1280 px, light and dark: a phone has one thin header row, a one-line
 // demo bar, and headings whose many buttons sit in a More menu; a desktop keeps
 // its header, bar and buttons. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
-import { demoReplies, demoScript } from './browser/demo-replies.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
+import { demoHarness } from './browser/demo-replies.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the phone header tests'
-let harness, browser, page
-before(async () => {
-  if (skip) return
-  harness = await buildHarness({ scripts: { 'demo.js': demoScript(await demoReplies()) } })
-  browser = await launch(chrome)
-  page = await browser.page()
-})
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got), demoHarness)
 
 const wait = (ms = 250) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const height = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect().height ?? null`)
-const start = async (width, dark) => {
+const height = (selector: string) => page.evaluate<number | null>(`document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect().height ?? null`)
+const start = async (width: number, dark: boolean) => {
   await page.open(harness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height: 844, dark })
   await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   await wait(500)
 }
-const toSpecs = async (phone) => {
+const toSpecs = async (phone: boolean) => {
   if (phone) {
     await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
     await wait(100)
@@ -45,19 +35,19 @@ for (const dark of [false, true]) {
   const theme = dark ? 'dark' : 'light'
   test(`a phone at 390 px: one menu row, Specs buttons in More (${theme})`, { skip }, async () => {
     await start(390, dark)
-    assert.ok((await height('[data-phone-header]')) <= 56, 'one header row')
+    assert.ok(((await height('[data-phone-header]')) ?? Infinity) <= 56, 'one header row')
 
     await toSpecs(true)
     const heading = `document.querySelector('#avoozl-plans-title').closest('[data-section-heading]')`
     // The title and the More button share one row: their middles line up.
-    const middles = await page.evaluate(
+    const middles = await page.evaluate<number[]>(
       `(() => { const mid = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 }; return [mid(document.querySelector('#avoozl-plans-title')), mid(${heading}.querySelector('[data-more-button]'))] })()`,
     )
     assert.ok(Math.abs(middles[0] - middles[1]) <= 8, `the Specs heading is one row (${middles})`)
     assert.equal(await page.evaluate(`Boolean(${heading}.querySelector('[data-heading-more]'))`), true, 'its buttons are in More')
     await page.evaluate(`${heading}.querySelector('[data-more-button]').click()`)
     await wait()
-    const items = await page.evaluate(`[...${heading}.querySelectorAll('[data-more-panel] button')].map((b) => b.textContent.trim())`)
+    const items = await page.evaluate<string[]>(`[...${heading}.querySelectorAll('[data-more-panel] button')].map((b) => b.textContent.trim())`)
     assert.ok(items.length > 0 && !items.includes('New task'), `More holds the buttons (${items})`)
     const wide = await page.evaluate(
       `[...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > innerWidth + 1).slice(0, 3).map((el) => el.tagName + '.' + String(el.className).slice(0, 40) + ':' + el.textContent.slice(0, 30))`,

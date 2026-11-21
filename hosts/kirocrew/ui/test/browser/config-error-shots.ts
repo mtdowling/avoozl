@@ -13,10 +13,10 @@ try {
     [390, 844],
   ])
     for (const theme of ['light', 'dark'])
-      for (const [name, extra] of <[string, Record<string, string>][]>[
+      for (const [name, extra] of [
         ['before', {}],
         ['after', { configError: '1' }],
-      ]) {
+      ] as [string, Record<string, string>][]) {
         await page.open(harness.url({ page: 'app', theme, ...extra }), { width, height, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
         await page.evaluate(`new Promise((r) => setTimeout(r, 1200))`)

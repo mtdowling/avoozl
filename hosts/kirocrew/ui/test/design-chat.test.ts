@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Design a plugin, Plugin guide, Design a rule set and Content rules guide: the seeded chats name
 // the app's skills, the rules chat writes no terms, and each button is wired
 // to them with its tooltip.
@@ -17,7 +16,7 @@ import {
 } from '../src/design-chat.ts'
 
 const src = new URL('../src/', import.meta.url)
-const source = (name) => readFileSync(new URL(name, src), 'utf8')
+const source = (name: string) => readFileSync(new URL(name, src), 'utf8')
 const repo = new URL('../../../../', import.meta.url)
 const app = JSON.parse(readFileSync(new URL('hosts/kirocrew/app.json', repo), 'utf8'))
 

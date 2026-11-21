@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // GitHub web links built from validated parts (github-links.ts).
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -14,7 +13,7 @@ test('each kind of link is built from a validated owner/name', () => {
 })
 
 test('a value that fails validation builds no link', () => {
-  for (const repository of [null, '', 'o', 'o/app/x', '../app', 'o/..', 'o/a pp', 'javascript:alert(1)']) assert.equal(githubUrl(repository), null, repository)
+  for (const repository of [null, '', 'o', 'o/app/x', '../app', 'o/..', 'o/a pp', 'javascript:alert(1)']) assert.equal(githubUrl(repository), null, String(repository))
   assert.equal(githubUrl('o/app', { kind: 'pull', number: 0 }), null)
   assert.equal(githubUrl('o/app', { kind: 'pull', number: 1.5 }), null)
   assert.equal(githubUrl('o/app', { kind: 'commit', sha: 'abc' }), null)
@@ -24,7 +23,7 @@ test('a value that fails validation builds no link', () => {
 
 test('a login links to its profile only when GitHub could hold it', () => {
   assert.equal(githubUserUrl('octo-cat'), 'https://github.com/octo-cat')
-  for (const login of [null, '', '-octo', 'a/b', 'session:x', 'x'.repeat(40)]) assert.equal(githubUserUrl(login), null, login)
+  for (const login of [null, '', '-octo', 'a/b', 'session:x', 'x'.repeat(40)]) assert.equal(githubUserUrl(login), null, String(login))
 })
 
 test('a stored link is read back only for a known repository and built again', () => {

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // In a real Chrome, on the harness's full app shell (?page=app&delivery=1):
 // Dashboards › Delivery draws every lane in one row on any window wider than
 // a phone, beside the left nav and at 125% or 150% zoom of a 1280 px window
@@ -7,42 +6,30 @@
 // the task search under the Filters header. Skipped when no
 // Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { harnessPage } from './browser/harness-page.ts'
 
-const chrome = findChrome()
-const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Delivery lane tests'
+const state = harnessPage('Delivery lane', { hostCss: process.env.AVOOZL_HOST_CSS })
+const { skip } = state
 // The phone breakpoint DeliveryView's useNarrow uses.
 const PHONE = 767
 
-let harness, browser, page
-before(async () => {
-  if (skip) return
-  harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
-  browser = await launch(chrome)
-  page = await browser.page()
-})
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
-
-async function openDelivery(width) {
-  await page.open(harness.url({ page: 'app', delivery: '1', theme: 'light' }), { width, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
+async function openDelivery(width: number) {
+  await state.page.open(state.harness.url({ page: 'app', delivery: '1', theme: 'light' }), { width, height: 800 })
+  await state.page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   const scope = width <= PHONE ? '[data-top-rail-list]' : '[data-left-nav]'
   if (width <= PHONE) {
-    await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-    await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
+    await state.page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+    await state.page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
   }
-  await page.until(`Boolean(document.querySelector('${scope} [data-nav-group="delivery"]'))`)
-  await page.evaluate(`document.querySelector('${scope} [data-nav-group="delivery"]').click()`)
-  // On a phone the menu stays open on In flight's filters; shut it to see the page.
-  if (width <= PHONE) await page.evaluate(`(() => { if (document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`)
-  await page.until(`document.querySelectorAll('[data-lane-columns] > section').length > 0`, 30000)
-  await page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
-  return page.evaluate(`(() => {
+  await state.page.until(`Boolean(document.querySelector('${scope} [data-nav-group="delivery"]'))`)
+  await state.page.evaluate(`document.querySelector('${scope} [data-nav-group="delivery"]').click()`)
+  // On a phone the menu stays open on In flight's filters; shut it to see the state.page.
+  if (width <= PHONE)
+    await state.page.evaluate(`(() => { if (document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`)
+  await state.page.until(`document.querySelectorAll('[data-lane-columns] > section').length > 0`, 30000)
+  await state.page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
+  return state.page.evaluate<{ board: number; columns: number; lanes: number; rows: number; outside: string[]; sideways: boolean }>(`(() => {
     const board = document.querySelector('[data-lane-columns]')
     const lanes = [...board.children]
     const tops = new Set(lanes.map((lane) => Math.round(lane.getBoundingClientRect().top)))
@@ -83,7 +70,7 @@ test('Delivery at 390 px (a phone): 1 lane per row', { skip }, async () => {
 
 test("Delivery's nav filters: the task search sits under the Filters header, above All states", { skip }, async () => {
   await openDelivery(1280)
-  const got = await page.evaluate(`(() => {
+  const got = await state.page.evaluate(`(() => {
     const rail = document.querySelector('[data-left-nav] [data-nav-filters="avoozl-delivery"]')
     const block = rail.querySelector('[data-rail-section="filters"]')
     const head = block.querySelector('[data-rail-head]')
@@ -103,7 +90,9 @@ test("Delivery's nav filters: the task search sits under the Filters header, abo
 test('Delivery entries are cards edged in the lane color, on a lane with the app background', { skip }, async () => {
   for (const width of [1280, 390]) {
     await openDelivery(width)
-    const got = await page.evaluate(`(() => {
+    const got = await state.page.evaluate<
+      { background: string; line: string; dot: string | null; entries: { left: string; others: string[]; pad: number[]; radius: number }[] }[]
+    >(`(() => {
       const lanes = [...document.querySelectorAll('[data-lane-columns] > section')]
       return lanes.map((lane) => {
         const probe = document.createElement('i')
@@ -124,7 +113,7 @@ test('Delivery entries are cards edged in the lane color, on a lane with the app
         return { background: getComputedStyle(lane).backgroundColor, line, dot: dot && getComputedStyle(dot).backgroundColor, entries }
       })
     })()`)
-    const pageBg = await page.evaluate(`getComputedStyle(document.body).backgroundColor`)
+    const pageBg = await state.page.evaluate(`getComputedStyle(document.body).backgroundColor`)
     assert.ok(
       got.some((lane) => lane.entries.length),
       'some lane has entries',

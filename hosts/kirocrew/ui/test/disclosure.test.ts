@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every part of the page that opens and shuts uses the one disclosure
 // (src/ui/Disclosure.tsx): its toggle carries data-disclosure and starts
 // with the chevron mark. In the source, no view draws its own arrow or
@@ -13,10 +12,10 @@ import { fileURLToPath } from 'node:url'
 import { harnessPage } from './browser/harness-page.ts'
 
 const src = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src')
-const files = fs.readdirSync(src, { recursive: true }).filter((file) => /\.tsx?$/.test(file) && !file.endsWith('.d.ts'))
+const files = fs.readdirSync(src, { recursive: true, encoding: 'utf8' }).filter((file) => /\.tsx?$/.test(file) && !file.endsWith('.d.ts'))
 
 test('no view draws its own disclosure arrow or turn', () => {
-  const own = []
+  const own: string[] = []
   for (const file of files) {
     if (file === path.join('ui', 'Disclosure.tsx')) continue
     const text = fs.readFileSync(path.join(src, file), 'utf8')
@@ -25,7 +24,7 @@ test('no view draws its own disclosure arrow or turn', () => {
       [/ChevronDown\s*:\s*ChevronRight|ChevronRight\s*:\s*ChevronDown/, 'a swapped chevron'],
       // A table's sort arrow (▲ ▼) is not a disclosure; a shut arrow is.
       [/[▸▹▶]/, 'a text arrow'],
-    ])
+    ] as [RegExp, string][])
       if (pattern.test(text)) own.push(`${file}: ${what}`)
     // Each summary is the shared toggle.
     for (const match of text.matchAll(/<(?:summary|\w+ as="summary")\b[^>]*>/g)) if (!match[0].includes('DISCLOSURE')) own.push(`${file}: ${match[0]}`)
@@ -58,13 +57,13 @@ test('every nav page uses the shared disclosure for each toggle', { skip, timeou
   await page.open(harness.url({ page: 'app', theme: 'light', roles: 'single', ghfull: '1' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   await settle()
-  const heads = await page.evaluate(`[...document.querySelectorAll('[data-left-nav] [data-nav-head]')].map((b) => b.textContent.trim())`)
+  const heads = await page.evaluate<string[]>(`[...document.querySelectorAll('[data-left-nav] [data-nav-head]')].map((b) => b.textContent.trim())`)
   assert.ok(heads.length >= 4, `nav heads: ${heads}`)
   const bad = new Set()
   let pages = 0
   let seen = 0
-  const audit = async (where) => {
-    const result = await page.evaluate(AUDIT)
+  const audit = async (where: string) => {
+    const result = await page.evaluate<{ bad: string[]; seen: number }>(AUDIT)
     for (const el of result.bad) bad.add(`${where}: ${el}`)
     seen += result.seen
     pages++
@@ -75,7 +74,7 @@ test('every nav page uses the shared disclosure for each toggle', { skip, timeou
     )
     await settle()
     await audit(head)
-    const items = await page.evaluate(`[...document.querySelectorAll('[data-left-nav] [data-nav-children] [data-nav-item]')].map((b) => b.textContent.trim())`)
+    const items = await page.evaluate<string[]>(`[...document.querySelectorAll('[data-left-nav] [data-nav-children] [data-nav-item]')].map((b) => b.textContent.trim())`)
     for (const item of items) {
       await page.evaluate(
         `(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-children] [data-nav-item]')].find((x) => x.textContent.trim() === ${JSON.stringify(item)}); if (b) b.click() })()`,
@@ -99,7 +98,7 @@ test('How rules work shows a chevron that turns when it opens', { skip, timeout:
   await page.evaluate(`[...document.querySelectorAll('[data-left-nav] [data-nav-item]')].find((x) => x.textContent.trim() === 'Content rules')?.click()`)
   await page.until(`Boolean(document.querySelector('[data-rules-help]'))`)
   const look = () =>
-    page.evaluate(`(() => {
+    page.evaluate<{ cursor: string; transform: string; tab: number }>(`(() => {
       const summary = document.querySelector('[data-rules-help] > summary')
       const mark = summary.querySelector('[data-disclosure-mark]')
       return { cursor: getComputedStyle(summary).cursor, transform: getComputedStyle(mark).transform, tab: summary.tabIndex }

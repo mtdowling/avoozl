@@ -739,8 +739,11 @@ async function checkReview(repository, delivery, roleId, commit, payload) {
 export async function reportSession(
   store,
   input = {},
-  caller = null,
-  { flow = null, policy = null } = {},
+  caller: unknown = null,
+  {
+    flow = null,
+    policy = null,
+  }: { flow?: unknown; policy?: unknown; local?: boolean } = {},
 ) {
   const own = callerSlot(caller);
   if (!own) {

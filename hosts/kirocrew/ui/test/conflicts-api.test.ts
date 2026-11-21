@@ -1,12 +1,20 @@
-// @ts-nocheck: typing debt
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { itemKey, noActionReason, resultMessage, settleActionOf, withoutSettled } from '../src/conflicts-api.ts'
+import type { ConflictItem } from '../src/views-api.ts'
 
-const item = (kind, taskId, extra = {}) => ({ kind, taskId, title: taskId, detail: '', authority: 'local', issue: null, ...extra })
+const item = (kind: string, taskId: string, extra: Partial<ConflictItem> = {}): ConflictItem => ({
+  kind,
+  taskId,
+  title: taskId,
+  detail: '',
+  authority: 'local',
+  issue: null,
+  ...extra,
+})
 
 test('every kind gets an action or a plain reason why it has none', () => {
-  const cases = [
+  const cases: [ConflictItem, string | null, RegExp | null][] = [
     [item('needs-human', 'r', { reason: 'review' }), 'reviewed', null],
     [item('needs-human', 'b', { reason: 'blocked' }), 'unblock', null],
     [item('decision', 'd'), 'settle', null],
@@ -20,7 +28,7 @@ test('every kind gets an action or a plain reason why it has none', () => {
   for (const [entry, action, reason] of cases) {
     assert.equal(settleActionOf(entry), action, `${entry.kind} ${entry.taskId}`)
     const why = noActionReason(entry)
-    if (reason) assert.match(why, reason)
+    if (reason) assert.match(why ?? '', reason)
     else assert.equal(why, null, `${entry.kind} ${entry.taskId}: ${why}`)
   }
 })
@@ -63,21 +71,21 @@ test('a review group is one item that settles all its local tasks and shrinks as
   assert.equal(settleCount([group]), 2)
   const left = withoutSettled([group], 'reviewed', { revision: 2, settled: [{ taskId: 'a' }], refused: [] })
   assert.deepEqual(
-    left.map((g) => [g.title, g.tasks.map((t) => t.id)]),
+    left.map((g) => [g.title, (g.tasks ?? []).map((t) => t.id)]),
     [['2 tasks in p changed: check them', ['b', 'g']]],
   )
   assert.deepEqual(withoutSettled(left, 'reviewed', { revision: 3, settled: [{ taskId: 'b' }, { taskId: 'g' }], refused: [] }), [])
   const remote = { ...group, tasks: [group.tasks[2]] }
   assert.equal(settleActionOf(remote), null)
-  assert.match(noActionReason(remote), /where they live/)
+  assert.match(noActionReason(remote) ?? '', /where they live/)
 })
 
 test('a failing tick is a Needs you row with its own words', async () => {
   const { CONFLICT_TABS, noActionReason, settleActionOf } = await import('../src/conflicts-api.ts')
   const { CONFLICT_LABELS } = await import('../src/views-api.ts')
-  const item = { kind: 'tick-failed', id: 'tick-failed', taskId: null, title: 'The tick failed 3 times in a row', detail: 'boom.' }
+  const item: ConflictItem = { kind: 'tick-failed', id: 'tick-failed', taskId: null, title: 'The tick failed 3 times in a row', detail: 'boom.' }
   assert.equal(CONFLICT_LABELS['tick-failed'], 'Tick failed')
   assert.equal(settleActionOf(item), null)
-  assert.match(noActionReason(item), /clears after the first tick that works/)
-  assert.ok(CONFLICT_TABS.find((tab) => tab.key === 'needs-human').keep(item))
+  assert.match(noActionReason(item) ?? '', /clears after the first tick that works/)
+  assert.ok(CONFLICT_TABS.find((tab) => tab.key === 'needs-human')?.keep(item))
 })

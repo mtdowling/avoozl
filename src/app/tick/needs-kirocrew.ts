@@ -26,12 +26,12 @@ interface NeedsKirocrew {
 // The settings file Run on writes, as far as it reads it.
 interface ModelSettings {
   readModelSettings(): {
-    hash: string;
+    hash: string | null;
     roles: Record<string, Record<string, unknown>>;
   };
   updateModelSettings(input: {
     roles: Record<string, unknown>;
-    expectedHash: string;
+    expectedHash: string | null;
   }): unknown;
 }
 

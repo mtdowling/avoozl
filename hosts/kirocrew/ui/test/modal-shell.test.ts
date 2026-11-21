@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every modal has one shell: the item itself is the title, the footer is
 // always there with one dismiss button (Cancel in a modal that edits or
 // confirms, Close in one that only shows) at its left, and Esc, the X and the
@@ -7,28 +6,26 @@
 // after this", which opens the add form with the task as its prerequisite.
 // Runs in a real Chrome (AVOOZL_CHROME); skipped without one.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { findChrome, startChrome, stopChrome } from './browser/chrome.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
 
 const { draftsGraph } = await import('./browser/graph-chains.ts')
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal shell tests'
-let harness, browser, page
-before(async () => {
-  if (!skip) ({ harness, browser, page } = await startChrome(chrome))
-})
-after(() => stopChrome(browser, harness))
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got))
 
 const TOP = `[...document.querySelectorAll('dialog[data-modal]')].at(-1)`
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
 const OPEN = `Boolean(${TOP})`
 const CLOSED = `!${TOP}`
-const titleOf = () => page.evaluate(`${TOP}.querySelector('[data-modal-header] h2').textContent.replace(/\\s+/g, ' ').trim()`)
-const footerButtons = () => page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-footer] button')].map((b) => b.textContent.trim())`)
+const titleOf = () => page.evaluate<string>(`${TOP}.querySelector('[data-modal-header] h2').textContent.replace(/\\s+/g, ' ').trim()`)
+const footerButtons = () => page.evaluate<string[]>(`[...${TOP}.querySelectorAll('[data-modal-footer] button')].map((b) => b.textContent.trim())`)
 
 // The title is the item's, the footer is there, and its first button is the
 // one dismiss button, labeled `label`.
-async function assertShell(name, title, label = 'Close') {
+async function assertShell(name: string, title: string | RegExp | null | undefined, label = 'Close') {
   const shown = await titleOf()
   if (title instanceof RegExp) assert.match(shown, title, `${name}: the title`)
   else if (title) assert.equal(shown, title, `${name}: the title`)
@@ -42,7 +39,7 @@ async function assertShell(name, title, label = 'Close') {
   assert.deepEqual(dismissals, [label], `${name}: exactly one dismiss button`)
   // Inside the screen, left of the footer's other buttons (Edit workspace's
   // Remove sits at the far left, apart from the rest).
-  const box = await page.evaluate(`(() => {
+  const box = await page.evaluate<{ inside: boolean; first: boolean }>(`(() => {
     const dialog = ${TOP}
     const close = dialog.querySelector('[data-modal-footer-close]').getBoundingClientRect()
     const others = [...dialog.querySelectorAll('[data-modal-footer] button:not([data-modal-footer-close]):not([data-remove-workspace])')].map((b) => b.getBoundingClientRect())
@@ -52,7 +49,7 @@ async function assertShell(name, title, label = 'Close') {
   assert.equal(box.first, true, `${name}: the dismiss button sits left of the footer's other buttons`)
   // With a main action (primary or danger), it is the last footer button by
   // position and the dismiss button is not. Alone, the dismiss button is last.
-  const order = await page.evaluate(`(() => {
+  const order = await page.evaluate<{ count: number; hasMain: boolean; lastMain: boolean; lastClose: boolean }>(`(() => {
     const buttons = [...${TOP}.querySelectorAll('[data-modal-footer] button')].filter((b) => b.getBoundingClientRect().width > 0 && b.style.order !== '-1')
     const right = buttons.map((b, i) => ({ i, right: b.getBoundingClientRect().right, main: b.hasAttribute('data-primary') || ['primary', 'danger'].includes(b.dataset.variant), close: b.hasAttribute('data-modal-footer-close') }))
     const last = right.reduce((a, b) => (b.right >= a.right ? b : a))
@@ -71,7 +68,7 @@ async function assertShell(name, title, label = 'Close') {
 }
 
 // Esc, the X and Close each close it; focus goes back to the opener.
-async function assertCloses(name, opener) {
+async function assertCloses(name: string, opener: () => Promise<unknown>) {
   const ways = {
     Esc: () => page.key('Escape', 'Escape', 27),
     X: () => page.evaluate(`${TOP}.querySelector('[data-modal-close]').click()`),
@@ -95,7 +92,7 @@ async function assertCloses(name, opener) {
 }
 
 // [opener, title, dismiss label]: Cancel where the modal edits or confirms.
-const SCENARIOS = {
+const SCENARIOS: Record<string, [string, string | null, string]> = {
   'add-plugin': ['Add plugin', null, 'Cancel'],
   'repo-edit': ['Open the dialog', 'avoozl', 'Cancel'],
   confirm: ['Remove', 'Remove avoozl?', 'Cancel'],
@@ -105,9 +102,9 @@ const SCENARIOS = {
   'review-info': ['Open the dialog', 'Meal planner: sections changed', 'Close'],
 }
 
-const press = (text) =>
+const press = (text: string) =>
   `(() => { const b = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}); b.focus(); b.click(); return true })()`
-const hasButton = (text) => `Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}))`
+const hasButton = (text: string) => `Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}))`
 
 for (const [name, [openerText, title, label]] of Object.entries(SCENARIOS))
   test(`${name}: the title is the item, one ${label} button, Esc, the X and ${label} close it`, { skip }, async () => {
@@ -158,7 +155,7 @@ test('the task modal from Needs you in the full app', { skip }, async () => {
   for (const [width, dark] of [
     [1280, false],
     [390, true],
-  ]) {
+  ] as [number, boolean][]) {
     await page.open(harness.url({ page: 'app', needs: '1', theme: dark ? 'dark' : 'light' }), { width, height: 900, dark })
     // The page opens on Specs; open Needs you › Decisions from the nav.
     await page.until(`Boolean(document.querySelector('[data-left-nav], [data-top-rail-bar]'))`)
@@ -214,7 +211,7 @@ test('the Graph node modal: the node is the title, Close in the footer', { skip 
   await page.key('o', 'KeyO', 79)
   await page.until(OPEN)
   await settle()
-  await assertShell('Graph node modal', draftsGraph.drafts.tasks.find((t) => t.id === 'M2').title)
+  await assertShell('Graph node modal', draftsGraph.drafts.tasks.find((t) => t.id === 'M2')?.title)
   assert.ok((await footerButtons()).includes('Open tree'))
   await page.key('Escape', 'Escape', 27)
   await page.until(CLOSED)

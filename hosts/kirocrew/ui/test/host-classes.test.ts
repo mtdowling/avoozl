@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The page has no stylesheet of its own: a class works only when the Kiro
 // Crew host's CSS already defines it. The Plans view once laid out its list
 // and detail with `md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]`, which the host
@@ -21,13 +20,14 @@ import { missingClasses } from './class-tokens.ts'
 import { checkDigest, kirocrewStylesheet } from './kirocrew-css.ts'
 
 const src = new URL('../src/', import.meta.url)
-const files = readdirSync(src, { recursive: true }).filter((name) => name.endsWith('.tsx'))
-const source = (name) => readFileSync(new URL(name, src), 'utf8')
+const files = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter((name) => name.endsWith('.tsx'))
+const source = (name: string) => readFileSync(new URL(name, src), 'utf8')
 
 test('every class the page uses is defined by the host CSS', async () => {
   const css = await kirocrewStylesheet()
   const sources = Object.fromEntries(files.map((name) => [name.split(path.sep).join('/'), source(name)]))
-  const known = Object.entries(JSON.parse(readFileSync(new URL('./host-classes-known.json', import.meta.url), 'utf8')))
+  const listed: Record<string, string[]> = JSON.parse(readFileSync(new URL('./host-classes-known.json', import.meta.url), 'utf8'))
+  const known = Object.entries(listed)
     .map(([token, names]) => `${token}: ${names.join(', ')}`)
     .sort()
   assert.deepEqual(missingClasses(css, sources), known)

@@ -1,18 +1,17 @@
-// @ts-nocheck: typing debt
 // The Specs list in a real Chrome, on the real sample (demo mode) for the
 // data the backend gives. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
+import { findChrome, launch, type Browser, type Harness, type Page } from './browser/chrome.ts'
 import { demoReplies, demoScript } from './browser/demo-replies.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Specs list test'
 
-let harness, browser, page
+let harness: Harness, browser: Browser | undefined, page: Page
 before(async () => {
-  if (skip) return
+  if (!chrome) return
   harness = await buildHarness({
     scripts: { 'demo.js': demoScript(await demoReplies()) },
   })
@@ -24,11 +23,11 @@ after(async () => {
   harness?.remove()
 })
 
-const button = (text, role) =>
+const button = (text: string, role: string) =>
   `[...document.querySelectorAll('button${role === 'tab' ? '[data-nav-head]' : role ? `[role="${role}"]` : ''}')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
-const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
-const radio = (name, key) => `document.querySelector('input[name="${name}"][value="${key}"]')`
-const open = (query) =>
+const click = (expression: string) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
+const radio = (name: string, key: string) => `document.querySelector('input[name="${name}"][value="${key}"]')`
+const open = (query: Record<string, string>) =>
   page.open(harness.url({ page: 'app', ...query }), {
     width: 1280,
     height: 800,
@@ -43,7 +42,7 @@ test('the real sample: Specs is one list with a status chip per spec, and a spec
   await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   await click(specsTab)
   await page.until(`Boolean(document.querySelector('[data-spec-list] [data-plan-row]'))`)
-  const chips = await page.evaluate(
+  const chips = await page.evaluate<Record<string, string>>(
     `Object.fromEntries([...document.querySelectorAll('[data-spec-list] [data-plan-row]')].map((r) => [r.querySelector('[data-spec-name]').firstChild.textContent, r.dataset.specChip]))`,
   )
   assert.equal(chips['Pantry photos'], 'draft')
@@ -56,8 +55,8 @@ test('the real sample: Specs is one list with a status chip per spec, and a spec
     `document.querySelector('[data-spec-list] [data-plan-row][data-spec-chip]:not([data-spec-chip="draft"])') || document.querySelector('[data-spec-list] [data-plan-row]')`,
   )
   await page.until(`Boolean(document.querySelector('[data-detail-column="specs"] [data-spec-detail]'))`)
-  const list = await page.evaluate(`document.querySelector('[data-list-pane="specs"]').getBoundingClientRect().right`)
-  const detail = await page.evaluate(`document.querySelector('[data-detail-column="specs"]').getBoundingClientRect().left`)
+  const list = await page.evaluate<number>(`document.querySelector('[data-list-pane="specs"]').getBoundingClientRect().right`)
+  const detail = await page.evaluate<number>(`document.querySelector('[data-detail-column="specs"]').getBoundingClientRect().left`)
   assert.ok(detail >= list, 'detail right of the list')
   assert.deepEqual(page.errors, [])
 })

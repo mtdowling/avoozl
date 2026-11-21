@@ -1,29 +1,19 @@
-// @ts-nocheck: typing debt
 // At 390 px no element is wider than its container, and nothing passes the
 // screen's right edge. In a real Chrome (AVOOZL_CHROME) on the sample workspace,
 // light and dark, on Home and Needs you. An element inside a box that clips
 // or scrolls sideways on purpose (a cut-short line, a wide table's scroller)
 // is judged by that box instead. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.ts'
-import { findChrome, launch } from './browser/chrome.ts'
-import { demoReplies, demoScript } from './browser/demo-replies.ts'
+import { test } from 'node:test'
+import { findChrome, type Harness, type Page } from './browser/chrome.ts'
+import { withChrome } from './browser/harness-page.ts'
+import { demoHarness } from './browser/demo-replies.ts'
 import { specs } from './browser/in-flight-nav.ts'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the overflow test'
-let harness, browser, page
-before(async () => {
-  if (skip) return
-  harness = await buildHarness({ scripts: { 'demo.js': demoScript(await demoReplies()) } })
-  browser = await launch(chrome)
-  page = await browser.page()
-})
-after(async () => {
-  await browser?.close()
-  harness?.remove()
-})
+let harness: Harness, page: Page
+withChrome(chrome, (got) => ({ harness, page } = got), demoHarness)
 const wait = (ms = 300) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 
 // Every element whose box passes its container's right edge, or the screen's.
@@ -51,12 +41,12 @@ const OVERFLOWS = `(() => {
   return out.slice(0, 10)
 })()`
 
-async function start(dark) {
+async function start(dark: boolean) {
   await page.open(harness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width: 390, height: 844, dark })
   await page.until(`Boolean(document.querySelector('[data-top-row],[data-top-rail-bar]'))`)
   await wait(800)
 }
-async function goto(name) {
+async function goto(name: string) {
   await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(150)
   const key = await page.evaluate(

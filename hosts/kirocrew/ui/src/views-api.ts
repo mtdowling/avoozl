@@ -345,6 +345,8 @@ export interface ConflictItem extends TaskOwner {
   field?: string
   slot?: string
   link?: string | null
+  // When the item opened, for the age filter; older backends omit it.
+  openedAt?: string | null
   // A needs-human item: why it waits on a person. 'hand-set-review':
   // status running or review with no live session behind it. 'disk': a
   // volume too full for a worktree. 'crew-mode': a workspace a Crew Mode
@@ -369,6 +371,10 @@ export interface ConflictItem extends TaskOwner {
     | 'pr-merge'
     | 'stale-claim'
     | 'pr-closed'
+    // Answered on their own page: a manual step, a stopped line, a plugin to approve.
+    | 'manual-ready'
+    | 'line-stopped'
+    | 'plugin-approval'
   // A failed phase plugin check (plugin-checks D7): the proposed fix, whose
   // text holds the check's output as untrusted data, and the run it is for.
   phaseFix?: { run: string; plan: string; phase: string; repository: string; text: string }
