@@ -39,6 +39,7 @@ export interface SessionBinding {
     kind?: string;
     at?: string;
     commit?: string;
+    text?: string;
     review?: { verdict?: string };
   } | null;
   // The epic context a worker's brief carried (briefContext).
