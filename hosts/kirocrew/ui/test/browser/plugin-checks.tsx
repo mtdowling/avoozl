@@ -11,7 +11,7 @@ import type { PluginChecksPart, TaskPluginChecks } from '../../src/plugin-checks
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') ?? 'light'
-const calls = ((window as unknown as { __pkCalls: unknown[] }).__pkCalls = [])
+const calls: unknown[] = ((window as unknown as { __pkCalls: unknown[] }).__pkCalls = [])
 for (const operation of ['plugin.map', 'check.decide.flip'])
   answer(operation, (input: unknown) => {
     calls.push({ operation, input })

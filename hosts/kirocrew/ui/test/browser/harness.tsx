@@ -42,10 +42,12 @@ import { MarkDoneDialog } from '../../src/ManualTask.tsx'
 import { needsContextItems } from './needs-context-fixture.ts'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
+import type { HarnessDefinition } from '../../src/models-api.ts'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
-const state = ((window as unknown as { __harness: { closed: number; calls: { operation?: string; input?: unknown }[] } }).__harness = { closed: 0, calls: [] })
+type HarnessState = { closed: number; calls: { operation?: string; input?: unknown }[] }
+const state: HarnessState = ((window as unknown as { __harness: HarnessState }).__harness = { closed: 0, calls: [] })
 
 // A client whose every call never settles: dialogs stay on their first step.
 const idle = new Proxy({}, { get: () => () => new Promise(() => undefined) }) as never
@@ -340,7 +342,7 @@ SCENARIOS['in-flight-pair'] = {
   render: () => (
     <ul style={{ maxWidth: 900 }}>
       <InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} />
-      <InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} onPickAgain={undefined} />
+      <InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} />
     </ul>
   ),
 }
@@ -1678,11 +1680,11 @@ answer('workspaces.browse', (body) => {
 
 // The app shell answers too, so Settings › Models can be shot in place.
 if (query.get('page') === 'models' || query.get('page') === 'app') {
-  let settings = {
+  let settings: { filename: string; exists: boolean; hash: string; roles: Record<string, Record<string, string>>; harnessDefinitions: HarnessDefinition[] } = {
     filename: '.avoozl.json',
     exists: true,
     hash: 'models-before',
-    roles: { checkDecide: { model: 'fake-writer' } } as Record<string, Record<string, string>>,
+    roles: { checkDecide: { model: 'fake-writer' } },
     harnessDefinitions: [
       {
         name: 'claude-code',
@@ -1778,7 +1780,7 @@ function IntakePage() {
       <NavHistoryProvider>
         <ConfirmProvider>
           <div data-intake-page style={{ padding: 16 }}>
-            <PluginsSettings workspaceId="w" onOpenGitHub={() => {}} onOpenRepositories={() => {}} />
+            <PluginsSettings workspaceId="w" />
           </div>
         </ConfirmProvider>
       </NavHistoryProvider>
@@ -1810,7 +1812,7 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
       kind: kinds[at % kinds.length],
       summary: `${kinds[at % kinds.length]} entry ${seq}`,
       targetId: null,
-      link: null,
+      link: null as string | null,
       redacted: false,
     }
   })

@@ -98,6 +98,7 @@ jobs:
       - run: node scripts/check/check-no-images.ts
       - run: node scripts/check/spec-lint.ts
       - run: npm run typecheck
+      - run: npm run typecheck:ui
       - run: npm run nocheck
 
   # Packs the npm package, installs it into an empty project and runs the
