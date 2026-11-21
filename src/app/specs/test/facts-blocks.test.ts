@@ -80,7 +80,7 @@ test("a folder on disk with a Facts: block is refused at tasks.md:1", () => {
     ["tasks.md:1"],
   );
   assert.match(
-    old.diagnostics.find((d) => d.code === "facts.block")?.message,
+    String(old.diagnostics.find((d) => d.code === "facts.block")?.message),
     /\$key: value/,
   );
   assert.equal(

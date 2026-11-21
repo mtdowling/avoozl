@@ -82,5 +82,5 @@ export const specsDirectory = (root: string) =>
 
 // One spec folder as a repository path with a trailing slash, such as
 // `.kiro/specs/<name>/`.
-export const specFolderPath = (root: string, name: string) =>
+export const specFolderPath = (root: string | null | undefined, name: string) =>
   `${specsPath(root)}/${name}/`;

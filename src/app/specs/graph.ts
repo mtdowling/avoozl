@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One graph builder (simplify §D8): the specs as phases of items in list
 // order, each leaf's state, and the waits §D19 derives. The page's Graph,
 // `avoozl graph` and `plans_graph` read it; two printers turn it into text
@@ -12,11 +11,40 @@ import {
 } from "./order.ts";
 import { headingPhases } from "./spec-plans.ts";
 import { splitRefs } from "./spec-refs.ts";
+import type { LinkedReader, TreeNode, Wait } from "./order.ts";
+import type { Store } from "../store/store.ts";
+
+// One item the graph shows: a leaf with its state, or a group of items.
+export interface GraphItem {
+  id: string;
+  title: string;
+  state: string;
+  manual?: boolean;
+  parallel?: boolean;
+  items?: GraphItem[];
+}
+// One spec of the graph, as phases of items.
+interface GraphSpec {
+  name: string;
+  draft?: boolean;
+  issue?: boolean;
+  phases: { title: string | null; items: GraphItem[] }[];
+}
+export interface Graph {
+  scope: string | null;
+  specs: GraphSpec[];
+  edges: Wait[];
+}
+// A leaf's state, from its ID and whether a person does it.
+type StateOf = (
+  id: string,
+  leaf: { manual: boolean; mark: string | null | undefined },
+) => string;
 
 const PARALLEL = /\s*\(\*\*PARALLEL\*\*\)$/;
 
 // A title as the graph shows it: no refs or backticks, tags in plain words.
-function label(title) {
+function label(title: unknown) {
   const plain = splitRefs(String(title ?? "")).title.replace(/`/g, "");
   if (isParallel(plain)) return `${plain.replace(PARALLEL, "")} (PARALLEL)`;
   if (isManual(plain)) return `${withoutManual(plain)} (MANUAL)`;
@@ -29,20 +57,31 @@ function label(title) {
 // reaches into linked specs. `issues` ([{id, title}]) are the tasks no spec
 // lists, such as labeled issues: one spec each, after the specs.
 export function graphOf(
-  specs,
-  { stateOf = () => "waiting", linked = null, scope = null, issues = [] } = {},
-) {
-  const out = [],
-    edges = [];
+  specs: { name: string; text: string; draft?: boolean }[],
+  {
+    stateOf = () => "waiting",
+    linked = null,
+    scope = null,
+    issues = [],
+  }: {
+    stateOf?: StateOf;
+    linked?: LinkedReader | null;
+    scope?: string | null;
+    issues?: { id: string; title?: string }[];
+  } = {},
+): Graph {
+  const out: GraphSpec[] = [],
+    edges: Wait[] = [];
   for (const { name, text, draft = false } of specs) {
     const { phases } = taskTree(name, text, linked),
       headings = headingPhases(text),
-      titleOf = (node) => headings.get(node.item?.line)?.title ?? null,
-      itemOf = (node) => {
+      titleOf = (node: TreeNode | undefined): string | null =>
+        headings.get(node?.item?.line)?.title ?? null,
+      itemOf = (node: TreeNode): GraphItem => {
         const title = label(node.item?.title);
         if (node.children.length)
           return {
-            id: node.id,
+            id: String(node.id),
             title,
             state: "group",
             parallel: isParallel(String(node.item?.title ?? "").trim()),
@@ -52,11 +91,11 @@ export function graphOf(
           };
         const manual = isManual(String(node.item?.title ?? "").trim());
         return {
-          id: node.id,
+          id: String(node.id),
           title,
           state: draft
             ? "draft"
-            : stateOf(node.id, { manual, mark: node.item?.mark }),
+            : stateOf(String(node.id), { manual, mark: node.item?.mark }),
           manual,
         };
       };
@@ -89,42 +128,42 @@ export function graphOf(
       ],
     });
   // Edges in file order of the task they lead to, then the one they leave.
-  const order = new Map();
-  const visit = (items) => {
+  const order = new Map<string, number>();
+  const visit = (items: GraphItem[]) => {
     for (const item of items) {
       order.set(item.id, order.size);
       if (item.items) visit(item.items);
     }
   };
   for (const spec of out) for (const phase of spec.phases) visit(phase.items);
-  const at = (id) => order.get(id) ?? Number.MAX_SAFE_INTEGER;
+  const at = (id: string) => order.get(id) ?? Number.MAX_SAFE_INTEGER;
   edges.sort((a, b) => at(a.to) - at(b.to) || at(a.from) - at(b.from));
   return { scope, specs: out, edges };
 }
 
-const leavesOf = (items) =>
+const leavesOf = (items: GraphItem[]): GraphItem[] =>
   items.flatMap((item) => (item.items ? leavesOf(item.items) : [item]));
 
 // Every item of a graph, groups and leaves, in list order: the order the
 // page draws its nodes in.
-export function graphItems(graph) {
-  const visit = (items) =>
+export function graphItems(graph: Graph) {
+  const visit = (items: GraphItem[]): GraphItem[] =>
     items.flatMap((item) => [item, ...(item.items ? visit(item.items) : [])]);
   return graph.specs.flatMap((spec) =>
     spec.phases.flatMap((phase) => visit(phase.items)),
   );
 }
 
-const cut = (text, width) =>
+const cut = (text: string, width: number) =>
   text.length <= width ? text : `${text.slice(0, Math.max(0, width - 3))}...`;
 
 // The graph as plain text, at most `width` columns, no escape codes: one
 // line per item in list order, children indented under their group.
-export function graphText(graph, { width = 80 } = {}) {
-  const lines = [];
+export function graphText(graph: Graph, { width = 80 } = {}) {
+  const lines: string[] = [];
   for (const spec of graph.specs) {
     const leaves = spec.phases.flatMap((phase) => leavesOf(phase.items)),
-      counts = {};
+      counts: Record<string, number> = {};
     for (const leaf of leaves)
       counts[leaf.state] = (counts[leaf.state] ?? 0) + 1;
     const summary = `${leaves.length} tasks: ${[
@@ -146,7 +185,7 @@ export function graphText(graph, { width = 80 } = {}) {
         phase.items.map((item) => item.id.length),
       ),
     );
-    const walk = (items, depth) => {
+    const walk = (items: GraphItem[], depth: number) => {
       for (const item of items) {
         const pad = "  ".repeat(depth),
           head = `  ${item.state.padEnd(9)}${pad}${item.id.padEnd(idWidth)}  `;
@@ -164,10 +203,10 @@ export function graphText(graph, { width = 80 } = {}) {
 
 // Node IDs: each character outside [A-Za-z0-9] as `_`; a later ID that
 // maps to a taken one gets `_2`, `_3`.
-function nodeIds(graph) {
-  const ids = new Map(),
-    used = new Set(),
-    add = (id) => {
+function nodeIds(graph: Graph) {
+  const ids = new Map<string, string>(),
+    used = new Set<string>(),
+    add = (id: string) => {
       if (ids.has(id)) return;
       const base = id.replace(/[^A-Za-z0-9]/g, "_");
       let name = base;
@@ -175,7 +214,7 @@ function nodeIds(graph) {
       used.add(name);
       ids.set(id, name);
     };
-  const walk = (items) => {
+  const walk = (items: GraphItem[]) => {
     for (const item of items) {
       add(item.id);
       if (item.items) walk(item.items);
@@ -186,16 +225,16 @@ function nodeIds(graph) {
   return ids;
 }
 
-const quote = (text) => `"${text.replace(/"/g, "#quot;")}"`;
+const quote = (text: string) => `"${text.replace(/"/g, "#quot;")}"`;
 const STATES = ["landed", "claimed", "ready", "waiting", "manual"];
 
 // The graph as a Mermaid flowchart: one subgraph per phase and per group,
 // one edge per wait. With `state`, classDef lines color each leaf.
-export function graphMermaid(graph, { state = false } = {}) {
+export function graphMermaid(graph: Graph, { state = false } = {}) {
   const ids = nodeIds(graph),
     lines = ["flowchart TD"];
   let phaseNumber = 0;
-  const walk = (items, indent) => {
+  const walk = (items: GraphItem[], indent: string) => {
     for (const item of items) {
       const text = `${item.id} ${item.title}`;
       if (item.items) {
@@ -231,24 +270,43 @@ export function graphMermaid(graph, { state = false } = {}) {
 // spec group shows the spec it links inside it (§D19.2), so no spec is
 // listed twice.
 export function storeGraph(
-  store,
-  { scope = null, linked, ready, busy, complete },
+  store: Store,
+  {
+    scope = null,
+    linked,
+    ready,
+    busy,
+    complete,
+  }: {
+    scope?: string | null;
+    linked?: LinkedReader | null;
+    ready: Set<string>;
+    busy: Set<string>;
+    complete: (status: string | undefined) => boolean;
+  },
 ) {
   const tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
     texts = new Map(
       store
-        .list("plans")
-        .filter(
-          (plan) => plan.spec && !plan.deletedAt && plan.files?.["tasks.md"],
-        )
-        .map((plan) => [plan.spec, plan.files["tasks.md"]]),
+        .list<{
+          id: string;
+          spec?: string;
+          deletedAt?: string;
+          files?: Record<string, string>;
+        }>("plans")
+        .flatMap((plan) => {
+          const text = plan.files?.["tasks.md"];
+          return plan.spec && !plan.deletedAt && text
+            ? [[plan.spec, text] as [string, string]]
+            : [];
+        }),
     ),
     names = scope
       ? [scope].filter((name) => texts.has(name))
       : [...texts.keys()]
           .filter((name) => !linked?.parents(name).length)
           .sort();
-  const stateOf = (id, { manual, mark }) => {
+  const stateOf: StateOf = (id, { manual, mark }) => {
     const task = tasks.get(id);
     if (mark === "x" || (task && complete(task.status))) return "landed";
     if (busy.has(id)) return "claimed";
@@ -256,7 +314,7 @@ export function storeGraph(
     return ready.has(id) ? "ready" : "waiting";
   };
   return graphOf(
-    names.map((name) => ({ name, text: texts.get(name) })),
+    names.map((name) => ({ name, text: texts.get(name) ?? "" })),
     { stateOf, linked, scope },
   );
 }
@@ -268,7 +326,11 @@ export const GRAPH_START = "<!-- avoozl:graph start -->";
 export const GRAPH_END = "<!-- avoozl:graph end -->";
 
 // The block text for one spec's tasks.md.
-function graphBlock(name, text, linked = null) {
+function graphBlock(
+  name: string,
+  text: string,
+  linked: LinkedReader | null = null,
+) {
   const mermaid = graphMermaid(
     graphOf([{ name, text: withoutGraphBlock(text) }], { linked }),
   );
@@ -277,10 +339,15 @@ function graphBlock(name, text, linked = null) {
 
 // Where the block is: {start, end} line indexes (0-based, inclusive), or
 // null; `problem` names a second block or an unclosed one.
-function findBlock(text) {
+function findBlock(
+  text: unknown,
+):
+  | { start: number; end: number; problem?: undefined; line?: undefined }
+  | { problem: string; line: number }
+  | null {
   const rows = String(text ?? "").split("\n"),
-    starts = [],
-    ends = [];
+    starts: number[] = [],
+    ends: number[] = [];
   rows.forEach((row, index) => {
     if (row.trim() === GRAPH_START) starts.push(index);
     if (row.trim() === GRAPH_END) ends.push(index);
@@ -294,27 +361,35 @@ function findBlock(text) {
 }
 
 // tasks.md without its graph block (and the blank line before it).
-function withoutGraphBlock(text) {
+function withoutGraphBlock(text: string) {
   const found = findBlock(text);
-  if (!found || found.problem) return text;
+  if (!found || found.problem !== undefined) return text;
   const rows = text.split("\n"),
     before = rows.slice(0, found.start);
-  while (before.length && !before.at(-1).trim()) before.pop();
+  while (before.length && !before[before.length - 1].trim()) before.pop();
   return [...before, ...rows.slice(found.end + 1)]
     .join("\n")
     .replace(/\n*$/, "\n");
 }
 
 // tasks.md with the current block in place of the old one, or at the end.
-export function withGraphBlock(name, text, linked = null) {
+export function withGraphBlock(
+  name: string,
+  text: string,
+  linked: LinkedReader | null = null,
+) {
   return `${withoutGraphBlock(text).replace(/\n*$/, "")}\n\n${graphBlock(name, text, linked)}\n`;
 }
 
 // graph.markers and graph.stale, as {code, line, message}.
-export function graphBlockProblems(name, text, linked = null) {
+export function graphBlockProblems(
+  name: string,
+  text: string,
+  linked: LinkedReader | null = null,
+) {
   const found = findBlock(text);
   if (!found) return [];
-  if (found.problem)
+  if (found.problem !== undefined)
     return [
       {
         code: "graph.markers",

@@ -18,7 +18,6 @@ export interface OrderItem {
   parent?: { line: number; key?: string | null } | null;
   spec?: string | null;
   tagBeforeRefs?: boolean;
-  [key: string]: unknown;
 }
 // Every spec's links, read once (linkedReader).
 export interface LinkedReader {
@@ -28,7 +27,7 @@ export interface LinkedReader {
   parents(name: string): { name: string; text: string }[];
 }
 // One node of a task tree: an item, or a group of nodes.
-interface TreeNode {
+export interface TreeNode {
   item?: OrderItem;
   id?: string | null;
   children: TreeNode[];

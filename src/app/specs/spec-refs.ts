@@ -146,7 +146,10 @@ const WRITE: Record<Kind, string> = {
 // {kind, ref, file, line}; line is null for a ref that names nothing. A
 // problem is {code, message} for lint.
 export function resolveRefs(
-  item: { key?: string; refs?: { requirements?: string[]; design?: string[] } },
+  item: {
+    key?: string | null;
+    refs?: { requirements?: string[]; design?: string[] };
+  },
   files: Record<string, string | undefined>,
 ) {
   const prose =
