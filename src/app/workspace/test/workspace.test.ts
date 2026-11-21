@@ -1,5 +1,5 @@
-// @ts-nocheck: typing debt
 import test from "node:test";
+import type { TestContext } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -13,7 +13,7 @@ import { Operations } from "../../api/operations.ts";
 import { createSpecPlan, readSpecFolder } from "../../specs/spec-plans.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 const exec = promisify(execFile);
-function temporary(t) {
+function temporary(t: TestContext) {
   return temporaryDirectory();
 }
 
@@ -41,7 +41,7 @@ test("initialization starts empty, refuses replacement, and paths survive moving
     store = new Store(config.dbPath);
   assert.deepEqual(store.read().tasks, []);
   assert.deepEqual(store.read().documents, {});
-  assert.equal(store.read().project.name, "A team project");
+  assert.equal(store.read().project?.name, "A team project");
   assert.equal(store.list("repositories").length, 0);
   assert.equal(store.list("plans").length, 0);
   store.close();
@@ -51,7 +51,7 @@ test("initialization starts empty, refuses replacement, and paths survive moving
   assert.equal(config.endpoint, "http://127.0.0.1:9477");
   assert.equal(config.plansRoot, path.join(moved, "plans"));
   store = new Store(config.dbPath);
-  assert.equal(store.read().project.name, "A team project");
+  assert.equal(store.read().project?.name, "A team project");
   store.close();
 });
 
@@ -87,7 +87,10 @@ test("a new workspace has the documented layout and no default-valued keys", asy
       plansRoot: config.plansRoot,
     });
     assert.deepEqual(await ops.execute("query"), []);
-    assert.deepEqual((await ops.execute("plan.specs")).items, []);
+    assert.deepEqual(
+      (await ops.execute<{ items: unknown[] }>("plan.specs")).items,
+      [],
+    );
   } finally {
     store.close();
   }
@@ -95,7 +98,7 @@ test("a new workspace has the documented layout and no default-valued keys", asy
 });
 
 test("a workspace file written by an earlier init loads as before", (t) => {
-  const earlier = (documents) => {
+  const earlier = (documents: string) => {
     const root = temporary(t);
     initializeWorkspace(root, { name: "Earlier" });
     const file = path.join(root, ".avoozl.json"),
@@ -128,7 +131,7 @@ test("a workspace file written by an earlier init loads as before", (t) => {
   const inPlace = earlier(".");
   assert.equal(inPlace.config.plansRoot, inPlace.root);
   const store = new Store(inPlace.config.dbPath);
-  assert.equal(store.read().project.name, "Earlier");
+  assert.equal(store.read().project?.name, "Earlier");
   store.close();
   assert.throws(() => initializeWorkspace(inPlace.root), /already exists/);
 });
@@ -147,7 +150,7 @@ test("init on a configuration with no database keeps its namespace", (t) => {
   assert.equal(fs.readFileSync(file, "utf8"), before);
   const store = new Store(dbPath);
   assert.equal(store.read().tasks.length, 0);
-  assert.equal(store.read().project.name, "Kept");
+  assert.equal(store.read().project?.name, "Kept");
   store.close();
   assert.throws(() => initializeWorkspace(root), /already exists/);
 });
@@ -170,8 +173,8 @@ test("offline skill export binds the chosen workspace without creating data", as
   const command = stdout
     .split("\n")
     .find((line) => line.startsWith("node ") && line.includes(" query "));
-  assert(command.includes("--workspace"));
-  assert(command.includes(path.join(applicationRoot, "cli.ts")));
+  assert(command?.includes("--workspace"));
+  assert(command?.includes(path.join(applicationRoot, "cli.ts")));
 });
 
 test("application, plans, state, and working repository can use independent directories", async (t) => {

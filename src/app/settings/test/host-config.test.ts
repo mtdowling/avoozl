@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -17,6 +16,7 @@ import { globalAvoozlConfigPath } from "../layered-config.ts";
 import { workspaceConfig } from "../config.ts";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found } from "../../test/view-shapes.ts";
 
 function machineEnvironment() {
   const root = temporaryDirectory("avoozl-machine-host-");
@@ -29,7 +29,7 @@ function machineEnvironment() {
   };
 }
 
-function initializedWorkspace(name) {
+function initializedWorkspace(name: string) {
   const root = temporaryDirectory(`avoozl-${name}-`);
   initializeWorkspace(root, {
     name,
@@ -130,10 +130,9 @@ test("registry adds isolated workspaces and persists their controls", () => {
     second = initializedWorkspace("Second");
   let registry = new WorkspaceRegistry({ env, home: "/unused" });
   try {
-    const added = registry.add("first", {
-      root: first,
-      maxConcurrentRuns: 2,
-    });
+    // An input from before concurrency left the workspace entry.
+    const oldInput = { root: first, maxConcurrentRuns: 2 },
+      added = registry.add("first", oldInput);
     assert.equal(added.id, "first");
     assert.equal("maxConcurrentRuns" in added, false, "old input, ignored");
     assert.equal(added.state, "closed");
@@ -145,26 +144,26 @@ test("registry adds isolated workspaces and persists their controls", () => {
     );
 
     registry.add("second", { root: second });
-    assert.equal(registry.setConcurrency, undefined);
+    assert.equal("setConcurrency" in registry, false);
     assert.equal(registry.setEnabled("second", false).state, "stopped");
     assert.equal(registry.setEnabled("second", true).state, "closed");
     assert.equal(registry.setDefault("second").default, true);
     assert.equal(registry.describe().defaultWorkspace, "second");
-    assert.equal(registry.drain("first").state, "draining");
+    assert.equal(registry.drain("first")?.state, "draining");
 
-    const tables = registry.catalog.db
+    const db = found(registry.catalog?.db, "catalog");
+    const tables = db
       .prepare(
         "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
       )
       .all()
-      .map(({ name }) => name);
+      .map((row) => String(row.name));
     assert(!tables.includes("tasks"));
     assert(!tables.includes("plans"));
     assert(!tables.includes("runs"));
     assert.equal(
-      registry.catalog.db
-        .prepare("SELECT count(*) AS count FROM registration_receipts")
-        .get().count,
+      db.prepare("SELECT count(*) AS count FROM registration_receipts").get()
+        ?.count,
       5,
     );
   } finally {
@@ -283,7 +282,7 @@ test("registry adopts an existing workspace in place and retries idempotently", 
         .prepare(
           "SELECT COUNT(*) count FROM registration_receipts WHERE action='adopt'",
         )
-        .get().count,
+        .get()?.count,
       1,
     );
   } finally {
@@ -419,7 +418,7 @@ test("duplicate roots, checkout bindings, symlinks, and identity mismatches fail
       fs.symlinkSync(target, linked, "dir");
     } catch (error) {
       if (process.platform === "win32") {
-        t.diagnostic(`symlink assertion skipped: ${error.message}`);
+        t.diagnostic(`symlink assertion skipped: ${String(error)}`);
         return;
       }
       throw error;
@@ -456,7 +455,9 @@ test("loadHostConfig preserves unrelated global defaults", () => {
     }),
   );
   const loaded = loadHostConfig({ env, home: "/unused" });
-  assert.equal(loaded.config.conversations.autoArchiveCompleted, true);
+  assert.deepEqual(loaded.config.conversations, {
+    autoArchiveCompleted: true,
+  });
   assert.deepEqual(loaded.config.workspaces, {});
 });
 

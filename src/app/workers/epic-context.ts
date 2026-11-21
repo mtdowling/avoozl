@@ -144,7 +144,52 @@ const expandHome = (text, home) =>
 // This machine's sources: its `epicContext` block and each approved machine
 // plugin's context part. Each is {name, repos, reads: [{id, about, path}],
 // skills, servers, contentSets}.
-export function loadSources({ configDirectory, pluginOptions }) {
+// One read folder a source names.
+interface ContextRead {
+  id: string;
+  about: string;
+  path: string;
+}
+// One MCP server a source names.
+interface ContextServer {
+  about: string;
+  command: string[];
+  env?: string[];
+  [key: string]: unknown;
+}
+// One context source: this machine's epicContext block or a plugin.
+export interface ContextSource {
+  kind: string;
+  name: string;
+  id?: string;
+  folder?: string;
+  repos: string[];
+  reads: ContextRead[];
+  skills: { name: string; [key: string]: unknown }[];
+  servers: Record<string, ContextServer>;
+  contentSets: string[];
+}
+// What one session is given from its sources.
+export interface SessionContext {
+  sources: string[];
+  reads: ContextRead[];
+  skills: { name: string; source: string; [key: string]: unknown }[];
+  servers: Record<
+    string,
+    ContextServer & { source: string; plugin: string | null }
+  >;
+  contentSets: string[];
+  left: { item: string; why: string }[];
+  conflicts: { alias: string; sources: string[] }[];
+}
+
+export function loadSources({
+  configDirectory,
+  pluginOptions,
+}: {
+  configDirectory?: string | null;
+  pluginOptions?: { workspaceRoot?: string; [key: string]: unknown } | null;
+}): ContextSource[] {
   const sources = [];
   const block = configDirectory ? readEpicContext(configDirectory) : null;
   if (block)
@@ -215,7 +260,17 @@ function readProblem(real, { home, secrets }) {
 // stateDirectory, workspaceRoots}. Returns {sources, reads, skills,
 // servers, contentSets, left: [{item, why}], conflicts: [{alias,
 // sources}]}. Only sources whose `repos` name the repository give.
-export function sessionContext(sources, repository, places = {}) {
+export function sessionContext(
+  sources: ContextSource[],
+  repository: { id?: string | null; github?: string | null } | null,
+  places: {
+    home?: string;
+    env?: Record<string, string | undefined>;
+    configDirectory?: string;
+    stateDirectory?: string;
+    workspaceRoots?: string[];
+  } = {},
+): SessionContext {
   const home = places.home ?? os.homedir(),
     mine = sources.filter((source) =>
       repositoryMatches(source.repos, {
@@ -419,6 +474,16 @@ export function recordContext(
     note = null,
     briefOnly = false,
     attempt = 1,
+  }: {
+    taskId: string;
+    slot?: string | null;
+    resumed?: boolean;
+    gate: { given: boolean; tests: unknown[] };
+    given?: SessionContext | null;
+    hasSources?: boolean;
+    note?: string | null;
+    briefOnly?: boolean;
+    attempt?: number;
   },
 ) {
   const repository = repositoryOf(store, taskId);

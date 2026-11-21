@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `avoozl status` and `avoozl runner status --json` on a headless machine
 // (R98.5): the supervisor and its children, read from the machine state.
 import assert from "node:assert/strict";
@@ -6,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
+import type { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { temporaryDirectory } from "../../test/temporary.ts";
 import { machineStatus } from "../machine-status.ts";
@@ -17,21 +17,27 @@ import {
 const CLI = fileURLToPath(new URL("../../../../cli.ts", import.meta.url));
 
 function machine() {
-  const root = temporaryDirectory("avoozl-machine-status-");
+  const root = temporaryDirectory("avoozl-machine-status-"),
+    home = path.join(root, "home");
   const env = { ...process.env };
   for (const key of Object.keys(env))
     if (/^(AVOOZL|KIROCREW)(_|$)/.test(key)) delete env[key];
   Object.assign(env, {
-    HOME: path.join(root, "home"),
+    HOME: home,
     XDG_CONFIG_HOME: path.join(root, "config"),
     XDG_STATE_HOME: path.join(root, "state"),
     AVOOZL_WORKSPACE: path.join(root, "workspace"),
   });
-  fs.mkdirSync(env.HOME, { recursive: true });
+  fs.mkdirSync(home, { recursive: true });
   return { env, stateDirectory: path.join(root, "state", "avoozl") };
 }
 
-function addChild(db, id, state, exitCode = null) {
+function addChild(
+  db: DatabaseSync,
+  id: string,
+  state: string,
+  exitCode: number | null = null,
+) {
   db.prepare(
     `INSERT INTO children (session_id, role, task, worktree, harness,
        permission_class, brief, placeholder_values, state, exit_code,
@@ -41,7 +47,7 @@ function addChild(db, id, state, exitCode = null) {
   ).run(id, `task-${id}`, state, exitCode);
 }
 
-const cli = (m, ...args) => {
+const cli = (m: ReturnType<typeof machine>, ...args: string[]) => {
   const run = spawnSync(process.execPath, [CLI, ...args], {
     env: m.env,
     encoding: "utf8",

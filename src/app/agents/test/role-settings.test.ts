@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Settings › Models: the `roles` table (role-table.mjs), saved in .avoozl.json.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -13,8 +12,11 @@ import {
 import { deliveryPolicy } from "../../delivery/delivery.ts";
 import { RepositorySettings } from "../../settings/repository-settings.ts";
 import { Operations } from "../../api/operations.ts";
-import { Store } from "../../store/store.ts";
+import { Store, type StatusError } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+
+// What models.settings.get and .update answer.
+type ModelSettings = { roles: Record<string, unknown>; hash: string };
 
 test("a role's auto model is no model", () => {
   assert.equal(
@@ -33,7 +35,7 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
     JSON.stringify({ version: 1 }) + "\n",
   );
   const ops = new Operations(store, { workspaceRoot: root });
-  const before = await ops.execute("models.settings.get", {});
+  const before = await ops.execute<ModelSettings>("models.settings.get", {});
   assert.deepEqual(before.roles, {});
   await assert.rejects(
     ops.execute(
@@ -42,9 +44,9 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
       undefined,
       { mcp: true },
     ),
-    (e) => e.status === 403,
+    (e: StatusError) => e.status === 403,
   );
-  const saved = await ops.execute("models.settings.update", {
+  const saved = await ops.execute<ModelSettings>("models.settings.update", {
     roles: { checkDecide: { model: "m1" }, worker: { model: "auto" } },
     expectedHash: before.hash,
   });
@@ -70,7 +72,7 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
     }),
     /not a role setting/,
   );
-  const cleared = await ops.execute("models.settings.update", {
+  const cleared = await ops.execute<ModelSettings>("models.settings.update", {
     roles: {},
     expectedHash: saved.hash,
   });

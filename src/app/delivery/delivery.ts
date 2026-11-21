@@ -1507,8 +1507,17 @@ export function workerBrief(
     findings = [],
     repositoryLine = null,
     outside = outsideSource(task),
+  }: {
+    attempt: number;
+    worktree?: { path?: string } | null;
+    previous?: { attempt: number; cause: string; [key: string]: unknown };
+    steps?: string[];
+    notes?: string[];
+    findings?: unknown[];
+    repositoryLine?: string | null;
+    outside?: unknown;
   },
-) {
+): string {
   const own = taskLines(task, `Avoozl task ${task.id}`, outside);
   const checks = checksLine(repository);
   const lines = [

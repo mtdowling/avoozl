@@ -657,7 +657,10 @@ export function approveHarnessByName({ configDirectory, name }) {
 // a list value (cache dirs, allow commands) expands to one argument per
 // item, keeping the text around it (`Bash({repository_allow_commands}:*)`), and
 // is refused next to a second placeholder.
-export function fillHarnessArgv(list, values) {
+export function fillHarnessArgv(
+  list: readonly string[],
+  values: Record<string, unknown>,
+): string[] {
   return list.flatMap((item) => {
     const one = /^([^{}]*)\{([a-z_]+)\}([^{}]*)$/.exec(item);
     if (one && Array.isArray(values[one[2]]))

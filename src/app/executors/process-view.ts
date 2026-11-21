@@ -90,7 +90,7 @@ function sessionCost(row: ChildRow, definition: Definition | null) {
   if (cost.from === "file") {
     let file;
     try {
-      [file] = fillHarnessArgv([cost.path], placeholderValues(row));
+      [file] = fillHarnessArgv([cost.path ?? ""], placeholderValues(row));
       const value = JSON.parse(fs.readFileSync(file, "utf8"));
       return Number.isFinite(value) && value >= 0 ? value : null;
     } catch {
