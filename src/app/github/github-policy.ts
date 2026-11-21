@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { kirocrewSessionSettings } from "../executors/kirocrew.ts";
 import { LANDING_MODES, PR_MODES } from "../landing/landing-config.ts";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
@@ -9,6 +8,39 @@ import { loadLayeredConfig } from "../settings/layered-config.ts";
 import { fail } from "../store/store.ts";
 import { MAX_WRITES_PER_HOUR, MAX_WRITES_PER_MINUTE } from "./github-pacer.ts";
 import { parseRepository } from "./github.ts";
+
+type Json = Record<string, unknown>;
+// One repository's policy, normalized.
+export interface RepositoryPolicy {
+  checkout: string | null;
+  folder?: string | null;
+  baseBranch: string | null;
+  allowedActors: string[];
+  minimumPermission: string | null;
+  approvalTrust: string | null;
+  requiredChecks: string[];
+  priorityLabels: string[];
+  waitingLabels: string[];
+  discussions: { categories: string[] } | null;
+  conflicts: { maxAttempts: number | null };
+  landing: {
+    mode: string | null;
+    pr: string | null;
+    method: string;
+    mergeBatch: unknown;
+    commitPrefix: string | null;
+  };
+}
+// The `github` block, normalized.
+export interface GitHubPolicy {
+  mode: string | null;
+  planningRepository: string | null;
+  epicIssueType: string | null;
+  cacheSeconds: number | null;
+  writesPerMinute: number | null;
+  writesPerHour: number | null;
+  repositories: Record<string, RepositoryPolicy>;
+}
 
 export const PERMISSIONS = Object.freeze([
   "read",
@@ -58,54 +90,62 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
 // Who counts when a repository names nobody.
 const DEFAULT_PERMISSION = "write";
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const record = (value) =>
+const record = (value: unknown): value is Json =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
-const lower = (value) => value.toLocaleLowerCase();
+const lower = (value: string) => value.toLocaleLowerCase();
 
-function onlyKeys(value, allowed, label) {
-  if (!record(value)) fail(`${label} must contain a JSON object.`);
+function onlyKeys(
+  value: unknown,
+  allowed: readonly string[],
+  label: string,
+): Json {
+  if (!record(value)) return fail(`${label} must contain a JSON object.`);
   for (const key of Object.keys(value))
     if (!allowed.includes(key)) fail(`Unknown setting ${label}.${key}.`);
   return value;
 }
 
-function name(value, label, { optional = false } = {}) {
+function name(
+  value: unknown,
+  label: string,
+  { optional = false } = {},
+): string | null {
   if (optional && (value === undefined || value === null)) return null;
   if (typeof value !== "string" || !value.trim())
-    fail(`${label} must be a non-empty string.`);
+    return fail(`${label} must be a non-empty string.`);
   return value.trim();
 }
 
-function names(value, label) {
+function names(value: unknown, label: string): string[] {
   if (value === undefined) return [];
-  if (!Array.isArray(value)) fail(`${label} must be a list of names.`);
-  const seen = new Map();
+  if (!Array.isArray(value)) return fail(`${label} must be a list of names.`);
+  const seen = new Map<string, string>();
   for (const item of value) {
-    const text = name(item, label);
+    const text = name(item, label) as string;
     seen.set(lower(text), text);
   }
   return [...seen.values()];
 }
 
-function repositoryName(value, label) {
+function repositoryName(value: unknown, label: string): string {
   if (typeof value !== "string" || !REPOSITORY.test(value))
-    fail(`${label} must be an owner/repository name.`);
+    return fail(`${label} must be an owner/repository name.`);
   return value;
 }
 
-function permission(value, label) {
+function permission(value: unknown, label: string): string | null {
   if (value === undefined || value === null) return null;
-  if (!PERMISSIONS.includes(value))
-    fail(`${label} must be one of ${PERMISSIONS.join(", ")}.`);
+  if (typeof value !== "string" || !PERMISSIONS.includes(value))
+    return fail(`${label} must be one of ${PERMISSIONS.join(", ")}.`);
   return value;
 }
 
 // Discussions answering (task 8.2, R27.13): off unless present. Only
 // discussions in `categories` whose author the policy allows get one reply.
-function discussionsInput(value, label) {
+function discussionsInput(value: unknown, label: string) {
   if (value === undefined || value === null) return null;
-  onlyKeys(value, GITHUB_BLOCK_KEYS.discussions, label);
-  const categories = names(value.categories, `${label}.categories`);
+  const block = onlyKeys(value, GITHUB_BLOCK_KEYS.discussions, label);
+  const categories = names(block.categories, `${label}.categories`);
   if (!categories.length)
     fail(`${label}.categories must name at least one category.`);
   return { categories };
@@ -113,25 +153,43 @@ function discussionsInput(value, label) {
 
 // How long GitHub answers stay fresh, in seconds; 0 turns the cache off.
 const CACHE_SECONDS_MAX = 3600;
-function cacheSecondsInput(value, label) {
+function cacheSecondsInput(value: unknown, label: string): number | null {
   if (value === undefined || value === null) return null;
-  if (!Number.isSafeInteger(value) || value < 0 || value > CACHE_SECONDS_MAX)
-    fail(`${label} must be a whole number of seconds from 0 to 3600.`);
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > CACHE_SECONDS_MAX
+  )
+    return fail(`${label} must be a whole number of seconds from 0 to 3600.`);
   return value;
 }
 
 // How many GitHub writes Avoozl makes (github-pacer.mjs). Null follows the
 // built-in 60 a minute and 400 an hour; GitHub's own ceilings are 80 and 500.
-function writesInput(value, label, max) {
+function writesInput(
+  value: unknown,
+  label: string,
+  max: number,
+): number | null {
   if (value === undefined || value === null) return null;
-  if (!Number.isSafeInteger(value) || value < 1 || value > max)
-    fail(`${label} must be a whole number from 1 to ${max}.`);
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 1 ||
+    value > max
+  )
+    return fail(`${label} must be a whole number from 1 to ${max}.`);
   return value;
 }
 
-function repositoryInput(value, id, mode) {
+function repositoryInput(
+  input: unknown,
+  id: string,
+  mode: string | null,
+): RepositoryPolicy {
   const label = `github.repositories.${id}`;
-  onlyKeys(value, GITHUB_BLOCK_KEYS.repository, label);
+  const value = onlyKeys(input, GITHUB_BLOCK_KEYS.repository, label);
   const baseBranch = name(value.baseBranch, `${label}.baseBranch`, {
     optional: true,
   });
@@ -170,26 +228,32 @@ function repositoryInput(value, id, mode) {
 // `github` (unset): an approval needs GitHub's evidence. `branch-protection`
 // is the declaration that only approvers can push to the specs branch.
 const APPROVAL_TRUSTS = ["github", "branch-protection"];
-function approvalTrustInput(value, label) {
-  if (value != null && !APPROVAL_TRUSTS.includes(value))
+function approvalTrustInput(value: unknown, label: string): string | null {
+  if (
+    value != null &&
+    (typeof value !== "string" || !APPROVAL_TRUSTS.includes(value))
+  )
     fail(`${label}.approvalTrust must be github or branch-protection.`);
-  return value ?? null;
+  return (value as string | null | undefined) ?? null;
 }
 
 const MAX_ATTEMPTS = 10;
 // How many times a landing conflict goes back to the worker (R87.6); unset
 // is 2.
-function conflictsInput(value, label) {
+function conflictsInput(value: unknown, label: string) {
   const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.conflicts, label);
   const count = input.maxAttempts ?? null;
   if (
     count !== null &&
-    (!Number.isSafeInteger(count) || count < 0 || count > MAX_ATTEMPTS)
+    (typeof count !== "number" ||
+      !Number.isSafeInteger(count) ||
+      count < 0 ||
+      count > MAX_ATTEMPTS)
   )
     fail(
       `${label}.maxAttempts must be a whole number from 0 to ${MAX_ATTEMPTS}.`,
     );
-  return { maxAttempts: count };
+  return { maxAttempts: count as number | null };
 }
 
 // How a pull request lands: `squash` (one commit per pull request on the base) or `merge`.
@@ -198,16 +262,22 @@ const MERGE_METHOD_DEFAULT = "squash";
 // `landing` {mode, pr, method, mergeBatch, commitPrefix}, unset values null and
 // the method defaulted. Null reads as unset, so a normalized policy
 // normalizes to itself.
-function landingInput(value, label) {
+function landingInput(
+  value: unknown,
+  label: string,
+): RepositoryPolicy["landing"] {
   const block = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.landing, label);
-  if (block.mode != null && !LANDING_MODES.includes(block.mode))
+  const oneOf = (list: readonly string[], item: unknown) =>
+    typeof item === "string" && list.includes(item);
+  if (block.mode != null && !oneOf(LANDING_MODES, block.mode))
     fail(`${label}.mode must be direct, pr or off.`);
-  if (block.pr != null && !PR_MODES.includes(block.pr))
+  if (block.pr != null && !oneOf(PR_MODES, block.pr))
     fail(`${label}.pr must be draft, ready or auto.`);
   if (
     block.mergeBatch != null &&
     block.mergeBatch !== "auto" &&
     !(
+      typeof block.mergeBatch === "number" &&
       Number.isInteger(block.mergeBatch) &&
       block.mergeBatch >= 1 &&
       block.mergeBatch <= 16
@@ -221,28 +291,32 @@ function landingInput(value, label) {
       /[\r\n]/.test(block.commitPrefix))
   )
     fail(`${label}.commitPrefix must be one line of at most 40 characters.`);
-  if (block.method != null && !MERGE_METHODS.includes(block.method))
+  if (block.method != null && !oneOf(MERGE_METHODS, block.method))
     fail(`${label}.method must be squash or merge.`);
   return {
-    mode: block.mode ?? null,
-    pr: block.pr ?? null,
-    method: block.method ?? MERGE_METHOD_DEFAULT,
+    mode: (block.mode as string | null | undefined) ?? null,
+    pr: (block.pr as string | null | undefined) ?? null,
+    method: (block.method as string | null | undefined) ?? MERGE_METHOD_DEFAULT,
     mergeBatch: block.mergeBatch ?? null,
-    commitPrefix: block.commitPrefix ?? null,
+    commitPrefix: (block.commitPrefix as string | null | undefined) ?? null,
   };
 }
 // The method a repository's settings merge a pull request with.
-export const mergeMethod = (settings) =>
-  settings?.landing?.method ?? MERGE_METHOD_DEFAULT;
+export const mergeMethod = (
+  settings: { landing?: { method?: string } } | null | undefined,
+) => settings?.landing?.method ?? MERGE_METHOD_DEFAULT;
 
 // A leaf's place in the repository's priority list: the best (lowest) index
 // of any priority label it carries, compared without case; a leaf with none
 // of them, or only labels the list does not name, sorts after all of them.
-export function priorityRank(priority, labels) {
+export function priorityRank(
+  priority: unknown,
+  labels: (string | { name?: string } | null)[] | null | undefined,
+) {
   const names = new Set(
     (labels || [])
       .map((label) => (typeof label === "string" ? label : label?.name))
-      .filter(Boolean)
+      .filter((label): label is string => Boolean(label))
       .map(lower),
   );
   const list = Array.isArray(priority) ? priority : [],
@@ -253,14 +327,16 @@ export function priorityRank(priority, labels) {
 }
 
 // The `github` block of `.avoozl.json`.
-export function normalizeGitHubPolicy(value) {
-  if (value === undefined || value === null) value = {};
-  onlyKeys(value, POLICY_KEYS, "github");
+export function normalizeGitHubPolicy(input: unknown): GitHubPolicy {
+  const value = onlyKeys(input ?? {}, POLICY_KEYS, "github");
   const named = value.mode ?? null;
-  if (named !== null && !MODE_CHOICES.includes(named))
+  if (
+    named !== null &&
+    (typeof named !== "string" || !MODE_CHOICES.includes(named))
+  )
     fail("github.mode must be local, plans-repo or single-repo.");
   const local = named === LOCAL_MODE,
-    mode = local ? null : named;
+    mode = local ? null : (named as string | null);
   const stored =
     value.planningRepository === undefined || value.planningRepository === null
       ? null
@@ -302,8 +378,8 @@ export function normalizeGitHubPolicy(value) {
 
 // The policy keys of a Settings edit, with null or absent values dropped so
 // that clearing a field removes it from `.avoozl.json`.
-export function policySection(value) {
-  onlyKeys(value, POLICY_KEYS, "github");
+export function policySection(input: unknown) {
+  const value = onlyKeys(input, POLICY_KEYS, "github");
   return Object.fromEntries(
     POLICY_KEYS.filter(
       (key) => value[key] !== undefined && value[key] !== null,
@@ -313,7 +389,7 @@ export function policySection(value) {
 
 // The policy this workspace runs under: global, repository and local layers
 // merged, so an instance may override a repository's defaults (R11.1).
-export function readGitHubPolicy(workspaceRoot) {
+export function readGitHubPolicy(workspaceRoot: string | null | undefined) {
   if (!workspaceRoot) return normalizeGitHubPolicy({});
   return normalizeGitHubPolicy(
     loadLayeredConfig({ workspaceRoot }).config.github,
@@ -321,7 +397,9 @@ export function readGitHubPolicy(workspaceRoot) {
 }
 
 // The same policy for a read that must not fail on an invalid file: null.
-export function readGitHubPolicyOrNull(workspaceRoot) {
+export function readGitHubPolicyOrNull(
+  workspaceRoot: string | null | undefined,
+) {
   try {
     return readGitHubPolicy(workspaceRoot);
   } catch {
@@ -340,7 +418,11 @@ export function legacyRepositoryPolicy() {
 }
 
 // GitHub closes issues only from merges into the default branch (R16.5).
-export function requireDefaultBranch(repository, remote, id) {
+export function requireDefaultBranch(
+  repository: { baseBranch?: string | null },
+  remote: { default_branch?: string } | null | undefined,
+  id: string,
+) {
   if (
     repository.baseBranch &&
     remote?.default_branch &&
@@ -355,11 +437,18 @@ export function requireDefaultBranch(repository, remote, id) {
 // The same check for every repository of a policy with a mode, for a
 // Settings edit. A repository GitHub cannot read now is skipped; sync
 // checks it again before it reads issues there.
-export async function requireDefaultBranches(policy, github) {
+export async function requireDefaultBranches(
+  policy: GitHubPolicy | null | undefined,
+  github: {
+    repository(
+      name: ReturnType<typeof parseRepository>,
+    ): Promise<{ default_branch?: string } | null>;
+  },
+) {
   if (!policy?.mode) return;
   for (const [id, repository] of Object.entries(policy.repositories || {})) {
     if (!repository.baseBranch) continue;
-    let remote;
+    let remote: { default_branch?: string } | null;
     try {
       remote = await github.repository(parseRepository(id));
     } catch {
@@ -369,14 +458,18 @@ export async function requireDefaultBranches(policy, github) {
   }
 }
 
-const RANK = new Map([
+const RANK = new Map<string, number>([
   ["none", 0],
-  ...PERMISSIONS.map((value, index) => [value, index + 1]),
+  ...PERMISSIONS.map((value, index): [string, number] => [value, index + 1]),
 ]);
 
 // Whether `login`, holding `held` permission, counts in this repository
 // (approvals, replies). Both checks apply when both are set; with neither, nobody may.
-export function actorAllowed(repository, login, held) {
+export function actorAllowed(
+  repository: { allowedActors?: string[]; minimumPermission?: string | null },
+  login: string | null | undefined,
+  held: string | null | undefined,
+) {
   if (!login) return { allowed: false, reason: "No one is named." };
   const actors = repository.allowedActors || [],
     minimum = repository.minimumPermission;
@@ -387,7 +480,7 @@ export function actorAllowed(repository, login, held) {
     };
   if (actors.length && !actors.some((actor) => lower(actor) === lower(login)))
     return { allowed: false, reason: `${login} is not an allowed actor.` };
-  if (minimum && (RANK.get(held || "none") ?? 0) < RANK.get(minimum))
+  if (minimum && (RANK.get(held || "none") ?? 0) < (RANK.get(minimum) ?? 0))
     return {
       allowed: false,
       reason: `${login} needs ${minimum} permission.`,
