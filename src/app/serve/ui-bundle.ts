@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The installed page must come from the page source installed beside it.
 // `kirocrew app update` copies hosts/kirocrew as it lies in the checkout and does
 // not build, and ui/dist is not in git, so a pull without `npm run build` left
@@ -18,7 +17,7 @@ export const UPDATE_COMMAND = "npm run build && kirocrew app update avoozl";
 // Skips dot files and the folders Kiro Crew's install does not copy, so a
 // Finder .DS_Store in the checkout does not read as a stale page.
 const UNCOPIED = new Set(["node_modules", "__pycache__"]);
-function uiSourceHash(uiDir) {
+function uiSourceHash(uiDir: string) {
   const source = path.join(uiDir, "src"),
     hash = crypto.createHash("sha256");
   const files = fs
@@ -41,7 +40,7 @@ function uiSourceHash(uiDir) {
   return hash.digest("hex");
 }
 
-export function writeUiStamp(uiDir) {
+export function writeUiStamp(uiDir: string) {
   fs.writeFileSync(
     path.join(uiDir, "dist", UI_STAMP),
     JSON.stringify({ source: uiSourceHash(uiDir) }, null, 2) + "\n",
@@ -49,7 +48,7 @@ export function writeUiStamp(uiDir) {
 }
 
 // null when the built page matches ui/src, else the sentence a person sees.
-export function uiBundleProblem(uiDir) {
+export function uiBundleProblem(uiDir: string) {
   let stamp;
   try {
     stamp = JSON.parse(
