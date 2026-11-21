@@ -4,6 +4,7 @@ Folder/project inheritance and ScriptContext session calls stay private here.
 The installed app and a source checkout read the same contract data.
 """
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -36,6 +37,16 @@ class StartRefused(Exception):
 
 class ObservationUnavailable(Exception):
     """No authoritative reading; preserve the last observed state."""
+
+
+def _not_creator(error):
+    return "not_creator" in str(error).lower()
+
+
+def _recovery_title(title, claim):
+    """A stable, non-secret title for a claim colliding with an old cron."""
+    suffix = " retry-" + hashlib.sha256(claim.encode()).hexdigest()[:8]
+    return title[: 200 - len(suffix)].rstrip() + suffix
 
 
 def find_or_create(ctx, folder):
@@ -235,6 +246,16 @@ class KiroCrewExecutor:
         except Exception:  # an older gateway, or a chat that just went away
             pass
 
+    def _open(self, d, title, **arguments):
+        try:
+            return self._ctx.open_session(title, **arguments), title
+        except Exception as error:
+            claim = d.get("_claim")
+            if not claim or not _not_creator(error):
+                raise
+            recovered = _recovery_title(title, claim)
+            return self._ctx.open_session(recovered, **arguments), recovered
+
     def keep_trust(self, observed):
         """Set each observed worker chat's trust mode again, once per chat,
         and a lane chat's fixed header when its title changed."""
@@ -342,8 +363,12 @@ class KiroCrewExecutor:
         if lane:
             # A lane chat opens once, named by its fixed header, which Kiro
             # Crew pins so its own titles never replace it.
-            slot = self._ctx.open_session(
-                lane["header"], folder_id=folder, agent=d.get("agent", ""), **extra
+            slot, _opened_title = self._open(
+                d,
+                lane["header"],
+                folder_id=folder,
+                agent=d.get("agent", ""),
+                **extra,
             )
             _text(slot, "sessionId")
             # A header Kiro Crew already holds hands back that chat, which may
@@ -354,16 +379,26 @@ class KiroCrewExecutor:
             return self._brief(slot, d, task, role, brief, permissionClass)
         if d.get("crew"):
             try:
-                slot = self._ctx.open_session(
-                    d["title"], agent=d.get("agent", ""), crew=d["crew"], **extra
+                slot, opened_title = self._open(
+                    d,
+                    d["title"],
+                    agent=d.get("agent", ""),
+                    crew=d["crew"],
+                    **extra,
                 )
             except TypeError as error:
                 raise StartRefused("This gateway cannot open a remote session.") from error
         else:
-            slot = self._ctx.open_session(
-                d["title"], folder_id=folder, agent=d.get("agent", ""), **extra
+            slot, opened_title = self._open(
+                d,
+                d["title"],
+                folder_id=folder,
+                agent=d.get("agent", ""),
+                **extra,
             )
         _text(slot, "sessionId")
+        if opened_title != d["title"]:
+            d["title"] = opened_title
         return self._brief(slot, d, task, role, brief, permissionClass)
 
     def _brief(self, slot, d, task, role, brief, permissionClass):

@@ -142,6 +142,55 @@ test("the cron starts a machine pass, returns released work, and records observa
   }
 });
 
+test("the same cron recovers its claimed start after a process restart", async () => {
+  const w = await scratch();
+  let mcp;
+  try {
+    recordReleased(w.store, { dispatch: [w.request], messages: [] });
+    mcp = createAppMcp({
+      fallback: w.config,
+      env: w.env,
+      startPass: () => 123,
+    });
+    const first = await mcp.handle(
+      cronCall(1, "plans_maintain", "tick", { cron: true }),
+    );
+    const firstBody = JSON.parse(first.result.content[0].text);
+    assert.ok(Array.isArray(firstBody.dispatch), JSON.stringify(firstBody));
+    const [request] = firstBody.dispatch;
+    const claimed = await mcp.handle(
+      cronCall(2, "plans_executor", "take", {
+        id: request.id,
+        version: request.version,
+      }),
+    );
+    const original = JSON.parse(claimed.result.content[0].text);
+
+    // A completed pass no longer releases this already-claimed row. The next
+    // invocation by its owning cron still receives it and its original token.
+    recordReleased(w.store, { dispatch: [], messages: [] });
+    const again = await mcp.handle(
+      cronCall(3, "plans_maintain", "tick", { cron: true }),
+    );
+    const [recoveredRequest] = JSON.parse(
+      again.result.content[0].text,
+    ).dispatch;
+    assert.equal(recoveredRequest.id, request.id);
+    const recovered = await mcp.handle(
+      cronCall(4, "plans_executor", "take", {
+        id: recoveredRequest.id,
+        version: recoveredRequest.version,
+      }),
+    );
+    const body = JSON.parse(recovered.result.content[0].text);
+    assert.equal(body.claimToken, original.claimToken);
+    assert.equal(body.recovered, true);
+  } finally {
+    mcp?.close();
+    w.store.close();
+  }
+});
+
 test("a chat's tick call runs one pass for its own workspace", async () => {
   const w = await scratch();
   try {

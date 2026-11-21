@@ -66,7 +66,7 @@ test("native consumers cannot take process requests or complete another consumer
   );
   const claim = await call(ops, "take", input(native));
   assert.ok(claim.claimToken);
-  assert.equal(await call(ops, "take", input(native)), null);
+  assert.equal(await call(ops, "take", input(native), "two"), null);
   await assert.rejects(
     ops.execute(
       "session.bind",
@@ -124,7 +124,7 @@ test("native consumers cannot take process requests or complete another consumer
   );
 });
 
-test("a version change fences stale starts, and a claim never expires from age", async (t) => {
+test("a version change fences stale starts, and only its consumer recovers a claim", async (t) => {
   const { store, ops } = env(t),
     first = enqueueSessionRequests(store, { starts: [start()] }).starts[0],
     latest = enqueueSessionRequests(store, {
@@ -140,6 +140,9 @@ test("a version change fences stale starts, and a claim never expires from age",
     claim: { ...row.claim, claimedAt: "1970-01-01T00:00:00Z" },
   });
   assert.equal(await call(ops, "take", input(latest), "two"), null);
+  const recovered = await call(ops, "take", input(latest));
+  assert.equal(recovered.claimToken, taken.claimToken);
+  assert.equal(recovered.recovered, true);
   await assert.rejects(
     call(ops, "release", {
       id: latest.id,

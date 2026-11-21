@@ -7,7 +7,10 @@
 // because Kiro Crew refuses a session another cron job opened (not_creator),
 // so the cron that opened a chat stays the one that sends to it and sets its
 // trust mode. That is the only reason this call exists.
-import { pendingSessionRequests } from "../../sessions/session-requests.mjs";
+import {
+  pendingSessionRequests,
+  recoverableSessionStarts,
+} from "../../sessions/session-requests.mjs";
 import {
   FINAL_STATUSES,
   listSessionBindings,
@@ -23,11 +26,17 @@ const fromWorkspace = (request, workspaceId) =>
     ? { ...request, [KIROCREW_WORKSPACE_FIELD]: workspaceId }
     : request;
 
-export function cronIntents(store, input = {}, workspaceId = null) {
+export function cronIntents(
+  store,
+  input = {},
+  workspaceId = null,
+  consumer = null,
+) {
   const roster = sessionList(input.sessions);
   if (roster) recordRoster(store, roster);
   const released = readReleased(store);
-  const pending = pendingSessionRequests(store, "kirocrew");
+  const pending = pendingSessionRequests(store, "kirocrew"),
+    recovering = recoverableSessionStarts(store, "kirocrew", consumer);
   return {
     observe: listSessionBindings(store)
       .filter((b) => !FINAL_STATUSES.has(b.status))
@@ -44,6 +53,7 @@ export function cronIntents(store, input = {}, workspaceId = null) {
         (request) =>
           request.operation === "start" && released.starts.has(request.id),
       )
+      .concat(recovering)
       .map((request) => fromWorkspace(request, workspaceId)),
     messages: pending
       .filter(

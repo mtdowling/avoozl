@@ -123,6 +123,75 @@ print(json.dumps(calls))`);
   assert.equal(bind[1]._avoozlWorkspaceId, "workspace-two");
 });
 
+test("a title owned by an old cron opens under a stable recovery title", () => {
+  const result = run(`
+original_open = ctx.open_session
+def ownership_aware(name, **kwargs):
+    if name == "avoozl:task-one work":
+        calls.append(["open", name, kwargs])
+        raise RuntimeError("HTTP 403: not_creator")
+    return original_open(name, **kwargs)
+ctx.open_session = ownership_aware
+d = {
+    "id": "start:one",
+    "version": "version-one",
+    "task": "task-one",
+    "role": "worker",
+    "title": "avoozl:task-one work",
+    "brief": "Do the work",
+}
+slot = e.start(*e.arguments(d))
+print(json.dumps({"slot": slot, "calls": calls}))`);
+  assert.equal(result.slot, "session-one");
+  const opens = result.calls.filter((row) => row[0] === "open");
+  assert.equal(opens.length, 2);
+  assert.equal(opens[0][1], "avoozl:task-one work");
+  assert.match(opens[1][1], /^avoozl:task-one work retry-[0-9a-f]{8}$/);
+  assert.equal(
+    result.calls.find((row) => row[0] === "bind")[1].title,
+    opens[1][1],
+  );
+  assert.doesNotMatch(opens[1][1], /claim-one/);
+});
+
+test("a lane title owned by an old cron opens a replacement lane chat", () => {
+  const result = run(`
+original_open = ctx.open_session
+header = "Avoozl · workspace · worker 1"
+def ownership_aware(name, **kwargs):
+    if name == header:
+        calls.append(["open", name, kwargs])
+        raise RuntimeError("HTTP 403: not_creator")
+    return original_open(name, **kwargs)
+ctx.open_session = ownership_aware
+ctx._post = lambda path, body: {"reset": True}
+d = {
+    "id": "start:one",
+    "version": "version-one",
+    "_claim": "claim-one",
+    "task": "task-one",
+    "role": "worker",
+    "title": "avoozl:task-one work",
+    "brief": "Do the work",
+    "project": False,
+    "lane": {"id": "worker-1", "header": header},
+}
+e._requests[("worker", "task-one")] = d
+slot = e.start("worker", "task-one", None, "Do the work", None, "write")
+print(json.dumps({"slot": slot, "calls": calls}))`);
+  assert.equal(result.slot, "session-one");
+  const opens = result.calls.filter((row) => row[0] === "open");
+  assert.equal(opens.length, 2);
+  assert.equal(opens[0][1], "Avoozl · workspace · worker 1");
+  assert.match(
+    opens[1][1],
+    /^Avoozl · workspace · worker 1 retry-[0-9a-f]{8}$/,
+  );
+  const binding = result.calls.find((row) => row[0] === "bind")[1];
+  assert.equal(binding.title, "Avoozl · workspace · worker 1");
+  assert.equal(binding.lane, "worker-1");
+});
+
 test("a missing project or unsupported remote dispatch refuses without opening locally", () => {
   assert.deepEqual(
     run(`

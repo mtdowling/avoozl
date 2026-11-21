@@ -217,7 +217,7 @@ export function createAppMcp({
   };
   const pass = async (roots) => runPass(passOptions(roots));
 
-  const machineCronIntents = (entries, input) => {
+  const machineCronIntents = (entries, input, consumer) => {
     const combined = {
       observe: [],
       dispatch: [],
@@ -225,7 +225,12 @@ export function createAppMcp({
       notify: [],
     };
     for (const entry of entries) {
-      const intents = cronIntents(entry.store, input, entry.workspaceId);
+      const intents = cronIntents(
+        entry.store,
+        input,
+        entry.workspaceId,
+        consumer,
+      );
       for (const key of Object.keys(combined))
         combined[key].push(...(intents[key] ?? []));
     }
@@ -284,6 +289,7 @@ export function createAppMcp({
       const intents = machineCronIntents(
         entries,
         message.params.arguments.input,
+        kiroCrewCaller(message)?.sessionKey,
       );
       startPass(passOptions(undefined));
       return toolReply(message, intents);
