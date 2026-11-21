@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Avoozl's grouped MCP tools (R56): one tool per thing a session acts on, each
 // with an `action` naming one existing operation. The authority class of each
 // operation (operation-table.mjs) is unchanged, and person-only operations
@@ -6,7 +5,14 @@
 //
 // Each action is [operation, hint] or [operation, hint, shape], where `shape`
 // rewrites the input before the call (a GitHub setup preview never confirms).
-const tools = {
+type Shape = (input: Record<string, unknown>) => Record<string, unknown>;
+type Action = [operation: string, hint: string, shape?: Shape];
+interface GroupedTool {
+  summary: string;
+  actions: Record<string, Action>;
+}
+
+const tools: Record<string, GroupedTool> = {
   plans_workspace: {
     summary: "The workspace, read only.",
     actions: {
@@ -283,7 +289,7 @@ const tools = {
 export const GROUPED_TOOLS = tools;
 
 // tools/list entries.
-export function groupedToolList(classify) {
+export function groupedToolList(classify: (operation: string) => unknown) {
   return Object.entries(tools).map(([name, tool]) => {
     const actions = Object.keys(tool.actions);
     return {
@@ -311,7 +317,10 @@ export function groupedToolList(classify) {
 }
 
 // The operation and input a grouped call names, or {error}.
-export function groupedCall(name, args = {}) {
+export function groupedCall(
+  name: string,
+  args: { action?: unknown; input?: unknown } = {},
+) {
   const tool = tools[name];
   if (!tool) return null;
   const actions = Object.keys(tool.actions),
@@ -324,5 +333,6 @@ export function groupedCall(name, args = {}) {
     input = args.input ?? {};
   if (!input || typeof input !== "object" || Array.isArray(input))
     return { error: "input must be an object." };
-  return { operation, input: shape ? shape(input) : input };
+  const object = input as Record<string, unknown>;
+  return { operation, input: shape ? shape(object) : object };
 }

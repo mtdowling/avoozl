@@ -422,7 +422,10 @@ function gitInput(root, args, text, env = process.env) {
 
 // `git cat-file --batch` over `objects` (commit:path): path -> text, a
 // missing object left out.
-export function catFiles(root, objects) {
+export function catFiles(
+  root: string,
+  objects: string[],
+): Promise<Map<string, string>> {
   return new Promise((resolve, reject) => {
     const child = spawn("git", ["cat-file", "--batch"], { cwd: root }),
       chunks = [];

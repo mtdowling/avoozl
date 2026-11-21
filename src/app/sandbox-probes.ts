@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The containment probes (machine-server MS8, design D7): what a child whose
 // own sandbox is off (`danger-full-access`) tries, and Avoozl's sandbox must
 // refuse. Each probe is an argv list with named places in braces; `probeArgv`
@@ -9,13 +8,13 @@
 //
 // Each probe is a small node program, so the same argv runs on macOS and
 // Linux. `{node}` is the node binary.
-const write = (file) => [
+const write = (file: string) => [
   "{node}",
   "-e",
   "require('node:fs').writeFileSync(process.argv[1], 'probe')",
   file,
 ];
-const read = (file) => [
+const read = (file: string) => [
   "{node}",
   "-e",
   // A folder counts as read when it shows what it holds: an empty folder
@@ -23,7 +22,7 @@ const read = (file) => [
   "const fs = require('node:fs'); const f = process.argv[1]; if (fs.statSync(f).isDirectory() ? !fs.readdirSync(f).length : !fs.readFileSync(f).length) process.exit(1)",
   file,
 ];
-const connect = (host, port) => [
+const connect = (host: string, port: string) => [
   "{node}",
   "-e",
   "const s = require('node:net').connect(Number(process.argv[2]), process.argv[1]); s.on('connect', () => process.exit(0)); s.on('error', () => process.exit(1)); setTimeout(() => process.exit(1), 5000)",
@@ -123,14 +122,17 @@ export const PROBES = Object.freeze([
 ]);
 
 // The probes for this platform, each argv filled from `places`.
-export function probeArgv(places, { platform = process.platform } = {}) {
+export function probeArgv(
+  places: Record<string, unknown>,
+  { platform = process.platform }: { platform?: string } = {},
+) {
   return PROBES.filter(
     (probe) => !probe.platform || probe.platform === platform,
   ).map((probe) => ({
     id: probe.id,
     class: probe.class,
     argv: probe.argv.map((word) =>
-      word.replace(/\{([a-z_]+)\}/g, (_, name) => {
+      word.replace(/\{([a-z_]+)\}/g, (_, name: string) => {
         if (!(name in places))
           throw Error(`Probe ${probe.id} needs {${name}}.`);
         return String(places[name]);

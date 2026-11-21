@@ -1,13 +1,33 @@
-// @ts-nocheck: typing debt
-import { complete, validateMcpRequest } from "../../mcp.ts";
+import {
+  complete,
+  type McpMessage,
+  type McpReply,
+  validateMcpRequest,
+} from "../../mcp.ts";
+import type { Store } from "../store/store.ts";
 import { workspaceIdentity } from "../store/identity.ts";
 import { classifyOperation } from "../api/operation-table.ts";
 import { mcpRefusal, PERSON_ONLY } from "./mcp-policy.ts";
 import { GROUPED_TOOLS, groupedCall, groupedToolList } from "./mcp-tools.ts";
+
+// The part of Operations an MCP server calls.
+export interface McpOperations {
+  store: Store;
+  execute(
+    name: string,
+    input?: Record<string, unknown>,
+    expectedRevision?: number,
+    context?: Record<string, unknown>,
+  ): Promise<unknown>;
+}
+
 // Single-operation tools. Each narrow tool is the one a role's agent, prompt
 // or brief names, so the agent's allowedTools grant that one operation and
 // not a grouped tool's other actions.
-export const NARROW_TOOLS = {
+export const NARROW_TOOLS: Record<
+  string,
+  [operation: string, description: string]
+> = {
   plans_query: [
     "query",
     "Narrow tool for the planner. Search tasks: {q?, status?, epic?, tag?, scope?}. Read only.",
@@ -83,13 +103,19 @@ export const NARROW_TOOLS = {
 };
 const operations = NARROW_TOOLS;
 // The operation and input a narrow tool call names, or {error}.
-const narrowCall = (name, args) => {
+type Route =
+  | { error: string; operation?: undefined; input?: undefined }
+  | { error?: undefined; operation: string; input: Record<string, unknown> };
+const narrowCall = (name: string, args: { input?: unknown }): Route => {
   const input = args.input ?? {};
   return input && typeof input === "object" && !Array.isArray(input)
-    ? { operation: operations[name][0], input }
+    ? {
+        operation: operations[name][0],
+        input: input as Record<string, unknown>,
+      }
     : { error: "input must be an object." };
 };
-const describe = (operation, description) =>
+const describe = (operation: string, description: string) =>
   PERSON_ONLY.has(operation)
     ? `Person only: refused over MCP; do it in the Avoozl app. ${description}`
     : description;
@@ -123,8 +149,10 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
 // (kiro_crew/mcp_caller.py, schema 1). The model supplies only `arguments`, and
 // the gateway strips a forged block, so this is read only by the app's stdio
 // server (app-mcp.mjs). Any other transport passes no caller.
-export function kiroCrewCaller(message) {
-  const block = message?.params?._meta?.["kirocrew.caller"];
+export function kiroCrewCaller(message: McpMessage | null | undefined) {
+  const block = message?.params?._meta?.["kirocrew.caller"] as
+    | { schemaVersion?: unknown; sessionKey?: unknown }
+    | undefined;
   return block?.schemaVersion === 1 &&
     typeof block.sessionKey === "string" &&
     block.sessionKey.length <= 512
@@ -134,14 +162,24 @@ export function kiroCrewCaller(message) {
 export { complete };
 
 export async function handleMcp(
-  message,
-  ops,
-  { base, versionHeader, workspaceId, attestedCaller = false } = {},
+  message: McpMessage | null | undefined,
+  ops: McpOperations,
+  {
+    base,
+    versionHeader,
+    workspaceId,
+    attestedCaller = false,
+  }: {
+    base?: string;
+    versionHeader?: string;
+    workspaceId?: string;
+    attestedCaller?: boolean;
+  } = {},
 ) {
   const invalid = validateMcpRequest(message, { versionHeader });
   if (invalid) return invalid;
   const id = message?.id;
-  const ok = (result) => ({
+  const ok = (result: Record<string, unknown>) => ({
     status: 200,
     body: {
       jsonrpc: "2.0",
@@ -161,18 +199,22 @@ export async function handleMcp(
     });
   const tools = [...groupedToolList(classifyOperation), ...WORKSPACE_TOOLS];
   if (message?.method === "tools/list") return ok({ tools });
-  const name = message?.params?.name;
+  const name = String(message?.params?.name);
   if (
     message?.method === "tools/call" &&
     (Object.hasOwn(GROUPED_TOOLS, name) || Object.hasOwn(operations, name))
   ) {
-    const args = message.params.arguments || {},
-      route = Object.hasOwn(GROUPED_TOOLS, name)
-        ? groupedCall(name, args)
+    const args = (message.params?.arguments || {}) as {
+        action?: unknown;
+        input?: unknown;
+        expectedRevision?: number;
+      },
+      route: Route = Object.hasOwn(GROUPED_TOOLS, name)
+        ? groupedCall(name, args)!
         : narrowCall(name, args);
-    const refuse = (text) =>
+    const refuse = (text: string) =>
       ok({ isError: true, content: [{ type: "text", text }] });
-    if (route.error) return refuse(route.error);
+    if (route.error !== undefined) return refuse(route.error);
     // Checked again in Operations.perform; refusing here names the tool.
     const refusal = mcpRefusal(route.operation, route.input);
     if (refusal) return refuse(refusal);
@@ -195,9 +237,13 @@ export async function handleMcp(
     } catch (error) {
       return ok({
         isError: true,
-        content: [{ type: "text", text: error.message }],
+        content: [{ type: "text", text: (error as Error).message }],
       });
     }
   }
-  return ops.execute("legacy.mcp", { message, base, versionHeader });
+  return ops.execute("legacy.mcp", {
+    message,
+    base,
+    versionHeader,
+  }) as Promise<McpReply>;
 }
