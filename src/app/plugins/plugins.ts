@@ -324,7 +324,11 @@ function pluginLocation({ entry, source }, options, pin = null) {
 
 // `folder`, when known, is where the manifest's files are: a checks part
 // is checked against it (plugin-checks PK1.5).
-export function validateManifest(manifest, entry, folder = null) {
+export function validateManifest(
+  manifest,
+  entry,
+  folder: string | null = null,
+) {
   if (!record(manifest)) fail(`${PLUGIN_MANIFEST} must be an object.`);
   if (manifest.id !== entry.id)
     fail(
@@ -1075,7 +1079,12 @@ export function pluginHost({
 // hash they were shown. Never called by the tick or example installation.
 export function approvePlugin(
   options,
-  { id, version, hash, commit },
+  {
+    id,
+    version,
+    hash,
+    commit,
+  }: { id: string; version?: string; hash: string; commit?: string },
   approvedBy = "",
 ) {
   const plugin = inspectPlugins(options).find((p) => p.id === id);

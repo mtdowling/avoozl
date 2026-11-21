@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Proof P36 (Requirement 59, design §6.9): one epic over two member plans,
 // and the old forms refused. An isolated temporary workspace in plans-repo
 // mode with a fake GitHub; every value is fake. The page's own parts of
@@ -7,13 +6,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { Operations } from "../api/operations.ts";
 import { flowPolicy } from "../flow/flow.ts";
-import { FakeGitHub } from "./fake-github.ts";
+import { FakeGitHub, type FakeIssue } from "./fake-github.ts";
 import { fixture } from "./fixtures.ts";
 import { writeSpec } from "./spec-fixture.ts";
 import { temporaryDirectory } from "./temporary.ts";
+import { found, type PlanDraft, type PlanPreview } from "./view-shapes.ts";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
@@ -28,26 +28,16 @@ class ClosingGitHub extends FakeGitHub {
     this.permissions.set("maintainer", "write");
     this.issueTypes = { example: ["Task", "Epic"] };
   }
-  closingPullRequests() {
-    return Promise.resolve([]);
-  }
+  closingPullRequests = () => Promise.resolve([]);
   pullRequestReviews() {
     return Promise.resolve([]);
   }
-  branchPullRequests() {
-    return Promise.resolve([]);
-  }
-  issueLinks() {
-    return Promise.resolve([]);
-  }
-  checkRuns() {
-    return Promise.resolve([]);
-  }
-  commitStatus() {
-    return Promise.resolve({ statuses: [] });
-  }
-  close(number) {
-    const issue = this.created.find((item) => item.number === number),
+  branchPullRequests = () => Promise.resolve([]);
+  issueLinks = () => Promise.resolve([]);
+  checkRuns = () => Promise.resolve([]);
+  commitStatus = () => Promise.resolve({ statuses: [] });
+  close(number: number) {
+    const issue = found(this.created.find((item) => item.number === number)),
       at = "2026-11-13T10:00:00Z";
     Object.assign(issue, {
       state: "closed",
@@ -67,7 +57,7 @@ class ClosingGitHub extends FakeGitHub {
   }
 }
 
-const leaf = (extra = {}) => ({
+const leaf = (extra: Record<string, unknown> = {}) => ({
   kind: "leaf",
   summary: "Do it.",
   repository: "code",
@@ -76,7 +66,21 @@ const leaf = (extra = {}) => ({
   ...extra,
 });
 
-function writePlan(root, name, { front, tasks, entries, extra = {} }) {
+function writePlan(
+  root: string,
+  name: string,
+  {
+    front,
+    tasks,
+    entries,
+    extra = {},
+  }: {
+    front?: string;
+    tasks: string;
+    entries: Record<string, unknown>;
+    extra?: Record<string, unknown>;
+  },
+) {
   writeSpec(root, name, {
     "requirements.md": `${front ? `---\n${front}\n---\n` : ""}# Plan ${name}\n\nThe goal of ${name}.\n`,
     "tasks.md": `# Tasks\n\n${tasks}`,
@@ -89,10 +93,13 @@ function writePlan(root, name, { front, tasks, entries, extra = {} }) {
 }
 
 function writeEpic(
-  root,
-  name,
-  members,
-  entry = (plan) => ({ plan, summary: `Plan ${plan}.` }),
+  root: string,
+  name: string,
+  members: string[],
+  entry = (plan: string): Record<string, unknown> => ({
+    plan,
+    summary: `Plan ${plan}.`,
+  }),
 ) {
   writeSpec(root, name, {
     "requirements.md": `# Rewrite\n\nRewrite the runtime in two plans.\n\n## What done means\n\nAlpha and beta are done.\n`,
@@ -111,7 +118,7 @@ function writeEpic(
   });
 }
 
-async function workspace(t) {
+async function workspace(t: TestContext) {
   const { store } = fixture(t),
     root = temporaryDirectory("avoozl-p36-"),
     github = new ClosingGitHub();
@@ -154,19 +161,21 @@ async function workspace(t) {
   return { root, store, github, ops };
 }
 
-const lint = async (ops, name) =>
-  (await ops.execute("plan.specs", {})).items.find(
-    (item) => item.name === name,
-  );
+const lint = async (ops: Operations, name: string) =>
+  (
+    await ops.execute<{ items: { name: string }[] }>("plan.specs", {})
+  ).items.find((item) => item.name === name);
 
-async function approve(ops, name) {
+async function approve(ops: Operations, name: string) {
   const plan =
-    ops.store.get("plans", name) ||
-    (await ops.execute("plan.create", {
+    ops.store.get<PlanDraft>("plans", name) ||
+    (await ops.execute<PlanDraft>("plan.create", {
       spec: name,
       context: { repositoryId: "plans" },
     }));
-  const preview = await ops.execute("plan.preview", { id: plan.id });
+  const preview = await ops.execute<PlanPreview>("plan.preview", {
+    id: plan.id,
+  });
   return ops.execute("plan.approve", {
     id: plan.id,
     expectedHash: plan.hash,
@@ -174,5 +183,5 @@ async function approve(ops, name) {
   });
 }
 
-const markerOf = (issue) =>
-  JSON.parse(issue.body.match(/<!-- avoozl-task\n(.*)\n-->/)[1]);
+const markerOf = (issue: FakeIssue) =>
+  JSON.parse(found(issue.body.match(/<!-- avoozl-task\n(.*)\n-->/))[1]);

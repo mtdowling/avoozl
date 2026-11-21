@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { kirocrewConfiguration } from "../executors/kirocrew.ts";
 // A test-only stand-in for Kiro Crew's sessions (proof P27). Each tick's
 // dispatch becomes a bound session, as tick.py's open_session would make it,
@@ -12,13 +11,49 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import type { Operations } from "../api/operations.ts";
 import { checkRuns, drainCheckRuns } from "../delivery/check-runs.ts";
 
-export function git(cwd, ...args) {
+// One dispatch the tick asked for, as these sessions read it.
+interface Dispatch {
+  executor: string;
+  task: string;
+  role: string;
+  attempt: number;
+  title?: string;
+  model?: string;
+  commit?: string;
+  agent?: string;
+  crew?: string;
+  sessionReason?: string;
+  [key: string]: unknown;
+}
+// A session this crew opened: its dispatch, slot, alias and what it did.
+export interface CrewSession extends Dispatch {
+  slot: string;
+  alias: string;
+  state: string;
+  result?: unknown;
+}
+// What a session's script gets to act with.
+export interface SessionContext {
+  session: CrewSession;
+  report: (input: Record<string, unknown>) => Promise<unknown>;
+  refused: (input: Record<string, unknown>, pattern: RegExp) => Promise<void>;
+  worktree: () => Promise<string>;
+}
+export type Script = "hold" | ((context: SessionContext) => unknown);
+
+export function git(cwd: string, ...args: string[]) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
-export function commitIn(worktree, file, text, message) {
+export function commitIn(
+  worktree: string,
+  file: string,
+  text: string,
+  message: string,
+) {
   fs.mkdirSync(path.dirname(path.join(worktree, file)), { recursive: true });
   fs.writeFileSync(path.join(worktree, file), text);
   git(worktree, "add", ".");
@@ -26,50 +61,70 @@ export function commitIn(worktree, file, text, message) {
   return git(worktree, "rev-parse", "HEAD");
 }
 
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
+const as = (slot: string) => ({ caller: { sessionKey: "dashboard:" + slot } });
 
 export function fakeCrew(
-  ops,
-  { aliases = {}, scripts = {}, defaults, visible = () => true },
+  ops: Operations,
+  {
+    aliases = {},
+    scripts = {},
+    defaults,
+    visible = () => true,
+  }: {
+    aliases?: Record<string, string>;
+    scripts?: Record<string, Script>;
+    defaults: (role: string) => Script;
+    visible?: (slot: string, session: CrewSession | undefined) => boolean;
+  },
 ) {
-  const sessions = [],
-    roster = [],
-    name = (taskId) => aliases[taskId] ?? taskId;
+  const sessions: CrewSession[] = [],
+    roster: string[] = [],
+    name = (taskId: string) => aliases[taskId] ?? taskId;
   let opened = 0;
-  const report = (session, input) =>
+  const report = (session: CrewSession, input: Record<string, unknown>) =>
     ops.execute(
       "session.report",
       { kind: "done", taskId: session.task, ...input },
       undefined,
       as(session.slot),
     );
-  const context = (session) => ({
+  const context = (session: CrewSession): SessionContext => ({
     session,
     report: (input) => report(session, input),
     // A report the session tries first and Avoozl refuses in-session.
     refused: (input, pattern) =>
       assert.rejects(report(session, input), pattern),
     worktree: async () =>
-      (await ops.execute("worktree.prepare", { taskId: session.task })).path,
+      (
+        await ops.execute<{ path: string }>("worktree.prepare", {
+          taskId: session.task,
+        })
+      ).path,
   });
   const crew = {
     sessions,
     // The cron's tick with every open session in its roster; each dispatch
     // is opened and bound before the next tick, as tick.py does.
     async tick() {
-      const result = await ops.execute("workspace.tick", {
-        sessions: roster
-          .filter((slot) =>
-            visible(
-              slot,
-              sessions.find((s) => s.slot === slot),
-            ),
-          )
-          .map((target) => ({ target, status: "idle" })),
-      });
+      const result = await ops.execute<{ dispatch: Dispatch[] }>(
+        "workspace.tick",
+        {
+          sessions: roster
+            .filter((slot) =>
+              visible(
+                slot,
+                sessions.find((s) => s.slot === slot),
+              ),
+            )
+            .map((target) => ({ target, status: "idle" })),
+        },
+      );
       for (const request of result.dispatch) {
         if (request.executor !== "kirocrew") continue;
-        const d = { ...request, ...kirocrewConfiguration(ops.store, request) };
+        const d: Dispatch = {
+          ...request,
+          ...kirocrewConfiguration(ops.store, request),
+        };
         const slot = `s${++opened}-${name(d.task)}-${d.role}-${d.attempt}`;
         await ops.execute("session.bind", {
           taskId: d.task,
@@ -93,7 +148,7 @@ export function fakeCrew(
       const held = checkRuns(ops.store).filter(
         (r) =>
           r.state === "queued" &&
-          scripts[`${name(r.taskId)}:checks`] === "hold",
+          scripts[`${name(r.taskId ?? "")}:checks`] === "hold",
       );
       for (const r of held)
         ops.store.put("flow_records", { ...r, state: "held" });
@@ -101,7 +156,7 @@ export function fakeCrew(
       for (const r of held) ops.store.put("flow_records", r);
       return result;
     },
-    script(session) {
+    script(session: CrewSession): Script {
       const { alias, role, attempt } = session;
       return (
         scripts[`${alias}:${role}:${attempt}`] ??
@@ -110,8 +165,8 @@ export function fakeCrew(
       );
     },
     // Play every open session, in the order it opened, unless its script holds.
-    async play(filter = () => true) {
-      const played = [];
+    async play(filter: (session: CrewSession) => boolean = () => true) {
+      const played: CrewSession[] = [];
       for (const session of sessions) {
         if (session.state !== "open" || !filter(session)) continue;
         const script = crew.script(session);
@@ -122,7 +177,7 @@ export function fakeCrew(
       }
       return played;
     },
-    find: (alias, role, attempt) =>
+    find: (alias: string, role: string, attempt?: number) =>
       sessions.find(
         (s) =>
           s.alias === alias &&
