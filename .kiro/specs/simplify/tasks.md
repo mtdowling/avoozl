@@ -118,8 +118,8 @@ merge, shown in chat and never committed.
 
 ## Phase 5: The page
 
-- [ ] `sim-5.1` Five views [SM13.1, SM13.2, SM13.4] (§D13, §D15)
-  - The nav lists Plans, Graph, In flight, Needs you and Settings; In flight shows each claim branch with holder, session, head, checks and pull request, and each lane from `lanes.view` with its role, state, task and an Open action that opens the chat or copies the command (§D22.3); Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
+- [ ] `sim-5.1` Six views [SM13.1, SM13.2, SM13.4] (§D13, §D15)
+  - The nav lists Plans, Graph, In flight, Needs you, Activity and Settings; In flight shows each claim branch with holder, session, head, checks and pull request, and each lane from `lanes.view` with its role, state, task and an Open action that opens the chat or copies the command (§D22.3); Needs you shows failing checks, stop the line, ready manual tasks, stale claims, draft pull requests, unmerged closes and plugin approvals; Settings edits labels, claim stale hours and `loop`
   - Every group §D15 marks cut is gone with its API file and tests, and `npm run test:ui` passes
   - The owner has seen phone and desktop, light and dark screenshots of each view
 - [ ] `sim-5.2` Run in a chat [SM13.3] (§D13)
@@ -188,7 +188,7 @@ flowchart TD
     sim_4_9["sim-4.9 Cut GitHub extras"]
   end
   subgraph s6["Phase 5: The page"]
-    sim_5_1["sim-5.1 Five views"]
+    sim_5_1["sim-5.1 Six views"]
     sim_5_2["sim-5.2 Run in a chat"]
   end
   subgraph s7["Phase 6: Docs and proof"]

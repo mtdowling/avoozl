@@ -2334,14 +2334,19 @@ read and saved by `activity.settings.get` and person-only
 `activity.settings.update` from the Activity tab's Keep activity field. Each
 `workspace.tick` calls `pruneActivity`. `activity.list {source, kind,
 actor, limit ≤ 100, offset}` answers `{items, total, sources, kinds,
-actors, retentionDays}` newest first, and is `plans_view` action
+actors, repositories, retentionDays}` newest first, each item with its
+`repository` (its task's, else the workspace's only one), and is `plans_view` action
 `activity`; the Dashboard's task timeline moves to action `recent`.
 
 The Activity tab (icon `History`) uses `ViewHeading`, the shared
 `FilterPanel` (Source, Kind, Actor), 100 rows per page with `ShowMore`,
 and a row per entry: time, source, actor, summary, target. A task target
-opens the drawer; a GitHub link opens with `target="_blank"
-rel="noopener noreferrer"` through `safeHref`. A redacted row says so.
+opens the drawer. Every GitHub thing in a row (repository, pull request
+and issue numbers, commit, branch, check run, login) is a link that
+`github-links.ts` builds from the row's `repository`, never from free
+text; each opens with `target="_blank" rel="noopener noreferrer"` through
+`linkHref`. With no GitHub repository the row is plain text. A redacted
+row says so.
 
 #### Why each choice
 

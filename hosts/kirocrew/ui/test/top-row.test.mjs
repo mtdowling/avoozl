@@ -177,6 +177,56 @@ test('In flight rows line up: titles, and Details, start at the same x in every 
   }
 })
 
+test('Keep activity sits with the Activity filters in the nav, under the open Activity section', { skip }, async () => {
+  for (const width of [1280, 375]) {
+    await state.page.open(state.harness.url({ page: 'app', activity: '1' }), { width, height: 900 })
+    const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
+    if (width < 768) {
+      await state.page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
+      await state.page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+    }
+    await state.page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
+    await state.page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
+    await state.page.until(`Boolean(document.querySelector('${scope} [data-section="Keep activity"]'))`)
+    const keep = await state.page.evaluate(`(() => {
+      const section = document.querySelector('${scope} [data-section="Keep activity"]')
+      const panel = document.querySelector('${scope} [data-nav-section="activity"] [data-filter-panel="avoozl-activity"]')
+      return {
+        inPanel: Boolean(panel && panel.contains(section)),
+        notInPage: !document.querySelector('[data-avoozl-pane] [data-filter-panel="avoozl-activity"]'),
+        sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        inputInside: Boolean(section.querySelector('#avoozl-activity-keep')),
+      }
+    })()`)
+    assert.equal(keep.inPanel, true, `Keep activity is with the nav's Activity filters at ${width}px`)
+    assert.equal(keep.notInPage, true, 'the filters are not in the page')
+    assert.equal(keep.inputInside, true, 'its field is inside it')
+    assert.equal(keep.sideways, false, 'no sideways scroll')
+  }
+})
+
+test('Activity rail: a source row and a kind chip filter the rows, and a second click clears the chip', { skip }, async () => {
+  // 24 sample rows and the three tick health rows.
+  await state.page.open(state.harness.url({ page: 'app', activity: '1' }), { width: 1280, height: 900 })
+  const scope = '[data-left-nav]'
+  await state.page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
+  await state.page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 27 && Boolean(document.querySelector('${scope} [data-rail-chip="settings"]'))`)
+  await state.page.evaluate(`document.querySelector('${scope} [data-rail-source="github"]').click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
+  const chip = `document.querySelector('${scope} [data-rail-chip="settings"]')`
+  await state.page.evaluate(`${chip}.click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 2`)
+  assert.equal(await state.page.evaluate(`${chip}.getAttribute('aria-pressed')`), 'true')
+  assert.equal(await state.page.evaluate(`${chip}.getAttribute('aria-label')`), 'settings, 3', 'the chip names its count')
+  await state.page.evaluate(`${chip}.click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
+  // Clear in the Source header drops every filter.
+  await state.page.evaluate(`[...document.querySelectorAll('${scope} [data-rail-section="source"] [data-rail-icon]')].find((b) => b.textContent.includes('Clear')).click()`)
+  await state.page.until(`document.querySelectorAll('[data-activity-row]').length === 27`)
+  assert.equal(await state.page.evaluate(`document.querySelector('${scope} [data-rail-source=""]').getAttribute('aria-pressed')`), 'true')
+})
+
 test('a hovered nav item changes color, the selected one stays different, and keyboard focus shows a ring', { skip }, async () => {
   for (const dark of [false, true]) {
     await state.page.open(state.harness.url({ app: '1', theme: dark ? 'dark' : 'light' }), { width: 1280, height: 800, dark })

@@ -2205,8 +2205,12 @@ what and when without reading chats, the tick log or GitHub.
 7. The page SHALL have an Activity tab: the shared heading, the shared
    filter panel with Source, Kind and Actor, 100 rows per page with the
    shared Show more, newest first. A row whose target is a task SHALL open
-   the task drawer. A row with a GitHub link SHALL open it in a new tab
-   with `target="_blank"` and `rel="noopener noreferrer"`.
+   the task drawer. Every GitHub thing in a row (repository, pull request
+   and issue numbers, commit, claim and integration branch, check run and
+   login) SHALL link to GitHub in a new tab with `target="_blank"` and
+   `rel="noopener noreferrer"`. Each URL SHALL be built from the row's
+   known GitHub repository, never from free text; a repository with no
+   GitHub remote SHALL show plain text.
 8. Avoozl SHALL expose one helper, `recordActivity`, that any part of
    Avoozl calls to add a row. It SHALL validate and screen the row as in
    criteria 4 and 5, and SHALL never make the action that called it
