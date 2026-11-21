@@ -55,6 +55,10 @@ const tools = {
         "every claim branch: task, holder, head, age and whether it is stale",
       ],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
+      insights: [
+        "insights.view",
+        "the Insights numbers: {days?: 7|30|90, spec?, repo?}",
+      ],
       log: ["workspace.tick.log", "recent tick log"],
       health: ["workspace.tick.health", "tick health"],
       activity: [
@@ -197,6 +201,12 @@ const tools = {
       get: ["document.get", "one document"],
       update: ["document.update", "update a document"],
       save_report: ["report.save", "save a report"],
+      save_retro: [
+        "retro.save",
+        "save a retro report as Markdown: {scope, text}",
+      ],
+      retros: ["retro.list", "saved retros, newest first"],
+      read_retro: ["retro.read", "one saved retro: {name}"],
     },
   },
   plans_github: {

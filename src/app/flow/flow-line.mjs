@@ -104,7 +104,7 @@ function safeTail(store, text, repository) {
   }
 }
 
-const landingId = (repositoryId) => "landing:" + repositoryId;
+export const landingId = (repositoryId) => "landing:" + repositoryId;
 
 // Integrated task commits between two commits, oldest first.
 async function taskCommits(store, repository, from, to) {
