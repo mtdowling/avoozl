@@ -593,3 +593,30 @@ export function crewApi({ harnessDir, port }, method, route, body) {
   call("POST", "/api/auth/refresh");
   return call(method, route, body);
 }
+
+// `avoozl tick` every `everyMs`, each its own process, as a timer runs it,
+// with its output appended to `log`. stop() waits for the pass running.
+export function tickTimer(cliPath, log, everyMs, env = process.env) {
+  let stopped = false;
+  const runs = (async () => {
+    while (!stopped) {
+      const out = fs.openSync(log, "a");
+      await new Promise((resolve) => {
+        const tick = spawn(process.execPath, [cliPath, "tick"], {
+          env,
+          stdio: ["ignore", out, out],
+        });
+        tick.once("exit", resolve);
+        tick.once("error", resolve);
+      });
+      fs.closeSync(out);
+      if (!stopped) await sleep(everyMs);
+    }
+  })();
+  return {
+    stop: async () => {
+      stopped = true;
+      await runs;
+    },
+  };
+}
