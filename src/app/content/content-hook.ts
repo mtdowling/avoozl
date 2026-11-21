@@ -422,6 +422,13 @@ export function contentHook({
   pluginSettingsFile = null,
   configFile,
   cwd = process.cwd(),
+}: {
+  stdin: unknown;
+  dbPath?: string;
+  workspaceRoot: string;
+  pluginSettingsFile?: string | null;
+  configFile?: string;
+  cwd?: string;
 }) {
   let event;
   try {

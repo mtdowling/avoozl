@@ -204,7 +204,7 @@ try {
     path.resolve(
       text(options["state-directory"]) ?? machineAvoozlPaths().stateDirectory,
     );
-  const need = (value: string | true | undefined, usage: string) => {
+  const need = (value: string | true | undefined, usage: string): string => {
     if (value === undefined || value === true || value === "")
       throw Error("Usage: avoozl " + usage);
     return value;

@@ -183,6 +183,19 @@ export function startAppBackend({
   // The installed app's ui folder (bin/avoozl.mjs passes it). A page built
   // from other source, or none, gets only a sentence saying to rebuild.
   uiDir = null,
+}: {
+  config: unknown;
+  port?: number;
+  secret?: string;
+  registryOptions?: Record<string, unknown>;
+  now?: () => number;
+  notifier?: unknown;
+  slotReader?: unknown;
+  rowReader?: unknown;
+  usageReader?: unknown;
+  sessionStopper?: unknown;
+  home?: string;
+  uiDir?: string | null;
 }) {
   const uiProblem = uiDir ? uiBundleProblem(uiDir) : null;
   if (uiProblem) console.error(uiProblem);

@@ -1,9 +1,21 @@
-// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import fs from "node:fs";
-import { help } from "../cli/command-help.ts";
+import { type Command, help } from "../cli/command-help.ts";
 
-export const commands = [
+// One spec as spec.lint reports it.
+interface LintedSpec {
+  name: string;
+  counts: { error: number; warning: number };
+  diagnostics: {
+    severity: string;
+    code: string;
+    file: string;
+    lineStart: number;
+    message: string;
+  }[];
+}
+
+export const commands: Command[] = [
   {
     command: "plan approve",
     help: [
@@ -15,7 +27,11 @@ export const commands = [
     ],
     async run({ options, positionals, localOrRequest, need }) {
       const usage = "plan approve PLAN [--yes --expect HASH]",
-        preview = await localOrRequest("plan.preview", {
+        preview = await localOrRequest<{
+          planId: string;
+          reviewedHash: string;
+          expectedRevision: number;
+        }>("plan.preview", {
           id: need(positionals[1], usage),
         }),
         name = preview.planId,
@@ -45,11 +61,14 @@ export const commands = [
         throw Error(
           `${name} changed since that preview. Nothing approved. Preview again without --yes.`,
         );
-      const result = await localOrRequest("plan.approve", {
-        id: preview.planId,
-        expectedHash: preview.reviewedHash,
-        expectedRevision: preview.expectedRevision,
-      });
+      const result = await localOrRequest<{ evidence?: string }>(
+        "plan.approve",
+        {
+          id: preview.planId,
+          expectedHash: preview.reviewedHash,
+          expectedRevision: preview.expectedRevision,
+        },
+      );
       console.log(
         `Approved ${name} at ${short}${result.evidence ? `. ${result.evidence}` : "."}`,
       );
@@ -107,7 +126,7 @@ export const commands = [
     ],
     async run({ options, positionals, localOrRequest, need }) {
       if (positionals[0] === "lint") {
-        const { specs } = await localOrRequest(
+        const { specs } = await localOrRequest<{ specs: LintedSpec[] }>(
           "spec.lint",
           positionals[1] ? { spec: positionals[1] } : {},
         );
@@ -183,7 +202,7 @@ export const commands = [
       // an mcp source; `deliver` and `plan` are a person's Deliver this and
       // Plan this.
       const [action = "list", source, id] = positionals,
-        calls = {
+        calls: Record<string, () => [string, Record<string, unknown>]> = {
           list: () => [
             "intake.list",
             {
