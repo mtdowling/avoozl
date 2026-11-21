@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The Insights view's numbers (simplify §D13): what Avoozl already keeps.
 // Task timing comes from the local telemetry store (telemetry_spans and
 // telemetry_points); each spec's burndown comes from the commits that changed

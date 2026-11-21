@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Which operations MCP may not reach, and why (R56). Each operation entry
 // (operation-table.mjs) names its policy; this derives the two maps from the
 // table. src/app/mcp/test/mcp-tools.test.ts checks that every routed operation
@@ -10,7 +9,18 @@
 // operations have no MCP tool, for a reason other than a person's authority.
 import { OPERATIONS } from "../api/operation-table.ts";
 
-const withPolicy = (kind) =>
+type Input = Record<string, unknown>;
+interface Policy {
+  kind: string;
+  reason: string;
+  when?: (input: Input) => boolean;
+}
+interface PolicyEntry {
+  name: string;
+  policy: Policy;
+}
+
+const withPolicy = (kind: string): PolicyEntry[] =>
   [...OPERATIONS.values()].filter((entry) => entry.policy.kind === kind);
 
 export const PERSON_ONLY = new Map(
@@ -24,7 +34,7 @@ export const NOT_ON_MCP = new Map(
 );
 
 // The refusal for an operation reached through MCP, or null.
-export function mcpRefusal(name, input) {
+export function mcpRefusal(name: string, input: Input): string | null {
   const rule = PERSON_ONLY.get(name);
   return rule && (!rule.when || rule.when(input)) ? rule.reason : null;
 }
@@ -46,7 +56,11 @@ export function agentSession(env = process.env) {
 // so a person-only operation runs there, even inside an agent session, and is
 // recorded as run there (agentSessionNote). It is refused only in a
 // supervisor child (AVOOZL_CHILD, R95.5), where nobody is typing.
-export function cliRefusal(name, input, { env = process.env } = {}) {
+export function cliRefusal(
+  name: string,
+  input: Input,
+  { env = process.env } = {},
+) {
   const reason = mcpRefusal(name, input);
   if (!reason || !env.AVOOZL_CHILD) return null;
   return (
@@ -59,7 +73,11 @@ export function cliRefusal(name, input, { env = process.env } = {}) {
 
 // What a person-only CLI call from an agent session leaves in the record, or
 // null when it is not one (R83.1).
-export function agentSessionNote(name, input, env = process.env) {
+export function agentSessionNote(
+  name: string,
+  input: Input,
+  env = process.env,
+) {
   if (!mcpRefusal(name, input) || !agentSession(env)) return null;
   return `Run from a Kiro Crew agent session${env.KIRO_SESSION_ID ? ` (${env.KIRO_SESSION_ID})` : ""}.`;
 }
