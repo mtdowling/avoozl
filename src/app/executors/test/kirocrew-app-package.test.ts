@@ -353,6 +353,8 @@ class Ctx:
     def call_tool(self, server, tool, args):
         calls.append(["call_tool", server, tool, args])
         if tool == "plans_maintain": return json.dumps(intents)
+        if tool == "plans_session" and args.get("input", {}).get("taskId") in results.get("bind_refuse", []):
+            raise RuntimeError("bad session binding")
         return json.dumps(results.get(tool, {"ok": True}))
     def list_session_folders(self):
         calls.append(["list_session_folders"]); return list(folders)
@@ -551,6 +553,32 @@ test("tick cron sends every other message when the gateway refuses one", () => {
   assert.match(
     result.returned,
     /^1 message\(s\) refused: slot-old: .*not_creator/,
+  );
+});
+
+test("tick cron continues past one refused dispatch", () => {
+  const result = tick(
+    {
+      observe: [],
+      dispatch: [
+        { ...DISPATCH, task: "bad", project: false },
+        { ...DISPATCH, task: "good", project: false },
+      ],
+      messages: [],
+      notify: [],
+    },
+    { results: { bind_refuse: ["bad"] } },
+  );
+  assert.equal(result.outcome, "ok");
+  assert.deepEqual(
+    result.calls
+      .filter((call) => call[0] === "send_to_session")
+      .map((call) => call[1]),
+    ["slot-new"],
+  );
+  assert.match(
+    result.returned,
+    /^1 dispatch\(es\) refused: bad: bad session binding$/,
   );
 });
 

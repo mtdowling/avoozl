@@ -62,6 +62,7 @@ def run(ctx):
     executor.keep_trust(intents.get("observe"))
 
     opened = 0
+    dispatch_refused = []
     for d in intents.get("dispatch") or []:
         if not executor.owns(d):
             continue
@@ -72,6 +73,14 @@ def run(ctx):
             executor.start(*arguments)
         except _executor.StartRefused as refusal:
             executor.release(d, refusal)
+            continue
+        except Exception as error:
+            # One malformed or stale request belongs to its workspace. Keep it
+            # claimed for inspection, but do not let it starve valid requests
+            # from every other workspace served by this machine-wide cron.
+            dispatch_refused.append(
+                "%s: %s" % (d.get("task", "unknown"), str(error)[:200])
+            )
             continue
         opened += 1
 
@@ -98,8 +107,18 @@ def run(ctx):
         else:
             executor.complete_message(m, "sent")
 
-    if not (opened or messages):
+    if not (opened or messages or dispatch_refused):
         raise Skip()
     # The run's summary (cron history) names what did not get through.
+    failures = []
+    if dispatch_refused:
+        failures.append(
+            "%d dispatch(es) refused: %s"
+            % (len(dispatch_refused), "; ".join(dispatch_refused))
+        )
     if refused:
-        return "%d message(s) refused: %s" % (len(refused), "; ".join(refused))
+        failures.append(
+            "%d message(s) refused: %s" % (len(refused), "; ".join(refused))
+        )
+    if failures:
+        return "; ".join(failures)
