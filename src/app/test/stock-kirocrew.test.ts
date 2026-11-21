@@ -1,14 +1,14 @@
-// @ts-nocheck: typing debt
 // Avoozl on a stock Kiro Crew: the script cron has no
 // ScriptContext.session_status, so the tick gets no roster and the app
 // backend reads each session the cron opened (session-observer.mjs). One
 // test per rule; each lists the nearby inputs it checks.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHmac } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import type { Task } from "../../types.ts";
 import { startAppBackend } from "../executors/kirocrew/app-backend.ts";
 import { workspaceConfig } from "../settings/config.ts";
 import { Operations } from "../api/operations.ts";
@@ -19,21 +19,36 @@ import {
 } from "../executors/kirocrew/session-observer.ts";
 import { slotServed } from "../executors/kirocrew.ts";
 import { GONE_GRACE_MS, servedModel } from "../delivery/delivery.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
 import { Store } from "../store/store.ts";
 import { tickHealth } from "../tick/tick.ts";
 import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { gitCheckout } from "./delivery-fixture.ts";
 import { loopOn } from "./fixtures.ts";
+import { SECRET, sign } from "./signed-principal.ts";
+import { found, type TickResult } from "./view-shapes.ts";
+
+// A tick as these tests read it: what it held back and what it queued.
+type Tick = TickResult & {
+  held?: unknown;
+  notify: { title: string; link?: string }[];
+};
+// A task_deliveries row, for the fields read here.
+interface Delivery {
+  state: string;
+  cause?: unknown;
+  attempts?: { vanished?: boolean; outcome?: string }[];
+}
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
-function git(cwd, ...args) {
+function git(cwd: string, ...args: string[]) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
-const leaf = (id) => ({
+const leaf = (id: string): Task => ({
   id,
   title: "Task " + id,
   kind: "leaf",
@@ -47,7 +62,7 @@ const leaf = (id) => ({
   repository: "app",
 });
 
-function setup(t, tasks = [leaf("a")]) {
+function setup(t: TestContext, tasks = [leaf("a")]) {
   const root = temporaryDirectory("avoozl-stock-"),
     checkout = gitCheckout(path.join(root, "app"));
   const store = new Store(path.join(root, "workspace.sqlite"));
@@ -70,8 +85,9 @@ function setup(t, tasks = [leaf("a")]) {
   return { store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 
-const cronTick = (ops) => ops.execute("workspace.tick", { cron: true });
-const bind = (ops, taskId, slot, attempt = 1) =>
+const cronTick = (ops: Operations) =>
+  ops.execute<Tick>("workspace.tick", { cron: true });
+const bind = (ops: Operations, taskId: string, slot: string, attempt = 1) =>
   ops.execute("session.bind", {
     taskId,
     slot,
@@ -80,7 +96,7 @@ const bind = (ops, taskId, slot, attempt = 1) =>
     source: "tick",
     title: `avoozl:${taskId} worker`,
   });
-const status = (ops, slot, value) =>
+const status = (ops: Operations, slot: string, value: string) =>
   ops.execute("session.status", { slot, status: value });
 
 test("a cron tick without a roster dispatches, then holds until the backend observes", async (t) => {
@@ -110,9 +126,13 @@ test("a cron tick without a roster dispatches, then holds until the backend obse
 });
 
 // Gone for longer than the grace a restart needs to restore its chats.
-const age = (store, slot) =>
+const binding = (store: Store, slot: string) =>
+  found(store.get<SessionBinding>("session_bindings", slot), slot);
+const delivery = (store: Store, id = "a") =>
+  found(store.get<Delivery>("task_deliveries", id), id);
+const age = (store: Store, slot: string) =>
   store.put("session_bindings", {
-    ...store.get("session_bindings", slot),
+    ...binding(store, slot),
     statusAt: new Date(Date.now() - GONE_GRACE_MS - 1000).toISOString(),
   });
 
@@ -137,7 +157,10 @@ test("a gone worker is resumed once, and a second vanish opens one decision", as
     "gone within the grace opens nothing",
   );
   await status(ops, "avoozl_a", "idle");
-  assert.equal(store.get("task_deliveries", "a")?.attempts?.length ?? 0, 0);
+  assert.equal(
+    store.get<Delivery>("task_deliveries", "a")?.attempts?.length ?? 0,
+    0,
+  );
   await status(ops, "avoozl_a", "gone");
   age(store, "avoozl_a");
   let resumed = (await cronTick(ops)).dispatch;
@@ -147,20 +170,21 @@ test("a gone worker is resumed once, and a second vanish opens one decision", as
     [["a", 2]],
     "Kiro Crew's gone answer opens one new chat",
   );
-  assert.match(resumed[0].brief, /This is attempt 2\./);
-  assert.match(resumed[0].brief, /Kiro Crew no longer lists session avoozl_a/);
-  assert.match(resumed[0].brief, /```text\nHalfway through the parser\.\n```/);
-  assert.equal(store.get("session_bindings", "avoozl_a").status, "lost");
-  const one = store.get("task_deliveries", "a");
+  const brief = String(resumed[0].brief);
+  assert.match(brief, /This is attempt 2\./);
+  assert.match(brief, /Kiro Crew no longer lists session avoozl_a/);
+  assert.match(brief, /```text\nHalfway through the parser\.\n```/);
+  assert.equal(binding(store, "avoozl_a").status, "lost");
+  const one = delivery(store);
   assert.equal(one.state, "failed");
-  assert.equal(one.attempts.at(-1).vanished, true);
+  assert.equal(one.attempts?.at(-1)?.vanished, true);
 
   await bind(ops, "a", "avoozl_a2", 2);
   await status(ops, "avoozl_a2", "gone");
   age(store, "avoozl_a2");
   const first = await cronTick(ops);
   assert.deepEqual(first.dispatch, [], "no third chat on its own");
-  assert.equal(store.get("task_deliveries", "a").state, "decision");
+  assert.equal(delivery(store).state, "decision");
   assert.equal(first.notify.length, 1);
   assert.match(first.notify[0].title, /its session is gone/);
   const again = await cronTick(ops);
@@ -169,23 +193,20 @@ test("a gone worker is resumed once, and a second vanish opens one decision", as
 
   await status(ops, "avoozl_a2", "working");
   await cronTick(ops);
-  const back = store.get("task_deliveries", "a");
+  const back = delivery(store);
   assert.equal(back.state, "running", "a session that reads live resumes");
   assert.equal(back.cause, undefined);
 
   await status(ops, "avoozl_a2", "gone");
   age(store, "avoozl_a2");
   await cronTick(ops);
-  assert.equal(store.get("task_deliveries", "a").state, "decision");
+  assert.equal(delivery(store).state, "decision");
   await ops.execute("delivery.retry", { taskId: "a" }, undefined, {
     local: true,
   });
-  assert.equal(store.get("session_bindings", "avoozl_a2").status, "lost");
+  assert.equal(binding(store, "avoozl_a2").status, "lost");
   const retried = await cronTick(ops);
-  assert.equal(
-    store.get("task_deliveries", "a").attempts.at(-1).outcome,
-    "failed",
-  );
+  assert.equal(delivery(store).attempts?.at(-1)?.outcome, "failed");
   assert.deepEqual(
     retried.dispatch.map((d) => [d.task, d.attempt]),
     [["a", 3]],
@@ -204,8 +225,8 @@ test("the backend records what each live session it reads is doing", async (t) =
     slot: "mine",
     role: "responder",
   });
-  const reads = [];
-  const result = await observeSessions(store, async (slot) => {
+  const reads: string[] = [];
+  const result = await observeSessions(store, async (slot: string) => {
     reads.push(slot);
     if (slot === "avoozl_b") throw Error("refused (403)");
     return "idle";
@@ -215,9 +236,9 @@ test("the backend records what each live session it reads is doing", async (t) =
     observed: 1,
     errors: [{ slot: "avoozl_b", error: "refused (403)" }],
   });
-  assert.equal(store.get("session_bindings", "avoozl_a").status, "idle");
+  assert.equal(binding(store, "avoozl_a").status, "idle");
   assert.equal(
-    store.get("session_bindings", "avoozl_b").status,
+    binding(store, "avoozl_b").status,
     undefined,
     "an unreadable session keeps its last status",
   );
@@ -244,8 +265,8 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
     }),
     null,
   );
-  const calls = [],
-    answers = {
+  const calls: [string, string][] = [],
+    answers: Record<string, [number, unknown]> = {
       avoozl_live: [401, { running: true, queue: [] }],
       avoozl_model: [200, { running: false, served_model: "fake-model" }],
       avoozl_gone: [404, {}],
@@ -254,28 +275,23 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
       avoozl_usage: [200, { running: false }],
       avoozl_busy: [200, { running: true }],
     },
-    usage = {
+    usage: Record<string, unknown[]> = {
       avoozl_usage: [{ model: "fake-old" }, { model: "fake-served" }],
     };
   let tokens = 0,
     expiredOnce = 0;
-  const gateway = async (url, init) => {
-    calls.push([init.method, url.replace(origin, "")]);
+  const reply = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), { status });
+  const gateway = async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    calls.push([String(init?.method), url.replace(origin, "")]);
     if (url.endsWith("/api/apps/avoozl/token"))
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ token: `t${++tokens}` }),
-      };
+      return reply(200, { token: `t${++tokens}` });
     if (url.includes("/api/usage/turns")) {
-      const slot = new URL(url).searchParams.get("slot");
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ turns: usage[slot] ?? [] }),
-      };
+      const slot = new URL(url).searchParams.get("slot") ?? "";
+      return reply(200, { turns: usage[slot] ?? [] });
     }
-    const slot = decodeURIComponent(url.match(/slots\/([^?]+)/)[1]),
+    const slot = decodeURIComponent(found(url.match(/slots\/([^?]+)/))[1]),
       [code, body] = answers[slot];
     // The first read's token has expired; the next one is fresh.
     // An expired token is 401 on older Kiro Crew and 403 on 0.12.2.4.
@@ -285,11 +301,10 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
           : slot === "avoozl_expired" && expiredOnce++
             ? 200
             : code,
-      answer = status === 200 && slot === "avoozl_expired" ? {} : body,
-      reply = { ok: status === 200, status, json: async () => answer };
-    return { ...reply, clone: () => reply };
+      answer = status === 200 && slot === "avoozl_expired" ? {} : body;
+    return reply(status, answer);
   };
-  const read = gatewaySlotReader(env, gateway);
+  const read = found(gatewaySlotReader(env, gateway));
   assert.equal(await read("avoozl_live"), "working");
   assert.deepEqual(await read("avoozl_model"), {
     status: "idle",
@@ -320,8 +335,10 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
   assert.equal(tokens, minted + 1, "a 403 mints one new token");
   // A second client in the same backend reuses that token instead of minting
   // one that would end the first client's.
-  const other = gatewaySlotReader(env, gateway);
-  assert.equal((await other("avoozl_model")).status, "idle");
+  const other = found(gatewaySlotReader(env, gateway)),
+    model = await other("avoozl_model");
+  assert.ok(typeof model === "object");
+  assert.equal(model.status, "idle");
   assert.equal(tokens, minted + 1, "clients share one token");
   assert.deepEqual(calls.slice(0, 4), [
     ["POST", "/api/apps/avoozl/token"],
@@ -351,7 +368,7 @@ test("the backend keeps the served model a slot read names", async (t) => {
   const { store, ops } = setup(t, [leaf("a"), leaf("b")]);
   await bind(ops, "a", "avoozl_a");
   await bind(ops, "b", "avoozl_b");
-  await observeSessions(store, async (slot) =>
+  await observeSessions(store, async (slot: string) =>
     slot === "avoozl_a"
       ? {
           status: "idle",
@@ -359,8 +376,8 @@ test("the backend keeps the served model a slot read names", async (t) => {
         }
       : "idle",
   );
-  const a = store.get("session_bindings", "avoozl_a"),
-    b = store.get("session_bindings", "avoozl_b");
+  const a = binding(store, "avoozl_a"),
+    b = binding(store, "avoozl_b");
   assert.equal(a.status, "idle");
   assert.deepEqual(servedModel(a), {
     model: "fake-writer",
@@ -371,37 +388,11 @@ test("the backend keeps the served model a slot read names", async (t) => {
   assert.equal(b.served, undefined, "a read without a model reports none");
 });
 
-// Mirrors kiro_crew/apps/proxy_auth.py `sign_proxy_principal_claim`.
-function sign(body, secret) {
-  const issuedAt = Math.floor(Date.now() / 1000),
-    claim = {
-      issuedAt,
-      kind: "owner-session",
-      ownerId: "owner",
-      requestId: randomBytes(16).toString("hex"),
-      version: 1,
-    },
-    encoded = Buffer.from(JSON.stringify(claim)).toString("base64url"),
-    signature = createHmac("sha256", secret)
-      .update(
-        [
-          "kirocrew-proxy-principal-v1",
-          String(issuedAt),
-          "POST",
-          "/api/command",
-          createHash("sha256").update(body).digest("hex"),
-          encoded,
-        ].join("\n"),
-      )
-      .digest("hex");
-  return `${encoded}.${signature}`;
-}
-
 test("a backend that started before any workspace reads sessions once one is added", async (t) => {
   // Nearby inputs: a receipt from a roster tick, which the backend leaves alone.
   const root = temporaryDirectory("avoozl-stock-backend-"),
     workspace = path.join(root, "workspace"),
-    secret = "test-proxy-secret";
+    secret = SECRET;
   const target = workspaceConfig({ workspace, env: {} });
   fs.mkdirSync(path.dirname(target.dbPath), { recursive: true });
   const store = new Store(target.dbPath);
@@ -412,12 +403,12 @@ test("a backend that started before any workspace reads sessions once one is add
     "a",
     "avoozl_a",
   );
-  const reads = [];
+  const reads: string[] = [];
   const server = startAppBackend({
     config: workspaceConfig({ workspace: path.join(root, "none"), env: {} }),
     secret,
     notifier: null,
-    slotReader: async (slot) => (reads.push(slot), "working"),
+    slotReader: async (slot: string) => (reads.push(slot), "working"),
     registryOptions: {
       configPath: path.join(root, "machine", "config.json"),
       catalogPath: path.join(root, "machine", "catalog.sqlite"),
@@ -425,21 +416,20 @@ test("a backend that started before any workspace reads sessions once one is add
   });
   t.after(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
   const body = JSON.stringify({
     operation: "workspaces.add",
     input: { id: "w", root: workspace },
   });
-  const added = await fetch(
-    `http://127.0.0.1:${server.address().port}/api/command`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-KiroCrew-Principal": sign(body, secret),
-      },
-      body,
+  const added = await fetch(`http://127.0.0.1:${address.port}/api/command`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-KiroCrew-Principal": sign(body),
     },
-  );
+    body,
+  });
   assert.equal(added.status, 200);
   const health = path.join(path.dirname(target.dbPath), "tick-health.json"),
     settle = async () => {
@@ -456,11 +446,7 @@ test("a backend that started before any workspace reads sessions once one is add
   await settle();
   // Windows can report one write as two watch events; each reads the slot.
   assert.deepEqual([...new Set(reads)], ["avoozl_a"]);
-  for (
-    let i = 0;
-    i < 50 && !store.get("session_bindings", "avoozl_a").status;
-    i++
-  )
+  for (let i = 0; i < 50 && !binding(store, "avoozl_a").status; i++)
     await new Promise((resolve) => setTimeout(resolve, 40));
-  assert.equal(store.get("session_bindings", "avoozl_a").status, "working");
+  assert.equal(binding(store, "avoozl_a").status, "working");
 });

@@ -208,6 +208,8 @@ export class Operations {
   configuration: RepositorySettings | null;
   github: GitHubClient;
   pluginOptions: { workspaceRoot: string | null; settingsFile: string };
+  // The plugin loader (plugins.ts).
+  plugins: unknown;
   constructor(
     store: Store,
     {
