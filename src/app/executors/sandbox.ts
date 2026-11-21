@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The sandbox for unattended `process` children (R95.6, design §4.28). A
 // child runs as the owner, so the person-only refusal in the CLI is only a
 // speed bump (R95.5). "A child never does a person-only act" holds only
@@ -25,6 +24,33 @@ import {
 } from "./harness-definitions.ts";
 
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
+
+// The network a child gets: off, open ("on", a repository check's
+// setting), or limited to named loopback ports.
+export interface SandboxNetwork {
+  mode: "off" | "on" | "restricted";
+  ports: number[];
+}
+
+// What a sandbox lets a child reach, as confineChild resolves it.
+interface SandboxShape {
+  writeRoots: string[] | null;
+  secrets: string[];
+  readable?: string[];
+  writable?: string[];
+  network: SandboxNetwork;
+  home?: string | null;
+  readRoots?: string[];
+  sockets?: string[];
+}
+
+// A harness definition, as far as the sandbox reads it.
+interface Definition {
+  name: string;
+  hash?: string;
+}
+
+type Kind = "sandbox-exec" | "bwrap";
 // Keychain services: gh, git's osxkeychain helper and most CLIs keep tokens
 // there, and an item made with /usr/bin/security opens to any caller of it.
 const KEYCHAIN_SERVICES = [
@@ -53,7 +79,7 @@ const KEPT_MARKERS = new Set([
 // The real path of a file that may not exist yet: the nearest existing
 // parent resolved, the rest joined. macOS profiles match real paths only
 // (/tmp is /private/tmp).
-export function realPath(file) {
+export function realPath(file: string): string {
   const resolved = path.resolve(file);
   try {
     return fs.realpathSync.native(resolved);
@@ -64,19 +90,21 @@ export function realPath(file) {
   }
 }
 
-const inside = (child, parent) =>
+const inside = (child: string, parent: string) =>
   child === parent || child.startsWith(parent + path.sep);
 
 // The workspaces the machine catalog lists, read without creating it.
-export function catalogWorkspaceRoots(catalogPath) {
+export function catalogWorkspaceRoots(
+  catalogPath: string | null | undefined,
+): string[] {
   if (!catalogPath || !fs.existsSync(catalogPath)) return [];
-  let db;
+  let db: DatabaseSync | undefined;
   try {
     db = new DatabaseSync(catalogPath, { readOnly: true });
     return db
       .prepare("SELECT root FROM workspaces")
       .all()
-      .map((row) => row.root);
+      .map((row) => String(row.root));
   } catch {
     return [];
   } finally {
@@ -95,6 +123,12 @@ export function sandboxSecretPaths({
   configDirectory,
   stateDirectory,
   workspaceRoots = [],
+}: {
+  home?: string;
+  env?: NodeJS.ProcessEnv;
+  configDirectory?: string | null;
+  stateDirectory?: string | null;
+  workspaceRoots?: string[];
 }) {
   const xdg = env.XDG_CONFIG_HOME || path.join(home, ".config");
   const paths = [
@@ -120,14 +154,21 @@ export function sandboxSecretPaths({
   ];
   if (process.platform === "darwin")
     paths.push(path.join(home, "Library", "Keychains"));
-  return [...new Set(paths.filter(Boolean).map(realPath))];
+  return [
+    ...new Set(
+      paths.filter((file): file is string => Boolean(file)).map(realPath),
+    ),
+  ];
 }
 
 // The child's environment: credential variables removed, except the names
 // a harness needs to sign in to its own provider (`keep`). Git gets no
 // credential helper and never prompts.
-export function sandboxEnv(env = process.env, { keep = [] } = {}) {
-  const out = {};
+export function sandboxEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  { keep = [] }: { keep?: string[] } = {},
+) {
+  const out: NodeJS.ProcessEnv = {};
   for (const [name, value] of Object.entries(env)) {
     if (keep.includes(name) || KEPT_MARKERS.has(name)) {
       out[name] = value;
@@ -151,14 +192,17 @@ export function sandboxEnv(env = process.env, { keep = [] } = {}) {
 // A repository's network setting: absent is off; a list of `localhost:PORT`
 // entries allows only those loopback ports (a proxy the repository names).
 // `name` is the setting, for the message: sandbox.network or modelProxy.
-export function sandboxNetwork(value, name = "sandbox.network") {
+export function sandboxNetwork(
+  value?: unknown,
+  name = "sandbox.network",
+): SandboxNetwork {
   if (value === undefined || value === "off") return { mode: "off", ports: [] };
   if (!Array.isArray(value) || !value.length)
-    fail(`${name} must be "off" or a list of localhost:PORT entries.`);
+    return fail(`${name} must be "off" or a list of localhost:PORT entries.`);
   const ports = value.map((item) => {
     const match = typeof item === "string" && LOOPBACK_PORT.exec(item);
     if (!match || Number(match[1]) > 65535)
-      fail(
+      return fail(
         `${name} holds ${JSON.stringify(item)}; only localhost:PORT is allowed.`,
       );
     return Number(match[1]);
@@ -166,8 +210,8 @@ export function sandboxNetwork(value, name = "sandbox.network") {
   return { mode: "restricted", ports };
 }
 
-const probes = new Map();
-function works(argv) {
+const probes = new Map<string, boolean>();
+function works(argv: string[]) {
   const key = argv.join("\0");
   if (!probes.has(key)) {
     const result = spawnSync(argv[0], argv.slice(1), {
@@ -182,7 +226,11 @@ function works(argv) {
 // The sandbox this machine can apply, or null. Tested by running one, since
 // an installed tool can still be refused (a nested macOS sandbox, a Linux
 // that limits user namespaces).
-export function sandboxKind({ platform = process.platform } = {}) {
+export function sandboxKind({
+  platform = process.platform,
+}: {
+  platform?: NodeJS.Platform;
+} = {}): Kind | null {
   if (platform === "darwin")
     return works([
       SANDBOX_EXEC,
@@ -199,11 +247,11 @@ export function sandboxKind({ platform = process.platform } = {}) {
   return null;
 }
 
-const quote = (file) => {
+const quote = (file: string) => {
   if (/[\0\n\r]/.test(file)) fail(`The sandbox cannot name the path ${file}.`);
   return `"${file.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 };
-const rule = (file) =>
+const rule = (file: string) =>
   fs.existsSync(file) && !fs.statSync(file).isDirectory()
     ? `(literal ${quote(file)})`
     : `(subpath ${quote(file)})`;
@@ -219,7 +267,7 @@ export function sandboxProfile({
   home = null,
   readRoots = [],
   sockets = [],
-}) {
+}: SandboxShape) {
   // `on` (a repository check's network setting) leaves the network open.
   const lines = [
     "(version 1)",
@@ -276,12 +324,12 @@ export function sandboxProfile({
 // Unix sockets a Linux child must not reach: the person's runtime folder
 // (D-Bus, keyring, agents), the container runtimes' sockets and the SSH
 // agent. A read-only mount does not stop a connect, so each is covered.
-function hiddenSockets(env) {
-  const args = [],
-    hidden = [];
+function hiddenSockets(env: NodeJS.ProcessEnv) {
+  const args: string[] = [],
+    hidden: string[] = [];
   // Real paths, once each: /var/run is often a link to /run, and bubblewrap
   // cannot make a mount point through a link.
-  const real = (file) => {
+  const real = (file: string) => {
     try {
       return fs.realpathSync.native(file);
     } catch {
@@ -296,13 +344,17 @@ function hiddenSockets(env) {
     "/run/podman",
     "/var/run/podman",
   ];
-  for (const folder of new Set(folders.filter(Boolean).map(real)))
+  for (const folder of new Set(
+    folders.filter((file): file is string => Boolean(file)).map(real),
+  ))
     if (folder && fs.statSync(folder).isDirectory()) {
       hidden.push(folder);
       args.push("--tmpfs", folder);
     }
   const files = ["/run/docker.sock", "/var/run/docker.sock", env.SSH_AUTH_SOCK];
-  for (const file of new Set(files.filter(Boolean).map(real)))
+  for (const file of new Set(
+    files.filter((file): file is string => Boolean(file)).map(real),
+  ))
     if (
       file &&
       !fs.statSync(file).isDirectory() &&
@@ -321,7 +373,7 @@ function bwrapArgs({
   home = null,
   readRoots = [],
   env = process.env,
-}) {
+}: SandboxShape & { env?: NodeJS.ProcessEnv }) {
   if (network.mode === "restricted")
     fail(
       "On Linux the sandbox turns the network off; a list of loopback ports is not supported yet.",
@@ -340,12 +392,12 @@ function bwrapArgs({
     ...hiddenSockets(env),
   ];
   if (!writeRoots)
-    fail(
+    return fail(
       "On Linux the sandbox needs write roots; it cannot leave writes open.",
     );
   // Home confined: an empty home, then only the read roots bound into it
   // (read-only) and the write roots below.
-  const remount = [];
+  const remount: string[] = [];
   if (home) {
     args.push("--tmpfs", home);
     for (const file of readRoots)
@@ -368,12 +420,15 @@ function bwrapArgs({
       remount.push("--remount-ro", file);
     } else args.push("--ro-bind", "/dev/null", file);
   }
-  for (const file of readable) args.push("--ro-bind", file, file);
-  for (const file of writable) args.push("--bind", file, file);
+  for (const file of readable ?? []) args.push("--ro-bind", file, file);
+  for (const file of writable ?? []) args.push("--bind", file, file);
   return [...args, ...remount, "--"];
 }
 
-function optedIn(configDirectory, definition) {
+function optedIn(
+  configDirectory: string | null | undefined,
+  definition: Definition | null | undefined,
+) {
   // A child with no approved hash is never opted in.
   if (!configDirectory || !definition?.hash) return false;
   const file = path.join(path.resolve(configDirectory), HARNESS_UNCONFINED);
@@ -398,7 +453,7 @@ function optedIn(configDirectory, definition) {
 // Returns { argv, env, sandbox }; sandbox is null only with the per-machine
 // opt-in.
 export function confineChild(
-  argv,
+  argv: string[],
   {
     definition,
     configDirectory,
@@ -413,6 +468,20 @@ export function confineChild(
     home = os.homedir(),
     readRoots = null,
     sockets = [],
+  }: {
+    definition: Definition;
+    configDirectory?: string | null;
+    writeRoots: string[] | null;
+    secrets: string[];
+    readable?: string[];
+    writable?: string[];
+    network?: SandboxNetwork;
+    env?: NodeJS.ProcessEnv;
+    keepEnv?: string[];
+    kind?: Kind | null;
+    home?: string;
+    readRoots?: string[] | null;
+    sockets?: string[];
   },
 ) {
   if (!Array.isArray(argv) || !argv.length) fail("No command to confine.");
@@ -448,7 +517,7 @@ export function confineChild(
         fail(
           `Write root ${root} is inside ${secret}, which a child must not reach.`,
         );
-  const shape = {
+  const shape: SandboxShape = {
     writeRoots: roots,
     secrets: denied,
     readable: readable.map(realPath),
