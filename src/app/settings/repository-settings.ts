@@ -651,7 +651,7 @@ export class RepositorySettings {
     };
   }
 
-  readConfiguration(scope) {
+  readConfiguration(scope: unknown) {
     if (!["global", "repository"].includes(scope))
       fail("Choose the global or repository Avoozl configuration.");
     if (scope === "repository") {
@@ -685,7 +685,15 @@ export class RepositorySettings {
     };
   }
 
-  updateConfiguration({ scope, text, expectedHash }) {
+  updateConfiguration({
+    scope,
+    text,
+    expectedHash,
+  }: {
+    scope?: unknown;
+    text?: unknown;
+    expectedHash?: unknown;
+  }) {
     if (typeof text !== "string") fail("Configuration JSON is required.");
     if (Buffer.byteLength(text) > MAX_CONFIG_BYTES)
       fail("Avoozl configuration is too large.");

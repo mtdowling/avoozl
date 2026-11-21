@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import os from "node:os";
 import { auditPlans } from "../../mcp.ts";
@@ -7,7 +6,12 @@ import {
   checksUnconfinedAllowed,
   isolationSetting,
 } from "../workspace/check-isolation.ts";
-import { detectCheckout, repositoryConfig } from "../git/git.ts";
+import {
+  detectCheckout,
+  type Repository,
+  repositoryConfig,
+} from "../git/git.ts";
+import type { SetupInput } from "../github/github-sync.ts";
 import { expandHome } from "../workspace/folder-browse.ts";
 import {
   machineIdentity,
@@ -40,6 +44,7 @@ import {
   workspaceRepositoryStatus,
 } from "../workspace/workspace-repository.ts";
 import { person, notOnMcp, routed } from "../api/operation-policy.ts";
+import type { OperationCall, Operations } from "../api/operations.ts";
 
 export const entries = [
   // Rebuild the database from git and GitHub (design §4.42).
@@ -48,7 +53,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person rebuilds the workspace, from the CLI."),
-    handler({ context }) {
+    handler(this: Operations, { context }: OperationCall) {
       if (context.caller || context.mcp)
         fail("Only a person rebuilds the workspace, from the CLI.", 403);
       return this.rebuild();
@@ -60,7 +65,7 @@ export const entries = [
     class: "execute",
     github: "check-in",
     policy: routed,
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       // The exporter runs in the process that runs the tick (§D6).
       if (this.configDirectory)
@@ -87,7 +92,8 @@ export const entries = [
         folders: input.folders ?? null,
         github: this.github,
         plugins: this.plugins,
-        contextBrief: (entry) => chatBrief(store, this, entry),
+        contextBrief: (entry: Parameters<typeof chatBrief>[2]) =>
+          chatBrief(store, this, entry),
       });
       if (result.skipped) return result;
       // A cron or roster pass reads the layered config, so a bad file
@@ -113,7 +119,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return tickHealth(store);
     },
@@ -124,7 +130,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return tickLog(store, input);
     },
@@ -135,7 +141,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
 
       const plans = planPage(store);
@@ -168,9 +174,10 @@ export const entries = [
         workspaceRepository: workspaceRepositoryStatus(store),
         // Which machine drives each spec (§6.10), from SQLite only.
         audit: auditPlans(this.read()),
-        lastEvent: store.db
-          .prepare("SELECT COALESCE(MAX(seq),0) seq FROM events")
-          .get().seq,
+        lastEvent: Number(
+          store.db.prepare("SELECT COALESCE(MAX(seq),0) seq FROM events").get()
+            ?.seq,
+        ),
       };
     },
   },
@@ -180,7 +187,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       return this.settingsFile().readConfiguration(input.scope ?? "repository");
     },
   },
@@ -190,7 +197,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person changes workspace settings."),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       if (!this.configuration)
         fail("Configuration editing is unavailable from this server.", 404);
       return this.configuration.updateConfiguration(input);
@@ -202,7 +209,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return globalLocalIgnoreStatus();
     },
   },
@@ -212,7 +219,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return ensureGlobalLocalIgnore();
     },
   },
@@ -222,7 +229,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return { items: workspaceRepositories(store) };
     },
@@ -234,7 +241,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       return detectCheckout(input.folder);
     },
   },
@@ -243,7 +250,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person adds or changes a repository."),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       this.configuration?.assertWritable();
@@ -261,13 +268,22 @@ export const entries = [
         fail("Planning documents require a local checkout.");
       if (authorizeIssues && !localCheckout)
         fail("Label-authorized work requires a local checkout.");
-      let repository = null;
+      let repository:
+        | (Repository & {
+            name?: string;
+            planning?: boolean;
+            editable?: boolean;
+          })
+        | null = null;
       if (localCheckout) {
         repository = await repositoryConfig({
           id,
           root: localCheckout,
           baseBranch: String(input.baseBranch || "main").trim() || "main",
-          worktreeRoot: input.worktreeRoot || undefined,
+          worktreeRoot:
+            typeof input.worktreeRoot === "string"
+              ? input.worktreeRoot || undefined
+              : undefined,
           checks: input.checks ?? [],
         });
         repository = {
@@ -295,12 +311,14 @@ export const entries = [
             ? await prepareGitHubRepository(store, this.github, {
                 repository: githubRepository,
                 workspaceRepositoryId: id,
-                repositoryId: repository.id,
+                // authorizeIssues needs a local checkout (refused above).
+                repositoryId: repository?.id ?? id,
                 registering: repository,
-                assignee: input.assignee,
-                provider: input.provider,
-                model: input.model,
-                autoStart: input.autoStart,
+                // The request's fields; prepareGitHubRepository checks them.
+                assignee: input.assignee as SetupInput["assignee"],
+                provider: input.provider as SetupInput["provider"],
+                model: input.model as SetupInput["model"],
+                autoStart: input.autoStart as SetupInput["autoStart"],
               })
             : null;
         this.configuration?.updateUnifiedRepository({
@@ -344,7 +362,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person removes a repository."),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       this.configuration?.assertWritable();
@@ -376,7 +394,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person sets the workspace repository."),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       this.configuration?.assertWritable();
@@ -395,7 +413,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
       return workspaceRepositoryStatus(store);
     },
@@ -406,10 +424,12 @@ export const entries = [
     class: "protect",
     github: "workspace-publish",
     policy: person("Only a person publishes the workspace repository."),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
-      const config = store.getMeta("workspaceRepository");
+      const config = store.getMeta<{ repository?: string }>(
+        "workspaceRepository",
+      );
       if (config?.repository)
         await requirePrivateRepository(this.github, config.repository);
       return publishWorkspaceRepository(store, input);
@@ -421,10 +441,12 @@ export const entries = [
     class: "protect",
     github: "workspace-publish",
     policy: person("Only a person syncs the workspace repository."),
-    async handler({}) {
+    async handler(this: Operations, {}: OperationCall) {
       const store = this.store;
 
-      const config = store.getMeta("workspaceRepository");
+      const config = store.getMeta<{ repository?: string }>(
+        "workspaceRepository",
+      );
       if (config?.repository)
         await requirePrivateRepository(this.github, config.repository);
       return syncWorkspaceRepository(store);
@@ -436,13 +458,17 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person adds or changes a repository."),
-    async handler({ input }) {
+    async handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       // Unconfined checks need this machine's opt-in.
-      const allowIsolation = (isolation) => {
+      const allowIsolation = <I>(isolation: I) => {
+        const run =
+          isolation && typeof isolation === "object" && "run" in isolation
+            ? isolation.run
+            : undefined;
         if (
-          isolation?.run === "unconfined" &&
+          run === "unconfined" &&
           !checksUnconfinedAllowed(machineAvoozlPaths().configDirectory)
         )
           fail(
@@ -463,9 +489,9 @@ export const entries = [
         )
       ) {
         const id = String(input.id || ""),
-          existing = store.get("repositories", id);
-        if (!existing) fail("Repository not found.", 404);
-        const change = {};
+          existing = store.get<Repository>("repositories", id);
+        if (!existing) return fail("Repository not found.", 404);
+        const change: Record<string, unknown> = {};
         if (keys.includes("isolation"))
           change.isolation = allowIsolation(
             isolationSetting(input.isolation, "isolation"),
@@ -496,7 +522,7 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: person("Only a person removes a repository."),
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
       const id = String(input.id || "").trim(),

@@ -647,7 +647,15 @@ export async function processContext(
 // The "Epic context" section of a Kiro Crew chat worker's brief, or "" (EC8,
 // D7): the skills and reads, no MCP server, and nothing the chat is held to.
 // Run by the tick before the start request is stored.
-export async function chatBrief(store, ops, { task: taskId, role, attempt }) {
+export async function chatBrief(
+  store,
+  ops,
+  {
+    task: taskId,
+    role,
+    attempt,
+  }: { task: string; role: string; attempt?: number },
+) {
   if (!ops) return "";
   const given = await processContext(
     store,

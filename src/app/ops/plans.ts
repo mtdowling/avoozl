@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { frontMatterCategory } from "../../front-matter.ts";
 import { applyPlanMetadata } from "../../plan-model.ts";
@@ -25,14 +24,21 @@ import { fail } from "../store/store.ts";
 import { planPage } from "../api/views.ts";
 import { person, routed } from "../api/operation-policy.ts";
 import { taskFile } from "../specs/spec-tasks.ts";
+import type {
+  Approval,
+  OperationCall,
+  Operations,
+  Plan,
+} from "../api/operations.ts";
+import type { Task } from "../../types.ts";
 
 // Epics span plans (Requirement 59): every approved epic and every epic
 // folder on disk not yet approved, each with computed progress.
-function epicListHandler({ name, input }) {
+function epicListHandler(this: Operations, { name, input }: OperationCall) {
   const store = this.store;
 
   const data = this.read(),
-    folders = (() => {
+    folders: ReturnType<Operations["specList"]>["items"] = (() => {
       try {
         return this.specList().items.filter((item) => item.kind === "epic");
       } catch {
@@ -46,7 +52,7 @@ function epicListHandler({ name, input }) {
         .map((item) => item.name)
         .filter((id) => !approved.some((epic) => epic.id === id)),
     ],
-    view = (id) => {
+    view = (id: string) => {
       const folder = folders.find((item) => item.name === id);
       return epicView(store, data, {
         id,
@@ -80,7 +86,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       // shortcut: the Release queue holds no rows since labels stopped
       // releasing work (TA11.1); drop the parameter with the queue card.
       return epicsView(this.store, { repositories: [] });
@@ -92,7 +98,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       return this.readSpecDocuments(input);
     },
   },
@@ -101,7 +107,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
       return planPage(store, input);
     },
@@ -112,7 +118,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       return this.specList();
     },
   },
@@ -136,7 +142,7 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({}) {
+    handler(this: Operations, {}: OperationCall) {
       const store = this.store;
 
       const specs = (() => {
@@ -146,11 +152,15 @@ export const entries = [
           const list = this.specList();
           return { ...list, problem: list.homeErrors?.join(" ") || null };
         } catch (error) {
-          return { root: null, items: [], problem: error.message };
+          return {
+            root: null,
+            items: [],
+            problem: (error as Error).message,
+          };
         }
       })();
       const stored = store
-        .list("plans")
+        .list<Plan>("plans")
         .filter(
           (plan) => !plan.deletedAt && (plan.kind || "plan") !== "conversation",
         );
@@ -162,7 +172,7 @@ export const entries = [
         ...plansTableView(store, this.read(), {
           specs: specs.items,
           stored,
-          categoryOf: (plan) =>
+          categoryOf: (plan: Plan) =>
             plan.spec
               ? specCategory(plan.files)
               : frontMatterCategory(plan.text),
@@ -176,13 +186,14 @@ export const entries = [
     class: "protect",
     github: "check-in",
     policy: routed,
-    handler({ input, expectedRevision }) {
+    handler(this: Operations, { input, expectedRevision }: OperationCall) {
       const store = this.store;
+      const id = String(input.id);
       return store.mutate(
-        "Classify " + input.id,
+        "Classify " + id,
         (data) => {
-          applyPlanMetadata(data, input.id, input);
-          return data.documents[input.id];
+          applyPlanMetadata(data, id, input);
+          return data.documents[id];
         },
         expectedRevision,
       );
@@ -193,7 +204,7 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
 
       if (input.spec === undefined)
@@ -207,15 +218,15 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       const agent = Boolean(context.caller || context.mcp);
 
-      const plan = store.get("plans", input.id);
+      const plan = store.get<Plan>("plans", input.id);
       if (plan?.spec && input.text === undefined) {
         const spec = this.readSpec(plan.spec);
         if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-        return saveSpecPlan(store, input, spec);
+        return saveSpecPlan(store, { ...input, id: plan.id }, spec);
       }
       if (!plan) fail("Plan not found.", 404);
       fail("A spec plan is read from its folder; save it without text.", 409);
@@ -227,11 +238,11 @@ export const entries = [
     class: "draft",
     github: "check-in",
     policy: routed,
-    handler({ input, context }) {
+    handler(this: Operations, { input, context }: OperationCall) {
       const store = this.store;
       const agent = Boolean(context.caller || context.mcp);
 
-      const plan = store.get("plans", input.id);
+      const plan = store.get<Plan>("plans", input.id);
       if (plan?.spec && !input.fact) {
         if (agent && input.proposal && typeof input.proposal === "object")
           enforceContent(
@@ -243,7 +254,9 @@ export const entries = [
             },
             { mode: "refuse" },
           );
-        return proposeSpecWork(store, input, (spec) => this.readSpec(spec));
+        return proposeSpecWork(store, { ...input, id: plan.id }, (spec) =>
+          this.readSpec(spec),
+        );
       }
       if (!plan) fail("Plan not found.", 404);
       fail("Propose work as a task on a spec plan: {id, proposal}.", 409);
@@ -255,14 +268,14 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
-      const plan = store.get("plans", input.id);
-      if (!plan) fail("Plan not found.", 404);
+      const plan = store.get<Plan>("plans", input.id);
+      if (!plan) return fail("Plan not found.", 404);
       const data = this.read(),
         epic = epicOfPlan(data, plan.id),
-        phases = new Map();
+        phases = new Map<string, unknown>();
       for (const task of data.tasks)
         if (task.planId === plan.id && task.phase && !phases.has(task.phase.id))
           phases.set(task.phase.id, task.phase);
@@ -279,7 +292,9 @@ export const entries = [
         // The spec's Links box (R92.4): stored records only, no GitHub
         // call. A local read, so a private spec issue shows only here.
         ...(plan.spec ? { links: specLinks(store, plan.id) } : {}),
-        approvals: store.list("approvals").filter((a) => a.planId === plan.id),
+        approvals: store
+          .list<Approval>("approvals")
+          .filter((a) => a.planId === plan.id),
       };
     },
   },
@@ -289,11 +304,11 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
-      const plan = store.get("plans", input.id);
-      if (!plan) fail("Plan not found.", 404);
+      const plan = store.get<Plan>("plans", input.id);
+      if (!plan) return fail("Plan not found.", 404);
       if (!plan.spec) fail("Only a spec plan is linted.", 409);
       return this.lintSpecPlan(plan);
     },
@@ -304,11 +319,11 @@ export const entries = [
     class: "observe",
     github: "check-in",
     policy: routed,
-    handler({ input }) {
+    handler(this: Operations, { input }: OperationCall) {
       const store = this.store;
 
-      const plan = store.get("plans", input.id);
-      if (!plan) fail("Plan not found.", 404);
+      const plan = store.get<Plan>("plans", input.id);
+      if (!plan) return fail("Plan not found.", 404);
       if (!plan.spec) fail("Only a spec plan is approved.", 409);
       if (input.text !== undefined)
         fail("A spec plan is previewed from its stored revision.");
@@ -320,11 +335,14 @@ export const entries = [
         mapping = Object.fromEntries(
           proposals.map((p) => [
             p.id,
-            resolveTaskId(data, p.taskId || plan.mapping?.[p.id] || p.id),
+            resolveTaskId(
+              data,
+              String(p.taskId || plan.mapping?.[p.id] || p.id),
+            ),
           ]),
         );
-      const existing = new Set(data.tasks.map((t) => t.id));
-      const rows = new Map(data.tasks.map((t) => [t.id, t]));
+      const existing = new Set(data.tasks.map((t: Task) => t.id));
+      const rows = new Map(data.tasks.map((t: Task) => [t.id, t]));
       const quality = specQuality;
       return {
         planId: plan.id,
@@ -335,7 +353,7 @@ export const entries = [
         // Send this back as expectedRevision when approving.
         expectedRevision: data.revision,
         approved: store
-          .list("approvals")
+          .list<Approval>("approvals")
           .some((a) => a.planId === plan.id && a.hash === plan.hash),
         tasks: proposals.map((p) => ({
           localId: p.id,
@@ -354,43 +372,50 @@ export const entries = [
           lineEnd: p.lineEnd,
         })),
         dependencies: proposals.flatMap((p) =>
-          ["requires", "sequence", "supports"].flatMap((kind) =>
-            (p[kind] || []).map((ref) => ({
-              kind,
-              from: mapping[ref] || ref,
-              to: mapping[p.id],
-              known: existing.has(mapping[ref] || ref) || Boolean(mapping[ref]),
-              ...(specQuality.declaredDependencies.find(
-                (entry) => entry.taskId === ref,
-              )
-                ? {
-                    declaredBy: specQuality.declaredDependencies.find(
-                      (entry) => entry.taskId === ref,
-                    ).spec,
-                    pending: (() => {
-                      const declaration = specQuality.declaredDependencies.find(
-                          (entry) => entry.taskId === ref,
-                        ),
-                        owner = store.get("plans", declaration.planId),
-                        receipt =
-                          owner?.approvalId &&
-                          store.get("approvals", owner.approvalId);
-                      return !approvedSpecDependency(
-                        declaration,
-                        rows.get(mapping[ref] || ref),
-                        owner,
-                        receipt,
-                      );
-                    })(),
-                  }
-                : {}),
-            })),
+          (["requires", "sequence", "supports"] as const).flatMap((kind) =>
+            (Array.isArray(p[kind]) ? (p[kind] as string[]) : []).map(
+              (ref) => ({
+                kind,
+                from: mapping[ref] || ref,
+                to: mapping[p.id],
+                known:
+                  existing.has(mapping[ref] || ref) || Boolean(mapping[ref]),
+                ...(specQuality.declaredDependencies.find(
+                  (entry) => entry.taskId === ref,
+                )
+                  ? {
+                      declaredBy: specQuality.declaredDependencies.find(
+                        (entry) => entry.taskId === ref,
+                      )?.spec,
+                      pending: (() => {
+                        const declaration =
+                            specQuality.declaredDependencies.find(
+                              (entry) => entry.taskId === ref,
+                            ),
+                          owner = declaration
+                            ? store.get<Plan>("plans", declaration.planId)
+                            : null,
+                          receipt =
+                            owner?.approvalId &&
+                            store.get<Approval>("approvals", owner.approvalId);
+                        if (!declaration) return true;
+                        return !approvedSpecDependency(
+                          declaration,
+                          rows.get(mapping[ref] || ref),
+                          owner ?? undefined,
+                          receipt || undefined,
+                        );
+                      })(),
+                    }
+                  : {}),
+              }),
+            ),
           ),
         ),
         retiring: Object.keys(plan.mapping || {}).filter((id) => !mapping[id]),
         // Checked [x] items approval creates as accepted (plans.mjs).
         baseline: (() => {
-          const checked = checkedItems(plan.spec, plan.text),
+          const checked = checkedItems(String(plan.spec), plan.text),
             taskIds = proposals
               .filter((p) => checked.has(p.id) && !existing.has(mapping[p.id]))
               .map((p) => mapping[p.id]);
@@ -411,16 +436,22 @@ export const entries = [
     class: "protect",
     github: "spec-branch",
     policy: person("Only a person approves a plan."),
-    async handler({ input, expectedRevision }) {
+    async handler(
+      this: Operations,
+      { input, expectedRevision }: OperationCall,
+    ) {
       const store = this.store;
       const { plan, specQuality, proposals } = this.approvalChecks(input);
-      const args = {
+      const args: Parameters<typeof approvePlan>[1] = {
         ...input,
+        id: plan.id,
         githubPolicy: this.githubPolicy(),
         proposals,
         baseline: true,
         declaredDependencies: specQuality.declaredDependencies,
-        approvedBy: input.approvedBy?.trim() || this.operator,
+        approvedBy:
+          (typeof input.approvedBy === "string" && input.approvedBy.trim()) ||
+          this.operator,
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       };
