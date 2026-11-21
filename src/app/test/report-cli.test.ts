@@ -6,17 +6,16 @@ import fs from "node:fs";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
-import { workspaceConfig } from "../settings/config.ts";
 import { localSteps, worktreePath } from "../delivery/delivery.ts";
 import { Operations } from "../api/operations.ts";
 import { issueReportToken } from "../workers/report-match.ts";
 import type { Repository } from "../git/git.ts";
 import type { SessionBinding } from "../sessions/session-bindings.ts";
-import { Store } from "../store/store.ts";
-import { snapshot } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 import { loopOn } from "./fixtures.ts";
 import { found, type TickResult } from "./view-shapes.ts";
+import { boundWorktrees } from "./delivery-fixture.ts";
+import { reportWorkspace } from "./report-workspace.ts";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
@@ -57,61 +56,15 @@ async function setup(
     lanes?: Record<string, number>;
   } = {},
 ) {
-  const root = temporaryDirectory("avoozl-report-cli-"),
-    checkout = path.join(root, "app");
-  fs.mkdirSync(checkout);
+  const root = temporaryDirectory("avoozl-report-cli-");
   if (delivery)
     fs.writeFileSync(
       path.join(root, ".avoozl.json"),
       JSON.stringify({ version: 1, ...(lanes ? { lanes } : {}), delivery }),
     );
-  git(checkout, "init", "-b", "main");
-  git(checkout, "config", "user.name", "T");
-  git(checkout, "config", "user.email", "t@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-m", "Start");
-  const { dbPath } = workspaceConfig({ workspace: root, env: {} });
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const store = new Store(dbPath);
-  t.after(() => store.close());
-  const task = (id: string) => ({
-    id,
-    title: "Task " + id,
-    kind: "leaf",
-    scope: "catalog",
-    status: "planned",
-    epic: "sample",
-    track: "catalog",
-    tags: [],
-    acceptance: ["Works."],
-    checks: [],
-    repository: "app",
-  });
-  store.initialize({
-    ...snapshot(),
-    tasks: [task("a"), task("b")],
-    edges: [],
-  });
-  store.put("repositories", {
-    id: "app",
-    root: fs.realpathSync.native(checkout),
-    baseBranch: "main",
-  });
+  const store = reportWorkspace(t, root);
   const ops = new Operations(store, { workspaceRoot: root }),
-    wt: Record<string, string> = {};
-  for (const id of bind ? ["a", "b"] : []) {
-    wt[id] = (
-      await ops.execute<{ path: string }>("worktree.prepare", { taskId: id })
-    ).path;
-    await ops.execute("session.bind", {
-      taskId: id,
-      slot: `slot-${id}`,
-      attempt: 1,
-      source: "tick",
-      title: `avoozl:${id} Task ${id}`,
-    });
-  }
+    wt = await boundWorktrees(ops, bind ? ["a", "b"] : []);
   const repository = () => found(store.get<Repository>("repositories", "app"));
   const binding = (slot: string) =>
     store.get<SessionBinding>("session_bindings", slot);

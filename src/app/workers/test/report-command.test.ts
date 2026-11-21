@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The report command (worker-paths WP4.1, WP4.3; design D5): a worker's brief
 // carries a command that runs with no node or avoozl on PATH, from a checkout and from
 // the built app package, and no chat brief names an MCP tool.
@@ -6,59 +5,36 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { workspaceConfig } from "../../settings/config.ts";
 import { Operations } from "../../api/operations.ts";
 import { cliCommand, shellQuote } from "../report-command.ts";
 import { issueReportToken } from "../report-match.ts";
-import { Store } from "../../store/store.ts";
 import { briefCell, EXECUTORS, KINDS } from "../worker-briefs.ts";
-import { snapshot } from "../../test/fixtures.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
+import { found } from "../../test/view-shapes.ts";
+import { reportWorkspace } from "../../test/report-workspace.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
+
+// The repository row a brief is built for.
+type Repository = {
+  id: string;
+  sandbox?: { allowCommands?: string[][] };
+  [key: string]: unknown;
+};
+// Where a chat worker's report command reports to.
+type CliReport = { worktree: string; token: string | null; workspace: string };
+// A binding with the report its session made.
+type Reported = SessionBinding & { report?: { kind: string; commit?: string } };
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
-const git = (cwd, ...args) =>
+const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
+const as = (slot: string) => ({ caller: { sessionKey: "dashboard:" + slot } });
 
-async function setup(t) {
+async function setup(t: TestContext) {
   const dir = temporaryDirectory("avoozl-report-command-"),
-    checkout = path.join(dir, "app");
-  fs.mkdirSync(checkout);
-  git(checkout, "init", "-q", "-b", "main");
-  git(checkout, "config", "user.name", "T");
-  git(checkout, "config", "user.email", "t@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-qm", "Start");
-  const { dbPath } = workspaceConfig({ workspace: dir, env: {} });
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const store = new Store(dbPath);
-  t.after(() => store.close());
-  const task = (id) => ({
-    id,
-    title: "Task " + id,
-    kind: "leaf",
-    scope: "catalog",
-    status: "planned",
-    epic: "sample",
-    track: "catalog",
-    tags: [],
-    acceptance: ["Works."],
-    checks: [],
-    repository: "app",
-  });
-  store.initialize({
-    ...snapshot(),
-    tasks: [task("a"), task("b")],
-    edges: [],
-  });
-  store.put("repositories", {
-    id: "app",
-    root: fs.realpathSync.native(checkout),
-    baseBranch: "main",
-  });
+    store = reportWorkspace(t, dir);
   return { dir, store, ops: new Operations(store, { workspaceRoot: dir }) };
 }
 
@@ -80,7 +56,7 @@ function gitOnlyPath() {
 }
 
 // A command from a brief, run by a shell that finds only git.
-const bare = (command, cwd) =>
+const bare = (command: string, cwd: string) =>
   spawnSync(command, {
     shell: true,
     cwd,
@@ -92,10 +68,10 @@ const bare = (command, cwd) =>
       AVOOZL_WORKSPACE: "",
     },
   });
-let gitPath;
+let gitPath: string | undefined;
 
 // The two commands a chat brief gives: prepare the worktree, then report.
-const commandsOf = (steps) => {
+const commandsOf = (steps: string[]) => {
   const text = steps.join("\n");
   return {
     prepare: /`([^`]+ worktree prepare [^`]+)`/.exec(text)?.[1],
@@ -105,9 +81,15 @@ const commandsOf = (steps) => {
 
 // `localSteps` as a copy of Avoozl gives it: this checkout's, or the built
 // app package's, which Kiro Crew installs without a checkout around it.
-async function runsWithEmptyPath(t, steps) {
+async function runsWithEmptyPath(
+  t: TestContext,
+  steps: (
+    repository: Repository,
+    cliReport: CliReport,
+  ) => string[] | Promise<string[]>,
+) {
   const w = await setup(t),
-    repository = w.store.get("repositories", "app"),
+    repository = found(w.store.get<Repository>("repositories", "app")),
     token = issueReportToken(w.store, { taskId: "a", attempt: 1 }),
     cliReport = { worktree: "/unused", token, workspace: w.dir },
     given = commandsOf(await steps(repository, cliReport));
@@ -137,7 +119,10 @@ async function runsWithEmptyPath(t, steps) {
   );
   const out = bare(given.report, tree);
   assert.equal(out.status, 0, out.stderr);
-  const report = w.store.get("session_bindings", "chat").report;
+  const report = found(
+    w.store.get<Reported>("session_bindings", "chat")?.report,
+    "the report",
+  );
   assert.equal(report.kind, "done");
   assert.equal(report.commit, git(tree, "rev-parse", "HEAD"));
 }
@@ -153,7 +138,7 @@ test("the report command runs with no node or avoozl on PATH against the built a
   const lib = path.join(root, "hosts", "kirocrew", "bin", "lib");
   assert.ok(fs.existsSync(lib), "npm run build makes bin/lib");
   const built = await import(
-    pathToFileURL(path.join(lib, "src", "app", "delivery", "delivery.mjs"))
+    pathToFileURL(path.join(lib, "src", "app", "delivery", "delivery.mjs")).href
   );
   await runsWithEmptyPath(t, (repository, cliReport) =>
     built.localSteps({ id: "a" }, repository, { cliReport }),
@@ -171,27 +156,20 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
   const w = await setup(t),
     { workerBrief, localSteps } = await import("../../delivery/delivery.ts"),
     token = issueReportToken(w.store, { taskId: "a", attempt: 1 }),
-    repository = w.store.get("repositories", "app"),
+    repository = found(w.store.get<Repository>("repositories", "app")),
     task = w.store.read().tasks[0],
     cliReport = { worktree: "/tmp/wt", token, workspace: w.dir },
-    seen = [];
+    seen: string[] = [];
   for (const kind of KINDS) {
     const { cell } = briefCell("kirocrew", kind);
-    let text;
-    if (kind === "single")
-      text = workerBrief(task, repository, {
-        attempt: 1,
-        steps: cell.steps({ task, repository, relay: false, cliReport }),
-      });
-    else if (kind === "round") text = cell.finish;
-    else
-      text = cell.brief(
-        {
-          envelope: { taskId: "a", baseCommit: "abc", brief: "Do it." },
-        },
-        { worktree: "/tmp/wt", branch: "avoozl/remote/a" },
-        cliCommand(),
-      );
+    // KINDS is single and round: a task's steps, or the round's closing line.
+    const text =
+      kind === "single"
+        ? workerBrief(task, repository, {
+            attempt: 1,
+            steps: found(cell.steps)({ task, repository, cliReport }),
+          })
+        : found(cell.finish);
     seen.push(kind);
     assert.doesNotMatch(text, /plans_/, `kirocrew ${kind}`);
     assert.doesNotMatch(text, /(^|\s)avoozl runner/, `kirocrew ${kind}`);
@@ -214,7 +192,7 @@ test("plans_report still works for a session Avoozl did not start", async (t) =>
     attempt: 1,
     title: "avoozl:a by hand",
   });
-  const out = await w.ops.execute(
+  const out = await w.ops.execute<{ report: { kind: string } }>(
     "session.report",
     { taskId: "a", kind: "blocked", text: "Need a key." },
     undefined,
