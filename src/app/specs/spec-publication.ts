@@ -16,7 +16,7 @@ import type { Store } from "../store/store.ts";
 import type { PlanningIdentity } from "../github/github-marker.ts";
 
 // An issue GitHub answers, as far as publication reads it.
-interface Issue {
+export interface Issue {
   number: number;
   id?: unknown;
   node_id?: string;
@@ -25,6 +25,8 @@ interface Issue {
   body?: string | null;
   pull_request?: unknown;
   author_association?: string;
+  // The login that opened it, when the reader keeps it.
+  author?: string;
 }
 // A configured GitHub repository.
 type Config = { id: string; owner?: string; [key: string]: unknown };
