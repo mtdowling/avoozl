@@ -60,7 +60,7 @@ const shape = (files: Record<string, string>) =>
   parse(files).proposals.map((task) => ({
     id: task.id,
     title: task.title,
-    phase: task.phase?.title ?? null,
+    phase: (task.phase as { title?: string } | null)?.title ?? null,
     acceptance: task.acceptance,
     requires: task.requires ?? [],
   }));
@@ -75,7 +75,7 @@ test("a ## Tasks section reads as tasks.md does", () => {
   );
   // Lines are the file's own lines.
   assert.equal(
-    SINGLE.split("\n")[parse(single).proposals[0].lineStart - 1],
+    SINGLE.split("\n")[(parse(single).proposals[0].lineStart ?? 1) - 1],
     "- [ ] `c-1` Read the file",
   );
   assert.equal(taskFile(single), "config.md");

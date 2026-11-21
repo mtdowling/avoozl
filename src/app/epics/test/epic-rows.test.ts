@@ -60,7 +60,7 @@ function workspace(t: TestContext) {
 }
 const lint = (ops: Operations, name: string) =>
   lintSpec({
-    spec: readSpecFolder(ops.workspaceRoot, name),
+    spec: readSpecFolder(String(ops.workspaceRoot), name),
     plan: { id: name },
     namespace: ops.specNamespace(),
   });

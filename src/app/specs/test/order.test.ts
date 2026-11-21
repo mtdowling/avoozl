@@ -52,14 +52,14 @@ test("the owner's example: ec-2.1, then ec-2.2, then ec-2.4 to ec-2.6 side by si
   // The tag after refs parses, and the group is never a leaf to start.
   const { proposals } = parseSpec(spec(OWNER_EXAMPLE)),
     byId = new Map(proposals.map((p) => [p.id, p]));
-  assert.notEqual(byId.get("ec-2.3").kind, "leaf");
-  assert.equal(byId.get("ec-2.3").requires, undefined);
-  assert.deepEqual(byId.get("ec-2.7").requires.sort(), [
+  assert.notEqual(byId.get("ec-2.3")?.kind, "leaf");
+  assert.equal(byId.get("ec-2.3")?.requires, undefined);
+  assert.deepEqual(byId.get("ec-2.7")?.requires?.sort(), [
     "ec-2.4",
     "ec-2.5",
     "ec-2.6",
   ]);
-  assert.deepEqual(byId.get("ec-2.4").requires, ["ec-2.2"]);
+  assert.deepEqual(byId.get("ec-2.4")?.requires, ["ec-2.2"]);
   assert.deepEqual(codes(OWNER_EXAMPLE), []);
 });
 

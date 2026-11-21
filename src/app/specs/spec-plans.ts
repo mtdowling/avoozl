@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Kiro spec folders as Avoozl plans (Requirement 30, design §6.8).
 //
 //   <planning root>/<specs.path>/<name>/   (specs-path.mjs, .kiro/specs)
@@ -58,19 +57,108 @@ import {
   splitRefs,
   taskToken,
 } from "./spec-refs.ts";
+import type { Store } from "../store/store.ts";
+import type { Proposal } from "./plan-quality.ts";
+import type { LinkedReader } from "./order.ts";
+
+// A spec folder as read from disk.
+export interface SpecFolder {
+  name: string;
+  folder?: string;
+  exists: boolean;
+  files: Record<string, string>;
+  hash?: string | null;
+  leftover?: boolean;
+  factsBlocks?: boolean;
+  critique?: string | null;
+  root?: string;
+}
+// A ref as resolveRefs resolves it.
+type ResolvedRef = ReturnType<typeof resolveRefs>["refs"][number];
+// One checklist item of a task list.
+export interface SpecItem {
+  key: string | null;
+  id: string | null;
+  title: string;
+  refs?: { requirements: string[]; design: string[] };
+  line: number;
+  bareId?: boolean;
+  tagBeforeRefs?: boolean;
+  mark: string;
+  parent: Omit<SpecItem, "mark" | "parent"> | null;
+  spec?: string | null;
+  resolvedRefs?: ResolvedRef[];
+}
+// One spec lint finding, with its file and line.
+export interface SpecDiagnostic {
+  id: string;
+  code: string;
+  severity: string;
+  message: string;
+  file: string;
+  lineStart: number;
+  lineEnd: number;
+  [key: string]: unknown;
+}
+// One row of an epic folder.
+interface Member {
+  key: string;
+  plan: string;
+  step: string;
+  summary: string;
+  title: string;
+  line: number;
+}
+// What parseSpec reads.
+interface Parsed {
+  type: string | null;
+  kind?: string;
+  items: SpecItem[];
+  diagnostics: SpecDiagnostic[];
+  proposals: Proposal[];
+  members?: Member[];
+}
+// A stored plan, as these functions read and write it.
+export interface PlanRow {
+  id: string;
+  kind?: string;
+  spec?: string;
+  title?: string;
+  prompt?: string;
+  text: string;
+  files?: Record<string, string>;
+  hash: string;
+  revision: number;
+  state: string;
+  context?: unknown;
+  createdAt?: string;
+  updatedAt: string;
+  history: unknown[];
+  documentId?: string;
+  reviewHeld?: string[];
+  deletedAt?: string;
+  [key: string]: unknown;
+}
+// What a revision reads from its folder.
+type Revision = { hash: string; files: Record<string, string>; title: string };
 
 // The field rules every proposed task meets, whichever file it came from.
 // Normalizes `requires` conditions in place.
-export function validateProposal(item) {
+export function validateProposal(
+  item: Record<string, unknown>,
+): Record<string, unknown> {
   if (!item || typeof item !== "object" || Array.isArray(item))
-    fail("Describe each task as a JSON object.");
+    return fail("Describe each task as a JSON object.");
   if (
     typeof item.title !== "string" ||
     !item.title.trim() ||
     item.title.length > 240
   )
     fail("Each task needs a title of 1–240 characters.");
-  if (item.kind !== undefined && !TASK_KINDS.includes(item.kind))
+  if (
+    item.kind !== undefined &&
+    (typeof item.kind !== "string" || !TASK_KINDS.includes(item.kind))
+  )
     fail(
       item.kind === "epic"
         ? 'kind "epic" is not a task kind: write "package". An epic is its own spec folder that lists plans.'
@@ -89,16 +177,17 @@ export function validateProposal(item) {
     (!parent || item.acceptance !== undefined) &&
     (!Array.isArray(item.acceptance) ||
       !item.acceptance.length ||
-      item.acceptance.some((x) => typeof x !== "string" || !x.trim()))
+      item.acceptance.some((x: unknown) => typeof x !== "string" || !x.trim()))
   )
     fail("Each proposed task needs observable acceptance criteria.");
-  for (const field of ["requires", "checks"])
+  for (const field of ["requires", "checks"]) {
+    const value = item[field];
     if (
-      item[field] !== undefined &&
-      (!Array.isArray(item[field]) ||
-        item[field].some((x) => typeof x !== "string"))
+      value !== undefined &&
+      (!Array.isArray(value) || value.some((x) => typeof x !== "string"))
     )
       fail(field + " must be a list of strings.");
+  }
   // Every task runs its repository's checks: a stored proposal's own list
   // is ignored.
   delete item.checks;
@@ -116,7 +205,7 @@ export function validateProposal(item) {
   if (
     item.paths !== undefined &&
     (!Array.isArray(item.paths) ||
-      item.paths.some((x) => typeof x !== "string"))
+      item.paths.some((x: unknown) => typeof x !== "string"))
   )
     fail("paths must be a list of strings.");
   // A type word (R53.1).
@@ -131,7 +220,13 @@ export function validateProposal(item) {
 // One revision of the design document. An amended approved plan no longer
 // matches its approval receipt, so its tasks require review until the next
 // explicit approval. A spec plan's revision is its folder's files and hash.
-function writeRevision(store, plan, text, summary, spec = null) {
+function writeRevision(
+  store: Store,
+  plan: PlanRow,
+  text: string,
+  summary: string,
+  spec: Revision | null = null,
+) {
   plan.history.push({
     revision: plan.revision,
     hash: plan.hash,
@@ -150,7 +245,7 @@ function writeRevision(store, plan, text, summary, spec = null) {
   store.put("plans", plan);
   if (plan.documentId) {
     const data = structuredClone(store.read()),
-      held = new Set(plan.reviewHeld || []);
+      held = new Set<string>(plan.reviewHeld || []);
     for (const task of data.tasks.filter((t) => t.planId === plan.id)) {
       if (!task.needsReview) held.add(task.id);
       task.needsReview = true;
@@ -168,7 +263,7 @@ export { taskToken };
 
 // Whether tasks.md has a `Facts:` bullet outside a fence: the layout
 // before `$key:` bullets, which lint refuses and nothing reads.
-export function hasFactsBlocks(text) {
+export function hasFactsBlocks(text: unknown) {
   if (typeof text !== "string" || !text.includes("Facts:")) return false;
   let fenced = false;
   for (const row of text.split("\n")) {
@@ -190,11 +285,11 @@ const KIRO_FILES = ["requirements.md", "bugfix.md", "design.md", "tasks.md"];
 const MAX_SPEC_FILES = 50;
 
 // Whether a file name directly in a spec folder is part of the spec.
-export const isSpecFile = (file) =>
+export const isSpecFile = (file: unknown): file is string =>
   typeof file === "string" && SPEC_TEXT.test(file);
 
 // The spec files of `files`, in hash order: Kiro's, then the rest by name.
-export function revisionFiles(files = {}) {
+export function revisionFiles(files: Record<string, unknown> = {}) {
   const others = Object.keys(files)
     .filter((file) => isSpecFile(file) && !KIRO_FILES.includes(file))
     .sort();
@@ -210,9 +305,9 @@ const TITLE_LIMIT = 240;
 const EPIC_STEPS = ["design", "review", "implement"];
 const FENCE = /^\s*(```|~~~)/;
 
-export function specName(value) {
+export function specName(value: unknown): string {
   if (typeof value !== "string" || !NAME.test(value))
-    fail(
+    return fail(
       "Name one spec folder: lowercase letters, digits, and hyphens, up to 80 characters.",
     );
   return value;
@@ -221,7 +316,7 @@ export function specName(value) {
 // Kiro marks items done, queued, or running in tasks.md ([x], [~], [-]).
 // Those marks are not Avoozl state, so the revision hash reads every
 // checkbox as open and a mark alone never changes an approved revision.
-export function withoutMarks(text) {
+export function withoutMarks(text: string) {
   let fenced = false;
   return text
     .split("\n")
@@ -237,14 +332,14 @@ const STATUS_WINDOW = 20;
 
 // The Status line of a file: the first line equal to `Status: <Word>` in its
 // first 20 lines, or -1.
-function statusIndex(lines) {
+function statusIndex(lines: string[]) {
   return lines.slice(0, STATUS_WINDOW).findIndex((line) => STATUS.test(line));
 }
 
 // The text the revision hash reads: no Status line. Avoozl writes none
 // (approval is a commit, git-approvals.mjs); a person's own stays outside
 // the hash.
-function withoutStatus(text) {
+function withoutStatus(text: string) {
   const lines = String(text).split("\n"),
     at = statusIndex(lines);
   if (at < 0) return text;
@@ -256,7 +351,7 @@ function withoutStatus(text) {
 // checkbox marks, Facts bullets and front-matter, and the parsed facts as
 // `factsText` writes them. Layout is outside it, content is inside it
 // (Requirement 111.6).
-export function specHash(files) {
+export function specHash(files: Record<string, string>) {
   const tasks = specTasks(files);
   return digest(
     [
@@ -285,7 +380,7 @@ export function specHash(files) {
 // A single-file spec's text as the hash reads it: the whole file, with the
 // task list's checkbox marks open and its facts and front-matter left out.
 // `text` is its task text (spec-tasks.mjs), line for line.
-function sectionHashText(raw, text) {
+function sectionHashText(raw: string, text: string) {
   const open = withoutMarks(text).split("\n"),
     shown = text.split("\n"),
     { skip } = readFacts(text, specItems("x", text));
@@ -307,9 +402,15 @@ export function specRoots({
   mode = null,
   planningRoot = null,
   codeRoots = [],
-}) {
+}: {
+  mode?: string | null;
+  planningRoot?: string | null;
+  codeRoots?: (string | null | undefined)[];
+}): string[] {
   if (mode === "single-repo") {
-    const roots = [...new Set(codeRoots.filter(Boolean))];
+    const roots = [
+      ...new Set(codeRoots.filter((root): root is string => Boolean(root))),
+    ];
     if (!roots.length)
       fail(
         "Single-repo mode reads spec folders from a code repository. Register one first.",
@@ -320,13 +421,16 @@ export function specRoots({
   if (mode !== null && mode !== "plans-repo")
     fail(`Unknown GitHub mode ${mode}.`, 409);
   if (!planningRoot)
-    fail("This workspace has no planning repository for spec folders.", 409);
+    return fail(
+      "This workspace has no planning repository for spec folders.",
+      409,
+    );
   return [planningRoot];
 }
 
 // One folder name across the mode's roots. A name found in two code
 // repositories is refused, so a plan never reads another repository's spec.
-export function findSpecFolder(roots, name) {
+export function findSpecFolder(roots: string[], name: string) {
   const found = roots
     .map((root) => ({ ...readSpecFolder(root, name), root }))
     .filter((spec) => spec.exists);
@@ -338,7 +442,7 @@ export function findSpecFolder(roots, name) {
   return found[0] || { ...readSpecFolder(roots[0], name), root: roots[0] };
 }
 
-function inside(root, target) {
+function inside(root: string, target: string) {
   const relative = path.relative(root, target);
   return (
     relative === "" ||
@@ -348,11 +452,11 @@ function inside(root, target) {
 
 // Read one folder from disk. Only regular files inside the planning root are
 // read: a symlink out of it reads as a missing file.
-export function readSpecFolder(root, name) {
+export function readSpecFolder(root: string, name: string): SpecFolder {
   specName(name);
   const directory = path.join(specsDirectory(root), name),
     folder = specFolderPath(root, name);
-  let real;
+  let real: string;
   try {
     real = fs.realpathSync.native(directory);
   } catch {
@@ -363,9 +467,9 @@ export function readSpecFolder(root, name) {
     !fs.statSync(real).isDirectory()
   )
     return { name, folder, exists: false, files: {}, hash: null };
-  const read = (file) => {
+  const read = (file: string) => {
     const target = path.join(real, file);
-    let stat;
+    let stat: fs.Stats;
     try {
       stat = fs.lstatSync(target);
     } catch {
@@ -375,7 +479,7 @@ export function readSpecFolder(root, name) {
     if (stat.size > MAX_FILE_BYTES) fail(`${folder}${file} is too large.`, 413);
     return fs.readFileSync(target, "utf8");
   };
-  const files = {},
+  const files: Record<string, string> = {},
     names = fs.readdirSync(real).filter(isSpecFile).sort();
   if (names.length > MAX_SPEC_FILES)
     fail(
@@ -401,7 +505,7 @@ export function readSpecFolder(root, name) {
 
 // When a folder's revision files last changed on disk, as an ISO time, or
 // null when none can be read.
-export function specModifiedAt(root, name, files) {
+export function specModifiedAt(root: string, name: string, files: string[]) {
   let latest = 0;
   for (const file of files)
     try {
@@ -416,9 +520,9 @@ export function specModifiedAt(root, name, files) {
   return latest ? new Date(latest).toISOString() : null;
 }
 
-export function listSpecFolders(root) {
+export function listSpecFolders(root: string) {
   const directory = specsDirectory(root);
-  let entries;
+  let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(directory, {
       withFileTypes: true,
@@ -432,7 +536,13 @@ export function listSpecFolders(root) {
     .sort();
 }
 
-function diagnostic(code, file, line, message, extra = {}) {
+function diagnostic(
+  code: string,
+  file: string,
+  line: number,
+  message: string,
+  extra: { taskId?: string | null; ref?: string; [key: string]: unknown } = {},
+): SpecDiagnostic {
   return {
     id: `${code}:${file}:${line}:${extra.taskId || ""}${extra.ref ? `:${extra.ref}` : ""}`,
     code,
@@ -448,9 +558,9 @@ function diagnostic(code, file, line, message, extra = {}) {
 // Checklist items outside code fences, with their tasks.md line. An item
 // indented under another is its child, as Kiro nests sub-tasks: `parent` is
 // the nearest item above it with less indent, or null.
-export function specItems(name, text) {
-  const items = [],
-    open = [];
+export function specItems(name: string, text: string): SpecItem[] {
+  const items: SpecItem[] = [],
+    open: { indent: number; item: Omit<SpecItem, "mark" | "parent"> }[] = [];
   let fenced = false;
   text.split("\n").forEach((raw, index) => {
     if (FENCE.test(raw)) fenced = !fenced;
@@ -467,15 +577,21 @@ export function specItems(name, text) {
         ? [quoted[1], quoted[2]]
         : text.split(/\s+/),
       line = index + 1,
-      { title, tagBeforeRefs, ...refs } = splitRefs(rest.join(" ")),
-      indent = /^\s*/.exec(raw)[0].length;
-    while (open.length && open.at(-1).indent >= indent) open.pop();
-    const parent = open.at(-1)?.item ?? null,
+      {
+        title,
+        tagBeforeRefs,
+        ...refs
+      }: ReturnType<typeof splitRefs> & {
+        tagBeforeRefs?: boolean;
+      } = splitRefs(rest.join(" ")),
+      indent = (/^\s*/.exec(raw)?.[0] ?? "").length;
+    while (open.length && open[open.length - 1].indent >= indent) open.pop();
+    const parent = open[open.length - 1]?.item ?? null,
       marks = {
         ...(quoted ? {} : { bareId: true }),
         ...(tagBeforeRefs ? { tagBeforeRefs } : {}),
       };
-    let item;
+    let item: Omit<SpecItem, "mark" | "parent">;
     if (NUMBERED.test(token) || LETTERED.test(token)) {
       const key = token.replace(/\.$/, "");
       item = { key, id: `${name}.${key}`, title, refs, line, ...marks };
@@ -493,11 +609,11 @@ export function specItems(name, text) {
 // text is the phase title; its slug is the ID, made unique within the plan
 // with a -2, -3 suffix. Returns line -> { id, title }; a line under no such
 // heading is absent (No phase).
-export function headingPhases(text) {
-  const byLine = new Map(),
-    used = new Map();
+export function headingPhases(text: string) {
+  const byLine = new Map<number | undefined, { id: string; title: string }>(),
+    used = new Map<string, number>();
   let fenced = false,
-    current = null;
+    current: { id: string; title: string } | null = null;
   withoutFrontMatter(text)
     .split("\n")
     .forEach((raw, index) => {
@@ -530,14 +646,17 @@ export function headingPhases(text) {
 // Approval reads these for tasks it creates (plans.mjs); a tick on the base
 // branch completes an existing task (spec-ticks.mjs). [~] and [-] are Kiro's
 // queued and running marks and stay planned.
-export function checkedItems(name, text) {
+export function checkedItems(name: string, text: string) {
   const lines = text.split("\n"),
     items = specItems(name, text),
     starts = new Set(items.map((item) => item.line)),
-    checked = new Map();
+    checked = new Map<
+      string | null,
+      { key: string; line: number; built: string | null }
+    >();
   for (const item of items) {
     if (!item.key || item.mark !== "x") continue;
-    let built = null;
+    let built: string | null = null;
     for (let at = item.line; at < lines.length; at++) {
       if (starts.has(at + 1) || FENCE.test(lines[at])) break;
       const match = BUILT.exec(lines[at].replace(/\r$/, ""));
@@ -553,8 +672,8 @@ export function checkedItems(name, text) {
 
 // The clauses under bugfix.md's "Unchanged Behavior" heading, Kiro's
 // regression-prevention list, without their numbering or list markers.
-function unchangedClauses(text) {
-  const clauses = [];
+function unchangedClauses(text: string) {
+  const clauses: string[] = [];
   let inside = false,
     fenced = false;
   for (const raw of withoutFrontMatter(text).split("\n")) {
@@ -587,9 +706,9 @@ export function parseSpec({
   // linkedReader (order.mjs): the other specs, so a spec group reaches into
   // the spec it links. Without it a parse reads this spec alone.
   linked = null,
-}) {
-  const diagnostics = [],
-    proposals = [];
+}: SpecFolder & { linked?: LinkedReader | null }): Parsed {
+  const diagnostics: SpecDiagnostic[] = [],
+    proposals: Proposal[] = [];
   if (!exists) {
     diagnostics.push(
       diagnostic(
@@ -643,7 +762,7 @@ export function parseSpec({
       diagnostic(
         "spec.tasks-twice",
         holders[1],
-        tasksSection(files[holders[1]]).start,
+        tasksSection(files[holders[1]])?.start ?? 1,
         `${holders.join(" and ")} both hold a task list. Keep the tasks in one file: tasks.md, or one file's ## Tasks section.`,
       ),
     );
@@ -670,7 +789,7 @@ export function parseSpec({
     );
 
   const items = specItems(name, tasksText),
-    byKey = new Map();
+    byKey = new Map<string, SpecItem>();
   for (const item of items) {
     if (!item.key) {
       // A tick completes the task it names (spec-ticks.mjs): with no ID it
@@ -732,8 +851,12 @@ export function parseSpec({
     bullets = itemBullets(tasksText, items),
     manifest = facts.manifest,
     entries = manifest.tasks,
-    problem = (code, line, message, extra) =>
-      diagnostics.push(diagnostic(code, tasksFile, line, message, extra));
+    problem = (
+      code: string,
+      line: number,
+      message: string,
+      extra?: Record<string, unknown>,
+    ) => diagnostics.push(diagnostic(code, tasksFile, line, message, extra));
   for (const found of facts.problems)
     problem(found.code, found.line, found.message);
   // An integration branch (RC16.1); a spec without it is as before.
@@ -747,7 +870,7 @@ export function parseSpec({
           ? "integrationSync"
           : "integrationBranch",
       ),
-      error.message,
+      (error as Error).message,
     );
   }
   // A spec with no bugfix.md is a feature spec.
@@ -763,10 +886,10 @@ export function parseSpec({
           "An epic folder states its goal in requirements.md. Remove bugfix.md.",
         ),
       );
-    const members = [],
-      named = new Map();
-    for (const item of byKey.values()) {
-      const entry = entries[item.key];
+    const members: Member[] = [],
+      named = new Map<string, string>();
+    for (const [key, item] of byKey) {
+      const entry = entries[key];
       if (entry === undefined) {
         diagnostics.push(
           diagnostic(
@@ -806,7 +929,10 @@ export function parseSpec({
         continue;
       }
       // A row's lifecycle step (R59.1); a row without one is implement.
-      if (entry.step !== undefined && !EPIC_STEPS.includes(entry.step)) {
+      if (
+        entry.step !== undefined &&
+        (typeof entry.step !== "string" || !EPIC_STEPS.includes(entry.step))
+      ) {
         diagnostics.push(
           diagnostic(
             "facts.schema",
@@ -832,9 +958,9 @@ export function parseSpec({
         );
         continue;
       }
-      named.set(pair, item.key);
+      named.set(pair, key);
       members.push({
-        key: item.key,
+        key,
         plan: entry.plan,
         step,
         summary: (bullets.get(item.line) ?? [])
@@ -851,20 +977,20 @@ export function parseSpec({
   // (design §6.8), so a regression fails the leaf, not only Kiro's tests.
   const unchanged =
     bugfix && !feature ? unchangedClauses(files["bugfix.md"]) : [];
-  for (const item of byKey.values()) {
-    const entry = entries[item.key];
+  for (const [key, item] of byKey) {
+    const entry = entries[key];
     if (!item.title) continue;
     const line = facts.lineOf(item.key);
     // A nested item is a child of the item above it (R13.7), which is a
     // package because it has sub-items.
     const parentKey = item.parent?.key;
-    const local = (reference) => byKey.get(reference)?.id ?? reference;
+    const local = (reference: string) => byKey.get(reference)?.id ?? reference;
     try {
       // The item's whole line is its title. One over the limit is refused;
       // its cut form only keeps the other checks from failing on it.
       // The item's description bullets are its summary.
       let own = bullets.get(item.line) ?? [];
-      const rest = structuredClone(entry);
+      const rest: Record<string, unknown> = structuredClone(entry);
       // A leaf's plain bullets are its results, one each (§D20).
       if (rest.kind === "leaf") {
         if (!own.length) {
@@ -935,7 +1061,7 @@ export function parseSpec({
             { taskId: item.id },
           ),
         );
-      const proposal = validateProposal(fields);
+      const proposal = validateProposal(fields) as Proposal;
       if (proposal.requires) proposal.requires = proposal.requires.map(local);
       if (unchanged.length && proposal.kind !== "package")
         proposal.acceptance = [
@@ -944,11 +1070,11 @@ export function parseSpec({
       // Its phase: the heading above it, else No phase (Requirement 59.5).
       proposals.push({
         ...proposal,
-        id: item.id,
         specKey: item.key,
         phase: headings.get(item.line) ?? null,
-        ...(parentKey ? { parent: item.parent.id } : {}),
-        ...(item.resolvedRefs.length ? { refs: item.resolvedRefs } : {}),
+        id: String(item.id),
+        ...(parentKey ? { parent: item.parent?.id } : {}),
+        ...(item.resolvedRefs?.length ? { refs: item.resolvedRefs } : {}),
         lineStart: item.line,
         lineEnd: item.line,
       });
@@ -958,7 +1084,7 @@ export function parseSpec({
           "facts.schema",
           tasksFile,
           line,
-          `Task "${item.key}": ${error.message}`,
+          `Task "${item.key}": ${(error as Error).message}`,
           { taskId: item.id },
         ),
       );
@@ -967,7 +1093,7 @@ export function parseSpec({
   // Order from the list (simplify §D19): waitsOf gives every wait. A
   // repeated ID is refused above, and would only wait on itself here.
   if (!diagnostics.some((d) => d.code === "task.duplicate-id")) {
-    const waits = new Map();
+    const waits = new Map<string, string[]>();
     for (const { from, to } of waitsOf(name, tasksText, linked))
       waits.set(to, [...(waits.get(to) ?? []), from]);
     for (const proposal of proposals)
@@ -982,17 +1108,23 @@ export function parseSpec({
       ...(linked || !items.some((item) => item.spec)
         ? graphBlockProblems(name, tasksText, linked)
         : []),
-    ].map((found) =>
-      diagnostic(found.code, tasksFile, found.line, found.message, {
-        taskId: found.taskId,
-      }),
+    ].map(
+      (found: {
+        code: string;
+        line: number;
+        message: string;
+        taskId?: string | null;
+      }) =>
+        diagnostic(found.code, tasksFile, found.line, found.message, {
+          taskId: found.taskId,
+        }),
     ),
   );
   return { type, kind: "plan", items, diagnostics, proposals };
 }
 
 // The front-matter block of a tasks.md, or "".
-const frontBlock = (text) =>
+const frontBlock = (text: string) =>
   /^\uFEFF?---[ \t]*\n([\s\S]*?)\n(?:---|\.\.\.)[ \t]*(?:\n|$)/.exec(
     text,
   )?.[1] ?? "";
@@ -1012,15 +1144,23 @@ export function lintSpec({
   namespace = null,
   declaredTasks = [],
 }: {
-  spec: { files: Record<string, unknown>; [key: string]: unknown };
-  plan?: Record<string, unknown>;
-  data?: Record<string, unknown>;
-  approved?: unknown;
+  spec: SpecFolder;
+  plan?: { id?: string; [key: string]: unknown };
+  data?: {
+    tasks?: { id: string; planId?: unknown; [key: string]: unknown }[];
+    repositories?: { id: string; [key: string]: unknown }[];
+    [key: string]: unknown;
+  };
+  approved?: { files?: Record<string, string> } | null;
   retitled?: string[];
-  namespace?: unknown;
-  declaredTasks?: unknown[];
+  namespace?: ((name: string) => SpecFolder | null) | null;
+  declaredTasks?: Proposal[];
 }) {
-  const data = { tasks: [], ...given },
+  const data = { tasks: [], ...given } as {
+      tasks: { id: string; planId?: unknown; [key: string]: unknown }[];
+      repositories?: { id: string; [key: string]: unknown }[];
+      [key: string]: unknown;
+    },
     parsed = parseSpec(spec),
     tasksFile = taskFile(spec.files),
     graph =
@@ -1028,7 +1168,7 @@ export function lintSpec({
         ? { diagnostics: [] }
         : lintPlan({
             plan,
-            data,
+            data: data as Parameters<typeof lintPlan>[0]["data"],
             proposals: parsed.proposals,
             declaredTasks,
           }),
@@ -1067,7 +1207,7 @@ export function lintSpec({
         diagnostic(
           "task.duplicate-id",
           tasksFile,
-          proposal.lineStart,
+          proposal.lineStart ?? 1,
           `Task ID "${proposal.id}" is already used by plan ${owner.planId}.`,
           { taskId: proposal.id },
         ),
@@ -1088,7 +1228,7 @@ export function lintSpec({
         title !== undefined &&
         title !== item.title &&
         !allowed.has(item.key) &&
-        !allowed.has(item.id)
+        !allowed.has(String(item.id))
       )
         diagnostics.push(
           diagnostic(
@@ -1101,7 +1241,7 @@ export function lintSpec({
         );
     }
   }
-  const counts = { error: 0, warning: 0, info: 0 };
+  const counts: Record<string, number> = { error: 0, warning: 0, info: 0 };
   for (const item of diagnostics) counts[item.severity]++;
   return {
     canApprove: counts.error === 0,
@@ -1112,7 +1252,7 @@ export function lintSpec({
     epic: specEpic(spec.files),
     ...(parsed.kind === "epic"
       ? {
-          members: parsed.members.map(
+          members: (parsed.members ?? []).map(
             ({ key, plan, step, summary, title }) => ({
               key,
               plan,
@@ -1130,34 +1270,34 @@ export function lintSpec({
 
 // The facts of a folder's tasks.md, keyed as the manifest was: {tasks,
 // integrationBranch, ...}. Diagnostics are lintSpec's.
-export function specFacts(files = {}) {
+export function specFacts(files: Record<string, string> = {}) {
   const text = specTasks(files)?.text ?? "";
   return readFacts(text, specItems("x", text)).manifest;
 }
 
 // Whether a folder's tasks.md front-matter says `kind: epic` (Requirement
 // 59.1, 111.4).
-export function isEpicFolder(files = {}) {
+export function isEpicFolder(files: Record<string, string> = {}) {
   const text = specTasks(files)?.text;
   return typeof text === "string" && readFacts(text, []).isEpic;
 }
 
 // The epic a plan's front-matter names, or null (Requirement 59.2).
-export function specEpic(files = {}) {
+export function specEpic(files: Record<string, string | undefined> = {}) {
   return frontMatter(files["requirements.md"] ?? files["bugfix.md"]).epic;
 }
 
 // The epic's member plans, by spec folder name, in its tasks.md order. A
 // plan with rows for several steps is one member.
-export function epicMembers(files = {}) {
+export function epicMembers(files: Record<string, string> = {}) {
   return [...new Set(epicRowsOf(files).map((member) => member.plan))];
 }
 
 // The epic's rows, in its tasks.md order: {key, plan, step, summary, title}.
-export function epicRowsOf(files = {}) {
+export function epicRowsOf(files: Record<string, string> = {}) {
   const parsed = parseSpec({ name: "epic", exists: true, files });
   return parsed.kind === "epic"
-    ? parsed.members.map(({ key, plan, step, summary, title }) => ({
+    ? (parsed.members ?? []).map(({ key, plan, step, summary, title }) => ({
         key,
         plan,
         step,
@@ -1171,8 +1311,12 @@ export function epicRowsOf(files = {}) {
 // spec folder of the mode's roots, or null. An epic's entry the member does
 // not confirm is an error on the epic; a plan's epic: the epic does not list
 // is a warning on the plan.
-function epicDiagnostics(spec, parsed, namespace) {
-  const read = (name) => {
+function epicDiagnostics(
+  spec: SpecFolder,
+  parsed: Parsed,
+  namespace: (name: string) => SpecFolder | null,
+) {
+  const read = (name: string) => {
       try {
         const folder = namespace(name);
         return folder?.exists ? folder : null;
@@ -1180,10 +1324,10 @@ function epicDiagnostics(spec, parsed, namespace) {
         return null;
       }
     },
-    out = [],
+    out: SpecDiagnostic[] = [],
     tasksFile = taskFile(spec.files);
   if (parsed.kind === "epic") {
-    for (const member of parsed.members) {
+    for (const member of parsed.members ?? []) {
       const folder = member.plan === spec.name ? spec : read(member.plan);
       if (!folder)
         out.push(
@@ -1252,13 +1396,21 @@ function epicDiagnostics(spec, parsed, namespace) {
 
 // The critique file: a `Reviewed: <folder> <hash>` line, then one fenced
 // `finding` JSON block per finding.
-export function readCritique(text, hash) {
+export function readCritique(
+  text: string | null | undefined,
+  hash: string | null | undefined,
+) {
   if (text === null || text === undefined) return null;
   const reviewedHash =
       /^Reviewed:.*?\b([0-9a-f]{64})\b/m.exec(text)?.[1] || null,
-    findings = [];
+    findings: {
+      kind: string;
+      task: string | null;
+      text: string;
+      line: number;
+    }[] = [];
   const blocks = /^```finding\s*\r?\n([\s\S]*?)^```\s*$/gm;
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = blocks.exec(text))) {
     const line = text.slice(0, match.index).split("\n").length;
     try {
@@ -1287,11 +1439,14 @@ export function readCritique(text, hash) {
 
 // The category written in the spec's front-matter, or null. Avoozl reads it
 // and never writes it, and never guesses one (Requirement 30.9).
-export function specCategory(files = {}) {
+export function specCategory(files: Record<string, string | undefined> = {}) {
   return frontMatter(files["requirements.md"] ?? files["bugfix.md"]).category;
 }
 
-export function specTitle(spec) {
+export function specTitle(spec: {
+  name: string;
+  files: Record<string, string>;
+}) {
   const prose =
     spec.files["requirements.md"] ??
     spec.files["bugfix.md"] ??
@@ -1305,13 +1460,21 @@ export function specTitle(spec) {
   );
 }
 
-function requireFolder(spec) {
+function requireFolder(spec: SpecFolder) {
   if (!spec.exists) fail(`Spec folder ${spec.folder} does not exist.`, 404);
 }
 
 // Store one revision of a folder as a draft plan. The plan ID defaults to the
 // folder name, which is also the namespace of its numbered task IDs.
-export function createSpecPlan(store, { id, prompt, context = {} }, spec) {
+export function createSpecPlan(
+  store: Store,
+  {
+    id,
+    prompt,
+    context = {},
+  }: { id?: string; prompt?: unknown; context?: unknown },
+  spec: SpecFolder,
+) {
   requireFolder(spec);
   id ??= spec.name;
   if (
@@ -1320,21 +1483,22 @@ export function createSpecPlan(store, { id, prompt, context = {} }, spec) {
   )
     fail("Describe the plan in at most 20000 characters.");
   return store.transaction(() => {
-    const previous = store.get("plans", id);
+    const previous = store.get<PlanRow>("plans", id);
     if (previous) {
       if (previous.spec === spec.name) return previous;
       fail("Plan ID already exists.", 409);
     }
     const now = new Date().toISOString(),
-      plan = {
-        id,
+      plan: PlanRow = {
+        id: String(id),
         kind: "plan",
         spec: spec.name,
         title: specTitle(spec),
-        prompt: prompt?.trim() || `Spec ${spec.name}`,
+        prompt:
+          (typeof prompt === "string" && prompt.trim()) || `Spec ${spec.name}`,
         text: specTasks(spec.files)?.text ?? "",
         files: spec.files,
-        hash: spec.hash,
+        hash: String(spec.hash),
         revision: 1,
         state: "draft",
         context,
@@ -1350,11 +1514,15 @@ export function createSpecPlan(store, { id, prompt, context = {} }, spec) {
 
 // Reload the folder from disk as the next revision. An unchanged folder
 // writes nothing.
-export function saveSpecPlan(store, { id, expectedHash }, spec) {
+export function saveSpecPlan(
+  store: Store,
+  { id, expectedHash }: { id: string; expectedHash?: unknown },
+  spec: SpecFolder,
+) {
   requireFolder(spec);
   return store.transaction(() => {
-    const plan = store.get("plans", id);
-    if (!plan || plan.deletedAt) fail("Plan not found.", 404);
+    const plan = store.get<PlanRow>("plans", id);
+    if (!plan || plan.deletedAt) return fail("Plan not found.", 404);
     if (plan.hash !== expectedHash)
       fail("This draft changed. Reload before saving.", 409);
     if (spec.hash === plan.hash) return plan;
@@ -1364,7 +1532,7 @@ export function saveSpecPlan(store, { id, expectedHash }, spec) {
       specTasks(spec.files)?.text ?? "",
       "Review amended spec: ",
       {
-        hash: spec.hash,
+        hash: String(spec.hash),
         files: spec.files,
         title: specTitle(spec),
       },
@@ -1372,7 +1540,7 @@ export function saveSpecPlan(store, { id, expectedHash }, spec) {
   });
 }
 
-function writeAtomically(target, text) {
+function writeAtomically(target: string, text: string) {
   const temporary = `${target}.${randomUUID()}.tmp`;
   fs.writeFileSync(temporary, text);
   fs.renameSync(temporary, target);
@@ -1381,12 +1549,26 @@ function writeAtomically(target, text) {
 // Adjacent work found while implementing: one new tasks.md item and its
 // Facts bullet, then the folder is stored as the next draft revision. This
 // is a proposal: nothing is approved or dispatched.
-export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
+export function proposeSpecWork(
+  store: Store,
+  {
+    id,
+    proposal,
+    expectedHash,
+  }: { id: string; proposal?: unknown; expectedHash?: unknown },
+  read: (name: string) => SpecFolder,
+) {
   if (!proposal || typeof proposal !== "object" || Array.isArray(proposal))
-    fail("Describe one proposed task as a JSON object.");
+    return fail("Describe one proposed task as a JSON object.");
   // Its summary goes under the item as bullets.
   // A task never names checks; an older caller's list is ignored.
-  const { id: given, title, summary, checks: _checks, ...entry } = proposal;
+  const {
+    id: given,
+    title,
+    summary,
+    checks: _checks,
+    ...entry
+  } = proposal as Record<string, unknown>;
   if (
     typeof given !== "string" ||
     !(NAMED.test(given) || NUMBERED.test(given) || LETTERED.test(given))
@@ -1399,11 +1581,11 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
     fail("Each task needs a title of 1–240 characters on one line.");
   validateProposal({ ...structuredClone(entry), title, summary });
   return store.transaction(() => {
-    const plan = store.get("plans", id);
-    if (!plan || plan.deletedAt) fail("Plan not found.", 404);
+    const plan = store.get<PlanRow>("plans", id);
+    if (!plan || plan.deletedAt) return fail("Plan not found.", 404);
     if (expectedHash !== undefined && plan.hash !== expectedHash)
       fail("This plan changed. Reload before proposing work.", 409);
-    const spec = read(plan.spec);
+    const spec = read(String(plan.spec));
     requireFolder(spec);
     if (spec.hash !== plan.hash)
       fail(
@@ -1412,16 +1594,26 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
       );
     const found = specTasks(spec.files);
     if (!found)
-      fail("Add tasks.md or a ## Tasks section before proposing work.", 409);
+      return fail(
+        "Add tasks.md or a ## Tasks section before proposing work.",
+        409,
+      );
     const { file } = found,
       tasks = spec.files[file];
-    if (specItems(plan.spec, found.text).some((item) => item.key === key))
+    if (
+      specItems(String(plan.spec), found.text).some((item) => item.key === key)
+    )
       fail("Repeated local task ID " + key);
-    const directory = path.join(specsDirectory(spec.root), plan.spec),
+    const directory = path.join(
+        specsDirectory(String(spec.root)),
+        String(plan.spec),
+      ),
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
     // A leaf's results are its plain bullets (simplify §D20); a summary has
     // no place in the list form.
-    const facts = (entry.acceptance ?? []).map((result) => `  - ${result}`);
+    const facts = ((entry.acceptance as string[] | undefined) ?? []).map(
+      (result) => `  - ${result}`,
+    );
     if (!facts.length) fail("A proposed task needs at least one result.");
     writeAtomically(
       path.join(directory, file),
@@ -1435,14 +1627,14 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
         eol,
       ),
     );
-    const next = read(plan.spec),
+    const next = read(String(plan.spec)),
       written = writeRevision(
         store,
         plan,
         specTasks(next.files)?.text ?? "",
         "Review proposed work: ",
         {
-          hash: next.hash,
+          hash: String(next.hash),
           files: next.files,
           title: specTitle(next),
         },
@@ -1450,8 +1642,10 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
     return {
       ...written,
       proposalId: key,
-      proposalCount: specItems(plan.spec, specTasks(next.files)?.text ?? "")
-        .length,
+      proposalCount: specItems(
+        String(plan.spec),
+        specTasks(next.files)?.text ?? "",
+      ).length,
       approved: false,
       policy:
         "Proposed work is not executable. This spec no longer matches its approval receipt and its tasks need review; an authorized plan.approve converts this proposal alongside the existing ones.",
