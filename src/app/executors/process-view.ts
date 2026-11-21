@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What In flight shows for a `process` session (R98.1, design §4.28): the
 // supervisor's status, the tail of the child's log, its cost when the
 // harness definition says where to read it, and an attach command a person
@@ -23,8 +22,28 @@ const TAIL_CHARS = 2000;
 // between its cost lines undercounts. Read the whole file if one does.
 const COST_BYTES = 1024 * 1024;
 
-function readTail(file, bytes) {
-  let fd;
+// A supervisor `children` row, as far as this view reads it.
+interface ChildRow {
+  harness: string;
+  state: string;
+  exit_code?: number | null;
+  runs?: number;
+  log_file?: string | null;
+  worktree: string;
+  session_id: string;
+  placeholder_values?: string | null;
+  settings?: string | null;
+}
+
+// A harness definition, as far as this view reads it.
+interface Definition {
+  cost?: { from?: string; path?: string; field: string; per?: string };
+  attach?: string[];
+  home?: string;
+}
+
+function readTail(file: string, bytes: number) {
+  let fd: number | undefined;
   try {
     fd = fs.openSync(file, "r");
     const size = fs.fstatSync(fd).size;
@@ -42,7 +61,7 @@ function readTail(file, bytes) {
 }
 
 // Terminal escapes and control characters off, tabs and newlines kept.
-const plain = (text) =>
+const plain = (text: string) =>
   text
     .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "")
     .replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, "")
@@ -51,7 +70,7 @@ const plain = (text) =>
 
 // The last lines of a log, at most TAIL_LINES lines and TAIL_CHARS
 // characters, or null when the file cannot be read.
-export function logTail(file) {
+export function logTail(file: string | null | undefined) {
   if (!file) return null;
   const text = readTail(file, TAIL_BYTES);
   if (text === null) return null;
@@ -65,7 +84,7 @@ export function logTail(file) {
 // over the session's runs, or with `per: "session"` the last one, since that
 // CLI reports the session's running total. `file`: the named file holds a
 // JSON number.
-function sessionCost(row, definition) {
+function sessionCost(row: ChildRow, definition: Definition | null) {
   const cost = definition?.cost;
   if (!cost) return null;
   if (cost.from === "file") {
@@ -80,7 +99,7 @@ function sessionCost(row, definition) {
   }
   const text = row.log_file ? readTail(row.log_file, COST_BYTES) : null;
   if (!text) return null;
-  let total = null;
+  let total: number | null = null;
   for (const line of text.split("\n")) {
     const start = line.indexOf("{");
     if (start < 0 || !line.includes(cost.field)) continue;
@@ -96,7 +115,7 @@ function sessionCost(row, definition) {
   return total;
 }
 
-const placeholderValues = (row) => ({
+const placeholderValues = (row: ChildRow) => ({
   ...JSON.parse(row.placeholder_values || "{}"),
   worktree: row.worktree,
   session: row.session_id,
@@ -105,7 +124,7 @@ const placeholderValues = (row) => ({
 
 // One argument quoted for the person's shell: POSIX single quotes, or
 // PowerShell's on Windows. Plain words stay as they are.
-export function shellQuote(value, platform = process.platform) {
+export function shellQuote(value: string, platform = process.platform) {
   if (/^[A-Za-z0-9_./:=@+,-]+$/.test(value)) return value;
   return platform === "win32"
     ? `'${value.replace(/'/g, "''")}'`
@@ -114,8 +133,12 @@ export function shellQuote(value, platform = process.platform) {
 
 // The command a person runs to join the session: the definition's `attach`
 // argv in the worktree, else a follow of the child's log.
-export function attachCommand(row, definition, platform = process.platform) {
-  const quote = (list) =>
+export function attachCommand(
+  row: ChildRow,
+  definition: Definition | null,
+  platform = process.platform,
+) {
+  const quote = (list: string[]) =>
     list.map((item) => shellQuote(item, platform)).join(" ");
   if (definition?.attach) {
     try {
@@ -144,10 +167,18 @@ export function attachCommand(row, definition, platform = process.platform) {
 // session the supervisor has no record of is left out; an unreadable
 // database gives an empty map, so the view still loads.
 export function processSessionDetails(
-  slots,
-  { stateDirectory, configDirectory, platform = process.platform },
+  slots: string[],
+  {
+    stateDirectory,
+    configDirectory,
+    platform = process.platform,
+  }: {
+    stateDirectory: string;
+    configDirectory: string;
+    platform?: NodeJS.Platform;
+  },
 ) {
-  const details = new Map();
+  const details = new Map<string, Record<string, unknown>>();
   if (!slots.length) return details;
   // No supervisor has run here: nothing to read, and nothing is created.
   if (!fs.existsSync(supervisorPaths(stateDirectory).database)) return details;
@@ -157,20 +188,23 @@ export function processSessionDetails(
   } catch {
     return details;
   }
-  const definitions = new Map();
-  const definitionOf = (name) => {
+  const definitions = new Map<string, Definition | null>();
+  const definitionOf = (name: string) => {
     if (!definitions.has(name))
       try {
-        definitions.set(name, loadHarnessDefinition({ configDirectory, name }));
+        definitions.set(
+          name,
+          loadHarnessDefinition({ configDirectory, name }) as Definition,
+        );
       } catch {
         // Unapproved or missing: no cost, and attach follows the log.
         definitions.set(name, null);
       }
-    return definitions.get(name);
+    return definitions.get(name) ?? null;
   };
   try {
     for (const slot of slots) {
-      const row = childRecord(db, slot);
+      const row: ChildRow | null = childRecord(db, slot);
       if (!row) continue;
       const definition = definitionOf(row.harness);
       details.set(slot, {

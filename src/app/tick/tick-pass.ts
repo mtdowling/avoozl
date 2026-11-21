@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // One tick pass of this machine (machine-server MS1, design D2): what
 // `avoozl tick` runs each time a timer, the Kiro Crew cron or a driver chat
 // calls it, and then exits. For every enabled workspace in the machine
@@ -25,10 +24,20 @@ import { openSupervisor } from "../executors/supervisor.ts";
 import { hostPage } from "../executors/page-child.ts";
 import { needsKirocrewStep } from "./needs-kirocrew.ts";
 import { blockedHarnesses, needsHarnessStep } from "./needs-harness.ts";
+import type { Sink } from "./notifications.ts";
+
+// The machine's folders a pass reads.
+interface PassPaths {
+  stateDirectory: string;
+  configDirectory: string;
+}
 
 // The enabled workspace roots in the machine catalog, synced from the
 // machine config first so a hand edit counts.
-function catalogTickRoots({ stateDirectory, configDirectory }) {
+function catalogTickRoots({
+  stateDirectory,
+  configDirectory,
+}: PassPaths): string[] {
   const registry = new WorkspaceRegistry({
     configPath: path.join(path.resolve(configDirectory), "config.json"),
     catalogPath: path.join(path.resolve(stateDirectory), "catalog.sqlite"),
@@ -36,8 +45,8 @@ function catalogTickRoots({ stateDirectory, configDirectory }) {
   try {
     return registry
       .list()
-      .filter((workspace) => workspace.enabled)
-      .map((workspace) => workspace.root);
+      .filter((workspace: { enabled?: boolean }) => workspace.enabled)
+      .map((workspace: { root: string }) => workspace.root);
   } finally {
     registry.close();
   }
@@ -47,8 +56,12 @@ function catalogTickRoots({ stateDirectory, configDirectory }) {
 // `sinks` is [{id, push}] (notifications.mjs deliverToSinks); with none, the
 // notifications wait and `avoozl status` counts them.
 export async function tickWorkspace(
-  root,
-  { stateDirectory, configDirectory, sinks = [] },
+  root: string,
+  {
+    stateDirectory,
+    configDirectory,
+    sinks = [],
+  }: PassPaths & { sinks?: Sink[] },
 ) {
   const target = workspaceConfig({
     workspace: root,
@@ -70,7 +83,7 @@ export async function tickWorkspace(
       skipped: `Another tick (pid ${loop.holder?.pid ?? "unknown"}) runs this workspace's pass.`,
     };
   const store = new Store(target.dbPath);
-  let ops = null;
+  let ops: Operations | null = null;
   try {
     if (!store.initialized())
       return { root, skipped: "The workspace is not initialized." };
@@ -81,7 +94,10 @@ export async function tickWorkspace(
       configDirectory,
       notifier: sinks,
     });
-    const tick = await ops.execute("workspace.tick", { cron: true });
+    const tick = await ops.execute<{ skipped?: string } | null>(
+      "workspace.tick",
+      { cron: true },
+    );
     // A harness that cannot start here holds its starts and opens one item.
     const blocked = blockedHarnesses(configDirectory);
     needsHarnessStep(store, blocked);
@@ -96,11 +112,11 @@ export async function tickWorkspace(
     needsKirocrewStep(store);
     // The same delivery the app backend runs. A sink's failure is recorded
     // on the sink and never fails the tick.
-    let notifications;
+    let notifications: unknown;
     try {
       notifications = await ops.execute("notifications.deliver", {});
     } catch (error) {
-      errors.push({ id: "notifications", error: error.message });
+      errors.push({ id: "notifications", error: (error as Error).message });
     }
     return {
       root,
@@ -120,9 +136,9 @@ export async function tickWorkspace(
 // This machine's sinks, from `notifications.sinks` in the machine file
 // (NK7.2). A bad value sends nothing and says why. With the standalone page
 // on a fixed port, each link opens that page (direct-links D3).
-export function machineSinks(file) {
+export function machineSinks(file?: string) {
   const { value } = machineFile(file),
-    serve = value.serve,
+    serve = value.serve as { enabled?: unknown; port?: unknown } | undefined,
     pageUrl =
       serve?.enabled === true && Number.isInteger(serve.port)
         ? `http://127.0.0.1:${serve.port}/apps/avoozl`
@@ -134,8 +150,10 @@ export function machineSinks(file) {
 
 // Every enabled workspace in turn, or `paths.roots`; one failure never stops
 // the rest.
-async function tickCatalog(paths) {
-  const results = [];
+async function tickCatalog(
+  paths: PassPaths & { roots?: string[]; sinks?: Sink[] },
+) {
+  const results: PassResult[] = [];
   let sinks = paths.sinks;
   if (!sinks)
     try {
@@ -146,13 +164,13 @@ async function tickCatalog(paths) {
       );
     } catch (error) {
       sinks = [];
-      results.push({ notifications: error.message });
+      results.push({ notifications: (error as Error).message });
     }
   for (const root of paths.roots ?? catalogTickRoots(paths))
     try {
       results.push(await tickWorkspace(root, { ...paths, sinks }));
     } catch (error) {
-      results.push({ root, error: error.message });
+      results.push({ root, error: (error as Error).message });
     }
   return results;
 }
@@ -184,13 +202,15 @@ export async function runPass({
     supervisor.pass();
     const results = (
       await tickCatalog({ stateDirectory, configDirectory, roots })
-    ).map((result) => ({ at: new Date().toISOString(), ...result }));
+    ).map(
+      (result): PassResult => ({ at: new Date().toISOString(), ...result }),
+    );
     const ran = supervisor.pass();
     supervisor.record(results.filter((result) => result.root));
     try {
       hostPage({ stateDirectory, configDirectory, env });
     } catch (error) {
-      results.push({ page: error.message });
+      results.push({ page: (error as Error).message });
     }
     return ran
       ? results

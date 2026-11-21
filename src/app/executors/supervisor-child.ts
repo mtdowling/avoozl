@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The supervisor's wrapper around one agent CLI (R95.1, design §4.28):
 //   node supervisor-child.mjs <exit-file> [--stdin FILE] <program> [args...]
 // It runs the program with no shell, in the supervisor's chosen folder and
@@ -22,27 +21,31 @@ if (!exitFile || !program || input === undefined) {
   process.exit(2);
 }
 
-function finish(code, signal, error) {
+function finish(
+  code: number | null,
+  signal: NodeJS.Signals | null,
+  error?: string,
+): never {
   const value = {
     code: Number.isInteger(code)
       ? code
-      : 128 + (os.constants.signals[signal] ?? 0),
+      : 128 + (signal ? os.constants.signals[signal] : 0),
     signal: signal ?? null,
     ...(error ? { error } : {}),
     at: new Date().toISOString(),
   };
   const temporary = `${exitFile}.${process.pid}.tmp`;
   fs.writeFileSync(temporary, JSON.stringify(value) + "\n");
-  fs.renameSync(temporary, exitFile);
-  process.exit(value.code);
+  fs.renameSync(temporary, exitFile as string);
+  process.exit(value.code as number);
 }
 
-let stdin = "inherit";
+let stdin: "inherit" | number = "inherit";
 if (input)
   try {
     stdin = fs.openSync(input, "r");
   } catch (error) {
-    finish(127, null, `Cannot read ${input}: ${error.message}`);
+    finish(127, null, `Cannot read ${input}: ${(error as Error).message}`);
   }
 const child = spawn(program, args, {
   stdio: [stdin, "inherit", "inherit"],
@@ -64,7 +67,7 @@ child.once("exit", (code, signal) => {
 for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"])
   process.on(signal, () => {
     try {
-      child.kill(signal);
+      child.kill(signal as NodeJS.Signals);
     } catch {
       // Already gone: its exit event writes the file.
     }

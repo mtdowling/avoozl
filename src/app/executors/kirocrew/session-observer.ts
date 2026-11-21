@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Session statuses on a stock Kiro Crew. A script cron there has no
 // ScriptContext.session_status (MC-2), and the kirocrew-dashboard
 // session_status tool refuses cron callers, so the tick gets no roster. The
@@ -19,13 +18,28 @@ import {
   listSessionBindings,
   recordSessionStatus,
 } from "../../sessions/session-bindings.ts";
+import type { SessionBinding } from "../../sessions/session-bindings.ts";
+import type { Store } from "../../store/store.ts";
+
+// A slot read: its status, or {status, served} when the read names the
+// model it served.
+type SlotReading = string | { status: string; served?: unknown };
+
+// One page of a worker's tool rows, and the cursor for the next read.
+interface ToolRows {
+  rows: unknown[];
+  cursor?: unknown;
+}
 
 // sessions.observe: read every live session the tick opened and record what
 // changed. Writes only a changed status. Returns {observed, errors}.
 // shortcut: one read per live session per tick; batch once Kiro Crew offers
 // an app-scoped roster.
-export async function observeSessions(store, read) {
-  const errors = [];
+export async function observeSessions(
+  store: Store,
+  read: (slot: string) => Promise<SlotReading>,
+) {
+  const errors: { slot: string; error: string }[] = [];
   let observed = 0;
   for (const binding of listSessionBindings(store)) {
     // Keep historical relay bindings untouched: this machine cannot read
@@ -36,12 +50,12 @@ export async function observeSessions(store, read) {
     try {
       reading = await read(binding.slot);
     } catch (error) {
-      errors.push({ slot: binding.slot, error: error.message });
+      errors.push({ slot: binding.slot, error: (error as Error).message });
       continue;
     }
     // A stock Kiro Crew names the served model only on the slot read; the
     // writer-model check of a plan review (§4.29) needs it.
-    const { status, served } =
+    const { status, served }: { status: string; served?: unknown } =
       typeof reading === "string" ? { status: reading } : reading;
     recordSessionStatus(
       store,
@@ -57,8 +71,12 @@ export async function observeSessions(store, read) {
 // rows as timing spans, and its provider errors as health marks. Writes only new spans. shortcut: one read per live
 // session per tick, the same bound as the status read; batch it once Kiro
 // Crew offers an app-scoped roster.
-export async function observeToolRows(store, readRows, { checksFor } = {}) {
-  const errors = [];
+export async function observeToolRows(
+  store: Store,
+  readRows: (slot: string, cursor: unknown) => Promise<ToolRows>,
+  { checksFor }: { checksFor?: (binding: SessionBinding) => unknown[] } = {},
+) {
+  const errors: { slot: string; error: string }[] = [];
   let rows = 0;
   for (const binding of listSessionBindings(store)) {
     if (
@@ -79,7 +97,7 @@ export async function observeToolRows(store, readRows, { checksFor } = {}) {
       )
         store.setMeta(key, read.cursor);
     } catch (error) {
-      errors.push({ slot: binding.slot, error: error.message });
+      errors.push({ slot: binding.slot, error: (error as Error).message });
     }
   }
   return { rows, errors };

@@ -106,7 +106,7 @@ export function probeHarness({
   };
   const machineEnv = readMachineEnv(configDirectory);
   const found = findProgram(definition.probe[0], { env, machineEnv });
-  if (found.problem) return finish(false, found.problem);
+  if (found.problem !== undefined) return finish(false, found.problem);
   const home = env.HOME || os.homedir();
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-probe-"));
   let proxyPid: number | undefined;

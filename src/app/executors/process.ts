@@ -583,7 +583,17 @@ export const requestHarness = (store, request) =>
 // for one stays queued, so a failed start is not repeated.
 export async function drainProcessRequests(
   store,
-  { stateDirectory, prepareWorktree, ops = null, blocked = new Map() },
+  {
+    stateDirectory,
+    prepareWorktree,
+    ops = null,
+    blocked = new Map(),
+  }: {
+    stateDirectory: string;
+    prepareWorktree: unknown;
+    ops?: unknown;
+    blocked?: Map<string, string>;
+  },
 ) {
   // Sends, status and stop name only a session; no repository is needed.
   const executor = processExecutor({ stateDirectory });

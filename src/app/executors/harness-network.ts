@@ -21,12 +21,15 @@ type NetworkDefinition = {
 // at the top or under Credentials). A failure names the exit, never output.
 function exportCredentials(
   definition: NetworkDefinition,
-  { env, machineEnv }: { env: NodeJS.ProcessEnv; machineEnv: object },
+  {
+    env,
+    machineEnv,
+  }: { env: NodeJS.ProcessEnv; machineEnv: Record<string, string | undefined> },
 ): Record<string, string> {
   const command = definition.credentialExport;
   if (!command) return {};
   const found = findProgram(command[0], { env, machineEnv });
-  if (found.problem) throw Error(found.problem);
+  if (found.problem !== undefined) throw Error(found.problem);
   const run = spawnSync(found.file, command.slice(1), {
     env: { ...env, ...(found.path ? { PATH: found.path } : {}) },
     encoding: "utf8",
@@ -66,7 +69,7 @@ export function harnessNetwork(
     exitFile,
   }: {
     env: NodeJS.ProcessEnv;
-    machineEnv: object;
+    machineEnv: Record<string, string | undefined>;
     folder: string;
     exitFile: string;
   },
