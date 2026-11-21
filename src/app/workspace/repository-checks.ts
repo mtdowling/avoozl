@@ -172,7 +172,7 @@ export function pluginCheckConflicts(
 // the repository's own commands says so with an empty list.
 export function repositoryChecks(
   repository: CheckedRepository | null | undefined,
-  plugins: PluginCheck[] | null | undefined,
+  plugins?: PluginCheck[] | null,
 ): RepositoryCheck[] {
   return [
     ...ownChecks(repository),

@@ -77,7 +77,12 @@ interface CheckRun {
   name?: string;
   status?: string;
   conclusion?: string | null;
-  output?: { summary?: string; text?: string; title?: string } | null;
+  // GitHub sends null for an output field the check did not fill.
+  output?: {
+    summary?: string | null;
+    text?: string | null;
+    title?: string | null;
+  } | null;
 }
 // One required check's state at a head.
 interface HeadCheck {

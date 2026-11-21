@@ -1,10 +1,9 @@
-// @ts-nocheck: typing debt
 // Plugin update checks for packages and folders, and the pure helpers
 // (Requirement 34.17). The registry is a stand-in fetch: no network.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { addPlugin, approvePlugin, inspectPlugins } from "../plugins.ts";
 import {
   checkPluginUpdates,
@@ -17,6 +16,11 @@ import { Operations } from "../../api/operations.ts";
 import { Store } from "../../store/store.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
+// The plugin folder and settings file a test's machine uses.
+type Options = { workspaceRoot: string; settingsFile: string };
+// A request the stand-in registry saw.
+type Seen = { url: string | URL | Request; init?: RequestInit };
+
 const FAKE_RULES = path.join(
   import.meta.dirname,
   "..",
@@ -27,7 +31,7 @@ const FAKE_RULES = path.join(
   "fake-rules",
 );
 
-function setup(t) {
+function setup(t: TestContext) {
   const root = temporaryDirectory("avoozl-plugin-updates-"),
     workspaceRoot = path.join(root, "workspace"),
     settingsFile = path.join(root, "config", "plugins.json");
@@ -37,13 +41,14 @@ function setup(t) {
   return { root, store, options: { workspaceRoot, settingsFile } };
 }
 
-const approveAll = (options) => {
+const approveAll = (options: Options) => {
   for (const plugin of inspectPlugins(options))
-    approvePlugin(options, { id: plugin.id, hash: plugin.hash });
+    if ("hash" in plugin)
+      approvePlugin(options, { id: plugin.id, hash: plugin.hash });
 };
 
 // A package installed into the machine plugin folder at `version`.
-function installPackage(options, version) {
+function installPackage(options: Options, version: string) {
   const folder = path.join(
     path.dirname(options.settingsFile),
     "plugins",
@@ -61,16 +66,16 @@ function installPackage(options, version) {
   approveAll(options);
 }
 
-const registry = (latest, seen = []) =>
+const registry = (latest: string, seen: Seen[] = []): typeof fetch =>
   async function fetchImpl(url, init) {
     seen.push({ url, init });
-    return { ok: true, status: 200, json: async () => ({ latest }) };
+    return new Response(JSON.stringify({ latest }), { status: 200 });
   };
 
 test("a package check reads only the registry's dist-tags, with no credential", async (t) => {
   const { store, options } = setup(t);
   installPackage(options, "1.0.0");
-  const seen = [];
+  const seen: Seen[] = [];
   const env = { npm_config_registry: "https://registry.example.com/" };
   let done = await checkPluginUpdates(store, options, {
     fetchImpl: registry("1.2.0", seen),
@@ -81,7 +86,7 @@ test("a package check reads only the registry's dist-tags, with no credential", 
     seen[0].url,
     "https://registry.example.com/-/package/fake-rules/dist-tags",
   );
-  assert.deepEqual(Object.keys(seen[0].init.headers), ["accept"]);
+  assert.deepEqual(Object.keys(seen[0].init?.headers ?? {}), ["accept"]);
   assert.equal(updateText(done["fake-rules"]), "1.2.0 (was 1.0.0)");
   assert.match(
     updateNeedsYou(store, options)[0].detail,
@@ -106,14 +111,14 @@ test("a failed or refused registry check shows no Needs you row", async (t) => {
     env: {},
   });
   assert.equal(done["fake-rules"].state, "failed");
-  const seen = [];
+  const seen: Seen[] = [];
   done = await checkPluginUpdates(store, options, {
     force: true,
     fetchImpl: registry("9.0.0", seen),
     env: { npm_config_registry: "https://me:secret@registry.example.com/" },
   });
   assert.equal(done["fake-rules"].state, "failed");
-  assert.match(done["fake-rules"].reason, /carries credentials/);
+  assert.match(done["fake-rules"].reason ?? "", /carries credentials/);
   assert.deepEqual(seen, []);
   assert.deepEqual(updateNeedsYou(store, options), []);
 });
