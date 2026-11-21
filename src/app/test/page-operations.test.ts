@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Every operation the app page can send must be one the dashboard owner may
 // run through the backend, so no page or Settings tab shows "This caller may
 // not run that operation." The list is read from the page source itself: each
@@ -17,8 +16,8 @@ import {
 import { classifyOperation } from "../api/operation-table.ts";
 import { workspaceConfig } from "../settings/config.ts";
 import { initializeWorkspace } from "../workspace/workspace.ts";
+import { isolatedEnv, SECRET, sign } from "./signed-principal.ts";
 import { temporaryDirectory } from "./temporary.ts";
-import { createHash, createHmac, randomBytes } from "node:crypto";
 
 const UI = fileURLToPath(
   new URL("../../../hosts/kirocrew/ui/src", import.meta.url),
@@ -27,38 +26,55 @@ const OPERATION = /^[a-z][a-zA-Z]*(\.[a-zA-Z]+)+$/;
 // Operation-shaped strings in arrays that name files, not operations.
 const NOT_OPERATIONS = /\.md$/;
 
-function strings(node) {
-  if (node?.type === "Literal" && typeof node.value === "string")
+// An ESTree node, read only for the fields this walk names.
+interface AstNode {
+  type?: string;
+  value?: unknown;
+  key?: { name?: string; value?: unknown };
+  arguments?: unknown[];
+  elements?: unknown[];
+  consequent?: unknown;
+  alternate?: unknown;
+}
+
+function strings(value: unknown): string[] {
+  if (!value || typeof value !== "object") return [];
+  const node: AstNode = value;
+  if (node.type === "Literal" && typeof node.value === "string")
     return OPERATION.test(node.value) && !NOT_OPERATIONS.test(node.value)
       ? [node.value]
       : [];
-  if (node?.type === "ConditionalExpression")
+  if (node.type === "ConditionalExpression")
     return [...strings(node.consequent), ...strings(node.alternate)];
   return [];
 }
 
 // Map of operation -> the page files that send it.
 export function pageOperations() {
-  const found = new Map();
-  const add = (file) => (operation) =>
+  const found = new Map<string, string[]>();
+  const add = (file: string) => (operation: string) =>
     found.set(operation, [...(found.get(operation) || []), file]);
-  for (const file of fs.readdirSync(UI, { recursive: true })) {
+  for (const file of fs.readdirSync(UI, {
+    recursive: true,
+    encoding: "utf8",
+  })) {
     if (!/\.tsx?$/.test(file)) continue;
     const text = fs.readFileSync(path.join(UI, file), "utf8");
     const ast = parseAst(text, { lang: file.endsWith(".tsx") ? "tsx" : "ts" });
-    const walk = (node) => {
-      if (!node || typeof node !== "object") return;
-      if (Array.isArray(node)) return node.forEach(walk);
+    const walk = (value: unknown): void => {
+      if (!value || typeof value !== "object") return;
+      if (Array.isArray(value)) return value.forEach(walk);
+      const node: AstNode = value;
       if (node.type === "CallExpression")
-        node.arguments.forEach((arg) => strings(arg).forEach(add(file)));
+        node.arguments?.forEach((arg) => strings(arg).forEach(add(file)));
       if (
         node.type === "Property" &&
         (node.key?.name === "operation" || node.key?.value === "operation")
       )
         strings(node.value).forEach(add(file));
       if (node.type === "ArrayExpression")
-        node.elements.forEach((item) => strings(item).forEach(add(file)));
-      for (const key in node) if (key !== "type") walk(node[key]);
+        node.elements?.forEach((item) => strings(item).forEach(add(file)));
+      for (const child of Object.values(value)) walk(child);
     };
     walk(ast);
   }
@@ -108,55 +124,28 @@ test("app tokens and agent tools still may not run the page's writes", () => {
   }
 });
 
-function sign(body, kind = "owner-session") {
-  const claim = {
-      issuedAt: Math.floor(Date.now() / 1000),
-      kind,
-      ownerId: kind === "owner-session" ? "owner" : "",
-      requestId: randomBytes(16).toString("hex"),
-      version: 1,
-    },
-    encoded = Buffer.from(JSON.stringify(claim)).toString("base64url");
-  const signature = createHmac("sha256", "secret")
-    .update(
-      [
-        "kirocrew-proxy-principal-v1",
-        String(claim.issuedAt),
-        "POST",
-        "/api/command",
-        createHash("sha256").update(body).digest("hex"),
-        encoded,
-      ].join("\n"),
-    )
-    .digest("hex");
-  return `${encoded}.${signature}`;
-}
-
 // A page can be newer than the installed backend. An operation this backend
 // does not offer says so and names the rebuild, instead of blaming the caller.
 test("an operation the backend does not offer names the stale build", async (t) => {
   const root = temporaryDirectory();
   initializeWorkspace(root);
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };
-  for (const name of Object.keys(env))
-    if (/^AVOOZL_/.test(name)) delete env[name];
   const server = startAppBackend({
-    config: workspaceConfig({ workspace: root, env }),
-    secret: "secret",
+    config: workspaceConfig({ workspace: root, env: isolatedEnv(root) }),
+    secret: SECRET,
   });
   t.after(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));
-  const post = async (operation, kind) => {
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const post = async (operation: string, kind?: string) => {
     const body = JSON.stringify({ operation, input: {} });
-    const reply = await fetch(
-      `http://127.0.0.1:${server.address().port}/api/command`,
-      {
-        method: "POST",
-        headers: { "X-KiroCrew-Principal": sign(body, kind) },
-        body,
-      },
-    );
-    return { status: reply.status, ...(await reply.json()) };
+    const reply = await fetch(`http://127.0.0.1:${address.port}/api/command`, {
+      method: "POST",
+      headers: { "X-KiroCrew-Principal": sign(body, kind) },
+      body,
+    });
+    const answer = (await reply.json()) as { error: string };
+    return { status: reply.status, ...answer };
   };
   const unknown = await post("page.someNewView");
   assert.equal(unknown.status, 403);

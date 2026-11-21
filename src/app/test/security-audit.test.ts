@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Fixes from the 2026-11-13 security audit: a caller-named revision never
 // reaches git as an option, repository code never sees the gateway's
 // credentials, and branch settings refuse a leading dash.
@@ -10,12 +9,13 @@ import test from "node:test";
 import { addedLines, diffBase, revision } from "../content/content-rules.ts";
 import { commandEvidence, repositoryEnvironment } from "../git/git.ts";
 import { RepositorySettings } from "../settings/repository-settings.ts";
+import type { StatusError } from "../store/store.ts";
 import { fixture } from "./fixtures.ts";
 import { temporaryDirectory } from "./temporary.ts";
 
 function repository() {
   const root = temporaryDirectory("avoozl-security-");
-  const git = (...args) =>
+  const git = (...args: string[]) =>
     execFileSync("git", args, { cwd: root, stdio: "ignore" });
   git("init", "-b", "main");
   git(
@@ -105,7 +105,7 @@ test("a new database and its folders are private; old ones are tightened", {
   skip: process.platform === "win32" && "Node maps no modes on Windows",
 }, async () => {
   const { Store, privateFile } = await import("../store/store.ts");
-  const mode = (file) => fs.statSync(file).mode & 0o777;
+  const mode = (file: string) => fs.statSync(file).mode & 0o777;
   const root = temporaryDirectory("avoozl-private-"),
     db = path.join(root, ".avoozl", "local", "workspace.sqlite");
   new Store(db).close();
@@ -184,7 +184,7 @@ test("scripts/worktree runs only after a person approves its hash", {
   const unapproved = await repositoryConfig(base);
   await assert.rejects(
     createWorktree(store, unapproved, "r1"),
-    (error) =>
+    (error: StatusError) =>
       error.status === 409 &&
       error.message.includes(helperHash(helper)) &&
       !fs.existsSync(path.join(unapproved.worktreeRoot, "r1.ran")),
@@ -279,7 +279,7 @@ test("a check sees only the basics and checksEnv; credentials never, even when l
 
 test("repository settings take checksEnv and worktreeHelper and refuse bad ones", (t) => {
   const { root, store } = fixture(t);
-  const load = (repository) => {
+  const load = (repository: Record<string, unknown>) => {
     const filename = path.join(root, `.avoozl-${Math.random()}.json`);
     fs.writeFileSync(
       filename,

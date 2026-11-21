@@ -55,6 +55,17 @@ export interface TickResult {
   [key: string]: unknown;
 }
 
+// A plan as plan.create returns it, and plan.preview's revision to approve at.
+export interface PlanDraft {
+  id: string;
+  hash: string;
+  [key: string]: unknown;
+}
+export interface PlanPreview {
+  expectedRevision: number;
+  [key: string]: unknown;
+}
+
 // The value, failing the test when it is missing.
 export function found<T>(value: T | null | undefined, what = "value"): T {
   assert.ok(value != null, `${what} is missing`);

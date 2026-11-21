@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Operations } from "../api/operations.ts";
@@ -11,15 +10,22 @@ import {
   taskKind,
   taskRoute,
 } from "../../work-model.ts";
+import type { Snapshot, Task } from "../../types.ts";
+import type { Proposal } from "../specs/plan-quality.ts";
+import type { StatusError } from "../store/store.ts";
 import { fixture, workspaceFixture } from "./fixtures.ts";
 
-const ready = (data, options = {}) =>
+const ready = (data: Snapshot, options: { repositories?: string[] } = {}) =>
   queryTasks(data, { scope: "all", q: "ready:true", ...options }).map(
     (task) => task.id,
   );
 // One proposed task at lines 1-3, as a spec lists it.
-const block = (fields) => ({ lineStart: 1, lineEnd: 3, ...fields });
-const leaf = (id, extra = {}) => ({
+const block = (fields: Proposal): Proposal => ({
+  lineStart: 1,
+  lineEnd: 3,
+  ...fields,
+});
+const leaf = (id: string, extra: Partial<Proposal> = {}) => ({
   id,
   title: "Task " + id,
   summary: "Change " + id + ".",
@@ -27,13 +33,17 @@ const leaf = (id, extra = {}) => ({
   checks: ["npm test"],
   ...extra,
 });
-const lint = (task, repositories = []) =>
+const lint = (
+  task: Proposal,
+  repositories: { id: string; checks?: string[][] }[] = [],
+) =>
   lintPlan({
     plan: { context: {} },
     data: { repositories, tasks: [] },
     proposals: [task],
   });
-const codes = (result) => result.diagnostics.map((item) => item.code);
+const codes = (result: ReturnType<typeof lint>) =>
+  result.diagnostics.map((item) => item.code);
 
 test("legacy rows read with work-model defaults and are not rewritten", (t) => {
   const { store } = workspaceFixture(t, "mixed"),
@@ -42,12 +52,12 @@ test("legacy rows read with work-model defaults and are not rewritten", (t) => {
     local = data.tasks.find((task) => task.id === "local-a"),
     github = data.tasks.find((task) => task.id === "github-a");
   assert.deepEqual(
-    [taskKind(local), taskAuthority(local), taskRoute(local)],
+    [taskKind(local), taskAuthority(local), taskRoute()],
     ["leaf", "local", "local"],
   );
   assert.equal(taskCompletion(local), "integrated");
   assert.deepEqual(
-    [taskAuthority(github), taskRoute(github), taskCompletion(github)],
+    [taskAuthority(github), taskRoute(), taskCompletion(github)],
     ["github", "local", "integrated"],
   );
   assert.equal(taskKind({ kind: "milestone" }), "leaf");
@@ -132,7 +142,7 @@ test("a leaf on an unregistered repository is not ready", (t) => {
 test("task.update writes work-model fields but never authority", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store),
-    task = await ops.execute("task.update", {
+    task = await ops.execute<Task>("task.update", {
       id: "sample-task",
       route: "github",
       completion: "released",
@@ -158,19 +168,23 @@ test("direct edits of GitHub-owned rows are refused and routed to projection", a
   const { store } = workspaceFixture(t, "mixed"),
     ops = new Operations(store),
     revision = store.read().revision;
-  for (const [name, input] of [
+  const edits: [string, Record<string, unknown>][] = [
     ["task.update", { id: "github-a", title: "Renamed" }],
     ["task.archive", { id: "github-a" }],
     ["task.accept", { id: "github-a", componentOnly: true }],
-  ])
-    await assert.rejects(ops.execute(name, input), (error) => {
-      assert.equal(error.status, 409);
-      assert.equal(error.route, "projection");
-      assert.match(error.message, /example\/fixture#10[12]/);
-      return true;
-    });
+  ];
+  for (const [name, input] of edits)
+    await assert.rejects(
+      ops.execute(name, input),
+      (error: StatusError & { route?: string }) => {
+        assert.equal(error.status, 409);
+        assert.equal(error.route, "projection");
+        assert.match(error.message, /example\/fixture#10[12]/);
+        return true;
+      },
+    );
   assert.equal(store.read().revision, revision);
-  const local = await ops.execute("task.update", {
+  const local = await ops.execute<Task>("task.update", {
     id: "local-a",
     title: "Renamed",
   });
@@ -190,8 +204,8 @@ test("a leaf whose repository has no checks is judged, with a warning", () => {
   const bare = leaf("alpha", { checks: undefined }),
     result = lint(block(bare), [{ id: "x", checks: [] }]),
     diagnostic = result.diagnostics.find((item) => item.code === "leaf.checks");
-  assert.equal(diagnostic.lineStart, 1);
-  assert.equal(diagnostic.severity, "warning");
+  assert.equal(diagnostic?.lineStart, 1);
+  assert.equal(diagnostic?.severity, "warning");
   assert.equal(result.canApprove, true);
   assert.equal(
     lint(block(bare), [{ id: "x", checks: [["npm", "test"]] }]).canApprove,
@@ -238,6 +252,6 @@ test("a row stored with prose loads with it as its summary", (t) => {
     );
   store.cache = null;
   const task = store.read().tasks.find((x) => x.id === first.id);
-  assert.equal(task.summary, "- Old text.");
-  assert.equal(task.prose, undefined);
+  assert.equal(task?.summary, "- Old text.");
+  assert.equal(task?.prose, undefined);
 });
