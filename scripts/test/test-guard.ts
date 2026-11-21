@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt, see the commit message
 // Loaded into every test process by scripts/test/run-tests.ts (NODE_OPTIONS
 // --import). A write under one of the person's real Avoozl folders, named
 // in AVOOZL_TEST_GUARD as a JSON list, throws, so the test that made it
@@ -11,8 +10,8 @@ import { fileURLToPath } from "node:url";
 import { syncBuiltinESMExports } from "node:module";
 
 const fold = process.platform === "win32" || process.platform === "darwin";
-const norm = (p) => (fold ? p.toLowerCase() : p);
-const guarded = [];
+const norm = (p: string) => (fold ? p.toLowerCase() : p);
+const guarded: string[] = [];
 for (const dir of JSON.parse(process.env.AVOOZL_TEST_GUARD || "[]")) {
   guarded.push(norm(path.resolve(dir)));
   try {
@@ -20,7 +19,7 @@ for (const dir of JSON.parse(process.env.AVOOZL_TEST_GUARD || "[]")) {
   } catch {}
 }
 
-export function isGuarded(target) {
+export function isGuarded(target: unknown) {
   if (target == null || typeof target === "number") return false;
   let file =
     target instanceof URL
@@ -33,16 +32,16 @@ export function isGuarded(target) {
   return guarded.some((dir) => full === dir || full.startsWith(dir + path.sep));
 }
 
-const refuse = (target) => {
+const refuse = (target: unknown) => {
   throw Error(
     `A test wrote under the real Avoozl folder: ${target}. Use a temporary folder (XDG_CONFIG_HOME, XDG_STATE_HOME or an explicit configFile).`,
   );
 };
-const writes = (flags) =>
+const writes = (flags: unknown) =>
   flags != null &&
   (typeof flags === "number"
     ? (flags & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) !== 0
-    : /[wa+]/.test(flags));
+    : /[wa+]/.test(String(flags)));
 
 if (guarded.length) {
   // Methods whose first (and, for a move or copy, second) argument is a
@@ -62,38 +61,59 @@ if (guarded.length) {
     two = ["rename", "copyFile", "cp", "symlink", "link"];
   // `changed(args)` lists the paths a call changes: a move changes both
   // ends, a copy or link only its destination.
-  const wrap = (target, name, changed) => {
-    const original = target[name];
+  // fs's methods by name, so each can be replaced by a guarded one.
+  type Methods = Record<string, (...args: unknown[]) => unknown>;
+  type Changed = (args: unknown[]) => unknown[];
+  const wrap = (target: object, name: string, changed: Changed) => {
+    const methods = target as Methods;
+    const original = methods[name];
     if (typeof original !== "function") return;
-    target[name] = function (...args) {
+    methods[name] = function (this: unknown, ...args: unknown[]) {
       for (const file of changed(args)) if (isGuarded(file)) refuse(file);
       return original.apply(this, args);
     };
   };
-  const first = (args) => [args[0]],
-    destination = (args) => [args[1]],
-    both = (args) => [args[0], args[1]];
+  const first: Changed = (args) => [args[0]],
+    destination: Changed = (args) => [args[1]],
+    both: Changed = (args) => [args[0], args[1]];
   for (const [base, changed] of [
-    ...one.map((name) => [name, first]),
-    ...two.map((name) => [name, name === "rename" ? both : destination]),
+    ...one.map((name): [string, Changed] => [name, first]),
+    ...two.map((name): [string, Changed] => [
+      name,
+      name === "rename" ? both : destination,
+    ]),
   ]) {
     wrap(fs, base, changed);
     wrap(fs, `${base}Sync`, changed);
     wrap(fs.promises, base, changed);
   }
   for (const name of ["open", "openSync", "createWriteStream"]) {
-    const original = fs[name];
-    fs[name] = function (file, flags, ...rest) {
+    const methods = fs as unknown as Methods,
+      original = methods[name];
+    methods[name] = function (
+      this: unknown,
+      file: unknown,
+      flags: unknown,
+      ...rest: unknown[]
+    ) {
       const mode =
         name === "createWriteStream"
-          ? ((typeof flags === "object" ? flags?.flags : flags) ?? "w")
+          ? ((typeof flags === "object"
+              ? (flags as { flags?: unknown } | null)?.flags
+              : flags) ?? "w")
           : flags;
       if (writes(mode) && isGuarded(file)) refuse(file);
       return original.call(this, file, flags, ...rest);
     };
   }
-  const open = fs.promises.open;
-  fs.promises.open = function (file, flags, ...rest) {
+  const promises = fs.promises as unknown as Methods,
+    open = promises.open;
+  promises.open = function (
+    this: unknown,
+    file: unknown,
+    flags: unknown,
+    ...rest: unknown[]
+  ) {
     if (writes(flags) && isGuarded(file)) refuse(file);
     return open.call(this, file, flags, ...rest);
   };
