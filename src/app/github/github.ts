@@ -2124,7 +2124,7 @@ for (const name of Object.getOwnPropertyNames(GitHubClient.prototype)) {
 // The person this machine signs in for, on `value`'s owner (§D12): a
 // plugin's `person`, or the login of gh or env. Null when a plugin names no
 // person. Clients without personLogin (fakes) answer with currentUser.
-export async function personOf(github, value) {
+export async function personOf(github, value?: unknown) {
   if (typeof github?.personLogin === "function")
     return github.personLogin(value);
   return (await github?.currentUser?.())?.login ?? null;

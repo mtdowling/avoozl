@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What plugin children and plugin checks share (plugin-checks D2): the
 // JSON-lines reader with its reply cap, and the listener watch over a
 // process and everything it started (PK7.5, PK10.11).
@@ -8,11 +7,22 @@ import path from "node:path";
 
 // Call `onLine` with each line `stream` writes. A line longer than
 // `maxLine` calls `onOverflow` once and reads nothing more.
-export function jsonLines(stream, { maxLine, onLine, onOverflow }) {
+export function jsonLines(
+  stream: NodeJS.ReadableStream,
+  {
+    maxLine,
+    onLine,
+    onOverflow,
+  }: {
+    maxLine: number;
+    onLine: (line: string) => void;
+    onOverflow: () => void;
+  },
+) {
   let buffer = "",
     over = false;
   stream.setEncoding?.("utf8");
-  stream.on("data", (chunk) => {
+  stream.on("data", (chunk: string) => {
     if (over) return;
     buffer += chunk;
     let at;
@@ -28,8 +38,8 @@ export function jsonLines(stream, { maxLine, onLine, onOverflow }) {
   });
 }
 
-const run = (file, args) =>
-  new Promise((resolve, reject) =>
+const run = (file: string, args: string[]) =>
+  new Promise<string>((resolve, reject) =>
     execFile(
       file,
       args,
@@ -39,8 +49,8 @@ const run = (file, args) =>
   );
 
 // The children of each pid in `pids`, as {parent: [child]}.
-async function childrenOf(pids) {
-  const children = new Map();
+async function childrenOf(pids: number[]) {
+  const children = new Map<number, number[]>();
   if (process.platform === "linux") {
     // /proc/<pid>/stat: "pid (name) state ppid ..."; the name may hold spaces.
     for (const name of fs.readdirSync("/proc"))
@@ -81,7 +91,7 @@ async function childrenOf(pids) {
   for (const pid of pids) {
     const out = await run("pgrep", ["-P", String(pid)]).catch((error) => {
       // pgrep exits 1 when the process has no children.
-      if (error.code === 1) return "";
+      if ((error as { code?: unknown }).code === 1) return "";
       throw error;
     });
     children.set(pid, out.split(/\s+/).filter(Boolean).map(Number));
@@ -91,13 +101,13 @@ async function childrenOf(pids) {
 
 // `pid` and every process under it. Linux and Windows read the whole
 // table once; macOS asks pgrep per process.
-async function processTree(pid) {
+async function processTree(pid: number) {
   const whole = process.platform === "linux" || process.platform === "win32",
     table = whole ? await childrenOf([]) : null,
     out = [pid];
   for (let i = 0; i < out.length; i++) {
     const children = whole
-      ? (table.get(out[i]) ?? [])
+      ? (table?.get(out[i]) ?? [])
       : ((await childrenOf([out[i]])).get(out[i]) ?? []);
     for (const child of children) if (!out.includes(child)) out.push(child);
   }
@@ -105,7 +115,7 @@ async function processTree(pid) {
 }
 
 // Stop each process, children first.
-export function killTree(pids) {
+export function killTree(pids: number[]) {
   for (const pid of [...pids].reverse())
     try {
       process.kill(pid, "SIGKILL");
@@ -117,32 +127,42 @@ export function killTree(pids) {
 // cannot run, which counts as one) stops the tree and calls `onHit` with
 // the reason. Returns stop().
 export function watchListeners(
-  pid,
-  { checkListeners, everyMs = 2000, onHit, gone = () => false },
+  pid: number,
+  {
+    checkListeners,
+    everyMs = 2000,
+    onHit,
+    gone = () => false,
+  }: {
+    checkListeners: (pid: number) => Promise<string[]>;
+    everyMs?: number;
+    onHit: (reason: string) => void;
+    gone?: () => boolean;
+  },
 ) {
   let stopped = false,
-    timer = null;
+    timer: NodeJS.Timeout | undefined;
   const pass = async () => {
     if (stopped || gone()) return;
     let tree = [pid],
-      found = [];
+      found: string[] = [];
     try {
       tree = await processTree(pid);
       for (const each of tree) {
         if (stopped) return;
-        let listening = [];
+        let listening: string[] = [];
         try {
           listening = await checkListeners(each);
         } catch (error) {
           // A process that exited between the list and the check is gone,
           // not listening; a check that cannot run fails closed.
-          if (error?.code === "ENOENT") continue;
+          if ((error as NodeJS.ErrnoException)?.code === "ENOENT") continue;
           throw error;
         }
         found.push(...listening);
       }
     } catch (error) {
-      found = [`cannot check for listeners: ${error.message}`];
+      found = [`cannot check for listeners: ${(error as Error).message}`];
     }
     if (stopped || gone()) return;
     if (found.length) {

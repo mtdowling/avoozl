@@ -341,7 +341,7 @@ const isAvoozlPath = (file: string) =>
 // Changes in the task folder, Avoozl's own files left out. Every git call
 // on a task folder goes through taskGit (task-git.mjs), with the
 // repository's `checkout`.
-export const worktreeChanges = (worktree: string, checkout: string) =>
+export const worktreeChanges = (worktree: string, checkout?: string) =>
   taskGit(worktree, ["status", "--porcelain", "--", ".", EXCLUDE_AVOOZL], {
     checkout,
   });

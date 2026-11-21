@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The privacy scan (Requirement 102.16-102.25, design §4.32.4, task 56.11).
 // No public Avoozl write names the machine it ran on: no hostname or IP
 // literal, no internal domain, no home path, and not this machine's own
@@ -24,7 +23,7 @@ import os from "node:os";
 import path from "node:path";
 
 export const PRIVACY_SET = "builtin:privacy";
-const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // Account and host names that identify nobody (CI runners, defaults).
 // shortcut: a fixed list; extend it when a shared default causes false hits.
 const GENERIC = new Set([
@@ -41,7 +40,7 @@ const GENERIC = new Set([
 
 // Rules every public text gets: [rule, RegExp, scopes].
 const OCTET = String.raw`(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)`;
-const SHAPE_RULES = [
+const SHAPE_RULES: [string, RegExp][] = [
   [
     "ip-literal",
     new RegExp(String.raw`(?<![\w.])(?:${OCTET}\.){3}${OCTET}(?![\w.])`),
@@ -58,25 +57,28 @@ const SHAPE_RULES = [
     /(?<![\w-])(?:[a-z0-9-]+\.)+(?:corp|internal|local|lan)(?![\w.-])/i,
   ],
 ];
-const PATH_RULES = [
+const PATH_RULES: [string, RegExp][] = [
   ["home-path", /\/Users\/[A-Za-z0-9._-]+/],
   ["home-path", /\/home\/[A-Za-z0-9._-]+/],
   ["home-path", /\b[A-Za-z]:\\+Users\\+[^\\\s]+/i],
   ["home-path", /(?<![\w.:/~$%-])~\//],
 ];
 
-function readConfig(configFile) {
+function readConfig(configFile: string) {
   try {
     return JSON.parse(fs.readFileSync(configFile, "utf8")) || {};
   } catch (error) {
-    if (error.code === "ENOENT") return {};
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
     throw error;
   }
 }
 
+// This machine's names.
+type Facts = { hostname?: string; username?: string };
+
 // This machine's names, read now. `override` ({hostname, username}) is for
 // tests, which use made-up names only.
-function machineFacts(override = null) {
+function machineFacts(override: Facts | null = null): Facts {
   if (override) return override;
   let username = "";
   try {
@@ -87,7 +89,7 @@ function machineFacts(override = null) {
 
 // The names that identify this machine: the full hostname, its first label,
 // and the username, without generic or very short ones.
-function ownNames({ hostname, username } = {}) {
+function ownNames({ hostname, username }: Facts = {}) {
   const host = String(hostname ?? "").trim(),
     names = new Set([host, host.split(".")[0], String(username ?? "").trim()]);
   return [...names].filter(
@@ -96,28 +98,38 @@ function ownNames({ hostname, username } = {}) {
 }
 
 // The owner's private internal domains, from machine config.
-export function internalDomains(configFile) {
+export function internalDomains(
+  configFile: string | null | undefined,
+): string[] {
   const listed = configFile
     ? readConfig(configFile)?.privacy?.internalDomains
     : null;
   return Array.isArray(listed)
     ? listed
-        .filter((d) => typeof d === "string")
+        .filter((d): d is string => typeof d === "string")
         .map((d) => d.trim().replace(/^\*?\./, ""))
         .filter((d) => /^[A-Za-z0-9.-]+$/.test(d) && d.includes("."))
     : [];
 }
 
 // [{rule, pattern}] for one scope, built from this machine's facts.
-export function privacyRules({ scope = "text", machine, configFile } = {}) {
-  const word = (value) =>
+export function privacyRules({
+  scope = "text",
+  machine,
+  configFile,
+}: {
+  scope?: string;
+  machine?: Facts | null;
+  configFile?: string | null;
+} = {}) {
+  const word = (value: string) =>
       new RegExp(`(?<![A-Za-z0-9_])${escape(value)}(?![A-Za-z0-9_])`, "i"),
-    rules = [
-      ...ownNames(machineFacts(machine)).map((name) => [
+    rules: [string, RegExp][] = [
+      ...ownNames(machineFacts(machine)).map((name): [string, RegExp] => [
         "machine-name",
         word(name),
       ]),
-      ...internalDomains(configFile).map((domain) => [
+      ...internalDomains(configFile).map((domain): [string, RegExp] => [
         "internal-domain",
         new RegExp(
           `(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\\.)*${escape(domain)}(?![A-Za-z0-9-])`,
@@ -131,8 +143,12 @@ export function privacyRules({ scope = "text", machine, configFile } = {}) {
 
 // Each hit as {index, rule}, at most one per rule and line; never the text.
 // `decode` undoes the encodings a name can hide behind.
-export function privacyHits(lines, rules, decode = (value) => value) {
-  const hits = [];
+export function privacyHits(
+  lines: string[],
+  rules: { rule: string; pattern: RegExp }[],
+  decode = (value: string) => value,
+) {
+  const hits: { index: number; rule: string }[] = [];
   lines.forEach((raw, index) => {
     const plain = decode(raw);
     for (const rule of [...new Set(rules.map((r) => r.rule))])
