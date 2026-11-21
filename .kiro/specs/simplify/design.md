@@ -289,12 +289,17 @@ SPEC --write`. A start marker with no end marker, or two blocks, is
 
 ## D10. Roles and skills
 
-The role table keeps two rows:
+The role table (`agents/role-table.mjs`) has five rows. It also holds the
+`roles` setting each row reads (Settings › Models), and a `roles` entry that
+names any other role is refused, naming it.
 
 | Role | Runs | Access | On by default |
 | --- | --- | --- | --- |
 | `worker` | one task in its worktree on the claim branch | write | yes |
 | `reviewer` | the task's head, read-only, in rounds with the worker until it approves or `reviewRounds` runs out | read | yes; `reviewers: []` turns it off |
+| `responder` | one reply to a discussion or issue the GitHub policy names (`github-respond.mjs`) | read | no; only when the policy names discussions |
+| `checkDecide` | a plugin check's decide call, offline in a snapshot | read | only for a plugin check with a decide prompt |
+| `assist` | the standalone page's Open chat, in the workspace root | read | only when a person starts it |
 
 The reviewer is a separate session that never saw the worker's reasoning,
 with the adversarial prompt `prompts/reviewer.md`. On `changes-requested` the
@@ -303,17 +308,15 @@ reviewer judges each earlier finding against what changed. At `reviewRounds`
 (default 3) the task waits in Needs you with its open findings and does not
 land.
 
-Every other role becomes a skill or is cut:
-
-| Role today | Becomes | Source |
-| --- | --- | --- |
-| `planner`, `planAnswer` | skill `avoozl-spec` | `prompts/planner.md`, `prompts/plan-answer-read.md` |
-| `planReviewer` | skill `avoozl-spec-review` | `prompts/plan-review.md` |
-| `prReview` | skill `avoozl-review` | `prompts/code-review.md` |
-| `retro` | skill `avoozl-retro` | `prompts/retro.md` |
-| `falsifier` | skill `avoozl-investigate` | `prompts/falsifier.md` |
-| `verifier` | cut: Avoozl runs checks itself (`delivery/check-runs.mjs`) | |
-| `responder`, `taskSummary`, `assist` | cut | |
+Avoozl runs a commit's checks itself (`delivery/check-runs.mjs`), so no
+session judges checks; a repository with no checks is judged by its
+reviewers alone. Writing a spec, reviewing a spec or a pull request, a retro
+and an investigation are skills (`avoozl-spec`, `avoozl-spec-review`,
+`avoozl-review`, `avoozl-retro`, `avoozl-investigate`), and Avoozl starts no
+session for them. `hosts/kirocrew/agents/` holds `avoozl-reviewer`,
+`avoozl-responder` and `avoozl-check-decide`; `prompts/` holds `reviewer.md`,
+`responder.md`, `check-decide.md`, `assist.md`, and the `worker.md` and
+`review.md` brief sections.
 
 Skills are generated the way the triage removal branch generates
 `avoozl-answer`, `avoozl-review` and `avoozl-triage`: source in
@@ -408,7 +411,7 @@ mirror removal or triage removal before this spec starts).
 | `reviews/` | 2748 | | 1711 | 1037 | | plan review tower cut; `plan-review-step.mjs` becomes `avoozl-spec-review`, `pr-review.mjs` becomes `avoozl-review` |
 | `serve/` | 705 | 705 | | | | |
 | `sessions/` | 1079 | 1079 | | | | keep `session-open.mjs`: the standalone page's Open chat |
-| `settings/` | 2902 | 2728 | 174 | | | cut `chat-models.mjs` with the roles cut, its `roles` reads moving to `role-table.mjs`; `repository-settings.mjs` drops cut keys and gains `labels`, `claims` |
+| `settings/` | 2902 | 2728 | 174 | | | cut `chat-models.mjs`; `role-table.mjs` reads the `roles` setting; `repository-settings.mjs` drops cut keys and gains `labels`, `claims` |
 | `specs/` | 10213 | 3922 | 2263 | 1133 | 2895 | cut `gap-report`, `spec-changed`, `task-outcomes`; the old plan-document model goes last (sim-4.10): `design-extraction`, `plan-archive`, `plan-retire`, `plans.mjs` (old plan files and the approval it holds), `source-sync`; `new-plan`, `spec-steering`, `templates` become `avoozl-spec`; approval and journal files in flight |
 | `store/` | 1722 | 1722 | | | | `activity-log.mjs` stays for `avoozl activity` |
 | `tasks/` | 2605 | 550 | 2055 | | | keep `manual-tasks`, `scm-links`, `issue-reference`; cut `evidence`, `supersede`, `task-dedup`, `task-files`, `task-notes`, `task-steps`, `task-summary`, `title-repeat` |

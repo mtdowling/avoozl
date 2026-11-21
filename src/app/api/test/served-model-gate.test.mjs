@@ -14,6 +14,7 @@ import { deliveryView } from "../page-views.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { loopOn } from "../../test/fixtures.mjs";
+import { drainCheckRuns } from "../../delivery/check-runs.mjs";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
@@ -124,9 +125,9 @@ async function round(t, { rows = {}, status = {}, verdict = "approved" } = {}) {
   const commit = git(worktree, "rev-parse", "HEAD");
   await report("w", { commit });
   await tick();
-  await bind("v", "verifier", { commit });
+  // Avoozl runs the repository's check itself.
+  await drainCheckRuns(store);
   await bind("r", "review:conventions", { model: "fake-b", commit });
-  await report("v", { commit, checks: [{ command: CHECK, exitCode: 0 }] });
   await report("r", {
     commit,
     verdict,

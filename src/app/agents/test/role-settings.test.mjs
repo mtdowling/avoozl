@@ -1,4 +1,4 @@
-// Settings › Models: the models of Avoozl's own chats, saved in .avoozl.json.
+// Settings › Models: the `roles` table (role-table.mjs), saved in .avoozl.json.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,45 +8,19 @@ import {
   resolveRoles,
   roleHarness,
   validateRoles,
-  withChatModels,
-} from "../chat-models.mjs";
+} from "../role-table.mjs";
 import { deliveryPolicy } from "../../delivery/delivery.mjs";
-import { RepositorySettings } from "../repository-settings.mjs";
+import { RepositorySettings } from "../../settings/repository-settings.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 test("a role's auto model is no model", () => {
   assert.equal(
-    chatModel({ roles: { retro: { model: "auto" } } }, "retro"),
+    chatModel({ roles: { checkDecide: { model: "auto" } } }, "checkDecide"),
     null,
   );
-  assert.equal(chatModel({}, "retro"), null);
-});
-
-test("planner and retro dispatches ask for the saved model", () => {
-  const config = {
-    roles: {
-      planner: { model: "p" },
-      retro: { model: "r" },
-    },
-  };
-  const out = withChatModels(
-    [
-      { task: "a", role: "planner" },
-      { task: "b", role: "retro", model: "old" },
-      { task: "d", role: "review", model: "kept" },
-      { task: "e", role: "planner", model: "asked" },
-    ],
-    config,
-  );
-  assert.deepEqual(
-    out.map((d) => d.model),
-    ["p", "r", "kept", "asked"],
-  );
-  assert.deepEqual(withChatModels([{ role: "planner" }], {}), [
-    { role: "planner" },
-  ]);
+  assert.equal(chatModel({}, "checkDecide"), null);
 });
 
 test("models.settings saves to .avoozl.json and is a person's", async (t) => {
@@ -63,23 +37,23 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
   await assert.rejects(
     ops.execute(
       "models.settings.update",
-      { roles: { retro: { model: "m1" } }, expectedHash: before.hash },
+      { roles: { checkDecide: { model: "m1" } }, expectedHash: before.hash },
       undefined,
       { mcp: true },
     ),
     (e) => e.status === 403,
   );
   const saved = await ops.execute("models.settings.update", {
-    roles: { retro: { model: "m1" }, planner: { model: "auto" } },
+    roles: { checkDecide: { model: "m1" }, worker: { model: "auto" } },
     expectedHash: before.hash,
   });
   assert.deepEqual(saved.roles, {
-    retro: { model: "m1" },
-    planner: { model: "auto" },
+    checkDecide: { model: "m1" },
+    worker: { model: "auto" },
   });
   assert.deepEqual(
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8")).roles,
-    { retro: { model: "m1" }, planner: { model: "auto" } },
+    { checkDecide: { model: "m1" }, worker: { model: "auto" } },
   );
   await assert.rejects(
     ops.execute("models.settings.update", {
@@ -90,7 +64,7 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
   );
   await assert.rejects(
     ops.execute("models.settings.update", {
-      roles: { planner: { agent: "a" } },
+      roles: { checkDecide: { agent: "a" } },
       expectedHash: saved.hash,
     }),
     /not a role setting/,
@@ -108,13 +82,11 @@ test("the roles table names each role's agent and model; the older keys are refu
     delivery: {},
     roles: {
       worker: { agent: "w-agent", model: "w-new", harness: "codex" },
-      planner: { harness: "kirocrew", model: "p-old" },
-      retro: { model: "r-new" },
+      checkDecide: { harness: "kirocrew", model: "d-new" },
     },
   };
-  assert.equal(chatModel(config, "planner"), "p-old");
-  assert.equal(chatModel(config, "retro"), "r-new");
-  assert.equal(roleHarness(config, "planner"), "kirocrew");
+  assert.equal(chatModel(config, "checkDecide"), "d-new");
+  assert.equal(roleHarness(config, "checkDecide"), "kirocrew");
   assert.equal(roleHarness(config, "worker"), "codex");
   // The delivery policy's worker comes from the table.
   const policy = deliveryPolicy(config);
@@ -148,19 +120,19 @@ test("the roles table names each role's agent and model; the older keys are refu
 test("roles names only known roles and fields; agent only for the worker", () => {
   const ok = {
     worker: { harness: "claude-code", agent: "w", model: "m" },
-    retro: { harness: "auto" },
+    reviewer: { harness: "auto" },
   };
   assert.deepEqual(validateRoles({ roles: ok }), ok);
   assert.deepEqual(validateRoles({}), {});
   assert.throws(() => validateRoles({ roles: [] }), /roles must be an object/);
   assert.throws(() => validateRoles({ roles: { coder: {} } }), /not a role/);
   assert.throws(
-    () => validateRoles({ roles: { retro: "m" } }),
+    () => validateRoles({ roles: { reviewer: "m" } }),
     /must be an object/,
   );
   assert.throws(
-    () => validateRoles({ roles: { planner: { agent: "a" } } }),
-    /planner.agent is not a role setting/,
+    () => validateRoles({ roles: { checkDecide: { agent: "a" } } }),
+    /checkDecide.agent is not a role setting/,
   );
   assert.throws(
     () => validateRoles({ roles: { worker: { harness: "Bad" } } }),
@@ -171,8 +143,8 @@ test("roles names only known roles and fields; agent only for the worker", () =>
     /agent name/,
   );
   assert.throws(
-    () => validateRoles({ roles: { falsifier: {} } }),
-    /roles.falsifier is not a role/,
+    () => validateRoles({ roles: { reviewer: { model: "m" } } }),
+    /reviewer.model is not a role setting/,
   );
 });
 
@@ -187,7 +159,10 @@ test("a Models save writes roles, and a Delivery save keeps them", (t) => {
     filename,
     JSON.stringify({
       version: 1,
-      roles: { planner: { model: "p1" }, worker: { harness: "claude-code" } },
+      roles: {
+        checkDecide: { model: "p1" },
+        worker: { harness: "claude-code" },
+      },
       delivery: {},
     }),
   );
@@ -200,7 +175,7 @@ test("a Models save writes roles, and a Delivery save keeps them", (t) => {
   const before = settings.readModelSettings();
   assert.deepEqual(before.roles, {
     worker: { harness: "claude-code" },
-    planner: { model: "p1" },
+    checkDecide: { model: "p1" },
   });
   for (const delivery of [{ agent: "x" }, { ship: "manual" }])
     assert.throws(

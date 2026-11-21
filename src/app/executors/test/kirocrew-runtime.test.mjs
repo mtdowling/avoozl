@@ -369,7 +369,7 @@ test("plans_session bind binds once and never moves a slot", async (t) => {
     ops.execute("session.bind", {
       taskId: "sample-task",
       slot: "slot-1",
-      role: "verifier",
+      role: "responder",
     }),
     (error) => error.status === 409,
   );

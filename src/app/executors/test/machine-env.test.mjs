@@ -197,9 +197,9 @@ test("status names each role whose harness cannot start, and no other", async ()
   const config = {
     roles: {
       worker: { harness: "claude-code" },
-      verifier: { harness: "claude-code" },
+      responder: { harness: "claude-code" },
       reviewer: { harness: "codex" },
-      retro: { harness: "kirocrew" },
+      assist: { harness: "kirocrew" },
     },
   };
   assert.deepEqual(roleProblems(config, harnesses), [
@@ -209,7 +209,7 @@ test("status names each role whose harness cannot start, and no other", async ()
       problem: "claude is not on the PATH.",
     },
     {
-      role: "verifier",
+      role: "responder",
       harness: "claude-code",
       problem: "claude is not on the PATH.",
     },

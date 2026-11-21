@@ -34,10 +34,10 @@ export function kirocrewSessionSettings(value, label, validateName) {
 const unset = (reading, folder) =>
   Boolean(reading && typeof reading === "object") && reading[folder] === false;
 
-// Keep the planner's order. A dispatch whose chat folder has no project
+// Keep the dispatch order. A dispatch whose chat folder has no project
 // directory waits and produces one owner notice per folder.
 export function kirocrewDispatches(store, dispatches, reading) {
-  const pending = new Map();
+  const pending = new Set();
   for (let i = dispatches.length - 1; i >= 0; i--) {
     const dispatch = dispatches[i];
     if (dispatch.executor !== "kirocrew") continue;
@@ -47,15 +47,12 @@ export function kirocrewDispatches(store, dispatches, reading) {
       !unset(reading, configuration.folder)
     )
       continue;
-    pending.set(
-      configuration.folder,
-      configuration.folder === SPECS_FOLDER ? dispatch.worktree : null,
-    );
+    pending.add(configuration.folder);
     dispatches.splice(i, 1);
   }
-  return [...pending].map(([folder, root]) => {
+  return [...pending].map((folder) => {
     const id = folder.split("/").pop(),
-      checkout = root ?? store.get("repositories", id)?.root;
+      checkout = store.get("repositories", id)?.root;
     return {
       channel: "decision",
       title: `Set the project directory of chat folder ${folder.replaceAll("/", " › ")}`,
@@ -207,10 +204,7 @@ const selections = (store) => {
 };
 const ROLE_AGENTS = {
   worker: "kirocrew-worker",
-  verifier: "avoozl-verifier",
-  planner: "avoozl-planner",
   responder: "avoozl-responder",
-  retro: "avoozl-retro",
   "check-decide": "avoozl-check-decide",
 };
 
@@ -231,22 +225,6 @@ export function kirocrewRequest(store, legacy) {
   return request;
 }
 
-// The planner agents may write only `.kiro/specs/**` under the chat's own
-// project directory, so a planner that writes a workspace's spec folder opens
-// in a folder whose project directory is that workspace.
-// shortcut: the agent's write scope is fixed at build time to the default
-// specs path; a workspace with another specs.path drafts with a process
-// planner, or widen allowedPaths in roles.json if Kiro Crew chats
-// must write there.
-// shortcut: one folder for every workspace on this Kiro Crew; name it per
-// workspace once a gateway serves two planning workspaces.
-const SPECS_FOLDER = "Avoozl/Specs";
-const writesSpecs = (request) =>
-  Boolean(request.worktree) &&
-  !request.repository &&
-  request.permissionClass === "write" &&
-  request.role === "planner";
-
 export function kirocrewConfiguration(store, request) {
   const queued = store.get("session_requests", request.id),
     active =
@@ -258,12 +236,8 @@ export function kirocrewConfiguration(store, request) {
         folder:
           active.worktree && active.repository
             ? sidebarPath(active.repository)
-            : writesSpecs(active)
-              ? SPECS_FOLDER
-              : "",
-        ...((active.worktree && active.repository) || writesSpecs(active)
-          ? {}
-          : { project: false }),
+            : "",
+        ...(active.worktree && active.repository ? {} : { project: false }),
         agent: ROLE_AGENTS[active.role] ?? "",
       };
   return configuration;

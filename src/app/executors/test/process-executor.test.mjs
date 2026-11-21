@@ -42,7 +42,6 @@ import {
   needsHarnessStep,
 } from "../../tick/needs-harness.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
-import { Store } from "../../store/store.mjs";
 import { appStore, gitIn, machine, until } from "./process-machine.mjs";
 
 const CLAUDE = fileURLToPath(
@@ -881,50 +880,6 @@ test("each shipped definition says which role classes a proof ran it in", () => 
       }),
     /proved lists role classes/,
   );
-});
-
-// The planner that writes a revision needs a proven model for that
-// revision's plan review to count (NK5.2): a planner child's served model is
-// read from its harness output and kept on its session, with no result file.
-test("a planner child's served model is kept on its session", async (t) => {
-  const { root, stateDirectory, worktree, supervisor, defer } = machine(t, {
-    servedModel: { from: "output", field: "modelUsage" },
-  });
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  defer(() => store.close());
-  store.initialize(snapshot());
-  // The New plan request is pending, so its key names a task.
-  store.setMeta("newPlans", [{ name: "new-one" }]);
-  const folder = worktree;
-  enqueueSessionRequests(store, {
-    starts: [
-      {
-        executor: "process",
-        harness: "fake-cli",
-        role: "planner",
-        task: "new-plan:new-one",
-        title: "avoozl:new-plan:new-one planner",
-        brief: "Write the spec.\nSERVED",
-        worktree: folder,
-        model: "fake-writer",
-        permissionClass: "write",
-      },
-    ],
-  });
-  const ops = {
-    configDirectory: path.join(root, "config"),
-    execute: async () => null,
-  };
-  await drainProcessRequests(store, { stateDirectory, ops });
-  const [binding] = store.list("session_bindings");
-  await until(async () => {
-    supervisor.pass();
-    await drainProcessRequests(store, { stateDirectory, ops });
-    return store.get("session_bindings", binding.slot).status === "closed";
-  });
-  const served = store.get("session_bindings", binding.slot).served;
-  assert.equal(served?.model, "fake-writer");
-  assert.equal(served.withheld, false);
 });
 
 // A harness that resolves its folder (macOS /var is /private/var) refused a

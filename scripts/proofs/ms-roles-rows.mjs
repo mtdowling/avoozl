@@ -11,32 +11,10 @@ export const ROWS = Object.freeze([
     result: "a commit by Avoozl, landed",
   },
   {
-    id: "verifier",
-    drives: ["verifier"],
-    scenario: "a task in a repository with no checks",
-    result: "a verdict",
-    driven: false,
-    why: "the scratch repository has checks, which Avoozl runs itself; a verifier opens only for a repository with none",
-  },
-  {
     id: "reviewer",
     drives: ["reviewer"],
     scenario: "the review role every repository gets",
     result: "a verdict",
-  },
-  {
-    id: "planner",
-    drives: ["planner"],
-    scenario: "a New plan request",
-    result: "a spec folder that lints clean",
-  },
-  {
-    id: "retro",
-    drives: ["retro"],
-    scenario: "a retrospective",
-    result: "a reply",
-    driven: false,
-    why: "retros run as the avoozl-retro skill, so no tick or operation starts a retro child",
   },
   {
     id: "responder",

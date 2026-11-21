@@ -89,9 +89,9 @@ merge, shown in chat and never committed.
   - `avoozl-spec`, `avoozl-work`, `avoozl-spec-review`, `avoozl-retro` and `avoozl-investigate` are generated from `prompts/skills/<name>.md` beside the ones the triage removal ships, and `npm run check:hosts` fails when one differs from its source
   - `avoozl-spec` writes the spec in the §D20 format (no `$` facts, plain done bullets on every leaf, `(**PARALLEL**)` and `(**MANUAL**)` tags, one repository in front matter `repo`, spec links), and `avoozl-spec-review` checks a spec for that format, flags a same-name branch on origin that holds other work (§D21.1), and posts findings without editing; `avoozl-spec` runs `avoozl graph SPEC --write` and `avoozl spec lint SPEC`, and stops at a `spec/<name>` branch; `avoozl-work` claims with `avoozl next --claim`, reports with `avoozl runner report` and lands with `avoozl land`
   - Each skill reaches Avoozl only through the CLI or MCP tools, and a test checks every command or tool a skill names exists
-- [ ] `sim-3.2` Roles cut to worker and reviewer [SM10.1] (§D10)
-  - `ROLE_TABLE` holds `worker` and `reviewer`; the reviewer is on unless a repository sets `reviewers: []`; a `roles` setting that names another role is refused naming it
-  - `hosts/kirocrew/agents/` holds only `avoozl-reviewer`, and the prompts of cut roles are gone from `prompts/`
+- [x] `sim-3.2` Roles cut to five [SM10.1] (§D10)
+  - `ROLE_TABLE` holds `worker`, `reviewer`, `responder`, `checkDecide` and `assist` and the `roles` setting, and `chat-models.mjs` is gone; the reviewer is on unless a repository sets `reviewers: []`; a `roles` setting that names another role is refused naming it
+  - `hosts/kirocrew/agents/` holds `avoozl-reviewer`, `avoozl-responder` and `avoozl-check-decide`, and the verifier, planner and retro prompts are gone from `prompts/`
 
 ## Phase 4: Cuts
 
@@ -175,7 +175,7 @@ flowchart TD
   end
   subgraph s4["Phase 3: Roles and skills"]
     sim_3_1["sim-3.1 Skills generated from prompts/skills/"]
-    sim_3_2["sim-3.2 Roles cut to worker and reviewer"]
+    sim_3_2["sim-3.2 Roles cut to five"]
   end
   subgraph s5["Phase 4: Cuts"]
     sim_4_1["sim-4.1 Cut the plan review tower"]

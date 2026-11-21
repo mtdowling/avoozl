@@ -1,5 +1,5 @@
-// Every role on `process` (R97.3, R94.4, design §4.28): verifier, reviewer,
-// retro and planner children, read-only roles in the read-only class, and
+// Every role on `process` (R97.3, R94.4, design §4.28): reviewer, responder,
+// decide and assistant children, read-only roles in the read-only class, and
 // each role's result read back from its result file.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -14,14 +14,12 @@ import {
   parseHarnessDefinition,
 } from "../harness-definitions.mjs";
 import { supervisorPaths } from "../supervisor.mjs";
-import { planVerifierDispatches } from "../../delivery/delivery.mjs";
 import {
-  drainProcessRequests,
-  processBrief,
-  sessionRepository,
-} from "../process.mjs";
+  deliveryPolicy,
+  planReviewDispatches,
+} from "../../delivery/delivery.mjs";
+import { drainProcessRequests, processBrief } from "../process.mjs";
 import { enqueueSessionRequests } from "../../sessions/session-requests.mjs";
-import { newPlanStarts, newPlanTask } from "../../specs/new-plan.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
 import { initCheckout, openFakeSupervisor } from "./process-machine.mjs";
 import { Store } from "../../store/store.mjs";
@@ -108,14 +106,14 @@ test("no child is moved off its folder: briefs say no cd, result rules are absol
 
 test("a role child's brief holds its prompt, the brief, and how it finishes", () => {
   assert.equal(processBrief("worker", "Do it."), "Do it.", "worker unchanged");
-  const verifier = processBrief("verifier", "Check abc.");
-  assert.match(verifier, /^You are the Avoozl Verifier/);
-  assert.match(verifier, /Check abc\./);
-  assert.match(verifier, /Do not run git worktree add/);
-  assert.match(verifier, /\.avoozl\/result\.json/);
-  assert.match(verifier, /Your shell runs no command here/);
+  const reviewer = processBrief("review:security", "Check abc.");
+  assert.match(reviewer, /^You are an Avoozl Reviewer/);
+  assert.match(reviewer, /Check abc\./);
+  assert.match(reviewer, /Do not run git worktree add/);
+  assert.match(reviewer, /\.avoozl\/result\.json/);
+  assert.match(reviewer, /Your shell runs no command here/);
   assert.match(
-    processBrief("verifier", "Check abc.", {
+    processBrief("review:security", "Check abc.", {
       allowCommands: [
         ["node", "check.mjs"],
         ["git", "rev-parse"],
@@ -123,12 +121,7 @@ test("a role child's brief holds its prompt, the brief, and how it finishes", ()
     }),
     /runs only these commands, one per call, .*`node check\.mjs`, `git rev-parse`/,
   );
-  assert.match(
-    processBrief("review:security", "x"),
-    /^You are an Avoozl Reviewer/,
-  );
-  assert.match(processBrief("retro", "x"), /"report": <the reply object>/);
-  assert.match(processBrief("planner", "x"), /skip plans_create_plan/);
+  assert.match(processBrief("responder", "x"), /plans_post_reply/);
   assert.equal(
     processBrief("conflict-fix", "x"),
     "x",
@@ -220,14 +213,15 @@ async function settle({ store, supervisor, stateDirectory }, ops, slot) {
   }
 }
 
-test("a verifier runs read-only in a detached worktree Avoozl adds, and its verdict is its report", async (t) => {
+test("a reviewer runs read-only in a detached worktree Avoozl adds, and its verdict is its report", async (t) => {
   const m = machine(t);
   const commit = gitIn(m.checkout, "rev-parse", "HEAD");
-  const worktree = path.join(m.root, "avoozl-sample-task-verify-1");
+  const worktree = path.join(m.root, "avoozl-sample-task-review-c-1");
   const report = {
     verdict: "approved",
     text: "Meets the bar.",
-    checks: [{ command: "npm test", exitCode: 0 }],
+    findings: [],
+    closures: [],
     taskId: "other-task",
     commit: "0".repeat(40),
   };
@@ -235,11 +229,11 @@ test("a verifier runs read-only in a detached worktree Avoozl adds, and its verd
     starts: [
       {
         executor: "process",
-        role: "verifier",
+        role: "review:c",
         task: "sample-task",
         commit,
         worktree,
-        brief: `Verify.\nRESULT:${JSON.stringify({ state: "done", report })}`,
+        brief: `Review.\nRESULT:${JSON.stringify({ state: "done", report })}`,
       },
     ],
   });
@@ -254,7 +248,7 @@ test("a verifier runs read-only in a detached worktree Avoozl adds, and its verd
   assert.equal(binding.permissionClass, "read");
   assert.equal(gitIn(worktree, "rev-parse", "HEAD"), commit);
   assert.deepEqual(await settle(m, ops, binding.slot), []);
-  assert.match(m.log(binding.slot), /You are the Avoozl Verifier/);
+  assert.match(m.log(binding.slot), /You are an Avoozl Reviewer/);
   assert.ok(m.log(binding.slot).includes(`cwd: ${worktree} `));
   // Avoozl names the task and reads the commit itself; the file's own
   // taskId and commit are ignored.
@@ -266,16 +260,17 @@ test("a verifier runs read-only in a detached worktree Avoozl adds, and its verd
         kind: "done",
         commit,
         verdict: "approved",
-        checks: [{ command: "npm test", exitCode: 0 }],
+        findings: [],
+        closures: [],
         text: "Meets the bar.",
       },
     },
   ]);
   assert.ok(!fs.existsSync(worktree), "the detached worktree is removed");
-  assert.doesNotMatch(gitIn(m.checkout, "worktree", "list"), /verify-1/);
+  assert.doesNotMatch(gitIn(m.checkout, "worktree", "list"), /review-c-1/);
 });
 
-test("a process repository's verifier and new-plan planner requests name process", (t) => {
+test("a process repository's review requests name process", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-roles-route-"));
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => {
@@ -283,7 +278,7 @@ test("a process repository's verifier and new-plan planner requests name process
     fs.rmSync(root, { recursive: true, force: true });
   });
   const data = snapshot();
-  Object.assign(data.tasks[0], { repository: "app", verify: "agent" });
+  Object.assign(data.tasks[0], { repository: "app" });
   store.initialize(data);
   const checkout = path.join(root, "app");
   store.put("repositories", { id: "app", root: checkout, executor: "process" });
@@ -294,74 +289,28 @@ test("a process repository's verifier and new-plan planner requests name process
     commit: "a".repeat(40),
     attempts: [{ attempt: 1, outcome: "done", commit: "a".repeat(40) }],
   });
-  const [verify] = planVerifierDispatches(store);
-  assert.equal(verify.executor, "process");
-  assert.equal(verify.permissionClass, "read");
-  assert.equal(verify.commit, "a".repeat(40));
-  assert.equal(
-    verify.worktree,
-    path.join(root, ".avoozl-worktrees", "avoozl-sample-task-verify-1"),
-  );
-  assert.ok(verify.brief.includes(verify.worktree), "the brief names it");
-
-  store.setMeta("newPlans", [
-    {
-      name: "cache",
-      goal: "x",
-      repositories: ["app"],
-      brief: "Mode: draft.",
-      root: checkout,
-      attempt: 1,
+  const policy = deliveryPolicy({
+    delivery: {
+      reviewers: [
+        {
+          id: "c",
+          focus: "conventions",
+          agent: "avoozl-reviewer",
+          distinctFrom: "session",
+        },
+      ],
     },
-  ]);
-  const [planner] = newPlanStarts(store, {});
-  assert.equal(planner.task, newPlanTask("cache"));
-  assert.equal(planner.executor, "process");
-  assert.equal(
-    planner.worktree,
-    path.join(checkout, ".kiro", "specs", "cache"),
-  );
-  store.put("repositories", { id: "app", root: checkout });
-  assert.equal(newPlanStarts(store, {})[0].executor, "kirocrew");
-  assert.equal(newPlanStarts(store, {})[0].worktree, checkout);
-});
-
-test("a process planner whose spec folder is in no checkout runs with its repository's sandbox", (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-roles-plan-"));
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => {
-    store.close();
-    fs.rmSync(root, { recursive: true, force: true });
   });
-  store.initialize(snapshot());
-  const sandbox = { network: ["localhost:1"] };
-  store.put("repositories", {
-    id: "app",
-    root: path.join(root, "app"),
-    executor: "process",
-    sandbox,
-  });
-  // A local workspace's own folder holds its specs, outside the checkout.
-  const specRoot = path.join(root, "workspace");
-  store.setMeta("newPlans", [
-    {
-      name: "cache",
-      goal: "x",
-      repositories: ["app"],
-      brief: "Mode: draft.",
-      root: specRoot,
-      attempt: 1,
-    },
-  ]);
-  const [planner] = newPlanStarts(store, { harness: "claude-code" });
-  assert.equal(planner.executor, "process");
-  assert.equal(planner.repository, "app");
+  const [review] = planReviewDispatches(store, policy);
+  assert.equal(review.executor, "process");
+  assert.equal(review.permissionClass, "read");
+  assert.equal(review.commit, "a".repeat(40));
   assert.equal(
-    planner.worktree,
-    path.join(specRoot, ".kiro", "specs", "cache"),
+    review.worktree,
+    path.join(root, ".avoozl-worktrees", "avoozl-sample-task-review-c-1"),
   );
-  assert.deepEqual(sessionRepository(store, planner)?.sandbox, sandbox);
-  const [chat] = newPlanStarts(store, { harness: "kirocrew" });
-  assert.equal(chat.executor, "kirocrew");
-  assert.equal(chat.repository, undefined, "a chat keeps its Specs folder");
+  assert.ok(
+    review.brief.includes("a".repeat(40)),
+    "the brief names the commit",
+  );
 });

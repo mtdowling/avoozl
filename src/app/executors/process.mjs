@@ -42,7 +42,6 @@ import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { processRow } from "../agents/role-table.mjs";
 import { loadHarnessDefinition } from "./harness-definitions.mjs";
-import { sessionServedModel } from "./process-view.mjs";
 import { requireDiskSpace } from "../workspace/disk-space.mjs";
 
 const PROCESS_EXECUTOR = "process";
@@ -207,8 +206,8 @@ export function processBrief(role, brief, { allowCommands } = {}) {
 }
 
 // The repository a process session runs in: its task's repository, else the
-// repository the request names (a retro), else the repository whose checkout is
-// the session's folder (a planner).
+// repository the request names, else the repository whose checkout is the
+// session's folder.
 export function sessionRepository(
   store,
   { task: taskId, repository, worktree },
@@ -250,7 +249,7 @@ async function prepareDetached(checkout, worktree, commit, store = null) {
 }
 
 // A read session whose folder is its own detached worktree, not the
-// checkout (the shape planVerifierDispatches gives a `process` repository,
+// checkout (the shape planReviewDispatches gives a `process` repository,
 // and the responder's at its base branch).
 const verdictSession = (session, checkout) =>
   processRow(session.role)?.folder === "detached" &&
@@ -374,10 +373,8 @@ export function withChildOutput(row, result) {
 // kept as data, and a done report's commit read from the worktree's HEAD,
 // never from the child. Avoozl's own commit of the child's edits (R94.4a)
 // comes before this read. A verdict role's report fields come from the
-// file's `report`, which session.report checks as it does plans_report; a
-// planner's folder is stored by the tick's plan import, so its result
-// records nothing.
-const VERDICT_FIELDS = ["verdict", "findings", "closures", "checks", "text"];
+// file's `report`, which session.report checks as it does plans_report.
+const VERDICT_FIELDS = ["verdict", "findings", "closures", "text"];
 export const NOTHING_COMMITTED =
   "The worker reported done, but nothing was committed: the worktree has no change since its base. Make the change with your file tools, check the files are there, then report done.";
 
@@ -487,20 +484,6 @@ export async function finishProcessSession(ops, binding, result, store = null) {
   return ops.execute("session.report", input, undefined, {
     caller: cliReportCaller(binding),
   });
-}
-
-// The served model a finished child's harness output names, or null.
-function servedModelOf(stateDirectory, slot, configDirectory) {
-  try {
-    const row = withDatabase(stateDirectory, (db) => childRecord(db, slot));
-    const definition = loadHarnessDefinition({
-      configDirectory,
-      name: row.harness,
-    });
-    return sessionServedModel(row, definition);
-  } catch {
-    return null;
-  }
 }
 
 // The epic context a worker session passed the gate for, or null (epic-context
@@ -903,31 +886,6 @@ export async function drainProcessRequests(
           const result = withDatabase(stateDirectory, (db) =>
             childResult(db, binding.slot),
           );
-          // A role whose rule is about which model ran reads the served
-          // model from the harness output (NK5.2).
-          // It is kept on the session, as Kiro Crew's reading is for a chat,
-          // so the planner that wrote a revision has a proven model too, even
-          // when it writes no result file.
-          if (result && processRow(binding.role)?.served) {
-            result.served = servedModelOf(
-              stateDirectory,
-              binding.slot,
-              ops.configDirectory,
-            );
-            if (result.served)
-              recordSessionStatus(
-                store,
-                { slot: binding.slot, status: binding.status },
-                {
-                  served: {
-                    model: result.served,
-                    requested: binding.model ?? null,
-                    changed: false,
-                    withheld: false,
-                  },
-                },
-              );
-          }
           if (result?.state)
             await finishProcessSession(ops, binding, result, store).catch(
               (error) =>

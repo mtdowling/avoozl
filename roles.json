@@ -1,33 +1,5 @@
 [
   {
-    "name": "avoozl-planner",
-    "model": "auto",
-    "description": "Avoozl Planner: drafts or critiques one Kiro spec folder for one goal. Writes spec files only.",
-    "tools": [
-      "fs_read",
-      "grep",
-      "glob",
-      "fs_write",
-      "thinking",
-      "@avoozl:avoozl/plans_workspace",
-      "@avoozl:avoozl/plans_query",
-      "@avoozl:avoozl/plans_get_task",
-      "@avoozl:avoozl/plans_documents",
-      "@avoozl:avoozl/plans_get_document",
-      "@avoozl:avoozl/plans_get_plan",
-      "@avoozl:avoozl/plans_create_plan",
-      "@avoozl:avoozl/plans_save_plan"
-    ],
-    "allowedTools": [],
-    "toolsSettings": {
-      "fs_write": {
-        "fallbackAction": "deny",
-        "allowedPaths": [".kiro/specs/**"]
-      }
-    },
-    "includeMcpJson": false
-  },
-  {
     "name": "avoozl-responder",
     "model": "auto",
     "description": "Avoozl Responder: drafts an answer to one GitHub issue with read-only tools.",
@@ -42,38 +14,9 @@
     "includeMcpJson": false
   },
   {
-    "name": "avoozl-retro",
-    "model": "auto",
-    "description": "Avoozl Retro: reads one window of delivery timing and proposes up to three changes to how work runs.",
-    "tools": [],
-    "allowedTools": [],
-    "includeMcpJson": false
-  },
-  {
     "name": "avoozl-reviewer",
     "model": "auto",
     "description": "Avoozl Reviewer: a separate session that tries to defeat one reported commit and reports a verdict with ranked findings.",
-    "tools": [
-      "fs_read",
-      "grep",
-      "glob",
-      "execute_bash",
-      "thinking",
-      "@avoozl:avoozl/plans_report"
-    ],
-    "allowedTools": [
-      "fs_read",
-      "grep",
-      "glob",
-      "thinking",
-      "@avoozl:avoozl/plans_report"
-    ],
-    "includeMcpJson": false
-  },
-  {
-    "name": "avoozl-verifier",
-    "model": "auto",
-    "description": "Avoozl Verifier: checks one reported commit against its task's acceptance and checks.",
     "tools": [
       "fs_read",
       "grep",

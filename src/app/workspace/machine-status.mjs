@@ -8,7 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 import { supervisorPaths } from "../executors/supervisor.mjs";
 import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
-import { ROLES, resolveRoles } from "../settings/chat-models.mjs";
+import { ROLES, resolveRoles } from "../agents/role-table.mjs";
 import { lastPasses } from "../executors/tick-passes.mjs";
 
 const COLUMNS = `session_id, role, task, harness, state, pid, exit_code,

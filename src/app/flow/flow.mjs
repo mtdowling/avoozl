@@ -518,12 +518,7 @@ export function syncSpans(store, { now = Date.now() } = {}) {
         });
       continue;
     }
-    const stage =
-      binding.role === "verifier"
-        ? "tests"
-        : binding.role?.startsWith("review:")
-          ? "review"
-          : null;
+    const stage = binding.role?.startsWith("review:") ? "review" : null;
     if (!stage || binding.source !== "tick") continue;
     const id = spanId(
         "events",

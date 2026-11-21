@@ -80,17 +80,8 @@
         "worker": {
           "$ref": "#/$defs/agentRole"
         },
-        "planner": {
-          "$ref": "#/$defs/chatRole"
-        },
-        "retro": {
-          "$ref": "#/$defs/chatRole"
-        },
         "checkDecide": {
           "$ref": "#/$defs/chatRole"
-        },
-        "verifier": {
-          "$ref": "#/$defs/harnessRole"
         },
         "reviewer": {
           "$ref": "#/$defs/harnessRole"

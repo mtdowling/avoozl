@@ -13,11 +13,9 @@ The directory ships beside `src/`, in a checkout and in the installed app. The
 roles are the keys of the `roles` setting, and each file serves these roles:
 
 
-- `verifier.md` is the `verifier` role.
 - `reviewer.md` is the `reviewer` role, for review sessions.
-- `planner.md` is the `planner` role.
-- `retro.md` is the `retro` role.
 - `responder.md` is the `responder` role.
+- `check-decide.md` is the `checkDecide` role, a plugin check's decide call.
 - `assist.md` is the `assist` role, the page's chat when Kiro Crew is absent. It
   runs only as a process session.
 - `worker.md` and `review.md` are not a role's prompt. They are the "Steps"

@@ -88,7 +88,7 @@ in `.avoozl.json`:
     "worker": {
       "harness": "codex"
     },
-    "planner": {
+    "responder": {
       "harness": "claude-code"
     },
     "reviewer": {

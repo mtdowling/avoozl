@@ -525,8 +525,7 @@ Changes only to tests, docs, comments or internal helpers do not.
 ```
 
 At each point `decideAt` names, Avoozl asks one short read-only, offline
-model call (the **Check decide** role in Settings › Models, the planner's
-model by default) with the prompt, then the task's text (`approve`) or its
+model call (the **Check decide** role in Settings › Models) with the prompt, then the task's text (`approve`) or its
 diff (`diff`) as data. Its only answer is `{"needed": true | false, "reason":
 "..."}`. A failed call, bad output, no model, or an input over 200 KB counts
 as needed. The task shows each answer, and a person can press **Run it** or

@@ -1,6 +1,6 @@
 // Settings > Models: the one roles table (R98.6), each role's harness,
 // model and, for the worker, agent. Saved as `roles` in
-// .avoozl.json (src/app/settings/chat-models.mjs); a save drops the older `models`,
+// .avoozl.json (src/app/agents/role-table.mjs); a save drops the older `models`,
 // `harnesses` and Delivery agent and model keys. Issue Radar crews pick
 // their own model. Free of JSX so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'
@@ -11,14 +11,10 @@ import { parseModels } from './flow-api.ts'
 // here too, and `model` the roles whose model is.
 export const ROLES = [
   { key: 'worker', label: 'Worker', line: 'Codes each ready task. A task’s manifest may pin another.', agent: true, model: true },
-  { key: 'planner', label: 'Planner', line: 'Drafts specs from a GitHub planning label.', agent: false, model: true },
-  { key: 'retro', label: 'Retro', line: 'Finds the slowest step and proposes one change.', agent: false, model: true },
-  { key: 'checkDecide', label: 'Check decide', line: 'Answers whether a plugin check is needed for a task. Auto uses the planner’s model.', agent: false, model: true },
+  { key: 'checkDecide', label: 'Check decide', line: 'Answers whether a plugin check is needed for a task.', agent: false, model: true },
   // These pick only a harness and run on its agent's own model.
-  { key: 'verifier', label: 'Verifier', line: 'Checks each commit and reports a verdict.', agent: false, model: false },
-  { key: 'reviewer', label: 'Reviewers', line: 'Each review role a spec adds reads the commit and reports a verdict.', agent: false, model: false },
+  { key: 'reviewer', label: 'Reviewer', line: 'Reads each task’s head and tries to find what is wrong with it.', agent: false, model: false },
   { key: 'responder', label: 'Responder', line: 'Answers a labeled GitHub issue or discussion.', agent: false, model: false },
-  { key: 'taskSummary', label: 'Task summary', line: 'Writes the summary on a task’s Overview.', agent: false, model: false },
   { key: 'assist', label: 'Assistant', line: 'Answers from the page’s Open chat buttons when Kiro Crew is not running. Read-only.', agent: false, model: false },
 ] as const
 export type Role = (typeof ROLES)[number]['key']
@@ -28,17 +24,13 @@ export interface RoleRow {
   model?: string
 }
 export type RoleTable = Partial<Record<Role, RoleRow>>
-// What each role may do to files: the worker writes code and the planner
-// writes spec files; the others only read.
+// What each role may do to files: the worker writes code; the others only
+// read.
 export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = {
   worker: 'write',
-  planner: 'write',
-  retro: 'read',
   checkDecide: 'read',
-  verifier: 'read',
   reviewer: 'read',
   responder: 'read',
-  taskSummary: 'read',
   assist: 'read',
 }
 // The Kiro Crew chat; any other harness is a supervisor child.

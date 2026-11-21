@@ -1,5 +1,5 @@
 // Built-in prompts as named sections, and this workspace's local overrides
-// (design §4.18, Requirement 68). Avoozl ships five prompts; each is a list
+// (design §4.18, Requirement 68). Avoozl ships three prompts; each is a list
 // of sections with the sha256 of its shipped text. Some sections guard the
 // owner (locked) and always use the shipped text. A person's approval of a
 // retro `prompt` proposal writes a new override version to a file on this
@@ -17,8 +17,6 @@ import { addedLines, applyDiff, merge3, unifiedDiff } from "./text-diff.mjs";
 export const PROMPT_TARGETS = Object.freeze([
   "brief.worker",
   "brief.review",
-  "agent.planner",
-  "agent.retro",
   "steering.specs",
 ]);
 export const LOCKED_SECTIONS = Object.freeze([
@@ -57,8 +55,6 @@ export function shippedPrompts() {
   return {
     "brief.worker": rolePrompt("worker"),
     "brief.review": rolePrompt("review"),
-    "agent.planner": rolePrompt("planner"),
-    "agent.retro": rolePrompt("retro"),
     "steering.specs": STEERING_TEXT,
   };
 }
@@ -223,17 +219,6 @@ export function historicTexts(file, target, shipped = shippedPrompts()) {
   return [...new Set(out)];
 }
 
-// For agent prompts the shipped prompt stays in the installed app; the seed
-// carries each overridden section whole (design §4.18, F125).
-export function seedOverrides(state, target) {
-  const changed = state[target].sections.filter((s) => s.override);
-  if (!changed.length) return null;
-  return [
-    `Avoozl prompt version ${state[target].version}. Each section below replaces the section of the same name in your instructions:`,
-    ...changed.map((s) => `${s.head || "(intro)"}\n${s.body}`.trim()),
-  ].join("\n\n");
-}
-
 // ---------------------------------------------------------- the changes
 
 // Why a diff to one section cannot stand, or null. `state` is the current
@@ -391,6 +376,5 @@ export function roleTarget(role) {
   if (role === "worker") return "brief.worker";
   if (typeof role === "string" && role.startsWith("review:"))
     return "brief.review";
-  if (role === "planner") return "agent.planner";
   return null;
 }

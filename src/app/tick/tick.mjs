@@ -48,7 +48,7 @@ import {
   planReadyDispatches,
   asksForcePush,
   briefAllowed,
-  planVerifierDispatches,
+  planReviewDispatches,
   reconcileDeliveries,
   reconcileVerifications,
   summaryLine,
@@ -84,7 +84,7 @@ import {
 } from "../github/github-rate.mjs";
 import { decideStep } from "../plugins/check-decide.mjs";
 import { queuePhaseChecks } from "../plugins/check-stages.mjs";
-import { validateRoles, withChatModels } from "../settings/chat-models.mjs";
+import { validateRoles } from "../agents/role-table.mjs";
 import { syncStep, syncTargets } from "../epics/integration-sync.mjs";
 import { headStep } from "../epics/integration-head.mjs";
 import { repositoryPlugins } from "../plugins/plugins.mjs";
@@ -879,7 +879,7 @@ async function runTick(
         verify =
           unobserved.length || !delivery
             ? []
-            : planVerifierDispatches(store, delivery, {
+            : planReviewDispatches(store, delivery, {
                 workspace: laneWorkspace(workspaceRoot),
                 config: memory.value || {},
               });
@@ -908,9 +908,6 @@ async function runTick(
         ...responders,
         ...reviews,
       ];
-      // Settings › Models: the planner chats open on
-      // the saved model.
-      dispatch = withChatModels(dispatch, memory.value || {});
       if (contextBrief)
         dispatch = await Promise.all(
           dispatch.map(async (d) => {

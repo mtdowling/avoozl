@@ -15,11 +15,7 @@ const agents = JSON.parse(
 );
 const OWN = "@avoozl:avoozl/";
 // Agents that change no file and write nothing beyond their one report.
-const READ_ONLY = new Set([
-  "avoozl-responder",
-  "avoozl-reviewer",
-  "avoozl-verifier",
-]);
+const READ_ONLY = new Set(["avoozl-responder", "avoozl-reviewer"]);
 const writes = (name) =>
   Object.hasOwn(GROUPED_TOOLS, name) &&
   Object.values(GROUPED_TOOLS[name].actions).some(

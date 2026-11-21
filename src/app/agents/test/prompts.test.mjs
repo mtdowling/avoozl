@@ -17,7 +17,6 @@ import {
   rebasePrompt,
   revertPrompt,
   sectionDiffProblem,
-  seedOverrides,
   shippedPrompts,
 } from "../prompts.mjs";
 import { unifiedDiff } from "../text-diff.mjs";
@@ -42,18 +41,7 @@ test("each built-in prompt is named sections that join back to its text, with lo
     [...LOCKED_SECTIONS],
   );
   assert.equal(worker.find((s) => s.name === "steps").locked, null);
-  // The planner's example files are fenced and are not sections.
-  assert.ok(
-    !parseSections(shipped["agent.planner"]).some(
-      (s) => s.name === "load-and-validate-configuration",
-    ),
-  );
-  for (const target of [
-    "brief.worker",
-    "brief.review",
-    "agent.planner",
-    "agent.retro",
-  ])
+  for (const target of ["brief.worker", "brief.review"])
     assert.match(
       shipped[target],
       new RegExp(OUTRANK_LINE.replace(/[.]/g, "\\.")),
@@ -166,32 +154,6 @@ test("approve writes override version 1 outside shipped files; revert is one ste
       [2, "revert"],
       [3, "revert"],
     ],
-  );
-});
-
-test("an agent prompt override travels in the seed as whole labeled sections", () => {
-  const file = setup(),
-    state = promptState(file, shipped),
-    reply = state["agent.retro"].sections.find((s) => s.name === "reply");
-  approveSection(
-    file,
-    {
-      target: "agent.retro",
-      section: "reply",
-      base: reply.sha256,
-      diff: unifiedDiff(reply.body, reply.body + "\nPrefer one proposal.\n"),
-      proposal: { retro: "retro-1", id: "p2" },
-      by: "dashboard",
-      at: "t",
-    },
-    shipped,
-  );
-  const seed = seedOverrides(promptState(file, shipped), "agent.retro");
-  assert.match(seed, /replaces the section of the same name/);
-  assert.match(seed, /# Reply[\s\S]*Prefer one proposal\./);
-  assert.equal(
-    seedOverrides(promptState(file, shipped), "agent.planner"),
-    null,
   );
 });
 

@@ -22,7 +22,7 @@ import {
   HARNESS_ROLE_FIELDS,
   ROLE_FIELDS,
   ROLES,
-} from "../chat-models.mjs";
+} from "../../agents/role-table.mjs";
 import {
   DELIVERY_KEYS,
   DELIVERY_REPOSITORY_KEYS,

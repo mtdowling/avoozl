@@ -1,7 +1,6 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import os from "node:os";
 import { auditPlans } from "../../mcp.mjs";
-import { chatModel, roleHarness } from "../settings/chat-models.mjs";
 import {
   CHECKS_UNCONFINED,
   checksUnconfinedAllowed,
@@ -17,15 +16,14 @@ import { requirePrivateRepository } from "../github/github.mjs";
 import { HARNESS_UNCONFINED } from "../executors/harness-definitions.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
 import { startTelemetry } from "../telemetry/index.mjs";
-import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import {
   ensureGlobalLocalIgnore,
   globalLocalIgnoreStatus,
 } from "../workspace/local-ignore.mjs";
-import { importNewPlans, newPlanStarts } from "../specs/new-plan.mjs";
+import { importNewPlans } from "../specs/new-plan.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import { archiveEnded } from "../specs/plan-retire.mjs";
 import { chatBrief } from "../workers/epic-context.mjs";
-import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
 import {
   createSpecPlan,
   lintSpec,
@@ -100,6 +98,13 @@ export const entries = [
       if (result.skipped) return result;
       // A deleted plan's tasks whose chats have ended are archived now.
       archiveEnded(store);
+      // A cron or roster pass reads the layered config, so a bad file
+      // refuses the pass naming its key (layered-config.mjs).
+      if (
+        this.workspaceRoot &&
+        (input.cron === true || Array.isArray(input.sessions))
+      )
+        loadLayeredConfig({ workspaceRoot: this.workspaceRoot });
       try {
         await withWorkLock(store, WORKSPACE_LOCK, async () => {
           // New plan folders that lint clean become draft plans (never approved).
@@ -131,34 +136,6 @@ export const entries = [
                 spec,
               ),
           });
-          if (
-            this.workspaceRoot &&
-            (input.cron === true || Array.isArray(input.sessions))
-          ) {
-            const config = loadLayeredConfig({
-                workspaceRoot: this.workspaceRoot,
-              }).config,
-              // New plan's planner chat, opened here so it is bound and its
-              // served model read; on the planner's saved model.
-              planners = result.held
-                ? []
-                : newPlanStarts(store, {
-                    model: chatModel(config, "planner"),
-                    harness: roleHarness(config, "planner"),
-                  }),
-              opened = enqueueSessionRequests(
-                store,
-                { starts: planners },
-                { source: "new-plan" },
-              );
-            for (const request of opened.starts) {
-              const index = result.dispatch.findIndex(
-                (entry) => entry.id === request.id,
-              );
-              if (index < 0) result.dispatch.push(request);
-              else result.dispatch[index] = request;
-            }
-          }
         });
       } catch (error) {
         if (!error.contention) throw error;

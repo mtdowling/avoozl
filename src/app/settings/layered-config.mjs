@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateRoles } from "./chat-models.mjs";
+import { validateRoles } from "../agents/role-table.mjs";
 import { validateLanes } from "../tick/lanes.mjs";
 import {
   assertNoMachineKeys,

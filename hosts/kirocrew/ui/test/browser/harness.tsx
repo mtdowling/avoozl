@@ -1618,7 +1618,7 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
     filename: '.avoozl.json',
     exists: true,
     hash: 'models-before',
-    roles: { planner: { model: 'fake-writer' } } as Record<string, Record<string, string>>,
+    roles: { checkDecide: { model: 'fake-writer' } } as Record<string, Record<string, string>>,
     harnessDefinitions: [
       { name: 'claude-code', approved: true, model: true, readRoles: null, proved: ['read', 'write'] },
       {

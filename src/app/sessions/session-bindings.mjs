@@ -10,10 +10,7 @@ import { resolveTaskId } from "../../task-identity.mjs";
 
 const ROLES = new Set([
   "worker",
-  "verifier",
   "responder",
-  "planner",
-  "retro",
   // A page-opened assistant (session-open.mjs).
   "assist",
   // One plugin check's decide call (check-decide.mjs).
@@ -67,17 +64,6 @@ function briefContext(store, taskId, role, executor) {
     : {};
 }
 
-// A `new-plan:<name>` key whose New plan request is still pending; the
-// request list is new-plan.mjs's `newPlans` meta entry.
-function newPlanRequested(store, id) {
-  const pending = store.getMeta("newPlans");
-  return (
-    id.startsWith("new-plan:") &&
-    Array.isArray(pending) &&
-    pending.some((entry) => "new-plan:" + entry?.name === id)
-  );
-}
-
 function existingTask(store, id) {
   const data = store.read(),
     taskId = resolveTaskId(data, id);
@@ -110,7 +96,9 @@ export function bindSession(
         ? null
         : text(input.title, "session title", MAX_TITLE);
   if (!isRole(role))
-    fail("Choose role worker, verifier, responder, planner, or review:<id>.");
+    fail(
+      "Choose role worker, responder, assist, check-decide, or review:<id>.",
+    );
   if (input.model !== undefined && !MODEL.test(input.model))
     fail("Choose a model name.");
   // The crew, agent, and why (R41.9, R53.10).
@@ -151,9 +139,7 @@ export function bindSession(
           store.get("receipts", named)?.kind === "assist-session") ||
         // A decide session binds to its call (check-decide.mjs).
         (role === "check-decide" &&
-          store.get("flow_records", named)?.kind === "check-decide") ||
-        // New plan's planner binds to its pending request (new-plan.mjs).
-        (role === "planner" && newPlanRequested(store, named))
+          store.get("flow_records", named)?.kind === "check-decide")
           ? named
           : existingTask(store, named);
     if (!taskId) fail("Task not found.", 404);
@@ -330,13 +316,13 @@ export function sessionRequestHold(data, taskId, role = "worker") {
 }
 
 // Explicit requests keep their existing API; provider configuration is adapted
-// privately while the planner reads only the portable intent.
+// privately while the caller reads only the portable intent.
 export function requestSession(store, input = {}, repositories = []) {
   const role = input.role ?? "worker",
     executor = input.executor ?? "kirocrew",
     repositoryId = text(input.repository, "repository ID", 100);
   if (!ROLES.has(role))
-    fail("Choose role worker, verifier, responder, or planner.");
+    fail("Choose role worker, responder, assist, or check-decide.");
   if (typeof executor !== "string" || !/^[a-z][a-z0-9-]*$/.test(executor))
     fail("Choose an executor name.");
   const repository = repositories.find((entry) => entry.id === repositoryId);

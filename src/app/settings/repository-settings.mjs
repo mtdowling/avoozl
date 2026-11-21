@@ -1,4 +1,8 @@
-import { mergeRoles, resolveRoles, validateRoles } from "./chat-models.mjs";
+import {
+  mergeRoles,
+  resolveRoles,
+  validateRoles,
+} from "../agents/role-table.mjs";
 import { sandboxWriteRoots } from "../executors/harness-definitions.mjs";
 import { sandboxAllowCommands } from "../executors/harness-allow.mjs";
 import { sandboxNetwork } from "../executors/sandbox.mjs";

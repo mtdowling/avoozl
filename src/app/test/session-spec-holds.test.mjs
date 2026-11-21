@@ -100,7 +100,7 @@ test("an explicit session cannot bypass a pending prerequisite through another t
       .pendingSpecDependencies,
     undefined,
   );
-  for (const role of ["worker", "verifier", "planner"])
+  for (const role of ["worker", "responder"])
     await assert.rejects(
       w.ops.execute("session.request", request("last-step", role)),
       /referenced spec approval at consumer-step/,

@@ -11,7 +11,7 @@ import {
   deliveryPolicy,
   liveAttempt,
   planReadyDispatches,
-  planVerifierDispatches,
+  planReviewDispatches,
   reconcileDeliveries,
 } from "../../delivery/delivery.mjs";
 import { mcpRefusal } from "../../mcp/mcp-policy.mjs";
@@ -72,7 +72,7 @@ function setup(t, { refuse = new Set() } = {}) {
   );
   store.put(
     "session_bindings",
-    binding("s-a2-v", "a2", { role: "verifier", commit: "c".repeat(40) }),
+    binding("s-a2-v", "a2", { role: "review:c", commit: "c".repeat(40) }),
   );
   // a3: a Crew Mode conductor's worker; Avoozl did not open it.
   store.put("session_bindings", binding("s-a3", "a3", { source: "conductor" }));
@@ -170,7 +170,7 @@ test("a full stop stops each running chat Avoozl opened and marks it interrupted
   assert.ok(!messages.some((m) => m.slot === "s-a1"));
   assert.equal(store.get("task_deliveries", "a1").state, "interrupted");
   assert.deepEqual(planReadyDispatches(store, policy), []);
-  assert.deepEqual(planVerifierDispatches(store, policy), []);
+  assert.deepEqual(planReviewDispatches(store, policy), []);
   const view = await ops.execute("flow.view", {});
   assert.ok(
     view.stops.some(
@@ -218,6 +218,6 @@ test("Resume starts each interrupted task again on the same branch and model", a
       .get("task_deliveries", "a1")
       .attempts.some((a) => a.outcome === "failed"),
   );
-  // The checks session opens again once the stop is resumed.
-  assert.ok(planVerifierDispatches(store, policy).some((d) => d.task === "a2"));
+  // The review session opens again once the stop is resumed.
+  assert.ok(planReviewDispatches(store, policy).some((d) => d.task === "a2"));
 });

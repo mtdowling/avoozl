@@ -14,8 +14,7 @@ import {
   FINAL_STATUSES,
   listSessionBindings,
 } from "../sessions/session-bindings.mjs";
-import { roleRun } from "../agents/role-table.mjs";
-import { chatModel } from "../settings/chat-models.mjs";
+import { chatModel, roleRun } from "../agents/role-table.mjs";
 import { waitsOnKirocrew } from "../tick/needs-kirocrew.mjs";
 import { statusComplete } from "../../model.mjs";
 import { taskRepository } from "../../work-model.mjs";
@@ -281,9 +280,7 @@ export function decideStep(
         .filter((b) => b.role === DECIDE_ROLE)
         .map((b) => b.taskId),
     ),
-    model =
-      chatModel(config || {}, "checkDecide") ??
-      chatModel(config || {}, "planner");
+    model = chatModel(config || {}, "checkDecide");
   const dispatch = records(store, DECIDE_KIND)
     .filter((r) => r.state === "queued" && !bound.has(r.id))
     .flatMap((record) => {

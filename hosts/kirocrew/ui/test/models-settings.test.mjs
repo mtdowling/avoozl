@@ -10,20 +10,20 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 test('every role is one row, and auto or blank fields leave a row out', () => {
   assert.deepEqual(
     ROLES.map((r) => r.key),
-    ['worker', 'planner', 'retro', 'checkDecide', 'verifier', 'reviewer', 'responder', 'taskSummary', 'assist'],
+    ['worker', 'checkDecide', 'reviewer', 'responder', 'assist'],
   )
   // The roles added for harnesses pick no model.
   assert.deepEqual(
     ROLES.filter((r) => !r.model).map((r) => r.key),
-    ['verifier', 'reviewer', 'responder', 'taskSummary', 'assist'],
+    ['reviewer', 'responder', 'assist'],
   )
   assert.deepEqual(
     ROLES.filter((r) => r.agent).map((r) => r.key),
     ['worker'],
   )
-  assert.deepEqual(toRoles({ planner: { model: 'm1' }, verifier: { model: 'auto' }, retro: { model: '', harness: 'auto' } }), { planner: { model: 'm1' } })
+  assert.deepEqual(toRoles({ checkDecide: { model: 'm1' }, reviewer: { model: 'auto' }, assist: { model: '', harness: 'auto' } }), { checkDecide: { model: 'm1' } })
   assert.deepEqual(toRoles({ worker: { agent: ' alt ', model: 'm1', harness: 'claude-code' } }), { worker: { agent: 'alt', model: 'm1', harness: 'claude-code' } })
-  assert.deepEqual(toRoles({ retro: { model: 'auto' } }), {})
+  assert.deepEqual(toRoles({ assist: { model: 'auto' } }), {})
 })
 
 test('Settings has a Models section with a themed picker per role; Flow and Delivery pick no model', () => {
@@ -84,7 +84,7 @@ test('a definition with no way to write its result is offered only for write rol
     harnessOptions(defs, '', 'write').map((o) => o.value),
     ['auto', 'kirocrew', 'claude-code', 'codex'],
   )
-  assert.match(roleProblem('verifier', { verifier: { harness: 'codex' } }, defs), /codex names no resultAllow/)
+  assert.match(roleProblem('reviewer', { reviewer: { harness: 'codex' } }, defs), /codex names no resultAllow/)
   assert.equal(roleProblem('worker', { worker: { harness: 'codex' } }, defs), null)
   assert.equal(provedLine(defs[0]), 'read: proved, write: proved')
   assert.equal(provedLine(defs[1]), 'read: not proved, write: proved')
@@ -95,18 +95,18 @@ test('a role is default until a harness, agent or model is set, and an unusable 
     { name: 'claude-code', approved: true, model: true },
     { name: 'plain-cli', approved: true, model: false },
   ]
-  assert.equal(roleIsSet('retro', {}), false)
-  assert.equal(roleIsSet('retro', { retro: { model: 'auto', harness: 'auto' } }), false)
-  assert.equal(roleIsSet('retro', { retro: { model: 'm1' } }), true)
+  assert.equal(roleIsSet('checkDecide', {}), false)
+  assert.equal(roleIsSet('checkDecide', { checkDecide: { model: 'auto', harness: 'auto' } }), false)
+  assert.equal(roleIsSet('checkDecide', { checkDecide: { model: 'm1' } }), true)
   assert.equal(roleIsSet('worker', { worker: { harness: 'claude-code' } }), true)
   assert.equal(roleIsSet('worker', { worker: { agent: 'alt' } }), true)
   assert.equal(harnessTakesModel('plain-cli', defs), false)
   assert.equal(harnessTakesModel('claude-code', defs), true)
   assert.equal(harnessTakesModel('kirocrew', defs), true)
   assert.equal(harnessTakesModel('auto', defs), true)
-  assert.match(roleProblem('retro', { retro: { model: 'm1', harness: 'plain-cli' } }, defs), /plain-cli takes no model/)
-  assert.equal(roleProblem('retro', { retro: { model: 'm1', harness: 'claude-code' } }, defs), null)
-  assert.equal(roleProblem('retro', { retro: { model: 'auto', harness: 'plain-cli' } }, defs), null)
+  assert.match(roleProblem('checkDecide', { checkDecide: { model: 'm1', harness: 'plain-cli' } }, defs), /plain-cli takes no model/)
+  assert.equal(roleProblem('checkDecide', { checkDecide: { model: 'm1', harness: 'claude-code' } }, defs), null)
+  assert.equal(roleProblem('checkDecide', { checkDecide: { model: 'auto', harness: 'plain-cli' } }, defs), null)
   assert.equal(roleProblem('worker', { worker: { agent: 'ok-agent' } }, defs), null)
   assert.match(roleProblem('worker', { worker: { agent: 'bad agent!' } }, defs), /agent name/)
 })

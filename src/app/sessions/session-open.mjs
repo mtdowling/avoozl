@@ -4,9 +4,13 @@
 // asks the process executor for the session, the same way every other child
 // starts: a start request the supervisor's drain takes.
 import { randomUUID } from "node:crypto";
-import { roleHarness, KIROCREW_HARNESS } from "../settings/chat-models.mjs";
 import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
-import { ROLE_TABLE, roleRun } from "../agents/role-table.mjs";
+import {
+  KIROCREW_HARNESS,
+  ROLE_TABLE,
+  roleHarness,
+  roleRun,
+} from "../agents/role-table.mjs";
 import { enqueueSessionRequests } from "./session-requests.mjs";
 import { SEND_MAX_CHARS } from "./session-send.mjs";
 import { processSessionDetails } from "../executors/process-view.mjs";

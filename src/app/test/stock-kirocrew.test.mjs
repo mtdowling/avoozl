@@ -201,7 +201,7 @@ test("the backend records what each live session it reads is doing", async (t) =
   await ops.execute("session.bind", {
     taskId: "a",
     slot: "mine",
-    role: "planner",
+    role: "responder",
   });
   const reads = [];
   const result = await observeSessions(store, async (slot) => {

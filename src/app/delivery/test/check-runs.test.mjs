@@ -1,16 +1,11 @@
 // Checks in code (design §5.2 Checks): a command-only bar is checked by
-// Avoozl itself in a clean detached worktree, not by a verifier chat. One
+// Avoozl itself in a clean detached worktree. One
 // test per rule; each lists the nearby inputs it checks.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  checkRuns,
-  drainCheckRuns,
-  needsJudgment,
-  outputTail,
-} from "../check-runs.mjs";
+import { checkRuns, drainCheckRuns, outputTail } from "../check-runs.mjs";
 import { listSpans } from "../../flow/flow.mjs";
 import {
   deliveryWorkspace,
@@ -88,26 +83,6 @@ test("a command-only bar opens no verifier chat: Avoozl runs the checks at the e
     listSpans(store).some((s) => s.taskId === "a" && s.stage === "checks"),
     "flow timing records check time as checks",
   );
-  assert.equal(
-    store.list("session_bindings").filter((b) => b.role === "verifier").length,
-    0,
-  );
-
-  // Judgment bars keep their verifier chat.
-  const named = { checks: { test: ["npm", "test"] } };
-  assert.equal(needsJudgment(leaf("x"), named), false);
-  assert.equal(needsJudgment(leaf("x"), { checks: [] }), true);
-  // A task's own list is not a check: only the repository's are.
-  assert.equal(needsJudgment(leaf("x", { checks: ["npm test"] }), {}), true);
-  const judged = setup(t, { tasks: [leaf("j")], checks: [] });
-  await workerDone(judged.ops, "j", "w-j");
-  const opened = await tick(judged.ops, ["w-j"]);
-  assert.deepEqual(
-    opened.dispatch.filter((d) => d.role === "verifier").map((d) => d.task),
-    ["j"],
-  );
-  assert.match(opened.dispatch.at(-1).brief, /verdict/);
-  assert.equal(checkRuns(judged.store).length, 0);
 });
 
 test("a failing check fails the writer's attempt, with a short redacted tail", async (t) => {

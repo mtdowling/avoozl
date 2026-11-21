@@ -6,7 +6,7 @@
 // `command` sink is the only notification channel. One line per row of
 // ms-roles-rows.mjs says whether it reached its result.
 //
-//   1 start a spec from a goal; 2 approve it from the command line; 3 the
+//   1 write a one-task spec folder; 2 approve it from the command line; 3 the
 //   tasks land; 4 start a discussion and see it answered; 5 ask the
 //   assistant a question; 6 push a failing commit to main and see the line
 //   stop; 7 read the sink's file and `avoozl status`.
@@ -168,13 +168,8 @@ if (process.argv.includes("--model")) console.log(JSON.stringify({ modelUsage: {
 const write = (value) => { fs.mkdirSync(".avoozl", { recursive: true }); fs.writeFileSync(".avoozl/result.json", JSON.stringify(value)); };
 const out = (name, body) => { fs.mkdirSync(".avoozl/output", { recursive: true }); fs.writeFileSync(".avoozl/output/" + name, body); write({ state: "done", output: name }); };
 if (text.includes("probes/run.cjs")) { const m = /(\\S+) probes\\/run\\.cjs (\\S+)/.exec(text); console.log(execFileSync(m[1], ["probes/run.cjs", m[2]], { encoding: "utf8" })); }
-else if (/You are the Avoozl Verifier/.test(text)) write({ state: "done", report: { checks: [{ command: "node check.mjs", exitCode: 0 }] } });
 else if (/You are an Avoozl Reviewer/.test(text)) write({ state: "done", report: { verdict: "approved", findings: [], closures: [] } });
-else if (/skip plans_create_plan/.test(text)) {
-  fs.writeFileSync("requirements.md", "# Notes\\n\\nThe repository holds a note.\\n");
-  fs.writeFileSync("design.md", "# Design\\n\\nOne file under notes/.\\n");
-  fs.writeFileSync("tasks.md", "---\\nrepo: app\\n---\\n# Tasks\\n\\n- [ ] 1 Write notes/beta.txt\\n  - notes/beta.txt holds beta and a newline, and node check.mjs prints ok.\\n");
-} else if (/^Go ahead/.test(text) || /Avoozl task/.test(text)) { fs.mkdirSync("notes", { recursive: true }); fs.writeFileSync("notes/beta.txt", "beta\\n"); write({ state: "done", text: "Wrote it." }); }
+else if (/^Go ahead/.test(text) || /Avoozl task/.test(text)) { fs.mkdirSync("notes", { recursive: true }); fs.writeFileSync("notes/beta.txt", "beta\\n"); write({ state: "done", text: "Wrote it." }); }
 `;
 
 function definitionBytes() {
@@ -271,15 +266,14 @@ async function setup() {
   const login = GITHUB ? JSON.parse(gh("api", "user")).login : null;
   const configFile = path.join(P.ws, ".avoozl.json");
   const config = JSON.parse(fs.readFileSync(configFile, "utf8"));
-  const { ROLE_SETTINGS } = await import("../../src/app/agents/role-table.mjs");
+  const { ROLES } = await import("../../src/app/agents/role-table.mjs");
   config.delivery = { ...(config.delivery || {}), retries: 1 };
   config.lanes = { local: 2 };
   // Every role the role table runs as a child, on this harness.
   config.roles = Object.fromEntries(
-    ROLE_SETTINGS.map((role) => [role, { harness: HARNESS }]),
+    ROLES.map((role) => [role, { harness: HARNESS }]),
   );
   config.roles.worker.model = MODEL;
-  config.roles.planner.model = MODEL;
   if (GITHUB)
     config.github = {
       mode: "single-repo",
@@ -349,13 +343,24 @@ async function setup() {
         repositoryId: "app",
         allowedActors: [login],
       });
-    // (1) A spec from a goal, as a person asks for one.
-    const planned = await ops.execute("plan.new", {
-      name: SPEC,
-      goal: "Add notes/beta.txt containing the word beta and a newline. One task; its check is node check.mjs.",
-      repositories: ["app"],
-    });
-    event("step1.plan-new", { name: planned.name });
+    // (1) A one-task spec folder, as a person writes one with the
+    // avoozl-spec skill, stored as a draft.
+    const folder = path.join(P.ws, ".kiro", "specs", SPEC);
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(
+      path.join(folder, "requirements.md"),
+      "---\nrepo: app\n---\n# Notes\n\nThe repository holds a note.\n",
+    );
+    fs.writeFileSync(
+      path.join(folder, "design.md"),
+      "# Design\n\nOne file under notes/.\n",
+    );
+    fs.writeFileSync(
+      path.join(folder, "tasks.md"),
+      "# Tasks\n\n- [ ] `notes-1` Write notes/beta.txt\n  - notes/beta.txt holds beta and a newline, and node check.mjs prints ok\n",
+    );
+    const planned = await ops.execute("plan.create", { spec: SPEC });
+    event("step1.spec", { name: planned.id });
   });
   event("setup.done");
 }
@@ -625,9 +630,9 @@ async function prove() {
   const minutes = AGENT === "fake" ? 8 : 60;
   const expected = {};
   try {
-    // (1) The planner writes the spec folder.
+    // (1) The spec folder is a draft.
     let now = await until("step1.spec", (s) => Boolean(s.plan?.hash), minutes);
-    expected["1 the planner wrote a spec that lints clean"] = Boolean(
+    expected["1 the spec is a draft that lints clean"] = Boolean(
       now.plan?.hash,
     );
     // (2) Approve from the command line, the way a person does.

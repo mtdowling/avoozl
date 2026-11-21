@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { MODEL_ROLES } from "../settings/chat-models.mjs";
+import { ROLES } from "../agents/role-table.mjs";
 import { classifyOperation } from "../api/operation-table.mjs";
 
 const read = (file) =>
@@ -29,7 +29,7 @@ test("the avoozl-driver agent and the driver session setting stay removed", () =
   for (const name of ["driversession.view", "driversession.register"])
     assert.equal(classifyOperation(name), null, name);
   // Settings: no driver tab and no driver chat model.
-  assert.ok(!MODEL_ROLES.includes("driver"));
+  assert.ok(!ROLES.includes("driver"));
   assert.doesNotMatch(
     read("hosts/kirocrew/ui/src/models-api.ts"),
     /key: 'driver'/,

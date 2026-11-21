@@ -1,13 +1,11 @@
 // Checks in code (design §5.2 Checks, R7.1, R38): a reported commit's
-// repository checks are run by Avoozl itself, not by a verifier chat. The tick
+// repository checks are run by Avoozl itself, with no model call. The tick
 // only queues a run (a `check-run` flow record); the app backend runs the
 // queue off the tick's path, one run at a time per repository. A run first
 // checks the diff's paths (verify.mjs, R86.6); then its checks run warm in
 // the task worktree when it is at the exact commit, else in a clean detached
 // worktree there, every check as argv with its own timeout (R86.7). The next
-// tick judges the result with the same rules as
-// before (verdictCause). A verifier chat opens only for a bar that needs
-// judgment: `verify: "agent"` on the task, or a repository with no checks.
+// tick judges the result (verdictCause).
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -48,11 +46,6 @@ const KIND = "check-run";
 // Without a file list, every check. Tasks never name checks.
 export const declaredArgv = (_task, repository, files = null) =>
   selectedChecks(repository, files);
-
-// Whether this leaf's bar needs a verifier chat's judgment (§5.2): a
-// repository with no checks.
-export const needsJudgment = (_task, repository) =>
-  !selectedChecks(repository).length;
 
 export const checkRuns = (store) => {
   try {

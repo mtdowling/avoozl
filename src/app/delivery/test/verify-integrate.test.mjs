@@ -1,217 +1,32 @@
-import { nativeDispatch } from "../../test/executor-fixture.mjs";
-// Tasks 2.8, 2.9 and 2.10: verify each done report in its own verifier
-// session, integrate verified commits, release dependents in the same tick,
+// Tasks 2.8, 2.9 and 2.10: check each done report's commit with Avoozl's
+// own check run, integrate verified commits, release dependents in the same tick,
 // and complete parents from children. One test per rule; each lists the nearby
 // inputs it checks.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { repositoryConfig } from "../../git/git.mjs";
-import { initializeWorkspace } from "../../workspace/workspace.mjs";
-import { temporaryDirectory } from "../../test/temporary.mjs";
 import {
-  as,
   bind,
   deliveryWorkspace,
   git,
   leaf,
   workerDone,
 } from "../../test/delivery-fixture.mjs";
-import { runOwnMachine } from "../../test/own-machine.mjs";
 import { loopOn } from "../../test/fixtures.mjs";
+import { drainCheckRuns } from "../check-runs.mjs";
 
 // The tick starts and lands work only with the server loop on.
 loopOn();
 
-const repo = fileURLToPath(new URL("../../../../", import.meta.url)),
-  app = path.join(repo, "hosts", "kirocrew");
-
 const setup = (t, options = {}) =>
   deliveryWorkspace(t, { prefix: "avoozl-verify-", ...options });
-
-const verdict = (ops, taskId, slot, commit, checks) =>
-  ops.execute(
-    "session.report",
-    { taskId, kind: "done", commit, checks },
-    undefined,
-    as(slot),
-  );
 
 const tick = (ops, slots = []) =>
   ops.execute("workspace.tick", {
     sessions: slots.map((target) => ({ target, status: "idle" })),
   });
-
-const passed = [{ command: "git status", exitCode: 0 }];
-
-// A repository with no checks opens a verifier chat (§5.2 Checks); its done
-// report adds a verdict on the acceptance.
-const unchecked = { repository: { checks: [] } };
-const judged = (ops, taskId, slot, commit, checks) =>
-  ops.execute(
-    "session.report",
-    { taskId, kind: "done", commit, checks, verdict: "approved" },
-    undefined,
-    as(slot),
-  );
-
-test("the verifier agent ships with tool refs on the server key Kiro Crew registers", () => {
-  // Nearby inputs: a bare @avoozl ref, a ref to an unserved tool, write tools.
-  const manifest = JSON.parse(
-      fs.readFileSync(path.join(app, "app.json"), "utf8"),
-    ),
-    agent = JSON.parse(
-      fs.readFileSync(path.join(app, "agents/avoozl-verifier.json"), "utf8"),
-    );
-  assert.ok(manifest.agents.includes("agents/avoozl-verifier.json"));
-  assert.equal(agent.name, "avoozl-verifier");
-  assert.equal(agent.includeMcpJson, false);
-  // Reads and its one report run unprompted, so an unattended chat can
-  // report; the shell still asks (P50).
-  assert.deepEqual(agent.allowedTools, [
-    "fs_read",
-    "grep",
-    "glob",
-    "thinking",
-    "@avoozl:avoozl/plans_report",
-  ]);
-  assert.ok(!agent.tools.includes("fs_write"), "the verifier writes no files");
-  const refs = agent.tools.filter((tool) => tool.startsWith("@"));
-  assert.deepEqual(refs, ["@avoozl:avoozl/plans_report"]);
-  const dir = temporaryDirectory(),
-    workspace = path.join(dir, "workspace");
-  initializeWorkspace(workspace);
-  const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
-  for (const name of Object.keys(env))
-    if (/^AVOOZL_/.test(name)) delete env[name];
-  const served = JSON.parse(
-    runOwnMachine(
-      "python3",
-      [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
-      {
-        cwd: dir,
-        dir,
-        env,
-        input:
-          JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) +
-          "\n",
-      },
-    ).trim(),
-  ).result.tools.map((tool) => tool.name);
-  for (const ref of refs)
-    assert.ok(served.includes(ref.split("/")[1]), ref + " is served");
-});
-
-test("a done report opens one verifier; only the matching SHA is accepted", async (t) => {
-  // Nearby inputs: a second tick while the verifier is live, a worker
-  // sending checks, a different SHA, a verifier closed without a verdict,
-  // verifier retries past the bound, and a verdict repeated after it was
-  // recorded.
-  const { store, ops, checkout } = setup(t, {
-    tasks: [leaf("a")],
-    ...unchecked,
-  });
-  const commit = await workerDone(ops, "a", "w-1");
-  const first = await tick(ops);
-  assert.equal(store.get("task_deliveries", "a").state, "done");
-  const [intent] = first.dispatch.filter((d) => d.role === "verifier");
-  // A dashboard session resolves an app agent only by the name its spec
-  // declares; the `<app>/<agent>` form leaves the session unable to run.
-  const declared = JSON.parse(
-    fs.readFileSync(path.join(app, "agents", "avoozl-verifier.json"), "utf8"),
-  ).name;
-  assert.equal(nativeDispatch(store, intent).agent, declared);
-  assert.doesNotMatch(nativeDispatch(store, intent).agent, /\//);
-  assert.equal(intent.attempt, 1);
-  assert.match(intent.title, /^avoozl:a verify /);
-  assert.ok(intent.brief.includes(commit));
-  assert.match(intent.brief, /Repository checks: none/);
-  assert.match(intent.brief, /--detach/);
-  await bind(ops, "a", "v-1", "verifier", 1);
-  assert.deepEqual(
-    (await tick(ops, ["v-1"])).dispatch,
-    [],
-    "one verifier per done report",
-  );
-
-  const other = setup(t, { tasks: [leaf("b")] });
-  await bind(other.ops, "b", "w-b", "worker", 1);
-  await assert.rejects(
-    other.ops.execute(
-      "session.report",
-      {
-        taskId: "b",
-        kind: "done",
-        commit: git(other.checkout, "rev-parse", "HEAD"),
-        checks: passed,
-      },
-      undefined,
-      as("w-b"),
-    ),
-    (error) => error.status === 400,
-    "a worker does not report checks",
-  );
-
-  // A different SHA: rejected, and the worker retries with the cause.
-  const base = git(checkout, "rev-parse", "main");
-  await judged(ops, "a", "v-1", base, passed);
-  const rejected = await tick(ops);
-  const delivery = store.get("task_deliveries", "a");
-  assert.equal(delivery.state, "failed");
-  assert.match(delivery.attempts[0].cause, /verifier rejected: verified/);
-  const [retry] = rejected.dispatch;
-  assert.deepEqual([retry.role, retry.attempt], ["worker", 2]);
-  assert.match(retry.brief, /verifier rejected/);
-
-  const d = setup(t, { tasks: [leaf("d")], ...unchecked });
-  const dCommit = await workerDone(d.ops, "d", "w-d");
-  await tick(d.ops);
-  await bind(d.ops, "d", "v-d1", "verifier", 1);
-  const lost = await d.ops.execute("workspace.tick", {
-    sessions: [{ target: "v-d1", status: "closed" }],
-  });
-  assert.deepEqual(
-    lost.dispatch.map((x) => [x.role, x.attempt]),
-    [["verifier", 2]],
-    "a verifier without a verdict is retried",
-  );
-  assert.match(lost.dispatch[0].title, /^avoozl:d attempt 2 verify /);
-  assert.equal(d.store.get("task_deliveries", "d").state, "done");
-  await bind(d.ops, "d", "v-d2", "verifier", 2);
-  await d.ops.execute("workspace.tick", {
-    sessions: [
-      { target: "v-d1", status: "closed" },
-      { target: "v-d2", status: "lost" },
-    ],
-  });
-  assert.equal(d.store.get("task_deliveries", "d").state, "decision");
-  assert.match(
-    d.store.get("task_deliveries", "d").cause,
-    /verifier session lost/,
-  );
-  assert.ok(dCommit);
-
-  // Accepted: matching SHA.
-  const e = setup(t, { tasks: [leaf("e")], ...unchecked });
-  const eCommit = await workerDone(e.ops, "e", "w-e");
-  await e.ops.execute("workspace.tick", {});
-  await bind(e.ops, "e", "v-e1", "verifier", 1);
-  await judged(e.ops, "e", "v-e1", eCommit, passed);
-  await e.ops.execute("workspace.tick", {});
-  const accepted = e.store.get("task_deliveries", "e");
-  assert.equal(accepted.state, "verified", "a page tick does not integrate");
-  assert.deepEqual(accepted.verifications.at(-1).outcome, "accepted");
-  const recorded = e.store.get("task_deliveries", "e");
-  await e.ops.execute("workspace.tick", {});
-  assert.deepEqual(
-    e.store.get("task_deliveries", "e"),
-    recorded,
-    "a recorded verdict is not recorded again",
-  );
-});
 
 function age(store, slot, minutes) {
   const binding = store.get("session_bindings", slot),
@@ -219,21 +34,36 @@ function age(store, slot, minutes) {
   store.put("session_bindings", { ...binding, boundAt: at, statusAt: at });
 }
 
-test("a quiet verifier is nudged, then failed and retried, so the graph never hangs", async (t) => {
+test("a quiet reviewer is nudged, then failed and retried, so the graph never hangs", async (t) => {
   // Nearby inputs: idle for less than quietMinutes, a tick without a roster,
-  // a verifier the roster does not list, a working verifier, one nudge per
+  // a reviewer the roster does not list, a working reviewer, one nudge per
   // interval, and the retry bound (a decision, not a hang).
-  const { store, ops, root } = setup(t, { tasks: [leaf("a")], ...unchecked });
+  const { store, ops, root } = setup(t, {
+    tasks: [leaf("a")],
+    repository: { checks: [] },
+  });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
-      delivery: { retries: 1, quietMinutes: 10, nudges: 1, reviewers: [] },
+      delivery: {
+        retries: 1,
+        quietMinutes: 10,
+        nudges: 1,
+        reviewers: [
+          {
+            id: "c",
+            focus: "conventions",
+            agent: "avoozl-reviewer",
+            distinctFrom: "session",
+          },
+        ],
+      },
     }),
   );
   const commit = await workerDone(ops, "a", "w-1");
   await tick(ops);
-  await bind(ops, "a", "v-1", "verifier", 1);
+  await bind(ops, "a", "v-1", "review:c", 1);
   const idle = [
     { target: "w-1", status: "idle" },
     { target: "v-1", status: "idle" },
@@ -251,7 +81,7 @@ test("a quiet verifier is nudged, then failed and retried, so the graph never ha
   assert.deepEqual(
     (await run([{ target: "v-1", status: "working" }])).messages,
     [],
-    "a working verifier is left alone",
+    "a working reviewer is left alone",
   );
   await run([{ target: "w-1", status: "idle" }]);
   age(store, "v-1", 600);
@@ -259,7 +89,7 @@ test("a quiet verifier is nudged, then failed and retried, so the graph never ha
   assert.deepEqual(
     [unseen.messages, unseen.dispatch],
     [[], []],
-    "an unobserved verifier is never treated as quiet",
+    "an unobserved reviewer is never treated as quiet",
   );
 
   await run();
@@ -274,27 +104,29 @@ test("a quiet verifier is nudged, then failed and retried, so the graph never ha
   const delivery = store.get("task_deliveries", "a");
   store.put("task_deliveries", {
     ...delivery,
-    verifierNudge: {
-      ...delivery.verifierNudge,
-      at: new Date(Date.now() - 3600_000).toISOString(),
+    reviewNudges: {
+      c: {
+        ...delivery.reviewNudges.c,
+        at: new Date(Date.now() - 3600_000).toISOString(),
+      },
     },
   });
   const retried = await run();
   assert.deepEqual(retried.messages, []);
   assert.deepEqual(
     retried.dispatch.map((d) => [d.role, d.attempt]),
-    [["verifier", 2]],
+    [["review:c", 2]],
   );
-  assert.match(retried.dispatch[0].title, /^avoozl:a attempt 2 verify /);
+  assert.match(retried.dispatch[0].title, /^avoozl:a attempt 2 review c /);
   const failed = store.get("task_deliveries", "a");
   assert.equal(failed.state, "done", "the worker's commit still waits");
   assert.match(
     failed.verifications.at(-1).cause,
-    /verifier quiet after 1 nudges/,
+    /review c quiet after 1 nudges/,
   );
 
   // Past the retry bound: a decision for a person, not a hang.
-  await bind(ops, "a", "v-2", "verifier", 2);
+  await bind(ops, "a", "v-2", "review:c", 2);
   const both = [...idle, { target: "v-2", status: "idle" }];
   await run(both);
   age(store, "v-2", 600);
@@ -302,9 +134,11 @@ test("a quiet verifier is nudged, then failed and retried, so the graph never ha
   const second = store.get("task_deliveries", "a");
   store.put("task_deliveries", {
     ...second,
-    verifierNudge: {
-      ...second.verifierNudge,
-      at: new Date(Date.now() - 3600_000).toISOString(),
+    reviewNudges: {
+      c: {
+        ...second.reviewNudges.c,
+        at: new Date(Date.now() - 3600_000).toISOString(),
+      },
     },
   });
   const decided = await run(both);
@@ -312,11 +146,11 @@ test("a quiet verifier is nudged, then failed and retried, so the graph never ha
   assert.deepEqual(decided.dispatch, []);
 });
 
-async function verified(ops, taskId, n = 1) {
+// The worker's done report, then Avoozl's own check run on its commit.
+async function verified(ops, taskId) {
   const commit = await workerDone(ops, taskId, `w-${taskId}`);
-  await ops.execute("workspace.tick", {});
-  await bind(ops, taskId, `v-${taskId}`, "verifier", n);
-  await verdict(ops, taskId, `v-${taskId}`, commit, passed);
+  await tick(ops);
+  await drainCheckRuns(ops.store);
   return commit;
 }
 
@@ -368,16 +202,14 @@ test("a verified commit integrates with integrateRun and records the integrated 
   assert.equal(git(dirty.checkout, "rev-parse", "main"), before);
   assert.deepEqual((await tick(dirty.ops)).notify, [], "decided once");
 
-  // A repository with no checks is judged by its verifier, and integration
-  // still needs checks to run on the rebased work.
+  // A repository with no checks is judged by its reviewers only, and
+  // integration still needs checks to run on the rebased work.
   const unchecked = setup(t, {
-      tasks: [leaf("c")],
-      repository: { checks: [] },
-    }),
-    judgedCommit = await workerDone(unchecked.ops, "c", "w-c");
+    tasks: [leaf("c")],
+    repository: { checks: [] },
+  });
+  await workerDone(unchecked.ops, "c", "w-c");
   await unchecked.ops.execute("workspace.tick", {});
-  await bind(unchecked.ops, "c", "v-c", "verifier", 1);
-  await judged(unchecked.ops, "c", "v-c", judgedCommit, undefined);
   await tick(unchecked.ops);
   assert.match(
     unchecked.store.get("task_deliveries", "c").cause,
@@ -525,10 +357,7 @@ test("integration releases dependents in the same tick and completes parents, ne
   const byId = (id) => data.tasks.find((x) => x.id === id);
   assert.equal(byId("pkg").childrenComplete, undefined, "b is not done");
 
-  const bCommit = await workerDone(ops, "b", "w-b");
-  await tick(ops);
-  await bind(ops, "b", "v-b", "verifier", 1);
-  await verdict(ops, "b", "v-b", bCommit, passed);
+  await verified(ops, "b");
   await tick(ops);
   data = store.read();
   assert.deepEqual(byId("pkg").childrenComplete.children, ["a", "b"]);

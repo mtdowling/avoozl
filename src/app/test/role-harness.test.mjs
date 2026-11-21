@@ -3,14 +3,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { harnessExecutor, roleHarness } from "../settings/chat-models.mjs";
+import { harnessExecutor, roleHarness } from "../agents/role-table.mjs";
 import { deliveryPolicy, planReadyDispatches } from "../delivery/delivery.mjs";
 import {
   approveHarnessDefinition,
   harnessDefinitionHash,
 } from "../executors/harness-definitions.mjs";
 import { Operations } from "../api/operations.mjs";
-import { newPlanStarts } from "../specs/new-plan.mjs";
 import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -92,7 +91,8 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   t.after(() => store.close());
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
-    JSON.stringify({ version: 1, roles: { retro: { model: "m1" } } }) + "\n",
+    JSON.stringify({ version: 1, roles: { checkDecide: { model: "m1" } } }) +
+      "\n",
   );
   const harnesses = path.join(configDirectory, "harnesses");
   fs.mkdirSync(harnesses);
@@ -109,7 +109,7 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   });
   const ops = new Operations(store, { workspaceRoot: root, configDirectory });
   const before = await ops.execute("models.settings.get", {});
-  assert.deepEqual(before.roles, { retro: { model: "m1" } });
+  assert.deepEqual(before.roles, { checkDecide: { model: "m1" } });
   assert.deepEqual(before.harnessDefinitions, [
     {
       name: "fake-cli",
@@ -149,9 +149,9 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
     (e) => e.status === 403,
   );
   const table = {
-    retro: { model: "m1" },
+    checkDecide: { model: "m1" },
     worker: { harness: "fake-cli" },
-    planner: { harness: "kirocrew" },
+    reviewer: { harness: "kirocrew" },
   };
   const saved = await ops.execute("models.settings.update", {
     roles: table,
@@ -182,34 +182,4 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
     (await bare.execute("models.settings.get", {})).harnessDefinitions,
     [],
   );
-});
-
-test("the planner's saved harness wins over its repository's executor", (t) => {
-  const root = temporaryDirectory("avoozl-role-harness-planner-"),
-    store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
-  store.initialize(snapshot());
-  const checkout = path.join(root, "app");
-  store.put("repositories", { id: "app", root: checkout });
-  store.setMeta("newPlans", [
-    {
-      name: "cache",
-      goal: "x",
-      repositories: ["app"],
-      brief: "Mode: draft.",
-      root: checkout,
-      attempt: 1,
-    },
-  ]);
-  const [chat] = newPlanStarts(store, {});
-  assert.equal(chat.executor, "kirocrew");
-  assert.equal(chat.harness, undefined);
-  const [child] = newPlanStarts(store, { harness: "codex" });
-  assert.equal(child.executor, "process");
-  assert.equal(child.harness, "codex");
-  assert.equal(child.worktree, path.join(checkout, ".kiro", "specs", "cache"));
-  store.put("repositories", { id: "app", root: checkout, executor: "process" });
-  const [back] = newPlanStarts(store, { harness: "kirocrew" });
-  assert.equal(back.executor, "kirocrew");
-  assert.equal(back.worktree, checkout);
 });

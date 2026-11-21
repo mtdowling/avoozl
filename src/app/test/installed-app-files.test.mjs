@@ -21,11 +21,10 @@ test("the installed bundle reads the shipped agent prompts and version", async (
     });
   const lib = path.join(installed, "bin", "lib"),
     load = (file) => import(pathToFileURL(path.join(lib, "src", "app", file)));
-  const { shippedPrompts } = await load("agents/prompts.mjs");
-  const shipped = shippedPrompts();
-  assert.equal(shipped["agent.retro"], agent("avoozl-retro"));
-  assert.equal(shipped["agent.planner"], agent("avoozl-planner"));
-  assert.ok(shipped["agent.planner"]);
+  const { rolePrompt, shippedPrompts } = await load("agents/prompts.mjs");
+  assert.equal(rolePrompt("reviewer"), agent("avoozl-reviewer"));
+  assert.equal(rolePrompt("responder"), agent("avoozl-responder"));
+  assert.ok(shippedPrompts()["brief.worker"]);
   assert.equal(
     JSON.parse(fs.readFileSync(path.join(lib, "package.json"))).version,
     JSON.parse(fs.readFileSync(path.join(root, "package.json"))).version,

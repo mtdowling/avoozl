@@ -3,8 +3,7 @@ import { commitSubject } from "../landing/landing-config.mjs";
 import { briefCell } from "../workers/worker-briefs.mjs";
 import { cliCommand } from "../workers/report-command.mjs";
 import { repositoryExecutor } from "../executors/process.mjs";
-import { resolveRoles } from "../settings/chat-models.mjs";
-import { allowedShell, roleRun } from "../agents/role-table.mjs";
+import { allowedShell, resolveRoles, roleRun } from "../agents/role-table.mjs";
 import { PERSON_MESSAGE_HEAD } from "../sessions/session-send.mjs";
 import {
   kirocrewDetachedSession,
@@ -36,7 +35,7 @@ import {
   PHASES,
 } from "../flow/flow.mjs";
 import { heldByStop } from "../flow/flow-line.mjs";
-import { needsJudgment, taskCheckRuns } from "./check-runs.mjs";
+import { taskCheckRuns } from "./check-runs.mjs";
 import { pathOutcome } from "./verify.mjs";
 import {
   checkCommand,
@@ -247,7 +246,7 @@ const DISTINCT = new Set(["model", "session"]);
 const unknownModel = (model) => !model || model === "auto";
 
 // Review roles (§5.2): validated so a reviewer can never share the writer's
-// declared model under `distinctFrom: model`. `checks` is the verifier's id.
+// declared model under `distinctFrom: model`. `checks` is Avoozl's check runs' id.
 function reviewerList(value, where, writer) {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > 8)
@@ -460,67 +459,6 @@ function reportText(value) {
   )
     fail(`Write report text of at most ${MAX_REPORT} printable characters.`);
   return value.trim();
-}
-
-// A checks session's entries: {command, exitCode}, or a check it could not
-// run as {command, exitCode: null, notRun: "<reason>"} (§5.2, R38.1).
-function checkResults(value) {
-  const valid = (entry) =>
-    entry &&
-    typeof entry.command === "string" &&
-    entry.command.trim() &&
-    entry.command.length <= 500 &&
-    !/[\u0000-\u001f\u007f]/.test(entry.command) &&
-    (Number.isInteger(entry.exitCode) || entry.exitCode === null) &&
-    (entry.notRun === undefined ||
-      (typeof entry.notRun === "string" &&
-        entry.notRun.trim() &&
-        entry.notRun.length <= 500)) &&
-    (entry.exitCode !== null || entry.notRun !== undefined) &&
-    (entry.durationMs === undefined ||
-      (Number.isInteger(entry.durationMs) && entry.durationMs >= 0)) &&
-    (entry.commit === undefined ||
-      (typeof entry.commit === "string" && SHA.test(entry.commit))) &&
-    // The tail of a failing check's log.
-    (entry.logTail === undefined ||
-      (typeof entry.logTail === "string" && entry.logTail.length <= 4000)) &&
-    // The repository check's name, when the report gives it.
-    (entry.name === undefined ||
-      (typeof entry.name === "string" &&
-        entry.name.trim() &&
-        entry.name.length <= 200 &&
-        !/[\u0000-\u001f\u007f]/.test(entry.name))) &&
-    Object.keys(entry).every((key) =>
-      [
-        "name",
-        "command",
-        "exitCode",
-        "notRun",
-        "durationMs",
-        "commit",
-        "logTail",
-      ].includes(key),
-    );
-  if (
-    !Array.isArray(value) ||
-    !value.length ||
-    value.length > 50 ||
-    !value.every(valid)
-  )
-    fail(
-      'Report checks as 1–50 {command, exitCode, durationMs?} entries, one per check run; a check that could not run is {command, exitCode: null, notRun: "<reason>"}.',
-    );
-  return value.map(
-    ({ name, command, exitCode, notRun, durationMs, commit, logTail }) => ({
-      ...(name !== undefined ? { name } : {}),
-      command: command.trim(),
-      exitCode,
-      ...(notRun !== undefined ? { notRun: notRun.trim() } : {}),
-      ...(durationMs !== undefined ? { durationMs } : {}),
-      ...(commit !== undefined ? { commit } : {}),
-      ...(logTail !== undefined && exitCode !== 0 ? { logTail } : {}),
-    }),
-  );
 }
 
 const VERDICTS = ["approved", "changes-requested"];
@@ -829,38 +767,16 @@ export async function reportSession(
     kind === "done"
       ? await doneCommit(store, task, binding, input.commit)
       : undefined;
-  // A verifier's done report carries the exit code of every check it ran;
-  // a review role's carries its verdict, findings and closures.
-  const checks =
-      binding.role === "verifier" && kind === "done"
-        ? input.checks === undefined &&
-          !declaredChecks(
-            task,
-            store.get("repositories", taskRepository(task) || ""),
-          ).length
-          ? undefined
-          : checkResults(input.checks)
-        : undefined,
-    roleId = reviewRoleId(binding.role),
-    review = roleId && kind === "done" ? reviewPayload(input) : undefined,
-    // A verifier judging a bar in prose gives its verdict (§5.2 Checks).
-    judgment =
-      binding.role === "verifier" &&
-      kind === "done" &&
-      needsJudgment(
-        task,
-        store.get("repositories", taskRepository(task) || ""),
-      );
-  if (judgment && !VERDICTS.includes(input.verdict))
-    fail(
-      'This bar needs judgment: report done with verdict "approved" or "changes-requested", and say why in text.',
-    );
-  if (checks === undefined && input.checks !== undefined)
-    fail("Only a verifier's done report lists checks.");
+  // A review role's done report carries its verdict, findings and closures.
+  // Avoozl runs the checks itself (check-runs.mjs).
+  const roleId = reviewRoleId(binding.role),
+    review = roleId && kind === "done" ? reviewPayload(input) : undefined;
+  if (input.checks !== undefined)
+    fail("A report lists no checks: Avoozl runs them itself.");
   if (
     !review &&
     (["closures", "findings"].some((key) => input[key] !== undefined) ||
-      (!judgment && input.verdict !== undefined))
+      input.verdict !== undefined)
   )
     fail(
       "Only a review role's done report has a verdict, findings, or closures.",
@@ -911,8 +827,6 @@ export async function reportSession(
         last.text === text &&
         (last.commit ?? null) === (commit ?? null) &&
         (last.phase ?? null) === (input.phase ?? null) &&
-        JSON.stringify(last.checks) === JSON.stringify(checks) &&
-        (last.verdict ?? null) === (judgment ? input.verdict : null) &&
         JSON.stringify(last.review) === JSON.stringify(review);
     if (same) return { binding: current, report: last, changed: false };
     if (last && FINAL_REPORTS.has(last.kind))
@@ -922,8 +836,6 @@ export async function reportSession(
       text,
       ...(kind === "done" ? { commit } : {}),
       ...(input.phase ? { phase: input.phase } : {}),
-      ...(checks ? { checks } : {}),
-      ...(judgment ? { verdict: input.verdict } : {}),
       ...(review ? { review } : {}),
       at: new Date().toISOString(),
     };
@@ -1869,11 +1781,6 @@ export function planReadyDispatches(store, policy, options = {}) {
   });
 }
 
-// The verifier spec's declared `name`. Kiro Crew lists app agents as
-// `<app>/<agent>` and spawn_run accepts that, but a dashboard session (what
-// the cron's open_session makes) resolves only the declared name.
-const VERIFIER_AGENT = "avoozl-verifier";
-
 // The repository's checks as one brief line, each with the paths that pick
 // it, or null when it has none.
 export function checksLine(repository) {
@@ -1904,9 +1811,7 @@ const notRun = (result) =>
 
 // Accept only the exact commit the worker reported, with every declared check
 // reported and exiting 0. Returns null on acceptance, else {cause, notRun}: a
-// check that did not run is the checking session's failure, not the writer's.
-// A bar that needs judgment (needsJudgment) also needs the verifier's
-// verdict "approved"; one with no verdict fails the verifier, not the writer.
+// check that did not run is the check run's failure, not the writer's.
 // `expected` is the checks the commit had to run: a check run's own
 // selection, else every repository check.
 export function verdictCause(
@@ -1920,10 +1825,8 @@ export function verdictCause(
     return {
       cause: `verified ${report.commit}, but the worker reported ${commit}`,
     };
-  const checks = expected,
-    judged = report.judged === true;
-  if (!checks.length && !judged)
-    return { cause: "the repository has no checks" };
+  const checks = expected;
+  if (!checks.length) return { cause: "the repository has no checks" };
   for (const check of checks) {
     const result = resultFor(report.checks, check);
     if (notRun(result))
@@ -1934,21 +1837,11 @@ export function verdictCause(
     if (result.exitCode !== 0)
       return { cause: `check \`${check.name}\` exited ${result.exitCode}` };
   }
-  if (judged && !VERDICTS.includes(report.verdict))
-    return {
-      notRun: true,
-      cause: "the verifier gave no verdict on the acceptance",
-    };
-  if (judged && report.verdict !== "approved")
-    return {
-      cause:
-        "the acceptance is not met" + (report.text ? ": " + report.text : ""),
-    };
   return null;
 }
 
-// One finished check run's record (check-runs.mjs): judged like a verifier
-// report, with the output tails kept beside each check.
+// One finished check run's record (check-runs.mjs), with the output tails
+// kept beside each check.
 function runRecord(task, repository, run) {
   const held = pathOutcome(run);
   if (held) return { ...held, checks: run.checks };
@@ -1982,11 +1875,12 @@ function runRecord(task, repository, run) {
   };
 }
 
-// The roles that judge one delivery's commit: the checks role (the verifier)
-// and the repository's review roles (§5.2).
-function deliveryRoles(policy, task) {
+// The roles that judge one delivery's commit: the checks role (Avoozl's own
+// check runs) when the repository has checks, and the repository's review
+// roles (§5.2). A repository with no checks is judged by its reviewers only.
+function deliveryRoles(policy, task, repository) {
   return [
-    { id: "checks", role: "verifier", agent: VERIFIER_AGENT },
+    ...(selectedChecks(repository).length ? [{ id: "checks" }] : []),
     ...reviewRoles(policy, taskRepository(task)).map((role) => ({
       ...role,
       role: "review:" + role.id,
@@ -2126,24 +2020,8 @@ function roleRecord(task, repository, subject, binding) {
             }),
       };
     }
-    const verdict = verdictCause(task, repository, subject, {
-      ...binding.report,
-      judged: needsJudgment(task, repository),
-    });
-    return {
-      ...(verdict
-        ? verdict.notRun
-          ? { outcome: "failed", cause: "checks not run: " + verdict.cause }
-          : {
-              outcome: "rejected",
-              cause: "verifier rejected: " + verdict.cause,
-            }
-        : { outcome: "accepted" }),
-      checks: binding.report.checks,
-      ...(binding.report.verdict ? { verdict: binding.report.verdict } : {}),
-    };
   }
-  const who = roleId ? `review ${roleId}` : "verifier";
+  const who = `review ${roleId}`;
   // A role session that a stock Kiro Crew no longer lists ("gone") ended too:
   // unlike a worker it changes no code, so a new one is safe to open.
   if (
@@ -2160,18 +2038,12 @@ function roleRecord(task, repository, subject, binding) {
   return null;
 }
 
-// The nudge record a quiet role session keeps on its delivery.
-const nudgeOf = (delivery, roleId) =>
-  roleId === "checks"
-    ? delivery.verifierNudge
-    : delivery.reviewNudges?.[roleId];
-const withNudge = (delivery, roleId, nudge) =>
-  roleId === "checks"
-    ? { ...delivery, verifierNudge: nudge }
-    : {
-        ...delivery,
-        reviewNudges: { ...(delivery.reviewNudges || {}), [roleId]: nudge },
-      };
+// The nudge record a quiet review session keeps on its delivery.
+const nudgeOf = (delivery, roleId) => delivery.reviewNudges?.[roleId];
+const withNudge = (delivery, roleId, nudge) => ({
+  ...delivery,
+  reviewNudges: { ...(delivery.reviewNudges || {}), [roleId]: nudge },
+});
 
 // Record each role session's outcome once (§5.2 steps 5–8). Verdicts name
 // the commit they judged; one for an older commit is history and decides
@@ -2195,14 +2067,14 @@ export function reconcileVerifications(
     const task = data.tasks.find((t) => t.id === delivery.taskId);
     if (!task) continue;
     const repository = store.get("repositories", taskRepository(task) || ""),
-      roles = deliveryRoles(policy, task),
+      roles = deliveryRoles(policy, task, repository),
       bound = new Set(
         bindings
           .filter(
             (b) =>
               b.taskId === task.id &&
               b.source === "tick" &&
-              (b.role === "verifier" || reviewRoleId(b.role)),
+              reviewRoleId(b.role),
           )
           .map((b) => b.role),
       );
@@ -2216,7 +2088,7 @@ export function reconcileVerifications(
         .map((run) => ({ run })),
     ];
     for (const { role, run } of sources) {
-      const roleId = run ? "checks" : reviewRoleId(role) || "checks",
+      const roleId = run ? "checks" : reviewRoleId(role),
         binding = run
           ? { attempt: run.attempt, commit: run.commit }
           : roleBindings(bindings, task.id, role).reduce((x, y) =>
@@ -2275,10 +2147,7 @@ export function reconcileVerifications(
           messages.push({
             slot: binding.slot,
             task: task.id,
-            text:
-              roleId === "checks"
-                ? `Avoozl verification for ${task.id}: you have not reported a verdict. Run the declared checks on commit ${subject}, then call plans_report with kind "done", the commit and every check's exit code, or "blocked" with the reason.`
-                : `Avoozl review ${roleId} for ${task.id}: you have not reported a verdict, and a turn without one is no review. Review commit ${subject}, then call plans_report with kind "done", the commit, your verdict, findings and closures, or "blocked" with the reason.`,
+            text: `Avoozl review ${roleId} for ${task.id}: you have not reported a verdict, and a turn without one is no review. Review commit ${subject}, then call plans_report with kind "done", the commit, your verdict, findings and closures, or "blocked" with the reason.`,
           });
           next = {
             ...withNudge(next, roleId, {
@@ -2292,7 +2161,7 @@ export function reconcileVerifications(
         if (step !== "exhausted") continue;
         record = {
           outcome: "failed",
-          cause: `${roleId === "checks" ? "verifier" : "review " + roleId} quiet after ${nudge?.count || 0} nudges without a verdict`,
+          cause: `review ${roleId} quiet after ${nudge?.count || 0} nudges without a verdict`,
         };
       }
       const entry = {
@@ -2420,7 +2289,11 @@ export function holdUnprovenReviews(
     const task = data.tasks.find((t) => t.id === delivery.taskId);
     if (!task) continue;
     const writer = writerModel(store, delivery),
-      blocked = deliveryRoles(policy, task)
+      blocked = deliveryRoles(
+        policy,
+        task,
+        store.get("repositories", taskRepository(task) || ""),
+      )
         .filter((role) => role.id !== "checks")
         .filter((role) => !approvedOn(delivery, role.id, delivery.commit))
         .map((role) => distinctCause(role, writer))
@@ -2453,41 +2326,6 @@ function detachedWorktree(repository, task, label, attempt) {
       path.join(path.dirname(repository.root), ".avoozl-worktrees"),
     `avoozl-${task.id}-${label}-${attempt}`,
   );
-}
-
-export function verifierBrief(task, repository, commit, attempt) {
-  const checks = declaredChecks(task, repository),
-    worktree = detachedWorktree(repository, task, "verify", attempt),
-    own = taskLines(
-      task,
-      `Avoozl verification for task ${task.id}`,
-      outsideSource(task),
-      {
-        summary: false,
-      },
-    ),
-    // Every verifier chat now judges a bar in prose (§5.2 Checks); plain
-    // command bars are run by Avoozl itself.
-    checkList = checks.length
-      ? `"checks": [{"name": "<check name as listed>", "command": "<its command>", "exitCode": <code>}], `
-      : "";
-  return [
-    own.heading,
-    "",
-    `Repository: ${repository.id}, checkout ${repository.root}.`,
-    `Commit: ${commit}`,
-    ...own.text,
-    `Repository checks: ${checks.length ? checks.map((check) => `${check.name}: ${checkCommand(check)}`).join("; ") : "none"}`,
-    "",
-    `1. Run \`git -C ${repository.root} worktree add --detach ${worktree} ${commit}\`, and work only there.`,
-    checks.length
-      ? `2. Confirm \`git rev-parse HEAD\` prints ${commit}. Run each declared check from the worktree root and note its exit code. Then judge whether the commit meets each acceptance line above.`
-      : `2. Confirm \`git rev-parse HEAD\` prints ${commit}. Judge whether the commit meets each acceptance line above; read and run what you need.`,
-    `3. Call plans_report with {"input": {"taskId": "${task.id}", "kind": "done", "commit": "<HEAD you checked>", ${checkList}"verdict": "approved" | "changes-requested", "text": "<why, one short paragraph>"}}.${checks.length ? ' List one entry per check, passing or not. A check you could not run (a missing tool, a timeout) is {"command": "<check>", "exitCode": null, "notRun": "<why>"}.' : ""} If you cannot judge it at all, report kind "blocked" with the reason.`,
-    "Do not edit, commit, merge, or push.",
-  ]
-    .filter((line) => line !== null)
-    .join("\n");
 }
 
 // A review role's brief (§5.2 step 3): the task, the exact commit, the role's
@@ -2558,7 +2396,7 @@ export function reviewBrief(
 }
 
 // The deliveries whose current commit may be judged now, each with its task,
-// repository, writer model and recorded attempts. Shared by the verifier and
+// repository, writer model and recorded attempts. Shared by the check run and
 // review dispatch and by the check-run queue, so both obey the same holds.
 function judgeable(store, data) {
   const out = [];
@@ -2582,16 +2420,10 @@ function judgeable(store, data) {
   return out;
 }
 
-// The next checks attempt number: after every verifier session and check
-// run this task had, so a verification names one of them.
-function nextChecksAttempt(store, bindings, taskId) {
-  return (
-    Math.max(
-      0,
-      ...roleBindings(bindings, taskId, "verifier").map((b) => b.attempt),
-      ...taskCheckRuns(store, taskId).map((r) => r.attempt),
-    ) + 1
-  );
+// The next checks attempt number: after every check run this task had, so a
+// verification names one of them.
+function nextChecksAttempt(store, taskId) {
+  return Math.max(0, ...taskCheckRuns(store, taskId).map((r) => r.attempt)) + 1;
 }
 
 // Check runs to queue (check-runs.mjs): one per judgeable delivery whose bar
@@ -2600,11 +2432,10 @@ function nextChecksAttempt(store, bindings, taskId) {
 // Reads only; the tick queues them.
 export function planCheckRuns(store, policy = null) {
   const data = store.read(),
-    bindings = listSessionBindings(store),
     retries = policy?.retries ?? DELIVERY_DEFAULTS.retries,
     queue = [];
   for (const { delivery, task, repository } of judgeable(store, data)) {
-    if (needsJudgment(task, repository)) continue;
+    if (!selectedChecks(repository).length) continue;
     if (approvedOn(delivery, "checks", delivery.commit)) continue;
     if (roleFailures(delivery, "checks", delivery.commit) > retries) continue;
     const recorded = new Set(
@@ -2619,19 +2450,18 @@ export function planCheckRuns(store, policy = null) {
       task,
       repository,
       commit: delivery.commit,
-      attempt: nextChecksAttempt(store, bindings, task.id),
+      attempt: nextChecksAttempt(store, task.id),
     });
   }
   return queue;
 }
 
-// One session per role for the delivery's current commit, all at once, for
-// each role that has not approved it, has no live session, and has retries
-// left (§5.2 step 2). A role session still running on an older commit
-// finishes first, as history. The checks role opens a verifier session only
-// for a bar that needs judgment; Avoozl runs plain command checks itself
-// (planCheckRuns). Reads only.
-export function planVerifierDispatches(store, policy = null, options = {}) {
+// One session per review role for the delivery's current commit, all at once,
+// for each role that has not approved it, has no live session, and has
+// retries left (§5.2 step 2). A role session still running on an older commit
+// finishes first, as history. Avoozl runs the checks itself (planCheckRuns).
+// Reads only.
+export function planReviewDispatches(store, policy = null, options = {}) {
   const data = store.read(),
     bindings = listSessionBindings(store),
     retries = policy?.retries ?? DELIVERY_DEFAULTS.retries,
@@ -2644,12 +2474,11 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           (v) => entryRole(v) + "#" + v.attempt,
         ),
       );
-    for (const base of deliveryRoles(policy, task)) {
-      if (base.id === "checks" && !needsJudgment(task, repository)) continue;
-      if (approvedOn(delivery, base.id, delivery.commit)) continue;
-      if (roleFailures(delivery, base.id, delivery.commit) > retries) continue;
-      const role = base;
-      if (role.id !== "checks" && distinctCause(role, writer)) continue;
+    for (const role of deliveryRoles(policy, task, repository)) {
+      if (role.id === "checks") continue;
+      if (approvedOn(delivery, role.id, delivery.commit)) continue;
+      if (roleFailures(delivery, role.id, delivery.commit) > retries) continue;
+      if (distinctCause(role, writer)) continue;
       const own = roleBindings(bindings, task.id, role.role);
       // A quiet session stays open, but once its attempt is recorded failed
       // it no longer holds the next one.
@@ -2659,38 +2488,32 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         )
       )
         continue;
-      const attempt =
-          role.id === "checks"
-            ? nextChecksAttempt(store, bindings, task.id)
-            : Math.max(0, ...own.map((b) => b.attempt)) + 1,
+      const attempt = Math.max(0, ...own.map((b) => b.attempt)) + 1,
         sha = delivery.commit.slice(0, 12),
-        brief =
-          role.id === "checks"
-            ? verifierBrief(task, repository, delivery.commit, attempt)
-            : withRules(
-                store,
-                reviewBrief(
-                  task,
-                  repository,
-                  delivery.commit,
-                  attempt,
-                  role,
-                  openFindings(delivery, role.id),
-                  {
-                    claim:
-                      delivery.attempts.findLast((a) => a.outcome === "done")
-                        ?.lastReport ?? null,
-                    since:
-                      (delivery.verifications || []).findLast(
-                        (v) =>
-                          entryRole(v) === role.id &&
-                          v.commit !== delivery.commit &&
-                          v.verdict,
-                      )?.commit ?? null,
-                  },
-                ),
-                "brief.review",
-              );
+        brief = withRules(
+          store,
+          reviewBrief(
+            task,
+            repository,
+            delivery.commit,
+            attempt,
+            role,
+            openFindings(delivery, role.id),
+            {
+              claim:
+                delivery.attempts.findLast((a) => a.outcome === "done")
+                  ?.lastReport ?? null,
+              since:
+                (delivery.verifications || []).findLast(
+                  (v) =>
+                    entryRole(v) === role.id &&
+                    v.commit !== delivery.commit &&
+                    v.verdict,
+                )?.commit ?? null,
+            },
+          ),
+          "brief.review",
+        );
       if (
         !briefAllowed(store, {
           taskId: task.id,
@@ -2701,17 +2524,12 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
       )
         continue;
       // A review starts only on a free reviewer lane (SM20.1).
-      const lane =
-        lanes && role.id !== "checks"
-          ? pickLane(
-              lanes.lanes,
-              { task: task.id, role: role.role },
-              lanes.taken,
-            )
-          : null;
-      if (lanes && role.id !== "checks" && !lane) continue;
-      const label = role.id === "checks" ? "verify" : "review-" + role.id,
-        run = roleRun(role.id === "checks" ? "verifier" : "reviewer", {
+      const lane = lanes
+        ? pickLane(lanes.lanes, { task: task.id, role: role.role }, lanes.taken)
+        : null;
+      if (lanes && !lane) continue;
+      const label = "review-" + role.id,
+        run = roleRun("reviewer", {
           config: options.config,
           task,
           repository,
@@ -2722,11 +2540,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           task: task.id,
           role: role.role,
           attempt,
-          title: sessionTitle(
-            task.id,
-            attempt,
-            role.id === "checks" ? `verify ${sha}` : `review ${role.id} ${sha}`,
-          ),
+          title: sessionTitle(task.id, attempt, `review ${role.id} ${sha}`),
           // Its brief names a detached worktree (R88.2, as for the worker).
           // A `process` child cannot add it, so the request names it and
           // Avoozl adds it before the child starts (R97.3).

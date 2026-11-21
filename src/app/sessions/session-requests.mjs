@@ -20,8 +20,7 @@ export function startRequest(input) {
     role = text(input.role ?? "worker", "role"),
     task = text(input.task, "task"),
     permissionClass =
-      input.permissionClass ??
-      (["worker", "planner"].includes(role) ? "write" : "read");
+      input.permissionClass ?? (role === "worker" ? "write" : "read");
   if (!["read", "write"].includes(permissionClass))
     fail("permissionClass must be read or write.", 422);
   for (const field of ["worktree", "model", "harness"])

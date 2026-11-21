@@ -71,20 +71,20 @@ function fixture() {
 
 test("the drift check refuses changed prompts and generated agents before repairing them", async () => {
   const temporary = fixture(),
-    prompt = path.join(temporary, "prompts", "retro.md"),
+    prompt = path.join(temporary, "prompts", "responder.md"),
     generated = path.join(
       temporary,
       "hosts",
       "kirocrew",
       "agents",
-      "avoozl-retro.json",
+      "avoozl-responder.json",
     ),
     before = fs.readFileSync(generated, "utf8"),
     changed = fs.readFileSync(prompt, "utf8") + "\nA new instruction.\n";
   fs.writeFileSync(prompt, changed);
   await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),
-    /avoozl-retro.json/,
+    /avoozl-responder.json/,
   );
   assert.equal(
     fs.readFileSync(generated, "utf8"),
@@ -98,10 +98,13 @@ test("the drift check refuses changed prompts and generated agents before repair
   fs.writeFileSync(generated, JSON.stringify(agent));
   await assert.rejects(
     () => buildHosts({ root: temporary, check: true }),
-    /avoozl-retro.json/,
+    /avoozl-responder.json/,
   );
   await buildHosts({ root: temporary });
-  assert.deepEqual(JSON.parse(fs.readFileSync(generated, "utf8")).tools, []);
+  assert.deepEqual(
+    JSON.parse(fs.readFileSync(generated, "utf8")).tools,
+    JSON.parse(before).tools,
+  );
   await buildHosts({ root: temporary, check: true });
 });
 
@@ -125,9 +128,8 @@ test("the installed runtime reads portable prompt files without generated agent 
   const load = (file) =>
       import(pathToFileURL(path.join(installed, "src", "app", file))),
     prompts = await load("agents/prompts.mjs");
-  assert.equal(prompts.rolePrompt("planner"), rolePrompt("planner"));
+  assert.equal(prompts.rolePrompt("responder"), rolePrompt("responder"));
   assert.equal(prompts.shippedPrompts()["brief.worker"], rolePrompt("worker"));
-  assert.equal(prompts.shippedPrompts()["agent.retro"], rolePrompt("retro"));
 });
 
 test("every skill prompt is shipped as its skill, and drift fails the check", async () => {

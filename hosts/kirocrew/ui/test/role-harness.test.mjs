@@ -28,7 +28,7 @@ for (const width of [390, 1280]) {
   test(`each role picks a harness and the worker's row saves at ${width}px`, { skip }, async () => {
     await page.open(harness.url({ page: 'models' }), { width, height: 900 })
     await page.until(`Boolean(document.querySelector('#avoozl-harness-worker'))`)
-    for (const role of ['worker', 'planner', 'retro']) {
+    for (const role of ['worker', 'checkDecide']) {
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-harness-${role}'))`), true, role)
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-model-${role}'))`), true, role)
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-agent-${role}'))`), role === 'worker', role)
@@ -50,19 +50,19 @@ for (const width of [390, 1280]) {
       'codex (not approved)',
     ])
     await page.evaluate(pick('avoozl-harness-worker', 'claude-code'))
-    // The retro follows its harness.
-    await page.evaluate(`document.querySelector('#avoozl-harness-retro').focus()`)
-    await page.until(`document.querySelector('#avoozl-harness-retro').getAttribute('aria-expanded') === 'true'`)
-    await page.evaluate(pick('avoozl-harness-retro', 'claude-code'))
+    // The reviewer follows its harness.
+    await page.evaluate(`document.querySelector('#avoozl-harness-reviewer').focus()`)
+    await page.until(`document.querySelector('#avoozl-harness-reviewer').getAttribute('aria-expanded') === 'true'`)
+    await page.evaluate(pick('avoozl-harness-reviewer', 'claude-code'))
     await page.until(`document.querySelector('[data-save-footer] [data-save]')?.disabled === false`)
     await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)
     const calls = await page.evaluate(`window.__harness.calls.filter((call) => call.operation === 'models.settings.update').map((call) => call.input)`)
     assert.deepEqual(calls.at(-1), {
       roles: {
-        planner: { model: 'fake-writer' },
+        checkDecide: { model: 'fake-writer' },
         worker: { agent: 'alt-worker', model: 'fake-reviewer', harness: 'claude-code' },
-        retro: { harness: 'claude-code' },
+        reviewer: { harness: 'claude-code' },
       },
       expectedHash: 'models-before',
     })

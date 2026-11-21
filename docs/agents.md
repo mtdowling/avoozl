@@ -27,8 +27,8 @@ prints.
 ## Roles and models
 
 **Settings › Models** picks each role's harness, agent, and model. The roles
-are the worker, the planner, and the retro. The settings are saved as one
-`roles` table in `.avoozl.json`:
+are the worker, the reviewer, the responder, the check decide call, and the
+assistant. The settings are saved as one `roles` table in `.avoozl.json`:
 
 ```json
 {
@@ -37,20 +37,21 @@ are the worker, the planner, and the retro. The settings are saved as one
       "harness": "claude-code",
       "model": "<model>"
     },
-    "retro": {
-      "model": "<model>"
+    "reviewer": {
+      "harness": "kirocrew"
     }
   }
 }
 ```
 
 A row's `harness` is `kirocrew` for a Kiro Crew chat, or the name of a harness
-definition in this machine's config. Only the worker takes an
-`agent`. A field left out, or set to `auto`, keeps the role's default: its
-agent's own model and its repository's executor.
+definition in this machine's config. Only the worker takes an `agent`, and
+only the worker and the check decide call take a `model`. A field left out,
+or set to `auto`, keeps the role's default: its agent's own model and its
+repository's executor. A `roles` entry for any other role does not load, and
+the error names it.
 
-The worker, planner, and retro follow the harness. Avoozl moves no running
-chat to another model.
+Avoozl moves no running chat to another model.
 
 A role's agent and model live only in `roles`. A file that still sets
 `delivery.agent`, `delivery.model`, `delivery.investigate`, or

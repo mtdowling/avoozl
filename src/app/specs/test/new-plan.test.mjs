@@ -6,8 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../../api/operations.mjs";
-import { newPlanStarts, newPlanTask, pendingNewPlans } from "../new-plan.mjs";
-import { recordSessionStatus } from "../../sessions/session-bindings.mjs";
+import { pendingNewPlans } from "../new-plan.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import {
   legacySpecFiles,
@@ -73,32 +72,22 @@ const sessions = (store) => {
   }
 };
 
-test("plan.new returns a planner seed with Avoozl's spec rules and records the request", async (t) => {
+test("plan.new hands Spec Builder the form's fields and records the request", async (t) => {
   const { root, store, ops } = workspace(t);
   const result = await ops.execute("plan.new", request());
-  assert.equal(result.agent, "avoozl-planner");
+  assert.equal(result.handoff, "spec-builder");
   assert.equal(result.name, "cache-invalidation");
   assert.equal(
     result.folder,
     path.join(root, ".kiro", "specs", "cache-invalidation"),
   );
   for (const needle of [
-    "Mode: draft.",
-    `Write only inside: ${result.folder}/.`,
-    "requirements.md",
-    "design.md",
-    "tasks.md",
-    "$key: bullets under it",
-    "Never write avoozl/manifest.json",
-    "unique task ID",
     "category: Runtime",
-    "Repositories: app.",
-    "Do not approve it",
     "Invalidate the cache when config changes.",
     "- Phase 2",
     "See issue 12.",
   ])
-    assert.ok(result.message.includes(needle), needle);
+    assert.ok(result.specBuilder.description.includes(needle), needle);
   assert.deepEqual(
     pendingNewPlans(store).map((entry) => entry.name),
     ["cache-invalidation"],
@@ -108,6 +97,10 @@ test("plan.new returns a planner seed with Avoozl's spec rules and records the r
   assert.deepEqual(
     pendingNewPlans(store).map((entry) => entry.goal),
     ["Second try."],
+  );
+  await assert.rejects(
+    ops.execute("plan.new", request({ handoff: "planner" })),
+    /handoff must be spec-builder/,
   );
   assert.equal(store.list("plans").filter((p) => p.spec).length, 0);
 });
@@ -203,77 +196,6 @@ test("the tick imports a requested folder as a draft once it lints clean, and ne
     !store.read().tasks.some((task) => task.planId === "cache-invalidation"),
     "an unapproved draft adds no tasks",
   );
-});
-
-test("the tick opens New plan's planner chat and credits its draft to that chat", async (t) => {
-  // Nearby inputs: a bound chat, a second ask, a page-era request, Spec Builder.
-  const { root, store, ops } = workspace(t);
-  await ops.execute("plan.new", request());
-  const [start] = newPlanStarts(store, { model: "fake-planner" });
-  assert.deepEqual(
-    {
-      role: start.role,
-      task: start.task,
-      worktree: start.worktree,
-      model: start.model,
-      permissionClass: start.permissionClass,
-      attempt: start.attempt,
-      context: start.context,
-    },
-    {
-      role: "planner",
-      task: newPlanTask("cache-invalidation"),
-      worktree: root,
-      model: "fake-planner",
-      permissionClass: "write",
-      attempt: 1,
-      context: { newPlan: "cache-invalidation" },
-    },
-  );
-  assert.ok(start.brief.includes("Mode: draft."));
-  assert.ok(start.title.startsWith("avoozl:new-plan:cache-invalidation "));
-  // A second ask opens a new attempt; a page-era entry (no brief) opens none.
-  await ops.execute("plan.new", request({ goal: "Second try." }));
-  const second = newPlanStarts(store, {})[0];
-  assert.equal(second.attempt, 2);
-  assert.notEqual(
-    second.title,
-    start.title,
-    "a second attempt gets its own chat",
-  );
-  store.setMeta("newPlans", [
-    ...pendingNewPlans(store),
-    { name: "old-page-chat", goal: "x", repositories: ["app"] },
-  ]);
-  assert.equal(newPlanStarts(store, {}).length, 1);
-
-  await ops.execute("session.bind", {
-    taskId: start.task,
-    slot: "avoozl_np",
-    role: "planner",
-    attempt: 2,
-    source: "tick",
-  });
-  assert.deepEqual(
-    newPlanStarts(store, {}),
-    [],
-    "a bound chat is not reopened",
-  );
-  recordSessionStatus(
-    store,
-    { slot: "avoozl_np", status: "idle" },
-    {
-      served: {
-        requested: "fake-planner",
-        model: "fake-planner",
-        withheld: false,
-        changed: false,
-      },
-    },
-  );
-  writeSpec(root, "cache-invalidation", cleanSpec());
-  await ops.execute("workspace.tick", {});
-  assert.ok(store.get("plans", "cache-invalidation"));
 });
 
 // Spec Builder hand-off: plan.new returns the create body, the steering

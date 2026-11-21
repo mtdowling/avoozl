@@ -2,7 +2,7 @@
 
 This package adds Avoozl to Kiro Crew: the Avoozl page, a loopback app
 backend, the `avoozl` stdio MCP server, the `avoozl-tick` script cron, the
-planner, verifier, and responder agents, and the `avoozl` skill.
+reviewer, responder and check decide agents, and the Avoozl skills.
 
 Build the package before a local install. The build writes the page bundle and
 copies the Avoozl CLI with its dependencies into `bin/lib`, so the installed
@@ -40,8 +40,8 @@ reads each live session with `GET /api/chat/slots/<slot>` on its app token and
 records `working`, `queued`, `idle`, or `gone`. Kiro Crew answers the same way
 for a closed session and a lost one, so a worker session that is `gone`
 without a report opens a decision instead of a new attempt; **Retry** in
-Conflicts ends it and starts the next attempt. A gone verifier or reviewer is
-replaced on its own, since it changes no code. Statuses are up to one tick old.
+Conflicts ends it and starts the next attempt. A gone reviewer is replaced on its
+own, since it changes no code. Statuses are up to one tick old.
 
 ## Tick watchdog
 

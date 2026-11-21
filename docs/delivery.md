@@ -137,7 +137,7 @@ and CLI file, so it needs neither `avoozl` on its `PATH` nor MCP sharing. The
 other chats need two steps in Kiro Crew, each done once:
 
 1. Share the MCP server. A worker that opens a pull request, and every
-   verifier and reviewer chat, reports with `plans_report`.
+   reviewer chat, reports with `plans_report`.
    Kiro Crew names the calling chat only to MCP servers it shares. Open **MCP
    Management**, find `avoozl:avoozl`, turn on sharing, and press **Approve
    sharing**. Then restart the gateway from **Settings › About › Restart
@@ -145,8 +145,8 @@ other chats need two steps in Kiro Crew, each done once:
    runs outside the chat sandbox, with your access.
 2. Set the chat folder. After the first tick, open the chat folder
    **Avoozl** › _repository ID_ in the sidebar and set its project directory
-   to the checkout. The planner and responder chats open there, and the
-   tick opens none of them until it is set.
+   to the checkout. The worker, reviewer and responder chats open there, and
+   the tick opens none of them until it is set.
 
 ## Workers and verification
 
@@ -157,9 +157,8 @@ choosing one. Sessions run on this machine.
 
 When a session reports done, Avoozl runs the checks itself on the exact commit
 in a clean worktree, with no model call. It then integrates the commit and
-releases the tasks that waited on it. A verifier session opens only when a
-task needs judgment: the repository has no checks, or it sets
-`verify: "agent"`.
+releases the tasks that waited on it. A repository with no checks is judged
+by its reviewers alone.
 
 Implementation, integration, and acceptance are separate steps, and each keeps
 its own record. Avoozl never replaces a worker only because its activity went
