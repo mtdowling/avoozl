@@ -54,7 +54,7 @@ export async function landTask(
     caller?: unknown;
     local?: boolean;
     github?: LandOptions["github"];
-    workspaceRoot?: string;
+    workspaceRoot?: string | null;
     config?: LandOptions["config"];
   },
 ) {

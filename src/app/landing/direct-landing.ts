@@ -98,14 +98,14 @@ export interface LandOptions {
   github?:
     | (NonNullable<Parameters<typeof finishLanded>[1]> & PullGitHub)
     | null;
-  workspaceRoot?: string;
+  workspaceRoot?: string | null;
   rounds?: number | ((repository: Repository) => number);
   now?: number;
   env?: NodeJS.ProcessEnv;
   machine?: Parameters<typeof directSteps>[0]["machine"];
   configFile?: string;
   run?: Parameters<typeof directSteps>[0]["run"];
-  config?: (LandingConfig & { landing?: { unionPaths?: string[] } }) | null;
+  config?: LandingConfig | null;
   only?: string | null;
 }
 
