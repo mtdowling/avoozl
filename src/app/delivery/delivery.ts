@@ -1588,7 +1588,19 @@ export function busyTaskIds(
 // Ready leaves a runner may start now, by rank then graph order, within
 // the workspace's and each repository's free capacity: [{task, repository,
 // attempt, delivery}]. The tick and `avoozl next` both read this. Reads only.
-export function readyLeaves(store, policy, { skip = new Set() } = {}) {
+// One leaf the tick may start: its task, its attempt and its checkout.
+export interface ReadyLeaf {
+  task: Task;
+  attempt: number;
+  repository: { id: string; root: string; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+export function readyLeaves(
+  store,
+  policy,
+  { skip = new Set() } = {},
+): ReadyLeaf[] {
   const data = store.read(),
     repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),

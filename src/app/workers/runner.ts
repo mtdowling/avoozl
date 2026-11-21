@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // `avoozl next` (worker-paths WP2.5): a read of the ready, running, waiting,
 // Needs you and done lists. The tick starts the work; a person takes one task
 // with `avoozl take` (manual-take.mjs).
@@ -23,10 +22,56 @@ import { manualTake } from "./manual-take.ts";
 import { rankKeys } from "../specs/ranking.ts";
 import { catchUp, integrationBase } from "../specs/integration-base.ts";
 import { remoteGit } from "../git/git.ts";
+import type { Store } from "../store/store.ts";
+import type { SessionBinding } from "../sessions/session-bindings.ts";
+import type { Task } from "../../types.ts";
+
+// A configured checkout, as claims read it.
+type RepositoryRow = {
+  id: string;
+  root: string;
+  github?: string;
+  baseBranch?: string;
+  commitPrefix?: string;
+};
+// A task's delivery row, as the lists read it.
+type DeliveryRow = {
+  id: string;
+  taskId: string;
+  state?: string;
+  cause?: string;
+  attempts?: { cause?: string }[];
+};
+// readDeliveryPolicy's wrapper.
+type Policy =
+  | { status?: string; error?: string; delivery?: unknown }
+  | null
+  | undefined;
+// One row of a list; a ready row names its task.
+type Row = Record<string, unknown>;
+// The GitHub calls a claim makes.
+type ClaimClient = Parameters<typeof catchUp>[1] &
+  NonNullable<Parameters<typeof readLabelFilters>[1]> &
+  NonNullable<Parameters<typeof readSpecAssignees>[1]> &
+  NonNullable<Parameters<typeof readLabeledIssues>[1]> & {
+    branch(repository: string, name: string): Promise<unknown>;
+  };
+// One cached read per key.
+const memo = <T>(seen: Map<string, T>, key: string, read: () => T): T => {
+  const known = seen.get(key);
+  if (known !== undefined) return known;
+  const value = read();
+  seen.set(key, value);
+  return value;
+};
+const statusOf = (error: unknown) =>
+  error && typeof error === "object" && "status" in error
+    ? error.status
+    : undefined;
 
 // `origin/<branch>` once fetched, else null so the worktree starts from the
 // local base.
-const fetchedBase = (repository, branch) =>
+const fetchedBase = (repository: RepositoryRow, branch: string) =>
   remoteGit(repository.root, ["fetch", "--quiet", "origin", branch]).then(
     () => `origin/${branch}`,
     () => null,
@@ -45,20 +90,19 @@ import {
   isRefused,
   taskKind,
   taskRepository,
-  taskRoute,
 } from "../../work-model.ts";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const NEEDS_YOU_STATUSES = new Set(["blocked", "review"]);
 
-const effective = (policy) =>
+const effective = (policy: Policy) =>
   policy?.delivery || { ...DELIVERY_DEFAULTS, repositories: {} };
 
-const title = (task) => task.title || task.id;
+const title = (task: { id: string; title?: string }) => task.title || task.id;
 
 // The newest worker binding per task, any source.
-function newestWorkers(bindings) {
-  const newest = new Map();
+function newestWorkers(bindings: SessionBinding[]) {
+  const newest = new Map<string, SessionBinding>();
   for (const binding of bindings)
     if (binding.role === "worker") {
       const seen = newest.get(binding.taskId);
@@ -68,7 +112,10 @@ function newestWorkers(bindings) {
   return newest;
 }
 
-const phase = (binding, delivery) =>
+const phase = (
+  binding: SessionBinding | undefined,
+  delivery: DeliveryRow | undefined,
+) =>
   delivery?.state === "done"
     ? "verifying"
     : delivery?.state === "verified"
@@ -81,8 +128,8 @@ const phase = (binding, delivery) =>
 
 // plans_next / `avoozl next`: every local leaf, in exactly one bucket.
 export function nextView(
-  store,
-  { policy, github = null }: { policy: unknown; github?: unknown },
+  store: Store,
+  { policy, github = null }: { policy: Policy; github?: unknown },
 ) {
   const data = store.read(),
     delivery = effective(policy),
@@ -92,7 +139,7 @@ export function nextView(
     branches = claimedTaskIds(store),
     labels = new Map([...labelHolds(store), ...assigneeHolds(store)]),
     deliveries = new Map(
-      store.list("task_deliveries").map((d) => [d.taskId, d]),
+      store.list<DeliveryRow>("task_deliveries").map((d) => [d.taskId, d]),
     ),
     schedule = scheduleHolds(store, { github }),
     startable = new Map(
@@ -102,13 +149,21 @@ export function nextView(
       ]),
     ),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
-    complete = (status) => statusComplete(data, status),
+    complete = (status: string | undefined) => statusComplete(data, status),
     // The three ranking keys each ready task is shown with (§D3.1).
     keysOf = rankKeys(
       data.edges.filter((edge) => BLOCKING.has(edge.kind)),
-      (id) => byId.has(id) && !complete(byId.get(id).status),
+      (id: string) => byId.has(id) && !complete(byId.get(id)?.status),
     );
-  const result = {
+  const result: {
+    policy: string;
+    ready: (Row & { id: string })[];
+    running: Row[];
+    waiting: Row[];
+    needsYou: Row[];
+    done: Row[];
+    finished?: boolean;
+  } = {
     policy: policy?.status || "absent",
     ready: [],
     running: [],
@@ -122,7 +177,7 @@ export function nextView(
       detail: `.avoozl.json is invalid: ${policy.error}`,
       link: sessionUrl(null),
     });
-  const blockersOf = (task) =>
+  const blockersOf = (task: Task) =>
     data.edges
       .filter(
         (edge) =>
@@ -141,7 +196,6 @@ export function nextView(
   const leaves = data.tasks.filter(
     (task) =>
       taskKind(task) === "leaf" &&
-      taskRoute(task) === "local" &&
       !isArchivedTask(data, task) &&
       !task.source?.removed,
   );
@@ -168,7 +222,10 @@ export function nextView(
     const reason = task.decision
       ? ["decision", String(task.decision)]
       : record?.state === "decision"
-        ? ["failed", record.cause || record.attempts.at(-1)?.cause || "stopped"]
+        ? [
+            "failed",
+            record.cause || record.attempts?.at(-1)?.cause || "stopped",
+          ]
         : question
           ? ["question", question]
           : isRefused(task)
@@ -226,8 +283,8 @@ export function nextView(
               ? task.status
               : schedule.held.has(task.id)
                 ? schedule.held.get(task.id)
-                : labels.has(task.planId)
-                  ? labels.get(task.planId)
+                : labels.has(task.planId ?? "")
+                  ? labels.get(task.planId ?? "")
                   : task.planArchived
                     ? "plan archived"
                     : !taskRepository(task)
@@ -244,30 +301,35 @@ export function nextView(
 // spec that links it, caught up with the default branch first (simplify
 // §D21), else the default branch. Each branch is read and merged once per
 // call of the function this returns.
-function claimBase(store, client, linked) {
-  const seen = new Map(),
-    once = (key, read) => {
-      if (!seen.has(key)) seen.set(key, read());
-      return seen.get(key);
-    },
-    exists = (repository) => (name) =>
-      once(`branch:${repository}:${name}`, () =>
+type Linked = Parameters<typeof integrationBase>[1]["linked"];
+
+function claimBase(store: Store, client: ClaimClient, linked: Linked) {
+  const branches = new Map<string, Promise<boolean>>(),
+    caughtUp = new Map<string, ReturnType<typeof catchUp>>(),
+    exists = (repository: string) => (name: string) =>
+      memo(branches, `${repository}:${name}`, () =>
         client.branch(repository, name).then(Boolean, (error) => {
-          if (error.status === 404) return false;
+          if (statusOf(error) === 404) return false;
           throw error;
         }),
       );
-  return async ({ task, repository }) => {
+  return async ({
+    task,
+    repository,
+  }: {
+    task: Task;
+    repository: RepositoryRow;
+  }) => {
     const fallback = repository.baseBranch || "main",
       base = await integrationBase(taskSpec(task), {
         linked,
-        exists: exists(repository.github),
+        exists: exists(repository.github ?? ""),
         fallback,
       });
     if (base === fallback) return base;
-    const done = await once(`catch-up:${repository.github}:${base}`, () =>
+    const done = await memo(caughtUp, `${repository.github}:${base}`, () =>
       catchUp(store, client, {
-        repository: repository.github,
+        repository: repository.github ?? "",
         branch: base,
         base: fallback,
         prefix: repository.commitPrefix,
@@ -284,24 +346,27 @@ function claimBase(store, client, linked) {
 // never start one task, and so is one whose claim GitHub could not make: it
 // is tried again next pass. A task this runner already claimed keeps its
 // start. Returns {dispatches, errors}.
-export async function claimDispatches(
-  store,
-  client,
-  dispatches,
-  { linked = null } = {},
+export async function claimDispatches<
+  D extends { task?: string; role?: string },
+>(
+  store: Store,
+  client: ClaimClient,
+  dispatches: D[],
+  { linked = null }: { linked?: Linked } = {},
 ) {
   const repositories = new Map(
-      store.list("repositories").map((r) => [r.id, r]),
+      store.list<RepositoryRow>("repositories").map((r) => [r.id, r]),
     ),
     tasks = new Map(store.read().tasks.map((task) => [task.id, task])),
     baseOf = claimBase(store, client, linked),
-    kept = [],
-    errors = [];
+    kept: D[] = [],
+    errors: { repository: string; error: string }[] = [];
   for (const dispatch of dispatches) {
-    const task = tasks.get(dispatch.task),
-      repository = task && repositories.get(taskRepository(task));
+    const task = tasks.get(dispatch.task ?? ""),
+      repository = task && repositories.get(taskRepository(task) ?? "");
     if (
       dispatch.role !== "worker" ||
+      !task ||
       !repository?.github ||
       claimOf(store, repository.github, task.id)?.own
     ) {
@@ -312,8 +377,11 @@ export async function claimDispatches(
     try {
       claim = await claimFirst(client, [{ task, repository }], { baseOf });
     } catch (error) {
-      if (error.status !== 409)
-        errors.push({ repository: repository.github, error: error.message });
+      if (statusOf(error) !== 409)
+        errors.push({
+          repository: repository.github,
+          error: error instanceof Error ? error.message : String(error),
+        });
     }
     if (!claim) continue;
     cacheClaim(store, repository.github, {
@@ -333,7 +401,7 @@ export async function claimDispatches(
 // at the base head, and make its worktree on that branch. A task whose
 // repository has no GitHub name is not claimable this way.
 export async function claimNext(
-  store,
+  store: Store,
   {
     policy,
     github = null,
@@ -341,11 +409,11 @@ export async function claimNext(
     workspaceRoot,
     linked = null,
   }: {
-    policy: unknown;
+    policy: Policy;
     github?: unknown;
-    client?: unknown;
+    client: ClaimClient;
     workspaceRoot?: string | null;
-    linked?: unknown;
+    linked?: Linked;
   },
 ) {
   const errors = [
@@ -356,12 +424,14 @@ export async function claimNext(
     ],
     view = nextView(store, { policy, github }),
     ready = new Set(view.ready.map((item) => item.id)),
-    repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
+    repositories = new Map(
+      store.list<RepositoryRow>("repositories").map((p) => [p.id, p]),
+    ),
     candidates = readyCandidates(store)
       .filter((task) => ready.has(task.id))
       .map((task) => ({
         task,
-        repository: repositories.get(taskRepository(task)),
+        repository: repositories.get(taskRepository(task) ?? ""),
       }))
       .filter(({ repository }) => repository?.github);
   const claim = await claimFirst(client, candidates, {
@@ -383,6 +453,8 @@ export async function claimNext(
     },
     { github },
   );
+  if (!("binding" in take))
+    throw Error("The claim's take released a session instead of binding one.");
   // `own`: this runner created it, so it deletes it once the task lands.
   cacheClaim(store, claim.repository.github, {
     spec: taskSpec(claim.task),

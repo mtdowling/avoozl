@@ -15,7 +15,6 @@ type Assigned = { pass: true } | { pass: false; reason: string };
 // The GitHub reads the rule makes.
 interface IssueReader {
   issue?(repository: string, number: number): Promise<Issue>;
-  [key: string]: unknown;
 }
 type Plan = { id: string; spec?: string; state?: string; deletedAt?: string };
 type Receipt = { repository: string; number: number };
