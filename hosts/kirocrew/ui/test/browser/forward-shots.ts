@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of the Forward screen on replies the real operations gave in the
 // live scratch run: <out>/forward-<state>-<width>.png for ok, blocked and stopped.
 //

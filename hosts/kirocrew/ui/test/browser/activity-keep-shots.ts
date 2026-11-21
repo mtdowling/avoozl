@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Activity > Keep activity in the full app shell: the field
 // after a typed value has auto-saved ("Saved") and with an invalid value,
 // at desktop and phone width, light and dark: <out>/<state>-<size>-<theme>.png.
@@ -10,10 +9,10 @@ import { startShots } from './shots.ts'
 
 const { out, harness, browser } = await startShots('activity-keep-shots.mjs <out dir>')
 const SIZES = { desktop: { width: 1280, height: 800 }, phone: { width: 390, height: 844 } }
-const type = (value) =>
+const type = (value: string) =>
   `(() => { const i = document.getElementById('avoozl-activity-keep'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ${JSON.stringify(value)}); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
 const scrollDown = `(() => { for (let e = document.getElementById('avoozl-activity-keep'); e; e = e.parentElement) if (e.scrollHeight > e.clientHeight + 1 && getComputedStyle(e).overflowY !== 'visible') e.scrollTop = e.scrollHeight; return true })()`
-const sleep = (ms) => `new Promise((r) => setTimeout(r, ${ms}))`
+const sleep = (ms: number) => `new Promise((r) => setTimeout(r, ${ms}))`
 try {
   const page = await browser.page()
   for (const [size, box] of Object.entries(SIZES))
@@ -30,7 +29,7 @@ try {
         `(() => { const b = [...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes('Activity')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`,
       )
       await page.until(`Boolean(document.getElementById('avoozl-activity-keep') && !document.getElementById('avoozl-activity-keep').disabled)`)
-      const shoot = async (state) => {
+      const shoot = async (state: string) => {
         await page.evaluate(scrollDown)
         await page.evaluate(sleep(300))
         await page.evaluate(scrollDown)

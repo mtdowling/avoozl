@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots for the one landing block (design §4.25), in the full app shell
 // on fake data: a repository's Edit › Landing tab scrolled to its Who merges
 // and Conflicts sections, and Settings › Autopilot.
@@ -30,27 +29,28 @@ const browser = await launch(chrome)
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-  const menu = (width) =>
+  const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+  const menu = (width: number) =>
     width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
-  const head = (width) =>
+  const head = (width: number) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
-  const item = (width, name) =>
+  const item = (width: number, name: string) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].filter((x) => x.textContent.trim() === ${JSON.stringify(name)}).pop(); if (b) b.click(); return Boolean(b) })()`
-  const click = (selector, text) =>
+  const click = (selector: string, text: string) =>
     `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => !x.disabled && (x.getAttribute('aria-label') || x.textContent).trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
-  const tab = (key) => `(() => { document.querySelector('[data-repository-edit] [role=tab][data-tab="${key}"]')?.click(); return true })()`
+  const tab = (key: string) => `(() => { document.querySelector('[data-repository-edit] [role=tab][data-tab="${key}"]')?.click(); return true })()`
   // Scroll the dialog body so the heading named `title` is at its top.
-  const scrollTo = (title) =>
+  const scrollTo = (title: string) =>
     `(() => { const h = [...document.querySelectorAll('[data-modal-body] h2, [data-modal-body] h3, [data-modal-body] h4')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(title)})); const body = document.querySelector('[data-modal-body]'); if (h && body) body.scrollTo(0, h.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 8); return Boolean(h) })()`
-  const shots = [
+  const shots: [string, string, string[]][] = [
     ['landing-top', 'Repository setup', [click('[data-repository-list] button', 'Edit recipe-box'), tab('landing')]],
     ['landing-merges', 'Repository setup', [click('[data-repository-list] button', 'Edit recipe-box'), tab('landing'), scrollTo('Who merges')]],
     ['delivery', 'Autopilot', []],
-  ].filter(([name]) => !only.length || only.includes(name))
+  ]
+  const picked = shots.filter(([name]) => !only.length || only.includes(name))
   for (const theme of ['light', 'dark'])
     for (const width of [1280, 390])
-      for (const [name, nav, extra] of shots) {
+      for (const [name, nav, extra] of picked) {
         const size = { width, height: 900, dark: theme === 'dark' }
         await page.open(harness.url({ page: 'app', basic: '1', theme, roles: 'plans', ...(name === 'delivery' ? { inline: '1' } : {}) }), size)
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)

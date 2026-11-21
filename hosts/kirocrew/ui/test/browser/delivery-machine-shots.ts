@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of Dashboards › Delivery with machine badges and the
 // per-machine counts line (harness ?page=app&delivery=1&machines=1): 1280 and
 // 390, light and dark: <out>/delivery-<width>-<theme>.png.

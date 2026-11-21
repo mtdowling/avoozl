@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of Dashboards › Delivery on fake data (harness
 // ?page=app&delivery=1): 1280 and 1024 (a 1280 window at 125% zoom) and 853
 // (at 150%) show all four lanes in one row; 390 (a phone) stacks them,

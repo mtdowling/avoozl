@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Times Home on a real workspace. Each operation Home sends runs once on a
 // copy of the workspace (in this process, GitHub fetches refused and
 // counted), then the page (harness ?page=app) gets those replies, each after
@@ -24,7 +23,7 @@ if (!root) {
 const HOP = Number(process.env.HOP_MS ?? 50),
   GITHUB = Number(process.env.GITHUB_MS ?? 400)
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
-const load = (file) => import(pathToFileURL(path.join(repo, file)).href)
+const load = (file: string) => import(pathToFileURL(path.join(repo, file)).href)
 const { workspaceConfig } = await load('src/app/settings/config.ts')
 const { Store } = await load('src/app/store/store.ts')
 const { Operations } = await load('src/app/api/operations.ts')
@@ -37,7 +36,7 @@ globalThis.fetch = async () => {
 const config = workspaceConfig({ workspace: root, env: { ...process.env, AVOOZL_WORKSPACE: root } })
 const store = new Store(config.dbPath)
 const ops = new Operations(store, { operator: config.operator, workspaceRoot: config.workspaceRoot, plansRoot: config.plansRoot, workspaceName: config.name })
-const HOME = [
+const HOME: [string, Record<string, unknown>][] = [
   ['flow.view', { window: '10' }],
   ['graph.view', {}],
   ['delivery.view', {}],
@@ -51,10 +50,10 @@ const HOME = [
   ['integration.view', {}],
   ['review.drafts', {}],
 ]
-const replay = {
+const replay: Record<string, { result: unknown; ms: number }> = {
   'workspaces.list': { result: { defaultWorkspace: 'w', items: [{ id: 'w', name: config.name, root: '/w', enabled: true, state: 'ready', served: true }] }, ms: HOP },
 }
-const github = {}
+const github: Record<string, number> = {}
 for (const [name, input] of HOME) {
   const before = fetches,
     start = performance.now()

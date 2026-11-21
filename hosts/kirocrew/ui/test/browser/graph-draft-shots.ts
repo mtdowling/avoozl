@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Dashboards › Graph with one draft spec (graph-chains.ts,
 // &graph=drafts), in the full app with its left nav, at 1280 and 390 px,
 // light and dark: <out>/<step>-<width>-<theme>.png. With --before, only the
@@ -12,7 +11,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildHarness, shotCss } from './build.ts'
-import { findChrome, launch } from './chrome.ts'
+import { findChrome, launch, type Page } from './chrome.ts'
 
 const args = process.argv.slice(2)
 const before = args.includes('--before')
@@ -29,7 +28,7 @@ if (!chrome) {
 fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
-const settle = (page) => page.evaluate('new Promise((r) => setTimeout(r, 300))')
+const settle = (page: Page) => page.evaluate('new Promise((r) => setTimeout(r, 300))')
 
 try {
   const page = await browser.page()
@@ -39,7 +38,7 @@ try {
   ])
     for (const theme of ['light', 'dark']) {
       const phone = width < 768
-      const shoot = async (name) => {
+      const shoot = async (name: string) => {
         await settle(page)
         const file = path.join(out, `${name}-${width}-${theme}.png`)
         await page.screenshot(file)

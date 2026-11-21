@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of a task's Links box (44.3) inside the full app (harness
 // ?page=app), desktop 1280 and phone 390, light and dark:
 //   1-task-links-<width>-<theme>.png   the Links box in task details
@@ -13,12 +12,12 @@ import path from 'node:path'
 import { startShots } from './shots.ts'
 
 const { out, harness, browser } = await startShots('links-task-shots.mjs <out dir>')
-const SIZE = { 1280: 900, 390: 844 }
+const SIZE: Record<number, number> = { 1280: 900, 390: 844 }
 const BOX = `[...document.querySelectorAll('[data-section-box]')].find((b) => b.querySelector('h3')?.textContent.trim() === 'Links')`
 try {
   const page = await browser.page()
   const settle = (ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-  const shoot = async (name, width, theme) => {
+  const shoot = async (name: string, width: number, theme: string) => {
     await settle()
     const file = path.join(out, `${name}-${width}-${theme}.png`)
     await page.screenshot(file)

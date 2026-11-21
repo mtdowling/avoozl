@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Full-app screenshots of direct links (spec direct-links) on fake data
 // (harness ?page=app&direct=1), 1280 and 390, light and dark:
 //   <out>/in-flight-<width>-<theme>.png   each attempt's action
@@ -9,9 +8,10 @@
 //   node test/browser/direct-links-shots.mjs <out dir>
 import path from 'node:path'
 import { startShots } from './build.ts'
+import type { Page } from './chrome.ts'
 
 const { out, harness, browser } = await startShots('direct-links-shots.mjs')
-const settle = (page, ms = 600) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+const settle = (page: Page, ms = 600) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 try {
   const page = await browser.page()
   for (const width of [1280, 390])

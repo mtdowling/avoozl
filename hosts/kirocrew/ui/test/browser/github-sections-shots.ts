@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck: typing debt
 // Screenshots of Settings › GitHub in the full app
 // shell on fake data (harness ?page=app&roles=...&ghfull=1): desktop (1280 px)
 // and phone (375 px), light and dark: <out>/<name>-<width>-<theme>.png.
@@ -12,12 +11,12 @@ const { out, harness, browser } = await startShots('github-sections-shots.mjs <o
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-  const menu = (width) =>
+  const scope = (width: number) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+  const menu = (width: number) =>
     width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
-  const head = (width) =>
+  const head = (width: number) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
-  const item = (width, text) =>
+  const item = (width: number, text: string) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
   const shots = [
     ['github-plans', 'plans', 'GitHub'],
@@ -29,7 +28,7 @@ try {
         const size = { width, height: 900, dark: theme === 'dark' }
         const url = harness.url({ page: 'app', theme, roles, ghfull: '1' })
         const steps = [menu(width), head(width), item(width, tab)]
-        const open = async (height) => {
+        const open = async (height: number) => {
           await page.open(url, { ...size, height })
           await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
           let found = true

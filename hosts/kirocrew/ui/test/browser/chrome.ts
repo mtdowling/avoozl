@@ -9,6 +9,8 @@ import type { Readable, Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import type { Harness } from './build.ts'
 
+export type { Harness }
+
 const CANDIDATES = [
   '/usr/bin/google-chrome',
   '/usr/bin/google-chrome-stable',
@@ -24,6 +26,13 @@ export function findChrome(): string | null {
   const named = process.env.AVOOZL_CHROME
   if (named) return fs.existsSync(named) ? named : null
   return CANDIDATES.find((file) => fs.existsSync(file)) ?? null
+}
+
+// The browser for a screenshot script, which cannot run without one.
+export function needChrome(): string {
+  const chrome = findChrome()
+  if (!chrome) throw Error('No Chrome found; set AVOOZL_CHROME.')
+  return chrome
 }
 
 const windows = process.platform === 'win32'
