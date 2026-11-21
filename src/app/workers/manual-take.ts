@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // A person takes one ready task by hand (worker-paths WP2, design D6):
 // `avoozl take TASK` binds it to the person and prepares its worktree;
 // `avoozl runner report TASK done` from that worktree finishes it, and Avoozl
@@ -21,28 +20,46 @@ import {
   listSessionBindings,
 } from "../sessions/session-bindings.ts";
 import { scheduleHolds } from "../specs/spec-scheduler.ts";
+import type { Store } from "../store/store.ts";
+import type { Task } from "../../types.ts";
+
+// What `avoozl take` passes.
+interface TakeInput {
+  taskId?: string;
+  release?: boolean;
+  discard?: boolean;
+  slot?: string;
+  claim?: boolean;
+  start?: unknown;
+  workspaceRoot?: string;
+}
 
 // Why `task` cannot be taken now, or null when it may be.
-function refusal(store, task, github) {
+function refusal(store: Store, task: Task, github: unknown) {
   const data = store.read(),
-    why = (reason) =>
+    why = (reason: string) =>
       `${task.id} is not ready to start: ${reason}. Run avoozl next to see what is ready.`;
   if (busyTaskIds(store).has(task.id))
     return why("it has a session running or a delivery under way");
   if (linePausedTaskIds(store, data).has(task.id))
     return why("Stop the line holds it");
   const schedule = scheduleHolds(store, { github });
-  if (schedule.held.has(task.id)) return why(schedule.held.get(task.id));
-  if (!readyCandidates(store).some((t) => t.id === task.id))
+  if (schedule.held.has(task.id))
+    return why(String(schedule.held.get(task.id)));
+  if (!readyCandidates(store).some((t: { id: string }) => t.id === task.id))
     return why("it is blocked, or not a leaf this machine can run");
   return null;
 }
 
 // runner.take / `avoozl take TASK`: the caller is the person at this
 // machine's command line (the operation refuses any other).
-export async function manualTake(store, input = {}, { github = null } = {}) {
+export async function manualTake(
+  store: Store,
+  input: TakeInput = {},
+  { github = null }: { github?: unknown } = {},
+) {
   const task = store.read().tasks.find((t) => t.id === input.taskId);
-  if (!task) fail(`Task ${input.taskId} not found.`, 404);
+  if (!task) return fail(`Task ${input.taskId} not found.`, 404);
   if (input.release === true) return giveBack(store, task, input);
   const attempt =
     listSessionBindings(store).filter(
@@ -64,8 +81,8 @@ export async function manualTake(store, input = {}, { github = null } = {}) {
       },
     },
   );
-  let worktree = null,
-    worktreeError = null;
+  let worktree: { path: string; branch: string } | null = null,
+    worktreeError: string | null = null;
   try {
     worktree = await prepareWorktree(store, {
       taskId: binding.taskId,
@@ -73,7 +90,7 @@ export async function manualTake(store, input = {}, { github = null } = {}) {
       ...(input.start ? { start: input.start } : {}),
     });
   } catch (error) {
-    worktreeError = error.message;
+    worktreeError = (error as Error).message;
   }
   const where = input.workspaceRoot
     ? ` --workspace ${JSON.stringify(input.workspaceRoot)}`
@@ -92,7 +109,7 @@ export async function manualTake(store, input = {}, { github = null } = {}) {
 // `avoozl take TASK --release`: give the task back. The take must still be
 // open (no done or blocked report), and a worktree with uncommitted changes
 // keeps them unless the person says `--discard`, which drops them.
-async function giveBack(store, task, input) {
+async function giveBack(store: Store, task: Task, input: TakeInput) {
   const binding = listSessionBindings(store)
     .filter(
       (b) =>
@@ -104,9 +121,15 @@ async function giveBack(store, task, input) {
       `${task.id} has not been taken by hand, so there is nothing to give back.`,
       409,
     );
-  const record = store.get("task_worktrees", task.id),
+  const record = store.get<{ id: string; path?: string; repository?: string }>(
+      "task_worktrees",
+      task.id,
+    ),
     worktree = record?.path,
-    checkout = store.get("repositories", record?.repository ?? "")?.root;
+    checkout = store.get<{ id: string; root?: string }>(
+      "repositories",
+      record?.repository ?? "",
+    )?.root;
   let dirty = "";
   if (worktree)
     dirty = await worktreeChanges(worktree, checkout).catch(() => "");
@@ -115,7 +138,7 @@ async function giveBack(store, task, input) {
       `${task.id}'s worktree has uncommitted changes. Commit or move them, or release with --discard to drop them.`,
       409,
     );
-  if (dirty) {
+  if (dirty && worktree) {
     await taskGit(worktree, ["reset", "--hard", "HEAD"], { checkout });
     await taskGit(worktree, ["clean", "-fd"], { checkout });
   }

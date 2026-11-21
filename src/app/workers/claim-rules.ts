@@ -1,14 +1,41 @@
-// @ts-nocheck: typing debt
 // Workflow v1 rules that decide from git state or from one described action
 // (docs/github-workflow.md sections 15, 16 and 20). The workflow kit calls
 // them. A commit graph is `{commit: [parents]}`.
 
+// A commit graph: each commit to its parents.
+type Graph = Record<string, string[]>;
+
+// One action a runner describes, by kind, with the facts its rule reads.
+interface Action {
+  kind: string;
+  checks?: string;
+  specText?: boolean;
+  draft?: boolean;
+  addedByWriter?: boolean;
+  shared?: boolean;
+  own?: boolean;
+  landed?: boolean;
+  released?: boolean;
+  withOwnClaimBranch?: boolean;
+  createdByRunner?: boolean;
+  assignees?: string[];
+  approverReply?: boolean;
+  repositoryCheck?: boolean;
+  private?: boolean;
+}
+
+// The task text a lease records and the approved text now.
+interface TaskText {
+  title?: unknown;
+  acceptance?: unknown;
+}
+
 // Whether `from` is `to` or one of its ancestors.
-export function reachable(graph, from, to) {
-  const seen = new Set(),
+export function reachable(graph: Graph, from: string, to: string) {
+  const seen = new Set<string>(),
     todo = [to];
   while (todo.length) {
-    const at = todo.pop();
+    const at = todo.pop() as string;
     if (at === from) return true;
     if (seen.has(at)) continue;
     seen.add(at);
@@ -21,27 +48,42 @@ export function reachable(graph, from, to) {
 // commit its lease records and is in the base, or its pull request merged
 // with a head that differs from that start. A fresh claim's head is its
 // start, which is already in the base, so it holds none.
-export function landedWork({ graph, start, head, baseHead, pull = null }) {
+export function landedWork({
+  graph,
+  start,
+  head,
+  baseHead,
+  pull = null,
+}: {
+  graph: Graph;
+  start: string;
+  head: string;
+  baseHead: string;
+  pull?: { merged?: boolean; head?: string } | null;
+}) {
   if (head !== start && reachable(graph, head, baseHead)) return true;
-  return Boolean(pull?.merged) && pull.head !== start;
+  return Boolean(pull?.merged) && pull?.head !== start;
 }
 
 // Rule 15.3: GitHub moves a branch only forward, so a push is accepted when
 // the branch's head is the pushed commit or one of its ancestors.
-export const pushAccepted = (graph, branchHead, pushed) =>
-  reachable(graph, branchHead, pushed);
+export const pushAccepted = (
+  graph: Graph,
+  branchHead: string,
+  pushed: string,
+) => reachable(graph, branchHead, pushed);
 
 // Rule 15.10: the task text the lease recorded, its title and acceptance
 // bullets, against the approved text now. A runner lands only an unchanged
 // task.
-export const taskRevision = (recorded, current) =>
+export const taskRevision = (recorded: TaskText, current: TaskText) =>
   JSON.stringify([recorded.title, recorded.acceptance]) ===
   JSON.stringify([current.title, current.acceptance])
     ? "land"
     : "redo-or-stop";
 
 // Section 20: the rule an action breaks, or null when it breaks none.
-export function runnerLimit(action, { login }) {
+export function runnerLimit(action: Action, { login }: { login: string }) {
   switch (action.kind) {
     case "push-base":
       return action.checks === "pass" ? null : "20.1";

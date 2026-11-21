@@ -72,7 +72,7 @@ export function createBroker({
 }: {
   onCall?: (entry: BrokerCall) => void;
   onViolation?: (violation: BrokerViolation) => void;
-  checkListeners?: (pid: number) => Promise<unknown>;
+  checkListeners?: (pid: number) => Promise<string[]>;
   listenerMs?: number;
 } = {}) {
   const sessions = new Map<string, SessionState>();

@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The one process a plugin runs in (design §4.8 Running, R34.5). Avoozl
 // starts it with `node plugin-child.mjs`, gives it no port, and talks to it
 // in JSON lines over stdio: `{id, method, params}` in, `{id, result}` or
@@ -13,35 +12,52 @@ import net from "node:net";
 import readline from "node:readline";
 import { pathToFileURL } from "node:url";
 
-const send = (message) => process.stdout.write(JSON.stringify(message) + "\n");
+const send = (message: unknown) =>
+  process.stdout.write(JSON.stringify(message) + "\n");
 
 if (process.env.AVOOZL_PLUGIN_GUARD !== "off") {
-  const deny = (what) => () => {
+  const deny = (what: string) => (): never => {
     send({ violation: what });
     process.exit(70);
   };
   net.Server.prototype.listen = deny("listen");
   dgram.Socket.prototype.bind = deny("bind");
 }
-for (const name of ["log", "info", "debug", "warn"])
-  console[name] = (...args) => console.error(...args);
+for (const name of ["log", "info", "debug", "warn"] as const)
+  console[name] = (...args: unknown[]) => console.error(...args);
 
-let plugin = null,
-  config = {},
+// A plugin's entry module: each kind maps its call names to functions.
+type Plugin = Record<string, Record<string, unknown> | undefined>;
+// One call in: the hello that loads the module, or a `kind.name` call.
+interface Call {
+  id?: unknown;
+  method?: unknown;
+  params?: {
+    entry?: string;
+    config?: unknown;
+    kind?: string;
+    [key: string]: unknown;
+  };
+}
+
+let plugin: Plugin | null = null,
+  config: unknown = {},
   // A credentials child serves that part alone (PC1.3).
-  only = null;
+  only: string | null = null;
 
-async function handle({ id, method, params }) {
+async function handle({ method, params }: Call) {
   if (method === "hello") {
-    const loaded = await import(pathToFileURL(params.entry).href);
-    plugin = loaded.default ?? loaded;
-    config = params.config ?? {};
-    if (!plugin?.[params.kind] || typeof plugin[params.kind] !== "object")
-      throw Error(`The entry module exports no ${params.kind}.`);
-    if (params.kind === "credentials") only = "credentials";
+    const kind = String(params?.kind);
+    const loaded = await import(pathToFileURL(String(params?.entry)).href);
+    const entry: Plugin = loaded.default ?? loaded;
+    plugin = entry;
+    config = params?.config ?? {};
+    if (!entry?.[kind] || typeof entry[kind] !== "object")
+      throw Error(`The entry module exports no ${params?.kind}.`);
+    if (kind === "credentials") only = "credentials";
     return {
       kinds: ["rules", "credentials"].filter(
-        (kind) => plugin[kind] && (!only || kind === only),
+        (each) => entry[each] && (!only || each === only),
       ),
     };
   }
@@ -49,13 +65,13 @@ async function handle({ id, method, params }) {
   if (only && kind !== only) throw Error(`The plugin has no ${method}.`);
   const fn = plugin?.[kind]?.[name];
   if (typeof fn !== "function") throw Error(`The plugin has no ${method}.`);
-  return (await fn.call(plugin[kind], params, { config })) ?? null;
+  return (await fn.call(plugin?.[kind], params, { config })) ?? null;
 }
 
 readline
   .createInterface({ input: process.stdin, terminal: false })
   .on("line", async (line) => {
-    let message;
+    let message: Call;
     try {
       message = JSON.parse(line);
     } catch {
@@ -64,7 +80,10 @@ readline
     try {
       send({ id: message.id, result: await handle(message) });
     } catch (error) {
-      send({ id: message.id, error: String(error?.message || error) });
+      send({
+        id: message.id,
+        error: String((error as Error)?.message || error),
+      });
     }
   })
   .on("close", () => process.exit(0));

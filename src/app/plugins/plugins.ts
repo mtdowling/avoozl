@@ -795,7 +795,7 @@ export function netstatListeners(text, pid) {
 // TCP listeners the process holds: lsof on macOS and BSD, /proc on Linux,
 // netstat on Windows. A process Avoozl cannot check is treated as listening
 // (fail closed).
-export async function listeningSockets(pid) {
+export async function listeningSockets(pid: number): Promise<string[]> {
   if (process.platform === "linux") {
     const inodes = new Set();
     for (const fd of fs.readdirSync(`/proc/${pid}/fd`)) {

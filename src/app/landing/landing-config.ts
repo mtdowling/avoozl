@@ -1,6 +1,7 @@
-// @ts-nocheck: typing debt
 // `landing` settings from .avoozl.json (Requirement 87.6). Kept apart from
 // landing-conflicts.mjs so the config loader pulls in no delivery code.
+import type { Store } from "../store/store.ts";
+
 export const DEFAULT_CONFLICT_ROUNDS = 2;
 const MAX_ROUNDS = 10;
 export const LANDING_MODES = Object.freeze(["direct", "pr", "off"]);
@@ -9,14 +10,48 @@ export const LANDING_MODES = Object.freeze(["direct", "pr", "off"]);
 // (Avoozl merges once checks pass on the exact head).
 export const PR_MODES = Object.freeze(["draft", "ready", "auto"]);
 
+type Json = Record<string, unknown>;
+// A repository's `landing` block as .avoozl.json writes it.
+interface LandingBlock {
+  mode?: string;
+  pr?: string;
+  method?: string;
+  mergeBatch?: unknown;
+  commitPrefix?: string;
+}
+// The parts of the configuration these settings read.
+interface LandingConfig {
+  github?: {
+    repositories?: Record<
+      string,
+      { landing?: unknown; conflicts?: { maxAttempts?: number } }
+    >;
+  };
+  landing?: { pr?: string; unionPaths?: unknown };
+  repositories?: Record<string, unknown>;
+  machine?: unknown;
+}
+// A repository row, as far as these settings read it.
+interface RepositoryRow {
+  id: string;
+  github?: string | null;
+  landing?: string;
+  commitPrefix?: string;
+  [key: string]: unknown;
+}
+
 // The one landing block of a GitHub repository (design §4.25, R87.1): a key
 // in the block wins, then the default. `github` is the owner/name, and
 // `repository` the checkout's repository row, for its `landing`.
 // {mode, pr, method, mergeBatch, commitPrefix, maxAttempts}; `mode` is null when nothing sets it.
 // `pr` is the repository's landing.pr, then the workspace's, then draft.
-export function landingSettings(config, github, repository = null) {
+export function landingSettings(
+  config: LandingConfig | null | undefined,
+  github: string,
+  repository: { landing?: string } | null = null,
+) {
   const entry = config?.github?.repositories?.[github],
-    block = isRecord(entry?.landing) ? entry.landing : {};
+    block: LandingBlock = isRecord(entry?.landing) ? entry.landing : {};
   return {
     mode: block.mode ?? repository?.landing ?? null,
     pr: block.pr ?? config?.landing?.pr ?? "draft",
@@ -29,21 +64,30 @@ export function landingSettings(config, github, repository = null) {
 
 // A commit subject that follows the repository's `landing.commitPrefix`
 // (such as "chore: "); with no prefix, the subject as written.
-export const commitSubject = (prefix, text) => `${prefix || ""}${text}`;
+export const commitSubject = (
+  prefix: string | null | undefined,
+  text: string,
+) => `${prefix || ""}${text}`;
 
 // The tick and the settings loader copy each repository's `landing.mode` and
 // `landing.commitPrefix` onto the repository rows of its checkouts, because
 // the landing code reads them from the repository (design §4.25). Returns the
 // repositories it changed.
-export function applyLandingModes(store, config) {
-  const changed = [];
-  for (const repository of store.list("repositories")) {
-    const block = repository.github
-        ? config?.github?.repositories?.[repository.github]?.landing
-        : null,
-      mode = LANDING_MODES.includes(block?.mode)
-        ? block.mode
-        : repository.landing,
+export function applyLandingModes(
+  store: Store,
+  config: LandingConfig | null | undefined,
+) {
+  const changed: RepositoryRow[] = [];
+  for (const repository of store.list<RepositoryRow>("repositories")) {
+    const block = (
+        repository.github
+          ? config?.github?.repositories?.[repository.github]?.landing
+          : null
+      ) as LandingBlock | null | undefined,
+      mode =
+        block?.mode && LANDING_MODES.includes(block.mode)
+          ? block.mode
+          : repository.landing,
       commitPrefix = block ? block.commitPrefix || undefined : undefined;
     if (!block) continue;
     if (repository.landing === mode && repository.commitPrefix === commitPrefix)
@@ -60,7 +104,7 @@ export function applyLandingModes(store, config) {
   return changed;
 }
 
-const isRecord = (v) =>
+const isRecord = (v: unknown): v is Json =>
   Boolean(v) && typeof v === "object" && !Array.isArray(v);
 
 // The settings loader and the tick copy each repository's `claims` and
@@ -68,12 +112,15 @@ const isRecord = (v) =>
 // where the claim and label code reads them; a key the file drops goes.
 // Returns the repositories it changed.
 const RUNNER_KEYS = ["claims", "labels"];
-export function applyRunnerSettings(store, config) {
-  const changed = [];
-  for (const repository of store.list("repositories")) {
+export function applyRunnerSettings(
+  store: Store,
+  config: LandingConfig | null | undefined,
+) {
+  const changed: RepositoryRow[] = [];
+  for (const repository of store.list<RepositoryRow>("repositories")) {
     const entry = config?.repositories?.[repository.id];
     if (!isRecord(entry)) continue;
-    const next = { ...repository };
+    const next: RepositoryRow = { ...repository };
     for (const key of RUNNER_KEYS)
       if (isRecord(entry[key])) next[key] = structuredClone(entry[key]);
       else delete next[key];
@@ -86,7 +133,10 @@ export function applyRunnerSettings(store, config) {
 
 // Checks `landing.unionPaths` and that `machine` is an object. The loader
 // refuses an unknown key under either (layered-config.mjs).
-export function validateLandingConfig(config, files = {}) {
+export function validateLandingConfig(
+  config: LandingConfig | null | undefined,
+  files: { repository?: string; global?: string } = {},
+) {
   const repo = files.repository ?? "the repository configuration",
     glob = files.global ?? "the global configuration";
   const union = config?.landing?.unionPaths;
@@ -105,7 +155,11 @@ export function validateLandingConfig(config, files = {}) {
 
 // Machine keys belong in the global file only: a repository file that sets
 // them is refused, naming the global file.
-export function assertNoMachineKeys(value, file, globalFile) {
+export function assertNoMachineKeys(
+  value: Json | null | undefined,
+  file: string,
+  globalFile: string,
+) {
   for (const key of Object.keys(value?.serve ?? {}))
     throw Error(`serve.${key} is set in ${file}. Put it in ${globalFile}.`);
   if (value?.serve !== undefined && typeof value.serve !== "object")

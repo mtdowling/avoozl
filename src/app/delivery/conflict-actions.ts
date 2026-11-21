@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The owner's actions on Conflicts items, one or many at a time (the page's
 // bulk select). Each item is settled or refused on its own, so one locked
 // task does not stop the rest, and the reply says which and why. Task row
@@ -6,6 +5,15 @@
 // refused, as task.update refuses it.
 import { fail } from "../store/store.ts";
 import { taskAuthority } from "../../work-model.ts";
+import type { Store } from "../store/store.ts";
+import type { Snapshot, Task } from "../../types.ts";
+
+// One Conflicts item: its task, and for dismiss the ended session's slot.
+interface Item {
+  taskId: string;
+  slot?: string;
+  [key: string]: unknown;
+}
 
 const ACTIONS = new Set([
   "reviewed",
@@ -17,7 +25,7 @@ const ACTIONS = new Set([
 ]);
 const MAX_ITEMS = 500;
 
-function lockReason(task) {
+function lockReason(task: Task) {
   const authority = taskAuthority(task);
   if (authority === "github")
     return "GitHub owns this task. Settle it on its issue.";
@@ -26,16 +34,21 @@ function lockReason(task) {
 
 // The status an unblocked task goes back to: `planned` when the workspace
 // has it, else its first open status that is not blocked or deferred.
-function openStatus(data) {
+function openStatus(data: Snapshot) {
   const open = (data.statuses || []).filter(
     (s) => !s.complete && !["blocked", "deferred"].includes(s.id),
   );
   return open.find((s) => s.id === "planned")?.id ?? open[0]?.id ?? null;
 }
 
-export function settleConflicts(store, input = {}, expectedRevision) {
-  const { action, items, answer } = input;
-  if (!ACTIONS.has(action))
+export function settleConflicts(
+  store: Store,
+  input: { action?: unknown; items?: unknown; answer?: unknown } = {},
+  expectedRevision?: number,
+) {
+  const { action, answer } = input,
+    items = input.items as Item[];
+  if (typeof action !== "string" || !ACTIONS.has(action))
     fail("Choose reviewed, unblock, dismiss, settle, reopen or keep.");
   if (
     !Array.isArray(items) ||
@@ -56,8 +69,8 @@ export function settleConflicts(store, input = {}, expectedRevision) {
     fail("Give the decision's answer in 1–2000 characters.");
   if (expectedRevision === undefined)
     fail("Send the revision you read, so a stale page is refused.", 428);
-  const settled = [],
-    refused = [];
+  const settled: Item[] = [],
+    refused: (Item & { reason: string })[] = [];
   store.mutate(
     `Settle ${items.length} conflict${items.length === 1 ? "" : "s"}: ${action}`,
     (data) => {
@@ -65,13 +78,16 @@ export function settleConflicts(store, input = {}, expectedRevision) {
         status = openStatus(data);
       for (const item of items) {
         const task = data.tasks.find((t) => t.id === item.taskId);
-        const refuse = (reason) => refused.push({ ...item, reason });
+        const refuse = (reason: string) => refused.push({ ...item, reason });
         if (!task) {
           refuse("Task not found.");
           continue;
         }
         if (action === "dismiss") {
-          const binding = store.get("session_bindings", item.slot);
+          const binding = store.get<{ id: string; taskId?: string }>(
+            "session_bindings",
+            item.slot,
+          );
           if (!binding || binding.taskId !== task.id) {
             refuse("That session is not bound to this task.");
             continue;
@@ -128,7 +144,7 @@ export function settleConflicts(store, input = {}, expectedRevision) {
           }
           task.notes = [
             task.notes,
-            `Decision ${task.decision} settled ${at}: ${answer.trim()}`,
+            `Decision ${task.decision} settled ${at}: ${String(answer).trim()}`,
           ]
             .filter(Boolean)
             .join("\n");

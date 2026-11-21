@@ -107,7 +107,13 @@ export function scheduleReady({
 
 // The scheduler over this workspace's ready leaves: what readyLeaves takes
 // as `skip`, plus the reasons. Reads only.
-export function scheduleHolds(store, { github = null, skip = new Set() } = {}) {
+export function scheduleHolds(
+  store,
+  {
+    github = null,
+    skip = new Set(),
+  }: { github?: unknown; skip?: Set<string> } = {},
+) {
   const data = store.read(),
     repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),
