@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Avoozl's Kiro Crew app backend. Kiro Crew's gateway proxies the app page's
 // API here and signs each request with a principal (`signedPrincipal`).
 // The backend binds loopback only. Any local process can reach that socket,
@@ -49,15 +48,30 @@ const KINDS = new Set(["owner-session", "app-token", "agent-tool", "none"]);
 const PRINCIPAL_KEYS = ["issuedAt", "kind", "ownerId", "requestId", "version"];
 const REQUEST_ID = /^[0-9a-f]{32}$/;
 
+// A verified gateway principal: exactly these keys (see decodePrincipal).
+interface Principal {
+  version: number;
+  kind: string;
+  ownerId: string;
+  issuedAt: number;
+  requestId: string;
+}
+// A workspace the backend drains notices for.
+interface Drainable {
+  dbPath: string;
+}
+
 // One cache per backend process: each accepted request ID is refused again
 // until its freshness window closes. A full cache refuses rather than evicting
 // a live ID, because eviction would make that request replayable.
 class ReplayCache {
+  maxEntries: number;
+  seen: Map<string, number>;
   constructor(maxEntries = 4096) {
     this.maxEntries = maxEntries;
     this.seen = new Map();
   }
-  accept(requestId, expiresAt, now) {
+  accept(requestId: string, expiresAt: number, now: number) {
     for (const [id, expiry] of this.seen)
       if (expiry < now) this.seen.delete(id);
     if (this.seen.has(requestId) || this.seen.size >= this.maxEntries)
@@ -67,8 +81,8 @@ class ReplayCache {
   }
 }
 
-function decodePrincipal(encoded) {
-  let principal;
+function decodePrincipal(encoded: string): Principal | null {
+  let principal: unknown;
   try {
     if (!/^[A-Za-z0-9_-]+$/.test(encoded)) return null;
     principal = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
@@ -79,7 +93,10 @@ function decodePrincipal(encoded) {
     return null;
   if (Object.keys(principal).sort().join() !== PRINCIPAL_KEYS.join())
     return null;
-  const { version, kind, ownerId, issuedAt, requestId } = principal;
+  const { version, kind, ownerId, issuedAt, requestId } = principal as Record<
+    string,
+    unknown
+  >;
   if (version !== 1 || typeof kind !== "string" || !KINDS.has(kind))
     return null;
   if (!Number.isSafeInteger(issuedAt)) return null;
@@ -92,7 +109,8 @@ function decodePrincipal(encoded) {
   // Only an owner session names an owner.
   if ((kind === "owner-session") !== Boolean(ownerId)) return null;
   if (typeof requestId !== "string" || !REQUEST_ID.test(requestId)) return null;
-  return principal;
+  // Every key was checked above.
+  return principal as Principal;
 }
 
 // Verify one X-KiroCrew-Principal value against Kiro Crew's contract
@@ -101,8 +119,22 @@ function decodePrincipal(encoded) {
 // time, method, request-target, body digest, and encoded principal. Returns the
 // principal or null. Fails closed without a secret.
 export function verifyPrincipal(
-  header,
-  { method, target, body = Buffer.alloc(0), secret, replay, now = Date.now() },
+  header: unknown,
+  {
+    method,
+    target,
+    body = Buffer.alloc(0),
+    secret,
+    replay,
+    now = Date.now(),
+  }: {
+    method?: string;
+    target: string;
+    body?: Buffer;
+    secret?: string;
+    replay?: ReplayCache | null;
+    now?: number;
+  },
 ) {
   if (!secret || !replay || typeof header !== "string") return null;
   if (Buffer.byteLength(header) > MAX_HEADER_BYTES) return null;
@@ -141,7 +173,7 @@ export function verifyPrincipal(
   return principal;
 }
 
-function send(res, status, value) {
+function send(res: http.ServerResponse, status: number, value: unknown) {
   res.writeHead(status, {
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
@@ -149,8 +181,8 @@ function send(res, status, value) {
   res.end(JSON.stringify(value));
 }
 
-async function readBody(req) {
-  const chunks = [];
+async function readBody(req: http.IncomingMessage) {
+  const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
@@ -190,9 +222,9 @@ export function startAppBackend({
   registryOptions?: Record<string, unknown>;
   now?: () => number;
   notifier?: unknown;
-  slotReader?: unknown;
-  rowReader?: unknown;
-  usageReader?: unknown;
+  slotReader?: Parameters<typeof observeSessions>[1] | null;
+  rowReader?: Parameters<typeof observeToolRows>[1] | null;
+  usageReader?: Parameters<typeof observeUsage>[1] | null;
   sessionStopper?: unknown;
   home?: string;
   uiDir?: string | null;
@@ -265,10 +297,10 @@ export function startAppBackend({
   // workspace existed, the catalog default the Workspace view adds; the
   // cron's MCP server follows that default too.
   // shortcut: one workspace drains; drain each opened one once ticks run there.
-  let draining = null,
+  let draining: Promise<void> | null = null,
     again = false,
-    watcher = null,
-    drained = null;
+    watcher: fs.FSWatcher | null = null,
+    drained: Drainable | null = null;
   const drain = () => {
     if (!drained) return null;
     if (draining) {
@@ -293,7 +325,7 @@ export function startAppBackend({
               checksFor: (binding) => {
                 const task = store
                   .read()
-                  .tasks.find((t) => t.id === binding.taskId);
+                  .tasks.find((t: { id: string }) => t.id === binding.taskId);
                 return declaredChecks(
                   task,
                   store.get("repositories", taskRepository(task) || ""),
@@ -310,20 +342,26 @@ export function startAppBackend({
             if (errors.length) console.error(errors[0].error);
           }
         } catch (error) {
-          if (error.status !== 503) console.error(error);
+          if ((error as { status?: number }).status !== 503)
+            console.error(error);
         }
       } while (again);
       draining = null;
     })();
     return draining;
   };
-  const drainable = (target) =>
-    target?.dbPath &&
-    target.dbPath !== ":memory:" &&
-    fs.existsSync(target.dbPath);
+  const drainable = (target: unknown): target is Drainable => {
+    const dbPath = (target as { dbPath?: unknown } | null | undefined)?.dbPath;
+    return Boolean(
+      dbPath &&
+        typeof dbPath === "string" &&
+        dbPath !== ":memory:" &&
+        fs.existsSync(dbPath),
+    );
+  };
   const follow = () => {
     if (!(notifier || slotReader || rowReader)) return;
-    let target = drainable(config) ? config : null;
+    let target: unknown = drainable(config) ? config : null;
     if (!target)
       try {
         machine().reload();
@@ -348,7 +386,9 @@ export function startAppBackend({
     }
     drain();
   };
-  server.drainNotifications = () => drain();
+  const backend = Object.assign(server, {
+    drainNotifications: () => drain(),
+  });
   server.once("listening", follow);
   server.on("close", () => {
     watcher?.close();
@@ -356,5 +396,5 @@ export function startAppBackend({
   });
   server.keepAliveTimeout = KEEP_ALIVE_MS;
   server.listen(port, HOST);
-  return server;
+  return backend;
 }

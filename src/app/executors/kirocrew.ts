@@ -153,7 +153,8 @@ export function gatewaySessionStopper(env = process.env, request = fetch) {
 export function gatewaySlotRows(env = process.env, request = fetch) {
   const client = gatewayClient(env, request);
   if (!client) return null;
-  return async (slot, cursor = null) => {
+  // The cursor is the one this reader returned last time, kept as stored.
+  return async (slot: string, cursor: unknown = null) => {
     const query = new URLSearchParams({ limit: "200", cursor: "1" });
     if (
       cursor?.from !== undefined &&
