@@ -77,11 +77,14 @@ test("zero rounds, or a gone chat, goes straight to Needs you", (t) => {
   const none = setup(t, { chat: false });
   const gone = sendConflictBack(none, conflict());
   assert.equal(gone.messages.length, 0);
-  assert.match(gone.notify[0].text, /worker chat is gone/);
+  assert.match(String(gone.notify[0].text), /worker chat is gone/);
 });
 
 test("only a conflict result is accepted, and long file lists are cut", () => {
-  assert.throws(() => sendConflictBack(null, { state: "failed" }), /conflict/);
+  assert.throws(
+    () => sendConflictBack(null as never, { state: "failed" }),
+    /conflict/,
+  );
   const files = Array.from({ length: 60 }, (_, i) => `f${i}`);
   const text = conflictMessage("t1", {
     files,
