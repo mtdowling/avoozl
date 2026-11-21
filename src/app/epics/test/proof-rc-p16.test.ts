@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Proof 16 (rc-p16): a rewrite on an integration branch. Run on one fake
 // GitHub that models the branch; no real repository is written. The fake has
 // no call that merges the branch into main, and the only write it has is the
@@ -19,7 +18,7 @@ import { fixture } from "../../test/fixtures.ts";
 const REPO = "example/code";
 const BRANCH = "rewrite/x";
 const T0 = Date.parse("2026-11-14T00:00:00Z");
-const sha = (n) => String(n).repeat(40).slice(0, 40);
+const sha = (n: number) => String(n).repeat(40).slice(0, 40);
 const policy = {
   mode: "single-repo",
   repositories: {
@@ -38,8 +37,20 @@ const target = {
 const pass = { name: "build", status: "completed", conclusion: "success" };
 const fail = { name: "build", status: "completed", conclusion: "failure" };
 
-function fakeGitHub(state = {}) {
-  const s = {
+// The fake GitHub's state.
+interface Fake {
+  head: string;
+  checks: { name: string; status: string; conclusion?: string }[];
+  fresh: number;
+  own: number;
+  conflict: boolean;
+  protected: boolean;
+  mainFiles: string[];
+  branchFiles: string[];
+}
+
+function fakeGitHub(state: Partial<Fake> = {}) {
+  const s: Fake = {
     head: sha(1),
     checks: [pass],
     fresh: 0,
@@ -52,17 +63,17 @@ function fakeGitHub(state = {}) {
   };
   const github = {
     s,
-    merges: [],
+    merges: [] as { base: string; head: string }[],
     available: () => true,
     repository: async () => ({ default_branch: "main" }),
-    branch: async (_repo, name) => {
+    branch: async (_repo: string, name: string) => {
       if (name !== BRANCH)
         throw Object.assign(Error("Not Found"), { status: 404 });
       return { protected: s.protected, commit: { sha: s.head } };
     },
     checkRuns: async () => s.checks,
     commitStatus: async () => ({ statuses: [] }),
-    compareCommits: async (_repo, base, head) => {
+    compareCommits: async (_repo: string, base: string, head: string) => {
       const fromMain = base === BRANCH && head === "main";
       return {
         ahead_by: fromMain ? s.fresh : s.own,
@@ -72,7 +83,10 @@ function fakeGitHub(state = {}) {
         })),
       };
     },
-    mergeBranch: async (_repo, input) => {
+    mergeBranch: async (
+      _repo: string,
+      input: { base: string; head: string },
+    ) => {
       github.merges.push(input);
       if (s.conflict)
         throw Object.assign(Error("Merge conflict"), { status: 409 });
@@ -90,11 +104,11 @@ test("Proof 16: a four-task rewrite on a protected branch lands only with one pe
     github = fakeGitHub({ fresh: 2, own: 3 });
   store.put("plans", { id: "rewrite", spec: "rewrite", state: "approved" });
   const view = () => integrationView(store).branches[0];
-  const tick = async (now) => {
+  const tick = async (now: number) => {
     await syncStep(store, github, [target], { policy, now });
     await headStep(store, github, [target], { policy, now });
   };
-  const land = (head) =>
+  const land = (head: string | null) =>
     landBranch(
       store,
       { repository: REPO, branch: BRANCH, head },
@@ -179,7 +193,10 @@ test("Proof 16: a four-task rewrite on a protected branch lands only with one pe
   github.s.head = sha(3);
   await tick(T0 + 9 * 24 * 3600 * 1000 + 300_000);
   assert.equal(landingNeedsYou(store).length, 1);
-  assert.match(landingNeedsYou(store)[0].title, /^(?!.*merge it on GitHub)/);
+  assert.match(
+    String(landingNeedsYou(store)[0].title),
+    /^(?!.*merge it on GitHub)/,
+  );
 
   // Nothing merged the branch into main: the only write was main into the branch.
   assert.ok(github.merges.length >= 1);

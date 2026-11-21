@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // What the merge batches spec removed (mb-2.1, MB1.2, MB1.3, MB9): the old
 // landing mode and keys are refused, the old commands answer with one line,
 // and nothing imports a removed module.
@@ -19,7 +18,7 @@ import { temporaryDirectory } from "../../test/temporary.ts";
 const here = path.dirname(fileURLToPath(import.meta.url)),
   repo = path.join(here, "..", "..", "..", "..");
 
-function writeJson(file, value) {
+function writeJson(file: string, value: unknown) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(value) + "\n");
 }
@@ -35,7 +34,7 @@ test("landing mode train is refused wherever it is set", async () => {
     /landing\.mode must be direct, pr or off/,
   );
   const root = temporaryDirectory("avoozl-retired-repo-"),
-    git = (...args) => execFileSync("git", args, { cwd: root });
+    git = (...args: string[]) => execFileSync("git", args, { cwd: root });
   git("init", "-q", "-b", "main");
   git(
     "-c",
@@ -71,21 +70,23 @@ test("the retired keys are refused, naming the file and the key", () => {
     landing: { unionPaths: ["CHANGELOG.md"] },
   });
   const { config } = load();
-  assert.deepEqual(config.landing.unionPaths, ["CHANGELOG.md"]);
-  assert.equal(config.machine.alias, "box");
-  const refused = (file, value, key) => {
+  assert.deepEqual(config.landing?.unionPaths, ["CHANGELOG.md"]);
+  // The machine block as the global file wrote it.
+  assert.equal((config.machine as { alias?: string }).alias, "box");
+  const refused = (file: string, value: unknown, key: string) => {
     writeJson(file, value);
-    assert.throws(load, (error) => {
+    assert.throws(load, (error: Error) => {
       assert.match(error.message, new RegExp(`"${key.replace(".", "\\.")}"`));
       assert.ok(error.message.includes(file), error.message);
       return true;
     });
   };
-  for (const [key, machine] of [
+  const cases: [string, Record<string, unknown>][] = [
     ["machine.platforms", { platforms: { windows: { kind: "vm" } } }],
     ["machine.slots", { slots: { windows: 1 } }],
     ["machine.bogus", { bogus: 1 }],
-  ])
+  ];
+  for (const [key, machine] of cases)
     refused(
       globalFile,
       { version: 1, machine: { alias: "box", ...machine } },
@@ -112,8 +113,8 @@ test("no source file imports a removed module", () => {
   const pattern = new RegExp(
     `(?:from\\s+|import\\()\\s*["'][^"']*/(?:${removed.join("|")})\\.mjs["']`,
   );
-  const files = [];
-  const walk = (dir) => {
+  const files: string[] = [];
+  const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (entry.name === "node_modules" || entry.name === "dist") continue;
       const full = path.join(dir, entry.name);
