@@ -10,7 +10,7 @@ export interface SourceRef {
   lineEnd?: number;
   removed?: boolean;
   key?: string;
-  approvedSource?: { text?: string } | null;
+  approvedSource?: { text?: string; hash?: string } | null;
   [key: string]: unknown;
 }
 
@@ -113,6 +113,8 @@ export interface Task {
     [key: string]: unknown;
   } | null;
   evidence?: string[];
+  // The documents a task's worker reads, such as its spec.
+  contextDocuments?: string[];
   // Why this task is not a duplicate of each named task.
   distinctFrom?: Record<string, string>;
   specDependencies?: SpecDependency[];

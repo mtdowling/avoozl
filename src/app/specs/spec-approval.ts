@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Approving a spec folder (workflow v1 rule 7): the approver's commit on
 // main holds the revision, and this records it. The spec's tasks.md items
 // become tasks with their own IDs, the plan keeps the approved mapping, and
@@ -7,7 +6,8 @@ import { approvedSpecDependency } from "../../spec-dependencies.ts";
 import { resolveTaskId } from "../../task-identity.ts";
 import { randomUUID } from "node:crypto";
 import { digest } from "../../model.ts";
-import { fail } from "../store/store.ts";
+import { fail, type Store, type StoredSnapshot } from "../store/store.ts";
+import type { Edge, Task } from "../../types.ts";
 import { frontMatterCategory } from "../../front-matter.ts";
 import {
   checkedItems,
@@ -17,8 +17,38 @@ import {
   specTitle,
 } from "./spec-plans.ts";
 import { refreshEpicMembers } from "../epics/epics.ts";
+import type { Proposal } from "./plan-quality.ts";
 
-function baselineAcceptance(item, hash, { at, approver }) {
+// A stored plan row, as approval reads and writes it.
+interface PlanRow {
+  id: string;
+  spec?: string;
+  hash: string;
+  text: string;
+  title?: string;
+  files?: Record<string, string>;
+  mapping?: Record<string, string>;
+  reviewHeld?: string[];
+  context: {
+    selected?: string;
+    filters?: { track?: string; scope?: string };
+    repositoryId?: string;
+  };
+  approvalId?: string;
+  deletedAt?: string;
+  [key: string]: unknown;
+}
+// A task as one approved revision describes it.
+type Design = Partial<Task> & { id: string; title: string };
+// Text input, trimmed, or "" when it is not text.
+const trimmed = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+function baselineAcceptance(
+  item: { line: number; key: string; built?: string | null },
+  hash: string,
+  { at, approver }: { at: string; approver: string },
+) {
   return {
     status: "accepted",
     acceptanceEvidence: {
@@ -37,12 +67,18 @@ function baselineAcceptance(item, hash, { at, approver }) {
 // recorded from the workspace's operator when the caller does not say, and
 // approval notes are kept only when a caller has something real to add: a
 // required field containing a fixed sentence carries less than an absent one.
-const plansById = (store) =>
-  new Map(store.list("plans").map((plan) => [plan.id, plan]));
+const plansById = (store: Store) =>
+  new Map(
+    store
+      .list<{ id: string; spec?: string; epic?: string; deletedAt?: string }>(
+        "plans",
+      )
+      .map((plan) => [plan.id, plan]),
+  );
 
 // How a spec revision was approved (§4.32.6, §4.42): the approver's commit
 // that holds it, or an approval with no commit (a folder outside git).
-const approvalRecord = (approver, commit) =>
+const approvalRecord = (approver: string, commit: string | null) =>
   commit
     ? { kind: "commit", commit, approvedBy: approver || null }
     : { kind: "local", approvedBy: approver || null };
@@ -50,13 +86,23 @@ const approvalRecord = (approver, commit) =>
 // An epic folder's approval stores its member list and prose. It never
 // approves a member plan or a task (Requirement 59.4).
 function approveEpic(
-  store,
-  data,
-  plan,
-  { expectedRevision, approver, evidence, approvalCommit },
+  store: Store,
+  data: StoredSnapshot,
+  plan: PlanRow,
+  {
+    expectedRevision,
+    approver,
+    evidence,
+    approvalCommit,
+  }: {
+    expectedRevision: unknown;
+    approver: string;
+    evidence: unknown;
+    approvalCommit: string | null;
+  },
 ) {
   const now = new Date().toISOString(),
-    plans = store.list("plans").filter((entry) => !entry.deletedAt),
+    plans = store.list<PlanRow>("plans").filter((entry) => !entry.deletedAt),
     listed = epicMembers(plan.files).map(
       (name) => plans.find((entry) => entry.spec === name)?.id ?? name,
     ),
@@ -66,7 +112,7 @@ function approveEpic(
       hash: plan.hash,
       source: plan.text,
       approvedBy: approver,
-      evidence: evidence?.trim() || "",
+      evidence: trimmed(evidence),
       at: now,
       mapping: {},
       taskIds: [],
@@ -84,18 +130,20 @@ function approveEpic(
   store.put("plans", plan);
   // This epic's row replaces its last one. Every other row stays: rows
   // from before Requirement 59 are still named by tasks (design §6.9).
+  // The stored epic rows.
+  const epics: { id?: string }[] = Array.isArray(data.epics) ? data.epics : [];
   data.epics = [
-    ...(data.epics || []).filter((epic) => epic.id !== plan.spec),
+    ...epics.filter((epic) => epic.id !== plan.spec),
     {
       id: plan.spec,
-      title: specTitle({ name: plan.spec, files: plan.files }),
+      title: specTitle({ name: plan.spec ?? "", files: plan.files ?? {} }),
       planId: plan.id,
       listed,
       plans: [],
     },
   ];
   refreshEpicMembers(data, plansById(store));
-  store.commit(data, "Approve epic " + plan.title, expectedRevision);
+  store.commit(data, "Approve epic " + plan.title, data.revision);
   store.event(null, "plan.approved", {
     planId: plan.id,
     receiptId: receipt.id,
@@ -110,7 +158,7 @@ function approveEpic(
 // other approval clears it (design §4.40).
 
 export function approvePlan(
-  store,
+  store: Store,
   {
     id,
     expectedHash,
@@ -131,23 +179,23 @@ export function approvePlan(
     approvedBy?: unknown;
     evidence?: unknown;
     operator?: unknown;
-    proposals?: unknown;
+    proposals?: Proposal[];
     githubPolicy?: unknown;
     baseline?: boolean;
-    declaredDependencies?: unknown[];
+    declaredDependencies?: { taskId: string; spec?: string; planId: string }[];
     approvalCommit?: string | null;
   },
 ) {
   // Authorization is the reviewed hash and database revision below. Who
   // approved and why are recorded when supplied; typing them proves nothing.
   return store.transaction(() => {
-    const plan = store.get("plans", id);
+    const plan = store.get<PlanRow>("plans", id);
     if (!plan) fail("Plan not found.", 404);
     if (!plan.spec) fail("Only a spec folder is approved.", 409);
     if (plan.hash !== expectedHash)
       fail("The reviewed document hash changed.", 409);
     const previous = store
-      .list("approvals")
+      .list<{ id: string; planId?: string; hash?: string }>("approvals")
       .find((a) => a.planId === id && a.hash === expectedHash);
     if (previous) return { ...previous, existing: true };
     const data = structuredClone(store.read());
@@ -159,19 +207,20 @@ export function approvePlan(
     if (isEpicFolder(plan.files))
       return approveEpic(store, data, plan, {
         expectedRevision,
-        approver: approvedBy?.trim() || operator?.trim() || "",
+        approver: trimmed(approvedBy) || trimmed(operator),
         evidence,
         approvalCommit,
       });
     // A spec plan's tasks keep their tasks.md IDs; its tasks.md is plan.text.
     const spec = plan.spec,
-      mapping = Object.fromEntries(
-        proposals.map((t) => [
+      items = proposals ?? [],
+      mapping: Record<string, string> = Object.fromEntries(
+        items.map((t) => [
           t.id,
           resolveTaskId(data, t.taskId || plan.mapping?.[t.id] || t.id),
         ]),
       );
-    if (new Set(Object.values(mapping)).size !== proposals.length)
+    if (new Set(Object.values(mapping)).size !== items.length)
       fail(
         "Use one task block per canonical deliverable; combine repeated references.",
       );
@@ -184,9 +233,11 @@ export function approvePlan(
       // Work a person already checked off: the [x] items of the stored
       // tasks.md this approval covers. Only the plan.approve operation asks
       // for it, and only a task this approval creates starts accepted.
-      checked = baseline ? checkedItems(spec, plan.text) : new Map(),
-      baselined = [],
-      approver = approvedBy?.trim() || operator?.trim() || "";
+      checked = baseline
+        ? checkedItems(spec, plan.text)
+        : new Map<string, never>(),
+      baselined: string[] = [],
+      approver = trimmed(approvedBy) || trimmed(operator);
     const oldMapping = plan.mapping || {};
     // A task with an issue may leave the spec: Spec changed (RC2.8) closes
     // its issue and archives it.
@@ -200,7 +251,7 @@ export function approvePlan(
         );
     // What review covers for one task: its entry and its incoming plan edges.
     // Line numbers are left out, since editing another entry shifts them.
-    const entry = (task) =>
+    const entry = (task: Task) =>
         JSON.stringify([
           ...[
             "title",
@@ -264,33 +315,35 @@ export function approvePlan(
           ]),
       ),
       held = new Set(plan.reviewHeld || []),
-      edgeById = new Map(data.edges.filter((e) => e.id).map((e) => [e.id, e])),
+      edgeById = new Map(
+        data.edges.filter((e) => e.id).map((e) => [String(e.id), e]),
+      ),
       foreignDeclarations = new Map(
         declaredDependencies.map((entry) => [entry.taskId, entry]),
       ),
       livePlans = new Set(
         store
-          .list("plans")
+          .list<PlanRow>("plans")
           .filter((entry) => !entry.deletedAt)
           .map((entry) => entry.id),
       );
-    for (const proposal of proposals) {
+    for (const proposal of items) {
       const taskId = mapping[proposal.id],
         existing = data.tasks.find((t) => t.id === taskId),
         contextTask = data.tasks.find(
-          (t) => t.id === resolveTaskId(data, plan.context.selected),
+          (t) => t.id === resolveTaskId(data, plan.context.selected ?? ""),
         );
       const track =
         plan.context.filters?.track || contextTask?.track || "catalog";
-      if (!data.tracks.some((t) => t.id === track))
+      if (!(data.tracks ?? []).some((t) => t.id === track))
         fail("Unknown track " + track);
-      const specDependencies = (proposal.requires || [])
-          .filter((ref) => !mapping[ref] && foreignDeclarations.has(ref))
-          .map((ref) => ({
-            ...foreignDeclarations.get(ref),
-            kind: "requires",
-          })),
-        design = {
+      const specDependencies = (proposal.requires || []).flatMap((ref) => {
+          const declared = foreignDeclarations.get(ref);
+          return declared && !mapping[ref]
+            ? [{ ...declared, kind: "requires" }]
+            : [];
+        }),
+        design: Design = {
           id: taskId,
           title: proposal.title,
           ...(proposal.summary ? { summary: proposal.summary } : {}),
@@ -311,7 +364,7 @@ export function approvePlan(
               .filter((key) => proposal[key] !== undefined)
               .map((key) => [key, proposal[key]]),
           ),
-          planId: id,
+          planId: plan.id,
           planHash: plan.hash,
           ...(specDependencies.length ? { specDependencies } : {}),
           contextDocuments: [documentId],
@@ -323,7 +376,7 @@ export function approvePlan(
             hash: digest(
               plan.text
                 .split("\n")
-                .slice(proposal.lineStart - 1, proposal.lineEnd)
+                .slice((proposal.lineStart ?? 1) - 1, proposal.lineEnd)
                 .join("\n"),
             ),
           },
@@ -335,9 +388,13 @@ export function approvePlan(
       if (
         checked.has(proposal.id) &&
         specDependencies.some((ref) => {
-          const owner = store.get("plans", ref.planId),
-            receipt =
-              owner?.approvalId && store.get("approvals", owner.approvalId);
+          const owner = store.get<PlanRow>("plans", ref.planId) ?? undefined,
+            receipt = owner?.approvalId
+              ? (store.get<{ id: string; hash?: string; taskIds?: string[] }>(
+                  "approvals",
+                  owner.approvalId,
+                ) ?? undefined)
+              : undefined;
           return !approvedSpecDependency(
             ref,
             data.tasks.find((task) => task.id === ref.taskId),
@@ -363,13 +420,14 @@ export function approvePlan(
             (ref) => ref.document !== documentId || ref.key !== proposal.id,
           ),
           {
+            document: documentId,
             ...design.source,
-            planId: id,
+            planId: plan.id,
             approvedSource: {
               hash: plan.hash,
               text: plan.text
                 .split("\n")
-                .slice(proposal.lineStart - 1, proposal.lineEnd)
+                .slice((proposal.lineStart ?? 1) - 1, proposal.lineEnd)
                 .join("\n"),
             },
           },
@@ -394,7 +452,8 @@ export function approvePlan(
         if (design.parent === undefined) delete existing.parent;
         Object.assign(existing, design, { needsReview: true });
       } else {
-        if (checked.has(proposal.id)) baselined.push(taskId);
+        const baselineItem = checked.get(proposal.id);
+        if (baselineItem) baselined.push(taskId);
         data.tasks.push({
           ...design,
           scope:
@@ -403,8 +462,8 @@ export function approvePlan(
           status: "planned",
           createdAt: now,
           needsReview: false,
-          ...(checked.has(proposal.id)
-            ? baselineAcceptance(checked.get(proposal.id), plan.hash, {
+          ...(baselineItem
+            ? baselineAcceptance(baselineItem, plan.hash, {
                 at: now,
                 approver,
               })
@@ -413,7 +472,8 @@ export function approvePlan(
       }
       data.edges = data.edges.filter((e) => {
         const drop = e.to === taskId && e.planId === id;
-        if (drop && edgeById.get(e.id) === e) edgeById.delete(e.id);
+        if (drop && edgeById.get(String(e.id)) === e)
+          edgeById.delete(String(e.id));
         return !drop;
       });
       const kind = "requires";
@@ -422,7 +482,7 @@ export function approvePlan(
         if (foreignDeclarations.has(ref) && !mapping[ref]) {
           const expected = foreignDeclarations.get(ref),
             target = data.tasks.find((task) => task.id === from);
-          if (target && target.planId !== expected.planId)
+          if (target && target.planId !== expected?.planId)
             fail(
               "Foreign dependency ownership does not match its declaration: " +
                 ref,
@@ -439,12 +499,12 @@ export function approvePlan(
         if (same?.planId && same.planId !== id && livePlans.has(same.planId))
           continue;
         if (same) data.edges.splice(data.edges.indexOf(same), 1);
-        const edge = {
+        const edge: Edge = {
           id: edgeId,
           from,
           to: taskId,
           kind,
-          planId: id,
+          planId: plan.id,
           reason: "Approved plan revision " + plan.hash.slice(0, 12),
         };
         data.edges.push(edge);
@@ -452,16 +512,16 @@ export function approvePlan(
       }
     }
     // Sequence edges also participate in readiness, so reject cycles across both kinds.
-    const graph = new Map(),
-      active = new Set(),
-      seen = new Set();
+    const graph = new Map<string, string[]>(),
+      active = new Set<string>(),
+      seen = new Set<string>();
     for (const e of data.edges.filter((e) =>
       ["requires", "sequence"].includes(e.kind),
     )) {
       if (!graph.has(e.from)) graph.set(e.from, []);
-      graph.get(e.from).push(e.to);
+      graph.get(e.from)?.push(e.to);
     }
-    const visit = (id) => {
+    const visit = (id: string) => {
       if (active.has(id)) fail("Dependency cycle " + id);
       if (seen.has(id)) return;
       active.add(id);
@@ -477,7 +537,7 @@ export function approvePlan(
       if (!prior || task.planId !== id) continue;
       task.needsReview =
         entry(task) !== prior.entry ||
-        (prior.needsReview && !held.has(task.id));
+        Boolean(prior.needsReview && !held.has(task.id));
       // Keep the text as last reviewed, so Needs you can show what changed.
       if (!task.needsReview) delete task.reviewPrior;
       else if (entry(task) !== prior.entry && !task.reviewPrior)
@@ -512,7 +572,7 @@ export function approvePlan(
         hash: plan.hash,
         text: plan.text
           .split("\n")
-          .slice(t.source.lineStart - 1, t.source.lineEnd)
+          .slice((t.source?.lineStart ?? 1) - 1, t.source?.lineEnd)
           .join("\n"),
       };
     const receipt = {
@@ -521,7 +581,7 @@ export function approvePlan(
       hash: plan.hash,
       source: plan.text,
       approvedBy: approver,
-      evidence: evidence?.trim() || "",
+      evidence: trimmed(evidence),
       ...(baselined.length ? { baseline: baselined } : {}),
       at: now,
       mapping,
@@ -534,13 +594,13 @@ export function approvePlan(
     plan.state = "approved";
     // The epic this revision's front-matter names; an epic counts the plan
     // only while both sides agree (Requirement 59.2).
-    plan.epic = specEpic(plan.files);
+    plan.epic = specEpic(plan.files ?? {});
     plan.documentId = documentId;
     plan.mapping = mapping;
     plan.approvalId = receipt.id;
     store.put("plans", plan);
     refreshEpicMembers(data, plansById(store));
-    store.commit(data, "Approve " + plan.title, expectedRevision);
+    store.commit(data, "Approve " + plan.title, data.revision);
     store.event(null, "plan.approved", {
       planId: id,
       receiptId: receipt.id,
