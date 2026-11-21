@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // Order from the list (simplify §D19): the one function that derives which
 // task waits for which. Siblings run top to bottom; a task with children is a
 // group; a group whose title ends with `(**PARALLEL**)` runs its children
@@ -7,17 +6,57 @@
 import path from "node:path";
 import { headingPhases, specItems } from "./spec-plans.ts";
 import { LINK_DEFINITION, SPEC_TEXT, specTasks } from "./spec-tasks.ts";
+import type { Store } from "../store/store.ts";
+
+// A checklist item, as specItems reads it and the lint marks it.
+export interface OrderItem {
+  key: string | null;
+  id: string | null;
+  title?: string;
+  line: number;
+  mark?: string;
+  parent?: { line: number; key?: string | null } | null;
+  spec?: string | null;
+  tagBeforeRefs?: boolean;
+  [key: string]: unknown;
+}
+// Every spec's links, read once (linkedReader).
+export interface LinkedReader {
+  read(name: string): string | null;
+  exists(name: string): boolean;
+  linkers(name: string): string[];
+  parents(name: string): { name: string; text: string }[];
+}
+// One node of a task tree: an item, or a group of nodes.
+interface TreeNode {
+  item?: OrderItem;
+  id?: string | null;
+  children: TreeNode[];
+  spec?: string | null;
+  parallel?: boolean;
+}
+// One wait: `to` waits for `from`.
+export type Wait = { from: string; to: string };
+// A list lint finding.
+export type OrderProblem = {
+  code: string;
+  line: number;
+  message: string;
+  taskId: string | null;
+};
 
 const PARALLEL_TAG = "(**PARALLEL**)";
 const TAGGED = /\(\*\*PARALLEL\*\*\)$/;
 
-export const isParallel = (title) => TAGGED.test(String(title ?? "").trim());
+export const isParallel = (title: unknown) =>
+  TAGGED.test(String(title ?? "").trim());
 
 // A person's task (§D20): its title ends with `(**MANUAL**)`, before refs.
 const MANUAL_TAG = "(**MANUAL**)";
 const MANUAL = /\s*\(\*\*MANUAL\*\*\)$/;
-export const isManual = (title) => MANUAL.test(String(title ?? "").trim());
-export const withoutManual = (title) =>
+export const isManual = (title: unknown) =>
+  MANUAL.test(String(title ?? "").trim());
+export const withoutManual = (title: unknown) =>
   String(title ?? "")
     .trim()
     .replace(MANUAL, "");
@@ -29,8 +68,8 @@ const INLINE = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const REFERENCE = /\[([^\]]+)\](?![(:])/g;
 const DEFINITION = LINK_DEFINITION;
 
-export function linkDefinitions(text) {
-  const definitions = new Map();
+export function linkDefinitions(text: unknown) {
+  const definitions = new Map<string, string>();
   for (const line of String(text ?? "").split("\n")) {
     const match = DEFINITION.exec(line);
     if (match) definitions.set(match[1].toLowerCase(), match[2]);
@@ -43,7 +82,7 @@ export function linkDefinitions(text) {
 // shortcut: any Markdown file but Kiro's prose files counts as the single
 // file, since the linked folder is not read here; read it if a spec links
 // another spec's notes.
-function specOfTarget(name, target) {
+function specOfTarget(name: string, target: string) {
   const file = target.split("#")[0];
   if (!file || /^[a-z][a-z0-9+.-]*:/i.test(file)) return null;
   const at = path.posix.normalize(path.posix.join("S", name, file)),
@@ -58,7 +97,11 @@ function specOfTarget(name, target) {
 const PROSE = new Set(["requirements.md", "bugfix.md", "design.md"]);
 
 // The spec a task title links as a spec group, or null.
-export function linkedSpecOf(name, title, definitions) {
+export function linkedSpecOf(
+  name: string,
+  title: unknown,
+  definitions: Map<string, string>,
+) {
   const text = String(title ?? "");
   for (const match of text.matchAll(INLINE)) {
     const spec = specOfTarget(name, match[1]);
@@ -75,12 +118,14 @@ export function linkedSpecOf(name, title, definitions) {
 // Whether the item at `line` (1-based) has a plain sub-bullet of its own:
 // a task with one is a leaf whatever its title links (§D19.2's
 // "Write the spec for [epic context]").
-function hasBullets(lines, line) {
-  const indent = /^\s*/.exec(lines[line - 1] ?? "")[0].length;
+const indentOf = (row: string) => (/^\s*/.exec(row)?.[0] ?? "").length;
+
+function hasBullets(lines: string[], line: number) {
+  const indent = indentOf(lines[line - 1] ?? "");
   for (let at = line; at < lines.length; at++) {
     const row = lines[at];
     if (!row.trim()) continue;
-    const own = /^\s*/.exec(row)[0].length;
+    const own = indentOf(row);
     if (own <= indent) return false;
     if (/^\s*[-*+] \[[ xX~-]\]/.test(row)) return false;
     if (/^\s*[-*+] /.test(row)) return true;
@@ -90,16 +135,23 @@ function hasBullets(lines, line) {
 
 // The spec an item is a spec group for: its title links one and it has no
 // plain sub-bullet. Null otherwise.
-export function specGroupOf(name, item, definitions, lines) {
+export function specGroupOf(
+  name: string,
+  item: { title?: unknown; line: number },
+  definitions: Map<string, string>,
+  lines: string[],
+) {
   const spec = linkedSpecOf(name, item.title, definitions);
   return spec && !hasBullets(lines, item.line) ? spec : null;
 }
 
 // Every spec each spec links, and the specs that link each one, over
 // [{name, text}]: what a parse needs to reach into a linked spec and back.
-export function linkedReader(specs) {
+export function linkedReader(
+  specs: { name: string; text: string }[],
+): LinkedReader {
   const texts = new Map(specs.map((spec) => [spec.name, spec.text])),
-    groups = new Map();
+    groups = new Map<string, string[]>();
   for (const { name, text } of specs) {
     const definitions = linkDefinitions(text),
       lines = text.split("\n");
@@ -116,7 +168,7 @@ export function linkedReader(specs) {
     parents: (name) =>
       [...new Set(groups.get(name) ?? [])].map((parent) => ({
         name: parent,
-        text: texts.get(parent),
+        text: texts.get(parent) ?? "",
       })),
   };
 }
@@ -124,13 +176,20 @@ export function linkedReader(specs) {
 // The task tree of one tasks.md: each item with an ID, its children, and
 // the phases its top-level items fall under, in file order. With `linked`
 // (linkedReader), a spec group's children are its linked spec's phases.
-export function taskTree(name, text, linked = null, seen = new Set([name])) {
-  const items = specItems(name, text).filter((item) => item.key),
+export function taskTree(
+  name: string,
+  text: string,
+  linked: LinkedReader | null = null,
+  seen = new Set([name]),
+): { nodes: TreeNode[]; phases: TreeNode[][] } {
+  const items = (specItems(name, text) as OrderItem[]).filter(
+      (item) => item.key,
+    ),
     headings = headingPhases(text),
     definitions = linkDefinitions(text),
     lines = text.split("\n"),
-    nodes = new Map(),
-    phases = new Map();
+    nodes = new Map<number, TreeNode>(),
+    phases = new Map<string | null, TreeNode[]>();
   // specItems copies each item, so a parent is found by its line.
   for (const item of items)
     nodes.set(item.line, {
@@ -140,46 +199,44 @@ export function taskTree(name, text, linked = null, seen = new Set([name])) {
       spec: specGroupOf(name, item, definitions, lines),
     });
   for (const item of items) {
-    const node = nodes.get(item.line),
+    const node = nodes.get(item.line) as TreeNode,
       parent = item.parent && nodes.get(item.parent.line);
     if (parent) parent.children.push(node);
     else {
-      const phase = headings.get(item.line)?.id ?? null;
-      if (!phases.has(phase)) phases.set(phase, []);
-      phases.get(phase).push(node);
+      const phase: string | null = headings.get(item.line)?.id ?? null;
+      phases.set(phase, [...(phases.get(phase) ?? []), node]);
     }
   }
   // A spec group reaches into its spec; one not there yet stays a leaf, so
   // what follows it waits.
   for (const node of nodes.values()) {
-    const child = node.spec && !seen.has(node.spec) && linked?.read(node.spec);
-    if (!child || node.children.length) continue;
-    const tree = taskTree(
-      node.spec,
-      child,
-      linked,
-      new Set([...seen, node.spec]),
-    );
+    const spec = node.spec,
+      child = spec && !seen.has(spec) && linked?.read(spec);
+    if (!spec || !child || node.children.length) continue;
+    const tree = taskTree(spec, child, linked, new Set([...seen, spec]));
     node.children = tree.phases.map((list) => groupOf(list));
     node.parallel = false;
   }
   return { nodes: [...nodes.values()], phases: [...phases.values()] };
 }
 
-const groupOf = (children, parallel = false) => ({ children, parallel });
+const groupOf = (children: TreeNode[], parallel = false): TreeNode => ({
+  children,
+  parallel,
+});
 
-function first(node) {
-  if (!node.children.length) return [node.id];
+function first(node: TreeNode): string[] {
+  if (!node.children.length) return [String(node.id)];
   if (node.parallel ?? isParallel(node.item?.title))
     return node.children.flatMap(first);
   return first(node.children[0]);
 }
 
-function last(node) {
-  if (!node.children.length) return [node.id];
+function last(node: TreeNode): string[] {
+  if (!node.children.length) return [String(node.id)];
   if (node.parallel ?? isParallel(node.item?.title))
     return node.children.flatMap(last);
-  return last(node.children.at(-1));
+  return last(node.children[node.children.length - 1]);
 }
 
 // The waits of one spec as [{from, to}] between leaves: for each pair of
@@ -187,7 +244,11 @@ function last(node) {
 // leaf in last(a). The children of a tagged group are not neighbors.
 // With `linked`, the waits reach into linked specs, and a linked spec also
 // gets the waits its parents give its first tasks.
-export function waitsOf(name, text, linked = null) {
+export function waitsOf(
+  name: string,
+  text: string,
+  linked: LinkedReader | null = null,
+): Wait[] {
   const own = treeWaits(name, text, linked);
   if (!linked) return own;
   const ids = new Set(taskTree(name, text).nodes.map((node) => node.id)),
@@ -201,10 +262,10 @@ export function waitsOf(name, text, linked = null) {
   return own;
 }
 
-function treeWaits(name, text, linked) {
+function treeWaits(name: string, text: string, linked: LinkedReader | null) {
   const { phases } = taskTree(name, text, linked),
-    edges = new Map(),
-    walk = (list, parallel) => {
+    edges = new Map<string, Wait>(),
+    walk = (list: TreeNode[], parallel: boolean) => {
       if (!parallel)
         for (let i = 1; i < list.length; i++)
           // A spec linked twice in one list would wait on itself.
@@ -222,24 +283,26 @@ function treeWaits(name, text, linked) {
 
 // A word "parallel" or "manual" in parentheses or bold that is not the one
 // tag at the end of the title.
-const stray = (word) =>
+const stray = (word: string) =>
   new RegExp(`\\([^)]*${word}[^)]*\\)|\\*\\*[^*]*${word}[^*]*\\*\\*`, "i");
 const STRAY = stray("parallel"),
   STRAY_MANUAL = stray("manual");
 
 // The list's own lint (§D19.3): group.box, parallel.size, parallel.leaf and
 // parallel.tag, as {code, line, message, taskId} over specItems.
-export function orderProblems(items) {
+export function orderProblems(items: OrderItem[]) {
   const keyed = items.filter((item) => item.key),
-    children = new Map(keyed.map((item) => [item.line, []])),
-    problems = [],
-    add = (code, item, message) =>
+    children = new Map<number, OrderItem[]>(
+      keyed.map((item) => [item.line, []]),
+    ),
+    problems: OrderProblem[] = [],
+    add = (code: string, item: OrderItem, message: string) =>
       problems.push({ code, line: item.line, message, taskId: item.id });
   for (const item of keyed)
     if (item.parent && children.has(item.parent.line))
-      children.get(item.parent.line).push(item);
+      children.get(item.parent.line)?.push(item);
   for (const item of keyed) {
-    const kids = children.get(item.line),
+    const kids = children.get(item.line) ?? [],
       title = String(item.title ?? "").trim(),
       tagged = isParallel(title);
     if (kids.length) {
@@ -303,13 +366,17 @@ export function orderProblems(items) {
 
 // Linked spec lint (§D19.3): link.children, and with `linked` (the other
 // specs) link.missing and link.twice, over specItems marked with `spec`.
-export function linkProblems(items, linked) {
+export function linkProblems(
+  items: OrderItem[],
+  linked: LinkedReader | null | undefined,
+) {
   const keyed = items.filter((item) => item.key),
-    problems = [],
-    add = (code, item, message) =>
+    problems: OrderProblem[] = [],
+    add = (code: string, item: OrderItem, message: string) =>
       problems.push({ code, line: item.line, message, taskId: item.id });
   for (const item of keyed) {
-    if (!item.spec) continue;
+    const spec = item.spec;
+    if (!spec) continue;
     if (keyed.some((other) => other.parent?.line === item.line))
       add(
         "link.children",
@@ -325,13 +392,13 @@ export function linkProblems(items, linked) {
         other.parent?.line === item.parent?.line &&
         other.mark !== "x",
     );
-    if (!linked.exists(item.spec) && !earlier)
+    if (!linked.exists(spec) && !earlier)
       add(
         "link.missing",
         item,
         `Task "${item.key}" links spec ${item.spec}, which has no folder. Write it first, or fix the link.`,
       );
-    if (linked.linkers(item.spec).length > 1)
+    if (linked.linkers(spec).length > 1)
       add(
         "link.twice",
         item,
@@ -343,11 +410,20 @@ export function linkProblems(items, linked) {
 
 // The stored specs as one linked reader, with `current` ({name, files})
 // read as given, so a spec group reaches into the spec it links (§D19.2).
-export function storedLinks(store, current = null) {
-  const texts = new Map();
-  for (const plan of store.list("plans"))
-    if (plan.spec && !plan.deletedAt && specTasks(plan.files ?? {})?.text)
-      texts.set(plan.spec, specTasks(plan.files).text);
+export function storedLinks(
+  store: Store,
+  current: { name?: string; files?: Record<string, string> } | null = null,
+) {
+  const texts = new Map<string, string>();
+  for (const plan of store.list<{
+    id: string;
+    spec?: string;
+    deletedAt?: string;
+    files?: Record<string, string>;
+  }>("plans")) {
+    const text = specTasks(plan.files ?? {})?.text;
+    if (plan.spec && !plan.deletedAt && text) texts.set(plan.spec, text);
+  }
   if (current?.name)
     texts.set(current.name, specTasks(current.files ?? {})?.text ?? "");
   return linkedReader([...texts].map(([name, text]) => ({ name, text })));

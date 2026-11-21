@@ -241,7 +241,7 @@ export function stoppedSpecIds(store: Store) {
       .filter((plan) => plan.spec && !plan.deletedAt && plan.files),
     linked = linkedReader(
       plans.map((plan) => ({
-        name: plan.spec,
+        name: String(plan.spec),
         text: specTasks(plan.files ?? {})?.text ?? "",
       })),
     ),
@@ -251,7 +251,7 @@ export function stoppedSpecIds(store: Store) {
         .filter((plan) => direct.has(plan.id))
         .map((plan) => String(plan.spec)),
     );
-  for (const name of stoppedSpecs(ids.keys(), names, linked as Linked))
+  for (const name of stoppedSpecs(ids.keys(), names, linked))
     direct.add(ids.get(name) as string);
   return direct;
 }

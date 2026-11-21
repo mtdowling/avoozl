@@ -47,6 +47,7 @@ test("plan quality reports line diagnostics and cross-repository dependencies", 
     (item: { code: string }) =>
       item.code === "task.cross-repository-dependency",
   );
+  assert.ok(crossRepository);
   assert.equal(crossRepository.taskId, "client");
   assert.equal(crossRepository.relatedTaskId, "library");
   assert.equal(crossRepository.lineStart, 5);
@@ -88,6 +89,7 @@ test("plan quality catches an existing duplicate before approval", () => {
         {
           id: "existing-contract",
           title: "Existing durable library contract",
+          status: "planned",
         },
       ],
     },
@@ -96,6 +98,7 @@ test("plan quality catches an existing duplicate before approval", () => {
   const duplicate = result.diagnostics.find(
     (item: { code: string }) => item.code === "task.possible-duplicate",
   );
+  assert.ok(duplicate);
   assert.equal(result.canApprove, true);
   assert.equal(duplicate.severity, "warning");
   assert.equal(duplicate.relatedTaskId, "existing-contract");
