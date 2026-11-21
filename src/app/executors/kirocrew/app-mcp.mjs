@@ -25,9 +25,11 @@ import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
 import { callerSlot } from "../../delivery/delivery.mjs";
 import { dispatchMcp } from "../../../mcp.mjs";
-import { cronIntents } from "./cron-intents.mjs";
+import { cronIntents, KIROCREW_WORKSPACE_FIELD } from "./cron-intents.mjs";
 import { passReply, tickCall, toolReply } from "../../mcp/mcp-tick.mjs";
 import { runPass } from "../../tick/tick-pass.mjs";
+import { workspaceIdentity } from "../../store/identity.mjs";
+import { startTickPass } from "../../tick/tick-runner.mjs";
 
 // kiro_crew/mcp_caller.py CALLER_CAPABILITY_KEY and caller_identity_capability().
 const CALLER_CAPABILITY = "kirocrew.caller-identity";
@@ -45,9 +47,6 @@ const rpcError = (id, message, code = -32603) => ({
   id: id ?? null,
   error: { code, message },
 });
-
-// The avoozl-tick cron's call: plans_maintain tick marked cron.
-const cronTick = (message) => tickCall(message)?.cron === true;
 
 // A script cron spawns its own copy of this server and sends no caller block;
 // Kiro Crew names the job only in KIROCREW_SESSION_KEY ("cron:<job id>",
@@ -85,6 +84,7 @@ function withoutCaller(message) {
 export function createAppMcp({
   fallback = null,
   env = process.env,
+  startPass = startTickPass,
   // Whether a caller block in a message is the gateway's (`avoozl mcp
   // --kirocrew`). Any other front end's block is dropped: it could come from
   // any client (MS10.2).
@@ -101,6 +101,7 @@ export function createAppMcp({
       entry = {
         config,
         store,
+        workspaceId: config.workspaceId ?? workspaceIdentity(store),
         ops: new Operations(store, {
           operator: config.operator,
           workspaceRoot: config.workspaceRoot,
@@ -111,6 +112,9 @@ export function createAppMcp({
       };
       opened.set(key, entry);
     }
+    // A pooled process may have opened the fallback before the catalog entry.
+    // The catalog's ID is authoritative once that same database is found there.
+    if (config.workspaceId) entry.workspaceId = config.workspaceId;
     return entry;
   };
   const existing = (config) =>
@@ -125,13 +129,13 @@ export function createAppMcp({
     } catch {
       workspaces = {};
     }
-    for (const entry of Object.values(workspaces))
+    for (const [workspaceId, entry] of Object.entries(workspaces))
       if (entry?.root && entry.enabled !== false)
         try {
           const config = existing(
             workspaceConfig({ workspace: entry.root, env }),
           );
-          if (config) configs.push(config);
+          if (config) configs.push({ ...config, workspaceId });
         } catch {
           // An unreadable catalog entry is not a workspace this call can use.
         }
@@ -153,10 +157,33 @@ export function createAppMcp({
         ),
       );
 
+  const selectedWorkspace = (message) => {
+    const caller = kiroCrewCaller(message),
+      selected = message.params?.arguments?.input?.[KIROCREW_WORKSPACE_FIELD];
+    return caller?.sessionKey?.startsWith("cron:") &&
+      typeof selected === "string" &&
+      selected
+      ? selected
+      : null;
+  };
+
   // Which workspace serves this request, or an error message.
   function resolve(message) {
     const caller = kiroCrewCaller(message),
       slot = callerSlot(caller);
+    const selected = selectedWorkspace(message);
+    if (selected) {
+      const matches = candidates()
+        .map(open)
+        .filter(({ workspaceId }) => workspaceId === selected);
+      if (matches.length === 1) return { entry: matches[0] };
+      return {
+        error:
+          matches.length > 1
+            ? `Workspace ${selected} is registered more than once; Avoozl will not choose one.`
+            : `Workspace ${selected} is no longer enabled on this Avoozl machine.`,
+      };
+    }
     if (slot) {
       const bound = boundIn(slot);
       if (bound.length > 1)
@@ -174,6 +201,36 @@ export function createAppMcp({
       };
     return { entry: open(launch) };
   }
+
+  const passOptions = (roots) => {
+    const machine = machineAvoozlPaths({ env });
+    // The pass gets no gateway secret, so nothing it starts inherits one.
+    const clean = { ...env };
+    delete clean.KIROCREW_PROXY_SECRET;
+    delete clean.KIROCREW_GATEWAY_ORIGIN_PROOF;
+    return {
+      stateDirectory: machine.stateDirectory,
+      configDirectory: machine.configDirectory,
+      roots,
+      env: clean,
+    };
+  };
+  const pass = async (roots) => runPass(passOptions(roots));
+
+  const machineCronIntents = (entries, input) => {
+    const combined = {
+      observe: [],
+      dispatch: [],
+      messages: [],
+      notify: [],
+    };
+    for (const entry of entries) {
+      const intents = cronIntents(entry.store, input, entry.workspaceId);
+      for (const key of Object.keys(combined))
+        combined[key].push(...(intents[key] ?? []));
+    }
+    return combined;
+  };
 
   async function handle(message) {
     if (!message || typeof message !== "object" || Array.isArray(message))
@@ -209,12 +266,29 @@ export function createAppMcp({
         };
       return reply;
     }
+    const tick = tickCall(message);
+    if (tick?.cron) {
+      const entries = candidates().map(open);
+      // Before any workspace exists the cron's tick has nothing to do. An
+      // error here would count toward Kiro Crew's cron auto-pause (five in a
+      // row), and a paused tick stays off after the person adds a workspace.
+      if (!entries.length)
+        return toolReply(message, {
+          skipped: true,
+          reason:
+            "Avoozl has no workspace on this machine. Add one in the Avoozl Workspace view.",
+        });
+      // Record the roster and take the previous pass's released intents
+      // before starting the next one. Repository work may outlive Kiro
+      // Crew's cron deadline; a later cron carries its released intents.
+      const intents = machineCronIntents(
+        entries,
+        message.params.arguments.input,
+      );
+      startPass(passOptions(undefined));
+      return toolReply(message, intents);
+    }
     const target = resolve(message);
-    // Before any workspace exists the cron's tick has nothing to do. An
-    // error here would count toward Kiro Crew's cron auto-pause (five in a
-    // row), and a paused tick stays off after the person adds a workspace.
-    if (target.noWorkspace && cronTick(message))
-      return toolReply(message, { skipped: true, reason: target.error });
     if (target.error) {
       if (message.method === "tools/call")
         return {
@@ -227,28 +301,11 @@ export function createAppMcp({
         };
       return rpcError(message.id, target.error);
     }
-    // The cron runs this machine's tick pass, then hands back the chat
-    // intents the pass released; only this cron can carry them out (MS12.1).
-    // Any other tick call runs the pass for its own workspace.
-    const tick = tickCall(message);
+    // A non-cron tick call runs one pass for its own workspace and waits for
+    // the result. The cron path above launches the machine pass separately.
     if (tick) {
-      const machine = machineAvoozlPaths({ env });
-      // The pass gets no gateway secret, so nothing it starts inherits one.
-      const clean = { ...env };
-      delete clean.KIROCREW_PROXY_SECRET;
-      delete clean.KIROCREW_GATEWAY_ORIGIN_PROOF;
-      const results = await runPass({
-        stateDirectory: machine.stateDirectory,
-        configDirectory: machine.configDirectory,
-        roots: tick.cron ? undefined : [target.entry.config.workspaceRoot],
-        env: clean,
-      });
-      return tick.cron
-        ? toolReply(
-            message,
-            cronIntents(target.entry.store, message.params.arguments.input),
-          )
-        : passReply(message, results);
+      const results = await pass([target.entry.config.workspaceRoot]);
+      return passReply(message, results);
     }
     return (
       await handleMcp(message, target.entry.ops, { attestedCaller: attested })

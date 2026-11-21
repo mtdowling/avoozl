@@ -1,12 +1,12 @@
 """The avoozl-tick script cron (machine-server MS12, design D5).
 
-Kiro Crew lets only the cron that opened a chat control it, so after the
-tick this cron does the three things only it can: open and bind each chat the
-tick released, send each released message, and set trust mode again on the
-chats it owns. ``plans_maintain tick`` with ``cron: true`` runs this machine's
-one tick pass (the tick, the drain and the notifications, as ``avoozl tick``
-does), records the session statuses it read, and returns the released
-intents. With nothing to do it raises Skip, so it stays silent.
+Kiro Crew lets only the cron that opened a chat control it, so this cron does
+the three things only it can: open and bind each chat a completed tick
+released, send each released message, and set trust mode again on the chats
+it owns. ``plans_maintain tick`` with ``cron: true`` records the session
+statuses it read, returns those released intents, and starts the next machine
+tick without waiting for repository work. With nothing to do it raises Skip,
+so it stays silent.
 
 Every ``plans_*`` tool takes its arguments wrapped as ``{"input": {...}}``.
 """

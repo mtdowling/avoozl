@@ -14,7 +14,16 @@ import {
 } from "../../sessions/session-bindings.mjs";
 import { readReleased, recordRoster, sessionList } from "../../tick/tick.mjs";
 
-export function cronIntents(store, input = {}) {
+// The script cron serves every enabled workspace in one run. This private
+// transport field keeps an intent on its originating workspace until the
+// opened chat is bound there; it is never stored in the session request.
+export const KIROCREW_WORKSPACE_FIELD = "_avoozlWorkspaceId";
+const fromWorkspace = (request, workspaceId) =>
+  workspaceId
+    ? { ...request, [KIROCREW_WORKSPACE_FIELD]: workspaceId }
+    : request;
+
+export function cronIntents(store, input = {}, workspaceId = null) {
   const roster = sessionList(input.sessions);
   if (roster) recordRoster(store, roster);
   const released = readReleased(store);
@@ -30,14 +39,18 @@ export function cronIntents(store, input = {}) {
         // the cron keeps its trust and title (simplify §D22.1).
         ...(lane && id === slot ? { lane, header: title } : {}),
       })),
-    dispatch: pending.filter(
-      (request) =>
-        request.operation === "start" && released.starts.has(request.id),
-    ),
-    messages: pending.filter(
-      (request) =>
-        request.operation === "send" && released.sends.has(request.id),
-    ),
+    dispatch: pending
+      .filter(
+        (request) =>
+          request.operation === "start" && released.starts.has(request.id),
+      )
+      .map((request) => fromWorkspace(request, workspaceId)),
+    messages: pending
+      .filter(
+        (request) =>
+          request.operation === "send" && released.sends.has(request.id),
+      )
+      .map((request) => fromWorkspace(request, workspaceId)),
     notify: [],
   };
 }

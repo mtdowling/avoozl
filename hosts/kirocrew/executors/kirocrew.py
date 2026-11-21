@@ -107,6 +107,7 @@ def read_sessions(ctx, strict=False):
 # the asked model or changed it mid-session. An older Kiro Crew sends none, and
 # the tick then trusts the requested model.
 MODEL_FIELDS = ("model_requested", "served_model", "model_withheld", "model_changed")
+WORKSPACE_FIELD = "_avoozlWorkspaceId"
 
 
 def session_row(row):
@@ -265,7 +266,9 @@ class KiroCrewExecutor:
     def owns(self, request):
         return request.get("executor", "kirocrew") == "kirocrew"
 
-    def _transport(self, action, payload):
+    def _transport(self, action, payload, workspace=None):
+        if workspace:
+            payload = {**payload, WORKSPACE_FIELD: workspace}
         result = self._ctx.call_tool("avoozl:avoozl", "plans_executor", {"action": action, "input": payload})
         return json.loads(result) if isinstance(result, str) else result
 
@@ -274,11 +277,23 @@ class KiroCrewExecutor:
             return None
         if not request.get("id") or not request.get("version"):
             return request  # Compatibility with a previous app's dispatch.
-        taken = self._transport("take", {"id": request["id"], "version": request["version"]})
+        workspace = request.get(WORKSPACE_FIELD)
+        taken = self._transport(
+            "take",
+            {"id": request["id"], "version": request["version"]},
+            workspace,
+        )
         if not isinstance(taken, dict) or not isinstance(taken.get("request"), dict):
             return None
-        self._active_claims[request["id"]] = taken["claimToken"]
-        return {**taken.get("configuration", {}), **taken["request"], "_claim": taken["claimToken"]}
+        self._active_claims[(workspace, request["id"])] = taken["claimToken"]
+        routed = {
+            **taken.get("configuration", {}),
+            **taken["request"],
+            "_claim": taken["claimToken"],
+        }
+        if workspace:
+            routed[WORKSPACE_FIELD] = workspace
+        return routed
 
     def arguments(self, request):
         request = self._take(request)
@@ -375,6 +390,8 @@ class KiroCrewExecutor:
             binding.update({"permissionClass": permissionClass, "executor": "kirocrew", "requestId": d["id"], "claimToken": d["_claim"]})
             for key in ("worktree", "context"):
                 if d.get(key): binding[key] = d[key]
+        if d.get(WORKSPACE_FIELD):
+            binding[WORKSPACE_FIELD] = d[WORKSPACE_FIELD]
         self._bind(binding)
         mode = _mode({**d, "role": role})
         if mode:
@@ -416,13 +433,22 @@ class KiroCrewExecutor:
     def release(self, request, refusal):
         if not refusal.before_open or not request.get("id"):
             return
-        saved = self._active_claims.pop(request["id"], None)
+        workspace = request.get(WORKSPACE_FIELD)
+        saved = self._active_claims.pop((workspace, request["id"]), None)
         if saved:
-            self._transport("release", {"id": request["id"], "claimToken": saved, "reason": "before-open"})
+            self._transport(
+                "release",
+                {"id": request["id"], "claimToken": saved, "reason": "before-open"},
+                workspace,
+            )
 
     def message(self, request):
         return self._take(request)
 
     def complete_message(self, request, outcome):
         if request.get("_claim"):
-            self._transport("complete", {"id": request["id"], "claimToken": request["_claim"], "outcome": outcome})
+            self._transport(
+                "complete",
+                {"id": request["id"], "claimToken": request["_claim"], "outcome": outcome},
+                request.get(WORKSPACE_FIELD),
+            )

@@ -34,6 +34,28 @@ class Ctx:
         calls.append(["send", sessionId, text]); return {"ok": True}
     def set_session_mode(self, sessionId, mode): calls.append(["mode", sessionId, mode])
     def session_status(self): return self.roster
+    def call_tool(self, server, tool, arguments):
+        calls.append(["tool", server, tool, arguments])
+        request = arguments.get("input", {})
+        return json.dumps({
+            "request": {
+                "id": request.get("id"),
+                "version": request.get("version"),
+                "executor": "kirocrew",
+                "task": "task-one",
+                "role": "worker",
+                "title": "avoozl:task-one work",
+                "brief": "Do the work",
+                "worktree": None,
+                "model": "model-one",
+                "permissionClass": "write",
+            },
+            "claimToken": "claim-one",
+            "configuration": {
+                "folder": "Avoozl/app",
+                "agent": "worker-agent",
+            },
+        })
 ctx = Ctx()
 e = m.KiroCrewExecutor(ctx, lambda binding: calls.append(["bind", binding]))
 ${body}
@@ -78,6 +100,27 @@ print(json.dumps({"slot": slot, "calls": calls, "observations": e.observations()
     Avoozl: true,
     "Avoozl/app": true,
   });
+});
+
+test("the real adapter carries a dispatch's workspace through take and bind", () => {
+  const result = run(`
+d = {
+    "id": "start:one",
+    "version": "version-one",
+    "_avoozlWorkspaceId": "workspace-two",
+    "task": "task-one",
+    "role": "worker",
+    "title": "avoozl:task-one work",
+    "brief": "Do the work",
+}
+e.start(*e.arguments(d))
+print(json.dumps(calls))`);
+  const take = result.find(
+    (row) => row[0] === "tool" && row[2] === "plans_executor",
+  );
+  assert.equal(take[3].input._avoozlWorkspaceId, "workspace-two");
+  const bind = result.find((row) => row[0] === "bind");
+  assert.equal(bind[1]._avoozlWorkspaceId, "workspace-two");
 });
 
 test("a missing project or unsupported remote dispatch refuses without opening locally", () => {
