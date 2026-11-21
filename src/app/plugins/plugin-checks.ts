@@ -559,7 +559,15 @@ export function pluginCheckNeedsYou(store, plugins = pluginChecksOf(store)) {
 // tool, its arguments and the full text of each file it sends), the decide
 // prompt's full text, the repositories here it applies to and where it is
 // shadowed or clashes, and each server alias with this machine's mapping.
-export function pluginChecksView(store, { id, location, manifest }, options) {
+export function pluginChecksView(
+  store,
+  {
+    id,
+    location,
+    manifest,
+  }: { id: string; location?: string | null; manifest: unknown },
+  options,
+) {
   if (!manifest?.checks || !location) return null;
   const settings = readPluginSettings(options.settingsFile),
     read = (file) => {

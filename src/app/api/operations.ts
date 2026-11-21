@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { frontMatter } from "../../front-matter.ts";
 import { digest } from "../../model.ts";
 import { resolveTaskId } from "../../task-identity.ts";
@@ -61,7 +60,10 @@ import { sourceMap } from "../intake/intake.ts";
 import { loadLayeredConfig } from "../settings/layered-config.ts";
 import { telemetryHandle } from "../telemetry/index.ts";
 import { mcpRefusal } from "../mcp/mcp-policy.ts";
-import { queueNotifications } from "../tick/notifications.ts";
+import {
+  type deliverNotifications,
+  queueNotifications,
+} from "../tick/notifications.ts";
 import {
   DIRECT_TASK_EDITS,
   refuseGitHubAuthority,
@@ -147,6 +149,43 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { specTasks, taskFile } from "../specs/spec-tasks.ts";
+import type { Task } from "../../types.ts";
+import type { Repository } from "../git/git.ts";
+import type { RepositoryPolicy } from "../github/github-policy.ts";
+import type { PlanRow } from "../specs/spec-plans.ts";
+import type { Inspected } from "../plugins/plugin-updates.ts";
+import type { ContextPart } from "../context/plugin-context.ts";
+
+// One inspected plugin as Settings lists it (plugins.ts inspectPlugin).
+type Listed = Omit<Inspected, "id" | "entry" | "location"> & {
+  id: string;
+  location?: string;
+  entry?: Inspected["entry"] & {
+    subdir?: string;
+    config?: Record<string, unknown>;
+  };
+  manifest?: { checks?: unknown; [key: string]: unknown };
+  context?: ContextPart | null;
+};
+
+// A planning pull request or intent receipt.
+interface Receipt {
+  id: string;
+  state?: string;
+  repository?: string;
+  number?: number;
+  observedAt?: string;
+  mergedAt?: string;
+  mergeCommit?: string;
+  planId?: string;
+  planHash?: string;
+  taskId?: string;
+  requestHash?: string;
+  submissionId?: string;
+  input?: unknown;
+  createdAt?: string;
+  [key: string]: unknown;
+}
 
 // Who an operation's GitHub posts are for (github-posted.mjs), or null when
 // the context does not say and an enclosing operation's actor holds. An
@@ -154,7 +193,7 @@ import { specTasks, taskFile } from "../specs/spec-tasks.ts";
 // review draft is the person's: it is a pending review under their login
 // that GitHub publishes only when they submit it.
 const AUTOMATION = new Set(["workspace.tick"]);
-export function postingActor(name, context) {
+export function postingActor(name: string, context: OperationContext) {
   if (context.caller || context.mcp || context.plugin) return "agent";
   if (AUTOMATION.has(name)) return "avoozl";
   return context.person === true ? "person" : null;
@@ -182,11 +221,11 @@ export interface OperationCall {
 export interface OperationsOptions {
   operator?: string;
   github?: unknown;
-  configuration?: { workspaceRoot?: string; [key: string]: unknown } | null;
+  configuration?: RepositorySettings | null;
   workspaceRoot?: string | null;
   plansRoot?: string | null;
-  repositoryBindingGuard?: unknown;
-  notifier?: unknown;
+  repositoryBindingGuard?: Operations["repositoryBindingGuard"];
+  notifier?: Parameters<typeof deliverNotifications>[1];
   sessionStopper?: unknown;
   kirocrewAbsent?: boolean;
   pluginSettingsFile?: string;
@@ -196,9 +235,27 @@ export interface OperationsOptions {
   backgroundReads?: boolean;
 }
 
+// A stored plan row, with the approval fields the reads here use.
+export interface Plan extends PlanRow {
+  context?: { repositoryId?: string };
+  approvalId?: string;
+  mapping?: Record<string, unknown>;
+  archivedAt?: string;
+}
+// An approval receipt.
+export interface Approval {
+  id: string;
+  planId: string;
+  hash: string;
+  files?: Record<string, string>;
+  [key: string]: unknown;
+}
+// What an approval commit says (git-approvals.ts approvalCommits).
+type ApprovalCommit = Awaited<ReturnType<typeof approvalCommits>>[number];
+// Who may approve: an approverCheck.
+type Approver = ReturnType<typeof approverCheck>;
+
 export class Operations {
-  // shortcut: only the fields typed callers read are declared; the rest of
-  // this class is still typing debt.
   store: Store;
   operator: string;
   workspaceRoot: string | null;
@@ -209,7 +266,8 @@ export class Operations {
   github: GitHubClient;
   pluginOptions: { workspaceRoot: string | null; settingsFile: string };
   // Kiro Crew's readers, when the app backend runs inside Kiro Crew.
-  notifier: unknown;
+  notifier: Parameters<typeof deliverNotifications>[1];
+  kirocrewAbsent: boolean;
   sessionStopper: unknown;
   // This process's high-risk GitHub grants (github-jobs.ts).
   grants: typeof processGrants;
@@ -217,9 +275,30 @@ export class Operations {
   cachePolicy: {
     at: number;
     policy: ReturnType<typeof readGitHubPolicyOrNull>;
-  } | null;
+  } | null = null;
+  backgroundReads: boolean;
+  // GitHub reads refreshing after their reply, by key (refreshLater).
+  refreshing: Map<string, Promise<unknown>>;
   // The plugin loader (plugins.ts).
   plugins: unknown;
+  // The client before guardGitHub wraps it.
+  githubClient: GitHubClient;
+  tickPolicy: Record<string, unknown>;
+  // Refuses a repository binding another workspace on this machine holds.
+  repositoryBindingGuard:
+    | ((binding: {
+        repositoryId: string;
+        root: string | null;
+        editable: boolean;
+      }) => { commit?: () => unknown; release?: () => unknown } | null)
+    | null;
+  pendingIntents: Map<string, Promise<unknown>>;
+  // What the last tick read from each spec's base branch and main.
+  ticksSeen?: Map<string, string>;
+  ticksFetched?: Set<string>;
+  approvalsSeen?: Map<string, string>;
+  mainApprovers?: Map<string, Approver>;
+  approverLogin?: string | null;
   constructor(
     store: Store,
     {
@@ -266,12 +345,12 @@ export class Operations {
     this.kirocrewAbsent = kirocrewAbsent;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
-    // Every GitHub text write passes content rules first (§4.9).
-    const client =
-      github ||
+    // Every GitHub text write passes content rules first (§4.9). Tests
+    // pass a fake with the same methods.
+    const client = (github ||
       defaultGitHubClient({
         credentials: machineCredentials({ settingsFile: pluginSettingsFile }),
-      });
+      })) as GitHubClient;
     // A person's Allows for high-risk GitHub steps (plugin-credentials §D7),
     // in this process's memory only.
     this.grants = processGrants;
@@ -284,7 +363,7 @@ export class Operations {
       });
       // Failures raise Needs you rows; each new token gets an Activity row.
       recordCredentialEvents(store, client.credentials);
-      client.onNoPerson = (provider, owner) =>
+      client.onNoPerson = (provider: string, owner: string) =>
         recordNoPerson(store, { provider, owner });
     }
     this.githubClient = client;
@@ -311,12 +390,18 @@ export class Operations {
   // Settings' plugin list and actions (§4.8, R34.9). Approval is a person's
   // act in Settings or the CLI: an agent session cannot approve a plugin,
   // and no MCP tool offers it.
-  async pluginOperation(name, input, context) {
+  async pluginOperation(
+    name: string,
+    input: Record<string, unknown>,
+    context: OperationContext,
+  ) {
     const options = this.pluginOptions;
     if (!options.workspaceRoot) fail("Plugins need a workspace root.", 409);
     if (name === "plugins.list") {
       const health = pluginHealth(this.store),
-        plugins = inspectPlugins(options).map(({ manifest, entry, ...p }) => ({
+        // inspectPlugin's records, in the fields this list reads.
+        listed = inspectPlugins(options) as Listed[],
+        plugins = listed.map(({ manifest, entry, ...p }) => ({
           ...p,
           config: entry?.config ?? {},
           ...(entry?.git !== undefined
@@ -366,26 +451,35 @@ export class Operations {
     }
     if (context.caller)
       fail("Only a person changes plugins, in Settings or the CLI.", 403);
-    const strip = (plugin) => {
+    const strip = <P extends object>(plugin: P | null | undefined) => {
       if (!plugin) return plugin;
-      const { manifest, entry, ...rest } = plugin;
+      const {
+        manifest: _manifest,
+        entry: _entry,
+        ...rest
+      } = plugin as P & {
+        manifest?: unknown;
+        entry?: unknown;
+      };
       return rest;
     };
+    // The request's fields; each plugin action checks its own.
+    const fields = input as { id: string; hash: string };
     if (name === "plugin.approve")
-      return strip(approvePlugin(options, input, this.operator));
-    if (name === "plugin.disable") return strip(disablePlugin(options, input));
+      return strip(approvePlugin(options, fields, this.operator));
+    if (name === "plugin.disable") return strip(disablePlugin(options, fields));
     // Add plugin's first step: what the source holds, before anything is
     // declared. Reads only (a git source is resolved to a commit, not fetched).
     if (name === "plugin.preview") return previewPlugin(options, input);
     if (name === "plugin.add")
       return strip(
-        input?.entry?.git !== undefined
-          ? await addGitPlugin(options, input)
-          : addPlugin(options, input),
+        (input.entry as { git?: unknown } | undefined)?.git !== undefined
+          ? await addGitPlugin(options, input as { entry: unknown })
+          : addPlugin(options, input as { entry: unknown }),
       );
     if (name === "plugin.update")
-      return strip(await updateGitPlugin(options, input));
-    if (name === "plugin.remove") return removePlugin(options, input);
+      return strip(await updateGitPlugin(options, fields));
+    if (name === "plugin.remove") return removePlugin(options, fields);
     if (name === "plugin.credentials.pick")
       return pickCredentials(options, input);
     // Check now (R34.17): the check itself, for one plugin or all. It
@@ -403,9 +497,13 @@ export class Operations {
   // A plugin update check's ls-remote to the GitHub git host counts under
   // git in Settings › GitHub, like Avoozl's own fetches.
   countPluginGit() {
-    const client = this.githubClient,
+    const client = this.githubClient as GitHubClient & {
+        gitUrl?: string;
+        countGit(): void;
+        rate?: { flush(): void };
+      },
       host = client?.gitUrl ? remoteHost(client.gitUrl) : null;
-    return (remote) => {
+    return (remote: string) => {
       if (!host || remoteHost(remote) !== host) return;
       client.countGit();
       client.rate?.flush();
@@ -428,9 +526,9 @@ export class Operations {
   // itself, so the workspace root is the planning root when its origin is
   // the policy's planning repository.
   specRoots(mode = this.githubMode()) {
-    const repositories = this.store.list("repositories"),
+    const repositories = this.store.list<Repository>("repositories"),
       planningRoot =
-        this.store.getMeta("workspaceRepository")?.root ||
+        this.store.getMeta<{ root?: string }>("workspaceRepository")?.root ||
         repositories.find(
           (repository) => repository.planning && repository.root,
         )?.root ||
@@ -453,7 +551,7 @@ export class Operations {
   async applyBaseTicks({ land = false } = {}) {
     this.ticksSeen ??= new Map();
     this.ticksFetched = new Set();
-    for (const plan of this.store.list("plans")) {
+    for (const plan of this.store.list<Plan>("plans")) {
       if (
         !plan.spec ||
         plan.deletedAt ||
@@ -484,8 +582,9 @@ export class Operations {
           files: plan.files,
           text: read.text,
           commitPrefix: this.store
-            .list("repositories")
-            .find((repository) => repository.root === spec.root)?.commitPrefix,
+            .list<Repository>("repositories")
+            .find((repository) => repository.root === spec.root)
+            ?.commitPrefix as string | undefined,
         }).catch(() => {
           // Refused or raced: tried again when the branch head moves.
         });
@@ -502,7 +601,7 @@ export class Operations {
   specHomes() {
     const roots = this.specRoots(),
       wanted = specsBranchSetting(this.workspaceRoot),
-      errors = [];
+      errors: string[] = [];
     for (const root of roots) {
       const branch = wanted && currentBranchSync(root);
       if (branch && branch !== wanted)
@@ -534,9 +633,9 @@ export class Operations {
         repositories: store.list("repositories"),
       },
       plans = store
-        .list("plans")
+        .list<Plan>("plans")
         .filter((plan) => plan.spec && !plan.deletedAt),
-      approvals = store.list("approvals"),
+      approvals = store.list<Approval>("approvals"),
       { roots, homes, errors: homeErrors } = this.specHomes(),
       declarations = specDeclarations(plans),
       // Specs on disk, so each spec group reaches into what it links.
@@ -583,7 +682,6 @@ export class Operations {
           epic: quality.epic,
           ...(quality.members ? { members: quality.members } : {}),
           hash: disk.hash,
-          ...(disk.pull ? { pull: disk.pull } : {}),
           files: Object.keys(disk.files),
           counts: quality.counts,
           taskCount: quality.taskCount,
@@ -605,22 +703,29 @@ export class Operations {
   }
   // Store a spec folder as a draft plan: `plan.create` with a spec. It
   // approves nothing.
-  createSpecDraft(input, context = {}) {
+  createSpecDraft(
+    input: { spec?: unknown; [key: string]: unknown },
+    context: OperationContext = {},
+  ) {
     const store = this.store,
       spec = this.readSpec(input.spec);
     if (spec.exists && (context.caller || context.mcp))
       enforceSpec(store, spec, { mode: "refuse" });
-    return createSpecPlan(store, input, spec);
+    return createSpecPlan(
+      store,
+      input as Parameters<typeof createSpecPlan>[1],
+      spec,
+    );
   }
   // A folder on disk by name.
-  readSpec(name) {
+  readSpec(name: unknown) {
     return findSpecFolder(this.specRoots(), specName(name));
   }
   // One folder of the mode's spec roots by name, for the checks that read
   // another folder: an epic's members, a plan's epic (Requirement 59.3).
   specNamespace() {
-    const cache = new Map();
-    return (name) => {
+    const cache = new Map<string, ReturnType<Operations["readSpec"]> | null>();
+    return (name: string) => {
       if (!cache.has(name)) {
         let folder = null;
         try {
@@ -630,10 +735,10 @@ export class Operations {
         }
         cache.set(name, folder);
       }
-      return cache.get(name);
+      return cache.get(name) ?? null;
     };
   }
-  workspaceIsPlanningCheckout(mode) {
+  workspaceIsPlanningCheckout(mode: unknown) {
     if (mode !== "plans-repo" || !this.workspaceRoot) return false;
     let wanted = null;
     try {
@@ -664,9 +769,14 @@ export class Operations {
   // Every check an approval makes before it writes, shared by plan.approve
   // and the approvals the tick reads from git (adoptApprovals). Throws on
   // the first failure.
-  approvalChecks(input) {
-    const plan = this.store.get("plans", input.id);
-    if (!plan) fail("Plan not found.", 404);
+  approvalChecks(input: {
+    id?: unknown;
+    expectedHash?: unknown;
+    retitled?: unknown;
+    [key: string]: unknown;
+  }) {
+    const plan = this.store.get<Plan>("plans", input.id);
+    if (!plan) return fail("Plan not found.", 404);
     if (!plan.spec) fail("Only a spec folder is approved.", 409);
     if (plan.hash !== input.expectedHash)
       fail("The reviewed document hash changed.", 409);
@@ -683,7 +793,14 @@ export class Operations {
       queueNotifications(this.store, content.notify);
       if (!content.ok) {
         const first = this.withContentDiagnostics(
-          { diagnostics: [], counts: {} },
+          {
+            diagnostics: [] as {
+              severity: string;
+              code?: string;
+              message?: string;
+            }[],
+            counts: {},
+          },
           spec,
         ).diagnostics[0];
         fail(
@@ -698,7 +815,7 @@ export class Operations {
       proposals = specQuality.proposals,
       quality = specQuality;
     const blocking = quality.diagnostics.find(
-      (diagnostic) => diagnostic.severity === "error",
+      (diagnostic: { severity?: string }) => diagnostic.severity === "error",
     );
     if (blocking)
       fail(
@@ -723,16 +840,16 @@ export class Operations {
     }
   }
 
-  planApproved(plan) {
+  planApproved(plan: { id: string; hash?: string }) {
     return this.store
-      .list("approvals")
+      .list<Approval>("approvals")
       .some((a) => a.planId === plan.id && a.hash === plan.hash);
   }
   // The git checkout a spec's approval commit goes in (§4.42): the top of
   // the work tree that holds its folder. Null for a folder outside git.
   // shortcut: a spec folder outside git keeps only the database receipt and
   // is not rebuilt; require git once every workspace is a checkout.
-  async approvalCheckout(plan) {
+  async approvalCheckout(plan: { spec?: string } | null) {
     if (!plan?.spec) return null;
     let spec;
     try {
@@ -754,7 +871,7 @@ export class Operations {
   // Who approves in a checkout (git-approvals.mjs approverCheck): its
   // repository's allowedActors under the GitHub policy, else this
   // checkout's own git user.email.
-  async approverOf(root) {
+  async approverOf(root: string) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot),
       name = originRepositorySync(root);
     if (policy?.mode && name) return this.approverFor(name);
@@ -764,8 +881,7 @@ export class Operations {
   }
   // A GitHub repository's approvers: its allowedActors, or people with
   // write access when the policy does not name it (R10.2).
-  approverFor(repository) {
-    if (!repository) return null;
+  approverFor(repository: string | { owner: string; repo: string }) {
     const name =
         typeof repository === "string"
           ? repository
@@ -773,13 +889,13 @@ export class Operations {
       policy = readGitHubPolicyOrNull(this.workspaceRoot),
       entry = Object.entries(policy?.repositories || {}).find(
         ([id]) => id.toLowerCase() === name.toLowerCase(),
-      )?.[1] ?? { allowedActors: [], minimumPermission: "write" };
+      )?.[1];
     return approverCheck({
-      repository: entry,
+      repository: entry ?? { allowedActors: [], minimumPermission: "write" },
       github: this.github,
       repositoryName: name,
-      trust: entry.approvalTrust ?? "github",
-      cache: evidenceCache(this.workspaceRoot),
+      trust: entry?.approvalTrust ?? "github",
+      cache: this.workspaceRoot ? evidenceCache(this.workspaceRoot) : null,
     });
   }
   // The approval commit for these spec plans, one per checkout, made by the
@@ -788,19 +904,24 @@ export class Operations {
   // a scratch copy first, so nothing is committed that the receipt would
   // refuse. Returns plan ID -> {commit, email, evidence}, or null when no
   // spec has a checkout.
-  async approveInGit(plans, trial) {
-    const roots = new Map();
+  async approveInGit(plans: Plan[], trial: () => unknown) {
+    const roots = new Map<string, Plan[]>();
     for (const plan of plans) {
       const root = await this.approvalCheckout(plan);
       if (!root) continue;
-      if (!roots.has(root)) roots.set(root, []);
-      roots.get(root).push(plan);
+      roots.set(root, [...(roots.get(root) ?? []), plan]);
     }
     if (!roots.size) return null;
     const login = readGitHubPolicyOrNull(this.workspaceRoot)?.mode
       ? await this.personLogin()
       : null;
-    const work = [];
+    const work: {
+      root: string;
+      author: Awaited<ReturnType<typeof gitAuthor>>;
+      open: Plan[];
+      committed: ApprovalCommit[];
+      group: Plan[];
+    }[] = [];
     for (const [root, group] of roots) {
       const allowed = await this.approverOf(root),
         author = await gitAuthor(root);
@@ -814,8 +935,8 @@ export class Operations {
         }),
         committed = await approvalCommits(root, {
           allowed,
-          ref: base.head,
-          specs: group.map((plan) => plan.spec),
+          ref: base.head ?? undefined,
+          specs: group.flatMap((plan) => (plan.spec ? [plan.spec] : [])),
         }),
         open = group.filter(
           (plan) =>
@@ -826,7 +947,10 @@ export class Operations {
       work.push({ root, author, open, committed, group });
     }
     trial();
-    const result = new Map();
+    const result = new Map<
+      string,
+      { commit: string; email: string; evidence: string }
+    >();
     for (const { root, author, open, committed, group } of work) {
       const made = open.length
         ? await commitApproval(
@@ -837,7 +961,7 @@ export class Operations {
             { branch: specsBranchSetting(this.workspaceRoot) },
           )
         : null;
-      if (made && login)
+      if (made && login && this.workspaceRoot)
         evidenceCache(this.workspaceRoot).set(made.commit, {
           mergedBy: null,
           signer: null,
@@ -849,7 +973,10 @@ export class Operations {
             : committed.find(
                 (entry) => entry.spec === plan.spec && entry.hash === plan.hash,
               ),
-          commit = earlier?.commit ?? made.commit,
+          commit =
+            earlier?.commit ??
+            made?.commit ??
+            fail(`No approval commit for ${plan.spec}.`, 500),
           email = earlier?.email ?? made?.author.email ?? author.email;
         result.set(plan.id, {
           commit,
@@ -894,14 +1021,15 @@ export class Operations {
   // spec whose checked tasks need another spec's waits for it, so approve
   // until a pass approves nothing more. A plan that fails a check is left a
   // draft. Returns the plan IDs approved.
-  adoptApprovals(found) {
+  adoptApprovals(found: Map<string, ApprovalCommit>) {
     const store = this.store,
       left = new Map(found),
-      approved = [];
+      approved: string[] = [];
     for (let moved = true; moved && left.size; ) {
       moved = false;
       for (const [id, match] of left) {
-        const plan = store.get("plans", id);
+        const plan = store.get<Plan>("plans", id);
+        if (!plan) continue;
         try {
           const input = {
               id: plan.id,
@@ -933,9 +1061,13 @@ export class Operations {
   // One commit may approve any number of specs (an epic's pull request);
   // their order comes from their $after links (adoptApprovals). Each one
   // approved gets an Activity row naming the commit and `branch`.
-  adoptCommitted(group, commits, branch) {
+  adoptCommitted(
+    group: { plan: Plan; disk: string }[],
+    commits: ApprovalCommit[],
+    branch: string,
+  ) {
     const store = this.store,
-      found = new Map();
+      found = new Map<string, ApprovalCommit>();
     for (const { plan, disk } of group) {
       const match = commits.find(
         (entry) => entry.spec === plan.spec && entry.hash === disk,
@@ -952,6 +1084,7 @@ export class Operations {
     }
     for (const id of this.adoptApprovals(found)) {
       const match = found.get(id);
+      if (!match) continue;
       queuePublish(store, id, match.commit);
       recordActivity(store, {
         source: "tick",
@@ -965,20 +1098,21 @@ export class Operations {
   }
   // Each live spec plan whose text has no approval, as {plan, disk}, grouped
   // by `homeOf(plan)` (a key, or null to skip the plan).
-  async unapprovedSpecs(homeOf) {
+  async unapprovedSpecs(homeOf: (plan: Plan) => Promise<string | null>) {
     const approved = new Set(
-        this.store.list("approvals").map((a) => `${a.planId}:${a.hash}`),
+        this.store
+          .list<Approval>("approvals")
+          .map((a) => `${a.planId}:${a.hash}`),
       ),
-      groups = new Map();
-    for (const plan of this.store.list("plans")) {
+      groups = new Map<string, { plan: Plan; disk: string }[]>();
+    for (const plan of this.store.list<Plan>("plans")) {
       if (!plan.spec || plan.deletedAt || plan.archivedAt) continue;
       try {
-        const disk = this.readSpec(plan.spec).hash;
+        const disk = this.readSpec(plan.spec).hash ?? "";
         if (disk === plan.hash && approved.has(`${plan.id}:${disk}`)) continue;
         const home = await homeOf(plan);
         if (!home) continue;
-        if (!groups.has(home)) groups.set(home, []);
-        groups.get(home).push({ plan, disk });
+        groups.set(home, [...(groups.get(home) ?? []), { plan, disk }]);
       } catch {}
     }
     return groups;
@@ -1011,12 +1145,15 @@ export class Operations {
         // One check per checkout and approvers list, so each author is
         // decided once and no tick asks GitHub about the same email again.
         const list = `${root}\n${JSON.stringify(readGitHubPolicyOrNull(this.workspaceRoot)?.repositories ?? null)}`;
-        if (!this.mainApprovers.has(list))
-          this.mainApprovers.set(list, await this.approverOf(root));
+        let allowed = this.mainApprovers.get(list);
+        if (!allowed) {
+          allowed = await this.approverOf(root);
+          this.mainApprovers.set(list, allowed);
+        }
         const commits = await approvalCommits(root, {
-          allowed: this.mainApprovers.get(list),
-          ref: head,
-          specs: group.map(({ plan }) => plan.spec),
+          allowed,
+          ref: head ?? undefined,
+          specs: group.flatMap(({ plan }) => (plan.spec ? [plan.spec] : [])),
         });
         this.adoptCommitted(group, commits, branch);
         this.approvalsSeen.set(root, seen);
@@ -1032,7 +1169,10 @@ export class Operations {
       github: this.github,
       identity: () => planningIdentity(this.workspaceRoot),
       evidence: {
-        get: (commit) => evidenceCache(this.workspaceRoot).get(commit),
+        get: (commit: string) =>
+          this.workspaceRoot
+            ? evidenceCache(this.workspaceRoot).get(commit)
+            : undefined,
       },
       homeOf: async (plan) => {
         const root = await this.approvalCheckout(plan);
@@ -1044,17 +1184,23 @@ export class Operations {
   // named specs, with `allowed` (an approverCheck) in place of the
   // repository's own approvers list and `root` limiting landings and retros
   // to one checkout. A spec that already has a plan is left alone.
-  async readFromGit({ names: only = null, allowed: given = null } = {}) {
+  async readFromGit({
+    names: only = null,
+    allowed: given = null,
+  }: {
+    names?: string[] | null;
+    allowed?: Approver | null;
+  } = {}) {
     const store = this.store,
       names = (only ?? this.specList().items.map((item) => item.name)).filter(
         (name) => !store.get("plans", name),
       );
     for (const name of names)
       createSpecPlan(store, { id: name }, this.readSpec(name));
-    const approvers = new Map(),
-      found = new Map();
+    const approvers = new Map<string, { allowed: Approver; ref: string }>(),
+      found = new Map<string, ApprovalCommit>();
     for (const name of names) {
-      const plan = store.get("plans", name),
+      const plan = store.get<Plan>("plans", name),
         root = await this.approvalCheckout(plan);
       if (!root) continue;
       if (!approvers.has(root)) {
@@ -1066,8 +1212,13 @@ export class Operations {
           ref: base?.head ?? "HEAD",
         });
       }
-      const { allowed, ref } = approvers.get(root),
-        commits = await approvalCommits(root, { allowed, ref, specs: [name] }),
+      const at = approvers.get(root);
+      if (!at || !plan) continue;
+      const commits = await approvalCommits(root, {
+          allowed: at.allowed,
+          ref: at.ref,
+          specs: [name],
+        }),
         match = commits.find((entry) => entry.hash === plan.hash);
       if (match) found.set(name, match);
     }
@@ -1083,7 +1234,9 @@ export class Operations {
         data.tasks
           .filter(
             (task) =>
-              names.includes(task.planId) && statusComplete(data, task.status),
+              task.planId !== undefined &&
+              names.includes(task.planId) &&
+              statusComplete(data, task.status),
           )
           .map((task) => task.id))(store.read()),
     };
@@ -1091,10 +1244,10 @@ export class Operations {
   // One spec folder's documents for the Plans tab to read. readSpecFolder
   // reads only regular files inside a planning root, so a symlink out of it
   // reads as missing, and specName refuses a name with a path in it.
-  readSpecDocuments({ name } = {}) {
+  readSpecDocuments({ name }: { name?: unknown } = {}) {
     const spec = this.readSpec(name);
     if (!spec.exists) fail(`No spec folder ${spec.folder}.`, 404);
-    const documents = {};
+    const documents: Record<string, string> = {};
     for (const file of revisionFiles(spec.files))
       if (typeof spec.files[file] === "string")
         documents[file] = spec.files[file];
@@ -1109,13 +1262,15 @@ export class Operations {
   // The plan change a page edit becomes when the page must not write the
   // row: GitHub or a plugin owns it, or its approved plan does. Preview only:
   // it writes nothing, and the owner approves the plan change as before.
-  previewTaskChange(input = {}) {
+  previewTaskChange(input: Record<string, unknown> = {}) {
     const data = this.read(),
-      task = data.tasks.find((t) => t.id === resolveTaskId(data, input.id));
-    if (!task) fail("Task not found.", 404);
+      task = data.tasks.find(
+        (t: Task) => t.id === resolveTaskId(data, String(input.id)),
+      );
+    if (!task) return fail("Task not found.", 404);
     const authority = taskAuthority(task),
-      plan = task.planId ? this.store.get("plans", task.planId) : null,
-      change = {};
+      plan = task.planId ? this.store.get<Plan>("plans", task.planId) : null,
+      change: Record<string, unknown> = {};
     for (const key of ["title", "summary", "acceptance", "requires"])
       if (Object.hasOwn(input, key)) change[key] = input[key];
     if (typeof change.title === "string" && /[\r\n]/.test(change.title))
@@ -1144,8 +1299,9 @@ export class Operations {
       };
     const spec = this.readSpec(plan.spec),
       tasks = specTasks(spec.files)?.text ?? "",
+      specName = plan.spec,
       lines = tasks.split("\n"),
-      item = specItems(plan.spec, tasks).find(
+      item = specItems(specName, tasks).find(
         (entry) =>
           entry.id === task.id || (task.specKey && entry.key === task.specKey),
       );
@@ -1153,7 +1309,7 @@ export class Operations {
         ? (specFacts(spec.files).tasks[item.key] ?? {})
         : {},
       { title, ...fields } = change,
-      before = item ? lines[item.line - 1].replace(/\r$/, "") : null;
+      before = item ? (lines[item.line - 1] ?? "").replace(/\r$/, "") : "";
     return {
       route: "spec",
       planId: plan.id,
@@ -1169,7 +1325,7 @@ export class Operations {
             ? before
             : before.replace(
                 /^(\s*[-*]\s+\[.\]\s+\S+\s+).*$/,
-                (_, head) => head + title,
+                (_, head: string) => head + String(title),
               ),
       },
       facts: item?.key
@@ -1180,9 +1336,9 @@ export class Operations {
   }
   // The receipt of the plan's last approval, whose task item text the
   // current revision must keep for every approved ID.
-  approvedSpec(plan) {
-    const receipt = plan.approvalId
-      ? this.store.get("approvals", plan.approvalId)
+  approvedSpec(plan: { approvalId?: string } | null) {
+    const receipt = plan?.approvalId
+      ? this.store.get<Approval>("approvals", plan.approvalId)
       : null;
     return receipt?.files ? receipt : null;
   }
@@ -1202,16 +1358,20 @@ export class Operations {
   ) {
     return storedLinks(this.store, current);
   }
-  lintSpecPlan(plan, retitled = [], { content = true } = {}) {
+  lintSpecPlan(
+    plan: Plan,
+    retitled: Parameters<typeof lintSpec>[0]["retitled"] = [],
+    { content = true } = {},
+  ) {
     const files = plan.files || {},
       spec = {
-        name: plan.spec,
+        name: String(plan.spec),
         exists: true,
         files,
         linked: this.linkedSpecs({ name: plan.spec, files }),
       },
-      declarations = specDeclarations(this.store.list("plans")),
-      quality = lintSpec({
+      declarations = specDeclarations(this.store.list<Plan>("plans")),
+      linted = lintSpec({
         spec,
         plan,
         data: {
@@ -1222,18 +1382,25 @@ export class Operations {
         retitled,
         namespace: this.safeSpecNamespace(),
         declaredTasks: declarations.filter((task) => task.planId !== plan.id),
-      });
+      }),
+      quality = {
+        ...linted,
+        declaredDependencies: [] as ReturnType<typeof declaredDependencies>,
+      };
     // A reverse edge (RC25.9): another spec's task lists this spec's task in
     // `unblocks`, so this task requires it. A private spec declares an edge
     // into a public one this way, and the public files never name it.
     // shortcut: the edge is read when this plan is linted; a private plan
     // created after the public one is approved needs a new public revision.
     for (const declaration of declarations)
-      if (declaration.planId !== plan.id)
-        for (const id of declaration.unblocks || []) {
+      if (declaration.planId !== plan.id && declaration.id)
+        for (const id of Array.isArray(declaration.unblocks)
+          ? declaration.unblocks
+          : []) {
+          const declared = declaration.id;
           const proposal = quality.proposals?.find((entry) => entry.id === id);
-          if (proposal && !(proposal.requires || []).includes(declaration.id))
-            proposal.requires = [...(proposal.requires || []), declaration.id];
+          if (proposal && !(proposal.requires || []).includes(declared))
+            proposal.requires = [...(proposal.requires || []), declared];
         }
     quality.declaredDependencies = declaredDependencies(
       plan,
@@ -1247,20 +1414,31 @@ export class Operations {
   // content.check (§4.9 `diff`): the pre-push hook's check. Each pushed
   // commit's added lines over the task's base; a match refuses (exit 1 in
   // the hook) and records the refusal, opening no decision.
-  async contentCheck(input = {}) {
+  async contentCheck(
+    input: {
+      taskId?: unknown;
+      push?: unknown;
+      stdin?: unknown;
+      head?: unknown;
+    } = {},
+  ) {
     const store = this.store,
-      task = store.read().tasks.find((t) => t.id === input.taskId);
-    if (!task) fail("Task not found.", 404);
-    const worktree = store.get("task_worktrees", task.id),
-      repository = store.get(
+      task = store.read().tasks.find((t: Task) => t.id === input.taskId);
+    if (!task) return fail("Task not found.", 404);
+    const worktree = store.get<{
+        id: string;
+        path?: string;
+        repository?: string;
+      }>("task_worktrees", task.id),
+      repository = store.get<Repository>(
         "repositories",
         worktree?.repository || taskRepository(task),
       );
     if (!repository?.root)
       fail(`Task ${task.id} names no local checkout.`, 409);
     const heads = input.push
-      ? pushedCommits(input.stdin).map((p) => p.local)
-      : [input.head || "HEAD"];
+      ? pushedCommits(String(input.stdin ?? "")).map((p) => p.local)
+      : [String(input.head || "HEAD")];
     const checked = [];
     for (const head of heads) {
       gitRevision(head);
@@ -1275,17 +1453,23 @@ export class Operations {
     return { ok: true, checked };
   }
   // `content.match` diagnostics (§4.9): what content rules would block.
-  withContentDiagnostics(quality, spec) {
+  withContentDiagnostics<
+    Q extends {
+      diagnostics: { severity: string; [key: string]: unknown }[];
+      counts: Record<string, number>;
+    },
+  >(quality: Q, spec: Parameters<typeof specContentDiagnostics>[1]) {
     const extra = specContentDiagnostics(this.store, spec);
     if (!extra.length) return quality;
     const diagnostics = [...quality.diagnostics, ...extra],
-      counts = { error: 0, warning: 0, info: 0 };
-    for (const item of diagnostics) counts[item.severity]++;
+      counts: Record<string, number> = { error: 0, warning: 0, info: 0 };
+    for (const item of diagnostics)
+      counts[item.severity] = (counts[item.severity] ?? 0) + 1;
     return { ...quality, diagnostics, counts, canApprove: counts.error === 0 };
   }
   // The folder on disk beside the stored revision: its hash, and the critique
   // a planner session wrote for it.
-  specOnDisk(plan) {
+  specOnDisk(plan: Plan) {
     const disk = this.readSpec(plan.spec);
     return {
       folder: disk.folder,
@@ -1295,15 +1479,16 @@ export class Operations {
       critique: readCritique(disk.critique, plan.hash),
     };
   }
-  detail(id) {
+  detail(requestedId: string) {
     const data = this.read(),
-      requestedId = id;
-    id = resolveTaskId(data, id);
-    const task = data.tasks.find((t) => t.id === id);
-    if (!task) fail("Task not found.", 404);
-    const doc = data.documents[task.source?.document],
+      id = resolveTaskId(data, requestedId);
+    const task = data.tasks.find((t: Task) => t.id === id);
+    if (!task) return fail("Task not found.", 404);
+    const doc = task.source?.document
+        ? data.documents[task.source.document]
+        : undefined,
       evidenceRecords = this.store
-        .list("evidence")
+        .list<{ id: string; taskId: string }>("evidence")
         .filter((e) => resolveTaskId(data, e.taskId) === id);
     return {
       ...task,
@@ -1313,13 +1498,13 @@ export class Operations {
       context:
         task.approvedSource?.text ||
         (doc
-          ? doc.text
+          ? (doc.text ?? "")
               .split("\n")
-              .slice(task.source.lineStart - 1, task.source.lineEnd)
+              .slice((task.source?.lineStart ?? 1) - 1, task.source?.lineEnd)
               .join("\n")
           : ""),
       relationships: data.edges.filter((e) => e.from === id || e.to === id),
-      documents: (task.contextDocuments || [])
+      documents: ((task.contextDocuments as string[] | undefined) || [])
         .map((id) => data.documents[id])
         .filter(Boolean),
       evidenceRecords,
@@ -1362,7 +1547,7 @@ export class Operations {
     try {
       effective = this.githubPolicy();
     } catch (failure) {
-      error = failure.message;
+      error = (failure as Error).message;
     }
     return {
       ...this.settingsFile().readGitHubSettings(),
@@ -1402,7 +1587,7 @@ export class Operations {
   // Runs `read` after the reply unless one under `key` is running; returns
   // true. A failed read leaves the last value, and the next request tries
   // again (backgroundReads).
-  refreshLater(key, read) {
+  refreshLater(key: string, read: () => unknown) {
     if (!this.refreshing.has(key))
       this.refreshing.set(
         key,
@@ -1410,7 +1595,7 @@ export class Operations {
         // (gh auth token runs once, synchronously).
         new Promise((resolve) => setImmediate(resolve))
           .then(read)
-          .catch((error) =>
+          .catch((error: Error) =>
             console.error(`${key} refresh failed: ${error.message}`),
           )
           .finally(() => this.refreshing.delete(key)),
@@ -1421,7 +1606,7 @@ export class Operations {
   // pace. Read like cacheSeconds, so an edit applies without a restart.
   writeLimits() {
     this.cacheSeconds();
-    const policy = this.cachePolicy.policy;
+    const policy = this.cachePolicy?.policy;
     return {
       perMinute: policy?.writesPerMinute ?? undefined,
       perHour: policy?.writesPerHour ?? undefined,
@@ -1441,11 +1626,11 @@ export class Operations {
   }
   async reconcilePlanningPullRequests() {
     const receipts = this.store
-      .list("receipts")
+      .list<Receipt>("receipts")
       .filter(
         (receipt) =>
           receipt.id.startsWith("planning-pr:") &&
-          !["projected", "closed"].includes(receipt.state),
+          !["projected", "closed"].includes(String(receipt.state)),
       );
     const result = [];
     for (const receipt of receipts) {
@@ -1466,7 +1651,7 @@ export class Operations {
       receipt.mergeCommit = pull.merge_commit_sha;
       this.store.put("receipts", receipt);
       await syncWorkspaceRepository(this.store);
-      const plan = this.store.get("plans", receipt.planId);
+      const plan = this.store.get<Plan>("plans", receipt.planId);
       if (!plan || plan.hash !== receipt.planHash || plan.state !== "approved")
         fail(
           "Merged planning revision did not hydrate as the approved design.",
@@ -1477,13 +1662,14 @@ export class Operations {
     }
     return { items: result };
   }
-  intentResult(receipt) {
+  intentResult(receipt: Receipt) {
     const plan = receipt.planId
-        ? this.store.get("plans", receipt.planId)
+        ? this.store.get<Plan>("plans", receipt.planId)
         : null,
       task = receipt.taskId
         ? this.read().tasks.find(
-            (t) => t.id === resolveTaskId(this.read(), receipt.taskId),
+            (t: Task) =>
+              t.id === resolveTaskId(this.read(), String(receipt.taskId)),
           )
         : null;
     return {
@@ -1491,17 +1677,20 @@ export class Operations {
       ...(task ? { task } : {}),
     };
   }
-  async submitIntent(input, expectedRevision) {
+  async submitIntent(
+    input: Record<string, unknown>,
+    expectedRevision?: number,
+  ) {
     if (
       typeof input.prompt !== "string" ||
       !input.prompt.trim() ||
       input.prompt.length > 20000
     )
       fail("Write a message.");
-    const action = input.action || "task";
+    const action = String(input.action || "task");
     if (!["task", "ask", "run"].includes(action))
       fail("Choose task, ask or run.");
-    const submissionId = input.submissionId || randomUUID(),
+    const submissionId = String(input.submissionId || randomUUID()),
       id = "intent:" + submissionId,
       requestHash = digest(
         canonical({
@@ -1514,7 +1703,7 @@ export class Operations {
           parentRunId: input.parentRunId,
         }),
       );
-    let receipt = this.store.get("receipts", id);
+    let receipt = this.store.get<Receipt>("receipts", id);
     if (receipt && receipt.requestHash !== requestHash)
       fail(
         "This submission belongs to a different message. Start a new message.",
@@ -1535,9 +1724,9 @@ export class Operations {
         };
         this.store.put("receipts", receipt);
       }
-      const saved = receipt.input;
+      const saved = receipt.input as Record<string, unknown>;
       if (action === "task") {
-        const { task } = await this.execute(
+        const { task } = await this.execute<{ task: Task }>(
           "task.capture",
           saved,
           expectedRevision,
@@ -1578,18 +1767,29 @@ export class Operations {
       ),
     );
     // One activity row for a listed local action (§4.19); never fails it.
-    recordOperation(this.store, name, input, result, {
-      context,
-      operator: this.operator,
-    });
+    recordOperation(
+      this.store,
+      name,
+      input,
+      result as Record<string, unknown>,
+      {
+        context,
+        operator: this.operator,
+      },
+    );
     if (this.plansRoot) flushOutbox(this.store, this.plansRoot);
-    return result;
+    return result as T;
   }
   // Create the first snapshot of a new workspace database.
-  initialize(snapshot) {
+  initialize(snapshot: Parameters<Store["initialize"]>[0]) {
     this.store.initialize(snapshot);
   }
-  async perform(name, input = {}, expectedRevision, context = {}) {
+  async perform(
+    name: string,
+    input: Record<string, unknown> = {},
+    expectedRevision?: number,
+    context: OperationContext = {},
+  ): Promise<unknown> {
     const store = this.store;
     // A person-only operation is refused for any MCP call, under any tool
     // name (mcp-policy.mjs, R56.2).
@@ -1612,10 +1812,13 @@ export class Operations {
         "task.sessions",
       ].includes(name)
     )
-      input = { ...input, id: resolveTaskId(this.read(), input.id) };
+      input = { ...input, id: resolveTaskId(this.read(), String(input.id)) };
 
     if (input.taskId)
-      input = { ...input, taskId: resolveTaskId(this.read(), input.taskId) };
+      input = {
+        ...input,
+        taskId: resolveTaskId(this.read(), String(input.taskId)),
+      };
 
     if (DIRECT_TASK_EDITS.has(name) && store.initialized())
       refuseGitHubAuthority(this.read(), name, input);

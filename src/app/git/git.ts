@@ -1169,7 +1169,7 @@ async function refuseBusyHolder(
       409,
     );
 }
-type IntegrateInput = { id: string; expectedCommit: string };
+export type IntegrateInput = { id: string; expectedCommit: string };
 
 export async function integrateRun(
   store: Store,

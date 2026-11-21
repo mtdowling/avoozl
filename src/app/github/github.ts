@@ -316,6 +316,14 @@ const INTERNAL = new Set([
 const BLOB_CHUNK = 100;
 
 export class GitHubClient {
+  // shortcut: only the fields typed callers read are declared.
+  credentials: {
+    signIns?: () => unknown[];
+    available?: (owner: unknown) => boolean;
+    [key: string]: unknown;
+  };
+  onNoPerson?: (provider: string, owner: string) => unknown;
+  gitUrl?: string;
   constructor({
     credentials,
     apiUrl = process.env.GITHUB_API_URL || "https://api.github.com",
@@ -1763,7 +1771,11 @@ export class GitHubClient {
   // refuses (409) when the head moved, so a landing never takes a commit
   // nobody checked (R102.8). No admin bypass.
   // `title` and `message`, when given, are the merge or squash commit's.
-  mergePullRequest(value, number, { sha, method = "merge", title, message }) {
+  mergePullRequest(
+    value,
+    number,
+    { sha, method = "merge", title, message }: Record<string, unknown>,
+  ) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
     if (!/^[0-9a-f]{40}$/.test(sha ?? ""))

@@ -406,10 +406,16 @@ export async function publishApproved(
   }: {
     github: PublishGitHub & Parameters<typeof personOf>[0];
     identity: Identity | (() => Identity);
-    evidence?: Map<
-      string,
-      { mergedBy?: string; signer?: string; pushedBy?: string; pull?: unknown }
-    > | null;
+    evidence?: {
+      get(commit: string):
+        | {
+            mergedBy?: string | null;
+            signer?: string | null;
+            pushedBy?: string | null;
+            pull?: unknown;
+          }
+        | undefined;
+    } | null;
     homeOf: (plan: Plan) => Promise<string | null>;
   },
 ) {

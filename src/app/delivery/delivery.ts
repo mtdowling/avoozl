@@ -19,6 +19,8 @@ import path from "node:path";
 import { issueReportToken } from "../workers/report-match.ts";
 import { claimBranch, claimOf, claimedTaskIds } from "../workers/claims.ts";
 import { fail } from "../store/store.ts";
+import type { Store } from "../store/store.ts";
+import type { Task } from "../../types.ts";
 import { fileURLToPath } from "node:url";
 import {
   contentBinding,
@@ -956,7 +958,11 @@ const reviewRoundsSince = (delivery, attempts) =>
 export function retryDelivery(
   store,
   input = {},
-  { caller = null, mcp = false, local = false } = {},
+  {
+    caller = null,
+    mcp = false,
+    local = false,
+  }: { caller?: unknown; mcp?: boolean; local?: boolean } = {},
 ) {
   const task = findTask(store, input.taskId),
     dismiss = input.dismiss ?? [];
@@ -1302,7 +1308,11 @@ export function startNowIds(store) {
 // next tick starts it, still within
 // this machine's lanes. A full machine says so
 // and the task stays first in line.
-export function startNow(store, input = {}, { policy = null } = {}) {
+export function startNow(
+  store: Store,
+  input: { taskId?: unknown } = {},
+  { policy = null }: { policy?: { delivery?: unknown } | null } = {},
+) {
   const task = findTask(store, input.taskId),
     delivery = policy?.delivery;
   if (taskKind(task) !== "leaf")
@@ -1543,7 +1553,10 @@ export function workerBrief(
 // a delivery under way (anything but `failed`), or a runner attempt that
 // ended but the tick has not recorded yet. Readiness excludes them, so a
 // claimed task never appears ready twice. Reads only.
-export function busyTaskIds(store, bindings = listSessionBindings(store)) {
+export function busyTaskIds(
+  store: Store,
+  bindings = listSessionBindings(store),
+): Set<string> {
   const claimed = new Set(),
     deliveries = new Map(
       store.list("task_deliveries").map((d) => [d.taskId, d]),
@@ -1611,7 +1624,7 @@ export function readyCandidates(
     bindings = listSessionBindings(store),
     paused = true,
   } = {},
-) {
+): Task[] {
   const line = paused ? linePausedTaskIds(store, data) : new Set(),
     // Specs whose spec issue the label filters (simplify §D5) or the
     // assignee rule (workflow v1 rule 8.3) hold.
