@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt, see the commit message
 // Shared steps for the live proofs that run Avoozl as a machine of its own
 // under a temporary HOME. Avoozl's modules are imported only when called, so
 // a script sets XDG_CONFIG_HOME and XDG_STATE_HOME first.
@@ -6,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { claudeBinaries } from "./real-claude.mjs";
+import { claudeBinaries } from "./real-claude.ts";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -363,7 +364,7 @@ export async function startMachine(run, script, seconds, preflight = null) {
     proxy = spawn(
       process.execPath,
       [
-        path.join(run.repo, "scripts", "proofs", "p57-model-proxy.mjs"),
+        path.join(run.repo, "scripts", "proofs", "p57-model-proxy.ts"),
         String(run.proxyPort),
         run.paths.proxyLog,
       ],

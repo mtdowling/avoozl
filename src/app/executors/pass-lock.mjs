@@ -26,6 +26,10 @@ export function readRecord(file) {
 const isBusy = (error) =>
   /database is locked|SQLITE_BUSY|busy/i.test(String(error?.message));
 
+// Open locks, kept reachable: a lock lives as long as its connection, and a
+// caller that drops the handle must not let the garbage collector close it.
+const open = new Set();
+
 // Try once to take the lock at `lock`. Returns { held: true, close } or
 // { held: false }. Any other failure is thrown.
 export function tryLock(lock) {
@@ -44,11 +48,13 @@ export function tryLock(lock) {
     throw error;
   }
   let closed = false;
+  open.add(db);
   return {
     held: true,
     close() {
       if (closed) return;
       closed = true;
+      open.delete(db);
       db.close();
     },
   };

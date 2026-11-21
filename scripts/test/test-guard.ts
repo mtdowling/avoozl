@@ -1,4 +1,5 @@
-// Loaded into every test process by scripts/test/run-tests.mjs (NODE_OPTIONS
+// @ts-nocheck: typing debt, see the commit message
+// Loaded into every test process by scripts/test/run-tests.ts (NODE_OPTIONS
 // --import). A write under one of the person's real Avoozl folders, named
 // in AVOOZL_TEST_GUARD as a JSON list, throws, so the test that made it
 // fails by name. The runner already points XDG_CONFIG_HOME and

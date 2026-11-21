@@ -1,4 +1,4 @@
-// scripts/test/test-guard.mjs: a test process that writes under a guarded folder
+// scripts/test/test-guard.ts: a test process that writes under a guarded folder
 // fails; reads and writes elsewhere go on.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -16,7 +16,7 @@ const GUARD = pathToFileURL(
     "..",
     "scripts",
     "test",
-    "test-guard.mjs",
+    "test-guard.ts",
   ),
 ).href;
 

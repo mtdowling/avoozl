@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Maps changed paths to the tests that can be affected. Pull requests and
 // `npm run test:changed` use it; main and the nightly run always run it with
 // --full. Anything it cannot classify selects every test.
 //
-//   node scripts/test/select-tests.mjs [--base REV] [--full] [--json] [--github-output]
+//   node scripts/test/select-tests.ts [--base REV] [--full] [--json] [--github-output]
 //
 // shortcut: the "reads" tables below were taken from a trace of which repo
 // files each test opens. A new test that reads docs, examples or app files is
@@ -143,7 +144,7 @@ export function select(
   for (const f of changed) {
     if (out.full) break;
     const isTest = /\.test\.mjs$/.test(f);
-    if (f === "scripts/test/run-tests.mjs")
+    if (f === "scripts/test/run-tests.ts")
       full(`${f}: the selector or runner changed`);
     else if (/^scripts\/proofs\//.test(f)) {
       for (const t of pick(SCANNERS, all)) out.node.add(t);

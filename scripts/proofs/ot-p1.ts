@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Proof ot-p1 (otel-export): a fake OTLP collector on 127.0.0.1 receives the
 // timing of tasks a scratch repository lands. Everything runs on this machine
 // in temporary folders: a bare `origin`, a checkout, an isolated Avoozl home,
@@ -8,7 +9,7 @@
 // recording API and OTLP exporter do the rest. Prints one JSON line per
 // observation and writes the receipt; exits 1 on a failed expectation.
 //
-//   node scripts/proofs/ot-p1.mjs <receipt file>
+//   node scripts/proofs/ot-p1.ts <receipt file>
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -24,7 +25,7 @@ for (const name of Object.keys(process.env))
 const imp = (file) => import(path.join(repo, "src", "app", file));
 const [receipt] = process.argv.slice(2);
 if (!receipt) {
-  console.error("Usage: ot-p1.mjs <receipt file>");
+  console.error("Usage: ot-p1.ts <receipt file>");
   process.exit(2);
 }
 
@@ -434,7 +435,7 @@ if (ok) {
   const lines = [
     "# Proof ot-p1: a fake collector receives a scratch repository's tasks",
     "",
-    `Run on ${new Date().toISOString()} by \`node scripts/proofs/ot-p1.mjs\` on ${process.platform}, Node ${process.version}.`,
+    `Run on ${new Date().toISOString()} by \`node scripts/proofs/ot-p1.ts\` on ${process.platform}, Node ${process.version}.`,
     "Everything ran in a temporary folder: a bare origin, a checkout, an isolated machine config and state folder, and a fake OTLP collector on 127.0.0.1. A scripted worker commit stood in for the harness; Avoozl's direct landing, Flow pass, recording API and OTLP exporter did the rest.",
     "",
     "| # | Observation | Result | Detail |",

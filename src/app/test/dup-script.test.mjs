@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const script = path.join(repoRoot, "scripts", "check", "dup.mjs");
+const script = path.join(repoRoot, "scripts", "check", "dup.ts");
 
 // A function long enough to count as a clone when copied.
 const BODY = `export function summarize(rows, options = {}) {

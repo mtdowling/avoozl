@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const script = fileURLToPath(
-  new URL("../../../scripts/check/spec-lint.mjs", import.meta.url),
+  new URL("../../../scripts/check/spec-lint.ts", import.meta.url),
 );
 
 // Lint spec folders `{name: {file: text}}` in a temporary repository.

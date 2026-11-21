@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Every host package from one source (machine-server MS11, design D9):
 // `prompts/<role>.md`, `prompts/skills/<name>.md` and `roles.json`. Each host
 // has one adapter that maps the source to that host's files. `--check` builds
@@ -11,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
+const repositoryRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 function readSource(root) {
   const prompts = path.join(root, "prompts");
@@ -83,7 +84,7 @@ function kirocrew(root, source) {
 
 // The words of each `avoozl` command only a person may run: its help says so.
 async function personOnlyCommands() {
-  const { COMMANDS } = await import("../src/app/cli/cli-commands.mjs");
+  const { COMMANDS } = await import("../../src/app/cli/cli-commands.mjs");
   const prefixes = new Set();
   for (const entry of COMMANDS)
     for (const line of entry.help ?? [])

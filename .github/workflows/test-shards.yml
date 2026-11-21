@@ -78,7 +78,7 @@ jobs:
           if [ "${{ github.event_name }}" = pull_request ]; then
             changed="--changed --base HEAD~1"
           fi
-          node scripts/test/run-tests.mjs --ui $changed --system ${{ inputs.system }} --shard ${{ matrix.shard }}
+          node scripts/test/run-tests.ts --ui $changed --system ${{ inputs.system }} --shard ${{ matrix.shard }}
       # The package check does not depend on the tests: main, the nightly and
       # a manual run do it once per system.
       - run: npm pack --dry-run
@@ -126,7 +126,7 @@ jobs:
           if [ "${{ github.event_name }}" = pull_request ]; then
             changed="--changed --base HEAD~1"
           fi
-          node scripts/test/run-tests.mjs --ui $changed --system linux --chrome-only
+          node scripts/test/run-tests.ts --ui $changed --system linux --chrome-only
       # Every test browser has a profile folder named avoozl-chrome-*. One
       # still running after the tests means a test left its browser open.
       - name: No browser left running

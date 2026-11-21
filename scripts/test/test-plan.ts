@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Splits the selected tests across CI shards and operating systems. Used by
-// scripts/test/run-tests.mjs and, as a script, by the plan job in
+// scripts/test/run-tests.ts and, as a script, by the plan job in
 // .github/workflows/test.yml:
 //
-//   node scripts/test/test-plan.mjs [--base REV] [--full] [--github-output]
+//   node scripts/test/test-plan.ts [--base REV] [--full] [--github-output]
 //
 // prints, for each system, how many test files it runs and in how many shards.
 import fs from "node:fs";
@@ -14,7 +15,7 @@ import {
   nodeTestFiles,
   select,
   uiTestFiles,
-} from "./select-tests.mjs";
+} from "./select-tests.ts";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

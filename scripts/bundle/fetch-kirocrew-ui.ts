@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Fetches the Kiro Crew source the standalone page builds on, at the release
 // named in hosts/kirocrew/ui/kirocrew-pin.json, into a cache outside git, and
 // checks its digest before anything reads a file. No Kiro Crew file is ever
 // committed (SW12.1), and a fetched file is never edited (SW12.3).
 //
-//   node scripts/bundle/fetch-kirocrew-ui.mjs           print the cache folder
-//   node scripts/bundle/fetch-kirocrew-ui.mjs --digest  print the digest of a fetched tree
+//   node scripts/bundle/fetch-kirocrew-ui.ts           print the cache folder
+//   node scripts/bundle/fetch-kirocrew-ui.ts --digest  print the digest of a fetched tree
 //
 // AVOOZL_KIROCREW_SOURCE names a folder that already holds the source (a
 // checkout of the same layout); its digest is checked the same way.

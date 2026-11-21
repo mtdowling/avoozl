@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Writes scripts/test/test-map.json: for each source file, the node test files that
 // run at least one of its functions. Each test file runs alone under V8
-// coverage, and the node processes it starts count too. scripts/test/select-tests.mjs
+// coverage, and the node processes it starts count too. scripts/test/select-tests.ts
 // reads the map. Regenerate it after adding tests or call paths:
 //   npm run test:map
 import fs from "node:fs";
@@ -85,7 +86,7 @@ for (const f of tracked(/^(src\/.*\.mjs|cli\.mjs)$/).filter(
   (f) => !/\.test\.mjs$/.test(f) && !/^src\/app\/(.+\/)?test\//.test(f),
 ))
   files[f] = [...(exercised.get(f) ?? [])].sort();
-// osNeutral is a reviewed list kept by hand (scripts/test/test-plan.mjs); a new
+// osNeutral is a reviewed list kept by hand (scripts/test/test-plan.ts); a new
 // map keeps it as it is.
 const mapFile = path.join(root, "scripts/test/test-map.json"),
   { osNeutral } = JSON.parse(fs.readFileSync(mapFile, "utf8"));

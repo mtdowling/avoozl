@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildHosts } from "../../../scripts/build-hosts.mjs";
+import { buildHosts } from "../../../scripts/bundle/build-hosts.ts";
 import { rolePrompt, shippedPrompts } from "../agents/prompts.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

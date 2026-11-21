@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt, see the commit message
 // Lists the text of every <style> element the page renders (SW2.5), so the
 // server's content security policy can allow each by hash. A text must be
 // known when the page is built: a string, a template, a number, a `+` of

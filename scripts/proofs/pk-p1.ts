@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-nocheck: typing debt, see the commit message
 // Proof pk-p1 (plugin-checks): a slow outside check on a scratch repository.
 // Everything runs on this machine, in a temporary folder: an isolated
 // Avoozl workspace, a scratch repository acme/api with a bare remote, a fake
@@ -10,7 +11,7 @@
 // MCP client) is Avoozl's own code. Prints one JSON line per observation
 // and a summary; exits 1 on any failed expectation.
 //
-//   node scripts/proofs/pk-p1.mjs [--keep] [--fast]
+//   node scripts/proofs/pk-p1.ts [--keep] [--fast]
 //
 // --fast shortens the service's 60 and 90 second waits (for a dry run only;
 // the receipt's run uses the real waits).
