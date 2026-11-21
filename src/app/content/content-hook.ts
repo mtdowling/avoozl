@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The content hook: `avoozl content hook` is a pre-tool-use command for any
 // agent. It reads one shell call from stdin and, for a write to GitHub or a
 // push, runs content rules on the call's text and the lines it would publish
@@ -19,6 +18,7 @@ import {
   sha256,
 } from "./content-rules.ts";
 import { Store } from "../store/store.ts";
+import type { ContentLine } from "./content-rules.ts";
 
 const MAX_STDIN = 1024 * 1024;
 const WRAPPERS = new Set(["env", "command", "time", "sudo", "nohup", "exec"]);
@@ -46,19 +46,30 @@ const GIT_VALUE_FLAGS = new Set([
 
 // One shell command: its words, and whether it carries a here-document.
 export interface ShellCommand {
-  words: { text: string; dynamic: boolean }[];
+  words: Word[];
   heredoc: boolean;
+}
+type Word = { text: string; dynamic: boolean };
+// A command after flatten: the folder it runs in.
+interface Located extends ShellCommand {
+  cwd: string;
+}
+// What a write command is: gh issue, pr or api, or a git write at word `at`.
+interface Kind {
+  kind: string;
+  sub?: string;
+  at?: number;
 }
 
 export function parseShell(input: unknown): ShellCommand[] {
   const s = String(input ?? "").replace(/\\\r?\n/g, ""),
-    commands = [],
-    pending = [];
-  let words = [],
-    cur = null,
+    commands: ShellCommand[] = [],
+    pending: string[] = [];
+  let words: Word[] = [],
+    cur: Word | null = null,
     heredoc = false,
     i = 0;
-  const word = () => (cur ??= { text: "", dynamic: false }),
+  const word = (): Word => (cur ??= { text: "", dynamic: false }),
     endWord = () => {
       if (cur) words.push(cur);
       cur = null;
@@ -81,7 +92,7 @@ export function parseShell(input: unknown): ShellCommand[] {
       i += 1;
       while (i < s.length && s[i] !== '"') {
         if (s[i] === "\\" && '"\\$`'.includes(s[i + 1] ?? "")) {
-          cur.text += s[i + 1];
+          word().text += s[i + 1];
           i += 2;
           continue;
         }
@@ -89,8 +100,8 @@ export function parseShell(input: unknown): ShellCommand[] {
           s[i] === "`" ||
           (s[i] === "$" && /[A-Za-z_{(0-9@*#?!$'-]/.test(s[i + 1] ?? ""))
         )
-          cur.dynamic = true;
-        cur.text += s[i];
+          word().dynamic = true;
+        word().text += s[i];
         i += 1;
       }
       i += 1;
@@ -102,11 +113,11 @@ export function parseShell(input: unknown): ShellCommand[] {
       (c === "$" && /[A-Za-z_{('0-9@*#?!$-]/.test(s[i + 1] ?? ""))
     ) {
       word().dynamic = true;
-      cur.text += c;
+      word().text += c;
       i += 1;
     } else if (c === "<" && s[i + 1] === "(") {
       word().dynamic = true;
-      cur.text += c;
+      word().text += c;
       i += 1;
     } else if (c === "<" && s[i + 1] === "<" && s[i + 2] !== "<") {
       endWord();
@@ -154,7 +165,7 @@ export function parseShell(input: unknown): ShellCommand[] {
 // One command with leading assignments and wrappers removed. A readable
 // `sh -c "..."` string is parsed again; `cd DIR` moves the folder the later
 // commands run in.
-function* flatten(commands, cwd) {
+function* flatten(commands: ShellCommand[], cwd: string): Generator<Located> {
   let at = cwd;
   for (const { words, heredoc } of commands) {
     let list = [...words];
@@ -186,7 +197,7 @@ function* flatten(commands, cwd) {
 // text, labels, branch and remote names alike), so no flag table can miss a
 // place text goes. Files named by a body or message file flag are read.
 
-function classify(words) {
+function classify(words: Word[]): Kind | null {
   const program = path.basename(words[0].text),
     first = words[1]?.text,
     second = words[2]?.text;
@@ -214,10 +225,13 @@ function classify(words) {
       ? { kind: "api" }
       : null;
   }
-  return WRITES[first]?.has(second) ? { kind: first, sub: second } : null;
+  const writes = first === "issue" || first === "pr" ? WRITES[first] : null;
+  return first && second && writes?.has(second)
+    ? { kind: first, sub: second }
+    : null;
 }
 
-const repositoryFrom = (words, cwd) => {
+const repositoryFrom = (words: Word[], cwd: string) => {
   const flag = words.findIndex((w) => /^(-R|--repo)(=|$)/.test(w.text));
   if (flag >= 0) {
     const w = words[flag].text;
@@ -242,7 +256,7 @@ const repositoryFrom = (words, cwd) => {
   }
 };
 
-const git = (cwd, args) =>
+const git = (cwd: string, args: string[]) =>
   execFileSync("git", args, {
     cwd,
     encoding: "utf8",
@@ -251,7 +265,12 @@ const git = (cwd, args) =>
 
 // The base a push or pull request is measured against: the merge base of
 // `head` with the first remote branch that exists.
-function baseFor(cwd, head, remote, branches) {
+function baseFor(
+  cwd: string,
+  head: string,
+  remote: string,
+  branches: (string | null | undefined)[],
+) {
   for (const name of [...branches, "HEAD", "main", "master"].filter(Boolean))
     try {
       return git(cwd, ["merge-base", head, `refs/remotes/${remote}/${name}`]);
@@ -260,11 +279,11 @@ function baseFor(cwd, head, remote, branches) {
 }
 
 // {texts, outgoing, refusals} for one write command.
-function writeOf(command, kind) {
+function writeOf(command: Located, kind: Kind) {
   const { words, cwd } = command,
-    refusals = [],
-    texts = [],
-    note = (reason) => refusals.push(reason),
+    refusals: string[] = [],
+    texts: ContentLine[] = [],
+    note = (reason: string) => refusals.push(reason),
     label = `${kind.kind === "git" ? "git" : "gh"} ${kind.sub ?? kind.kind}`;
   if (command.heredoc)
     note(
@@ -283,7 +302,7 @@ function writeOf(command, kind) {
       );
   });
   words.forEach((w, i) => {
-    let file = null;
+    let file: string | null = null;
     const eq = /^(--[a-z-]+|-F)=(.*)$/.exec(w.text);
     if (eq && FILE_FLAGS.has(eq[1])) file = eq[2];
     else if (
@@ -320,7 +339,7 @@ function writeOf(command, kind) {
 }
 
 // Commit messages and added lines a `git push` or `gh pr create` publishes.
-function outgoingLines(command, kind) {
+function outgoingLines(command: Located, kind: Kind): ContentLine[] {
   const { words, cwd } = command,
     at = kind.at ?? 1,
     args = words.slice(at + 1).map((w) => w.text);
@@ -348,7 +367,7 @@ function outgoingLines(command, kind) {
         pushLines(root, baseFor(root, p.src, remote, [p.dst]), p.src, [p.dst]),
       );
   }
-  const value = (names) => {
+  const value = (names: string[]) => {
       const i = args.findIndex((a) =>
         names.some((n) => a === n || a.startsWith(`${n}=`)),
       );
@@ -357,7 +376,7 @@ function outgoingLines(command, kind) {
     },
     head = value(["--head", "-H"]) ?? "HEAD",
     base = value(["--base", "-B"]);
-  const local = head === "HEAD" ? "HEAD" : head.split(":").pop();
+  const local = head === "HEAD" ? "HEAD" : (head.split(":").pop() ?? head);
   let ref = local;
   try {
     git(root, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
@@ -369,15 +388,22 @@ function outgoingLines(command, kind) {
 
 // scanCall(store, {command, cwd}): {ok, refusals: [text]}. Never the matched
 // text.
-export function scanCall(store, { command, cwd = process.cwd() }) {
-  const refusals = [],
-    found = [];
+export function scanCall(
+  store: Store,
+  { command, cwd = process.cwd() }: { command: unknown; cwd?: string },
+) {
+  const refusals: string[] = [],
+    found: {
+      repository: string | null | undefined;
+      texts: ContentLine[];
+      outgoing: ContentLine[];
+    }[] = [];
   for (const one of flatten(parseShell(command), cwd)) {
     const kind = classify(one.words);
     if (!kind) continue;
     const { texts, refusals: problems, label } = writeOf(one, kind);
     refusals.push(...problems);
-    let outgoing = [];
+    let outgoing: ContentLine[] = [];
     if (
       kind.kind === "git"
         ? kind.sub === "push"
@@ -387,7 +413,11 @@ export function scanCall(store, { command, cwd = process.cwd() }) {
         outgoing = outgoingLines(one, kind);
       } catch (error) {
         refusals.push(
-          `${label}: the hook cannot read the commits it would publish (${String(error.message).split("\n")[0].slice(0, 120)}).`,
+          `${label}: the hook cannot read the commits it would publish (${String(
+            error instanceof Error ? error.message : error,
+          )
+            .split("\n")[0]
+            .slice(0, 120)}).`,
         );
       }
     found.push({
@@ -400,7 +430,7 @@ export function scanCall(store, { command, cwd = process.cwd() }) {
     for (const [boundary, added] of [
       ["github", texts],
       ["diff", outgoing],
-    ]) {
+    ] satisfies [string, ContentLine[]][]) {
       if (!added.length) continue;
       const result = check(store, {
         boundary,
@@ -436,7 +466,8 @@ export function contentHook({
   configFile?: string;
   cwd?: string;
 }) {
-  let event;
+  // The hook event's JSON: only these fields are read.
+  let event: { tool_input?: { command?: unknown }; cwd?: unknown } | null;
   try {
     event = JSON.parse(String(stdin || "{}").slice(0, MAX_STDIN));
   } catch {
@@ -447,8 +478,9 @@ export function contentHook({
   }
   const command = event?.tool_input?.command;
   if (typeof command !== "string") return { code: 0, stderr: "" };
-  let store;
+  let store: Store | undefined;
   try {
+    if (!dbPath) throw Error("No workspace database to check against.");
     store = new Store(dbPath);
     bindContentRules(store, {
       workspaceRoot,
@@ -457,7 +489,10 @@ export function contentHook({
     });
     const result = scanCall(store, {
       command,
-      cwd: path.isAbsolute(event.cwd ?? "") ? event.cwd : cwd,
+      cwd:
+        typeof event?.cwd === "string" && path.isAbsolute(event.cwd)
+          ? event.cwd
+          : cwd,
     });
     return result.ok
       ? { code: 0, stderr: "" }
