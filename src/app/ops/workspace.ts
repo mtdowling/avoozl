@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import os from "node:os";
 import { auditPlans } from "../../mcp.mjs";

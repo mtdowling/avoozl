@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import { workspaceConfig } from "../settings/config.mjs";
 import { WorkspaceRegistry } from "../settings/host-config.mjs";

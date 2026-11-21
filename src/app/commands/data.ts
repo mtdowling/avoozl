@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import { Store, privateFile } from "../store/store.ts";
 import fs from "node:fs";

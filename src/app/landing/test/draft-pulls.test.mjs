@@ -20,7 +20,7 @@ function sources(dir) {
       return entry.name === "test" || entry.name === "node_modules"
         ? []
         : sources(path);
-    return entry.name.endsWith(".mjs") ? [path] : [];
+    return /\.(mjs|ts)$/.test(entry.name) ? [path] : [];
   });
 }
 

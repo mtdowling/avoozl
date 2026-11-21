@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // Operations of one feature: name, class, MCP policy and handler.
 import { planningIdentity } from "../github/github-marker.mjs";
 import { publishSpec } from "../specs/spec-publication.mjs";

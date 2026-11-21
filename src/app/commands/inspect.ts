@@ -1,9 +1,10 @@
+// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import { validate } from "../../model.mjs";
 import { Store } from "../store/store.ts";
 import fs from "node:fs";
 import { help } from "../cli/command-help.mjs";
-import { runWorkspace } from "./setup.mjs";
+import { runWorkspace } from "./setup.ts";
 import { credentialsProblems } from "../github/github-credentials.mjs";
 import { pluginSettingsPath } from "../plugins/plugins.mjs";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 // Epic context (epic-context EC2.3, EC4.2): the machine block and a plugin
 // ask's answer, a person's acts at a terminal.

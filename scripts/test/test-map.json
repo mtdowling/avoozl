@@ -1036,11 +1036,11 @@
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
-  "src/app/commands/context.mjs": [
+  "src/app/commands/context.ts": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/context/test/context-cli.test.mjs"
   ],
-  "src/app/commands/data.mjs": [
+  "src/app/commands/data.ts": [
    "src/app/cli/test/cli-help.test.mjs",
    "src/app/cli/test/cli-person-only.test.mjs",
    "src/app/cli/test/cli-smoke.test.mjs",
@@ -1053,7 +1053,7 @@
    "src/app/tick/test/tick-pass.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
-  "src/app/commands/delivery.mjs": [
+  "src/app/commands/delivery.ts": [
    "src/app/cli/test/cli-person-only.test.mjs",
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/content/test/content-hook-cli.test.mjs",
@@ -1069,13 +1069,13 @@
    "src/app/workers/test/stale-claims.test.mjs",
    "src/tick-watchdog.test.mjs"
   ],
-  "src/app/commands/inspect.mjs": [
+  "src/app/commands/inspect.ts": [
    "src/app/cli/test/cli-help.test.mjs",
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/test/proof-p28.test.mjs",
    "src/app/test/setup-rebuild.test.mjs"
   ],
-  "src/app/commands/machine.mjs": [
+  "src/app/commands/machine.ts": [
    "src/app/api/test/harness-approve.test.mjs",
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/executors/test/kirocrew-runtime.test.mjs",
@@ -1092,10 +1092,10 @@
    "src/app/workers/test/report-command.test.mjs",
    "src/app/workspace/test/machine-status.test.mjs"
   ],
-  "src/app/commands/plans.mjs": [
+  "src/app/commands/plans.ts": [
    "src/app/cli/test/cli-smoke.test.mjs"
   ],
-  "src/app/commands/setup.mjs": [
+  "src/app/commands/setup.ts": [
    "src/app/cli/test/cli-help.test.mjs",
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/content/test/content-hook-cli.test.mjs",
@@ -1113,7 +1113,7 @@
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
   ],
-  "src/app/commands/telemetry.mjs": [
+  "src/app/commands/telemetry.ts": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/telemetry/test/operations.test.mjs"
   ],
@@ -4314,19 +4314,19 @@
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
   ],
-  "src/app/ops/content.mjs": [
+  "src/app/ops/content.ts": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/test/content-terms.test.mjs",
    "src/app/test/proof-p28.test.mjs"
   ],
-  "src/app/ops/context.mjs": [
+  "src/app/ops/context.ts": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/context/test/context-cli.test.mjs",
    "src/app/context/test/epic-context-config.test.mjs",
    "src/app/context/test/plugin-context.test.mjs"
   ],
-  "src/app/ops/delivery.mjs": [
+  "src/app/ops/delivery.ts": [
    "src/app/api/test/command-dispatch.test.mjs",
    "src/app/api/test/page-views.test.mjs",
    "src/app/cli/test/cli-smoke.test.mjs",
@@ -4362,7 +4362,7 @@
    "src/app/workers/test/manual-take.test.mjs",
    "src/app/workers/test/stale-claims.test.mjs"
   ],
-  "src/app/ops/flow.mjs": [
+  "src/app/ops/flow.ts": [
    "src/app/api/test/harness-approve.test.mjs",
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/flow/test/flow-andon.test.mjs",
@@ -4375,7 +4375,7 @@
    "src/app/test/role-harness.test.mjs",
    "src/app/tick/test/needs-kirocrew.test.mjs"
   ],
-  "src/app/ops/github.mjs": [
+  "src/app/ops/github.ts": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/executors/test/kirocrew-runtime.test.mjs",
    "src/app/github/test/github-branch-rules.test.mjs",
@@ -4386,12 +4386,12 @@
    "src/app/specs/test/spec-publication.test.mjs",
    "src/app/test/home-no-wait.test.mjs"
   ],
-  "src/app/ops/intake.mjs": [
+  "src/app/ops/intake.ts": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/specs/test/spec-publication.test.mjs"
   ],
-  "src/app/ops/plans.mjs": [
+  "src/app/ops/plans.ts": [
    "src/app/api/test/command-dispatch.test.mjs",
    "src/app/api/test/page-actions.test.mjs",
    "src/app/cli/test/cli-person-only.test.mjs",
@@ -4425,7 +4425,7 @@
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
-  "src/app/ops/plugins.mjs": [
+  "src/app/ops/plugins.ts": [
    "src/app/agents/test/agent-instructions.test.mjs",
    "src/app/api/test/command-dispatch.test.mjs",
    "src/app/api/test/harness-approve.test.mjs",
@@ -4574,7 +4574,7 @@
    "src/app/workspace/test/workspace.test.mjs",
    "src/tick-watchdog.test.mjs"
   ],
-  "src/app/ops/sessions.mjs": [
+  "src/app/ops/sessions.ts": [
    "src/app/api/test/page-actions.test.mjs",
    "src/app/api/test/page-views.test.mjs",
    "src/app/api/test/served-model-gate.test.mjs",
@@ -4616,14 +4616,14 @@
    "src/app/workers/test/report-match.test.mjs",
    "src/app/workspace/test/disk-space.test.mjs"
   ],
-  "src/app/ops/specs.mjs": [
+  "src/app/ops/specs.ts": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/mcp/test/mcp-tools.test.mjs",
    "src/app/specs/test/graph.test.mjs",
    "src/app/specs/test/spec-publication.test.mjs",
    "src/app/workspace/test/workspace-repository.test.mjs"
   ],
-  "src/app/ops/tasks.mjs": [
+  "src/app/ops/tasks.ts": [
    "src/app/agents/test/agent-instructions.test.mjs",
    "src/app/api/test/command-dispatch.test.mjs",
    "src/app/api/test/page-actions.test.mjs",
@@ -4676,11 +4676,11 @@
    "src/app/workspace/test/workspace-repository.test.mjs",
    "src/app/workspace/test/workspace.test.mjs"
   ],
-  "src/app/ops/telemetry.mjs": [
+  "src/app/ops/telemetry.ts": [
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/telemetry/test/operations.test.mjs"
   ],
-  "src/app/ops/workspace.mjs": [
+  "src/app/ops/workspace.ts": [
    "src/app/api/test/served-model-gate.test.mjs",
    "src/app/cli/test/cli-smoke.test.mjs",
    "src/app/delivery/test/check-runs.test.mjs",

@@ -3,14 +3,14 @@
 // subcommand), `help` its usage lines for `avoozl help` (cli-help.mjs renders
 // them) and `run` receives the parsed command line and the helpers cli.mjs
 // builds. The dispatcher and the help both read this table.
-import { commands as plans } from "../commands/plans.mjs";
-import { commands as delivery } from "../commands/delivery.mjs";
-import { commands as machine } from "../commands/machine.mjs";
-import { commands as inspect } from "../commands/inspect.mjs";
-import { commands as setup } from "../commands/setup.mjs";
-import { commands as data } from "../commands/data.mjs";
-import { commands as context } from "../commands/context.mjs";
-import { commands as telemetry } from "../commands/telemetry.mjs";
+import { commands as plans } from "../commands/plans.ts";
+import { commands as delivery } from "../commands/delivery.ts";
+import { commands as machine } from "../commands/machine.ts";
+import { commands as inspect } from "../commands/inspect.ts";
+import { commands as setup } from "../commands/setup.ts";
+import { commands as data } from "../commands/data.ts";
+import { commands as context } from "../commands/context.ts";
+import { commands as telemetry } from "../commands/telemetry.ts";
 
 export const COMMANDS = [
   ...plans,

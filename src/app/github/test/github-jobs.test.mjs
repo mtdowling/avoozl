@@ -127,7 +127,7 @@ test("every job in JOBS is named somewhere outside the table", () => {
       .split("\n")
       .filter(
         (file) =>
-          file.endsWith(".mjs") &&
+          /\.(mjs|ts)$/.test(file) &&
           !file.includes("/test/") &&
           !file.endsWith("github-jobs.mjs"),
       ),

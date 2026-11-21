@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Store } from "../../store/store.ts";
 import { Operations } from "../../api/operations.mjs";
-import { commands } from "../../commands/delivery.mjs";
+import { commands } from "../../commands/delivery.ts";
 import { JOBS } from "../../github/github-jobs.mjs";
 import {
   claimsNeedsYou,

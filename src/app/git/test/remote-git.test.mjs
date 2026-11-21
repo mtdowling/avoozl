@@ -245,7 +245,7 @@ test("no network git call in src/app runs outside remoteGit", () => {
       encoding: "utf8",
     })
       .split("\n")
-      .filter((f) => f.endsWith(".mjs") && !f.includes("/test/")),
+      .filter((f) => /\.(mjs|ts)$/.test(f) && !f.includes("/test/")),
     // Plugin fetches keep the person's own git (R34.13).
     exempt = (f) => f.endsWith("plugin-git.mjs") || f.endsWith("git/git.mjs"),
     found = [];

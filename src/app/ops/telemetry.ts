@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // The OTLP exporter's status and its machine setting (spec otel-export, OT5,
 // OT11, §D6, §D11).
 import path from "node:path";

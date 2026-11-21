@@ -160,7 +160,7 @@ test("every git call on a task folder in src/app goes through taskGit", () => {
       const file = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         if (entry.name !== "test") walk(file);
-      } else if (entry.name.endsWith(".mjs"))
+      } else if (/\.(mjs|ts)$/.test(entry.name))
         fs.readFileSync(file, "utf8")
           .split("\n")
           .forEach((line, index) => {

@@ -1,3 +1,4 @@
+// @ts-nocheck: typing debt
 // CLI commands of one kind: command, help lines and run.
 import { runPass } from "../tick/tick-pass.mjs";
 import { machineAvoozlPaths } from "../settings/host-config.mjs";
