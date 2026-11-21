@@ -20,7 +20,7 @@ interface LandingBlock {
   commitPrefix?: string;
 }
 // The parts of the configuration these settings read.
-interface LandingConfig {
+export interface LandingConfig {
   github?: {
     repositories?: Record<
       string,

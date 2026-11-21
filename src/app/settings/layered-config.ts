@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 import { validateTelemetry } from "./telemetry-config.ts";
 import { validateLoop } from "../tick/loop.ts";
 import { validateNotifications } from "../tick/notification-sinks.ts";
@@ -10,6 +9,7 @@ import { validateRoles } from "../agents/role-table.ts";
 import { validateLanes } from "../tick/lanes.ts";
 import {
   assertNoMachineKeys,
+  type LandingConfig,
   validateLandingConfig,
 } from "../landing/landing-config.ts";
 import { specsPathProblem } from "../specs/specs-path.ts";
@@ -26,7 +26,42 @@ export const avoozlConfigSchemaPath = fileURLToPath(
 // It also holds a setting only a machine has: each content rule set's terms
 // file (`contentRules.terms`, content-rules.mjs), which checks its own value.
 const MACHINE_ONLY = new Set(["contentRules.terms"]);
-const readSchema = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
+// A JSON object read from a file or built from settings.
+type Json = Record<string, unknown>;
+// The part of a JSON Schema node the key check reads.
+interface SchemaNode {
+  $ref?: string;
+  items?: SchemaNode;
+  oneOf?: SchemaNode[];
+  anyOf?: SchemaNode[];
+  properties?: Record<string, SchemaNode>;
+  additionalProperties?: boolean | SchemaNode;
+}
+interface Schema extends SchemaNode {
+  properties: Record<string, SchemaNode>;
+  $defs: Record<string, SchemaNode>;
+}
+// The merged settings, by the top-level keys callers read; the validators
+// below check each value before it is returned.
+export interface LayeredConfig extends LandingConfig {
+  name?: string;
+  operator?: string;
+  dbPath?: string;
+  documents?: string;
+  port?: number | string;
+  host?: string;
+  specs?: { path?: string; branch?: string };
+  lanes?: Record<string, number>;
+  [key: string]: unknown;
+}
+// One configuration layer: where it came from and what it sets.
+interface Layer {
+  label: string;
+  filename?: string;
+  value: Json;
+}
+const readSchema = (file: string): Schema =>
+  JSON.parse(fs.readFileSync(file, "utf8"));
 const SCHEMA = readSchema(avoozlConfigSchemaPath);
 const HOST_KEYS = new Set(
   Object.keys(
@@ -38,17 +73,25 @@ const HOST_KEYS = new Set(
 
 // A `$ref` resolved, and the object schemas a value may match: the node
 // and its oneOf and anyOf branches.
-const own = (object, key) => isRecord(object) && Object.hasOwn(object, key);
-const resolve = (node) =>
-  node?.$ref ? resolve(SCHEMA.$defs[node.$ref.split("/").at(-1)]) : node;
-const branches = (node) =>
+const own = (object: unknown, key: string) =>
+  isRecord(object) && Object.hasOwn(object, key);
+const resolve = (node: SchemaNode | undefined): SchemaNode | undefined =>
+  node?.$ref ? resolve(SCHEMA.$defs[node.$ref.split("/").at(-1) ?? ""]) : node;
+const branches = (node: SchemaNode | undefined) =>
   [node, ...(node?.oneOf ?? []), ...(node?.anyOf ?? [])]
     .map(resolve)
-    .filter((branch) => branch && typeof branch === "object");
+    .filter(
+      (branch): branch is SchemaNode => !!branch && typeof branch === "object",
+    );
 
 // The dotted path of the first key under `value` that `node` does not
 // list, or null. `allowed` paths are not checked.
-function unknownKey(value, node, trail, allowed) {
+function unknownKey(
+  value: unknown,
+  node: SchemaNode | undefined,
+  trail: (string | number)[],
+  allowed: Set<string>,
+): string | null {
   if (Array.isArray(value)) {
     const items = resolve(node)?.items;
     for (const [index, item] of value.entries()) {
@@ -65,7 +108,11 @@ function unknownKey(value, node, trail, allowed) {
     if (allowed.has(at.join("."))) continue;
     const named = shapes.find((shape) => own(shape.properties, key)),
       open = shapes.find((shape) => isRecord(shape.additionalProperties)),
-      next = named?.properties[key] ?? open?.additionalProperties;
+      next =
+        named?.properties?.[key] ??
+        (isRecord(open?.additionalProperties)
+          ? open.additionalProperties
+          : undefined);
     if (next) {
       const found = unknownKey(child, next, at, allowed);
       if (found) return found;
@@ -76,8 +123,12 @@ function unknownKey(value, node, trail, allowed) {
 }
 
 // Refuse a key the schema does not list, naming the file and the key path.
-export function assertKnownKeys(value, source, { machine = false } = {}) {
-  const allowed = machine ? MACHINE_ONLY : new Set();
+export function assertKnownKeys(
+  value: Json,
+  source: string,
+  { machine = false } = {},
+) {
+  const allowed = machine ? MACHINE_ONLY : new Set<string>();
   const found = unknownKey(
     Object.fromEntries(
       Object.entries(value).filter(
@@ -95,25 +146,29 @@ export function assertKnownKeys(value, source, { machine = false } = {}) {
 const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 const EXPLICIT_PATH_KEYS = new Set(["dbPath", "documents"]);
 
-function isRecord(value) {
+function isRecord(value: unknown): value is Json {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function normalizedKey(key) {
+function normalizedKey(key: string) {
   return key
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .replace(/[^a-zA-Z0-9]+/g, "_")
     .toLowerCase();
 }
 
-function secretLikeKey(key) {
+function secretLikeKey(key: string) {
   const normalized = normalizedKey(key);
   return /(^|_)(?:api_key|access_key(?:_id)?|private_key|client_secret|secret|password|passwd|token|credential)s?(?:_|$)/.test(
     normalized,
   );
 }
 
-export function assertSafeConfig(value, source = "configuration", trail = []) {
+export function assertSafeConfig(
+  value: unknown,
+  source = "configuration",
+  trail: string[] = [],
+) {
   if (Array.isArray(value)) {
     value.forEach((item, index) =>
       assertSafeConfig(item, source, [...trail, String(index)]),
@@ -138,7 +193,7 @@ export function assertSafeConfig(value, source = "configuration", trail = []) {
   }
 }
 
-function pathField(trail) {
+function pathField(trail: string[]) {
   const field = trail.join(".");
   if (EXPLICIT_PATH_KEYS.has(field)) return true;
   // Relative to the spec repository's root wherever it is read, so it is
@@ -152,7 +207,7 @@ function pathField(trail) {
   );
 }
 
-function absolutePortablePath(value) {
+function absolutePortablePath(value: string) {
   return (
     path.isAbsolute(value) ||
     path.win32.isAbsolute(value) ||
@@ -161,9 +216,9 @@ function absolutePortablePath(value) {
 }
 
 export function assertPortableRepositoryConfig(
-  value,
+  value: unknown,
   source = "repository Avoozl configuration",
-  trail = [],
+  trail: string[] = [],
 ) {
   if (Array.isArray(value)) {
     value.forEach((item, index) =>
@@ -187,7 +242,11 @@ export function assertPortableRepositoryConfig(
     );
 }
 
-function resolveLayerPaths(value, base, trail = []) {
+function resolveLayerPaths(
+  value: unknown,
+  base: string,
+  trail: string[] = [],
+): unknown {
   if (Array.isArray(value))
     return value.map((item, index) =>
       resolveLayerPaths(item, base, [...trail, String(index)]),
@@ -211,10 +270,10 @@ function resolveLayerPaths(value, base, trail = []) {
 }
 
 function readLayer(
-  filename,
-  label,
+  filename: string,
+  label: string,
   { portable = false, machine = false } = {},
-) {
+): Layer | null {
   if (!fs.existsSync(filename)) return null;
   let value;
   try {
@@ -223,9 +282,13 @@ function readLayer(
     // A supervisor child's sandbox hides Avoozl's machine config on purpose
     // (R95.6). There it reads as absent, so the CLI still answers, and
     // refuses person-only commands with its own reason (R95.5).
-    if (process.env.AVOOZL_CHILD && ["EPERM", "EACCES"].includes(error.code))
+    const failed = error as NodeJS.ErrnoException;
+    if (
+      process.env.AVOOZL_CHILD &&
+      ["EPERM", "EACCES"].includes(String(failed.code))
+    )
       return null;
-    throw Error(`Could not parse ${label} at ${filename}: ${error.message}`);
+    throw Error(`Could not parse ${label} at ${filename}: ${failed.message}`);
   }
   if (!isRecord(value))
     throw Error(`${label} at ${filename} must contain a JSON object.`);
@@ -238,11 +301,11 @@ function readLayer(
   return {
     label,
     filename,
-    value: resolveLayerPaths(value, path.dirname(filename)),
+    value: resolveLayerPaths(value, path.dirname(filename)) as Json,
   };
 }
 
-function deepMerge(left, right) {
+function deepMerge(left: Json, right: Json): Json {
   if (!isRecord(left) || !isRecord(right)) return structuredClone(right);
   const result = structuredClone(left);
   for (const [key, value] of Object.entries(right))
@@ -253,8 +316,8 @@ function deepMerge(left, right) {
   return result;
 }
 
-function environmentLayer(env) {
-  const value = {
+function environmentLayer(env: NodeJS.ProcessEnv) {
+  const value: Record<string, string | undefined> = {
     dbPath: env.AVOOZL_DB,
     documents: env.AVOOZL_DOCUMENTS,
     operator: env.AVOOZL_OPERATOR,
@@ -266,7 +329,7 @@ function environmentLayer(env) {
   return value;
 }
 
-function option(options, ...names) {
+function option(options: Record<string, unknown>, ...names: string[]) {
   for (const name of names) {
     const value = options[name];
     if (value !== undefined && value !== null && value !== "") return value;
@@ -274,8 +337,8 @@ function option(options, ...names) {
   return undefined;
 }
 
-function commandLineLayer(options) {
-  const value = {
+function commandLineLayer(options: Record<string, unknown>) {
+  const value: Record<string, unknown> = {
     name: option(options, "name"),
     operator: option(options, "operator"),
     dbPath: option(options, "db", "dbPath"),
@@ -300,7 +363,7 @@ export function crewHomeAvoozlDirectory({
 } = {}) {
   if (!env.KIROCREW_HOME) return null;
   const p = platform === "win32" ? path.win32 : path.posix;
-  const real = (file) => {
+  const real = (file: string) => {
     try {
       return fs.realpathSync.native(file);
     } catch {
@@ -332,10 +395,9 @@ export function globalAvoozlConfigPath({
 // (specs-branch.mjs). The symlink check needs the checkout, so specsPath
 // makes it when it reads.
 export const SPECS_KEYS = ["path", "branch"];
-function validateSpecs(value) {
+function validateSpecs(value: unknown) {
   if (value === undefined) return;
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw Error("specs must be an object.");
+  if (!isRecord(value)) throw Error("specs must be an object.");
   for (const key of Object.keys(value))
     if (!SPECS_KEYS.includes(key))
       throw Error(
@@ -366,20 +428,23 @@ export function loadLayeredConfig({
     global: globalAvoozlConfigPath({ env, home }),
     repository: path.join(workspaceRoot, ".avoozl.json"),
   };
-  const fileLayers = [
+  const fileLayers: Layer[] = [
     readLayer(files.global, "global Avoozl configuration", { machine: true }),
     readLayer(files.repository, "repository Avoozl configuration", {
       portable: true,
     }),
-  ].filter(Boolean);
-  const volatileLayers = [
+  ].filter((layer) => layer !== null);
+  const volatileLayers: Layer[] = [
     {
       label: "environment configuration",
-      value: resolveLayerPaths(environmentLayer(env), workspaceRoot),
+      value: resolveLayerPaths(environmentLayer(env), workspaceRoot) as Json,
     },
     {
       label: "command-line configuration",
-      value: resolveLayerPaths(commandLineLayer(options), workspaceRoot),
+      value: resolveLayerPaths(
+        commandLineLayer(options),
+        workspaceRoot,
+      ) as Json,
     },
   ];
   for (const layer of volatileLayers)
@@ -387,8 +452,12 @@ export function loadLayeredConfig({
   const layers = [...fileLayers, ...volatileLayers].filter(
     (layer) => Object.keys(layer.value).length,
   );
-  const mergeLayers = (selected) =>
-    selected.reduce((result, layer) => deepMerge(result, layer.value), {});
+  // The merged JSON, read as the settings it holds.
+  const mergeLayers = (selected: Layer[]) =>
+    selected.reduce<Json>(
+      (result, layer) => deepMerge(result, layer.value),
+      {},
+    ) as LayeredConfig;
   const config = mergeLayers(layers);
   validateRoles(config);
   validateLanes(config.lanes);
