@@ -1,32 +1,33 @@
-// @ts-nocheck: typing debt
 // ot-2.1 to ot-2.3: Flow writes and reads timing through the recording API
 // (OT1.1, OT1.3, OT1.7, OT3, OT8.6, OT8.7).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import type { TestContext } from "node:test";
 import { gatewayUsageTurns } from "../../executors/kirocrew.ts";
 import { listSpans, putStop, syncSpans, taskTiming } from "../../flow/flow.ts";
 import { Store } from "../../store/store.ts";
 import { seedSpan, snapshot } from "../../test/fixtures.ts";
 import { recordUsage } from "../usage.ts";
+import type { Task } from "../../../types.ts";
 
-const at = (m) =>
+const at = (m: number) =>
   new Date(Date.parse("2026-11-12T10:00:00Z") + m * 60_000).toISOString();
 
-function open(t, tasks = []) {
+function open(t: TestContext, tasks: Task[] = []) {
   const store = new Store(":memory:");
   t.after(() => store.close());
   store.initialize({ ...snapshot(), tasks: [...snapshot().tasks, ...tasks] });
   return store;
 }
-const rows = (store, table, where = "1") =>
+const rows = (store: Store, table: string, where = "1") =>
   store.db.prepare(`SELECT * FROM ${table} WHERE ${where}`).all();
 
 test("no source file writes a span or usage table of its own", () => {
   const root = path.resolve(import.meta.dirname, "../..");
-  const hits = [];
-  const walk = (dir) => {
+  const hits: string[] = [];
+  const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
@@ -97,7 +98,7 @@ test("Flow's spans live in telemetry_spans and read back in Flow's shape", (t) =
 });
 
 test("Flow's pass records each finished task's root once, with its first-pass result", (t) => {
-  const finished = (id, extra = {}) => ({
+  const finished = (id: string, extra: Partial<Task> = {}): Task => ({
     id,
     title: id,
     kind: "leaf",
@@ -277,7 +278,7 @@ test("a stop and its resume give one pulled and one resumed point, with no check
   const points = rows(store, "telemetry_points").map((p) => [
     p.id,
     p.at,
-    JSON.parse(p.attrs),
+    JSON.parse(String(p.attrs)),
   ]);
   assert.deepEqual(points, [
     [
@@ -302,5 +303,5 @@ test("a stop and its resume give one pulled and one resumed point, with no check
   assert.ok(
     !JSON.stringify(rows(store, "telemetry_points")).includes("npm test"),
   );
-  assert.equal(store.get("flow_stops", "stop:app:1").closedAt, at(5));
+  assert.equal(store.get("flow_stops", "stop:app:1")?.closedAt, at(5));
 });

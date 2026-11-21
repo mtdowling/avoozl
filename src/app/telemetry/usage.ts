@@ -26,7 +26,13 @@ const count = (v: unknown) =>
 
 // The stage of the binding's attempt whose span holds `ts`, latest start
 // first; else `unattributed`.
-function stageAt(spans: StageSpan[], binding: SessionBinding, ts: string) {
+// The binding fields usage reads.
+type UsageBinding = Pick<
+  SessionBinding,
+  "slot" | "taskId" | "role" | "attempt"
+>;
+
+function stageAt(spans: StageSpan[], binding: UsageBinding, ts: string) {
   const holding = spans
     .filter(
       (s) =>
@@ -43,7 +49,7 @@ function stageAt(spans: StageSpan[], binding: SessionBinding, ts: string) {
 // spans carry them. Returns how many points were added.
 export function recordUsage(
   store: Store,
-  binding: SessionBinding,
+  binding: UsageBinding,
   rows: unknown,
   trace: Trace = {},
 ) {
