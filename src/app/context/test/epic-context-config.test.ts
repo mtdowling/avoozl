@@ -1,4 +1,3 @@
-// @ts-nocheck: typing debt
 // The machine epicContext block (epic-context ec-1.2): what loads, what is
 // refused naming the key, where the block may live, and who may set it.
 import assert from "node:assert/strict";
@@ -16,7 +15,16 @@ import { OPERATIONS } from "../../api/operation-table.ts";
 import { mcpRefusal, cliRefusal } from "../../mcp/mcp-policy.ts";
 import { temporaryDirectory } from "../../test/temporary.ts";
 
-const good = () => ({
+// The block as a test edits it: any key may be set to a wrong value.
+interface Block {
+  repos?: unknown;
+  reads?: unknown;
+  contentSets?: unknown;
+  mcp: Record<string, Record<string, unknown>>;
+  [key: string]: unknown;
+}
+
+const good = (): Block => ({
   repos: ["acme/*", "research"],
   reads: ["~/notes/acme-widgets"],
   mcp: {
@@ -29,7 +37,7 @@ const good = () => ({
   contentSets: ["acme-terms"],
 });
 
-const refused = (edit, pattern) => {
+const refused = (edit: (block: Block) => unknown, pattern: RegExp) => {
   const block = good();
   edit(block);
   assert.throws(() => validateEpicContext(block, "epicContext"), pattern);
